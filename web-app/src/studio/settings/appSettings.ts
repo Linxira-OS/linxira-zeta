@@ -14,10 +14,13 @@ import { useCallback, useSyncExternalStore } from "react";
 export type AppLanguage = "system" | "zh" | "en";
 export type AppTheme = "light" | "dark";
 export type InfoDensity = "compact" | "standard" | "cozy";
+export type AgentRosterDensity = "standard" | "minimal";
 export type ToolActivityDetail = "full" | "concise" | "hidden";
 export type StartupPage = "home" | "workbench" | "last";
 export type StreamingCadenceHz = 30 | 60 | 90 | 120;
 export type ConversationWidthMode = "standard" | "wide" | "full" | "custom";
+/** Explorer 文件图标着色：`cat` 按类型着色，`tri` 全灰阶只留敏感文件警示。 */
+export type FileTypePalette = "cat" | "tri";
 
 export const CONVERSATION_WIDTH_MODES: readonly ConversationWidthMode[] = ["standard", "wide", "full", "custom"];
 export const CONVERSATION_WIDTH_LIMITS = { min: 640, max: 1440, step: 32 } as const;
@@ -27,6 +30,9 @@ export interface AppSettings {
   readonly language: AppLanguage;
   readonly theme: AppTheme;
   readonly density: InfoDensity;
+  readonly agentRosterDensity: AgentRosterDensity;
+  /** 文件图标着色；`tri` 走三通道灰阶，写 `data-palette="tri"`。 */
+  readonly fileTypePalette: FileTypePalette;
   readonly conversationWidthMode: ConversationWidthMode;
   /** 自定义阅读列最大宽度；切换预设时保留。 */
   readonly conversationCustomWidth: number;
@@ -50,6 +56,8 @@ export interface AppSettings {
   readonly notifyErrors: boolean;
   readonly notifyConfirmations: boolean;
   readonly notifyLongTasks: boolean;
+  readonly dictationDeviceId: string;
+  readonly dictationToggleShortcut: string;
   readonly showThinkingSummary: boolean;
   readonly showToolIntent: boolean;
   /** 预留：对话内 Token 用量视图尚未实现，控件显示「尚未接入」。 */
@@ -62,6 +70,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   language: "system",
   theme: "dark",
   density: "standard",
+  agentRosterDensity: "standard",
+  fileTypePalette: "cat",
   conversationWidthMode: "standard",
   conversationCustomWidth: 1024,
   uiFontFamily: "",
@@ -82,6 +92,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   notifyErrors: true,
   notifyConfirmations: true,
   notifyLongTasks: false,
+  dictationDeviceId: "",
+  dictationToggleShortcut: "",
   showThinkingSummary: true,
   showToolIntent: true,
   showTokenUsage: false,
@@ -92,6 +104,7 @@ const APP_SETTINGS_STORAGE_KEY = "zeta.appSettings";
 const LANGUAGES: ReadonlyArray<AppLanguage> = ["system", "zh", "en"];
 const THEMES: ReadonlyArray<AppTheme> = ["light", "dark"];
 const DENSITIES: ReadonlyArray<InfoDensity> = ["compact", "standard", "cozy"];
+const FILE_TYPE_PALETTES: ReadonlyArray<FileTypePalette> = ["cat", "tri"];
 const TOOL_ACTIVITY: ReadonlyArray<ToolActivityDetail> = ["full", "concise", "hidden"];
 const STARTUP_PAGES: ReadonlyArray<StartupPage> = ["home", "workbench", "last"];
 const STREAMING_CADENCE_HZ: ReadonlyArray<StreamingCadenceHz> = [30, 60, 90, 120];
@@ -127,6 +140,8 @@ function parseStoredSettings(raw: string | null): AppSettings {
       language: pick(value.language, LANGUAGES) ?? DEFAULT_APP_SETTINGS.language,
       theme: pick(value.theme, THEMES) ?? DEFAULT_APP_SETTINGS.theme,
       density: pick(value.density, DENSITIES) ?? DEFAULT_APP_SETTINGS.density,
+      agentRosterDensity: pick(value.agentRosterDensity, ["standard", "minimal"] as const) ?? DEFAULT_APP_SETTINGS.agentRosterDensity,
+      fileTypePalette: pick(value.fileTypePalette, FILE_TYPE_PALETTES) ?? DEFAULT_APP_SETTINGS.fileTypePalette,
       conversationWidthMode: pick(value.conversationWidthMode, CONVERSATION_WIDTH_MODES) ?? DEFAULT_APP_SETTINGS.conversationWidthMode,
       conversationCustomWidth: normalizeConversationCustomWidth(value.conversationCustomWidth),
       uiFontFamily: typeof value.uiFontFamily === "string" ? value.uiFontFamily : "",
@@ -147,6 +162,8 @@ function parseStoredSettings(raw: string | null): AppSettings {
       notifyErrors: pickBoolean(value.notifyErrors) ?? DEFAULT_APP_SETTINGS.notifyErrors,
       notifyConfirmations: pickBoolean(value.notifyConfirmations) ?? DEFAULT_APP_SETTINGS.notifyConfirmations,
       notifyLongTasks: pickBoolean(value.notifyLongTasks) ?? DEFAULT_APP_SETTINGS.notifyLongTasks,
+      dictationDeviceId: typeof value.dictationDeviceId === "string" ? value.dictationDeviceId : "",
+      dictationToggleShortcut: typeof value.dictationToggleShortcut === "string" ? value.dictationToggleShortcut : "",
       showThinkingSummary: pickBoolean(value.showThinkingSummary) ?? DEFAULT_APP_SETTINGS.showThinkingSummary,
       showToolIntent: pickBoolean(value.showToolIntent) ?? DEFAULT_APP_SETTINGS.showToolIntent,
       showTokenUsage: pickBoolean(value.showTokenUsage) ?? DEFAULT_APP_SETTINGS.showTokenUsage,
@@ -254,52 +271,6 @@ export interface LayoutMemory {
   readonly btwCapY: number;
 }
 
-const LAYOUT_MEMORY_PREFIX = "zeta.layoutMemory.";
-
-function layoutScopeKey(scope: string): string | undefined {
-  return /^[\w:.-]{1,96}$/u.test(scope) ? `${LAYOUT_MEMORY_PREFIX}${scope}` : undefined;
-}
-
-export function readLayoutMemory(scope: string): Partial<LayoutMemory> | undefined {
-  const key = layoutScopeKey(scope);
-  if (key === undefined) return undefined;
-  try {
-    const raw = readStorage(key);
-    if (!raw) return undefined;
-    const value = JSON.parse(raw) as Record<string, unknown>;
-    const memory = {
-      ...(typeof value.collapsed === "boolean" ? { collapsed: value.collapsed } : {}),
-      ...(typeof value.sidebarWidth === "number" && Number.isFinite(value.sidebarWidth) ? { sidebarWidth: value.sidebarWidth } : {}),
-      ...(typeof value.splitRatio === "number" && Number.isFinite(value.splitRatio) ? { splitRatio: value.splitRatio } : {}),
-      ...(typeof value.sideOpen === "boolean" ? { sideOpen: value.sideOpen } : {}),
-      ...(typeof value.bottomOpen === "boolean" ? { bottomOpen: value.bottomOpen } : {}),
-      ...(typeof value.bottomVisible === "boolean" ? { bottomVisible: value.bottomVisible } : {}),
-      ...(typeof value.sideTab === "string" ? { sideTab: value.sideTab } : {}),
-      ...(typeof value.bottomTab === "string" ? { bottomTab: value.bottomTab } : {}),
-      ...(typeof value.explorerOpen === "boolean" ? { explorerOpen: value.explorerOpen } : {}),
-      ...(typeof value.panelWidth === "number" && Number.isFinite(value.panelWidth) ? { panelWidth: value.panelWidth } : {}),
-      ...(typeof value.bottomHeight === "number" && Number.isFinite(value.bottomHeight) ? { bottomHeight: value.bottomHeight } : {}),
-      ...(typeof value.btwOpen === "boolean" ? { btwOpen: value.btwOpen } : {}),
-      ...(typeof value.btwPlacement === "string" ? { btwPlacement: value.btwPlacement } : {}),
-      ...(typeof value.btwMinimized === "boolean" ? { btwMinimized: value.btwMinimized } : {}),
-      ...(typeof value.btwX === "number" && Number.isFinite(value.btwX) ? { btwX: value.btwX } : {}),
-      ...(typeof value.btwY === "number" && Number.isFinite(value.btwY) ? { btwY: value.btwY } : {}),
-      ...(typeof value.btwW === "number" && Number.isFinite(value.btwW) ? { btwW: value.btwW } : {}),
-      ...(typeof value.btwH === "number" && Number.isFinite(value.btwH) ? { btwH: value.btwH } : {}),
-      ...(typeof value.btwCapX === "number" && Number.isFinite(value.btwCapX) ? { btwCapX: value.btwCapX } : {}),
-      ...(typeof value.btwCapY === "number" && Number.isFinite(value.btwCapY) ? { btwCapY: value.btwCapY } : {}),
-    };
-    return Object.keys(memory).length > 0 ? memory as Partial<LayoutMemory> : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function writeLayoutMemory(scope: string, memory: LayoutMemory): void {
-  const key = layoutScopeKey(scope);
-  if (key === undefined) return;
-  writeStorage(key, JSON.stringify(memory));
-}
 
 /* ---------------------------------------------------------------
  * 启动行为辅助：上次访问页面（startupPage = "last" 时读取）。

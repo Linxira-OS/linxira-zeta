@@ -20,6 +20,8 @@ export interface EvalPreludeContext {
 	session: ToolSession;
 	/** Tool-call-shaped identifier assigned to this individual host invocation. */
 	toolCallId: string;
+	/** Exact outer agent eval invocation; absent for calls without one. */
+	outerToolCallId?: string;
 	/** Cancellation signal for the active eval cell. */
 	signal?: AbortSignal;
 	/**

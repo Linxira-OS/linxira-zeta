@@ -8,13 +8,15 @@
  *
  * The contract carries only public facts — opaque identities, epochs,
  * versions and pre-redacted text. It never contains Bridge tokens, private
- * endpoints, PIDs, process handles or session/workspace paths.
+ * transport endpoints, process handles or session/workspace paths. Project
+ * service rows explicitly expose their PID and declared public preview URL.
  */
 
 import type {
   CapabilityManifest,
   OperatorStateSnapshot,
 } from "@linxiraos/studio-protocol";
+
 
 import type { OpaqueCursor } from "./conversation.js";
 import type {
@@ -26,6 +28,9 @@ import type {
   ThreadId,
   WorkspaceId,
 } from "./ids.js";
+import type { ClientContextScope } from "./context.js";
+
+
 import type {
   PublicAuthorityIdentity,
   ResidentsReadModel,
@@ -114,6 +119,9 @@ export interface CommandOptions {
  * interface in P1/P2. Envelopes are the semantic request/response shapes.
  */
 export interface ClientTransport {
+  readonly supportsContexts?: boolean;
+  /** Separate per-conversation projection when the Host implements it. */
+  openContext?(scope: ClientContextScope): Promise<ClientTransport>;
   bootstrap(): Promise<ClientBootstrap>;
   query<TName extends QueryName>(
     request: ClientQueryRequest<TName>,
@@ -131,16 +139,15 @@ export interface ClientTransport {
  * and progress through the accepted/receipt lifecycle as ClientEvents arrive.
  */
 export interface StudioClient {
-  bootstrap(): Promise<ClientBootstrap>;
-  query<TName extends QueryName>(name: TName, input: QueryInput<TName>): Promise<QueryResult<TName>>;
-  command<TName extends CommandName>(
-    name: TName,
-    input: CommandInput<TName>,
-    options?: CommandOptions,
-  ): Promise<CommandHandle<TName>>;
-  subscribe(scope: SubscriptionScope, listener: (event: ClientEvent) => void): Unsubscribe;
-  close(): Promise<void>;
+	readonly supportsContexts?: boolean;
+	openContext?(scope: ClientContextScope): Promise<StudioClient>;
+	bootstrap(): Promise<ClientBootstrap>;
+	query<TName extends QueryName>(name: TName, input: QueryInput<TName>): Promise<QueryResult<TName>>;
+	command<TName extends CommandName>(name: TName, input: CommandInput<TName>, options?: CommandOptions): Promise<CommandHandle<TName>>;
+	subscribe(scope: SubscriptionScope, listener: (event: ClientEvent) => void): Unsubscribe;
+	close(): Promise<void>;
 }
+
 
 // Session thinking selectors are protocol facts; re-exported so transport
 // adapters can validate them without depending on studio-protocol directly.
@@ -193,6 +200,11 @@ export * from "./git.js";
 
 export type { ContextViewIndex, ContextViewResultMap, ContextViewOperation, ContextCategoryId, ContextEntrySummary } from "@linxiraos/studio-protocol";
 export type { UpgradeOperation, UpgradeResultMap, BtwTopicSummary, BtwHistoryTurn, ForeignSessionSummary, ForeignSource, RuntimeAuthProvider, ModelMentionInfo } from "@linxiraos/studio-protocol";
+
 export * from "./model-adaptation.js";
 
 export * from "./team.js";
+export * from "./context.js";
+export * from "./files.js";
+export * from "./github.js";
+export * from "./time-travel.js";

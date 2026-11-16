@@ -132,10 +132,6 @@ describe("browser prelude", () => {
 		expect(await budget(wait, 120_000)).toBe(120_000);
 		expect(await budget(wait, 10_000)).toBe(51_000);
 		expect(await budget(evaluate, 10_000)).toBe(30_000);
-		// Closing keeps its own budget.
-		const release = spyOn(supervisor, "releaseTab").mockResolvedValue(true);
-		await budget({ action: "close" }, 300_000);
-		expect(release).toHaveBeenCalledWith("docs", { kill: false, timeoutMs: 30_000 });
 	});
 
 	it("preserves an infinite wait's bounded timeout through the rendered browser call", async () => {

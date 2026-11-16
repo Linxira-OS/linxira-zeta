@@ -15,7 +15,7 @@ import type {
   StudioClient,
 } from "@linxiraos/studio-contract";
 import type { OperatorCommandManifest } from "@linxiraos/studio-protocol";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { ToastHost } from "./ToastHost";
 import { tabPaneClass, tabPaneRole, useOverlappingTabs } from "./pageTransition";
 import { SlidingTabs } from "./SlidingTabs";
@@ -59,16 +59,13 @@ async function loadPluginPageGroups(client: StudioClient): Promise<readonly Plug
   }
 }
 
-export const CAP_INTENT_KEY = "zeta.capIntent";
-
-export type CapTab = "skills" | "plugins" | "mcp" | "slash" | "ida" | "resources";
-
-type CapIntent = { tab?: CapTab; name?: string };
+import { takeCapIntent as takeIntent, type CapTab } from "./pageIntents";
+export { CAP_INTENT_KEY, setCapIntent, type CapTab } from "./pageIntents";
 
 /** Translation function signature shared by module-scope display builders. */
 type TFunc = (key: string, params?: TranslationParams) => string;
 
-const TABS: ReadonlyArray<readonly [CapTab, string]> = [
+const TABS: ReadonlyArray<readonly [CapTab, IconName]> = [
   ["skills", "book"],
   ["plugins", "package"],
   ["mcp", "plug"],
@@ -104,28 +101,6 @@ function slashToPreview(t: TFunc, command: StudioSlashCommand): PreviewSlash {
 
 function slashBareName(name: string): string {
   return name.startsWith("/") ? name.slice(1) : name;
-}
-
-export function setCapIntent(tab: CapTab, name?: string): void {
-  try {
-    sessionStorage.setItem(CAP_INTENT_KEY, JSON.stringify({ tab, name: name ?? null }));
-  } catch {
-    /* sessionStorage may be blocked; navigation still opens the page. */
-  }
-}
-
-function takeIntent(): CapIntent | null {
-  try {
-    const raw = sessionStorage.getItem(CAP_INTENT_KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(CAP_INTENT_KEY);
-    const value = JSON.parse(raw) as { tab?: unknown; name?: unknown };
-    const tab = TABS.some(([id]) => id === value.tab) ? value.tab as CapTab : undefined;
-    const name = typeof value.name === "string" ? value.name : undefined;
-    return { ...(tab ? { tab } : {}), ...(name ? { name } : {}) };
-  } catch {
-    return null;
-  }
 }
 
 function previewSkills(): SkillPreview[] {
@@ -183,7 +158,7 @@ function Stepper({ loaded, session, configuredOnly }: { loaded: boolean; session
   );
 }
 
-function Provide({ icon, label, count, items }: { icon: string; label: string; count: number; items: string[] }) {
+function Provide({ icon, label, count, items }: { icon: IconName; label: string; count: number; items: string[] }) {
   const { t } = useI18n();
   return (
     <div className="cap-provide">
@@ -252,7 +227,7 @@ export function CapabilitiesPage({
   onPinCompleted?: () => Promise<void>;
 }) {
   const { t } = useI18n();
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n(); const zh = resolvedLanguage === "zh";
   const [mcpView,setMcpView] = useState<"config"|"runtime">("config");
   const [commandsView,setCommandsView] = useState<"commands"|"templates">("commands");
@@ -435,7 +410,7 @@ export function CapabilitiesPage({
 
   const revealSkill = async (skill: SkillPreview) => {
     if (preview) {
-      toast(t("capabilities.demoOpenedDir"));
+      if (marks) toast(t("capabilities.demoOpenedDir"));
       return;
     }
     try {
@@ -449,7 +424,7 @@ export function CapabilitiesPage({
 
   const revealSkillRoot = async () => {
     if (preview) {
-      toast(t("capabilities.demoOpenedDir"));
+      if (marks) toast(t("capabilities.demoOpenedDir"));
       return;
     }
     try {
@@ -463,7 +438,7 @@ export function CapabilitiesPage({
 
   const refreshMcp = async (item: McpServerRecord | PreviewMcp) => {
     if (preview) {
-      toast(t("capabilities.demoRefreshed"));
+      if (marks) toast(t("capabilities.demoRefreshed"));
       return;
     }
     if ("status" in item && item.status === "shadowed") return;
@@ -482,7 +457,7 @@ export function CapabilitiesPage({
   const testMcp = async (item: McpServerRecord | PreviewMcp) => {
     if (preview) {
       const tools = "tools" in item && typeof item.tools === "number" ? item.tools : 0;
-      toast(t("capabilities.demoConnected", { count: tools }));
+      if (marks) toast(t("capabilities.demoConnected", { count: tools }));
       return;
     }
     if ("status" in item && item.status === "shadowed") return;
@@ -520,7 +495,7 @@ export function CapabilitiesPage({
 
   const runSlash = async (row: PreviewSlash) => {
     if (preview) {
-      toast(t("capabilities.demoRanSlash", { name: row.name }));
+      if (marks) toast(t("capabilities.demoRanSlash", { name: row.name }));
       return;
     }
     const command = lookupSlashCommand(slashBareName(row.name), slashCatalog);
@@ -1118,15 +1093,16 @@ export function CapabilitiesPage({
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 18 }}>{t("capabilities.pageTitle")}</h1>
-          <p className="muted small">{t("capabilities.pageSubtitle")}</p>
-          {preview || loadError ? (
-            <p className="tiny muted">{preview ? t("capabilities.previewSubtitle") : loadError}</p>
+          <p className="muted small">{tab === "ida" || tab === "resources" ? (zh ? "管理技能、工具、数据库与会话资源。" : "Manage skills, tools, databases and session resources.") : t("capabilities.pageSubtitle")}</p>
+          {(preview && marks) || loadError ? (
+            <p className="tiny muted">{preview && marks ? t("capabilities.previewSubtitle") : loadError}</p>
           ) : null}
         </div>
         <span className="spacer" />
-        <button type="button" className="btn outline" onClick={() => void revealSkillRoot()}>
+        {tab === "skills" || tab === "plugins" ? <><button type="button" className="btn outline" onClick={() => void revealSkillRoot()}>
           <Icon name="folder" extra="sm" />{t("capabilities.openSourceDir")}
         </button>
+        </> : null}
       </div>
       <ToastHost
         message={mcpTesting.size === 0 ? flash : t("capabilities.mcpTesting", { name: [...mcpTesting].join(", ") })}
@@ -1146,7 +1122,7 @@ export function CapabilitiesPage({
             label: t(TAB_LABELS[id]),
             buttonId: `capTab-${id}`,
             panelId: `cap-${id}`,
-            badge: id === "ida" || (!preview && (id === "mcp" || id === "slash")) ? null : <span className="cnt">{counts[id]}<span className="sr-only"> {t("capabilities.catItemCount", { count: counts[id] })}</span></span>,
+            badge: id === "ida" || id === "resources" || (!preview && (id === "mcp" || id === "slash")) ? null : <span className="cnt">{counts[id]}<span className="sr-only"> {t("capabilities.catItemCount", { count: counts[id] })}</span></span>,
           }))}
         />
         <div className="cap-main" id="capMain">

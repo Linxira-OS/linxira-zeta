@@ -8,7 +8,8 @@
  *
  * The contract carries only public facts — opaque identities, epochs,
  * versions and pre-redacted text. It never contains Bridge tokens, private
- * endpoints, PIDs, process handles or session/workspace paths.
+ * transport endpoints, process handles or session/workspace paths. Project
+ * service rows explicitly expose their PID and declared public preview URL.
  */
 
 import type { CapabilityManifest, OperatorStateSnapshot } from "../protocol/index.js";
@@ -200,3 +201,6 @@ export type {
 export * from "./model-adaptation.js";
 
 export * from "./team.js";
+export * from "./files.js";
+export * from "./time-travel.js";
+export type { ComputerQueryInputMap, ComputerQueryResultMap } from "./computer.js";

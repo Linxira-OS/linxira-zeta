@@ -111,7 +111,7 @@ function concludingReplyText(segments: readonly AssistantSegment[]): Extract<Ass
   return last;
 }
 
-function MessageCopyButton({ text }: { text: string }) {
+export function MessageCopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -543,6 +543,11 @@ export const ConversationItemView = memo(function ConversationItemView({
   planLink?: PlanCreatedLink;
 }) {
   const { settings: appSettings } = useAppSettings();
+  const { resolvedLanguage } = useI18n();
+  if (row.type === "extension") return <div className="ev ev-extension" data-item-id={row.itemId}>
+    <div className="ev-head"><span className="who">{resolvedLanguage === "zh" ? "扩展通知" : "Extension notice"}</span><span>{formatTime(row.createdAt)}</span></div>
+    <MessageBody text={row.text} copyText={row.text} />
+  </div>;
   if (row.type === "user") {
     const committed = isCommittedUserRow(row);
     const restore =

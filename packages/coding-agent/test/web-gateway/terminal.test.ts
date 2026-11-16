@@ -17,6 +17,7 @@ import {
 	RETAINED_EXITED_TERMINALS,
 	TerminalRingBuffer,
 	buildZetaIdeCommand,
+	commandSessionProgram,
 	controlFrame,
 	dropDeviceTerminalSockets,
 	handleTerminalCreate,
@@ -59,6 +60,9 @@ import { setResourceOwnership } from "../../src/server/web-gateway/binding-guard
 import { webGatewayFetch } from "../../src/server/web-gateway";
 import { setStudioHostForTest } from "../../src/server/studio-host/index.js";
 import { WebConfig } from "../../src/config/web-config";
+import { registerProject } from "../../src/resume";
+import { workspaceIdFor } from "../../src/server/studio-host/ops/workspace-id";
+import { closeSessionIndex } from "../../src/session/session-index";
 
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", CUSTOM_PROFILES_ENV];
 const savedEnv = new Map<string, string | undefined>();
@@ -83,6 +87,7 @@ afterEach(async () => {
 		if (saved === undefined) delete process.env[key];
 		else process.env[key] = saved;
 	}
+	closeSessionIndex();
 	savedEnv.clear();
 	refreshDirsFromEnv();
 	await Promise.all(cleanups.splice(0).map(fn => fn()));
@@ -1047,6 +1052,68 @@ describe("terminal ensure (P1 slots)", () => {
 		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
 		return cwd;
 	}
+
+	test("command terminals use a separate script process in the selected workspace and reattach only the same command", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		await registerProject(cwd);
+		const shell = process.platform === "win32" ? "powershell" : "sh";
+		const command = { shell, text: "echo first\necho second" };
+		const input = { workspaceId: workspaceIdFor(cwd), instanceId: "command-test", command, cols: 112, rows: 35 };
+		const created = await ensureOk(input);
+		expect(fakePtys[0].spec.cwd).toBe(cwd);
+		expect(fakePtys[0].spec.args.at(-1)).toBe(shell === "powershell" ? Buffer.from(command.text, "utf16le").toString("base64") : command.text);
+		expect(fakePtys[0].spec.cols).toBe(112);
+		expect(fakePtys[0].spec.rows).toBe(35);
+		expect(fakePtys[0].written).toEqual([]);
+		expect((await ensureOk(input)).id).toBe(created.id);
+		const conflict = await ensureTerminal({ ...input, command: { shell, text: "echo different" } });
+		expect(conflict.status).toBe(409);
+		expect(fakePtys).toHaveLength(1);
+		const outside = await ensureTerminal({ ...input, cwd: await makeCwd() });
+		expect(outside.status).toBe(400);
+	});
+
+	test("a bound device spawns only in its canonical workspace and cannot override it with cwd", async () => {
+		const agentDir = await setup();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		installFakePty();
+		const cwd = await makeCwd(), foreign = await makeCwd();
+		await registerProject(cwd);
+		await registerProject(foreign);
+		const workspaceId = workspaceIdFor(cwd);
+		const device = await registry.issue({ scopes: ["write"], binding: { workspaceId } });
+		setResourceOwnership({ workspaceOfSession: async () => undefined, workspaceOfCwd: async value => workspaceIdFor(value) });
+		const send = (body: unknown) => webGatewayFetch(new Request("http://127.0.0.1/api/terminal/ensure", { method: "POST", headers: { authorization: `Bearer ${device.token}`, "content-type": "application/json" }, body: JSON.stringify(body) }), "192.168.1.5");
+		expect((await send({ workspaceId: workspaceIdFor(foreign) })).status).toBe(403);
+		expect((await send({ workspaceId, cwd: foreign })).status).toBe(400);
+		expect(fakePtys).toHaveLength(0);
+		const allowed = await send({ workspaceId, instanceId: "bound-shell" });
+		expect(allowed.status).toBe(200);
+		expect(fakePtys[0].spec.cwd).toBe(cwd);
+	});
+
+	test("missing command shells never substitute a different shell", () => {
+		const command = { shell: "zsh" as const, text: "echo strict" };
+		const ctx = { platform: "linux" as const, env: { PATH: "/bin" }, exists: () => false, now: () => 0 };
+		expect(commandSessionProgram(command, ctx, [])).toBeNull();
+		const program = commandSessionProgram(command, { ...ctx, exists: file => file === "/bin/zsh" }, []);
+		expect(program?.command).toBe("/bin/zsh");
+		expect(program?.args).toEqual(["-lc", command.text]);
+	});
+
+	test("a command cannot reinterpret a profile or malformed payload as an interactive terminal", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		for (const command of [{ shell: "cmd", text: "echo unsafe" }, { shell: "sh", text: "\0" }, { shell: "sh", text: "" }]) {
+			expect((await ensureTerminal({ cwd, command })).status).toBe(400);
+		}
+		expect((await ensureTerminal({ cwd, command: { shell: "sh", text: "echo test" }, profileId: "anything" })).status).toBe(400);
+		expect(fakePtys).toHaveLength(0);
+	});
 
 	test("reopening a slot reattaches the same PTY and spawns nothing", async () => {
 		await setup();

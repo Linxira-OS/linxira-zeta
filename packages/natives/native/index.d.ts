@@ -31,6 +31,13 @@ export declare class AudioPlayback {
 /** Persistent, serialized native desktop capture/input/accessibility session. */
 export declare class DesktopSession {
   constructor(options?: DesktopSessionOptions | undefined | null)
+  /** Positive capability probe. Older bindings return no such property. */
+  get observationOnly(): boolean
+  /**
+   * A cancellation barrier that queues behind native input without holding or
+   * waking the display.
+   */
+  settle(): Promise<undefined>
   /**
    * Asks the worker when it is idle, so permissions are read live. While
    * another operation holds the worker, answers from the snapshot of the
@@ -1692,6 +1699,25 @@ export interface DesktopMenuItem {
 export interface DesktopObservation {
   capture: DesktopCapture
   accessibility: AxSnapshot
+  /**
+   * Passive observer-local nodes from the same AX walk; never executable
+   * refs.
+   */
+  nodes?: Array<DesktopObservationNode>
+  /**
+   * Frame pixel bounds are supplied only when native capture geometry and the
+   * AX window agree.
+   */
+  coordinateSpace?: string
+}
+
+export interface DesktopObservationNode {
+  id: string
+  role: string
+  name: string
+  enabled: boolean
+  bounds?: CaptureRegion
+  children: Array<DesktopObservationNode>
 }
 
 export interface DesktopPoint {
@@ -1709,6 +1735,8 @@ export interface DesktopScreenState {
 }
 
 export interface DesktopSessionOptions {
+  /** Passive reads: no display hold, wake-up, input listener or mutation. */
+  observationOnly?: boolean
   display?: string
   /**
    * Sessions created with the same key share one physical-Escape stop

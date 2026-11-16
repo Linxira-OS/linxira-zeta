@@ -75,10 +75,14 @@ import {
 import { registerServeInstanceUrls } from "./web-gateway/identity";
 import { resolveStudioWebAppDir, serveStudioWebApp } from "./studio-web-app";
 import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
+import { shutdownStudioEvaluations } from "./studio-host/services/evaluation-runtime";
+import { shutdownComputerPrivateResources } from "./studio-host/services/computer-runtime";
+import { shutdownPredictionPrivateResources } from "./studio-host/services/prediction-runtime";
 import { startRpcSession } from "./web-gateway/agents";
 import { serveSessionClient } from "./web-gateway/desktop";
 import { getSharedModelRegistry } from "./web-gateway/auth";
 import { setBotSessionDispose } from "./web-gateway/running-sessions";
+import { studioPrivateResources } from "./studio-host/private-resources.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -554,6 +558,7 @@ export class ZetaServer {
 					// Only a desktop-spawned instance has an open bridge; a reusing
 					// shell adopts this to validate the tokens the gateway issues.
 					desktopOpenSecret: process.env.ZETA_DESKTOP_OPEN_SECRET || undefined,
+					studioPrivate: await studioPrivateResources(),
 				});
 			}
 
@@ -578,6 +583,8 @@ export class ZetaServer {
 		// removes our own record, never a successor's.
 		registerServeInstanceUrls(null);
 		clearServeRegistration();
+		shutdownPredictionPrivateResources();
+		await Promise.all([shutdownStudioEvaluations(), shutdownComputerPrivateResources()]);
 
 		await this.#stopChannelRuntime();
 		registerRestartChannels(null);

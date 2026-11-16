@@ -362,6 +362,46 @@ impl FrameGeometry {
 		}
 	}
 
+	/// Same captured window origin and extent, not merely the dimensions
+	/// accepted for future input.
+	pub(crate) fn observation_matches(&self, window: &DesktopWindow) -> bool {
+		matches!(self.kind, FrameKind::Window { .. })
+			&& self.regions.first().is_some_and(|region| {
+				region.id == window.id
+					&& region.x == f64::from(window.x)
+					&& region.y == f64::from(window.y)
+					&& region.width == f64::from(window.width)
+					&& region.height == f64::from(window.height)
+			})
+	}
+
+	/// Inverse of the recorded input transform. Rectangles crossing differently
+	/// scaled regions are omitted.
+	pub(crate) fn observation_bounds(&self, bounds: CaptureRegion) -> Option<CaptureRegion> {
+		if ![bounds.x, bounds.y, bounds.width, bounds.height]
+			.into_iter()
+			.all(f64::is_finite)
+			|| bounds.width <= 0.0
+			|| bounds.height <= 0.0
+		{
+			return None;
+		}
+		let region = self.regions.iter().find(|region| {
+			region.width > 0.0
+				&& region.height > 0.0
+				&& bounds.x >= region.x
+				&& bounds.y >= region.y
+				&& bounds.x + bounds.width <= region.x + region.width
+				&& bounds.y + bounds.height <= region.y + region.height
+		})?;
+		Some(CaptureRegion {
+			x:      region.pixel_x + (bounds.x - region.x) * region.pixel_width / region.width,
+			y:      region.pixel_y + (bounds.y - region.y) * region.pixel_height / region.height,
+			width:  bounds.width * region.pixel_width / region.width,
+			height: bounds.height * region.pixel_height / region.height,
+		})
+	}
+
 	fn scaled(&mut self, ratio_x: f64, ratio_y: f64, width: u32, height: u32) {
 		for region in &mut self.regions {
 			region.pixel_x *= ratio_x;
@@ -550,6 +590,24 @@ mod tests {
 			assert_eq!(f.map_point(200.0 * scale, 100.0 * scale, None).unwrap(), (300.0, 150.0));
 		}
 	}
+	#[test]
+	fn observation_bounds_use_captured_scale_and_reject_moved_windows() {
+		let original = window(10, 20);
+		let mut frame = FrameGeometry::for_window(&original, 800, 600);
+		frame.scaled(0.5, 0.5, 400, 300);
+		let bounds = CaptureRegion { x: 110.0, y: 70.0, width: 40.0, height: 20.0 };
+		assert_eq!(
+			frame.observation_bounds(bounds),
+			Some(CaptureRegion { x: 100.0, y: 50.0, width: 40.0, height: 20.0 })
+		);
+		assert!(frame.observation_matches(&original));
+		assert!(
+			!frame.observation_matches(&window(11, 20)),
+			"input can reanchor, but a historical AX overlay cannot"
+		);
+		assert_eq!(frame.observation_bounds(CaptureRegion { x: -1.0, ..bounds }), None);
+	}
+
 	#[test]
 	fn moved_window_is_reanchored() {
 		let f = FrameGeometry::for_window(&window(10, 20), 800, 600);

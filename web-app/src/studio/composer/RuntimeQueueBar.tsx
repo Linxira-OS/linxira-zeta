@@ -32,7 +32,7 @@ export function RuntimeQueueBar({
   running: boolean;
   showDemo?: boolean;
 }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const [result, setResult] = useState<RuntimeQueueResult>({
@@ -69,6 +69,7 @@ export function RuntimeQueueBar({
       )
     );
   const supported = can("session.queue.get");
+  const hasCompaction = result.entries.some(entry => entry.kind === "compaction");
   async function invoke<K extends keyof RuntimeQueueResultMap>(
     kind: K,
     input: CommandInput<K>,
@@ -124,7 +125,7 @@ export function RuntimeQueueBar({
     }
     void refresh();
     const timer =
-      running || pending > 0
+      running || pending > 0 || hasCompaction
         ? setInterval(() => void refresh(), 1500)
         : undefined;
     const onVisible = () => {
@@ -136,7 +137,7 @@ export function RuntimeQueueBar({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [client, sessionId, preview, supported, running, pending]);
+  }, [client, sessionId, preview, supported, running, pending, hasCompaction]);
   async function act(
     kind:
       | "session.queue.edit"
@@ -169,7 +170,8 @@ export function RuntimeQueueBar({
                   },
                 ],
         );
-        next = { entries, total: entries.length, truncated: false };
+        const restored = entry.kind === "compaction" && kind === "session.queue.entry.remove" ? entries.map(row => { const { heldFor, ...rest } = row; return heldFor === "compaction" ? { ...rest, state: "queued" as const } : row; }) : entries;
+        next = { entries: restored, total: restored.length, truncated: false };
       } else {
         const common = {
           sessionId: sessionId!,
@@ -207,7 +209,7 @@ export function RuntimeQueueBar({
       }
     }
   }
-  if (!supported || (!result.entries.length && !error && !editing)) return null;
+  if (!supported || (!result.entries.length && !error && !result.compactionError && !editing)) return null;
   return (
     <div
       ref={host}
@@ -222,18 +224,20 @@ export function RuntimeQueueBar({
           onClick={() => setOpen(!open)}
         >
           <Icon name="queue" extra="sm" />
-          <span className="qs-title">
-            {zh ? "已提交" : "Submitted"} ×{result.total}
-          </span>
+          <span className="qs-title">{zh ? "已提交" : "Submitted"}</span>
+          <span className="qs-count">{result.total}</span>
           <span className="qs-note">
             {zh ? "由 Runtime 排队和执行" : "Queued and executed by Runtime"}
           </span>
-          {preview ? (
+          {preview && marks ? (
             <span className="chip gray xs">{zh ? "演示" : "Demo"}</span>
           ) : null}
+          <span className="qs-toggle" aria-hidden="true">
+            <Icon name={open ? "chevron-d" : "chevron-u"} extra="sm" />
+          </span>
         </button>
       </div>
-      {error ? <p role="alert">{error}</p> : null}
+      {error || result.compactionError ? <p role="alert">{error || result.compactionError}</p> : null}
       {open ? (
         <div className="qs-list">
           {result.entries.map((entry) => (
@@ -251,7 +255,7 @@ export function RuntimeQueueBar({
                     </span>
                   ) : null}
                   <span>
-                    {entry.state === "held"
+                    {entry.kind === "compaction" ? zh ? "压缩任务" : "Compaction" : entry.heldFor === "compaction" ? zh ? "等待压缩" : "Waiting for compaction" : entry.state === "held"
                       ? zh
                         ? "中止后保留"
                         : "Held after stop"
@@ -271,7 +275,7 @@ export function RuntimeQueueBar({
                     {entry.state === "held" ? (
                       <button
                         className="btn small outline"
-                        disabled={busy || !can("session.queue.restore")}
+                        disabled={busy || hasCompaction || !can("session.queue.restore")}
                         onClick={() => void act("session.queue.restore", entry)}
                       >
                         {zh ? "恢复排队" : "Restore to queue"}
@@ -294,6 +298,7 @@ export function RuntimeQueueBar({
                       aria-label={zh ? "提升为纠偏" : "Promote to steering"}
                       disabled={
                         busy ||
+                        entry.kind === "compaction" ||
                         entry.state !== "queued" ||
                         entry.queue !== "followUp" ||
                         !can("session.queue.promote")
@@ -309,7 +314,7 @@ export function RuntimeQueueBar({
                       }
                       disabled={
                         busy ||
-                        entry.state === "inFlight" ||
+                        (entry.state === "inFlight" && entry.kind !== "compaction") ||
                         !can("session.queue.entry.remove")
                       }
                       onClick={() => void act("session.queue.entry.remove", entry)}

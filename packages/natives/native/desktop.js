@@ -9,6 +9,9 @@ let DesktopSession;
  */
 export function createDesktopSession(options) {
 	DesktopSession ??= adaptDesktopSession(loadNative().DesktopSession);
+	if (options?.observationOnly === true && (!Object.getOwnPropertyDescriptor(DesktopSession.prototype, "observationOnly")?.get || typeof DesktopSession.prototype.settle !== "function")) {
+		throw new Error("Passive desktop observation requires the source-matched native addon (missing observationOnly or settle); no input-enabled session was started");
+	}
 	return new DesktopSession(options);
 }
 

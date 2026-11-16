@@ -50,6 +50,7 @@ const NO_REPLY_SINK =
 export type { JsStatusEvent } from "./shared/types";
 
 export interface ToolBridgeOptions {
+	outerToolCallId?: string;
 	session: ToolSession;
 	signal?: AbortSignal;
 	/** The cell's `timeout` in ms, the budget of a prelude call that sets none (`EvalPreludeContext.cellTimeoutMs`). */
@@ -237,6 +238,7 @@ export async function callSessionTool(name: string, args: unknown, options: Tool
 				invokeEvalPrelude(request.name, request.parameters, {
 					session: options.session,
 					toolCallId,
+					outerToolCallId: options.outerToolCallId,
 					signal: options.signal,
 					cellTimeoutMs: options.cellTimeoutMs,
 					context: options.session.getToolContext?.(),

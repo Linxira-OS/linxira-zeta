@@ -42,6 +42,7 @@ import type { AppendOnlyContextManager } from "./append-only-context";
 import { agentPauseGate } from "./pause";
 import { isProviderRefusalMessage } from "./replay-policy";
 import { SentToolDefinitions } from "./sent-tool-definitions";
+import { identifyAgentMessage } from "./message-identity";
 import { Tokenizer } from "./tokenizer";
 import {
 	createAdditionalContextMessage,
@@ -423,6 +424,7 @@ export class Agent {
 	#tokenizer = new Tokenizer(this.#state.model);
 	#listeners = new Set<(e: AgentEvent) => void>();
 	#queueListeners = new Set<() => void>();
+	#streamingAssistantIdentity: object | undefined;
 	#pauseListeners = new Set<(paused: boolean) => void>();
 	#abortController?: AbortController;
 	#convertToLlm: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
@@ -2372,6 +2374,15 @@ export class Agent {
 	}
 
 	#emit(e: AgentEvent) {
+		if (e.type === "message_start" || e.type === "message_update" || e.type === "message_end") {
+			if (e.message.role === "assistant") {
+				if (e.type === "message_start") this.#streamingAssistantIdentity = identifyAgentMessage(e.message);
+				else identifyAgentMessage(e.message, this.#streamingAssistantIdentity);
+				if (e.type === "message_end") this.#streamingAssistantIdentity = undefined;
+			} else {
+				identifyAgentMessage(e.message);
+			}
+		}
 		for (const listener of this.#listeners) {
 			try {
 				const result = listener(e) as unknown;

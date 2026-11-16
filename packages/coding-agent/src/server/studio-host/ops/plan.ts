@@ -29,19 +29,16 @@
  * - `mode.vibe.enter` / `mode.vibe.exit` — C class in the host spec: Zeta has
  *   no vibe backend.
  *
- * The contract's mode inputs carry no session id, so every handler targets the
- * serve process's shared session (`GET /api/agent/current`) — the session
- * `zetacode attach` and the default web chat drive. Command results are
- * `undefined`: the command transport acknowledges with 202 and the renderer
- * follows the session event feed, so synthesizing an `OperatorStateSnapshot`
- * here would be invented state.
+ * Sessionless mode operations use the same request-scoped conversation as
+ * core/session commands. Unscoped clients retain the existing default selection.
+ * Commands return no invented snapshot; the renderer re-reads current state.
  */
 import { isRecord, stringProperty } from "@linxiraos/pi-utils/type-guards";
 import type { CommandInput } from "../contract/index.js";
 import { gatewayJson, invalid, segment, unavailable } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
+import { currentSessionId } from "./session.js";
 
-const CURRENT_AGENT_ROUTE = "/api/agent/current";
 const PLAN_ROUTE = "/api/plan";
 
 /** Studio plan decision → Zeta `plan_approve` mode. `approve` is the keep alias. */
@@ -58,16 +55,9 @@ function textField(record: object, field: string): string | undefined {
 	return value === undefined || value === "" ? undefined : value;
 }
 
-/**
- * The serve process's shared session, resolved by the gateway. A missing
- * shared session is a gateway 404, which `gatewayJson` reports as
- * `unavailable`; an unreadable payload is refused here.
- */
+/** Plan operations use the same conversation selection as core/session commands. */
 async function sharedSessionId(): Promise<string> {
-	const payload = await gatewayJson<unknown>(CURRENT_AGENT_ROUTE);
-	const sessionId = isRecord(payload) ? textField(payload, "sessionId") : undefined;
-	if (sessionId === undefined) throw unavailable(`${CURRENT_AGENT_ROUTE} returned no session id`);
-	return sessionId;
+	return currentSessionId();
 }
 
 /**

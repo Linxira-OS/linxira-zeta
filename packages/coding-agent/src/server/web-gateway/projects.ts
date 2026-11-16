@@ -24,6 +24,7 @@ import {
 // Upstream v18.0.9 deleted src/utils/git.ts — git discovery now lives in the
 // pi-vcs native addon (crates/pi-vcs, exposed through pi-natives/vcs).
 import { git, gitInfo } from "@linxiraos/pi-natives/vcs";
+import { workspaceIdFor } from "../studio-host/ops/workspace-id.js";
 
 export interface ProjectInfo {
 	projectRoot: string;
@@ -228,6 +229,16 @@ async function loadResponse(includeHidden = false): Promise<WebProjectsResponse>
 		for (const workspace of project.workspaces) workspace.lastOpened = lastOpened;
 	}
 	return response;
+}
+
+/** Hidden workspaces still own terminals; the opaque id is resolved before spawning. */
+export async function gatewayWorkspacePath(workspaceId: string): Promise<string | undefined> {
+	const directory = await loadResponse(true);
+	for (const project of directory.projects) {
+		const workspace = project.workspaces.find(entry => workspaceIdFor(entry.key) === workspaceId);
+		if (workspace) return workspace.path;
+	}
+	return undefined;
 }
 
 /** GET /api/projects — every registered project with its workspaces. */

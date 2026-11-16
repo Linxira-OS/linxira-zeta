@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { agentMessageIdentity, identifyAgentMessage } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	Message,
@@ -975,6 +976,7 @@ export class SessionManager {
 	#hasTitleSlot = true;
 	#entries: SessionEntry[] = [];
 	#index = new SessionEntryIndex();
+	#messageEntryIds = new WeakMap<object, { sessionId: string; id: string }>();
 
 	/** File reflects all current entries; appends can go incrementally. */
 	#fileIsCurrent = false;
@@ -2162,9 +2164,9 @@ export class SessionManager {
 		this.#index.rebuild(entries);
 	}
 
-	#freshEntryFields(): { id: string; parentId: string | null; timestamp: string; runtime: RuntimeIdentity } {
+	#freshEntryFields(id?: string): { id: string; parentId: string | null; timestamp: string; runtime: RuntimeIdentity } {
 		return {
-			id: generateId(this.#index),
+			id: id ?? generateId(this.#index),
 			parentId: this.#index.leafId(),
 			timestamp: nowIso(),
 			runtime: currentRuntimeIdentity(),
@@ -3617,6 +3619,17 @@ export class SessionManager {
 		return { header: this.#header, entries: this.#entries };
 	}
 
+	/** Reserve the final JSONL entry ID without appending an unfinished message. */
+	reserveMessageEntryId(message: object): string {
+		const identity = agentMessageIdentity(message) ?? identifyAgentMessage(message);
+		const previous = this.#messageEntryIds.get(identity);
+		if (previous?.sessionId === this.#sessionId) return previous.id;
+		// Full UUIDs cannot collide with the normal eight-character entry IDs.
+		const id = crypto.randomUUID();
+		this.#messageEntryIds.set(identity, { sessionId: this.#sessionId, id });
+		return id;
+	}
+
 	/**
 	 * Append a message as a child of the current leaf, then advance the leaf.
 	 * CompactionSummaryMessage / BranchSummaryMessage are rejected here — they are
@@ -3634,7 +3647,7 @@ export class SessionManager {
 	): string {
 		const entry: SessionMessageEntry = {
 			type: "message",
-			...this.#freshEntryFields(),
+			...this.#freshEntryFields(agentMessageIdentity(message) === undefined ? undefined : this.reserveMessageEntryId(message)),
 			message,
 			...(metadata ? { metadata } : {}),
 		};
@@ -4178,6 +4191,18 @@ export class SessionManager {
 	/** Reset the leaf to null so the next append creates a new root entry. */
 	resetLeaf(): void {
 		this.#setLeaf(null);
+	}
+
+	/** Persist exact leaf selection without deleting later branches or adding model context. */
+	async selectLeafDurably(leafId: string | null): Promise<void> {
+		if (leafId !== null && !this.#index.has(leafId)) throw new Error(`Entry ${leafId} not found`);
+		await this.appendEntriesAtomically(() => {
+			const entry: CustomEntry = {
+				type: "custom", customType: "zeta-active-leaf", data: { leafId },
+				...this.#freshEntryFields(), parentId: null, activeLeafId: leafId,
+			};
+			this.#recordEntry(entry);
+		});
 	}
 
 	/**

@@ -199,6 +199,19 @@ describe("Studio renderer compression", () => {
 		expect(await bodyText(response)).toBe(html);
 	});
 
+	it("allows WASM only in the separate graphic document while retaining its sandbox boundaries", async () => {
+		const dir = await makeCompressedBuild({ br: false, gz: false });
+		await fs.writeFile(path.join(dir, "graphic-preview.html"), "<!doctype html><title>viewer</title>");
+		const viewer = await serveStudioWebApp(request("/graphic-preview.html"), dir);
+		const policy = viewer.headers.get("content-security-policy")!;
+		expect(policy).toContain("'wasm-unsafe-eval'");
+		expect(policy).not.toContain("'unsafe-eval'");
+		expect(policy).toContain("default-src 'none'");
+		expect(policy).toContain("frame-ancestors 'self'");
+		const app = await serveStudioWebApp(request("/"), dir);
+		expect(app.headers.get("content-security-policy")).not.toContain("wasm-unsafe-eval");
+	});
+
 	it("HEAD reports the encoded length without a body", async () => {
 		const dir = await makeCompressedBuild({ br: true, gz: true });
 		const response = await serveStudioWebApp(request(`/${assetDir}/${assetName}`, "br", "HEAD"), dir);

@@ -78,14 +78,7 @@ function serveHost(host: StudioHost): { server: Server<{ kind: "studio"; session
 			open(ws) {
 				host.attachSocket(ws.data.sessionId, ws);
 			},
-			message(ws, message) {
-				const parsed: unknown = JSON.parse(String(message));
-				const scope =
-					parsed !== null && typeof parsed === "object" && "scope" in parsed
-						? (parsed.scope as { scope: "all" })
-						: { scope: "all" as const };
-				for (const event of host.openEvent(scope)) ws.send(JSON.stringify(event));
-			},
+			message() {},
 			close(ws) {
 				host.detachSocket(ws.data.sessionId, ws);
 			},

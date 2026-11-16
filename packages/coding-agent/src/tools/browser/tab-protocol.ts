@@ -1,4 +1,5 @@
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import type { WebMcpListOptions, WebMcpInvokeOptions, WebMcpEventsOptions } from "./webmcp";
 
 export type Transferable = Bun.Transferable;
 
@@ -51,6 +52,7 @@ export type AttachPage = { kind: "create"; nearTargetId?: string } | { kind: "ow
 
 /** omp created the payload's page: closing the tab closes the page. */
 export function ownsPage(payload: WorkerInitPayload): boolean {
+	if (payload.mode === "attach" && payload.studioManaged) return false;
 	return payload.mode === "headless" || payload.page.kind !== "borrowed";
 }
 
@@ -78,6 +80,7 @@ export type WorkerInitPayload =
 	  }
 	| {
 			mode: "attach";
+			studioManaged?: boolean;
 			browserWSEndpoint: string;
 			safeDir: string;
 			/** The tab's upload staging folder, which outlives a recycled worker; see `UploadStaging`. */
@@ -110,12 +113,17 @@ export type WorkerInitPayload =
 			relay?: boolean;
 	  };
 
+export type TabWebMcpRequest =
+	| { action: "list"; options?: WebMcpListOptions }
+	| { action: "invoke"; name: string; params: Record<string, unknown>; options?: WebMcpInvokeOptions }
+	| { action: "events"; options?: WebMcpEventsOptions };
+
 /** Result of one host tool requested by browser-run JavaScript. */
 export type ToolReply = { ok: true; value: unknown } | { ok: false; error: RunErrorPayload };
 
 export type WorkerInbound =
 	| { type: "init"; payload: WorkerInitPayload }
-	| { type: "run"; id: string; name: string; code: string; timeoutMs: number; session: SessionSnapshot }
+	| { type: "run"; id: string; name: string; code: string; webmcp?: TabWebMcpRequest; timeoutMs: number; session: SessionSnapshot }
 	| { type: "abort"; id: string; expectedCleanup?: boolean }
 	| { type: "tool-reply"; id: string; reply: ToolReply }
 	/** `keepPage` leaves a page omp created open in its browser; only the worker's hold on it goes. */

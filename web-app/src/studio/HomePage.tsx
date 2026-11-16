@@ -3,7 +3,6 @@ import type { ChangeEvent as ReactChangeEvent, PointerEvent as ReactPointerEvent
 import type { ClientBootstrap, HomeReadModel, SessionHistoryReadModel, StudioClient, TokenUsageReadModel, WorkspaceListReadModel } from "@linxiraos/studio-contract";
 import type { OperatorStateSnapshot } from "@linxiraos/studio-protocol";
 import { Icon } from "./icons";
-import { pagePhaseClass, useDeferredKey } from "./pageTransition";
 import { usePreviewMode } from "./preview/PreviewContext";
 import { PREVIEW_ACTIVITY, PREVIEW_PROJECTS } from "./preview/fixtures";
 import { waitForCommandReceipt } from "./sessionLifecycle";
@@ -33,136 +32,9 @@ import { useAxisCrossfade, useTokenChartMorph, type TokenChartModelPts } from ".
 
 import { useI18n } from "./i18n";
 
-export type PageRoute = "home" | "workbench" | "history" | "agent-hub" | "team" | "rooms" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
-
-const PAGE_NAV_DEFS: ReadonlyArray<{ id: PageRoute; icon: string; key: string }> = [
-  { id: "workbench", icon: "layout", key: "nav.workbench" },
-  { id: "home", icon: "home", key: "nav.home" },
-  { id: "history", icon: "history", key: "nav.history" },
-  { id: "capabilities", icon: "package", key: "nav.capabilities" },
-  { id: "model-config", icon: "server", key: "nav.modelConfig" },
-  { id: "evaluation", icon: "pulse", key: "nav.evaluation" },
-  { id: "media", icon: "image", key: "media.title" },
-  { id: "settings", icon: "settings", key: "nav.settings" },
-  { id: "diagnostics", icon: "pulse", key: "nav.diagnostics" },
-];
-
-function isAppRoute(id: string): id is Exclude<PageRoute, "agent-hub"> {
-  return id === "home" || id === "workbench" || id === "history" || id === "rooms" || id === "capabilities" || id === "model-config" || id === "settings" || id === "diagnostics" || id === "media" || id === "evaluation" || id === "statistics";
-}
-
-export function SecondaryPage({
-  route,
-  title,
-  titleIcon,
-  theme,
-  className,
-  onRoute,
-  onToggleTheme,
-  children,
-}: {
-  route: PageRoute;
-  title: string;
-  titleIcon?: string;
-  theme: "light" | "dark";
-  className?: string;
-  onRoute: (route: PageRoute) => void;
-  onToggleTheme: () => void;
-  children: ReactNode;
-}) {
-  const { t } = useI18n();
-  const navRef = useRef<HTMLElement>(null);
-  const winRef = useRef<HTMLSpanElement>(null);
-  const mirrorRef = useRef<HTMLSpanElement>(null);
-  const heldChildren = useRef(children);
-  const { shown, phase } = useDeferredKey(route);
-  if (route === shown) heldChildren.current = children;
-  const body = route === shown ? children : heldChildren.current;
-  const bodyMotionLive = useRef(false);
-  if (!Object.is(route, shown)) bodyMotionLive.current = true;
-  const bodyPhase = bodyMotionLive.current ? phase : null;
-
-  useLayoutEffect(() => {
-    const nav = navRef.current;
-    const win = winRef.current;
-    const mirror = mirrorRef.current;
-    if (!nav || !win || !mirror) return;
-
-    const sync = () => {
-      const active = nav.querySelector<HTMLElement>(`[data-nav="${route}"]`);
-      if (!active) return;
-      win.style.left = `${active.offsetLeft}px`;
-      win.style.width = `${active.offsetWidth}px`;
-      mirror.style.left = `${-active.offsetLeft}px`;
-    };
-
-    sync();
-
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => sync());
-      observer.observe(nav);
-      for (const linkEl of nav.querySelectorAll("[data-nav]")) {
-        observer.observe(linkEl);
-      }
-      return () => observer.disconnect();
-    }
-  }, [route, t]);
-
-  const link = (id: (typeof PAGE_NAV_DEFS)[number]["id"], extra?: string) => {
-    const item = PAGE_NAV_DEFS.find((entry) => entry.id === id);
-    if (!item) return null;
-    const label = t(item.key);
-    const wired = isAppRoute(item.id);
-    return (
-      <a
-        key={`${extra ?? ""}-${item.id}`}
-        href={`#!${item.id}`}
-        data-nav={item.id}
-        className={route === item.id ? "active" : undefined}
-        aria-disabled={wired ? undefined : true}
-        data-tip={wired ? undefined : t("common.notImplemented")}
-        tabIndex={extra === "mirror" ? -1 : undefined}
-        aria-hidden={extra === "mirror" ? true : undefined}
-        onClick={(event) => {
-          event.preventDefault();
-          if (isAppRoute(item.id)) onRoute(item.id);
-        }}
-      >
-        <Icon name={item.icon} extra="sm" />
-        {label}
-      </a>
-    );
-  };
-
-  return (
-    <div className={className ? `page ${className}` : "page"} id="pageRoot">
-      <header className="page-head" id="pageHead">
-        <button className="icon-btn" data-tip={t("nav.workbench")} aria-label={t("nav.workbench")} onClick={() => onRoute("workbench")}>
-          <Icon name="arrow-l" />
-        </button>
-        <span className="ph-title">{titleIcon ? <Icon name={titleIcon} extra="sm" /> : null}{title}</span>
-        <nav className={`page-nav${PAGE_NAV_DEFS.some((item) => item.id === route) ? "" : " no-bubble"}`} ref={navRef} aria-label={t("home.secondaryNav")}>
-          {PAGE_NAV_DEFS.map((item) => link(item.id))}
-          <span className="nav-window" ref={winRef} aria-hidden="true">
-            <span className="nav-mirror" ref={mirrorRef}>{PAGE_NAV_DEFS.map((item) => link(item.id, "mirror"))}</span>
-          </span>
-        </nav>
-        <span className="spacer" />
-        <button className="icon-btn" data-tip={t("shell.theme")} aria-label={t("shell.toggleTheme")} onClick={onToggleTheme}>
-          <Icon name={theme === "dark" ? "moon" : "light"} />
-        </button>
-      </header>
-      <div
-        className={bodyPhase ? `page-body ${pagePhaseClass(bodyPhase)}` : "page-body"}
-        id="pageBody"
-        tabIndex={-1}
-        data-route={shown}
-      >
-        {body}
-      </div>
-    </div>
-  );
-}
+import type { PageRoute } from "./SecondaryPage";
+export type { PageRoute } from "./SecondaryPage";
+export { SecondaryPage } from "./SecondaryPage";
 
 function greeting(now: Date, t: (key: string) => string): string {
   const hour = now.getHours();
@@ -446,7 +318,7 @@ const EMPTY_CHART_MODELS: readonly TokenChartModelPts[] = [];
 
 function TokenUsageCard({ client, onOpenStats }: { client?: StudioClient; onOpenStats: () => void }) {
   const { t, resolvedLanguage } = useI18n();
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const previewUsage = useMemo(() => buildPreviewUsage(), []);
   const [liveUsage, setLiveUsage] = useState<TokenUsageReadModel | null>(null);
   const [view, setView] = useState<TokenView>("month");
@@ -800,7 +672,7 @@ function TokenUsageCard({ client, onOpenStats }: { client?: StudioClient; onOpen
           ? dayLabel(hoverPoint.ts, resolvedLanguage)
           : ""
     : "";
-  const rangeText = preview
+  const rangeText = preview && marks
     ? t("common.demo")
     : loading
       ? t("home.syncingUsage")
@@ -964,7 +836,7 @@ function TokenUsageCard({ client, onOpenStats }: { client?: StudioClient; onOpen
           ))}
         </div>
         <div className="tk-cal-foot">
-          <span className="tiny muted">{preview ? t("home.colorByDailyUsageDemo") : t("home.colorByDailyUsage")}</span>
+          <span className="tiny muted">{preview && marks ? t("home.colorByDailyUsageDemo") : t("home.colorByDailyUsage")}</span>
           <span className="spacer" />
           <span className="tk-scale" aria-hidden="true">{t("home.less")}
             <i data-s="0" /><i data-s="1" /><i data-s="2" /><i data-s="3" /><i data-s="4" /><i className="tk-scale-max">{t("home.more")}</i>
@@ -1006,7 +878,7 @@ export function HomePage({
   if (snapshot?.isStreaming) extraBits.push(t("runtime.taskRunning"));
   if (waiting > 0) extraBits.push(t("runtime.agentsIdle", { count: waiting }));
 
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { profile, update, persistAvatar } = useOperatorProfile();
   const [editingProfile, setEditingProfile] = useState(false);
   const activities = (history?.entries ?? []).slice(0, 5);
@@ -1053,7 +925,7 @@ export function HomePage({
               }
               onPickFolder?.();
             }}
-            data-tip={!preview && onPickFolder === undefined ? t("common.unsupportedByRuntime") : preview ? t("common.preview") : t("common.open")}
+            data-tip={!preview && onPickFolder === undefined ? t("common.unsupportedByRuntime") : preview && marks ? t("common.preview") : t("common.open")}
           >
             <Icon name="folder-open" extra="sm" />{t("home.openLocalFolder")}
           </button>

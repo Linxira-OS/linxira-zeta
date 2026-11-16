@@ -16,6 +16,7 @@
 
 import type {
   ClientBootstrap,
+  ClientContextScope,
   ClientError,
   ClientEvent,
   ClientTransport,
@@ -61,6 +62,21 @@ export class StudioClientImpl implements StudioClient {
     this.state = createInitialClientState();
   }
 
+  get supportsContexts(): boolean {
+    return this.transport.supportsContexts ?? this.transport.openContext !== undefined;
+  }
+
+  async openContext(scope: ClientContextScope): Promise<StudioClientImpl> {
+    this.assertOpen();
+    if (!this.transport.openContext) throw new Error("This Host needs an update to open concurrent conversations.");
+    const transport = await this.transport.openContext(scope);
+    if (this.closed) {
+      await transport.close();
+      throw CLIENT_CLOSED_ERROR;
+    }
+    return new StudioClientImpl(transport);
+  }
+
   /** Current reducer state (client-side convenience; not in StudioClient). */
   getState(): ClientState {
     return this.state;
@@ -73,6 +89,7 @@ export class StudioClientImpl implements StudioClient {
     }
     const generation = this.transportGeneration;
     this.bootstrapping = true;
+    this.ensureSubscribed();
     const run = (async (): Promise<ClientBootstrap> => {
       try {
         const bootstrap = await this.transport.bootstrap();
@@ -83,11 +100,6 @@ export class StudioClientImpl implements StudioClient {
             message: `Client contract mismatch: expected ${CLIENT_CONTRACT_VERSION}, received ${String(bootstrap.contractVersion)}`,
           } satisfies ClientError;
         }
-        // Subscribe only after the credential bootstrap. The event upgrade
-        // authenticates with the same cookie/session as commands; a socket
-        // opened first can attach as an unpaired local caller and never see
-        // the receipts emitted for the cookie session created by bootstrap.
-        this.ensureSubscribed();
         this.applyAction({ type: "bootstrap.set", bootstrap, occurredAt: this.ids.now() });
         const pending = this.bufferedEvents.splice(0);
         for (const event of pending) {
@@ -248,7 +260,10 @@ export class StudioClientImpl implements StudioClient {
     const next = reduceClientState(this.state, action);
     if (next !== this.state) {
       this.state = next;
-      for (const listener of this.stateListeners) {
+      const computerProgressOnly = action.type === "event" && action.event.kind === "computer.changed"
+        && next.entities === previous.entities && next.commands === previous.commands
+        && next.connection.resyncRequired === previous.connection.resyncRequired;
+      if (!computerProgressOnly) for (const listener of this.stateListeners) {
         listener(this.state);
       }
     }
@@ -281,6 +296,10 @@ export class StudioClientImpl implements StudioClient {
     // resync flag while deliberately dropping the event payload.
     if (next === previous || next.connection.cursor !== event.cursor) {
       return false;
+    }
+    if (event.kind === "computer.changed") {
+      return event.change.sessionId === next.entities.snapshot?.sessionId
+        && next.connection.runtime?.status === "connected";
     }
     return true;
   }

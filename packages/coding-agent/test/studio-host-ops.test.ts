@@ -77,13 +77,13 @@ describe("capability manifest", () => {
 		] as const) {
 			expect(operations.commands).toContain(id);
 		}
-		for (const id of ["diagnostics.get", "agents.definitions.get", "models.get"] as const) {
+		for (const id of ["commands.getManifest", "diagnostics.get", "agents.definitions.get", "models.get"] as const) {
 			expect(operations.queries).toContain(id);
 		}
 	});
 
 	test("does not advertise an operation the host cannot answer", () => {
-		for (const id of ["commands.getManifest", "session.telemetry.read"] as const) {
+		for (const id of ["session.telemetry.read"] as const) {
 			expect(operations.queries).not.toContain(id);
 		}
 		expect(operations.commands).not.toContain("workspace.pick");
@@ -100,7 +100,7 @@ describe("capability manifest", () => {
 
 describe("unsupported fallback", () => {
 	test("a query with no handler answers unsupported", async () => {
-		const response = await runQuery("commands.getManifest", {});
+		const response = await runQuery("session.telemetry.read", { sessionId: "missing" as import("../src/server/studio-host/contract/ids.js").SessionId });
 		expect(response.ok).toBe(false);
 		if (!response.ok) expect(response.error.code as string).toBe("unsupported");
 	});
@@ -385,6 +385,13 @@ describe("workspace commands", () => {
 		await expect(
 			runCommand("session.create", { workspaceId: "ws-0000000000000000" as WorkspaceId }),
 		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	});
+
+	test("session.create rejects a malformed startup model before creating a runtime", async () => {
+		const { workspaceId } = await registerWorkspace();
+		await expect(runCommand("session.create", { workspaceId, model: "missing-provider-separator" })).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
 	});
 
 	test("workspace.open stamps the registry preference and reports the real inventory", async () => {

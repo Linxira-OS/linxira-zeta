@@ -3,6 +3,11 @@
    Light / Dark 双主题，通过 html[data-theme] 切换
    ============================================================ */
 
+/* The motion patterns travel with the tokens they spend: every entry that
+   loads this file gets the shared keyframes, the surface classes and the
+   reduced-motion policy with it. */
+@import "./motion.css";
+
 :root {
   /* Typography */
   --font-ui-default: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -75,6 +80,7 @@
 
   /* Layout metrics */
   --topbar-h: 44px;
+  --nav-rail-w: 56px;
   --sidebar-w: 272px;
   --sidebar-min: 200px;
   --sidebar-max: 400px;
@@ -83,37 +89,77 @@
   --doc-max-w: 768px;
   --bottom-panel-h: 240px;
 
-  /* Motion — one curve for everything reads as mechanical. Entrances decelerate
-     into place (ease-out), exits accelerate away (ease-in), and exits run at
-     ~65% of entrance duration so dismissing never feels like waiting.
-     Tactile feedback uses a snappier duration to feel immediate. */
-  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
-  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* Slight overshoot for playful interactions */
-  /* iOS 风格滑动手感：起步轻快、全程均匀缓出、末尾柔和停下（easeOutCubic 类），
-     给滑动指示器（模型配置标签栏气泡 / 二级页导航气泡）用的丝滑曲线。 */
-  --ease-ios: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  /* 切换页面标签栏（顶部导航气泡）专用：Apple iOS 弹簧曲线 —— 起步更猛、
-     长尾缓降，曲线感强、无过冲、结尾不戛然而止。 */
-  --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
-  /* 上面两条曲线的镜像（cubic-bezier(x1,y1,x2,y2) 的反向 =
-     cubic-bezier(1-x2,1-y2,1-x1,1-y1)）。收起动画要「就是展开倒着播」时用它，
-     而不是换成通用的 --ease-in —— 换了曲线就不是同一段动作倒放了。 */
-  --ease-out-rev: cubic-bezier(0.56, 0, 0.84, 0.16);
-  --ease-nav-rev: cubic-bezier(1, 0, 0.68, 0.28);
+  /* ---------------- Motion ----------------
+     Numbers only. The rules that spend them are in styles/motion.css, and
+     src/motion.ts mirrors them for timers and WAAPI
+     (scripts/check-renderer-motion.mjs fails when the two drift), so a value
+     changes here and in that table, and nowhere else.
+
+     Rhythm — six steps, each about ×1.4 of the one before. Pick by what is
+     moving, not by what looks nice in isolation:
+       --dur-tactile   80ms  a press being acknowledged
+       --dur-fast     120ms  colour, hover, anything that stays put; popovers
+       --dur          180ms  one element changing state: chevron, switch, reveal
+       --dur-slow     250ms  a region changing size or place: panel, drawer, card
+       --dur-slower   320ms  a whole surface arriving: page, tab pane, toast
+       --dur-hero     480ms  a morph that carries meaning: ask genie, plan sheet
+     Leaving takes the step below arriving (a 320ms surface leaves in 250ms), so
+     dismissing never feels like waiting. */
+  --dur-tactile: 80ms;
   --dur-fast: 120ms;
   --dur: 180ms;
   --dur-slow: 250ms;
-  --dur-toast: 320ms;  /* 浮窗提示的浮入/浮出动画时长，放慢一些更醒目 */
-  --dur-chart: 420ms;  /* 首页 Token 折线年/月/周/日变形 */
-  --dur-chart-axis: 160ms;  /* 折线坐标刻度交叉淡入淡出 */
+  --dur-slower: 320ms;
+  --dur-hero: 480ms;
+  /* Two durations that are not steps of the ladder, because they are not
+     transitions between states: a highlight left behind to catch the eye and
+     then fade, and a long label scrolling past at reading pace. */
+  --dur-flash: 900ms;
+  --dur-marquee: 3000ms;
+  /* Loops are status, not transitions. Three tempos, by what the loop says:
+     working (a spinner), alive (a pulse, a shimmer, a progress sweep), and
+     ambient (slow breathing at the edge of attention). */
+  --loop-spin: 800ms;
+  --loop-pulse: 1400ms;
+  --loop-drift: 2400ms;
+
+  /* Curves — pick by what the motion means:
+       --ease           state    colour, opacity, anything that stays where it is
+       --ease-out       arrive   one element decelerating into place
+       --ease-in        leave    one element accelerating away
+       --ease-nav       travel   surfaces and indicators crossing the screen:
+                                 brisk start, long soft landing, never overshoots
+       --ease-ios       follow   things answering the user's own gesture: a drag
+                                 settling, an editor growing while you type
+       --ease-emphasis  morph    a large shape that starts and ends at rest: a
+                                 list unfolding, a sheet growing out of a card
+       --ease-spring    settle   a small mark landing. A real damped spring
+                                 (ζ 0.62): one 8% overshoot a third of the way in,
+                                 then it settles; it is the only curve that
+                                 overshoots, so keep it to marks and thumbs.
+       --ease-loop      breathe  loops that go there and back: at rest at both
+                                 ends. Spinners and sweeps stay `linear`. */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-ios: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-emphasis: cubic-bezier(0.38, 0, 0.08, 1);
+  --ease-loop: cubic-bezier(0.42, 0, 0.58, 1);
+  --ease-spring: linear(0, 0.006 1%, 0.028 2.25%, 0.064 3.5%, 0.122 5%, 0.179 6.25%, 0.241 7.5%, 0.523 12.75%, 0.638 15%, 0.752 17.5%, 0.84 19.75%, 0.913 22%, 0.977 24.5%, 1.024 27%, 1.055 29.5%, 1.07 31.25%, 1.078 33%, 1.083 36.75%, 1.072 41.25%, 1.017 54.5%, 0.998 62.75%, 0.993 72.5%, 1);
+
+  /* Travel — distance says how big the thing is, axis says what kind of move
+     it is: vertical for depth (entering or leaving a level), horizontal for
+     siblings (the next tab, the next question). */
+  --shift-xs: 4px;   /* one element: popover, inline reveal */
+  --shift-sm: 8px;   /* a component, and how far any surface drifts as it leaves */
+  --shift-md: 12px;  /* a surface arriving in depth: page, toast */
+  --shift-lg: 16px;  /* a surface arriving from the side: tab pane, deck cell */
+  /* Gap between the items of a cascade. */
+  --stagger: 40ms;
   /* 悬停提示（data-tip）的出现延迟：指针静止停留后才弹标签，扫过按钮
      时不闪现。与动效时长分开命名，因为它是等待时间而不是动画时间。 */
   --tip-delay: 500ms;
-  --dur-slide: 230ms;  /* 标签栏切换气泡的滑动时长，独立于页面切换的 --dur-slow */
-  --dur-exit: 120ms;
-  --dur-tactile: 80ms;  /* Quick feedback for button presses */
 
   /* Window chrome strip (three 44px caption buttons in the desktop shell).
      The titlebar reserves this width so app controls never sit under the
@@ -275,6 +321,47 @@
   --scrollbar-hover: rgba(20, 20, 30, 0.32);
   --minimap-viewport: rgba(20, 20, 30, 0.08);
   --selection: rgba(110, 86, 207, 0.2);
+
+  /* 开关旋钮的两条不变式，别压成一句「旋钮都比轨道亮」：
+     1) 关态：旋钮比轨道亮，两个主题都成立。所以暗色不能沿用 --surface
+        (#1a1b1f)，它比轨道(--border-strong 叠在 --bg 上约 #31333b)更暗，
+        旋钮会读成一个洞；暗色改用 --glyph-faint 这个中间明度。
+     2) 开态：旋钮取 --text-on-accent 一侧。暗色下 accent 是浅丁香，旋钮就是
+        刻意比轨道更暗 —— 这条是反的，由 accent 明度决定，不是 bug。
+     --switch-thumb-disabled 是「禁用 + 关」这一格的跨主题对偶值：浅色 = 轨道
+     上方一档白，暗色 = 轨道上方一档中间调。它和 --surface-3 绑死，所以写成
+     字面值/别名而不是 color-mix(…, var(--surface-3) …)：否则以后调轨道底色会
+     静默改掉禁用旋钮，而且没人看得出旋钮动过。
+     另：关态轨道是半透明 --border-strong 填充，实际对比度随所在行底浮动
+     (--surface 1.46 / --bg 1.49 / --surface-2 ≈1.36)。这不是漂移：控件跟着面板
+     自动沉一档或浮一档，比写死一个灰更不容易在白卡和灰底上同时出错。报数以
+     --surface 为基准。 */
+  --switch-thumb: var(--surface);
+  --switch-thumb-disabled: var(--surface);
+
+  /* ---- Explorer 文件类型色（spec §4）----
+     8 个彩色通道 + 4 个别名 + 1 个 dim，不是 12 个色相：doc / config / lock 的语义
+     就是「普通文件」，上色只会把 ΔE 挤坏；package 是 .json，跟 data 同色、由立方体
+     承担区分。实测三态行底（--bg-inset / hover / 选中）最低 4.75:1。
+     使用边界（spec C1-B1，评审看到即打回）：类型色只表达「这个文件是什么」，
+     永久禁止表达「它现在怎么样」——git 状态 / live 读写 / 诊断点 / 构建失败 / 权限
+     告警只能走 --git-* / --red / --amber / --green。 */
+  --ftype-code: #3b5f8f;
+  --ftype-markup: #7d5527;
+  --ftype-style: #8a4a70;
+  --ftype-data: #1f6b55;
+  --ftype-script: #4a6b32;
+  --ftype-test: #6d6118;
+  --ftype-image: #23697d;
+  --ftype-secret: #96434b;
+  /* 别名：不新增色相。用 var() 间接，暗色块只覆盖上面 8 个即可自动跟随。 */
+  --ftype-package: var(--ftype-data);
+  --ftype-doc: var(--text-3);
+  --ftype-config: var(--text-3);
+  --ftype-lock: var(--text-3);
+  /* 噪音目录专用。不用 --glyph-faint：后者在 --surface-hover 上只有 2.85:1，破 3:1。
+     light 三档 4.14 / 3.76 / 3.22 —— 选中档留 0.22 余量（#7d828b 是零余量）。 */
+  --ftype-dim: #787d86;
 }
 
 /* ---------------- Dark ---------------- */
@@ -381,6 +468,25 @@
   --scrollbar-hover: rgba(235, 235, 245, 0.3);
   --minimap-viewport: rgba(235, 235, 245, 0.07);
   --selection: rgba(158, 140, 252, 0.3);
+  /* ---- Explorer 文件类型色（暗色同 8 个通道）----
+     明度重解得比浅色亮得多：dark 三态最低 4.98（--ftype-secret 作正文色）。 */
+  --ftype-code: #93b4dc;
+  --ftype-markup: #d3a271;
+  --ftype-style: #e0a6c2;
+  --ftype-data: #79bfa2;
+  --ftype-script: #9ac387;
+  --ftype-test: #c4bb6f;
+  --ftype-image: #6fc0d2;
+  --ftype-secret: #d1838b;
+  --ftype-dim: #72767f;
+  /* 别名沿用浅色块里的 var() 间接，此处只覆盖 8 个色相。 */
+
+  --switch-thumb: var(--glyph-faint);
+  /* 禁用·关必须仍比轨道亮：--surface(#1a1b1f) 比轨道 --surface-3(#2b2c33) 更暗，
+     沿用会让禁用态重新变成「洞」；这里换成更亮的 --border-float(#46505f)，对
+     轨道 1.70:1。可用·关是 --glyph-faint(#676b74) 对轨道 2.25:1，梯度
+     2.25 → 1.70 保持「禁用更淡」，同时明暗次序与浅色一致。 */
+  --switch-thumb-disabled: var(--border-float);
 }
 
 /* Compatibility names from older feature panes reuse the established Studio
@@ -407,4 +513,66 @@
   --tint-purple: var(--tint-violet);
   --tint-purple-soft: var(--tint-violet-soft);
   --warning-soft: var(--amber-soft);
+}
+
+/* ---------------- Explorer 文件类型 · 三通道严格模式（spec §2 C1 二裁） ----------------
+   组件零改动：<html data-palette="tri"> 即可。12 个类别全部回落中性，只留一个
+   "需注意"通道（--ftype-secret → --amber）。切过去后 12 个图标仍能两两分辨，
+   这是"颜色只是加速器、语义 100% 由剪影承载"的现场证明。
+   选择器特异性 (0,2,0) 与 :root[data-theme="dark"] 相同，靠源顺序取胜 —— 必须留在
+   文件末尾，否则暗色块会把 tri 覆盖回去。
+   根元素用 data-palette（调色板模式），树行用 data-ftype（类型 id），两者不共名：
+   否则 `grep data-ftype` 会混进一个非 type id 的值，与当初否掉 data-t 同因。
+   --ftype-dim 不动：它服务噪音目录的降噪，不属于类型通道。 */
+:root[data-palette="tri"] {
+  --ftype-code: var(--text-3);
+  --ftype-markup: var(--text-3);
+  --ftype-style: var(--text-3);
+  --ftype-data: var(--text-3);
+  --ftype-script: var(--text-3);
+  --ftype-test: var(--text-3);
+  --ftype-image: var(--text-3);
+  --ftype-package: var(--text-3);
+  --ftype-doc: var(--text-3);
+  --ftype-config: var(--text-3);
+  --ftype-lock: var(--text-3);
+  --ftype-secret: var(--amber);
+}
+
+/* 系统强制高对比 / 请求更高对比时自动降级 —— 命中这些设置的人正是最需要它的，
+   不能要求他们再去设置里手动关。与 data-palette="tri" 覆盖同一组变量。
+   选择器用 :root:root（0,2,0）而不是 :root（0,1,0）：后者特异性低于
+   :root[data-theme="dark"]，暗色主题下会被暗色值覆盖，等于没降级。 */
+@media (forced-colors: active) {
+  :root:root:root {
+    --ftype-code: var(--text-3);
+    --ftype-markup: var(--text-3);
+    --ftype-style: var(--text-3);
+    --ftype-data: var(--text-3);
+    --ftype-script: var(--text-3);
+    --ftype-test: var(--text-3);
+    --ftype-image: var(--text-3);
+    --ftype-package: var(--text-3);
+    --ftype-doc: var(--text-3);
+    --ftype-config: var(--text-3);
+    --ftype-lock: var(--text-3);
+    --ftype-secret: var(--amber);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root:root:root {
+    --ftype-code: var(--text-3);
+    --ftype-markup: var(--text-3);
+    --ftype-style: var(--text-3);
+    --ftype-data: var(--text-3);
+    --ftype-script: var(--text-3);
+    --ftype-test: var(--text-3);
+    --ftype-image: var(--text-3);
+    --ftype-package: var(--text-3);
+    --ftype-doc: var(--text-3);
+    --ftype-config: var(--text-3);
+    --ftype-lock: var(--text-3);
+    --ftype-secret: var(--amber);
+  }
 }

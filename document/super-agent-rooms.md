@@ -330,11 +330,10 @@ Resident 规则：
   （`contract/lifecycle.ts:256-260`）。房间流需要加 `{scope:"room", roomId}`；
   WS 升级通道已经就绪（`zeta-server.ts:1332-1338`）。在加 scope 之前，
   房间按 `room.log.read` 的 `seq` 做增量拉取。
-- **重复维护点**：同一批 147 个操作名今天存在三份——宿主
-  `studio-host/contract/operations.ts`、渲染器 `web-app/src/protocol/contract/operations.ts`、
-  vendored `web-app/src/vendor/client-contract/src/operations.ts`；名字集合一致
-  （42 query + 105 command，已注册 67）。新增 `room.*` 必须三处同改，没有生成器。
-  这笔债值得在房间落地前收掉，但它不属于本节的决定。
+- **契约维护点**：操作契约由宿主 `studio-host/contract/operations.ts` 与
+  渲染器 `web-app/src/vendor/client-contract/src/operations.ts` 分别消费。
+  Studio v0.2.1 切换已删除无调用方的 `web-app/src/protocol/` 副本与旧直连
+  gateway 客户端；新增 `room.*` 要同步现用的 Host/vendor 契约，没有生成器。
 
 ### 12.4 起点门槛（对上游）
 

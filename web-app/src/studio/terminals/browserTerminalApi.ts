@@ -56,12 +56,16 @@ export function createBrowserTerminalApi(): BrowserTerminalApi {
 
 	return {
 		async create(input: StudioTerminalCreateInput = {}): Promise<StudioTerminalSessionInfo> {
+			if (input.targetId) throw new Error("SSH terminals require the desktop transport");
+			if (input.flowControl) throw new Error("Terminal flow control is unsupported by this gateway");
 			sequence += 1;
 			const instanceId = input.instanceId ?? `studio-${Date.now().toString(36)}-${sequence}`;
 			const info = await gatewayTerminal.ensure({
 				cols: input.cols ?? 80,
 				rows: input.rows ?? 24,
 				instanceId,
+				...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+				...(input.command ? { command: input.command } : {}),
 				...(input.profileId ? { profileId: input.profileId } : {}),
 				...(input.cwd ? { cwd: input.cwd } : {}),
 			});

@@ -1,42 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { startUsagePolling } from "./usagePolling";
 
 /**
- * The 30 s `usage.get` poll must not run while the window is hidden, and must
- * refresh at once when it becomes visible again (port of upstream PR #20
- * `apps/renderer/src/usage/usagePolling.test.ts`).
- *
- * Deviation: time is driven through the injected timer seam instead of
- * `vi.useFakeTimers()`, so the rules are exercised without patching globals.
+ * P0-2 (renderer half): the 30 s `usage.get` poll must not run while the window
+ * is hidden, and must refresh at once when it becomes visible again. Before this
+ * change a minimised window kept asking the Host for usage - and each of those
+ * lookups reached the Runtime installer's entrypoint verification.
  */
-function fakeTimers() {
-  let nextId = 1;
-  const intervals = new Map<number, { readonly handler: () => void; readonly ms: number }>();
-  return {
-    timers: {
-      setInterval(handler: () => void, ms: number): number {
-        const id = nextId;
-        nextId += 1;
-        intervals.set(id, { handler, ms });
-        return id;
-      },
-      clearInterval(id: number): void {
-        intervals.delete(id);
-      },
-    },
-    /** Fire every live interval once. */
-    tick(): void {
-      for (const { handler } of [...intervals.values()]) handler();
-    },
-    get live(): number {
-      return intervals.size;
-    },
-    get intervalMs(): number | undefined {
-      return [...intervals.values()][0]?.ms;
-    },
-  };
-}
 
 function visibilitySource(initiallyHidden = false) {
   let hidden = initiallyHidden;
@@ -45,17 +16,13 @@ function visibilitySource(initiallyHidden = false) {
     isHidden: () => hidden,
     onVisibilityChange: (listener: () => void) => {
       listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
+      return () => { listeners.delete(listener); };
     },
-    set(next: boolean): void {
+    set(next: boolean) {
       hidden = next;
       for (const listener of [...listeners]) listener();
     },
-    get listeners(): number {
-      return listeners.size;
-    },
+    get listeners() { return listeners.size; },
   };
 }
 
@@ -63,128 +30,113 @@ function countingLoad() {
   const calls: number[] = [];
   return {
     calls,
-    load: () => {
-      calls.push(calls.length);
-    },
+    load: () => { calls.push(Date.now()); },
   };
 }
 
 describe("usage polling", () => {
-  test("loads once on mount and then on every interval while visible", () => {
-    const clock = fakeTimers();
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("loads once on mount and then on every interval while visible", () => {
+    vi.useFakeTimers();
     const visibility = visibilitySource();
     const { calls, load } = countingLoad();
-    const stop = startUsagePolling({
-      load,
-      isHidden: visibility.isHidden,
-      onVisibilityChange: visibility.onVisibilityChange,
-      timers: clock.timers,
-    });
+    const stop = startUsagePolling({ load, isHidden: visibility.isHidden, onVisibilityChange: visibility.onVisibilityChange });
 
-    expect(calls.length).toBe(1);
-    expect(clock.intervalMs).toBe(30_000);
-    clock.tick();
-    expect(calls.length).toBe(2);
-    clock.tick();
-    expect(calls.length).toBe(3);
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(30_000);
+    expect(calls).toHaveLength(2);
+    vi.advanceTimersByTime(30_000);
+    expect(calls).toHaveLength(3);
     stop();
   });
 
-  test("stops polling while hidden and refreshes as soon as it is visible", () => {
-    const clock = fakeTimers();
+  it("stops polling while the document is hidden and refreshes as soon as it is visible", () => {
+    vi.useFakeTimers();
     const visibility = visibilitySource();
     const { calls, load } = countingLoad();
-    const stop = startUsagePolling({
-      load,
-      isHidden: visibility.isHidden,
-      onVisibilityChange: visibility.onVisibilityChange,
-      timers: clock.timers,
-    });
-    expect(calls.length).toBe(1);
+    const stop = startUsagePolling({ load, isHidden: visibility.isHidden, onVisibilityChange: visibility.onVisibilityChange });
+    expect(calls).toHaveLength(1);
 
     visibility.set(true);
-    // Hidden for minutes: no request at all, not a series of no-ops that still
-    // cost a Host round trip.
-    clock.tick();
-    clock.tick();
-    clock.tick();
-    clock.tick();
-    expect(calls.length).toBe(1);
+    // Two minutes hidden: no request at all, not four no-ops that still cost a
+    // Host round trip.
+    vi.advanceTimersByTime(120_000);
+    expect(calls).toHaveLength(1);
 
     visibility.set(false);
-    expect(calls.length).toBe(2);
-    clock.tick();
-    expect(calls.length).toBe(3);
+    expect(calls).toHaveLength(2);
+    vi.advanceTimersByTime(30_000);
+    expect(calls).toHaveLength(3);
     stop();
   });
 
-  test("a window that mounts hidden still loads once and does not poll", () => {
-    const clock = fakeTimers();
+  it("refreshes on return even when the timer that fired while hidden was skipped", () => {
+    vi.useFakeTimers();
     const visibility = visibilitySource(true);
     const { calls, load } = countingLoad();
-    const stop = startUsagePolling({
-      load,
-      isHidden: visibility.isHidden,
-      onVisibilityChange: visibility.onVisibilityChange,
-      timers: clock.timers,
-    });
-    expect(calls.length).toBe(1);
-    clock.tick();
-    clock.tick();
-    clock.tick();
-    expect(calls.length).toBe(1);
+    // A window that first mounts hidden still shows data when it opens, so the
+    // mount fetch runs; what must not happen is a hidden interval firing.
+    const stop = startUsagePolling({ load, isHidden: visibility.isHidden, onVisibilityChange: visibility.onVisibilityChange });
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(90_000);
+    expect(calls).toHaveLength(1);
     visibility.set(false);
-    expect(calls.length).toBe(2);
+    expect(calls).toHaveLength(2);
     stop();
   });
 
-  test("does not stack requests when a load takes longer than the interval", async () => {
-    const clock = fakeTimers();
+  it("does not stack requests when a load takes longer than the interval", async () => {
+    vi.useFakeTimers();
     const visibility = visibilitySource();
     const calls: number[] = [];
-    const gate = Promise.withResolvers<void>();
+    let release: () => void = () => undefined;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
     const stop = startUsagePolling({
-      load: () => {
-        calls.push(calls.length);
-        return gate.promise;
-      },
+      load: () => { calls.push(Date.now()); return pending; },
       isHidden: visibility.isHidden,
       onVisibilityChange: visibility.onVisibilityChange,
-      timers: clock.timers,
     });
-
-    expect(calls.length).toBe(1);
-    clock.tick();
-    clock.tick();
-    expect(calls.length).toBe(1);
-
-    gate.resolve();
-    await gate.promise;
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(90_000);
+    expect(calls).toHaveLength(1);
+    release();
+    await pending;
     await Promise.resolve();
-    clock.tick();
-    expect(calls.length).toBe(2);
+    vi.advanceTimersByTime(30_000);
+    expect(calls).toHaveLength(2);
     stop();
   });
 
-  test("releases the interval and the visibility listener when stopped", () => {
-    const clock = fakeTimers();
+  it("releases the interval and the visibility listener when stopped", () => {
+    vi.useFakeTimers();
     const visibility = visibilitySource();
     const { calls, load } = countingLoad();
-    const stop = startUsagePolling({
-      load,
-      isHidden: visibility.isHidden,
-      onVisibilityChange: visibility.onVisibilityChange,
-      timers: clock.timers,
-    });
+    const stop = startUsagePolling({ load, isHidden: visibility.isHidden, onVisibilityChange: visibility.onVisibilityChange });
     expect(visibility.listeners).toBe(1);
-    expect(clock.live).toBe(1);
-
     stop();
     expect(visibility.listeners).toBe(0);
-    expect(clock.live).toBe(0);
-    clock.tick();
+    vi.advanceTimersByTime(120_000);
     visibility.set(true);
     visibility.set(false);
-    expect(calls.length).toBe(1);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("defaults to document.hidden", () => {
+    vi.useFakeTimers();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    const { calls, load } = countingLoad();
+    const stop = startUsagePolling({ load });
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(90_000);
+    expect(calls).toHaveLength(1);
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(calls).toHaveLength(2);
+    stop();
+    expect(calls).toHaveLength(2);
   });
 });

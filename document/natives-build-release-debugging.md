@@ -98,7 +98,47 @@ bun scripts/gen-bazel-lock.ts --check   # bazel fetch --repo=@crates --lockfile_
 
 `scripts/release-v2.ts` refreshes it after regenerating `Cargo.lock`. The `bazel_lock` CI job (hosted, every event including PRs) fails on a stale entry and uploads a refreshed `MODULE.bazel.lock` artifact. Staleness costs speed, not correctness, so it does not gate publishing.
 
+The 2026-11-15 OMP v18.20.0 refresh completed under WSL (`linxira-2026-10-27`)
+with the pinned Bazel/Rust inputs: `fetch --repo=@crates --lockfile_mode=update`
+finished successfully, followed by a successful `--lockfile_mode=error` fetch.
+The resulting lock also passes `gen-bazel-lock.ts --inputs-only` and
+`bazel-lock-drift.ts` in the Studio integration worktree. This verifies extension
+generation and dependency coverage; it does not verify compiled native addons.
+
+For this run, scratch stayed under repository `temp/`. A live directory FD
+exposed it as `/proc/<generation-shell-pid>/fd/9` (`readlink` resolved to
+`temp/omp-native-bazel-night-runtime/tmp`), with a separate config-free
+`CARGO_HOME`. This avoids inheriting the root checkout's `.cargo/config.toml`
+through temporary splice parents without disabling cargo-bazel's parent-config
+guard or changing the explicit Cargo inputs. The shell and FD must remain alive
+through the Bazel invocation.
+
 ## Local development
+
+### Windows host prerequisites (2026-11-15)
+
+The Cargo/MSVC host path requires Visual Studio Build Tools 2022 with
+`Microsoft.VisualStudio.Component.VC.Tools.x86.x64` and
+`Microsoft.VisualStudio.Component.Windows11SDK.22621`. Rust's installed MSVC
+standard library does not supply the linker, compiler or Windows SDK. CMake
+and Ninja may be installed separately; this workstation already has CMake
+4.4.0 and Ninja 1.13.2, but has no VS Installer/vswhere, VC tools, Windows Kits,
+or corresponding Setup/SxS/Installed Roots registry entries. A GNU `link.exe`
+from Git for Windows cannot link MSVC Rust outputs.
+
+The OMP v18.20.0 source-matched Windows addon is therefore **not locally
+verified**. Existing loaded addons and successful TypeScript tests do not
+substitute for that build. No system tool installation or elevation was
+performed. Linux Bazel cross-build evidence must be recorded independently.
+
+The host build imports a matching `VsDevCmd.bat` environment in-process before
+Cargo selects its linker, validates the SDK headers/import libraries, and puts
+the selected MSVC bin directory ahead of PATH. Tool lookup uses the imported
+PATH explicitly. No environment or credentials are persisted. `BAZEL` selects
+an exact Bazel executable; `BAZEL_ARGS` also accepts a JSON string array so
+startup options with spaced paths survive argument parsing. Build and
+crate-universe host toolchains reuse the same existing archive SHA256 table.
+
 
 ### Building addons
 

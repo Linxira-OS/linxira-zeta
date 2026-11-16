@@ -1,4 +1,6 @@
 export interface RuntimeQueueEntry {
+  kind?: "compaction";
+  heldFor?: "compaction";
   id: string;
   text: string;
   queue: "steering" | "followUp";
@@ -7,11 +9,15 @@ export interface RuntimeQueueEntry {
   editable: boolean;
 }
 export interface RuntimeQueueResult {
+  compactionError?: string;
   entries: RuntimeQueueEntry[];
   total: number;
   truncated: boolean;
 }
 export type RuntimeQueueOperation =
+  | { kind: "session.compaction.enqueue"; sessionId: string; instructions?: string }
+  | { kind: "session.compaction.cancel"; sessionId: string; id?: string }
+  | { kind: "session.compaction.status"; sessionId: string }
   | { kind: "session.queue.get"; sessionId: string }
   | {
       kind: "session.queue.entry.remove";
@@ -40,6 +46,9 @@ export type RuntimeQueueOperation =
       text: string;
     };
 export interface RuntimeQueueResultMap {
+  "session.compaction.enqueue": RuntimeQueueResult;
+  "session.compaction.cancel": RuntimeQueueResult;
+  "session.compaction.status": RuntimeQueueResult;
   "session.queue.get": RuntimeQueueResult;
   "session.queue.entry.remove": RuntimeQueueResult;
   "session.queue.promote": RuntimeQueueResult;
@@ -47,6 +56,7 @@ export interface RuntimeQueueResultMap {
   "session.queue.restore": RuntimeQueueResult;
 }
 export const RUNTIME_QUEUE_KINDS = [
+  "session.compaction.enqueue", "session.compaction.cancel", "session.compaction.status",
   "session.queue.get",
   "session.queue.entry.remove",
   "session.queue.promote",
@@ -58,82 +68,7 @@ export function isRuntimeQueueKind(
 ): kind is RuntimeQueueOperation["kind"] {
   return (RUNTIME_QUEUE_KINDS as readonly string[]).includes(kind);
 }
-function record(value: unknown, keys: string[]): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.keys(value).some((key) => !keys.includes(key))
-  )
-    throw new Error("Invalid native queue object");
-  return value as Record<string, unknown>;
-}
-function text(value: unknown, max: number, empty = false): void {
-  if (
-    typeof value !== "string" ||
-    value.length > max ||
-    (!empty && !value.trim()) ||
-    value.includes("\0")
-  )
-    throw new Error("Invalid native queue text");
-}
-export function validateRuntimeQueueOperation(value: unknown): void {
-  const row = record(value, [
-    "kind",
-    "sessionId",
-    "id",
-    "queue",
-    "expectedText",
-    "text",
-  ]);
-  if (typeof row.kind !== "string" || !isRuntimeQueueKind(row.kind))
-    throw new Error("Unknown native queue operation");
-  text(row.sessionId, 512);
-  if (row.kind === "session.queue.get") {
-    record(row, ["kind", "sessionId"]);
-    return;
-  }
-  text(row.id, 128);
-  if (!["steering", "followUp"].includes(row.queue as string))
-    throw new Error("Invalid native queue selection");
-  if (row.kind === "session.queue.edit") {
-    text(row.expectedText, 32768, true);
-    text(row.text, 32768);
-  } else record(row, ["kind", "sessionId", "id", "queue"]);
-}
-export function validateRuntimeQueueResult(
-  _kind: RuntimeQueueOperation["kind"],
-  value: unknown,
-): void {
-  const row = record(value, ["entries", "total", "truncated"]);
-  if (
-    !Array.isArray(row.entries) ||
-    row.entries.length > 100 ||
-    typeof row.total !== "number" ||
-    !Number.isSafeInteger(row.total) ||
-    row.total < row.entries.length ||
-    typeof row.truncated !== "boolean"
-  )
-    throw new Error("Invalid native queue result");
-  for (const entry of row.entries) {
-    const item = record(entry, [
-      "id",
-      "text",
-      "queue",
-      "state",
-      "imageCount",
-      "editable",
-    ]);
-    text(item.id, 128);
-    text(item.text, 32768, true);
-    if (
-      !["steering", "followUp"].includes(item.queue as string) ||
-      !["queued", "inFlight", "held"].includes(item.state as string) ||
-      typeof item.imageCount !== "number" ||
-      !Number.isSafeInteger(item.imageCount) ||
-      item.imageCount < 0 ||
-      typeof item.editable !== "boolean"
-    )
-      throw new Error("Invalid native queue entry");
-  }
-}
+
+
+
+

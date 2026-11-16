@@ -67,23 +67,35 @@ fn token_path(name: &str) -> Option<PathBuf> {
 
 #[cfg(feature = "wayland-pipewire")]
 pub(super) fn read_token(name: &str) -> Option<String> {
-	fs::read_to_string(token_path(name)?)
-		.ok()
-		.map(|token| token.trim().to_string())
-		.filter(|token| !token.is_empty())
+	let path = token_path(name)?;
+	let metadata = fs::symlink_metadata(&path).ok()?;
+	if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 16 * 1024 {
+		return None;
+	}
+	fs::read_to_string(path).ok().map(|token| token.trim().to_string()).filter(|token| !token.is_empty())
 }
 
 #[cfg(feature = "wayland-pipewire")]
 pub(super) fn store_token(name: &str, token: Option<&str>) {
-	let (Some(path), Some(token)) = (token_path(name), token) else {
+	use std::{io::Write, os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt}};
+	let (Some(path), Some(token)) = (token_path(name), token) else { return; };
+	let Some(parent) = path.parent() else { return; };
+	if token.len() > 16 * 1024 || fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).is_err() {
 		return;
-	};
-	let Some(parent) = path.parent() else {
-		return;
-	};
-	if fs::create_dir_all(parent).is_ok() {
-		let _ = fs::write(path, token);
 	}
+	let Ok(metadata) = fs::symlink_metadata(parent) else { return; };
+	if !metadata.is_dir() || metadata.file_type().is_symlink() || fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).is_err() {
+		return;
+	}
+	let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |time| time.as_nanos());
+	let partial = path.with_extension(format!("{}.{}.partial", std::process::id(), nonce));
+	let result = (|| -> std::io::Result<()> {
+		let mut file = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(&partial)?;
+		file.write_all(token.as_bytes())?;
+		file.sync_all()?;
+		fs::rename(&partial, &path)
+	})();
+	if result.is_err() { let _ = fs::remove_file(partial); }
 }
 
 /// Why native input can never reach this desktop, or `None` when it may.

@@ -179,6 +179,8 @@ function parseTargetId(targetId: string): { key: string; kind: "tab" | "page" } 
 }
 
 class TabState {
+	studioPageId: string | undefined;
+	studioDocumentId: string | undefined;
 	/** Assigned in the constructor body from the owning instance. */
 	readonly tabKey: string;
 	url: string;
@@ -243,6 +245,8 @@ class TabState {
 		snap: TabSnapshot,
 	) {
 		this.tabKey = tabKeyOf(extCode, tabId);
+		this.studioPageId = snap.studioPageId;
+		this.studioDocumentId = snap.studioDocumentId;
 		this.url = snap.url;
 		this.title = snap.title;
 		this.active = snap.active;
@@ -253,6 +257,8 @@ class TabState {
 	}
 
 	update(snap: TabSnapshot): void {
+		this.studioPageId = snap.studioPageId;
+		this.studioDocumentId = snap.studioDocumentId;
 		this.url = snap.url;
 		this.title = snap.title;
 		this.active = snap.active;
@@ -518,6 +524,8 @@ export class RelayBridge {
 			if (!this.#eligible(tab)) continue;
 			out.push({
 				id: pageTargetIdFromKey(tab.tabKey),
+				...(tab.studioPageId ? { studioPageId: tab.studioPageId } : {}),
+				...(tab.studioDocumentId ? { studioDocumentId: tab.studioDocumentId } : {}),
 				type: "page",
 				title: tab.title,
 				url: tab.url,
@@ -1485,6 +1493,17 @@ export class RelayBridge {
 			case "Browser.setDownloadBehavior":
 				this.#reply(conn, msg, {});
 				return;
+			case "Studio.downloads.enable":
+			case "Studio.downloads.list": {
+				const targetId = typeof msg.params?.targetId === "string" ? msg.params.targetId : "";
+				const parsed = parseTargetId(targetId);
+				const tab = parsed ? this.#tabs.get(parsed.key) : undefined;
+				if (!tab?.studioPageId) { this.#replyError(conn, msg, "Managed browser page is unavailable"); return; }
+				const directory = typeof msg.params?.directory === "string" ? msg.params.directory : undefined;
+				const result = await this.#rpc({ op: "studioDownloads", tabId: tab.tabId, action: msg.method.endsWith("enable") ? "enable" : "list", ...(directory ? { directory } : {}) }, this.#instanceFor(tab));
+				this.#reply(conn, msg, { downloads: result });
+				return;
+			}
 			case "Target.createBrowserContext":
 				this.#replyError(conn, msg, "Browser contexts are not supported by the zeta browser relay");
 				return;

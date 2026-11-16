@@ -176,7 +176,9 @@
     "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts",
     "gen:export-viewer": "bun --cwd=packages/export-web run gen:export-viewer",
     "check:no-upstream-agent-compat": "bun scripts/check-no-upstream-agent-compat.ts",
-    "check:reqs": "bun scripts/check-requirements-ledger.ts"
+    "check:reqs": "bun scripts/check-requirements-ledger.ts",
+    "studio:sync": "bun scripts/studio-sync.ts",
+    "studio:gate": "bun scripts/studio-gate.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

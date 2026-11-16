@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import type { ClientInteraction, InteractionResponseValue } from "@linxiraos/studio-contract";
 import { ApprovalCard } from "./deck/ApprovalCard";
 import { AskActions, AskBody, AskHead } from "./deck/AskCard";
-import { ASK_GENIE_MS, prefersReducedMotion } from "./deck/askGenie";
+import { ASK_GENIE_MS } from "./deck/askGenie";
+import { motionReduced } from "./motion";
 import { approvalFromInteraction } from "./deck/approvalContent";
 import {
   askAnswered,
   askToDeckView,
   NO_ASK_ANSWER,
   nextPicked,
+  patchAskAnswer,
   selectToAskView,
   submitAskValue,
   submitSelectValue,
@@ -88,7 +90,7 @@ export function InteractionPrompt({ interaction, onRespond, disabled, caption, d
     const view = selectToAskView(interaction);
     const pick = (label: string) => {
       if (busy) return;
-      setAnswer((previous) => ({ ...previous, picked: nextPicked(view.question, previous.picked, label) }));
+      setAnswer(previous => patchAskAnswer(view.question, previous, { picked: nextPicked(view.question, previous.picked, label) }));
     };
     const send = () => {
       const value = submitSelectValue(view, answer, interaction.multiple);
@@ -109,7 +111,7 @@ export function InteractionPrompt({ interaction, onRespond, disabled, caption, d
           answer={answer}
           {...(busy ? { disabled: true } : {})}
           onPick={pick}
-          onCustom={(value) => setAnswer((previous) => ({ ...previous, custom: value }))}
+          onCustom={custom => setAnswer(previous => patchAskAnswer(view.question, previous, { custom }))}
           onSubmit={send}
         />
         {retryNote}
@@ -287,9 +289,9 @@ function PromptDeckShell({
   disabled: boolean;
   leaving: boolean;
 }) {
-  const [enter, setEnter] = useState(() => !prefersReducedMotion());
+  const [enter, setEnter] = useState(() => !motionReduced());
   useEffect(() => {
-    if (prefersReducedMotion()) {
+    if (motionReduced()) {
       setEnter(false);
       return;
     }

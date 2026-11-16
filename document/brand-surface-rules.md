@@ -101,6 +101,7 @@ party's registry carries the string.
 | `OMP_*` (remaining product envs) | Documented user configuration in `docs/environment-variables.md`; the compat/upstream families are Zeta-named now (see AGENTS.md) | AGENTS registry |
 | `python/robomp` | OMP-native upstream bot | `SKIP_PREFIXES` |
 | `omp_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
+| Studio IndexedDB `omp-studio-ui` / `omp-studio-backgrounds` | Existing cached user-message thumbnails and uploaded background blobs; renaming a database without copying its data orphans them | `web-app/src/studio/{conversation/userMessageThumbs,background/backgroundLibrary}.ts` |
 
 ### DUAL — read both, write Zeta only
 
@@ -145,9 +146,10 @@ These are SUBSTITUTE, but they change what a user finds on disk or in a store:
 
 - Redis session key prefix `omp:sessions:` -> `zeta:sessions:`
 - SQL session table `omp_session_files` -> `zeta_session_files`
-
 Both are configurable defaults. A user who pinned the old value keeps working; a
 user on the default must rename their existing keys/table.
+
+- Studio browser preferences `omp.*` -> `zeta.*`: the existing startup `migrateLegacyStorageKeys()` copies only when the new value is absent, then removes the old key. Dock, conversation workspace, onboarding, dictation consent, file-viewer, Git and evaluation readers/writers now use the migrated namespace. IndexedDB names are unchanged (COMPAT above). Internal DOM event producers/consumers move together to `zeta*`; these events are not persisted.
 
 ## Guard rules for this file
 

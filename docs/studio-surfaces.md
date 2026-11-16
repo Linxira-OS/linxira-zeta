@@ -9,7 +9,7 @@
 
 | Surface              | How it is detected                                                                     | What it is                                                                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Desktop app**      | `window.piDesktop` (window controls) or `window.zetaStudioChrome` (preload chrome API) | The Electron shell's renderer.                                                                                                                      |
+| **Desktop app**      | `window.zetaStudioChrome` (window controls and preload chrome API) | The Electron shell's renderer.                                                                                                                      |
 | **Local browser**    | No desktop bridge, loopback hostname (`localhost`, `127.0.0.1`, `[::1]`)               | A browser on the machine running `zetacode serve`.                                                                                                  |
 | **Remote browser**   | No desktop bridge, non-loopback origin                                                 | A browser reaching the machine through a tunnel/proxy. Being remote is an authorization question (`remote.token` + TOTP), not a capability verdict. |
 | **Mobile / WebView** | No desktop bridge, phone-sized coarse pointer or a mobile user agent                   | Binding-scoped chat client. Chat/history plus Settings for the paired-device list, pairing card and read-only TOTP verification; local runtime, credentials and device-admin stay hidden. |
@@ -19,6 +19,18 @@
 shell; it is shown as host provenance and never grants renderer controls. A
 remote browser connected to a desktop-spawned serve still gets no window
 controls.
+
+The production Zeta `serve` Host exposes authenticated conversation contexts
+and its browser transport advertises `supportsContexts: true`. Each context
+belongs to the existing authenticated cookie, selects a registered workspace
+and an optional session, and uses a separate event/socket namespace. Closing
+a context, revoking its owner or expiring the cookie closes its sockets;
+stale handles cannot fall back to the root session. A context grants no new
+device permissions. Host/auth coverage includes persisted sessions in two
+workspaces, foreign handles, nested targets, revocation, expiry and late socket
+attachment (98 tests / 407 assertions across the focused Host/auth run).
+Desktop SSH forwarding is implemented but real-target and native desktop
+acceptance remain open; ADR 0043 stays Proposed until those paths are verified.
 
 ## Decisions
 
@@ -164,8 +176,232 @@ operations resolves both `workspaceOfSession` and `workspaceOfCwd` through the
 hidden-inclusive canonical workspace registry and denies unattributable
 resources.
 
+## Workspace terminals and files (2026-11-15)
+
+Opening a terminal from a conversation resolves its selected workspace on the
+serving Host. A code block command starts a separate shell process in that
+directory; retrying the same live command slot reattaches to its output. It
+never types a script into an existing interactive shell. The requested shell
+must be installed on the target. Command launches reject a simultaneous shell
+profile, companion program or file injection. Browser terminals use the local
+Host; SSH terminal targets require the desktop transport.
+
+`POST /api/terminal/ensure` accepts `workspaceId`, `cols`, `rows` and
+`command: { shell: "bash" | "sh" | "zsh" | "powershell", text }`. The command
+must be non-empty, contain no NUL and be at most 1 MiB of UTF-8. An explicit
+`cwd` must match the registered workspace. Existing cookie, device-binding,
+CSRF/origin checks, one-time tickets and the raw PTY WebSocket remain in use.
+The gateway does not advertise ACK-based flow control.
+
+File viewers use `workspace.file.inspect` and versioned
+`workspace.file.readChunk` (at most 512 KiB per call). The built-in text editor
+uses `workspace.file.readText` / `workspace.file.writeText`, supports UTF-8 and
+BOM-marked UTF-16 up to 8 MiB, and retains BOM and line endings. Saving against
+an older version returns a conflict instead of overwriting a newer file.
+Every access resolves the canonical target inside its selected workspace;
+links outside that workspace are rejected. Desktop resources use the same
+authenticated local/SSH Host transport and are released when their owner
+closes.
+
+Office Word/PowerPoint conversion additionally requires a trusted signed
+component provider. The upstream public manifest URL is known, but this source
+tree supplies no trusted Office signing key. Installation and conversion stay
+unavailable until that prerequisite is supplied; Excel/CSV support is separate.
+Current-source desktop, real SSH and graphics acceptance remain recorded
+separately from unit and type checks. See ADR 0045 and ADR 0046.
+
+## Private browser observation (2026-11-15)
+
+`browser.tabs.get` lists the selected session's Chromium targets and live
+registry-proven descendants. `browser.observe.prepare` creates a short-lived
+private descriptor for one target. The authenticated conversation must keep
+its event socket open. Public replies contain opaque IDs; socket paths,
+credentials and frame bytes never enter bootstrap or conversation events.
+Desktop discovers the private directory only from a live PID-matched serve
+registration (ADR 0047).
+
+Observation preserves the target viewport. Taking human control excludes new
+agent actions, waits for pending work, and requires the displayed frame to
+remain current before dispatching input. Releasing control, losing descendant
+ownership, closing or switching the conversation, disconnecting its last event
+socket, revoking or expiring authentication, and disposing the session release
+the observation and its control lease. The browser target itself stays alive.
+Managed desktop browsing additionally uses `browser.managed.prepare`: its
+relay descriptor stays in the same private registration directory and is
+owned by one live view. A second view cannot silently replace it. The existing
+browser tool uses this relay for the session and proven descendants, waits for
+agent work before human takeover, and borrows desktop pages across Runtime
+cleanup. Typed WebMCP inspection and invocation retain page/document identity. Desktop
+enables Chromium's WebMCP feature (`WebMCPTesting` on Chromium 156, `WebMCP` on
+157) process-wide before app ready, so the renderer and plugin pages also see
+`document.modelContext`; that grants no IPC or Host authority, and invocation
+still goes through the authenticated private relay. A cross-document commit or
+renderer crash invalidates the prepared catalog and references; same-document
+navigation keeps them.
+Computer observation uses the same private registration, described below.
+
+## Computer workspace and private frames (2026-11-15)
+
+The Computer pane reads activity from the selected native session and its
+registry-proven descendants. Screenshots are private media: public state,
+events and conversation results contain opaque frame references and bounded
+metadata. A local Desktop surface must adopt the exact `computer.observe.open`
+lease before reading that lease's frames. Separate windows and contexts keep
+independent leases. Hiding, navigating, switching scope, disconnecting,
+revoking authentication or disposing a session releases its private views.
+
+Observation requires a native addon that positively supports passive
+construction. It never starts an input controller as a fallback. X11 passive
+reads do not install the user-input watcher; Wayland requires the
+`wayland-pipewire` build and ScreenCast/PipeWire runtime, without RemoteDesktop
+input. An older addon reports unavailable before constructing an input-enabled
+session. OS permissions, screen lock and backend availability remain separate
+from the presence of the Desktop IPC bridge.
+
+Stop revokes current native permits and persists the stop state. Continue
+uses the exact displayed revision and a user-attributed nonce consumed only
+when the native session executes that message; queued admission does not
+mean input has resumed. Existing foreground approval and physical Escape
+rules still apply. Historical frames are never replaced by a fresh capture.
+Saving frames to the ArtifactLibrary is unavailable until binary promotion
+exists; the pane exposes no save action.
+
+## Input prediction (2026-11-16)
+
+Studio's composer uses the existing native text-prediction daemon with an
+explicit Studio profile. Its history and learned state live in the private
+profile's `studio-predict` directory, separate from the TUI corpus. The daemon
+does not bootstrap Claude Code/Codex histories for this profile and a draft
+query never downloads model weights; only authoritative user messages add
+confirmed prompts, and importing an external JSONL file is an explicit action.
+
+The authenticated Host owns prediction settings (`spelling.autocomplete`,
+`composer.predictions`) and channel preparation. Each resident native session
+owns one producer: word completion over a private socket, and next-message
+prediction through the existing native composer controller with ranked
+alternatives. Every channel belongs to one live authenticated view and exact
+session instance; closing the context, losing the last event socket, revoking
+or expiring authentication, disposing/replacing the session, or hiding,
+minimizing, navigating or closing the Desktop window releases the channel and
+cancels its active next-message prediction. Public results carry only channel
+and session identity plus expiry; socket paths, tokens and private directories
+never enter bootstrap, events or receipts.
+
+Desktop adopts the prepared descriptor through trusted top-frame IPC, validates
+the exact endpoint/token/expiry, requires a visible window, and uses a file
+picker for history import (the renderer cannot pass arbitrary paths). A plain
+browser, remote browser or mobile surface has no private transport, so it shows
+the settings and corpus controls but no draft ghost text. Clearing the corpus
+stops that exact Studio daemon and removes its learned state without touching
+the shared verified model cache or the TUI history.
+
+Local acceptance used the current-source Host plus Electron 45.3.0 with a local
+protocol fixture: ranked next-message ghost inserted by Tab, word completion
+from the Studio corpus, and a picker import reporting 80 learned prompts. This
+is local-fixture product evidence; external-provider, packaged and
+source-matched-native acceptance remain separate. ADR 0053 records the
+decision and stays Proposed.
+
+## Evaluations (2026-11-15)
+
+The evaluation workspace uses the selected native session's benchmark,
+instruction, judgment and Ratchet execution. Provider credentials, model
+availability and isolation prerequisites are checked by those native paths.
+Closing a view releases its review lease while paid execution continues;
+session disposal, identity replacement or Host shutdown cancels the execution
+and retains completed or partial results. Reopening a record does not rerun it.
+Review responses require the current lease generation.
+
+History, rows and exports are bounded private-profile records partitioned by
+session. Limits include eight active evaluations, 512 retained records,
+20,000 rows per evaluation, 200 rows per page, 64 MiB per report and 48 KiB
+export chunks. Public output excludes credentials, private endpoints and
+native report paths. Local fixtures do not establish external-provider or
+packaged-product acceptance.
+
+## Time Travel (2026-11-15)
+
+Enable Time Travel in **Settings → General and notifications** before the
+turns to capture. It defaults off. Each execution Host keeps its own snapshots
+in the private profile's `time-travel` directory. Enabling adds filesystem
+work before user delivery and after terminal completion, including queued
+follow-ups and interrupted turns. Capture follows the native session and
+continues when the renderer disconnects.
+
+Profile settings use the local authenticated client even while a conversation
+or SSH target is selected. Bootstrap establishes its event connection before
+settings/storage reads or command receipts; opening a scoped conversation alone
+does not establish that profile connection.
+
+The history timeline offers **code**, **conversation**, or **both** restoration.
+Code restore previews additions, modifications and deletions, rejects a stale
+preview, and creates a safety snapshot before applying files. Git's tracked
+and untracked inventory, ignore rules and configured exclusions determine
+captured files; restore does not rewrite the Git index. Symlink-parent and
+workspace confinement checks prevent writes outside the selected workspace.
+These snapshots do not reverse external commands, remote services or database
+side effects.
+
+Conversation restore selects the exact native tree position, including the
+empty root, and preserves later branches. Restoration requires idle resident
+sessions in the same canonical workspace and blocks new work until the
+filesystem/tree transition finishes. If only part succeeds, the result names
+that part and retains the safety backup. This is separate from message-only
+checkpoints. Disabling retains existing snapshots; retention and explicit
+cleanup remove snapshots and unreferenced shared blobs.
+
+
+## Project services (2026-11-15)
+
+The Services pane and background-task dock use the same workspace launch
+broker as named bash services and `proc://`. Open a live conversation before
+controlling its workspace services. Studio starts return after launch and
+never replace an existing name. Readiness continues in the broker and appears
+in subsequent service reads. Relative launch directories must remain within
+the selected workspace after resolving symlinks.
+
+Stop, restart, input, mode changes and logs carry the exact launch instance.
+A request from before a restart or replacement is rejected; refresh the list
+before trying again. If a resident broker predates instance fencing, restart
+that broker with the updated Runtime before using Studio controls. This does
+not weaken cookie/CSRF, device binding or 2FA: project-wide service operations
+remain unavailable to conversation-bound devices.
+
+Service rows show the real native owner ID and PID. A named bash web server
+can declare `previewUrl`, an absolute HTTP(S) URL without embedded credentials.
+Studio uses that declaration to open its page; it does not guess an address
+from logs. Restart and broker recovery retain the declaration. Commands,
+environment variables and private runtime directories are not service-row
+fields. Session, persistent and detached modes retain their existing native
+lifetimes; detaching the shared managed-browser process is refused.
+
+## Operation validation (2026-11-16)
+
+Studio requests use the existing authenticated Zeta Host. The Host and gateway
+validate operation inputs where they are consumed; the shared client protocol
+does not duplicate Runtime request parsing or validate typed in-process results.
+Launch specifications, workspace paths, exact service instances, runtime setting
+values, native or paid work limits, and private Desktop/socket inputs retain
+their owning checks. Client-side form checks do not replace authorization.
+See [ADR 0052](../document/adr/0052-studio-input-validation-authority.md).
+
 ## Gaps
 
+- **Host producer gaps (2026-11-16).** The renderer and shared contracts carry
+  surfaces whose `/api/v1/query|command` families have no registered Host
+  producer, so the capability manifest does not advertise them and the
+  renderer hides or gates the control. They are listed here so a hidden
+  control is never mistaken for a working one:
+  `accounts.*`, `agent.btw.*`, `agent.model.inspect`, `annotations.*`,
+  `benchmarks.*`, `extensions.links.*`, `ida.*`, `judgments.*`, `media.*`,
+  `ratchet.*`, `search.credentials.*`, `session.compaction.*`, `shell.view.*`,
+  `skillshare.*`, `worktrees.*`, and `live.audio.*`.
+  `skillshare.*` stays retired by ADR 0047; `live.audio.*` stays owner-held by
+  ADR 0034. The rest are real producer gaps tracked in the requirements
+  ledger; implementing one means adding its Host family, not re-enabling a
+  renderer switch. Desktop also dropped upstream's office-preview, chrome-api,
+  remote-provisioning and desktop git/GitHub services because those reads now
+  live in Host ops or are retired (Office needs a trusted signed component).
 - **Mobile binding scope** is enforced only by navigation today: the renderer
   hides local runtime, credentials and device admin and lands on chat, but the
   server still authorizes a device token against the whole authority, and the

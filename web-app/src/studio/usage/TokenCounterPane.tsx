@@ -5,9 +5,15 @@ import { usePreviewMode } from "../preview/PreviewContext";
 import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { PREVIEW_TOKEN_COUNT } from "../preview/tokenCounterPreview";
+import { Icon } from "../icons";
+import { useWideLayout } from "../layout/useWideLayout";
+import "./tokenCounter.css";
+
+/** From this width the text and the results sit side by side. */
+const TOKEN_COUNTER_WIDE_MIN = 760;
 
 export function TokenCounterPane({ client }: { client: StudioClient | null }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const [text, setText] = useState("");
@@ -15,11 +21,15 @@ export function TokenCounterPane({ client }: { client: StudioClient | null }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const inputVersion = useRef(0);
-  return <details style={{ borderTop: "1px solid var(--border)", padding: 12 }}>
-    <summary>{zh ? "离线 Token 计数" : "Offline token counter"}{preview ? zh ? " · 演示" : " · Demo" : ""}</summary>
-    <p className="small muted">{zh ? "使用 Runtime 内置 tokenizer，不发送模型请求。这里只计算输入文本，不含对话封装。" : "Uses embedded Runtime tokenizers without model requests. Counts input text only, excluding conversation framing."}</p>
-    <textarea className="input mono" rows={3} style={{ width: "100%", resize: "vertical" }} maxLength={262144} aria-label={zh ? "待计数文本" : "Text to count"} value={text} onChange={event => { inputVersion.current++; setText(event.target.value); setResult(undefined); }} />
-    <button className="btn small" disabled={busy || (!preview && !client)} onClick={() => {
+  const [rootRef, wide] = useWideLayout<HTMLElement>(TOKEN_COUNTER_WIDE_MIN);
+  const most = Math.max(1, ...(result?.encodings.map(row => row.tokens) ?? []));
+  return <section className={`token-counter${wide ? " is-wide" : ""}`} ref={rootRef} aria-label={zh ? "离线 Token 计数" : "Offline token counter"}>
+    <header className="token-counter-header"><span><Icon name="code" extra="sm" />{zh ? "离线 Token 计数" : "Offline token counter"}</span>{preview && marks ? <span className="chip xs">{zh ? "演示" : "Demo"}</span> : null}</header>
+    <div className="token-counter-body">
+    <p className="token-counter-help">{zh ? "仅计算输入文本，不含对话封装；使用本地 tokenizer，不发送模型请求。" : "Counts input text only, without conversation framing. Uses local tokenizers, with no model request."}</p>
+    <textarea className="token-counter-input" rows={3} maxLength={262144} placeholder={zh ? "粘贴或输入要计算的文本…" : "Paste or type text to count…"} aria-label={zh ? "待计数文本" : "Text to count"} value={text} onChange={event => { inputVersion.current++; setText(event.target.value); setResult(undefined); setError(""); }} />
+    <div className="token-counter-actions"><span>{!preview && !client ? (zh ? "Runtime 未连接" : "Runtime disconnected") : `${text.length.toLocaleString()} ${zh ? "字符" : "characters"}`}</span>
+    <button type="button" className="btn small outline" disabled={busy || !text.length || (!preview && !client)} onClick={() => {
       if (preview) { setResult(PREVIEW_TOKEN_COUNT); return; }
       if (!client) return;
       const version = inputVersion.current; setBusy(true); setError("");
@@ -27,8 +37,14 @@ export function TokenCounterPane({ client }: { client: StudioClient | null }) {
         .then(value => { if (version === inputVersion.current) setResult(value.result); })
         .catch(cause => setError(hostErrorMessage(cause, zh ? "离线计数不可用" : "Offline counting unavailable")))
         .finally(() => setBusy(false));
-    }}>{busy ? "…" : zh ? "计算" : "Count"}</button>
-    {error ? <p role="alert" className="small">{error}</p> : null}
-    {result ? <><p className="small muted">{result.bytes} bytes · {result.chars} {zh ? "字符" : "characters"} · {result.lines} {zh ? "行" : "lines"}</p><table style={{ width: "100%" }}><thead><tr><th>Tokenizer</th><th>Tokens</th></tr></thead><tbody>{result.encodings.map(row => <tr key={row.encoding}><td className="mono small">{row.encoding}</td><td className="mono" style={{ textAlign: "right" }}>{row.tokens}</td></tr>)}</tbody></table></> : null}
-  </details>;
+    }}>{busy ? (zh ? "计算中…" : "Counting…") : zh ? "计算 Token" : "Count tokens"}</button></div>
+    {error ? <p role="alert" className="token-counter-error">{error}</p> : null}
+    {result ? <div className="token-counter-result" aria-live="polite">
+      {wide ? <div className="token-counter-stats">{([["bytes", result.bytes], [zh ? "字符" : "characters", result.chars], [zh ? "行" : "lines", result.lines]] as const).map(([label, count]) =>
+        <div key={label}><strong>{count.toLocaleString()}</strong><span>{label}</span></div>)}</div>
+        : <p className="token-counter-help">{result.bytes} bytes · {result.chars} {zh ? "字符" : "characters"} · {result.lines} {zh ? "行" : "lines"}</p>}
+      <table className="token-counter-results"><thead><tr><th scope="col">Tokenizer</th>{wide ? <th scope="col" aria-hidden="true" /> : null}<th scope="col">Tokens</th></tr></thead><tbody>{result.encodings.map(row => <tr key={row.encoding}><td>{row.encoding}</td>{wide ? <td className="token-counter-bar" aria-hidden="true"><i style={{ width: `${row.tokens / most * 100}%` }} /></td> : null}<td>{row.tokens.toLocaleString()}</td></tr>)}</tbody></table>
+    </div> : <p className="token-counter-empty">{wide ? <Icon name="code" /> : null}<span>{zh ? "计算后可比较不同 tokenizer 的结果。" : "Compare results across tokenizers after counting."}</span></p>}
+    </div>
+  </section>;
 }

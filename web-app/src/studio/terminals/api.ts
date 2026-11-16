@@ -9,6 +9,11 @@
 
 import type { TerminalProfileCatalog } from "./gatewayTerminal";
 
+export interface TerminalCommand {
+	readonly shell: "bash" | "sh" | "zsh" | "powershell";
+	readonly text: string;
+}
+
 export interface StudioTerminalCreateInput {
 	cols?: number;
 	rows?: number;
@@ -17,6 +22,8 @@ export interface StudioTerminalCreateInput {
 	instanceId?: string;
 	profileId?: string;
 	cwd?: string;
+	command?: TerminalCommand;
+	flowControl?: boolean;
 }
 
 export interface StudioTerminalSessionInfo {
@@ -33,11 +40,12 @@ export interface StudioTerminalApi {
 	write(id: string, data: string): Promise<void> | void;
 	resize(id: string, cols: number, rows: number): Promise<void> | void;
 	dispose(id: string): Promise<void> | void;
-	onData(listener: (event: { id: string; data: string }) => void): () => void;
+	onData(listener: (event: { id: string; data: string; bytes?: number }) => void): () => void;
 	onExit(listener: (event: { id: string }) => void): () => void;
 	/** Optional local shell catalog shared by desktop and browser hosts. */
 	profiles?(): Promise<TerminalProfileCatalog>;
 	list?(): Promise<{ terminals: Array<Record<string, unknown>> }>;
+	ack?(id: string, bytes: number): void;
 }
 
 /** Adapt the Electron preload object to the surface. */

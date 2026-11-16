@@ -1,3 +1,4 @@
+import { timeTravelPreview } from "./preview/timeTravelPreview";
 import { ResumeScopePane } from "./history/ResumeScopePane";
 import { SessionPortabilityPane } from "./history/SessionPortabilityPane";
 import { SeanceDialog } from "./history/SeanceDialog";
@@ -8,22 +9,23 @@ import { previewSessionTitle } from "./preview/sessionTitlePreview";
 import { NativeArchivePane, type NativeHistoryContext } from "./history/NativeArchivePane";
 import { WorkspaceTabs, WorkspacePanel } from "./workspaces/Workspace";
 import { SessionImportPanel } from "./SessionImportPanel";
-import type { StudioClient, WorkspaceId } from "@linxiraos/studio-contract";
+import type { StudioClient, SessionId, WorkspaceId } from "@linxiraos/studio-contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SessionHistoryEntry, SessionHistoryReadModel, SessionHistoryStatus } from "@linxiraos/studio-contract";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { ToastHost } from "./ToastHost";
 import type { PageRoute } from "./HomePage";
 import { usePreviewMode } from "./preview/PreviewContext";
 import {
   PREVIEW_HISTORY,
-  PREVIEW_TIME_TRAVEL,
   type PreviewHistoryRow,
   type PreviewHistoryStatus,
-  type PreviewTtNode,
 } from "./preview/fixtures";
 import { useI18n } from "./i18n";
+import { useTimeTravelSettings } from "./history/useTimeTravelSettings";
+import { TimeTravelPane } from "./history/TimeTravelPane";
+import { TimeTravelEntry } from "./history/TimeTravelActivation";
 
 /** 工具栏状态筛选：纯客户端过滤已加载的会话模型，不涉及 Host 契约。 */
 type StatusTab = "all" | "active" | "archived";
@@ -52,12 +54,6 @@ const HOST_STATUS: Record<SessionHistoryStatus, { chip: string; key: string }> =
   closed: { chip: "gray", key: "history.closed" },
 };
 
-const TT_RESTORE = {
-  code: "history.restoreCodeOnly",
-  convo: "history.restoreConvoOnly",
-  both: "history.restoreBoth",
-} as const;
-
 function formatHostTime(value: string, t: (key: string) => string): string {
   const then = Date.parse(value);
   if (!Number.isFinite(then)) return value;
@@ -74,9 +70,9 @@ function hostHistoryTitle(entry: SessionHistoryEntry, untitledTitle: string): st
   return title && title.length > 0 ? title : untitledTitle;
 }
 
-function useNotice(): [notice: { text: string; icon: string } | null, show: (text: string, icon?: string) => void, dismiss: () => void] {
-  const [notice, setNotice] = useState<{ text: string; icon: string } | null>(null);
-  return [notice, (text, icon = "info") => setNotice({ text, icon }), () => setNotice(null)];
+function useNotice(): [notice: { text: string; icon: IconName } | null, show: (text: string, icon?: IconName) => void, dismiss: () => void] {
+  const [notice, setNotice] = useState<{ text: string; icon: IconName } | null>(null);
+  return [notice, (text, icon: IconName = "info") => setNotice({ text, icon }), () => setNotice(null)];
 }
 
 function HistEmpty({ text }: { text: string }) {
@@ -97,11 +93,15 @@ function HistMoreMenu({
   rect,
   onClose,
   onDelete,
+  onRename, onPin, pinned,
 }: {
   open: boolean;
   rect: { top: number; left: number; width: number; bottom: number } | null;
   onClose: () => void;
   onDelete: () => void;
+  onRename?: (() => void) | undefined;
+  onPin?: (() => void) | undefined;
+  pinned?: boolean | undefined;
 }) {
   const { t } = useI18n();
   const popRef = useRef<HTMLDivElement>(null);
@@ -149,6 +149,8 @@ function HistMoreMenu({
       aria-label={t("common.moreActions")}
       style={{ top: anchor.top, left: anchor.left, minWidth: anchor.width }}
     >
+      {onRename ? <button type="button" role="menuitem" className="menu-item" onClick={onRename}><Icon name="pencil" extra="sm" /><span>{t("conversation.renameThread")}</span></button> : null}
+      {onPin ? <button type="button" role="menuitem" className="menu-item" onClick={onPin}><Icon name="pin" extra="sm" /><span>{pinned ? "取消置顶 / Unpin" : "置顶 / Pin"}</span></button> : null}
       <button type="button" role="menuitem" className="menu-item danger" onClick={onDelete}>
         <Icon name="trash" extra="sm" />
         <span>{t("history.deleteSession")}</span>
@@ -175,6 +177,7 @@ function DeleteSessionDialog({
   onCancel: () => void;
 }) {
   const { t } = useI18n();
+  const { marks } = usePreviewMode();
   const [deleteManagedArtifacts, setDeleteManagedArtifacts] = useState(false);
   useEffect(() => {
     if (busy) return;
@@ -205,7 +208,7 @@ function DeleteSessionDialog({
         </div>
         <div className="create-project-body">
           <p className="create-branch-hint">
-            {preview ? t("history.deleteConfirmDemo") : t("history.deleteConfirmReal")}
+            {preview && marks ? t("history.deleteConfirmDemo") : t("history.deleteConfirmReal")}
           </p>
           <label className="small"><input type="checkbox" disabled={busy} checked={deleteManagedArtifacts} onChange={event => setDeleteManagedArtifacts(event.target.checked)} /> {t("history.deleteManagedArtifacts")}</label>
           <p className="small muted">{t("history.retainManagedArtifacts")}</p>
@@ -286,19 +289,23 @@ function useConsultLabel(): string {
 }
 
 function HostHistRow({
-  entry, titleRow,
+  entry,
+  lease, titleRow,
   onOpen,
   onUnarchive,
   onMore,
   onConsult,
+  onTimeTravel,
 }: {
   entry: SessionHistoryEntry;
+  lease?: boolean | null | undefined;
   titleRow?: SessionTitleRow | undefined;
   onOpen: () => void;
   onUnarchive: (() => void) | undefined;
   onMore: (event: React.MouseEvent<HTMLButtonElement>) => void;
   /** Undefined when no live session can run the consult (or this is the live session). */
   onConsult: (() => void) | undefined;
+  onTimeTravel: (() => void) | undefined;
 }) {
   const status = HOST_STATUS[entry.status];
   const archived = entry.status === "archived";
@@ -317,6 +324,7 @@ function HostHistRow({
       <span className="a-ic purple" aria-hidden="true"><Icon name="message" extra="sm" /></span>
       <a className="h-main" href="#!workbench" onClick={(event) => { event.preventDefault(); onOpen(); }}>
         <span className="h-title ellipsis">
+          {lease === true ? <span className="chip blue xs">使用中 / In use</span> : lease === null ? <span className="chip gray xs">占用未知 / Unknown lease</span> : null}
           {entry.pinned === true ? <span className="t-pin" role="img" aria-label={t("history.pinned")}><Icon name="pin" extra="sm" /></span> : null}
           <SessionTitleMark row={titleRow} title={title} />{title}
         </span>
@@ -329,6 +337,7 @@ function HostHistRow({
       </a>
       <span className={`chip ${status.chip}`}>{t(status.key)}</span>
       <div className="h-acts">
+        {onTimeTravel ? <button type="button" className="icon-btn small" data-tip="Time Travel" aria-label="Time Travel" onClick={onTimeTravel}><Icon name="history" extra="sm" /></button> : null}
         <button
           type="button"
           className="icon-btn small"
@@ -348,37 +357,10 @@ function HostHistRow({
   );
 }
 
-function TimeTravelRail({ onRestore }: { onRestore: (kind: keyof typeof TT_RESTORE) => void }) {
-  const { t } = useI18n();
-  return (
-    <div className="tt-rail">
-      {PREVIEW_TIME_TRAVEL.map((node: PreviewTtNode, index) => (
-        <div className={`tt-node ${node.kind}`} key={`${node.kind}-${node.time}-${index}`}>
-          <div className="tt-card">
-            <div className="tt-card-head">
-              <b>{node.title}</b>
-              <span className="tiny muted mono">{node.time}</span>
-              {node.restorable ? <span className="chip purple xs">{t("history.restorable")}</span> : null}
-              {node.restorable ? <span className="spacer" /> : null}
-              {node.restorable ? (
-                <>
-                  <button type="button" className="btn small outline" onClick={() => onRestore("code")}>{t("history.btnRestoreCode")}</button>
-                  <button type="button" className="btn small outline" onClick={() => onRestore("convo")}>{t("history.btnRestoreConvo")}</button>
-                  <button type="button" className="btn small primary" onClick={() => onRestore("both")}>{t("history.btnRestoreBoth")}</button>
-                </>
-              ) : null}
-            </div>
-            <div className="small muted tt-card-body">{node.detail}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function HistoryPage({
  nativeContext,
   client, onImportedOpen, onImported,
+  workspaceId,
   history,
   onRoute,
   onSelectThread,
@@ -386,9 +368,13 @@ export function HistoryPage({
   onDeleteSession,
   includeIm,
   onToggleIm,
+  onRenameSession, onPinSession,
 }: {
   nativeContext?: NativeHistoryContext;
   client?: StudioClient;
+  workspaceId?: string | undefined;
+  onRenameSession?: (entry: SessionHistoryEntry) => void;
+  onPinSession?: (entry: SessionHistoryEntry) => void;
   onImportedOpen?: (sessionId: string, workspaceId: WorkspaceId) => void;
   onImported?: () => void;
   history?: SessionHistoryReadModel;
@@ -402,12 +388,13 @@ export function HistoryPage({
   includeIm?: boolean;
   onToggleIm?: () => void;
 }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
+  const timeTravelSettings = useTimeTravelSettings(client);
   const { t, resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const [workspaceTab,setWorkspaceTab] = useState<"catalog"|"archive"|"transfer">("catalog");
   const supports = (id: string) => nativeContext?.capabilities?.capabilities.some(cap => cap.id === id && cap.grade !== "unavailable") === true;
-  const historyTabs: ReadonlyArray<readonly ["catalog"|"archive"|"transfer", string, string]> = ([
+  const historyTabs: ReadonlyArray<readonly ["catalog"|"archive"|"transfer", IconName, string]> = ([
     ["catalog", "history", zh ? "会话目录" : "Session catalog"],
     ...(supports("archive.sessions.list") ? [["archive", "archive", "Archive / Recap"] as const] : []),
     ...(supports("session.portability.status") ? [["transfer", "export", zh ? "迁移与导出" : "Transfer & export"] as const] : []),
@@ -416,12 +403,17 @@ export function HistoryPage({
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [notice, show, dismissNotice] = useNotice();
   const q = query.trim().toLowerCase();
+  const [previewMetadata, setPreviewMetadata] = useState<Record<string, { title?: string; pinned?: boolean }>>({});
+  const [previewRename, setPreviewRename] = useState<{ id: string; title: string }>();
+  const [leases, setLeases] = useState<Record<string, boolean | null>>({});
+  const canMetadata = preview || !!(nativeContext?.available && nativeContext.sessionId && nativeContext.capabilities?.capabilities.some(row => row.id === "session.history.rename" && row.grade !== "unavailable"));
   /** 哪个行的「⋮」菜单打开：id + 触发按钮 rect（菜单用 portal 定位到 body）。 */
   const [menu, setMenu] = useState<{ id: string; rect: { top: number; left: number; width: number; bottom: number } | null } | null>(null);
   const [deleteFor, setDeleteFor] = useState<{ title: string; entry?: SessionHistoryEntry } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined);
   const [consult, setConsult] = useState<{ source: string; title: string } | null>(null);
+  const [timeTravelSession, setTimeTravelSession] = useState<SessionId>();
   const canConsult = !!(nativeContext?.available && nativeContext.sessionId && nativeContext.capabilities?.capabilities.some((item) => item.id === "seance.ask" && item.grade !== "unavailable"));
 
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -445,7 +437,7 @@ export function HistoryPage({
   const confirmDelete = useCallback((deleteManagedArtifacts: boolean) => {
     if (deleteFor === null || deleting) return;
     if (preview || deleteFor.entry === undefined || onDeleteSession === undefined) {
-      show(t("history.demoDeleteToast", { title: deleteFor.title }), "trash");
+      if (marks || !preview) show(t("history.demoDeleteToast", { title: deleteFor.title }), "trash");
       setDeleteFor(null);
       return;
     }
@@ -463,13 +455,13 @@ export function HistoryPage({
         setDeleteError(error instanceof Error && error.message.length > 0 ? error.message : String(error));
         setDeleting(false);
       });
-  }, [deleteFor, deleting, preview, onDeleteSession, show, t]);
+  }, [deleteFor, deleting, marks, preview, onDeleteSession, show, t]);
 
   const previewRows = useMemo(
-    () => PREVIEW_HISTORY
+    () => PREVIEW_HISTORY.map(row => ({ ...row, ...previewMetadata[row.id] })).sort((a,b) => Number(!!b.pinned)-Number(!!a.pinned))
       .filter((row) => `${row.title} ${row.project} ${row.branch}`.toLowerCase().includes(q))
       .filter((row) => matchesStatusTab(row.status, statusTab)),
-    [q, statusTab],
+    [q, statusTab, previewMetadata],
   );
   const hostRows = useMemo(
     () => (history?.entries ?? [])
@@ -480,6 +472,27 @@ export function HistoryPage({
       .filter((entry) => matchesStatusTab(entry.status, statusTab)),
     [history, q, statusTab, t, includeIm],
   );
+  const historySessionIds = useMemo(() => (history?.entries ?? []).flatMap(row => row.sessionId ? [row.sessionId] : []), [history?.entries]);
+  useEffect(() => {
+    setTimeTravelSession(undefined);
+  }, [workspaceId]);
+  useEffect(() => {
+    if (timeTravelSession && historySessionIds.includes(timeTravelSession)) return;
+    setTimeTravelSession(historySessionIds.find(id => id === nativeContext?.sessionId) ?? historySessionIds[0]);
+  }, [historySessionIds, nativeContext?.sessionId, timeTravelSession]);
+  const timeTravelEntry = history?.entries.find(row => row.sessionId === timeTravelSession);
+  const leaseAvailable = !!nativeContext?.available && !!nativeContext.capabilities?.capabilities.some(row => row.id === "session.lease.inspect" && row.grade !== "unavailable");
+
+  useEffect(() => {
+    let alive = true;
+    setLeases({});
+    if (preview || workspaceTab !== "catalog" || !client || !nativeContext?.sessionId || !leaseAvailable || !historySessionIds.length) return;
+    void client.query("session.lease.read", { sessionId: nativeContext.sessionId, targetSessionIds: historySessionIds }).then(result => {
+      const held = new Set(result.held), unknown = new Set(result.unknown);
+      if (alive) setLeases(Object.fromEntries(historySessionIds.map(id => [id, unknown.has(id) ? null : held.has(id)])));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [preview, client, nativeContext?.sessionId, leaseAvailable, historySessionIds, workspaceTab]);
 
   const titleMetadata = useSessionTitles(client,nativeContext,hostRows.flatMap(entry=>entry.sessionId?[{id:entry.sessionId,title:entry.title}]:[]),workspaceTab==="catalog");
   const rows = preview ? previewRows : hostRows;
@@ -490,10 +503,14 @@ export function HistoryPage({
 <WorkspaceTabs<"catalog"|"archive"|"transfer"> id="history-workspace" label={zh ? "历史" : "History"} value={workspaceTab} onChange={setWorkspaceTab} items={historyTabs.map(([id,icon,label])=>({id,icon,label}))}/>
 <WorkspacePanel id="history-workspace" name="catalog" active={workspaceTab==="catalog"}>
 <div className="hist-layout">
-      <section aria-labelledby="histHeading">
-        <h2 className="sr-only" id="histHeading">{t("history.listHeading")}</h2>
-        <SessionImportPanel client={client ?? null} onOpen={onImportedOpen ?? (() => {})} {...(onImported ? { onImported } : {})} />
-        <ResumeScopePane client={client} context={nativeContext} onOpen={onImportedOpen} />
+      <section className="history-catalog" aria-labelledby="histHeading">
+        <header className="history-catalog-heading">
+          <div className="history-catalog-title"><h2 id="histHeading">{zh ? "项目会话" : "Project sessions"}</h2><span className="history-catalog-count">{t("history.conversationsCount", { count: rows.length })}</span></div>
+          <div className="history-catalog-actions">
+            <ResumeScopePane key={nativeContext?.sessionId ?? "no-live-session"} client={client} context={nativeContext} onOpen={onImportedOpen} onPreviewOpen={() => onRoute("workbench")} />
+            <SessionImportPanel client={client ?? null} onOpen={onImportedOpen ?? (() => {})} {...(onImported ? { onImported } : {})} onPreviewOpen={() => onRoute("workbench")} />
+          </div>
+        </header>
         <div className="hist-toolbar">
           <label className="sr-only" htmlFor="histSearch">{t("history.searchLabel")}</label>
           <input
@@ -524,20 +541,10 @@ export function HistoryPage({
               >IM / Bot</button>
             ) : null}
           </div>
-          {preview
-            ? (
-              <>
-                <button type="button" className="btn outline" onClick={() => show(t("history.demoExportToast"), "export")}>
-                  <Icon name="export" extra="sm" />{t("history.export")}
-                </button>
-                <span className="chip gray xs">{t("common.demo")}</span>
-              </>
-            )
-            : (
-              <button type="button" className="btn outline" disabled data-tip={t("history.exportNotImplemented")}>
-                <Icon name="export" extra="sm" />{t("history.export")}
-              </button>
-            )}
+          <button type="button" className="btn outline" onClick={() => setWorkspaceTab("transfer")}>
+            <Icon name="export" extra="sm" />{t("history.export")}
+          </button>
+          {preview && marks ? <span className="chip gray xs">{t("common.demo")}</span> : null}
         </div>
         {preview
           ? (previewRows.length
@@ -548,18 +555,18 @@ export function HistoryPage({
                 onOpen={() => onRoute("workbench")}
                 onAct={(kind) => {
                   if (kind === "resume") {
-                    show(t("history.demoResumeToast", { title: row.title }), "refresh");
+                    if (marks) show(t("history.demoResumeToast", { title: row.title }), "refresh");
                     onRoute("workbench");
                     return;
                   }
                   if (kind === "unarchive") {
-                    show(t("history.demoUnarchiveToast", { title: row.title }), "archive");
+                    if (marks) show(t("history.demoUnarchiveToast", { title: row.title }), "archive");
                     return;
                   }
                   if (kind === "more") {
                     return;
                   }
-                  show(t("history.demoForkToast", { title: row.title }), "fork");
+                  if (marks) show(t("history.demoForkToast", { title: row.title }), "fork");
                 }}
                 onConsult={() => setConsult({ source: row.id, title: row.title })}
                 onMore={(event) => openMenu(row.id, event)}
@@ -571,32 +578,34 @@ export function HistoryPage({
               <HostHistRow
                 key={entry.historyId}
                 entry={entry}
+                lease={leases[entry.sessionId ?? ""]}
                 titleRow={titleMetadata.rows.get(entry.sessionId ?? "")}
                 onOpen={() => onSelectThread(entry)}
                 onUnarchive={entry.status === "archived" && onUnarchive !== undefined ? () => onUnarchive(entry) : undefined}
                 onMore={(event) => openMenu(entry.historyId, event)}
                 onConsult={canConsult && entry.sessionId && entry.sessionId !== nativeContext?.sessionId ? () => setConsult({ source: entry.sessionId!, title: hostHistoryTitle(entry, t("conversation.untitledSession")) }) : undefined}
+                onTimeTravel={timeTravelSettings.settings?.enabled && entry.sessionId ? () => setTimeTravelSession(entry.sessionId) : undefined}
               />
             ))
             : <HistEmpty text={history ? t("history.noMatches") : t("history.catalogUnavailable")} />)}
         <div className="sr-only" role="status" aria-live="polite">{live}</div>
       </section>
-      <section aria-labelledby="ttHeading">
-        <h2 className="tt-heading" id="ttHeading">Time Travel</h2>
-        <p className="muted small tt-desc">{t("history.timeTravelDesc")}</p>
-        {preview ? (
-          <TimeTravelRail onRestore={(kind) => show(t("history.demoRestoreToast", { desc: t(TT_RESTORE[kind]) }), "history")} />
-        ) : (
-          <div className="empty">
-            <Icon name="history" />
-            {t("shell.previewUnavailableDetail")}
-          </div>
-        )}
-      </section>
+      {!timeTravelSettings.settings?.enabled ? <TimeTravelEntry client={client} expanded /> : <TimeTravelPane key={`${workspaceId}:${timeTravelEntry?.sessionId}:${preview}`} client={client} entry={preview ? timeTravelPreview.entry : timeTravelEntry} onOpen={() => { if (timeTravelEntry) onSelectThread(timeTravelEntry); }} />}
       <HistMoreMenu
         open={menu !== null}
         rect={menu?.rect ?? null}
         onClose={closeMenu}
+        pinned={preview ? previewRows.find(row => row.id === menu?.id)?.pinned : hostRows.find(row => row.historyId === menu?.id)?.pinned}
+        onRename={canMetadata ? () => {
+          if (preview) { const row = previewRows.find(row => row.id === menu?.id); if (row) setPreviewRename({ id: row.id, title: row.title }); }
+          else { const row = hostRows.find(row => row.historyId === menu?.id); if (row) onRenameSession?.(row); }
+          closeMenu();
+        } : undefined}
+        onPin={canMetadata ? () => {
+          if (preview) { const row = previewRows.find(row => row.id === menu?.id); if (row) setPreviewMetadata(current => ({ ...current, [row.id]: { ...current[row.id], pinned: !row.pinned } })); }
+          else { const row = hostRows.find(row => row.historyId === menu?.id); if (row) onPinSession?.(row); }
+          closeMenu();
+        } : undefined}
         onDelete={() => {
           if (menu === null) return;
           const hostEntry = hostRows.find((entry) => entry.historyId === menu.id);
@@ -612,6 +621,7 @@ export function HistoryPage({
           closeMenu();
         }}
       />
+      {previewRename ? <div className="modal-backdrop create-project-backdrop"><form className="modal create-project-modal" role="dialog" aria-label={t("conversation.renameThread")} onSubmit={event => { event.preventDefault(); if (!previewRename.title.trim()) return; setPreviewMetadata(current => ({ ...current, [previewRename.id]: { ...current[previewRename.id], title: previewRename.title.trim() } })); setPreviewRename(undefined); }}><h3>{t("conversation.renameThread")}</h3><input className="input" autoFocus value={previewRename.title} onChange={event => setPreviewRename({ ...previewRename, title: event.target.value })} /><div className="create-project-foot"><button type="button" className="btn outline" onClick={() => setPreviewRename(undefined)}>{t("common.cancel")}</button><button type="submit" className="btn primary" disabled={!previewRename.title.trim()}>{t("common.save")}</button></div></form></div> : null}
       {deleteFor !== null ? (
         <DeleteSessionDialog
           title={deleteFor.title}

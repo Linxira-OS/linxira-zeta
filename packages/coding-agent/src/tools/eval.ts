@@ -608,6 +608,7 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 			}
 			const execution = runWithEvalShadowCell(activeShadowCell, () =>
 				this.#runCells({
+					outerToolCallId: _toolCallId,
 					session,
 					cells,
 					languages,
@@ -815,6 +816,7 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 	 * inside a managed background job (which passes the job's own signal).
 	 */
 	async #runCells(options: {
+		outerToolCallId?: string;
 		session: ToolSession;
 		cells: ResolvedEvalCell[];
 		languages: EvalLanguage[];
@@ -973,6 +975,7 @@ export class EvalTool implements AgentTool<typeof evalSchema> {
 				let result: ExecutorBackendResult;
 				try {
 					result = await backend.execute(cell.code, {
+						outerToolCallId: options.outerToolCallId,
 						cwd: session.cwd,
 						sessionId,
 						sessionFile: sessionFile ?? undefined,

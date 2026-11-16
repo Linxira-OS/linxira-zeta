@@ -25,9 +25,12 @@ import { fileURLToPath } from "node:url";
  */
 export const STUDIO_RENDERER_CSP =
 	"default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; " +
-	"connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; " +
+	"img-src 'self' data: blob: zeta-file:; media-src 'self' blob: zeta-file:; font-src 'self' data:; " +
+	"connect-src 'self' zeta-file:; frame-src 'self' zeta-file: zeta-graphics://viewer; object-src 'none'; base-uri 'self'; form-action 'self'; " +
 	"frame-ancestors 'none'";
+
+/** Isolated X3D document; WASM is needed by X_ITE, JavaScript eval stays forbidden. */
+const STUDIO_GRAPHIC_CSP = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
 	".html": "text/html; charset=utf-8",
@@ -188,8 +191,9 @@ function negotiateEncoding(
  * it and this build has one. The body is streamed straight from disk
  * (`Bun.file`) so the encoded chunk never enters the JS heap.
  */
-function fileResponse(req: Request, target: string, extension: string, immutable: boolean): Response {
+function fileResponse(req: Request, target: string, extension: string, immutable: boolean, graphic = false): Response {
 	const common = headersFor(extension, immutable);
+	if (graphic) common["content-security-policy"] = STUDIO_GRAPHIC_CSP;
 	const encoded = negotiateEncoding(req, target);
 	if (encoded) {
 		return new Response(req.method === "HEAD" ? null : Bun.file(encoded.file), {
@@ -226,7 +230,7 @@ export async function serveStudioWebApp(req: Request, dir: string): Promise<Resp
 		const extension = path.extname(target).toLowerCase();
 		try {
 			const stat = fs.statSync(target);
-			if (stat.isFile()) return fileResponse(req, target, extension, pathname.startsWith("/assets/"));
+			if (stat.isFile()) return fileResponse(req, target, extension, pathname.startsWith("/assets/"), target === path.resolve(dir, "graphic-preview.html"));
 		} catch {
 			// missing: fall through to the entry or the 404 below
 		}

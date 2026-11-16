@@ -30,6 +30,7 @@
 | `pty`     | `boolean`                                                          | No       | Request PTY mode. Default `false` for finite commands, `true` for named services. Foreground PTY requires a UI and `PI_NO_PTY !== "1"`; named services forward this setting to the broker.                                                                                                                                         |
 | `async`   | `boolean`                                                          | No       | Background execution request. Present only when `async.enabled` is true for the session. Returns immediately with a job id instead of waiting; it does not change the effective deadline, including a disabled deadline from `timeout: 0`.                                                                                         |
 | `name`    | `string`                                                           | No       | Project-unique supervised service name: 1–48 letters, numbers, dots, underscores, or hyphens, starting with a letter or number. Present only when `launch.enabled` and Bash is active. Blank names select finite-command mode. A live name restarts using the new spec. Incompatible with `async: true` or any supplied `timeout`. |
+| `previewUrl` | `string` | No | Explicit absolute HTTP(S) URL for a named web development server, without embedded credentials. The broker canonicalizes and retains it for Studio's task preview. It is never inferred from output. Older brokers that cannot retain it reject the launch before starting or replacing a service. |
 | `ready`   | `{ log?: string; port?: number; host?: string; timeout?: number }` | No       | Service readiness requires a nonblank log regex and/or integer TCP port `1..65535`; all supplied conditions must pass. Host defaults to `127.0.0.1`, timeout to 30 seconds (clamped to `0.05..3600`). Without `name`, a nonempty spec is ignored with a notice.                                                                    |
 
 There is no `env` input. Every command and named service also gets `PI_SESSION_ID`, `PI_SESSION_FILE` (the transcript's absolute path, empty when the session is not persisted), and `PI_TOOL_CALL_ID` (the id of the running `bash` call), read when the call starts; see [environment variables](../environment-variables.md#set-by-the-bash-tool). Named services otherwise inherit the configured shell environment; put command-specific assignments in `command`.
@@ -42,6 +43,7 @@ Named service example:
 {
   "command": "python3 -m http.server 8765",
   "name": "web",
+  "previewUrl": "http://127.0.0.1:8765/",
   "ready": { "port": 8765 }
 }
 ```

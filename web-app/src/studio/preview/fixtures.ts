@@ -6,6 +6,10 @@
 import { PLATFORM } from "../platform";
 import { demoPath } from "./demoPaths";
 import type { TreeGitStatus } from "../git/treeStatus";
+import type { IconName } from "../icons";
+import type { ShellEventLogEntry } from "../shellMemory";
+import type { LedgerCommandRow } from "../panels/types";
+import type { CommandName, EventCursor } from "@linxiraos/studio-contract"
 
 export const PREVIEW_SSH_TARGETS = [
   { id: "demo-linux", name: "dev-linux", platform: "linux" as const },
@@ -149,7 +153,7 @@ export type PreviewTtNode = {
   restorable?: boolean;
 };
 
-export type PreviewActivity = { icon: string; color: string; text: string; time: string };
+export type PreviewActivity = { icon: IconName; color: string; text: string; time: string };
 
 export type PreviewSideAgent = {
   id: string;
@@ -177,14 +181,17 @@ export const PREVIEW_PROJECTS: PreviewProject[] = [
     attention: true, preview: "running", pinned: true,
     threads: [
       { id: "t0", title: "新建对话（空白）", time: "now", msgs: 0, status: "idle" },
+      { id: "t15", title: "内容图鉴：全部工具卡与正文格式", time: "now", msgs: 58, status: "idle", pinned: true },
       { id: "t1", title: "跟踪上游 pi-web 更新到 zeta-web", time: "32m ago", msgs: 45, status: "running", pinned: true, hasSub: true, unread: 3 },
       { id: "t2", title: "Audit and fix OSS repository issues", time: "2h ago", msgs: 12, status: "idle", wait: "ask", unread: 0 },
-      { id: "t3", title: "选择 gemini3.6flash 随意发送消息后报错…", time: "4d ago", msgs: 1337, status: "idle", wait: "plan", hasSub: true, unread: 1 },
+      { id: "t3", title: "Mermaid 全屏缩放计划与交互确认", time: "4d ago", msgs: 16, status: "idle", wait: "plan", hasSub: true, unread: 1 },
       { id: "t4", title: "修复 Git Bash 路径未找到问题", time: "4d ago", msgs: 8, status: "idle", wait: "approval" },
       { id: "t5", title: "重构 session 存储层 (session)", time: "6d ago", msgs: 156, status: "archived" },
-      { id: "t9", title: "补齐预览模式的会话分页演示", time: "7d ago", msgs: 5, status: "idle" },
-      { id: "t10", title: "清理历史遗留的 mock 分支", time: "9d ago", msgs: 21, status: "idle" },
-      { id: "t11", title: "侧栏会话行悬停操作样式走查", time: "11d ago", msgs: 3, status: "idle" },
+      { id: "t9", title: "补齐会话分页加载", time: "7d ago", msgs: 5, status: "idle" },
+      { id: "t10", title: "工具图鉴：文件、搜索、Agent 与结构化结果", time: "9d ago", msgs: 2, status: "idle" },
+      { id: "t11", title: "正文排版：表格、列表、代码与图片", time: "12m ago", msgs: 4, status: "idle" },
+      { id: "t13", title: "命令块：Bash / PowerShell 多行与着色", time: "8m ago", msgs: 4, status: "idle" },
+      { id: "t14", title: "工具检查：失败修复、空结果与长日志", time: "5m ago", msgs: 6, status: "idle", hasSub: false },
       { id: "t12", title: "修 MermaidBlock 的 TS2322（中途停止）", time: "1h ago", msgs: 7, status: "idle" },
     ],
   },
@@ -250,6 +257,8 @@ export const PREVIEW_FILE_TREE: PreviewFileNode[] = [
   { type: "dir", name: "docs", children: [
     { type: "file", name: "UPSTREAM-SYNC.md", status: "added" },
     { type: "file", name: "README.md", status: "modified", turn: true },
+    { type: "file", name: "上游同步检查记录 v0.8.1.md", status: "untracked" },
+    { type: "dir", name: "screenshots", children: [{ type: "file", name: "mermaid-dark.png" }, { type: "file", name: "mermaid-light.png" }] },
   ] },
   { type: "dir", name: "hooks", children: [
     { type: "file", name: "useCodeTheme.ts", status: "modified" },
@@ -258,6 +267,11 @@ export const PREVIEW_FILE_TREE: PreviewFileNode[] = [
   { type: "dir", name: "lib", children: [
     { type: "file", name: "rpc.ts", diagnostic: "warn" },
     { type: "file", name: "graft.ts", status: "renamed" },
+  ] },
+  { type: "dir", name: "tests", children: [
+    { type: "dir", name: "fixtures", children: [{ type: "file", name: "session with spaces.json" }, { type: "file", name: "empty-session.json" }] },
+    { type: "dir", name: "snapshots", children: [] },
+    { type: "file", name: "conversation-workspace-restore-reading-position.test.tsx", diagnostic: "warn" },
   ] },
   { type: "file", name: ".gitignore" },
   { type: "file", name: "AGENTS.md" },
@@ -403,7 +417,7 @@ export const PREVIEW_GIT_LOG = {
 } as const;
 
 export const PREVIEW_GIT = {
-  branch: "main",
+  branch: "fix/mermaid-theme",
   ahead: 2,
   behind: 0,
   staged: [
@@ -425,7 +439,7 @@ export const PREVIEW_DIFF = {
     [" ", "142", "142", "  const renderMermaid = useCallback(async (theme: MermaidTheme) => {"],
     [" ", "143", "143", "    const mermaid = await import(\"mermaid\");"],
     ["-", "144", "", "    const codeTheme = getCodeTheme() as string;"],
-    ["+", "", "144", "    const codeTheme = getCodeTheme() as const;"],
+    ["+", "", "144", "    const codeTheme = getCodeTheme();"],
     [" ", "145", "145", "    mermaid.initialize({"],
     ["-", "146", "", "      theme: codeTheme,"],
     ["+", "", "146", "      theme: codeTheme satisfies MermaidTheme,"],
@@ -460,12 +474,17 @@ export const PREVIEW_PROBLEMS: PreviewProblem[] = [
   { sev: "warn", src: "ESLint", msg: "React Hook useCallback has a missing dependency", file: "hooks/useCodeTheme.ts", line: 31 },
   { sev: "info", src: "Zeta 诊断", msg: "RPC capability \"preview.dom\" 协商成功 (v2)", file: null, line: null },
   { sev: "warn", src: "Git", msg: "config.yml 未被跟踪，可能被意外提交", file: "config.yml", line: null },
+  { sev: "error", src: "Vitest", msg: "切换会话后阅读位置未恢复：expected scrollTop 842, received 0", file: "tests/conversation-workspace-restore-reading-position.test.tsx", line: 128 },
+  { sev: "info", src: "文档", msg: "检查记录含中文和空格文件名，等待补充 macOS 验收结果", file: "docs/上游同步检查记录 v0.8.1.md", line: 24 },
 ];
 
 export const PREVIEW_TESTS: PreviewTest[] = [
   { suite: "lib/graft.test.ts", total: 12, pass: 12, fail: 0, time: "0.42s", status: "pass" },
   { suite: "lib/rpc.test.ts", total: 27, pass: 26, fail: 1, time: "1.18s", status: "fail", failDetail: "rpc › should negotiate capability v2\n  Expected: \"preview.dom\"\n  Received: undefined" },
   { suite: "components/DirectoryPicker.test.tsx", total: 8, pass: 8, fail: 0, time: "0.67s", status: "pass" },
+  { suite: "components/CommandBlock.test.tsx", total: 18, pass: 18, fail: 0, time: "0.92s", status: "pass" },
+  { suite: "components/MarkdownBody.test.tsx", total: 24, pass: 24, fail: 0, time: "1.46s", status: "pass" },
+  { suite: "tests/conversation-workspace-restore-reading-position.test.tsx", total: 9, pass: 8, fail: 1, time: "2.31s", status: "fail", failDetail: "切换会话 › 保留长正文的阅读位置\n  Expected scrollTop: 842\n  Received scrollTop: 0\n\n  126 | await switchConversation('notes');\n  127 | await switchConversation('review');\n> 128 | expect(view.scrollTop).toBe(842);\n      |                        ^\n\n  at tests/conversation-workspace-restore-reading-position.test.tsx:128:24" },
 ];
 
 export const PREVIEW_PV_LOGS = [
@@ -477,6 +496,12 @@ export const PREVIEW_PV_LOGS = [
   { tone: "", text: "[zeta] preview attached, session=019fac94 · dom snapshot ok" },
   { tone: "muted", text: "[network] GET /api/session → 200 (18ms)" },
   { tone: "muted", text: "[network] GET /api/threads → 200 (9ms)" },
+  { tone: "warn", text: "[bridge] preview.dom unavailable · using compatible read path" },
+  { tone: "muted", text: "[session] reading-position checkpoint · thread=review · item=assistant-12 · offset=842" },
+  { tone: "err", text: "[tests] conversation restore failed · expected 842px, received 0px · tests/conversation-workspace-restore-reading-position.test.tsx:128" },
+  { tone: "ok", text: "[files] opened docs/上游同步检查记录 v0.8.1.md · UTF-8 · 2.4 KB" },
+  { tone: "ok", text: "[checks] command blocks: bash / pwsh / powershell / ps1 · 18 passed" },
+  { tone: "", text: "[summary] 6 suites · 98 checks · 96 passed · 2 failed" },
 ];
 
 export const PREVIEW_HISTORY: PreviewHistoryRow[] = [
@@ -641,3 +666,82 @@ export const PREVIEW_STATS_TOTALS = {
   errors: 239,
   costEstimate: 1_121.8,
 } as const;
+
+/**
+ * Preview-mode OMP Logs rows for one session: runtime attach, snapshot, session
+ * open, the first prompt, a plan review whose approval lease expires, then the
+ * rejected `interaction.respond` receipt that follows it. Cursors are contiguous
+ * (no gap, so no resync banner) and time gaps stay between 36 ms and 3 s.
+ */
+const previewEventCursor = (value: number): EventCursor => String(value) as EventCursor;
+
+export const PREVIEW_SHELL_EVENTS: readonly ShellEventLogEntry[] = [
+  { cursor: previewEventCursor(41821), kind: "runtime.changed", occurredAt: "2026-10-30T14:58:01.204Z" },
+  { cursor: previewEventCursor(41822), kind: "snapshot", occurredAt: "2026-10-30T14:58:01.252Z" },
+  { cursor: previewEventCursor(41823), kind: "residents.changed", occurredAt: "2026-10-30T14:58:01.488Z" },
+  { cursor: previewEventCursor(41824), kind: "diagnostics.changed", occurredAt: "2026-10-30T14:58:01.890Z" },
+  { cursor: previewEventCursor(41825), kind: "command.accepted", occurredAt: "2026-10-30T14:58:03.774Z" },
+  { cursor: previewEventCursor(41826), kind: "command.receipt", occurredAt: "2026-10-30T14:58:04.286Z" },
+  { cursor: previewEventCursor(41827), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:04.324Z" },
+  { cursor: previewEventCursor(41828), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:04.598Z" },
+  { cursor: previewEventCursor(41829), kind: "residents.changed", occurredAt: "2026-10-30T14:58:05.804Z" },
+  { cursor: previewEventCursor(41830), kind: "command.accepted", occurredAt: "2026-10-30T14:58:07.922Z" },
+  { cursor: previewEventCursor(41831), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:07.958Z" },
+  { cursor: previewEventCursor(41832), kind: "operation.progress", occurredAt: "2026-10-30T14:58:08.702Z" },
+  { cursor: previewEventCursor(41833), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:10.020Z" },
+  { cursor: previewEventCursor(41834), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:12.106Z" },
+  { cursor: previewEventCursor(41835), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:12.918Z" },
+  { cursor: previewEventCursor(41836), kind: "git.repository.changed", occurredAt: "2026-10-30T14:58:14.562Z" },
+  { cursor: previewEventCursor(41837), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:14.966Z" },
+  { cursor: previewEventCursor(41838), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:16.088Z" },
+  { cursor: previewEventCursor(41839), kind: "diagnostics.changed", occurredAt: "2026-10-30T14:58:17.974Z" },
+  { cursor: previewEventCursor(41840), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:18.590Z" },
+  { cursor: previewEventCursor(41841), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:20.998Z" },
+  { cursor: previewEventCursor(41842), kind: "command.accepted", occurredAt: "2026-10-30T14:58:22.500Z" },
+  { cursor: previewEventCursor(41843), kind: "interaction.required", occurredAt: "2026-10-30T14:58:22.738Z" },
+  { cursor: previewEventCursor(41844), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:24.502Z" },
+  { cursor: previewEventCursor(41845), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:27.504Z" },
+  { cursor: previewEventCursor(41846), kind: "interaction.resolved", occurredAt: "2026-10-30T14:58:27.722Z" },
+  { cursor: previewEventCursor(41847), kind: "command.accepted", occurredAt: "2026-10-30T14:58:28.564Z" },
+  { cursor: previewEventCursor(41848), kind: "command.receipt", occurredAt: "2026-10-30T14:58:28.928Z" },
+  { cursor: previewEventCursor(41849), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:30.024Z" },
+  { cursor: previewEventCursor(41850), kind: "command.accepted", occurredAt: "2026-10-30T14:58:32.288Z" },
+  { cursor: previewEventCursor(41851), kind: "command.receipt", occurredAt: "2026-10-30T14:58:32.976Z" },
+  { cursor: previewEventCursor(41852), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:33.017Z" },
+  { cursor: previewEventCursor(41853), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:34.751Z" },
+  { cursor: previewEventCursor(41854), kind: "git.repository.changed", occurredAt: "2026-10-30T14:58:37.067Z" },
+  { cursor: previewEventCursor(41855), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:37.639Z" },
+  { cursor: previewEventCursor(41856), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:39.047Z" },
+  { cursor: previewEventCursor(41857), kind: "command.accepted", occurredAt: "2026-10-30T14:58:40.233Z" },
+  { cursor: previewEventCursor(41858), kind: "command.receipt", occurredAt: "2026-10-30T14:58:41.165Z" },
+  { cursor: previewEventCursor(41859), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:41.212Z" },
+  { cursor: previewEventCursor(41860), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:42.736Z" },
+  { cursor: previewEventCursor(41861), kind: "diagnostics.changed", occurredAt: "2026-10-30T14:58:43.804Z" },
+  { cursor: previewEventCursor(41862), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:44.510Z" },
+  { cursor: previewEventCursor(41863), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:45.852Z" },
+  { cursor: previewEventCursor(41864), kind: "command.accepted", occurredAt: "2026-10-30T14:58:47.760Z" },
+  { cursor: previewEventCursor(41865), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:48.772Z" },
+  { cursor: previewEventCursor(41866), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:51.526Z" },
+  { cursor: previewEventCursor(41867), kind: "residents.changed", occurredAt: "2026-10-30T14:58:52.572Z" },
+  { cursor: previewEventCursor(41868), kind: "conversation.changed", occurredAt: "2026-10-30T14:58:52.906Z" },
+];
+
+/**
+ * Preview-mode Output ledger rows, newest first. All seven client lifecycle
+ * statuses appear so the panel's status runes and tone are visible at once;
+ * only terminal non-completed rows carry a one-line `detail`. `at` is the time
+ * of the row's current status (issued / accepted / receipt), so the clock
+ * column reads as a compressed command trail.
+ */
+type PreviewLedgerRow = Omit<LedgerCommandRow, "commandName"> & { readonly commandName: CommandName };
+
+export const PREVIEW_LEDGER_COMMANDS: readonly LedgerCommandRow[] = [
+  { requestId: "req_c41a08", commandName: "session.model.set", status: "local_pending", at: "2026-10-30T14:58:52.404Z" },
+  { requestId: "req_b27e50", commandName: "permissions.mode.set", status: "interaction_required", at: "2026-10-30T14:58:49.612Z" },
+  { requestId: "req_9c1d02", commandName: "core.prompt", status: "accepted", at: "2026-10-30T14:58:47.318Z" },
+  { requestId: "req_5d8f61", commandName: "interaction.respond", status: "rejected", at: "2026-10-30T14:58:40.906Z", detail: "Interaction lease expired before the response reached the Host." },
+  { requestId: "req_2ab94f", commandName: "mode.plan.enter", status: "completed", at: "2026-10-30T14:58:33.274Z" },
+  { requestId: "req_7f3a1c", commandName: "loop.enable", status: "failed", at: "2026-10-30T14:58:26.118Z", detail: "Loop rejected: maxIterations must be at least 2." },
+  { requestId: "req_e60b3d", commandName: "operator.invoke", status: "outcome_unknown", at: "2026-10-30T14:58:17.552Z", detail: "Runtime restarted before the invocation receipt arrived." },
+  { requestId: "req_3fa2c7", commandName: "session.create", status: "completed", at: "2026-10-30T14:58:09.104Z" },
+] satisfies readonly PreviewLedgerRow[];

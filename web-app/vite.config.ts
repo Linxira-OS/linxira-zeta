@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { graphicVendorPlugin } from "./graphic-vendor-plugin";
-import { defineConfig } from "vite";
+import { graphicVendorPlugin } from "./graphic-vendor-plugin.ts";
+import { fileViewerVendorPlugin } from "./file-viewer-vendor-plugin.ts";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { testFilesFor } from "./scripts/test-runtimes.ts";
 
 // Must stay in lockstep with packages/coding-agent/src/server/studio-web-app.ts
 // (STUDIO_RENDERER_CSP), which sends the same policy as a response header when
@@ -13,7 +15,7 @@ import react from "@vitejs/plugin-react";
 // any source there replaces the `default-src` fallback.
 // Vite dev still needs HMR.
 const PACKAGED_RENDERER_CSP =
-	"default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: zeta-artifact:; media-src 'self' blob: zeta-artifact:; font-src 'self' data:; connect-src 'self' zeta-artifact:; frame-src 'self' http://127.0.0.1:3847; object-src 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: zeta-artifact: zeta-file:; media-src 'self' blob: zeta-artifact: zeta-file:; font-src 'self' data:; connect-src 'self' zeta-artifact: zeta-file:; frame-src 'self' zeta-file: zeta-graphics://viewer http://127.0.0.1:3847; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 function packagedCspPlugin() {
 	return {
@@ -79,29 +81,26 @@ const isMermaidOnlyPackage = (id: string): boolean => {
 export default defineConfig({
 	resolve: {
 		alias: {
-			"@/lib/studio-protocol/contract": fileURLToPath(new URL("./src/protocol/contract/index.ts", import.meta.url)),
-			"@/lib/studio-protocol/protocol": fileURLToPath(new URL("./src/protocol/protocol/index.ts", import.meta.url)),
 			"@linxiraos/studio-contract": fileURLToPath(
 				new URL("./src/vendor/client-contract/src/index.ts", import.meta.url),
 			),
 			"@linxiraos/studio-protocol": fileURLToPath(
 				new URL("./src/vendor/studio-protocol/src/index.ts", import.meta.url),
 			),
+			"@linxiraos/studio-testkit": fileURLToPath(new URL("./src/vendor/testkit/src/index.ts", import.meta.url)),
 			"@linxiraos/studio-client": fileURLToPath(new URL("./src/vendor/client/src/index.ts", import.meta.url)),
 			"@linxiraos/studio-transport-web": fileURLToPath(
 				new URL("./src/vendor/transport-web/src/index.ts", import.meta.url),
 			),
 			"@linxiraos/studio-platform": fileURLToPath(new URL("./src/vendor/platform/src/index.ts", import.meta.url)),
-			"@linxiraos/studio-transport-desktop": fileURLToPath(
-				new URL("./src/zeta/transport-desktop.ts", import.meta.url),
-			),
 			"@linxiraos/studio-runtime-installer": fileURLToPath(
 				new URL("./src/zeta/runtime-installer.ts", import.meta.url),
 			),
 		},
 	},
-	plugins: [react(), packagedCspPlugin(), graphicVendorPlugin()],
+	plugins: [react(), packagedCspPlugin(), graphicVendorPlugin(), fileViewerVendorPlugin()],
 	base: "./",
+	test: { environment: "jsdom", setupFiles: ["src/studio/test/setup.ts"], include: testFilesFor("vitest", fileURLToPath(new URL(".", import.meta.url))) },
 	server: {
 		// Terminal panes and Studio events ride WebSockets on the gateway, so the
 		// dev proxy must forward upgrades as well as HTTP.
@@ -113,7 +112,7 @@ export default defineConfig({
 	},
 	build: {
 		rolldownOptions: {
-			input: { index: fileURLToPath(new URL("./index.html", import.meta.url)) },
+			input: { index: fileURLToPath(new URL("./index.html", import.meta.url)), graphic: fileURLToPath(new URL("./graphic-preview.html", import.meta.url)) },
 			output: {
 				// `codeSplitting.groups`, not `manualChunks`: Vite 8 accepts the
 				// deprecated function form and then silently discards its result for
@@ -130,6 +129,7 @@ export default defineConfig({
 						// whole payload (3 MB of Mermaid) lands in the first load. As its
 						// own always-loaded chunk it stays out of every lazy chunk.
 						{ name: "preload-helper", test: /vite[\\/]preload-helper/, priority: 100 },
+						{ name: "pdf-viewer", test: /node_modules[\/]pdfjs-dist[\/]/, priority: 10 },
 						{ name: "three", test: /node_modules[\\/]three[\\/]/, priority: 10 },
 						{ name: "xterm", test: /node_modules[\\/]@xterm[\\/]/, priority: 10 },
 						{ name: "codemirror", test: /node_modules[\\/](?:@codemirror|@lezer|codemirror)[\\/]/, priority: 10 },

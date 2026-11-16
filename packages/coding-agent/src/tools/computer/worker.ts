@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -62,6 +63,7 @@ import {
 	type ToolReply,
 } from "./protocol";
 import { describeWindowMiss, matchesWindowApp } from "./window-miss";
+import type { ComputerLifecycleEvent } from "./lifecycle";
 
 /** A native input call; resolves to its takeover focus report when it took over. */
 type InputCall = Promise<DesktopFocusReturn | null | void>;
@@ -128,6 +130,8 @@ export interface NativeDesktopSession {
 	axClick(ref: string, opts?: PointerOptions | null): InputCall;
 	axType(ref: string, text: string, opts?: PointerOptions | null): TypeCall;
 	axKeyChord(ref: string, keys: string[], opts?: PointerOptions | null): InputCall;
+	/** Wait behind cancelled native work without acquiring a display hold. */
+	settle?(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -206,6 +210,7 @@ type ObservationResult = ScreenshotResult & { ax: string; nodeCount: number; tru
 type PendingTool = { resolve(value: unknown): void; reject(reason?: unknown): void };
 interface ActiveRun {
 	id: string;
+	done: PromiseWithResolvers<void>;
 	/** Escape stops the user acknowledged; any more stop the run. */
 	acknowledgedEscapeStops: number;
 	ac: AbortController;
@@ -224,6 +229,8 @@ interface ComputerRunContext {
 	output: RunOutput;
 	confirmControl(reason: string): Promise<ControlVerdict>;
 	screenshots: ComputerScreenshot[];
+	frameActions: WeakMap<object, string>;
+	emit(event: ComputerLifecycleEvent): void;
 }
 
 type RunContextAccessor = () => ComputerRunContext;
@@ -734,7 +741,6 @@ async function emitScreenshot(
 ): Promise<ScreenshotResult> {
 	const destination = path.join(os.tmpdir(), `omp-computer-${Snowflake.next()}.png`);
 	await Bun.write(destination, frame.data);
-	throwIfAborted(context.signal);
 	const result: ScreenshotResult = {
 		path: destination,
 		width: frame.width,
@@ -745,12 +751,28 @@ async function emitScreenshot(
 	};
 	if (frame.screenLocked) result.screenLocked = true;
 	const scaled = frame.width !== frame.sourceWidth || frame.height !== frame.sourceHeight;
-	context.screenshots.push({
+	const identity = context.snapshot.activity;
+	const screenshot: ComputerScreenshot = {
 		...result,
+		...(identity
+			? {
+					frameId: crypto.randomUUID(),
+					sha256: crypto.createHash("sha256").update(frame.data).digest("hex"),
+					sessionId: identity.sessionId,
+					toolCallId: identity.toolCallId,
+					runId: identity.runId,
+					emitted: !options?.silent,
+				}
+			: {}),
 		sourceWidth: frame.sourceWidth,
 		sourceHeight: frame.sourceHeight,
 		target: frame.target,
-	});
+	};
+	context.screenshots.push(screenshot);
+	if (identity)
+		context.emit({ kind: "frame", identity, screenshot, actionId: context.frameActions.get(frame), at: Date.now() });
+	// Publish the generated evidence before cancellation; delivery is confirmed only by the outer tool result.
+	throwIfAborted(context.signal);
 	if (!options?.silent) {
 		const dimensions = `${frame.width}×${frame.height}${scaled ? ` (scaled from ${frame.sourceWidth}×${frame.sourceHeight})` : ""}`;
 		const coordinates = `coordinateWidth=${frame.coordinateWidth} coordinateHeight=${frame.coordinateHeight}`;
@@ -1464,9 +1486,7 @@ export class ComputerWorkerCore {
 				if (this.#active?.id === message.id) this.#active.ac.abort(new ToolAbortError());
 				return;
 			case "revoke-control":
-				this.#active?.ac.abort(new ToolAbortError("Computer control revoked"));
-				this.#session?.cancel();
-				this.#transport.send({ type: "control-revoked", id: message.id });
+				void this.#revoke(message.id);
 				return;
 			case "release-display":
 				this.#releasedTurn = Math.max(this.#releasedTurn, message.turn);
@@ -1482,6 +1502,29 @@ export class ComputerWorkerCore {
 				return;
 			case "close":
 				void this.#close();
+		}
+	}
+
+	async #revoke(id: string): Promise<void> {
+		const active = this.#active;
+		active?.ac.abort(new ToolAbortError("Computer control revoked"));
+		this.#session?.cancel();
+		try {
+			await active?.done.promise;
+			const session = this.#session;
+			session?.releaseControl();
+			session?.releaseDisplayAwake();
+			if (session?.settle) await session.settle();
+			else if (session) {
+				// Old bindings cannot acknowledge an input drain. Closing is the only safe barrier.
+				await session.close();
+				this.#session = undefined;
+				this.#guarded = undefined;
+				this.#sessionInit = undefined;
+			}
+			this.#transport.send({ type: "control-revoked", id });
+		} catch (error) {
+			this.#transport.send({ type: "control-revoked", id, error: errorPayload(error) });
 		}
 	}
 
@@ -1550,6 +1593,7 @@ export class ComputerWorkerCore {
 		const signal = AbortSignal.any([timeoutSignal, ac.signal, runAc.signal]);
 		const active: ActiveRun = {
 			id: message.id,
+			done: Promise.withResolvers<void>(),
 			acknowledgedEscapeStops: message.escape.acknowledged,
 			ac,
 			signal,
@@ -1575,6 +1619,14 @@ export class ComputerWorkerCore {
 			snapshot: message.session,
 			output,
 			screenshots,
+			frameActions: new WeakMap(),
+			emit: event => {
+				try {
+					this.#transport.send({ type: "activity", event });
+				} catch {
+					/* Metadata is best effort. */
+				}
+			},
 			confirmControl: reason =>
 				this.#confirmControl(active, reason, deadline - Math.min(CONTROL_ANSWER_RESERVE_MS, message.timeoutMs / 4)),
 		};
@@ -1658,7 +1710,17 @@ export class ComputerWorkerCore {
 			if (failure === undefined && !signal.aborted) this.#session?.retire();
 			else if (!nativeCancelled) this.#session?.cancel();
 			runAc.abort(postmortem.markExpectedCleanupError(new ToolAbortError("Computer run ended")));
+			if (message.session.activity) {
+				let foreground: "held" | "none" | "unknown" = "unknown";
+				try {
+					foreground = this.#session?.controlState().active ? "held" : "none";
+				} catch {
+					/* Control telemetry cannot fail a completed run. */
+				}
+				runContext.emit({ kind: "control", identity: message.session.activity, foreground, at: Date.now() });
+			}
 			if (this.#active?.id === message.id) this.#active = null;
+			active.done.resolve();
 		}
 		if (failure !== undefined) {
 			this.#transport.send({
@@ -1716,19 +1778,109 @@ export class ComputerWorkerCore {
 				if (typeof value !== "function") return value;
 				return (...args: unknown[]): unknown => {
 					this.#checkEscape();
-					const result = Reflect.apply(value, target, args);
-					if (!(result instanceof Promise)) return result;
-					return result.then(
-						settled => {
-							// The call finished and its input went out; the stop ends the run after it.
-							this.#checkEscape(undefined, ESCAPE_AFTER_CALL_MESSAGE);
-							return settled;
-						},
-						error => {
-							this.#checkEscape(error);
-							throw error;
-						},
-					);
+					const context = this.#runContexts.getStore();
+					if (context) throwIfAborted(context.signal);
+					const identity = context?.snapshot.activity;
+					const method = String(property);
+					const observed =
+						identity &&
+						![
+							"cancel",
+							"retire",
+							"holdDisplayUntilReleased",
+							"releaseDisplayAwake",
+							"setRunDeadline",
+							"controlState",
+							"close",
+							"settle",
+						].includes(method);
+					const actionId = observed ? crypto.randomUUID() : undefined;
+					const reads = [
+						"listDisplays",
+						"listWindows",
+						"listApplications",
+						"capture",
+						"captureRegion",
+						"observe",
+						"axSnapshot",
+						"axQuery",
+						"axElementAt",
+						"axFocused",
+						"axNode",
+						"axAttributes",
+						"axChildren",
+						"axParent",
+					];
+					const read = reads.includes(method);
+					// Only IDs from known target arguments. Never args, key sequences, clipboard or typed text.
+					const targetId =
+						[
+							"capture",
+							"captureRegion",
+							"observe",
+							"click",
+							"moveMouse",
+							"drag",
+							"scroll",
+							"typeText",
+							"keyChord",
+							"holdKeys",
+							"holdMouse",
+							"raiseWindow",
+							"axSnapshot",
+							"axQuery",
+						].includes(method) && typeof args[0] === "string"
+							? args[0]
+							: undefined;
+					const notify = (phase: "running" | "completed" | "failed" | "cancelled", settled?: unknown): void => {
+						if (!identity || !context || !actionId) return;
+						// A native focus-return report proves takeover. Requested takeover alone proves nothing.
+						const takeover = settled !== null && typeof settled === "object" && "frontPid" in settled;
+						context.emit({
+							kind: "action",
+							identity,
+							actionId,
+							method,
+							target: targetId,
+							mode: read ? "read" : takeover ? "takeover" : "unknown",
+							phase,
+							at: Date.now(),
+						});
+						if ((method === "acquireControl" || method === "releaseControl") && phase === "completed")
+							context.emit({
+								kind: "control",
+								identity,
+								foreground: session.controlState().active ? "held" : "none",
+								at: Date.now(),
+							});
+					};
+					notify("running");
+					try {
+						const result = Reflect.apply(value, target, args);
+						if (!(result instanceof Promise)) {
+							notify("completed", result);
+							return result;
+						}
+						return result.then(
+							settled => {
+								if (context && actionId && settled && typeof settled === "object") {
+									const capture = method === "observe" ? (settled as NativeObservation).capture : settled;
+									context.frameActions.set(capture, actionId);
+								}
+								notify("completed", settled);
+								this.#checkEscape(undefined, ESCAPE_AFTER_CALL_MESSAGE);
+								return settled;
+							},
+							error => {
+								notify(context?.signal.aborted ? "cancelled" : "failed");
+								this.#checkEscape(error);
+								throw error;
+							},
+						);
+					} catch (error) {
+						notify(context?.signal.aborted ? "cancelled" : "failed");
+						throw error;
+					}
 				};
 			},
 		});
@@ -1811,8 +1963,12 @@ export class ComputerWorkerCore {
 		const pending = Promise.withResolvers<unknown>();
 		active.pendingTools.set(id, pending);
 		const timeoutMs = Math.max(0, Math.floor(answerDeadline - performance.now()));
+		const context = this.#runContexts.getStore();
+		const identity = context?.snapshot.activity;
+		if (identity) context.emit({ kind: "control", identity, foreground: "requested", at: Date.now() });
 		this.#transport.send({ type: "control-request", id, runId: active.id, reason, timeoutMs });
 		const verdict = await pending.promise;
+		if (identity) context.emit({ kind: "control", identity, foreground: "none", at: Date.now() });
 		return verdict === "approved" || verdict === "no-ui" || verdict === "unanswered" ? verdict : "denied";
 	}
 

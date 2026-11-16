@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ClientBootstrap, StudioClient } from "@linxiraos/studio-contract";
-import type { MediaKind } from "@linxiraos/studio-protocol";
+import type { StudioClient } from "@linxiraos/studio-contract";
+import type { MediaKind, CapabilityManifest } from "@linxiraos/studio-protocol";
 import { LiveAudioPane } from "./media/LiveAudioPane";
 import { ArtifactLibraryPane } from "./media/ArtifactLibraryPane";
 import { MediaWorkbench, takeMediaIntent } from "./media/MediaWorkbench";
@@ -19,6 +19,7 @@ export function MediaPage({
   workspaceId,
   sessionId,
   runtimeAvailable = false,
+  remote = false,
   capabilities,
   onInsert,
 }: {
@@ -26,7 +27,8 @@ export function MediaPage({
   workspaceId?: string | undefined;
   sessionId?: string | undefined;
   runtimeAvailable?: boolean;
-  capabilities?: ClientBootstrap["capabilityManifest"];
+  remote?: boolean;
+  capabilities?: CapabilityManifest | undefined;
   onInsert?: (text: string) => void;
 }) {
   const { resolvedLanguage } = useI18n();
@@ -61,8 +63,8 @@ export function MediaPage({
         onChange={setView}
         items={[
           ...(mediaAvailable ? [
-            { id: "generate" as const, icon: "image", label: zh ? "生成" : "Generate" },
-            { id: "voice" as const, icon: "message", label: zh ? "语音" : "Voice" },
+            { id: "generate" as const, icon: "image" as const, label: zh ? "生成" : "Generate" },
+            { id: "voice" as const, icon: "message" as const, label: zh ? "语音" : "Voice" },
           ] : []),
           { id: "library", icon: "folder", label: zh ? "产物库" : "Library" },
         ]}
@@ -136,6 +138,8 @@ export function MediaPage({
           active={voiceView === "live"}
         >
           <LiveAudioPane
+            remote={remote}
+            webrtcAvailable={capabilities?.capabilities.some(row => row.id === "live.webrtc.connect" && row.grade !== "unavailable") === true}
             client={client}
             sessionId={sessionId}
             available={runtimeAvailable}

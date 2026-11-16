@@ -19,6 +19,8 @@ export const TEXT_PREDICT_SOCKET_ENV = "ZETA_TEXT_PREDICT_SOCKET";
 
 /** Environment key carrying the agent directory whose history and state the daemon serves. */
 export const TEXT_PREDICT_AGENT_DIR_ENV = "ZETA_TEXT_PREDICT_AGENT_DIR";
+export const TEXT_PREDICT_PROFILE_ENV = "ZETA_TEXT_PREDICT_PROFILE";
+export type TextPredictProfile = "default" | "studio";
 
 /** Broker readiness regex matched against {@link textPredictReadyBanner}. */
 export const TEXT_PREDICT_READY_PATTERN = String.raw`zetacode text-predict listening on \S+`;
@@ -36,8 +38,13 @@ export function textPredictReadyBanner(endpoint: string): string {
  * endpoint inside the broker runtime dir. Different agent directories (profiles,
  * tests) get separate daemons because history and learned state are per agent dir.
  */
-export function textPredictDaemon(runtimeDir: string, agentDir: string): { name: string; endpoint: string } {
-	const key = Bun.hash.wyhash(path.resolve(agentDir)).toString(16).padStart(16, "0").slice(0, 12);
+export function textPredictDaemon(
+	runtimeDir: string,
+	agentDir: string,
+	profile: TextPredictProfile = "default",
+): { name: string; endpoint: string } {
+	const identity = path.resolve(agentDir) + (profile === "studio" ? "|studio" : "");
+	const key = Bun.hash.wyhash(identity).toString(16).padStart(16, "0").slice(0, 12);
 	return { name: `zeta.text-predict.${key}`, endpoint: ipcEndpoint(runtimeDir, `text-predict-${key}`) };
 }
 
@@ -61,7 +68,16 @@ export type TextPredictRequest =
 
 /** Daemon → client response. */
 export type TextPredictResponse =
-	| { id: number; ok: true; op: "ping"; version: string; pid: number; engines: TextPredictMethod[] }
+	| {
+			id: number;
+			ok: true;
+			op: "ping";
+			version: string;
+			pid: number;
+			engines: TextPredictMethod[];
+			profile?: TextPredictProfile;
+			protocol?: number;
+	  }
 	| { id: number; ok: true; op: "complete"; suggestion: PredictedWord | null }
 	| { id: number; ok: true; op: "feedback" | "shutdown" }
 	| { id: number; ok: true; op: "sync"; ingested: number }

@@ -12,6 +12,8 @@ export type OperationScope = "read" | "write" | "self";
 /** Routes a `read` credential may call even though they are not `GET`. */
 const READ_POST_ROUTES: Readonly<Record<string, true>> = {
 	"/api/v1/query": true,
+	"/api/v1/context/open": true,
+	"/api/v1/context/close": true,
 };
 
 /**

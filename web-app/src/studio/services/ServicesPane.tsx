@@ -21,7 +21,8 @@ import {
   PREVIEW_SERVICES,
   PREVIEW_SERVICE_SPEC,
 } from "../preview/servicesPreview";
-import { hostErrorMessage, waitReceipt } from "../hostError";
+import { hostErrorMessage } from "../hostError";
+import { invokeServiceCommand, type ServiceCommandKind } from "./serviceCommands";
 import { useI18n } from "../i18n";
 import "./services.css";
 
@@ -58,7 +59,7 @@ export function ServicesPane({
   available: boolean;
   capabilities?: ClientBootstrap["capabilityManifest"] | undefined;
 }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage: locale } = useI18n();
   const label = (zh: string, en: string) => (locale === "zh" ? zh : en);
   const lifetimeLabel = (mode: StudioServiceSpec["mode"]) =>
@@ -100,22 +101,10 @@ export function ServicesPane({
         (item) => item.id === "services.start" && item.grade !== "unavailable",
       ) === true);
   const invoke = useCallback(
-    async <K extends keyof WorkbenchResultMap>(
+    async <K extends ServiceCommandKind>(
       kind: K,
       payload: CommandInput<K>,
-    ): Promise<WorkbenchResultMap[K]> => {
-      if (!client) throw new Error("Runtime is unavailable");
-      const handle = await client.command(kind, payload);
-      const value = await waitReceipt<{ result: WorkbenchResultMap[K] }>(
-        client,
-        handle.requestId,
-        kind === "services.start"
-          ? ((payload as CommandInput<"services.start">).spec.ready
-              ?.timeoutMs ?? 30000) + 15000
-          : 120000,
-      );
-      return value.result;
-    },
+    ): Promise<WorkbenchResultMap[K]> => invokeServiceCommand(client, kind, payload),
     [client],
   );
   const refresh = useCallback(async () => {
@@ -204,7 +193,7 @@ export function ServicesPane({
     if (!visible || !open || !selected) return;
     const load = async () => {
       if (preview) {
-        setLogs("[demo] Server ready\n[demo] Watching workspace files…");
+        setLogs(marks ? "[demo] Server ready\n[demo] Watching workspace files…" : "Server ready\nWatching workspace files…");
         return;
       }
       try {
@@ -366,7 +355,7 @@ export function ServicesPane({
       title={
         <>
           {label("服务", "Services")}
-          {preview ? (
+          {preview && marks ? (
             <span className="chip gray">{label("演示", "Demo")}</span>
           ) : null}
           <span className="muted">
@@ -546,7 +535,7 @@ export function ServicesPane({
                   event.preventDefault();
                   void run(async () => {
                     if (preview)
-                      setLogs((current) => current + "\n[demo] " + input);
+                      setLogs((current) => current + "\n" + (marks ? "[demo] " : "") + input);
                     else
                       await invoke("services.send", {
                         name: selected.name,

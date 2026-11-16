@@ -1,3 +1,4 @@
+import { RuntimeToolProvider, type RuntimeToolScope } from "./ShellView";
 import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode, type RefObject } from "react";
 import type { StudioAgentSnapshot } from "@linxiraos/studio-protocol";
 import { Icon } from "../icons";
@@ -16,12 +17,16 @@ import {
 import { conversationFollowKey, useConversationScroll } from "./useConversationScroll";
 import { retainConversationWhileRemounting } from "./useConversation";
 import type { ConversationEngine, ConversationSnapshot } from "./conversationEngine";
-import { resetConversation, tailStreaming, type ConversationState, type TimelineRow, withCompactingRow } from "./conversationViewModel";
+import { resetConversation, tagTimelineStructure, tailStreaming, timelineShapeToken, timelineStructureToken, type ConversationState, type TimelineRow, withCompactingRow } from "./conversationViewModel";
 import { isRetryTranscriptNotice } from "./activityStatus";
 import { isTransientStatusNotice } from "./transientStatusNotice";
 import type { SubagentHubTarget } from "./toolMeta";
 import { PlanCreatedCard, type PlanCreatedLink } from "../deck/PlanCreatedCard";
 import { useConversationViewLease } from "./conversationViews";
+import { useConversationView } from "../conversationWorkspace/Context";
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
+import { useConversationReading, type ConversationReadingMemory } from "./useConversationReading";
+import { motionReduced } from "../motion";
 
 const FALLBACK_SNAPSHOT: ConversationSnapshot = {
   state: resetConversation(0, null, "unavailable", "当前没有活动会话。"),
@@ -51,11 +56,9 @@ type PaintedBody = {
   readonly pin: "top" | "bottom";
 };
 
-function prefersReducedMotion(): boolean {
-  return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 export function ConversationPane({
+  runtimeTools,
   snapshot,
   liveEngine,
   onLoadOlder,
@@ -78,7 +81,9 @@ export function ConversationPane({
   jumpToLatestSlot,
   onRetryTurn,
   retryTurnDisabledReason,
+  supplement,
 }: {
+  runtimeTools?: RuntimeToolScope | undefined;
   snapshot?: ConversationSnapshot;
   /** Hot token/tool stream. Kept here so animation-frame updates do not
    * re-render the surrounding workbench and composer. */
@@ -115,9 +120,22 @@ export function ConversationPane({
   /** 链尾失败/中止轮的「重试上一轮」；预览模式不传即不渲染。 */
   onRetryTurn?: () => void;
   retryTurnDisabledReason?: string;
+  /** Display-only content following the transcript, captured with its switch transition. */
+  supplement?: ReactNode;
 }) {
   const localScrollerRef = useRef<HTMLElement | null>(null);
   const scrollerRef = externalScrollerRef ?? localScrollerRef;
+  const conversation = useConversationView();
+  const execution = useExecutionTarget();
+  const [readingMemory] = useState<ConversationReadingMemory | undefined>(() => {
+    if (!conversation) return undefined;
+    let memory = execution.memory.get("conversation-reading") as ConversationReadingMemory | undefined;
+    if (!memory) { memory = {}; execution.memory.set("conversation-reading", memory); }
+    return memory;
+  });
+  const beforeDetach = useMemo(() => conversation ? (save: () => void) =>
+    conversation.store.hosts.onBeforeDetach(conversation.document.id, save) : undefined,
+  [conversation?.store, conversation?.document.id]);
   const liveSnapshot = useSyncExternalStore(
     liveEngine?.subscribe ?? NOOP_SUBSCRIBE,
     liveEngine?.getSnapshot ?? EMPTY_SNAPSHOT,
@@ -143,7 +161,32 @@ export function ConversationPane({
         identityKey: "",
       };
   const showWelcome = Boolean(welcome && (forceWelcome || rows.length === 0) && compacting !== true);
-  const displayRows = withCompactingRow(rows, compacting === true, effectiveSnapshot?.state.compacting?.action);
+  /**
+   * `withCompactingRow` 追加行时返回**新数组**，令牌却只挂在 store 发布的那一个
+   * 数组上，于是 `timelineStructureToken(displayRows)` 退化成数组身份。流式的每一帧
+   * store 都会重新发布 `rows`，拼接结果跟着换身份——压缩中（`compactPending` /
+   * 本地压缩保持）恰好在流式之前，这时 minimap 的 marks 与 `ConvoTranscript` 的
+   * binds 会每帧全量重算，正是结构令牌要避免的开销。
+   *
+   * 修法是把拼接结果按「源令牌 + 追加行本身」重新打标：行内容变化仍沿 source
+   * 令牌前进（不丢失效），而仅因 store 重发布导致的数组换身份不再穿透。
+   * `useMemo` 保证未追加时数组身份原样等于 `rows`，不额外分配。
+   */
+  const displayRows = useMemo(
+    () => withCompactingRow(rows, compacting === true, effectiveSnapshot?.state.compacting?.action),
+    [rows, compacting, effectiveSnapshot?.state.compacting?.action],
+  );
+  const sourceStructureToken = timelineStructureToken(rows);
+  const sourceShapeToken = timelineShapeToken(rows);
+  const compactingAction = effectiveSnapshot?.state.compacting?.action;
+  const appendedTokens = useMemo(
+    () => ({ structure: {}, shape: {} }),
+    // 追加行只由这三个输入决定；源令牌代表它前面的全部内容。
+    [sourceStructureToken, sourceShapeToken, compacting === true, compactingAction],
+  );
+  if (displayRows !== rows) {
+    tagTimelineStructure(displayRows, appendedTokens.structure, appendedTokens.shape);
+  }
   /**
    * 这一帧有没有属于「当前会话」的东西可画。
    *
@@ -160,7 +203,7 @@ export function ConversationPane({
   /** 过场只认会话本身：transcript revision / runtime epoch 变化（回溯、分支、重连）
    *  同样会重建 engine，但内容照旧，跟着走过场只会白闪一下。 */
   const switchKey = state.identity?.sessionId ?? (demo ? "demo" : "");
-  const reducedMotion = useMemo(prefersReducedMotion, []);
+  const reducedMotion = motionReduced();
   const painted = useRef<PaintedBody | null>(null);
   const [switchState, dispatchSwitch] = useReducer(nextConversationSwitch, IDLE_CONVERSATION_SWITCH);
   const canFade = painted.current !== null && !reducedMotion;
@@ -210,7 +253,13 @@ export function ConversationPane({
     loadingOlder,
     pin: held?.pin ?? livePin,
     contentKey: held?.contentKey ?? liveContentKey,
+    settling: switchState.phase === "settling" || switchState.phase === "revealing" || state.hydrateStatus === "loading" || state.hydrateStatus === "resyncing",
   });
+  useConversationReading({ memory: readingMemory,
+    // Wait for the existing two-frame initial layout before restoring the anchor offset.
+    visible: (conversation?.visible ?? true) && (switchState.phase === "idle" || switchState.phase === "revealing"),
+    snapshot: effectiveSnapshot ?? FALLBACK_SNAPSHOT, scrollerRef, follow: scroll.follow,
+    detachFromLatest: scroll.detachFromLatest, loadOlder: onLoadOlder, beforeDetach });
   const prevLoading = useRef(loadingOlder);
   const paintableRef = useRef(paintable);
   paintableRef.current = paintable;
@@ -277,12 +326,12 @@ export function ConversationPane({
   ) : (
     <>
       {demo ? null : <StatusBanner state={state} />}
-      {state.hasMoreBefore && state.hydrateStatus === "ready" ? (
+      {state.hasMoreBefore && (state.hydrateStatus === "ready" || state.hydrateStatus === "resyncing" && displayRows.length > 0) ? (
         <div className="convo-load-earlier">
           <button
             type="button"
             className="btn small outline"
-            disabled={loadingOlder}
+            disabled={loadingOlder || state.hydrateStatus !== "ready"}
             onClick={loadOlder}
           >
             {loadingOlder ? "正在加载更早消息…" : "加载更早消息"}
@@ -314,7 +363,7 @@ export function ConversationPane({
           )}
         </>
       ) : (
-        <ConvoTranscript
+        <RuntimeToolProvider {...runtimeTools} sourceSessionId={state.identity?.sessionId}><ConvoTranscript
           scrollerRef={scrollerRef}
           rows={displayRows}
           demo={demo}
@@ -329,8 +378,9 @@ export function ConversationPane({
           {...(planLink === undefined ? {} : { planLink })}
           {...(onRetryTurn === undefined ? {} : { onRetryTurn })}
           {...(retryTurnDisabledReason === undefined ? {} : { retryTurnDisabledReason })}
-        />
+        /></RuntimeToolProvider>
       )}
+      {displayRows.length > 0 ? supplement : null}
       {state.hydrateStatus === "resyncing" ? (
         <div className="convo-notice info" role="status">正在同步</div>
       ) : null}

@@ -8,6 +8,7 @@ import { agentsThreadService } from "./agents";
 import { asyncJobsThreadService } from "./async-jobs";
 import { authService } from "./auth";
 import { executorThreadService } from "./executor";
+import { computerThreadService } from "./computer";
 import { identityThreadService } from "./identity";
 import { integrationsThreadService } from "./integrations";
 import { loggerThreadService } from "./logging";
@@ -26,6 +27,7 @@ export const THREAD_SERVICES: readonly ThreadService[] = [
 	settingsThreadService,
 	authService,
 	agentsThreadService,
+	computerThreadService,
 	lspThreadService,
 	telemetryThreadService,
 	memoryThreadService,

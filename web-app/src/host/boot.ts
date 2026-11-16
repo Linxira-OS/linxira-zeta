@@ -53,6 +53,7 @@ takeFragment(LEGACY_FRAGMENT_KEY);
 // device actions can finish without a detour through Settings.
 const transport = new BrowserWebClientTransport({
 	baseUrl: window.location.origin,
+	supportsContexts: true,
 	fetcher: createStepUpFetch(authFetch),
 	webSocketFactory: (url: string) => new WebSocket(url) as unknown as WebSocketLike,
 });

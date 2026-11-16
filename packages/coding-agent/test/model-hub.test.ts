@@ -1151,18 +1151,80 @@ describe("ModelHub", () => {
 
 			hub.handleInput("\n"); // Sidebar → model list.
 			hub.handleInput("\n");
-			hub.handleInput(LEFT); // wraps to the trailing retry-fallback chip
+			hub.handleInput(LEFT);
 			hub.handleInput("\n");
 
 			expect(onFallbackChainChange).toHaveBeenCalledWith("default", ["test/retry-fallback-model"]);
 			expect(onAssign).not.toHaveBeenCalled();
 			expect(footerLine(hub.render(220))).not.toContain("inherit");
 
-			// A second registration of the same model is a no-op, not a duplicate.
+			// Reopen the same strip; its retry-fallback chip now removes this model.
 			hub.handleInput("\n");
 			hub.handleInput(LEFT);
+			expect(footerLine(hub.render(220))).toContain("remove fallback");
 			hub.handleInput("\n");
-			expect(onFallbackChainChange).toHaveBeenCalledTimes(1);
+			expect(onFallbackChainChange).toHaveBeenLastCalledWith("default", []);
+		});
+
+		test("retry-fallback chip removes one default-chain model and preserves ordered neighbors", () => {
+			const first = makeModel("test", "first-fallback");
+			const selected = makeModel("test", "selected-fallback");
+			const last = makeModel("test", "last-fallback");
+			const settings = Settings.isolated({
+				"retry.fallbackChains": {
+					default: ["test/first-fallback", "test/selected-fallback", "test/last-fallback"],
+				},
+			});
+			const { hub, onFallbackChainChange } = createHub({ models: [first, selected, last], scoped: true, settings });
+			installTestTheme();
+
+			for (const ch of "selected-fallback") hub.handleInput(ch);
+			hub.handleInput("\n");
+			hub.handleInput(LEFT);
+			expect(footerLine(hub.render(400))).toContain("remove fallback");
+			hub.handleInput("\n");
+
+			const remaining = ["test/first-fallback", "test/last-fallback"];
+			expect(onFallbackChainChange).toHaveBeenLastCalledWith("default", remaining);
+			expect(cfgRetryFallbackChains.get(settings).default).toEqual(remaining);
+
+			const readded = createHub({ models: [first, selected, last], scoped: true, settings });
+			readded.hub.handleInput("\n");
+			for (const ch of "selected-fallback") readded.hub.handleInput(ch);
+			readded.hub.handleInput("\n");
+			readded.hub.handleInput(LEFT);
+			expect(footerLine(readded.hub.render(400))).toContain("retry-fallback");
+			readded.hub.handleInput("\n");
+			expect(readded.onFallbackChainChange).toHaveBeenLastCalledWith("default", [
+				...remaining,
+				"test/selected-fallback",
+			]);
+		});
+
+		test("retry-fallback removal matches provider/model independently of effort and casing", () => {
+			const otherProvider = makeModel("other", "selected-fallback");
+			const selected = makeModel("test", "selected-fallback");
+			const settings = Settings.isolated({
+				"retry.fallbackChains": {
+					default: ["other/selected-fallback", "TEST/SELECTED-FALLBACK:medium", "test/selected-fallback:high"],
+				},
+			});
+			const { hub, onFallbackChainChange } = createHub({
+				models: [otherProvider, selected],
+				scoped: true,
+				settings,
+			});
+			installTestTheme();
+
+			for (const ch of "test/selected-fallback") hub.handleInput(ch);
+			hub.handleInput("\n");
+			hub.handleInput(LEFT);
+			expect(footerLine(hub.render(400))).toContain("remove fallback");
+			hub.handleInput("\n");
+
+			const remaining = ["other/selected-fallback", "test/selected-fallback:high"];
+			expect(onFallbackChainChange).toHaveBeenLastCalledWith("default", remaining);
+			expect(cfgRetryFallbackChains.get(settings).default).toEqual(remaining);
 		});
 
 		test("overflowing role strip scrolls left so the selected chip stays visible", () => {

@@ -51,6 +51,7 @@ export type PythonToolRequest =
 
 /** Session identity and bridge context for invoking a retained Python tool. */
 export interface PythonToolInvokeOptions {
+	outerToolCallId?: string;
 	cwd: string;
 	sessionId: string;
 	interpreter?: string;
@@ -60,6 +61,7 @@ export interface PythonToolInvokeOptions {
 }
 
 export interface PythonExecutorOptions {
+	outerToolCallId?: string;
 	/** Working directory for command execution */
 	cwd?: string;
 	/** Source filename for file-backed execution and tracebacks. */
@@ -520,6 +522,7 @@ async function invokePythonToolRequest(
 	const runId = Snowflake.next();
 	const unregister = registerPyToolBridge(options.sessionId, runId, {
 		toolSession: options.toolSession,
+		outerToolCallId: options.outerToolCallId,
 		signal: options.signal,
 		emitStatus: undefined,
 	});

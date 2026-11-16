@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { AskActions, AskBody, AskHead } from "./AskCard";
-import { ASK_GENIE_HOLD_MS, ASK_GENIE_MS, prefersReducedMotion } from "./askGenie";
-import { askAnswered, nextPicked } from "./askContent";
+import { ASK_GENIE_HOLD_MS, ASK_GENIE_MS } from "./askGenie";
+import { MOTION_SLACK_MS, motionReduced } from "../motion";
+import { TAB_PANE_MS } from "../pageTransition";
+import { askAnswered, nextPicked, patchAskAnswer } from "./askContent";
 import { PlanCard } from "./PlanCard";
 import { type DeckQueue } from "./PromptHead";
 import { NO_ASK_ANSWER, type AskHeader, type DeckAskAnswer, type DeckAskQuestion } from "./types";
@@ -38,7 +40,8 @@ export type QueuedAskItem = Extract<QueuedDeckItem, { kind: "ask" }>;
      退到另一侧，键盘连翻不断。
    卡片被处理掉（提交 / 取消 / 批准）不算「切换」：外壳可能整张换掉（计划卡 ⇄
    ask 卡），不留旧内容，把高度锁挪到舞台上过渡整卡高度。 */
-const DECK_SETTLE_MS = 380; /* 撤旧内容 / 释放高度锁：.dk-cell-enter-* 的 300ms 再多留一帧 */
+/* 撤旧内容 / 释放高度锁：.dk-cell-enter-* 与标签页面板是同一组动画，等它播完再多留一帧。 */
+const DECK_SETTLE_MS = TAB_PANE_MS + MOTION_SLACK_MS;
 
 type DeckSwap = {
   /** 仍需在场淡出的旧卡正文；null = 整卡换掉，只过渡高度。 */
@@ -123,7 +126,7 @@ export function QueuedDeck({
   const focusSlot = useRef<string | null>(null);
   const leaveTimerRef = useRef<number | undefined>(undefined);
   const [askPhase, setAskPhase] = useState<"enter" | "open" | "leave" | "idle">(
-    () => items[0]?.kind === "ask" && !prefersReducedMotion() ? "enter" : items[0]?.kind === "ask" ? "open" : "idle",
+    () => items[0]?.kind === "ask" && !motionReduced() ? "enter" : items[0]?.kind === "ask" ? "open" : "idle",
   );
   const prevKindRef = useRef(items[0]?.kind);
 
@@ -167,7 +170,7 @@ export function QueuedDeck({
   useLayoutEffect(() => {
     const prev = prevKindRef.current;
     if (kind === "ask" && prev !== "ask") {
-      setAskPhase(prefersReducedMotion() ? "open" : "enter");
+      setAskPhase(motionReduced() ? "open" : "enter");
     } else if (kind === "plan") {
       setAskPhase("idle");
     }
@@ -219,7 +222,7 @@ export function QueuedDeck({
 
   /** 锁住当前高度并登记这次切换；reduce motion 下直接换。 */
   const beginSwap = useCallback((out: QueuedAskItem | null, dir: SlideDir) => {
-    if (prefersReducedMotion()) {
+    if (motionReduced()) {
       focusSlot.current = null;
       setSwap(null);
       setLockH(null);
@@ -250,7 +253,7 @@ export function QueuedDeck({
     const gone = remaining.find((item) => item.id === id);
     const next = remaining.filter((item) => item.id !== id);
     const lastAsk = gone?.kind === "ask" && next.length === 0;
-    if (lastAsk && !prefersReducedMotion()) {
+    if (lastAsk && !motionReduced()) {
       if (askPhase === "leave") return;
       setAskPhase("leave");
       leaveTimerRef.current = window.setTimeout(() => {
@@ -292,15 +295,13 @@ export function QueuedDeck({
     setAnswers((prev) => {
       const at = prev[item.id] ?? NO_ASK_ANSWER;
       const picked = nextPicked(item.question, at.picked, label);
-      const { noteOption: previousNoteOption, ...rest } = at;
-      const noteOption = picked.includes(label) ? label : previousNoteOption && picked.includes(previousNoteOption) ? previousNoteOption : picked[0];
-      return { ...prev, [item.id]: { ...rest, picked, ...(noteOption ? { noteOption } : {}) } };
+      return { ...prev, [item.id]: patchAskAnswer(item.question, at, { picked }) };
     });
   }, [editsLocked]);
 
-  const writeCustom = useCallback((id: string, custom: string) => {
+  const patchAnswer = useCallback((item: QueuedAskItem, patch: Partial<DeckAskAnswer>) => {
     if (editsLocked) return;
-    setAnswers((prev) => ({ ...prev, [id]: { ...(prev[id] ?? NO_ASK_ANSWER), custom } }));
+    setAnswers(prev => ({ ...prev, [item.id]: patchAskAnswer(item.question, prev[item.id] ?? NO_ASK_ANSWER, patch) }));
   }, [editsLocked]);
 
   if (!current) {
@@ -327,8 +328,8 @@ export function QueuedDeck({
       answer={answers[item.id] ?? NO_ASK_ANSWER}
       {...(editsLocked ? { disabled: true } : {})}
       onPick={(label) => pick(item, label)}
-      onCustom={(value) => writeCustom(item.id, value)}
-      onPatch={patch=>setAnswers(prev=>({...prev,[item.id]:{...(prev[item.id]??NO_ASK_ANSWER),...patch}}))}
+      onCustom={custom => patchAnswer(item, { custom })}
+      onPatch={patch => patchAnswer(item, patch)}
       onSubmit={() => { void dismissAsk(item, "submit"); }}
     />
   );

@@ -12,13 +12,13 @@
  * (e.g. `wayland-pipewire`). Cargo path only; Bazel builds ignore it.
  */
 
-import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 import { $ } from "bun";
 import { detectHostAvx2Support, resolveLocalHostAddon } from "../../../scripts/host-detect";
 import { stampNativeVersion } from "../../../scripts/stamp-native-version";
+import { configureWindowsNativeEnvironment } from "../../../scripts/windows-native-env";
 import { generateEnumExports } from "./gen-enums";
 import { verifyBindings } from "./verify-bindings";
 
@@ -26,38 +26,7 @@ import { verifyBindings } from "./verify-bindings";
 // static build so the local addon never retains host Homebrew paths.
 process.env.PCRE2_SYS_STATIC ??= "1";
 
-// Windows: cc-rs and rustc auto-locate cl.exe/link.exe through the VS
-// registry, but the cmake crate (opusic-sys' bundled Opus) needs cmake —
-// and its Ninja generator needs ninja — on PATH. VS Build Tools ships both
-// without exposing them, so outside a vcvars prompt the build dies on
-// "cmake not found". Resolve the VS install via vswhere and append its
-// CMake/Ninja dirs, keeping any user-provided tools ahead.
-if (process.platform === "win32" && (!Bun.which("cmake") || !Bun.which("ninja"))) {
-	const vcToolsComponent =
-		process.arch === "arm64"
-			? "Microsoft.VisualStudio.Component.VC.Tools.ARM64"
-			: "Microsoft.VisualStudio.Component.VC.Tools.x86.x64";
-	const vswhere = path.join(
-		process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)",
-		"Microsoft Visual Studio",
-		"Installer",
-		"vswhere.exe",
-	);
-	const probe = Bun.spawnSync(
-		[vswhere, "-latest", "-products", "*", "-requires", vcToolsComponent, "-property", "installationPath"],
-		{ stdout: "pipe", stderr: "pipe" },
-	);
-	const vsRoot = probe.exitCode === 0 ? probe.stdout.toString("utf-8").trim() : "";
-	if (vsRoot) {
-		const cmakeExt = path.join(vsRoot, "Common7", "IDE", "CommonExtensions", "Microsoft", "CMake");
-		const extraDirs = [path.join(cmakeExt, "CMake", "bin"), path.join(cmakeExt, "Ninja")].filter(dir =>
-			fsSync.existsSync(dir),
-		);
-		if (extraDirs.length > 0) {
-			process.env.PATH = [process.env.PATH ?? "", ...extraDirs].filter(Boolean).join(path.delimiter);
-		}
-	}
-}
+configureWindowsNativeEnvironment();
 
 const repoRoot = path.join(import.meta.dir, "../../..");
 const rustDir = path.join(repoRoot, "crates/pi-natives");

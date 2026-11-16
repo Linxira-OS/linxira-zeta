@@ -1,3 +1,4 @@
+import { enforceStudioRatchetBoundary, notifyStudioRatchetGate, notifyStudioRatchetSetup } from "../server/studio-host/services/ratchet-boundary";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import type { ModelCost } from "@linxiraos/pi-catalog/types";
@@ -194,9 +195,11 @@ async function invokeRatchet(
 	lookup: PriceLookup,
 ): Promise<AgentToolResult<unknown>> {
 	const cwd = session.cwd;
+	await enforceStudioRatchetBoundary(cwd, params);
 	const lockKey = `${cwd}\0${params.flow}`;
 	if (params.action === "init") {
 		const state = await withFlowLock(lockKey, () => initFlow(cwd, params.flow, params));
+		await notifyStudioRatchetSetup(cwd, params);
 		return result(`ratchet flow ${state.flow} ready`, state);
 	}
 	switch (params.action) {
@@ -207,6 +210,7 @@ async function invokeRatchet(
 				await saveState(cwd, fresh);
 				return fresh;
 			});
+			await notifyStudioRatchetSetup(cwd, params);
 			return result(`plan updated for ${state.flow}`, state);
 		}
 		case "split": {
@@ -216,6 +220,7 @@ async function invokeRatchet(
 				await saveState(cwd, fresh);
 				return fresh;
 			});
+			await notifyStudioRatchetSetup(cwd, params);
 			return result(
 				`split ${state.flow}: ${state.train_ids.length} train / ${state.test_ids.length} test (seed ${state.split_seed})`,
 				{ train_ids: state.train_ids, test_ids: state.test_ids, seed: state.split_seed },
@@ -254,6 +259,7 @@ async function invokeRatchet(
 			const gate = await withFlowLock(lockKey, async () =>
 				gateVariant(cwd, await requireState(cwd, params.flow), params.variant, params.change ?? "", lookup),
 			);
+			await notifyStudioRatchetGate(cwd, params.flow, params.variant, gate);
 			const lines = [`${gate.variant}: ${gate.decision} — ${gate.reasons.join("; ")}`];
 			for (const warning of gate.warnings) lines.push(`warning: ${warning}`);
 			if (gate.plateau)

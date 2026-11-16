@@ -33,7 +33,7 @@ const defaultScheduler: FrameScheduler = typeof requestAnimationFrame === "funct
   : { request: (callback) => setTimeout(callback, 0), cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>), now: () => Date.now() };
 
 type MutableBlock = { readonly blockId: string; readonly blockType: "text" | "thinking"; text: string; pending: string[]; bytes: number; truncated: boolean };
-type MutableMessage = { readonly messageId: string; readonly turnId: string; readonly role: "user" | "assistant" | "system"; readonly createdAt: string; readonly blocks: Map<string, MutableBlock>; aborted: boolean; dirty: boolean; materialized?: LiveMessage };
+type MutableMessage = { readonly messageId: string; readonly turnId: string; readonly role: ConversationMessageItem["role"]; readonly createdAt: string; readonly blocks: Map<string, MutableBlock>; aborted: boolean; dirty: boolean; materialized?: LiveMessage };
 
 export type ConversationStoreSnapshot = { readonly state: ConversationState; readonly rows: readonly TimelineRow[] };
 export type ConversationPage = Pick<ConversationTranscriptPage, "items" | "olderCursor" | "headCursor" | "hasMoreBefore">;
@@ -179,7 +179,13 @@ export class ConversationStore {
     this.identity = { ...(this.identity ?? {}), sessionId: sessionId as ConversationIdentity["sessionId"], ...(runtimeEpoch === undefined ? {} : { runtimeEpoch }) };
   }
 
-  setLoading(resyncing = false): void { this.status = resyncing ? "resyncing" : "loading"; this.error = undefined; this.resyncRequired = false; this.publishNow(); }
+  setLoading(resyncing = false): void {
+    const status = resyncing ? "resyncing" : "loading";
+    if (this.status === status && this.error === undefined && !this.resyncRequired) return;
+    this.status = status; this.error = undefined; this.resyncRequired = false; this.publishNow();
+  }
+  /** The revalidated archive is the exact cached page already on screen. */
+  confirmHydrated(): void { this.status = "ready"; this.error = undefined; this.resyncRequired = false; this.publishNow(); }
   setUnavailable(reason: string): void { this.status = "unavailable"; this.unavailableReason = reason; this.publishNow(); }
   setError(error: { readonly code: string; readonly message: string }): void { this.status = "error"; this.error = error; this.publishNow(); }
   requireResync(reason: string): void { this.status = "resyncing"; this.resyncRequired = true; this.notices = [...this.notices.slice(-(NOTICE_LIMIT - 1)), { id: `resync:${this.generation}:${Date.now()}`, level: "warning", message: reason, source: "conversation" }]; this.publishNow(); }
@@ -270,7 +276,8 @@ export class ConversationStore {
           if (oldest === undefined) break;
           this.deleteLiveTool(oldest);
         }
-        this.setLiveTool(update.toolCallId, { toolCallId: update.toolCallId, messageId: update.messageId, turnId: update.turnId, toolName: update.toolName, ...(update.arguments === undefined ? {} : { arguments: update.arguments }), status: "running" }); this.openTurnItems.set(update.messageId, update.turnId);
+        const existing = this.liveTools.get(update.toolCallId);
+        this.setLiveTool(update.toolCallId, { ...(existing?.messageId === update.messageId && existing.turnId === update.turnId ? existing : {}), ...(update.presentation ? { presentation: update.presentation } : {}), toolCallId: update.toolCallId, messageId: update.messageId, turnId: update.turnId, toolName: update.toolName, ...(update.arguments === undefined ? {} : { arguments: update.arguments }), status: "running" }); this.openTurnItems.set(update.messageId, update.turnId);
         this.markRowChanged(update.messageId); break;
       }
       case "conversation.tool.updated": {
@@ -278,7 +285,7 @@ export class ConversationStore {
         if (tool === undefined || tool.turnId !== update.turnId) break;
         const candidate = update.updateMode === "replace" ? update.output ?? tool.output ?? "" : `${tool.output ?? ""}${update.output ?? ""}`;
         const tail = tailUtf8(candidate, TOOL_OUTPUT_MAX_BYTES);
-        this.setLiveTool(update.toolCallId, { ...tool, output: tail.text, ...(update.truncated === true || tail.truncated ? { truncated: true } : {}), ...(update.progress === undefined ? {} : { progress: update.progress }) });
+        this.setLiveTool(update.toolCallId, { ...tool, ...(update.presentation ? { presentation: update.presentation } : {}), ...(update.replies ? { replies: update.replies } : {}), output: tail.text, ...(update.truncated === true || tail.truncated ? { truncated: true } : {}), ...(update.progress === undefined ? {} : { progress: update.progress }) });
         if (this.hasItem(tool.messageId)) this.dirtyPersistedRows.add(tool.messageId);
         break;
       }
@@ -497,7 +504,10 @@ export class ConversationStore {
     const index = this.items.findIndex((item) => item.itemId === itemId && item.kind === "message" && item.role === "user"); if (index < 0) return false;
     this.items = this.items.slice(0, index); this.markStructureChanged(); this.trimAncillary(); this.publishNow(); return true;
   }
-  setUserThumbs(thumbs: UserThumbMap): void { this.userThumbs = thumbs; this.markStructureChanged(); this.trimAncillary(); this.publishNow(); }
+  setUserThumbs(thumbs: UserThumbMap): void {
+    if (Object.keys(thumbs).length === 0 && Object.keys(this.userThumbs).length === 0) return;
+    this.userThumbs = thumbs; this.markStructureChanged(); this.trimAncillary(); this.publishNow();
+  }
   getOlderCursor(): OpaqueCursor | undefined { return this.olderCursor; }
 
   private materializeMessages(): Record<string, LiveMessage> {

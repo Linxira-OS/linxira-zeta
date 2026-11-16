@@ -57,6 +57,7 @@ import type { StudioFamily } from "../registry.js";
 import { resumePathKey } from "../../../resume/paths.js";
 import { resumeWorkspaceIdentity } from "../../../resume/directory.js";
 import { workspaceIdFor } from "./workspace-id.js";
+import { currentStudioSelection, requireStudioWorkspace } from "../selection.js";
 
 const PROJECTS_ROUTE = "/api/projects";
 const VALIDATE_CWD_ROUTE = "/api/cwd/validate";
@@ -244,7 +245,13 @@ function toFileNodes(entries: readonly FileEntry[], base: string): WorkspaceFile
 
 /** `projects.list` handler → `GET /api/projects`. */
 async function listProjects(): Promise<WorkspaceListReadModel> {
-	return toWorkspaceList(await loadProjectDirectory());
+	const result = toWorkspaceList(await loadProjectDirectory());
+	const selection = currentStudioSelection();
+	return selection === undefined ? result : {
+		...result,
+		activeWorkspaceId: selection.workspaceId as WorkspaceId,
+		workspaces: result.workspaces.map(workspace => ({ ...workspace, active: workspace.workspaceId === selection.workspaceId })),
+	};
 }
 
 /**
@@ -281,6 +288,7 @@ export async function readWorkspaceIdentities(
 
 /** Hidden folders can still own an open session; paths never cross the wire. */
 export async function resolveWorkspacePath(workspaceId: string): Promise<string> {
+	requireStudioWorkspace(workspaceId);
 	return requireWorkspace(await loadProjectDirectory(true), workspaceId).path;
 }
 
@@ -337,6 +345,7 @@ async function listFileTree(input: unknown): Promise<WorkspaceFileTreeReadModel>
  */
 async function openWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
 	const workspaceId = requiredString(input, "workspaceId");
+	requireStudioWorkspace(workspaceId);
 	const entry = requireWorkspace(await loadProjectDirectory(true), workspaceId);
 	const reply = await callGateway(PROJECTS_ROUTE, { method: "PUT", body: { path: entry.path } });
 	if (reply.status === 400 || reply.status === 404) {
@@ -345,7 +354,7 @@ async function openWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
 	if (reply.status < 200 || reply.status >= 300) {
 		throw unavailable(`PUT ${PROJECTS_ROUTE} → ${reply.status}`);
 	}
-	return toWorkspaceList(parseProjectDirectory(reply.body));
+	return listProjects();
 }
 
 /**

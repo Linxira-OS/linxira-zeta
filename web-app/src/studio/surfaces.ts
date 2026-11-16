@@ -33,7 +33,7 @@ export const SURFACE_IDS: readonly SurfaceId[] = [
 
 /** Facts a renderer can observe synchronously; `hostDesktop` comes from the gateway. */
 export interface SurfaceFacts {
-	/** The frameless shell's window-control bridge (`window.piDesktop`). */
+	/** The frameless shell's window-control bridge (`window.zetaStudioChrome`). */
 	readonly windowBridge: boolean;
 	/** Any desktop preload chrome API (`window.zetaStudioChrome`). */
 	readonly chromeBridge: boolean;
@@ -69,8 +69,7 @@ export function isLoopbackHost(hostname: string): boolean {
 }
 
 interface SurfaceScope {
-	readonly piDesktop?: { minimize?: unknown; maximize?: unknown; close?: unknown } | undefined;
-	readonly zetaStudioChrome?: object | undefined;
+	readonly zetaStudioChrome?: { minimize?: unknown; maximize?: unknown; close?: unknown } | undefined;
 	readonly zetaStudioRemote?: object | undefined;
 	readonly location?: { readonly hostname?: string } | undefined;
 	readonly navigator?: { readonly userAgent?: string; readonly maxTouchPoints?: number } | undefined;
@@ -85,7 +84,7 @@ const MOBILE_QUERY = "(max-width: 820px) and (pointer: coarse)";
  * renderer can call the classifier with explicit facts instead.
  */
 export function detectSurfaceFacts(scope: SurfaceScope = globalThis as SurfaceScope): SurfaceFacts {
-	const bridge = scope.piDesktop;
+	const bridge = scope.zetaStudioChrome;
 	const windowBridge =
 		bridge !== undefined &&
 		typeof bridge.minimize === "function" &&

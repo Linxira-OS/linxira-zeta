@@ -93,6 +93,8 @@ export interface StudioRuntimeSettingsActivation {
 	sources?: Partial<Record<StudioRuntimeSettingKey, "env" | "runtime" | "overlay" | "project" | "global" | "default">>;
 	configured: Partial<StudioRuntimeSettingsSnapshot>;
 	restartRequired: StudioRuntimeSettingKey[];
+	hindsightCredential?: { configured: boolean; source: "env" | "runtime" | "overlay" | "project" | "global" | "default" };
+	resolvedEditMode?: NonNullable<GuiSettingsSnapshot["edit.mode"]>;
 }
 
 type StudioRuntimeSettingSetInputFor<K extends StudioRuntimeSettingKey> = {
@@ -116,6 +118,7 @@ export type StudioRuntimeSettingSetOperation = {
 export interface StudioRuntimeSettingsGetResult {
 	values: Partial<StudioRuntimeSettingsSnapshot>;
 	activation?: StudioRuntimeSettingsActivation;
+	hindsightStatus?: "ready" | "authentication-failed" | "not-found" | "unavailable" | "inactive";
 }
 
 export interface StudioRuntimeSettingsSetResult {

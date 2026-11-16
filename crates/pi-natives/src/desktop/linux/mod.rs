@@ -39,12 +39,13 @@ fn pace_clicks(count: u32, mut send: impl FnMut(bool) -> CoreResult<()>) -> Core
 	Ok(())
 }
 
-pub fn new_backend(display: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
+
+pub fn new_backend_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
 	if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-		return Ok(Box::new(wayland::WaylandBackend::new(display)));
+		return Ok(Box::new(wayland::WaylandBackend::new_observed(display, observation_only)));
 	}
 	if std::env::var_os("DISPLAY").is_some() {
-		return Ok(Box::new(x11::X11Backend::new(display)?));
+		return Ok(Box::new(x11::X11Backend::new_observed(display, observation_only)?));
 	}
 	Err(DesktopError::capture_failed(
 		"no display server (neither WAYLAND_DISPLAY nor DISPLAY is set)",

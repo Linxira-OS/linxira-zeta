@@ -3328,3 +3328,86 @@ host/tooling, not source:
 
 The remaining local blockers above are host/tooling; the PR CI run builds the
 native addons and is the authoritative verification for them.
+
+## Studio v0.2.1 integration WIP (2026-11-14)
+
+- Owner: main agent, REQ-099; integration branch `sync/studio-release/v0.2.0`.
+- Source: official Studio v0.2.0 `5d2426febe43e79ef03c709c9443d4be4a037fe7`,
+  extended to v0.2.1 `6d0b764bb9eac88c1671c0380229823c5630cc74`.
+- Integration is incomplete: mapped renderer/vendor changes are uncommitted;
+  source-parent ancestry, desktop/Host semantic inventory and integration CI
+  remain outstanding. No completed baseline is claimed.
+- Recovered shared context APIs and file/GitHub/time-travel barrel exports after
+  accidental removal. Restored the complete mapped upstream loopback adapter;
+  it is not mounted as a second production authentication authority.
+- Production Zeta Host now implements owner-bound context open/close through
+  its existing cookie/CSRF/device authority; browser boot advertises contexts.
+  Context handles, nested session targets, receipts and event sockets are scoped;
+  close, revoke, expiry and late socket attachment are guarded. Desktop SSH
+  forwarding exists; live SSH/native desktop acceptance remains pending.
+- Restored `session.create` model application before publishing the new active
+  session. Fixed terminal restore/restart using target-only active keys;
+  persisted workspace/session/conversation ownership now survives restoration.
+- Recovery checks: renderer TypeScript API check passed; focused first-model,
+  conversation client and residency tests 17/17; Host operations/auth tests
+  41/41 (136 assertions); terminal restore/restart regression 1/1; production
+  Vite build passed (3095 modules). Terminal follow-up changes postdate that
+  build and require the next final build gate.
+- Host tests loaded the existing 1.5.1 native addon against the 1.5.2 checkout;
+  these results do not establish source-matched native behavior. Build warnings
+  include Node modules externalized from the transport barrel and extensionless
+  Vite plugin imports. No push, release, tag or main merge was performed.
+- Subsequent Host/auth run: 98 pass / 407 assertions across seven files,
+  including two persisted transcripts in separate workspaces. Renderer type
+  verification: 2,460 files clean. Branding/layout/context/reader run: nine
+  files, 141 pass; production build and actual served Home navigation passed.
+- Broad product-copy sweep uses Z Work Studio / Zeta for sidebar, About, BTW,
+  logs, empty state, import/resume, locales and previews; naming guard parses
+  TS literals/templates/JSX. Existing IndexedDB names, old recording reads and
+  legal attribution remain deliberate compatibility boundaries.
+
+
+### Mechanical Studio tag accounting (2026-11-14)
+
+The reusable `scripts/studio-sync.ts` compared the complete official `v0.1.17` (`4e2cdc77dad93cd2a5b82be8ad36c740d34fb8d4`) to `v0.2.1` (`6d0b764bb9eac88c1671c0380229823c5630cc74`). The remote tag pair was verified before the apply run. The initial complete inventory covered **1,751 paths**: 422 already matched, 47 retained local changes, 335 text conflicts, 60 missing mapped files, 194 Host adaptations, 8 configuration rows, 1 binary row, 1 delete review, 2 safe deletes, and 29 mechanically mergeable files. After contract-boundary classification and the safe apply run: 422 current, 42 local-preserved, 246 adapted additions, 69 text conflicts, 54 contract reviews, 60 missing reviews, 194 Host adaptations, 8 configuration reviews, 1 binary review, 1 delete review, and 2 applied safe deletes. No renderer/Host feature completion claim follows from these counts.
+
+The applied run removed only the two upstream-retired mapped files classified `ready-delete`; it did not overwrite the 246 existing locally adapted additions or the contract boundary. Its report, pending list and preimage backups are under `temp/studio-batch-applied/`. That early run predates durable `apply-plan.json` support; no such plan exists for it. `scripts/studio-sync.test.ts` passed 1 test / 12 assertions against a real temporary Git repository. Fixed gate evidence: 53 Host tests / 237 assertions; 52 authentication tests / 245 assertions; renderer 12 files / 133 tests; 31 desktop bridge tests after re-emitting current desktop source. Renderer/desktop types passed. jsdom canvas warnings are not graphics evidence. Live browser model, packaged/native, SSH, source-matched native, official source-parent ancestry and CI acceptance remain separate.
+
+Automation completion checks (2026-11-15): fixed quick profile passed 3/3; automation regressions passed 3 tests / 21 assertions before the additional affected-path invalidation assertion; ADR index passed 26 records. The completion CLI was exercised and correctly exited 1: 1,285 dispositions remain unrecorded (652 repository paths, 194 Host adaptations, 246 already-present adapted additions, and 193 other mapped reviews) and the official target is not yet an ancestor of HEAD. Earlier “710 migrated” wording describes presence only: the 246 adapted additions still need retained-upstream-delta evidence. Their existence must not be counted as semantic acceptance. Decision records bind the tag pair and exact landing hashes; final accounting does not certify external live acceptance.
+
+### 2026-11-16 Studio v0.2.1 closure progress
+
+- Official tag pair re-verified online (`v0.1.17` = `4e2cdc77…`, `v0.2.1` =
+  `6d0b764b…`); the current report is
+  `temp/studio-review-main-20261116-verified/report.json` (1,751 paths, 463
+  current + 49 local-preserved). The earlier offline report is retained as
+  `temp/studio-review-main-20261116-local/`.
+- Conservative source-equivalence audit on the verified report: 183 equivalent
+  / 198 changed of 381 selected mapped files (`equivalence.json`); it is a
+  subset review, not product acceptance.
+- Per-path decisions are being authored against the verified report:
+  equivalence decisions (183) plus drafted families (repository root/CI/docs,
+  scripts, contract/config, adapted additions, conflicts) reached 566 accepted
+  decisions in the checker with only `repository-review` (website) and
+  `host-adaptation` rows still pending. Landing hashes are recomputed from the
+  working tree; the checker correctly reports stale preimages for files edited
+  after the report was generated (`WorkbenchCanvas.tsx`, `AppShell.tsx`,
+  `remoteTransport.test.ts`), so the final report must be regenerated after the
+  bytes freeze.
+- Integrated worker deltas: browser closure (8 files: Electron WebMCP switch,
+  document identity, crash/observation lifecycle; `launch.ts` accepts both
+  `WebMCP` and `WebMCPTesting`), evaluation closure (review gateway-theme fix,
+  transient `_state.json` recovery, plus the final test file), surface closure
+  returned no product delta. Main fixed `session.delete` to dispose the
+  resident `AgentSession`, added the official `remoteTransport` scenarios
+  (6/6), and made palette/terminal openers expand a collapsed bottom region.
+- Producer gaps found by the Host audit are recorded in
+  `docs/studio-surfaces.md` §Gaps and the requirements ledger: families with
+  contracts and renderer gates but no registered Host family stay hidden; they
+  are not claimed as working. Skillshare stays retired (ADR-0047) and live
+  audio stays owner-held (ADR-0034).
+- No official source-parent merge exists yet; `git merge-base HEAD v0.2.1`
+  still has no common ancestor. The planned merge is a real
+  `--allow-unrelated-histories` merge whose resolution keeps Zeta's front door
+  and maps upstream content to the reviewed landings; archives or copied trees
+  are not ancestry.

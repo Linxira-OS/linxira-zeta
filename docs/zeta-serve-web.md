@@ -277,4 +277,4 @@ Mechanics:
 
 ## Native directory picker
 
-Inside the desktop shell the embedded Web UI exposes `window.piDesktop.selectDirectory(startPath?)` (preload bridge in `desktop/src/preload.ts`, IPC handler `pi:select-directory`). The directory pickers show a **Browse…** button that opens the OS dialog when this bridge exists; in a plain browser they fall back to manual path entry (and the File System Access API where available). `GET /api/desktop/info` reports `{ desktop: boolean }` so renderer code can distinguish the embedded shell from remote browsers.
+Inside the desktop shell the embedded Web UI exposes `window.zetaStudioChrome.selectDirectory(startPath?)` (preload bridge in `desktop/src/preload.ts`, IPC handler `pi:select-directory`). The directory pickers show a **Browse…** button that opens the OS dialog when this bridge exists; in a plain browser they fall back to manual path entry (and the File System Access API where available). `GET /api/desktop/info` reports `{ desktop: boolean }` so renderer code can distinguish the embedded shell from remote browsers.

@@ -26,14 +26,11 @@ function indexHtmlOutput(): Plugin {
 export default defineConfig({
   resolve: {
     alias: {
-      "@/lib/studio-protocol/contract": fileURLToPath(new URL("./src/protocol/contract/index.ts", import.meta.url)),
-      "@/lib/studio-protocol/protocol": fileURLToPath(new URL("./src/protocol/protocol/index.ts", import.meta.url)),
       "@linxiraos/studio-contract": fileURLToPath(new URL("./src/vendor/client-contract/src/index.ts", import.meta.url)),
       "@linxiraos/studio-protocol": fileURLToPath(new URL("./src/vendor/studio-protocol/src/index.ts", import.meta.url)),
       "@linxiraos/studio-client": fileURLToPath(new URL("./src/vendor/client/src/index.ts", import.meta.url)),
       "@linxiraos/studio-transport-web": fileURLToPath(new URL("./src/vendor/transport-web/src/index.ts", import.meta.url)),
       "@linxiraos/studio-platform": fileURLToPath(new URL("./src/vendor/platform/src/index.ts", import.meta.url)),
-      "@linxiraos/studio-transport-desktop": fileURLToPath(new URL("./src/zeta/transport-desktop.ts", import.meta.url)),
       "@linxiraos/studio-runtime-installer": fileURLToPath(new URL("./src/zeta/runtime-installer.ts", import.meta.url)),
     },
   },

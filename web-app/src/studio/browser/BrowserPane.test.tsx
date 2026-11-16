@@ -1,0 +1,34 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import type { StudioClient } from "@linxiraos/studio-contract";
+import { I18nProvider } from "../i18n";
+import { PreviewModeProvider } from "../preview/PreviewContext";
+import { PREVIEW_MODE_STORAGE_KEY } from "../preview/mode";
+import { BrowserPane } from "./BrowserPane";
+import { ManagedBrowserPane } from "./ManagedBrowserPane";
+afterEach(() => { cleanup(); localStorage.clear(); });
+it("keeps multi-element feedback and control local in preview across panel hiding", async () => {
+  localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1"); const client = { command: vi.fn(), query: vi.fn() } as unknown as StudioClient;
+  const onReferences = vi.fn();
+  const view = (visible: boolean) => <I18nProvider forcedLanguage="zh"><PreviewModeProvider switchEnabled><ManagedBrowserPane sessionId="pane-test" pageId="pane-test:page-1" visible={visible} onReferences={onReferences} /></PreviewModeProvider></I18nProvider>;
+  const { rerender } = render(view(true));
+  fireEvent.click(await screen.findByRole("button", { name: "人工接管" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "归还 Agent 控制" })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "选择页面元素" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "停止选择元素" })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Preview button · 0" }));
+  fireEvent.click(screen.getByRole("button", { name: "Preview button · 0" }));
+  expect(screen.getAllByRole("textbox", { name: /^备注/ })).toHaveLength(2);
+  fireEvent.change(screen.getAllByRole("textbox", { name: /^备注/ })[0]!, { target: { value: "调整按钮间距" } });
+  rerender(view(false)); expect(screen.queryByRole("region", { name: "浏览器页面" })).toBeNull();
+  rerender(view(true)); expect(screen.getByRole("button", { name: "归还 Agent 控制" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "加入输入框" }));
+  expect(onReferences.mock.calls[0]?.[0]).toHaveLength(2);
+  expect(onReferences.mock.calls[0]?.[0][0].note).toBe("调整按钮间距");
+  expect(client.command).not.toHaveBeenCalled(); expect(client.query).not.toHaveBeenCalled();
+});
+it("does not ask an old Runtime for unknown browser commands", () => {
+  localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0"); const client = { command: vi.fn() } as unknown as StudioClient;
+  render(<PreviewModeProvider switchEnabled><BrowserPane client={client} sessionId="s" available visible /></PreviewModeProvider>);
+  expect(client.command).not.toHaveBeenCalled();
+});

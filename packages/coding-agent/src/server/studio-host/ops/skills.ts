@@ -58,6 +58,8 @@ import {
 } from "../gateway.js";
 import type { CapabilityManifest } from "../protocol/index.js";
 import type { StudioFamily, StudioHostContext } from "../registry.js";
+import { currentStudioSelection } from "../selection.js";
+import { resolveWorkspacePath } from "./workspace.js";
 
 const SKILLS_ROUTE = "/api/skills";
 const SKILLS_REVEAL_ROUTE = "/api/skills/reveal";
@@ -374,14 +376,19 @@ interface PluginsInventory {
 	readonly diagnostics: readonly RawDiagnostic[];
 }
 
-/** The cwd query the skills/plugins scans read for. */
-function projectQuery(): string {
-	return `cwd=${segment(getProjectDir())}`;
+/** Resolve project-local skills from the selected context, never the process cwd. */
+async function projectCwd(): Promise<string> {
+	const selection = currentStudioSelection();
+	return selection === undefined ? getProjectDir() : resolveWorkspacePath(selection.workspaceId);
+}
+
+async function projectQuery(): Promise<string> {
+	return `cwd=${segment(await projectCwd())}`;
 }
 
 /** `GET /api/skills` for the host's project directory. */
 async function readSkillsInventory(): Promise<SkillsInventory> {
-	const body = await gatewayJson<unknown>(SKILLS_ROUTE, { query: projectQuery() });
+	const body = await gatewayJson<unknown>(SKILLS_ROUTE, { query: await projectQuery() });
 	if (!isRecord(body)) throw unavailable("GET /api/skills returned a non-object body");
 	const rows = arrayField(body, "skills");
 	if (rows === undefined) throw unavailable("GET /api/skills returned no skills array");
@@ -395,7 +402,7 @@ async function readSkillsInventory(): Promise<SkillsInventory> {
 
 /** `GET /api/plugins` for the host's project directory. */
 async function readPluginsInventory(): Promise<PluginsInventory> {
-	const body = await gatewayJson<unknown>(PLUGINS_ROUTE, { query: projectQuery() });
+	const body = await gatewayJson<unknown>(PLUGINS_ROUTE, { query: await projectQuery() });
 	if (!isRecord(body)) throw unavailable("GET /api/plugins returned a non-object body");
 	const rows = arrayField(body, "installed");
 	if (rows === undefined) throw unavailable("GET /api/plugins returned no installed array");
@@ -501,7 +508,7 @@ async function revealSkill(input: CommandInput<"skills.reveal">): Promise<Config
 	const name = requiredString(input, "name");
 	const scope = optionalScope(input);
 	await revealSkillFolder({
-		cwd: getProjectDir(),
+		cwd: await projectCwd(),
 		name,
 		...(scope === undefined ? {} : { scope }),
 	});
@@ -518,7 +525,7 @@ async function revealSkill(input: CommandInput<"skills.reveal">): Promise<Config
 async function revealSkillRoot(input: CommandInput<"skills.revealRoot">): Promise<ConfigWriteResult> {
 	const scope = optionalScope(input);
 	await revealSkillFolder({
-		cwd: getProjectDir(),
+		cwd: await projectCwd(),
 		name: "skills",
 		root: true,
 		...(scope === undefined ? {} : { scope }),
@@ -554,7 +561,7 @@ async function setPluginEnabled(input: CommandInput<"plugins.setEnabled">): Prom
 			action: enabled ? "enable" : "disable",
 			id: plugin.id,
 			scope: plugin.scope,
-			cwd: getProjectDir(),
+			cwd: await projectCwd(),
 		},
 	});
 	return {

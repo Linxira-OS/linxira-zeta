@@ -49,21 +49,28 @@ use super::{
 
 pub struct MacosBackend {
 	capture: MacCapture,
-	input:   MacInput,
+	input:   Option<MacInput>,
 	ax:      MacAx,
 }
 
 impl MacosBackend {
-	pub(crate) fn new(display: DisplaySelector) -> CoreResult<Self> {
+	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
 		Ok(Self {
 			capture: MacCapture::new(display),
-			input:   MacInput::new()?,
+			input:   if observation_only { None } else { Some(MacInput::new()?) },
 			ax:      MacAx::new(),
 		})
 	}
 
-	fn require_input_permission() -> CoreResult<()> {
+	fn require_input_permission(&self) -> CoreResult<()> {
+		if self.input.is_none() {
+			return Err(Self::input_unavailable());
+		}
 		ax::is_trusted().ok_or_else(|| permission::denied("Accessibility"))
+	}
+
+	fn input_unavailable() -> DesktopError {
+		DesktopError::permission_denied("passive desktop has no input controller")
 	}
 }
 
@@ -85,20 +92,20 @@ impl Backend for MacosBackend {
 			backend: "quartz".to_string(),
 			display_server: Some("Quartz WindowServer".to_string()),
 			capture: capture::capture_available() && capture_permission && display_count > 0,
-			input: ax_trusted,
+			input: ax_trusted && self.input.is_some(),
 			ax: ax_trusted,
-			background_window_input: ax_trusted && skylight::is_available(),
-			takeover: skylight::takeover_available(),
+			background_window_input: ax_trusted && self.input.is_some() && skylight::is_available(),
+			takeover: self.input.is_some() && skylight::takeover_available(),
 			applications: super::applications::supported(),
-			menus: ax_trusted,
-			held_input: ax_trusted,
-			spaces: spaces::supported(),
+			menus: ax_trusted && self.input.is_some(),
+			held_input: ax_trusted && self.input.is_some(),
+			spaces: self.input.is_some() && spaces::supported(),
 			// The Escape monitor sees no key at all while secure input holds.
-			global_escape: permission::listen_events() && !secure_input,
+			global_escape: self.input.is_some() && permission::listen_events() && !secure_input,
 			secure_input,
 			secure_input_app,
 			capture_permission: permission_label(capture_permission),
-			input_permission: permission_label(permission::post_events()),
+			input_permission: if self.input.is_some() { permission_label(permission::post_events()) } else { "unavailable".to_string() },
 			ax_permission: permission_label(ax_trusted),
 			display_count,
 			screen_locked: screen.locked,
@@ -168,10 +175,11 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		release_guard::scope(pointer_presses(&event, target, mode), || {
 			self
 				.input
+				.as_mut().ok_or_else(Self::input_unavailable)?
 				.pointer(target, event, None, mode, EntryFront::now(), &self.capture)
 		})
 	}
@@ -184,7 +192,7 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<Option<AxTextSelection>> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		input::drag_selection(target, event, mode, &self.capture)
 	}
 
@@ -198,10 +206,11 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		release_guard::scope(pointer_presses(&event, target, mode), || {
 			self
 				.input
+				.as_mut().ok_or_else(Self::input_unavailable)?
 				.pointer(target, event, Some(path), mode, EntryFront::now(), &self.capture)
 		})
 	}
@@ -218,9 +227,9 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		release_guard::scope(presses(target, mode), || {
-			self.input.type_text(target, text, mode, &self.capture)
+			self.input.as_mut().ok_or_else(Self::input_unavailable)?.type_text(target, text, mode, &self.capture)
 		})
 	}
 
@@ -232,9 +241,9 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		release_guard::scope(presses(target, mode), || {
-			self.input.key_chord(target, keys, mode, &self.capture)
+			self.input.as_mut().ok_or_else(Self::input_unavailable)?.key_chord(target, keys, mode, &self.capture)
 		})
 	}
 
@@ -246,7 +255,7 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<ElementDelivery> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		// The window lookup asks the element's application, which blocks while it
 		// is busy; the user's front app is read before it
 		// ([`EntryFront::before`]).
@@ -256,7 +265,7 @@ impl Backend for MacosBackend {
 			self.ax.window_id(element, &windows)
 		})?;
 		release_guard::scope(window_presses(mode), || {
-			self.input.element_input(
+			self.input.as_mut().ok_or_else(Self::input_unavailable)?.element_input(
 				&id,
 				ax::mac_handle(element)?,
 				input,
@@ -274,7 +283,7 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		// The element's bounds and window are read from its application, which
 		// blocks while it is busy; the user's front app is read before them.
 		let (entry_front, (target, event)) = EntryFront::before(skylight::front_pid, || {
@@ -287,6 +296,7 @@ impl Backend for MacosBackend {
 		release_guard::scope(pointer_presses(&event, &target, click.mode), || {
 			self
 				.input
+				.as_mut().ok_or_else(Self::input_unavailable)?
 				.pointer(&target, event, click.menu, click.mode, entry_front, &self.capture)
 		})
 	}
@@ -300,10 +310,11 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		release_guard::scope(presses(target, mode), || {
 			self
 				.input
+				.as_mut().ok_or_else(Self::input_unavailable)?
 				.hold_keys(target, keys, duration, mode, &self.capture)
 		})
 	}
@@ -313,7 +324,7 @@ impl Backend for MacosBackend {
 		window: &DesktopWindow,
 		path: &[String],
 	) -> CoreResult<Vec<super::menus::DesktopMenuItem>> {
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		menus::items(window, path)
 	}
 
@@ -324,7 +335,7 @@ impl Backend for MacosBackend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		// The window's activating click is the only input a menu command posts.
 		release_guard::scope(Presses::Process, || menus::select(window, path))
 	}
@@ -336,7 +347,7 @@ impl Backend for MacosBackend {
 
 	fn raise_window(&mut self, id: &str, token: &OperationToken) -> CoreResult<()> {
 		token.check()?;
-		Self::require_input_permission()?;
+		self.require_input_permission()?;
 		let window = self.capture.window(id)?;
 		self.ax.raise(&window)?;
 		token.check()?;

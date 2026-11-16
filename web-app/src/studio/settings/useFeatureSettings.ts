@@ -17,6 +17,7 @@ export function useFeatureSettings({ client, context, visible }: FeatureSettings
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(false);
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const epoch = useRef(0), lock = useRef(false);
+  const owner = useRef<{ client: StudioClient | undefined; sessionId: string | undefined; preview: boolean } | undefined>(undefined);
   const supports = (kind: string) => preview || context?.capabilities?.capabilities.some(row => row.id === kind && row.grade !== "unavailable") === true;
   const enabled = preview || !!(client && context?.available && context.sessionId && supports("preferences.features.get"));
   const invoke = useCallback(async <K extends keyof FeatureSettingsResultMap>(kind: K, input: CommandInput<K>): Promise<FeatureSettingsResultMap[K]> => {
@@ -27,7 +28,9 @@ export function useFeatureSettings({ client, context, visible }: FeatureSettings
   useEffect(() => {
     const generation = ++epoch.current;
     lock.current = false; setBusy(false); setError(""); setNotice(""); setLoading(false);
-    setRows(preview ? structuredClone(PREVIEW_FEATURE_SETTINGS) : []);
+    const sameOwner = owner.current?.client === client && owner.current?.sessionId === context?.sessionId && owner.current?.preview === preview;
+    owner.current = { client, sessionId: context?.sessionId, preview };
+    if (!preview || !sameOwner) setRows(preview ? structuredClone(PREVIEW_FEATURE_SETTINGS) : []);
     if (!preview && enabled && visible && context?.sessionId) {
       setLoading(true);
       void invoke("preferences.features.get", { sessionId: context.sessionId }).then(result => {
@@ -37,6 +40,12 @@ export function useFeatureSettings({ client, context, visible }: FeatureSettings
     }
     return () => { epoch.current++; };
   }, [preview, enabled, visible, context?.sessionId, invoke]);
+  const refresh = useCallback(async () => {
+    if (preview || !enabled || !context?.sessionId) return;
+    const generation = epoch.current;
+    const result = await invoke("preferences.features.get", { sessionId: context.sessionId });
+    if (generation === epoch.current) setRows(result.settings);
+  }, [preview, enabled, context?.sessionId, invoke]);
   async function save(key: FeatureSettingKey, value: FeatureSettingValue, scope: "session" | "global") {
     if (lock.current || !enabled || !supports("preferences.features.set")) return;
     const generation = epoch.current;
@@ -58,5 +67,5 @@ export function useFeatureSettings({ client, context, visible }: FeatureSettings
     } catch (cause) { if (generation === epoch.current) setError(hostErrorMessage(cause, "Cannot clear override")); }
     finally { if (generation === epoch.current) { lock.current = false; setBusy(false); } }
   }
-  return { rows, enabled, preview, supports, busy, loading, error, notice, save, clear, invoke };
+  return { rows, enabled, preview, supports, busy, loading, error, notice, save, clear, invoke, refresh };
 }

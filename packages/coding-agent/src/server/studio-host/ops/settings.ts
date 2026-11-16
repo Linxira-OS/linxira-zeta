@@ -34,22 +34,47 @@ import type {
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
 import type { ApprovalMode, OperatorStateSnapshot } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { Settings } from "../../../config/settings";
+import { lookup } from "../../../config/registry";
+import { cfgMemoryBackend } from "../../../memory-backend/settings";
+import { loadHindsightConfig } from "../../../hindsight/config";
+import { createHindsightClient, HindsightError } from "../../../hindsight/client";
+import { getRpcSession } from "../../web-gateway/agents";
+import { currentStudioSelection } from "../selection";
+import { resolveWorkspacePath } from "./workspace";
+import { STUDIO_RUNTIME_SETTING_KEYS, type StudioRuntimeSettingKey } from "../protocol/contracts/runtime-settings";
+import { validateRuntimeSettingValue } from "../protocol/validation";
+import { computeBankScope } from "../../../hindsight/bank";
+import { runtimeSettingsFor } from "../services/runtime-settings";
 
 /** The setting behind the Renderer's approval-mode picker (Zeta's own YOLO default). */
 const APPROVAL_MODE_PATH = "tools.approvalMode";
 const SETTINGS_ROUTE = "/api/settings";
 
-/** `runtime.settings.get` → the gateway settings panel, projected to key/value. */
+/** Read only the public settings allowlist; credentials never enter state or receipts. */
 async function readRuntimeSettings(input: {
 	readonly keys?: readonly string[];
+	readonly checkHindsight?: boolean;
 }): Promise<StudioRuntimeSettingsGetResult> {
-	const panel = indexSettingsPanel(await gatewayJson<unknown>(SETTINGS_ROUTE));
-	const wanted = input.keys === undefined ? undefined : new Set(input.keys);
-	const values: Record<string, unknown> = {};
-	for (const [key, entry] of panel) {
-		if (wanted === undefined || wanted.has(key)) values[key] = entry["value"];
+	if (input.checkHindsight !== undefined && typeof input.checkHindsight !== "boolean") throw invalid("checkHindsight must be boolean");
+	const selection = currentStudioSelection();
+	const live = selection?.sessionId ? getRpcSession(selection.sessionId)?.getSession() : undefined;
+	const settings = live?.settings ?? await Settings.loadReadOnly({ agentDir: getAgentDir(), cwd: selection ? await resolveWorkspacePath(selection.workspaceId) : process.cwd() });
+	const result = runtimeSettingsFor(settings, input.keys);
+	if (input.checkHindsight) {
+		if (cfgMemoryBackend.get(settings) !== "hindsight") result.hindsightStatus = "inactive";
+		else {
+			const state = live?.getHindsightSessionState();
+			const config = loadHindsightConfig(settings);
+			if (!config.hindsightApiUrl) result.hindsightStatus = "unavailable";
+			else try {
+				await (state?.client ?? createHindsightClient({ ...config, hindsightApiUrl: config.hindsightApiUrl })).listMemories(state?.bankId ?? computeBankScope(config, settings.getCwd()).bankId, { limit: 1, signal: AbortSignal.timeout(8_000) });
+				result.hindsightStatus = "ready";
+			} catch (error) { result.hindsightStatus = error instanceof HindsightError && [401, 403].includes(error.statusCode ?? 0) ? "authentication-failed" : error instanceof HindsightError && error.statusCode === 404 ? "not-found" : "unavailable"; }
+		}
 	}
-	return { values: values as StudioRuntimeSettingsGetResult["values"] };
+	return result;
 }
 
 /** `approvals.forget` → the existing per-agent approval cache. */
@@ -71,11 +96,27 @@ async function writeRuntimeSetting(
 	input: CommandInput<"runtime.settings.set">,
 ): Promise<StudioRuntimeSettingsSetResult> {
 	const key = requiredString(input, "key");
+	if (!(STUDIO_RUNTIME_SETTING_KEYS as readonly string[]).includes(key) || lookup(key)?.isCredential) throw invalid("Unsupported Runtime setting key");
+	if (key === "providers.openai-codex.codeMode") throw invalid("Codex Code Mode was removed upstream; Codex uses direct tools");
+	validateRuntimeSettingValue(key as StudioRuntimeSettingKey, input.value, "runtime.settings.set.value");
+	if (typeof input.persist !== "boolean") throw invalid("persist must be boolean");
+	const selection = currentStudioSelection();
+	const live = selection?.sessionId ? getRpcSession(selection.sessionId)?.getSession() : undefined;
+	if (!input.persist) {
+		if (!live) throw unavailable("Session-only settings require an active conversation");
+		if (key === "compaction.experimentalContextManagement") throw invalid("This setting must be saved and requires a Runtime restart");
+		if (key === "modelRoles.judge") live.settings.writeValue(lookup("modelRoles")!, { ...live.settings.getModelRoles(), judge: input.value }, "override");
+		else live.settings.writeValue(lookup(key)!, input.value, "override");
+		return { key: input.key, value: input.value, persisted: false };
+	}
+	const cwd = selection ? await resolveWorkspacePath(selection.workspaceId) : process.cwd();
+	const roles = key === "modelRoles.judge" ? (live?.settings ?? await Settings.loadReadOnly({ cwd, agentDir: getAgentDir() })).getModelRoles() : undefined;
 	const written = await gatewayJson<unknown>(SETTINGS_ROUTE, {
 		method: "PUT",
-		body: { path: key, value: input.value },
+		cwd,
+		body: roles ? { path: "modelRoles", value: { ...roles, judge: input.value } } : { path: key, value: input.value },
 	});
-	const effective = isRecord(written) ? written["value"] : undefined;
+	const effective = isRecord(written) ? (roles && isRecord(written["value"]) ? written["value"]["judge"] : written["value"]) : undefined;
 	return {
 		key: key as StudioRuntimeSettingsSetResult["key"],
 		value: input.value,

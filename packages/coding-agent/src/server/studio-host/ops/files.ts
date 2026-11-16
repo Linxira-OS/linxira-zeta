@@ -61,6 +61,9 @@ import {
 } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 import { resolveWorkspacePath } from "./workspace.js";
+import { createWorkspaceFileService } from "../../web-gateway/workspace-files.js";
+
+const workspaceFiles = createWorkspaceFileService(resolveWorkspacePath);
 
 const SESSIONS_ROUTE = "/api/sessions";
 const DIRECTORIES_ROUTE = "/api/fs/directories";
@@ -496,10 +499,14 @@ export const filesOps: StudioFamily = {
 	queries: {
 		"artifacts.list": listArtifacts,
 		"artifacts.text.read": readArtifactText,
+		"workspace.file.inspect": input => workspaceFiles.inspect(input),
+		"workspace.file.readText": input => workspaceFiles.readText(input),
+		"workspace.file.readChunk": input => workspaceFiles.readChunk(input),
 	},
 	commands: {
 		"workspace.directory.create": createDirectory,
 		"artifacts.saveText": saveTextArtifact,
 		"artifacts.delete": deleteArtifact,
+		"workspace.file.writeText": input => workspaceFiles.writeText(input),
 	},
 };

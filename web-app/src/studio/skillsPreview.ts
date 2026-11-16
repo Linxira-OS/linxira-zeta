@@ -3,6 +3,8 @@
  * Used by the sidebar drawer until Host exposes a skills read model.
  */
 
+import type { IconName } from "./icons";
+
 export type SkillScope = "workspace" | "global" | "builtin" | "runtime";
 export type DrawerKind = "skill" | "plugin";
 export type DrawerCat = "all" | "skill" | "plugin";
@@ -47,7 +49,7 @@ export type PluginPreview = {
 
 export type DrawerItem = SkillPreview | PluginPreview;
 
-export const ICON_BY_NAME: Record<string, string> = {
+export const ICON_BY_NAME: Record<string, IconName> = {
   "upstream-sync": "refresh",
   "code-review-graph": "network",
   "mermaid-verify": "image",
@@ -84,9 +86,9 @@ const FALLBACK_ICONS = [
   "palette",
   "asterisk",
   "steering",
-] as const;
+] as const satisfies readonly IconName[];
 
-type IconRule = { readonly icon: string; readonly keys: readonly string[] };
+type IconRule = { readonly icon: IconName; readonly keys: readonly string[] };
 
 /** First match wins. Short keys (≤3) must be whole tokens so `type` does not steal `typescript`. */
 const ICON_RULES: readonly IconRule[] = [
@@ -143,7 +145,7 @@ function ruleMatches(hay: string, parts: Set<string>, key: string): boolean {
   return false;
 }
 
-function inferSkillIcon(name: string, desc: string): string | undefined {
+function inferSkillIcon(name: string, desc: string): IconName | undefined {
   const hay = `${name} ${desc}`.toLowerCase();
   const parts = iconTokens(hay);
   for (const rule of ICON_RULES) {
@@ -153,7 +155,7 @@ function inferSkillIcon(name: string, desc: string): string | undefined {
 }
 
 /** Per-skill glyph for the drawer tile. Unknown names hash into a varied pool instead of sharing puzzle. */
-export function drawerItemIcon(item: DrawerItem): string {
+export function drawerItemIcon(item: DrawerItem): IconName {
   const nameKey = item.name.trim().toLowerCase();
   const named = ICON_BY_NAME[nameKey];
   if (named) return named;

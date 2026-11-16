@@ -247,6 +247,15 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 	}
 	if (kind.kind === "relay") {
 		const cdpUrl = normalizeConnectedCdpUrl(kind.cdpUrl);
+		if (kind.studioManaged) {
+			const puppeteer = await loadPuppeteer();
+			const browser = await connectPuppeteer(puppeteer, {
+				browserWSEndpoint: `${cdpUrl.replace(/^http/, "ws")}/cdp`,
+				defaultViewport: null,
+				protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
+			}).catch(() => { throw new ToolError("Could not connect to the Studio managed browser. Reconnect the local desktop browser and retry."); });
+			return { key: browserKey(kind), kind, browser, wsEndpoint: browser.wsEndpoint(), cdpUrl, refCount: 0, stealth: { browserSession: null, override: null } };
+		}
 		// Loopback relays are owned by a machine-global broker and auto-started
 		// on demand (the extension dials in on its own). Hosts without a CLI
 		// worker entry (bun test, SDK embedding) never spawn brokers. Remote

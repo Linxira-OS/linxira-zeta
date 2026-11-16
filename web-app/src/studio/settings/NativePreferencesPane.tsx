@@ -17,6 +17,7 @@ import { usePreviewMode } from "../preview/PreviewContext";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { SettingRow, SettingSection, Switch } from "./SettingRow";
 import { WorkspaceEmpty } from "../workspaces/Workspace";
+import { useHasSettingsScope, useSettingsScope } from "./SettingsScope";
 export interface NativePreferencesContext {
   sessionId?: string | undefined;
   available: boolean;
@@ -45,7 +46,7 @@ type PaneKey = (typeof PANE_KEYS)[number];
 type PaneRow = NativePreference & { key: PaneKey };
 const isPaneRow = (row: NativePreference): row is PaneRow =>
   (PANE_KEYS as readonly string[]).includes(row.key);
-const descriptions: Record<PaneKey, [string, string]> = {
+export const nativePreferenceDescriptions: Record<PaneKey, [string, string]> = {
   "advisor.enabled": [
     "启用 Advisor",
     "按所选 Advisor 模型审查任务，可能产生额外模型调用。",
@@ -96,7 +97,7 @@ const descriptions: Record<PaneKey, [string, string]> = {
     "待办计划重新初始化时更新自动标题；手动命名不受影响。",
   ],
 };
-const englishDescriptions: Record<PaneKey, [string, string]> = {
+export const nativePreferenceEnglishDescriptions: Record<PaneKey, [string, string]> = {
   "advisor.enabled": [
     "Enable Advisor",
     "Review tasks with the Advisor model. Additional model calls may be billed.",
@@ -169,8 +170,8 @@ const demo = (): PaneRow[] =>
       : String(key).startsWith("title.")
         ? "titles"
         : "tools",
-    label: englishDescriptions[key as PaneKey][0],
-    description: englishDescriptions[key as PaneKey][1],
+    label: nativePreferenceEnglishDescriptions[key as PaneKey][0],
+    description: nativePreferenceEnglishDescriptions[key as PaneKey][1],
     value: value as NativePreferenceValue,
     effective: value as NativePreferenceValue,
     source: "default",
@@ -187,25 +188,22 @@ export function NativePreferencesPane({
   client,
   context,
   visible,
+  groups,
 }: {
   client?: StudioClient | undefined;
   context?: NativePreferencesContext | undefined;
   visible: boolean;
+  groups?: readonly NativePreference["group"][] | undefined;
 }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const [rows, setRows] = useState<NativePreference[]>([]);
   const [drafts, setDrafts] = useState<
     Partial<Record<NativePreferenceKey, NativePreferenceValue>>
   >({});
-  const [scope, setScope] = useState<"session" | "global">("session");
-  const [pending, setPending] = useState<{
-    row: PaneRow;
-    value: NativePreferenceValue;
-    scope: "session" | "global";
-    clear: boolean;
-  }>();
+  const [scope, setScope] = useSettingsScope("session");
+  const sharedScope = useHasSettingsScope();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -241,7 +239,6 @@ export function NativePreferencesPane({
     saveLock.current = false;
     demoGlobals.current = {};
     setBusy(false);
-    setPending(undefined);
     setDrafts({});
     setRows(preview ? demo() : []);
     setError("");
@@ -277,8 +274,8 @@ export function NativePreferencesPane({
     context?.available,
     context?.capabilities,
   ]);
-  const save = async () => {
-    if (!pending || saveLock.current) return;
+  const save = async (pending: { row: NativePreference; value: NativePreferenceValue; scope: "session" | "global"; clear: boolean }) => {
+    if (saveLock.current || !can(pending.clear ? "preferences.native.clearOverride" : "preferences.native.set")) return;
     saveLock.current = true;
     setBusy(true);
     setError("");
@@ -320,8 +317,8 @@ export function NativePreferencesPane({
           values.map((value) => (value.key === row.key ? row : value)),
         );
         setDrafts((values) => ({ ...values, [row.key]: row.value }));
-        setNotice(
-          preview
+        if (!preview || marks) setNotice(
+          preview && marks
             ? zh
               ? "演示：偏好已更新，真实配置未更改。"
               : "Demo: preferences updated locally."
@@ -333,10 +330,10 @@ export function NativePreferencesPane({
                 ? "已处理，当前生效值与来源已更新。"
                 : "Updated. Effective value and source are shown below.",
         );
-        setPending(undefined);
       }
     } catch (cause) {
-      if (current === epoch.current)
+      if (current === epoch.current) {
+        setDrafts((values) => ({ ...values, [pending.row.key]: pending.row.value }));
         setError(
           hostErrorMessage(
             cause,
@@ -345,6 +342,7 @@ export function NativePreferencesPane({
               : "Save failed. Refresh the effective state before retrying.",
           ),
         );
+      }
     } finally {
       if (current === epoch.current) {
         saveLock.current = false;
@@ -354,7 +352,7 @@ export function NativePreferencesPane({
   };
   const paneRows = rows.filter(isPaneRow);
   const label = (row: PaneRow) =>
-    zh ? descriptions[row.key][0] : englishDescriptions[row.key][0];
+    zh ? nativePreferenceDescriptions[row.key][0] : nativePreferenceEnglishDescriptions[row.key][0];
   const choice = (value: NativePreferenceValue) =>
     zh
       ? ({
@@ -384,10 +382,10 @@ export function NativePreferencesPane({
     );
   return (
     <div>
-      {preview ? (
+      {preview && marks ? (
         <span className="chip gray xs">{zh ? "演示" : "Demo"}</span>
       ) : null}
-      <div className="session-options-row">
+      {!sharedScope ? <div className="session-options-row">
         <label>
           {zh ? "保存范围" : "Save scope"}{" "}
           <AppSelect
@@ -405,14 +403,14 @@ export function NativePreferencesPane({
             </option>
           </AppSelect>
         </label>
-      </div>
+      </div> : null}
       {error ? (
         <p role="alert" className="session-options-error">
           {error}
         </p>
       ) : null}
       {notice ? <p role="status">{notice}</p> : null}
-      {(["advisor", "tools", "titles"] as const).map((group) => (
+      {(["advisor", "tools", "titles"] as const).filter(group => !groups || groups.includes(group)).map((group) => (
         <SettingSection
           key={group}
           title={
@@ -433,32 +431,24 @@ export function NativePreferencesPane({
               <SettingRow
                 key={row.key}
                 label={label(row)}
-                desc={zh ? descriptions[row.key][1] : row.description || englishDescriptions[row.key][1]}
+                desc={zh ? nativePreferenceDescriptions[row.key][1] : row.description || nativePreferenceEnglishDescriptions[row.key][1]}
                 source={row.source === "global" ? "user" : row.source}
               >
                 <div className="native-preference-controls">
                   {row.type === "boolean" ? (
                     <Switch
                       checked={Boolean(drafts[row.key] ?? row.value)}
-                      onChange={(value) =>
-                        setDrafts((drafts) => ({ ...drafts, [row.key]: value }))
-                      }
+                      onChange={(value) => { setDrafts((drafts) => ({ ...drafts, [row.key]: value })); void save({ row, value, scope, clear: false }); }}
                       label={label(row)}
-                      disabled={busy}
+                      disabled={busy || !can("preferences.native.set")}
                     />
                   ) : row.type === "enum" ? (
                     <AppSelect
                       className="select"
                       aria-label={label(row)}
                       value={JSON.stringify(drafts[row.key] ?? row.value)}
-                      onChange={(event) =>
-                        setDrafts((values) => ({
-                          ...values,
-                          [row.key]: JSON.parse(
-                            event.target.value,
-                          ) as NativePreferenceValue,
-                        }))
-                      }
+                      disabled={busy || !can("preferences.native.set")}
+                      onChange={(event) => { const value = JSON.parse(event.target.value) as NativePreferenceValue; setDrafts((values) => ({ ...values, [row.key]: value })); void save({ row, value, scope, clear: false }); }}
                     >
                       {row.choices?.map((value) => (
                         <option
@@ -483,11 +473,11 @@ export function NativePreferencesPane({
                       }
                     />
                   )}
-                  <button
+                  {row.type === "number" ? <button
                     className="btn small outline"
                     disabled={busy || !can("preferences.native.set")}
                     onClick={() =>
-                      setPending({
+                      void save({
                         row,
                         value: drafts[row.key] ?? row.value,
                         scope,
@@ -496,7 +486,7 @@ export function NativePreferencesPane({
                     }
                   >
                     {zh ? "应用" : "Apply"}
-                  </button>
+                  </button> : null}
                   {row.source === "runtime" ? (
                     <button
                       className="btn small"
@@ -504,7 +494,7 @@ export function NativePreferencesPane({
                         busy || !can("preferences.native.clearOverride")
                       }
                       onClick={() =>
-                        setPending({
+                        void save({
                           row,
                           value: row.value,
                           scope: "session",
@@ -520,57 +510,17 @@ export function NativePreferencesPane({
                       {zh ? "等待重启" : "Restart needed"}
                     </span>
                   ) : null}
-                  <details>
+                  {row.source !== "default" || row.restartRequired || row.value !== row.effective ? <details>
                     <summary>{zh ? "生效信息" : "Effective value"}</summary>
                     <span className="small mono">
                       {row.key} · {row.source} · {String(row.effective)}
                     </span>
-                  </details>
+                  </details> : null}
                 </div>
               </SettingRow>
             ))}
         </SettingSection>
       ))}
-      {pending ? (
-        <div
-          className="session-options-confirm"
-          role="dialog"
-          aria-label={zh ? "确认运行偏好" : "Confirm Runtime preference"}
-        >
-          <strong>{label(pending.row)}</strong>
-          <p>
-            {String(pending.row.value)} →{" "}
-            {pending.clear
-              ? zh
-                ? "继承配置值"
-                : "Inherit configured value"
-              : String(pending.value)}
-          </p>
-          <p>
-            {pending.scope === "global"
-              ? zh
-                ? "保存到原生全局配置，现有项目和临时覆盖仍优先。"
-                : "Save to native global configuration. Existing project and session overrides keep precedence."
-              : zh
-                ? "仅更改本会话的临时覆盖。"
-                : "Change only this session's temporary override."}
-          </p>
-          <button
-            className="btn primary"
-            disabled={busy}
-            onClick={() => void save()}
-          >
-            {zh ? "确认" : "Confirm"}
-          </button>
-          <button
-            className="btn outline"
-            disabled={busy}
-            onClick={() => setPending(undefined)}
-          >
-            {zh ? "取消" : "Cancel"}
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

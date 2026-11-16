@@ -42,7 +42,7 @@ const NON_WORD = /[^\p{L}\p{N}]+/gu;
  * The message a prediction is keyed on: the last one that is not an advisor card. Silent advisor
  * notes land after the turn without changing what the user would reply to.
  */
-function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
+export function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
 	const messages = session.messages;
 	for (let i = messages.length - 1; i >= 0; i--) {
 		if (!isAdvisorCard(messages[i])) return messages[i];
@@ -73,7 +73,10 @@ interface Prediction {
 	rank: number | undefined;
 }
 
-type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId" | "editor" | "ui">;
+type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId"> & {
+	editor: Pick<InteractiveModeContext["editor"], "getText">;
+	ui: Pick<InteractiveModeContext["ui"], "requestRender">;
+};
 
 /**
  * Normalize a prediction reply to the single line the composer shows, or

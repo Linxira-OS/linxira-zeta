@@ -83,6 +83,7 @@ import type {
 import type { StudioFamily } from "../registry.js";
 import { StudioOpError, gatewayJson, invalid, optionalString, requiredString, unavailable } from "../gateway.js";
 import { resolveWorkspacePath } from "./workspace.js";
+import { currentStudioSelection } from "../selection.js";
 
 // ---------------------------------------------------------------------------
 // Wire-shape guards
@@ -179,7 +180,10 @@ function unsupported(reason: string): StudioOpError {
  * wrong repository.
  */
 export async function resolveWorkspaceCwd(workspaceId: unknown): Promise<string | undefined> {
-	if (workspaceId === undefined) return undefined;
+	if (workspaceId === undefined) {
+		const selection = currentStudioSelection();
+		return selection === undefined ? undefined : resolveWorkspacePath(selection.workspaceId);
+	}
 	if (typeof workspaceId !== "string" || workspaceId === "") {
 		throw invalid("workspaceId must be a non-empty workspace id");
 	}

@@ -4,6 +4,7 @@ import { Brand } from "./brands";
 import { Icon } from "./icons";
 import { useI18n } from "./i18n";
 import { PLATFORM } from "./platform";
+import { usePreviewMode } from "./preview/PreviewContext";
 
 /** macOS swaps the app bundle itself: there is no installer to download or launch. */
 const UPDATE_COPY = PLATFORM === "darwin"
@@ -38,6 +39,7 @@ export interface AppUpdateDialogProps {
   readonly totalBytes?: number | undefined;
   readonly readyToApply?: boolean;
   readonly onClose: () => void;
+  readonly onOpenComponents?: () => void;
   readonly onDownloadAndInstall?: () => Promise<boolean | void>;
   readonly onApply?: () => Promise<boolean>;
   readonly onSkip?: () => Promise<void>;
@@ -76,12 +78,14 @@ export function AppUpdateDialog({
   totalBytes,
   readyToApply = false,
   onClose,
+  onOpenComponents,
   onDownloadAndInstall,
   onApply,
   onSkip,
   onCancel,
 }: AppUpdateDialogProps): ReactNode {
   const { t } = useI18n();
+  const { marks } = usePreviewMode();
   const [operation, setOperation] = useState<"download" | "apply" | null>(null);
   const downloading = isDownloading || operation === "download";
   const applying = isApplying || operation === "apply";
@@ -125,7 +129,7 @@ export function AppUpdateDialog({
         previewTimersRef.current.push(setTimeout(() => {
           setOperation(null);
           setPreviewReady(false);
-          setStatusMessage(t("appUpdate.demoApplied"));
+          if (marks) setStatusMessage(t("appUpdate.demoApplied"));
         }, 600));
         return;
       }
@@ -138,7 +142,7 @@ export function AppUpdateDialog({
       timers.push(setTimeout(() => {
         setOperation(null);
         setPreviewReady(true);
-        setStatusMessage(t("updates.readyToApply") + " " + t("appUpdate.demoUpdate"));
+        setStatusMessage(t("updates.readyToApply") + (marks ? " " + t("appUpdate.demoUpdate") : ""));
       }, 1600));
       return;
     }
@@ -154,7 +158,7 @@ export function AppUpdateDialog({
         setOperation(null);
       }
     }
-  }, [busy, preview, previewReady, ready, onApply, onDownloadAndInstall, t, update.blockedReason]);
+  }, [busy, marks, preview, previewReady, ready, onApply, onDownloadAndInstall, t, update.blockedReason]);
 
   const openGithub = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -179,7 +183,7 @@ export function AppUpdateDialog({
         <div className="create-project-head">
           <div>
             <span className="create-project-kicker">
-              {t("appUpdate.dialogTitle")} {preview ? t("appUpdate.demoUpdate") : ""}
+              {t("appUpdate.dialogTitle")} {preview && marks ? t("appUpdate.demoUpdate") : ""}
             </span>
             <h2 id="appUpdateTitle">
               {update.name || (update.version ? `Zeta v${update.version}` : "Zeta")}
@@ -227,6 +231,7 @@ export function AppUpdateDialog({
             >
               {update.releaseNotes?.trim() || t("appUpdate.noReleaseNotes")}
             </div>
+            {update.component !== "runtime" && onOpenComponents ? <div className="file-release-note"><p>文件现在可以在工作台中打开。Word 和 PPT 使用单独安装的 Office 文档预览组件，Excel / CSV 已内置支持。</p><button className="btn small outline" disabled={busy} onClick={onOpenComponents}>管理可选组件</button></div> : null}
           </div>
 
           {([

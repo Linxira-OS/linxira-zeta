@@ -1,3 +1,4 @@
+import type { UpgradeResultMap } from "@linxiraos/studio-protocol"
 import { invokeUpgrade } from "../runtimeUpgrade";
 import { loadRuntimeSkills } from "../skills/runtimeSkills";
 import { createPreviewModelConfig } from "../preview/modelConfigFixtures";
@@ -9,6 +10,7 @@ import type {
   WorkspaceId,
 } from "@linxiraos/studio-contract";
 
+import { SKIPPED_DIRS } from "../explorer-types";
 import type { MentionCandidate } from "./types";
 
 /** `@` shows agents, skills (when the query is non-empty), and workspace paths. `/` is the command menu, not a mention. */
@@ -63,22 +65,12 @@ export type DirectoryLister = (path?: string) => Promise<ReadonlyArray<Workspace
 
 export type WorkspaceFileIndex = {
   search(query: string): Promise<MentionCandidate[]>;
+  invalidate(): void;
 };
 
-/**
- * Directories skipped while indexing: huge, generated, or irrelevant as mentions.
- * A user can still reach them by typing the path (slash queries list on demand).
- */
-const SKIPPED_DIRS = new Set([
-  "node_modules",
-  "dist",
-  "build",
-  "out",
-  "coverage",
-  "target",
-  "vendor",
-  "__pycache__",
-]);
+/* 行为清单不在这里维护：`explorer-types.ts` 是唯一来源，视觉层的灰显消费同一个
+   Set（isNoiseDir ⊇ SKIPPED_DIRS）。改这个清单会影响产品行为（@ 提及是否跳过、
+   是否递归索引），T2 已裁定「行为层 / 视觉层」共用基线但不相等。 */
 
 /** Bounded so the first `@` keystroke stays responsive on a large repo. */
 const WALK_DIR_BUDGET = 400;
@@ -86,6 +78,8 @@ const WALK_ENTRY_BUDGET = 6_000;
 const WALK_DEPTH_BUDGET = 8;
 /** Directories listed concurrently per BFS level. */
 const WALK_BATCH = 8;
+/** Non-Git workspaces still refresh without a separate filesystem watcher. */
+const WORKSPACE_INDEX_CACHE_MS = 5_000;
 
 function depthOf(path: string): number {
   return path.length === 0 ? 0 : path.split("/").length;
@@ -121,6 +115,7 @@ async function walkWorkspace(list: DirectoryLister): Promise<WorkspaceEntry[]> {
     for (const level of levels) {
       for (const entry of level) {
         if (!mentionable(entry)) continue;
+        if (entries.length >= WALK_ENTRY_BUDGET) break;
         entries.push(entry);
         if (entry.type === "dir" && descendable(entry) && depthOf(entry.path) < WALK_DEPTH_BUDGET) {
           next.push(entry.path);
@@ -184,21 +179,33 @@ function dedupeById(items: readonly MentionCandidate[]): MentionCandidate[] {
 
 /**
  * Caches one bounded workspace walk and filters it locally, so typing after `@`
- * does not re-hit the Host per keystroke. A query containing `/` also lists that
- * directory on demand, which reaches paths beyond the walk budget.
+ * does not re-hit the Host per keystroke. Git changes invalidate it immediately;
+ * a short expiry also covers non-Git folders. A query containing `/` lists that
+ * directory on demand, reaching paths beyond the walk budget.
  */
 export function createWorkspaceFileIndex(list: DirectoryLister): WorkspaceFileIndex {
   let walk: Promise<WorkspaceEntry[]> | null = null;
   const dirCache = new Map<string, Promise<ReadonlyArray<WorkspaceEntry>>>();
+  let expiresAt = 0;
+  const invalidate = () => {
+    walk = null;
+    dirCache.clear();
+    expiresAt = Date.now() + WORKSPACE_INDEX_CACHE_MS;
+  };
   const listDir = (path: string): Promise<ReadonlyArray<WorkspaceEntry>> => {
     const cached = dirCache.get(path);
     if (cached) return cached;
-    const request = list(path === "" ? undefined : path).catch(() => [] as WorkspaceEntry[]);
+    const request = list(path === "" ? undefined : path).catch(() => {
+      if (dirCache.get(path) === request) { dirCache.delete(path); walk = null; }
+      return [] as WorkspaceEntry[];
+    });
     dirCache.set(path, request);
     return request;
   };
   return {
+    invalidate,
     async search(query: string): Promise<MentionCandidate[]> {
+      if (Date.now() >= expiresAt) invalidate();
       const raw = query.trim().replaceAll("\\", "/");
       const needle = raw.toLowerCase();
       const slash = raw.lastIndexOf("/");
@@ -213,6 +220,12 @@ export function createWorkspaceFileIndex(list: DirectoryLister): WorkspaceFileIn
       return rankEntries(await walk, needle).slice(0, MENTION_LIMIT);
     },
   };
+}
+
+export function followWorkspaceFileIndex(client: Pick<StudioClient, "subscribe">, workspaceId: WorkspaceId, index: WorkspaceFileIndex): () => void {
+  return client.subscribe({ scope: "all" }, event => {
+    if (event.kind === "git.repository.changed" && event.repository.workspaceId === workspaceId) index.invalidate();
+  });
 }
 
 /** Wraps the `workspace.fileTree` query as a directory lister. */
@@ -249,7 +262,7 @@ const PREVIEW_ENTRIES: ReadonlyArray<WorkspaceEntry> = [
 ];
 
 export function previewMentions(trigger: "@" | "/" | "^", query: string): MentionCandidate[] {
-  if (trigger === "^") return filterMentions(createPreviewModelConfig().availableModels.map(model => ({ kind: "model", id: model.selector, name: model.selector, label: model.name, detail: model.selector })), query);
+  if (trigger === "^") { const models = createPreviewModelConfig().availableModels; return modelMentionCandidates(models.map(model => ({ selector: model.selector, name: model.name, image: model.image === true, efforts: (model.thinking ?? []).filter(level => !models.some(other => other.selector === `${model.selector}:${level}`)).map(level => ({ selector: `${model.selector}:${level}`, name: `${model.name} · ${level}` })) })), query); }
   if (trigger === "/") return [];
   const agents = filterMentions(PREVIEW_AGENTS, query);
   const skills = query.trim().length === 0 ? [] : filterMentions(PREVIEW_SKILLS, query);
@@ -266,22 +279,27 @@ export function previewMentions(trigger: "@" | "/" | "^", query: string): Mentio
  */
 const MODEL_MENTION_CACHE_TTL_MS = 60_000;
 
-type ModelMentionCacheEntry = { readonly at: number; readonly value: Promise<MentionCandidate[]> };
+type ModelMentionChoices = UpgradeResultMap["session.models.mentions"]["available"];
+type ModelMentionCacheEntry = { readonly at: number; readonly value: Promise<ModelMentionChoices> };
 
 const modelMentionCache = new WeakMap<StudioClient, ModelMentionCacheEntry>();
 
-function loadModelMentionCandidates(client: StudioClient): Promise<MentionCandidate[]> {
+function modelMentionCandidates(models: ModelMentionChoices, query: string): MentionCandidate[] {
+  const rows = models.map((model): MentionCandidate => ({ kind: "model", id: model.selector, name: model.selector, label: model.name, detail: model.selector }));
+  const colon = query.lastIndexOf(":");
+  if (colon > 0) {
+    const base = models.find(model => model.selector === query.slice(0, colon));
+    for (const effort of base?.efforts ?? []) rows.push({ kind: "model", id: effort.selector, name: effort.selector, label: effort.name, detail: effort.selector });
+  }
+  return filterMentions(rows, query);
+}
+function loadModelMentionCandidates(client: StudioClient, query: string): Promise<MentionCandidate[]> {
   const cached = modelMentionCache.get(client);
-  if (cached !== undefined && Date.now() - cached.at < MODEL_MENTION_CACHE_TTL_MS) return cached.value;
-  const value = invokeUpgrade(client, "session.models.mentions", {}).then((result) =>
-    result.available.map(
-      (model): MentionCandidate => ({ kind: "model", id: model.selector, name: model.selector, label: model.name, detail: model.selector }),
-    ),
-  );
-  // The cached promise is shared by later keystrokes; never leave it unhandled.
+  if (cached !== undefined && Date.now() - cached.at < MODEL_MENTION_CACHE_TTL_MS) return cached.value.then(models => modelMentionCandidates(models, query));
+  const value = invokeUpgrade(client, "session.models.mentions", {}).then(result => result.available);
   value.catch(() => {});
   modelMentionCache.set(client, { at: Date.now(), value });
-  return value;
+  return value.then(models => modelMentionCandidates(models, query));
 }
 
 export async function loadMentions(
@@ -292,7 +310,7 @@ export async function loadMentions(
   runtimeSessionId?: string | null,
 ): Promise<MentionCandidate[]> {
   if (trigger === "^") {
-    return filterMentions(await loadModelMentionCandidates(client), query);
+    return loadModelMentionCandidates(client, query);
   }
   if (trigger === "/") return [];
   const needle = query.trim();

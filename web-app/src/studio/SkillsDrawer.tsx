@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { SlidingTabs } from "./SlidingTabs";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { StudioClient } from "@linxiraos/studio-contract";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { toDrawerItems } from "./extensibilityMap";
 import {
   createPreviewDrawerItems,
@@ -21,6 +22,7 @@ import {
 } from "./skillsPreview";
 import { usePreviewMode } from "./preview/PreviewContext";
 import { useI18n } from "./i18n";
+import { MOTION_MS, MOTION_SLACK_MS, STAGGER_MS, motionReduced } from "./motion";
 
 type GroupKey = "workspace" | "global" | "builtin-plugin" | "runtime";
 
@@ -46,13 +48,20 @@ const SCOPE_LABEL: Record<string, string> = {
   plugin: "skills.scopePlugin",
 };
 
+/* 悬停意图：停多久才出简介、离开多久才收。是等待，不是动画时长。 */
 const HOVER_PREVIEW_MS = 420;
 const HOVER_HIDE_MS = 180;
-const FLY_EXIT_MS = 160;
-const FILTER_SETTLE_MS = 1040;
-const ADDED_REPLAY_STAY_MS = 420;
-const ADDED_REPLAY_ENTER_MS = 640;
 const STAGGER_MAX = 3;
+/* 以下几项等的是 sidebar.css `.sk-group-items` 里的同一组 token。 */
+/** `.sk-fly` 收起（--dur-fast）后再卸载。 */
+const FLY_EXIT_MS = MOTION_MS.fast + MOTION_SLACK_MS;
+/** 进场行开始滑入的时刻（--sk-enter-slide-delay）。 */
+const FILTER_ENTER_AT_MS = MOTION_MS.slow + MOTION_MS.base;
+/** 一次筛选全部落定：进场延迟 + 滑入（--sk-enter-slide-d）+ 最大错峰。 */
+const FILTER_SETTLE_MS = FILTER_ENTER_AT_MS + MOTION_MS.hero + STAGGER_MAX * STAGGER_MS + MOTION_SLACK_MS;
+/** 「已添加」标记重播：留下的行与进场行同时起跳，进场行等自己到位。 */
+const ADDED_REPLAY_STAY_MS = FILTER_ENTER_AT_MS;
+const ADDED_REPLAY_ENTER_MS = FILTER_ENTER_AT_MS + MOTION_MS.slow;
 
 type SlotPhase = "stay" | "enter" | "leave";
 
@@ -62,9 +71,6 @@ type FilterSlot = {
   stagger: number;
 };
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 function mergeVisible(prev: DrawerItem[], next: DrawerItem[]): Array<{ item: DrawerItem; phase: SlotPhase }> {
   const nextIds = new Set(next.map(drawerItemKey));
@@ -174,7 +180,7 @@ function itemScope(item: DrawerItem): SkillScope | "plugin" {
   return item.kind === "skill" ? item.scope : "plugin";
 }
 
-function itemIcon(item: DrawerItem): string {
+function itemIcon(item: DrawerItem): IconName {
   return drawerItemIcon(item);
 }
 
@@ -191,6 +197,7 @@ function itemMeta(item: DrawerItem): string {
 
 export function SkillsDrawer({
   open,
+  drawerRef,
   client,
   onClose,
   onEnabledCountChange,
@@ -202,6 +209,7 @@ export function SkillsDrawer({
   runtimeSessionId,
 }: {
   open: boolean;
+  drawerRef?: RefObject<HTMLElement | null>;
   client: StudioClient;
   onClose: () => void;
   onEnabledCountChange?: (count: number) => void;
@@ -273,7 +281,21 @@ export function SkillsDrawer({
   }, [items, onEnabledCountChange, preview, draftSkills, usedSkills]);
 
   useEffect(() => {
-    if (open) searchRef.current?.focus();
+    if (!open) return;
+    const previous = document.activeElement;
+    const drawer = searchRef.current?.closest("#skillsDrawer");
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => searchRef.current?.focus({ preventScroll: true }));
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+      const active = document.activeElement;
+      if (previous instanceof HTMLElement && previous.isConnected && !previous.closest("[hidden], [inert]") && (active === document.body || drawer?.contains(active))) {
+        previous.focus({ preventScroll: true });
+      }
+    };
   }, [open]);
 
   useEffect(() => {
@@ -315,7 +337,7 @@ export function SkillsDrawer({
 
     if (filterEpoch !== epochAppliedRef.current && filterEpoch > 0) {
       epochAppliedRef.current = filterEpoch;
-      if (prefersReducedMotion()) {
+      if (motionReduced()) {
         setSlots(staySlots(visible));
         return;
       }
@@ -396,15 +418,16 @@ export function SkillsDrawer({
     });
   };
 
-  return (
+  return createPortal(
     <aside
+      ref={drawerRef}
       className={`sb-drawer-mask${open ? " open" : ""}`}
       id="skillsDrawer"
       role="dialog"
       aria-modal="false"
       aria-labelledby="sdTitle"
       aria-hidden={!open}
-      hidden={!open}
+      inert={!open}
     >
       <div className="sd-head">
         <div className="sd-title" id="sdTitle">
@@ -439,29 +462,13 @@ export function SkillsDrawer({
         />
         <span className="kbd">/</span>
       </label>
-      <nav className="sd-tabs" role="tablist" aria-label={t("skills.categoriesAria")}>
-        {([
+      <SlidingTabs ariaLabel={t("skills.categoriesAria")} value={cat} orientation="horizontal" className="sd-tabs"
+        items={([
           ["all", t("common.all"), items.length],
           ["skill", t("skills.tabSkills"), skillN],
           ["plugin", t("skills.tabPlugins"), pluginN],
-        ] as const).map(([key, label, count]) => (
-          <button
-            key={key}
-            className={`sd-tab${cat === key ? " active" : ""}`}
-            role="tab"
-            aria-selected={cat === key}
-            data-cat={key}
-            type="button"
-            onClick={() => {
-              if (key === cat) return;
-              setCat(key);
-              setFilterEpoch((epoch) => epoch + 1);
-            }}
-          >
-            {label} <span className="count">{count}</span>
-          </button>
-        ))}
-      </nav>
+        ] as const).map(([id, label, count]) => ({ id, label, icon: id === "all" ? "layers" : id === "skill" ? "sparkles" : "package", buttonId: `sd-tab-${id}`, panelId: "sdBody", badge: <span className="count">{count}</span> }))}
+        onChange={key => { setCat(key); setFilterEpoch(epoch => epoch + 1); }} />
       <div className="sd-body" id="sdBody" tabIndex={-1}>
         {grouped.length === 0 ? (
           <div className="sd-empty">
@@ -543,7 +550,8 @@ export function SkillsDrawer({
           <span className="label">{t("skills.enterHub")}</span>
         </a>
       </div>
-    </aside>
+    </aside>,
+    document.body,
   );
 }
 
@@ -653,7 +661,7 @@ function SkillCard({
   const epochRef = useRef(filterEpoch);
   const [addedPaint, setAddedPaint] = useState(() => {
     if (filterEpoch === 0 || phase === "leave" || !added) return added;
-    if (typeof window !== "undefined" && prefersReducedMotion()) return added;
+    if (typeof window !== "undefined" && motionReduced()) return added;
     return false;
   });
   const cls = ["sk-card"];
@@ -705,7 +713,7 @@ function SkillCard({
       setAddedPaint(Boolean(added && phase !== "leave"));
       return;
     }
-    if (filterEpoch === 0 || prefersReducedMotion()) {
+    if (filterEpoch === 0 || motionReduced()) {
       epochRef.current = filterEpoch;
       setAddedPaint(true);
       return;

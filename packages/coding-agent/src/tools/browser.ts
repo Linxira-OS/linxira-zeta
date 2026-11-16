@@ -54,6 +54,8 @@ import {
 	cfgBrowserRelayUrl,
 } from "./browser/settings";
 import { cfgToolsMaxTimeout } from "./settings";
+import { managedBrowserFor } from "../server/studio-host/services/managed-browser";
+import { assertBrowserTabAgentControl } from "./browser/studio-control";
 
 export type { AriaSnapshotOptions } from "./browser/aria/aria-snapshot";
 
@@ -160,6 +162,8 @@ export function resolveBrowserKind(
 	session: ToolSession,
 	env: Record<string, string | undefined> = process.env,
 ): BrowserKind {
+	const managed = managedBrowserFor(session.getSessionId?.() ?? undefined);
+	if (managed?.kind) return managed.kind;
 	const app = params.app;
 	if (app?.cdp_url) {
 		return { kind: "connected", cdpUrl: app.cdp_url.replace(/\/+$/, "") };
@@ -324,6 +328,8 @@ async function invokeBrowser(
 	if (parsed instanceof type.errors) {
 		throw new ToolError(`browser received invalid arguments: ${parsed.summary}`);
 	}
+	const managed = managedBrowserFor(session.getSessionId?.() ?? undefined);
+	let releaseManaged: (() => void) | undefined;
 
 	try {
 		throwIfAborted(context.signal);
@@ -334,8 +340,11 @@ async function invokeBrowser(
 				: undefined);
 		const timeoutSeconds = clampTimeout("browser", requested, cfgToolsMaxTimeout.get(session.settings));
 		const timeoutMs = timeoutSeconds * 1000;
-		const name = parsed.name ?? DEFAULT_TAB_NAME;
-		const details: BrowserPreludeDetails = { action: parsed.action, name };
+		const signal = managed ? AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(context.signal ? [context.signal] : [])]) : context.signal;
+		releaseManaged = await managed?.begin(signal);
+		const displayName = parsed.name ?? DEFAULT_TAB_NAME;
+		const name = managed ? managed.name(displayName) : displayName;
+		const details: BrowserPreludeDetails = { action: parsed.action, name: displayName };
 
 		switch (parsed.action) {
 			case "open":
@@ -347,25 +356,27 @@ async function invokeBrowser(
 					resolveBrowserKind(parsed, session),
 					timeoutMs,
 					[],
-					context.signal,
+					signal,
 				);
 			case "close":
-				return await closeBrowser(session, name, parsed, details, timeoutMs, context.signal);
+				return await closeBrowser(session, name, parsed, details, timeoutMs, signal, managed ? candidate => managed.contains(candidate) : undefined);
 			case "tabs":
-				details.value = listTabs();
+				details.value = listTabs().filter(tab => !managed || managed.contains(tab.name)).map(tab => managed ? { ...tab, name: tab.name.slice(managed.name("").length) } : tab);
 				return toolResult(details).done();
 			case "targets":
-				return await listTargets(session, parsed, details, timeoutMs, context.signal);
-			case "run":
-			case "call":
-				return await runBrowser(session, name, parsed, details, timeoutMs, context.signal);
+				return await listTargets(session, parsed, details, timeoutMs, signal);
 		}
+		return await runBrowser(session, name, parsed, details, timeoutMs, signal);
 	} catch (error) {
 		if (error instanceof ToolAbortError) throw error;
 		if (error instanceof Error && error.name === "AbortError") {
 			throw new ToolAbortError();
 		}
+		if (managed && error instanceof Error && /\/managed\/[a-f0-9]{64}/u.test(error.message))
+			throw new ToolError(error.message.replace(/(?:https?|wss?):\/\/127\.0\.0\.1:\d+\/managed\/[a-f0-9]{64}[^\s"')`]*/gu, "[Studio browser connection]"));
 		throw error;
+	} finally {
+		releaseManaged?.();
 	}
 }
 
@@ -393,13 +404,13 @@ async function openOnKind(
 		);
 	}
 	// Chrome's extension debugger API exposes no Security domain, so the relay cannot honor the override.
-	if (params.ignore_https_errors && kind.kind === "relay") {
+	if (params.ignore_https_errors && kind.kind === "relay" && !kind.studioManaged) {
 		throw new ToolError(
 			"ignore_https_errors is not supported through the Chrome relay: the extension debugger API does not expose the CDP Security domain. Pass app.relay:false to use Zeta's Chromium instead.",
 		);
 	}
 	// Chrome never lets an extension choose where downloads go. Refused here, before an existing tab is closed to reopen.
-	if (params.downloads !== undefined && kind.kind === "relay") {
+	if (params.downloads !== undefined && kind.kind === "relay" && !kind.studioManaged) {
 		throw new ToolError(
 			"The Zeta browser relay cannot choose where Chrome saves downloads: open the tab without `downloads`, and tab.waitForDownload() and tab.downloads() report where Chrome saved each file.",
 		);
@@ -454,7 +465,7 @@ async function openOnKind(
 		let relayNotice: string | null = null;
 		try {
 			// Read before the tab is acquired, so a cancel or the deadline landing during the read leaves no tab to close.
-			if (kind.kind === "relay") {
+			if (kind.kind === "relay" && !kind.studioManaged) {
 				stage = "reading the relay extension version";
 				relayNotice = await relayExtensionNotice(normalizeConnectedCdpUrl(kind.cdpUrl), openSignal);
 				throwIfAborted(openSignal);
@@ -525,7 +536,7 @@ async function openOnKind(
 		details.viewport = tab.info.viewport;
 		const verb = result.created ? "Opened" : "Reused";
 		// One line: the tab and its browser, where it landed unless that is the URL the call asked for, and its title.
-		let opened = `${verb} tab ${JSON.stringify(name)} on ${describeBrowser(tab)}`;
+		let opened = `${verb} tab ${JSON.stringify(details.name)} on ${describeBrowser(tab)}`;
 		if (!params.url || !sameAddress(params.url, url)) opened += `, at ${url}`;
 		if (title) opened += `, titled ${JSON.stringify(title)}`;
 		const lines = [opened, ...notes, result.note, relayNotice].filter(
@@ -589,9 +600,15 @@ async function closeBrowser(
 	details: BrowserPreludeDetails,
 	timeoutMs: number,
 	signal?: AbortSignal,
+	owned?: (name: string) => boolean,
 ): Promise<AgentToolResult<unknown>> {
 	const kill = !!params.kill;
 	if (params.all) {
+		if (owned) {
+			const targets = listTabs().filter(tab => owned(tab.name));
+			for (const target of targets) { assertBrowserTabAgentControl(getTab(target.name)); await untilAborted(signal, () => releaseTab(target.name, { kill, timeoutMs, closeManagedPage: true })); }
+			return toolResult(details).text(`Closed ${targets.length} browser tabs`).done();
+		}
 		// Only the caller's own tabs: another agent's tabs (a parent's, a sibling's)
 		// are reaped when that agent disposes. No owner (SDK callers) keeps the
 		// process-wide release.
@@ -602,8 +619,9 @@ async function closeBrowser(
 		const text = `Released ${count} managed tab${count === 1 ? "" : "s"}`;
 		return toolResult(details).text(text).done();
 	}
-	const closed = await untilAborted(signal, () => releaseTab(name, { kill, timeoutMs }));
-	const text = closed ? `Released managed tab ${JSON.stringify(name)}` : `No tab named ${JSON.stringify(name)}`;
+	assertBrowserTabAgentControl(getTab(name));
+	const closed = await untilAborted(signal, () => releaseTab(name, { kill, timeoutMs, closeManagedPage: true }));
+	const text = closed ? `Released managed tab ${JSON.stringify(details.name)}` : `No tab named ${JSON.stringify(details.name)}`;
 	return toolResult(details).text(text).done();
 }
 
@@ -690,7 +708,7 @@ function describeBrowser(tab: TabSession): string {
 		case "connected":
 			return `connected ${handle.cdpUrl ?? handle.kind.cdpUrl}`;
 		case "relay":
-			return `relay ${handle.cdpUrl ?? handle.kind.cdpUrl}`;
+			return handle.kind.studioManaged ? "Studio managed browser" : `relay ${handle.cdpUrl ?? handle.kind.cdpUrl}`;
 		default:
 			return "browser";
 	}
@@ -705,7 +723,7 @@ function describeKind(kind: BrowserKind): string {
 		case "connected":
 			return `connected:${kind.cdpUrl}`;
 		case "relay":
-			return `relay:${kind.cdpUrl}`;
+			return kind.studioManaged ? "Studio managed browser" : `relay:${kind.cdpUrl}`;
 		case "cmux":
 			return `cmux:${kind.surface ?? "split"}`;
 	}

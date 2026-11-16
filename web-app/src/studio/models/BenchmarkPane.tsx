@@ -6,7 +6,6 @@ import type {
   StudioClient,
 } from "@linxiraos/studio-contract";
 import {
-  validateBenchmarkSpec,
   type BenchmarkRun,
   type BenchmarkSnapshot,
   type BenchmarkSpec,
@@ -16,7 +15,7 @@ import {
 import { usePreviewMode } from "../preview/PreviewContext";
 import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
-import { PREVIEW_BENCHMARK, previewBenchmark } from "../preview/benchmarksPreview";
+import { PREVIEW_BENCHMARK } from "../preview/benchmarksPreview";
 import { WorkspaceStatus, workspaceStateLabel } from "../workspaces/Workspace";
 import "./benchmark.css";
 
@@ -39,7 +38,7 @@ export function BenchmarkPane({
   models,
   visible = true,
 }: Props) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const t = (cn: string, en: string) => (zh ? cn : en);
@@ -202,7 +201,6 @@ export function BenchmarkPane({
         : {}),
     };
     try {
-      validateBenchmarkSpec(spec);
       setReview(structuredClone(spec));
       setError("");
     } catch (cause) {
@@ -217,7 +215,7 @@ export function BenchmarkPane({
           ...structuredClone(PREVIEW_BENCHMARK),
           run: {
             ...PREVIEW_BENCHMARK.run,
-            id: "demo-" + crypto.randomUUID(),
+            id: marks ? "demo-" + crypto.randomUUID() : crypto.randomUUID(),
             spec: review,
           },
         };
@@ -242,9 +240,10 @@ export function BenchmarkPane({
     void runAction(async (generation) => {
       if (!snapshot || running(snapshot.run)) return;
       if (preview) {
-        setNotice(
-          t("演示：报告已存入产物库", "Demo: report saved to artifact library"),
-        );
+        if (marks)
+          setNotice(
+            t("演示：报告已存入产物库", "Demo: report saved to artifact library"),
+          );
         return;
       }
       const handle = await client.command("artifacts.saveText", {
@@ -271,7 +270,7 @@ export function BenchmarkPane({
           "对比原生基准工作负载。每个模型会发起多次独立请求；切换会话会中止当前测试。",
           "Compare native benchmark workloads. Each model receives multiple independent requests. Switching sessions cancels the run.",
         )}
-        {preview ? t(" · 演示", " · Demo") : ""}
+        {preview && marks ? t(" · 演示", " · Demo") : ""}
       </p>
       {!enabled ? (
         <p role="status">

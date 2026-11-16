@@ -1,7 +1,7 @@
 /**
  * Studio operations — operator command invocation and offline token counting.
  *
- * Owned operations: `operator.invoke`, `tokens.count`.
+ * Owned operations: `commands.getManifest`, `operator.invoke`, `tokens.count`.
  *
  * A handler takes the contract input and returns the contract result; it
  * reaches Zeta state only through `../gateway.js` (`callGateway`, `gatewayJson`,
@@ -46,8 +46,9 @@ import type { TokenCountResult } from "../protocol/index.js";
 import type { OperatorStateSnapshot } from "../protocol/contracts/state.js";
 import type { StudioFamily } from "../registry.js";
 import { countText } from "./text-count.js";
+import { readOperatorCommandManifest } from "../command-manifest.js";
 
-/** The command-id prefix the Renderer uses for OMP builtin slash commands. */
+/** The command-id prefix shared with the renderer's builtin slash commands. */
 const BUILTIN_COMMAND_PREFIX = "builtin.";
 
 /** Same character cap the transport applies to `tokens.count`. */
@@ -189,6 +190,9 @@ async function countTokens(input: { readonly text: string }): Promise<{
 /** Operator family: builtin command invocation and the offline token counter. */
 export const operatorOps: StudioFamily = {
 	id: "operator",
+	queries: {
+		"commands.getManifest": readOperatorCommandManifest,
+	},
 	commands: {
 		"operator.invoke": invokeOperator,
 		"tokens.count": countTokens,

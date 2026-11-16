@@ -100,6 +100,7 @@ export interface RemoteDirectoryList {
 export interface RemoteEventEnvelope {
 	readonly id: string;
 	readonly generation: number;
+	readonly contextId?: string;
 	readonly event: unknown;
 }
 

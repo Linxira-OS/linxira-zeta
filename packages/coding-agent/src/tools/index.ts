@@ -404,6 +404,11 @@ export interface ToolSession {
 	taskDepth?: number;
 	/** Get this agent's eval executor session ID; keys its retained JS/Python/Ruby/Julia state. */
 	getEvalSessionId?: () => string | null;
+	/** Canonical live AgentSession identity, never a transcript/kernel alias. */
+	getComputerSessionId?: () => string | undefined;
+	getSessionInstanceKey?: () => string | undefined;
+	/** Prelude installation, independent of settings; never constructs a controller. */
+	computerPreludeAvailable?: () => boolean;
 	/** Get session file */
 	getSessionFile: () => string | null;
 	/**

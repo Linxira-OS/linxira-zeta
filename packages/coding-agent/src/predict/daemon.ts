@@ -21,6 +21,8 @@ import { blendPredictions } from "./blend";
 import { readForeignPrompts } from "./foreign-history";
 import {
 	TEXT_PREDICT_AGENT_DIR_ENV,
+	TEXT_PREDICT_PROFILE_ENV,
+	type TextPredictProfile,
 	TEXT_PREDICT_SOCKET_ENV,
 	type TextPredictMethod,
 	type TextPredictRequest,
@@ -130,10 +132,11 @@ class Engine {
 		readonly stateDir: string,
 		readonly predictor: TextPredictor,
 		cursor: number | undefined,
+		seedForeign = true,
 	) {
 		this.cursor = cursor ?? 0;
 		this.#persistedCursor = this.cursor;
-		this.#seed = cursor === undefined;
+		this.#seed = cursor === undefined && seedForeign;
 	}
 
 	get dirty(): boolean {
@@ -210,6 +213,7 @@ class Engine {
 
 /** Serves every connection; engines open lazily on their first request. */
 class TextPredictDaemon {
+	readonly #profile: TextPredictProfile;
 	#agentDir: string;
 	#historyDbPath: string;
 	#engines = new Map<TextPredictMethod, Promise<Engine>>();
@@ -228,8 +232,9 @@ class TextPredictDaemon {
 		onStop: () => this.#persistAll(),
 	});
 
-	constructor(agentDir: string) {
-		this.#agentDir = agentDir;
+	constructor(agentDir: string, profile: TextPredictProfile = "default") {
+		this.#profile = profile;
+		this.#agentDir = profile === "studio" ? path.join(agentDir, "studio-predict") : agentDir;
 		this.#historyDbPath = getHistoryDbPath(agentDir);
 	}
 
@@ -254,6 +259,8 @@ class TextPredictDaemon {
 					ok: true,
 					op: "ping",
 					version: VERSION,
+					profile: this.#profile,
+					protocol: 2,
 					pid: process.pid,
 					engines: [...this.#engines.keys()],
 				};
@@ -357,7 +364,7 @@ class TextPredictDaemon {
 			await predictor.ready();
 			cursor = undefined;
 		}
-		const engine = new Engine(method, stateDir, predictor, cursor);
+		const engine = new Engine(method, stateDir, predictor, cursor, this.#profile !== "studio");
 		const ingested = await engine.ingest(this.#historyDbPath);
 		if (ingested > 0) this.#persistCadence.touch();
 		logger.debug("text-predict: engine ready", {
@@ -388,5 +395,5 @@ export async function startTextPredictDaemonFromEnvironment(): Promise<void> {
 	if (!endpoint || !agentDir) {
 		throw new Error(`${TEXT_PREDICT_SOCKET_ENV} and ${TEXT_PREDICT_AGENT_DIR_ENV} must be set`);
 	}
-	await new TextPredictDaemon(agentDir).serve(endpoint);
+	await new TextPredictDaemon(agentDir, Bun.env[TEXT_PREDICT_PROFILE_ENV] === "studio" ? "studio" : "default").serve(endpoint);
 }

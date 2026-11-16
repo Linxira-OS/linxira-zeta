@@ -1,26 +1,10 @@
 /// <reference types="vite/client" />
 
-import type { StudioClient } from "@linxiraos/studio-contract";
-import type { ZetaStudioDesktopApi } from "@linxiraos/studio-transport-desktop";
+import type { MemoryCredentialInput, MemoryCredentialResult } from "./settings/memory-credentials-shared";
 
 declare global {
-  /**
-   * Semantic client injected by the hosting shell (local WebUI bridge or a
-   * test harness) before the renderer bundle runs. Optional at runtime:
-   * when absent, the Vite entry renders an explicit unavailable state
-   * instead of crashing. The renderer never imports a transport.
-   */
-  var OMP_STUDIO_CLIENT: StudioClient | undefined;
-
-  /**
-   * Desktop preload bridge exposed by the Electron shell (frozen
-   * `ZetaStudioDesktopApi`: bootstrap/query/command/subscribe/close only —
-   * no generic invoke). Used by the Vite entry as a fallback: when
-   * `OMP_STUDIO_CLIENT` is absent but this is present, the entry wraps it
-   * in a desktop transport + `StudioClientImpl` itself.
-   */
-  var zetaStudio: ZetaStudioDesktopApi | undefined;
   var zetaStudioRemote: import("./workspaces/remoteShared").RemoteApi | undefined;
+
 
   /**
    * Window-chrome helpers (not the Host transport). Theme sync talks to the
@@ -48,15 +32,13 @@ declare global {
   type StudioServiceDefinitionResult = { ok: true; definitions: StudioServiceDefinition[] } | { ok: false; message: string };
   type StudioArtifactFileResult = { ok: true; cancelled: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; storage?: import("@linxiraos/studio-protocol").ArtifactStorageState } | { ok: false; message: string };
 
-  /**
-   * Machine-performance probe installed by the hosting shell (desktop preload or
-   * the web host). Optional: without it the tier control applies only the user's
-   * motion preference and stays at L0.
-   */
   var zetaStudioPerf: import("./perf/tierControl").TierControlSource | undefined;
-
   var zetaStudioChrome:
-    | {
+    | (Partial<import("./composer/dictation-audio-shared").DictationAudioApi> & {
+        files?: import("./files/file-viewer-shared").FileViewerDesktopApi;
+        prepareFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowPrepare): Promise<import("./dock/floating-windows-shared").FloatWindowTicket>;
+        controlFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowControl): Promise<void>;
+        onFloatWindow?(listener: (event: import("./dock/floating-windows-shared").FloatWindowEvent) => void): () => void;
         revealSkillshareToken?(input: { secretId: string; sessionId: string }): Promise<{ ok: boolean; token?: string; name?: string; message?: string }>;
         attachLiveAudio?(input: { audioId: string; sessionId: string }): Promise<{ ok: boolean; message?: string }>;
         attachPrediction?(input: import("@linxiraos/studio-protocol").PredictionChannel): Promise<{ok:boolean;message?:string}>;
@@ -64,8 +46,12 @@ declare global {
         detachPrediction?(input:{channelId:string}):Promise<{ok:boolean;message?:string}>;
         importPredictionHistory?(input:{channelId:string}):Promise<{ok:boolean;cancelled?:boolean;message?:string;count?:number;truncated?:boolean}>;
         onPrediction?(listener:(event:import("@linxiraos/studio-protocol").PredictionEvent)=>void):()=>void;
+        managedBrowser?: import("@linxiraos/studio-protocol").ManagedBrowserApi;
         attachBrowserObservation?(input: { observationId: string; sessionId: string; tabId: string }): Promise<{ ok: boolean; message?: string }>;
         readComputerCapture?(input: { captureId: string; sessionId: string; targetId: string }): Promise<{ ok: true; data: ArrayBuffer; width: number; height: number } | { ok: false; message: string }>;
+        adoptComputerView?(input: { scopeSessionId: string; leaseId: string; origin: "local" }): Promise<{ ok: true } | { ok: false; message: string }>;
+        releaseComputerView?(input: { scopeSessionId: string; leaseId: string; origin: "local" }): Promise<{ ok: true } | { ok: false; message: string }>;
+        readComputerFrame?(input: { scopeSessionId: string; leaseId: string; frameId: string; origin: "local" }): Promise<{ ok: true; data: ArrayBuffer; width: number; height: number; mimeType: "image/png" } | { ok: false; message: string }>;
         controlBrowserObservation?(input: { observationId: string; input: import("@linxiraos/studio-protocol").BrowserObservationInput }): Promise<{ ok: boolean; message?: string }>;
         detachBrowserObservation?(input: { observationId: string }): Promise<{ ok: boolean; message?: string }>;
         onBrowserObservation?(listener: (event: import("@linxiraos/studio-protocol").BrowserObservationEvent) => void): () => void;
@@ -76,6 +62,9 @@ declare global {
         finishMediaUpload?(input: { uploadId: string }): Promise<{ ok: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; message?: string }>;
         abortMediaUpload?(input: { uploadId: string }): Promise<{ ok: boolean; message?: string }>;
         listServiceDefinitions?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
+        memoryCredentialStatus?(input: MemoryCredentialInput): Promise<MemoryCredentialResult>;
+        setMemoryCredential?(input: MemoryCredentialInput & { token: string }): Promise<MemoryCredentialResult>;
+        removeMemoryCredential?(input: MemoryCredentialInput): Promise<MemoryCredentialResult>;
         saveServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
         removeServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
         chooseArtifactDirectory?(): Promise<StudioArtifactFileResult>;
@@ -93,7 +82,7 @@ declare global {
         /** Fixed by the preload; read it through `src/platform.ts`. Absent on older installs. */
         readonly platform?: "win32" | "darwin" | "linux";
         /** macOS menu bar commands (allowlisted ids from Main). */
-        onMenuCommand?(listener: (command: "app.settings" | "file.newChat" | "file.openProject" | "view.commandPalette" | "view.toggleSidebar" | "view.toggleBottomPanel" | "view.toggleSkills" | "help.shortcuts") => void): () => void;
+        onMenuCommand?(listener: (command: "app.settings" | "file.newChat" | "file.openProject" | "view.commandPalette" | "view.toggleSidebar" | "view.toggleBottomPanel" | "view.toggleSkills" | "help.shortcuts" | "help.tutorial") => void): () => void;
         /** macOS microphone permission (TCC); Windows always reports granted. */
         requestMicrophoneAccess?(): Promise<"granted" | "denied">;
         /** Opens System Settings › Privacy & Security › Microphone (macOS only). */
@@ -286,7 +275,7 @@ declare global {
             readonly message?: string;
           }) => void,
         ): () => void;
-      }
+      })
     | undefined;
 
   /**
@@ -295,7 +284,7 @@ declare global {
    */
   var zetaStudioTerminal:
     | {
-        create(size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string; profileId?: string; cwd?: string }): Promise<{ id: string; name: string; cwd: string; profile?: string | null; instance?: string; reused?: boolean }>;
+        create(size?: import("./terminals/api").StudioTerminalCreateInput): Promise<import("./terminals/api").StudioTerminalSessionInfo>;
         write(id: string, data: string): Promise<void>;
         resize(id: string, cols: number, rows: number): Promise<void>;
         dispose(id: string): Promise<void>;
@@ -304,8 +293,10 @@ declare global {
         recordingStart?(input: { id: string; workspaceId?: string; sessionId?: string }): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
         recordingStop?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
         recordingStatus?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
-        onData(listener: (event: { id: string; data: string }) => void): () => void;
+        onData(listener: (event: { id: string; data: string; bytes?: number }) => void): () => void;
         onExit(listener: (event: { id: string }) => void): () => void;
+        /** Flow control: bytes written to xterm. Absent on an older preload. */
+        ack?(id: string, bytes: number): void;
       }
     | undefined;
 }

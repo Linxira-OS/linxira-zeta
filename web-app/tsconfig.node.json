@@ -5,6 +5,7 @@
       "ES2022"
     ],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "tsBuildInfoFile": "node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": [

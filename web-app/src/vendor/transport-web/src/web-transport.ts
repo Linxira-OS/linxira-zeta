@@ -1,5 +1,6 @@
 import type {
-  ClientBootstrap,
+	ClientContextScope,
+	ClientBootstrap,
   ClientCommandAccepted,
   ClientCommandRequest,
   ClientEvent,
@@ -24,6 +25,8 @@ import { WebTransportError } from "./errors.js";
  * WebSocket; the adapter and the contracts it enforces do not change.
  */
 export interface OmpStudioWebApi {
+  readonly supportsContexts?: boolean;
+	openContext?(scope: ClientContextScope): Promise<OmpStudioWebApi>;
   bootstrap(): Promise<ClientBootstrap>;
   query<TName extends QueryName>(
     request: ClientQueryRequest<TName>,
@@ -60,6 +63,7 @@ type EventListener = (event: ClientEvent) => void;
  *   its rejection propagates but the transport stays closed.
  */
 export class WebClientTransport implements ClientTransport {
+  get supportsContexts(): boolean { return this.#api.supportsContexts ?? this.#api.openContext !== undefined; }
   readonly #api: OmpStudioWebApi;
   #closed = false;
   /** Teardowns of live subscriptions; empty once closed. */
@@ -70,6 +74,16 @@ export class WebClientTransport implements ClientTransport {
     this.#api = api;
   }
 
+	async openContext(scope: ClientContextScope): Promise<ClientTransport> {
+		this.#throwIfClosed();
+		if (!this.#api.openContext) throw new Error("Update this Host to open concurrent conversations.");
+		const api = await this.#api.openContext(scope);
+    if (this.#closed) {
+      await api.close();
+      this.#throwIfClosed();
+    }
+		return new WebClientTransport(api);
+	}
   async bootstrap(): Promise<ClientBootstrap> {
     this.#throwIfClosed();
     const bootstrap = await this.#api.bootstrap();

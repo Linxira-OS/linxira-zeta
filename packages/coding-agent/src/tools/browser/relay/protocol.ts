@@ -8,6 +8,8 @@
 
 /** Minimal view of a Chrome tab shared between extension and relay. */
 export interface TabSnapshot {
+	studioPageId?: string;
+	studioDocumentId?: string;
 	tabId: number;
 	url: string;
 	title: string;
@@ -23,6 +25,7 @@ export interface TabSnapshot {
 
 /** RPCs the relay may ask the extension to perform. */
 export type RelayRpcRequest =
+	| { op: "studioDownloads"; tabId: number; action: "enable" | "list"; directory?: string }
 	/** `clearForeignFrames`: the tab is one omp drives, so another extension's frames may be emptied past a refusal. */
 	| { op: "attach"; tabId: number; clearForeignFrames?: boolean }
 	| { op: "detach"; tabId: number }

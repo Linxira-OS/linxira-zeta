@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CommandInput, StudioClient } from "@linxiraos/studio-contract";
 import {
   mediaInputArtifacts,
-  validateMediaRequest,
   type ArtifactRecord,
   type MediaDetail,
   type MediaJob,
@@ -28,26 +27,13 @@ import {
 } from "../preview/mediaWorkbenchPreview";
 import { AudioCapturePane } from "./AudioCapturePane";
 import { previewMediaUrl } from "../preview/mediaFixtureUrls";
-import { artifactUrl } from "./ArtifactLibraryPane";
+import { artifactUrl } from "./artifactUrl";
 import "./mediaWorkbench.css";
 
-export const MEDIA_INTENT_KEY = "zeta.mediaIntent";
-export function setMediaIntent(type: MediaKind): void {
-  try {
-    sessionStorage.setItem(MEDIA_INTENT_KEY, type);
-  } catch {}
-}
+import { takeMediaIntent } from "../pageIntents";
+export { MEDIA_INTENT_KEY, setMediaIntent, takeMediaIntent } from "../pageIntents";
 const active = (job: MediaJob) =>
   ["queued", "running", "waiting"].includes(job.state);
-export function takeMediaIntent(): MediaKind {
-  try {
-    const value = sessionStorage.getItem(MEDIA_INTENT_KEY);
-    sessionStorage.removeItem(MEDIA_INTENT_KEY);
-    if (["image", "video", "speech", "transcription"].includes(value ?? ""))
-      return value as MediaKind;
-  } catch {}
-  return "image";
-}
 export function MediaWorkbench({
   client,
   workspaceId,
@@ -71,7 +57,7 @@ export function MediaWorkbench({
   onInsert?: ((text: string) => void) | undefined;
   onArtifactsChanged(): void;
 }) {
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const t = (cn: string, en: string) => (zh ? cn : en);
@@ -400,8 +386,7 @@ export function MediaWorkbench({
           ([, value]) => value !== undefined,
         ),
       );
-      validateMediaRequest(request);
-      setReview(request);
+      setReview(request as MediaRequest);
     } catch (cause) {
       setError(hostErrorMessage(cause, "Invalid media request"));
     }
@@ -416,7 +401,7 @@ export function MediaWorkbench({
             ...PREVIEW_MEDIA_DETAIL.job,
             id: crypto.randomUUID(),
             type: review.type,
-            model: review.model ?? "demo/role",
+            model: review.model ?? (marks ? "demo/role" : t("角色链", "Role chain")),
             createdAt: Date.now(),
             updatedAt: Date.now(),
             cost: 0,
@@ -426,10 +411,12 @@ export function MediaWorkbench({
           ...(review.type === "transcription"
             ? { text: PREVIEW_MEDIA_DETAIL.text! }
             : {
-                text: t(
-                  "演示任务已完成。真实结果会保存到产物库。",
-                  "Demo task completed. Real outputs are saved to the artifact library.",
-                ),
+                text: marks
+                  ? t(
+                      "演示任务已完成。真实结果会保存到产物库。",
+                      "Demo task completed. Real outputs are saved to the artifact library.",
+                    )
+                  : "",
               }),
         };
         demos.current.set(value.job.id, value);
@@ -516,7 +503,7 @@ export function MediaWorkbench({
             label: labels[kind],
           }))}
           actions={
-            preview ? (
+            preview && marks ? (
               <span className="chip gray">{t("演示", "Demo")}</span>
             ) : undefined
           }
@@ -527,7 +514,7 @@ export function MediaWorkbench({
           className="media-section-title"
         >
           {labels[type]}
-          {preview ? (
+          {preview && marks ? (
             <span className="chip gray">{t("演示", "Demo")}</span>
           ) : null}
         </h3>
@@ -1191,7 +1178,7 @@ export function MediaWorkbench({
                     ) : null
                   ) : (
                     <p className="muted">
-                      {preview
+                      {preview && marks
                         ? t("演示产物", "Demo artifact")
                         : t(
                             "文件预览需桌面文件通道。",

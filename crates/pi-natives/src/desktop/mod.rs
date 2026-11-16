@@ -752,24 +752,25 @@ fn hold_duration(seconds: f64) -> CoreResult<Duration> {
 }
 
 struct Worker {
-	backend:       CoreResult<Box<dyn Backend>>,
-	registry:      AxRegistry,
-	frames:        HashMap<String, FrameGeometry>,
+	observation_only: bool,
+	backend:          CoreResult<Box<dyn Backend>>,
+	registry:         AxRegistry,
+	frames:           HashMap<String, FrameGeometry>,
 	/// Latest capabilities the worker computed, shared with the session so the
 	/// getter can answer while an operation holds the worker.
-	capabilities:  Arc<Mutex<Option<DesktopCapabilities>>>,
-	display_awake: Arc<DisplayAwake>,
+	capabilities:     Arc<Mutex<Option<DesktopCapabilities>>>,
+	display_awake:    Arc<DisplayAwake>,
 	/// The user's own input into the apps this session reads and acts on.
 	#[cfg(target_os = "macos")]
-	listener:      control::intervention::Listener,
+	listener:         control::intervention::Listener,
 	/// The app whose window the request being served read, and when the read
 	/// began; it shows the user's input only once its reply is delivered.
 	#[cfg(target_os = "macos")]
-	read:          Option<(libc::pid_t, Instant)>,
+	read:             Option<(libc::pid_t, Instant)>,
 	/// Windows whose drawing process the user-input watch already looked up;
 	/// a window keeps the process that draws it, so each is probed once.
 	#[cfg(target_os = "macos")]
-	drawer_probed: std::collections::HashSet<String>,
+	drawer_probed:    std::collections::HashSet<String>,
 }
 
 impl Worker {
@@ -777,9 +778,11 @@ impl Worker {
 		selector: DisplaySelector,
 		capabilities: Arc<Mutex<Option<DesktopCapabilities>>>,
 		display_awake: Arc<DisplayAwake>,
+		observation_only: bool,
 	) -> Self {
-		let backend = create_backend(selector);
+		let backend = create_backend(selector, observation_only);
 		Self {
+			observation_only,
 			backend,
 			registry: AxRegistry::default(),
 			frames: HashMap::new(),
@@ -796,6 +799,24 @@ impl Worker {
 
 	fn backend(&mut self) -> CoreResult<&mut Box<dyn Backend>> {
 		self.backend.as_mut().map_err(|error| error.clone())
+	}
+
+	fn capabilities_snapshot(&mut self) -> DesktopCapabilities {
+		let mut capabilities = match self.backend.as_mut() {
+			Ok(backend) => backend.capabilities(),
+			Err(_) => DesktopCapabilities::unavailable(),
+		};
+		if self.observation_only {
+			capabilities.input = false;
+			capabilities.background_window_input = false;
+			capabilities.takeover = false;
+			capabilities.held_input = false;
+			capabilities.global_escape = false;
+			capabilities.menus = false;
+			capabilities.spaces = false;
+			capabilities.input_permission = "unavailable".to_string();
+		}
+		capabilities
 	}
 
 	fn window(&mut self, target: &Target) -> CoreResult<DesktopWindow> {
@@ -929,7 +950,7 @@ impl Worker {
 		self.frames.insert(target.key().to_string(), geometry);
 		// Refreshing here keeps the snapshot current for getter reads that
 		// land while a later operation holds the worker.
-		let capabilities = self.backend()?.capabilities();
+		let capabilities = self.capabilities_snapshot();
 		*self.capabilities.lock() = Some(capabilities.clone());
 		Ok(DesktopCapture {
 			data: Uint8Array::from(png),
@@ -1063,7 +1084,8 @@ impl Worker {
 				Err(flume::RecvTimeoutError::Disconnected) => break,
 			};
 			let close = request.is_close();
-			let activity = request.is_activity() && self.hold_display_awake(&token);
+			let activity =
+				!self.observation_only && request.is_activity() && self.hold_display_awake(&token);
 			self.dispatch(request, &token);
 			if close {
 				break;
@@ -1080,6 +1102,11 @@ impl Worker {
 			return Ok(Response::Unit);
 		}
 		token.check()?;
+		if self.observation_only && request.is_mutation() {
+			return Err(DesktopError::permission_denied(
+				"observation-only desktop session refuses mutation",
+			));
+		}
 		let _scope = token.enter();
 		// Input the user's recent activity holds back fails here, before it
 		// takes the input lease.
@@ -1275,7 +1302,7 @@ impl Worker {
 		let Some(access) = request.app_access() else {
 			return Ok(AppWatch::default());
 		};
-		if !self.listener.listening() {
+		if self.observation_only || !self.listener.listening() {
 			return Ok(AppWatch::default());
 		}
 		let started = Instant::now();
@@ -1344,7 +1371,7 @@ impl Worker {
 		let Response::Node(Some(node)) = response else {
 			return;
 		};
-		if request.app_access().is_some() || !self.listener.listening() {
+		if self.observation_only || request.app_access().is_some() || !self.listener.listening() {
 			return;
 		}
 		if let Ok(Some((pid, input))) = self.element_app(&node.ref_) {
@@ -1384,10 +1411,7 @@ impl Worker {
 	fn process(&mut self, request: &Request, token: &OperationToken) -> CoreResult<Response> {
 		match request {
 			Request::Capabilities { .. } => {
-				let caps = match self.backend.as_mut() {
-					Ok(backend) => backend.capabilities(),
-					Err(_) => DesktopCapabilities::unavailable(),
-				};
+				let caps = self.capabilities_snapshot();
 				*self.capabilities.lock() = Some(caps.clone());
 				Ok(Response::Capabilities(caps))
 			},
@@ -1399,8 +1423,51 @@ impl Worker {
 			Request::Observe { target, caps, options, .. } => {
 				let capture = self.capture_full(target, caps, token)?;
 				token.check()?;
-				let accessibility = self.snapshot(target, options)?;
-				Ok(Response::Observation(DesktopObservation { capture, accessibility }))
+				let (accessibility, nodes, coordinate_space) = if self.observation_only {
+					let window = self.window(target)?;
+					let geometry = self.frame(target)?;
+					let (backend, registry) = (&mut self.backend, &mut self.registry);
+					let ax = backend
+						.as_mut()
+						.map_err(|error| error.clone())?
+						.ax()
+						.ok_or_else(DesktopError::ax_unsupported)?;
+					let (snapshot, mut nodes) =
+						ax::snapshot_observed(ax, registry, &window, options, true)?;
+					let current = self.window(target)?;
+					let reliable = matches!(target, Target::Window(_))
+						&& geometry.observation_matches(&window)
+						&& geometry.observation_matches(&current)
+						&& self.backend()?.validate_frame_layout(&geometry).is_ok();
+					fn transform(
+						nodes: &mut [DesktopObservationNode],
+						geometry: &FrameGeometry,
+						reliable: bool,
+					) {
+						for node in nodes {
+							node.bounds = if reliable {
+								node
+									.bounds
+									.and_then(|bounds| geometry.observation_bounds(bounds))
+							} else {
+								None
+							};
+							transform(&mut node.children, geometry, reliable);
+						}
+					}
+					if let Some(nodes) = &mut nodes {
+						transform(nodes, &geometry, reliable);
+					}
+					(snapshot, nodes, Some(if reliable { "frame" } else { "unavailable" }.into()))
+				} else {
+					(self.snapshot(target, options)?, None, None)
+				};
+				Ok(Response::Observation(DesktopObservation {
+					capture,
+					accessibility,
+					nodes,
+					coordinate_space,
+				}))
 			},
 			Request::ListApplications { options, .. } => {
 				Ok(Response::Applications(applications::list(options.clone())?))
@@ -1480,7 +1547,7 @@ impl Worker {
 				let (coordinate_width, coordinate_height) = base.dimensions();
 				token.check()?;
 				let png = encode_png(image)?;
-				let capabilities = self.backend()?.capabilities();
+				let capabilities = self.capabilities_snapshot();
 				*self.capabilities.lock() = Some(capabilities.clone());
 				Ok(Response::Capture(DesktopCapture {
 					data: Uint8Array::from(png),
@@ -1830,19 +1897,19 @@ impl Worker {
 }
 
 #[cfg(target_os = "macos")]
-fn create_backend(selector: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
-	Ok(Box::new(macos::MacosBackend::new(selector)?))
+fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+	Ok(Box::new(macos::MacosBackend::new_observed(selector, observation_only)?))
 }
 #[cfg(target_os = "windows")]
-fn create_backend(selector: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
-	Ok(Box::new(win32::Win32Backend::new(selector)?))
+fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+	Ok(Box::new(win32::Win32Backend::new_observed(selector, observation_only)?))
 }
 #[cfg(target_os = "linux")]
-fn create_backend(selector: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
-	linux::new_backend(selector)
+fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+	linux::new_backend_observed(selector, observation_only)
 }
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-fn create_backend(_: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
+fn create_backend(_: DisplaySelector, _: bool) -> CoreResult<Box<dyn Backend>> {
 	Err(DesktopError::capture_failed("desktop backend unavailable on this platform"))
 }
 
@@ -1864,6 +1931,7 @@ struct Lifecycle {
 	closed: bool,
 }
 struct SessionCore {
+	observation_only:  bool,
 	selector:          DisplaySelector,
 	lifecycle:         Mutex<Lifecycle>,
 	capabilities:      Arc<Mutex<Option<DesktopCapabilities>>>,
@@ -1885,6 +1953,7 @@ impl SessionCore {
 		operation_timeout: Duration,
 	) -> Arc<Self> {
 		Arc::new(Self {
+			observation_only: false,
 			selector,
 			lifecycle: Mutex::new(Lifecycle {
 				tx:     None,
@@ -1913,10 +1982,12 @@ impl SessionCore {
 		let selector = self.selector.clone();
 		let caps = Arc::clone(&self.capabilities);
 		let display_awake = Arc::clone(&self.display_awake);
+		let observation_only = self.observation_only;
 		let join = thread::Builder::new()
 			.name("zeta-desktop-session".into())
 			.spawn(move || {
-				Worker::new(selector, caps, display_awake).serve(&rx, DISPLAY_AWAKE_GRACE);
+				Worker::new(selector, caps, display_awake, observation_only)
+					.serve(&rx, DISPLAY_AWAKE_GRACE);
 				let _ = done_tx.send(());
 			})
 			.map_err(|e| {
@@ -2051,7 +2122,30 @@ impl DesktopSession {
 	pub fn new(options: Option<DesktopSessionOptions>) -> Result<Self> {
 		let options = options.unwrap_or_default();
 		let escape_stops = control::escape_stop_counter(options.escape_stop_key.as_deref());
-		Ok(Self { core: SessionCore::new(DisplaySelector::parse(options.display), escape_stops) })
+		let mut core = SessionCore::new(DisplaySelector::parse(options.display), escape_stops);
+		Arc::get_mut(&mut core)
+			.expect("new session core is unique")
+			.observation_only = options.observation_only.unwrap_or(false);
+		Ok(Self { core })
+	}
+
+	/// Positive capability probe. Older bindings return no such property.
+	#[napi(getter)]
+	pub fn observation_only(&self) -> bool {
+		self.core.observation_only
+	}
+
+	/// A cancellation barrier that queues behind native input without holding or
+	/// waking the display.
+	#[napi]
+	pub fn settle(&self) -> Result<task::Promise<()>> {
+		let c = Arc::clone(&self.core);
+		let token = c.cancellation.token();
+		Ok(task::blocking("desktop.settle", (), move |_| {
+			c.call(token, |reply| Request::Capabilities { reply })
+				.map(|_| ())
+				.map_err(Into::into)
+		}))
 	}
 
 	/// Asks the worker when it is idle, so permissions are read live. While
@@ -2092,7 +2186,9 @@ impl DesktopSession {
 	/// this when it acts inside a turn.
 	#[napi]
 	pub fn hold_display_until_released(&self) {
-		self.core.display_awake.hold_until_released();
+		if !self.core.observation_only {
+			self.core.display_awake.hold_until_released();
+		}
 	}
 
 	/// Lets the display sleep now if a turn holds it, without waiting behind
@@ -2290,6 +2386,12 @@ impl DesktopSession {
 	/// calling this method.
 	#[napi]
 	pub fn acquire_control(&self) -> Result<task::Promise<DesktopControlState>> {
+		if self.core.observation_only {
+			return Err(
+				DesktopError::permission_denied("observation-only desktop session refuses control")
+					.into(),
+			);
+		}
 		let c = Arc::clone(&self.core);
 		let token = c.cancellation.token();
 		Ok(task::blocking("desktop.acquireControl", (), move |_| {
@@ -3512,6 +3614,7 @@ mod capture_tests {
 	/// so they must not wait for the ownership tests.
 	fn unlocked_worker(backend: impl Backend + 'static) -> Worker {
 		Worker {
+			observation_only: false,
 			backend: Ok(Box::new(backend)),
 			registry: AxRegistry::default(),
 			frames: HashMap::new(),
@@ -3573,6 +3676,48 @@ mod capture_tests {
 			);
 			thread::sleep(Duration::from_millis(5));
 		}
+	}
+
+	#[test]
+	fn observation_only_never_holds_the_display_or_sends_mutation() {
+		let backend = FakeWaylandBackend::new();
+		let awake = Arc::clone(&backend.awake);
+		let clicks = Arc::clone(&backend.clicks);
+		let mut worker = unlocked_worker(backend);
+		worker.observation_only = true;
+		let capabilities = worker.capabilities_snapshot();
+		assert!(!capabilities.input);
+		assert!(!capabilities.takeover);
+		assert!(!capabilities.background_window_input);
+		assert!(!capabilities.held_input);
+		assert!(!capabilities.global_escape);
+		assert_eq!(capabilities.input_permission, "unavailable");
+		let source = CancellationSource::default();
+		let (reply, _) = flume::bounded(1);
+		let mutation = Request::RaiseWindow { id: WAYLAND_ID.into(), reply };
+		assert_eq!(
+			worker
+				.execute(&mutation, &source.token())
+				.err()
+				.unwrap()
+				.code,
+			ErrorCode::PermissionDenied
+		);
+		assert!(clicks.lock().is_empty());
+		let (tx, rx) = flume::unbounded();
+		let serving = thread::spawn(move || worker.serve(&rx, Duration::from_millis(1)));
+		send_and_wait(&tx, |reply| Request::ListWindows { reply });
+		send_and_wait(&tx, |reply| Request::Capture {
+			target: Target::Window(WAYLAND_ID.into()),
+			caps: CaptureCaps::default(),
+			reply,
+		});
+		send_and_wait(&tx, |reply| Request::Close { reply });
+		serving.join().unwrap();
+		assert!(
+			awake.lock().is_empty(),
+			"observation must not take even a transient display assertion"
+		);
 	}
 
 	#[test]

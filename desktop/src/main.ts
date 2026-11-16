@@ -9,7 +9,7 @@
  * opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, protocol, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme, Notification, protocol, safeStorage, screen, session, shell, Tray, webContents, type WebContents } from "electron";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -62,6 +62,8 @@ import {
 	desktopServeDiscoveryDeps,
 	discoverDesktopService,
 	type ServeRegistration,
+	discoverStudioPrivatePaths,
+	discoverStudioPrivateAuthority,
 } from "./serve-discovery";
 import {
 	describeReadinessFailure,
@@ -79,6 +81,25 @@ import {
 	type ServeResolutionDeps,
 } from "./serve-resolution";
 import { installLiveAudioIpc } from "./live-audio-main";
+import { localHostConnection, type DesktopHostConnection } from "./host-http";
+import { FileResources } from "./file-resources";
+import { registerFileViewerIpc, type FileViewerHandle } from "./file-viewer-ipc";
+import { registerFloatingWindows, type FloatingWindowHandle } from "./floating-windows";
+import { installPerfProfiles } from "./perf-profile-main";
+import { registerChromeMedia } from "./chrome-media";
+import { isTrustedRendererUrl } from "./renderer-security";
+import { DesktopBrowserObservation, registerBrowserObservationIpc } from "./browser-observation";
+import type { StudioPrivatePaths, PrivateSender } from "./private-ipc";
+import { graphicAssetResponse } from "./graphic-protocol";
+import { DesktopManagedBrowser } from "./managed-browser";
+import { ManagedBrowserRelay } from "./managed-browser-relay";
+import { registerManagedBrowserIpc } from "./managed-browser-ipc";
+import { MemoryCredentialStore } from "./memory-credentials";
+import { registerMemoryCredentialIpc } from "./memory-credentials-ipc";
+import { DesktopComputerViews } from "./computer-views";
+import { ComputerFrameStore, registerComputerFrameIpc } from "./computer-frames";
+import { registerComputerCaptureIpc } from "./computer-observation";
+import { DesktopPrediction, registerPredictionIpc } from "./prediction";
 
 // Must match packages/utils/src/ports.ts (this standalone package cannot import
 // the workspace); `scripts/check-service-ports.ts` fails CI when they drift.
@@ -91,7 +112,6 @@ const SERVICE_BINARY_NAME = process.platform === "win32" ? "zeta.exe" : "zeta";
 const WEB_RUNTIME_NAME = process.platform === "win32" ? "node.exe" : "node";
 const RENDERER_CRASH_WINDOW_MS = 120_000;
 const RENDERER_CRASH_RELOAD_LIMIT = 3;
-const GATEWAY_REQUEST_TIMEOUT_MS = 8_000;
 /** Launch-at-login starts the shell in the tray instead of flashing a window. */
 const START_HIDDEN = process.argv.includes("--hidden");
 
@@ -177,7 +197,7 @@ async function showDirectoryDialog(startPath: unknown): Promise<string | null> {
 	}
 }
 
-// Native directory picker for the embedded shell (`window.piDesktop`).
+// Native directory picker for the embedded shell (`window.zetaStudioChrome`).
 ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promise<string | null> => showDirectoryDialog(startPath));
 
 /**
@@ -226,6 +246,129 @@ let mainWindow: BrowserWindow | null = null;
 /** SSH execution targets and the desktop terminal/recording surface. */
 let remoteBridge: RemoteBridge | null = null;
 let terminalBridge: TerminalBridge | null = null;
+let fileResources: FileResources | null = null;
+let fileViewer: FileViewerHandle | null = null;
+let floatingWindows: FloatingWindowHandle | null = null;
+let browserObservation: DesktopBrowserObservation | null = null;
+let browserObservationIpc: { dispose(): void } | null = null;
+let prediction: DesktopPrediction | null = null;
+let predictionIpc: { dispose(): void } | null = null;
+let computerViews: DesktopComputerViews | null = null;
+let computerFrames: ComputerFrameStore | null = null;
+let computerFrameIpc: { dispose(): void } | null = null;
+let computerCaptureIpc: { dispose(): void } | null = null;
+let managedBrowser: DesktopManagedBrowser | null = null;
+let managedBrowserRelay: ManagedBrowserRelay | null = null;
+let managedBrowserIpc: { dispose(): void } | null = null;
+let memoryCredentials: ReturnType<typeof registerMemoryCredentialIpc> | null = null;
+let privateHostAvailable = false;
+const trustedPreloadContents = new WeakSet<WebContents>();
+
+function privateWindowVisible(sender: PrivateSender): boolean {
+	const contents = webContents.fromId(sender.id);
+	const window = contents ? BrowserWindow.fromWebContents(contents) : null;
+	return !!window && !window.isDestroyed() && window.isVisible() && !window.isMinimized();
+}
+
+ipcMain.on("zeta-studio:desktop:private-capabilities", event => {
+	event.returnValue = {
+		browserObservation: !!browserObservation && event.senderFrame === event.sender.mainFrame && isTrustedPreloadSender(event.sender),
+		managedBrowser: privateHostAvailable && !!managedBrowserRelay && event.senderFrame === event.sender.mainFrame && isTrustedPreloadSender(event.sender),
+		computerFrames: !!computerFrameIpc && event.senderFrame === event.sender.mainFrame && isTrustedPreloadSender(event.sender),
+		computerCapture: !!computerCaptureIpc && event.senderFrame === event.sender.mainFrame && isTrustedPreloadSender(event.sender),
+		prediction: !!predictionIpc && event.senderFrame === event.sender.mainFrame && isTrustedPreloadSender(event.sender),
+	};
+});
+
+function isTrustedPreloadSender(sender: WebContents): boolean {
+	return !sender.isDestroyed() && trustedPreloadContents.has(sender) && isTrustedRendererUrl(sender.getURL(), webUiUrl);
+}
+
+/** Tear down every private producer bound to the previous Host generation. */
+function stopPrivateProducers(): void {
+	privateHostAvailable = false;
+	predictionIpc?.dispose(); predictionIpc = null;
+	prediction?.dispose(); prediction = null;
+	computerCaptureIpc?.dispose(); computerCaptureIpc = null;
+	computerFrameIpc?.dispose(); computerFrameIpc = null;
+	computerFrames?.dispose(); computerFrames = null;
+	computerViews?.dispose(); computerViews = null;
+	managedBrowserRelay?.releaseAll();
+	browserObservationIpc?.dispose();
+	browserObservationIpc = null;
+	browserObservation?.dispose();
+	browserObservation = null;
+}
+
+async function startPrivateProducers(): Promise<void> {
+	const paths = await discoverStudioPrivatePaths(webUiUrl, desktopServeDiscoveryDeps());
+	stopPrivateProducers();
+	if (!paths || quitting) return;
+	privateHostAvailable = true;
+	const currentPaths = async (): Promise<StudioPrivatePaths> => {
+		const current = await discoverStudioPrivatePaths(webUiUrl, desktopServeDiscoveryDeps());
+		if (!current || current.mediaDirectory !== paths.mediaDirectory || current.socketDirectory !== paths.socketDirectory) throw new Error("Private browser Host changed");
+		return current;
+	};
+	const computerTrusted = (sender: PrivateSender) => {
+		const contents = webContents.fromId(sender.id);
+		return privateHostAvailable && !!contents && contents === sender && isTrustedDesktopSender(contents);
+	};
+	computerViews = new DesktopComputerViews({ paths: currentPaths, isActive: sender => computerTrusted(sender) && privateWindowVisible(sender) });
+	computerFrames = new ComputerFrameStore(computerViews);
+	computerFrameIpc = registerComputerFrameIpc({ ipcMain, store: computerFrames, views: computerViews, isTrustedSender: computerTrusted, isVisible: privateWindowVisible });
+	computerCaptureIpc = registerComputerCaptureIpc({ ipcMain, paths: currentPaths, store: computerFrames, views: computerViews, isTrustedSender: computerTrusted, isVisible: privateWindowVisible });
+	browserObservation = new DesktopBrowserObservation({ paths: currentPaths, isActive: sender => { const contents = webContents.fromId(sender.id); return !!contents && contents === sender && isTrustedDesktopSender(contents) && privateWindowVisible(sender); } });
+	browserObservationIpc = registerBrowserObservationIpc({
+		ipcMain, manager: browserObservation,
+		isTrustedSender: sender => { const contents = webContents.fromId(sender.id); return !!contents && contents === sender && isTrustedDesktopSender(contents); },
+		isVisible: privateWindowVisible,
+	});
+	prediction = new DesktopPrediction({
+		paths: currentPaths,
+		isActive: sender => { const contents = webContents.fromId(sender.id); return privateHostAvailable && !!contents && contents === sender && isTrustedDesktopSender(contents) && privateWindowVisible(sender); },
+		chooseHistory: async sender => {
+			const contents = webContents.fromId(sender.id);
+			const window = contents ? BrowserWindow.fromWebContents(contents) : null;
+			if (!window || window.isDestroyed()) throw new Error("Prediction window closed");
+			const result = await dialog.showOpenDialog(window, { title: "Import prediction history", properties: ["openFile"], filters: [{ name: "Claude Code / Codex history", extensions: ["jsonl"] }] });
+			return result.canceled ? undefined : result.filePaths[0];
+		},
+	});
+	predictionIpc = registerPredictionIpc({ ipcMain, manager: prediction, isTrustedSender: sender => { const contents = webContents.fromId(sender.id); return privateHostAvailable && !!contents && contents === sender && isTrustedDesktopSender(contents); }, isVisible: privateWindowVisible });
+	if (!managedBrowser) {
+		managedBrowser = new DesktopManagedBrowser({ directory: path.join(app.getPath("userData"), "browser"), downloadsDirectory: app.getPath("downloads"), windowFor: key => key ? floatingWindows?.windowFor(key) : mainWindow ?? undefined });
+		managedBrowserRelay = new ManagedBrowserRelay({ manager: managedBrowser, authority: () => discoverStudioPrivateAuthority(webUiUrl, desktopServeDiscoveryDeps()) });
+		managedBrowserIpc = registerManagedBrowserIpc({
+			ipcMain, manager: managedBrowser, relay: managedBrowserRelay,
+			isTrustedSender: sender => privateHostAvailable && isTrustedDesktopSender(sender),
+			ownerId: sender => floatingWindows?.owns(sender) ? mainWindow?.webContents.id ?? sender.id : sender.id,
+			ownsWindow: (sender, key) => (key ? floatingWindows?.windowFor(key)?.webContents : mainWindow?.webContents) === sender,
+			detachWindow: sender => { const window = BrowserWindow.fromWebContents(sender); if (window) managedBrowser?.detachWindow(window); },
+		});
+	}
+}
+
+function isTrustedDesktopSender(sender: WebContents): boolean {
+	return !sender.isDestroyed() && isTrustedRendererUrl(sender.getURL(), webUiUrl)
+		&& (mainWindow?.webContents === sender || floatingWindows?.owns(sender) === true);
+}
+
+function hostConnection(targetId?: string): DesktopHostConnection {
+	if (targetId) {
+		if (!remoteBridge) throw new Error("SSH target is not connected");
+		return remoteBridge.connection(targetId);
+	}
+	const base = webUiUrl;
+	return localHostConnection({
+		base,
+		fetch: session.defaultSession.fetch.bind(session.defaultSession) as typeof fetch,
+		async cookie() {
+			const cookies = await session.defaultSession.cookies.get({ url: base, name: "studio_session" });
+			return cookies.length ? `studio_session=${cookies[0]!.value}` : undefined;
+		},
+	});
+}
 /** Launch preferences kept for recreating the window after a real close. */
 let activePrefs: TrayPrefs | null = null;
 /** Boot has finished; window recreation is safe and tray menus are live. */
@@ -400,7 +543,7 @@ ipcMain.handle(
 );
 
 // ---------------------------------------------------------------------------
-// Window controls for the self-drawn titlebar (`window.piDesktop`).
+// Window controls for the self-drawn titlebar (`window.zetaStudioChrome`).
 //
 // The window runs frameless so all three platforms share one chrome. The
 // renderer owns the buttons; the main process only performs the action and
@@ -426,11 +569,18 @@ ipcMain.handle(WINDOW_CONTROL_CHANNELS.close, (): void => {
 
 ipcMain.handle(WINDOW_CONTROL_CHANNELS.state, (): { maximized: boolean } => windowState(mainWindow));
 
+ipcMain.handle("pi:theme", ({ sender }, value: unknown): void => {
+	if (!isTrustedDesktopSender(sender)) throw new Error("Untrusted theme request");
+	const theme = fieldOf(value, "theme");
+	if (theme !== "light" && theme !== "dark") throw new Error("Invalid theme");
+	nativeTheme.themeSource = theme;
+	for (const window of BrowserWindow.getAllWindows()) if (isTrustedDesktopSender(window.webContents)) window.setBackgroundColor(theme === "dark" ? "#102c31" : "#f4f8f7");
+});
+
 // ---------------------------------------------------------------------------
-// Desktop capability bridge (`window.zetaStudioChrome`, same object as
-// `window.piDesktop`). Paths stay in Main: the renderer only holds opaque
-// `ws-*` ids and workspace-relative paths, and every resolve goes through the
-// gateway's project inventory plus a realpath containment check.
+// Desktop capability bridge (`window.zetaStudioChrome`). Paths stay in Main:
+// the renderer only holds opaque `ws-*` ids and workspace-relative paths, and
+// every resolve goes through project inventory plus a realpath containment check.
 // ---------------------------------------------------------------------------
 
 type WorkspaceFileKind = "file" | "dir";
@@ -445,12 +595,7 @@ type PlanSaveResult =
 const FILE_OPENER_EDITORS: readonly EditorId[] = ["vscode", "cursor", "windsurf"];
 
 async function gatewayJson(pathname: string, init?: RequestInit): Promise<unknown> {
-	const response = await fetch(`${webUiUrl}${pathname}`, {
-		...init,
-		signal: AbortSignal.timeout(GATEWAY_REQUEST_TIMEOUT_MS),
-	});
-	if (!response.ok) throw new Error(`${pathname} → HTTP ${response.status}`);
-	return await response.json();
+	return hostConnection().gateway(pathname, init);
 }
 
 // Desktop dictation: the preload bridge streams Worklet frames here and this
@@ -919,6 +1064,7 @@ function startServeOnce(cmd: ServeCommand): boolean {
 	child.once("error", err => {
 		if (serveChild !== child) return;
 		serveChild = null;
+		stopPrivateProducers();
 		serviceOwned = false;
 		closeServiceLog();
 		// A missing/unrunnable launcher (ENOENT/EACCES) is a discovery failure,
@@ -930,6 +1076,7 @@ function startServeOnce(cmd: ServeCommand): boolean {
 	child.once("exit", code => {
 		if (serveChild !== child) return;
 		serveChild = null;
+		stopPrivateProducers();
 		serviceOwned = false;
 		closeServiceLog();
 		if (quitting) return;
@@ -943,6 +1090,7 @@ function startServeOnce(cmd: ServeCommand): boolean {
 				if (quitting) return;
 				if (ready) {
 					serveRestarts = 0;
+					void startPrivateProducers().then(() => { if (mainWindow && !mainWindow.isDestroyed()) void mainWindow.loadURL(webUiUrl); }).catch(error => writeDesktopLog(`Private producer discovery: ${String(error)}`));
 					writeDesktopLog("Zeta service restarted and is ready.");
 				} else {
 					showServiceFailure("The Zeta service did not become ready after a restart.");
@@ -1028,17 +1176,21 @@ function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
 		// (minimize / maximize / close) so the chrome looks identical on
 		// Windows, macOS and Linux.
 		frame: false,
-		title: "Zeta",
+		title: "Z Work Studio",
 		icon: iconPath(),
 		backgroundColor: "#102c31",
 		webPreferences: {
 			contextIsolation: true,
 			sandbox: true,
+			nodeIntegration: false,
 			preload: path.join(__dirname, "preload.js"),
 		},
 	});
+	trustedPreloadContents.add(win.webContents);
 
 	if (!win.isDestroyed()) void win.loadURL(webUiUrl).catch(() => {});
+	let closeAllowed = false;
+	let closePending = false;
 	win.on("close", event => {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
@@ -1048,6 +1200,14 @@ function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
 			event.preventDefault();
 			win.hide();
 			saveWorkspaceState();
+			return;
+		}
+		if (!quitting && !closeAllowed && fileViewer?.hasDirty()) {
+			event.preventDefault();
+			if (!closePending) {
+				closePending = true;
+				void fileViewer.requestClose().then(allow => { closeAllowed = allow; if (allow && !win.isDestroyed()) win.close(); }).finally(() => { closePending = false; });
+			}
 			return;
 		}
 		mainWindow = null;
@@ -1064,18 +1224,24 @@ function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
 	win.on("unmaximize", () => pushWindowState(win));
 	win.on("enter-full-screen", () => pushWindowState(win));
 	win.on("leave-full-screen", () => pushWindowState(win));
-	// window.open / target=_blank (OAuth provider logins, external links) must
-	// never spawn an embedded Electron BrowserWindow with its own isolated
-	// cookie jar: hand http(s) targets to the system default browser — the
-	// same shell the CLI login opens — and deny every other scheme.
-	win.webContents.setWindowOpenHandler(({ url }) => {
-		try {
-			const { protocol } = new URL(url);
-			if (protocol === "http:" || protocol === "https:") void shell.openExternal(url);
-		} catch {
-			// Unparseable opener target — nothing to hand off; deny below.
-		}
-		return { action: "deny" };
+	const computerContentsId = win.webContents.id;
+	const releaseObservation = () => { browserObservation?.disposeWindow(computerContentsId); prediction?.disposeWindow(computerContentsId); computerViews?.releaseWindow(computerContentsId); };
+	win.on("closed", releaseObservation);
+	win.on("hide", releaseObservation);
+	win.on("minimize", releaseObservation);
+	floatingWindows?.dispose();
+	floatingWindows = registerFloatingWindows({
+		parent: win, ipcMain, allowedOrigin: webUiUrl, preloadPath: path.join(__dirname, "preload.js"),
+		areas: () => screen.getAllDisplays().map(display => display.workArea),
+		onWindow: child => trustedPreloadContents.add(child.webContents),
+		isQuitting: () => quitting,
+		openExternal: url => { void shell.openExternal(url); },
+		onVisibility: child => { if (!child.isVisible() || child.isMinimized()) { browserObservation?.disposeWindow(child.webContents.id); prediction?.disposeWindow(child.webContents.id); computerViews?.releaseWindow(child.webContents.id); } },
+		onClosed: contents => { browserObservation?.disposeWindow(contents.id); prediction?.disposeWindow(contents.id); computerViews?.releaseWindow(contents.id); },
+		onWillClose: child => { browserObservation?.disposeWindow(child.webContents.id); prediction?.disposeWindow(child.webContents.id); computerViews?.releaseWindow(child.webContents.id); managedBrowser?.detachWindow(child); },
+	});
+	win.webContents.on("will-navigate", (event, url) => {
+		if (!isTrustedRendererUrl(url, webUiUrl)) event.preventDefault();
 	});
 	win.webContents.on("console-message", details => {
 		writeDesktopLog(`Renderer console [${details.level}] ${details.sourceId}:${details.lineNumber} ${details.message}`);
@@ -1083,6 +1249,7 @@ function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
 	win.webContents.once("did-finish-load", () => {
 		writeDesktopLog("Renderer finished loading the Web UI.");
 		pushWindowState(win);
+		memoryCredentials?.refresh();
 	});
 	win.webContents.on("did-fail-load", (_event, code, desc, validatedUrl, isMainFrame) => {
 		writeDesktopLog(`Renderer load failure: code=${code} url=${validatedUrl} detail=${desc}`);
@@ -1426,7 +1593,20 @@ function showAboutDialog(): void {
 		type: "info",
 		title: "About Zeta",
 		message: `Zeta ${app.getVersion()}`,
-		detail: `Zeta coding agent desktop\n\nElectron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}\n\nThird-party license texts are available from Help → Third-Party Notices.`,
+		detail: [
+			"Zeta coding agent desktop",
+			"",
+			`Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}`,
+			"",
+			"Built on upstream projects (MIT unless noted):",
+			"· OMP — https://github.com/can1357/oh-my-pi",
+			"· OMP Studio — https://github.com/the-snowpear/omp-studio",
+			"· TermIDE — https://github.com/termide/termide",
+			"Semantic-port sources credited: Pi — https://github.com/earendil-works/pi",
+			"· Pi Web — https://github.com/agegr/pi-web · OMP Web (frozen) — https://github.com/17380936778/omp-web",
+			"",
+			"Third-party license texts are available from Help → Third-Party Notices.",
+		].join("\n"),
 		buttons: ["OK"],
 	});
 }
@@ -1563,6 +1743,7 @@ async function boot(): Promise<void> {
 	}
 
 	await ensureDefaultWorkspace();
+	await startPrivateProducers();
 	writeDesktopLog("Service is ready.");
 
 	const prefs = await readTrayPrefs();
@@ -1634,9 +1815,11 @@ function handleLaunchArguments(argv: readonly string[]): void {
 // the scheme must be privileged before app ready so fetch/CORS work.
 protocol.registerSchemesAsPrivileged([
 	{ scheme: "zeta-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+	{ scheme: "zeta-file", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
+	{ scheme: "zeta-graphics", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
-app.setName("Zeta");
+app.setName("Z Work Studio");
 app.setAppUserModelId("com.zeta.desktop");
 
 app.requestSingleInstanceLock();
@@ -1661,17 +1844,42 @@ if (!app.hasSingleInstanceLock()) {
 	});
 
 	app.whenReady()
-		.then(() => {
+		.then(async () => {
 			// `zeta://` links open this shell. Packaged builds own the protocol
 			// registration (electron-builder `protocols`); dev registers Electron.
 			if (app.isPackaged) app.setAsDefaultProtocolClient("zeta");
 			else app.setAsDefaultProtocolClient("zeta", process.execPath, [path.resolve(process.argv[1] ?? "")]);
 			remoteBridge = registerRemoteBridge({ userData: app.getPath("userData"), log: writeDesktopLog });
-			terminalBridge = registerTerminalBridge({
-				userData: app.getPath("userData"),
-				localBase: () => webUiUrl,
-				remoteBase: id => remoteBridge?.baseUrl(id),
+			memoryCredentials = registerMemoryCredentialIpc({
+				ipc: ipcMain, trusted: isTrustedDesktopSender, connection: hostConnection,
+				activeTarget: () => remoteBridge?.inventory().activeId ?? null,
+				connectedTargets: () => [null, ...(remoteBridge?.inventory().statuses.filter(status => status.state === "connected").map(status => status.id) ?? [])],
+				store: new MemoryCredentialStore(path.join(app.getPath("userData"), "hindsight-credentials.enc"), {
+					available: async () => await safeStorage.isAsyncEncryptionAvailable() && (process.platform !== "linux" || safeStorage.getSelectedStorageBackend() !== "basic_text"),
+					encrypt: value => safeStorage.encryptStringAsync(value), decrypt: async value => (await safeStorage.decryptStringAsync(value)).result,
+				}),
 			});
+			terminalBridge = registerTerminalBridge({
+				ipc: ipcMain,
+				async pickExport(name) { const result = await dialog.showSaveDialog({ title: "Export terminal recording", defaultPath: name, filters: [{ name: "Zeta terminal recording", extensions: ["studiocast", "zetacast"] }] }); return result.canceled ? undefined : result.filePath; },
+				userData: app.getPath("userData"),
+				connection: hostConnection,
+				isTrustedSender: isTrustedDesktopSender,
+			});
+			fileResources = new FileResources(hostConnection);
+			fileViewer = registerFileViewerIpc({
+				ipc: ipcMain, resources: fileResources, trusted: isTrustedDesktopSender,
+				async pickExport(name) { const result = await dialog.showSaveDialog({ defaultPath: name }); return result.canceled ? undefined : result.filePath; },
+				show(owner) { const contents = webContents.fromId(owner); const window = contents ? BrowserWindow.fromWebContents(contents) : null; if (window && !window.isDestroyed()) { window.show(); window.focus(); } },
+			});
+			session.defaultSession.webRequest.onBeforeRequest({ urls: ["zeta-file://*/*"] }, (details, callback) => {
+				const sender = details.webContentsId !== undefined && details.webContentsId > 0 ? webContents.fromId(details.webContentsId) : undefined;
+				callback({ cancel: !sender || !isTrustedDesktopSender(sender) || !fileViewer?.allowsRequest(details.url, sender, details.frame, details.resourceType) });
+			});
+			protocol.handle("zeta-file", request => fileResources!.response(request, new URL(webUiUrl).origin));
+			protocol.handle("zeta-graphics", request => graphicAssetResponse(request, { base: webUiUrl, fetch: session.defaultSession.fetch.bind(session.defaultSession) as typeof fetch }));
+			registerChromeMedia({ root: app.getPath("userData"), trusted: isTrustedDesktopSender });
+			await installPerfProfiles({ root: app.getPath("userData"), trusted: isTrustedPreloadSender, log: writeDesktopLog });
 			protocol.handle("zeta-artifact", request => {
 				const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ""));
 				const file = terminalBridge?.artifactPath(name);
@@ -1687,11 +1895,35 @@ if (!app.hasSingleInstanceLock()) {
 			showServiceFailure(`The desktop shell could not start: ${err instanceof Error ? err.message : String(err)}`);
 		});
 
-	app.on("before-quit", () => {
+	let quitAllowed = false;
+	let quitPending = false;
+	app.on("before-quit", event => {
+		if (!quitAllowed && fileViewer?.hasDirty()) {
+			event.preventDefault();
+			if (!quitPending) {
+				quitPending = true;
+				void fileViewer.requestClose().then(allow => { quitAllowed = allow; if (allow) app.quit(); }).finally(() => { quitPending = false; });
+			}
+			return;
+		}
 		quitting = true;
 		clearInterval(memoryHeartbeat);
 		memoryHeartbeat = undefined;
 		void remoteBridge?.dispose();
+		terminalBridge?.shutdown();
+		memoryCredentials?.dispose();
+		memoryCredentials = null;
+		stopPrivateProducers();
+		managedBrowserIpc?.dispose();
+		managedBrowserIpc = null;
+		void managedBrowser?.dispose();
+		managedBrowser = null;
+		managedBrowserRelay = null;
+		floatingWindows?.dispose();
+		floatingWindows = null;
+		fileViewer?.dispose();
+		fileViewer = null;
+		fileResources = null;
 		terminalBridge = null;
 		stopSessionMonitor();
 		if (mainWindow && !mainWindow.isDestroyed()) captureCurrentBounds(mainWindow);

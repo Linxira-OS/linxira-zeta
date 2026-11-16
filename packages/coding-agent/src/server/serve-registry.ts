@@ -28,6 +28,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getBaseConfigRoot } from "@linxiraos/pi-utils";
 import { SERVE_IDENTITY_PATH, type ServeIdentity } from "./web-gateway/identity";
+import type { StudioPrivateResources } from "./studio-host/private-resources.js";
 
 /** Env override for the registry file (tests, portable installs). */
 export const SERVE_REGISTRY_ENV = "ZETA_SERVE_REGISTRY";
@@ -98,6 +99,7 @@ export interface ServeRegistration {
 	 * issues; the file is 0600 inside the user's private config root.
 	 */
 	desktopOpenSecret?: string;
+	studioPrivate?: StudioPrivateResources;
 }
 
 /** Where the registry lives unless `ZETA_SERVE_REGISTRY` overrides it. */
@@ -161,6 +163,10 @@ export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 	if (typeof pid !== "number" || !Number.isSafeInteger(pid) || pid <= 0) return null;
 	if (typeof record.webUrl !== "string" || record.webUrl.length === 0) return null;
 	if (typeof record.version !== "string" || record.version.length === 0) return null;
+	const privateRecord = record.studioPrivate;
+	const studioPrivate = privateRecord && typeof privateRecord === "object" && "schema" in privateRecord && privateRecord.schema === 1 && "mediaDirectory" in privateRecord && typeof privateRecord.mediaDirectory === "string" && path.isAbsolute(privateRecord.mediaDirectory) && "socketDirectory" in privateRecord && typeof privateRecord.socketDirectory === "string" && path.isAbsolute(privateRecord.socketDirectory)
+		? { schema: 1 as const, mediaDirectory: privateRecord.mediaDirectory, socketDirectory: privateRecord.socketDirectory }
+		: undefined;
 	return {
 		pid,
 		webUrl: record.webUrl,
@@ -173,6 +179,7 @@ export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 			typeof record.desktopOpenSecret === "string" && record.desktopOpenSecret.length > 0
 				? record.desktopOpenSecret
 				: undefined,
+		...(studioPrivate ? { studioPrivate } : {}),
 	};
 }
 

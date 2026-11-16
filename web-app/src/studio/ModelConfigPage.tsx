@@ -1,75 +1,31 @@
-import { ModelParameterEditor } from "./models/ModelParameterEditor";
-import { createModelParameterDraft, effectiveModelParameters, effectiveParameterSources, modelParameterDraftError, type ModelParameterDraft } from "./models/modelParameterDraft";
+import type { WorkspaceId } from "@linxiraos/studio-contract";
 import { ModelsConfigImportDialog } from "./models/ModelsConfigImportDialog";
-import { previewModelAdaptation } from "./preview/modelAdaptationPreview";
-import { thinkingForRoleModel, sameModelParameter, modelParameterValues } from "@linxiraos/studio-contract";
+import { useProviderDiscovery } from "./models/config/useProviderDiscovery";
+import "./styles/models-roles.css";
+import { useListReorder } from "./models/useListReorder";
 import { AppSelect } from "./AppSelect";
-import { AgentPoolsPane } from "./models/AgentPoolsPane";
+import { SlidingTabs } from "./SlidingTabs";
 import { ModelCompactionPane } from "./models/ModelCompactionPane";
 import { ModelPresetsPane } from "./models/ModelPresetsPane";
 import { SessionOptionsPane } from "./models/SessionOptionsPane";
-
 import { AccountStatusPane } from "./models/AccountStatusPane";
 import { loadRuntimeModels } from "./models/runtimeModels";
 import { RuntimeCredentials, VisionModelStatus } from "./models/RuntimeCredentials";
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, CSSProperties } from "react";
-import type {
-  ClientBootstrap,
-  AvailableModelRecord,
-  CommandName,
-  ConfigWriteResult,
-  ModelAuthType,
-  ModelCatalogEntry,
-  ModelConfigReadModel,
-  ModelCostMeta,
-  ModelDiscoveryResult,
-  ModelFallbackRevertPolicy,
-  ModelOverridePatch,
-  ModelPresetItem,
-  ModelProviderProbeInput,
-  ModelProviderRecord,
-  ModelProviderRemoteCompaction,
-  ModelProviderTestResult,
-  ModelProviderUpsertInput,
-  ModelRoleRecord,
-  ModelRoleStorage,
-  StudioClient,
-  WorkspaceId,
-} from "@linxiraos/studio-contract";
-import {
-  modelAcceptsRole,
-  clampRoleThinking,
-  isModelEnvConfigName,
-  roleThinkingControl,
-  resolveModelPrice,
-} from "@linxiraos/studio-contract";
+import type { FormEvent, CSSProperties } from "react";
+import type { ClientBootstrap, AvailableModelRecord, ConfigWriteResult, ModelConfigReadModel, ModelDiscoveryResult, ModelFallbackRevertPolicy, ModelProviderRecord, ModelRoleRecord, ModelRoleStorage, StudioClient } from "@linxiraos/studio-contract";
+import { modelAcceptsRole, isModelEnvConfigName } from "@linxiraos/studio-contract"
 import { Brand, hasBrand } from "./brands";
 import { Icon } from "./icons";
 import { useI18n } from "./i18n";
 import { ToastHost } from "./ToastHost";
 import { hostErrorMessage, waitReceipt } from "./hostError";
-import { pagePhaseClass, useDeferredKey, useDeferredPresence, useOverlayPresence } from "./pageTransition";
+import { pageDir, pagePhaseClass, useDeferredKey, useDeferredPresence, useOverlayPresence } from "./pageTransition";
 import { extractYamlMapEntry, mergeYamlMapEntry, parseStructured, readYamlMapEntryNode, StructuredEditor } from "./structured-editor";
 import { usePreviewMode } from "./preview/PreviewContext";
-import {
-  MODEL_API_TYPES,
-  MODEL_AUTH_TYPES,
-  MODEL_THINKING,
-  createPreviewFetchedModels,
-  createPreviewModelConfig,
-} from "./preview/modelConfigFixtures";
-import {
-  candidatesToEntries,
-  chooseFetchedModelCandidate,
-  type FetchedModelCandidate,
-  mergeImportedModels,
-  pickedCount,
-  setAllPicked,
-  toCandidates,
-  togglePicked,
-} from "./models/fetchedModels";
+import { MODEL_API_TYPES, MODEL_AUTH_TYPES, createPreviewModelConfig } from "./preview/modelConfigFixtures";
+import { chooseFetchedModelCandidate, pickedCount, setAllPicked, togglePicked } from "./models/fetchedModels";
 import { draftProviderYamlNode, nestedProviderYamlNode, serializeModelsYmlNode } from "./models/providerYaml";
 import { SubagentsPanel } from "./SubagentsPanel";
 import { WebSearchPanel } from "./models/WebSearchPanel";
@@ -85,16 +41,25 @@ import {
   purposeCategoryCards,
 } from "./models/purposeCategories";
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
+import { takeModelConfigIntent as takeIntent, type McTab } from "./pageIntents";
+import { setModelConfigDirty } from "./models/modelConfigState";
+import { ROLE_ICONS, ROLE_TINTS, groupModelsByProvider, fmtK } from "./models/modelPresentation";
+import { type Draft, type ModelEditState, type ModelRoleDraft, type ModelsTab, type TestResultView } from "./models/config/types";
+import { mergeProviderOrder, permuteVisible, readProviderOrder, sameOrder, sortProviders, writeProviderOrder } from "./models/config/providerOrder";
+import { applyRoleSelector, assignedRoleIds, blankCustomForm, blankDraft, blankOverrideForm, draftFromPreset, draftFromProvider, draftsEqual, editorTestSecret, previewProviderFromDraft, providerUpsertFromDraft, readModelRoles, roleAssignDiff, roleAssignModCount, rolePrimaryUpdates, roleSelector, roleThinkingUi, rolesEqual, sameStringList, withPreviewLogin, withRoleModel, withRolePrimaryUpdates } from "./models/config/drafts";
+import { SOURCE_GROUP, STATUS_META, formatProviderStatusDetail, formatRoleDesc } from "./models/config/presentation";
+import { runProbe, runTest, runWrite } from "./models/config/commands";
+import { AuthTypeSelect, BrandMark, DiscoveryResultBlock, ModelCaps, ProviderTestRow, confirmDiscardDirty } from "./models/config/ProviderControls";
+import { RoleAssignControl, RoleModelPicker, RoleThinkingSeg } from "./models/config/RoleControls";
+import { ModelParametersDialog } from "./models/config/ModelParametersDialog";
 
-export const MC_INTENT_KEY = "zeta.modelConfigIntent";
-const PROVIDER_ORDER_KEY = "zeta.providerDisplayOrder";
+export { MC_INTENT_KEY, setModelConfigIntent, type McTab } from "./pageIntents";
 
-type I18nT = ReturnType<typeof useI18n>["t"];
+export { modelConfigHasUnsavedChanges } from "./models/modelConfigState";
 
-export type McTab = "providers" | "visibility" | "roles" | "subagents" | "websearch" | "presets" | "accounts" | "benchmark";
+export { ModelPickCaps, ProviderGlyph, ROLE_ICONS, ROLE_TINTS, groupModelsByProvider, type ModelPickItem } from "./models/modelPresentation";
 
-type McIntent = { tab?: McTab; edit?: string; role?: string; assign?: string; agent?: string };
-
+/* Written in tab-strip order: a tab swap travels the way the strip reads. */
 const TAB_BUTTON_ID: Record<McTab, string> = {
   providers: "mcTabProviders",
   visibility: "mcTabVisibility",
@@ -103,1713 +68,10 @@ const TAB_BUTTON_ID: Record<McTab, string> = {
   websearch: "mcTabWebSearch",
   presets: "mcTabPresets",
   accounts: "mcTabAccounts",
-  benchmark: "mcTabBenchmark",
 };
+const mcTabRank = (tab: McTab): number => Object.keys(TAB_BUTTON_ID).indexOf(tab);
 
-const STATUS_META: Record<string, { label: string; chip: string; dot: string }> = {
-  available: { label: "Available", chip: "green", dot: "green" },
-  "not-authenticated": { label: "Not Authenticated", chip: "amber", dot: "amber" },
-  disabled: { label: "Disabled", chip: "gray", dot: "" },
-  offline: { label: "Offline", chip: "red", dot: "red" },
-  "auth-expired": { label: "Authentication Expired", chip: "amber", dot: "amber" },
-  "config-error": { label: "Configuration Error", chip: "red", dot: "red" },
-  "connection-failed": { label: "Connection Failed", chip: "red", dot: "red" },
-};
-
-// 原生 = OMP 内置/运行时解析；第三方 = 用户自定义/扩展。
-const SOURCE_GROUP = (source: string): "native" | "third" =>
-  source === "builtin" || source === "runtime" ? "native" : "third";
-
-/** Connection-test result bound to the surface that triggered it. */
-type TestResultView = ModelProviderTestResult & {
-  readonly source: "list" | "editor";
-  readonly providerId: string | undefined;
-};
-
-/**
- * Inline connection-test result inside a provider card. Mounts collapsed
- * (grid row 0fr) and expands one frame later, so the card stretches down
- * while the notice slides in from above.
- */
-function ProviderTestRow({ result }: { result: TestResultView }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setOpen(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return (
-    <div className={`pv-test-shell${open ? " open" : ""}`}>
-      <div className={`pv-test ${result.ok ? "ok" : "fail"}`} role="status">
-        <Icon name={result.ok ? "check" : "alert"} extra="sm" />
-        <div className="tr-lines">
-          <b>{result.ok ? t("modelConfig.connectSuccess") : t("modelConfig.connectFailed")}</b>
-          <span className="mono">{result.detail} · {result.latencyMs}ms</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export const ROLE_ICONS: Record<string, string> = {
-  default: "cpu", smol: "zap", slow: "brain", vision: "eye", plan: "layers",
-  designer: "sparkles", commit: "commit", tiny: "box", task: "bot", advisor: "user",
-  memory: "brain", image: "image", web: "globe", speech: "volume", dictation: "mic", judge: "check", widget: "layout",
-};
-
-/** 角色列表卡片的主题色（与 models-roles.css 的 .role-row[data-tint] 对应）。 */
-export const ROLE_TINTS: Record<string, string> = {
-  default: "purple", smol: "green", slow: "blue", vision: "violet", plan: "teal",
-  designer: "pink", commit: "cyan", tiny: "lime", task: "orange", advisor: "indigo", widget: "green",
-};
-
-export function setModelConfigIntent(intent: McIntent): void {
-  try {
-    sessionStorage.setItem(MC_INTENT_KEY, JSON.stringify(intent));
-  } catch {
-    /* ignore */
-  }
-}
-
-let modelConfigDirty = false;
-export function modelConfigHasUnsavedChanges(): boolean {
-  return modelConfigDirty;
-}
-
-function confirmDiscardDirty(t: I18nT): boolean {
-  return window.confirm(t("modelConfig.discardDirtyConfirm"));
-}
-
-function DiscoveryResultBlock({ result }: { result: ModelDiscoveryResult }) {
-  const { t } = useI18n();
-  return (
-    <div className={`test-result ${result.ok ? "ok" : "fail"}`} role="status" style={{ marginTop: 10 }}>
-      <Icon name={result.ok ? "check" : "alert"} extra="sm" />
-      <div className="tr-lines">
-        <b>{result.ok ? t("modelConfig.probeSuccess", { found: result.found, usable: result.usable }) : t("modelConfig.probeFailed")}</b>
-        <span className="mono">{result.detail} · {result.latencyMs}ms</span>
-        {result.models.length > 0 ? (
-          <span className="mono">{result.models.slice(0, 12).map((model) => model.id).join(" · ")}{result.models.length > 12 ? ` · +${result.models.length - 12}` : ""}</span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function takeIntent(): McIntent | null {
-  try {
-    const raw = sessionStorage.getItem(MC_INTENT_KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(MC_INTENT_KEY);
-    return JSON.parse(raw) as McIntent;
-  } catch {
-    return null;
-  }
-}
-
-function readProviderOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(PROVIDER_ORDER_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== "string")) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-function writeProviderOrder(order: ReadonlyArray<string>): void {
-  try {
-    localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(order));
-  } catch {
-    /* localStorage may be blocked; UI order stays in-memory. */
-  }
-}
-
-function sameOrder(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
-}
-
-function mergeProviderOrder(ids: ReadonlyArray<string>, saved: ReadonlyArray<string>): string[] {
-  const known = new Set(ids);
-  const fromSaved = saved.filter((id) => known.has(id));
-  const seen = new Set(fromSaved);
-  return [...fromSaved, ...ids.filter((id) => !seen.has(id))];
-}
-
-function sortProviders(
-  providers: ReadonlyArray<ModelProviderRecord>,
-  order: ReadonlyArray<string>,
-): ModelProviderRecord[] {
-  const rank = new Map(order.map((id, index) => [id, index]));
-  return providers
-    .map((provider, index) => ({ provider, index }))
-    .sort((a, b) => {
-      const ai = rank.get(a.provider.id) ?? Number.POSITIVE_INFINITY;
-      const bi = rank.get(b.provider.id) ?? Number.POSITIVE_INFINITY;
-      if (ai !== bi) return ai - bi;
-      return a.index - b.index;
-    })
-    .map((item) => item.provider);
-}
-
-export type ModelPickItem = {
-  readonly execution?: import("@linxiraos/studio-contract").ModelExecutionMetadata;
-  readonly provider: string;
-  readonly id: string;
-  readonly selector: string;
-  readonly name: string;
-  readonly reasoning: boolean;
-  readonly image: boolean;
-  readonly tools: boolean;
-  readonly contextWindow?: number;
-};
-
-type ModelPickGroup = {
-  readonly providerId: string;
-  readonly providerName: string;
-  readonly local: boolean;
-  readonly models: ReadonlyArray<ModelPickItem>;
-};
-
-function toPickItem(model: AvailableModelRecord, entry?: ModelCatalogEntry): ModelPickItem {
-  const contextWindow = entry?.contextWindow ?? model.contextWindow;
-  return {
-    execution: { ...model, ...entry },
-    provider: model.provider,
-    id: model.id,
-    selector: model.selector,
-    name: entry?.name || model.name,
-    reasoning: entry?.reasoning ?? model.reasoning,
-    image: entry?.image ?? model.image === true,
-    tools: entry?.tools ?? model.tools !== false,
-    ...(contextWindow === undefined ? {} : { contextWindow }),
-  };
-}
-
-export function groupModelsByProvider(
-  models: ReadonlyArray<AvailableModelRecord>,
-  providers: ReadonlyArray<ModelProviderRecord>,
-): ModelPickGroup[] {
-  const buckets = new Map<string, AvailableModelRecord[]>();
-  for (const model of models) {
-    const list = buckets.get(model.provider);
-    if (list) list.push(model);
-    else buckets.set(model.provider, [model]);
-  }
-  const groups: ModelPickGroup[] = [];
-  for (const provider of providers) {
-    const items = buckets.get(provider.id);
-    if (!items?.length) continue;
-    const bySelector = new Map(provider.models.map((entry) => [entry.selector, entry]));
-    const byId = new Map(provider.models.map((entry) => [entry.id, entry]));
-    groups.push({
-      providerId: provider.id,
-      providerName: provider.name,
-      local: provider.local,
-      models: items.map((item) => {
-        const entry = bySelector.get(item.selector) ?? byId.get(item.id);
-        return entry ? toPickItem(item, entry) : toPickItem(item);
-      }),
-    });
-    buckets.delete(provider.id);
-  }
-  for (const [providerId, items] of buckets) {
-    groups.push({ providerId, providerName: providerId, local: false, models: items.map((item) => toPickItem(item)) });
-  }
-  return groups;
-}
-
-function flattenModelGroups(
-  groups: ReadonlyArray<ModelPickGroup>,
-  orphan?: string,
-): ModelPickItem[] {
-  const items = groups.flatMap((group) => group.models);
-  if (orphan && !items.some((item) => item.selector === orphan)) {
-    return [{ provider: "", id: orphan, selector: orphan, name: orphan, reasoning: false, image: false, tools: false }, ...items];
-  }
-  return items;
-}
-
-export function ModelPickCaps({ model }: { model: ModelPickItem }) {
-  const { t, resolvedLanguage } = useI18n();
-  const metadata = model.execution;
-  const modelInfo = [t("modelConfig.tipContext"), metadata?.serviceTiers ? `${resolvedLanguage === "zh" ? "公布的服务档位" : "Advertised service tiers"}: ${metadata.serviceTiers.join(", ") || "—"}` : "", metadata?.promptCache ? `${resolvedLanguage === "zh" ? "缓存时长（秒）" : "Cache lifetime (seconds)"}: ${Object.entries(metadata.promptCache).map(([tier, seconds]) => `${tier} ${seconds}`).join(", ") || "—"}` : ""].filter(Boolean).join("\n");
-  return (
-    <span className="rms-option-caps">
-      {model.reasoning ? <span className="chip purple xs chip-icon" data-tip={t("modelConfig.tipThinking")}><Icon name="brain" extra="sm" /></span> : null}
-      {model.image ? <span className="chip blue xs chip-icon" data-tip={t("modelConfig.tipMultimodal")}><Icon name="image" extra="sm" /></span> : null}
-      {model.tools ? <span className="chip gray xs chip-icon" data-tip={t("modelConfig.tipTools")}><Icon name="wrench" extra="sm" /></span> : null}
-      <span className="chip gray xs" data-tip={modelInfo}>{fmtK(model.contextWindow)}</span>
-    </span>
-  );
-}
-
-const PROVIDER_CARD_GAP = 10;
-const PROVIDER_DRAG_SETTLE_MS = 250;
-
-type DragCard = {
-  id: string;
-  el: HTMLElement;
-  relTop: number;
-  height: number;
-};
-
-function permuteVisible(
-  full: ReadonlyArray<string>,
-  visible: ReadonlyArray<string>,
-  nextVisible: ReadonlyArray<string>,
-): string[] {
-  const known = new Set(visible);
-  const queue = nextVisible.slice();
-  return full.map((id) => (known.has(id) ? queue.shift() ?? id : id));
-}
-
-function siblingShift(index: number, origin: number, over: number, slot: number): number {
-  if (origin < over && index > origin && index <= over) return -slot;
-  if (origin > over && index >= over && index < origin) return slot;
-  return 0;
-}
-
-function insertionIndex(items: ReadonlyArray<DragCard>, visualCenterRel: number): number {
-  if (items.length === 0) return 0;
-  for (let index = 0; index < items.length - 1; index++) {
-    const current = items[index];
-    const next = items[index + 1];
-    if (!current || !next) continue;
-    const boundary = (current.relTop + current.height / 2 + next.relTop + next.height / 2) / 2;
-    if (visualCenterRel < boundary) return index;
-  }
-  return items.length - 1;
-}
-
-function destinationTranslateY(items: ReadonlyArray<DragCard>, originIndex: number, overIndex: number): number {
-  const dragged = items[originIndex];
-  if (!dragged) return 0;
-  const visible = items.map((item) => item.id);
-  const nextVisible = visible.slice();
-  const [moved] = nextVisible.splice(originIndex, 1);
-  if (!moved) return 0;
-  nextVisible.splice(overIndex, 0, moved);
-  const heightById = new Map(items.map((item) => [item.id, item.height]));
-  let top = items[0]?.relTop ?? 0;
-  for (const id of nextVisible) {
-    if (id === dragged.id) break;
-    top += (heightById.get(id) ?? 0) + PROVIDER_CARD_GAP;
-  }
-  return top - dragged.relTop;
-}
-
-function BrandMark({ id, local, status }: { id: string; local?: boolean; status?: string }) {
-  if (hasBrand(id)) {
-    return <span className="pv-brand"><Brand id={id} extra="lg" /></span>;
-  }
-  const tone = status === "available" ? "green" : status === "disabled" ? "purple" : "amber";
-  return <span className={`pv-fallback a-ic ${tone}`} aria-hidden="true"><Icon name={local ? "monitor" : "server"} extra="lg" /></span>;
-}
-
-export function ProviderGlyph({ id, local = false }: { id: string; local?: boolean }) {
-  if (id && hasBrand(id)) return <Brand id={id} extra="sm" />;
-  return <Icon name={local ? "monitor" : "server"} extra="sm" />;
-}
-
-function fmtK(n?: number): string {
-  if (!n) return "—";
-  if (n >= 1000) return `${Math.round(n / 1000)}k`;
-  return String(n);
-}
-
-function thinkingMenuAnchor(btn: HTMLElement, menu?: HTMLElement | null): { top: number; left: number; width: number } {
-  const rect = btn.getBoundingClientRect();
-  const width = Math.max(rect.width, menu?.offsetWidth ?? 0);
-  const height = menu?.offsetHeight ?? 220;
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-  let top = rect.bottom + 4;
-  if (top + height > window.innerHeight - 8) {
-    top = Math.max(8, rect.top - height - 4);
-  }
-  return { top, left, width };
-}
-
-function AuthTypeSelect({
-  value,
-  onChange,
-}: {
-  value: ModelAuthType;
-  onChange: (next: ModelAuthType) => void;
-}) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ top: 0, left: 0, width: 280 });
-  const { t } = useI18n();
-  const selected = MODEL_AUTH_TYPES.find((item) => item.id === value) ?? MODEL_AUTH_TYPES[1];
-
-  useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
-    const next = thinkingMenuAnchor(btnRef.current, menuRef.current);
-    setAnchor({ ...next, width: Math.max(next.width, 280) });
-  }, [open, value]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setOpen(false);
-      }
-    };
-    const onDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (btnRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onDown);
-    };
-  }, [open]);
-
-  const pick = (id: ModelAuthType) => {
-    onChange(id);
-    setOpen(false);
-  };
-
-  return (
-    <div className="mc-select" style={{ maxWidth: 280 }}>
-      <button
-        ref={btnRef}
-        type="button"
-        className={`select mc-select-btn${open ? " is-open" : ""}`}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={t("modelConfig.authType")}
-        onMouseDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (open) {
-            setOpen(false);
-            return;
-          }
-          if (btnRef.current) {
-            const next = thinkingMenuAnchor(btnRef.current);
-            setAnchor({ ...next, width: Math.max(next.width, 280) });
-          }
-          setOpen(true);
-        }}
-      >
-        <span>{selected?.label ?? value}</span>
-        <Icon name={open ? "chevron-u" : "chevron-d"} extra="sm" />
-      </button>
-      {open
-        ? createPortal(
-            <div
-              ref={menuRef}
-              className="menu mc-select-menu"
-              role="listbox"
-              aria-label={t("modelConfig.authType")}
-              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
-              onMouseDown={(event) => event.stopPropagation()}
-            >
-              {MODEL_AUTH_TYPES.map((item) => {
-                const on = item.id === value;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    aria-selected={on}
-                    className={`menu-item mc-select-option${on ? " is-on" : ""}`}
-                    onClick={() => pick(item.id)}
-                  >
-                    <span className="mc-select-copy">
-                      <b>{item.label}</b>
-                      <span>{item.hint}</span>
-                    </span>
-                    {on ? <Icon name="check" extra="sm" /> : null}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
-  );
-}
-
-type DraftOverride = { -readonly [K in keyof ModelOverridePatch]?: ModelOverridePatch[K] };
-
-type Draft = {
-  id: string;
-  name: string;
-  website: string;
-  note: string;
-  api: string;
-  endpointUrl: string;
-  local: boolean;
-  enabled: boolean;
-  authType: ModelAuthType;
-  apiKey: string;
-  envName: string;
-  command: string;
-  discoveryType: string;
-  advertisedReasoning?: boolean;
-  discoveryTimeoutMs?: number;
-  headersText: string;
-  disableStrictTools: boolean;
-  transport: "" | "pi-native";
-  remoteCompactionEnabled: boolean;
-  remoteCompactionEndpoint: string;
-  remoteCompactionModel: string;
-  models: ModelCatalogEntry[];
-  modelOverrides: Record<string, DraftOverride>;
-};
-
-type ModelsTab = "catalog" | "discovery" | "custom";
-
-type ModelEditState =
-  | { kind: "override"; modelId: string; draft: DraftOverrideForm; providerId?: string }
-  | { kind: "custom"; index: number; draft: CustomModelForm; providerId?: string }
-  | { kind: "add"; draft: CustomModelForm; providerId?: string };
-
-function updateModelParameterDraft(current: ModelEditState | null, update: (draft: ModelParameterDraft) => ModelParameterDraft): ModelEditState | null {
-  if (!current) return null;
-  const parameters = update(current.draft.parameters);
-  if (current.kind === "override") return { ...current, draft: { ...current.draft, parameters } };
-  return { ...current, draft: { ...current.draft, parameters } };
-}
-
-type DraftOverrideForm = {
-  parameters: ModelParameterDraft;
-  bedrockMessagesApi: "" | "true" | "false";
-  requiresThinkingPresence: "" | "true" | "false";
-  extendedCacheTtlBeta: "" | "true" | "false";
-  name: string;
-  tools: "" | "true" | "false";
-  image: "" | "true" | "false";
-  costIn: string;
-  costOut: string;
-  costCacheR: string;
-  costCacheW: string;
-  omitMaxOutputTokens: "" | "true" | "false";
-  premiumMultiplier: string;
-  imageCountBudget: string;
-  headersText: string;
-  contextPromotionTarget: string;
-  compactionModel: string;
-  rcEnabled: "" | "true" | "false";
-  rcEndpoint: string;
-  rcModel: string;
-};
-
-type CustomModelForm = {
-  parameters: ModelParameterDraft;
-  bedrockMessagesApi: "" | "true" | "false";
-  requiresThinkingPresence: "" | "true" | "false";
-  extendedCacheTtlBeta: "" | "true" | "false";
-  id: string;
-  name: string;
-  api: string;
-  tools: boolean;
-  image: boolean;
-  costIn: string;
-  costOut: string;
-  costCacheR: string;
-  costCacheW: string;
-  omitMaxOutputTokens: boolean;
-  premiumMultiplier: string;
-  imageCountBudget: string;
-  headersText: string;
-  contextPromotionTarget: string;
-  compactionModel: string;
-  baseUrl: string;
-  rcEnabled: boolean;
-  rcEndpoint: string;
-  rcModel: string;
-};
-
-function headersTextFrom(headers?: Readonly<Record<string, string>>): string {
-  return Object.entries(headers ?? {}).map(([key, value]) => `${key}: ${value}`).join("\n");
-}
-
-function costFromFields(costIn: string, costOut: string, cacheRead: string, cacheWrite: string): ModelCostMeta | undefined {
-  const input = parseOptionalNumber(costIn);
-  const output = parseOptionalNumber(costOut);
-  const read = parseOptionalNumber(cacheRead);
-  const write = parseOptionalNumber(cacheWrite);
-  if (input === undefined && output === undefined && read === undefined && write === undefined) return undefined;
-  return {
-    ...(input === undefined ? {} : { input }),
-    ...(output === undefined ? {} : { output }),
-    ...(read === undefined ? {} : { cacheRead: read }),
-    ...(write === undefined ? {} : { cacheWrite: write }),
-  };
-}
-
-function triState(value: "" | "true" | "false"): boolean | undefined {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return undefined;
-}
-
-function rcFromParts(
-  enabled: boolean | undefined,
-  endpoint: string,
-  model: string,
-): ModelProviderRemoteCompaction | undefined {
-  const ep = endpoint.trim();
-  const id = model.trim();
-  if (enabled === undefined && !ep && !id) return undefined;
-  return {
-    ...(enabled === undefined ? {} : { enabled }),
-    ...(ep ? { endpoint: ep } : {}),
-    ...(id ? { model: id } : {}),
-  };
-}
-
-function ModelCompatControl({ label, value, onChange }: { label: string; value: "" | "true" | "false"; onChange(value: "" | "true" | "false"): void }) {
-  const { t } = useI18n();
-  return <div className="field span2"><label>{label}</label><AppSelect className="select" aria-label={label} value={value} onChange={event => onChange(event.target.value as "" | "true" | "false")}><option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option></AppSelect></div>;
-}
-
-function BedrockMessagesControl({value,onChange}:{value:""|"true"|"false";onChange:(value:""|"true"|"false")=>void}) {
-  const {t}=useI18n();
-  return <div className="field span2"><label>Bedrock Messages API</label><AppSelect className="select" aria-label="Bedrock Messages API" value={value} onChange={event=>onChange(event.target.value as ""|"true"|"false")}><option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option></AppSelect><span className="desc">{t("modelConfig.bedrockMessagesDesc")}</span></div>;
-}
-
-function blankOverrideForm(from?: DraftOverride): DraftOverrideForm {
-  return {
-    parameters: createModelParameterDraft(from),
-    bedrockMessagesApi: from?.bedrockMessagesApi === undefined ? "" : from.bedrockMessagesApi ? "true" : "false",
-    requiresThinkingPresence: from?.requiresThinkingPresence === undefined ? "" : from.requiresThinkingPresence ? "true" : "false",
-    extendedCacheTtlBeta: from?.extendedCacheTtlBeta === undefined ? "" : from.extendedCacheTtlBeta ? "true" : "false",
-    name: from?.name ?? "",
-    tools: from?.tools === undefined ? "" : from.tools ? "true" : "false",
-    image: from?.image === undefined ? "" : from.image ? "true" : "false",
-    costIn: from?.cost?.input !== undefined ? String(from.cost.input) : "",
-    costOut: from?.cost?.output !== undefined ? String(from.cost.output) : "",
-    costCacheR: from?.cost?.cacheRead !== undefined ? String(from.cost.cacheRead) : "",
-    costCacheW: from?.cost?.cacheWrite !== undefined ? String(from.cost.cacheWrite) : "",
-    omitMaxOutputTokens: from?.omitMaxOutputTokens === undefined ? "" : from.omitMaxOutputTokens ? "true" : "false",
-    premiumMultiplier: from?.premiumMultiplier !== undefined ? String(from.premiumMultiplier) : "",
-    imageCountBudget: from?.imageCountBudget !== undefined ? String(from.imageCountBudget) : "",
-    headersText: headersTextFrom(from?.headers),
-    contextPromotionTarget: from?.contextPromotionTarget ?? "",
-    compactionModel: from?.compactionModel ?? "",
-    rcEnabled: from?.remoteCompaction?.enabled === undefined ? "" : from.remoteCompaction.enabled ? "true" : "false",
-    rcEndpoint: from?.remoteCompaction?.endpoint ?? "",
-    rcModel: from?.remoteCompaction?.model ?? "",
-  };
-}
-
-function blankCustomForm(from?: ModelCatalogEntry): CustomModelForm {
-  return {
-    parameters: createModelParameterDraft(from),
-    bedrockMessagesApi: from?.bedrockMessagesApi === undefined ? "" : from.bedrockMessagesApi ? "true" : "false",
-    requiresThinkingPresence: from?.requiresThinkingPresence === undefined ? "" : from.requiresThinkingPresence ? "true" : "false",
-    extendedCacheTtlBeta: from?.extendedCacheTtlBeta === undefined ? "" : from.extendedCacheTtlBeta ? "true" : "false",
-    id: from?.id ?? "",
-    name: from?.name ?? "",
-    api: from?.api ?? "inherit",
-    tools: from?.tools ?? true,
-    image: from?.image ?? false,
-    costIn: !from?.pricing && from?.cost?.input !== undefined ? String(from.cost.input) : "",
-    costOut: !from?.pricing && from?.cost?.output !== undefined ? String(from.cost.output) : "",
-    costCacheR: !from?.pricing && from?.cost?.cacheRead !== undefined ? String(from.cost.cacheRead) : "",
-    costCacheW: !from?.pricing && from?.cost?.cacheWrite !== undefined ? String(from.cost.cacheWrite) : "",
-    omitMaxOutputTokens: from?.omitMaxOutputTokens ?? false,
-    premiumMultiplier: from?.premiumMultiplier !== undefined ? String(from.premiumMultiplier) : "",
-    imageCountBudget: from?.imageCountBudget !== undefined ? String(from.imageCountBudget) : "",
-    headersText: headersTextFrom(from?.headers),
-    contextPromotionTarget: from?.contextPromotionTarget ?? "",
-    compactionModel: from?.compactionModel ?? "",
-    baseUrl: from?.baseUrl ?? "",
-    rcEnabled: from?.remoteCompaction?.enabled ?? false,
-    rcEndpoint: from?.remoteCompaction?.endpoint ?? "",
-    rcModel: from?.remoteCompaction?.model ?? "",
-  };
-}
-
-function parseOptionalNumber(text: string): number | undefined {
-  const trimmed = text.trim();
-  if (!trimmed) return undefined;
-  const n = Number(trimmed);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function overrideFromForm(form: DraftOverrideForm): DraftOverride | null {
-  const next: DraftOverride = { ...effectiveModelParameters(form.parameters), parameterSources: effectiveParameterSources(form.parameters) };
-  const bedrock = triState(form.bedrockMessagesApi);
-  if (bedrock !== undefined) next.bedrockMessagesApi = bedrock;
-  const requiresThinkingPresence = triState(form.requiresThinkingPresence);
-  if (requiresThinkingPresence !== undefined) next.requiresThinkingPresence = requiresThinkingPresence;
-  const extendedCacheTtlBeta = triState(form.extendedCacheTtlBeta);
-  if (extendedCacheTtlBeta !== undefined) next.extendedCacheTtlBeta = extendedCacheTtlBeta;
-  if (form.name.trim()) next.name = form.name.trim();
-  const tools = triState(form.tools);
-  if (tools !== undefined) next.tools = tools;
-  const image = triState(form.image);
-  if (image !== undefined) next.image = image;
-  const cost = costFromFields(form.costIn, form.costOut, form.costCacheR, form.costCacheW);
-  if (cost) next.cost = cost;
-  const omit = triState(form.omitMaxOutputTokens);
-  if (omit !== undefined) next.omitMaxOutputTokens = omit;
-  const premium = parseOptionalNumber(form.premiumMultiplier);
-  if (premium !== undefined) next.premiumMultiplier = premium;
-  const imageBudget = parseOptionalNumber(form.imageCountBudget);
-  if (imageBudget !== undefined) next.imageCountBudget = imageBudget;
-  const headers = parseHeaders(form.headersText);
-  if (Object.keys(headers).length > 0) next.headers = headers;
-  if (form.contextPromotionTarget.trim()) next.contextPromotionTarget = form.contextPromotionTarget.trim();
-  if (form.compactionModel.trim()) next.compactionModel = form.compactionModel.trim();
-  const rc = rcFromParts(triState(form.rcEnabled), form.rcEndpoint, form.rcModel);
-  if (rc) next.remoteCompaction = rc;
-  return Object.keys(next).length > 0 ? next : null;
-}
-
-function applyOverrideToDraft(host: Draft, modelId: string, form: DraftOverrideForm): { next: Draft; parsed: DraftOverride | null } {
-  const parsed = overrideFromForm(form);
-  const modelOverrides = { ...host.modelOverrides };
-  if (parsed) modelOverrides[modelId] = parsed;
-  else delete modelOverrides[modelId];
-  const models = host.models.map((model) => {
-    if (model.id !== modelId || (model.source !== "catalog" && model.source !== "extension")) return model;
-    if (!parsed) return model;
-    const base = { ...model };
-    if (parsed.cost !== undefined) delete base.pricing;
-    return {
-      ...base,
-      ...(parsed.name === undefined ? {} : { name: parsed.name }),
-      ...(parsed.contextWindow === undefined ? {} : { contextWindow: parsed.contextWindow }),
-      ...(parsed.maxTokens === undefined ? {} : { maxTokens: parsed.maxTokens }),
-      ...(parsed.reasoning === undefined ? {} : { reasoning: parsed.reasoning }),
-      ...(parsed.tools === undefined ? {} : { tools: parsed.tools }),
-      ...(parsed.image === undefined ? {} : { image: parsed.image }),
-      ...(parsed.cost === undefined ? {} : { cost: parsed.cost }),
-      ...(parsed.thinking === undefined ? {} : { thinking: parsed.thinking }),
-      ...(parsed.thinkingConfig === undefined ? {} : { thinkingConfig: parsed.thinkingConfig }),
-      ...(parsed.maxContextWindow === undefined ? {} : { maxContextWindow: parsed.maxContextWindow }),
-    };
-  });
-  return { next: { ...host, modelOverrides, models }, parsed };
-}
-
-function entryFromCustomForm(providerId: string, form: CustomModelForm): ModelCatalogEntry | null {
-  const id = form.id.trim();
-  if (!id) return null;
-  const parameters = effectiveModelParameters(form.parameters);
-  const cost = costFromFields(form.costIn, form.costOut, form.costCacheR, form.costCacheW);
-  const premium = parseOptionalNumber(form.premiumMultiplier);
-  const imageBudget = parseOptionalNumber(form.imageCountBudget);
-  const headers = parseHeaders(form.headersText);
-  const rc = rcFromParts(form.rcEnabled ? true : undefined, form.rcEndpoint, form.rcModel);
-  return {
-    id,
-    name: form.name.trim() || id,
-    selector: `${providerId}/${id}`,
-    ...parameters, parameters,
-    parameterSources: effectiveParameterSources(form.parameters),
-    reasoning: parameters.reasoning ?? false,
-    tools: form.tools,
-    image: form.image,
-    ...(cost ? { cost } : {}),
-    status: "available",
-    source: "custom",
-    ...(form.api && form.api !== "inherit" ? { api: form.api } : {}),
-    ...(form.baseUrl.trim() ? { baseUrl: form.baseUrl.trim() } : {}),
-    ...(form.omitMaxOutputTokens ? { omitMaxOutputTokens: true } : {}),
-    ...(triState(form.bedrockMessagesApi) === undefined ? {} : { bedrockMessagesApi: triState(form.bedrockMessagesApi)! }),
-    ...(triState(form.requiresThinkingPresence) === undefined ? {} : { requiresThinkingPresence: triState(form.requiresThinkingPresence)! }),
-    ...(triState(form.extendedCacheTtlBeta) === undefined ? {} : { extendedCacheTtlBeta: triState(form.extendedCacheTtlBeta)! }),
-    ...(premium === undefined ? {} : { premiumMultiplier: premium }),
-    ...(imageBudget === undefined ? {} : { imageCountBudget: imageBudget }),
-    ...(Object.keys(headers).length > 0 ? { headers } : {}),
-    ...(form.contextPromotionTarget.trim() ? { contextPromotionTarget: form.contextPromotionTarget.trim() } : {}),
-    ...(form.compactionModel.trim() ? { compactionModel: form.compactionModel.trim() } : {}),
-    ...(rc ? { remoteCompaction: rc } : {}),
-    ...(parameters.thinkingConfig ? { thinking: parameters.thinkingConfig.efforts } : {}),
-  };
-}
-
-function ModelCaps({ model }: { model: ModelCatalogEntry }) {
-  const { t } = useI18n();
-  const current = resolveModelPrice(model.cost, model.pricing);
-  const rate = (value: number | undefined) => value === undefined ? "—" : Number(value.toFixed(6));
-  return (
-    <span className="pm-meta">
-      <span className="chip gray xs">{fmtK(model.contextWindow)} ctx</span>
-      {model.maxTokens ? <span className="chip gray xs">{fmtK(model.maxTokens)} out</span> : null}
-      {model.maxContextWindow ? <span className="chip gray xs" data-tip={t("modelConfig.extendedWindow")}>{fmtK(model.maxContextWindow)} ext</span> : null}
-      {model.image ? <span className="chip blue xs chip-icon" data-tip={t("modelConfig.tipImage")}><Icon name="image" extra="sm" /></span> : null}
-      {model.reasoning ? <span className="chip purple xs chip-icon" data-tip={t("modelConfig.tipThinking")}><Icon name="brain" extra="sm" /></span> : null}
-      {model.tools ? <span className="chip gray xs chip-icon" data-tip={t("modelConfig.tipTools")}><Icon name="wrench" extra="sm" /></span> : null}
-      {current.cost?.input !== undefined || current.cost?.output !== undefined
-        ? <span className="chip gray xs">${rate(current.cost?.input)}/${rate(current.cost?.output)}</span>
-        : null}
-      {current.period ? <span className="chip gray xs" data-tip={t("modelConfig.scheduledPrice")}>{current.period === "peak" ? "↑ " + t("modelConfig.peakPrice") : "↓ " + t("modelConfig.offPeakPrice")}</span> : null}
-      {model.pricing?.longContext ? <span className="chip gray xs" data-tip={t("modelConfig.longContextPrice")}>{model.pricing.longContext.inputThresholdInclusive ? "≥" : ">"}{fmtK(model.pricing.longContext.inputThreshold)}</span> : null}
-    </span>
-  );
-}
-
-function blankDraft(): Draft {
-  return {
-    id: "", name: "", website: "", note: "", api: "openai-completions", endpointUrl: "",
-    local: false, enabled: true, authType: "api-key", apiKey: "", envName: "", command: "",
-    discoveryType: "", headersText: "", disableStrictTools: false,
-    transport: "", remoteCompactionEnabled: false, remoteCompactionEndpoint: "", remoteCompactionModel: "",
-    models: [], modelOverrides: {},
-  };
-}
-
-function draftFromProvider(provider: ModelProviderRecord): Draft {
-  return {
-    id: provider.id,
-    name: provider.name,
-    website: provider.website ?? "",
-    note: provider.note ?? "",
-    api: provider.api,
-    endpointUrl: provider.endpointUrl ?? "",
-    local: provider.local,
-    enabled: provider.enabled,
-    authType: provider.auth.type,
-    apiKey: provider.auth.type === "api-key" && provider.auth.apiKey && !provider.auth.apiKey.startsWith("!")
-      ? provider.auth.apiKey
-      : "",
-    envName: provider.auth.envName ?? `${provider.id.replace(/-/g, "_").toUpperCase()}_API_KEY`,
-    command: provider.auth.type === "command" && provider.auth.apiKey ? provider.auth.apiKey : "",
-    discoveryType: provider.discovery?.type ?? "",
-    ...(provider.discovery?.advertisedReasoning === undefined ? {} : { advertisedReasoning: provider.discovery.advertisedReasoning }),
-    ...(provider.discovery?.timeoutMs === undefined ? {} : { discoveryTimeoutMs: provider.discovery.timeoutMs }),
-    headersText: Object.entries(provider.headers ?? {}).map(([key, value]) => `${key}: ${value}`).join("\n"),
-    disableStrictTools: provider.disableStrictTools ?? false,
-    transport: provider.transport ?? "",
-    remoteCompactionEnabled: provider.remoteCompaction?.enabled ?? false,
-    remoteCompactionEndpoint: provider.remoteCompaction?.endpoint ?? "",
-    remoteCompactionModel: provider.remoteCompaction?.model ?? "",
-    models: provider.models.map((model) => ({ ...model })),
-    modelOverrides: { ...(provider.modelOverrides ?? {}) },
-  };
-}
-
-function draftFromPreset(preset: ModelPresetItem): Draft {
-  return {
-    ...blankDraft(),
-    id: preset.id,
-    name: preset.name,
-    api: preset.api,
-    endpointUrl: preset.endpoint ?? "",
-    local: Boolean(preset.local),
-    authType: preset.auth[0] ?? "api-key",
-    envName: `${preset.id.toUpperCase().replace(/-/g, "_")}_API_KEY`,
-    discoveryType: preset.discovery ?? "",
-  };
-}
-
-async function runWrite<T extends Extract<CommandName, `models.${string}`>>(
-  client: StudioClient,
-  name: T,
-  input: Parameters<StudioClient["command"]>[1] extends never ? never : unknown,
-): Promise<ConfigWriteResult> {
-  const handle = await client.command(name, input as never);
-  return waitReceipt<ConfigWriteResult>(client, handle.requestId);
-}
-
-async function runTest(
-  client: StudioClient,
-  input: { readonly providerId?: string; readonly api?: string; readonly endpointUrl?: string; readonly apiKey?: string },
-): Promise<ModelProviderTestResult> {
-  const handle = await client.command("models.provider.test", input as never);
-  return waitReceipt<ModelProviderTestResult>(client, handle.requestId);
-}
-
-async function runProbe(
-  client: StudioClient,
-  input: ModelProviderProbeInput,
-): Promise<ModelDiscoveryResult> {
-  const handle = await client.command("models.provider.probe", input as never);
-  return waitReceipt<ModelDiscoveryResult>(client, handle.requestId);
-}
-
-function parseHeaders(text: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const idx = trimmed.indexOf(":");
-    if (idx < 1) continue;
-    const key = trimmed.slice(0, idx).trim();
-    const value = trimmed.slice(idx + 1).trim();
-    if (key && value) out[key] = value;
-  }
-  return out;
-}
-
-function sameStringList(left: ReadonlyArray<string> | undefined, right: ReadonlyArray<string> | undefined): boolean {
-  const a = left ?? [];
-  const b = right ?? [];
-  return a.length === b.length && a.every((item, index) => item === b[index]);
-}
-
-function catalogDraftEqual(left: ModelCatalogEntry, right: ModelCatalogEntry): boolean {
-  return left.id === right.id
-    && left.name === right.name
-    && left.selector === right.selector
-    && left.status === right.status
-    && left.source === right.source
-    && left.reasoning === right.reasoning
-    && left.tools === right.tools
-    && left.image === right.image
-    && left.contextWindow === right.contextWindow
-    && left.maxTokens === right.maxTokens
-    && left.api === right.api
-    && left.baseUrl === right.baseUrl
-    && left.cost?.input === right.cost?.input
-    && left.cost?.output === right.cost?.output
-    && left.cost?.cacheRead === right.cost?.cacheRead
-    && left.cost?.cacheWrite === right.cost?.cacheWrite
-    && sameStringList(left.thinking, right.thinking)
-    && sameModelParameter(left.thinkingConfig, right.thinkingConfig)
-    && sameModelParameter(left.parameters, right.parameters)
-    && sameModelParameter(left.parameterSources, right.parameterSources);
-}
-
-function overrideDraftEqual(left: DraftOverride | undefined, right: DraftOverride | undefined): boolean {
-  if (left === right) return true;
-  if (!left || !right) return false;
-  return left.name === right.name
-    && left.contextWindow === right.contextWindow
-    && left.maxTokens === right.maxTokens
-    && left.maxContextWindow === right.maxContextWindow
-    && sameModelParameter(left.thinkingConfig, right.thinkingConfig)
-    && sameModelParameter(left.parameterSources, right.parameterSources)
-    && left.reasoning === right.reasoning
-    && left.tools === right.tools
-    && left.image === right.image
-    && left.bedrockMessagesApi === right.bedrockMessagesApi
-    && left.requiresThinkingPresence === right.requiresThinkingPresence
-    && left.extendedCacheTtlBeta === right.extendedCacheTtlBeta
-    && left.omitMaxOutputTokens === right.omitMaxOutputTokens
-    && left.premiumMultiplier === right.premiumMultiplier
-    && left.imageCountBudget === right.imageCountBudget
-    && left.contextPromotionTarget === right.contextPromotionTarget
-    && left.compactionModel === right.compactionModel
-    && sameStringList(left.thinking, right.thinking)
-    && (left.cost?.input === right.cost?.input && left.cost?.output === right.cost?.output && left.cost?.cacheRead === right.cost?.cacheRead && left.cost?.cacheWrite === right.cost?.cacheWrite);
-}
-
-function draftsEqual(left: Draft, right: Draft): boolean {
-  if (left.id !== right.id
-    || left.name !== right.name
-    || left.website !== right.website
-    || left.note !== right.note
-    || left.api !== right.api
-    || left.endpointUrl !== right.endpointUrl
-    || left.local !== right.local
-    || left.enabled !== right.enabled
-    || left.authType !== right.authType
-    || left.apiKey !== right.apiKey
-    || left.envName !== right.envName
-    || left.command !== right.command
-    || left.discoveryType !== right.discoveryType
-    || left.discoveryTimeoutMs !== right.discoveryTimeoutMs
-    || left.advertisedReasoning !== right.advertisedReasoning
-    || left.headersText !== right.headersText
-    || left.disableStrictTools !== right.disableStrictTools
-    || left.transport !== right.transport
-    || left.remoteCompactionEnabled !== right.remoteCompactionEnabled
-    || left.remoteCompactionEndpoint !== right.remoteCompactionEndpoint
-    || left.remoteCompactionModel !== right.remoteCompactionModel) {
-    return false;
-  }
-  if (left.models.length !== right.models.length) return false;
-  if (!left.models.every((model, index) => {
-    const other = right.models[index];
-    return other !== undefined && catalogDraftEqual(model, other);
-  })) return false;
-  const leftKeys = Object.keys(left.modelOverrides);
-  const rightKeys = Object.keys(right.modelOverrides);
-  if (leftKeys.length !== rightKeys.length) return false;
-  return leftKeys.every((key) => overrideDraftEqual(left.modelOverrides[key], right.modelOverrides[key]));
-}
-
-function rolesEqual(left: ModelRoleRecord, right: ModelRoleRecord): boolean {
-  return left.id === right.id
-    && left.name === right.name
-    && left.desc === right.desc
-    && left.primary === right.primary
-    && left.thinking === right.thinking;
-}
-
-function roleSelector(role: ModelRoleRecord): string {
-  return role.thinking ? `${role.primary}:${role.thinking}` : role.primary;
-}
-
-type ModelRoleDraft = ModelRoleRecord & { readonly thinkingAdjustment?: string };
-
-function withRoleModel(
-  role: ModelRoleRecord,
-  primary: string,
-  model: AvailableModelRecord | undefined,
-): ModelRoleDraft {
-  const thinking = role.primary !== primary ? thinkingForRoleModel(role.thinking, model) : clampRoleThinking(role.thinking, model);
-  const { issue: _ignored, thinking: _thinking, ...rest } = role;
-  const thinkingAdjustment = role.thinking && thinking && role.thinking !== thinking ? `${role.thinking} → ${thinking}` : (role as ModelRoleDraft).thinkingAdjustment;
-  return { ...rest, primary, ...(thinking ? { thinking } : {}), ...(thinkingAdjustment ? { thinkingAdjustment } : {}) };
-}
-
-function roleThinkingUi(role: Pick<ModelRoleRecord, "thinking">, model: AvailableModelRecord | undefined) {
-  const control = roleThinkingControl(model);
-  return {
-    items: MODEL_THINKING.filter((item) => control.ids.includes(item.id)),
-    disabled: control.disabled,
-    value: role.thinking === undefined ? "" : (clampRoleThinking(role.thinking, model) ?? "off"),
-  };
-}
-
-function RoleThinkingSeg({
-  role,
-  model,
-  onChange,
-}: {
-  role: ModelRoleRecord;
-  model: AvailableModelRecord | undefined;
-  onChange: (next: ModelRoleRecord) => void;
-}) {
-  const thinking = roleThinkingUi(role, model);
-  const { t } = useI18n();
-  return (
-    <>
-    <span className={`seg${thinking.disabled ? " is-disabled" : ""}`} role="tablist">
-      <button type="button" className={thinking.value === "" ? "active" : undefined} onClick={() => { const { thinking: _old, ...rest } = role; onChange(rest); }}>{t("modelAdaptation.defaultThinking")}</button>
-      {thinking.items.map((item) => (
-        <button type="button" key={item.id} className={thinking.value === item.id ? "active" : undefined} disabled={thinking.disabled} onClick={() => {
-          const { thinkingAdjustment: _mapping, ...next } = role as ModelRoleDraft;
-          next.thinking = item.id;
-          onChange(next);
-        }}>{item.label}</button>
-      ))}
-    </span>
-    {(role as ModelRoleDraft).thinkingAdjustment ? <small className="mc-thinking-adjustment">{(role as ModelRoleDraft).thinkingAdjustment}</small> : null}
-    {model?.thinkingConfig?.requiresEffort ? <small className="mc-thinking-adjustment">{t("modelAdaptation.required")}</small> : null}
-    </>
-  );
-}
-
-function providerUpsertFromDraft(editor: Draft, contentHash?: string): ModelProviderUpsertInput {
-  return {
-    id: editor.id.trim(),
-    name: editor.name.trim(),
-    api: editor.api,
-    // Explicit (possibly empty) values: the Host writer deletes the YAML key
-    // when the string is blank, so clearing a field really removes it — sparse
-    // omission would silently keep the old value behind the card’s back.
-    endpointUrl: editor.endpointUrl,
-    website: editor.website,
-    note: editor.note,
-    local: editor.local,
-    enabled: editor.enabled,
-    auth: {
-      type: editor.authType,
-      ...(editor.apiKey ? { apiKey: editor.apiKey } : {}),
-      ...(editor.envName ? { envName: editor.envName } : {}),
-      ...(editor.command ? { command: editor.command } : {}),
-    },
-    discovery: editor.discoveryType
-      ? { type: editor.discoveryType, ...(editor.discoveryTimeoutMs === undefined ? {} : { timeoutMs: editor.discoveryTimeoutMs }), ...(editor.advertisedReasoning === undefined ? {} : { advertisedReasoning: editor.advertisedReasoning }) }
-      : null,
-    headers: parseHeaders(editor.headersText),
-    disableStrictTools: editor.disableStrictTools,
-    transport: editor.transport || null,
-    remoteCompaction: editor.remoteCompactionEnabled || editor.remoteCompactionEndpoint || editor.remoteCompactionModel
-      ? {
-          ...(editor.remoteCompactionEnabled ? { enabled: true } : {}),
-          ...(editor.remoteCompactionEndpoint ? { endpoint: editor.remoteCompactionEndpoint } : {}),
-          ...(editor.remoteCompactionModel ? { model: editor.remoteCompactionModel } : {}),
-        }
-      : null,
-    models: editor.models.filter((model) => model.source === "custom").map((model) => ({
-      id: model.id,
-      name: model.name,
-      ...modelParameterValues(model),
-      ...(model.thinkingConfig === undefined ? {} : { thinkingConfig: model.thinkingConfig }),
-      ...(model.parameterSources ? { parameterSources: model.parameterSources } : {}),
-      image: model.image,
-      tools: model.tools,
-      ...(model.cost ? { cost: model.cost } : {}),
-      ...(model.api ? { api: model.api } : {}),
-      ...(model.baseUrl ? { baseUrl: model.baseUrl } : {}),
-      ...(model.omitMaxOutputTokens ? { omitMaxOutputTokens: true } : {}),
-      ...(model.bedrockMessagesApi === undefined ? {} : { bedrockMessagesApi: model.bedrockMessagesApi }),
-      ...(model.requiresThinkingPresence === undefined ? {} : { requiresThinkingPresence: model.requiresThinkingPresence }),
-      ...(model.extendedCacheTtlBeta === undefined ? {} : { extendedCacheTtlBeta: model.extendedCacheTtlBeta }),
-      ...(model.premiumMultiplier === undefined ? {} : { premiumMultiplier: model.premiumMultiplier }),
-      ...(model.imageCountBudget === undefined ? {} : { imageCountBudget: model.imageCountBudget }),
-      ...(model.headers ? { headers: model.headers } : {}),
-      ...(model.contextPromotionTarget ? { contextPromotionTarget: model.contextPromotionTarget } : {}),
-      ...(model.compactionModel ? { compactionModel: model.compactionModel } : {}),
-      ...(model.remoteCompaction ? { remoteCompaction: model.remoteCompaction } : {}),
-      ...(model.thinking && model.thinking.length > 0 ? { thinking: [...model.thinking] } : {}),
-    })),
-    modelOverrides: Object.keys(editor.modelOverrides).length > 0 ? editor.modelOverrides : null,
-    ...(contentHash ? { expectedHash: contentHash } : {}),
-  };
-}
-
-function editorTestSecret(editor: Draft): string | undefined {
-  if (editor.authType === "api-key") return editor.apiKey.trim() || undefined;
-  if (editor.authType === "env") return editor.envName.trim() || undefined;
-  if (editor.authType === "command") return editor.command.trim() || undefined;
-  return undefined;
-}
-
-function withPreviewLogin(record: ModelProviderRecord, current: ModelConfigReadModel): ModelProviderRecord {
-  if (record.auth.type !== "oauth") return record;
-  const login = current.loginProviders.find((item) => item.id === record.id);
-  const existing = current.providers.find((item) => item.id === record.id);
-  if (!login?.authenticated && !existing?.auth.hasSecret) return record;
-  return {
-    ...record,
-    status: record.enabled ? "available" : record.status,
-    statusDetail: "Logged in · Demo Account",
-    auth: {
-      ...record.auth,
-      hasSecret: true,
-      account: existing?.auth.account ?? "demo@local",
-    },
-  };
-}
-
-function previewProviderFromDraft(editor: Draft): ModelProviderRecord {
-  return {
-    id: editor.id.trim(),
-    name: editor.name.trim(),
-    source: "custom",
-    status: editor.enabled ? "available" : "disabled",
-    statusDetail: "Demo · Not written to Host",
-    api: editor.api,
-    ...(editor.endpointUrl ? { endpointUrl: editor.endpointUrl } : {}),
-    local: editor.local,
-    enabled: editor.enabled,
-    ...(editor.website ? { website: editor.website } : {}),
-    ...(editor.note ? { note: editor.note } : {}),
-    auth: {
-      type: editor.authType,
-      hasSecret: editor.authType === "none"
-        ? false
-        : editor.authType === "env"
-          ? Boolean(editor.envName.trim())
-          : Boolean(editor.apiKey || editor.command),
-      ...(editor.authType === "api-key" && editor.apiKey ? { apiKey: editor.apiKey } : {}),
-      ...(editor.authType === "command" && editor.command
-        ? { apiKey: editor.command.startsWith("!") ? editor.command : `!${editor.command}` }
-        : {}),
-      ...(editor.authType === "env" && editor.envName.trim() ? { envName: editor.envName.trim() } : {}),
-    },
-    ...(editor.discoveryType ? { discovery: { type: editor.discoveryType } } : {}),
-    ...(Object.keys(parseHeaders(editor.headersText)).length > 0 ? { headers: parseHeaders(editor.headersText) } : {}),
-    ...(editor.disableStrictTools ? { disableStrictTools: true } : {}),
-    ...(editor.transport ? { transport: editor.transport } : {}),
-    ...(editor.remoteCompactionEnabled || editor.remoteCompactionEndpoint || editor.remoteCompactionModel
-      ? {
-          remoteCompaction: {
-            ...(editor.remoteCompactionEnabled ? { enabled: true } : {}),
-            ...(editor.remoteCompactionEndpoint ? { endpoint: editor.remoteCompactionEndpoint } : {}),
-            ...(editor.remoteCompactionModel ? { model: editor.remoteCompactionModel } : {}),
-          },
-        }
-      : {}),
-    models: editor.models,
-    ...(Object.keys(editor.modelOverrides).length > 0 ? { modelOverrides: editor.modelOverrides } : {}),
-  };
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function readModelRoles(value: unknown): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!isPlainRecord(value) || !isPlainRecord(value.modelRoles)) return out;
-  for (const [key, item] of Object.entries(value.modelRoles)) {
-    if (typeof item === "string" && item.trim()) out[key] = item.trim();
-  }
-  return out;
-}
-
-function parseRoleSelector(selector: string): { primary: string; thinking?: string } {
-  const idx = selector.lastIndexOf(":");
-  if (idx > 0) {
-    const suffix = selector.slice(idx + 1);
-    if (MODEL_THINKING.some((item) => item.id === suffix)) {
-      return { primary: selector.slice(0, idx), thinking: suffix };
-    }
-  }
-  return { primary: selector };
-}
-
-function applyRoleSelector(role: ModelRoleRecord, selector: string): ModelRoleRecord {
-  const parsed = parseRoleSelector(selector);
-  const { issue: _ignored, thinking: _thinking, ...rest } = role;
-  return parsed.thinking
-    ? { ...rest, primary: parsed.primary, thinking: parsed.thinking }
-    : { ...rest, primary: parsed.primary };
-}
-
-function assignedRoleIds(roles: ReadonlyArray<ModelRoleRecord>, selector: string): string[] {
-  return roles.filter((role) => role.primary === selector).map((role) => role.id);
-}
-
-function roleAssignDiff(picked: ReadonlyArray<string>, baseline: ReadonlyArray<string>): { added: string[]; removed: string[] } {
-  const base = new Set(baseline);
-  return {
-    added: picked.filter((id) => !base.has(id)),
-    removed: baseline.filter((id) => !picked.includes(id)),
-  };
-}
-
-function roleAssignModCount(
-  picked: ReadonlyArray<string> | undefined,
-  roles: ReadonlyArray<ModelRoleRecord>,
-  selector: string,
-): number {
-  if (!picked) return 0;
-  const { added, removed } = roleAssignDiff(picked, assignedRoleIds(roles, selector));
-  return added.length + removed.length;
-}
-
-function missingModelSaveError(labels: ReadonlyArray<string>, t?: (k: string, p?: any) => string): string {
-  return t
-    ? t("modelConfig.cannotSaveRoleNoPrimary", { labels: labels.join(", ") })
-    : `Cannot save: role ${labels.join(", ")} has no primary model`;
-}
-
-function nextRolePrimaries(
-  roles: ReadonlyArray<ModelRoleRecord>,
-  drafts: Record<string, ReadonlyArray<string>>,
-): Map<string, string> {
-  const current = new Map<string, string>();
-  for (const role of roles) {
-    if (role.primary) current.set(role.id, role.primary);
-  }
-  const next = new Map(current);
-  for (const [selector, picked] of Object.entries(drafts)) {
-    const pickedSet = new Set(picked);
-    for (const [roleId, sel] of current) {
-      if (sel === selector && !pickedSet.has(roleId) && next.get(roleId) === selector) next.delete(roleId);
-    }
-    for (const roleId of picked) next.set(roleId, selector);
-  }
-  return next;
-}
-
-function missingRoleLabels(
-  roles: ReadonlyArray<ModelRoleRecord>,
-  drafts: Record<string, ReadonlyArray<string>>,
-): string[] {
-  const next = nextRolePrimaries(roles, drafts);
-  return roles.filter((role) => role.primary && !next.has(role.id)).map((role) => role.alias);
-}
-
-function rolePrimaryUpdates(
-  roles: ReadonlyArray<ModelRoleRecord>,
-  drafts: Record<string, ReadonlyArray<string>>,
-): Array<{ role: ModelRoleRecord; selector: string }> {
-  const next = nextRolePrimaries(roles, drafts);
-  const out: Array<{ role: ModelRoleRecord; selector: string }> = [];
-  for (const role of roles) {
-    const selector = next.get(role.id) ?? "";
-    if (selector !== (role.primary ?? "")) out.push({ role, selector });
-  }
-  return out;
-}
-
-function withRolePrimaryUpdates(
-  current: ModelConfigReadModel,
-  updates: ReadonlyArray<{ role: ModelRoleRecord; selector: string }>,
-): ModelConfigReadModel {
-  const byId = new Map(updates.map((item) => [item.role.id, item.selector]));
-  const models = current.availableModels;
-  const nextRoles = current.roles.map((role) => {
-    if (!byId.has(role.id)) return role;
-    const selector = byId.get(role.id) ?? "";
-    if (!selector) {
-      const { issue: _ignored, thinking: _thinking, ...rest } = role;
-      return { ...rest, primary: "" };
-    }
-    const model = models.find((item) => item.selector === selector);
-    return withRoleModel(role, selector, model);
-  });
-  const generatedConfigYml = `modelRoles:\n${nextRoles
-    .filter((role) => role.primary)
-    .map((role) => `  ${role.id}: ${roleSelector(role)}`)
-    .join("\n")}${nextRoles.some((role) => role.primary) ? "\n" : ""}`;
-  return { ...current, roles: nextRoles, generatedConfigYml };
-}
-
-function RoleAssignControl({
-  selector,
-  open,
-  roles,
-  disabled,
-  modCount,
-  showSave,
-  initialPicked,
-  onToggle,
-  onDraftChange,
-  onCommit,
-  onError,
-}: {
-  selector: string;
-  open: boolean;
-  roles: ReadonlyArray<ModelRoleRecord>;
-  disabled?: boolean;
-  modCount: number;
-  showSave: boolean;
-  initialPicked?: ReadonlyArray<string>;
-  onToggle: (selector: string | null) => void;
-  onDraftChange?: (selector: string, picked: string[]) => void;
-  onCommit?: (selector: string, addedIds: string[], removedIds: string[]) => void;
-  onError: (message: string) => void;
-}) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-  const [anchor, setAnchor] = useState({ top: 0, left: 0 });
-  const { t } = useI18n();
-  const [picked, setPicked] = useState<string[]>([]);
-  const baselineRef = useRef<string[]>([]);
-  const pickedRef = useRef<string[]>([]);
-  const rolesRef = useRef(roles);
-  const errorRef = useRef(onError);
-  const commitRef = useRef(onCommit);
-  const draftRef = useRef(onDraftChange);
-  const initialRef = useRef(initialPicked);
-  pickedRef.current = picked;
-  rolesRef.current = roles;
-  errorRef.current = onError;
-  commitRef.current = onCommit;
-  draftRef.current = onDraftChange;
-  initialRef.current = initialPicked;
-
-  const trySave = () => {
-    const { added, removed } = roleAssignDiff(pickedRef.current, baselineRef.current);
-    commitRef.current?.(selector, added, removed);
-    onToggle(null);
-  };
-
-  const dismiss = () => onToggle(null);
-
-  useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
-    const width = popRef.current?.offsetWidth ?? 280;
-    const height = popRef.current?.offsetHeight ?? 0;
-    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
-    let top = rect.bottom + 4;
-    if (height > 0 && top + height > window.innerHeight - 8) {
-      top = Math.max(8, rect.top - height - 4);
-    }
-    setAnchor({ top, left });
-  }, [open, picked.length, roles.length]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") dismiss();
-    };
-    const onDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (btnRef.current?.contains(target) || popRef.current?.contains(target)) return;
-      dismiss();
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onDown);
-    };
-  }, [open, onToggle]);
-
-  useEffect(() => {
-    if (!open || showSave) return;
-    draftRef.current?.(selector, picked);
-  }, [open, showSave, selector, picked]);
-
-  const baseline = new Set(baselineRef.current);
-  const { added, removed } = roleAssignDiff(picked, baselineRef.current);
-  const changeCount = added.length + removed.length;
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        className={`icon-btn small role-assign-btn${open ? " is-open" : ""}`}
-        data-tip={t("modelConfig.tabRoles")}
-        aria-label={t("modelConfig.selectRoles")}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => {
-          if (open) {
-            dismiss();
-            return;
-          }
-          const nextBaseline = assignedRoleIds(rolesRef.current, selector);
-          baselineRef.current = nextBaseline;
-          setPicked(initialRef.current ? [...initialRef.current] : nextBaseline);
-          if (btnRef.current) {
-            const rect = btnRef.current.getBoundingClientRect();
-            const left = Math.max(8, Math.min(rect.right - 280, window.innerWidth - 288));
-            setAnchor({ top: rect.bottom + 4, left });
-          }
-          onToggle(selector);
-        }}
-      >
-        <Icon name="user" extra="sm" />
-        {modCount > 0 ? <span className="role-assign-badge">{modCount > 99 ? "99+" : modCount}</span> : null}
-      </button>
-      {open
-        ? createPortal(
-            <div
-              ref={popRef}
-              className="menu role-assign-pop"
-              role="listbox"
-              aria-multiselectable="true"
-              aria-label={t("modelConfig.selectRoles")}
-              style={{ top: anchor.top, left: anchor.left }}
-              onMouseDown={(event) => event.stopPropagation()}
-            >
-              <div className="rap-head">
-                <b>{t("modelConfig.selectRoles")}</b>
-                <span className="mono">{selector}</span>
-              </div>
-              {roles.length === 0 ? (
-                <div className="rap-empty">{t("modelConfig.noRoles")}</div>
-              ) : (
-                <div className="rap-list">
-                  {roles.map((role) => {
-                    const on = picked.includes(role.id);
-                    const wasCurrent = baseline.has(role.id);
-                    return (
-                      <button
-                        type="button"
-                        key={role.id}
-                        className={`menu-item pick-role${on ? " is-on" : ""}`}
-                        role="option"
-                        aria-selected={on}
-                        onClick={() => {
-                          setPicked((currentIds) => (
-                            currentIds.includes(role.id)
-                              ? currentIds.filter((id) => id !== role.id)
-                              : [...currentIds, role.id]
-                          ));
-                        }}
-                      >
-                        <span className={`pick-check${on ? " on" : ""}`} aria-hidden="true">
-                          {on ? <Icon name="check" extra="sm" /> : null}
-                        </span>
-                        <Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" />
-                        <span className="pick-copy">
-                          <b>{role.name}</b>
-                          <span className="mono muted small">{role.alias}</span>
-                        </span>
-                        <span className="hint ellipsis">
-                          {on
-                            ? (wasCurrent ? t("modelConfig.current") : (role.primary || t("modelConfig.unassigned")))
-                            : (wasCurrent ? t("modelConfig.willCancel") : (role.primary || t("modelConfig.unassigned")))}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {showSave || changeCount > 0 ? (
-                <div className="rap-foot">
-                  <span>{changeCount > 0 ? t("modelConfig.roleChangeCount", { count: changeCount }) : t("modelConfig.noChanges")}</span>
-                  {showSave ? <button type="button" className="btn small primary" onClick={trySave}>{t("common.save")}</button> : <span className="rap-hint">{t("modelConfig.savedOnProviderSave")}</span>}
-                </div>
-              ) : null}
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
-  );
-}
-
-function RoleModelPicker({
-  value,
-  groups,
-  disabled,
-  ariaLabel,
-  onChange,
-}: {
-  value: string;
-  groups: ReadonlyArray<ModelPickGroup>;
-  disabled?: boolean;
-  ariaLabel?: string;
-  onChange: (selector: string) => void;
-}) {
-  const uid = useId();
-  const listId = `${uid}-list`;
-  const { t } = useI18n();
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ top: 0, left: 0, width: 300 });
-  const [active, setActive] = useState(value);
-  const activeRef = useRef(active);
-  const onChangeRef = useRef(onChange);
-  activeRef.current = active;
-  onChangeRef.current = onChange;
-  const flat = useMemo(() => flattenModelGroups(groups, value), [groups, value]);
-  const selected = flat.find((item) => item.selector === value);
-  const selectedGroup = groups.find((group) => group.models.some((item) => item.selector === value));
-
-  const place = () => {
-    const rect = btnRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const width = Math.max(rect.width, 380);
-    const height = popRef.current?.offsetHeight ?? 0;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    let top = rect.bottom + 4;
-    if (height > 0 && top + height > window.innerHeight - 8) {
-      top = Math.max(8, rect.top - height - 4);
-    }
-    setAnchor({ top, left, width });
-  };
-
-  const dismiss = () => setOpen(false);
-
-  const pick = (selector: string) => {
-    onChangeRef.current(selector);
-    dismiss();
-  };
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    place();
-  }, [open, groups.length, flat.length]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const node = popRef.current?.querySelector<HTMLElement>("[data-active='true']");
-    node?.scrollIntoView({ block: "nearest" });
-  }, [open, active]);
-
-  useEffect(() => {
-    if (!open) return;
-    setActive(value);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        dismiss();
-        btnRef.current?.focus();
-        return;
-      }
-      const currentActive = activeRef.current;
-      const index = Math.max(0, flat.findIndex((item) => item.selector === currentActive));
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        if (flat.length === 0) return;
-        const delta = event.key === "ArrowDown" ? 1 : -1;
-        const next = flat[(index + delta + flat.length) % flat.length];
-        if (next) setActive(next.selector);
-        return;
-      }
-      if (event.key === "Home") {
-        event.preventDefault();
-        const first = flat[0];
-        if (first) setActive(first.selector);
-        return;
-      }
-      if (event.key === "End") {
-        event.preventDefault();
-        const last = flat[flat.length - 1];
-        if (last) setActive(last.selector);
-        return;
-      }
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        const current = flat.find((item) => item.selector === currentActive) ?? flat[index];
-        if (current) pick(current.selector);
-      }
-    };
-    const onDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (btnRef.current?.contains(target) || popRef.current?.contains(target)) return;
-      dismiss();
-    };
-    const onReposition = () => place();
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
-    };
-  }, [open, flat, value]);
-
-  const label = selected?.name || value || t("modelConfig.selectModel");
-  const missing = Boolean(value) && !selectedGroup;
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        className={`rms-trigger${open ? " is-open" : ""}${missing ? " is-missing" : ""}`}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-label={ariaLabel ?? t("modelConfig.primaryModel")}
-        data-tip={value || undefined}
-        onMouseDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (open && event.detail === 0) return;
-          if (open) {
-            dismiss();
-            return;
-          }
-          setActive(value);
-          setOpen(true);
-        }}
-      >
-        <span className="rms-brand" aria-hidden="true">
-          <ProviderGlyph id={selectedGroup?.providerId || selected?.provider || ""} local={selectedGroup?.local ?? false} />
-        </span>
-        <span className="rms-copy">
-          <span className="rms-name">{label}</span>
-        </span>
-        <Icon name={open ? "chevron-u" : "chevron-d"} extra="sm" />
-      </button>
-      {open
-        ? createPortal(
-            <div
-              ref={popRef}
-              id={listId}
-              className="menu rms-pop"
-              role="listbox"
-              aria-label={t("modelConfig.pickByProvider")}
-              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
-              onMouseDown={(event) => event.stopPropagation()}
-            >
-              {flat.length === 0 ? (
-                <div className="rms-empty">{t("modelConfig.noAvailableModels")}</div>
-              ) : (
-                <>
-                  {missing ? (
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={value === active}
-                      data-active={active === value ? "true" : undefined}
-                      className={`menu-item rms-option is-missing${active === value ? " is-active" : ""}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => pick(value)}
-                    >
-                      <span className="rms-option-copy">
-                        <b>{value}</b>
-                        <span>{t("modelConfig.currentNotInList")}</span>
-                      </span>
-                    </button>
-                  ) : null}
-                  {groups.map((group) => (
-                    <div className="rms-group" key={group.providerId} role="group" aria-label={group.providerName}>
-                      <div className="rms-group-label">
-                        <span className="rms-brand" aria-hidden="true">
-                          <ProviderGlyph id={group.providerId} local={group.local} />
-                        </span>
-                        <span className="rms-group-name">{group.providerName}</span>
-                        <span className="rms-group-count">{group.models.length}</span>
-                      </div>
-                      {group.models.map((model) => {
-                        const on = model.selector === value;
-                        const isActive = model.selector === active;
-                        return (
-                          <button
-                            type="button"
-                            key={model.selector}
-                            role="option"
-                            aria-selected={on}
-                            data-active={isActive ? "true" : undefined}
-                            className={`menu-item rms-option${on ? " is-on" : ""}${isActive ? " is-active" : ""}`}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => pick(model.selector)}
-                          >
-                            <span className="rms-option-copy">
-                              <b>{model.name}</b>
-                              {model.id !== model.name ? <span>{model.id}</span> : null}
-                            </span>
-                            <ModelPickCaps model={model} />
-                            {on ? <Icon name="check" extra="sm" /> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
-  );
-}
-
-
-const BUILTIN_ROLE_DESC_KEYS: Record<string, string> = {
-  default: "modelConfig.roleDescDefault",
-  smol: "modelConfig.roleDescFast",
-  slow: "modelConfig.roleDescThinking",
-  vision: "modelConfig.roleDescVision",
-  plan: "modelConfig.roleDescArchitect",
-  designer: "modelConfig.roleDescDesigner",
-  commit: "modelConfig.roleDescCommit",
-  tiny: "modelConfig.roleDescTiny",
-  task: "modelConfig.roleDescSubtask",
-  advisor: "modelConfig.roleDescAdvisor",
-  widget: "modelConfig.roleDescWidget",
-};
-
-function formatRoleDesc(role: { id: string; desc: string; builtin?: boolean }, t: (k: string) => string): string {
-  const key = BUILTIN_ROLE_DESC_KEYS[role.id];
-  if (role.builtin && key) {
-    return t(key);
-  }
-  return role.desc;
-}
-
-
-const PROVIDER_STATUS_DETAIL_KEYS: Record<string, string> = {
-  "已从 models.yml 读取": "modelConfig.statusReadFromModelsYml",
-  "已在 disabledProviders 中禁用": "modelConfig.statusDisabledInConfig",
-  "已禁用": "modelConfig.statusDisabled",
-  "尚未登录": "modelConfig.statusNotLoggedIn",
-  "尚未配置凭据": "modelConfig.statusNoCredentials",
-  "已登录 · 演示账号": "modelConfig.statusDemoAccount",
-  "API Key 已保存": "modelConfig.statusApiKeySaved",
-  "本地服务未运行": "modelConfig.statusLocalServiceNotRunning",
-};
-
-function formatProviderStatusDetail(detail: string | undefined, t: (k: string) => string): string {
-  if (!detail) return "";
-  if (PROVIDER_STATUS_DETAIL_KEYS[detail]) {
-    return t(PROVIDER_STATUS_DETAIL_KEYS[detail]);
-  }
-  return detail;
-}
+type I18nT = ReturnType<typeof useI18n>["t"];
 
 function PurposeCategoryCards({
   t,
@@ -1970,7 +232,7 @@ function PurposeCategoryCards({
   );
 }
 
-export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, onOpenEvaluation, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; onOpenEvaluation?: () => void; client: StudioClient; sessionId?: string | undefined; workspaceId?: WorkspaceId | undefined; runtimeAvailable?: boolean }) {
+export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; client: StudioClient; sessionId?: string | undefined; workspaceId?: WorkspaceId | undefined; runtimeAvailable?: boolean }) {
   const { resolvedLanguage } = useI18n();
   const [, updatePricingClock] = useState(0);
   useEffect(() => {
@@ -1978,9 +240,9 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     return () => window.clearInterval(timer);
   }, []);
   const { t } = useI18n();
-  const { preview } = usePreviewMode();
+  const { preview, marks } = usePreviewMode();
   const [tab, setTab] = useState<McTab>("providers");
-  const { shown: shownTab, phase: tabPhase } = useDeferredKey(tab);
+  const { shown: shownTab, phase: tabPhase, dir: tabDir } = useDeferredKey(tab, mcTabRank);
   /* First paint must not play tabpanel page-in: it stacks on the shell/page-body
      translateY and Chromium flashes native placeholder glyphs at the wrong size.
      Arm only after a real tab change, same idea as useDeferredPresence `live`.
@@ -1988,7 +250,10 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
      gets page-out rather than a one-frame page-in flash. */
   const tabMotionLive = useRef(false);
   if (!Object.is(tab, shownTab)) tabMotionLive.current = true;
-  const tabPanelClass = (id: McTab) => (shownTab === id && tabMotionLive.current ? pagePhaseClass(tabPhase) : undefined);
+  /* Tabs are siblings, so the swap runs sideways (data-page-axis) in strip order. */
+  const tabPanelMotion = (id: McTab) => (shownTab === id && tabMotionLive.current
+    ? { className: pagePhaseClass(tabPhase), "data-page-axis": "x", "data-page-dir": pageDir(tabDir) }
+    : {});
   const [runtimeModels, setRuntimeModels] = useState<AvailableModelRecord[]>([]);
   const nativeLoad = useRef(0);
   const [data, setData] = useState<ModelConfigReadModel | null>(preview ? createPreviewModelConfig() : null);
@@ -2000,7 +265,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editorState, setEditor] = useState<Draft | null>(null);
   const [showKey, setShowKey] = useState(false);
-  const { shown: editor, phase: editorPhase, live: editorLive } = useDeferredPresence(editorState);
+  const { shown: editor, phase: editorPhase, live: editorLive, dir: editorDir } = useDeferredPresence(editorState);
   const [modelsYmlDraft, setModelsYmlDraft] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [configYmlDraft, setConfigYmlDraft] = useState<string | null>(null);
@@ -2012,12 +277,13 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [presetSel, setPresetSel] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<string | null>(null);
   const [roleDraftState, setRoleDraft] = useState<ModelRoleRecord | null>(null);
-  const { shown: roleDraft, phase: rolePhase, live: roleLive } = useDeferredPresence(roleDraftState);
+  const { shown: roleDraft, phase: rolePhase, live: roleLive, dir: roleDir } = useDeferredPresence(roleDraftState);
   const [assignSel, setAssignSel] = useState<string | null>(null);
   const [assignPopSel, setAssignPopSel] = useState<string | null>(null);
   const [assignModCounts, setAssignModCounts] = useState<Record<string, number>>({});
   const [roleAssignDraft, setRoleAssignDraft] = useState<Record<string, string[]>>({});
   const [agentIntent, setAgentIntent] = useState<string | undefined>(undefined);
+  const [accountPoolsDirty, setAccountPoolsDirty] = useState(false);
   const [agentCount, setAgentCount] = useState<number | undefined>(preview ? createPreviewAgentDefinitions().agents.length : undefined);
   const [testResult, setTestResult] = useState<TestResultView | null>(null);
   const [testing, setTesting] = useState(false);
@@ -2028,12 +294,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [orderDraft, setOrderDraft] = useState<string[]>([]);
   const [probeResult, setProbeResult] = useState<ModelDiscoveryResult | null>(null);
   const [probing, setProbing] = useState(false);
-  const [fetching, setFetching] = useState(false);
   const [catalogUpdating, setCatalogUpdating] = useState(false);
-  const fetchGeneration = useRef(0);
-  const fetchIdentity = useRef("");
-  const [fetchDetail, setFetchDetail] = useState<{ ok: boolean; text: string } | null>(null);
-  const [candidates, setCandidates] = useState<FetchedModelCandidate[] | null>(null);
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
   const [roleDeleteBlocked, setRoleDeleteBlocked] = useState<{ roleId: string; agents: string[] } | null>(null);
   const [newRole, setNewRole] = useState({ id: "", name: "", desc: "" });
@@ -2043,19 +304,24 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [modelEdit, setModelEdit] = useState<ModelEditState | null>(null);
   const { shown: modelEditView, leaving: modelEditLeaving } = useOverlayPresence(modelEdit);
   const [displayOrder, setDisplayOrder] = useState<string[]>(() => readProviderOrder());
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragPhase, setDragPhase] = useState<"dragging" | "settling">("dragging");
+  const { fetching, fetchDetail, setFetchDetail, candidates, setCandidates, onFetchModels, importCandidates } = useProviderDiscovery({ client, editorState, catalogVersion: data?.catalog?.version, setEditor, setModelsTab, toast: text => setFlash(text) });
   const loaded = useRef(false);
-  const mcTabsRef = useRef<HTMLDivElement>(null);
-  const tabWinRef = useRef<HTMLSpanElement>(null);
-  const tabMirrorRef = useRef<HTMLSpanElement>(null);
-  const tabWinPrimed = useRef(false);
-  const listRef = useRef<HTMLDivElement>(null);
   const orderRef = useRef(displayOrder);
-  const clearDragStylesRef = useRef(false);
-  const settleGenRef = useRef(0);
-  const dragLockRef = useRef(false);
   orderRef.current = displayOrder;
+  const { listRef, draggingId, dragPhase, onPointerDown: onProviderDragPointerDown } = useListReorder({
+    order: displayOrder, selector: ".pv-card", gap: 10, sortingClass: "is-pv-sorting",
+    onReorder(from, to, visible) {
+      const nextVisible = visible.slice();
+      const [moved] = nextVisible.splice(from, 1);
+      if (!moved) return;
+      nextVisible.splice(to, 0, moved);
+      const nextOrder = permuteVisible(orderRef.current, visible, nextVisible);
+      if (sameOrder(nextOrder, orderRef.current)) return;
+      orderRef.current = nextOrder;
+      setDisplayOrder(nextOrder);
+      writeProviderOrder(nextOrder);
+    },
+  });
 
   const refresh = useCallback(async () => {
     if (preview) {
@@ -2089,7 +355,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   useEffect(() => {
     const generation = ++nativeLoad.current;
     setRuntimeModels([]);
-    if (preview || (tab !== "roles" && tab !== "websearch" && tab !== "benchmark")) return;
+    if (preview || (tab !== "roles" && tab !== "websearch")) return;
     void loadRuntimeModels(client, () => generation === nativeLoad.current)
       .then(rows => { if (generation === nativeLoad.current) setRuntimeModels(rows); })
       .catch(() => { /* Disk configuration remains usable when Runtime is unavailable. */ });
@@ -2173,7 +439,6 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     if (intent.tab === "visibility") setTab("visibility");
     if (intent.tab === "subagents" || intent.agent) setTab("subagents");
     if (intent.tab === "websearch") setTab("websearch");
-    if (intent.tab === "benchmark") setTab("benchmark");
     if (intent.tab === "presets" || intent.tab === "accounts") setTab(intent.tab);
     if (intent.edit) {
       setTab("providers");
@@ -2195,12 +460,9 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     if (role) setRoleDraft({ ...role });
   }, [data, roleId, roleDraft]);
 
-  const currentFetchIdentity = JSON.stringify([editorState?.id, editorState?.api, editorState?.endpointUrl]);
-  fetchIdentity.current = currentFetchIdentity;
-  useEffect(() => { fetchGeneration.current += 1; setCandidates(null); setFetching(false); }, [currentFetchIdentity]);
   const providers = data?.providers ?? [];
   const roles = data?.roles ?? [];
-  const webSearchReadyCount = data?.webSearch.providers.filter((provider) => provider.credentialFree || provider.hasCredential).length ?? 0;
+  const [webSearchReadyCount, setWebSearchReadyCount] = useState(0);
   const presets = data?.presets ?? [];
   const modelEditListProvider = modelEditView?.providerId
     ? providers.find((item) => item.id === modelEditView.providerId)
@@ -2220,21 +482,6 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     });
   }, [data]);
 
-  useLayoutEffect(() => {
-    if (!clearDragStylesRef.current) return;
-    clearDragStylesRef.current = false;
-    const root = listRef.current;
-    if (!root) return;
-    for (const el of root.querySelectorAll<HTMLElement>(".pv-card")) {
-      el.style.transition = "transform 0s";
-      el.style.transform = "";
-    }
-    void root.offsetHeight;
-    for (const el of root.querySelectorAll<HTMLElement>(".pv-card")) {
-      el.style.removeProperty("transition");
-      el.style.removeProperty("transform");
-    }
-  }, [draggingId, displayOrder]);
 
   const orderedProviders = useMemo(() => sortProviders(providers, displayOrder), [providers, displayOrder]);
   const filtered = orderedProviders.filter((item) => {
@@ -2247,62 +494,6 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const roleIssues = roles.filter((role) => role.issue).length;
   const hiddenModelCount = (data?.hiddenModels ?? []).length;
 
-  // 把滑动选中气泡对准当前激活的 tab 按钮：窗口盖在其上，镜像反向位移保持
-  // 克隆与基础层对齐（与 SecondaryPage 的 page-nav 同一套算法）。
-  useLayoutEffect(() => {
-    const tabs = mcTabsRef.current;
-    const win = tabWinRef.current;
-    const mirror = tabMirrorRef.current;
-    if (!tabs || !win || !mirror) return;
-
-    const sync = () => {
-      const active = tabs.querySelector<HTMLElement>(`#${TAB_BUTTON_ID[tab]}`);
-      if (!active) return;
-      const animate = tabWinPrimed.current;
-      if (!animate) {
-        win.style.transition = "none";
-        mirror.style.transition = "none";
-      }
-      win.style.left = `${active.offsetLeft}px`;
-      win.style.width = `${active.offsetWidth}px`;
-      mirror.style.left = `${-active.offsetLeft}px`;
-      if (!animate) {
-        void win.offsetWidth;
-        win.style.removeProperty("transition");
-        mirror.style.removeProperty("transition");
-        tabWinPrimed.current = true;
-      }
-    };
-
-    sync();
-
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => sync());
-      observer.observe(tabs);
-      for (const btn of tabs.querySelectorAll('[role="tab"]')) {
-        observer.observe(btn);
-      }
-      return () => observer.disconnect();
-    }
-  }, [tab, providers.length, roles.length, agentCount]);
-
-  const activate = (next: McTab, focus = false) => {
-    setTab(next);
-    if (focus) document.getElementById(TAB_BUTTON_ID[next])?.focus();
-  };
-
-  const onTabKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const keys: McTab[] = ["providers", "visibility", "roles", "subagents", "websearch", "presets", "accounts", "benchmark"];
-    const index = keys.indexOf(tab);
-    let next: McTab | null = null;
-    if (event.key === "ArrowRight") next = keys[(index + 1) % keys.length] ?? "providers";
-    else if (event.key === "ArrowLeft") next = keys[(index - 1 + keys.length) % keys.length] ?? "providers";
-    else if (event.key === "Home") next = "providers";
-    else if (event.key === "End") next = "benchmark";
-    if (!next) return;
-    event.preventDefault();
-    activate(next, true);
-  };
 
   const toast = (text: string) => {
     setFlash(text);
@@ -2344,8 +535,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     [providerFormDirty, editorState, providerYamlId, providerYamlNodeValue, storedAuthType],
   );
   const configYmlFormSlice = useMemo(
-    () => roleFormDirty && roleDraftState?.primary && roleYamlId
-      ? serializeModelsYmlNode({ [roleYamlId]: roleSelector(roleDraftState) })
+    () => roleFormDirty && roleDraftState && roleYamlId
+      ? roleDraftState.primary ? serializeModelsYmlNode({ [roleYamlId]: roleSelector(roleDraftState) }) : ""
       : null,
     [roleFormDirty, roleDraftState, roleYamlId],
   );
@@ -2376,113 +567,11 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const ymlCardsDirty = providerFormDirty || roleFormDirty || modelsYmlEdited || configYmlEdited || fallbackDirty;
 
   useEffect(() => {
-    modelConfigDirty = ymlCardsDirty;
+    setModelConfigDirty(ymlCardsDirty || accountPoolsDirty);
     return () => {
-      modelConfigDirty = false;
+      setModelConfigDirty(false);
     };
-  }, [ymlCardsDirty]);
-
-  const onProviderDragPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, id: string) => {
-    if (event.button !== 0) return;
-    if (dragLockRef.current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const root = listRef.current;
-    if (!root) return;
-    const listRect = root.getBoundingClientRect();
-    const items: DragCard[] = [...root.querySelectorAll<HTMLElement>(".pv-card")].flatMap((el) => {
-      const cardId = el.dataset.id;
-      if (!cardId) return [];
-      const rect = el.getBoundingClientRect();
-      return [{ id: cardId, el, relTop: rect.top - listRect.top, height: rect.height }];
-    });
-    const originIndex = items.findIndex((item) => item.id === id);
-    const dragged = items[originIndex];
-    if (originIndex < 0 || !dragged) return;
-    const handle = event.currentTarget;
-    const pointerId = event.pointerId;
-    handle.setPointerCapture(pointerId);
-    dragLockRef.current = true;
-    settleGenRef.current += 1;
-    setDragPhase("dragging");
-    setDraggingId(id);
-    document.body.classList.add("is-pv-sorting");
-    document.body.style.cursor = "grabbing";
-    document.body.style.userSelect = "none";
-    const startY = event.clientY;
-    const slot = dragged.height + PROVIDER_CARD_GAP;
-    let overIndex = originIndex;
-
-    const applyShifts = (over: number) => {
-      for (let index = 0; index < items.length; index++) {
-        const item = items[index];
-        if (!item || index === originIndex) continue;
-        const shift = siblingShift(index, originIndex, over, slot);
-        item.el.style.transform = shift ? `translate3d(0, ${shift}px, 0)` : "";
-      }
-    };
-
-    const stopCursor = () => {
-      document.body.classList.remove("is-pv-sorting");
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      try {
-        handle.releasePointerCapture(pointerId);
-      } catch {
-        /* already released */
-      }
-    };
-
-    const move = (next: PointerEvent) => {
-      next.preventDefault();
-      const dy = next.clientY - startY;
-      dragged.el.style.transform = `translate3d(0, ${dy}px, 0)`;
-      const nextOver = insertionIndex(items, dragged.relTop + dragged.height / 2 + dy);
-      if (nextOver === overIndex) return;
-      overIndex = nextOver;
-      applyShifts(overIndex);
-    };
-
-    const up = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", up);
-      handle.removeEventListener("pointercancel", up);
-      stopCursor();
-      const destY = destinationTranslateY(items, originIndex, overIndex);
-      const gen = ++settleGenRef.current;
-      setDragPhase("settling");
-      dragged.el.style.transition = "transform var(--dur-slow) var(--ease-ios), scale var(--dur-slow) var(--ease-ios)";
-      requestAnimationFrame(() => {
-        if (gen !== settleGenRef.current) return;
-        dragged.el.style.transform = `translate3d(0, ${destY}px, 0)`;
-      });
-
-      const finish = () => {
-        if (gen !== settleGenRef.current) return;
-        dragLockRef.current = false;
-        clearDragStylesRef.current = true;
-        setDraggingId(null);
-        setDragPhase("dragging");
-        if (overIndex === originIndex) return;
-        const visible = items.map((item) => item.id);
-        const nextVisible = visible.slice();
-        const [moved] = nextVisible.splice(originIndex, 1);
-        if (!moved) return;
-        nextVisible.splice(overIndex, 0, moved);
-        const nextOrder = permuteVisible(orderRef.current, visible, nextVisible);
-        if (sameOrder(nextOrder, orderRef.current)) return;
-        orderRef.current = nextOrder;
-        setDisplayOrder(nextOrder);
-        writeProviderOrder(nextOrder);
-      };
-
-      window.setTimeout(finish, PROVIDER_DRAG_SETTLE_MS);
-    };
-
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up);
-    handle.addEventListener("pointercancel", up);
-  };
+  }, [ymlCardsDirty, accountPoolsDirty]);
 
   const mutateLocal = (recipe: (current: ModelConfigReadModel) => ModelConfigReadModel) => {
     setData((current) => recipe(current ?? createPreviewModelConfig()));
@@ -2551,7 +640,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       if (overlayForm && draft) setProviderBaseline(draft);
       setModelsYmlDraft(null);
       if (close) setEditor(null);
-      toast(t("modelConfig.demoYamlUpdated"));
+      if (marks) toast(t("modelConfig.demoYamlUpdated"));
       return true;
     }
     setBusy(true);
@@ -2594,8 +683,9 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
     const rolesMap = readModelRoles(parsed.value);
     const draft = roleDraftState;
-    if (overlayForm && draft?.primary) {
-      rolesMap[roleYamlId] = roleSelector(withRoleModel(
+    if (overlayForm && draft) {
+      if (!draft.primary) delete rolesMap[roleYamlId];
+      else rolesMap[roleYamlId] = roleSelector(withRoleModel(
         { ...draft, id: roleYamlId },
         draft.primary,
         (data?.availableModels ?? []).find((item) => item.selector === draft.primary),
@@ -2624,7 +714,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         setRoleDraft(null);
         setRoleId(null);
       }
-      toast(t("modelConfig.demoRoleYamlUpdated"));
+      if (marks) toast(t("modelConfig.demoRoleYamlUpdated"));
       return true;
     }
     setBusy(true);
@@ -2687,7 +777,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       });
       setRoleAssignDraft({});
       setEditor(null);
-      toast(roleUpdates.length > 0 ? t("modelConfig.demoUpdatedListAndRoles") : t("modelConfig.demoUpdatedList"));
+      if (marks) toast(roleUpdates.length > 0 ? t("modelConfig.demoUpdatedListAndRoles") : t("modelConfig.demoUpdatedList"));
       return;
     }
     setBusy(true);
@@ -2724,7 +814,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           providers: [...current.providers.filter((item) => item.id !== saved.id), saved],
         };
       });
-      toast(t("modelConfig.demoOkMessage", { message: okMessage }));
+      if (marks) toast(t("modelConfig.demoOkMessage", { message: okMessage }));
       return;
     }
     setBusy(true);
@@ -2743,7 +833,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const deleteProvider = async (id: string) => {
     if (preview) {
       mutateLocal((current) => ({ ...current, providers: current.providers.filter((item) => item.id !== id) }));
-      toast(t("modelConfig.demoRemoved"));
+      if (marks) toast(t("modelConfig.demoRemoved"));
       return;
     }
     setBusy(true);
@@ -2772,7 +862,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     const enabled = !provider.enabled;
     applyEnabledLocal(provider.id, enabled);
     if (preview) {
-      toast(enabled ? t("modelConfig.demoEnabled", { name: provider.name }) : t("modelConfig.demoDisabled", { name: provider.name }));
+      if (marks) toast(enabled ? t("modelConfig.demoEnabled", { name: provider.name }) : t("modelConfig.demoDisabled", { name: provider.name }));
       return;
     }
     const snapshot = data;
@@ -2800,7 +890,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     if (updates.length === 0) return;
     if (preview) {
       mutateLocal((current) => withRolePrimaryUpdates(current, updates));
-      if (opts?.announce !== false) toast(t("modelConfig.demoAssignedRoles", { count: updates.length }));
+      if (opts?.announce !== false && marks) toast(t("modelConfig.demoAssignedRoles", { count: updates.length }));
       return;
     }
     let last: ConfigWriteResult | undefined;
@@ -2813,23 +903,6 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
     if (opts?.announce !== false) toast(last?.message ?? t("modelConfig.assignedRoles", { count: updates.length }));
     if (opts?.refreshAfter !== false) await refreshAfterWrite();
-  };
-
-  const assignModelToRoles = async (selector: string, roleIds: ReadonlyArray<string>) => {
-    const targets = roles.filter((role) => roleIds.includes(role.id) && role.primary !== selector);
-    if (targets.length === 0) return;
-    if (preview) {
-      await applyRolePrimaryUpdates(targets.map((role) => ({ role, selector })));
-      return;
-    }
-    setBusy(true);
-    try {
-      await applyRolePrimaryUpdates(targets.map((role) => ({ role, selector })));
-    } catch (error) {
-      toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
-    } finally {
-      setBusy(false);
-    }
   };
 
   const commitRoleAssign = (sel: string, addedIds: string[], removedIds: string[] = []) => {
@@ -2888,9 +961,6 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         toast(t("modelConfig.roleIdTaken"));
         return;
       }
-    } else if (!role.primary) {
-      toast(t("modelConfig.selectPrimaryFirst"));
-      return;
     }
     const renamed = Boolean(persistIdentity && baseline && baseline.id !== id);
     if (renamed && baseline) {
@@ -2906,15 +976,12 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         const saved = { ...next };
         const { issue: _ignored, ...rest } = saved;
         const record = rest;
-        if (renamed && baseline) {
-          return { ...current, roles: [...current.roles.filter((item) => item.id !== baseline.id), record] };
-        }
-        return {
-          ...current,
-          roles: current.roles.map((item) => (item.id === (baseline?.id ?? role.id) ? record : item)),
-        };
+        const nextRoles = renamed && baseline
+          ? [...current.roles.filter((item) => item.id !== baseline.id), record]
+          : current.roles.map((item) => (item.id === (baseline?.id ?? role.id) ? record : item));
+        return withRolePrimaryUpdates({ ...current, roles: nextRoles }, [{ role: record, selector: record.primary }]);
       });
-      toast((next.thinkingAdjustment ? `${next.thinkingAdjustment} · ` : "") + t("modelConfig.demoRoleUpdated"));
+      if (marks) toast((next.thinkingAdjustment ? `${next.thinkingAdjustment} · ` : "") + t("modelConfig.demoRoleUpdated"));
       setRoleId(null);
       setRoleDraft(null);
       return;
@@ -2931,11 +998,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         if (renamed && baseline) {
           await runWrite(client, "models.roles.delete", { roleId: baseline.id });
         }
-      } else if (selector) {
-        await runWrite(client, "models.roles.set", { roleId: id, selector });
       } else {
-        toast(t("modelConfig.selectPrimaryFirst"));
-        return;
+        await runWrite(client, "models.roles.set", { roleId: id, selector });
       }
       toast((next.thinkingAdjustment ? `${next.thinkingAdjustment} · ` : "") + t("modelConfig.savedToConfigToast"));
       setRoleId(null);
@@ -2948,7 +1012,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
   };
 
-  const startLogin = async (providerId: string) => {
+  const [loginFlowByProvider, setLoginFlowByProvider] = useState<Record<string, string>>({});
+  const startLogin = async (providerId: string, loginId?: string) => {
     if (!providerId.trim()) {
       toast(t("modelConfig.fillProviderId"));
       return;
@@ -2977,7 +1042,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             : item),
         };
       });
-      toast(t("modelConfig.toastDemoLogin"));
+      if (marks) toast(t("modelConfig.toastDemoLogin"));
       return;
     }
     if (!data?.loginAvailable) {
@@ -2986,7 +1051,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
     setBusy(true);
     try {
-      const result = await runWrite(client, "models.login.start", { providerId });
+      const result = await runWrite(client, "models.login.start", { providerId, ...(loginId ? { loginId } : {}) });
       toast(result.message ?? t("modelConfig.toastLoginCompleted"));
       await refreshAfterWrite();
     } catch (error) {
@@ -3007,7 +1072,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           return { ...item, statusDetail: t("modelConfig.statusNotLoggedIn"), auth: { ...auth, hasSecret: false } };
         }),
       }));
-      toast(t("modelConfig.toastDemoLogout"));
+      if (marks) toast(t("modelConfig.toastDemoLogout"));
       return;
     }
     setBusy(true);
@@ -3030,7 +1095,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         providerId,
         ok: true,
         latencyMs: 23 + Math.floor(Math.random() * 60),
-        detail: t("modelConfig.detailDemoConnectHttp200"),
+        detail: marks ? t("modelConfig.detailDemoConnectHttp200") : "HTTP 200",
       });
       return;
     }
@@ -3061,13 +1126,13 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       { id: "deepseek-r1", name: "deepseek-r1" },
     ],
     latencyMs: 28,
-    detail: t("modelConfig.detailDemoProbeSuccess", { providerId }),
+    detail: marks ? t("modelConfig.detailDemoProbeSuccess", { providerId }) : t("modelConfig.probeSuccess"),
   });
 
   const onProbe = async (providerId: string, endpointUrl?: string, apiKey?: string, discoveryType?: string, timeoutMs?: number) => {
     if (preview) {
       setProbeResult(previewProbeResult(providerId));
-      toast(t("modelConfig.toastDemoDiscoveryNoHost"));
+      if (marks) toast(t("modelConfig.toastDemoDiscoveryNoHost"));
       return;
     }
     setProbing(true);
@@ -3095,94 +1160,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
   };
 
-  /**
-   * Fetch the provider's model list over HTTP and offer it as a checklist.
-   * Deliberately omits `discoveryType` so the Host picks the model-list URL and
-   * auth header from the wire API — that is what makes this work for ordinary
-   * providers that have no `discovery` block.
-   */
-  const onFetchModels = async (draft: Draft) => {
-    // `editor` is the deferred-presence copy, so a click landing during the
-    // editor's exit animation must not resurrect a closed form.
-    if (editorState === null) return;
-    const providerId = draft.id.trim();
-    const endpointUrl = draft.endpointUrl.trim();
-    if (!providerId || !endpointUrl) {
-      toast(!providerId ? t("modelConfig.toastFillProviderIdFirst") : t("modelConfig.toastFillBaseUrlFirst"));
-      return;
-    }
-    const requestGeneration = ++fetchGeneration.current;
-    const requestIdentity = fetchIdentity.current;
-    const stillCurrent = () => requestGeneration === fetchGeneration.current && requestIdentity === fetchIdentity.current;
-    const adaptFetched = async (models: readonly import("@linxiraos/studio-contract").ModelDiscoveryModel[]) => {
-      const matches = await Promise.all(models.map(async model => {
-        const endpoint = { ...(model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow }), ...(model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens }), ...(model.reasoning === undefined ? {} : { reasoning: model.reasoning }) };
-        const input = { providerId, api: draft.api, modelId: model.id, name: model.name, endpoint, ...(data?.catalog ? { catalogVersion: data.catalog.version } : {}) };
-        const result = preview ? previewModelAdaptation(input) : await client.query("models.adaptation.resolve", input).catch(() => undefined);
-        return [model.id, result] as const;
-      }));
-      return new Map(matches.filter((pair): pair is readonly [string, import("@linxiraos/studio-contract").ModelAdaptationResult] => pair[1] !== undefined));
-    };
-    if (preview) {
-      const demo = createPreviewFetchedModels();
-      const matches = await adaptFetched(demo);
-      if (!stillCurrent()) return;
-      setCandidates(toCandidates(demo, draft.models, [], matches));
-      setFetchDetail({ ok: true, text: t("modelConfig.detailDemoFetchNoHost", { count: demo.length }) });
-      setModelsTab("custom");
-      toast(t("modelConfig.toastDemoAutoFetchNoHost"));
-      return;
-    }
-    setFetching(true);
-    setFetchDetail(null);
-    setCandidates(null);
-    try {
-      const secret = editorTestSecret(draft);
-      const headers = parseHeaders(draft.headersText);
-      const result = await runProbe(client, {
-        providerId,
-        endpointUrl,
-        api: draft.api,
-        advertisedReasoning: draft.advertisedReasoning !== false,
-        ...(secret ? { apiKey: secret } : {}),
-        ...(Object.keys(headers).length > 0 ? { headers } : {}),
-        ...(draft.discoveryTimeoutMs === undefined ? {} : { timeoutMs: draft.discoveryTimeoutMs }),
-      });
-      if (!stillCurrent()) return;
-      if (!result.ok) {
-        setFetchDetail({ ok: false, text: `${result.detail} · ${result.latencyMs}ms` });
-        return;
-      }
-      const matches = await adaptFetched(result.models);
-      if (!stillCurrent()) return;
-      const next = toCandidates(result.models, draft.models, [], matches);
-      setCandidates(next);
-      setModelsTab("custom");
-      setFetchDetail({
-        ok: true,
-        text: next.length === 0
-          ? t("modelConfig.detailEndpointEmptyList", { detail: result.detail, latencyMs: result.latencyMs })
-          : t("modelConfig.detailFetchSuccessStats", { total: next.length, added: next.filter((item) => !item.existing).length, latencyMs: result.latencyMs }),
-      });
-    } catch (error) {
-      if (stillCurrent()) setFetchDetail({ ok: false, text: hostErrorMessage(error, t("modelConfig.textFetchModelsFailed")) });
-    } finally {
-      if (stillCurrent()) setFetching(false);
-    }
-  };
-
-  const importCandidates = (host: Draft, picked: ReadonlyArray<FetchedModelCandidate>) => {
-    const entries = candidatesToEntries(host.id.trim(), picked);
-    if (entries.length === 0) return;
-    setEditor({ ...host, models: mergeImportedModels(host.models, entries) });
-    setCandidates(null);
-    setFetchDetail(null);
-    setModelsTab("custom");
-    toast(t("modelConfig.toastImportDraftModels", { count: entries.length }));
-  };
-
   const updateModelCatalog = async () => {
-    if (preview) { toast(t("modelAdaptation.demoUpdate")); return; }
+    if (preview) { if (marks) toast(t("modelAdaptation.demoUpdate")); return; }
     setCatalogUpdating(true);
     try {
       const handle = await client.command("models.catalog.refresh", {});
@@ -3195,7 +1174,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
 
   const refreshDiscovery = async () => {
     if (preview) {
-      toast(t("modelConfig.toastDemoNoRefresh"));
+      if (marks) toast(t("modelConfig.toastDemoNoRefresh"));
       return;
     }
     setBusy(true);
@@ -3217,7 +1196,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         modelRoleStorage: storage,
         roles: current.roles.map((role) => ({ ...role, scope: storage })),
       }));
-      toast(storage === "project" ? t("modelConfig.toastDemoScopeProject") : t("modelConfig.toastDemoScopeGlobal"));
+      if (marks) toast(storage === "project" ? t("modelConfig.toastDemoScopeProject") : t("modelConfig.toastDemoScopeGlobal"));
       return;
     }
     setBusy(true);
@@ -3254,7 +1233,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       }));
       setCreateRoleOpen(false);
       setNewRole({ id: "", name: "", desc: "" });
-      toast(t("modelConfig.toastDemoCustomRoleCreated"));
+      if (marks) toast(t("modelConfig.toastDemoCustomRoleCreated"));
       return;
     }
     setBusy(true);
@@ -3312,7 +1291,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       mutateLocal((current) => ({ ...current, roles: current.roles.filter((role) => role.id !== roleId) }));
       setRoleDraft(null);
       setRoleId(null);
-      toast(t("modelConfig.toastDemoCustomRoleDeleted"));
+      if (marks) toast(t("modelConfig.toastDemoCustomRoleDeleted"));
       return;
     }
     const refs = await findRoleReferences(roleId);
@@ -3350,7 +1329,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       mutateLocal((current) => ({ ...current, fallbackChains: chains, fallbackRevertPolicy: revertPolicy }));
       setFallbackDraft(nextChain);
       setRevertPolicyDraft(revertPolicy);
-      toast(t("modelConfig.toastDemoFallbackUpdated"));
+      if (marks) toast(t("modelConfig.toastDemoFallbackUpdated"));
       return;
     }
     setBusy(true);
@@ -3370,7 +1349,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const saveProviderOrder = async () => {
     if (preview) {
       mutateLocal((current) => ({ ...current, modelProviderOrder: orderDraft.slice() }));
-      toast(t("modelConfig.toastDemoModelProviderOrderUpdated"));
+      if (marks) toast(t("modelConfig.toastDemoModelProviderOrderUpdated"));
       setOrderEdit(false);
       return;
     }
@@ -3401,7 +1380,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const saveCycle = async () => {
     if (preview) {
       mutateLocal((current) => ({ ...current, cycleOrder: cycleDraft.slice() }));
-      toast(t("modelConfig.toastDemoLocalOrderUpdated"));
+      if (marks) toast(t("modelConfig.toastDemoLocalOrderUpdated"));
       setCycleEdit(false);
       return;
     }
@@ -3470,55 +1449,48 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     return map;
   }, [data, providers, runtimeModels]);
 
+  const refreshRoleModels = async () => {
+    const current = ++nativeLoad.current;
+    const models = await loadRuntimeModels(client, () => current === nativeLoad.current);
+    if (current === nativeLoad.current) setRuntimeModels(models);
+  };
+
+  const catalogStatus = preview && marks ? t("modelAdaptation.demo") : data?.catalog?.version ?? t("modelAdaptation.catalogUnknown");
+
   return (
     <div className="page-wide" id="mcRoot">
       <a className="skip-link" href="#mcPanels">{t("common.skipToContent")}</a>
-      <div className="mc-catalog-update">
-        <span className="small muted">{t("modelAdaptation.catalog")} · {preview ? t("modelAdaptation.demo") : data?.catalog?.version ?? t("modelAdaptation.unknown")}</span>
-        <button type="button" className="btn small outline" disabled={catalogUpdating || (!preview && !data)} onClick={() => void updateModelCatalog()}>{t(catalogUpdating ? "modelAdaptation.updating" : "modelAdaptation.update")}</button>
-      </div>
       <div className="mc-tabbar">
-        <div className="mc-tabs" id="mcTabs" ref={mcTabsRef} role="tablist" aria-label={t("modelConfig.modelConfigView")} onKeyDown={onTabKey}>
-          <button role="tab" id="mcTabProviders" aria-controls="mcPanelProviders" aria-selected={tab === "providers"} tabIndex={tab === "providers" ? 0 : -1} className={tab === "providers" ? "active" : undefined} onClick={() => activate("providers")}>
-            <Icon name="server" extra="sm" /><span>{t("modelConfig.providersTab")}</span>
-            <span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span>
-          </button>
-          <button role="tab" id="mcTabVisibility" aria-controls="mcPanelVisibility" aria-selected={tab === "visibility"} tabIndex={tab === "visibility" ? 0 : -1} className={tab === "visibility" ? "active" : undefined} onClick={() => activate("visibility")}>
-            <Icon name="eye" extra="sm" /><span>{t("modelConfig.visibilityTab")}</span>
-            {hiddenModelCount > 0 ? <span className="chip amber xs">{hiddenModelCount}</span> : null}
-          </button>
-          <button role="tab" id="mcTabRoles" aria-controls="mcPanelRoles" aria-selected={tab === "roles"} tabIndex={tab === "roles" ? 0 : -1} className={tab === "roles" ? "active" : undefined} onClick={() => activate("roles")}>
-            <Icon name="steering" extra="sm" /><span>{t("modelConfig.rolesTab")}</span>
-            <span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span>
-          </button>
-          <button role="tab" id="mcTabSubagents" aria-controls="mcPanelSubagents" aria-selected={tab === "subagents"} tabIndex={tab === "subagents" ? 0 : -1} className={tab === "subagents" ? "active" : undefined} onClick={() => activate("subagents")}>
-            <Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span>
-            {agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>}
-          </button>
-          <button role="tab" id="mcTabWebSearch" aria-controls="mcPanelWebSearch" aria-selected={tab === "websearch"} tabIndex={tab === "websearch" ? 0 : -1} className={tab === "websearch" ? "active" : undefined} onClick={() => activate("websearch")}>
-            <Icon name="globe" extra="sm" /><span>{t("modelConfig.webSearchTab")}</span>
-            <span className={`chip ${webSearchReadyCount === 0 ? "amber" : "gray"} xs`}>{webSearchReadyCount}<span className="sr-only"> {t("modelConfig.webSearchCountAria", { count: webSearchReadyCount })}</span></span>
-          </button>
-          <button role="tab" id="mcTabPresets" aria-controls="mcPanelPresets" aria-selected={tab === "presets"} tabIndex={tab === "presets" ? 0 : -1} className={tab === "presets" ? "active" : undefined} onClick={() => activate("presets")}><Icon name="layers" extra="sm" /><span>{resolvedLanguage === "zh" ? "预设" : "Presets"}</span></button>
-          <button role="tab" id="mcTabAccounts" aria-controls="mcPanelAccounts" aria-selected={tab === "accounts"} tabIndex={tab === "accounts" ? 0 : -1} className={tab === "accounts" ? "active" : undefined} onClick={() => activate("accounts")}><Icon name="user" extra="sm" /><span>{resolvedLanguage === "zh" ? "账户" : "Accounts"}</span></button>
-          <button role="tab" id="mcTabBenchmark" aria-controls="mcPanelBenchmark" aria-selected={tab === "benchmark"} tabIndex={tab === "benchmark" ? 0 : -1} className={tab === "benchmark" ? "active" : undefined} onClick={() => activate("benchmark")}><Icon name="pulse" extra="sm" /><span>{t("modelConfig.benchmarkTab")}</span></button>
-          <span className="mc-tab-window" ref={tabWinRef} aria-hidden="true">
-            <span className="mc-tab-mirror" ref={tabMirrorRef}>
-              <button type="button" tabIndex={-1}><Icon name="server" extra="sm" /><span>{t("modelConfig.providersTab")}</span><span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span></button>
-              <button type="button" tabIndex={-1}><Icon name="eye" extra="sm" /><span>{t("modelConfig.visibilityTab")}</span>{hiddenModelCount > 0 ? <span className="chip amber xs">{hiddenModelCount}</span> : null}</button>
-              <button type="button" tabIndex={-1}><Icon name="steering" extra="sm" /><span>{t("modelConfig.rolesTab")}</span><span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span></button>
-              <button type="button" tabIndex={-1}><Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span>{agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>}</button>
-              <button type="button" tabIndex={-1}><Icon name="globe" extra="sm" /><span>{t("modelConfig.webSearchTab")}</span><span className="chip gray xs">{webSearchReadyCount}<span className="sr-only"> {t("modelConfig.webSearchCountAria", { count: webSearchReadyCount })}</span></span></button>
-              <button type="button" tabIndex={-1}><Icon name="layers" extra="sm" /><span>{resolvedLanguage === "zh" ? "预设" : "Presets"}</span></button>
-              <button type="button" tabIndex={-1}><Icon name="user" extra="sm" /><span>{resolvedLanguage === "zh" ? "账户" : "Accounts"}</span></button>
-              <button type="button" tabIndex={-1}><Icon name="pulse" extra="sm" /><span>{t("modelConfig.benchmarkTab")}</span></button>
-            </span>
+        <SlidingTabs<McTab>
+          id="mcTabs"
+          className="mc-tabs"
+          ariaLabel={t("modelConfig.modelConfigView")}
+          orientation="horizontal"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { id: "providers", icon: "server", label: t("modelConfig.providersTab"), buttonId: TAB_BUTTON_ID.providers, panelId: "mcPanelProviders", badge: <span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span> },
+            { id: "visibility", icon: "eye", label: t("modelConfig.visibilityTab"), buttonId: TAB_BUTTON_ID.visibility, panelId: "mcPanelVisibility", badge: hiddenModelCount > 0 ? <span className="chip amber xs">{hiddenModelCount}</span> : null },
+            { id: "roles", icon: "steering", label: t("modelConfig.rolesTab"), buttonId: TAB_BUTTON_ID.roles, panelId: "mcPanelRoles", badge: <span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span> },
+            { id: "subagents", icon: "bot", label: t("modelConfig.subagentsTab"), buttonId: TAB_BUTTON_ID.subagents, panelId: "mcPanelSubagents", badge: agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span> },
+            { id: "websearch", icon: "globe", label: t("modelConfig.webSearchTab"), buttonId: TAB_BUTTON_ID.websearch, panelId: "mcPanelWebSearch", badge: <span className={`chip ${webSearchReadyCount === 0 ? "amber" : "gray"} xs`}>{webSearchReadyCount}<span className="sr-only"> {t("modelConfig.webSearchCountAria", { count: webSearchReadyCount })}</span></span> },
+            { id: "presets", icon: "layers", label: resolvedLanguage === "zh" ? "预设" : "Presets", buttonId: TAB_BUTTON_ID.presets, panelId: "mcPanelPresets" },
+            { id: "accounts", icon: "user", label: resolvedLanguage === "zh" ? "账户" : "Accounts", buttonId: TAB_BUTTON_ID.accounts, panelId: "mcPanelAccounts" },
+          ]}
+        />
+        <div className="mc-catalog-update">
+          <span className="mc-catalog-status" data-tip={`${t("modelAdaptation.catalogHint")} ${catalogStatus}`}>
+            <span>{t("modelAdaptation.catalog")}</span>
+            <span className="mc-catalog-version" aria-live="polite">{catalogStatus}</span>
           </span>
+          <button type="button" className="icon-btn mc-catalog-refresh" aria-label={t(catalogUpdating ? "modelAdaptation.updating" : "modelAdaptation.update")} data-tip={t(catalogUpdating ? "modelAdaptation.updating" : "modelAdaptation.update")} disabled={catalogUpdating || (!preview && !data)} onClick={() => void updateModelCatalog()}>
+            {catalogUpdating ? <span className="spinner" aria-hidden="true" /> : <Icon name="refresh" extra="sm" />}
+          </button>
         </div>
       </div>
 
       <ToastHost message={flash} onDismiss={() => setFlash(null)} />
-      {preview ? (
+      {preview && marks ? (
         <div className="role-issue-banner mc-page-banner">
           <Icon name="info" extra="sm" />
           <div>
@@ -3530,16 +1502,15 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       {!preview && loadError ? <div className="role-issue-banner mc-page-banner"><Icon name="alert" extra="sm" /><div><div className="rib-title">{t("modelConfig.loadErrorTitle")}</div><div className="rib-text">{loadError}</div></div></div> : null}
 
       <div id="mcPanels" tabIndex={-1}>
-        <section id="mcPanelPresets" role="tabpanel" aria-labelledby="mcTabPresets" hidden={shownTab !== "presets"} className={tabPanelClass("presets")}>
+        <section id="mcPanelPresets" role="tabpanel" aria-labelledby="mcTabPresets" hidden={shownTab !== "presets"} {...tabPanelMotion("presets")}>
           <ModelPresetsPane client={client} sessionId={sessionId} available={runtimeAvailable} capabilities={capabilities} visible={shownTab === "presets"} />
         </section>
-        <section id="mcPanelAccounts" role="tabpanel" aria-labelledby="mcTabAccounts" hidden={shownTab !== "accounts"} className={tabPanelClass("accounts")}>
+        <section id="mcPanelAccounts" role="tabpanel" aria-labelledby="mcTabAccounts" hidden={shownTab !== "accounts"} {...tabPanelMotion("accounts")}>
           <AccountStatusPane sessionId={sessionId} standalone visible={shownTab === "accounts"} client={client} available={runtimeAvailable} capabilities={capabilities} />
           <SessionOptionsPane client={client} sessionId={sessionId} available={runtimeAvailable} capabilities={capabilities} visible={shownTab === "accounts"} />
           <RuntimeCredentials client={client} preview={preview} />
         </section>
-        <section id="mcPanelBenchmark" role="tabpanel" aria-labelledby="mcTabBenchmark" hidden={shownTab !== "benchmark"} className={tabPanelClass("benchmark")}>{shownTab === "benchmark" ? <div className="workspace-empty"><Icon name="pulse" /><strong>{t("nav.evaluation")}</strong><p>{resolvedLanguage === "zh" ? "模型基准与判断批次已整合到评测工作区。" : "Model benchmarks and judgment batches are now in Evaluation."}</p><button className="btn primary" type="button" disabled={!onOpenEvaluation} onClick={onOpenEvaluation}>{t("nav.evaluation")} <Icon name="arrow-r" /></button></div> : null}</section>
-        <section id="mcPanelVisibility" role="tabpanel" aria-labelledby="mcTabVisibility" hidden={shownTab !== "visibility"} className={tabPanelClass("visibility")}>
+        <section id="mcPanelVisibility" role="tabpanel" aria-labelledby="mcTabVisibility" hidden={shownTab !== "visibility"} {...tabPanelMotion("visibility")}>
           <ModelVisibilityPane
             client={client}
             data={data}
@@ -3547,8 +1518,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             onSaved={(hiddenModels) => setData((current) => (current ? { ...current, hiddenModels } : current))}
           />
         </section>
-        <section id="mcPanelProviders" role="tabpanel" aria-labelledby="mcTabProviders" hidden={shownTab !== "providers"} className={tabPanelClass("providers")}>
-          <div className={editorLive ? `mc-view ${pagePhaseClass(editorPhase)}` : "mc-view"}>
+        <section id="mcPanelProviders" role="tabpanel" aria-labelledby="mcTabProviders" hidden={shownTab !== "providers"} {...tabPanelMotion("providers")}>
+          <div className={editorLive ? `mc-view ${pagePhaseClass(editorPhase)}` : "mc-view"} data-page-dir={pageDir(editorDir)}>
           {editor ? (
             <>
             <form className="mp-editor" onSubmit={(event) => void saveProvider(event)}>
@@ -3632,7 +1603,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   {editor.authType === "oauth" ? (() => {
                     const login = data?.loginProviders.find((item) => item.id === editor.id);
                     const authed = Boolean(login?.authenticated);
-                    const account = data?.providers.find((item) => item.id === editor.id)?.auth.account;
+                    const account = marks ? data?.providers.find((item) => item.id === editor.id)?.auth.account : undefined;
                     return (
                       <>
                         <div className="auth-status">
@@ -3647,12 +1618,13 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                           <span className={`chip ${authed ? "green" : "gray"} xs`}>{authed ? t("modelConfig.credentialValid") : t("modelConfig.notLoggedIn")}</span>
                         </div>
                         <div className="auth-actions">
-                          {data?.loginAvailable ? (
-                            <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id)}>
-                              <Icon name="key" extra="sm" />
-                              {authed ? t("modelConfig.relogin") : t("modelConfig.login")}
-                            </button>
-                          ) : null}
+                          {data?.loginAvailable ? <>
+                          {login?.flows?.length ? <AppSelect aria-label="登录方式 / Login method" className="select" value={loginFlowByProvider[editor.id] ?? login.flows[0]!.id} disabled={busy} onChange={event => setLoginFlowByProvider(current => ({ ...current, [editor.id]: event.target.value }))}>{login.flows.map(flow => <option key={flow.id} value={flow.id}>{flow.name}</option>)}</AppSelect> : null}
+                          <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id, loginFlowByProvider[editor.id] ?? login?.flows?.[0]?.id)}>
+                            <Icon name="key" extra="sm" />
+                            {authed ? t("modelConfig.relogin") : t("modelConfig.login")}
+                          </button>
+                          </> : null}
                           {authed ? (
                             <button type="button" className="btn small outline" disabled={busy} onClick={() => void logoutProvider(editor.id)}>{t("modelConfig.logout")}</button>
                           ) : null}
@@ -3709,7 +1681,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                             : name
                               ? detected
                                 ? <span className="auth-env-ok">{t("modelConfig.envVarDetectedDesc", { name })}</span>
-                                : preview
+                                : preview && marks
                                   ? t("modelConfig.envVarPreviewDesc", { name })
                                   : t("modelConfig.envVarRealDesc", { name })
                               : t("modelConfig.envVarDefaultDesc")}
@@ -4048,7 +2020,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   <button type="button" className={sourceFilter === "third" ? "active" : undefined} onClick={() => setSourceFilter("third")}>{t("modelConfig.customFilter")}</button>
                 </span>
                 <span className="spacer" />
-                <button type="button" className="btn outline" disabled={preview} data-tip={preview ? t("common.demo") : undefined} onClick={() => void refresh()}><Icon name="refresh" extra="sm" />{t("modelConfig.refreshStatus")}</button>
+                <button type="button" className="btn outline" disabled={preview} data-tip={preview ? (marks ? t("common.demo") : t("common.unavailable")) : undefined} onClick={() => void refresh()}><Icon name="refresh" extra="sm" />{t("modelConfig.refreshStatus")}</button>
                 <button type="button" className="btn outline" onClick={() => setImportOpen(true)}><Icon name="file-plus" extra="sm" />{t("modelConfig.importConfigAction")}</button>
                 <button type="button" className="btn primary" onClick={() => { setModelEdit(null); setEditor(blankDraft()); setEditExisting(false); setPresetOpen(false); setPresetSel(null); setConfirmDelete(false); setTestResult(null); }}><Icon name="plus" extra="sm" />{t("modelConfig.addProvider")}</button>
               </div>
@@ -4087,7 +2059,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                           <span className={`chip ${SOURCE_GROUP(provider.source) === "native" ? "blue" : "gray"} xs`}>{SOURCE_GROUP(provider.source) === "native" ? t("modelConfig.nativeProviderBadge") : t("modelConfig.customProviderBadge")}</span>
                           <span className="pv-count"><span className={`pv-dot dot ${st?.dot || "gray"}`} />{t("modelConfig.modelCount", { count: provider.models.length })}</span>
                         </div>
-                        <div className="pv-sub"><span className="pv-url ellipsis">{provider.endpointUrl || formatProviderStatusDetail(provider.statusDetail, t)}</span></div>
+                        <div className="pv-sub"><span className="pv-url ellipsis">{provider.endpointUrl || formatProviderStatusDetail(provider.statusDetail, t, marks, resolvedLanguage === "zh")}</span></div>
                       </div>
                       <div className="pv-acts">
                         <button type="button" className={`pv-act is-action${testing ? " is-testing" : ""}`} disabled={busy || testing} data-tip={t("common.test")} aria-label={t("modelConfig.testConnection")} onClick={() => void onTest("list", provider.id)}><Icon name="pulse" /></button>
@@ -4220,220 +2192,14 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             </>
           )}
             {modelEditView && modelEditHost ? createPortal(
-              <div className={`modal-backdrop mc-model-modal${modelEditLeaving ? " is-leaving" : ""}`} role="presentation" onMouseDown={() => { if (!modelEditLeaving) setModelEdit(null); }}>
-                <div className="modal" role="dialog" aria-modal="true" aria-label={modelEditView.kind === "override" ? "Model Override" : t("modelConfig.editModel")} style={{ width: 600 }} onMouseDown={(event) => event.stopPropagation()}>
-                  {modelEditView.kind === "override" ? (
-                    <>
-                      <div className="modal-head">Model Override · <span className="mono">{modelEditView.modelId}</span></div>
-                      <div className="modal-body">
-                        <p className="small muted" style={{ marginBottom: 10 }}>{t("modelConfig.overrideInheritCatalogDesc")}</p>
-                        <div className="f-grid">
-                          <div className="field"><label>Name</label><input className="input" placeholder={t("common.inherit")} value={modelEditView.draft.name} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, name: e.target.value } })} /></div>
-                          <ModelParameterEditor client={client} preview={preview}
-                            input={{ providerId: modelEditHost.id, api: modelEditHost.models.find(model => model.id === modelEditView.modelId)?.api ?? modelEditHost.api, modelId: modelEditView.modelId, name: modelEditView.draft.name }}
-                            value={modelEditView.draft.parameters}
-                            onChange={update => setModelEdit(current => updateModelParameterDraft(current, update))} />
-                          <div className="field"><label>Tools</label>
-                            <AppSelect className="select" value={modelEditView.draft.tools} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, tools: e.target.value as DraftOverrideForm["tools"] } })}>
-                              <option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option>
-                            </AppSelect>
-                          </div>
-                          <div className="field"><label>Image Input</label>
-                            <AppSelect className="select" value={modelEditView.draft.image} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, image: e.target.value as DraftOverrideForm["image"] } })}>
-                              <option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option>
-                            </AppSelect>
-                          </div>
-                          <div className="field span2"><label>{t("modelConfig.costTokensUnit")}</label>
-                            <div className="cost-grid">
-                              <input className="input mono" placeholder="Input" value={modelEditView.draft.costIn} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costIn: e.target.value } })} />
-                              <input className="input mono" placeholder="Output" value={modelEditView.draft.costOut} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costOut: e.target.value } })} />
-                              <input className="input mono" placeholder="Cache Read" value={modelEditView.draft.costCacheR} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costCacheR: e.target.value } })} />
-                              <input className="input mono" placeholder="Cache Write" value={modelEditView.draft.costCacheW} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costCacheW: e.target.value } })} />
-                            </div>
-                          </div>
-                        </div>
-                        <details className="mp-advanced mc-model-adv">
-                          <summary><span className="tw"><Icon name="chevron-r" extra="sm" /></span>{t("modelConfig.advancedSettings")} <span className="hint">Headers · Compaction · omitMaxOutputTokens</span></summary>
-                          <div className="adv-body">
-                            <div className="f-grid">
-                              <div className="field"><label>Omit Max Output Tokens</label>
-                                <AppSelect className="select" value={modelEditView.draft.omitMaxOutputTokens} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, omitMaxOutputTokens: e.target.value as DraftOverrideForm["omitMaxOutputTokens"] } })}>
-                                  <option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option>
-                                </AppSelect>
-                              </div>
-                              <ModelCompatControl label="Requires thinking presence" value={modelEditView.draft.requiresThinkingPresence} onChange={requiresThinkingPresence => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, requiresThinkingPresence } })} />
-                              <ModelCompatControl label="Extended cache TTL beta" value={modelEditView.draft.extendedCacheTtlBeta} onChange={extendedCacheTtlBeta => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, extendedCacheTtlBeta } })} />
-                              <BedrockMessagesControl value={modelEditView.draft.bedrockMessagesApi} onChange={bedrockMessagesApi => setModelEdit({...modelEditView,draft:{...modelEditView.draft,bedrockMessagesApi}})}/>
-                              <div className="field"><label>Premium Multiplier</label>
-                                <input className="input mono" placeholder={t("common.inherit")} value={modelEditView.draft.premiumMultiplier} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, premiumMultiplier: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Image Count Budget</label>
-                                <input className="input mono" inputMode="numeric" placeholder={t("common.inherit")} value={modelEditView.draft.imageCountBudget} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, imageCountBudget: e.target.value } })} />
-                              </div>
-                              <div className="field span2"><label>{t("modelConfig.headersPerLine")}</label>
-                                <textarea className="input mono" rows={2} placeholder={t("modelConfig.headersInheritPlaceholder")} value={modelEditView.draft.headersText} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, headersText: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Context Promotion Target</label>
-                                <input className="input mono" placeholder="provider/model" value={modelEditView.draft.contextPromotionTarget} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, contextPromotionTarget: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Compaction Model</label>
-                                <input className="input mono" placeholder="provider/model" value={modelEditView.draft.compactionModel} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, compactionModel: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Remote Compaction</label>
-                                <AppSelect className="select" value={modelEditView.draft.rcEnabled} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcEnabled: e.target.value as DraftOverrideForm["rcEnabled"] } })}>
-                                  <option value="">{t("common.inherit")}</option><option value="true">{t("common.on")}</option><option value="false">{t("common.off")}</option>
-                                </AppSelect>
-                              </div>
-                              <div className="field"><label>Compaction Endpoint</label>
-                                <input className="input mono" placeholder={t("common.inherit")} value={modelEditView.draft.rcEndpoint} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcEndpoint: e.target.value } })} />
-                              </div>
-                              <div className="field span2"><label>Compaction Model（remoteCompaction.model）</label>
-                                <input className="input mono" placeholder={t("common.inherit")} value={modelEditView.draft.rcModel} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcModel: e.target.value } })} />
-                              </div>
-                            </div>
-                          </div>
-                        </details>
-                      </div>
-                      <div className="modal-foot">
-                        <button type="button" className="btn outline" onClick={() => setModelEdit(null)}>{t("common.cancel")}</button>
-                        <button type="button" className="btn primary" disabled={modelEditView.draft.parameters.pending || Boolean(modelParameterDraftError(modelEditView.draft.parameters))} onClick={() => {
-                          if (!modelEditHost) return;
-                          const { next, parsed } = applyOverrideToDraft(modelEditHost, modelEditView.modelId, modelEditView.draft);
-                          if (modelEditView.providerId) {
-                            setModelEdit(null);
-                            void persistProviderDraft(next, parsed ? t("modelConfig.savedOverrideToast") : t("modelConfig.clearedOverrideToast"));
-                            return;
-                          }
-                          setEditor(next);
-                          setModelEdit(null);
-                          toast(parsed ? t("modelConfig.writeOverrideToast") : t("modelConfig.clearedOverrideToast"));
-                        }}>{t("modelConfig.saveOverride")}</button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="modal-head">{modelEditView.kind === "add" ? t("modelConfig.addCustomModel") : <>{t("modelConfig.editModel")} · <span className="mono">{modelEditView.draft.id}</span></>}</div>
-                      <div className="modal-body">
-                        <div className="f-grid">
-                          <div className="field"><label>Model ID</label>
-                            <input className="input mono" value={modelEditView.draft.id} disabled={modelEditView.kind === "custom"} placeholder={t("modelConfig.modelIdPlaceholder")} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, id: e.target.value } })} />
-                          </div>
-                          <div className="field"><label>{t("modelConfig.displayName")}</label>
-                            <input className="input" value={modelEditView.draft.name} placeholder={t("modelConfig.displayNamePlaceholder")} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, name: e.target.value } })} />
-                          </div>
-                          <div className="field span2"><label>API Type</label>
-                            <AppSelect className="select" value={modelEditView.draft.api} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, api: e.target.value } })}>
-                              <option value="inherit">{t("modelConfig.inheritProvider")}</option>
-                              {MODEL_API_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                            </AppSelect>
-                          </div>
-                          <ModelParameterEditor client={client} preview={preview}
-                            input={{ providerId: modelEditHost.id, api: modelEditView.draft.api === "inherit" ? modelEditHost.api : modelEditView.draft.api, modelId: modelEditView.draft.id, name: modelEditView.draft.name }}
-                            value={modelEditView.draft.parameters}
-                            onChange={update => setModelEdit(current => updateModelParameterDraft(current, update))} />
-                          <div className="field span2"><div className="mc-caps-row">
-                            <label className="desc"><input type="checkbox" checked={modelEditView.draft.tools} onChange={event => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, tools: event.target.checked } })} /> Tools</label>
-                            <label className="desc"><input type="checkbox" checked={modelEditView.draft.image} onChange={event => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, image: event.target.checked } })} /> Image Input</label>
-                          </div></div>
-                          <div className="field span2"><label>{t("modelConfig.costTitle")}</label>
-                            <div className="cost-grid">
-                              <input className="input mono" placeholder="Input" value={modelEditView.draft.costIn} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costIn: e.target.value } })} />
-                              <input className="input mono" placeholder="Output" value={modelEditView.draft.costOut} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costOut: e.target.value } })} />
-                              <input className="input mono" placeholder="Cache Read" value={modelEditView.draft.costCacheR} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costCacheR: e.target.value } })} />
-                              <input className="input mono" placeholder="Cache Write" value={modelEditView.draft.costCacheW} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, costCacheW: e.target.value } })} />
-                            </div>
-                          </div>
-                        </div>
-                        <details className="mp-advanced mc-model-adv">
-                          <summary><span className="tw"><Icon name="chevron-r" extra="sm" /></span>{t("modelConfig.advancedSettings")} <span className="hint">{t("modelConfig.advancedSettingsHint")}</span></summary>
-                          <div className="adv-body">
-                            <div className="f-grid">
-                              <div className="field span2"><label>{t("modelConfig.baseUrlOverride")}</label>
-                                <input className="input mono" placeholder={t("modelConfig.baseUrlInheritPlaceholder")} value={modelEditView.draft.baseUrl} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, baseUrl: e.target.value } })} />
-                              </div>
-                              <div className="kv-row span2" style={{ border: "none", padding: "4px 0" }}>
-                                <span className="k">Omit Max Output Tokens</span>
-                                <span className="v">
-                                  <button type="button" className={`switch${modelEditView.draft.omitMaxOutputTokens ? " on" : ""}`} role="switch" aria-checked={modelEditView.draft.omitMaxOutputTokens} onClick={() => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, omitMaxOutputTokens: !modelEditView.draft.omitMaxOutputTokens } })} />
-                                  <span className="desc">{t("modelConfig.omitMaxOutputTokensDesc")}</span>
-                                </span>
-                              </div>
-                              <ModelCompatControl label="Requires thinking presence" value={modelEditView.draft.requiresThinkingPresence} onChange={requiresThinkingPresence => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, requiresThinkingPresence } })} />
-                              <ModelCompatControl label="Extended cache TTL beta" value={modelEditView.draft.extendedCacheTtlBeta} onChange={extendedCacheTtlBeta => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, extendedCacheTtlBeta } })} />
-                              <BedrockMessagesControl value={modelEditView.draft.bedrockMessagesApi} onChange={bedrockMessagesApi => setModelEdit({...modelEditView,draft:{...modelEditView.draft,bedrockMessagesApi}})}/>
-                              <div className="field"><label>Premium Multiplier</label>
-                                <input className="input mono" placeholder={t("common.notSet")} value={modelEditView.draft.premiumMultiplier} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, premiumMultiplier: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Image Count Budget</label>
-                                <input className="input mono" inputMode="numeric" placeholder={t("common.notSet")} value={modelEditView.draft.imageCountBudget} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, imageCountBudget: e.target.value } })} />
-                              </div>
-                              <div className="field span2"><label>{t("modelConfig.headersPerLine")}</label>
-                                <textarea className="input mono" rows={2} placeholder="X-Model: value" value={modelEditView.draft.headersText} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, headersText: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Context Promotion Target</label>
-                                <input className="input mono" placeholder="provider/model" value={modelEditView.draft.contextPromotionTarget} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, contextPromotionTarget: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Compaction Model</label>
-                                <input className="input mono" placeholder="provider/model" value={modelEditView.draft.compactionModel} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, compactionModel: e.target.value } })} />
-                              </div>
-                              <div className="kv-row span2" style={{ border: "none", padding: "4px 0" }}>
-                                <span className="k">Remote Compaction</span>
-                                <span className="v">
-                                  <button type="button" className={`switch${modelEditView.draft.rcEnabled ? " on" : ""}`} role="switch" aria-checked={modelEditView.draft.rcEnabled} onClick={() => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcEnabled: !modelEditView.draft.rcEnabled } })} />
-                                  <span className="desc">{t("modelConfig.remoteCompactionProviderDesc")}</span>
-                                </span>
-                              </div>
-                              <div className="field"><label>Compaction Endpoint</label>
-                                <input className="input mono" value={modelEditView.draft.rcEndpoint} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcEndpoint: e.target.value } })} />
-                              </div>
-                              <div className="field"><label>Remote Compaction Model</label>
-                                <input className="input mono" value={modelEditView.draft.rcModel} onChange={(e) => setModelEdit({ ...modelEditView, draft: { ...modelEditView.draft, rcModel: e.target.value } })} />
-                              </div>
-                            </div>
-                          </div>
-                        </details>
-                      </div>
-                      <div className="modal-foot">
-                        <button type="button" className="btn outline" onClick={() => setModelEdit(null)}>{t("common.cancel")}</button>
-                        <button type="button" className="btn primary" disabled={modelEditView.draft.parameters.pending || Boolean(modelParameterDraftError(modelEditView.draft.parameters))} onClick={() => {
-                          if (!modelEditHost) return;
-                          const entry = entryFromCustomForm(modelEditHost.id || "provider-id", modelEditView.draft);
-                          if (!entry) {
-                            toast(t("modelConfig.pleaseFillModelId"));
-                            return;
-                          }
-                          const models = modelEditHost.models.slice();
-                          if (modelEditView.kind === "add") {
-                            if (models.some((m) => m.source === "custom" && m.id === entry.id)) {
-                              toast(t("modelConfig.modelIdExists", { id: entry.id }));
-                              return;
-                            }
-                            models.push(entry);
-                          } else {
-                            models[modelEditView.index] = entry;
-                          }
-                          const next = { ...modelEditHost, models };
-                          if (modelEditView.providerId) {
-                            setModelEdit(null);
-                            void persistProviderDraft(next, modelEditView.kind === "add" ? t("modelConfig.addedModelToast") : t("modelConfig.savedModelToast"));
-                            return;
-                          }
-                          setEditor(next);
-                          setModelsTab("custom");
-                          setModelEdit(null);
-                        }}>{modelEditView.kind === "add" ? t("modelConfig.saveModel") : t("modelConfig.saveChanges")}</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              <ModelParametersDialog modelEditLeaving={modelEditLeaving} setModelEdit={setModelEdit} modelEditView={modelEditView} t={t} client={client} preview={preview} modelEditHost={modelEditHost} data={data} editor={editor} persistProviderDraft={persistProviderDraft} setEditor={setEditor} toast={toast} setModelsTab={setModelsTab} />
             , document.body) : null}
           </div>
         </section>
 
-        <section id="mcPanelRoles" role="tabpanel" aria-labelledby="mcTabRoles" hidden={shownTab !== "roles"} className={tabPanelClass("roles")}>
-          <VisionModelStatus client={client} preview={preview} />
-          <div className={roleLive ? `mc-view ${pagePhaseClass(rolePhase)}` : "mc-view"}>
+        <section id="mcPanelRoles" role="tabpanel" aria-labelledby="mcTabRoles" hidden={shownTab !== "roles"} {...tabPanelMotion("roles")}>
+          <div className="mc-role-runtime"><Icon name="image" extra="sm" /><VisionModelStatus client={client} preview={preview} /></div>
+          <div className={roleLive ? `mc-view ${pagePhaseClass(rolePhase)}` : "mc-view"} data-page-dir={pageDir(roleDir)}>
           {roleDraft ? (
             <>
               <div className="mr-toolbar">
@@ -4490,6 +2256,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                     <span className="v">
                       <RoleModelPicker
                         value={roleDraft.primary}
+                        allowClear
+                        unavailableReason={roleDraft.issue?.detail}
                         groups={groupModelsByProvider(usable.filter(model => modelAcceptsRole(roleDraft.id, model)), orderedProviders)}
                         onChange={(primary) => setRoleDraft(withRoleModel(roleDraft, primary, availableBySelector.get(primary)))}
                       />
@@ -4503,6 +2271,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   </div>
                 </div>
               </div>
+              <ModelCompactionPane client={client} context={{ sessionId, available: runtimeAvailable, capabilities }} visible={shownTab === "roles"} models={usable} providers={orderedProviders} initialSelector={roleDraft.primary} onSaved={refreshRoleModels} />
               <div className="mp-sec">
                 <h3>{t("modelConfig.fallbackChains")}</h3>
                 <p className="sec-desc">{t("modelConfig.fallbackChainsDesc")}</p>
@@ -4628,7 +2397,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 onClearBlocked={() => setRoleDeleteBlocked(null)}
                 onResolveBlocked={() => { setRoleDeleteBlocked(null); setAgentIntent(roleDeleteBlocked?.agents[0]); setTab("subagents"); }}
               />
-              <div className="mr-toolbar">
+              <div className="mr-toolbar mc-role-toolbar">
                 <span className="seg" role="tablist" aria-label={t("modelConfig.roleScope")}>
                   <button
                     type="button"
@@ -4648,7 +2417,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                     onClick={() => { if (data?.projectScopeAvailable && (data?.modelRoleStorage ?? "global") !== "project") void setRoleStorage("project"); }}
                   >{t("modelConfig.projectScope")}</button>
                 </span>
-                <b style={{ fontSize: "var(--fs-13)" }}>{t("modelConfig.rolesTab")}</b>
+                <b>{t("modelConfig.roleRouting")}</b>
                 <span className="mr-count">{roles.length}</span>
                 <span className="spacer" />
                 <button type="button" className="btn primary" onClick={() => setCreateRoleOpen(true)}><Icon name="plus" extra="sm" />{t("modelConfig.createCustomRole")}</button>
@@ -4662,6 +2431,9 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   <button type="button" className="btn small outline" onClick={() => setCreateRoleOpen(false)}>{t("common.cancel")}</button>
                 </div>
               ) : null}
+              <div className="mc-role-list">
+              <div className="mc-role-columns" aria-hidden="true"><span>{t("modelConfig.rolesTab")}</span><span>{t("modelConfig.primaryModel")}</span><span>{t("modelConfig.thinkingEffort")}</span></div>
+              {roles.length === 0 ? <div className="mc-role-empty">{t(data ? "modelConfig.noRoles" : "common.loading")}</div> : null}
               {roles.map((role) => {
                 const thinking = roleThinkingUi(role, availableBySelector.get(role.primary));
                 return (
@@ -4669,19 +2441,20 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   <button type="button" className="role-row-nav" onClick={() => { setRoleId(role.id); setRoleDraft({ ...role }); }}>
                     <span className="role-icon-area"><span className={`a-ic${role.issue ? " amber" : ""}`}><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" /></span></span>
                     <span className="role-name-section">
-                      <div className="role-header"><span className="r-name">{role.name}<span className="alias">{role.alias}</span></span>{role.scope === "project" ? <span className="chip blue xs">Project</span> : null}{role.builtin ? null : <span className="chip purple xs">{t("modelConfig.customRole")}</span>}</div>
-                      <span className="r-desc">{formatRoleDesc(role, t)}</span>
+                      <span className="role-header"><span className="r-name">{role.name}</span><span className="alias">{role.alias}</span></span>
+                      <span className="role-meta"><span className="r-desc" title={formatRoleDesc(role, t)}>{formatRoleDesc(role, t)}</span>{role.scope === "project" ? <span className="role-tag">Project</span> : null}{role.builtin ? null : <span className="role-tag">{t("modelConfig.customRole")}</span>}</span>
                     </span>
                   </button>
                   <span className="role-model-section">
-                    {role.issue ? <span className="role-model"><span className="model-name unavailable">{role.primary || t("modelConfig.unassigned")}</span></span> : (
-                      <>
                         <RoleModelPicker
                           value={role.primary}
+                          allowClear
+                          unavailableReason={role.issue?.detail}
+                          disabled={busy}
                           groups={groupModelsByProvider(usable.filter(model => modelAcceptsRole(role.id, model)), orderedProviders)}
                           onChange={(primary) => { void saveRole(withRoleModel(role, primary, availableBySelector.get(primary))); }}
                         />
-                        <AppSelect className="effort-select" value={thinking.value} disabled={thinking.disabled} aria-label={t("modelConfig.thinkingEffort")} onChange={(event) => {
+                        <AppSelect className="effort-select" value={thinking.value} disabled={busy || thinking.disabled || Boolean(role.issue) || !role.primary} aria-label={t("modelConfig.thinkingEffort")} onChange={(event) => {
                           const { thinkingAdjustment: _mapping, ...next } = role as ModelRoleDraft;
                           if (event.target.value === "") delete next.thinking;
                           else next.thinking = event.target.value;
@@ -4690,8 +2463,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                           <option value="">{t("modelAdaptation.defaultThinking")}</option>
                           {thinking.items.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                         </AppSelect>
-                      </>
-                    )}
+                  </span>
+                  <span className="role-actions">
                     {!role.builtin ? (
                       <button
                         type="button"
@@ -4710,9 +2483,10 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 </div>
                 );
               })}
-              <div className="mp-sec" style={{ marginTop: 20 }}>
-                <h3>{t("modelConfig.cycleOrderTitle")} <span className="chip-code">Cycle Order</span></h3>
-                <p className="sec-desc">{t("modelConfig.cycleOrderDesc")}</p>
+              </div>
+              <div className="mc-role-settings">
+              <section className="mc-role-cycle">
+                <header className="mc-role-section-head"><span className="mc-role-section-icon"><Icon name="steering" /></span><div><h3>{t("modelConfig.cycleOrderTitle")}</h3><p>{t("modelConfig.cycleOrderDesc")}</p></div>{!cycleEdit ? <button type="button" className="btn small outline" onClick={() => { setCycleEdit(true); setCycleDraft([...(data?.cycleOrder ?? [])]); }}><Icon name="pencil" extra="sm" />{t("modelConfig.editCycleOrder")}</button> : null}</header>
                 {cycleEdit ? (
                   <>
                     <div className="cycle-flow">
@@ -4754,9 +2528,10 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                         );
                       })}
                     </div>
-                    <div style={{ marginTop: 12 }}><button type="button" className="btn small outline" onClick={() => { setCycleEdit(true); setCycleDraft([...(data?.cycleOrder ?? [])]); }}><Icon name="pencil" extra="sm" />{t("modelConfig.editCycleOrder")}</button></div>
                   </>
                 )}
+              </section>
+              <ModelCompactionPane client={client} context={{ sessionId, available: runtimeAvailable, capabilities }} visible={shownTab === "roles"} models={usable} providers={orderedProviders} initialSelector={roles.find(role => role.id === "default")?.primary} onSaved={refreshRoleModels} />
               </div>
               {assignSel ? (
                 <div className="preset-banner">
@@ -4772,23 +2547,27 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             </>
           )}
           </div>
-        {shownTab === "roles" && !hasRoleEditor ? <ModelCompactionPane client={client} context={{ sessionId, available: runtimeAvailable, capabilities }} visible={shownTab === "roles"} models={data?.availableModels ?? []} /> : null}
 </section>
-        <section id="mcPanelSubagents" role="tabpanel" aria-labelledby="mcTabSubagents" hidden={shownTab !== "subagents"} className={tabPanelClass("subagents")}>
+        <section id="mcPanelSubagents" role="tabpanel" aria-labelledby="mcTabSubagents" hidden={shownTab !== "subagents"} {...tabPanelMotion("subagents")}>
           <SubagentsPanel
             client={client}
             preview={preview}
             models={data}
             onCount={setAgentCount}
+            context={{ sessionId, available: runtimeAvailable, capabilities }}
+            visible={shownTab === "subagents"}
+            onAccountDirtyChange={setAccountPoolsDirty}
+            onManageAccounts={() => setTab("accounts")}
             {...(agentIntent === undefined ? {} : { initialAgent: agentIntent })}
           />
-        <AgentPoolsPane client={client} context={{ sessionId, available: runtimeAvailable, capabilities }} visible={shownTab === "subagents"} />
 </section>
-        <section id="mcPanelWebSearch" role="tabpanel" aria-labelledby="mcTabWebSearch" hidden={shownTab !== "websearch"} className={tabPanelClass("websearch")}>
-          <RuntimeCredentials client={client} preview={preview} providers={["exa", "ollama-cloud"]} />
+        <section id="mcPanelWebSearch" role="tabpanel" aria-labelledby="mcTabWebSearch" hidden={shownTab !== "websearch"} {...tabPanelMotion("websearch")}>
           {data?.webSearch ? (
             <WebSearchPanel
               models={usable}
+              sessionId={sessionId}
+              visible={shownTab === "websearch"}
+              onReadyCount={setWebSearchReadyCount}
               client={client}
               preview={preview}
               webSearch={data.webSearch}

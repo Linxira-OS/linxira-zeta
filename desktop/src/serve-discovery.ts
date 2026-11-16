@@ -27,6 +27,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { StudioPrivatePaths } from "./private-ipc";
 
 /** Explicit registry override, shared with `zeta serve` (`ZETA_SERVE_REGISTRY`). */
 export const SERVE_REGISTRY_ENV = "ZETA_SERVE_REGISTRY";
@@ -64,6 +65,7 @@ export interface ServeRegistration {
 	startedAt: string;
 	cwd: string;
 	desktopOpenSecret?: string;
+	studioPrivate?: StudioPrivatePaths;
 }
 
 /** Identity payload of the instance answering on a probed URL. */
@@ -151,6 +153,16 @@ export function serveRegistryPathIn(deps: ServeDiscoveryDeps): string {
 }
 
 /** Structural validation — a hand-edited or half-written file is never trusted. */
+export function parseStudioPrivatePaths(value: unknown): StudioPrivatePaths | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const row = value as Record<string, unknown>;
+	if (row.schema !== 1 || Object.keys(row).some(key => !["schema", "mediaDirectory", "socketDirectory"].includes(key))) return undefined;
+	for (const name of ["mediaDirectory", "socketDirectory"] as const) {
+		if (typeof row[name] !== "string" || !row[name] || row[name].length > 4096 || row[name].includes("\0") || !path.isAbsolute(row[name])) return undefined;
+	}
+	return { schema: 1, mediaDirectory: row.mediaDirectory as string, socketDirectory: row.socketDirectory as string };
+}
+
 export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 	const record = raw as Record<string, unknown>;
@@ -170,6 +182,7 @@ export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 			typeof record.desktopOpenSecret === "string" && record.desktopOpenSecret.length > 0
 				? record.desktopOpenSecret
 				: undefined,
+		studioPrivate: parseStudioPrivatePaths(record.studioPrivate),
 	};
 }
 
@@ -219,6 +232,20 @@ export async function probeServeIdentity(url: string, deps: ServeDiscoveryDeps):
 		// JSON: all mean "not a healthy Zeta instance here".
 		return null;
 	}
+}
+
+/** Private paths have authority only while the current listener proves their PID. */
+export async function discoverStudioPrivateAuthority(url: string, deps: ServeDiscoveryDeps): Promise<(StudioPrivatePaths & { readonly pid: number }) | undefined> {
+	const registration = parseServeRegistration(safeJson(deps.readTextFile(serveRegistryPathIn(deps))));
+	if (!registration?.studioPrivate || !deps.isPidAlive(registration.pid)) return undefined;
+	const identity = await probeServeIdentity(url, deps);
+	return identity?.pid === registration.pid && identity.version === registration.version ? { ...registration.studioPrivate, pid: identity.pid } : undefined;
+}
+
+export async function discoverStudioPrivatePaths(url: string, deps: ServeDiscoveryDeps): Promise<StudioPrivatePaths | undefined> {
+	const authority = await discoverStudioPrivateAuthority(url, deps);
+	if (!authority) return undefined;
+	return { schema: 1, mediaDirectory: authority.mediaDirectory, socketDirectory: authority.socketDirectory };
 }
 
 /**

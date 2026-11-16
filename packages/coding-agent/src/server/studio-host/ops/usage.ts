@@ -73,6 +73,9 @@ import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./ses
 import { loadResumePreferences, resumePathKey } from "../../../resume/index.js";
 import { loadHiddenSessionIds } from "../../../session/session-visibility.js";
 import { readWorkspaceIdentities, workspaceOps } from "./workspace.js";
+import { currentStudioSelection } from "../selection.js";
+import { getRpcSession } from "../../web-gateway/agents.js";
+import { conversationFeed } from "../conversation-feed.js";
 
 /** Session listing cap the Renderer mirrors (`PROJECT_HISTORY_QUERY_MAX`). */
 const HISTORY_MAX_LIMIT = 200;
@@ -267,7 +270,7 @@ async function listHistory(input: {
 	if (!isRecord(input)) throw invalid("input must be an object");
 	const status = historyStatus(input.status);
 	const limit = historyLimit(input.limit);
-	const workspaceId = input.workspaceId;
+	const workspaceId = input.workspaceId ?? currentStudioSelection()?.workspaceId;
 	if (workspaceId !== undefined && typeof workspaceId !== "string") throw invalid("workspaceId must be a string");
 	if (input.includeIm !== undefined && typeof input.includeIm !== "boolean")
 		throw invalid("includeIm must be a boolean");
@@ -356,7 +359,9 @@ function hostFacts(): Pick<HomeReadModel, "authority" | "runtime"> {
 }
 
 /** The live runtime snapshot, from the session family's own gateway mapper. */
-async function readLiveSnapshot(context: StudioHostContext): Promise<OperatorStateSnapshot> {
+async function readLiveSnapshot(context: StudioHostContext): Promise<OperatorStateSnapshot | undefined> {
+	const selection = currentStudioSelection();
+	if (selection !== undefined && selection.sessionId === undefined) return undefined;
 	const handler = sessionOps.queries?.["session.state"];
 	if (handler === undefined) throw unavailable("the session family does not expose a live state snapshot");
 	return await handler({}, context);
@@ -397,7 +402,7 @@ async function homeReadModel(context: StudioHostContext): Promise<HomeReadModel>
 	return {
 		authority,
 		runtime,
-		snapshot,
+		...(snapshot === undefined ? {} : { snapshot }),
 		recentThreads: history.entries.map(entry => ({
 			threadId: entry.threadId,
 			...(entry.title === undefined ? {} : { title: entry.title }),
@@ -608,7 +613,10 @@ async function openConversation(input: {
 		};
 	}
 
-	const page = await readTranscriptPage(target.sessionId, undefined, limit);
+	const wrapper = getRpcSession(target.sessionId);
+	const feed = wrapper?.isAlive() ? conversationFeed(wrapper) : undefined;
+	const read = () => readTranscriptPage(target.sessionId, undefined, limit);
+	const { page, live } = feed === undefined ? { page: await read(), live: NO_LIVE_REPLAY } : await feed.capture(read);
 	return {
 		target: {
 			kind: "session",
@@ -616,7 +624,7 @@ async function openConversation(input: {
 			conversationSessionId: page.sessionId,
 		},
 		page,
-		live: NO_LIVE_REPLAY,
+		live,
 	};
 }
 

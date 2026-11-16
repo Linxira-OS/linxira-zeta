@@ -509,6 +509,28 @@ not follow-up work. The operating contract is
 | 12  | web-ui（`@linxiraos/zeta-web`）发布腿缺失（2026-10-14 修复）：包已在 npm 上（停在 1.1.5）却不在任何发布路径上——web-ui 不是根 workspace 成员、ci.yml 无对应 job、`set-version.ts` / `release-v2.ts` 也不 bump 它，于是 gateway 一路前进而 Web UI 冻结                                                                                                                                                                             | npm 上 `zeta-web` 长期落后产品线；`zeta serve` 在无 repo web-ui 时回退到 npm 安装，装出的是旧 Web UI 对上新网关（网关 API 漂移即炸）                                                                                                                   | 发布腿 = ci.yml 的 `release_web_ui_packages`（发布前自带 `npm ci` + `next build`：tarball 的 `files` 含 `.next`，裸 `npm publish` 会发出缺失/陈旧的构建）；版本随线由 `set-version.ts` / `release-v2.ts` 一起 bump（`web-ui/package.json` + 其 `package-lock.json`）；**npm 侧 trusted publisher 必须绑 `.github/workflows/ci.yml`**——npm 按"执行发布的 workflow 文件名"匹配，而 web-ui 永不自带 workflow（子目录 workflow 不会被触发），见下方逐包清单；重跑安全：publish 前 `npm view <pkg>@<ver>` 命中即跳过                                                                            |
 | 13  | 发布腿缺失（第二种形态，2026-10-14 修复）：包在 Zeta 版本线（`ALL_PACKAGES`）上，却不接进任何发布腿——`@linxiraos/pi-channels` 的行被 **c9b8c2d1413（Merge tag 'v18.3.3' into dev/main）** 的冲突解决从 `ci-release-publish.ts` 的 `packages` 表里整行删掉（`0cd00b412ba` 的 merge-damage 修复没把它捞回来），`@linxiraos/pi-messenger` 则从未接过 CI 发布腿（最后一次发版是本地手工 `scripts/publish-missing-packages.ts` 补发） | 两个包在 npm 上长期落后产品线（`pi-channels` 停 1.1.20、`pi-messenger` 停 1.1.1），而仓库版本线一路 bump；用户装到的 `@linxiraos/pi-channels` / `@linxiraos/pi-messenger` 与仓库里的运行时不是同一版（网关/扩展协议漂移即炸）                          | `pi-channels` 的发布腿 = workspace `packages` 表（`release_npm` 内的 `ci-release-publish.ts`，恢复原行）；`pi-messenger` 的发布腿 = `ci.yml` 的 `release_plugin_packages`（`--plugin plugins/official/pi-messenger` 原样打包插件目录；workspace 表的 `typescript` kind 会做插件消费不了的 declaration emit，故不走该表）；两条腿都登记进 `scripts/brand/ci-surface-registry.ts` 的 `requiresAll` + `needsEdges`（删 job 即 `check-ci-surface.ts` 红）；两者都在 `check-version-consistency.ts` / `set-version.ts` / `release-v2.ts` 的 `ALL_PACKAGES` 里，所以版本线一 bump 就同时校验两包 |
 
+### Third-party notices and upstream attribution (2026-11-16 gate)
+
+Every release artifact MUST ship an accurate third-party declaration, and the
+repository MUST name its upstreams with working links:
+
+- Refresh the integrated baselines in `NOTICE` and `THIRD-PARTY-NOTICES.txt`
+  in the same round that integrates an upstream tag. A stale baseline is a
+  release blocker, not a docs nit: it misstates what the artifact contains.
+- `THIRD-PARTY-NOTICES.txt` is copied into desktop archives, Linux packages and
+  npm payloads (`scripts/package-desktop-archives.ts`,
+  `scripts/ci-release-publish.ts`). Verify it is present in the built artifact,
+  not only in the repository.
+- `bun scripts/check-license-map.ts` must pass, and the packaging tests
+  (`scripts/package-desktop-archives.test.ts`, `scripts/installer-platforms.test.ts`,
+  `scripts/release-chain.test.ts`) must confirm the file is staged.
+- `NOTICE` and `README.md` must list OMP, OMP Studio, TermIDE and the credited
+  semantic-port sources (Pi, Pi Web, OMP Web) with their repository URLs; the
+  Desktop About dialog repeats the same links.
+- When an upstream tag is integrated but a newer tag exists, the declaration
+  states what is integrated and points at `document/upstream-sync.md` for the
+  tracked baseline — never claim a newer tag than the tree contains.
+
 **stencil 上传的退役（`Publish to build.stencil.so` ↔ `scripts/ci-build-upload.ts`，2026-10-14）**：
 这曾是发布链的最后一环，也是最"哑"的一环——`build.stencil.so` 是 OMP 上游的构建服务器，按设计只
 接受 `can1357`/`stencil-hq` 的仓库；本 fork 提交即被拒（`HTTP 403 "only repositories of can1357 or

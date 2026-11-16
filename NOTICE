@@ -8,8 +8,11 @@ modified and unmodified portions of that upstream work.
 - Project: OMP
 - Repository: https://github.com/can1357/oh-my-pi
 - Upstream site: https://omp.sh/
-- Source integrated by Zeta: release tag `v18.16.0`
-  (`650f3a108229ee11bf68ba3377f4e8c3391cd424`)
+- Source integrated by Zeta: release tag `v18.20.0`
+  (`c308970263ae13744ea15ab67302e3dac840e266`)
+- Later upstream release tags are tracked in
+  [`document/upstream-sync.md`](./document/upstream-sync.md); Zeta integrates
+  only named official tags, never an upstream branch.
 - Upstream licence: MIT
 - Upstream copyright notices:
   - Copyright (c) 2025 Mario Zechner
@@ -38,6 +41,10 @@ portions of the upstream tree. Those changes are Zeta's, not upstream's.
 - Project: OMP Studio
 - Repository: https://github.com/the-snowpear/omp-studio
 - Source integrated by Zeta: `0.1.17`
+- Official target under integration: `v0.2.1`
+  (`6d0b764bb9eac88c1671c0380229823c5630cc74`); until that merge lands, the
+  vendored renderer remains the `0.1.17` port plus Zeta's own changes. The
+  per-tag accounting lives in [`document/upstream-sync.md`](./document/upstream-sync.md).
 - Upstream licence: MIT
 - Upstream copyright: Copyright (c) 2026 snowpear and OMP Studio contributors
 - Zeta modifications: Work Studio's renderer (`web-app/`) is a maintained fork;
@@ -49,7 +56,8 @@ portions of the upstream tree. Those changes are Zeta's, not upstream's.
 
 Vendored trees keep their own licence files and attribution. In particular:
 
-- TermIDE: https://github.com/termide/termide, tag `0.46.0`, MIT.
+- TermIDE: https://github.com/termide/termide, tag `0.49.0`
+  (`057eb55e0a7c4ee969982fab62dc83bde028e052`), MIT.
   See [`termide/LICENSE`](./termide/LICENSE) and
   [`termide/VENDOR.md`](./termide/VENDOR.md) for the modification ledger.
 
@@ -57,3 +65,15 @@ Third-party crates, npm packages and other dependencies remain under the
 licences declared by their respective packages; their licence texts ship with
 those packages and are referenced by the workspace manifests and lockfiles.
 This NOTICE does not relicense any third-party component.
+
+## Semantic port sources and frozen snapshots
+
+These upstream projects are credited even where their code is not shipped as a
+verbatim tree:
+
+- Pi — https://github.com/earendil-works/pi: semantic port source for runtime
+  behavior; Zeta ports changes onto its own tree instead of merging upstream.
+- Pi Web — https://github.com/agegr/pi-web: semantic port source for web
+  features.
+- OMP Web — https://github.com/17380936778/omp-web: the previous `web-ui/`
+  snapshot, frozen on 2026-11-05 and no longer a product surface.

@@ -72,6 +72,7 @@ export interface IfBenchSummary {
 }
 
 export interface IfBenchRunOptions {
+	signal?: AbortSignal;
 	targets: readonly BenchTarget[];
 	runtime: BenchRuntime;
 	maxTurns: number;
@@ -135,13 +136,14 @@ export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSum
 
 	const worker = async (): Promise<void> => {
 		for (;;) {
+			if (options.signal?.aborted) return;
 			const next = queue.shift();
 			if (!next) return;
 			ordered[next.index] = await runTarget(next.target, options);
 		}
 	};
 	await Promise.all(Array.from({ length: Math.max(1, Math.min(options.par, options.targets.length)) }, worker));
-	reports.push(...ordered);
+	reports.push(...ordered.filter(report => report !== undefined));
 
 	return {
 		maxTurns: options.maxTurns,
@@ -194,6 +196,7 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 
 	try {
 		for (let turn = 1; turn <= options.maxTurns; turn += 1) {
+			options.signal?.throwIfAborted();
 			const actions: Action[] = makeActions(options.arrayLength, cumulativeActions, turn);
 			const turnPrompt = buildTurnPrompt({
 				turn,
@@ -249,12 +252,14 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 			// the provider payload keeps transport-native chaining intact.
 			if (outcome.message) messages.push(outcome.message);
 		}
+	} catch (error) {
+		if (!options.signal?.aborted) throw error;
 	} finally {
 		for (const state of providerSessionState.values()) state.close();
 		providerSessionState.clear();
+		options.observer?.modelFinished?.(report);
 	}
 
-	options.observer?.modelFinished?.(report);
 	return report;
 }
 
@@ -276,7 +281,21 @@ async function requestTurnWithRefusalRetry(
 ): Promise<TurnOutcome> {
 	let outcome: TurnOutcome = { text: "", error: "request failed", durationMs: 0 };
 	for (let attempt = 1; attempt <= REFUSAL_MAX_ATTEMPTS; attempt += 1) {
-		if (attempt > 1) await (options.sleep ?? Bun.sleep)(REFUSAL_BACKOFF_MS[attempt - 1] ?? 180_000);
+		options.signal?.throwIfAborted();
+		if (attempt > 1) {
+			const milliseconds = REFUSAL_BACKOFF_MS[attempt - 1] ?? 180_000;
+			if (options.sleep) await options.sleep(milliseconds);
+			else {
+				const { promise, resolve, reject } = Promise.withResolvers<void>();
+				const abort = () => { clearTimeout(timer); reject(options.signal?.reason); };
+				const timer = setTimeout(resolve, milliseconds);
+				options.signal?.addEventListener("abort", abort, { once: true });
+				if (options.signal?.aborted) abort();
+				try { await promise; }
+				finally { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); }
+			}
+		}
+		options.signal?.throwIfAborted();
 		const sessionId = options.randomSessionId();
 		const apiKey = options.runtime.modelRegistry.resolver(model, sessionId);
 		outcome = await requestTurn(model, context, sessionId, apiKey, providerSessionState, target, options);
@@ -303,6 +322,7 @@ async function requestTurn(
 	try {
 		const stream = options.stream(model, context, {
 			apiKey,
+			signal: options.signal,
 			sessionId,
 			promptCacheKey: sessionId,
 			maxTokens:
@@ -337,6 +357,7 @@ async function requestTurn(
 		}
 		return { message, text, durationMs: elapsed(message) };
 	} catch (error) {
+		options.signal?.throwIfAborted();
 		return { text: "", error: errorText(error), durationMs: elapsed() };
 	}
 }

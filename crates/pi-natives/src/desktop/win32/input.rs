@@ -15,7 +15,7 @@ use super::{
 	window,
 };
 
-pub(super) fn create_global_input() -> CoreResult<Enigo> {
+pub(super) fn initialize_coordinates() -> CoreResult<()> {
 	use windows_sys::Win32::UI::HiDpi::{
 		DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE, SetThreadDpiAwarenessContext,
 	};
@@ -29,6 +29,11 @@ pub(super) fn create_global_input() -> CoreResult<Enigo> {
 			"cannot enable physical desktop coordinates on the input worker",
 		));
 	}
+	Ok(())
+}
+
+pub(super) fn create_global_input() -> CoreResult<Enigo> {
+	initialize_coordinates()?;
 	Enigo::new(&Settings { open_prompt_to_get_permissions: false, ..Settings::default() }).map_err(
 		|error| DesktopError::input_failed(format!("Win32 input initialization failed: {error}")),
 	)

@@ -27,41 +27,42 @@ use crate::desktop::{
 
 pub struct X11Backend {
 	capture:        X11Capture,
-	input:          X11Input,
+	input:          Option<X11Input>,
 	ax:             Option<AtSpiAx>,
 	display_server: Option<String>,
 }
 
 impl X11Backend {
-	pub(crate) fn new(display: DisplaySelector) -> CoreResult<Self> {
+
+	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
 		let capture = X11Capture::new(display)?;
-		let input = X11Input::new(capture.connection(), capture.root(), None)?;
+		let input = if observation_only { None } else { Some(X11Input::new(capture.connection(), capture.root(), None)?) };
 		let ax = AtSpiAx::new()
 			.ok()
 			.map(|ax| ax.with_native_windows(Box::new(capture.clone())));
 		Ok(Self { capture, input, ax, display_server: std::env::var("DISPLAY").ok() })
+	}
+
+	fn input(&mut self) -> CoreResult<&mut X11Input> {
+		self.input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))
 	}
 }
 
 impl Backend for X11Backend {
 	fn capabilities(&mut self) -> DesktopCapabilities {
 		let displays = self.capture.displays();
-		let watched = self
-			.input
-			.watch_user()
-			.and_then(|activity| activity.sync())
-			.is_ok();
+		let watched = self.input.as_mut().is_some_and(|input| input.watch_user().and_then(|activity| activity.sync()).is_ok());
 		DesktopCapabilities {
 			backend: "x11".to_string(),
 			display_server: self.display_server.clone(),
 			capture: displays.is_ok(),
-			input: true,
+			input: self.input.is_some(),
 			ax: self.ax.is_some(),
-			background_window_input: true,
+			background_window_input: self.input.is_some(),
 			takeover: watched,
 			applications: crate::desktop::applications::supported(),
 			menus: self.ax.is_some(),
-			held_input: true,
+			held_input: self.input.is_some(),
 			spaces: false,
 			global_escape: watched
 				&& std::env::var_os("WAYLAND_DISPLAY").is_none()
@@ -75,7 +76,7 @@ impl Backend for X11Backend {
 				"unavailable"
 			}
 			.to_string(),
-			input_permission: "granted".to_string(),
+			input_permission: if self.input.is_some() { "granted" } else { "unavailable" }.to_string(),
 			ax_permission: if self.ax.is_some() {
 				"granted"
 			} else {
@@ -97,11 +98,11 @@ impl Backend for X11Backend {
 	}
 
 	fn admit_takeover(&mut self) -> CoreResult<()> {
-		self.input.admit_takeover()
+		self.input()?.admit_takeover()
 	}
 
 	fn takeover_admitted(&mut self) -> CoreResult<bool> {
-		self.input.takeover_admitted()
+		self.input()?.takeover_admitted()
 	}
 
 	fn capture(
@@ -112,7 +113,9 @@ impl Backend for X11Backend {
 	) -> CoreResult<(RgbaImage, FrameGeometry)> {
 		// Inspection remains available when watching fails; takeover propagates
 		// the retained startup error before activation or input.
-		let _ = self.input.watch_user();
+		if let Some(input) = self.input.as_mut() {
+			let _ = input.watch_user();
+		}
 		self.capture.capture(target, selector)
 	}
 
@@ -125,7 +128,7 @@ impl Backend for X11Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		self.input.pointer(target, event, mode)
+		self.input()?.pointer(target, event, mode)
 	}
 
 	fn type_text(
@@ -136,7 +139,7 @@ impl Backend for X11Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		self.input.type_text(target, text, mode)
+		self.input()?.type_text(target, text, mode)
 	}
 
 	fn key_chord(
@@ -147,7 +150,7 @@ impl Backend for X11Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		self.input.key_chord(target, keys, mode)
+		self.input()?.key_chord(target, keys, mode)
 	}
 
 	fn hold_keys(
@@ -159,7 +162,7 @@ impl Backend for X11Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		self.input.hold_keys(target, keys, duration, mode)
+		self.input()?.hold_keys(target, keys, duration, mode)
 	}
 
 	fn menu_items(
@@ -185,7 +188,7 @@ impl Backend for X11Backend {
 		let window = id
 			.parse::<u32>()
 			.map_err(|_| DesktopError::window_not_found(format!("invalid X11 window id {id}")))?;
-		self.input.raise_window(window)
+		self.input()?.raise_window(window)
 	}
 
 	/// Background keys go to an element only when they reach it through its
@@ -203,7 +206,7 @@ impl Backend for X11Backend {
 		let window = ax.window_id(element, &windows)?;
 		let mut route = X11ElementKeys {
 			ax,
-			input: &mut self.input,
+			input: self.input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?,
 			element,
 			window: &window,
 			keys: input,

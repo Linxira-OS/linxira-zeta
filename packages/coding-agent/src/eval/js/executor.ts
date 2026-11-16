@@ -17,6 +17,7 @@ import type { JsStatusEvent } from "./shared/types";
 import { cfgEvalAutoProvision } from "../settings";
 
 export interface JsExecutorOptions {
+	outerToolCallId?: string;
 	cwd?: string;
 	timeoutMs?: number;
 	deadlineMs?: number;
@@ -172,6 +173,7 @@ export async function executeJs(code: string, options: JsExecutorOptions): Promi
 			filename,
 			timeoutMs: runtimeTimeoutMs ?? options.idleTimeoutMs,
 			runState: {
+				outerToolCallId: options.outerToolCallId,
 				signal,
 				onReply: options.onReply,
 				onText: chunk => outputSink.push(chunk),

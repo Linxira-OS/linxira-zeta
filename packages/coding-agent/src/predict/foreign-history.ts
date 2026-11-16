@@ -14,8 +14,8 @@ import { readForeignJsonRecords } from "../session/foreign-session-jsonl";
 const PLACEHOLDER = /\[(?:Pasted text|Image) #\d+[^\]]*\]/g;
 
 /** Claude Code then Codex prompts, each in file order; missing or unreadable files contribute nothing. */
-export async function readForeignPrompts(): Promise<string[]> {
-	const files = [
+export async function readForeignPrompts(selectedFiles?: readonly string[]): Promise<string[]> {
+	const files = selectedFiles ?? [
 		path.join(resolveClaudePaths().configDir, "history.jsonl"),
 		path.join(os.homedir(), ".codex", "history.jsonl"),
 	];

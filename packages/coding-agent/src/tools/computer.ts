@@ -22,6 +22,7 @@ import {
 	registerComputerController,
 } from "./computer/supervisor";
 import type { ToolSession } from "./index";
+import { computerRunPermits, hasComputerScope } from "./computer/lifecycle";
 import { renderFunctionRun, renderStatusCallChain } from "./run-code";
 import { throwIfAborted } from "./tool-errors";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
@@ -260,12 +261,27 @@ async function runComputer(
 	params: ComputerRunParams | ComputerCallParams,
 	context: EvalPreludeContext,
 ): Promise<AgentToolResult<unknown>> {
-	const signal = context.signal;
+	const sessionId = session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer";
+	const ownerId = session.getEvalKernelOwnerId?.() ?? undefined;
+	const instanceKey = session.getSessionInstanceKey?.();
+	const permits = await computerRunPermits(sessionId, ownerId, instanceKey);
+	if (session.getSessionInstanceKey?.() !== instanceKey || (session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer") !== sessionId) throw new ToolError("Computer session changed while authorizing");
+	const signals = [...permits.map(permit => permit.signal), ...(context.signal ? [context.signal] : [])];
+	const signal = signals.length ? AbortSignal.any(signals) : undefined;
 	const code = resolveComputerRunCode(params);
 	// Direct inspection calls run read-only so the desktop guard backs the read approval tier.
 	const readOnly = params.action === "call" ? isReadOnlyComputerCall(params.chain) : (params.read_only ?? false);
 	const timeoutSeconds = clampTimeout("computer", params.timeout, cfgToolsMaxTimeout.get(session.settings));
 	const snapshot = buildComputerSnapshot(session, readOnly);
+	snapshot.sessionId = sessionId;
+	if (hasComputerScope(sessionId, ownerId, instanceKey))
+		snapshot.activity = {
+			runId: crypto.randomUUID(),
+			sessionId,
+			toolCallId: context.outerToolCallId,
+			invocationId: context.toolCallId,
+			instanceKey,
+		};
 	const run = await controller.run(code, timeoutSeconds * 1000, snapshot, signal, context.context);
 	throwIfAborted(signal);
 

@@ -28,6 +28,8 @@ import { isOlderZetaVersion } from "./protocol";
 /** Options for {@link startRelayServer}. */
 export interface RelayServerOptions {
 	port: number;
+	/** Per-session desktop bridge authenticated by a private unguessable URL. */
+	studio?: { token: string; control(mode: "agent" | "human"): Promise<void> };
 	/** Shared secret the extension must present as `?token=`; unset disables the check. */
 	token?: string;
 	/** Group tabs the agent actively drives under one per-window Chrome tab group (default on); `false` disables. */
@@ -118,7 +120,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 	const log = opts.log ?? (() => {});
 	const group =
 		opts.group === false ? null : opts.group === true || opts.group === undefined ? DEFAULT_GROUP : opts.group;
-	const updateExtension = extensionUpdaterFor(opts.extensionDir ?? defaultRelayExtensionDir());
+	const updateExtension = opts.studio ? undefined : extensionUpdaterFor(opts.extensionDir ?? defaultRelayExtensionDir());
 	const bridge = new RelayBridge({ log, group, updateExtension });
 	const sockets = new Set<RelayWebSocket>();
 	const startedAt = Date.now();
@@ -139,7 +141,9 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 					? req.url.slice(`http://${rawHost}`.length)
 					: req.url;
 			const url = new URL(requestUrl, `http://${fallback}`);
-			const path = url.pathname.replace(/\/+$/, "") || "/";
+			const prefix = opts.studio ? `/managed/${opts.studio.token}` : "";
+			if (prefix && !url.pathname.startsWith(`${prefix}/`)) return new Response("Not found", { status: 404 });
+			const path = url.pathname.slice(prefix.length).replace(/\/+$/, "") || "/";
 			if (path === "/cdp") {
 				// Browsers set Origin on websocket upgrades; native CDP clients
 				// don't. Reject any Origin so a web page can't drive the relay.
@@ -174,7 +178,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 					};
 					return Response.json(info, { status: 503 });
 				}
-				return Response.json(bridge.versionInfo(`ws://${host}/cdp`));
+				return Response.json(bridge.versionInfo(`ws://${host}${prefix}/cdp`));
 			}
 			if (path === "/json" || path === "/json/list") {
 				return Response.json(bridge.listTargets());
@@ -197,6 +201,18 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 			message(ws: RelayWebSocket, message: string | Buffer): void {
 				const text = typeof message === "string" ? message : new TextDecoder().decode(message);
 				if (ws.data.role === "ext") {
+					if (opts.studio) {
+						let control: { t?: string; id?: number; control?: string };
+						try { control = JSON.parse(text); } catch { ws.close(); return; }
+						if (control?.t === "studioControl") {
+							if ((control.control !== "human" && control.control !== "agent") || !Number.isSafeInteger(control.id)) { ws.close(); return; }
+							void opts.studio.control(control.control).then(
+								() => { if (sockets.has(ws)) ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: true })); },
+								error => { if (sockets.has(ws)) ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: false, error: String(error) })); },
+							);
+							return;
+						}
+					}
 					bridge.extMessage(ws, text);
 				} else if (ws.data.connId !== undefined) {
 					bridge.cdpMessage(ws.data.connId, text);
@@ -223,7 +239,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 	log("relay listening", { port: opts.port });
 	return {
 		bridge,
-		port: opts.port,
+		port: server.port!,
 		stop() {
 			clearInterval(keepalive);
 			server.stop(true);

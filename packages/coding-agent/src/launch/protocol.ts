@@ -3,8 +3,8 @@ import {
 	type DaemonState,
 	type DaemonRestartPolicy,
 	type DaemonReadySpec,
-	type DaemonSpec,
-	type DaemonSnapshot,
+	type DaemonSpec as NativeDaemonSpec,
+	type DaemonSnapshot as NativeDaemonSnapshot,
 } from "@linxiraos/pi-tui/tools/daemon";
 /**
  * Cross-process daemon broker protocol shared by the tool, client, and broker.
@@ -27,6 +27,16 @@ export const DAEMON_IDLE_GRACE_ENV = "ZETA_DAEMON_IDLE_GRACE_MS";
 /** Signals accepted by daemon input operations. */
 export type DaemonSignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT" | "SIGKILL";
 
+/** Broker metadata is not forwarded to native process APIs. */
+export interface DaemonSpec extends NativeDaemonSpec {
+	previewUrl?: string;
+}
+
+/** Explicitly declared previews only; never inferred from process output. */
+export interface DaemonSnapshot extends NativeDaemonSnapshot {
+	previewUrl?: string;
+}
+
 /** Typed broker operation sent over the authenticated socket. */
 export type DaemonOperation =
 	| { op: "ping" }
@@ -42,6 +52,7 @@ export type DaemonOperation =
 	| {
 			op: "logs";
 			name: string;
+			expectedInstanceId?: string;
 			lines: number;
 			head: boolean;
 			grep?: string;
@@ -51,25 +62,26 @@ export type DaemonOperation =
 			renderTerminalRows?: boolean;
 			timeoutMs: number;
 	  }
-	| { op: "wait"; name: string; for: "ready" | "exit"; pattern?: string; timeoutMs: number }
-	| { op: "send"; name: string; data?: string; signal?: DaemonSignal }
+	| { op: "wait"; name: string; expectedInstanceId?: string; for: "ready" | "exit"; pattern?: string; timeoutMs: number }
+	| { op: "send"; name: string; expectedInstanceId?: string; data?: string; signal?: DaemonSignal }
 	| {
 			op: "stop";
 			name: string;
+			expectedInstanceId?: string;
 			timeoutMs: number;
 			/** Stop only this generation (`DaemonSnapshot.id`); another one is left running. Legacy brokers ignore it. */
 			id?: string;
 	  }
-	| { op: "restart"; name: string }
-	| { op: "mode"; name: string; mode: "persist" | "session" | "detached" }
-	| { op: "describe"; name: string }
+	| { op: "restart"; name: string; expectedInstanceId?: string }
+	| { op: "mode"; name: string; expectedInstanceId?: string; mode: "persist" | "session" | "detached" }
+	| { op: "describe"; name: string; expectedInstanceId?: string }
 	/** Abort this connection's in-flight `wait`/follow-`logs` request `requestId`. Legacy brokers reject it. */
 	| { op: "cancel"; requestId: string }
 	| { op: "shutdown" };
 
 /** Typed broker result decoded before it reaches tool code. */
 export type DaemonRpcResult =
-	| { op: "ping"; projectDir: string }
+	| { op: "ping"; projectDir: string; instanceFencing?: boolean; previewUrls?: boolean }
 	| { op: "start"; daemon: DaemonSnapshot; readyTimedOut: boolean }
 	| { op: "list"; daemons: DaemonSnapshot[] }
 	| {
@@ -219,6 +231,7 @@ export function parseDaemonSpec(value: unknown): DaemonSpec {
 	const detached = source.detached === undefined ? false : booleanValue(source.detached, "spec.detached");
 	return {
 		name: stringValue(source.name, "spec.name"),
+		...(source.previewUrl === undefined ? {} : { previewUrl: rawString(source.previewUrl, "spec.previewUrl") }),
 		application: stringValue(source.application, "spec.application"),
 		args: stringArray(source.args, "spec.args"),
 		env: stringRecord(source.env, "spec.env"),
@@ -236,6 +249,7 @@ export function parseDaemonSnapshot(value: unknown): DaemonSnapshot {
 	const source = record(value, "daemon snapshot");
 	return {
 		name: stringValue(source.name, "daemon.name"),
+		...(source.previewUrl === undefined ? {} : { previewUrl: rawString(source.previewUrl, "daemon.previewUrl") }),
 		id: stringValue(source.id, "daemon.id"),
 		state: daemonState(source.state),
 		pid: optionalNumber(source.pid, "daemon.pid"),
@@ -330,6 +344,7 @@ function parseDaemonOperation(value: unknown): DaemonOperation {
 			return {
 				op,
 				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
 				lines: numberValue(source.lines, "operation.lines"),
 				head: booleanValue(source.head, "operation.head"),
 				grep: optionalString(source.grep, "operation.grep"),
@@ -347,6 +362,7 @@ function parseDaemonOperation(value: unknown): DaemonOperation {
 			return {
 				op,
 				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
 				for: target,
 				pattern: optionalString(source.pattern, "operation.pattern"),
 				timeoutMs: numberValue(source.timeoutMs, "operation.timeoutMs"),
@@ -356,6 +372,7 @@ function parseDaemonOperation(value: unknown): DaemonOperation {
 			return {
 				op,
 				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
 				data: optionalString(source.data, "operation.data"),
 				signal: source.signal === undefined ? undefined : daemonSignal(source.signal),
 			};
@@ -363,19 +380,29 @@ function parseDaemonOperation(value: unknown): DaemonOperation {
 			return {
 				op,
 				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
 				timeoutMs: numberValue(source.timeoutMs, "operation.timeoutMs"),
 				id: optionalString(source.id, "operation.id"),
 			};
 		case "restart":
 		case "describe":
-			return { op, name: stringValue(source.name, "operation.name") };
+			return {
+				op,
+				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
+			};
 		case "cancel":
 			return { op, requestId: stringValue(source.requestId, "operation.requestId") };
 		case "mode": {
 			const mode = stringValue(source.mode, "operation.mode");
 			if (mode !== "persist" && mode !== "session" && mode !== "detached")
 				throw new Error("operation.mode must be persist, session, or detached");
-			return { op, name: stringValue(source.name, "operation.name"), mode };
+			return {
+				op,
+				name: stringValue(source.name, "operation.name"),
+				expectedInstanceId: optionalString(source.expectedInstanceId, "operation.expectedInstanceId"),
+				mode,
+			};
 		}
 		default:
 			throw new Error(`Unknown daemon operation: ${op}`);
@@ -387,7 +414,12 @@ export function parseDaemonRpcResult(operation: DaemonOperation, value: unknown)
 	const source = record(value, `${operation.op} result`);
 	switch (operation.op) {
 		case "ping":
-			return { op: "ping", projectDir: stringValue(source.projectDir, "result.projectDir") };
+			return {
+				op: "ping",
+				projectDir: stringValue(source.projectDir, "result.projectDir"),
+				instanceFencing: source.instanceFencing === true,
+				previewUrls: source.previewUrls === true,
+			};
 		case "start":
 			return {
 				op: "start",

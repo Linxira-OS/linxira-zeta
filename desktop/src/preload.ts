@@ -1,5 +1,72 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
-import { liveAudioBridge } from "./live-audio-preload";
+import type { TerminalCreateInput } from "./terminal/validation";
+import type { FileResource, FileResourceTarget } from "./file-resources-shared";
+import type { FloatWindowControl, FloatWindowEvent, FloatWindowPrepare, FloatWindowTicket } from "./floating-windows-shared";
+import type { PerfProfileSnapshot } from "./perf-profile-shared";
+import type { ImageInput, ImageResult, AvatarBytes } from "./chrome-media";
+import type { BrowserObservationAttach, BrowserObservationControl, BrowserObservationEvent, BrowserObservationResult } from "./browser-observation-shared";
+import type { ManagedBrowserApi, ManagedBrowserCommand, ManagedBrowserEvent, ManagedBrowserPresentation, ManagedBrowserState } from "./managed-browser-protocol";
+import type { MemoryCredentialResult } from "./memory-credentials-ipc";
+import type { ComputerViewRequest, ComputerViewResult, ComputerFrameRequest, ComputerFrameReadResult } from "./computer-frames-shared";
+import type { ComputerCaptureRequest, ComputerCaptureResult } from "./computer-observation-shared";
+import type { PredictionChannel, PredictionInput, PredictionEvent, PredictionResult } from "./prediction-protocol";
+
+let privateCapabilities: { browserObservation?: boolean; managedBrowser?: boolean; computerFrames?: boolean; computerCapture?: boolean; prediction?: boolean } | null = null;
+try { privateCapabilities = ipcRenderer.sendSync("zeta-studio:desktop:private-capabilities") ?? null; } catch { /* No private producer was discovered. */ }
+const browserObservationBridge = privateCapabilities?.browserObservation === true ? {
+	attachBrowserObservation: (input: BrowserObservationAttach): Promise<BrowserObservationResult> => ipcRenderer.invoke("zeta-studio:desktop:browser-attach", input),
+	controlBrowserObservation: (input: BrowserObservationControl): Promise<BrowserObservationResult> => ipcRenderer.invoke("zeta-studio:desktop:browser-input", input),
+	detachBrowserObservation: (input: { observationId: string }): Promise<BrowserObservationResult> => ipcRenderer.invoke("zeta-studio:desktop:browser-detach", input),
+	onBrowserObservation: (listener: (event: BrowserObservationEvent) => void): (() => void) => {
+		const handler = (_event: IpcRendererEvent, payload: BrowserObservationEvent): void => listener(payload);
+		ipcRenderer.on("zeta-studio:desktop:browser-event", handler);
+		return () => ipcRenderer.removeListener("zeta-studio:desktop:browser-event", handler);
+	},
+} : {};
+const managedBrowserBridge: { managedBrowser?: ManagedBrowserApi } = privateCapabilities?.managedBrowser === true ? {
+	managedBrowser: {
+		available: (): Promise<boolean> => ipcRenderer.invoke("zeta-studio:managed-browser:available"),
+		attach: (input: { sessionId: string; descriptorId: string }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke("zeta-studio:managed-browser:attach", input),
+		release: (input: { sessionId: string }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke("zeta-studio:managed-browser:release", input),
+		read: (sessionId: string): Promise<ManagedBrowserState> => ipcRenderer.invoke("zeta-studio:managed-browser:read", sessionId),
+		execute: (command: ManagedBrowserCommand): Promise<ManagedBrowserState> => ipcRenderer.invoke("zeta-studio:managed-browser:execute", command),
+		present: (presentation: ManagedBrowserPresentation): Promise<void> => ipcRenderer.invoke("zeta-studio:managed-browser:present", presentation),
+		subscribe: (listener: (event: ManagedBrowserEvent) => void): (() => void) => {
+			const handler = (_event: IpcRendererEvent, event: ManagedBrowserEvent): void => listener(event);
+			ipcRenderer.on("zeta-studio:managed-browser:event", handler);
+			return () => ipcRenderer.removeListener("zeta-studio:managed-browser:event", handler);
+		},
+	},
+} : {};
+const computerFrameBridge = privateCapabilities?.computerFrames === true ? {
+	adoptComputerView: (input: ComputerViewRequest): Promise<ComputerViewResult> => ipcRenderer.invoke("zeta-studio:desktop:computer-view-adopt", input),
+	releaseComputerView: (input: ComputerViewRequest): Promise<ComputerViewResult> => ipcRenderer.invoke("zeta-studio:desktop:computer-view-release", input),
+	readComputerFrame: (input: ComputerFrameRequest): Promise<ComputerFrameReadResult> => ipcRenderer.invoke("zeta-studio:desktop:computer-frame-read", input),
+} : {};
+const computerCaptureBridge = privateCapabilities?.computerCapture === true ? {
+	readComputerCapture: (input: ComputerCaptureRequest): Promise<ComputerCaptureResult> => ipcRenderer.invoke("zeta-studio:desktop:computer-capture", input),
+} : {};
+const predictionBridge = privateCapabilities?.prediction === true ? {
+	attachPrediction: (input: PredictionChannel): Promise<PredictionResult> => ipcRenderer.invoke("zeta-studio:desktop:prediction-attach", input),
+	predictionInput: (input: { channelId: string; input: Exclude<PredictionInput, { kind: "import" }> }): Promise<PredictionResult> => ipcRenderer.invoke("zeta-studio:desktop:prediction-input", input),
+	detachPrediction: (input: { channelId: string }): Promise<PredictionResult> => ipcRenderer.invoke("zeta-studio:desktop:prediction-detach", input),
+	importPredictionHistory: (input: { channelId: string }): Promise<PredictionResult> => ipcRenderer.invoke("zeta-studio:desktop:prediction-import", input),
+	onPrediction: (listener: (event: PredictionEvent) => void): (() => void) => {
+		const handler = (_event: IpcRendererEvent, payload: PredictionEvent): void => listener(payload);
+		ipcRenderer.on("zeta-studio:desktop:prediction-event", handler);
+		return () => ipcRenderer.removeListener("zeta-studio:desktop:prediction-event", handler);
+	},
+} : {};
+
+// Electron sandbox preloads can require Electron only; keep runtime channels
+// here rather than depending on a local CommonJS module that cannot load.
+const liveAudioBridge = {
+	attachLiveAudio: (input: { audioId: string; sessionId: string }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke("pi:live-audio-attach", input),
+	appendLiveAudio: (input: { audioId: string; sequence: number; bytes: ArrayBuffer }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke("pi:live-audio-append", input),
+	detachLiveAudio: (input: { audioId: string }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke("pi:live-audio-detach", input),
+	requestMicrophoneAccess: (): Promise<"granted" | "denied"> => ipcRenderer.invoke("pi:request-microphone-access"),
+	openMicrophoneSettings: (): Promise<boolean> => ipcRenderer.invoke("pi:open-microphone-settings"),
+};
 
 interface DesktopOpenTarget {
 	id: string;
@@ -54,16 +121,44 @@ interface DesktopExternalOpen {
 /**
  * Renderer bridge for desktop-only capabilities.
  *
- * One capability object, exposed under both names the renderer generations
- * read: `window.piDesktop` (Window-control/titlebar contract) and
- * `window.zetaStudioChrome` (the Studio chrome contract: pickers, project and
- * file shell actions, app metadata). Exposing the same object twice keeps the
- * two contracts from drifting and lets feature detection work either way.
- *
- * In a plain browser tab neither global exists, so the renderer keeps its
- * browser fallbacks instead of showing dead desktop affordances.
+ * `window.zetaStudioChrome` owns window controls, pickers, project/file shell
+ * actions and app metadata. A plain browser has no preload bridge and keeps
+ * its browser capability behavior.
  */
 const bridge = {
+	...managedBrowserBridge,
+	...browserObservationBridge,
+	...computerFrameBridge,
+	...computerCaptureBridge,
+	...predictionBridge,
+	memoryCredentialStatus: (input: { targetId: string | null; url: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-status", input),
+	setMemoryCredential: (input: { targetId: string | null; url: string; token: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-set", input),
+	removeMemoryCredential: (input: { targetId: string | null; url: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-remove", input),
+	files: {
+		open: (input: FileResourceTarget): Promise<FileResource> => ipcRenderer.invoke("zeta-studio:files-open", input),
+		release: (id: string): Promise<void> => ipcRenderer.invoke("zeta-studio:files-release", id),
+		export: (input: FileResourceTarget): Promise<boolean> => ipcRenderer.invoke("zeta-studio:files-export", input),
+		setDirty: (count: number): Promise<void> => ipcRenderer.invoke("zeta-studio:files-dirty", count),
+		onCloseRequested: (listener: (id: string) => void): (() => void) => {
+			const handler = (_event: IpcRendererEvent, id: string): void => listener(id);
+			ipcRenderer.on("zeta-studio:files-close-requested", handler);
+			return () => ipcRenderer.removeListener("zeta-studio:files-close-requested", handler);
+		},
+		finishClose: (id: string, allow: boolean): Promise<void> => ipcRenderer.invoke("zeta-studio:files-finish-close", id, allow),
+	},
+	prepareFloatWindow: (input: FloatWindowPrepare): Promise<FloatWindowTicket> => ipcRenderer.invoke("zeta-studio:float:prepare", input),
+	controlFloatWindow: (input: FloatWindowControl): Promise<void> => ipcRenderer.invoke("zeta-studio:float:control", input),
+	onFloatWindow: (listener: (event: FloatWindowEvent) => void): (() => void) => {
+		const handler = (_event: IpcRendererEvent, event: FloatWindowEvent): void => listener(event);
+		ipcRenderer.on("zeta-studio:float:changed", handler);
+		return () => ipcRenderer.removeListener("zeta-studio:float:changed", handler);
+	},
+	setTheme: (theme: "light" | "dark", tint?: { color: string; symbolColor: string }): Promise<void> => ipcRenderer.invoke("pi:theme", { theme, tint }),
+	copyImage: (input: Pick<ImageInput, "mime" | "bytes">): Promise<ImageResult> => ipcRenderer.invoke("pi:image-copy", input),
+	saveImage: (input: ImageInput): Promise<ImageResult> => ipcRenderer.invoke("pi:image-save", input),
+	saveAvatar: (input: ImageInput): Promise<ImageResult> => ipcRenderer.invoke("pi:avatar-save", input),
+	loadAvatar: (): Promise<AvatarBytes | null> => ipcRenderer.invoke("pi:avatar-load"),
+	clearAvatar: (): Promise<void> => ipcRenderer.invoke("pi:avatar-clear"),
 	// -------------------------------------------------------------------------
 	// Self-drawn titlebar (frameless window on all platforms)
 	// -------------------------------------------------------------------------
@@ -194,8 +289,7 @@ const bridge = {
 
 export type PiDesktopApi = typeof bridge;
 
-// Dictation keeps its own module (channels, validation, macOS TCC); spreading
-// it in keeps the desktop capability surface one object under both globals.
+// Audio channels remain fixed and self-contained in this sandbox preload.
 Object.assign(bridge, liveAudioBridge);
 type RemoteUnsubscribe = () => void;
 
@@ -214,9 +308,11 @@ const remoteBridge = {
 	select: (id: string | null): Promise<void> => ipcRenderer.invoke("pi:remote-select", id),
 	directories: (id: string, path?: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-directories", id, path),
 	register: (id: string, path: string): Promise<void> => ipcRenderer.invoke("pi:remote-register", id, path),
-	bootstrap: (id: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-bootstrap", id),
-	query: (id: string, request: unknown): Promise<unknown> => ipcRenderer.invoke("pi:remote-query", id, request),
-	command: (id: string, request: unknown): Promise<unknown> => ipcRenderer.invoke("pi:remote-command", id, request),
+	openContext: (id: string, scope: { workspaceId: string; sessionId?: string }): Promise<string> => ipcRenderer.invoke("pi:remote-context-open", id, scope),
+	closeContext: (id: string, contextId: string): Promise<void> => ipcRenderer.invoke("pi:remote-context-close", id, contextId),
+	bootstrap: (id: string, contextId?: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-bootstrap", id, contextId),
+	query: (id: string, request: unknown, contextId?: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-query", id, request, contextId),
+	command: (id: string, request: unknown, contextId?: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-command", id, request, contextId),
 	installRuntime: (id: string): Promise<{ readonly installed: boolean; readonly message?: string }> =>
 		ipcRenderer.invoke("pi:remote-install-runtime", id),
 	retryNetwork: (id: string): Promise<void> => ipcRenderer.invoke("pi:remote-retry-network", id),
@@ -242,7 +338,7 @@ type TerminalRecording = {
 };
 
 const terminalBridge = {
-	create: (size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string; profileId?: string; cwd?: string }): Promise<unknown> =>
+	create: (size?: TerminalCreateInput): Promise<unknown> =>
 		ipcRenderer.invoke("pi:terminal-create", size),
 	write: (id: string, data: string): Promise<void> => ipcRenderer.invoke("pi:terminal-write", id, data),
 	resize: (id: string, cols: number, rows: number): Promise<void> => ipcRenderer.invoke("pi:terminal-resize", id, cols, rows),
@@ -255,8 +351,8 @@ const terminalBridge = {
 	recordingStatus: (id: string): Promise<TerminalRecording> => ipcRenderer.invoke("pi:terminal-recording-status", id),
 	recordingExport: (artifactId: string): Promise<{ exported: boolean; path?: string }> =>
 		ipcRenderer.invoke("pi:terminal-recording-export", artifactId),
-	onData: (listener: (event: { id: string; data: string }) => void): RemoteUnsubscribe => {
-		const handler = (_event: IpcRendererEvent, payload: { id: string; data: string }): void => listener(payload);
+	onData: (listener: (event: { id: string; data: string; bytes?: number }) => void): RemoteUnsubscribe => {
+		const handler = (_event: IpcRendererEvent, payload: { id: string; data: string; bytes?: number }): void => listener(payload);
 		ipcRenderer.on("pi:terminal-data", handler);
 		return () => ipcRenderer.removeListener("pi:terminal-data", handler);
 	},
@@ -267,7 +363,22 @@ const terminalBridge = {
 	},
 };
 
-contextBridge.exposeInMainWorld("piDesktop", bridge);
+let cachedProfile: PerfProfileSnapshot | null = null;
+try { cachedProfile = ipcRenderer.sendSync("zeta-studio:desktop:perf-profile-cached") ?? null; } catch { /* First launch has no persisted sample. */ }
+const performanceBridge = Object.freeze({
+	cached: cachedProfile,
+	probe: (): Promise<PerfProfileSnapshot> => ipcRenderer.invoke("zeta-studio:desktop:perf-profile-probe").then((snapshot: PerfProfileSnapshot | null) => {
+		if (!snapshot) throw new Error("Performance profile is unavailable");
+		return snapshot;
+	}),
+	onChanged: (listener: (snapshot: PerfProfileSnapshot) => void): (() => void) => {
+		const handler = (_event: IpcRendererEvent, snapshot: PerfProfileSnapshot | null): void => { if (snapshot) listener(snapshot); };
+		ipcRenderer.on("zeta-studio:desktop:perf-profile-changed", handler);
+		return () => ipcRenderer.removeListener("zeta-studio:desktop:perf-profile-changed", handler);
+	},
+});
+
 contextBridge.exposeInMainWorld("zetaStudioChrome", bridge);
 contextBridge.exposeInMainWorld("zetaStudioRemote", remoteBridge);
 contextBridge.exposeInMainWorld("zetaStudioTerminal", terminalBridge);
+contextBridge.exposeInMainWorld("zetaStudioPerf", performanceBridge);

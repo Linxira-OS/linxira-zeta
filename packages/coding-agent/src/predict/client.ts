@@ -19,6 +19,8 @@ import { resolveWorkerSpawnCmd, SMOKE_TEST_TIMEOUT_MS, workerEnvFromParent } fro
 import { prefetchSmolLmWeights } from "./smollm-weights";
 import {
 	TEXT_PREDICT_AGENT_DIR_ENV,
+	TEXT_PREDICT_PROFILE_ENV,
+	type TextPredictProfile,
 	TEXT_PREDICT_BROKER_SCOPE,
 	TEXT_PREDICT_READY_PATTERN,
 	TEXT_PREDICT_SOCKET_ENV,
@@ -119,7 +121,7 @@ class DaemonConnection {
  * Connect and confirm the daemon speaks this zetacode version or a newer one;
  * `undefined` when nothing usable listens.
  */
-async function connectDaemon(endpoint: string): Promise<DaemonConnection | undefined> {
+async function connectDaemon(endpoint: string, profile: TextPredictProfile = "default"): Promise<DaemonConnection | undefined> {
 	let ipc: IpcConnection;
 	try {
 		ipc = await IpcConnection.connect(endpoint, { framing: "lines", timeoutMs: CONNECT_TIMEOUT_MS });
@@ -129,7 +131,11 @@ async function connectDaemon(endpoint: string): Promise<DaemonConnection | undef
 	const connection = new DaemonConnection(ipc);
 	try {
 		const pong = await connection.request(id => ({ id, op: "ping" }), REQUEST_TIMEOUT_MS);
-		if (pong.ok && pong.op === "ping" && (pong.version === VERSION || compareVersions(pong.version, VERSION) > 0)) {
+		if (
+			pong.ok && pong.op === "ping" &&
+			(pong.version === VERSION || compareVersions(pong.version, VERSION) > 0) &&
+			(profile === "default" || (pong.profile === profile && pong.protocol === 2))
+		) {
 			return connection;
 		}
 		// A daemon from an older zetacode version: retire it so this version's starts. A newer
@@ -144,19 +150,19 @@ async function connectDaemon(endpoint: string): Promise<DaemonConnection | undef
 }
 
 /** Find or start the daemon serving `agentDir` under the global broker. */
-async function ensureDaemon(agentDir: string): Promise<DaemonConnection> {
+async function ensureDaemon(agentDir: string, profile: TextPredictProfile): Promise<DaemonConnection> {
 	const broker = await daemonClientForGlobal(TEXT_PREDICT_BROKER_SCOPE);
 	await broker.request({ op: "ping" });
-	const { name, endpoint } = textPredictDaemon(broker.projectDir, agentDir);
+	const { name, endpoint } = textPredictDaemon(broker.projectDir, agentDir, profile);
 	const spawn = resolveWorkerSpawnCmd(TEXT_PREDICT_WORKER_ARG);
 	for (let attempt = 0; attempt < ENSURE_ATTEMPTS; attempt++) {
-		const live = await connectDaemon(endpoint);
+		const live = await connectDaemon(endpoint, profile);
 		if (live) return live;
 		const existing = await describeQuietly(broker, name, LABEL);
 		if (existing && existing.state !== "exited" && existing.state !== "failed") {
 			if (existing.readyAt === undefined) {
 				await waitReady(broker, name, LABEL, undefined, READY_TIMEOUT_MS);
-				const ready = await connectDaemon(endpoint);
+				const ready = await connectDaemon(endpoint, profile);
 				if (ready) return ready;
 			}
 			// Live record but nothing usable listening: replace it.
@@ -170,7 +176,11 @@ async function ensureDaemon(agentDir: string): Promise<DaemonConnection> {
 					name,
 					application: spawn.cmd[0]!,
 					args: spawn.cmd.slice(1),
-					env: { [TEXT_PREDICT_SOCKET_ENV]: endpoint, [TEXT_PREDICT_AGENT_DIR_ENV]: agentDir },
+					env: {
+						[TEXT_PREDICT_SOCKET_ENV]: endpoint,
+						[TEXT_PREDICT_AGENT_DIR_ENV]: agentDir,
+						[TEXT_PREDICT_PROFILE_ENV]: profile,
+					},
 					cwd: spawn.cwd ?? broker.projectDir,
 					pty: false,
 					ready: { log: TEXT_PREDICT_READY_PATTERN, timeoutMs: READY_TIMEOUT_MS },
@@ -187,8 +197,40 @@ async function ensureDaemon(agentDir: string): Promise<DaemonConnection> {
 	throw new Error("text-predict daemon did not start");
 }
 
-/** Process-wide daemon access shared by every editor and the submit hook. */
-class TextPredictionClient {
+/** Native daemon client; Studio uses an explicit isolated corpus and profile. */
+export class TextPredictionClient {
+	readonly agentDirectory: string;
+	readonly profile: TextPredictProfile;
+	readonly downloadWeights: boolean;
+	#closed = false;
+	constructor(options: { agentDirectory?: string; profile?: TextPredictProfile; downloadWeights?: boolean } = {}) {
+		this.agentDirectory = options.agentDirectory ?? getAgentDir();
+		this.profile = options.profile ?? "default";
+		this.downloadWeights = options.downloadWeights ?? true;
+	}
+
+	/** Stop only this corpus' exact daemon before clearing its state. */
+	async stop(): Promise<void> {
+		const connecting = this.#connecting;
+		this.close();
+		await connecting?.catch(() => undefined);
+		try {
+			const broker = await daemonClientForGlobal(TEXT_PREDICT_BROKER_SCOPE);
+			const ping = await broker.request({ op: "ping" });
+			if (ping.op !== "ping" || !ping.instanceFencing) throw new Error("Restart the prediction broker before clearing its corpus");
+			const { name } = textPredictDaemon(broker.projectDir, this.agentDirectory, this.profile);
+			const listed = await broker.request({ op: "list" });
+			if (listed.op !== "list") throw new Error("Unexpected prediction broker response");
+			const daemon = listed.daemons.find(row => row.name === name && row.state !== "exited" && row.state !== "failed");
+			if (daemon) {
+				const stopped = await broker.request({ op: "stop", name, id: daemon.id, expectedInstanceId: `${daemon.id}:${daemon.startedAt}`, timeoutMs: 10000 });
+				if (stopped.op !== "stop" || !["exited", "failed"].includes(stopped.daemon.state)) throw new Error("Prediction daemon is still running");
+			}
+		} finally {
+			this.#closed = false;
+			this.#retryAt = 0;
+		}
+	}
 	#connection: DaemonConnection | undefined;
 	#connecting: Promise<DaemonConnection> | undefined;
 	#retryAt = 0;
@@ -221,6 +263,7 @@ class TextPredictionClient {
 
 	/** Drop the daemon connection so a short-lived command can exit. */
 	close(): void {
+		this.#closed = true;
 		this.#connection?.close();
 		this.#connection = undefined;
 	}
@@ -234,7 +277,7 @@ class TextPredictionClient {
 	async complete(engine: TextPredictMethod, before: string, prefix: string): Promise<TextPrediction> {
 		// SmolLM's weights download here, in the interactive process (shown in the
 		// download HUD), only once the user has chosen SmolLM.
-		if (engine === "smollm") prefetchSmolLmWeights();
+		if (engine === "smollm" && this.downloadWeights) prefetchSmolLmWeights();
 		const response = await this.#request(
 			id => ({ id, op: "complete", method: engine, before, prefix }),
 			COMPLETE_TIMEOUT_MS,
@@ -262,12 +305,18 @@ class TextPredictionClient {
 	}
 
 	#connect(): Promise<DaemonConnection> {
+		if (this.#closed) return Promise.reject(new Error("text-predict client closed"));
 		const current = this.#connection;
 		if (current && !current.closed) return Promise.resolve(current);
 		if (this.#connecting) return this.#connecting;
 		if (Date.now() < this.#retryAt) return Promise.reject(new Error("text-predict daemon unavailable"));
-		const connecting = ensureDaemon(getAgentDir()).then(
+		const connecting = ensureDaemon(this.agentDirectory, this.profile).then(
 			connection => {
+				if (this.#closed) {
+					connection.close();
+					this.#connecting = undefined;
+					throw new Error("text-predict client closed");
+				}
 				this.#connection = connection;
 				this.#connecting = undefined;
 				return connection;

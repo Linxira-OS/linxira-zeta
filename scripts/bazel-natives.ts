@@ -24,6 +24,7 @@
  * for plain host iteration. Bazel is opt-in for host via
  * `OMP_NATIVE_BUILD_BACKEND=bazel` or by passing extra bazel args after `--`;
  * explicit //:natives-* targets and aggregates always build through bazel.
+ * `BAZEL` selects an exact executable instead of the bazelisk/bazel PATH lookup.
  * Release CI builds every addon through that path on Linux.
  *
  * Windows hosts: the msvc cc toolchain in bazel/toolchains/msvc only supports
@@ -226,7 +227,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
 }
 
 function resolveBazelBinary(): string | null {
-	return Bun.which("bazelisk") ?? Bun.which("bazel");
+	return process.env.BAZEL?.trim() || Bun.which("bazelisk") || Bun.which("bazel");
 }
 
 const STDERR_TAIL_LINES = 40;

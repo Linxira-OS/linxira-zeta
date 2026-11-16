@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/studio-testkit",
-  "version": "0.1.17",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@linxiraos/studio-contract": "0.1.17",
-    "@linxiraos/studio-protocol": "0.1.17"
+    "@linxiraos/studio-contract": "0.2.0",
+    "@linxiraos/studio-protocol": "0.2.0"
   }
 }

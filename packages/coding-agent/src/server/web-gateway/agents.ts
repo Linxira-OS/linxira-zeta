@@ -44,6 +44,7 @@ import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
 import { createAgentSession } from "../../sdk";
 import { type AgentSession, type ModeId } from "../../session/agent-session";
+import { attachStudioTimeTravel } from "../studio-host/services/time-travel-boundary";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
 import { SESSION_CLIENT_HEADER, clientFromHeaderValue } from "../../session/session-client";
@@ -380,6 +381,7 @@ export class AgentSessionWrapper {
 		this.#inner = inner;
 		this.realSessionId = realSessionId;
 		this.sessionFile = sessionFile;
+		attachStudioTimeTravel(inner);
 		this.#loopController = new LoopContinuationController(inner, {
 			onChange: state => {
 				if (!this.#destroyed) this.#emit({ type: "loop_state", state });
@@ -1142,6 +1144,11 @@ function mapBashResult(result: BashResult): {
 		error: result.exitCode === 0 ? undefined : `Command failed with exit code ${result.exitCode ?? "unknown"}`,
 		exitCode: result.exitCode,
 	};
+}
+
+/** Pending dialog owner; callers must verify it before scoped responses. */
+export function extensionUiRequestSessionId(id: string): string | undefined {
+	return uiRequestOwners.get(id);
 }
 
 /** Resolve a pending extension UI dialog without addressing a session. */

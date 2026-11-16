@@ -40,16 +40,27 @@
   margin-left: var(--sp-16);
   /* 气泡 .nav-window 的包含块。 */
   position: relative;
+  /* 窄窗口下保持单行：入口不压缩，导航条自己横向滚动。
+     没有 min-width: 0 时 flex 项按内容撑开，640px 会把每个入口压成竖排单字。 */
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
+.page-nav::-webkit-scrollbar { display: none; }
 .page-nav a {
   height: 30px;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--sp-6);
   padding: 0 var(--sp-10);
   border-radius: var(--r-6);
   font-size: var(--fs-12);
   color: var(--text-3);
+  white-space: nowrap;
 }
 .page-nav a:hover { background: var(--surface-hover); color: var(--text); text-decoration: none; }
 /* 激活态不再靠加重字体区分：font-weight 变化会让拉丁字形（"Time Travel" /
@@ -409,17 +420,9 @@ img.profile-edit-avatar-img { display: block; }
 .tk-chart .tk-yt { font-family: var(--font-mono); font-size: calc(9px * var(--text-font-scale)); fill: var(--text-faint); pointer-events: none; }
 .tk-chart .tk-xt { font-size: calc(9.5px * var(--text-font-scale)); fill: var(--text-faint); pointer-events: none; }
 .tk-chart .tk-xt.in,
-.tk-chart .tk-yt.in { animation: tk-axis-in var(--dur-chart-axis) var(--ease) both; }
+.tk-chart .tk-yt.in { animation: omp-fade-in var(--dur) var(--ease) both; }
 .tk-chart .tk-xt.out,
-.tk-chart .tk-yt.out { animation: tk-axis-out var(--dur-chart-axis) var(--ease) both; }
-@keyframes tk-axis-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes tk-axis-out { from { opacity: 1; } to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .tk-chart .tk-xt.in,
-  .tk-chart .tk-yt.in,
-  .tk-chart .tk-xt.out,
-  .tk-chart .tk-yt.out { animation: none; }
-}
+.tk-chart .tk-yt.out { animation: omp-fade-out var(--dur) var(--ease) both; }
 /* 曲线：基线 1.6px，曲线段需要 round join+cap 才不会出现尖角断开感。 */
 .tk-chart .tk-line { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .tk-chart .tk-line.m0 { stroke: var(--accent); }
@@ -456,11 +459,28 @@ img.profile-edit-avatar-img { display: block; }
 .tk-chart .tk-pt.total { fill: var(--accent); }
 
 /* 日历：7 行 × 53 列（一年 GitHub 风格）。
-   紧凑模式：单元格方形 13×13px，gap 2px → 行列步进均 15px（横向 = 纵向）。
+   紧凑模式：单元格方形 13×13px，gap 5px → 横向步进 18px。
    容器 width: max-content + 父容器中 margin auto，整体水平居中。
-   容器宽度 = 13 × 53 + 2 × 52 = 793px。 */
-.tk-cal-wrap { width: max-content; max-width: 100%; margin: var(--sp-8) auto 0; }
-.tk-cal { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); grid-template-columns: repeat(var(--weeks, 53), 13px); gap: 5px; }
+   容器宽度 = 13 × 53 + 5 × 52 = 949px。
+   列宽固定、不会收窄，所以窄窗口下由 .tk-cal-wrap 自己横滚：以前这里只有
+   max-width: 100%，949px 的列直接从卡片里画出去，被最外层 .page-body
+   （overflow-y: auto，横向因此也是 auto）算成整页的横向溢出——1000px 窗口整页
+   多滚 52px、820px 多滚 212px，首页莫名其妙挂一条横向滚动条。 */
+.tk-cal-wrap { width: max-content; max-width: 100%; margin: var(--sp-8) auto 0; overflow-x: auto; }
+.tk-cal {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 13px);
+  grid-template-columns: repeat(var(--weeks, 53), 13px);
+  gap: 5px;
+  /* max-content：盒子取列的自然宽（949px）交给 .tk-cal-wrap 滚，而不是被卡片
+     宽度截断成 850px 再把列画到外面。clip 只裁 .tk-hi 的 scale(1.3) 外扩
+     （13px 格每边约 2px 加 1px 光环）：那 2px 否则会一直算进 wrap 的可滚动
+     溢出，宽到放得下 949px 的窗口也照样挂一条滚动条。 */
+  width: max-content;
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
 /* 月份标签层：放在日历下方，与日历同一列公式对齐。grid-column 由 inline 决定
    到具体的周列；min-width 0 允许月份字截断/溢出而不撑开整列。 */
 .tk-cal-months {
@@ -647,6 +667,9 @@ img.profile-edit-avatar-img { display: block; }
 
 /* Time Travel */
 .tt-rail { position: relative; padding-left: 28px; }
+.tt-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-8); }
+.tt-branches { width: 100%; margin-bottom: var(--sp-12); }
+.tt-restore-list { max-height: 45vh; overflow: auto; overflow-wrap: anywhere; }
 .tt-rail::before {
   content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px;
   width: 2px; background: var(--border-strong); border-radius: 2px;
@@ -771,37 +794,6 @@ img.profile-edit-avatar-img { display: block; }
   color: var(--text-faint);
 }
 
-.cap-tab-window {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: auto;
-  height: 0;
-  border-radius: var(--r-6);
-  background: var(--accent-soft);
-  overflow: hidden;
-  pointer-events: none;
-  transition: top var(--dur-slide) var(--ease-ios),
-              height var(--dur-slide) var(--ease-ios);
-}
-.cap-tab-mirror {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  transition: top var(--dur-slide) var(--ease-ios);
-}
-.cap-tab-mirror button {
-  color: var(--accent);
-  cursor: default;
-  background: transparent;
-}
-.cap-side .cap-tab-mirror button:hover { background: transparent; }
-.cap-tab-mirror .cnt { color: var(--text-faint); }
-
 .cap-main {
   flex: 1;
   min-width: 0;
@@ -820,9 +812,9 @@ img.profile-edit-avatar-img { display: block; }
   margin-inline: -20px;
 }
 
-/* 叠层交叉淡入：新旧面板同时在场，透明度做溶解，短距 translateX 只提示方向。
-   进入用 --ease-nav 长尾缓降；离开更短，后半段由新面板主导。
-   时长须与 TAB_PANE_MS 对齐。 */
+/* 叠层交叉淡入：新旧面板同时在场，透明度做溶解，短距横移只提示方向。
+   动画本身（.tab-pane-enter-* / -leave-*）在 styles/motion.css 的 Surfaces
+   一节，与 Agent Hub 换面、Deck 换题共用；这里只管叠放。 */
 .tab-pane {
   position: absolute;
   inset: 0;
@@ -837,39 +829,10 @@ img.profile-edit-avatar-img { display: block; }
   z-index: 1;
   backface-visibility: hidden;
 }
-.tab-pane-enter-fwd {
-  animation: tab-pane-enter-fwd 320ms var(--ease-nav) both;
-}
-.tab-pane-enter-back {
-  animation: tab-pane-enter-back 320ms var(--ease-nav) both;
-}
 .tab-pane-leave-fwd,
 .tab-pane-leave-back {
   z-index: 0;
-  pointer-events: none;
   backface-visibility: hidden;
-}
-.tab-pane-leave-fwd {
-  animation: tab-pane-leave-fwd 240ms var(--ease-nav) both;
-}
-.tab-pane-leave-back {
-  animation: tab-pane-leave-back 240ms var(--ease-nav) both;
-}
-@keyframes tab-pane-enter-fwd {
-  from { opacity: 0; transform: translate3d(16px, 0, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes tab-pane-leave-fwd {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to   { opacity: 0; transform: translate3d(-8px, 0, 0); }
-}
-@keyframes tab-pane-enter-back {
-  from { opacity: 0; transform: translate3d(-16px, 0, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes tab-pane-leave-back {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to   { opacity: 0; transform: translate3d(8px, 0, 0); }
 }
 
 /* Tab-level summary row — sits between tabs and the card list.
@@ -1137,6 +1100,37 @@ img.profile-edit-avatar-img { display: block; }
 
 /* ---------- 设置 ---------- */
 .set-layout { display: flex; gap: var(--sp-24); align-items: stretch; }
+.settings-sidebar { width: 200px; flex: 0 0 200px; min-width: 0; display: flex; flex-direction: column; }
+.settings-sidebar .page-tabs--vertical { width: 100%; min-height: 0; flex: 1 1 auto; }
+.settings-sidebar .cap-side[role="tablist"] > [role="tab"] { height: auto; min-height: var(--tab-height); white-space: normal; }
+.settings-sidebar .page-tab-label { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }
+.set-layout .cap-pane-stage[hidden] { display: none; }
+.settings-search-label { display: block; font-size: var(--fs-11); color: var(--text-3); margin-bottom: var(--sp-4); }
+.settings-search { width: 100%; margin-bottom: var(--sp-12); }
+.settings-search-results { min-width: 0; }
+.settings-search-result { width: 100%; text-align: left; display: flex; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-12); border: 1px solid var(--border); background: var(--surface); color: var(--text-1); cursor: pointer; }
+.settings-search-result + .settings-search-result { border-top: 0; }
+.settings-search-result:hover, .settings-search-result:focus-visible { background: var(--surface-hover, var(--surface)); outline: 2px solid var(--accent); outline-offset: -2px; }
+.settings-search-result small { color: var(--text-3); }
+.settings-search-highlight { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-8); }
+.settings-pending-row { padding: var(--sp-10) var(--sp-14); border: 1px solid var(--border); background: var(--surface); }
+.settings-pending-row + .settings-pending-row { border-top: 0; }
+.settings-pending-row p, .settings-pending-row span { display: block; font-size: var(--fs-11); color: var(--text-3); margin-top: var(--sp-4); }
+.runtime-setting-control { display: grid; grid-template-columns: auto auto; align-items: center; gap: var(--sp-6); min-width: 200px; max-width: 420px; }
+.runtime-setting-control .small, .runtime-setting-control textarea { grid-column: 1 / -1; }
+.runtime-setting-control .select { grid-column: 1 / -1; }
+.memory-credential-control { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-6); width: 300px; max-width: 100%; }
+.set-row .memory-credential-control .input { width: 100%; }
+.memory-credential-actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.settings-scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.settings-scope .select { width: 240px; max-width: 100%; }
+.settings-link-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-12); }
+@media (max-width: 760px) {
+  .set-layout { gap: var(--sp-12); }
+  .settings-sidebar { width: 145px; flex-basis: 145px; }
+  .set-row { align-items: stretch; flex-wrap: wrap; }
+  .set-row .sr-control { margin-left: 0; max-width: 100%; }
+}
 .set-group { margin-bottom: 0; }
 .set-group[hidden] { display: none; }
 .set-group > h3 {
@@ -1159,6 +1153,7 @@ img.profile-edit-avatar-img { display: block; }
 .set-row .sr-desc { font-size: var(--fs-11); color: var(--text-3); margin-top: 1px; }
 .set-row .sr-control { margin-left: auto; flex: none; display: flex; align-items: center; gap: var(--sp-8); }
 .set-row .select, .set-row .input { width: 200px; }
+@media (max-width: 760px) { .set-row .sr-control { margin-left: 0; } }
 
 /* Phase 1 IA 重构：分节 / 来源徽标 / 尚未接入态 / 演示提示。 */
 .set-section { margin-top: var(--sp-16); }
@@ -1345,9 +1340,8 @@ details.diag-advanced .da-body { padding: 0 var(--sp-14) var(--sp-12); }
 .stats-spinner {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2px solid var(--border); border-top-color: var(--accent);
-  animation: stats-spin .8s linear infinite;
+  animation: omp-spin var(--loop-spin) linear infinite;
 }
-@keyframes stats-spin { to { transform: rotate(360deg); } }
 
 .stats-fallback {
   flex: 1 1 auto; min-height: 0;

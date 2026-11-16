@@ -10,8 +10,12 @@
  * release bump, every dependency edit), every fresh server re-runs
  * `cargo-bazel splice` instead: ~240 s per CI job, results still correct.
  *
- * Needs bazelisk (or bazel) on PATH. A refresh evaluates the extension once
- * (~1-4 min on a cold cargo cache); `--check` only compares hashes (seconds).
+ * Needs bazelisk (or bazel) on PATH; `BAZEL` can select an exact executable.
+ * A refresh evaluates the extension once (~1-4 min on a cold cargo cache).
+ * `--check` compares the input hashes and validates the recorded extension.
+ * `BAZEL_ARGS` takes Bazel startup options (a whitespace-separated value or a
+ * JSON string array for paths containing spaces). Fetch options belong in a
+ * bazelrc selected with `--bazelrc=...`.
  *
  * The hash comparison cannot see the recorded *result*, so `--check` also runs
  * the crate-coverage guard (`bazel-lock-drift.ts`): a lock whose `recordedInputs`
@@ -25,17 +29,12 @@
  *   bun scripts/gen-bazel-lock.ts --check  # exit 1 when MODULE.bazel.lock is stale
  */
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { collectLockDriftInput, findLockDrift } from "./bazel-lock-drift";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const check = process.argv.includes("--check");
 const inputsOnly = process.argv.includes("--inputs-only");
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}
 
 /**
  * The lock stores sha256 of the file bytes Bazel sees. On Windows a CRLF
@@ -102,10 +101,10 @@ if (check || inputsOnly) {
 	}
 }
 
-const bazel = Bun.which("bazelisk") ?? Bun.which("bazel");
+const bazel = process.env.BAZEL?.trim() || Bun.which("bazelisk") || Bun.which("bazel");
 if (!bazel) {
 	console.error(
-		"gen-bazel-lock: bazelisk (or bazel) not found on PATH. Install bazelisk " +
+		"gen-bazel-lock: bazelisk (or bazel) not found on PATH. Set BAZEL to its executable path or install bazelisk " +
 			"(https://github.com/bazelbuild/bazelisk) to refresh MODULE.bazel.lock.",
 	);
 	process.exit(1);
@@ -115,44 +114,23 @@ if (!bazel) {
 // whatever it needs), never the build graph.
 //
 // `BAZEL_ARGS` lets the Gitea runner pass startup options such as
-// `--bazelrc=...`; GitHub leaves it unset and keeps the plain invocation.
-const extraArgs = (process.env.BAZEL_ARGS ?? "").trim().split(/\s+/).filter(Boolean);
+// `--bazelrc=...`. A JSON string array preserves paths containing spaces;
+// legacy whitespace-separated values remain supported for existing runners.
+const rawExtraArgs = (process.env.BAZEL_ARGS ?? "").trim();
+const parsedExtraArgs: unknown = rawExtraArgs.startsWith("[")
+	? JSON.parse(rawExtraArgs)
+	: rawExtraArgs.split(/\s+/u).filter(Boolean);
+if (!Array.isArray(parsedExtraArgs) || !parsedExtraArgs.every(arg => typeof arg === "string")) {
+	throw new Error("BAZEL_ARGS must be a JSON array of strings or whitespace-separated startup options");
+}
+const extraArgs: string[] = parsedExtraArgs;
 const args = [...extraArgs, "fetch", "--repo=@crates", `--lockfile_mode=${check ? "error" : "update"}`];
 
-// Windows without Developer Mode cannot create the file symlink cargo-bazel
-// uses while splicing workspace crates (`.bazelignore -> %TEMP%/...`). The
-// file is not needed for this fetch, so hide it for the duration of the Bazel
-// invocation and restore it unconditionally. Linux never enters this path.
-let hiddenBazelIgnore: string | undefined;
-if (process.platform === "win32") {
-	const ignorePath = path.join(repoRoot, ".bazelignore");
-	const backupPath = path.join(os.tmpdir(), `.bazelignore.gen-bazel-lock-${process.pid}`);
-	try {
-		fs.copyFileSync(ignorePath, backupPath);
-		fs.unlinkSync(ignorePath);
-		hiddenBazelIgnore = backupPath;
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-			console.warn(`gen-bazel-lock: could not hide .bazelignore (${errorMessage(error)}); continuing`);
-		}
-	}
-}
-
-let code: number;
-try {
-	const proc = Bun.spawn([bazel, ...args], { cwd: repoRoot, stdio: ["inherit", "inherit", "inherit"] });
-	code = await proc.exited;
-} finally {
-	if (hiddenBazelIgnore) {
-		try {
-			fs.copyFileSync(hiddenBazelIgnore, path.join(repoRoot, ".bazelignore"));
-			fs.unlinkSync(hiddenBazelIgnore);
-		} catch (error) {
-			console.error(`gen-bazel-lock: failed to restore .bazelignore: ${errorMessage(error)}`);
-			process.exitCode = 1;
-		}
-	}
-}
+// cargo-bazel splices every workspace-root entry with filesystem symlinks.
+// Windows therefore needs symlink privileges; removing individual root files
+// cannot make an unprivileged splice work. WSL can evaluate the same inputs.
+const proc = Bun.spawn([bazel, ...args], { cwd: repoRoot, stdio: ["inherit", "inherit", "inherit"] });
+let code = await proc.exited;
 if (code === 0) {
 	if (check) {
 		console.log("MODULE.bazel.lock is up to date.");
@@ -165,7 +143,7 @@ if (code === 0) {
 				problems,
 				`the refreshed MODULE.bazel.lock still lags the manifests (${problems.length} problem${problems.length === 1 ? "" : "s"}):`,
 			);
-			process.exitCode = 1;
+			code = 1;
 		} else {
 			console.log("MODULE.bazel.lock refreshed; every workspace dependency is rendered.");
 		}

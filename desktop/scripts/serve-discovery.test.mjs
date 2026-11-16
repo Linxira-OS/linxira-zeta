@@ -18,6 +18,8 @@ import {
 	clearServeRegistrationForPid,
 	desktopServeDiscoveryDeps,
 	discoverDesktopService,
+	discoverStudioPrivatePaths,
+	parseStudioPrivatePaths,
 	identityProbeUrls,
 	loopbackUrlFor,
 	parseServeRegistration,
@@ -286,4 +288,21 @@ test("production deps read the real filesystem and process table", () => {
 	assert.equal(deps.readTextFile(file).includes("4242"), true);
 	deps.removeFile(file);
 	assert.equal(fs.existsSync(file), false);
+});
+
+test("private desktop directories require absolute schema-one paths and the live answering PID", async () => {
+	const studioPrivate = { schema: 1, mediaDirectory: path.resolve("/private/media"), socketDirectory: path.resolve("/private/sockets") };
+	assert.deepEqual(parseStudioPrivatePaths(studioPrivate), studioPrivate);
+	for (const value of [{ ...studioPrivate, schema: 2 }, { ...studioPrivate, mediaDirectory: "relative" }, { ...studioPrivate, socketDirectory: "bad\0path" }, { ...studioPrivate, endpoint: "http://public" }]) assert.equal(parseStudioPrivatePaths(value), undefined);
+	const valid = makeDeps({ file: JSON.stringify(registration({ studioPrivate })), responder: () => Response.json(identity()) });
+	assert.deepEqual(await discoverStudioPrivatePaths(TARGET_URL, valid.deps), studioPrivate);
+	const mismatch = makeDeps({ file: JSON.stringify(registration({ studioPrivate })), responder: () => Response.json(identity({ pid: 999 })) });
+	assert.equal(await discoverStudioPrivatePaths(TARGET_URL, mismatch.deps), undefined);
+	assert.equal((await planFromEnv(mismatch)).registration, null);
+	const gone = makeDeps({ file: JSON.stringify(registration({ studioPrivate })), alive: () => false, responder: () => Response.json(identity()) });
+	assert.equal(await discoverStudioPrivatePaths(TARGET_URL, gone.deps), undefined);
+	const unavailable = makeDeps({ file: JSON.stringify(registration({ studioPrivate })) });
+	assert.equal(await discoverStudioPrivatePaths(TARGET_URL, unavailable.deps), undefined);
+	const absent = makeDeps({ responder: () => Response.json(identity()) });
+	assert.equal(await discoverStudioPrivatePaths(TARGET_URL, absent.deps), undefined);
 });

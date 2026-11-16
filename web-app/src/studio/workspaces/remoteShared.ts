@@ -9,6 +9,7 @@
  */
 import type {
 	ClientBootstrap,
+	ClientContextScope,
 	ClientCommandAccepted,
 	ClientCommandRequest,
 	ClientEvent,
@@ -103,6 +104,7 @@ export interface RemoteConnectionStatus {
 	readonly retryAt?: string | undefined;
 	readonly hostRestarted?: boolean | undefined;
 	readonly networkMessage?: string | undefined;
+	readonly timeTravelSync?: "pending" | "synced" | "unsupported" | "error";
 }
 
 /** Every saved connection plus the live status of each. */
@@ -125,6 +127,7 @@ export interface RemoteEventEnvelope {
 	readonly id: string;
 	readonly generation: number;
 	readonly event: ClientEvent;
+	readonly contextId?: string;
 }
 
 /**
@@ -142,9 +145,11 @@ export interface RemoteApi {
 	select(id: string | null): Promise<void>;
 	directories(id: string, path?: string): Promise<RemoteDirectoryList>;
 	register(id: string, path: string): Promise<void>;
-	bootstrap(id: string): Promise<ClientBootstrap>;
-	query<TName extends QueryName>(id: string, request: ClientQueryRequest<TName>): Promise<ClientQueryResponse<TName>>;
-	command<TName extends CommandName>(id: string, request: ClientCommandRequest<TName>): Promise<ClientCommandAccepted<TName>>;
+	openContext?(id: string, scope: ClientContextScope): Promise<string>;
+	closeContext?(id: string, contextId: string): Promise<void>;
+	bootstrap(id: string, contextId?: string): Promise<ClientBootstrap>;
+	query<TName extends QueryName>(id: string, request: ClientQueryRequest<TName>, contextId?: string): Promise<ClientQueryResponse<TName>>;
+	command<TName extends CommandName>(id: string, request: ClientCommandRequest<TName>, contextId?: string): Promise<ClientCommandAccepted<TName>>;
 	onEvent(listener: (envelope: RemoteEventEnvelope) => void): Unsubscribe;
 	installRuntime(id: string): Promise<{ readonly installed: boolean }>;
 	retryNetwork(id: string): Promise<void>;

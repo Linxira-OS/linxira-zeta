@@ -473,14 +473,21 @@ export interface RecentThread {
 }
 
 /**
- * One workspace row for the workbench/home surfaces. Carries only the
- * opaque workspace id, a basename-only display name and the last-open
- * timestamp. Never a path, cwd or root: paths live in the Host registry.
+ * One workspace row for the workbench/home surfaces. Carries the opaque
+ * workspace id, a basename display name, the last-open timestamp and the
+ * canonical root for display.
+ *
+ * `root` is the folder the operator picked in the system dialog, shown back
+ * to them as an address. It is display metadata only: every file, tree and
+ * mutation path stays workspace-relative and is resolved inside the Host
+ * registry, so nothing here is ever joined or used for access checks.
  */
 export interface WorkspaceRecord {
   readonly workspaceId: WorkspaceId;
-  /** Basename only. Never a path. */
+  /** Basename only; the display name. */
   readonly name: string;
+  /** Canonical workspace root for display. Absent on older Hosts. */
+  readonly root?: string;
   readonly lastOpenedAt: string | null;
   readonly active: boolean;
 }
@@ -519,7 +526,8 @@ export interface WorkspaceFileMutationResult {
 export interface HomeReadModel {
   readonly authority: PublicAuthorityIdentity;
   readonly runtime: RuntimeConnection;
-  readonly snapshot: OperatorStateSnapshot;
+  /** Absent while the conversation context has no session. */
+  readonly snapshot?: OperatorStateSnapshot;
   readonly recentThreads: ReadonlyArray<RecentThread>;
   /** Most-recently-opened workspaces; the full list comes from `projects.list`. */
   readonly recentWorkspaces?: ReadonlyArray<WorkspaceRecord>;
@@ -580,6 +588,7 @@ export interface StatsDashboardReadModel {
 
 /** Wire API used by a provider or custom model in `models.yml`. */
 export type ModelApiKind =
+  | "devin"
   | "openai-completions"
   | "openai-responses"
   | "openai-codex-responses"
@@ -676,6 +685,8 @@ export interface ModelOverridePatch {
   readonly bedrockMessagesApi?: boolean;
   readonly requiresThinkingPresence?: boolean;
   readonly extendedCacheTtlBeta?: boolean;
+  readonly statefulResponses?: boolean;
+  readonly preferWebsockets?: boolean;
   readonly kind?: import("./model-kinds.js").ModelKind;
   readonly webSearch?: string;
   readonly name?: string;
@@ -701,7 +712,7 @@ export interface ModelExecutionMetadata {
   readonly serviceTiers?: ReadonlyArray<string>;
   readonly promptCache?: { readonly short?: number; readonly long?: number };
   readonly promptCacheConfig?: { readonly short?: number; readonly long?: number };
-  readonly compatibility?: { readonly preferWebsockets?: boolean; readonly useResponsesLite?: boolean; readonly toolMode?: "code_mode_only" };
+  readonly compatibility?: { readonly supportsMessageThreads?: boolean; readonly toolNamePrefix?: string; readonly statefulResponses?: boolean; readonly preferWebsockets?: boolean; readonly useResponsesLite?: boolean; readonly toolMode?: "code_mode_only" };
 }
 export interface ModelCatalogEntry extends ModelExecutionMetadata {
   readonly thinkingConfig?: ModelThinkingConfig | null;
@@ -710,6 +721,8 @@ export interface ModelCatalogEntry extends ModelExecutionMetadata {
   readonly bedrockMessagesApi?: boolean;
   readonly requiresThinkingPresence?: boolean;
   readonly extendedCacheTtlBeta?: boolean;
+  readonly statefulResponses?: boolean;
+  readonly preferWebsockets?: boolean;
   readonly kind?: import("./model-kinds.js").ModelKind;
   readonly webSearch?: string;
   readonly id: string;
@@ -832,6 +845,7 @@ export interface AvailableModelRecord extends ModelExecutionMetadata {
 }
 
 export interface ModelLoginProviderRecord {
+  readonly flows?: ReadonlyArray<{ readonly id: string; readonly name: string }>;
   readonly id: string;
   readonly name: string;
   readonly available: boolean;
@@ -858,7 +872,9 @@ export interface WebSearchProviderRecord {
   readonly loginId?: string;
   /** agent.db provider id the engine reads an api_key from; absent when there is no direct key path. */
   readonly apiKeyId?: string;
-  /** How the currently detected credential is satisfied (env takes precedence, like the runtime). */
+  /** Native credential identities accepted by this engine. */
+  readonly credentialProviders?: ReadonlyArray<string>;
+  /** Host fallback metadata; the search UI reads effective credential state from Runtime. */
   readonly credentialKind?: "api-key" | "oauth" | "env";
 }
 
@@ -943,9 +959,7 @@ export interface ModelWebSearchSetInput {
 }
 
 /**
- * Studio-managed web-search credential write: stores an `api_key` credential
- * for the engine in the local OMP credential store (agent.db) so the runtime
- * picks it up natively — no `zetacode login` and no environment variables needed.
+ * Deprecated disk-write request. Use search.credentials.set with the connected Runtime.
  */
 export interface ModelWebSearchCredentialSetInput {
   /** Search engine id (catalog id, e.g. `tavily`). */
@@ -954,7 +968,7 @@ export interface ModelWebSearchCredentialSetInput {
   readonly apiKey: string;
 }
 
-/** Soft-deletes the Studio-managed api_key credential of a search engine. */
+/** Deprecated bulk removal. Use search.credentials.remove with a credential id. */
 export interface ModelWebSearchCredentialRemoveInput {
   readonly providerId: string;
 }

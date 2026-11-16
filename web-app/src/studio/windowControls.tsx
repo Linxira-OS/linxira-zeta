@@ -7,7 +7,7 @@ import { useI18n } from "./i18n";
  *
  * `desktop/` creates its BrowserWindow with `frame: false` on every platform,
  * so the OS draws no caption buttons and the renderer must own
- * minimize / maximize-restore / close. The preload bridge (`window.piDesktop`)
+ * minimize / maximize-restore / close. The preload bridge (`window.zetaStudioChrome`)
  * carries the IPC and pushes maximize state back, so this module only renders
  * buttons when that bridge exists: a plain browser tab (no preload) never gets
  * fake desktop chrome and keeps its native window controls.
@@ -24,7 +24,7 @@ export interface DesktopWindowControlBridge {
 }
 
 interface DesktopWindowControlSource {
-	readonly piDesktop?: Partial<DesktopWindowControlBridge>;
+	readonly zetaStudioChrome?: Partial<DesktopWindowControlBridge>;
 }
 
 /**
@@ -35,7 +35,7 @@ interface DesktopWindowControlSource {
 export function desktopWindowBridge(
 	target: DesktopWindowControlSource = globalThis as unknown as DesktopWindowControlSource,
 ): DesktopWindowControlBridge | undefined {
-	const api = target.piDesktop;
+	const api = target.zetaStudioChrome;
 	if (api === undefined) return undefined;
 	if (typeof api.minimize !== "function" || typeof api.maximize !== "function" || typeof api.close !== "function") {
 		return undefined;

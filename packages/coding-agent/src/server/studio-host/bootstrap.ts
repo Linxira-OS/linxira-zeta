@@ -14,9 +14,9 @@
 import { createHash } from "node:crypto";
 import type { AuthorityEpoch, AuthorityId, ClientBootstrap, RuntimeConnection } from "./contract/index.js";
 import type { CapabilityManifest } from "./protocol/index.js";
-import { canonicalJson } from "./protocol/canonical-json.js";
 import { serveIdentity } from "../web-gateway/identity";
 import type { StudioOperations } from "./registry.js";
+import { buildOperatorCommandManifest } from "./command-manifest.js";
 
 const AUTHORITY_EPOCH = 1 as AuthorityEpoch;
 
@@ -46,13 +46,9 @@ function manifest(operations: StudioOperations): CapabilityManifest {
 	return { ...manifest, generatedAt: new Date().toISOString() };
 }
 
-/**
- * Hash of the operator command manifest advertised alongside the capabilities.
- * Zeta has no separate operator command manifest, so the hash covers exactly
- * the commands `commands.getManifest` can answer.
- */
-export function commandManifestHash(operations: StudioOperations): string {
-	return createHash("sha256").update(canonicalJson(operations.commands)).digest("hex");
+/** Hash the same canonical registry projection returned by commands.getManifest. */
+export function commandManifestHash(): string {
+	return buildOperatorCommandManifest().hash;
 }
 
 /** Build the bootstrap the Renderer mounts with. */
@@ -66,8 +62,7 @@ export function buildBootstrap(operations: StudioOperations): ClientBootstrap {
 		runtime,
 		surface: { terminalAttach: true, fileReveal: true, previewInput: false, openExternal: true },
 		capabilityManifest,
-		commandManifestHash: commandManifestHash(operations),
+		commandManifestHash: commandManifestHash(),
 		selected: {},
-		stateVersion: 1 as ClientBootstrap["stateVersion"],
 	};
 }

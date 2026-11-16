@@ -9,6 +9,7 @@ export * from "./contracts/workbench.js";
 export * from "./contracts/btw.js";
 export * from "./contracts/commands.js";
 export * from "./contracts/evaluation.js";
+export * from "./contracts/evaluation-workspace.js";
 export * from "./contracts/conversation.js";
 export * from "./conversation-text.js";
 export * from "./contracts/ids.js";
@@ -84,3 +85,5 @@ export * from "./contracts/session-compression.js";
 export * from "./contracts/session-worktrees.js";
 
 export * from "./contracts/plan-review.js";
+export * from "./contracts/computer-workspace.js";
+export * from "./computer-workspace-validation.js";

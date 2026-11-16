@@ -88,6 +88,38 @@ no CI bucket collects on a blocking path: `packages/stats/test` and
 steps until their pre-existing failures are fixed — 69/214 and 7/438 on
 2026-10-16, the first time either suite ever ran in a job.
 
+
+## Studio tag-delta automation
+
+Studio is maintained in a separate repository and lands in mapped Zeta surfaces. Use the complete official tag pair; do not compare a working branch or a generated snapshot as the sync source:
+
+```bash
+git ls-remote --tags https://github.com/the-snowpear/omp-studio.git refs/tags/v0.1.17 refs/tags/v0.2.1
+bun run studio:sync --from v0.1.17 --tag v0.2.1 --out temp/studio-sync-report
+```
+
+The report classifies all tag-delta paths. `current` and `local-preserved` need no mechanical update. `adapted-addition` means an upstream-added file exists with different local contents; presence alone does not prove the new upstream behavior survived. `ready-add`, `ready-merge`, and `ready-delete` can be applied in a batch. `contract-review`, `host-adaptation`, `configuration-review`, `binary-review`, `conflict`, `delete-review`, and `missing-review` remain explicit decisions. Counts are file accounting, not feature acceptance.
+
+Apply only after inspecting `pending.tsv`, with a new report directory:
+
+```bash
+bun run studio:sync --from v0.1.17 --tag v0.2.1 --apply --out temp/studio-sync-applied
+```
+
+The apply path requires a named isolated branch, live remote tag verification, an unused directory below `temp/`, unchanged preimages, and a second target-tag check. It never stages, commits, pushes, or changes the root checkout. Backups and the exact apply plan are stored beside the report.
+
+Run the layered gates after application or manual resolution:
+
+```bash
+bun run studio:gate --profile quick
+bun run studio:gate --profile behavior
+bun run studio:gate --profile final --report temp/studio-sync-applied/report.json --decisions document/studio-sync-decisions.json
+```
+
+`quick` checks naming and independent renderer/desktop/Host types. `behavior` adds mapped-sync regressions, Host context/identity, authentication/device/2FA, renderer transport/terminal behavior, and desktop bridge behavior. `final` adds the production build, first-load check, complete renderer suite, and complete desktop suite. The reports explicitly leave browser live-model, packaged/native, SSH-target, source-matched-native, and CI evidence separate.
+
+The final accounting step rejects missing decisions and absent official target ancestry. Decisions are an array of `{upstream, fromCommit, targetCommit, reason, evidence, landings:[{path,hash}]}`. Each landing uses an exact repository-relative path and SHA256, or `absent` for an intentional deletion. Changed files or source tags invalidate the decision. Store real reviewed dispositions in the merge ledger's linked decision file; the command does not create or approve them. Reports made with `--offline` are useful for local triage but cannot satisfy final accounting.
+
 ## The lineage gate — why it exists and how to use it
 
 The rule this repo is built on is one sentence: **only the difference between two

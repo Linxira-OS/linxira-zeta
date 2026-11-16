@@ -48,17 +48,26 @@ use super::types::{
 #[cfg(target_os = "windows")]
 pub(crate) struct Win32Backend {
 	display:      DisplaySelector,
-	global_input: Enigo,
+	global_input: Option<Enigo>,
 	ax:           Win32Ax,
 }
 
 #[cfg(target_os = "windows")]
 impl Win32Backend {
 	pub(crate) fn new(display: DisplaySelector) -> CoreResult<Self> {
+		Self::new_observed(display, false)
+	}
+
+	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
 		// Initialize DPI awareness before xcap or input observes desktop
 		// geometry, keeping both APIs in the same per-monitor physical
 		// coordinate regime.
-		let global_input = input::create_global_input()?;
+		let global_input = if observation_only {
+			input::initialize_coordinates()?;
+			None
+		} else {
+			Some(input::create_global_input()?)
+		};
 		let _ = capture::displays()?;
 		Ok(Self { display, global_input, ax: Win32Ax::new() })
 	}
@@ -74,15 +83,15 @@ impl Backend for Win32Backend {
 			backend: "win32".to_string(),
 			display_server: Some("win32".to_string()),
 			capture: display_count > 0,
-			input: true,
+			input: self.global_input.is_some(),
 			ax: true,
-			background_window_input: true,
-			takeover: true,
+			background_window_input: self.global_input.is_some(),
+			takeover: self.global_input.is_some(),
 			applications: super::applications::supported(),
 			menus: true,
-			held_input: true,
+			held_input: self.global_input.is_some(),
 			spaces: false,
-			global_escape: true,
+			global_escape: self.global_input.is_some(),
 			secure_input: false,
 			secure_input_app: None,
 			capture_permission: if display_count > 0 {
@@ -91,7 +100,7 @@ impl Backend for Win32Backend {
 				"unknown"
 			}
 			.to_string(),
-			input_permission: "granted".to_string(),
+			input_permission: if self.global_input.is_some() { "granted" } else { "unavailable" }.to_string(),
 			ax_permission: "granted".to_string(),
 			display_count,
 			screen_locked: screen.locked,
@@ -130,7 +139,8 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		input::pointer(&mut self.global_input, &mut self.ax, target, event, mode)
+		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		input::pointer(input, &mut self.ax, target, event, mode)
 	}
 
 	fn type_text(
@@ -152,7 +162,8 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		input::key_chord(&mut self.global_input, target, keys, mode)
+		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		input::key_chord(input, target, keys, mode)
 	}
 
 	/// Background keys go straight to the element's own control window,
@@ -199,7 +210,8 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		input::hold_keys(&mut self.global_input, target, keys, duration, mode)
+		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		input::hold_keys(input, target, keys, duration, mode)
 	}
 
 	fn menu_items(

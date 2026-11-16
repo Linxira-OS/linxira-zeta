@@ -102,6 +102,9 @@ import type {
 	WorkspaceFileMutationResult,
 } from "./read-models.js";
 import type { TeamCommandInputMap, TeamCommandResultMap, TeamQueryInputMap, TeamQueryResultMap } from "./team.js";
+import type { EvaluationWorkspaceQueryInputMap, EvaluationWorkspaceQueryResultMap, EvaluationWorkspaceCommandInputMap, EvaluationWorkspaceCommandResultMap } from "./evaluations.js";
+import type { TimeTravelSettings, TimeTravelTimeline, TimeTravelRestorePreview, TimeTravelRestoreInput, TimeTravelRestoreResult } from "./time-travel.js";
+import type { ComputerQueryInputMap, ComputerQueryResultMap } from "./computer.js";
 
 /** Empty input shape for queries that take no arguments. */
 export type EmptyInput = Readonly<Record<string, never>>;
@@ -109,7 +112,12 @@ export type EmptyInput = Readonly<Record<string, never>>;
 type ContextViewQueryMap = {
 	[K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind">;
 };
-export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
+export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap, EvaluationWorkspaceQueryInputMap, ComputerQueryInputMap {
+	"timeTravel.settings.get": EmptyInput;
+	"timeTravel.storage.get": EmptyInput;
+	"timeTravel.timeline.read": { readonly sessionId: SessionId; readonly branchLeafId?: string; readonly cursor?: string };
+	"timeTravel.restore.preview": { readonly sessionId: SessionId; readonly snapshotId: string };
+	"browser.webmcp.list": { readonly sessionId: string; readonly pageId: string; readonly options?: import("../protocol/contracts/webmcp").WebMcpListOptions };
 	"prediction.query": PredictionQuery;
 	"artifacts.text.read": { readonly artifactId: string };
 	"artifacts.list": import("../protocol/index.js").ArtifactListInput;
@@ -156,6 +164,9 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
 	"projects.list": EmptyInput;
 	/** Lists one directory level. Omit path for the workspace root. */
 	"workspace.fileTree": { readonly workspaceId: WorkspaceId; readonly path?: string };
+	"workspace.file.inspect": import("./files.js").WorkspaceFileTarget;
+	"workspace.file.readText": import("./files.js").WorkspaceFileTarget;
+	"workspace.file.readChunk": import("./files.js").WorkspaceFileChunkInput;
 	"usage.get": EmptyInput;
 	/** Native dashboard endpoint the statistics page embeds; starts it if needed. */
 	"stats.dashboard": EmptyInput;
@@ -195,7 +206,12 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
 	"github.pr.checks": { readonly workspaceId: WorkspaceId; readonly number: number };
 }
 
-export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap {
+export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap, EvaluationWorkspaceQueryResultMap, ComputerQueryResultMap {
+	"timeTravel.settings.get": TimeTravelSettings;
+	"timeTravel.storage.get": { readonly snapshots: number; readonly bytes: number };
+	"timeTravel.timeline.read": TimeTravelTimeline;
+	"timeTravel.restore.preview": TimeTravelRestorePreview;
+	"browser.webmcp.list": import("../protocol/contracts/webmcp").StudioWebMcpCatalog;
 	"prediction.query": PredictionResult;
 	"artifacts.text.read": import("../protocol/index.js").ArtifactTextResult;
 	"artifacts.list": import("../protocol/index.js").ArtifactPage;
@@ -236,6 +252,9 @@ export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap
 	/** Host workspace inventory. Paths never leave the Host registry. */
 	"projects.list": WorkspaceListReadModel;
 	"workspace.fileTree": WorkspaceFileTreeReadModel;
+	"workspace.file.inspect": import("./files.js").WorkspaceFileInfo;
+	"workspace.file.readText": import("./files.js").WorkspaceFileText;
+	"workspace.file.readChunk": import("./files.js").WorkspaceFileChunk;
 	/** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
 	"usage.get": TokenUsageReadModel;
 	/** Loopback URL of the native statistics dashboard, for in-app embedding. */
@@ -440,6 +459,7 @@ type WorkbenchInputMap = {
 	>;
 };
 export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, UpgradeInputMap, WorkbenchInputMap {
+	"browser.webmcp.invoke": Omit<import("../protocol/contracts/webmcp").WebMcpOperation, "kind">;
 	"core.prompt": PromptTextInput;
 	"core.steer": PromptTextInput;
 	"core.followUp": PromptTextInput;
@@ -447,7 +467,7 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
 	"queue.enqueue": { readonly text: string };
 	"runtime.pause": EmptyInput;
 	"runtime.resume": { readonly expectedPauseEpoch: number };
-	"runtime.settings.get": { readonly keys?: ReadonlyArray<StudioRuntimeSettingKey> };
+	"runtime.settings.get": { readonly keys?: ReadonlyArray<StudioRuntimeSettingKey>; readonly checkHindsight?: boolean };
 	"runtime.settings.set": StudioRuntimeSettingSetInput;
 	"turn.retry": EmptyInput;
 	"core.continue": EmptyInput;
@@ -568,7 +588,10 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
  */
 export type InteractionResponseValue = string | boolean | ReadonlyArray<string> | Readonly<Record<string, unknown>>;
 
-interface CoreCommandInputMap {
+interface CoreCommandInputMap extends EvaluationWorkspaceCommandInputMap {
+	"timeTravel.settings.set": Partial<TimeTravelSettings>;
+	"timeTravel.cleanup": { readonly scope: "expired" | "all" };
+	"timeTravel.restore": TimeTravelRestoreInput;
 	"artifacts.saveText": import("../protocol/index.js").ArtifactTextInput;
 	"artifacts.delete": { readonly artifactId: string };
 	/** Install or update the trusted runtime (environment page action). */
@@ -581,7 +604,7 @@ interface CoreCommandInputMap {
 	 */
 	"runtime.ensure": { readonly force?: boolean };
 	/** Start a fresh session in this registered workspace; never infer another cwd. */
-	"session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean };
+	"session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean; readonly model?: string };
 	/** Resume a thread from history or the home page. */
 	"session.resume": { readonly threadId: ThreadId; readonly model?: string };
 	/** Drop a thread. Destructive: the Host issues a one-time confirmation. */
@@ -675,6 +698,7 @@ interface CoreCommandInputMap {
 	"workspace.pick": { readonly name?: string };
 	/** Create an empty file inside the selected workspace. */
 	"workspace.file.create": { readonly workspaceId: WorkspaceId; readonly path: string };
+	"workspace.file.writeText": import("./files.js").WorkspaceFileWrite;
 	/** Create a directory inside the selected workspace. */
 	"workspace.directory.create": { readonly workspaceId: WorkspaceId; readonly path: string };
 	/**
@@ -834,7 +858,11 @@ interface CoreCommandInputMap {
 
 export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap & TeamCommandInputMap;
 
-interface CoreCommandResultMap {
+interface CoreCommandResultMap extends EvaluationWorkspaceCommandResultMap {
+	"timeTravel.settings.set": TimeTravelSettings;
+	"timeTravel.cleanup": { readonly removed: number };
+	"timeTravel.restore": TimeTravelRestoreResult;
+	"browser.webmcp.invoke": { readonly snapshot: OperatorStateSnapshot; readonly result: import("../protocol/contracts/webmcp").WebMcpInvokeResult };
 	"artifacts.saveText": import("../protocol/index.js").ArtifactRecord;
 	"artifacts.delete": { readonly deleted: true; readonly artifactId: string };
 	"runtime.install": RuntimeInstallState;
@@ -878,6 +906,7 @@ interface CoreCommandResultMap {
 	"workspace.hide": WorkspaceListReadModel;
 	"workspace.pick": WorkspaceListReadModel;
 	"workspace.file.create": WorkspaceFileMutationResult;
+	"workspace.file.writeText": import("./files.js").WorkspaceFileSaveResult;
 	"workspace.directory.create": WorkspaceFileMutationResult;
 	"plugins.setEnabled": ConfigWriteResult;
 	"plugins.callTool": PluginCallToolResult;
@@ -978,6 +1007,7 @@ export type CommandResultMap = CoreCommandResultMap & {
 			keyof RuntimeCommandInputMap,
 			| EvaluationOperation["kind"]
 			| "operator.invoke"
+			| "browser.webmcp.invoke"
 			| "session.tree.navigate"
 			| "session.tree.branch"
 			| WorkbenchOperation["kind"]

@@ -21,6 +21,12 @@ import { skillsOps } from "./skills.js";
 import { teamOps } from "./team.js";
 import { usageOps } from "./usage.js";
 import { workspaceOps } from "./workspace.js";
+import { browserOps } from "./browser.js";
+import { evaluationsOps } from "./evaluations.js";
+import { timeTravelOps } from "./time-travel.js";
+import { computerOps } from "./computer.js";
+import { servicesOps } from "./services.js";
+import { predictionOps } from "./prediction";
 
 export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	sessionOps,
@@ -39,4 +45,10 @@ export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	usageOps,
 	settingsOps,
 	runtimeOps,
+	browserOps,
+	evaluationsOps,
+	timeTravelOps,
+	computerOps,
+	servicesOps,
+	predictionOps,
 ];

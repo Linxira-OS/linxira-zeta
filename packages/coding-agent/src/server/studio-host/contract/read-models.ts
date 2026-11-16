@@ -532,7 +532,8 @@ export interface WorkspaceFileMutationResult {
 export interface HomeReadModel {
 	readonly authority: PublicAuthorityIdentity;
 	readonly runtime: RuntimeConnection;
-	readonly snapshot: OperatorStateSnapshot;
+	/** Absent while the conversation context has no session. */
+	readonly snapshot?: OperatorStateSnapshot;
 	readonly recentThreads: ReadonlyArray<RecentThread>;
 	/** Most-recently-opened workspaces; the full list comes from `projects.list`. */
 	readonly recentWorkspaces?: ReadonlyArray<WorkspaceRecord>;

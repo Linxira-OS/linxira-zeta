@@ -37,7 +37,8 @@
  * and never invents one.
  */
 import { serveIdentity } from "../../web-gateway/identity.js";
-import { getRpcSession } from "../../web-gateway/agents.js";
+import { extensionUiRequestSessionId, getRpcSession } from "../../web-gateway/agents.js";
+import { runtimeSettingsFor } from "../services/runtime-settings";
 import type { GatewayReply } from "../gateway.js";
 import {
 	StudioOpError,
@@ -63,10 +64,8 @@ import type {
 } from "../protocol/contracts/agents-jobs.js";
 import type { ApprovalMode } from "../protocol/contracts/commands.js";
 import type {
-	ConversationContentBlock,
 	ConversationItem,
 	ConversationTranscriptPage,
-	JsonValue,
 } from "../protocol/contracts/conversation.js";
 import { CONVERSATION_LIMITS } from "../protocol/contracts/conversation.js";
 import type { AgentId, OpaqueCursor, RuntimeEpoch, RuntimeId, StateVersion } from "../protocol/contracts/ids.js";
@@ -80,10 +79,12 @@ import type {
 	SessionThinkingSelector,
 } from "../protocol/contracts/state.js";
 import { SESSION_THINKING_LEVELS } from "../protocol/contracts/state.js";
-import { truncateUtf8, utf8ByteLength } from "../protocol/conversation-text.js";
+import { utf8ByteLength } from "../protocol/conversation-text.js";
 import { readWorkspaceIdentities, resolveWorkspacePath } from "./workspace.js";
 import { resumePathKey } from "../../../resume/paths.js";
 import { setResourceOwnership } from "../../web-gateway/binding-guard.js";
+import { clearStudioSession, currentStudioSelection, requireStudioWorkspace, selectStudioSession } from "../selection.js";
+import { plainText, projectConversationItems, type TranscriptRecord } from "../conversation-projector.js";
 
 /**
  * The host authority epoch; the same constant `bootstrap.ts` publishes. Zeta
@@ -179,6 +180,11 @@ let activeSessionId: string | undefined;
  * instead of keeping a second copy of this rule.
  */
 export async function currentSessionId(): Promise<string> {
+	const selection = currentStudioSelection();
+	if (selection !== undefined) {
+		if (selection.sessionId === undefined) throw unavailable("no session in this conversation context");
+		return selection.sessionId;
+	}
 	if (activeSessionId !== undefined) return activeSessionId;
 	const reply = await callGateway("/api/agent/current");
 	if (reply.status === 404) throw unavailable("no live session; start one with session.create");
@@ -417,13 +423,17 @@ async function readLiveState(sessionId: string): Promise<LiveAgentState> {
 	return parseAgentState(body.state);
 }
 
-async function snapshotFor(sessionId: string): Promise<OperatorStateSnapshot> {
+export async function snapshotFor(sessionId: string): Promise<OperatorStateSnapshot> {
 	const [state, approvalMode, agents] = await Promise.all([
 		readLiveState(sessionId),
 		readApprovalMode(),
 		readSessionAgents(sessionId),
 	]);
-	return buildSnapshot(state, approvalMode, agents);
+	const snapshot = buildSnapshot(state, approvalMode, agents);
+	const settings = getRpcSession(sessionId)?.getSession().settings;
+	if (!settings) return snapshot;
+	const metadata = runtimeSettingsFor(settings);
+	return { ...snapshot, runtimeSettings: metadata.values, ...(metadata.activation ? { runtimeSettingsActivation: metadata.activation } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -546,12 +556,6 @@ export async function readSessionAgents(sessionId: string): Promise<StudioAgentS
 // Transcript projection and paging
 // ---------------------------------------------------------------------------
 
-interface TranscriptRecord {
-	readonly id: string;
-	/** ISO timestamp persisted on the session entry, when the gateway exposed it. */
-	readonly createdAt: string | undefined;
-	readonly message: unknown;
-}
 
 type CursorBinding =
 	| { readonly kind: "session"; readonly sessionId: string }
@@ -642,140 +646,8 @@ function pageBackwards(
 	};
 }
 
-function textBlock(text: string): ConversationContentBlock {
-	const clipped = truncateUtf8(text, CONVERSATION_LIMITS.TEXT_BLOCK_MAX_BYTES);
-	return clipped.truncated
-		? { type: "text", text: clipped.text, truncated: true }
-		: { type: "text", text: clipped.text };
-}
 
-function thinkingBlock(text: string): ConversationContentBlock {
-	const clipped = truncateUtf8(text, CONVERSATION_LIMITS.TEXT_BLOCK_MAX_BYTES);
-	return clipped.truncated
-		? { type: "thinking", text: clipped.text, truncated: true }
-		: { type: "thinking", text: clipped.text };
-}
 
-function isJsonValue(value: unknown, depth = 0): value is JsonValue {
-	if (value === null || typeof value === "string" || typeof value === "boolean") return true;
-	if (typeof value === "number") return Number.isFinite(value);
-	if (depth >= CONVERSATION_LIMITS.JSON_VALUE_MAX_DEPTH) return false;
-	if (Array.isArray(value)) return value.every(item => isJsonValue(item, depth + 1));
-	if (isRecord(value)) return Object.values(value).every(item => isJsonValue(item, depth + 1));
-	return false;
-}
-
-function messageContentBlocks(content: unknown): ConversationContentBlock[] {
-	if (typeof content === "string") return [textBlock(content)];
-	if (!Array.isArray(content)) return [];
-	const blocks: ConversationContentBlock[] = [];
-	for (const block of content) {
-		if (!isRecord(block)) continue;
-		const type = stringField(block, "type");
-		if (type === "text") {
-			const text = stringField(block, "text");
-			if (text !== undefined) blocks.push(textBlock(text));
-			continue;
-		}
-		if (type === "thinking") {
-			const text = stringField(block, "thinking");
-			if (text !== undefined && text !== "") blocks.push(thinkingBlock(text));
-			continue;
-		}
-		if (type === "toolCall") {
-			const toolCallId = stringField(block, "toolCallId");
-			const toolName = stringField(block, "toolName");
-			if (toolCallId === undefined || toolName === undefined) continue;
-			const args = block.input;
-			blocks.push(
-				isJsonValue(args)
-					? { type: "toolCall", toolCallId, toolName, arguments: args }
-					: { type: "toolCall", toolCallId, toolName },
-			);
-		}
-	}
-	return blocks;
-}
-
-function plainText(content: unknown): string {
-	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	const parts: string[] = [];
-	for (const block of content) {
-		if (!isRecord(block)) continue;
-		if (stringField(block, "type") !== "text") continue;
-		const text = stringField(block, "text");
-		if (text !== undefined) parts.push(text);
-	}
-	return parts.join("\n");
-}
-
-function toolResultBlock(message: Record<string, unknown>): ConversationContentBlock | undefined {
-	const toolCallId = stringField(message, "toolCallId");
-	if (toolCallId === undefined || toolCallId === "") return undefined;
-	const toolName = stringField(message, "toolName");
-	const output = plainText(message.content);
-	const clipped = truncateUtf8(output, CONVERSATION_LIMITS.TEXT_BLOCK_MAX_BYTES);
-	const data = message.details;
-	return {
-		type: "toolResult",
-		toolCallId,
-		...(toolName === undefined ? {} : { toolName }),
-		...(output === "" ? {} : { output: clipped.text }),
-		...(isJsonValue(data) ? { data } : {}),
-		isError: booleanField(message, "isError") === true,
-	};
-}
-
-/**
- * Project the gateway's message list onto the protocol's public items.
- *
- * Only the contract's public kinds are emitted: `user`/`assistant` messages,
- * compaction summaries (Zeta's compaction entry arrives as a `custom` message
- * with `customType: "compaction"`), and tool results attached to the assistant
- * item that called them. Other message roles (bash/python execution, custom
- * messages) have no public kind and are omitted rather than invented.
- *
- * `createdAt` comes from the persisted entry timestamp, then the message's own
- * ms timestamp, then the previous item (entries written without either inherit
- * their predecessor's instant); a record with no timestamp at all is skipped.
- */
-function projectConversationItems(
-	records: readonly TranscriptRecord[],
-	fallbackCreatedAt: string | undefined,
-): ConversationItem[] {
-	const items: ConversationItem[] = [];
-	let parentId: string | null = null;
-	let previousCreatedAt = fallbackCreatedAt;
-	let lastAssistantContent: ConversationContentBlock[] | undefined;
-	for (const record of records) {
-		if (!isRecord(record.message)) continue;
-		const message = record.message;
-		const createdAt = record.createdAt ?? isoFromMilliseconds(numberField(message, "timestamp")) ?? previousCreatedAt;
-		if (createdAt === undefined) continue;
-		previousCreatedAt = createdAt;
-		const role = stringField(message, "role");
-		if (role === "user" || role === "assistant") {
-			const content = messageContentBlocks(message.content);
-			items.push({ kind: "message", itemId: record.id, parentId, createdAt, role, content });
-			lastAssistantContent = role === "assistant" ? content : undefined;
-			parentId = record.id;
-			continue;
-		}
-		if (role === "toolResult") {
-			const block = toolResultBlock(message);
-			if (block !== undefined && lastAssistantContent !== undefined) lastAssistantContent.push(block);
-			continue;
-		}
-		if (role === "custom" && stringField(message, "customType") === "compaction") {
-			const summary = truncateUtf8(plainText(message.content), CONVERSATION_LIMITS.COMPACTION_SUMMARY_MAX_BYTES);
-			items.push({ kind: "compaction", itemId: record.id, parentId, createdAt, summary: summary.text });
-			parentId = record.id;
-			lastAssistantContent = undefined;
-		}
-	}
-	return items;
-}
 
 /** id → persisted entry timestamp for every node the gateway's tree kept. */
 function entryTimestamps(tree: unknown): Map<string, string> {
@@ -1295,17 +1167,27 @@ export const sessionOps: StudioFamily = {
 			if (input.noContextFiles === true) {
 				throw invalid("session.create does not support noContextFiles on the Zeta host");
 			}
+			const model = optionalString(input, "model");
+			const startupModel = model !== undefined ? parseModelSelector(model) : undefined;
+			requireStudioWorkspace(requiredString(input, "workspaceId"));
 			const cwd = await resolveWorkspacePath(requiredString(input, "workspaceId"));
 			const body = await gatewayJson<unknown>("/api/agent/new", {
 				method: "POST",
-				body: { cwd, type: "ensure_session" },
+				// Apply the chosen model inside creation, before this session can accept a
+				// turn: a post-create set_model left a window where the first prompt ran on
+				// the default model.
+				body: {
+					cwd,
+					type: "ensure_session",
+					...(startupModel === undefined ? {} : { provider: startupModel.provider, modelId: startupModel.modelId }),
+				},
 			});
 			if (!isRecord(body)) throw unavailable("agent/new returned no payload");
 			const sessionId = stringField(body, "sessionId");
 			if (sessionId === undefined || sessionId === "") {
 				throw unavailable("agent/new did not report a new session id");
 			}
-			activeSessionId = sessionId;
+			if (!selectStudioSession(sessionId)) activeSessionId = sessionId;
 			return await snapshotFor(sessionId);
 		},
 
@@ -1329,7 +1211,7 @@ export const sessionOps: StudioFamily = {
 				await runAgentCommand(threadId, { type: "set_model", provider, modelId });
 			}
 			const snapshot = await snapshotFor(threadId);
-			activeSessionId = snapshot.sessionId;
+			if (!selectStudioSession(snapshot.sessionId)) activeSessionId = snapshot.sessionId;
 			return snapshot;
 		},
 
@@ -1346,7 +1228,16 @@ export const sessionOps: StudioFamily = {
 				path,
 				`unknown session: ${threadId}`,
 			);
-			if (activeSessionId === threadId) activeSessionId = undefined;
+			// Deleting the transcript must also stop the resident session: otherwise a
+			// running turn (including an evaluation) keeps writing after its file moved
+			// to trash, and native work survives a delete the user believes finished.
+			const wrapper = getRpcSession(threadId);
+			if (wrapper !== undefined) {
+				const session = wrapper.getSession();
+				wrapper.destroy();
+				await session.dispose().catch(() => undefined);
+			}
+			if (!clearStudioSession(threadId) && activeSessionId === threadId) activeSessionId = undefined;
 			return { applied, runtimeEffect: "immediate" satisfies ConfigWriteResult["runtimeEffect"] };
 		},
 
@@ -1360,7 +1251,7 @@ export const sessionOps: StudioFamily = {
 				path,
 				`unknown session: ${threadId}`,
 			);
-			if (activeSessionId === threadId) activeSessionId = undefined;
+			if (!clearStudioSession(threadId) && activeSessionId === threadId) activeSessionId = undefined;
 			return { applied, runtimeEffect: "immediate" };
 		},
 
@@ -1393,7 +1284,7 @@ export const sessionOps: StudioFamily = {
 			if (newSessionId === undefined || newSessionId === "") {
 				throw unavailable("fork completed without a new session id");
 			}
-			activeSessionId = newSessionId;
+			if (!selectStudioSession(newSessionId)) activeSessionId = newSessionId;
 			return await snapshotFor(newSessionId);
 		},
 
@@ -1429,7 +1320,7 @@ export const sessionOps: StudioFamily = {
 					throw unavailable("branch completed without a new session id");
 				}
 				nextSessionId = newSessionId;
-				activeSessionId = newSessionId;
+				if (!selectStudioSession(newSessionId)) activeSessionId = newSessionId;
 			}
 			return {
 				snapshot: await snapshotFor(nextSessionId),
@@ -1512,6 +1403,10 @@ export const sessionOps: StudioFamily = {
 		 */
 		"interaction.respond": async input => {
 			const interactionId = requiredString(input, "interactionId");
+			const selection = currentStudioSelection();
+			if (selection !== undefined && extensionUiRequestSessionId(interactionId) !== await currentSessionId()) {
+				throw invalid("interaction does not belong to this conversation context");
+			}
 			if (input.decision === "cancel") {
 				await gatewayJson<unknown>("/api/extension-ui/response", {
 					method: "POST",

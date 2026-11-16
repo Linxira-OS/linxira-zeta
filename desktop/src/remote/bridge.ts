@@ -21,6 +21,7 @@ import {
 import { freeLoopbackPort, StudioHttp, type StudioEventSocket } from "./http";
 import { openTunnel, probeRemote, remoteShellPath, runRemote, shellQuote, uploadRuntime, type Tunnel } from "./ssh";
 import { RemoteProfileStore } from "./store";
+import type { DesktopHostConnection } from "../host-http";
 
 interface Session {
 	readonly id: string;
@@ -47,6 +48,7 @@ export class RemoteBridge {
 	readonly #statuses = new Map<string, RemoteConnectionStatus>();
 	readonly #sessions = new Map<string, Session>();
 	readonly #connecting = new Map<string, Promise<void>>();
+	readonly #contexts = new Map<string, { session: Session; socket: StudioEventSocket }>();
 	#epoch = 0;
 
 	constructor(deps: RemoteBridgeDeps) {
@@ -150,6 +152,7 @@ export class RemoteBridge {
 			socket.onClose = reason => {
 				const session = this.#sessions.get(profile.id);
 				if (!session || session.generation !== generation) return;
+				void this.#closeContexts(session);
 				this.#sessions.delete(profile.id);
 				this.#setStatus({
 					id: profile.id,
@@ -195,6 +198,7 @@ export class RemoteBridge {
 	async disconnect(id: string): Promise<void> {
 		const session = this.#sessions.get(id);
 		this.#sessions.delete(id);
+		if (session) await this.#closeContexts(session);
 		session?.socket.close("disconnected");
 		session?.tunnel.child.kill();
 		this.#setStatus({ id, state: "disconnected", generation: ++this.#epoch });
@@ -241,16 +245,57 @@ export class RemoteBridge {
 		this.#changed();
 	}
 
-	async bootstrap(id: string): Promise<unknown> {
-		return this.#session(id).http.bootstrap();
+	async openContext(id: string, scope: { workspaceId: string; sessionId?: string }): Promise<string> {
+		const session = this.#session(id);
+		const contextId = await session.http.openContext(scope);
+		const socket = session.http.events(contextId);
+		try {
+			if (this.#sessions.get(id) !== session) throw new Error(RESYNC_REQUIRED);
+			socket.onMessage = text => {
+				if (this.#sessions.get(id) !== session || !this.#contexts.has(contextId)) return;
+				try { this.#deps.event({ id, generation: session.generation, contextId, event: JSON.parse(text) as unknown }); }
+				catch { this.#deps.log("Ignored malformed scoped Studio event"); }
+			};
+			await socket.opened;
+			if (this.#sessions.get(id) !== session) throw new Error(RESYNC_REQUIRED);
+			this.#contexts.set(contextId, { session, socket });
+			socket.onClose = () => { void this.closeContext(id, contextId); };
+			return contextId;
+		} catch (error) {
+			socket.close();
+			await session.http.closeContext(contextId).catch(() => {});
+			throw error;
+		}
 	}
 
-	async query(id: string, request: unknown): Promise<unknown> {
-		return this.#session(id).http.query(request);
+	async closeContext(id: string, contextId: string): Promise<void> {
+		const entry = this.#contexts.get(contextId);
+		if (!entry || entry.session.id !== id) return;
+		this.#contexts.delete(contextId);
+		entry.socket.close();
+		await entry.session.http.closeContext(contextId).catch(error => this.#deps.log(String(error)));
 	}
 
-	async command(id: string, request: unknown): Promise<unknown> {
-		return this.#session(id).http.command(request);
+	async #closeContexts(session: Session): Promise<void> {
+		await Promise.all([...this.#contexts].filter(([, entry]) => entry.session === session).map(([id]) => this.closeContext(session.id, id)));
+	}
+
+	#scopedSession(id: string, contextId?: string): Session {
+		const session = this.#session(id);
+		if (contextId && this.#contexts.get(contextId)?.session !== session) throw new Error(RESYNC_REQUIRED);
+		return session;
+	}
+
+	async bootstrap(id: string, contextId?: string): Promise<unknown> {
+		return this.#scopedSession(id, contextId).http.bootstrap(contextId);
+	}
+
+	async query(id: string, request: unknown, contextId?: string): Promise<unknown> {
+		return this.#scopedSession(id, contextId).http.query(request, contextId);
+	}
+
+	async command(id: string, request: unknown, contextId?: string): Promise<unknown> {
+		return this.#scopedSession(id, contextId).http.command(request, contextId);
 	}
 
 	async installRuntime(id: string): Promise<{ installed: boolean; message?: string }> {
@@ -322,9 +367,25 @@ export class RemoteBridge {
 	async dispose(): Promise<void> {
 		await Promise.all([...this.#sessions.keys()].map(id => this.disconnect(id)));
 	}
+	/** Preserve the authenticated SSH session and generation for long-lived consumers. */
+	connection(id: string): DesktopHostConnection {
+		const session = this.#session(id);
+		const owned = () => { if (this.#session(id) !== session) throw new Error(RESYNC_REQUIRED); };
+		return {
+			base: session.http.base,
+			gateway: async <T>(route: string, init?: RequestInit): Promise<T> => {
+				owned(); const result = await session.http.gateway<T>(route, init); owned(); return result;
+			},
+			query: async <T>(request: unknown): Promise<T> => {
+				owned(); const result = await session.http.query<T>(request); owned(); return result;
+			},
+			socket: async route => { owned(); return session.http.terminalSocket(route); },
+		};
+	}
 
 	#profile(id: string): RemoteConnectionProfile {
 		const profile = this.#store.snapshot().profiles.find(value => value.id === id);
+
 		if (!profile) throw new Error("SSH connection not found");
 		return profile;
 	}

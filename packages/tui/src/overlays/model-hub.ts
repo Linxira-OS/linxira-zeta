@@ -227,7 +227,7 @@ interface SidebarAnchor {
 }
 
 interface StripChip extends HubStripChip<
-	"assign" | "unassign" | "fallback" | "fallbackModel" | "fallbackProvider" | "scope" | "thinking"
+	"assign" | "unassign" | "fallback" | "removeFallback" | "fallbackModel" | "fallbackProvider" | "scope" | "thinking"
 > {
 	role?: string;
 	thinkingLevel?: ConfiguredThinkingLevel;
@@ -1426,9 +1426,14 @@ export class ModelHubComponent implements Component {
 			styled: theme.fg("muted", `fallbacks:${item.model.provider}/*`),
 			action: "fallbackProvider",
 		});
-		// `retry-fallback` appends to the default chain, so only chat-capable models qualify.
+		const inDefaultChain = this.#hasFallbackSelector("default", item.selector);
+		// The model-browser shortcut edits only the shared default chain; make it reversible here.
 		if (this.#settings.getRoleInfo("default").accepts(item.model)) {
-			chips.push({ label: "fallback", styled: theme.fg("muted", "retry-fallback"), action: "fallback" });
+			chips.push({
+				label: inDefaultChain ? "remove fallback" : "retry-fallback",
+				styled: theme.fg("muted", inDefaultChain ? "remove fallback" : "retry-fallback"),
+				action: inDefaultChain ? "removeFallback" : "fallback",
+			});
 		}
 		this.#strip = { kind: "role", item, chips, index: 0, returnToRoles: false };
 	}
@@ -1643,6 +1648,10 @@ export class ModelHubComponent implements Component {
 				this.#appendFallback(strip.item, "default");
 				this.#closeStrip();
 				return;
+			case "removeFallback":
+				this.#removeFallbackSelector("default", strip.item.selector);
+				this.#closeStrip();
+				return;
 			case "fallbackModel":
 				this.#closeStrip();
 				this.#startAssignFallback(strip.item.selector, null);
@@ -1780,12 +1789,37 @@ export class ModelHubComponent implements Component {
 		this.#refreshAfterMutation();
 	}
 
-	/** Append `item` to `role`'s fallback chain (no-op when already present). */
+	#fallbackSelectorMatches(entry: string, selector: string): boolean {
+		const parsedEntry = this.#parseFallbackEntry(entry);
+		const parsedSelector = this.#parseFallbackEntry(selector);
+		return (
+			parsedEntry !== undefined &&
+			parsedSelector !== undefined &&
+			parsedEntry.provider.toLowerCase() === parsedSelector.provider.toLowerCase() &&
+			parsedEntry.id.toLowerCase() === parsedSelector.id.toLowerCase()
+		);
+	}
+
+	#hasFallbackSelector(role: string, selector: string): boolean {
+		return (this.#fallbackChains()[role] ?? []).some(entry => this.#fallbackSelectorMatches(entry, selector));
+	}
+
+	/** Append a fallback model unless this selector is already configured. */
 	#appendFallback(item: ModelBrowserItem, role: string): void {
 		const chain = [...(this.#fallbackChains()[role] ?? [])];
 		if (chain.includes(item.selector)) return;
 		chain.push(item.selector);
 		this.#setFallbackChain(role, chain);
+	}
+
+	/** Remove the first matching entry, retaining other variants and their order. */
+	#removeFallbackSelector(role: string, selector: string): void {
+		const chain = this.#fallbackChains()[role] ?? [];
+		const index = chain.findIndex(entry => this.#fallbackSelectorMatches(entry, selector));
+		if (index < 0) return;
+		const next = [...chain];
+		next.splice(index, 1);
+		this.#setFallbackChain(role, next);
 	}
 
 	/** Remove one chain entry; the cursor stays on the nearest surviving row. */

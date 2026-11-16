@@ -172,6 +172,8 @@ function ownerOf(session: ToolSession): string {
 export class JudgmentBatch {
 	readonly id: string;
 	readonly ownerId: string;
+	/** Frozen session identity for non-consuming Host observers. */
+	readonly sessionId: string | undefined;
 	readonly intent: string;
 	readonly total: number;
 	readonly #inputs: BatchInput[];
@@ -202,6 +204,7 @@ export class JudgmentBatch {
 	) {
 		this.id = `jdgb-${Snowflake.next()}`;
 		this.ownerId = ownerOf(session);
+		this.sessionId = session.getSessionId?.() ?? undefined;
 		this.intent = intent;
 		this.total = inputs.length;
 		this.#inputs = inputs;
@@ -288,6 +291,21 @@ export class JudgmentBatch {
 		}
 		if (!this.#running && this.#error !== undefined) throw new ToolError(this.#error);
 		return [];
+	}
+
+	/** Observer reads leave the eval cell's drain cursor untouched. */
+	readItems(offset: number, limit: number): JudgmentBatchItem[] {
+		if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 50)
+			throw invalid("invalid observer page");
+		return this.#settled.slice(offset, offset + limit);
+	}
+
+	studioInput(): { items: Array<{ key: BatchKey; state: JudgmentState; images?: unknown }>; questions: Record<string, Question>; options: BatchOptions } {
+		return {
+			items: this.#inputs.map(item => ({ key: item.key, state: item.state, ...(item.imageSources ? { images: item.imageSources } : {}) })),
+			questions: this.#questions,
+			options: this.#options,
+		};
 	}
 
 	results(): Record<string, Record<string, CellAnswer>> {
@@ -504,7 +522,7 @@ const batches = new Map<string, JudgmentBatch>();
 /** Resolve a batch owned by the calling session. */
 export function getJudgmentBatch(id: string, session: ToolSession): JudgmentBatch | undefined {
 	const batch = batches.get(id);
-	return batch && batch.ownerId === ownerOf(session) ? batch : undefined;
+	return batch && batch.ownerId === ownerOf(session) && batch.sessionId === (session.getSessionId?.() ?? undefined) ? batch : undefined;
 }
 
 /** Cancel and forget every batch owned by an agent session. */

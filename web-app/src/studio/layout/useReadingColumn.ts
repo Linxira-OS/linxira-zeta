@@ -1,5 +1,6 @@
+import { useConversationDom } from "../conversationWorkspace/Context";
 import { useLayoutEffect, useRef, type RefObject } from "react";
-import { afterConversationLayoutChange, beforeConversationLayoutChange } from "../conversation/conversationReflow";
+import { afterConversationLayoutChange, beforeConversationLayoutChange, CONVERSATION_LAYOUT_CHANGE } from "../conversation/conversationReflow";
 
 export type ReadingColumnPreference = {
   readonly mode: "standard" | "wide" | "full" | "custom";
@@ -53,6 +54,7 @@ export function useReadingColumn(
   preference: { mode: "standard" | "wide" | "full" | "custom"; customWidth: number },
   welcome: boolean,
 ): void {
+  const { document, window } = useConversationDom();
   const input = useRef({ preference, welcome });
   const measureRef = useRef<(() => void) | null>(null);
 
@@ -62,12 +64,16 @@ export function useReadingColumn(
     // The scroller is stable for the lifetime of this workbench, even while its
     // virtual rows/session body change. Locate it once, not on stream updates.
     const scroller = element.querySelector<HTMLElement>(":scope > .convo-scroll");
+    const queues = element.querySelector<HTMLElement>(":scope > .composer-region > .composer-queues");
     let previous: ReadingColumnGeometry | null = null;
     let previousHeight = -1;
+    let previousQueueHeight = -1;
     let frame: number | null = null;
     const measure = () => {
       const { preference: current, welcome: isWelcome } = input.current;
-      const containerWidth = element.clientWidth;
+      // The floating cards live inside the conversation. Its reading surface
+      // can be narrower than the outer container without creating another Part.
+      const containerWidth = scroller?.offsetWidth ?? element.clientWidth;
       const scale = Number.parseFloat(getComputedStyle(element).getPropertyValue("--density-scale")) || 1;
       const nativeScrollbar = () => scroller === null ? 0 : Math.max(0, scroller.offsetWidth - scroller.clientWidth);
       let geometry = readingColumnGeometry(containerWidth, current, isWelcome, scale, nativeScrollbar());
@@ -104,6 +110,13 @@ export function useReadingColumn(
         previousHeight = height;
         element.style.setProperty("--reading-height", `${height}px`);
       }
+      // Extend the scroller beneath the tray while reserving the same space at
+      // the transcript tail. Collapsing either queue keeps the latest row clear.
+      const queueHeight = queues?.offsetHeight ?? 0;
+      if (queueHeight !== previousQueueHeight) {
+        previousQueueHeight = queueHeight;
+        element.style.setProperty("--composer-queues-height", `${queueHeight}px`);
+      }
     };
     const schedule = () => {
       if (frame !== null) return;
@@ -114,12 +127,18 @@ export function useReadingColumn(
     observer?.observe(element);
     // A native scrollbar/height change need not resize the outer workbench.
     if (scroller !== null) observer?.observe(scroller);
+    if (queues !== null) observer?.observe(queues);
     const densityObserver = new MutationObserver(schedule);
     densityObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-density", "style"] });
+    const syncAfterLayout = () => {
+      if (document.documentElement.hasAttribute("data-dock-rail-transition")) measure();
+    };
+    window.addEventListener(CONVERSATION_LAYOUT_CHANGE, syncAfterLayout);
     window.addEventListener("resize", schedule);
     return () => {
       observer?.disconnect();
       densityObserver.disconnect();
+      window.removeEventListener(CONVERSATION_LAYOUT_CHANGE, syncAfterLayout);
       window.removeEventListener("resize", schedule);
       if (frame !== null) cancelAnimationFrame(frame);
       measureRef.current = null;

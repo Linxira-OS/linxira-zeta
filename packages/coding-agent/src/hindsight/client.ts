@@ -11,6 +11,7 @@
 import { USER_AGENT, truncate, tryParseJson } from "@linxiraos/pi-utils";
 import { isTimeoutError, withTimeoutSignal } from "../utils/fetch-timeout";
 import type { HindsightConfig } from "./config";
+import { privateMemoryCredential } from "./private-credentials";
 
 const DEFAULT_USER_AGENT = USER_AGENT;
 /** Fallback deadlines (ms) applied when the caller supplies no override. */
@@ -586,9 +587,10 @@ export class HindsightApi implements HindsightClientApi {
 		}
 
 		const timeoutMs = opts?.timeoutMs ?? this.#requestTimeoutMs;
+		const supplement = this.#headers.Authorization ? undefined : privateMemoryCredential(this.#baseUrl);
 		const init: RequestInit = {
 			method,
-			headers: this.#headers,
+			headers: supplement ? { ...this.#headers, Authorization: `Bearer ${supplement}` } : this.#headers,
 			signal: withTimeoutSignal(timeoutMs, opts?.signal),
 		};
 		if (opts?.body !== undefined) {

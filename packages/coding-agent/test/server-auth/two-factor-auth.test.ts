@@ -18,6 +18,7 @@ import { TwoFactorStore, setTwoFactorStoreForTest } from "../../src/server/auth/
 import { resetTwoFactorGrantsForTests } from "../../src/server/auth/two-factor-auth";
 import { totp } from "../../src/server/auth/totp";
 import { StudioHost, StudioOperations, setStudioHostForTest } from "../../src/server/studio-host/index.js";
+import { sessionStore } from "../../src/server/auth/session-store";
 import { resetRemoteAccessForTests } from "../../src/server/web-gateway/remote-access";
 import { webGatewayFetch } from "../../src/server/web-gateway";
 
@@ -271,6 +272,27 @@ describe("remote write gate", () => {
 		// A query is readable with the same credential: 2FA gates writes only.
 		const query = await post("/api/v1/query", { queryName: "environment.get" });
 		expect(query.status).toBe(200);
+	});
+
+	test("private memory credential delivery uses the existing cookie write verification gate", async () => {
+		await setup();
+		await enableTwoFactor();
+		const host = new StudioHost(operations(), { pairingCode: "424242" });
+		const paired = await host.handle(new Request("http://127.0.0.1/api/v1/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "424242" }) }), REMOTE_PEER);
+		expect(paired.status).toBe(200);
+		const cookie = paired.headers.get("set-cookie")!.split(";")[0]!;
+		const owner = (await sessionStore().get(cookie.slice("studio_session=".length)))!;
+		const bootstrap = await host.handle(new Request("http://127.0.0.1/api/v1/bootstrap", { headers: { cookie } }), REMOTE_PEER);
+		const csrf = bootstrap.headers.get("x-studio-csrf")!;
+		host.attachSocket(cookie.slice("studio_session=".length), { send() {} });
+		try {
+			const denied = await host.handle(new Request("http://127.0.0.1/api/v1/memory/credentials", { method: "POST", headers: { cookie, "x-studio-csrf": csrf, "content-type": "application/json" }, body: "[]" }), REMOTE_PEER);
+			expect(denied.status).toBe(403);
+			expect(await denied.json()).toMatchObject({ error: "totp_required" });
+			const status = await host.handle(new Request("http://127.0.0.1/api/v1/memory/credentials", { headers: { cookie } }), REMOTE_PEER);
+			expect(status.status).toBe(200);
+			expect(await status.json()).toEqual({ supported: true });
+		} finally { host.dropDeviceSessions(owner.deviceId); }
 	});
 
 	test("pairing needs the presence code, not a step-up or a bare token", async () => {

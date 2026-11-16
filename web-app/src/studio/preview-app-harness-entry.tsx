@@ -13,6 +13,7 @@ import {
   STARTUP_NOTICE_ID,
   STARTUP_NOTICE_STORAGE_KEY,
 } from "./settings/startupNotice";
+import { ONBOARDING_STORAGE_KEY, ONBOARDING_TOUR_ID } from "./onboarding/onboardingState";
 
 import "./styles/tokens.css";
 import "./styles/base.css";
@@ -22,10 +23,11 @@ import "./styles/workbench.css";
 import "./styles/pages.css";
 import "./styles/team.css";
 import "./styles/agent-hub.css";
-import "./styles/models-roles.css";
+import "./styles/model-picker.css";
 import "./styles/btw.css";
 import "./App.css";
 import "./styles/typography.css";
+import "./styles/tabs.css";
 
 // Explicit QA parameters affect only this local fixture entry, never the packaged app.
 const qaParams = new URLSearchParams(window.location.search);
@@ -51,6 +53,9 @@ const qaRoute = [
 try {
   if (qaParams.get("preserveSettings") !== "1") window.localStorage.setItem("zeta.lastRoute", qaRoute);
   window.localStorage.setItem(STARTUP_NOTICE_STORAGE_KEY, STARTUP_NOTICE_ID);
+  // `?tour=1` 保留首启教程，用于验收教程本身。
+  if (qaParams.get("tour") === "1") window.localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  else window.localStorage.setItem(ONBOARDING_STORAGE_KEY, ONBOARDING_TOUR_ID);
   if (qaParams.get("preserveSettings") !== "1") window.localStorage.setItem(
     "zeta.appSettings",
     JSON.stringify({

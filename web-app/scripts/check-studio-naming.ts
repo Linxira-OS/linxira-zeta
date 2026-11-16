@@ -6,39 +6,29 @@
  * product by name, and must not use bare "Studio" as the product/UI name.
  * Product/UI name: Z Work Studio. Runtime identity: Zeta.
  *
- * Frozen contracts and technical identifiers that never render (storage keys,
- * CSS class names, `omp://` internal links, env vars, DB names) are allowed by
- * the narrow exceptions below. This guard deliberately scans string literals
- * and JSX text, not comments or identifiers; a comment may name the upstream.
+ * Existing storage/database names and CSS plumbing are allowed only as exact
+ * identifiers. String literals, template fragments and JSX text are inspected
+ * with the TypeScript parser so copy beside className is never skipped.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import ts from "typescript";
 
 const ROOT = join(import.meta.dir, "..");
 const STUDIO = join(ROOT, "src", "studio");
-const LOCALES = [join(STUDIO, "i18n", "locales", "en.ts"), join(STUDIO, "i18n", "locales", "zh.ts")];
-
-/** Strings that are frozen protocol/storage/plumbing surfaces, never copy. */
+/** Persisted formats or non-rendered implementation names; never whole lines. */
 const TECHNICAL = [
-  /^omp:\/\//,
-  /^omp\./,
-  /^omp-studio-(ui|backgrounds)$/,
-  /^omp-(menu|tip|mermaid|conversation-|copy)/,
-  /^OMP_STUDIO_CLIENT$/,
-  /^VITE_ZETA_/,
-  /^__omp_/,
-  /^@?omp[-/]/,
+  /^omp-studio-(?:ui|backgrounds)$/,
+  /^\.?omp-(?:menu|tip|mermaid|copy)[\w-]*$/,
   /^omp$/,
   /^ompprurl$/,
-  /^\.omp/,
+  /^omp\.$/,
 ];
 
 /** Third-party product names that legitimately contain "Studio". */
 const STUDIO_ALLOW = /LM Studio|Z Work Studio|Work Studio/;
 
-const LOCALE_VALUE = /(?:^|[,{]\s*)["']([^"']+)["']\s*:/; // key, not value
-const QUOTED = /(["'`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
-const JSX_TEXT = />([^<>{}\n][^<>{}]*)</g;
+const MIGRATION_FILES = new Set(["storageMigration.ts", "storageMigration.test.ts"]);
 
 interface Hit {
   file: string;
@@ -48,14 +38,11 @@ interface Hit {
 }
 
 function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
+  return readdirSync(dir).flatMap(name => {
     const path = join(dir, name);
-    const stat = statSync(path);
-    if (stat.isDirectory()) out.push(...walk(path));
-    else if (/\.(ts|tsx)$/.test(name) && !name.endsWith(".test.ts")) out.push(path);
-  }
-  return out;
+    if (statSync(path).isDirectory()) return walk(path);
+    return /\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name) && !MIGRATION_FILES.has(name) ? [path] : [];
+  });
 }
 
 function checkText(text: string): string | undefined {
@@ -69,47 +56,22 @@ function checkText(text: string): string | undefined {
   return undefined;
 }
 
-function scanLocale(path: string): Hit[] {
-  const hits: Hit[] = [];
-  readFileSync(path, "utf8").split("\n").forEach((line, index) => {
-    if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
-    // Locale strings are values after a colon. Ignore the key itself.
-    const valueStart = line.indexOf(":");
-    if (valueStart < 0) return;
-    const valuePart = line.slice(valueStart + 1);
-    for (const match of valuePart.matchAll(QUOTED)) {
-      const reason = checkText(match[2] ?? "");
-      if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
-    }
-  });
-  return hits;
-}
-
 function scanSource(path: string): Hit[] {
+  const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true);
   const hits: Hit[] = [];
-  const lines = readFileSync(path, "utf8").split("\n");
-  lines.forEach((line, index) => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
-    // Class names and selectors are plumbing; visible attributes/text still scan.
-    // Only the quoted-literal pass is skipped: JSX text on the same line is copy
-    // (a demo label next to `className` was invisible to the guard that missed it).
-    const plumbing = /className=|closest\(|querySelector|classList|localStorage|sessionStorage|indexedDB/.test(line);
-    if (!plumbing) {
-      for (const match of line.matchAll(QUOTED)) {
-        const reason = checkText(match[2] ?? "");
-        if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
-      }
+  function visit(node: ts.Node): void {
+    if (ts.isStringLiteral(node) && ts.isJsxAttribute(node.parent) && node.parent.name.getText(source) === "className") return;
+    if (ts.isStringLiteralLike(node) || ts.isJsxText(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      const reason = checkText(node.text);
+      if (reason) hits.push({ file: relative(ROOT, path), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, text: node.text, reason });
     }
-    for (const match of line.matchAll(JSX_TEXT)) {
-      const reason = checkText(match[1] ?? "");
-      if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[1]!, reason });
-    }
-  });
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
   return hits;
 }
 
-const hits = [...LOCALES.flatMap(scanLocale), ...walk(STUDIO).flatMap(scanSource)];
+const hits = walk(STUDIO).flatMap(scanSource);
 if (hits.length > 0) {
   console.error("Studio naming guard failed: user-visible upstream/product names\n");
   for (const hit of hits) console.error(`${hit.file}:${hit.line}: ${hit.reason}: ${JSON.stringify(hit.text)}`);

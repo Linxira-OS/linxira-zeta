@@ -12,6 +12,8 @@ import { parseFlag, ZETA_BROWSER_RELAY_PORT } from "@linxiraos/pi-utils";
 export interface RelayKind {
 	kind: "relay";
 	cdpUrl: string;
+	/** Private per-session desktop relay; never the machine-global extension relay. */
+	studioManaged?: boolean;
 }
 
 /** Default endpoint of the `zetacode browser-relay` CLI. */

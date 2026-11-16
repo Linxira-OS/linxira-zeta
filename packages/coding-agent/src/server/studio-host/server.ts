@@ -58,6 +58,18 @@ import { guardStudioTwoFactor } from "../auth/two-factor-auth";
 import { buildBootstrap } from "./bootstrap.js";
 import { StudioOperations, StudioOpError, toClientError } from "./registry.js";
 import type { StudioHostContext } from "./registry.js";
+import { ConversationContexts, type ConversationContext } from "./conversation-contexts.js";
+import { resolveWorkspacePath } from "./ops/workspace.js";
+import { getRpcSession } from "../web-gateway/agents.js";
+import { conversationFeed } from "./conversation-feed.js";
+import { currentSessionId, snapshotFor } from "./ops/session.js";
+import type { OperatorStateSnapshot } from "./protocol/contracts/state.js";
+import { releaseStudioPrivateOwner } from "./services/browser-runtime.js";
+import { releaseStudioEvaluationOwner } from "./services/evaluation-runtime.js";
+import { releasePredictionPrivateOwner } from "./services/prediction-runtime";
+import { releaseMemoryCredentials, replaceMemoryCredentials } from "../../hindsight/private-credentials";
+import { subscribeComputerWorkspace } from "./services/computer-runtime.js";
+import { validateComputerWorkspaceChange } from "./protocol/computer-workspace-validation.js";
 
 /** Prefix every Studio route hangs off. */
 export const STUDIO_API_PREFIX = "/api/v1/";
@@ -108,7 +120,10 @@ type StudioEventBody =
 	| { readonly kind: "command.receipt"; readonly receipt: CommandReceipt }
 	| { readonly kind: "runtime.changed"; readonly connection: RuntimeConnection }
 	| { readonly kind: "resync.required"; readonly reason: string }
-	| { readonly kind: "state.changed" };
+	| { readonly kind: "state.changed" }
+	| { readonly kind: "snapshot"; readonly snapshot: OperatorStateSnapshot }
+	| { readonly kind: "computer.changed"; readonly change: import("./protocol/contracts/computer-workspace.js").ComputerWorkspaceChange }
+	| Pick<Extract<ClientEvent, { kind: "conversation.changed" }>, "kind" | "sessionId" | "streamSeq" | "eventSeq" | "update">;
 
 function token(bytes = 24): string {
 	return randomBytes(bytes).toString("base64url");
@@ -156,6 +171,10 @@ export class StudioHost {
 	/** sessionId → deviceId, so a revocation can close the right sockets. */
 	readonly #sessionDevices = new Map<string, string>();
 	readonly #sockets = new Map<string, Set<StudioSocket>>();
+	readonly #contexts = new ConversationContexts((id, owner) => {
+		this.#closeSockets(`context:${id}`);
+		if (!this.#memoryOwnerConnected(owner)) releaseMemoryCredentials(owner);
+	});
 	#pairing: { code: string; expiresAt: number; used: boolean };
 	/**
 	 * A pinned pairing code (`ZETA_STUDIO_PAIRING_CODE` or the constructor
@@ -164,7 +183,8 @@ export class StudioHost {
 	 * reload. A generated code is always single-use.
 	 */
 	readonly #pairingReusable: boolean;
-	#cursor = 0;
+	readonly #cursors = new Map<string, number>();
+	readonly #feeds = new Map<string, { sessionId: string; dispose: () => void }>();
 
 	constructor(operations: StudioOperations = new StudioOperations(), options: { pairingCode?: string } = {}) {
 		this.#operations = operations;
@@ -217,8 +237,10 @@ export class StudioHost {
 		const cookie = readCookie(req, STUDIO_SESSION_COOKIE);
 		if (cookie !== undefined) {
 			const live = await sessionStore().get(cookie);
+			if (live === undefined) { this.#closeSockets(cookie); this.#contexts.closeOwner(cookie); }
 			if (live === undefined) return undefined;
 			const counters = this.#counters.get(cookie) ?? { outstanding: 0, scope: { scope: "all" } };
+			this.#counters.set(cookie, counters);
 			if (mutate && req.headers.get(STUDIO_CSRF_HEADER) !== live.csrf) return undefined;
 			this.#sessionDevices.set(cookie, live.deviceId);
 			return [
@@ -325,16 +347,24 @@ export class StudioHost {
 		};
 		try {
 			if (isPair) return await this.#pair(req, remoteAddr);
+			if (url.pathname === "/api/v1/context/open" && req.method === "POST")
+				return await this.#openContext(req, remoteAddr);
+			if (url.pathname === "/api/v1/context/close" && req.method === "POST")
+				return await this.#closeContext(req, remoteAddr);
 			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST")
 				return await this.#revoke(req, remoteAddr);
 			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET")
 				return await this.#bootstrap(req, remoteAddr, local);
+			if (url.pathname === "/api/v1/memory/credentials" && ["GET", "POST"].includes(req.method))
+				return await this.#memoryCredentials(req, remoteAddr);
 			if (url.pathname === "/api/v1/query" && req.method === "POST")
 				return await this.#query(req, remoteAddr, context);
 			if (url.pathname === "/api/v1/command" && req.method === "POST")
 				return await this.#command(req, remoteAddr, context);
 			return json({ error: "not_found" }, 404);
 		} catch (error) {
+			if (error instanceof ConversationContextError) return json({ error: error.message }, 404);
+			if (error instanceof Error && error.message === "context_limit") return json({ error: "context_limit" }, 429);
 			if (error instanceof PairingInputError) return json({ error: error.message }, 400);
 			const tooLarge = error instanceof Error && error.message === "body_too_large";
 			return json({ error: tooLarge ? "body_too_large" : "bad_request" }, 400);
@@ -457,6 +487,30 @@ export class StudioHost {
 		return `${STUDIO_SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Strict; Path=/${secure}`;
 	}
 
+	#memoryOwnerConnected(owner: string): boolean {
+		for (const id of this.#sockets.keys()) {
+			if (id === owner || id.startsWith("context:") && this.#contexts.peek(id.slice(8))?.owner === owner) return true;
+		}
+		return false;
+	}
+
+	async #memoryCredentials(req: Request, remoteAddr?: string): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr, req.method === "POST");
+		if (!authorized || !readCookie(req, STUDIO_SESSION_COOKIE)) return json({ error: "unauthenticated" }, 401);
+		const [owner, session] = authorized;
+		if (session.binding) return json({ error: "binding_scope" }, 403);
+		if (req.method === "POST" && !this.#memoryOwnerConnected(owner)) return json({ error: "owner_disconnected" }, 409);
+		if (req.method === "POST") {
+			const denied = await guardStudioTwoFactor(req, remoteAddr, "/api/v1/command");
+			if (denied) return denied;
+			const entries = await this.#body(req);
+			const current = await this.#authorize(req, remoteAddr, true);
+			if (!current || current[0] !== owner || !this.#memoryOwnerConnected(owner)) return json({ error: "unauthenticated" }, 401);
+			replaceMemoryCredentials(owner, current[1].expiresAt, entries);
+		}
+		return json({ supported: true });
+	}
+
 	async #revoke(req: Request, remoteAddr?: string): Promise<Response> {
 		const authorized = await this.#authorize(req, remoteAddr, true);
 		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
@@ -466,14 +520,71 @@ export class StudioHost {
 			this.#counters.delete(sessionId);
 			this.#sessionDevices.delete(sessionId);
 			this.#closeSockets(sessionId);
+			this.#contexts.closeOwner(sessionId);
 		}
 		return json({ ok: true });
 	}
 
+	async #openContext(req: Request, remoteAddr?: string): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr, true);
+		if (authorized === undefined || !readCookie(req, STUDIO_SESSION_COOKIE)) return json({ error: "unauthenticated" }, 401);
+		const [owner, session] = authorized;
+		const admission = this.#counters.get(owner);
+		const body = await this.#body(req);
+		if (body === null || typeof body !== "object" || !("workspaceId" in body) || typeof body.workspaceId !== "string") return json({ error: "bad_request" }, 400);
+		const sessionId = "sessionId" in body ? body.sessionId : undefined;
+		if (sessionId !== undefined && (typeof sessionId !== "string" || sessionId === "")) return json({ error: "bad_request" }, 400);
+		await resolveWorkspacePath(body.workspaceId);
+		if (typeof sessionId === "string" && await workspaceOfSessionResolver()?.(sessionId) !== body.workspaceId) return json({ error: "context_scope" }, 403);
+		if (!(await this.#bindingAllows(session, { workspaceId: body.workspaceId, ...(typeof sessionId === "string" ? { sessionId } : {}) }))) return json({ error: "binding_scope" }, 403);
+		const live = await sessionStore().get(owner);
+		if (live === undefined || admission === undefined || this.#counters.get(owner) !== admission) return json({ error: "unauthenticated" }, 401);
+		const context = this.#contexts.create(owner, live.expiresAt, body.workspaceId, typeof sessionId === "string" ? sessionId : undefined);
+		return json({ contextId: context.id });
+	}
+
+	async #closeContext(req: Request, remoteAddr?: string): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr, true);
+		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
+		const id = req.headers.get("x-studio-context");
+		if (!id || !this.#contexts.close(authorized[0], id)) return json({ error: "context_closed" }, 404);
+		return json({ closed: true });
+	}
+
+	#requestContext(req: Request, owner: string): ConversationContext | undefined {
+		const id = req.headers.get("x-studio-context") ?? new URL(req.url).searchParams.get("contextId");
+		if (id === null) return undefined;
+		const context = this.#contexts.get(owner, id);
+		if (context === undefined) throw new ConversationContextError("context_closed");
+		return context;
+	}
+
+	async #contextAllows(context: ConversationContext, target: RequestTarget | undefined): Promise<boolean> {
+		if (target === undefined) return true;
+		if (target.workspaceId !== undefined && target.workspaceId !== context.workspaceId) return false;
+		if (target.sessionId === undefined) return true;
+		if (context.sessionId !== undefined && target.sessionId !== context.sessionId) return false;
+		return await workspaceOfSessionResolver()?.(target.sessionId) === context.workspaceId;
+	}
+
 	async #bootstrap(req: Request, remoteAddr: string | undefined, genuinelyLocal: boolean): Promise<Response> {
-		const bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
+		let bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
 		const hasCookie = readCookie(req, STUDIO_SESSION_COOKIE) !== undefined;
 		const authorized = await this.#authorize(req, remoteAddr);
+		if (authorized === undefined && (req.headers.has("x-studio-context") || new URL(req.url).searchParams.has("contextId"))) return json({ error: "unauthenticated" }, 401);
+		const selection = authorized === undefined ? undefined : this.#requestContext(req, authorized[0]);
+		if (selection !== undefined) bootstrap = { ...bootstrap, selected: {
+			workspaceId: selection.workspaceId as NonNullable<ClientBootstrap["selected"]["workspaceId"]>,
+			...(selection.sessionId === undefined ? {} : { sessionId: selection.sessionId as NonNullable<ClientBootstrap["selected"]["sessionId"]> }),
+		} };
+		if (this.#operations.queries.includes("commands.getManifest")) {
+			const manifest = await this.#operations.query({ queryName: "commands.getManifest", input: {} }, {
+				capabilities: bootstrap.capabilityManifest,
+				...(selection === undefined ? {} : { selection }),
+			});
+			if (!manifest.ok) return json({ error: manifest.error }, 503);
+			bootstrap = { ...bootstrap, commandManifestHash: manifest.result.hash };
+		}
 		// A cookie already proves a live session; a stateless token caller is
 		// authorized for reads but gets no cookie here (it pairs explicitly).
 		if (authorized !== undefined && hasCookie) {
@@ -513,7 +624,10 @@ export class StudioHost {
 		if (body === null || typeof body !== "object" || typeof body.queryName !== "string") {
 			return json({ error: "bad_request" }, 400);
 		}
-		const queryTarget = payloadTarget(body);
+		const selection = this.#requestContext(req, authorized[0]);
+		const explicitTarget = payloadTarget(body);
+		const queryTarget = selection !== undefined && body.queryName.startsWith("evaluations.") ? selection : explicitTarget ?? (selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.queryName) ? selection : undefined);
+		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body)))) return json({ error: "context_scope" }, 403);
 		if (authorized[1].binding !== undefined) {
 			// A bound device may read only its own conversation. The few ambient
 			// queries that carry no session content (boot facts) stay readable so
@@ -525,7 +639,16 @@ export class StudioHost {
 		if (!(await this.#bindingAllows(authorized[1], queryTarget))) {
 			return json({ error: "binding_scope" }, 403);
 		}
-		return json(await this.#operations.query(body, context));
+		const eventOwner = selection === undefined ? authorized[0] : `context:${selection.id}`;
+		const response = await this.#operations.query(body, {
+			...context, ...(selection === undefined ? {} : { selection }),
+			privateOwner: {
+				id: eventOwner, expiresAt: authorized[1].expiresAt,
+				isLive: () => this.#sockets.has(eventOwner) && authorized[1].expiresAt > Date.now() && (selection === undefined || this.#contexts.peek(selection.id) === selection),
+			},
+		});
+		await this.#syncRuntime(selection === undefined ? authorized[0] : `context:${selection.id}`);
+		return json(response);
 	}
 
 	async #command(req: Request, remoteAddr: string | undefined, context: StudioHostContext): Promise<Response> {
@@ -536,7 +659,25 @@ export class StudioHost {
 		if (body === null || typeof body !== "object" || typeof body.commandName !== "string") {
 			return json({ error: "bad_request" }, 400);
 		}
-		if (!(await this.#bindingAllows(session, payloadTarget(body)))) {
+		if (session.binding !== undefined && body.input && typeof body.input === "object") {
+			const input = body.input;
+			if ((body.commandName === "prediction.configure" && "scope" in input && input.scope === "global") ||
+				(body.commandName === "prediction.control" && "action" in input && input.action !== "status")) return json({ error: "binding_scope" }, 403);
+		}
+		const selection = this.#requestContext(req, sessionId);
+		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body)))) return json({ error: "context_scope" }, 403);
+		const eventOwner = selection === undefined ? sessionId : `context:${selection.id}`;
+		const operationContext: StudioHostContext = {
+			...context,
+			...(selection === undefined ? {} : { selection }),
+			privateOwner: {
+				id: eventOwner,
+				expiresAt: session.expiresAt,
+				isLive: () => this.#sockets.has(eventOwner) && session.expiresAt > Date.now() && (selection === undefined || this.#contexts.peek(selection.id) === selection),
+			},
+		};
+		const target = selection !== undefined && body.commandName.startsWith("evaluations.") ? selection : payloadTarget(body) ?? (selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.commandName) ? selection : undefined);
+		if (!(await this.#bindingAllows(session, target))) {
 			return json({ error: "binding_scope" }, 403);
 		}
 		const counter = sessionId === "" ? undefined : this.#counters.get(sessionId);
@@ -544,15 +685,14 @@ export class StudioHost {
 		if (outstanding >= MAX_OUTSTANDING_COMMANDS) return json({ error: "rate_limited" }, 429);
 		if (counter !== undefined) counter.outstanding += 1;
 		try {
-			const { accepted, result } = await this.#operations.command(body, context);
-			// The work already ran, so the terminal outcome is known before the
-			// acknowledgement. An operation with no result payload (the host has no
-			// runtime snapshot feed) reports `state.changed` instead of inventing
-			// one: the renderer re-reads the state it actually needs.
+			await this.#syncRuntime(eventOwner);
+			const { accepted, result } = await this.#operations.command(body, operationContext);
+			await this.#syncRuntime(eventOwner);
+			// Runtime transitions arrive independently on the selected session's feed.
 			if (result === undefined) {
-				this.#emit(authorized[0], { kind: "state.changed" });
+				this.#emit(eventOwner, { kind: "state.changed" });
 			} else {
-				this.#emit(authorized[0], {
+				this.#emit(eventOwner, {
 					kind: "command.receipt",
 					receipt: {
 						requestId: body.requestId,
@@ -571,7 +711,7 @@ export class StudioHost {
 			if (error instanceof StudioOpError && (error.code === "INVALID_ARGUMENT" || error.code === "unsupported")) {
 				return json({ ok: false, commandName: body.commandName, error: failure }, 400);
 			}
-			this.#emit(authorized[0], {
+			this.#emit(eventOwner, {
 				kind: "command.receipt",
 				receipt: {
 					requestId: body.requestId,
@@ -621,26 +761,35 @@ export class StudioHost {
 		const authorized = await this.#authorize(req, remoteAddr);
 		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
 		const [sessionId] = authorized;
-		// Event delivery is keyed by the *authenticated* session id (`#emit`), not
-		// by a conversation, so a bound device only ever receives its own receipts
-		// and runtime notices; no extra binding filter applies here.
-		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId } });
+		let selection: ConversationContext | undefined;
+		try { selection = this.#requestContext(req, sessionId); }
+		catch { return json({ error: "context_closed" }, 404); }
+		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId: selection === undefined ? sessionId : `context:${selection.id}` } });
 		return upgraded ? null : json({ error: "websocket_upgrade_failed" }, 500);
 	}
 
 	/** Track a live event socket for a paired session (called on socket open). */
 	attachSocket(sessionId: string, socket: StudioSocket): void {
+		if (sessionId.startsWith("context:") && !this.#contexts.isLive(sessionId.slice(8))) { socket.close?.(); return; }
 		const set = this.#sockets.get(sessionId) ?? new Set<StudioSocket>();
 		set.add(socket);
 		this.#sockets.set(sessionId, set);
+		void this.#syncRuntime(sessionId).catch(error => logger.warn("Studio runtime subscription failed", { error: String(error) }));
 	}
 
 	/** Drop a closed socket. */
 	detachSocket(sessionId: string, socket: StudioSocket): void {
+		const cookieOwner = sessionId.startsWith("context:") ? this.#contexts.peek(sessionId.slice(8))?.owner : sessionId;
 		const set = this.#sockets.get(sessionId);
 		if (!set) return;
 		set.delete(socket);
-		if (set.size === 0) this.#sockets.delete(sessionId);
+		if (set.size === 0) { this.#sockets.delete(sessionId); this.#stopRuntime(sessionId); }
+		if (set.size === 0) {
+			releaseStudioPrivateOwner(sessionId);
+			releaseStudioEvaluationOwner(sessionId);
+			releasePredictionPrivateOwner(sessionId);
+		}
+		if (cookieOwner && !this.#memoryOwnerConnected(cookieOwner)) releaseMemoryCredentials(cookieOwner);
 	}
 
 	/**
@@ -658,6 +807,7 @@ export class StudioHost {
 			this.#sessionDevices.delete(sessionId);
 			this.#counters.delete(sessionId);
 			this.#closeSockets(sessionId);
+			this.#contexts.closeOwner(sessionId);
 			dropped += 1;
 		}
 		return dropped;
@@ -665,6 +815,12 @@ export class StudioHost {
 
 	/** Close every live event socket of one session. */
 	#closeSockets(sessionId: string): void {
+		releaseStudioPrivateOwner(sessionId);
+		releaseStudioEvaluationOwner(sessionId);
+		releasePredictionPrivateOwner(sessionId);
+		releaseMemoryCredentials(sessionId);
+		this.#stopRuntime(sessionId);
+		this.#cursors.delete(sessionId);
 		const sockets = this.#sockets.get(sessionId);
 		if (sockets === undefined) return;
 		this.#sockets.delete(sessionId);
@@ -677,52 +833,64 @@ export class StudioHost {
 		}
 	}
 
-	/** Deliver one event to every live socket of one session. */
-	#emit(sessionId: string, event: StudioEventBody): void {
+	#stopRuntime(owner: string): void {
+		this.#feeds.get(owner)?.dispose();
+		this.#feeds.delete(owner);
+	}
+
+	/** Rebind only the namespace that changed; empty contexts never use root. */
+	async #syncRuntime(owner: string): Promise<void> {
+		if (!this.#sockets.has(owner)) return;
+		const context = owner.startsWith("context:") ? this.#contexts.peek(owner.slice(8)) : undefined;
+		if (owner.startsWith("context:") && context === undefined) { this.#stopRuntime(owner); return; }
+		let sessionId = context?.sessionId;
+		if (context === undefined) {
+			try { sessionId = await currentSessionId(); } catch { this.#stopRuntime(owner); return; }
+			if (!this.#sockets.has(owner)) return;
+			const liveSession = owner === "" ? undefined : await sessionStore().get(owner);
+			if (owner !== "" && (liveSession === undefined || !(await bindingAllows(liveSession.binding, { sessionId }, workspaceOfSessionResolver())))) { this.#stopRuntime(owner); return; }
+		}
+		if (sessionId === undefined) { this.#stopRuntime(owner); return; }
+		const wrapper = getRpcSession(sessionId);
+		if (!wrapper?.isAlive()) { this.#stopRuntime(owner); return; }
+		if (this.#feeds.get(owner)?.sessionId === sessionId) return;
+		this.#stopRuntime(owner);
+		let disposed = false;
+		const live = () => !disposed && this.#sockets.has(owner) && (!owner.startsWith("context:") || this.#contexts.peek(owner.slice(8))?.sessionId === sessionId);
+		const feed = conversationFeed(wrapper);
+		const detachConversation = feed.subscribe(event => {
+			if (live()) this.#emit(owner, { kind: "conversation.changed", sessionId: sessionId as Extract<ClientEvent, { kind: "conversation.changed" }>["sessionId"], streamSeq: event.streamSeq, eventSeq: event.eventSeq, update: event.update }, event.stateVersion);
+		});
+		const detachComputer = subscribeComputerWorkspace(owner, change => {
+			if (!live() || wrapper.getSession().isDisposed || wrapper.getSession().sessionId !== sessionId) return;
+			try { validateComputerWorkspaceChange(change); }
+			catch { this.#emit(owner, { kind: "resync.required", reason: "Computer workspace metadata changed" }); return; }
+			this.#emit(owner, { kind: "computer.changed", change }, wrapper.getSession().getStateVersion());
+		});
+		let refreshPending = false;
+		const refresh = () => {
+			if (refreshPending) return;
+			refreshPending = true;
+			void snapshotFor(sessionId).then(snapshot => { if (live()) this.#emit(owner, { kind: "snapshot", snapshot }, snapshot.stateVersion); })
+				.catch(error => { if (live()) this.#emit(owner, { kind: "resync.required", reason: String(error) }); })
+				.finally(() => { refreshPending = false; });
+		};
+		const detachState = wrapper.onEvent(event => { if (["running", "not-running", "state_changed", "model_changed", "queue_update", "agent_end"].includes(event.type)) refresh(); });
+		this.#feeds.set(owner, { sessionId, dispose: () => { disposed = true; detachConversation(); detachComputer(); detachState(); } });
+		refresh();
+	}
+
+	/** Contiguous cursor within the authenticated delivery namespace. */
+	#emit(sessionId: string, event: StudioEventBody, stateVersion = 0): void {
 		const sockets = this.#sockets.get(sessionId);
 		if (!sockets || sockets.size === 0) return;
-		const bootstrap = buildBootstrap(this.#operations);
-		this.#cursor += 1;
-		const envelope = {
-			...event,
-			authorityEpoch: bootstrap.authority.authorityEpoch,
-			stateVersion: (bootstrap.stateVersion ?? 1) as ClientEvent["stateVersion"],
-			cursor: String(this.#cursor) as EventCursor,
-			occurredAt: new Date().toISOString(),
-		} as ClientEvent;
+		const cursor = (this.#cursors.get(sessionId) ?? 0) + 1;
+		this.#cursors.set(sessionId, cursor);
+		const envelope = { ...event, authorityEpoch: 1, stateVersion, cursor: String(cursor) as EventCursor, occurredAt: new Date().toISOString(), ...(event.kind === "snapshot" || event.kind === "conversation.changed" || event.kind === "computer.changed" ? { runtimeEpoch: 1 } : {}) } as ClientEvent;
 		const payload = JSON.stringify(envelope);
 		for (const socket of sockets) socket.send(payload);
 	}
 
-	/** First event after subscribe: the runtime it is now connected to. */
-	openEvent(scope: SubscriptionScope): ClientEvent[] {
-		const bootstrap = buildBootstrap(this.#operations);
-		const base = {
-			authorityEpoch: bootstrap.authority.authorityEpoch,
-			stateVersion: (bootstrap.stateVersion ?? 1) as ClientEvent["stateVersion"],
-			occurredAt: new Date().toISOString(),
-		};
-		this.#cursor += 1;
-		const events: ClientEvent[] = [
-			{
-				...base,
-				kind: "runtime.changed",
-				connection: bootstrap.runtime,
-				cursor: String(this.#cursor) as EventCursor,
-			},
-		];
-		// The host has no cross-process event feed yet: tell the client to
-		// re-read state instead of letting it wait on a stream that cannot
-		// deliver transitions. Emitting nothing would look like "quiet".
-		this.#cursor += 1;
-		events.push({
-			...base,
-			kind: "resync.required",
-			reason: `subscribed:${scope.scope}`,
-			cursor: String(this.#cursor) as EventCursor,
-		});
-		return events;
-	}
 }
 
 /** Queries that carry no conversation content and are readable to a bound device. */
@@ -730,8 +898,24 @@ const AMBIENT_QUERY_NAMES: Readonly<Record<string, true>> = {
 	"environment.get": true,
 };
 
+/** These handlers address the session selected by the authenticated context. */
+const SESSION_SELECTION_OPERATIONS = new Set<string>([
+	"evaluations.context", "evaluations.list", "evaluations.read", "evaluations.rows",
+	"evaluations.retrySpec", "evaluations.patch", "evaluations.exportChunk",
+	"evaluations.prepare", "evaluations.start", "evaluations.control",
+	"evaluations.export", "evaluations.respond", "evaluations.openWorkspace",
+	"session.state", "session.transcript.read", "agent.transcript.read", "agent.conversation.read",
+	"session.fork", "session.tree.get", "session.tree.navigate", "session.tree.branch",
+	"session.model.set", "session.thinking.set", "core.prompt", "core.steer", "core.followUp",
+	"core.abort", "core.continue", "queue.enqueue", "mode.plan.enter", "mode.plan.exit",
+	"mode.plan.review.open", "mode.plan.review.respond", "operator.invoke",
+	"interaction.respond",
+]);
+
 /** Pairing input the client got wrong (answered 400, never a silent default). */
 class PairingInputError extends Error {}
+
+class ConversationContextError extends Error {}
 
 /** Whether the request arrived over TLS (cookie `Secure` scoping only, not identity). */
 function isSecureRequest(req: Request): boolean {
@@ -761,7 +945,10 @@ function payloadTarget(body: unknown): RequestTarget | undefined {
 	if (body === null || typeof body !== "object" || !("input" in body)) return undefined;
 	const input = body.input;
 	if (input === null || typeof input !== "object") return undefined;
-	const sessionId = "sessionId" in input && typeof input.sessionId === "string" ? input.sessionId : undefined;
+	const nested = "target" in input && input.target !== null && typeof input.target === "object" ? input.target : input;
+	const sessionId = "sessionId" in nested && typeof nested.sessionId === "string" ? nested.sessionId
+		: "parentSessionId" in nested && typeof nested.parentSessionId === "string" ? nested.parentSessionId
+		: "threadId" in input && typeof input.threadId === "string" ? input.threadId : undefined;
 	const workspaceId = "workspaceId" in input && typeof input.workspaceId === "string" ? input.workspaceId : undefined;
 	if (sessionId === undefined && workspaceId === undefined) return undefined;
 	return {

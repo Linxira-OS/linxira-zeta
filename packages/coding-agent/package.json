@@ -581,6 +581,7 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "axe-core": "4.13.0",
     "chalk": "4.1.2",
+    "ignore": "^7.0.6",
     "puppeteer-core": "catalog:"
   },
   "devDependencies": {

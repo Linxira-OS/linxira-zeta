@@ -137,6 +137,7 @@ pub struct WaylandBackend {
 		expect(dead_code, reason = "only read by the pipewire capture path")
 	)]
 	display:           DisplaySelector,
+	observation_only:  bool,
 	ax:                Option<AtSpiAx>,
 	ax_error:          Option<DesktopError>,
 	input:             Option<libei::Libei>,
@@ -180,15 +181,22 @@ fn compositor_pid() -> Option<u32> {
 
 impl WaylandBackend {
 	pub fn new(display: DisplaySelector) -> Self {
+		Self::new_observed(display, false)
+	}
+
+	pub fn new_observed(display: DisplaySelector, observation_only: bool) -> Self {
 		// Remove the world-readable RemoteDesktop restore token that pre-#7884
 		// builds wrote during read-only calls; nothing reads it anymore (#7884).
-		portal::remove_orphaned_remote_desktop_token();
+		if !observation_only {
+			portal::remove_orphaned_remote_desktop_token();
+		}
 		let (ax, ax_error) = match AtSpiAx::new() {
 			Ok(ax) => (Some(ax), None),
 			Err(err) => (None, Some(err)),
 		};
 		Self {
 			display,
+			observation_only,
 			ax,
 			ax_error,
 			input: None,
@@ -228,6 +236,9 @@ impl WaylandBackend {
 		kind: &str,
 		action: impl FnOnce(&mut libei::Libei) -> CoreResult<()>,
 	) -> CoreResult<()> {
+		if self.observation_only {
+			return Err(DesktopError::permission_denied("observation-only desktop session refuses input initialization"));
+		}
 		control::check()?;
 		Self::window_input_error(target, kind)?;
 		if self.input.is_none() {
@@ -262,7 +273,7 @@ impl WaylandBackend {
 
 impl Backend for WaylandBackend {
 	fn capabilities(&mut self) -> DesktopCapabilities {
-		let input_unavailable = self.input.is_none() && self.input_unavailable().is_some();
+		let input_unavailable = self.observation_only || (self.input.is_none() && self.input_unavailable().is_some());
 		let input_permission = if self.input.is_some() {
 			"granted"
 		} else if input_unavailable {
@@ -390,7 +401,7 @@ impl Backend for WaylandBackend {
 		#[cfg(not(feature = "wayland-pipewire"))]
 		{
 			let _ = (target, selector);
-			Err(DesktopError::capture_failed("Wayland capture requires the wayland-pipewire feature"))
+			Err(DesktopError::capture_failed("Passive Wayland capture is unavailable: this native addon was built without wayland-pipewire ScreenCast support; RemoteDesktop/input capture is never used as a fallback"))
 		}
 		#[cfg(feature = "wayland-pipewire")]
 		{
@@ -538,6 +549,7 @@ mod tests {
 	fn backend_without_services() -> WaylandBackend {
 		WaylandBackend {
 			display:           DisplaySelector::All,
+			observation_only:  false,
 			ax:                None,
 			ax_error:          None,
 			input:             None,
@@ -546,6 +558,23 @@ mod tests {
 			compositor_pid:    None,
 			unanswered:        Vec::new(),
 		}
+	}
+
+	#[test]
+	fn passive_capabilities_never_probe_input_or_connect_eis() {
+		let mut backend = backend_without_services();
+		backend.observation_only = true;
+		backend.input_unavailable = OnceCell::new();
+		let capabilities = backend.capabilities();
+		assert!(!capabilities.input);
+		assert!(!capabilities.held_input);
+		assert_eq!(capabilities.input_permission, "unavailable");
+		assert_eq!(capabilities.capture, cfg!(feature = "wayland-pipewire"));
+		assert!(backend.input_unavailable.get().is_none());
+		let result = backend.run_input(&Target::Desktop, "key", |_| panic!("passive backend must never create input"));
+		assert_eq!(result.unwrap_err().code.as_str(), "PermissionDenied");
+		assert!(backend.input.is_none());
+		assert!(backend.input_unavailable.get().is_none());
 	}
 	/// Holds `LIBEI_ENV_LOCK` with `LIBEI_SOCKET` set to a test's value (removed
 	/// for `None`) and puts the previous value back when dropped, also while a

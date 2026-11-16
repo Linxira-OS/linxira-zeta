@@ -76,11 +76,10 @@ Platform support follows the CLI: Windows x64 and Linux x64 (musl is CLI-only).
 
 ## Desktop shell contracts
 
-The preload exposes one capability object under **both** `window.piDesktop`
-(the window/titlebar contract) and `window.zetaStudioChrome` (the Studio chrome
-contract), so the shipped renderer's feature detection works in the installed
-app instead of falling back to browser behavior. A plain browser tab has
-neither global.
+The preload exposes `window.zetaStudioChrome` for window controls and Studio
+chrome capabilities. The main Desktop window has minimize, maximize/restore
+and close buttons at the top right, including while application dialogs are
+open. A plain browser tab uses its own window chrome.
 
 Capabilities the shell owns (paths never cross into the renderer):
 
@@ -126,6 +125,10 @@ The renderer terminal adapter forwards the preload's optional `profiles` and
 `list` capabilities. Hosts without them keep those controls unavailable; the
 adapter does not fabricate a catalog or terminal inventory.
 
+Terminal tabs retain their execution target, workspace, session and conversation
+identity across renderer restoration and shell changes. Each conversation keeps
+its own active terminal selection, including when local and SSH targets coexist.
+
 Window lifecycle: closing to the tray hides the window; a real close (or
 `activate` with no window) recreates it from the persisted bounds instead of
 leaving the process windowless. Tray **Open Settings** sends the Studio
@@ -159,3 +162,53 @@ Updates: `checkUpdates` maps the gateway's existing `GET /api/update/check`
 answer (runtime artifact availability) into the Studio diagnostics shape. The
 Electron bundle itself updates through the released installer asset
 `zeta-desktop-<version>-win-x64.exe`; no in-app app-side download is advertised.
+
+## Product names and saved preferences
+
+The shell and renderer display **Z Work Studio**; the runtime identifies as
+**Zeta**. Project names come from the registered folder and may contain any
+user-chosen text. Browser preferences use `zeta.*`; startup migrates earlier
+`omp.*` keys without overwriting an existing Zeta preference. Existing image
+thumbnail/background databases and old recording files remain readable.
+
+## Private browser and file views
+
+The Electron edition discovers browser resources from the existing live Zeta
+serve registration after verifying its PID. The conversation prepares its
+managed browser before attaching; another window cannot adopt its owner lease.
+Navigation, renderer crashes and session changes release the lease and park
+native pages. Private endpoints and credentials remain outside the preload API.
+
+File views use Host workspace inventory and version-pinned chunk reads through
+owner-bound `zeta-file://viewer/` leases, including byte ranges for media. Closing
+the view or losing its document aborts reads. X3D previews load the bundled viewer
+through the separate sandboxed `zeta-graphics://viewer/` origin; only that document
+allows WebAssembly compilation. The main renderer keeps JavaScript eval disabled.
+
+Computer frame saving and Office installation remain unavailable without their
+required Host binary-artifact and trusted signed-component providers.
+
+## Hindsight credentials
+
+Settings → Context & Memory reads the current project's runtime configuration
+even before a conversation starts. Select Hindsight and set its service URL in
+the runtime environment. Saving a URL does not check connectivity.
+
+The Electron edition stores supplementary Hindsight tokens with the operating
+system's encrypted storage, separated by execution target and exact service URL.
+The browser edition does not offer this credential store. Linux requires a real
+secret service; the `basic_text` backend is unavailable. Existing native
+`hindsight.apiToken` settings and environment values take precedence.
+
+Desktop delivers tokens to the existing authenticated Host through a private
+cookie/CSRF-protected route. SSH delivery uses the selected target's existing
+tunnel and connection generation; it never persists the token on that target.
+Tokens are absent from runtime settings, receipts and replay. The Host drops
+them on revocation, expiry or loss of the owner's last event connection. A
+reconnected Desktop can deliver its encrypted local entry again. Removing a
+token updates both the local store and the connected Host; a disconnected target
+is updated when it reconnects.
+
+Use **Check service** to distinguish a successful response, rejected
+authentication, a missing bank/API and an unavailable service. Credential
+configured/source metadata does not itself prove service connectivity.

@@ -7,7 +7,6 @@
  * the per-process caches, and calling it directly keeps the pair on one code
  * path (no second listener, no second auth scheme).
  */
-import { webGatewayFetch } from "../web-gateway";
 import { getRpcSession } from "../web-gateway/agents";
 import type { ClientErrorCode } from "./contract/index.js";
 import { StudioOpError, invalid, unavailable } from "./errors.js";
@@ -49,6 +48,7 @@ export interface GatewayCallOptions {
  * can distinguish "missing" from "broken" and shape the Studio error itself.
  */
 export async function callGateway(path: string, options: GatewayCallOptions = {}): Promise<GatewayReply> {
+	const { webGatewayFetch } = await import("../web-gateway");
 	if (!path.startsWith("/api/")) throw invalid(`gateway path must start with /api/: ${path}`);
 	const url = new URL(path + (options.query ? `?${options.query}` : ""), GATEWAY_ORIGIN);
 	const headers = new Headers({ origin: GATEWAY_ORIGIN });

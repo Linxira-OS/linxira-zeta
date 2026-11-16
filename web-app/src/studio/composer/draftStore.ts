@@ -1,14 +1,11 @@
 /**
  * Per-session composer drafts, deliberately kept OUT of React state.
  *
- * Port of upstream PR #20 `apps/renderer/src/composer/draftStore.ts` (no
- * adaptation needed beyond the import specifiers of this tree).
- *
  * A keystroke used to publish the whole draft snapshot through AppShell state
- * (`setComposerDraftsBySession`), which re-rendered the ~9k-line shell on every
+ * (`setComposerDraftsBySession`), which re-rendered the ~7k-line shell on every
  * character. The draft record is only ever *read* at a restore boundary — mount,
- * conversation switch, target switch — so it does not need to be reactive at
- * all: writing into this book is a plain Map write with no render.
+ * conversation switch, target switch — so it does not need to be reactive at all:
+ * writing into this book is a plain Map write with no render.
  *
  * Snapshot objects are immutable, so the stored identity is the draft identity.
  * `snapshotIsEmpty` drafts are dropped instead of stored: the restore path treats

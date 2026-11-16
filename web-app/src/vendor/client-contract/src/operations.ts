@@ -1,4 +1,10 @@
-import type { ContextViewOperation, ContextViewResultMap } from "@linxiraos/studio-protocol";
+import type { RuntimeViewOperation, RuntimeViewResultMap } from "@linxiraos/studio-protocol";
+import type { TimeTravelSettings, TimeTravelTimeline, TimeTravelRestorePreview, TimeTravelRestoreInput, TimeTravelRestoreResult } from "./time-travel.js";
+type RuntimeViewQueryMap = { [K in RuntimeViewOperation["kind"]]: Omit<Extract<RuntimeViewOperation, { kind: K }>, "kind"> };
+import type { EvaluationRecord, EvaluationSpec, EvaluationPlan, EvaluationContext, EvaluationListInput, EvaluationResultPage, EvaluationStartInput, EvaluationControlInput, EvaluationExportInput, EvaluationExportResult } from "@linxiraos/studio-protocol";
+import type { ClientInteraction } from "./lifecycle.js";
+import type { GitHubTarget, GitHubRepositories, GitHubListInput, GitHubItemPage, GitHubItemInput, GitHubItemDetail, GitHubDiscussionPage, GitHubFilesPage, GitHubFileDiff } from "./github.js";
+import type { ContextViewOperation, ContextViewResultMap, ComputerWorkspaceQuery, ComputerWorkspaceResultMap } from "@linxiraos/studio-protocol";
 import type { ModelAdaptationInput, ModelAdaptationResult, ModelCatalogRefreshResult } from "./model-adaptation.js";
 import type { WorkbenchOperation, WorkbenchResultMap } from "@linxiraos/studio-protocol";
 import type { PredictionQuery, PredictionResult } from "@linxiraos/studio-protocol";
@@ -27,6 +33,7 @@ import type {
   OperatorCommandManifest,
   OperatorStateSnapshot,
   SessionTelemetryReadResult,
+  SessionCompactionRead,
   SessionThinkingSelector,
   StudioAgentSnapshot,
   StudioPlanSaveAndQuitResult,
@@ -113,7 +120,20 @@ import type {
 export type EmptyInput = Readonly<Record<string, never>>;
 
 type ContextViewQueryMap = { [K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind"> };
-export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
+type ComputerWorkspaceQueryMap = { [K in ComputerWorkspaceQuery["kind"]]: Omit<Extract<ComputerWorkspaceQuery, { kind: K }>, "kind"> };
+export interface QueryInputMap extends TeamQueryInputMap, RuntimeViewQueryMap, ContextViewQueryMap, ComputerWorkspaceQueryMap {
+  "timeTravel.settings.get": EmptyInput;
+  "timeTravel.storage.get": EmptyInput;
+  "timeTravel.timeline.read": { readonly sessionId: SessionId; readonly branchLeafId?: string; readonly cursor?: string };
+  "timeTravel.restore.preview": { readonly sessionId: SessionId; readonly snapshotId: string };
+  "session.compaction.read": { readonly sessionId: SessionId };
+ "evaluations.exportChunk": { artifactId: string; offset?: number };
+ "evaluations.retrySpec": { id: string };
+ "evaluations.patch": { id: string; offset?: number };
+ "evaluations.context": { workspaceId: string };
+ "evaluations.list": EvaluationListInput;
+ "evaluations.read": { id: string };
+ "evaluations.rows": { id: string; offset?: number; limit?: number };
   "prediction.query": PredictionQuery;
   "artifacts.text.read": { readonly artifactId: string };
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactListInput;
@@ -158,6 +178,9 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
   "projects.list": EmptyInput;
   /** Lists one directory level. Omit path for the workspace root. */
   "workspace.fileTree": { readonly workspaceId: WorkspaceId; readonly path?: string };
+  "workspace.file.inspect": import("./files.js").WorkspaceFileTarget;
+  "workspace.file.readText": import("./files.js").WorkspaceFileTarget;
+  "workspace.file.readChunk": import("./files.js").WorkspaceFileChunkInput;
   "usage.get": EmptyInput;
   /** Native dashboard endpoint the statistics page embeds; starts it if needed. */
   "stats.dashboard": EmptyInput;
@@ -178,12 +201,15 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
   "session.agents.list": {
     readonly sessionId: SessionId;
   };
+  "session.transcript.prefetch": { readonly sessionId: SessionId };
   /** Read-only telemetry for a session: live snapshot, persisted record, or recomputed archive probe. */
   "session.telemetry.read": {
     readonly sessionId: SessionId;
+    readonly refresh?: boolean;
   };
   "git.toolchain.get": EmptyInput;
   "git.repository.get": { readonly workspaceId: WorkspaceId };
+  "git.repository.summary": { readonly workspaceId: WorkspaceId };
   "git.diff.get": { readonly workspaceId: WorkspaceId; readonly path: string; readonly target: GitDiffTarget };
   "git.branches.list": { readonly workspaceId: WorkspaceId };
   "git.worktrees.list": { readonly workspaceId: WorkspaceId };
@@ -191,13 +217,31 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
   "git.log.list": { readonly workspaceId: WorkspaceId; readonly limit?: number; readonly skip?: number };
   "git.commit.changes": { readonly workspaceId: WorkspaceId; readonly oid: string };
   "git.commit.diff": { readonly workspaceId: WorkspaceId; readonly oid: string; readonly path: string };
-  "github.auth.get": { readonly workspaceId?: WorkspaceId };
-  "github.pr.list": { readonly workspaceId: WorkspaceId; readonly state?: "open" | "closed" | "merged" | "all" };
-  "github.pr.get": { readonly workspaceId: WorkspaceId; readonly number: number };
-  "github.pr.checks": { readonly workspaceId: WorkspaceId; readonly number: number };
+  "github.auth.get": { readonly workspaceId?: WorkspaceId; readonly remote?: string };
+  "github.repositories.list": GitHubTarget;
+  "github.items.list": GitHubListInput;
+  "github.items.get": GitHubItemInput;
+  "github.discussion.list": GitHubItemInput & { readonly page?: number };
+  "github.pr.files": GitHubTarget & { readonly number: number; readonly page?: number; readonly headOid: string };
+  "github.pr.diff": GitHubTarget & { readonly number: number; readonly path: string; readonly headOid: string };
+
+  "github.pr.list": Omit<GitHubListInput, "kind">;
+  "github.pr.get": GitHubTarget & { readonly number: number };
+  "github.pr.checks": GitHubTarget & { readonly number: number };
 }
 
-export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap {
+export interface QueryResultMap extends TeamQueryResultMap, RuntimeViewResultMap, ContextViewResultMap, Pick<ComputerWorkspaceResultMap, ComputerWorkspaceQuery["kind"]> {
+  "timeTravel.settings.get": TimeTravelSettings;
+  "timeTravel.storage.get": { readonly snapshots: number; readonly bytes: number };
+  "timeTravel.timeline.read": TimeTravelTimeline;
+  "timeTravel.restore.preview": TimeTravelRestorePreview;
+ "evaluations.exportChunk": { data: string; nextOffset: number; total: number; mimeType: string; name: string };
+ "evaluations.retrySpec": EvaluationSpec;
+ "evaluations.patch": { text: string; nextOffset: number; total: number };
+ "evaluations.context": EvaluationContext;
+ "evaluations.list": { records: EvaluationRecord[]; total: number };
+ "evaluations.read": EvaluationRecord & { clientInteraction?: ClientInteraction };
+ "evaluations.rows": EvaluationResultPage;
   "prediction.query": PredictionResult;
   "artifacts.text.read": import("@linxiraos/studio-protocol").ArtifactTextResult;
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactPage;
@@ -238,6 +282,9 @@ export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap
   /** Host workspace inventory. Paths never leave the Host registry. */
   "projects.list": WorkspaceListReadModel;
   "workspace.fileTree": WorkspaceFileTreeReadModel;
+  "workspace.file.inspect": import("./files.js").WorkspaceFileInfo;
+  "workspace.file.readText": import("./files.js").WorkspaceFileText;
+  "workspace.file.readChunk": import("./files.js").WorkspaceFileChunk;
   /** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
   "usage.get": TokenUsageReadModel;
   /** Loopback URL of the native statistics dashboard, for in-app embedding. */
@@ -250,12 +297,15 @@ export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap
   "agent.conversation.read": ConversationTranscriptPage;
   /** Persisted transcript page. Available independently of Runtime residency. */
   "session.transcript.readPage": ConversationTranscriptReadPage;
+  "session.transcript.prefetch": { readonly status: "ready"; readonly page: ConversationTranscriptReadPage } | { readonly status: "skipped" };
   /** Persisted child-agent roster for an explicit parent session. */
   "session.agents.list": { readonly sessionId: SessionId; readonly agents: readonly StudioAgentSnapshot[] };
   /** Session telemetry with provenance. Available independently of Runtime residency. */
   "session.telemetry.read": SessionTelemetryReadResult;
+  "session.compaction.read": SessionCompactionRead;
   "git.toolchain.get": GitToolchainReadModel;
   "git.repository.get": GitRepositoryReadModel;
+  "git.repository.summary": Pick<GitRepositoryReadModel, "workspaceId" | "isRepository" | "repositoryId" | "workspacePrefix" | "branch" | "headOid" | "detached" | "ahead" | "behind" | "unavailableReason"> & { readonly changedFiles: number; readonly sampledAt: string };
   "git.diff.get": GitDiffReadModel;
   "git.branches.list": GitBranchListReadModel;
   "git.worktrees.list": GitWorktreeListReadModel;
@@ -264,6 +314,13 @@ export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap
   "git.commit.changes": GitCommitChangesReadModel;
   "git.commit.diff": GitCommitDiffReadModel;
   "github.auth.get": GitHubAuthReadModel;
+  "github.repositories.list": GitHubRepositories;
+  "github.items.list": GitHubItemPage;
+  "github.items.get": GitHubItemDetail;
+  "github.discussion.list": GitHubDiscussionPage;
+  "github.pr.files": GitHubFilesPage;
+  "github.pr.diff": GitHubFileDiff;
+
   "github.pr.list": GitHubPullRequestListReadModel;
   "github.pr.get": GitHubPullRequestDetailReadModel;
   "github.pr.checks": GitHubChecksReadModel;
@@ -436,7 +493,7 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
   "queue.enqueue": { readonly text: string };
   "runtime.pause": EmptyInput;
   "runtime.resume": { readonly expectedPauseEpoch: number };
-  "runtime.settings.get": { readonly keys?: ReadonlyArray<StudioRuntimeSettingKey> };
+  "runtime.settings.get": { readonly keys?: ReadonlyArray<StudioRuntimeSettingKey>; readonly checkHindsight?: boolean };
   "runtime.settings.set": StudioRuntimeSettingSetInput;
   "turn.retry": EmptyInput;
   "core.continue": EmptyInput;
@@ -513,7 +570,8 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
   "agent.spawn": {
     readonly model?: string[];
     readonly definition: string;
-    readonly assignment: string;
+    readonly assignment?: string;
+    readonly taskFile?: string;
     readonly solutionSpace?: string;
     readonly context?: string;
     readonly async?: boolean;
@@ -549,6 +607,15 @@ export type InteractionResponseValue =
   | Readonly<Record<string, unknown>>;
 
 interface CoreCommandInputMap {
+  "timeTravel.settings.set": Partial<TimeTravelSettings>;
+  "timeTravel.cleanup": { readonly scope: "expired" | "all" };
+  "timeTravel.restore": TimeTravelRestoreInput;
+ "evaluations.openWorkspace": { id: string };
+ "evaluations.prepare": { workspaceId: string; spec: EvaluationSpec };
+ "evaluations.start": EvaluationStartInput;
+ "evaluations.control": EvaluationControlInput;
+ "evaluations.export": EvaluationExportInput;
+ "evaluations.respond": { id: string; interactionId: string; leaseGeneration: number; decision: "submit" | "cancel"; value?: unknown };
   "artifacts.saveText": import("@linxiraos/studio-protocol").ArtifactTextInput;
   "artifacts.delete": { readonly artifactId: string };
   /** Install or update the trusted runtime (environment page action). */
@@ -561,7 +628,7 @@ interface CoreCommandInputMap {
    */
   "runtime.ensure": { readonly force?: boolean };
   /** Start a fresh session in this registered workspace; never infer another cwd. */
-  "session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean };
+  "session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean; readonly model?: string };
   /** Resume a thread from history or the home page. */
   "session.resume": { readonly threadId: ThreadId; readonly model?: string };
   /** Drop a thread. Destructive: the Host issues a one-time confirmation. */
@@ -629,7 +696,7 @@ interface CoreCommandInputMap {
     readonly overlay?: ModelProviderUpsertInput;
   };
   /** Start an OAuth login through a short-lived OMP RPC sidecar. */
-  "models.login.start": { readonly providerId: string };
+  "models.login.start": { readonly providerId: string; readonly loginId?: string };
   /** Soft-delete stored credentials for a provider in local `agent.db`. */
   "models.login.logout": { readonly providerId: string };
   /** Non-persisting connectivity smoke test against a provider endpoint. */
@@ -643,9 +710,9 @@ interface CoreCommandInputMap {
   "models.cycleOrder.set": { readonly order: ReadonlyArray<string> };
   /** Targeted web-search config write (web_search.* / providers.webSearch* / searxng.* / exa.*). */
   "models.webSearch.set": ModelWebSearchSetInput;
-  /** Store a search engine api_key in the local credential store (agent.db). */
+  /** Deprecated: use search.credentials.set; disk writes are rejected. */
   "models.webSearch.credential.set": ModelWebSearchCredentialSetInput;
-  /** Soft-delete a search engine's Studio-managed api_key credential. */
+  /** Deprecated: use search.credentials.remove with a credential id. */
   "models.webSearch.credential.remove": ModelWebSearchCredentialRemoveInput;
   /** Activate a known workspace (Host-owned registry; never a path). */
   "workspace.open": { readonly workspaceId: WorkspaceId };
@@ -655,6 +722,7 @@ interface CoreCommandInputMap {
   "workspace.pick": { readonly name?: string };
   /** Create an empty file inside the selected workspace. */
   "workspace.file.create": { readonly workspaceId: WorkspaceId; readonly path: string };
+  "workspace.file.writeText": import("./files.js").WorkspaceFileWrite;
   /** Create a directory inside the selected workspace. */
   "workspace.directory.create": { readonly workspaceId: WorkspaceId; readonly path: string };
   /**
@@ -808,6 +876,15 @@ interface CoreCommandInputMap {
 export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap & TeamCommandInputMap;
 
 interface CoreCommandResultMap {
+  "timeTravel.settings.set": TimeTravelSettings;
+  "timeTravel.cleanup": { readonly removed: number };
+  "timeTravel.restore": TimeTravelRestoreResult;
+ "evaluations.openWorkspace": { opened: true };
+ "evaluations.prepare": EvaluationPlan;
+ "evaluations.start": EvaluationRecord;
+ "evaluations.control": EvaluationRecord;
+ "evaluations.export": EvaluationExportResult;
+ "evaluations.respond": { responded: true };
   "artifacts.saveText": import("@linxiraos/studio-protocol").ArtifactRecord;
   "artifacts.delete": { readonly deleted: true; readonly artifactId: string };
   "runtime.install": RuntimeInstallState;
@@ -851,6 +928,7 @@ interface CoreCommandResultMap {
   "workspace.hide": WorkspaceListReadModel;
   "workspace.pick": WorkspaceListReadModel;
   "workspace.file.create": WorkspaceFileMutationResult;
+  "workspace.file.writeText": import("./files.js").WorkspaceFileSaveResult;
   "workspace.directory.create": WorkspaceFileMutationResult;
   "plugins.setEnabled": ConfigWriteResult;
   "plugins.callTool": PluginCallToolResult;

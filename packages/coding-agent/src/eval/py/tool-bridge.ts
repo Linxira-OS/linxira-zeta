@@ -14,6 +14,7 @@ import { bridgeValueFromToolResult, callSessionTool, type JsStatusEvent } from "
 import type { EvalShadowCellSession } from "../speculation/cell-session";
 
 export interface PyToolBridgeEntry {
+	outerToolCallId?: string;
 	toolSession: ToolSession;
 	/**
 	 * Turn-cancel handed to the tool implementation. Raw and never deferred, so
@@ -128,6 +129,7 @@ async function callSessionToolPromptOnAbort(
 	}
 	const call = callSessionTool(name, args, {
 		session: entry.toolSession,
+		outerToolCallId: entry.outerToolCallId,
 		signal: entry.signal,
 		cellTimeoutMs: entry.cellTimeoutMs,
 		emitStatus: entry.emitStatus,

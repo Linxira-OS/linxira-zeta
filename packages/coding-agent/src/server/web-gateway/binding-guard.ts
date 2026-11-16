@@ -22,6 +22,7 @@ import { bindingAllows, type RequestTarget } from "../auth/binding";
 import type { RemoteCredential } from "./remote-access";
 import { credentialBinding } from "./remote-access";
 import { terminalCwd } from "./terminal";
+import { gatewayWorkspacePath } from "./projects.js";
 
 const SESSION_PATTERNS: readonly RegExp[] = [/^\/api\/sessions\/([^/]+)(?:\/|$)/u, /^\/api\/agent\/([^/]+)(?:\/|$)/u];
 
@@ -42,6 +43,8 @@ const BOUND_IDENTITY_ROUTES: Readonly<Record<string, true>> = {
 	"/api/v1/query": true,
 	"/api/v1/events": true,
 	"/api/v1/session/revoke": true,
+	"/api/v1/context/open": true,
+	"/api/v1/context/close": true,
 	"/api/auth/2fa": true,
 	"/api/auth/2fa/verify": true,
 	"/api/remote/devices": true,
@@ -98,6 +101,17 @@ export async function requestTarget(pathname: string, url: URL, req: Request): P
 	if (terminalId?.[1] !== undefined) {
 		const cwd = terminalCwd(terminalId[1]);
 		return cwd === undefined ? undefined : workspaceTarget(cwd);
+	}
+
+	if (pathname === "/api/terminal/ensure" && req.method === "POST") {
+		let body: unknown;
+		try { body = await req.clone().json(); } catch { return undefined; }
+		if (!body || typeof body !== "object" || Array.isArray(body)) return undefined;
+		if ("workspaceId" in body && typeof body.workspaceId === "string") {
+			const cwd = await gatewayWorkspacePath(body.workspaceId);
+			return cwd === undefined ? undefined : workspaceTarget(cwd);
+		}
+		return "cwd" in body && typeof body.cwd === "string" ? workspaceTarget(body.cwd) : undefined;
 	}
 
 	if (CWD_ROUTE.test(pathname)) {

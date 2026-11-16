@@ -1,3 +1,5 @@
+import { ShellView } from "./ShellView";
+import { JsonTree } from "./JsonTree";
 import { useI18n } from "../i18n";
 import { RasterPreview, TerminalGraphicView } from "../TerminalGraphicView";
 import { TerminalGraphicsDecoder } from "../terminalGraphics";
@@ -9,6 +11,8 @@ import { ChunkedRows, ChunkedText } from "./textChunks";
 import { jsonRecord, jsonString, type ToolView } from "./conversationViewModel";
 import {
   askAnswer,
+  computerToolMedia,
+  hasComputerMedia,
   jsonNumber,
   jsonStringArray,
   parseTaskBrief,
@@ -20,6 +24,7 @@ import { ToolCardScroll } from "./useToolCardFollowScroll";
 import { CompletionRing, JobTile, type JobTileData } from "./JobWidget";
 import { MarkdownText } from "./markdown";
 import type { JobWidgetView } from "@linxiraos/studio-protocol";
+import { ComputerToolMedia } from "../computer/ComputerToolMedia";
 
 const ToolCardLive = createContext(false);
 
@@ -64,9 +69,11 @@ function MediaList({ value, alt = "Image / 图片" }: { value: unknown; alt?: st
 
 function ToolMedia({ tool }: { tool: ToolView }) {
   const data = jsonRecord(tool.result?.data);
+  const computer = hasComputerMedia(tool);
+  const items = useMemo(() => computer ? computerToolMedia(tool) : [], [computer, tool]);
   const graphics = useMemo(() => new TerminalGraphicsDecoder().push(tool.result?.output ?? tool.output ?? ""), [tool.result?.output, tool.output]);
   return <>
-    <MediaList value={data?.media} />
+    {computer ? <ComputerToolMedia items={items} /> : toolKind(tool) !== "eval" ? <MediaList value={data?.media} /> : null}
     {graphics.images.map((image, index) => <TerminalGraphicView key={index} image={image} />)}
     {graphics.errors.map((error, index) => <p role="status" key={index}>{error}</p>)}
     {typeof data?.mediaOmitted === "number" ? <p role="status">{data.mediaOmitted} image(s) omitted: unsupported format or size limit / 图片超限或格式不受支持</p> : null}
@@ -126,6 +133,7 @@ function prettyJson(value: JsonValue): string {
 }
 
 function JsonBlock({ value }: { value: JsonValue }) {
+  if (value !== null && typeof value === "object") return <ScrollPane className="codeblock tc-json"><JsonTree value={value} /></ScrollPane>;
   return <ScrollPane className="codeblock tc-json">{prettyJson(value)}</ScrollPane>;
 }
 
@@ -302,10 +310,12 @@ function ReadBody({ tool }: { tool: ToolView }) {
   const displayContent = jsonRecord(fields.displayContent);
   const preview = stringLines(fields.preview) ?? stringLines(displayContent?.text);
   const summary = jsonString(fields.summary);
+  const markdownLines = fields.contentType === "text/markdown" ? (preview ?? tool.output?.split("\n")) : undefined;
+  const markdown = markdownLines?.slice(0, TOOL_ROWS_MAX).join("\n");
   return (
     <>
       <Kv pairs={[["行", fields.lines ?? fields.totalLines], ["编码", fields.encoding], ["大小", fields.size ?? fields.fileSize], ["问题", fields.q ?? fields.question]]} />
-      {preview ? <CodeLines lines={preview} start={offset ?? 1} /> : summary ? <div className="tc-summary">{summary}</div> : tool.output ? <CodeLines lines={tool.output.split("\n")} start={offset ?? 1} /> : null}
+      {markdown !== undefined ? <ScrollPane className="tc-markdown tool-card-scroll" data-tool-scroll="both"><MarkdownText text={markdown} />{markdownLines && markdownLines.length > TOOL_ROWS_MAX ? <OmittedRows count={markdownLines.length - TOOL_ROWS_MAX} /> : null}</ScrollPane> : preview ? <CodeLines lines={preview} start={offset ?? 1} /> : summary ? <div className="tc-summary">{summary}</div> : tool.output ? <CodeLines lines={tool.output.split("\n")} start={offset ?? 1} /> : null}
       <MediaList value={fields.media ?? fields.image ?? fields.images} alt="读取结果" />
     </>
   );
@@ -401,6 +411,7 @@ function EditBody({ tool }: { tool: ToolView }) {
 
 function BashBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
+  const meta = jsonRecord(fields.meta), minimized = jsonRecord(meta?.minimized), truncation = jsonRecord(meta?.truncation), columns = jsonRecord(jsonRecord(meta?.limits)?.columnTruncated);
   const cmd = jsonString(fields.cmd) ?? jsonString(fields.command) ?? jsonString(fields.target) ?? "";
   const exit = jsonNumber(fields.exit) ?? jsonNumber(fields.exitCode);
   const running = tool.status === "running";
@@ -412,6 +423,8 @@ function BashBody({ tool }: { tool: ToolView }) {
   return (
     <>
       <Kv pairs={[["cwd", fields.cwd]]} />
+      {minimized ? <Kv pairs={[["Minimized", minimized.filter], ["bytes", `${jsonNumber(minimized.inputBytes)?.toLocaleString() ?? "—"} → ${jsonNumber(minimized.outputBytes)?.toLocaleString() ?? "—"}`]]} /> : null}
+      {truncation || columns ? <Kv pairs={[["elided bytes", truncation?.elidedBytes], ["elided lines", truncation?.elidedLines], ["column limit", columns?.maxColumn], ["full output", truncation?.artifactId ?? columns?.artifactId]]} /> : null}
       <ScrollPane className="codeblock">
         {cmd ? <div className="c-cmd">$ {cmd}</div> : null}
         {blocks.map((block, index) => (
@@ -420,6 +433,7 @@ function BashBody({ tool }: { tool: ToolView }) {
           </div>
         ))}
       </ScrollPane>
+      <ShellView toolCallId={tool.toolCallId} running={running} maxRows={TOOL_ROWS_MAX} />
       <div className="tc-foot">
         {running ? (
           <span className="chip blue xs">运行中</span>
@@ -759,11 +773,12 @@ function EvalOutput({ output, views }: { output: string; views: readonly JsonVal
 
 function EvalBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
+  const { resolvedLanguage } = useI18n();
   const cells = Array.isArray(fields.cells) ? fields.cells : [];
   return (
     <div className="tc-eval">
       <Kv pairs={[["status", fields.status], ["id", fields.id], ["duration", fields.durationMs]]} />
-      <MediaList value={fields.media ?? fields.image ?? fields.images ?? fields.screenshot ?? (fields.screenshotData !== undefined ? { data: fields.screenshotData, mimeType: fields.mimeType } : undefined)} alt="评估结果" />
+      {!hasComputerMedia(tool) ? <MediaList value={fields.media ?? fields.image ?? fields.images ?? fields.screenshot ?? (fields.screenshotData !== undefined ? { data: fields.screenshotData, mimeType: fields.mimeType } : undefined)} alt="评估结果" /> : null}
       {cells.map((entry, index) => {
         const cell = jsonRecord(entry) ?? {};
         const code = jsonString(cell.code) ?? "";
@@ -771,10 +786,12 @@ function EvalBody({ tool }: { tool: ToolView }) {
         const stderr = jsonString(cell.stderr);
         const views = Array.isArray(cell.views) ? cell.views : [];
         const progress = mcpProgressEvents(cell.statusEvents);
+        const restarted = Array.isArray(cell.statusEvents) && cell.statusEvents.some(event => jsonRecord(event)?.op === "kernel_restart");
         return (
           <div key={index} className="ev-cell">
             <div className="tc-label">{jsonString(fields.lang) ?? jsonString(cell.lang) ?? jsonString(cell.language) ?? "code"}</div>
             <CodeLines lines={code.split("\n")} />
+            {restarted ? <p className="tc-note" role="status">{resolvedLanguage === "zh" ? "内核已重启，先前的变量、导入和定义已丢失。请重新执行初始化代码。" : "The kernel restarted. Earlier variables, imports and definitions were lost; run the setup cells again."}</p> : null}
             {progress.length ? (
               <div className="ev-status" role="status">
                 {progress.map((event) => (
@@ -882,7 +899,7 @@ function ComputerBody({ tool }: { tool: ToolView }) {
         </>
       ) : null}
       {jsonString(fields.output) ? <ScrollPane className="codeblock">{jsonString(fields.output)}</ScrollPane> : null}
-      <MediaList value={fields.media ?? fields.images ?? fields.screenshot ?? fields.shots} alt="Computer evaluation" />
+      {/* Computer/Eval frames render through the single ToolMedia outlet below. */}
     </>
   );
 }
@@ -1033,6 +1050,7 @@ function WebSearchBody({ tool }: { tool: ToolView }) {
   const response = jsonRecord(data?.response) ?? jsonRecord(fields.response) ?? {};
   const raw = response.sources ?? fields.cites ?? data?.sources;
   const cites = Array.isArray(raw) ? raw : [];
+  const failures = Array.isArray(data?.failures) ? data.failures : [];
   const answer = jsonString(data?.answer) ?? jsonString(response.answer) ?? jsonString(fields.answer) ?? jsonString(fields.output);
   const provider = jsonString(data?.provider) ?? jsonString(response.provider) ?? jsonString(fields.provider);
   const openExternal = (event: MouseEvent<HTMLAnchorElement>, url: string) => {
@@ -1047,6 +1065,7 @@ function WebSearchBody({ tool }: { tool: ToolView }) {
   return (
     <>
       <Kv pairs={[["provider", provider], ["sources", cites.length]]} />
+      {failures.length ? <details className="tc-note"><summary>搜索回退 / Search fallbacks · {failures.length}</summary>{failures.map((item, index) => { const failure = jsonRecord(item); return <p key={index}><strong>{jsonString(failure?.label) ?? jsonString(failure?.provider)}</strong> · {jsonNumber(failure?.status)} {jsonString(failure?.reason)}</p>; })}</details> : null}
       {answer ? <div className="tc-answer">{answer}</div> : null}
       {cites.length > 0 ? <div className="tc-cites">
         {cites.map((entry, index) => {

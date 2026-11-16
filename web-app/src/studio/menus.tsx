@@ -7,14 +7,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnnotationButton } from "./annotations/Annotations";
 import { createPortal } from "react-dom";
+import { useSurfaceDocument, surfaceWindow } from "./dock/SurfaceContext";
 
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { useI18n } from "./i18n";
 import { PLATFORM } from "./platform";
 import { fileManagerName } from "./platformCopy";
 
 export function MenuItem({ icon, children, hint, kbd, disabled, title, current, onClick }: {
-  icon?: string;
+  icon?: IconName;
   children: ReactNode;
   hint?: string;
   /** 右侧快捷键徽标；只标注当前真实存在的快捷键（aria-hidden 避免读屏重复播报）。 */
@@ -52,6 +53,7 @@ export type FileMenuTarget = {
 export type FileMenuAction =
   | { readonly type: "ida" }
   | { readonly type: "open" }
+  | { readonly type: "openSystem" }
   | { readonly type: "openWith"; readonly openerId: string }
   | { readonly type: "reveal" }
   | { readonly type: "copyAbsolute" }
@@ -85,6 +87,7 @@ function OpenWithZone({ openers, disabled, reason, onPick }: {
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const window = surfaceWindow(useSurfaceDocument());
   const [side, setSide] = useState<"right" | "left">("right");
   const zoneRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -163,13 +166,13 @@ export function FileMenuContent({ target, openers, onRun, desktopActionsReason }
   return (
     <>
       <MenuItem
-        icon={target.kind === "dir" ? "folder-open" : "external"}
+        icon={target.kind === "dir" ? "folder-open" : "file"}
         onClick={() => onRun({ type: "open" })}
         // 目录的「打开」是树内展开/收起，纯本地，不受桌面能力限制。
-        {...(target.kind === "file" ? desktopOnly : {})}
       >
         {t("shell.fileOpen")}
       </MenuItem>
+      {target.kind === "file" ? <MenuItem icon="external" {...desktopOnly} onClick={() => onRun({ type: "openSystem" })}>使用系统应用打开</MenuItem> : null}
       <OpenWithZone
         // The native resource resolver validates the selected workspace path before IDA sees it.
         openers={openers}
@@ -196,21 +199,8 @@ export function FileMenuContent({ target, openers, onRun, desktopActionsReason }
   );
 }
 
-/** Explorer 文件/目录行「⋯ 更多」菜单：锚定 / 钳制 / 翻叠与 ThreadRowMenu 同款。
-    ⋯ 按钮触发时右缘对齐按钮、下方 4px；行右键触发时弹层左上角贴光标。 */
-export function FileRowMenu({ id, openId, onToggle, contextPoint, target, openers, onAction, desktopActionsReason }: {
-  id: string;
-  openId: string | null;
-  onToggle: (id: string | null) => void;
-  /** 非 null = 本次打开来自行右键，弹层贴该光标点。 */
-  contextPoint: { x: number; y: number } | null;
-  target: FileMenuTarget;
-  openers: ReadonlyArray<FileOpenerOption>;
-  onAction: (action: FileMenuAction, target: FileMenuTarget) => void;
-  desktopActionsReason?: string | undefined;
-}) {
-  const { t } = useI18n();
-  const open = openId === id;
+/** Shared placement for thread and file row menus, including detached windows. */
+export function useRowMenuAnchor(open: boolean, contextPoint: { x: number; y: number } | null, window: Window) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState({ top: 0, left: 0 });
@@ -245,7 +235,28 @@ export function FileRowMenu({ id, openId, onToggle, contextPoint, target, opener
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", place);
     };
-  }, [contextPoint, open]);
+  }, [contextPoint, open, window]);
+
+  return { buttonRef, menuRef, anchor };
+}
+
+/** Explorer 文件/目录行「⋯ 更多」菜单：锚定 / 钳制 / 翻叠与 ThreadRowMenu 同款。
+    ⋯ 按钮触发时右缘对齐按钮、下方 4px；行右键触发时弹层左上角贴光标。 */
+export function FileRowMenu({ id, openId, onToggle, contextPoint, target, openers, onAction, desktopActionsReason }: {
+  id: string;
+  openId: string | null;
+  onToggle: (id: string | null) => void;
+  /** 非 null = 本次打开来自行右键，弹层贴该光标点。 */
+  contextPoint: { x: number; y: number } | null;
+  target: FileMenuTarget;
+  openers: ReadonlyArray<FileOpenerOption>;
+  onAction: (action: FileMenuAction, target: FileMenuTarget) => void;
+  desktopActionsReason?: string | undefined;
+}) {
+  const { t } = useI18n();
+  const open = openId === id;
+  const document = useSurfaceDocument(), window = surfaceWindow(document);
+  const { buttonRef, menuRef, anchor } = useRowMenuAnchor(open, contextPoint, window);
 
   return (
     <>

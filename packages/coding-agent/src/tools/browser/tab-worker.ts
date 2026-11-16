@@ -2110,6 +2110,7 @@ export class WorkerCore {
 			this.#userDriven = payload.mode !== "headless" && payload.userDriven === true;
 			this.#downloads = new DownloadManager(this.#browser, this.#page, this.#targetId, {
 				perTab: !this.#userDriven,
+				managed: payload.mode === "attach" && payload.studioManaged === true,
 				pageEvents: payload.mode === "attach" && payload.relay === true,
 			});
 			await this.#downloads.start(payload.downloadsPath);
@@ -2147,7 +2148,7 @@ export class WorkerCore {
 				await page.close().catch(() => undefined);
 			}
 			// Attached browsers also own tabs created by omp, including spawned Chrome.
-			if (payload.mode === "attach" && payload.page.kind === "create" && page && !page.isClosed()) {
+			if (payload.mode === "attach" && !payload.studioManaged && payload.page.kind === "create" && page && !page.isClosed()) {
 				await page.close().catch(() => undefined);
 			}
 			this.#transport.send({ type: "init-failed", error: errorPayload(error) });
@@ -2342,6 +2343,20 @@ export class WorkerCore {
 			runPage = createRunPageScope(this.#requirePage(), () => this.#requireNetwork().restoreInterception());
 			const browser = this.#requireBrowser();
 			const tabApi = this.#createTabApi(msg.name, msg.timeoutMs, signal, msg.session, output, screenshots, active);
+			if (msg.webmcp) {
+				const controller = this.#webmcp;
+				if (!controller) throw new ToolError("Tab worker WebMCP handling is not initialized");
+				active.codeStarted = true;
+				const operation = msg.webmcp;
+				returnValue = await untilAborted<WebMcpListResult | WebMcpInvokeResult | WebMcpEventsResult>(signal, () => {
+					switch (operation.action) {
+						case "list": return controller.list(operation.options, signal);
+						case "invoke": return controller.invoke(operation.name, operation.params, operation.options, signal);
+						case "events": return controller.events(operation.options, signal);
+					}
+				});
+				completed = true;
+			} else {
 			const runtime = this.#ensureRuntime(msg.session);
 			runtime.setCwd(msg.session.cwd);
 			const onFloatingRejection = (reason: unknown): void => this.#recordFloatingRejection(active, reason);
@@ -2427,6 +2442,7 @@ export class WorkerCore {
 				completed = true;
 			} finally {
 				signal.removeEventListener("abort", onCancel);
+			}
 			}
 		} catch (error) {
 			failure = { error };
@@ -3288,7 +3304,7 @@ export class WorkerCore {
 			downloads: () =>
 				op("tab.downloads()", quickOpMs, async sig => {
 					throwIfAborted(sig);
-					return this.#requireDownloads().list();
+					return this.#requireDownloads().read();
 				}),
 			text: (selector = "body") =>
 				read(`tab.text(${JSON.stringify(selector)})`, quickOpMs, sig =>

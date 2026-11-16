@@ -1,5 +1,6 @@
 // Core Agent
 export * from "./agent";
+export * from "./message-identity";
 // Loop functions
 export * from "./agent-loop";
 // Append-only context mode

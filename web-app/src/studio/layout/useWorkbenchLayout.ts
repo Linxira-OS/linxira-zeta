@@ -1,16 +1,24 @@
+import { useConversationDom } from "../conversationWorkspace/Context";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { beforeConversationLayoutChange, afterConversationLayoutChange } from "../conversation/conversationReflow";
 import { fitWorkbench, type LayoutPanel, type WorkbenchLayout, type WorkbenchPreferences } from "./workbenchLayout";
 
-type LayoutVisibility = Pick<WorkbenchLayout, "sidebarShown" | "sideShown" | "bottomVisible" | "bottomOpen" | "overlay">;
+const measurements = new WeakMap<HTMLElement, () => void>();
+/** A drag restores a borrowed body and needs its responsive regions immediately. */
+export function measureWorkbenchLayout(root: HTMLElement | null) {
+  if (root) measurements.get(root)?.();
+}
+
+type LayoutVisibility = Pick<WorkbenchLayout, "sidebarShown" | "sideShown" | "bottomVisible" | "bottomOpen" | "overlay" | "railMode">;
 function visibilityOf(layout: WorkbenchLayout): LayoutVisibility {
-  return { sidebarShown: layout.sidebarShown, sideShown: layout.sideShown, bottomVisible: layout.bottomVisible, bottomOpen: layout.bottomOpen, overlay: layout.overlay };
+  return { sidebarShown: layout.sidebarShown, sideShown: layout.sideShown, bottomVisible: layout.bottomVisible, bottomOpen: layout.bottomOpen, overlay: layout.overlay, railMode: layout.railMode };
 }
 function sameVisibility(a: LayoutVisibility, b: LayoutVisibility): boolean {
-  return a.sidebarShown === b.sidebarShown && a.sideShown === b.sideShown && a.bottomVisible === b.bottomVisible && a.bottomOpen === b.bottomOpen && a.overlay === b.overlay;
+  return a.sidebarShown === b.sidebarShown && a.sideShown === b.sideShown && a.bottomVisible === b.bottomVisible && a.bottomOpen === b.bottomOpen && a.overlay === b.overlay && a.railMode === b.railMode;
 }
 
 export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean) {
+  const { document, window } = useConversationDom();
   const rootRef = useRef<HTMLDivElement>(null);
   const [priority, setPriority] = useState<LayoutPanel | null>(null);
   const [visibility, setVisibility] = useState<LayoutVisibility>(() => visibilityOf(fitWorkbench(prefs, { width: window.innerWidth, height: window.innerHeight - 80, composerHeight: 160 })));
@@ -21,13 +29,29 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
   useLayoutEffect(() => {
     if (wasActive.current !== active) {
       wasActive.current = active;
+      priorityRef.current = null;
       setPriority(null);
       lastLayout.current = undefined;
     }
   }, [active]);
+  /* `priorityRef` is written synchronously here: one gesture can reach the same
+     panel twice (topbar button + the dock region event it dispatches), and a
+     second "show this panel" must not re-run the conversation reflow for a
+     layout that is already in place. */
   const focusPanel = useCallback((panel: LayoutPanel | null) => {
+    if (priorityRef.current === panel) return;
+    priorityRef.current = panel;
     beforeConversationLayoutChange();
     setPriority(panel);
+  }, []);
+  /* Closing a panel only drops the priority that panel itself holds. Clearing it
+     unconditionally would also release whichever drawer a narrow window is
+     currently showing — closing the bottom bar must not hide the side panel. */
+  const releaseFocus = useCallback((panel: LayoutPanel | null) => {
+    if (panel === null || priorityRef.current !== panel) return;
+    priorityRef.current = null;
+    beforeConversationLayoutChange();
+    setPriority(null);
   }, []);
   const dismissOverlay = useCallback(() => focusPanel(null), [focusPanel]);
   /* A priority is the gesture that just asked for a panel ("show this even if it
@@ -37,6 +61,7 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
   useLayoutEffect(() => {
     const dropPriority = () => {
       if (priorityRef.current === null) return;
+      priorityRef.current = null;
       beforeConversationLayoutChange();
       setPriority(null);
     };
@@ -60,11 +85,12 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
         composerHeight: composer?.offsetHeight ?? 160,
       }, priorityRef.current, lastLayout.current);
       const previous = lastLayout.current;
-      const geometryChanged = !root.style.getPropertyValue("--sidebar-w") || !previous || layout.sidebarWidth !== previous.sidebarWidth || layout.panelWidth !== previous.panelWidth || layout.bottomHeight !== previous.bottomHeight || !sameVisibility(layout, previous);
+      const geometryChanged = !root.style.getPropertyValue("--sidebar-w") || !previous || layout.sidebarWidth !== previous.sidebarWidth || layout.panelWidth !== previous.panelWidth || layout.railWidth !== previous.railWidth || layout.bottomHeight !== previous.bottomHeight || !sameVisibility(layout, previous);
       if (!geometryChanged) return;
       beforeConversationLayoutChange();
       root.style.setProperty("--sidebar-w", `${layout.sidebarWidth}px`);
       root.style.setProperty("--panel-w", `${layout.panelWidth}px`);
+      root.style.setProperty("--dock-rail-w", `${layout.railWidth}px`);
       root.style.setProperty("--bottom-panel-h", `${layout.bottomHeight}px`);
       root.querySelector("#sbResizer")?.setAttribute("aria-valuenow", String(Math.round(layout.sidebarWidth)));
       root.querySelector("#spResizer")?.setAttribute("aria-valuenow", String(Math.round(layout.panelWidth)));
@@ -77,6 +103,7 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(sync);
     };
+    measurements.set(root, () => { cancelAnimationFrame(frame); sync(); });
     sync();
     const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(schedule);
     observer?.observe(root);
@@ -88,9 +115,10 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
     return () => {
       if (frame) cancelAnimationFrame(frame);
       observer?.disconnect();
+      measurements.delete(root);
       window.removeEventListener("resize", schedule);
     };
-  }, [active, prefs.collapsed, prefs.sidebarWidth, prefs.sideOpen, prefs.panelWidth, prefs.bottomVisible, prefs.bottomOpen, prefs.bottomHeight, priority]);
+  }, [active, prefs.collapsed, prefs.sidebarWidth, prefs.sideOpen, prefs.panelWidth, prefs.bottomVisible, prefs.bottomOpen, prefs.bottomHeight, prefs.railMode, prefs.railWidth, priority]);
   const previousVisibility = useRef(visibility);
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -116,8 +144,9 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
     const drawer = root.querySelector<HTMLElement>(drawerSelector);
     if (!drawer) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const nodes = () => [...drawer.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [contenteditable="true"], [tabindex="0"]')]
-      .filter(node => !node.closest("[inert]") && node.getClientRects().length > 0);
+    const hostNodes = () => [...drawer.querySelectorAll<HTMLElement>('[data-dock-slot]')].flatMap(slot => [...document.querySelectorAll<HTMLElement>(`[data-panel="${slot.dataset.dockSlot}"] button:not(:disabled), [data-panel="${slot.dataset.dockSlot}"] input:not(:disabled), [data-panel="${slot.dataset.dockSlot}"] textarea:not(:disabled), [data-panel="${slot.dataset.dockSlot}"] [tabindex="0"]`)]);
+    const nodes = () => [...drawer.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [contenteditable="true"], [tabindex="0"]'), ...hostNodes()]
+      .filter(node => !node.closest("[inert], [hidden]") && node.getClientRects().length > 0);
     if (!drawer.contains(document.activeElement)) nodes()[0]?.focus({ preventScroll: true });
     const backdrop = root.querySelector<HTMLElement>(".layout-overlay-backdrop");
     const restoreInert = () => {
@@ -141,7 +170,7 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
     };
     inertSiblings(root);
     const key = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || document.querySelector('[aria-modal="true"]') || document.querySelector('.menu:not([hidden]), .title-menu-popover')) return;
+      if (event.defaultPrevented || (event.key === "Escape" && document.body.classList.contains("dock-dragging")) || document.querySelector('[aria-modal="true"]') || document.querySelector('.menu:not([hidden]), .title-menu-popover')) return;
       if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); dismissOverlay(); }
       if (event.key !== "Tab") return;
       const available = nodes();
@@ -157,5 +186,5 @@ export function useWorkbenchLayout(prefs: WorkbenchPreferences, active: boolean)
       if (previousFocus?.isConnected && !previousFocus.closest("[inert]")) previousFocus.focus({ preventScroll: true });
     };
   }, [active, visibility.overlay, dismissOverlay]);
-  return { ...visibility, rootRef, focusPanel, dismissOverlay };
+  return { ...visibility, rootRef, focusPanel, releaseFocus, dismissOverlay };
 }

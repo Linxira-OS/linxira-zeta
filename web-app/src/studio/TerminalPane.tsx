@@ -1,11 +1,15 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { usePreviewMode } from "./preview/PreviewContext";
 import { readTerminalTypography, readXtermTheme, applyTheme } from "./terminalTheme";
 import { useAppSettings } from "./settings/appSettings";
-import { useTerminalSessions, type TerminalSession as Session } from "./terminalSessions";
+import { useTerminalSessions, type TerminalSessions, type TerminalSession as Session, type TerminalScreenHost as Host } from "./terminalSessions";
 import { TerminalGraphicView } from "./TerminalGraphicView";
 import { TerminalRecordingControls } from "./recordings/TerminalRecordingControls";
 import { XtermSession, type TerminalRenderer } from "./terminals/xtermSession";
 import { useExecutionTarget } from "./workspaces/ExecutionTargets";
+import { useSurfaceDocument } from "./dock/SurfaceContext";
+import { BrowserLinkMenu } from "./browser/browserLinks";
+import { registerTerminalBrowserLinks } from "./browser/terminalBrowserLinks";
 /**
  * Work Studio terminal. The PTY lives behind the gateway's WebSocket; the
  * browser owns only the emulator. `window.zetaStudioTerminal` (Electron
@@ -23,17 +27,20 @@ export type TerminalPaneHandle = {
   available: boolean;
 };
 
-export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; workspaceId?: string | undefined; sessionId?: string | undefined }>(function TerminalPane(
-  { visible, workspaceId, sessionId },
+export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; workspaceId?: string | undefined; sessionId?: string | undefined; conversationId?: string | undefined }>(function TerminalPane(
+  { visible, workspaceId, sessionId, conversationId },
   ref,
 ) {
   const { t } = useI18n();
-  const { store, sessions: allSessions, graphics, graphicsErrors, profiles, defaultProfileId, profileWarnings, profileError } = useTerminalSessions();
+  const { store, sessions: allSessions, graphics, graphicsErrors, notices, profiles, defaultProfileId, profileWarnings, profileError } = useTerminalSessions();
   const executionTarget = useExecutionTarget();
-  const sessions = allSessions.filter(session => session.targetId === executionTarget.id);
+  const { preview } = usePreviewMode();
+  const targetId = preview ? null : executionTarget.id;
   const api = store.api;
-  const [activeId, setActiveId] = useState<string | null>(() => store.activeIds.get(executionTarget.id) ?? null);
   const [newProfileId, setNewProfileId] = useState<string | null>(null);
+  const ownerKey = JSON.stringify([targetId, workspaceId ?? null, conversationId ?? sessionId ?? null]);
+  const sessions = allSessions.filter(session => session.targetId === targetId && (conversationId ? session.conversationId === conversationId : session.workspaceId === workspaceId && session.sessionId === sessionId));
+  const [activeId, setActiveId] = useState<string | null>(() => store.activeIds.get(ownerKey) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [restarting, setRestarting] = useState(false);
@@ -41,8 +48,9 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
   const bootstrapped = useRef(false);
   const createLock = useRef(false);
   const targetStatus = executionTarget.inventory.statuses.find(status => status.id === executionTarget.id);
-  const canCreate = !executionTarget.id || (targetStatus?.state === "connected" && !targetStatus.operation);
-  const selectSession = (id: string): void => { store.activeIds.set(executionTarget.id, id); setActiveId(id); };
+  const canCreate = !targetId || (targetStatus?.state === "connected" && !targetStatus.operation);
+  const selectSession = (id: string): void => { store.activeIds.set(ownerKey, id); setActiveId(id); };
+  useEffect(() => { setActiveId(store.activeIds.get(ownerKey) ?? null); bootstrapped.current = sessions.length > 0; }, [ownerKey, allSessions, store]);
   const active = sessions.find(session => session.id === activeId) ?? sessions[0] ?? null;
   const activeHost = active ? store.hosts.get(active.id) : undefined;
   const defaultShell = newProfileId ?? active?.profile ?? defaultProfileId ?? undefined;
@@ -50,17 +58,13 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
   const createSession = useCallback(async () => {
     if (!api || createLock.current || !canCreate) return;
     createLock.current = true;
+    bootstrapped.current = true;
     setCreating(true);
     setError(null);
-    try {
-      setActiveId(await store.create(executionTarget.id, workspaceId, sessionId, defaultShell));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      createLock.current = false;
-      setCreating(false);
-    }
-  }, [api, store, workspaceId, sessionId, executionTarget.id, canCreate, defaultShell]);
+    try { setActiveId(await store.create(targetId, workspaceId, sessionId, conversationId, undefined, defaultShell)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { createLock.current = false; setCreating(false); }
+  }, [api, store, workspaceId, sessionId, targetId, conversationId, canCreate, defaultShell]);
 
   useImperativeHandle(ref, () => ({ create: () => { void createSession(); }, available: api !== undefined && canCreate }), [api, canCreate, createSession]);
 
@@ -214,7 +218,9 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
                 <span className="chip green xs" style={{ marginLeft: "auto" }}>{active.name}</span>
               )}
             </div>
-            {globalThis.zetaStudioTerminal && active.workspaceId && active.sessionId ? <TerminalRecordingControls key={active.id} api={globalThis.zetaStudioTerminal} id={active.id} ended={active.status === "ended"} workspaceId={active.workspaceId} sessionId={active.sessionId} /> : null}
+            {globalThis.zetaStudioTerminal && active.workspaceId && active.sessionId ? <TerminalRecordingControls key={active.id} api={globalThis.zetaStudioTerminal} id={active.id} visible={visible} ended={active.status === "ended"} workspaceId={active.workspaceId} sessionId={active.sessionId} /> : null}
+            {error ? <p role="alert" className="muted small">{error}</p> : null}
+            {notices[active.id] ? <p role="status" className="muted small">{notices[active.id]}</p> : null}
             {(graphics[active.id]?.length || graphicsErrors[active.id]) ? <div style={{ maxHeight: 240, overflow: "auto" }} aria-label="Terminal images / 终端图片">
               {graphics[active.id]?.map((image, index) => <TerminalGraphicView key={index} image={image} />)}
               {graphicsErrors[active.id] ? <p role="status">{graphicsErrors[active.id]}</p> : null}
@@ -225,7 +231,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
                   key={session.id}
                   session={session}
                   hosts={store.hosts}
-                  pending={store.pending}
+                  store={store}
                   active={visible && session.id === active.id}
                   onRendererChange={setRenderer}
                   onError={message => setError(message)}
@@ -253,21 +259,23 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
 function XtermScreen({
   session,
   hosts,
-  pending,
+  store,
   active,
   onRendererChange,
   onError,
 }: {
   session: Session;
-  hosts: Map<string, { readonly screen: XtermSession }>;
-  pending: Map<string, string>;
+  hosts: Map<string, Host>;
+  store: TerminalSessions;
   active: boolean;
   onRendererChange: (renderer: TerminalRenderer) => void;
   onError: (message: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoveredLink = useRef<string | null>(null);
+  const [linkMenu, setLinkMenu] = useState<{ url: string; x: number; y: number }>();
+  const document = useSurfaceDocument();
   const { settings } = useAppSettings();
-  const { store } = useTerminalSessions();
   const api = store.api;
 
   useEffect(() => {
@@ -303,24 +311,25 @@ function XtermScreen({
         return true;
       });
       host = { screen };
-      hosts.set(session.id, host);
-      const queued = pending.get(session.id);
-      if (queued !== undefined) {
-        screen.enqueue(queued);
-        pending.delete(session.id);
-      }
     } else if (host.screen.term.element && host.screen.term.element.parentElement !== node) {
-      // The panel was closed and reopened: the emulator survives, its DOM
-      // container did not. Move the rendered element instead of rebuilding it.
       node.appendChild(host.screen.term.element);
     }
-    const observer = new MutationObserver(() => {
-      applyTheme(host!.screen.term);
-      host!.screen.fitToContainer();
-    });
+    host.screen.term.open(node);
+    store.attachHost(session.id, host);
+    host.screen.term.options.disableStdin = session.status === "ended";
+    host.screen.term.options.cursorBlink = session.status !== "ended";
+    const links = registerTerminalBrowserLinks(host.screen.term, url => { hoveredLink.current = url; });
+    const observer = new MutationObserver(() => { applyTheme(host.screen.term); host.screen.fitToContainer(); });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => { observer.disconnect(); };
-  }, [api, hosts, pending, session.id, onRendererChange, onError]);
+    return () => { observer.disconnect(); links.dispose(); };
+  }, [api, hosts, store, session.id, session.status, document, onRendererChange, onError]);
+
+  useEffect(() => {
+    const host = hosts.get(session.id);
+    if (!host) return;
+    applyTheme(host.screen.term);
+    if (active) host.screen.fitToContainer();
+  }, [active, hosts, session.id, settings.terminalFontFamily, settings.terminalFontSize]);
 
   useEffect(() => {
     const host = hosts.get(session.id);
@@ -335,7 +344,6 @@ function XtermScreen({
       if (disposed || node.clientWidth === 0 || node.clientHeight === 0) return;
       host.screen.fitToContainer();
     };
-    applyTheme(host.screen.term);
     frame = requestAnimationFrame(() => { fit(); host.screen.focus(); });
     void document.fonts?.ready.then(fit);
     const observer = new ResizeObserver(() => {
@@ -348,7 +356,7 @@ function XtermScreen({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [active, hosts, session.id, settings.terminalFontFamily, settings.terminalFontSize]);
+  }, [active, hosts, session.id, document]);
 
-  return <div className="term-xterm" ref={containerRef} hidden={!active} />;
+  return <><div className="term-xterm" ref={containerRef} hidden={!active} onContextMenu={event => { if (hoveredLink.current) { event.preventDefault(); setLinkMenu({ url: hoveredLink.current, x: event.clientX, y: event.clientY }); } }} />{linkMenu ? <BrowserLinkMenu url={linkMenu.url} point={linkMenu} onClose={() => setLinkMenu(undefined)} /> : null}</>;
 }

@@ -1,13 +1,12 @@
 /** Session-scoped service supervision through the shared project broker. */
 import * as path from "node:path";
 import { TERMINAL_STATES } from "@linxiraos/pi-tui/apps/ps-data";
-import type { DaemonSnapshot, DaemonSpec } from "@linxiraos/pi-tui/tools/daemon";
 import { formatDuration, replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { getDaemonRuntimeDir, logger, sanitizeText } from "@linxiraos/pi-utils";
 import { type DaemonBrokerClient, daemonClientForProject } from "./client";
 import { canonicalProjectDir } from "./paths";
-import type { DaemonOperation, DaemonRpcResult } from "./protocol";
+import type { DaemonOperation, DaemonRpcResult, DaemonSnapshot, DaemonSpec } from "./protocol";
 import { renderTerminalOutputIsolated } from "./terminal-output-worker-client";
 import type { ToolSession } from "../tools";
 import { resolveToCwd } from "../tools/path-utils";
@@ -24,11 +23,18 @@ export interface ServiceReady {
 export interface ServiceStart {
 	name: string;
 	command: string;
+	/** Agent-declared HTTP(S) preview URL for a web development server. */
+	previewUrl?: string;
 	cwd?: string;
 	pty?: boolean;
 	ready?: ServiceReady;
 	/** Overlay on the configured shell env; wins over it. */
 	env?: Record<string, string>;
+	restart?: DaemonSpec["restart"];
+	mode?: "session" | "persist" | "detached";
+	replace?: boolean;
+	/** Return after launch when false; readiness remains observable in the broker. */
+	awaitReady?: boolean;
 }
 
 const serviceStateKey = Symbol("ownedServices");
@@ -107,13 +113,18 @@ function subscribe(session: ToolSession, client: DaemonBrokerClient): void {
 	});
 }
 
-async function request(
+export async function requestService(
 	session: ToolSession,
 	operation: DaemonOperation,
 	signal?: AbortSignal,
+	assertCurrent?: () => void,
 ): Promise<DaemonRpcResult> {
+	// Detaching relaunches the shared browser without its prepared profile.
+	if (operation.op === "mode" && operation.mode === "detached" && isSharedBrowserDaemonName(operation.name))
+		throw new Error(`${operation.name} is Zeta's project-shared browser and cannot be detached`);
 	const client = await daemonClientForProject(session.cwd);
 	subscribe(session, client);
+	assertCurrent?.();
 	const result = await client.request(operation, signal);
 	if (result.op === "list") {
 		const owner = serviceOwner(session);
@@ -124,7 +135,7 @@ async function request(
 }
 
 export async function listServices(session: ToolSession, signal?: AbortSignal): Promise<DaemonSnapshot[]> {
-	const result = await request(session, { op: "list" }, signal);
+	const result = await requestService(session, { op: "list" }, signal);
 	if (result.op !== "list") throw new Error("Unexpected daemon list response");
 	return result.daemons;
 }
@@ -177,7 +188,7 @@ export async function serviceLogsWithRows(
 	name: string,
 	signal?: AbortSignal,
 ): Promise<{ text: string; terminalRows?: string[] }> {
-	const result = await request(
+	const result = await requestService(
 		session,
 		{
 			op: "logs",
@@ -224,6 +235,7 @@ export async function startService(
 	params: ServiceStart,
 	signal?: AbortSignal,
 	readyInterrupt?: AbortSignal,
+	assertCurrent?: () => void,
 ): Promise<{
 	daemon: DaemonSnapshot;
 	readyTimedOut: boolean;
@@ -246,11 +258,12 @@ export async function startService(
 	const shell = session.settings.getShellConfig();
 	const spec: DaemonSpec = {
 		name: params.name,
+		...(params.previewUrl === undefined ? {} : { previewUrl: params.previewUrl }),
 		application: shell.shell,
 		args: [...shell.args, `${shell.prefix ? `${shell.prefix} ` : ""}${params.command}`],
 		env: { ...shell.env, ...params.env },
 		cwd: serviceDirectory(params.cwd, session.cwd),
-		pty: params.pty ?? true,
+		pty: params.mode === "detached" ? false : (params.pty ?? true),
 		ready: ready
 			? {
 					log: ready.log,
@@ -259,20 +272,26 @@ export async function startService(
 					timeoutMs: Math.round(Math.max(0.05, Math.min(3_600, ready.timeout ?? 30)) * 1_000),
 				}
 			: undefined,
-		restart: "no",
-		persist: cfgLaunchPersist.get(session.settings),
-		detached: false,
+		restart: params.restart ?? "no",
+		persist: params.mode === undefined ? cfgLaunchPersist.get(session.settings) : params.mode !== "session",
+		detached: params.mode === "detached",
 	};
-	const result = await request(
+	if (params.previewUrl !== undefined) {
+		const capabilities = await requestService(session, { op: "ping" }, signal, assertCurrent);
+		if (capabilities.op !== "ping" || !capabilities.previewUrls)
+			throw new ToolError("This project broker does not support preview URLs. Restart it with the updated Runtime before launching web services; no service was started or replaced.");
+	}
+	const result = await requestService(
 		session,
 		{
 			op: "start",
 			spec,
 			owner: serviceOwner(session) ?? undefined,
-			replace: true,
-			awaitReady: readyInterrupt === undefined,
+			replace: params.replace ?? true,
+			awaitReady: params.awaitReady ?? (readyInterrupt === undefined),
 		},
 		signal,
+		assertCurrent,
 	);
 	if (result.op !== "start") throw new Error("Unexpected daemon start response");
 	const launched = result.daemon;
@@ -288,10 +307,11 @@ export async function startService(
 		return { daemon: launched, readyTimedOut: result.readyTimedOut, readyInterrupted: false };
 	const timeoutMs = Math.max(0, spec.ready.timeoutMs - (Date.now() - launched.startedAt));
 	try {
-		const waited = await request(
+		const waited = await requestService(
 			session,
 			{ op: "wait", name: params.name, for: "ready", timeoutMs },
 			signal ? AbortSignal.any([signal, readyInterrupt]) : readyInterrupt,
+			assertCurrent,
 		);
 		if (waited.op !== "wait") throw new Error("Unexpected daemon wait response");
 		// A pre-ready exit is reported by its terminal state, not as a timeout.
@@ -314,13 +334,13 @@ export async function sendService(
 	signal?: AbortSignal,
 ): Promise<DaemonSnapshot> {
 	const data = /[\r\n]$/.test(content) ? content : `${content}\r`;
-	const result = await request(session, { op: "send", name, data }, signal);
+	const result = await requestService(session, { op: "send", name, data }, signal);
 	if (result.op !== "send") throw new Error("Unexpected daemon send response");
 	return result.daemon;
 }
 
 export async function stopService(session: ToolSession, name: string, signal?: AbortSignal): Promise<DaemonSnapshot> {
-	const result = await request(session, { op: "stop", name, timeoutMs: 5_000 }, signal);
+	const result = await requestService(session, { op: "stop", name, timeoutMs: 5_000 }, signal);
 	if (result.op !== "stop") throw new Error("Unexpected daemon stop response");
 	return result.daemon;
 }
@@ -331,11 +351,7 @@ export async function modeService(
 	mode: "persist" | "session" | "detached",
 	signal?: AbortSignal,
 ): Promise<DaemonSnapshot> {
-	// The broker detaches a service by relaunching it, which would start the
-	// shared Chrome on an unprepared profile and reopen its previous pages.
-	if (mode === "detached" && isSharedBrowserDaemonName(name))
-		throw new Error(`${name} is omp's project-shared browser and cannot be detached`);
-	const result = await request(session, { op: "mode", name, mode }, signal);
+	const result = await requestService(session, { op: "mode", name, mode }, signal);
 	if (result.op !== "mode") throw new Error("Unexpected daemon mode response");
 	return result.daemon;
 }

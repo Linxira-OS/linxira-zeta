@@ -1,0 +1,246 @@
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RuntimeConnection } from "@linxiraos/studio-contract";
+import { HomePage, SecondaryPage } from "./HomePage";
+import { PAGE_EXIT_MS } from "./pageTransition";
+import { PreviewModeProvider } from "./preview/PreviewContext";
+import { PREVIEW_MODE_STORAGE_KEY } from "./preview/mode";
+import { __resetOperatorProfileForTests } from "./settings/operatorProfile";
+
+beforeAll(() => {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  (globalThis as Record<string, unknown>).ResizeObserver = ResizeObserverStub;
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }) as unknown as MediaQueryList;
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  window.localStorage.removeItem(PREVIEW_MODE_STORAGE_KEY);
+  __resetOperatorProfileForTests(null);
+});
+
+function domRect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  };
+}
+
+import { I18nProvider } from "./i18n";
+
+function renderHome(options: {
+  preview?: boolean;
+  runtime?: RuntimeConnection;
+} = {}) {
+  window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, options.preview === true ? "1" : "0");
+  render(
+    <I18nProvider forcedLanguage="zh">
+      <PreviewModeProvider switchEnabled>
+        <HomePage
+          {...(options.runtime === undefined ? {} : { runtime: options.runtime })}
+          onRoute={() => undefined}
+        />
+      </PreviewModeProvider>
+    </I18nProvider>,
+  );
+}
+
+describe("HomePage identity", () => {
+  it("exposes profile editing with a single user avatar", () => {
+    renderHome({ runtime: { status: "connected", classification: "managed" } });
+    expect(document.querySelectorAll(".home-avatar").length).toBe(1);
+    expect(screen.getByRole("button", { name: "编辑用户名和头像" })).toBeTruthy();
+  });
+
+  it("shows an unavailable runtime honestly", () => {
+    renderHome({ runtime: { status: "unavailable", classification: "unavailable" } });
+    expect(screen.getByText("Runtime 不可用")).toBeTruthy();
+  });
+
+  it("saves a new display name from the edit dialog", () => {
+    renderHome({ runtime: { status: "connected", classification: "managed" } });
+    fireEvent.click(screen.getByRole("button", { name: "编辑用户名和头像" }));
+    const dialog = screen.getByRole("dialog", { name: "编辑个人资料" });
+    expect(dialog).toBeTruthy();
+    const file = dialog.querySelector("input[type='file']");
+    expect(file?.getAttribute("accept") ?? "").toContain("image/");
+    fireEvent.change(screen.getByLabelText("用户名"), { target: { value: "Ada" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: /，Ada$/ })).toBeTruthy();
+  });
+
+  it("renders an uploaded avatar on the greeting row", () => {
+    __resetOperatorProfileForTests(JSON.stringify({ displayName: "Ada" }), "data:image/png;base64,QQ==");
+    renderHome({ runtime: { status: "connected", classification: "managed" } });
+    const photo = document.querySelector(".home-identity img.home-avatar");
+    expect(photo).toBeInstanceOf(HTMLImageElement);
+    expect((photo as HTMLImageElement).getAttribute("src")).toBe("data:image/png;base64,QQ==");
+    expect(screen.getByRole("heading", { level: 1, name: /，Ada$/ })).toBeTruthy();
+    expect(document.querySelectorAll(".home-avatar").length).toBe(1);
+  });
+});
+
+describe("HomePage Token usage chart", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }) as unknown as MediaQueryList);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains("tk-card")) return domRect(100, 50, 600, 560);
+      if (this.classList.contains("tk-tip")) return domRect(0, 0, 168, 64);
+      return domRect(0, 0, 0, 0);
+    });
+    vi.spyOn(SVGSVGElement.prototype, "getBoundingClientRect").mockReturnValue(domRect(114, 180, 572, 210));
+  });
+
+  it.each([2, 15, 31])("places the hover card beside the active day on October %i", (day) => {
+    // The month view ends today. A real clock made this two-point assertion
+    // fail on the first of every month, when both pointer positions select one day.
+    vi.spyOn(Date, "now").mockReturnValue(new Date(2026, 9, day, 12).getTime());
+    renderHome({ preview: true, runtime: { status: "connected", classification: "managed" } });
+    const chart = document.querySelector<SVGSVGElement>("svg.tk-chart");
+    expect(chart).toBeTruthy();
+
+    fireEvent(chart!, new MouseEvent("pointermove", { bubbles: true, clientX: 180, clientY: 220 }));
+
+    const cursor = chart!.querySelector<SVGLineElement>(".tk-cursor");
+    const tip = document.querySelector<HTMLElement>(".tk-tip.show");
+    expect(cursor).toBeTruthy();
+    expect(tip).toBeTruthy();
+    const pointXInCard = 14 + Number(cursor!.getAttribute("x1"));
+    expect(Number.parseFloat(tip!.style.left)).toBeGreaterThanOrEqual(pointXInCard + 12);
+    const tipTop = tip!.style.top;
+
+    fireEvent(chart!, new MouseEvent("pointermove", { bubbles: true, clientX: 660, clientY: 220 }));
+
+    const rightCursor = chart!.querySelector<SVGLineElement>(".tk-cursor");
+    const flippedTip = document.querySelector<HTMLElement>(".tk-tip.show");
+    const rightPointXInCard = 14 + Number(rightCursor!.getAttribute("x1"));
+    expect(rightPointXInCard).toBeGreaterThan(pointXInCard);
+    expect(Number.parseFloat(flippedTip!.style.left) + 168).toBeLessThanOrEqual(rightPointXInCard - 12);
+    expect(flippedTip!.style.top).toBe(tipTop);
+  });
+
+  it("keeps the first-of-month hover card beside the single day from either edge", () => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date(2026, 9, 1, 12).getTime());
+    renderHome({ preview: true, runtime: { status: "connected", classification: "managed" } });
+    const chart = document.querySelector<SVGSVGElement>("svg.tk-chart")!;
+
+    for (const clientX of [180, 660]) {
+      fireEvent(chart, new MouseEvent("pointermove", { bubbles: true, clientX, clientY: 220 }));
+      const cursor = chart.querySelector<SVGLineElement>(".tk-cursor")!;
+      const tip = document.querySelector<HTMLElement>(".tk-tip.show")!;
+      // One day is centered regardless of which edge the pointer approaches.
+      expect(Number(cursor.getAttribute("x1"))).toBe(572 / 2);
+      expect(Number.parseFloat(tip.style.left)).toBeGreaterThanOrEqual(14 + 572 / 2 + 12);
+      expect(Number.parseFloat(tip.style.left) + 168).toBeLessThanOrEqual(600 - 8);
+    }
+  });
+});
+
+describe("SecondaryPage body motion", () => {
+  function renderPage(
+    route: "home" | "settings",
+    title: string,
+    body: string,
+    className?: string,
+  ) {
+    return (
+      <I18nProvider forcedLanguage="zh">
+        <SecondaryPage
+          route={route}
+          title={title}
+          theme="dark"
+          {...(className === undefined ? {} : { className })}
+          onRoute={() => undefined}
+          onToggleTheme={() => undefined}
+        >
+          <p>{body}</p>
+        </SecondaryPage>
+      </I18nProvider>
+    );
+  }
+
+  it("does not play page-in on the body after mount or a same-route shell rerender", () => {
+    const { rerender } = render(renderPage("home", "首页", "home-body"));
+    expect(document.getElementById("pageBody")?.className).toBe("page-body");
+    expect(screen.getByText("home-body")).toBeTruthy();
+
+    rerender(renderPage("home", "首页", "home-body", "page-out"));
+    expect(document.getElementById("pageRoot")?.className).toBe("page page-out");
+    expect(document.getElementById("pageBody")?.className).toBe("page-body");
+  });
+
+  it("plays page-out then page-in on the body when switching secondary routes", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(renderPage("home", "首页", "home-body"));
+    rerender(renderPage("settings", "设置", "settings-body"));
+    expect(document.getElementById("pageBody")?.className).toBe("page-body page-out");
+    expect(screen.getByText("home-body")).toBeTruthy();
+    expect(screen.queryByText("settings-body")).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PAGE_EXIT_MS);
+    });
+    expect(document.getElementById("pageBody")?.className).toBe("page-body page-in");
+    expect(screen.getByText("settings-body")).toBeTruthy();
+    expect(screen.queryByText("home-body")).toBeNull();
+  });
+});
+
+describe("SecondaryPage header back", () => {
+  function renderPage(route: "statistics" | "settings", backRoute?: "home" | "workbench") {
+    const onRoute = vi.fn();
+    render(
+      <I18nProvider forcedLanguage="zh">
+        <SecondaryPage
+          route={route}
+          title="统计"
+          theme="dark"
+          {...(backRoute === undefined ? {} : { backRoute })}
+          onRoute={onRoute}
+          onToggleTheme={() => undefined}
+        >
+          <p>page-body</p>
+        </SecondaryPage>
+      </I18nProvider>,
+    );
+    return onRoute;
+  }
+
+  /* 统计页只从首页 Token 卡进入：返回箭头回首页，不再是工作台。 */
+  it("returns the statistics page to home", () => {
+    const onRoute = renderPage("statistics", "home");
+    fireEvent.click(screen.getByRole("button", { name: "首页" }));
+    expect(onRoute).toHaveBeenCalledWith("home");
+  });
+
+  it("keeps the workbench as the default target of other pages", () => {
+    const onRoute = renderPage("settings");
+    fireEvent.click(screen.getByRole("button", { name: "工作台" }));
+    expect(onRoute).toHaveBeenCalledWith("workbench");
+  });
+});

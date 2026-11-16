@@ -1,8 +1,8 @@
 import type { AppSettings } from "./appSettings";
 import { resetRowHeightCache } from "../conversation/rowHeightCache";
 
-export const TYPOGRAPHY_BEFORE_CHANGE = "omp-typography-before-change";
-export const TYPOGRAPHY_CHANGE = "omp-typography-change";
+export const TYPOGRAPHY_BEFORE_CHANGE = "zeta-typography-before-change";
+export const TYPOGRAPHY_CHANGE = "zeta-typography-change";
 
 export const FONT_SETTINGS_KEYS = [
   "uiFontFamily", "uiFontSize", "terminalFontFamily", "terminalFontSize", "outputFontFamily", "outputFontSize",

@@ -1,5 +1,5 @@
-export const CONVERSATION_LAYOUT_BEFORE_CHANGE = "omp-conversation-layout-before-change";
-export const CONVERSATION_LAYOUT_CHANGE = "omp-conversation-layout-change";
+export const CONVERSATION_LAYOUT_BEFORE_CHANGE = "zeta-conversation-layout-before-change";
+export const CONVERSATION_LAYOUT_CHANGE = "zeta-conversation-layout-change";
 
 /** Call around committed geometry changes, not around transcript/token updates. */
 export function beforeConversationLayoutChange(): void {
@@ -9,8 +9,8 @@ export function afterConversationLayoutChange(): void {
   window.dispatchEvent(new Event(CONVERSATION_LAYOUT_CHANGE));
 }
 
-const SCROLL_RESET = "omp-conversation-scroll-reset";
-const SCROLL_INTENT = "omp-conversation-scroll-intent";
+const SCROLL_RESET = "zeta-conversation-scroll-reset";
+const SCROLL_INTENT = "zeta-conversation-scroll-intent";
 type ScrollOwner = { readonly identity: string; readonly following: () => boolean };
 const owners = new WeakMap<HTMLElement, ScrollOwner>();
 const reflowing = new WeakSet<HTMLElement>();

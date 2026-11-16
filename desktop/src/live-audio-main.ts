@@ -3,8 +3,7 @@
  *
  * Kept out of `main.ts` so the shell owner has one call to place: this module
  * owns the IPC channels, the loopback POSTs, and the macOS microphone TCC
- * seams. The Renderer's preload object exposes the matching methods from
- * `live-audio-preload.ts`.
+ * seams. The sandbox-safe `preload.ts` exposes the matching fixed methods.
  */
 import { ipcMain, shell, systemPreferences } from "electron";
 import { LIVE_AUDIO_CHANNELS } from "./live-audio-channels";

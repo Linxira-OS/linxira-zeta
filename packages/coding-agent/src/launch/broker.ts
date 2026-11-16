@@ -16,13 +16,14 @@ import {
 } from "@linxiraos/pi-tui/tools/streaming-output";
 import { workerEnvFromParent } from "../subprocess/worker-client";
 import {
+	canonicalProjectDir,
 	DAEMON_META_FILE,
 	DAEMON_SPEC_FILE,
 	daemonBrokerEndpoint,
 	readStoredDaemonRecord,
 	writeDaemonScopeMeta,
 } from "./paths";
-import type { DaemonReadySpec, DaemonSnapshot, DaemonSpec } from "@linxiraos/pi-tui/tools/daemon";
+import type { DaemonReadySpec } from "@linxiraos/pi-tui/tools/daemon";
 import { hasLiveDaemonProjectPresence, pruneDeadDaemonRuntimeDirs } from "./presence";
 import {
 	DAEMON_IDLE_GRACE_ENV,
@@ -34,6 +35,8 @@ import {
 	type DaemonOperation,
 	type DaemonRpcResult,
 	type DaemonSignal,
+	type DaemonSnapshot,
+	type DaemonSpec,
 	type DaemonWireRequest,
 	parseDaemonSnapshot,
 	parseDaemonSpec,
@@ -643,12 +646,40 @@ class DaemonBroker {
 		}
 	}
 
+	readonly #mutationQueues = new Map<string, Promise<unknown>>();
+
 	async #dispatch(operation: DaemonOperation, socket: IpcConnection, signal?: AbortSignal): Promise<DaemonRpcResult> {
+		if (operation.op === "start") {
+			const { record, generation } = await this.#serializeMutation(operation.spec.name, async () => {
+				const record = await this.#start(operation.spec, operation.owner, operation.replace);
+				return { record, generation: record.generation };
+			});
+			return this.#awaitStarted(record, generation, operation.awaitReady ?? true, signal);
+		}
+		const name = ["send", "stop", "restart", "mode"].includes(operation.op) && "name" in operation ? operation.name : undefined;
+		if (name === undefined) return this.#dispatchOperation(operation, socket, signal);
+		return this.#serializeMutation(name, () => this.#dispatchOperation(operation, socket, signal));
+	}
+
+	async #serializeMutation<T>(name: string, operation: () => Promise<T>): Promise<T> {
+		const previous = this.#mutationQueues.get(name) ?? Promise.resolve();
+		const next = previous.catch(() => {}).then(operation);
+		this.#mutationQueues.set(name, next);
+		try {
+			return await next;
+		} finally {
+			if (this.#mutationQueues.get(name) === next) this.#mutationQueues.delete(name);
+		}
+	}
+
+	async #dispatchOperation(
+		operation: Exclude<DaemonOperation, { op: "start" }>,
+		socket: IpcConnection,
+		signal?: AbortSignal,
+	): Promise<DaemonRpcResult> {
 		switch (operation.op) {
 			case "ping":
-				return { op: "ping", projectDir: this.#projectDir };
-			case "start":
-				return this.#start(operation.spec, operation.owner, operation.replace, operation.awaitReady);
+				return { op: "ping", projectDir: this.#projectDir, instanceFencing: true, previewUrls: true };
 			case "list": {
 				await Promise.all([...this.#records.values()].map(record => this.#refreshDetached(record)));
 				return {
@@ -670,19 +701,20 @@ class DaemonBroker {
 			case "send":
 				return this.#send(operation);
 			case "stop": {
-				const record = this.#record(operation.name);
+				const record = this.#record(operation.name, operation.expectedInstanceId);
 				if (operation.id === undefined || operation.id === record.snapshot.id) {
-					await this.#stopRecord(record, operation.timeoutMs);
+					await this.#stopRecord(record, operation.timeoutMs, operation.expectedInstanceId);
 				}
 				return { op: "stop", daemon: record.snapshot };
 			}
 			case "restart":
-				return this.#restart(operation.name);
+				return this.#restart(operation.name, operation.expectedInstanceId);
 			case "mode":
 				return this.#mode(operation);
 			case "describe": {
-				const record = this.#record(operation.name);
+				const record = this.#record(operation.name, operation.expectedInstanceId);
 				await this.#refreshDetached(record);
+				this.#record(operation.name, operation.expectedInstanceId);
 				return { op: "describe", daemon: record.snapshot, spec: record.spec };
 			}
 			case "shutdown":
@@ -690,7 +722,18 @@ class DaemonBroker {
 		}
 	}
 
-	async #start(spec: DaemonSpec, owner?: string, replace = false, awaitReady = true): Promise<DaemonRpcResult> {
+	async #start(spec: DaemonSpec, owner?: string, replace = false): Promise<ManagedDaemon> {
+		if (spec.previewUrl !== undefined) {
+			let url: URL;
+			try {
+				url = new URL(spec.previewUrl);
+			} catch {
+				throw new Error("previewUrl must be an absolute HTTP(S) URL without embedded credentials");
+			}
+			if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password)
+				throw new Error("previewUrl must be an absolute HTTP(S) URL without embedded credentials");
+			spec = { ...spec, previewUrl: url.href };
+		}
 		if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(spec.name)) {
 			throw new Error("Daemon name must be 1-48 letters, numbers, dots, underscores, or hyphens");
 		}
@@ -737,6 +780,7 @@ class DaemonBroker {
 				spec,
 				snapshot: {
 					name: spec.name,
+					...(spec.previewUrl === undefined ? {} : { previewUrl: spec.previewUrl }),
 					id: crypto.randomUUID(),
 					state: "starting",
 					createdAt: now,
@@ -768,6 +812,17 @@ class DaemonBroker {
 			this.#startingNames.delete(spec.name);
 		}
 		await this.#launch(record);
+		await record.persistQueue;
+		return record;
+	}
+
+	async #awaitStarted(
+		record: ManagedDaemon,
+		generation: number,
+		awaitReady: boolean,
+		signal?: AbortSignal,
+	): Promise<DaemonRpcResult> {
+		const { spec } = record;
 		let readyTimedOut = false;
 		if (spec.ready && awaitReady && !terminalState(record.snapshot.state)) {
 			// Wake on the sticky readyAt marker or any terminal state, not the live
@@ -777,11 +832,15 @@ class DaemonBroker {
 			// wake the wait rather than block for the full timeout.
 			const ready = await this.#waitUntil(
 				record,
-				() => record.snapshot.readyAt !== undefined || terminalState(record.snapshot.state),
+				() => record.generation !== generation || record.snapshot.state === "restarting" || record.snapshot.readyAt !== undefined || terminalState(record.snapshot.state),
 				spec.ready.timeoutMs,
+				signal,
 			);
 			readyTimedOut = !ready;
 		}
+		if (signal?.aborted) throw new Error(`Daemon ${spec.name} wait cancelled`);
+		if (spec.ready && awaitReady && (record.generation !== generation || record.snapshot.state === "restarting"))
+			throw new Error(`Daemon ${spec.name} generation ${generation} ended while waiting for readiness`);
 		await record.persistQueue;
 		return { op: "start", daemon: record.snapshot, readyTimedOut };
 	}
@@ -794,7 +853,7 @@ class DaemonBroker {
 		record.snapshot.state = record.spec.ready ? "starting" : "running";
 		record.snapshot.persist = record.spec.persist;
 		record.snapshot.detached = record.spec.detached;
-		record.snapshot.startedAt = Date.now();
+		record.snapshot.startedAt = Math.max(Date.now(), record.snapshot.startedAt + 1);
 		record.snapshot.readyAt = undefined;
 		record.snapshot.exitedAt = undefined;
 		record.snapshot.exitCode = undefined;
@@ -1146,7 +1205,7 @@ class DaemonBroker {
 	}
 
 	async #logs(operation: Extract<DaemonOperation, { op: "logs" }>, signal?: AbortSignal): Promise<DaemonRpcResult> {
-		const record = this.#record(operation.name);
+		const record = this.#record(operation.name, operation.expectedInstanceId);
 		await this.#refreshDetached(record);
 		const cursor = operation.cursor ?? record.snapshot.outputBytes;
 		let timedOut = false;
@@ -1176,6 +1235,7 @@ class DaemonBroker {
 			terminalOutput !== undefined && operation.renderTerminalRows === true
 				? await renderTerminalOutput(terminalOutput, { head: operation.head, maxRows: lines })
 				: undefined;
+		this.#record(operation.name, operation.expectedInstanceId);
 		return {
 			op: "logs",
 			name: record.snapshot.name,
@@ -1192,7 +1252,7 @@ class DaemonBroker {
 	}
 
 	async #wait(operation: Extract<DaemonOperation, { op: "wait" }>, signal?: AbortSignal): Promise<DaemonRpcResult> {
-		const record = this.#record(operation.name);
+		const record = this.#record(operation.name, operation.expectedInstanceId);
 		// A wait observes exactly one launch generation. Automatic or explicit
 		// relaunches reuse the managed record, so polling the record without this
 		// binding can hang past an exit or consume the replacement's output.
@@ -1247,12 +1307,14 @@ class DaemonBroker {
 		const timedOut = operation.for === "ready" && !pattern ? !readyObserved() : !woke;
 		// The terminal state is visible before its log, metadata, and owner completion are published.
 		if (terminalState(record.snapshot.state)) await record.terminalSettled;
+		this.#record(operation.name, operation.expectedInstanceId);
 		return { op: "wait", daemon: record.snapshot, matched, timedOut };
 	}
 
 	async #send(operation: Extract<DaemonOperation, { op: "send" }>): Promise<DaemonRpcResult> {
-		const record = this.#record(operation.name);
+		const record = this.#record(operation.name, operation.expectedInstanceId);
 		await this.#refreshDetached(record);
+		this.#record(operation.name, operation.expectedInstanceId);
 		if (terminalState(record.snapshot.state) || record.snapshot.state === "stopping") {
 			throw new Error(`Daemon ${operation.name} is ${record.snapshot.state}`);
 		}
@@ -1268,6 +1330,7 @@ class DaemonBroker {
 			} else throw new Error(`Daemon ${operation.name} stdin is unavailable`);
 		}
 		if (operation.signal) {
+			this.#record(operation.name, operation.expectedInstanceId);
 			if (process.platform === "win32" && record.pty) {
 				if (operation.signal === "SIGINT") record.pty.write("\u0003");
 				else record.pty.kill();
@@ -1280,8 +1343,9 @@ class DaemonBroker {
 		return { op: "send", daemon: record.snapshot };
 	}
 
-	async #stopRecord(record: ManagedDaemon, timeoutMs: number): Promise<void> {
+	async #stopRecord(record: ManagedDaemon, timeoutMs: number, expectedInstanceId?: string): Promise<void> {
 		await this.#refreshDetached(record);
+		if (expectedInstanceId !== undefined) this.#record(record.snapshot.name, expectedInstanceId);
 		if (terminalState(record.snapshot.state)) return;
 		record.stopRequested = true;
 		if (record.restartTimer) {
@@ -1302,9 +1366,9 @@ class DaemonBroker {
 		if (!settled && record.pty) record.pty.kill();
 	}
 
-	async #restart(name: string): Promise<DaemonRpcResult> {
-		const record = this.#record(name);
-		await this.#stopRecord(record, 2_000);
+	async #restart(name: string, expectedInstanceId?: string): Promise<DaemonRpcResult> {
+		const record = this.#record(name, expectedInstanceId);
+		await this.#stopRecord(record, 2_000, expectedInstanceId);
 		await record.log?.close();
 		record.log = await DaemonLog.open(record.dir);
 		record.stopRequested = false;
@@ -1319,15 +1383,16 @@ class DaemonBroker {
 	}
 
 	async #mode(operation: Extract<DaemonOperation, { op: "mode" }>): Promise<DaemonRpcResult> {
-		const record = this.#record(operation.name);
+		const record = this.#record(operation.name, operation.expectedInstanceId);
 		await this.#refreshDetached(record);
+		this.#record(operation.name, operation.expectedInstanceId);
 		if (terminalState(record.snapshot.state) || record.snapshot.state === "stopping") {
 			throw new Error(`Daemon ${operation.name} is ${record.snapshot.state}`);
 		}
 		if (operation.mode === "detached") {
 			if (!record.spec.detached) {
 				record.spec = { ...record.spec, detached: true, pty: false, persist: true };
-				await this.#restart(operation.name);
+				await this.#restart(operation.name, operation.expectedInstanceId);
 			}
 		} else {
 			if (record.spec.detached && operation.mode === "session") {
@@ -1359,9 +1424,13 @@ class DaemonBroker {
 		return condition();
 	}
 
-	#record(name: string): ManagedDaemon {
+	#record(name: string, expectedInstanceId?: string): ManagedDaemon {
 		const record = this.#records.get(name);
-		if (record) return record;
+		if (record) {
+			if (expectedInstanceId !== undefined && expectedInstanceId !== record.snapshot.id + ":" + record.snapshot.startedAt)
+				throw new Error("Service instance changed; refresh before trying again");
+			return record;
+		}
 		const names = [...this.#records.keys()];
 		throw new Error(`Unknown daemon ${name}${names.length ? `. Available: ${names.join(", ")}` : ""}`);
 	}
@@ -1637,13 +1706,15 @@ export interface DaemonBrokerStartOptions {
 
 /** Start the detached project or global daemon broker selected by the CLI worker host. */
 export async function startDaemonBrokerFromEnvironment(options: DaemonBrokerStartOptions = {}): Promise<void> {
-	const projectDir = process.env[DAEMON_PROJECT_DIR_ENV];
+	const projectDirValue = process.env[DAEMON_PROJECT_DIR_ENV];
 	const runtimeDir = process.env[DAEMON_RUNTIME_DIR_ENV];
-	if (!projectDir || !runtimeDir) throw new Error("Daemon broker environment is incomplete");
+	if (!projectDirValue || !runtimeDir) throw new Error("Daemon broker environment is incomplete");
 	delete process.env[DAEMON_PROJECT_DIR_ENV];
 	delete process.env[DAEMON_RUNTIME_DIR_ENV];
 	const rawGrace = process.env[DAEMON_IDLE_GRACE_ENV];
 	delete process.env[DAEMON_IDLE_GRACE_ENV];
+	// Match client realpath canonicalization, including Windows short paths.
+	const projectDir = await canonicalProjectDir(projectDirValue);
 	const parsedGrace = rawGrace === undefined ? DEFAULT_IDLE_GRACE_MS : Number.parseInt(rawGrace, 10);
 	const idleGraceMs = Number.isFinite(parsedGrace) && parsedGrace >= 0 ? parsedGrace : DEFAULT_IDLE_GRACE_MS;
 	const requestedRestartBackoffBaseMs = options.restartBackoffBaseMs ?? RESTART_BACKOFF_BASE_MS;

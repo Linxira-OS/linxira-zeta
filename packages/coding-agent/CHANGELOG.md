@@ -1,6 +1,30 @@
 ## [Unreleased]
 
-- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+### Changed
+
+- Studio maintenance compares explicit official release tags in one mapped three-way batch, preserves Zeta Host/transport contracts for review, and records safe applications with backups. Reusable quick/behavior/final gates report per-step evidence; final accounting rejects stale decisions and missing source ancestry (ADR-0044).
+- Studio v0.2.1 shared contracts remove obsolete mirrored request/result validators and the unused frontend protocol copy. The existing Zeta Host keeps the actual launch, browser/Computer, private IPC, workspace and native-work input checks (ADR-0052).
+
+### Fixed
+
+- **Z Work Studio identity** — sidebar, About, empty conversations, BTW labels, logs, session import/resume and bilingual previews use Z Work Studio / Zeta. Browser preferences consistently use `zeta.*`; the existing startup migration preserves earlier `omp.*` preferences. Existing IndexedDB databases and old recording files remain readable.
+- Studio command terminals retain their selected workspace and launch a dedicated script process instead of dropping the command; the Host rejects conflicting profile/program inputs and retains device-binding ownership (ADR-0045).
+- Studio workspace files have bounded, version-checked chunk reads and UTF-8/UTF-16 text editing with atomic saves and conflict detection through the existing authenticated Host. Optional Office controls reflect the actual signed-component capability (ADR-0046).
+- Studio browser observation uses private authenticated pipes scoped to the active view and live session descendants; view/session disposal, revocation, expiry and ownership changes release captures and human-control leases without closing the target (ADR-0047).
+- Managed desktop browser relays use the existing Host/session authority, keep private endpoints out of public replies, and retain desktop pages during Runtime cleanup. WebMCP uses a typed worker route and checks document identity before invocation (ADR-0047).
+- Electron browser attachment validates the live Host PID and exact prepared descriptor, releases owners across navigation/crash/session changes, and keeps file leases pinned to Host versions. The isolated X3D viewer permits its required WASM without relaxing the main renderer CSP (ADR-0046, ADR-0047).
+- Restoring concurrent Studio conversations after a Desktop/browser reload waits for the cookie/CSRF bootstrap before opening Host contexts, sharing concurrent bootstrap requests instead of sending an unauthenticated context mutation.
+- The frameless Desktop root mounts one caption strip through `zetaStudioChrome`, restoring the minimize, maximize/restore and close buttons across concurrent conversations.
+- Desktop Hindsight credentials use OS encryption per execution target and exact service URL, supplement the existing Host without entering settings/receipts, and stop applying on removal, owner disconnect, expiry or revocation. Sessionless settings read current project values, and session-only writes remain confined to their live conversation (ADR-0048).
+- Studio Computer activity uses native session ownership, passive-only observation and exact Desktop view leases; private frame bytes stay out of public state, and unsupported binary artifact saving is hidden (ADR-0047).
+- Studio evaluations execute through native benchmark, instruction, judgment and Ratchet paths with session-owned cancellation, retained results and generation-bound reviews (ADR-0049).
+- Studio Time Travel captures real workspace snapshots at awaited native turn boundaries and restores code, exact conversation positions or both with stale-preview protection, workspace admission fencing and safety backups (ADR-0050).
+- Studio service controls now use the existing workspace broker with exact launch-instance checks, preventing stale restart/stop/input requests from targeting a replacement process. Agent-declared web previews retain their URL, owner and PID across native restart/recovery without publishing launch configuration (ADR-0051).
+- Studio composer prediction now has real producers: the existing native text-prediction daemon runs under an isolated Studio corpus/profile, next-message alternatives reuse the native composer controller, and drafts travel only over bounded authenticated private sockets owned by one live view. Desktop adopts the prepared channel through trusted top-frame IPC and imports history only through a file picker; settings, session disposal and window loss release the channel. Clearing the corpus stops that exact daemon without touching the shared model cache or TUI history (ADR-0053).
+- `session.create` applies the chosen provider/model inside session creation instead of a post-create switch, so the first turn cannot run on the default model.
+- Managed desktop WebMCP now works on Chromium 156 and 157 (both `WebMCPTesting` and `WebMCP` are enabled), keeps a stable document identity across same-document navigation, invalidates catalogs/references on cross-document commit or renderer crash, and closes private observation on inspector crash/detach while releasing the human-control lease (ADR-0054).
+- `session.delete` disposes the resident native session after the transcript moves to trash, so a running turn or evaluation cannot keep writing after the delete.
+- Palette and topbar terminal openers expand a collapsed bottom region instead of selecting a tab nobody can see.
 
 ### Breaking Changes
 

@@ -103,6 +103,7 @@ import {
 	type ToolChoiceDirective,
 	wireToolsFingerprint,
 } from "@linxiraos/pi-agent-core";
+import { assertWorkspaceNotRestoring } from "./workspace-restore";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -334,6 +335,7 @@ import {
 	resumeComputerUseForOwner,
 	revokeComputerControlForOwner,
 } from "../tools/computer/supervisor";
+import { computerUserMessageStarted, computerToolResultDelivered } from "../tools/computer/lifecycle";
 import { isAutoQaEnabled } from "../tools/report-tool-issue";
 import {
 	buildResolveReminderMessage,
@@ -1596,6 +1598,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 *  incremented, so `isStreaming` alone cannot tell a host that a submission is admitted. */
 	#admittedSubmissionCount = 0;
 	#admittedSubmissionsSettled: PromiseWithResolvers<void> | undefined;
+	#beforeNextUserTurn: (() => Promise<void>) | undefined;
+	#afterUserTurn: (() => Promise<void>) | undefined;
+	#workspaceRestoreActive = false;
 	// Wire-level agent_end emission deferred until #promptInFlightCount drops to 0.
 	// Internal extension hooks and post-emit work (auto-retry, auto-compaction, todo
 	// checks in #handleAgentEvent) still fire on the original schedule — only the
@@ -1728,6 +1733,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	#beginInFlight(): number {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("start work during workspace restore");
 		this.#promptInFlightCount++;
 		if (this.#promptInFlightCount === 1) {
 			this.#acquirePowerAssertion();
@@ -3991,6 +3998,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#disposers.push(dispose);
 	}
 
+	/** Await Host-owned snapshots before user delivery and before terminal completion publication. */
+	setBeforeNextUserTurn(hook: (() => Promise<void>) | undefined): void { this.#beforeNextUserTurn = hook; }
+	setAfterUserTurn(hook: (() => Promise<void>) | undefined): void { this.#afterUserTurn = hook; }
+
 	/**
 	 * Opt this session in to autonomous idle maintenance (the idle recap and idle compaction, both governed by
 	 * their settings); recaps reach the owner through `options.onRecap`. One scheduler per session: repeating the
@@ -4570,6 +4581,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	async #admitSubmission<T>(work: () => Promise<T>): Promise<T> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("submit input during workspace restore");
 		this.#admittedSubmissionCount++;
 		try {
 			if (this.hasPendingDeferredExtensions) await this.loadDeferredExtensions();
@@ -4727,6 +4740,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Emit an event to all listeners */
 	#emit(event: AgentSessionEvent): void {
+		if (event.type === "message_start" || event.type === "message_update" || event.type === "message_end") {
+			// Reserve before any external observer sees the first streaming frame.
+			this.sessionManager.reserveMessageEntryId(event.message);
+		}
 		// Listener array is copy-on-write (see `subscribe`), so iterating the
 		// current array is safe against (un)subscribes made by a listener.
 		for (const l of this.#eventListeners) {
@@ -5003,6 +5020,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * the recovery wait always sees the in-flight handler and blocks until it — and
 	 * everything it schedules — settles. */
 	#dispatchAgentEvent = async (event: AgentEvent): Promise<void> => {
+		if (event.type === "message_start") computerUserMessageStarted(this.sessionId, event.message, this.instanceKey);
+		if (event.type === "tool_execution_end") computerToolResultDelivered(this.sessionId, event.toolCallId, event.result, this.instanceKey);
+		if (event.type === "message_end" && event.message.role === "toolResult") computerToolResultDelivered(this.sessionId, event.message.toolCallId, event.message, this.instanceKey);
 		// Revoke before the first await: delayed end-of-turn maintenance must
 		// never revoke a foreground-control grant acquired by a later prompt.
 		const computerControlRevocation =
@@ -5463,6 +5483,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	#processAgentEvent = async (event: AgentEvent): Promise<void> => {
+		if (event.type === "message_start" || event.type === "message_update" || event.type === "message_end") {
+			this.sessionManager.reserveMessageEntryId(event.message);
+		}
 		this.#petState(event);
 		if (this.#guidedGoalInterviewActive && event.type === "agent_end" && event.messages.some(hasAssistantToolCall)) {
 			this.#setGuidedGoalInterviewActive(false);
@@ -6807,6 +6830,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// reported `running`; a late `idle` from this one would leave the session
 		// (and its registry ref) showing idle while it streams.
 		const runEpoch = this.#agentEndRunEpochs.get(event);
+		if (!options?.willContinue && (runEpoch === undefined || runEpoch === this.#runEpoch)) await this.#afterUserTurn?.();
 		if (runEpoch === undefined || runEpoch === this.#runEpoch) this.#emitRunState("idle");
 		// Tagged isTerminal so subscribers can tell final settles from scheduled
 		// continuations, and `yielded` so they can tell the agent's own follow-up
@@ -8842,6 +8866,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Compact the active session history. */
 	compact(customInstructions?: string, options?: CompactOptions): Promise<CompactionResult> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("compact during workspace restore");
 		return this.#inLogContext(() => this.#maintenance.compact(customInstructions, options));
 	}
 
@@ -9097,6 +9123,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	getEvalKernelOwnerId(): string {
 		return this.#eval.getKernelOwnerId();
 	}
+	/** Host-owned browser/WebMCP execution uses the same tool session as eval. */
+	getEvalToolSession(): ToolSession | undefined {
+		return this.#evalToolSession;
+	}
 
 	/** Current session display name, if set */
 	get sessionName(): string | undefined {
@@ -9251,6 +9281,46 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	#assertIdleForSnapshot(action: string): void {
 		if (this.isBusyForSnapshot) throw new SessionBusyError(action);
+	}
+
+	/** Exclude native submissions for the complete filesystem and conversation restoration. */
+	async withWorkspaceRestore<T>(action: () => Promise<T>): Promise<T> {
+		const queued = this.#enterSessionTransition(() => this.withWorkspaceRestore(action));
+		if (queued) return queued;
+		using _transition = this.#beginSessionTransition();
+		this.#assertIdleForSnapshot("restore the workspace");
+		if (this.hasAdmittedSubmission || this.agent.hasQueuedMessages() || this.#workspaceRestoreActive)
+			throw new SessionBusyError("restore the workspace");
+		this.#workspaceRestoreActive = true;
+		this.#promptGeneration++;
+		try { return await action(); }
+		finally { this.#workspaceRestoreActive = false; }
+	}
+
+	/** Exact persisted tree selection; later branches remain reachable. Requires the restore fence. */
+	async restoreTreeLeaf(leafId: string | null): Promise<boolean> {
+		if (!this.#workspaceRestoreActive) throw new Error("Exact tree restore requires the workspace restore fence");
+		if (leafId !== null && !this.sessionManager.getEntry(leafId)) throw new Error("Restore branch is unavailable");
+		const oldLeafId = this.sessionManager.getLeafId();
+		if (this.#extensionRunner?.hasHandlers("session_before_tree")) {
+			const result = await this.#extensionRunner.emit({ type: "session_before_tree", signal: new AbortController().signal, preparation: {
+				targetId: leafId ?? "root", oldLeafId, commonAncestorId: leafId,
+				entriesToSummarize: [], userWantsSummary: false,
+			} });
+			if ((result as SessionBeforeTreeResult | undefined)?.cancel) return false;
+		}
+		this.#assertIdleForSnapshot("restore the conversation");
+		await this.#bash.flushPending();
+		await this.sessionManager.selectLeafDurably(leafId);
+		const context = this.sessionManager.buildSessionContext({ maxFrameDataBytes: frameDataBytesBudget(this.model), model: this.model });
+		this.replaceMessagesFromSessionContext(this.#withEvalStateContext(deobfuscateSessionContext(context, this.#obfuscator)).messages);
+		this.#rehydrateCheckpointRewindState();
+		this.#advisors.resetSessionState({ preserveCost: true });
+		this.#todo.syncFromBranch();
+		this.#modelMentions.syncFromBranch();
+		this.#closeCodexProviderSessionsForHistoryRewrite();
+		if (this.#extensionRunner?.hasHandlers("session_tree")) await this.#extensionRunner.emit({ type: "session_tree", newLeafId: leafId, oldLeafId });
+		return true;
 	}
 
 	get goalRuntime(): GoalRuntime {
@@ -10583,6 +10653,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		signal: AbortSignal,
 	): Promise<QueuedMessagePreparation> {
 		const generation = this.#promptGeneration;
+		await this.#beforeNextUserTurn?.();
+		signal.throwIfAborted();
 		await this.#prewalk.beginAutoTask();
 		const autoPrewalk = this.#prewalk.classifyAuto(prompt, signal);
 		const autoParallel = message.role === "user" ? this.#autoParallel.start(prompt, signal) : undefined;
@@ -10763,6 +10835,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#promptSetupAbortController = setupAbort;
 		try {
 			options?.onPromptAdmitted?.();
+			if (isUserAuthoredQueuedMessage(message)) await this.#beforeNextUserTurn?.();
+			if (this.#isDisposed || generation !== this.#promptGeneration) return false;
 			await this.#recovery.maybeRestoreRetryFallbackPrimary();
 			// Auto-prewalk: return from the previous task's handoff before the usage preflight checks the model,
 			// then judge this task alongside the rest of setup; the decision is applied right before dispatch.
@@ -14250,6 +14324,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * @returns The handoff document text, or undefined if cancelled/failed
 	 */
 	handoff(customInstructions?: string, options?: SessionHandoffOptions): Promise<HandoffResult | undefined> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("handoff during workspace restore");
 		return this.#inLogContext(() => this.#maintenance.handoff(customInstructions, options));
 	}
 
@@ -14723,6 +14799,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Retry the last failed assistant turn when the session is idle. */
 	async retry(): Promise<boolean> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("retry during workspace restore");
+		if (!this.isBusyForSnapshot) await this.#beforeNextUserTurn?.();
 		const didRetry = await this.#recovery.retry();
 		// A manual retry is the user resuming the run they interrupted, so it lifts the
 		// interrupt's auto-resume suppression the same way a typed prompt does.
@@ -14775,6 +14854,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * @param options.onRecorded Receives the `bashExecution` message the run is recorded as, once it is persisted or queued; a throw is logged
 	 */
 	executeBash(command: string, onChunk?: (chunk: string) => void, options?: BashExecuteOptions): Promise<BashResult> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("run bash during workspace restore");
 		return this.#bash.executeBash(command, onChunk, options);
 	}
 
@@ -14815,10 +14896,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		onChunk?: (chunk: string) => void,
 		options?: PythonExecuteOptions,
 	): Promise<PythonResult> {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("run Python during workspace restore");
 		return this.#eval.executePython(code, onChunk, options);
 	}
 
 	assertEvalExecutionAllowed(): void {
+		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
+		if (this.#workspaceRestoreActive) throw new SessionBusyError("run eval during workspace restore");
 		this.#eval.assertExecutionAllowed();
 	}
 

@@ -67,9 +67,14 @@ export function registerRemoteBridge(options: RemoteIpcOptions): RemoteBridge {
 	ipcMain.handle("pi:remote-select", (_event, id: unknown) => bridge.select(id === null ? null : stringField(id, "id")));
 	ipcMain.handle("pi:remote-directories", (_event, id: unknown, path: unknown) => bridge.directories(stringField(id, "id"), typeof path === "string" ? path : undefined));
 	ipcMain.handle("pi:remote-register", (_event, id: unknown, path: unknown) => bridge.register(stringField(id, "id"), stringField(path, "path")));
-	ipcMain.handle("pi:remote-bootstrap", (_event, id: unknown) => bridge.bootstrap(stringField(id, "id")));
-	ipcMain.handle("pi:remote-query", (_event, id: unknown, request: unknown) => bridge.query(stringField(id, "id"), request));
-	ipcMain.handle("pi:remote-command", (_event, id: unknown, request: unknown) => bridge.command(stringField(id, "id"), request));
+	ipcMain.handle("pi:remote-context-open", (_event, id: unknown, value: unknown) => {
+		if (!value || typeof value !== "object" || !("workspaceId" in value)) throw new Error("Invalid context scope");
+		return bridge.openContext(stringField(id, "id"), { workspaceId: stringField(value.workspaceId, "workspaceId"), ...("sessionId" in value && value.sessionId !== undefined ? { sessionId: stringField(value.sessionId, "sessionId") } : {}) });
+	});
+	ipcMain.handle("pi:remote-context-close", (_event, id: unknown, contextId: unknown) => bridge.closeContext(stringField(id, "id"), stringField(contextId, "contextId")));
+	ipcMain.handle("pi:remote-bootstrap", (_event, id: unknown, contextId: unknown) => bridge.bootstrap(stringField(id, "id"), contextId === undefined ? undefined : stringField(contextId, "contextId")));
+	ipcMain.handle("pi:remote-query", (_event, id: unknown, request: unknown, contextId: unknown) => bridge.query(stringField(id, "id"), request, contextId === undefined ? undefined : stringField(contextId, "contextId")));
+	ipcMain.handle("pi:remote-command", (_event, id: unknown, request: unknown, contextId: unknown) => bridge.command(stringField(id, "id"), request, contextId === undefined ? undefined : stringField(contextId, "contextId")));
 	ipcMain.handle("pi:remote-install-runtime", (_event, id: unknown) => bridge.installRuntime(stringField(id, "id")));
 	ipcMain.handle("pi:remote-retry-network", (_event, id: unknown) => bridge.retryNetwork(stringField(id, "id")));
 	return bridge;

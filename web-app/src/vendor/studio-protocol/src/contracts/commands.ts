@@ -1,3 +1,4 @@
+import type { RuntimeViewOperation } from "./runtime-views.js";
 import type { SessionOwnerOperation } from "./session-owner";
 import type { ContextViewOperation } from "./context-view";
 import type { WorkbenchOperation } from "./workbench";
@@ -25,10 +26,10 @@ export type CoreOperation =
   | { kind: "core.steer"; text: string; images?: unknown[] }
   | { kind: "core.followUp"; text: string; images?: unknown[] }
   | { kind: "core.abort" }
-  | { kind: "runtime.snapshot" }
+  | { kind: "runtime.snapshot"; timeTravelCapture?: boolean }
   | { kind: "runtime.pause" }
   | { kind: "runtime.resume"; expectedPauseEpoch: number }
-  | { kind: "runtime.settings.get"; keys?: readonly StudioRuntimeSettingKey[] }
+  | { kind: "runtime.settings.get"; keys?: readonly StudioRuntimeSettingKey[]; checkHindsight?: boolean }
   | StudioRuntimeSettingSetOperation
   | { kind: "runtime.shutdown"; drain: true };
 
@@ -59,6 +60,8 @@ export type SessionOperation =
       summarize?: boolean;
       customInstructions?: string;
       reanswer?: unknown;
+      exactLeaf?: boolean;
+      restoreRoot?: boolean;
     }
   | { kind: "session.tree.branch"; targetId: string }
   | { kind: "turn.retry" }
@@ -141,6 +144,7 @@ export type TransferOperation = {
 export type StudioOperation =
   | SessionOwnerOperation
   | ContextViewOperation
+  | RuntimeViewOperation
   | PredictionOperation
   | WorkbenchOperation
   | UpgradeOperation

@@ -16,6 +16,7 @@
  * that reaches executable selection, and the server validates it against its
  * own catalog.
  */
+import type { TerminalCommand } from "./api";
 
 export interface TerminalProfile {
 	readonly id: string;
@@ -50,6 +51,8 @@ export interface GatewayTerminalInfo {
 export interface EnsureTerminalInput {
 	readonly cols: number;
 	readonly rows: number;
+	readonly workspaceId?: string;
+	readonly command?: TerminalCommand;
 	readonly cwd?: string;
 	readonly instanceId?: string;
 	readonly profileId?: string;

@@ -10,6 +10,8 @@ import screenStateTemplate from "../../prompts/tools/computer-screen-state.md" w
 
 export { COMPUTER_WORKER_ARG } from "../../cli/worker-selectors";
 
+import type { ComputerLifecycleEvent, ComputerRunIdentity } from "./lifecycle";
+
 /** Frozen run settings transferred from the host session to the worker. */
 export interface ComputerSessionSnapshot {
 	cwd: string;
@@ -25,6 +27,8 @@ export interface ComputerSessionSnapshot {
 	 * `release-display` rather than for the native grace period after its last request.
 	 */
 	displayTurn?: number;
+	/** Present only when a host subscribed to typed computer activity. */
+	activity?: ComputerRunIdentity;
 }
 
 /** Reply envelope for a session tool invoked by desktop JavaScript. */
@@ -118,6 +122,14 @@ export function screenStateNotice(
 
 /** Screenshot or zoom emitted during one computer run, with its full input coordinate frame. */
 export interface ComputerScreenshot {
+	frameId?: string;
+	/** Original PNG digest, available before asynchronous Studio asset persistence. */
+	sha256?: string;
+	sessionId?: string;
+	toolCallId?: string;
+	runId?: string;
+	/** Silent screenshots are not automatically part of a tool result. */
+	emitted?: boolean;
 	path: string;
 	width: number;
 	height: number;
@@ -142,8 +154,9 @@ export interface RunErrorPayload {
 
 /** Events emitted by the persistent computer worker. */
 export type ComputerWorkerOutbound =
+	| { type: "activity"; event: ComputerLifecycleEvent }
 	| { type: "ready" }
-	| { type: "control-revoked"; id: string }
+	| { type: "control-revoked"; id: string; error?: RunErrorPayload }
 	| { type: "pong"; id: string }
 	| { type: "result"; id: string; ok: true; payload: ComputerRunOk }
 	| { type: "result"; id: string; ok: false; error: RunErrorPayload }

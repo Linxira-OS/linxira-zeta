@@ -85,6 +85,9 @@
   min-width: 0;
   overflow: hidden;
 }
+/* 对话工具区开关就贴在「右侧栏」开关左边，两者并排，圆角与内距要跟 .icon-btn 一致，
+   否则 26px 的两个方块半径差 2px，挨在一起会看成两个不同层级的控件。 */
+.topbar .tb-right .dock-rail-toggle { padding: 0; border-radius: var(--r-6); }
 
 /* ---------- Session Telemetry（紧凑 · 扁平化：无边框无背景，纯文字） ---------- */
 .telemetry {
@@ -123,10 +126,13 @@
 .telemetry .anchored-pop { display: inline-flex; }
 .telemetry .t-group:hover,
 .telemetry .t-group.open { background: var(--accent-soft); }
-.telemetry .t-group:hover b,
-.telemetry .t-group.open b { color: var(--accent); }
+.telemetry .t-group:hover :is(b, .t-tok-icon),
+.telemetry .t-group.open :is(b, .t-tok-icon) { color: var(--accent); }
 .telemetry .t-item { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .telemetry .t-item b { color: var(--text-2); font-weight: var(--fw-medium); }
+/* 压缩档用一张条形图图标替掉整串数字（切换规则在 App.css 的 chrome-size 段），
+   宽档不占位，dom 里的数字读数保持完整。 */
+.telemetry .t-tok-icon { display: none; align-items: center; }
 .telemetry .t-sep { width: 1px; height: 12px; background: var(--border-strong); opacity: 0.6; }
 .telemetry .ctx-ring {
   width: 16px; height: 16px; border-radius: var(--r-full); flex: none;
@@ -167,90 +173,7 @@
   font-weight: var(--fw-semibold);
 }
 
-/* ---------- Token 用量弹窗 ----------
-   Redesigned from a flat 2x5 grid of equal cells: cost and cache hit rate
-   were competing with retry count for attention. Now three tiers —
-   headline figures, an input/output split bar, then a detail list. */
-.tok-pop { width: 372px; }
-
-/* Tier 1 — the two numbers you actually opened this for. */
-.tok-hero {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--border);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-.tok-hero .th-cell {
-  background: var(--surface);
-  padding: var(--sp-10) var(--sp-14) var(--sp-12);
-}
-.tok-hero .th-k {
-  font-size: var(--fs-11);
-  color: var(--text-3);
-  display: flex; align-items: center; gap: 4px;
-}
-.tok-hero .th-v {
-  font-family: var(--font-mono);
-  font-size: calc(21px * var(--text-font-scale));
-  line-height: 1.15;
-  font-weight: var(--fw-semibold);
-  color: var(--text);
-  margin-top: 5px;
-  font-variant-numeric: tabular-nums;
-}
-.tok-hero .th-sub { font-size: calc(10.5px * var(--text-font-scale)); color: var(--text-3); margin-top: 3px; }
-.tok-hero .th-sub b { color: var(--green); font-weight: var(--fw-semibold); }
-
-/* Tier 2 — input vs output as proportion, not two unrelated numbers. */
-.tok-split { padding: var(--sp-12) var(--sp-14) var(--sp-10); }
-.tok-split .ts-top {
-  display: flex; align-items: baseline; justify-content: space-between;
-  font-size: var(--fs-11); color: var(--text-2);
-}
-.tok-split .ts-top b {
-  font-family: var(--font-mono); color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.tok-bar {
-  display: flex; height: 6px; gap: 2px;
-  margin: var(--sp-8) 0 var(--sp-6);
-}
-.tok-bar i { display: block; height: 100%; border-radius: var(--r-full); }
-.tok-bar .tb-in { background: var(--blue); }
-.tok-bar .tb-out { background: var(--accent); }
-.tok-bar .tb-cache { background: var(--green); }
-.tok-bar .tb-none,
-.ctxbar .cb-none {
-  flex: 1 0 100%;
-  width: 100%;
-  min-width: 100%;
-  background: var(--surface-3);
-}
-.tok-keys { display: flex; gap: var(--sp-12); font-size: calc(10.5px * var(--text-font-scale)); color: var(--text-3); }
-.tok-keys span { display: flex; align-items: center; gap: 4px; }
-.tok-keys i { width: 7px; height: 7px; border-radius: 2px; flex: none; }
-
-/* Tier 3 — the rest, as rows. Cheap to scan, cheap to ignore. */
-.tok-rows {
-  padding: var(--sp-4) var(--sp-14) var(--sp-10);
-  border-top: 1px solid var(--border);
-}
-.tok-rows .tr-row {
-  display: flex; align-items: center;
-  height: 24px;
-  font-size: var(--fs-11);
-  color: var(--text-2);
-}
-.tok-rows .tr-row .tr-v {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.tok-rows .tr-row .tr-v.ok { color: var(--green); }
-.tok-rows .tr-row .tr-v.dim { color: var(--text-3); }
+.ctxbar .cb-none { flex: 1 0 100%; width: 100%; background: var(--surface-3); }
 
 .tp-grid { padding: 0 var(--sp-14) var(--sp-10); display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .tp-cell { background: var(--surface); padding: var(--sp-8) var(--sp-10); }
@@ -298,6 +221,32 @@
   flex-direction: column;
   position: relative;
 }
+/* Runtime 状态条：浮在对话区顶部，不占布局高度。左右让开 minimap 与停靠栏，
+   避免盖住可点击的圆点轨道 / 图标；红条在 surface 上混一点红做底，保持扁平配色。 */
+.convo-wrap > .banner.is-floating {
+  position: absolute;
+  top: var(--sp-10);
+  left: calc(var(--minimap-w) + var(--sp-10));
+  right: var(--sp-10);
+  z-index: calc(var(--z-rail-tools) + 1);
+  border: 1px solid var(--border-float);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  padding: 8px var(--sp-12);
+  /* A notice pinned to the top edge arrives from that edge. */
+  --toast-from: -1;
+  animation: var(--motion-toast);
+}
+.convo-wrap.is-empty > .banner.is-floating,
+.convo-wrap[data-reading-minimap="off"] > .banner.is-floating {
+  left: var(--sp-10);
+}
+.convo-wrap:has(> .dock-rail-compact) > .banner.is-floating { right: calc(var(--sp-10) + 48px); }
+.convo-wrap:has(> .dock-rail-expanded) > .banner.is-floating { right: calc(var(--dock-rail-w, 320px) + var(--sp-12) + var(--sp-8)); }
+.convo-wrap > .banner.is-floating.red {
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--red) 30%, var(--border-float));
+}
 .convo-scroll {
   flex: 1;
   overflow-y: auto;
@@ -320,13 +269,13 @@
 .convo-scroll::-webkit-scrollbar { display: none; }
 .convo-doc {
   /* 内容列与 composer 同宽同边线：max-width 补回自身水平 padding（含 minimap 让位），
-     使正文净宽等于 --doc-max-w，且中线与 composer 一致（右移补 minimap 后居中）。
+     使正文净宽等于 --doc-max-w，且中线与 composer 一致（左移补 minimap 后居中）。
      position:relative 作为 xd:// 挂载通知悬浮层的定位上下文 */
   position: relative;
   max-width: calc(var(--doc-max-w) + var(--sp-32) + var(--sp-32) + var(--minimap-w) + 8px);
   margin: 0 auto;
   padding: var(--sp-24) var(--sp-32) var(--sp-32);
-  padding-right: calc(var(--sp-32) + var(--minimap-w) + 8px);
+  padding-left: calc(var(--sp-32) + var(--minimap-w) + 8px);
 }
 /* 虚拟列表的已挂载行走普通流（见 ConversationVirtualList）：行长高当帧就把文档一起撑高，
    `.convo-doc` 的 ResizeObserver 得以在同一个绘制前窗口贴底，展开工具卡时下方内容不再
@@ -348,11 +297,25 @@
   --reading-rail: 44px;
   --reading-scrollbar: 0px;
   --reading-doc-max: calc(var(--conversation-width) + 2 * var(--reading-gutter) + var(--reading-rail));
-  --reading-composer-end: calc(var(--reading-gutter) + var(--reading-rail) + var(--reading-scrollbar));
+  /* minimap 轨道在 inline-start（左）侧，正文与 Composer 的起始边都让出 rail；
+     原生滚动条仍在 inline-end（右）侧，只有 minimap 关掉时才需要 Composer 额外扣一次。 */
+  --reading-doc-start: calc(var(--reading-gutter) + var(--reading-rail));
+  --reading-composer-end: calc(var(--reading-gutter) + var(--reading-scrollbar));
+  --composer-overlap: calc(var(--composer-queues-height, 0px) + var(--sp-10));
 }
 .convo-wrap[data-reading-column] > .convo-scroll {
   min-height: 0;
   min-width: 0;
+}
+/* Scroll behind the floating queue tray, fading only at the input's top edge.
+   Matching tail padding keeps the latest message above the tray when pinned. */
+.convo-wrap[data-reading-column]:not(.is-empty) > .convo-scroll {
+  margin-bottom: calc(-1 * var(--composer-overlap));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--sp-32)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--sp-32)), transparent);
+}
+.convo-wrap[data-reading-column]:not(.is-empty) > .convo-scroll > .convo-doc {
+  padding-bottom: calc(var(--sp-32) + var(--composer-overlap));
 }
 /* Anchor restoration belongs to conversationReflow, not a second browser correction. */
 .convo-scroll,
@@ -361,8 +324,8 @@
 .convo-wrap[data-reading-column] > .convo-scroll > .new-content-pill-row {
   width: 100%;
   max-width: var(--reading-doc-max);
-  padding-left: var(--reading-gutter);
-  padding-right: calc(var(--reading-gutter) + var(--reading-rail));
+  padding-left: var(--reading-doc-start);
+  padding-right: var(--reading-gutter);
 }
 .convo-wrap[data-reading-column][data-reading-minimap="off"] > .minimap {
   display: none;
@@ -376,35 +339,36 @@
 }
 /* Code/table/diff own their horizontal scroll. Never use the virtual list as a
    crop to hide an over-wide row: ordinary text/URLs wrap, media fit their row. */
-.convo-wrap[data-reading-column] > .convo-scroll .convo-virtual-list { overflow: visible; }
-.convo-wrap[data-reading-column] > .convo-scroll :is(.convo-body, .convo-virtual-row, .ev, .ev-copy-host, .ev-body) {
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) .convo-virtual-list { overflow: visible; }
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) :is(.convo-body, .convo-virtual-row, .ev, .ev-copy-host, .ev-body) {
   min-width: 0;
 }
-.convo-wrap[data-reading-column] > .convo-scroll :is(.convo-body, .convo-virtual-row, .ev) { max-width: 100%; }
-.convo-wrap[data-reading-column] > .convo-scroll .ev-body { overflow-wrap: anywhere; }
-.convo-wrap[data-reading-column] > .convo-scroll .ev-body :not(pre) > .chip-code {
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) :is(.convo-body, .convo-virtual-row, .ev) { max-width: 100%; }
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) .ev-body { overflow-wrap: anywhere; }
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) .ev-body :not(pre) > .chip-code {
   white-space: break-spaces;
   overflow-wrap: anywhere;
 }
-.convo-wrap[data-reading-column] > .convo-scroll .ev-body :is(img, svg:not(.icon)) {
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) .ev-body :is(img, svg:not(.icon)) {
   max-width: 100%;
   height: auto;
 }
-.convo-wrap[data-reading-column] > .convo-scroll :is(.md-code, .md-code-pre, .md-table-wrap, .tc-code, .tc-diff, .codeblock) {
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) :is(.md-code, .md-code-pre, .md-table-wrap, .tc-code, .tc-diff, .codeblock) {
   min-width: 0;
   max-width: 100%;
   overflow-wrap: normal;
   word-break: normal;
 }
-.convo-wrap[data-reading-column] > .convo-scroll :is(.md-code-pre, .md-table-wrap, .tc-code, .tc-diff, .codeblock) {
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) :is(.md-code-pre, .md-table-wrap, .tc-code, .tc-diff, .codeblock) {
   overflow-x: auto;
 }
-.convo-wrap[data-reading-column] > .convo-scroll .md-table-wrap table { min-width: max-content; }
+:is(.convo-wrap[data-reading-column] > .convo-scroll, .conversation-surface) .md-table-wrap table { min-width: max-content; }
 
 /* ============================================================
    会话切换过场：正文淡出 → 骨架兜住空窗 → 交叉溶解淡入
-   时长必须与 conversationSwitchPhase.ts 的 SWITCH_LEAVE_MS(140) /
-   SWITCH_REVEAL_MS(320) 对齐：阶段一结束就会摘掉这里的类，动画没跑完就是硬切。
+   时长与 conversationSwitchPhase.ts 的 SWITCH_LEAVE_MS（--dur-fast）/
+   SWITCH_REVEAL_MS（--dur-slower）是同一组 token：阶段一结束就会摘掉这里的类，
+   动画没跑完就是硬切。
    全程只动 opacity。任何 transform 都会进 ConversationVirtualList 的 scrollMargin
    量算（getBoundingClientRect 相对滚动容器），虚拟行被反向补偿，整段 transcript
    在动画期间抖动 —— 位移只允许骨架自己做（它对布局零贡献）。
@@ -413,9 +377,10 @@
 /* 上一段 transcript 原地淡出：ConversationPane 把同一个 ReactNode 引用再交给
    React，整棵子树按引用相等跳过重渲染，DOM／滚动位置／虚拟列表状态全部原样留在
    屏上，只有透明度在走。 */
+/* 后面有人在等的离场：--ease 把变化压在前几帧，点击当下就有回应。 */
 .convo-body[data-phase="leaving"] {
   opacity: 0;
-  transition: opacity 140ms var(--ease-in);
+  transition: opacity var(--dur-fast) var(--ease);
   pointer-events: none;
 }
 .convo-body[data-phase="waiting"] { opacity: 0; transition: none; }
@@ -432,9 +397,8 @@
    否则动画收尾后还有一条过渡在跑，尾巴会二次变亮。 */
 .convo-body[data-phase="revealing"] {
   transition: none;
-  animation: convo-body-in 320ms var(--ease-out);
+  animation: omp-fade-in var(--dur-slower) var(--ease-out);
 }
-@keyframes convo-body-in { from { opacity: 0; } }
 
 /* 骨架屏容器：sticky + height:0 + 绝对定位内层，对文档高度零贡献。
    sticky 让它在任意滚动位置都停在滚动视口顶部；内层高度压在视口高度以下，
@@ -450,17 +414,17 @@
   opacity: 0;
   pointer-events: none;
 }
-/* 入场延迟 60ms 是"快加载不闪"的闸门：读取在这之前落地，骨架一帧都不会亮；
+/* 入场延迟（一拍半，60ms）是"快加载不闪"的闸门：读取在这之前落地，骨架一帧都不会亮；
    稍慢一点也只亮到半途就被下面的淡出接走（transition 从当前值反向插值），
    于是短加载看到的是一次呼吸，只有长加载才看到完整骨架。 */
 .convo-veil[data-in="true"] {
   opacity: 1;
-  transition: opacity 260ms var(--ease-out) 60ms;
+  transition: opacity var(--dur-slow) var(--ease-out) calc(var(--stagger) * 1.5);
 }
 /* 必须排在 [data-in] 之后：同特异度，靠源序压过入场。 */
 .convo-veil[data-leaving="true"] {
   opacity: 0;
-  transition: opacity 200ms var(--ease);
+  transition: opacity var(--dur) var(--ease);
 }
 .cv-groups {
   position: absolute;
@@ -477,8 +441,8 @@
   flex-direction: column;
   gap: var(--sp-8);
   transform: translateY(14px);
-  transition: transform 320ms var(--ease-out);
-  transition-delay: calc(60ms + var(--i) * 45ms);
+  transition: transform var(--dur-slower) var(--ease-out);
+  transition-delay: calc(var(--stagger) * (1.5 + var(--i)));
 }
 .convo-veil[data-in="true"] .cv-group { transform: none; }
 .cv-head { display: flex; align-items: center; gap: var(--sp-8); }
@@ -496,7 +460,7 @@
   background-size: 200% 100%;
 }
 /* shimmer 逐组错相：同相位扫过五组像一整块在闪，错开才像内容在陆续到位。 */
-.cv-group .skeleton { animation-delay: calc(var(--i) * -170ms); }
+.cv-group .skeleton { animation-delay: calc(var(--i) * var(--loop-pulse) / -8); }
 /* 只有慢到 SWITCH_SLOW_MS 才浮出的一行说明，落在骨架已经渐隐的下缘外。 */
 .cv-note {
   position: absolute;
@@ -738,7 +702,7 @@
 .turn-diff-panel {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-exit) var(--ease-in);
+  transition: grid-template-rows var(--dur-fast) var(--ease-in);
 }
 .turn-diff.open .turn-diff-panel {
   grid-template-rows: 1fr;
@@ -966,9 +930,14 @@
 .ev-body .md-code-hint { color: var(--text-faint); }
 .ev-body .md-code-err { color: var(--red); }
 .ev-body .md-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
-  padding: 2px 8px;
+  padding: 4px;
   border-radius: var(--r-4);
   font-size: var(--fs-11);
   color: var(--text-faint);
@@ -1027,25 +996,36 @@
 .subagent-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: var(--sp-6);
-  margin: 0 0 var(--sp-8);
+  gap: var(--sp-10);
+  margin: var(--sp-4) 0 var(--sp-12);
 }
 .subagent-strip .sa-card {
+  --sa-accent: var(--text-3);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   align-self: stretch;
   justify-self: stretch;
-  gap: 3px;
+  gap: var(--sp-8);
   min-width: 0;
+  min-height: 84px;
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 8px 8px 10px;
+  padding: var(--sp-10) var(--sp-12) var(--sp-8) var(--sp-14);
   border: 1px solid var(--border);
-  border-left: 2.5px solid var(--border-strong);
   border-radius: var(--r-8);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--sa-accent) 2%, var(--surface));
   text-align: left;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.subagent-strip .sa-card::before {
+  content: "";
+  position: absolute;
+  inset: var(--sp-14) auto var(--sp-14) -1px;
+  width: 3px;
+  border-radius: var(--r-full);
+  background: var(--sa-accent);
 }
 .subagent-strip .sa-card.is-inspectable {
   appearance: none;
@@ -1054,49 +1034,143 @@
   font: inherit;
   color: inherit;
 }
-.subagent-strip .sa-card.is-inspectable:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2, var(--surface));
+.subagent-strip .sa-card.is-inspectable:hover,
+.subagent-strip .sa-card.is-inspectable:focus-visible {
+  border-color: color-mix(in srgb, var(--sa-accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--sa-accent) 5%, var(--surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--sa-accent) 7%, transparent);
+}
+.subagent-strip .sa-card.is-inspectable:focus-visible {
+  outline: 2px solid var(--sa-accent);
+  outline-offset: 2px;
 }
 .subagent-strip .sa-card.running,
 .subagent-strip .sa-card.starting,
-.subagent-strip .sa-card.reviving { border-left-color: var(--blue); }
-.subagent-strip .sa-card.waiting { border-left-color: var(--amber); }
+.subagent-strip .sa-card.reviving { --sa-accent: var(--blue); }
+.subagent-strip .sa-card[data-activity="thinking"] { --sa-accent: var(--accent); }
+.subagent-strip .sa-card.waiting,
+.subagent-strip .sa-card[data-activity="waiting"] { --sa-accent: var(--amber); }
 .subagent-strip .sa-card.idle,
 .subagent-strip .sa-card.done,
 .subagent-strip .sa-card.succeeded,
 .subagent-strip .sa-card.completed,
-.subagent-strip .sa-card.released { border-left-color: var(--green); }
-.subagent-strip .sa-card.parked { border-left-color: var(--border-strong); }
+.subagent-strip .sa-card.released { --sa-accent: var(--green); }
 .subagent-strip .sa-card.error,
 .subagent-strip .sa-card.failed,
-.subagent-strip .sa-card.aborted { border-left-color: var(--red); }
+.subagent-strip .sa-card.aborted,
+.subagent-strip .sa-card[data-activity="aborted"] { --sa-accent: var(--red); }
 .subagent-strip .sa-top {
   display: flex;
-  align-items: center;
-  gap: var(--sp-8);
+  align-items: flex-start;
+  gap: var(--sp-10);
   width: 100%;
   min-width: 0;
 }
-.subagent-strip .hub-act { height: 18px; padding: 0 8px; font-size: calc(10.5px * var(--text-font-scale)); }
+.subagent-strip .sa-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-6);
+  color: var(--sa-accent);
+  background: color-mix(in srgb, var(--sa-accent) 9%, transparent);
+}
+.subagent-strip .sa-avatar .icon { width: 20px; height: 20px; }
+.subagent-strip .sa-identity {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: var(--sp-4);
+}
+.subagent-strip .sa-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 22px;
+  gap: var(--sp-8);
+}
 .subagent-strip .sa-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-12);
+  font-size: var(--fs-14);
   font-weight: var(--fw-semibold);
+  line-height: 1.3;
   color: var(--text);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.subagent-strip .sa-card .hub-act {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  height: 20px;
+  padding: 0 var(--sp-6);
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--sa-accent) 10%, transparent);
+  color: var(--sa-accent);
+  font-size: var(--fs-11);
+  line-height: 1.3;
+}
+.subagent-strip .sa-status-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.subagent-strip .sa-status-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .subagent-strip .sa-dur {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
   flex: none;
   font-family: var(--font-mono);
-  font-size: calc(10.5px * var(--text-font-scale));
+  font-size: var(--fs-11);
   font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
+  color: var(--text-3);
+  white-space: nowrap;
 }
-/* token / tools / cost：对话卡第二行与检查卡标题共用 */
+.subagent-strip .sa-dur .icon { width: 12px; height: 12px; opacity: .7; }
+.subagent-strip .sa-open {
+  flex: none;
+  color: var(--text-faint);
+  opacity: .5;
+  transition: color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease-out);
+}
+.subagent-strip .sa-card:is(:hover, :focus-visible) .sa-open {
+  color: var(--sa-accent);
+  opacity: 1;
+  transform: translateX(2px);
+}
+.subagent-strip .sa-brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.subagent-strip .sa-task {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.subagent-strip .sa-task {
+  font-size: var(--fs-12);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* token / tools / cost：对话卡底栏与检查卡标题共用 */
 .sa-metrics {
   display: flex;
   align-items: baseline;
@@ -1108,9 +1182,29 @@
 }
 .subagent-strip .sa-metrics {
   flex-wrap: wrap;
+  gap: var(--sp-6) var(--sp-12);
   width: 100%;
+  margin-top: auto;
+  padding-top: var(--sp-6);
+  border-top: 1px solid color-mix(in srgb, var(--sa-accent) 8%, var(--border));
+  line-height: 1.3;
 }
-.subagent-strip .sa-cost { margin-left: auto; }
+.subagent-strip .sa-metrics > span { white-space: nowrap; }
+.subagent-strip .sa-metrics .hub-num b { order: -1; }
+.subagent-strip .sa-metrics :is(.sa-tok, .hub-num) b {
+  font-size: var(--fs-12);
+  color: var(--text-2);
+}
+.subagent-strip .sa-metrics :is(.sa-tok, .hub-num) i {
+  font-size: var(--fs-11);
+  color: var(--text-3);
+}
+.subagent-strip .sa-metrics .sa-tok b { color: var(--text); }
+.subagent-strip .sa-cost {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
 .sa-tok { display: inline-flex; align-items: baseline; gap: 4px; }
 .sa-tok b {
   font-family: var(--font-mono);
@@ -1126,116 +1220,12 @@
   color: var(--text-faint);
   line-height: 1;
 }
-/* 全页变暗：独立一层，避免写在 .sa-inspect 上把弹窗自己淡掉。
-   position:fixed 盖住侧栏 / 顶栏 / 对话；z-index 高于侧栏 --z-panel。 */
-.sa-inspect-dim {
-  --dur-sa-inspect: 480ms;
-  --dur-sa-inspect-leave: 260ms;
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  background: rgba(15, 15, 25, 0.45);
-  animation: sa-inspect-dim-in var(--dur-toast) var(--ease-out) both;
-}
-:root[data-theme="dark"] .sa-inspect-dim {
-  background: rgba(0, 0, 0, 0.55);
-}
-.sa-inspect-dim.is-leave {
-  pointer-events: none;
-  animation: sa-inspect-dim-out var(--dur-sa-inspect-leave) var(--ease-out) both;
-}
-.sa-inspect {
-  --dur-sa-inspect: 480ms;
-  --dur-sa-inspect-leave: 260ms;
-  position: absolute;
-  left: calc(var(--sp-16) - 24px);
-  right: calc(var(--sp-16) + var(--minimap-w) + 8px - 24px);
-  /* 固定约 82% 工作区高（视口 − 标题栏 36px − 顶栏），底边贴 Composer，不随对话列伸缩。 */
-  top: auto;
-  bottom: var(--sp-8);
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  width: auto;
-  max-width: calc(var(--doc-max-w) + 48px);
-  height: calc((100dvh - 36px - var(--topbar-h)) * 0.82);
-  max-height: calc((100dvh - 36px - var(--topbar-h)) * 0.82);
-  overflow: hidden;
-  z-index: calc(var(--z-modal) + 1);
-  transform-origin: 50% 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--r-12, 12px);
-  background: var(--surface);
-  box-shadow:
-    0 0 22px 4px color-mix(in srgb, var(--accent) 16%, transparent),
-    0 12px 36px rgba(15, 17, 26, 0.14),
-    0 3px 12px rgba(15, 17, 26, 0.08);
-  animation: dock-genie-in var(--dur-sa-inspect) var(--ease-nav) both;
-}
-:root[data-theme="dark"] .sa-inspect {
-  box-shadow:
-    0 0 26px 4px color-mix(in srgb, var(--accent) 22%, transparent),
-    0 12px 36px rgba(0, 0, 0, 0.45),
-    0 3px 12px rgba(0, 0, 0, 0.30);
-}
-.sa-inspect.is-leave {
-  pointer-events: none;
-  animation: dock-genie-out var(--dur-sa-inspect-leave) var(--ease-out) both;
-}
-@keyframes sa-inspect-dim-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes sa-inspect-dim-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-/* 底边变形浮入/收起：子 Agent 检查卡与 Ask 卡共用。 */
+/* Ask 卡的底边变形浮入/收起。 */
 @keyframes dock-genie-in {
-  from {
-    opacity: 0;
-    transform: translateY(10%) scale3d(0.42, 0.16, 1);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(10%) scale3d(0.42, 0.16, 1); }
 }
 @keyframes dock-genie-out {
-  from {
-    opacity: 1;
-    transform: none;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(10%) scale3d(0.42, 0.16, 1);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sa-inspect-dim,
-  .sa-inspect,
-  .sa-inspect-dim.is-leave,
-  .sa-inspect.is-leave {
-    animation: none;
-  }
-}
-.sa-inspect-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  flex: none;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-}
-.sa-inspect-title-wrap { flex: 1; min-width: 0; }
-.sa-inspect-head .sa-metrics { margin-left: auto; }
-.sa-inspect-title {
-  margin: 0;
-  font-size: var(--fs-14);
-  font-weight: var(--fw-semibold);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  to { opacity: 0; transform: translateY(10%) scale3d(0.42, 0.16, 1); }
 }
 .sa-inspect-scroll {
   position: relative;
@@ -1251,16 +1241,9 @@
   flex: 1;
   min-height: 0;
 }
-/* 检查卡固定高度：剩余空间交给滚动区。 */
-.sa-inspect .subagent-convo,
-.sa-inspect .sa-inspect-scroll {
-  flex: 1 1 0;
-}
 /* 直接子选择器：面板根的直接子按钮才是悬浮位；排队栏头行里的同名按钮
    （qs-head-slot）不能被钉到面板右下角。 */
-.sa-inspect > .new-content-pill,
 .subagent-convo > .new-content-pill { position: absolute; right: 16px; left: auto; margin: 0; bottom: 16px; }
-.sa-inspect.has-composer > .new-content-pill,
 .subagent-convo.has-composer > .new-content-pill { bottom: 112px; }
 .sa-inspect-composer {
   flex: none;
@@ -1595,13 +1578,6 @@
   transition: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .batch-chain,
-  .tl-card {
-    transition: none;
-    transform: none;
-  }
-}
 .tc-tree {
   border: 1px solid var(--border);
   border-radius: var(--r-6);
@@ -1730,7 +1706,7 @@
   overflow: hidden;
   cursor: pointer;
   user-select: none;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
 .tc-cite:hover {
   color: var(--text);
@@ -2018,21 +1994,28 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   background: var(--surface);
 }
 
-/* ---------- Conversation Minimap（参照 omp-web ChatMinimap：36px 圆点轨道 + 预览浮层） ---------- */
+/* ---------- Conversation Minimap（参照 omp-web ChatMinimap：36px 圆点轨道 + 预览浮层） ----------
+   轨道贴在对话区左边缘（inline-start）。左右留白、浮层与工具菜单的方向都与这条边成对
+   改动：.convo-doc / .new-content-pill-row / .composer-region / .deck / .task-dock /
+   .sa-inspect / .convo-notice.xdev-mount 的让位，以及 .mm-preview / .minimap-tools /
+   .mm-menu 的锚边。 */
 .minimap {
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
   width: var(--minimap-w);
   height: 100%;
   background: var(--bg);
-  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   z-index: var(--z-rail);
   user-select: none;
   /* 不设 cursor:pointer：空白区（含视口指示条）不提示可点击，
      只有节点（.mm-mark）是点击手 */
 }
-.minimap-track { position: relative; width: 100%; height: 100%; }
+/* 轨道是拖拽面：显式 `touch-action: none`，否则触摸/笔输入下浏览器先认领纵向
+   平移手势并派发 `pointercancel`，拖动在第一帧就被取消（应用里其它拖拽面
+   .bottom-panel-resizer / 侧栏 resizer 同样这么处理）。 */
+.minimap-track { position: relative; width: 100%; height: 100%; touch-action: none; }
 /* 连接节点的轨道参考线 */
 .mm-rail {
   position: absolute;
@@ -2054,6 +2037,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   border-radius: 2px;
   background: var(--minimap-viewport);
   z-index: 1; /* 在圆点之下、工具按钮之下 */
+  touch-action: none;
 }
 /* 回合节点：灰色圆点（同 omp-web 语义，每轮 user/assistant 一个点） */
 .mm-mark {
@@ -2072,6 +2056,19 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
     border-color var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
 }
+/* Pointer target expansion（与 .icon-btn 同一套 WCAG 2.2 SC 2.5.8 处理）：
+   视觉尺寸保持 8px 的圆点/40×3 的横条，命中区域撑到 --tap-min。
+   轨道 36px 宽，水平方向正好铺满；相邻圆点纵向最近约 11px，扩大后的命中区
+   会互相叠一点——相邻圆点本就属于「同一簇」，叠住比点不中好。 */
+.mm-mark::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, var(--tap-min));
+  height: max(100%, var(--tap-min));
+  transform: translate(-50%, -50%);
+}
 .mm-mark:hover { transform: translate(-50%, -50%) scale(1.25); border-color: rgba(128, 128, 128, 0.9); }
 /* 活跃回合（滚动时最接近视口中部） */
 .mm-mark.active {
@@ -2080,22 +2077,34 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--border-strong);
   transform: translate(-50%, -50%) scale(1.12);
 }
-/* 特殊事件（需求：错误 / 审批突出显示），保留彩色点缀；
-   用户消息与 agent 汇总为横条（比轨道略宽，突出回合边界） */
+/* 特殊事件保留彩色点缀；用户消息与 agent 汇总为横条（比轨道略宽，突出回合边界）。
+   类型集合以 ConversationMinimap 的 MinimapMarkType 为准——ver1 遗留的
+   approval / ask / plan 永远不会命中，已删除。 */
 .mm-mark.user { width: 40px; height: 3px; border-radius: 1px; background: rgba(128, 128, 128, 0.5); border-color: rgba(128, 128, 128, 0.85); }
 .mm-mark.assistant { width: 36px; height: 3px; border-radius: 1px; background: var(--purple); border-color: var(--purple); }
 .mm-mark.error { background: var(--red); border-color: var(--red); }
-.mm-mark.approval { background: var(--amber); border-color: var(--amber); }
 .mm-mark.checkpoint { background: var(--accent); border-color: var(--accent); }
-.mm-mark.ask { background: var(--accent); border-color: var(--accent); }
 .mm-mark.compact { background: var(--text-3); border-color: var(--text-3); width: 12px; height: 3px; border-radius: 1px; }
 .mm-mark.file { border-color: var(--green); background: var(--green-soft); }
-.mm-mark.bash, .mm-mark.thinking, .mm-mark.plan { border-color: var(--blue); background: var(--blue-soft); }
+.mm-mark.bash, .mm-mark.thinking { border-color: var(--blue); background: var(--blue-soft); }
+/* 「仅显示关键节点」筛到空轨道时的说明：居中在轨道上半段，不挡工具按钮。 */
+.mm-empty-filter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  writing-mode: vertical-rl;
+  font-size: calc(10px * var(--text-font-scale));
+  color: var(--text-faint);
+  pointer-events: none;
+  z-index: 1;
+}
 
-/* Minimap hover 预览浮层（左侧弹出，含回合序号 + 用户消息 + assistant 标题大纲） */
+/* Minimap hover 预览浮层（向右侧弹出，含回合序号 + 预览文本）。
+   ver1 的大纲标题（.mp-heading）在 React 版里没有对应数据源，样式一并移除。 */
 .mm-preview {
   position: absolute;
-  right: calc(var(--minimap-w) + 8px);
+  left: calc(var(--minimap-w) + 8px);
   top: 8px;
   width: 264px;
   max-height: 320px;
@@ -2108,11 +2117,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   padding: var(--sp-10);
   font-size: var(--fs-11);
   color: var(--text-2);
-  /* Was pointer-events: none, which silently killed three handlers bound to
-     this element in workbench.js: the mouseenter/mouseleave pair that keeps the
-     panel open while the cursor travels into it, and the click handler on
-     .mp-heading that jumps to an outline entry. The panel could never be
-     entered, so heading navigation was unreachable. */
+  /* 必须可进入：指针从圆点移进浮层时由 mouseenter 取消隐藏定时器，
+     否则 250ms 后预览会在光标仍悬停其上时消失。 */
   pointer-events: auto;
 }
 .mm-preview .mp-no {
@@ -2133,26 +2139,18 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.mm-preview .mp-heading {
-  padding: 3px 8px;
-  border-radius: var(--r-4);
-  cursor: pointer;
-  color: var(--accent);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mm-preview .mp-heading:hover { background: var(--accent-soft); }
 .mm-preview .mp-empty { color: var(--text-faint); font-style: italic; }
 
-/* 底部工具按钮 */
+/* 底部工具按钮（筛选 / 回到最新）：在轨道宽度内水平居中——按 left:50% 平移半个
+   自身宽度，容器仍只有按钮那么宽，底部的轨道拖动区不被额外挡住。 */
 .minimap-tools {
   position: absolute;
-  right: 4px;
+  left: 50%;
   bottom: 6px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
   z-index: var(--z-rail-tools);
 }
@@ -2167,14 +2165,14 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .mm-mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 视口条可拖动（滑块语义），光标改为双向拖拽提示 */
 .mm-viewport { cursor: ns-resize; }
-/* 跳转目标行 900ms 强调（ver1 flash 语义）：accent 底色淡出 */
+/* 跳转目标行强调（--dur-flash，ver1 flash 语义）：accent 底色淡出 */
 @keyframes omp-mm-flash {
   from { background-color: var(--accent-soft); }
   to { background-color: transparent; }
 }
-.ev.mm-flash { animation: omp-mm-flash 900ms var(--ease-out); border-radius: var(--r-6); }
-/* 筛选/跳转菜单：锚在 minimap 工具按钮上方（.menu 本体样式见 components.css） */
-.mm-menu { right: 4px; bottom: 56px; min-width: 208px; }
+.ev.mm-flash { animation: omp-mm-flash var(--dur-flash) var(--ease-out); border-radius: var(--r-6); }
+/* 筛选/跳转菜单：锚在 minimap 工具按钮上方，向对话一侧展开（.menu 本体样式见 components.css） */
+.mm-menu { left: 4px; bottom: 56px; min-width: 208px; }
 /* 预览模式的悬浮预览「演示」chip */
 .mm-preview .mp-demo {
   margin-left: 6px;
@@ -2191,15 +2189,14 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
    sticky 把它钉在滚动视口底部，任意滚动态下都悬浮在 composer 上方。
    水平盒子复用 .convo-doc 的补偿式 max-width + 自动居中（含 minimap 让位），
    行内 flex-end 让按钮右缘与 composer 右缘在任意视口宽度下精确对齐；
-   行容器 pointer-events:none 不挡对话点击，按钮自身恢复。
-   不用 transform 定位（omp-toast-in 动画的 transform:none 会覆盖它造成跳动）。 */
+   行容器 pointer-events:none 不挡对话点击，按钮自身恢复。 */
 .new-content-pill-row {
   position: sticky;
   bottom: 12px;
   margin: 0 auto;
   max-width: calc(var(--doc-max-w) + var(--sp-32) + var(--sp-32) + var(--minimap-w) + 8px);
-  padding-left: var(--sp-32);
-  padding-right: calc(var(--sp-32) + var(--minimap-w) + 8px);
+  padding-left: calc(var(--sp-32) + var(--minimap-w) + 8px);
+  padding-right: var(--sp-32);
   display: flex;
   justify-content: flex-end;
   pointer-events: none;
@@ -2207,31 +2204,39 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .new-content-pill {
   pointer-events: auto;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: flex; align-items: center; justify-content: center;
-  background: var(--accent-soft);
+  background: var(--surface);
   color: var(--accent);
-  border: none;
+  border: 1px solid var(--border-strong);
   border-radius: var(--r-full);
-  box-shadow: var(--shadow-menu);
+  box-shadow:
+    0 6px 18px rgba(15, 17, 26, 0.10),
+    0 1px 4px rgba(15, 17, 26, 0.06);
   cursor: pointer;
-  animation: omp-toast-in var(--dur) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  animation: var(--motion-reveal);
 }
-/* 挂在 .composer（position:relative）右上角的「回到最新」：恒定不随对话滚动。
-   整枚悬在输入框上缘之外（36px 高 + 6px 间隙 → top:-44px），不遮输入内容；
-   与 sticky 时代的按钮共用外观与入场动画。 */
-/* 只对 composer 内的直接子元素生效：同名按钮在排队栏头行（qs-head-slot）里是
-   常规流式布局，不能继承这里的绝对定位。 */
-.composer > .new-content-pill.composer-jump-latest {
+:root[data-theme="dark"] .new-content-pill {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40), 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+/* 主输入区的「回到最新」挂在 .composer-queues（排队托盘 + 输入框组合的上沿）右上方，
+   整枚浮在组合之外：排队托盘出现与否，它都不会压到任何一栏或挤进头行。 */
+.composer-queues > .new-content-pill.composer-jump-latest {
   position: absolute;
-  top: -44px;
-  right: 10px;
+  right: 0;
+  bottom: calc(100% + var(--sp-8));
   z-index: calc(var(--z-scroll-aid) + 1);
 }
+/* 任务进度展开成整宽面板时，右下角是它的「审阅」位；回到最新先让开。 */
+.composer-region:has(> .task-dock.open) > .composer-queues > .new-content-pill.composer-jump-latest {
+  display: none;
+}
 .new-content-pill:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  border-color: var(--accent-border);
   color: var(--accent-hover);
 }
 .new-content-pill:focus-visible { outline-color: var(--accent); }
@@ -2254,9 +2259,9 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   display: inline-flex;
   flex: none;
   color: var(--accent);
-  animation: al-turn 3.6s linear infinite;
+  /* 不是加载指示：一圈比 spinner 慢得多，停在余光里。 */
+  animation: omp-spin calc(var(--loop-drift) * 1.5) linear infinite;
 }
-@keyframes al-turn { to { transform: rotate(360deg); } }
 .al-text {
   display: inline-flex;
   align-items: baseline;
@@ -2275,7 +2280,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: al-sweep 2.4s linear infinite;
+  animation: al-sweep var(--loop-drift) linear infinite;
 }
 @keyframes al-sweep {
   from { background-position: 140% 0; }
@@ -2308,15 +2313,21 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   flex: none;
   background: var(--bg);
   padding: var(--sp-10) var(--sp-16) var(--sp-8);
-  /* 右侧让出 minimap 宽度，避免被遮挡（参照 omp-web CHAT_INPUT_RIGHT_PADDING） */
-  padding-right: calc(var(--sp-16) + var(--minimap-w) + 8px);
+  /* 左侧让出 minimap 宽度，避免被遮挡（参照 omp-web CHAT_INPUT_RIGHT_PADDING） */
+  padding-left: calc(var(--sp-16) + var(--minimap-w) + 8px);
   position: relative;
   overflow: visible;
 }
 .convo-wrap[data-reading-column] > .composer-region {
   min-width: 0;
-  padding-left: var(--reading-gutter);
+  padding-left: var(--reading-doc-start);
   padding-right: var(--reading-composer-end);
+  background: transparent;
+  pointer-events: none;
+}
+/* The empty space around the tray belongs to the conversation beneath it. */
+.composer-region > :not(.task-dock, .composer-queues) {
+  pointer-events: auto;
 }
 .convo-wrap[data-reading-column] > .composer-region > :is(.composer, .composer-queues, .queue-strip) {
   min-width: 0;
@@ -2331,10 +2342,28 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   max-width: min(calc(100% - var(--sp-24)), max(0px, calc(var(--conversation-width) - 80px)));
 }
 .convo-wrap[data-reading-column] > .composer-region > :is(.task-dock, .deck) {
-  left: var(--reading-gutter);
+  left: var(--reading-doc-start);
   right: var(--reading-composer-end);
   min-width: 0;
   max-width: var(--conversation-width);
+}
+/* 紧凑工具区（.dock-rail-compact，右边缘 40px + 8px 间距）是浮层。minimap 挪到左侧后
+   对话列不再有右侧 chrome 让位，而紧凑模式只在主列不足 880px 时出现——此时正文必然填满
+   可用宽、右留白只剩 gutter，浮层会压住最后一行文字。正文与 Composer 同时再让 48px：
+   两侧加同样的量，净宽与中线仍与 `.convo-doc` 一致（欢迎态由后面的 is-empty 规则覆盖）。 */
+.convo-wrap[data-reading-column]:has(> .dock-rail-compact) > .convo-scroll > .convo-doc,
+.convo-wrap[data-reading-column]:has(> .dock-rail-compact) > .convo-scroll > .new-content-pill-row {
+  max-width: calc(var(--reading-doc-max) + 48px);
+  padding-right: calc(var(--reading-gutter) + 48px);
+}
+.convo-wrap[data-reading-column]:has(> .dock-rail-compact) > .composer-region {
+  padding-right: calc(var(--reading-composer-end) + 48px);
+}
+.convo-wrap[data-reading-column]:has(> .dock-rail-compact) > .composer-region > :is(.task-dock, .deck) {
+  right: calc(var(--reading-composer-end) + 48px);
+}
+.convo-wrap[data-reading-column]:has(> .dock-rail-compact) .convo-notice.xdev-mount {
+  right: calc(var(--sp-32) + 48px);
 }
 
 /* Composer-attached task progress: floating popup over the conversation.
@@ -2345,8 +2374,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   --task-dock-row: 28px;
   --task-dock-rows: 5;
   position: absolute;
-  left: var(--sp-16);
-  right: calc(var(--sp-16) + var(--minimap-w) + 8px);
+  left: calc(var(--sp-16) + var(--minimap-w) + 8px);
+  right: var(--sp-16);
   /* 下缘与 region 内第一个控件保持 8px 间距：region padding-top 10px − 2px。 */
   bottom: calc(100% - var(--sp-2));
   margin: 0 auto;
@@ -2397,8 +2426,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   overflow: hidden;
   pointer-events: none;
   transition:
-    grid-template-rows var(--dur-exit) var(--ease-in),
-    width var(--dur-exit) var(--ease-in);
+    grid-template-rows var(--dur-fast) var(--ease-in),
+    width var(--dur-fast) var(--ease-in);
 }
 .task-dock.open .task-dock-collapse {
   grid-template-rows: 1fr;
@@ -2506,7 +2535,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .task-dock.open .task-dock-panel {
   opacity: 1;
-  transition-delay: 40ms;
+  transition-delay: var(--stagger);
 }
 .task-dock-col {
   display: flex;
@@ -2603,7 +2632,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   display: grid;
   grid-template-rows: 0fr;
   min-width: 0;
-  transition: grid-template-rows var(--dur-exit) var(--ease-in);
+  transition: grid-template-rows var(--dur-fast) var(--ease-in);
 }
 .task-dock-phase.open .task-dock-phase-fold {
   grid-template-rows: 1fr;
@@ -2725,32 +2754,21 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   .task-dock-panel { grid-template-columns: 1fr; }
   .task-dock-col + .task-dock-col { border-left: none; border-top: 1px solid var(--border); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .task-dock-shell,
-  .task-dock-collapse,
-  .task-dock-panel,
-  .task-dock-bar,
-  .task-dock-pill,
-  .task-dock-phase-fold,
-  .qs-collapse {
-    transition: none;
-  }
-  .task-dock-pill:active { transform: none; }
-}
 
 /* ---------- Deck：底部操作许可浮层（Agent 提问 / 审批请求） ----------
    参照 ver1：浮在输入框上方（最靠近输入，优先处理），不挤占布局；
    激活时 composer 变暗让位。切换动画：
-   · 同一张卡片内切换内容 —— 卡片外壳（.deck-card）常驻，内部轨道（.deck-track）
-     横向平移：旧内容向左推出、新内容从右滑入，不换卡、不闪烁；
+   · 同一张卡片内切换内容 —— 卡片外壳（.deck-card）常驻，正文段（.dk-swap）里
+     新旧两格叠着方向性交叉溶解（.dk-cell-enter-* / -leave-*，与标签页面板
+     同一组动画，见 styles/motion.css）；
    · 高度变化以底部为锚向上展开 —— JS 锁像素高度后交给 height transition，
      新内容更高时向上生长、更矮时向下收起，而不是瞬间跳变。 */
 .deck {
   position: absolute;
-  left: var(--sp-16);
+  left: calc(var(--sp-16) + var(--minimap-w) + 8px);
   bottom: var(--sp-8);
-  /* 与 .composer-region 的右 padding 一致（含 minimap 让位），与 composer 同宽同中线 */
-  right: calc(var(--sp-16) + var(--minimap-w) + 8px);
+  /* 与 .composer-region 的左 padding 一致（含 minimap 让位），与 composer 同宽同中线 */
+  right: var(--sp-16);
   margin: 0 auto;
   max-width: var(--doc-max-w);
   z-index: var(--z-rail);
@@ -2767,7 +2785,6 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
     0 8px 28px rgba(0, 0, 0, 0.45),
     0 2px 8px rgba(0, 0, 0, 0.30);
 }
-.deck.smooth { transition: height var(--dur-slow) var(--ease-out); }
 /* 卡片外壳：常驻的同一张卡片，填满 Deck（top/bottom 都锚定），内容在内部切换 */
 .deck-card {
   position: absolute;
@@ -2779,35 +2796,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   background: var(--surface);
   border-radius: inherit;
 }
-.deck-card.in { animation: deck-in var(--dur-slow) var(--ease-out); }
-.deck-card.out {
-  animation: deck-out 220ms var(--ease-in) both;
-  pointer-events: none;
-}
-@keyframes deck-in {
-  from { opacity: 0; transform: translateX(28px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes deck-out {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: translateX(-24px); }
-}
-/* 内容轨道：旧 / 新内容并排，transform 决定显示哪一屏；不重叠所以不闪烁 */
-.deck-track {
-  display: flex;
-  align-items: flex-start;
-  height: 100%;
-  transition: transform var(--dur-slow) var(--ease-out);
-  will-change: transform;
-}
-.deck-track.no-anim { transition: none; }
-.deck-cell {
-  flex: 0 0 100%;
-  min-width: 0;
-  max-height: min(420px, 72vh, var(--deck-max-height, 72vh));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
+
 /* 预览与真实共用 .preview-queue：ver1 队列 1/N，同一窗口切换审批 / 提问，不并排两张卡 */
 .deck.preview-queue {
   height: auto;
@@ -2853,12 +2842,12 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   --reading-deck-cap: max(0px, min(420px, 72vh, var(--deck-max-height, 72vh), calc(var(--reading-height, 100dvh) - var(--sp-16) - var(--sp-8))));
   max-height: var(--reading-deck-cap);
 }
-.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .deck-cell, .dk-stage) {
+.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage) {
   min-height: 0;
   max-height: var(--reading-deck-cap);
 }
 .convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage):not([hidden]),
-.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage, .deck-cell) > :is(.ask-card, .approval-card) {
+.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage) > :is(.ask-card, .approval-card) {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -2866,7 +2855,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   max-height: var(--reading-deck-cap);
   overflow: hidden;
 }
-.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage, .deck-cell) > :is(.ask-card, .approval-card) {
+.convo-wrap[data-reading-column] > .composer-region > .deck :is(.deck-card, .dk-stage) > :is(.ask-card, .approval-card) {
   flex: 0 1 auto;
 }
 .convo-wrap[data-reading-column] > .composer-region > .deck :is(.ask-card, .approval-card) > :is(.ask-head, .approval-head, .dk-actions, .ask-error, .dk-steer-hint, .plan-execution) {
@@ -2888,11 +2877,11 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   overflow: visible;
 }
 .deck.is-ask-enter {
-  animation: dock-genie-in 480ms var(--ease-nav) both;
+  animation: dock-genie-in var(--dur-hero) var(--ease-nav) both;
 }
 .deck.is-ask-leave {
   pointer-events: none;
-  animation: dock-genie-out 260ms var(--ease-out) both;
+  animation: dock-genie-out var(--dur-slow) var(--ease-out) both;
 }
 /* ---------- ask 卡之间切换（队列翻页 / 标题行 header 胶囊跳转） ----------
    卡片外壳常驻：标题行（Agent 提问 / 胶囊 / 1-N）和底部操作行（取消 / 提交）
@@ -2907,13 +2896,13 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   position: relative;
   overflow: hidden;
 }
-.dk-stage.smooth { transition: height 300ms var(--ease-nav); }
+.dk-stage.smooth { transition: height var(--dur-slower) var(--ease-nav); }
 /* 正文段：换页时两格在这里叠着交叉溶解，高度过渡也锁在这一段上 */
 .dk-swap {
   position: relative;
   overflow: hidden;
 }
-.dk-swap.smooth { transition: height 300ms var(--ease-nav); }
+.dk-swap.smooth { transition: height var(--dur-slower) var(--ease-nav); }
 /* 当前那一格在流内 —— 锁释放后段落高度重新跟随它，改窗口宽度不需要再量一次 */
 .dk-cell {
   position: relative;
@@ -2929,36 +2918,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   z-index: 0;
   pointer-events: none;
 }
-.dk-cell-enter-fwd { animation: dk-cell-enter-fwd 300ms var(--ease-nav) both; }
-.dk-cell-enter-back { animation: dk-cell-enter-back 300ms var(--ease-nav) both; }
-.dk-cell-leave-fwd { animation: dk-cell-leave-fwd 200ms var(--ease-nav) both; }
-.dk-cell-leave-back { animation: dk-cell-leave-back 200ms var(--ease-nav) both; }
-@keyframes dk-cell-enter-fwd {
-  from { opacity: 0; transform: translate3d(18px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes dk-cell-leave-fwd {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to { opacity: 0; transform: translate3d(-10px, 0, 0); }
-}
-@keyframes dk-cell-enter-back {
-  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes dk-cell-leave-back {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to { opacity: 0; transform: translate3d(10px, 0, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dk-stage.smooth,
-  .dk-swap.smooth { transition: none; }
-  .dk-cell-enter-fwd,
-  .dk-cell-enter-back,
-  .dk-cell-leave-fwd,
-  .dk-cell-leave-back,
-  .deck.is-ask-enter,
-  .deck.is-ask-leave { animation: none; }
-}
+
 .dk-head-end {
   margin-left: auto;
   display: inline-flex;
@@ -3185,9 +3145,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
    过去逐帧改 width/height 那样每帧重排、重新折行；窗口缩放时大卡也自己跟。
    收起比展开更短、起步立刻动（ease-out），避免镜像曲线前半段几乎停住。 */
 .plan-review-overlay {
-  /* 展开 / 收起时长：JS 的 PLAN_MORPH_MS / PLAN_MORPH_LEAVE_MS 与它们对齐 */
-  --dur-plan-morph: 340ms;
-  --dur-plan-morph-leave: 200ms;
+  /* 展开 --dur-slower，收起低一档 --dur-slow（PlanCard.tsx 的 PLAN_MORPH_LEAVE_MS
+     等的就是它）。 */
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
@@ -3204,13 +3163,13 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   inset: 0;
   background: rgba(15, 15, 25, 0.5);
   opacity: 0;
-  transition: opacity var(--dur-toast) var(--ease-out);
+  transition: opacity var(--dur-slower) var(--ease-out);
 }
 .plan-review-overlay.is-open::before { opacity: 1; }
 .plan-review-overlay.is-leave { pointer-events: none; }
 .plan-review-overlay.is-leave::before {
   opacity: 0;
-  transition: opacity var(--dur-plan-morph-leave) var(--ease-out);
+  transition: opacity var(--dur-slow) var(--ease-out);
 }
 :root[data-theme="dark"] .plan-review-overlay::before { background: rgba(0, 0, 0, 0.6); }
 .plan-review-dialog {
@@ -3230,16 +3189,16 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
      两端结构一致才插值得动。 */
   clip-path: inset(0px 0px 0px 0px round var(--r-10));
   transition:
-    clip-path var(--dur-plan-morph) var(--ease-nav),
-    transform var(--dur-plan-morph) var(--ease-nav),
-    opacity 200ms var(--ease-out);
+    clip-path var(--dur-slower) var(--ease-nav),
+    transform var(--dur-slower) var(--ease-nav),
+    opacity var(--dur) var(--ease-out);
   will-change: clip-path, transform, opacity;
 }
 .plan-review-overlay.is-leave .plan-review-dialog {
   transition:
-    clip-path var(--dur-plan-morph-leave) var(--ease-out),
-    transform var(--dur-plan-morph-leave) var(--ease-out),
-    opacity var(--dur-plan-morph-leave) var(--ease-out);
+    clip-path var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out),
+    opacity var(--dur-slow) var(--ease-out);
 }
 .plan-review-dialog.no-anim { transition: none; }
 .plan-review-dialog-head {
@@ -3357,13 +3316,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   font-size: var(--fs-13);
 }
 .plan-review-dialog .dk-actions { flex: none; }
-@media (prefers-reduced-motion: reduce) {
-  .plan-review-overlay::before,
-  .plan-review-dialog { transition: none; }
-}
 /* Deck 激活时被覆盖的 composer：变暗并禁止交互（参照 ver1） */
-.composer-region:has(.deck.active) .composer,
-.convo-wrap:has(.sa-inspect) .composer {
+.composer-region:has(.deck.active) .composer {
   opacity: 0.35;
   pointer-events: none;
   box-shadow: none;
@@ -3432,65 +3386,6 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
    accept path selected with querySelector('span') — that matched whichever span
    came first and silently picked up the type label on some rows. */
 .complete-item .ci-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.composer-input-shell {
-  position: relative;
-  width: 100%;
-}
-.composer-input-mirror,
-.composer textarea.composer-input {
-  width: 100%;
-  border: none;
-  background: transparent;
-  resize: none;
-  padding: 5px var(--sp-14) var(--sp-4);
-  font-size: var(--fs-14);
-  line-height: 1.6;
-  min-height: 44px;
-  max-height: 200px;
-  outline: none;
-  font-family: var(--font-ui);
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  box-sizing: border-box;
-  transition: height var(--dur-slow) var(--ease-out), min-height var(--dur-slow) var(--ease-out), max-height var(--dur-slow) var(--ease-out), padding var(--dur-slow) var(--ease-out);
-}
-.composer-input-mirror {
-  position: absolute;
-  inset: 0;
-  overflow: auto;
-  pointer-events: none;
-  color: var(--text);
-  scrollbar-width: none;
-}
-.composer-input-mirror::-webkit-scrollbar { display: none; }
-.composer textarea.composer-input {
-  position: relative;
-  z-index: 1;
-  color: transparent;
-  caret-color: var(--text);
-  overflow: auto;
-}
-.composer textarea.composer-input::placeholder {
-  color: var(--glyph-faint);
-  opacity: 1;
-}
-.composer.running.compact .composer-input-mirror,
-.composer.running.compact textarea.composer-input {
-  height: 24px;
-  min-height: 24px;
-  max-height: 24px;
-  padding-top: 1px;
-  padding-bottom: 0;
-  overflow: hidden;
-}
-.composer.running.expanded .composer-input-mirror,
-.composer.running.expanded textarea.composer-input {
-  height: 50px;
-  min-height: 50px;
-  max-height: 200px;
-}
-
 /* Inline file / skill / image capsules inside the composer body. */
 .chip-composer {
   position: relative;
@@ -3567,44 +3462,134 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   place-items: center;
   padding: var(--sp-24);
   background: rgba(0, 0, 0, 0.72);
+  -webkit-app-region: no-drag;
 }
 .img-preview-dialog {
   position: relative;
-  display: grid;
-  place-items: center;
-  max-width: 90vw;
-  max-height: 90vh;
-}
-.img-preview-close {
-  position: fixed;
-  top: 48px;
-  right: 16px;
-  z-index: calc(var(--z-modal) + 1);
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-float);
+  border-radius: var(--r-10);
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border-float);
-  box-shadow: var(--shadow-menu);
+  box-shadow: var(--shadow-modal);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
 }
-.img-preview-close:hover {
-  color: var(--text);
-  background: var(--surface-hover);
+.img-preview-header,
+.img-preview-actions,
+.img-preview-zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.img-preview-header {
+  flex: none;
+  flex-wrap: wrap;
+  padding: var(--sp-8) var(--sp-12);
+  border-bottom: 1px solid var(--border);
+}
+.img-preview-title {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--fw-semibold);
+}
+.img-preview-actions {
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.img-preview-dialog .btn {
+  min-width: var(--tap-min);
+  min-height: max(var(--tap-min), 32px);
+  padding: var(--sp-4) var(--sp-8);
+  white-space: nowrap;
+}
+.img-preview-dialog .btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+.img-preview-dialog .btn:focus-visible,
+.img-preview-viewport:focus-visible,
+.img-preview-menu:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.img-preview-zoom {
+  flex: none;
+  flex-wrap: wrap;
+  padding: var(--sp-6) var(--sp-12);
+  border-bottom: 1px solid var(--border);
+}
+.img-preview-scale {
+  min-width: 5ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.img-preview-viewport {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  user-select: none;
+}
+.img-preview-viewport.is-pannable { cursor: grab; }
+.img-preview-viewport.is-dragging { cursor: grabbing; }
+.img-preview-canvas {
+  display: grid;
+  place-items: center;
+  width: max-content;
+  height: max-content;
+  min-width: 100%;
+  min-height: 100%;
 }
 .img-preview-image {
   display: block;
-  max-width: 90vw;
-  max-height: 90vh;
-  object-fit: contain;
-  border-radius: var(--r-8);
-  box-shadow: var(--shadow-modal);
+  max-width: none;
+  max-height: none;
   background: var(--surface-2);
+  /* Deliberately no scaling transition: inspect the received pixels, not an animation. */
 }
+.img-preview-footer {
+  flex: none;
+  max-height: 25%;
+  overflow: auto;
+  padding: var(--sp-6) var(--sp-12);
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.img-preview-footer p { margin: 0; }
+.img-preview-footer [role="status"]:empty { display: none; }
+.img-preview-footer .img-preview-error { color: var(--red); }
 .img-preview-menu {
   position: fixed;
-  z-index: calc(var(--z-modal) + 2);
+  z-index: var(--z-menu);
   min-width: 140px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+}
+@media (max-width: 480px), (max-height: 420px) {
+  .img-preview-backdrop { padding: var(--sp-8); }
+  .img-preview-header,
+  .img-preview-zoom { gap: var(--sp-4); padding: var(--sp-4) var(--sp-8); }
+}
+@media (pointer: coarse) {
+  .img-preview-dialog .btn,
+  .img-preview-menu .menu-item { min-height: 44px; min-width: 44px; }
 }
 .chip-composer-editor {
   position: relative;
@@ -3801,7 +3786,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   display: inline-flex;
   width: max-content;
   transform: translateX(var(--cm-scroll-x));
-  transition: transform var(--cm-scroll-duration) linear 400ms;
+  transition: transform var(--cm-scroll-duration) linear var(--tip-delay);
 }
 .cm-chip-file { color: var(--accent); background: var(--accent-soft); }
 .cm-chip-dir { color: var(--blue); background: var(--blue-soft); }
@@ -3946,31 +3931,13 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   font: inherit;
 }
 .magic-kw-ch {
-  color: hsl(var(--magic-hue, 200) 90% 52%);
+  color: hsl(var(--magic-hue, 200) 90% var(--magic-lightness, 52%));
 }
 [data-theme="dark"] .magic-kw-ch {
-  color: hsl(var(--magic-hue, 200) 90% 68%);
-}
-/* 扫光只在「输入框镜像层」里跑，而且只给每个关键字的前 39 个字符。
-   `filter` 是逐帧重建该字符的层再重绘，成本随字符数线性增长；它又挂在用户气泡上
-   恒开（`UserMessageBody` 传 magicKeywords=true），是会话正文里最贵的一条无限动画。
-   正文改为静态 HSL 渐变——每个字符的 --magic-hue 本来就不同，彩虹识读不变。 */
-.composer-input-mirror .magic-kw.is-animated .magic-kw-ch {
-  animation: magic-kw-shimmer 1.8s linear infinite;
-  animation-delay: calc(var(--magic-i, 0) * -90ms);
-}
-.composer-input-mirror .magic-kw.is-animated .magic-kw-ch:nth-child(n+40) {
-  animation: none;
-}
-@keyframes magic-kw-shimmer {
-  0% { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .composer-input-mirror .magic-kw.is-animated .magic-kw-ch { animation: none; }
+  color: hsl(var(--magic-hue, 200) 90% var(--magic-lightness, 68%));
 }
 .composer-bar {
-  display: flex; align-items: center; gap: var(--sp-4);
+  display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-4);
   padding: var(--sp-4) var(--sp-8) var(--sp-8);
   min-width: 0;
 }
@@ -4025,7 +3992,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
                0 0 9px color-mix(in srgb, var(--danger-glow) 32%, transparent);
 }
 .composer-bar .pill-btn.danger > span {
-  animation: omp-text-reveal 0.9s var(--ease-out) 1;
+  animation: omp-text-reveal var(--dur-flash) var(--ease-out) 1;
 }
 @keyframes omp-text-reveal {
   from { opacity: 0.3; }
@@ -4041,6 +4008,16 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .approval-menu-backdrop {
   position: fixed; inset: 0; z-index: 0; background: transparent;
 }
+/* The composer's menus open above the pill or the editor that owns them, so
+   they rise out of it instead of dropping (`--pop-from` in styles/motion.css). */
+.approval-menu,
+.cmp-menu,
+.cm-mention,
+.composer-tier > .rms-pop {
+  --pop-from: 1;
+  animation: var(--motion-pop);
+}
+.cmp-menu.cmp-menu-down { --pop-from: -1; }
 .approval-menu {
   position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 1;
   min-width: 220px; padding: var(--sp-4);
@@ -4081,6 +4058,41 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   overflow: hidden;
 }
 .cmp-mode-menu { min-width: 260px; overflow: visible; z-index: var(--z-menu); }
+.cmp-tools-wrap > .icon-btn { position: relative; }
+.cmp-tools-active {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+.composer-bar[data-collapse]:not([data-collapse="full"]) .cmp-tools-active { display: block; }
+.cmp-tools-menu {
+  min-width: 0;
+  width: min(240px, calc(100vw - 24px));
+  max-height: var(--cmp-menu-max-height, 380px);
+  padding: 3px;
+  gap: 1px;
+  border-radius: var(--r-8);
+}
+.cmp-tools-menu .menu-item { width: 100%; min-height: 28px; padding: 4px 6px; gap: 6px; }
+.cmp-tools-menu .approval-menu-item { padding: 4px 6px; gap: 1px; }
+.cmp-tools-menu .menu-label { padding: 3px 6px; }
+.cmp-tools-menu .cmp-menu-sep { margin-block: 3px; }
+.cmp-tools-menu .cmp-mode-check { padding: 4px 6px; gap: 6px; }
+.cmp-tools-menu .cmp-mode-params { padding: 0 6px 4px 26px; gap: 4px; }
+.cmp-tools-category > span { flex: 1; text-align: left; }
+.cmp-tools-category > .icon:last-child { color: var(--text-faint); }
+.cmp-tools-options {
+  min-height: 0;
+  max-height: calc(var(--cmp-menu-max-height, 380px) - 48px);
+  overflow-y: auto;
+}
+.cmp-tools-options > .am-desc { margin: 3px 6px; font-size: var(--fs-11); line-height: 1.4; }
+.cmp-tools-menu:has(> .cmp-tools-options) > .cmp-mode-menu-scroll { flex: none; }
 .menu.rms-pop.cmp-flyout.cmp-mode-flyout {
   width: 280px;
   padding: var(--sp-4);
@@ -4188,43 +4200,34 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .composer-bar .cmp-compact-icon { display: none; }
 
-/* Composer 根据真实内容碰撞分两步收紧：先将权限 / 模型 / 思考收为图标，
-   再折叠模式胶囊并允许换行。
+/* Composer 根据真实内容碰撞依次收紧：左侧入口与模式胶囊收进加号，
+   然后缩短模型 / 思考；最窄时权限仍独立可点。工具栏始终保持一行。
    data-measuring 只在同步测量期间恢复胶囊自然宽度，避免 flex 裁切掩盖碰撞。 */
 .composer-bar[data-measuring="true"] .mode-chip { flex: none; }
-.composer-bar:is([data-collapse="compact"], [data-collapse="modes"]) .cmp-responsive-pill {
+.composer-bar[data-collapse]:not([data-collapse="full"]) :is(.cb-shortcuts, .cmp-mode-cluster) { display: none; }
+.composer-bar[data-collapse]:not([data-collapse="full"]) .cmp-tools-wrap { order: -1; }
+.composer-bar:is([data-collapse="compact"], [data-collapse="minimal"]) .cmp-pill-wrap .cmp-responsive-pill,
+.composer-bar[data-collapse="minimal"] .approval-pill-wrap > .cmp-responsive-pill {
   width: 24px;
   padding-inline: 0;
   justify-content: center;
   gap: 0;
   position: relative;
 }
-.composer-bar:is([data-collapse="compact"], [data-collapse="modes"]) .cmp-pill-label,
-.composer-bar:is([data-collapse="compact"], [data-collapse="modes"]) .cmp-responsive-pill .cmp-pill-caret { display: none; }
-.composer-bar:is([data-collapse="compact"], [data-collapse="modes"]) .cmp-compact-icon { display: block; }
-.composer-bar:is([data-collapse="compact"], [data-collapse="modes"]) .cmp-task-dot {
+.composer-bar:is([data-collapse="compact"], [data-collapse="minimal"]) .cmp-pill-wrap :is(.cmp-pill-label, .cmp-pill-caret),
+.composer-bar[data-collapse="minimal"] .approval-pill-wrap > .cmp-responsive-pill .cmp-pill-label { display: none; }
+.composer-bar:is([data-collapse="compact"], [data-collapse="minimal"]) .cmp-compact-icon { display: block; }
+.composer-bar:is([data-collapse="compact"], [data-collapse="minimal"]) .cmp-task-dot {
   position: absolute;
   top: 2px;
   right: 2px;
 }
-/* Keep every control reachable when shortening labels still cannot fit a row. */
-.composer-bar[data-collapse="modes"] { flex-wrap: wrap; }
-.composer-bar[data-collapse="modes"] .cmp-mode-cluster {
-  gap: var(--sp-2);
-  flex: none;
-  max-width: 100%;
-  flex-wrap: wrap;
-}
 .composer-bar .composer-tier { flex: none; }
-.composer-bar[data-collapse="modes"] .mode-chip {
-  width: 24px;
-  max-width: 24px;
-  padding-inline: 0;
-  justify-content: center;
-  flex: none;
+.composer-bar[data-collapse="minimal"] {
+  gap: var(--sp-2);
+  padding-inline: var(--sp-4);
 }
-.composer-bar[data-collapse="modes"] .mode-chip-label-full { display: none; }
-.composer-bar[data-collapse="modes"] .mode-chip-label-initial { display: block; }
+.composer-bar[data-collapse]:not([data-collapse="full"]) .queue-edit .qe-label { display: none; }
 .cmp-menu {
   position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 41;
   min-width: 250px; padding: var(--sp-4);
@@ -4842,7 +4845,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .queue-strip.collapsed .qs-collapse {
   grid-template-rows: 0fr;
   opacity: 0;
-  transition-duration: var(--dur-exit);
+  transition-duration: var(--dur-fast);
   transition-timing-function: var(--ease-in);
 }
 /* 0fr 折叠项自身不能带 padding：border-box 在指定高度 0 时会被 padding 垫高
@@ -4904,6 +4907,130 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .qs-item:hover .qs-editing,
 .qs-item:focus-within .qs-editing {
   visibility: hidden;
+}
+/* 计数徽标：替代「×N」，与标题同一行、同一视觉层级下的次要信息。 */
+.qs-count {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  padding: 0 6px;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.runtime-queue .qs-count { background: var(--blue-soft); color: var(--blue); }
+
+/* ---------- 主输入区排队卡片 ----------
+   已提交（Runtime）与本地草稿合成一张浮起的白卡片，与输入框同宽、隔 8px 悬在其上方；
+   外观与任务进度胶囊同一家族（白底、细边、柔和投影），两栏之间只有一条发丝线。
+   卡片自身限高滚动，「回到最新」挂在 .composer-queues 上，不受卡片滚动裁切。 */
+.composer-queues {
+  position: relative;
+  /* Include the tray's bottom gap in its measured overlap height. */
+  display: flow-root;
+  max-width: var(--doc-max-w);
+  margin: 0 auto;
+}
+.composer-tray:has(> .queue-strip) {
+  display: flex;
+  pointer-events: auto;
+  flex-direction: column;
+  margin: 0 0 var(--sp-8);
+  max-height: min(28vh, 240px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-8);
+  box-shadow:
+    0 6px 20px rgba(15, 17, 26, 0.07),
+    0 1px 4px rgba(15, 17, 26, 0.05);
+}
+:root[data-theme="dark"] .composer-tray:has(> .queue-strip) {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.composer-tray > .queue-strip {
+  max-width: none;
+  margin: 0;
+  padding: 0 var(--sp-12);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.composer-tray > .queue-strip + .queue-strip { border-top: 1px solid var(--border); }
+.composer-tray .qs-head-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: auto;
+  margin: 0 calc(-1 * var(--sp-12));
+  align-items: center;
+  background: var(--surface);
+}
+.composer-tray .qs-head {
+  min-height: 34px;
+  gap: var(--sp-8);
+  padding: 0 var(--sp-8) 0 var(--sp-12);
+  border-radius: 0;
+}
+.composer-tray > .queue-strip:first-child .qs-head { border-radius: var(--r-8) var(--r-8) 0 0; }
+.composer-tray > .queue-strip:last-child:not(:has(.qs-list)) .qs-head,
+.composer-tray > .queue-strip.collapsed:last-child .qs-head { border-radius: 0 0 var(--r-8) var(--r-8); }
+.composer-tray > .queue-strip:only-child:not(:has(.qs-list)) .qs-head,
+.composer-tray > .queue-strip.collapsed:only-child .qs-head { border-radius: var(--r-8); }
+.composer-tray .qs-head:hover { background: var(--surface-hover); }
+.composer-tray .qs-head > .icon { color: var(--accent); }
+.composer-tray .runtime-queue .qs-head > .icon { color: var(--blue); }
+.composer-tray .qs-title { color: var(--text); }
+.composer-tray .qs-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.composer-tray .qs-toggle {
+  color: var(--text-3);
+  border-radius: var(--r-4);
+}
+.composer-tray .qs-head:hover .qs-toggle { color: var(--text); }
+/* 条目：正文与标题文字左对齐（缩进 = 图标 + 间距），行间不画线，悬停整行浅底。 */
+.composer-tray .qs-list {
+  padding: 0 0 var(--sp-6);
+  gap: 1px;
+}
+.composer-tray .qs-list > .qs-item,
+.composer-tray .runtime-queue .runtime-queue-row > .qs-item {
+  margin: 0 calc(-1 * var(--sp-6));
+  padding: 5px 92px 5px calc(var(--sp-6) + 22px);
+  border: 0;
+  border-radius: var(--r-6);
+}
+.composer-tray .runtime-queue .runtime-queue-row > .qs-item {
+  padding-right: var(--sp-6);
+}
+.composer-tray .qs-list > .qs-item:hover,
+.composer-tray .qs-list > .qs-item:focus-within,
+.composer-tray .runtime-queue .runtime-queue-row > .qs-item:hover,
+.composer-tray .runtime-queue .runtime-queue-row > .qs-item:focus-within {
+  background: var(--surface-hover);
+}
+.composer-tray .qs-list > .qs-item.editing {
+  background: var(--accent-softer);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.composer-tray .qs-status { right: var(--sp-6); }
+.composer-tray .runtime-queue .qs-status { right: auto; }
+.composer-tray .runtime-queue-row + .runtime-queue-row { border-top: 0; }
+.composer-tray .runtime-queue > p {
+  padding: 0 0 var(--sp-6) 22px;
+  font-size: var(--fs-11);
 }
 .composer-bar .pill-btn.queue-edit {
   background: var(--accent-soft);
@@ -4982,6 +5109,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   z-index: var(--z-fab);
   background: var(--surface);
   border: 1px solid var(--border);
+  /* 对话工具区的卡片压到这个角时，由 useBottomToggleClearance 写入让位距离。 */
+  --bp-reveal-shift: 0px;
+  transform: translateX(calc(-1 * var(--bp-reveal-shift)));
+  transition: transform var(--dur-fast) var(--ease);
 }
 .bp-head {
   flex: none;
@@ -5150,6 +5281,14 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .prob-row .pfile { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--text-3); margin-left: auto; }
 .prob-at { height: 20px; flex: none; }
+/* Problems and Tests in a wide body: a centred list, so a problem's location and
+   a suite's rerun button stay next to what they belong to. */
+.dock-panel-content:is([data-dock-base="problems"], [data-dock-base="tests"]):not([data-dock-auto-height]) { container: list-panel / inline-size; }
+@container list-panel (min-width: 1000px) {
+  .dock-panel-content:not([data-dock-auto-height]) > .dock-pad { width: min(100%, 1120px); margin-inline: auto; padding-top: var(--sp-16); }
+  .prob-row { min-height: 34px; }
+  .test-row { padding-block: var(--sp-10); }
+}
 
 /* Severity tint. Was an inline style="color:var(--red)" on the icon wrapper,
    which put a token reference in the render string; as a class the stylesheet
@@ -5267,10 +5406,6 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .sp-page.active { display: flex; }
 
 /* 减少动效：面板直接切换，不做滑动；visibility 随 transition 一并立即生效。 */
-@media (prefers-reduced-motion: reduce) {
-  .side-panel,
-  .side-panel.open { transition: none; }
-}
 
 /* Host-backed Git surface. Paths are repository-relative public values. */
 .git-toolbar { flex-wrap: wrap; }
@@ -5494,7 +5629,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .git-graph-row:is(:hover, :focus-within, .is-menu) .git-graph-subject-scroll {
   transform: translateX(min(100cqw - 100% - 18px, 0px));
-  transition: transform 3s linear 800ms;
+  transition: transform var(--dur-marquee) linear calc(var(--tip-delay) + var(--dur-slower));
 }
 .git-graph-row:has(.git-graph-op):is(:hover, :focus-within, .is-menu) .git-graph-subject-scroll {
   transform: translateX(min(100cqw - 100% - 38px, 0px));
@@ -5573,7 +5708,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .git-ref:hover .git-ref-scroll {
   transform: translateX(min(100cqw - 100% - 10px, 0px));
-  transition: transform 3s linear 800ms;
+  transition: transform var(--dur-marquee) linear calc(var(--tip-delay) + var(--dur-slower));
 }
 .git-graph-menu {
   display: flex;
@@ -5636,15 +5771,29 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .git-graph-more { margin: 8px 10px; }
 
 /* Changes
+   One document root (`.changes-panel`), like `.git-panel`: the dock body is a
+   flex column and `.dock-panel-content > :is(div, …)` forces every direct child
+   to `height: 100%`. Rendered as bare sibling divs, the toolbar claimed the
+   whole body and the list collapsed to zero height — the panel looked empty.
    The three wrapper divs here carried their layout as inline style attributes
    (flex:none / flex:1;overflow-y:auto / flex:none), which put structural layout
    in the render string where it could not be themed or overridden. */
+.changes-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  container: changes / inline-size;
+}
 .ch-toolbar {
   flex: none;
   display: flex; align-items: center; gap: var(--sp-6);
   padding: var(--sp-8) var(--sp-12);
   border-bottom: 1px solid var(--border);
 }
+/* 分段控件优先保住命中面积：空间不够时压文字标签，不压这两个按钮。 */
+.ch-toolbar .seg { flex: none; }
 .ch-toolbar .seg button { padding: 0 6px; }
 .ch-list { flex: 1; min-height: 0; overflow-y: auto; }
 .ch-turn {
@@ -5652,7 +5801,11 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   display: flex;
   align-items: center;
   min-width: 0;
-  flex: 1;
+  /* 按内容占宽，别和右侧 .spacer 平分：轮次标签是固定短词（「最近一轮」），
+     一上来就抢 1fr 会在面板稍窄时先把它压成「最…」。只有整条工具栏真的
+     装不下（flex-shrink 生效）才允许省略。 */
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 .ch-turn-btn {
   display: inline-flex;
@@ -5673,6 +5826,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 .ch-turn-btn:hover { background: var(--surface-hover); }
 .ch-turn-btn:disabled { opacity: 0.55; cursor: default; }
+/* 唯一可压缩的是文字标签：图标与 +/− 计数本身都是 `flex: none`。 */
 .ch-turn-label { min-width: 0; }
 .ch-turn-backdrop {
   position: fixed;
@@ -5714,6 +5868,31 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   align-items: center;
   justify-content: center;
   color: var(--glyph-faint);
+}
+/* 文件类型色 —— 与 Explorer 共用同一套 token（spec §4.5）。形与色是两轴：
+   形由 iconNameFor() 决定，色由行上的 data-ftype 派生。所以改动列表里
+   README.md 是「中性文档色 + 书形」，.env 是「红 + 钥匙形」，与树里同源。
+   四个容器：改动侧栏 .ch-item / 轮次 diff 卡 .turn-diff-row /
+   任务进度 .task-dock-file / git 面板 .git-change-line。
+   只染图标、不染文件名：这里 +/− 与 diff 才是主角，整行转色会和「删除」混淆；
+   敏感文件靠 data-secret 抢同一档红，形状（key / shield-key）仍独立可辨。
+   tri 与系统高对比无需另写规则：--ftype-* 在根元素被覆盖，这里自动跟随。 */
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="code"] { --file-ink: var(--ftype-code); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="markup"] { --file-ink: var(--ftype-markup); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="style"] { --file-ink: var(--ftype-style); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="data"] { --file-ink: var(--ftype-data); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="doc"] { --file-ink: var(--ftype-doc); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="config"] { --file-ink: var(--ftype-config); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="script"] { --file-ink: var(--ftype-script); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="test"] { --file-ink: var(--ftype-test); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="package"] { --file-ink: var(--ftype-package); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="lock"] { --file-ink: var(--ftype-lock); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="image"] { --file-ink: var(--ftype-image); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-ftype="secret"] { --file-ink: var(--ftype-secret); }
+/* 敏感文件优先于类型色：.npmrc 这类即便归到别的类，图标也必须红。 */
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line)[data-secret] { --file-ink: var(--ftype-secret); }
+:where(.ch-item, .ch-browser-row, .ch-browser-detail, .git-commit-file, .turn-diff-row, .task-dock-file, .git-change-line):is([data-ftype], [data-secret]) :is(.ch-row-icon, .turn-diff-icon, .task-dock-file-icon) {
+  color: var(--file-ink);
 }
 .ch-file-meta {
   flex: 1;
@@ -5792,9 +5971,83 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   flex: 1 0 auto;
   min-width: max-content;
 }
-@media (prefers-reduced-motion: reduce) {
-  .ch-row-chev { transition: none; }
+/* 宽版（ChangesPanel 的 CHANGES_WIDE_MIN）：左侧改动文件列表，右侧单个文件的完整 Diff，
+   像审阅页一样逐个文件看；窄版仍是可展开的手风琴列表。 */
+.changes-panel.is-wide .ch-toolbar { min-height: 44px; padding-inline: var(--sp-16) var(--sp-12); }
+.ch-toolbar-summary {
+  display: inline-flex; align-items: baseline; gap: var(--sp-8);
+  margin-right: var(--sp-8);
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  white-space: nowrap;
 }
+.ch-browser {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: clamp(260px, 24%, 360px) minmax(0, 1fr);
+}
+.ch-browser-list {
+  display: flex; flex-direction: column; gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-8);
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  scrollbar-width: thin;
+}
+.ch-browser-row {
+  position: relative;
+  flex: none;
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: var(--sp-8);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-6) var(--sp-10);
+  border: 0;
+  border-radius: var(--r-6);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ch-browser-row:hover { background: var(--surface-hover); }
+.ch-browser-row.is-active { background: var(--accent-soft); }
+.ch-browser-row.is-active::before {
+  content: "";
+  position: absolute; left: 0; top: 11px; bottom: 11px;
+  width: 2px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+.ch-browser-row:focus-visible { outline: 1.5px solid var(--accent-border); outline-offset: -1px; }
+.ch-browser-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ch-browser-name,
+.ch-browser-dir { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-browser-name { color: var(--text); font-size: var(--fs-12); font-weight: var(--fw-medium); }
+.ch-browser-dir { color: var(--text-faint); font-size: var(--fs-11); }
+.ch-browser-row .ch-delta { font-weight: var(--fw-semibold); }
+.ch-browser-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ch-detail-head {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-10);
+  min-width: 0;
+  min-height: 48px;
+  padding: var(--sp-8) var(--sp-12) var(--sp-8) var(--sp-16);
+  border-bottom: 1px solid var(--border);
+}
+.ch-detail-head > .ch-row-icon { width: 18px; }
+.ch-detail-head > .ch-row-icon .icon { width: 16px; height: 16px; }
+.ch-detail-title { display: flex; align-items: baseline; gap: var(--sp-8); min-width: 0; }
+.ch-detail-name,
+.ch-detail-dir { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-detail-name { flex: none; max-width: 60%; color: var(--text); font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+.ch-detail-dir { min-width: 0; color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-11); }
+.ch-detail-head .ch-delta { font-weight: var(--fw-semibold); }
+.ch-detail-nav { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.ch-detail-position { margin-right: var(--sp-6); color: var(--text-3); font-size: var(--fs-11); font-variant-numeric: tabular-nums; }
+.ch-browser-detail > .ch-file-diff { flex: 1 1 0; min-height: 0; max-height: none; font-size: var(--fs-12); }
+.ch-browser-detail > .ch-file-diff .ch-file-diff-empty { padding: var(--sp-24) var(--sp-16); }
 /* Diff 区域高度调节条：位于文件列表与 Diff 之间，拖拽/方向键调整高度 */
 .ch-diff-resizer {
   flex: none;
@@ -5887,6 +6140,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-12);
 }
+.diff-toolbar .seg { flex-shrink: 0; }
 .diff-scroll { flex: 1; min-height: 0; overflow: auto; font-family: var(--font-mono); font-size: var(--fs-11); line-height: 1.65; }
 .diff-head-row {
   padding: var(--sp-6) var(--sp-12);
@@ -6027,6 +6281,18 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
    icon buttons, which is nested interactive content. The name block is the
    button that opens details, so the three controls are siblings. Hover moves to
    the row via :focus-within so the whole row still highlights. */
+/* 卡片正文只能有一个根：停靠宿主把 `.dock-panel-content` 的直接子块撑成
+   `height: 100%`。以前这里直接返回多行，卡片被手动拉高后每行会等分整卡高度，
+   行间出现大片空白、最后一行被裁掉。列表只按内容长高，超出部分交给宿主滚动。 */
+.dock-panel-content > .agents-panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 100%;
+  min-width: 0;
+}
+.agents-panel > .agent-row { flex: 0 0 auto; }
 .agent-row {
   display: flex; gap: var(--sp-10);
   padding: var(--sp-10) var(--sp-12);
@@ -6087,7 +6353,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   justify-content: center;
   padding: 32px 24px;
   background: rgba(15, 15, 25, 0.28);
-  animation: omp-fade-in var(--dur-fast) var(--ease-out);
+  animation: var(--motion-fade);
 }
 :root[data-theme="dark"] .cmdk-backdrop { background: rgba(0, 0, 0, 0.45); }
 .cmdk-shell {
@@ -6109,7 +6375,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   width: min(680px, calc(100vw - 40px));
   height: min(680px, calc(100vh - 48px));
   flex: none;
-  animation: omp-menu-in var(--dur) var(--ease-out);
+  animation: var(--motion-sheet);
 }
 .cmdk-glow {
   position: absolute;
@@ -6271,8 +6537,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .convo-notice.xdev-mount {
   position: absolute;
   top: var(--sp-8);
-  left: var(--sp-32);
-  right: calc(var(--sp-32) + var(--minimap-w) + 8px);
+  left: calc(var(--sp-32) + var(--minimap-w) + 8px);
+  right: var(--sp-32);
   z-index: var(--z-scroll-aid);
   box-shadow: var(--shadow-menu);
 }
@@ -6406,9 +6672,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   margin-block: auto;
   width: 100%;
   max-width: 960px;
-  /* 与顶部 24px 对称：doc 自己的上下内边距不相等时，居中后的内容仍会整体偏上 4px。 */
+  /* 与顶部 24px 对称：doc 自己的上下内边距不相等时，居中后的内容仍会整体偏上 4px。
+     欢迎态没有 minimap，左右按普通留白对称（.convo-doc 的基础左让位要在这里收回）。 */
   padding-bottom: var(--sp-24);
-  padding-right: var(--sp-32);
+  padding-inline: var(--sp-32);
 }
 .convo-wrap.is-empty .minimap { display: none; }
 .convo-wrap[data-reading-column].is-empty > .convo-scroll { padding-right: 0; }
@@ -6442,13 +6709,14 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   padding: var(--sp-16) 0;
 }
 
+/* 欢迎页入场：一串按拍子（--stagger）依次到位的块。`--beat` 是第几拍，由
+   ConversationEmpty.tsx 写在元素上；这里不出现任何毫秒数。未播放时的样式就是
+   终态，所以减少动效下整页直接就位。 */
 .convo-empty .ce-anim {
-  opacity: 0;
-  transform: translateY(12px);
-  animation: ce-in 0.55s var(--ease-out) forwards;
-  animation-delay: var(--d, 0ms);
+  --enter-y: var(--shift-md);
+  animation: omp-enter var(--dur-hero) var(--ease-out) backwards;
+  animation-delay: calc(var(--beat, 0) * var(--stagger));
 }
-@keyframes ce-in { to { opacity: 1; transform: none; } }
 
 .ce-hero {
   position: relative;
@@ -6457,6 +6725,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   flex-direction: column;
   align-items: center;
 }
+
 .ce-greet, .ce-sub { position: relative; }
 
 .ce-greet {
@@ -6471,20 +6740,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   font-size: var(--fs-14);
   color: var(--text-3);
 }
-.ce-runtime-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-8);
-  margin: calc(var(--sp-12) * -1) 0 var(--sp-24);
-}
-.ce-runtime-actions .action-progress {
-  flex: 1 1 100%;
-  max-width: 360px;
-}
-
-.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: hidden; }
+.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: auto; }
 .ce-heat-head {
   display: flex;
   align-items: baseline;
@@ -6529,8 +6785,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   font-size: calc(9.5px * var(--text-font-scale));
   color: var(--text-faint);
   line-height: 1;
-  animation: ce-in 0.4s var(--ease-out) backwards;
-  animation-delay: 740ms;
+  animation: omp-fade-in var(--dur-slower) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 7);
 }
 .ce-heat-months span {
   position: absolute;
@@ -6545,8 +6801,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   row-gap: var(--ce-gap);
   font-size: calc(9px * var(--text-font-scale));
   color: var(--text-faint);
-  animation: ce-in 0.4s var(--ease-out) backwards;
-  animation-delay: 740ms;
+  animation: omp-fade-in var(--dur-slower) var(--ease-out) backwards;
+  animation-delay: calc(var(--stagger) * 7);
 }
 .ce-heat-days span { grid-column: 1; display: flex; align-items: center; }
 
@@ -6559,10 +6815,16 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   grid-auto-flow: column;
   grid-auto-columns: var(--ce-cell);
   gap: var(--ce-gap);
-  /* The entrance sheen is translated past the grid; without clipping it
-     extends the scrollable overflow (giant scrollbar) and parks as a gray
-     blurred band on the right. */
-  overflow: hidden;
+  /* 网格本身不滚动。入场扫光的 ::after 会一路 translateX 到网格外（末帧停在
+     240%，约 975px），而被 transform 推出去的绘制算进祖先 .ce-heat 的
+     scrollable overflow：这块用量区在 1440 宽下明明放得下（739px 网格 / 896px
+     容器），动画结束却常驻一条横向滚动条（实测 scrollWidth 1470 vs
+     clientWidth 896）。clip 只裁绘制、不建滚动容器，也不计入祖先的滚动范围；
+     16px 余量留给 hover 的 scale(1.4) 外扩（每边 0.2 格）与 10px 阴影。
+     这里只能写真长：Chromium 的 overflow-clip-margin 不接受 calc()/var()，
+     用 calc 会整条失效回 0（CSS.supports 直接为 false）。 */
+  overflow: clip;
+  overflow-clip-margin: 16px;
 }
 /* 入场扫光：一条渐变带 + `transform: translateX`（合成属性），扫一遍就停在
    容器外。原来是 `background-position` 的无限动画——非合成属性，每帧重绘整块
@@ -6578,7 +6840,8 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   pointer-events: none;
   background: linear-gradient(100deg, transparent 30%, rgba(228, 216, 255, 0.32) 50%, transparent 70%);
   transform: translateX(-120%);
-  animation: ce-sheen-sweep 3.2s var(--ease-out) 1.4s 1 both;
+  /* 等整页入场落定再扫：两个半 hero 之后，一遍 --loop-drift。 */
+  animation: ce-sheen-sweep var(--loop-drift) var(--ease-out) calc(var(--dur-hero) * 2.5) 1 both;
 }
 @keyframes ce-sheen-sweep {
   from { transform: translateX(-120%); }
@@ -6587,16 +6850,16 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 
 .ce-heat-cells {
   /* 一次性网格淡入，给不参与错峰的格子一个统一入场。 */
-  animation: ce-in 0.36s var(--ease-out) 700ms backwards;
+  animation: omp-fade-in var(--dur-slower) var(--ease-out) calc(var(--stagger) * 7) backwards;
 }
-
 .ce-hc {
   position: relative;
   border-radius: 2.5px;
   background: var(--ce-l0);
-  transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out);
-  animation: ce-hc-in 0.5s var(--ease-out) backwards;
-  animation-delay: calc(760ms + var(--cw) * 10ms + var(--cd) * 5ms);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+  animation: ce-hc-in var(--dur-hero) var(--ease-out) backwards;
+  /* 从左上角斜着铺开：每列晚四分之一拍，每行再晚八分之一拍。 */
+  animation-delay: calc(var(--stagger) * (8 + var(--cw) / 4 + var(--cd) / 8));
 }
 /* 371 格逐个入场 = 371 条并发的一次性动画（各自提升合成层）。只让最前面约
    60 格错峰，其余直接随网格淡入出现：峰值并发动画数 371 → 60。 */
@@ -6729,12 +6992,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   .ce-heat-months, .ce-heat-cells, .ce-heat-legend { grid-column: 1; }
   .ce-row-meta .ce-meta-proj { display: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .convo-empty .ce-anim { animation: none; opacity: 1; transform: none; }
-  .ce-hc, .ce-heat-months, .ce-heat-days, .ce-heat-cells { animation: none; }
-  .ce-heat-cells::after { display: none; }
-  .composer-bar .pill-btn.danger > span { animation: none; }
-}
+
 
 .btw-history-toolbar { display:flex; gap:6px; padding:8px; flex-wrap:wrap; }
 .btw-history-toolbar .select { flex:1; min-width:120px; }
@@ -6760,13 +7018,11 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .cmp-mode-flyout > .am-desc { margin:4px 8px; }
 
 /* 最窄主列按自己的容器宽度兜底，不按窗口宽度误判侧栏/右分栏。
-   Composer 的内容碰撞 hook 仍决定 normal / compact / modes，这里不另造折叠策略。
+   Composer 的内容碰撞 hook 仍决定 full / tools / compact / minimal，这里不另造折叠策略。
    用 hook 实测的 data-reading-narrow 而不是 @container：container-type 会带来
    layout containment，令 .convo-wrap 变成 position:fixed 后代的包含块，Composer
    选单的点击遮罩与图片灯箱就不再贴住视口（点侧栏/topbar 关不掉菜单）。 */
 .convo-wrap[data-reading-column][data-reading-narrow] > .composer-region > .composer .composer-bar {
-  flex-wrap: wrap;
-  row-gap: var(--sp-6);
   padding-inline: var(--sp-4);
 }
 .convo-wrap[data-reading-column][data-reading-narrow] > .composer-region > .ctx-strip {

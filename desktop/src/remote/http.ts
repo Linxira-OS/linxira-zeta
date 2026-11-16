@@ -113,9 +113,9 @@ export class StudioHttp {
 		await response.json().catch(() => null);
 	}
 
-	async bootstrap<T = unknown>(): Promise<T> {
+	async bootstrap<T = unknown>(contextId?: string): Promise<T> {
 		const response = await fetch(`${this.base}/api/v1/bootstrap`, {
-			headers: this.#headers(),
+			headers: this.#headers(false, contextId),
 			signal: AbortSignal.timeout(15_000),
 		});
 		this.#remember(response);
@@ -127,7 +127,7 @@ export class StudioHttp {
 	async gateway<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
 		const response = await fetch(`${this.base}${path}`, {
 			...init,
-			headers: { ...this.#headers(), ...(init.body ? { "content-type": "application/json" } : {}), ...(init.headers ?? {}) },
+			headers: { ...this.#headers(init.method !== undefined && !["GET", "HEAD"].includes(init.method)), ...(init.body ? { "content-type": "application/json" } : {}), ...(init.headers ?? {}) },
 			signal: AbortSignal.timeout(20_000),
 		});
 		if (!response.ok) {
@@ -137,12 +137,22 @@ export class StudioHttp {
 		return (await response.json()) as T;
 	}
 
-	async query<T = unknown>(request: unknown): Promise<T> {
-		return this.#withSession(() => this.#studio<T>("/api/v1/query", request, false));
+	async openContext(scope: { workspaceId: string; sessionId?: string }): Promise<string> {
+		const result = await this.#studio<{ contextId: string }>("/api/v1/context/open", scope, true);
+		if (typeof result.contextId !== "string" || !result.contextId) throw new Error("Invalid Studio context response");
+		return result.contextId;
 	}
 
-	async command<T = unknown>(request: unknown): Promise<T> {
-		return this.#withSession(() => this.#studio<T>("/api/v1/command", request, true));
+	async closeContext(contextId: string): Promise<void> {
+		await this.#studio("/api/v1/context/close", {}, true, contextId);
+	}
+
+	async query<T = unknown>(request: unknown, contextId?: string): Promise<T> {
+		return contextId ? this.#studio<T>("/api/v1/query", request, false, contextId) : this.#withSession(() => this.#studio<T>("/api/v1/query", request, false));
+	}
+
+	async command<T = unknown>(request: unknown, contextId?: string): Promise<T> {
+		return contextId ? this.#studio<T>("/api/v1/command", request, true, contextId) : this.#withSession(() => this.#studio<T>("/api/v1/command", request, true));
 	}
 
 	/**
@@ -161,10 +171,10 @@ export class StudioHttp {
 		}
 	}
 
-	async #studio<T>(path: string, body: unknown, mutate: boolean): Promise<T> {
+	async #studio<T>(path: string, body: unknown, mutate: boolean, contextId?: string): Promise<T> {
 		const response = await fetch(`${this.base}${path}`, {
 			method: "POST",
-			headers: this.#headers(mutate),
+			headers: this.#headers(mutate, contextId),
 			body: JSON.stringify(body),
 			signal: AbortSignal.timeout(30_000),
 		});
@@ -176,9 +186,10 @@ export class StudioHttp {
 		return (await response.json()) as T;
 	}
 
-	#headers(mutate = false): Record<string, string> {
+	#headers(mutate = false, contextId?: string): Record<string, string> {
 		return {
 			accept: "application/json",
+			...(contextId ? { "X-Studio-Context": contextId } : {}),
 			...(this.#cookie ? { cookie: this.#cookie } : {}),
 			...(mutate && this.#csrf ? { [STUDIO_CSRF_HEADER]: this.#csrf } : {}),
 		};
@@ -189,8 +200,13 @@ export class StudioHttp {
 		this.#csrf = response.headers.get(STUDIO_CSRF_HEADER) ?? this.#csrf;
 	}
 
-	events(): StudioEventSocket {
-		return new StudioEventSocket(`${this.base.replace(/^http/, "ws")}/api/v1/events`, this.#cookie);
+	events(contextId?: string): StudioEventSocket {
+		return new StudioEventSocket(`${this.base.replace(/^http/, "ws")}/api/v1/events${contextId ? `?contextId=${encodeURIComponent(contextId)}` : ""}`, this.#cookie);
+	}
+
+	terminalSocket(route: string): StudioEventSocket {
+		if (!/^\/api\/terminal\/[A-Za-z0-9-]{8,64}\/ws\?ticket=/.test(route)) throw new Error("Invalid terminal socket route");
+		return new StudioEventSocket(`${this.base.replace(/^http/, "ws")}${route}`, this.#cookie);
 	}
 }
 
@@ -339,9 +355,10 @@ export class StudioEventSocket {
 		const socket = this.#socket;
 		if (!socket || socket.destroyed) return;
 		const mask = crypto.randomBytes(4);
-		const header = payload.length < 126
-			? Buffer.from([0x80 | opcode, 0x80 | payload.length])
-			: Buffer.from([0x80 | opcode, 0x80 | 126, payload.length >> 8, payload.length & 0xff]);
+		let header: Buffer;
+		if (payload.length < 126) header = Buffer.from([0x80 | opcode, 0x80 | payload.length]);
+		else if (payload.length <= 65_535) header = Buffer.from([0x80 | opcode, 0x80 | 126, payload.length >> 8, payload.length & 0xff]);
+		else { header = Buffer.allocUnsafe(10); header[0] = 0x80 | opcode; header[1] = 0x80 | 127; header.writeBigUInt64BE(BigInt(payload.length), 2); }
 		for (let index = 0; index < payload.length; index++) payload[index]! ^= mask[index % 4]!;
 		socket.write(Buffer.concat([header, mask, payload]));
 	}

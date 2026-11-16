@@ -29,6 +29,8 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `fix/studio-evaluation-producer` | fix | REQ-099 Studio v0.2.1 evaluation Host/runtime producer adaptation; isolated `temp/studio-evaluation-producer` | StudioEvaluationProducer | 2026-11-15 | 验收并入集成分支后删（删前记 SHA） |
+| `fix/studio-computer-producer` | fix | REQ-099 Studio v0.2.1 passive native computer/Host private media producer; isolated `temp/studio-computer-producer` | StudioComputerProducer | 2026-11-15 | 验收并入集成分支后删（删前记 SHA） |
 | `fix/report-automation` | fix | REQ060 roboomp 离线回放/XDG/CLI + REQ022 v18.18.3 台账纠正；worktree `temp/report-automation`（sparse） | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 | `park/session-fork-diff` | park | 会话 fork 结构差异：`forkDiff(a,b)` 按 entry id 分出 added/removed/changed 与共同祖先；含 `session fork --diff` 接线与 8 个测试。**原 `feat/superagent-runtime`**，2026-11-01 已 commit（`2e542337c1d`） | user | 2026-10-31 | 决定是否把 diff 暴露给 `session fork` 之后再动 |
 | `feat/pet-rust` | park | 桌宠 Rust crate（未提交，9 files，`main/crates/zetapet/`） | user | 2026-10-21 | P1 暂缓；保持 park，不动 |
@@ -187,6 +189,10 @@
 | `feat/webui-model-config` | feat | 用户侧 WebUI 模型配置分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `fix/favicon-brand` | fix | Work Studio 浏览器标签图标对齐官方 `zeta-mark`：`web-app/index.html` 的 tab 链接改为 SVG/PNG32/ICO/apple-touch，并带 `?v=` 内容哈希缓存失效；`web-app/public/favicon.ico` 与 `assets/favicon.ico` 同字节，新增 `zeta-mark-32.png`；`icon.png` 本已与 `assets/icon-512.png` 同字节。worktree `temp/favicon-brand` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
 | `fix/stats-spotlight` | fix | Stats Spotlight read-path normalization against the session cwd；`packages/stats/src/spotlight-ingest.ts`；head `51c6a275b93` | agent | 2026-11-12 | 已合入 sync（merge `cad02d965c99`）；1.5.2 验收后删（删前记 SHA） |
+| `fix/omp-native-bazel-night` | fix | OMP v18.20.0 native linker/toolchain 与 Bazel lock 阻塞；独立 worktree `temp/omp-native-bazel-night`，仅交 delta | OmpNativeBazel | 2026-11-15 | delta 整合与验收后登记 SHA 退役 |
+| `fix/studio-desktop-night` | fix | Studio v0.2.1 desktop 功能族适配；独立 worktree `temp/studio-desktop-night`，保留 Zeta serve/auth 权威，仅交 delta | StudioDesktopCutover | 2026-11-15 | delta 整合与验收后登记 SHA 退役 |
+| `fix/studio-browser-closure-20261116` | fix | REQ-099 S2 Browser/WebMCP current-source lifecycle acceptance; isolated `temp/studio-browser-closure-20261116` | StudioBrowserClosure | 2026-11-16 | delta 集成与验收后登记 SHA 退役 |
+| `fix/studio-surface-closure-20261116` | fix | REQ-099 S5 terminal/files/graphics/floating/performance acceptance; isolated `temp/studio-surface-closure-20261116` | StudioSurfaceClosure | 2026-11-16 | delta 集成与验收后登记 SHA 退役 |
 
 
 | `vendor/termide-0.49.0` | vendor | TermIDE `0.49.0` vendor bump（annotated tag `0.49.0` = `4cc014fb…`，commit `057eb55e…`；base `ddb44711b5d`）；三向重放与测试记录见 `termide/VENDOR.md`；worktree `temp/termide-0.49.0-sync` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |

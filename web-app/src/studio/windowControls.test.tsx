@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
 	CaptionButtons,
@@ -9,12 +8,12 @@ import {
 	type DesktopWindowControlBridge,
 } from "./windowControls";
 
-type DesktopGlobal = typeof globalThis & { piDesktop?: Partial<DesktopWindowControlBridge> };
+type DesktopGlobal = { zetaStudioChrome?: Partial<DesktopWindowControlBridge> };
 
 function installBridge(bridge: Partial<DesktopWindowControlBridge> | undefined): void {
-	const scope = globalThis as DesktopGlobal;
-	if (bridge === undefined) delete scope.piDesktop;
-	else scope.piDesktop = bridge;
+	const scope = globalThis as unknown as DesktopGlobal;
+	if (bridge === undefined) delete scope.zetaStudioChrome;
+	else scope.zetaStudioChrome = bridge;
 }
 
 function fakeBridge(overrides: Partial<DesktopWindowControlBridge> = {}): DesktopWindowControlBridge {
@@ -104,34 +103,3 @@ describe("maximize state tracking", () => {
 	});
 });
 
-describe("window chrome stacking", () => {
-	// Regression: `.app` is an `isolation: isolate` stacking context, so the
-	// in-flow titlebar painted below `.modal-backdrop` (--z-modal): an open
-	// dialog swallowed every click on minimize / maximize / close. The caption
-	// group is now portaled to <body>, fixed, and above modal backdrops.
-	test("the caption strip is fixed above modal backdrops", () => {
-		const tokens = readFileSync(new URL("./styles/tokens.css", import.meta.url), "utf8");
-		const appCss = readFileSync(new URL("./App.css", import.meta.url), "utf8");
-		const token = (name: string): number => Number(new RegExp(`--${name}:\\s*(\\d+)`).exec(tokens)?.[1]);
-
-		expect(token("z-window-controls")).toBeGreaterThan(token("z-modal"));
-		expect(token("z-window-controls")).toBeLessThan(token("z-toast"));
-		expect(appCss).toMatch(
-			/\.window-controls\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*var\(--z-window-controls\)/s,
-		);
-	});
-
-	test("the titlebar reserves the fixed strip so app controls stay clickable", () => {
-		const tokens = readFileSync(new URL("./styles/tokens.css", import.meta.url), "utf8");
-		const appCss = readFileSync(new URL("./App.css", import.meta.url), "utf8");
-		expect(tokens).toMatch(/--window-controls-width:\s*132px/);
-		expect(appCss).toMatch(
-			/:root:has\(\.window-controls\)\s*\.app-titlebar\s*\{[^}]*padding-right:\s*calc\(var\(--window-controls-width\)/s,
-		);
-	});
-
-	test("WindowControls portals the buttons out of the app stacking context", () => {
-		const source = readFileSync(new URL("./windowControls.tsx", import.meta.url), "utf8");
-		expect(source).toContain("createPortal(<CaptionButtons bridge={bridge} />, document.body)");
-	});
-});

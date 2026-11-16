@@ -154,7 +154,7 @@ export function SchemaSettingRow({
     || (entry.type === "text" && typeof entry.value === "object" && entry.value !== null);
 
   useEffect(() => {
-    setDraft(formatSchemaSettingValue(entry));
+    setDraft(entry.secret ? "" : formatSchemaSettingValue(entry));
     setError(null);
   }, [entry]);
 

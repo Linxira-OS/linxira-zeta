@@ -7,19 +7,14 @@
  * Reconnect asks for a fresh one-time ticket, exactly like the browser client.
  */
 
+import { randomUUID } from "node:crypto";
 import * as path from "node:path";
-import { StudioEventSocket } from "../remote/http";
+import type { StudioEventSocket } from "../remote/http";
+import type { DesktopHostConnection } from "../host-http";
+import { TerminalOutput } from "./output";
+import { parseTerminalCreate, terminalDimension, type TerminalCreateInput } from "./validation";
+export type { TerminalCreateInput } from "./validation";
 import { TerminalRecorder, type RecordingStatus } from "./recorder";
-
-export interface TerminalCreateInput {
-	cols?: number;
-	rows?: number;
-	targetId?: string;
-	workspaceId?: string;
-	instanceId?: string;
-	profileId?: string;
-	cwd?: string;
-}
 
 export interface TerminalSessionInfo {
 	readonly id: string;
@@ -43,22 +38,20 @@ interface GatewayTerminalInfo {
 
 interface Attached {
 	readonly id: string;
-	readonly base: string;
+	readonly host: DesktopHostConnection;
 	readonly info: GatewayTerminalInfo;
-	readonly decoder: TextDecoder;
-	readonly recorder: TerminalRecorder;
-	readonly cols: number;
-	readonly rows: number;
+	readonly output: TerminalOutput;
+	cols: number;
+	rows: number;
 	socket?: StudioEventSocket;
 	ended: boolean;
 	attempt: number;
 }
 
 export interface TerminalBridgeDeps {
-	readonly localBase: () => string;
-	readonly remoteBase: (targetId: string) => string | undefined;
+	readonly connection: (targetId?: string) => DesktopHostConnection;
 	readonly userData: string;
-	readonly data: (terminalId: string, data: string) => void;
+	readonly data: (terminalId: string, data: string, bytes: number) => void;
 	readonly exit: (terminalId: string) => void;
 }
 
@@ -72,31 +65,39 @@ export class TerminalBridge {
 		this.#recorder = new TerminalRecorder(deps.userData);
 	}
 
-	async create(input: TerminalCreateInput = {}): Promise<TerminalSessionInfo> {
-		const base = this.#base(input.targetId);
-		const info = await this.#request<GatewayTerminalInfo>(base, "/api/terminal/ensure", {
+	async create(value: TerminalCreateInput = {}, onCreated?: (id: string) => void): Promise<TerminalSessionInfo> {
+		const input = parseTerminalCreate(value);
+		const host = this.#deps.connection(input.targetId);
+		const info = await host.gateway<GatewayTerminalInfo>("/api/terminal/ensure", {
 			method: "POST",
 			body: JSON.stringify({
-				cols: input.cols ?? 80,
-				rows: input.rows ?? 24,
-				instanceId: input.instanceId ?? `desktop-${Date.now().toString(36)}`,
+				cols: input.cols,
+				rows: input.rows,
+				instanceId: input.instanceId ?? `desktop-${randomUUID()}`,
+				...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+				...(input.command ? { command: input.command } : {}),
 				...(input.profileId ? { profileId: input.profileId } : {}),
 				...(input.cwd ? { cwd: input.cwd } : {}),
 			}),
 		});
-		const attached: Attached = {
-			id: info.id,
-			base,
-			info,
-			decoder: new TextDecoder("utf-8"),
-			recorder: this.#recorder,
-			cols: input.cols ?? 80,
-			rows: input.rows ?? 24,
-			ended: false,
-			attempt: 0,
-		};
-		this.#attached.set(info.id, attached);
-		this.#attach(attached, info.ticket ?? "");
+		if (!info || typeof info.id !== "string" || !/^[A-Za-z0-9-]{8,64}$/.test(info.id) || typeof info.ticket !== "string" || !info.ticket) {
+			throw new Error("Host returned an invalid terminal session");
+		}
+		const existing = this.#attached.get(info.id);
+		if (existing) {
+			if (existing.host.base !== host.base) throw new Error("Terminal identity belongs to another Host");
+			onCreated?.(info.id);
+		} else {
+			onCreated?.(info.id);
+			const output = new TerminalOutput((data, bytes) => {
+				this.#recorder.append(info.id, data);
+				this.#deps.data(info.id, data, bytes);
+			});
+			const attached: Attached = { id: info.id, host, info, output, cols: input.cols, rows: input.rows, ended: false, attempt: 0 };
+			this.#attached.set(info.id, attached);
+			try { await this.#attach(attached, info.ticket); }
+			catch (error) { this.#exit(attached); throw error; }
+		}
 		return {
 			id: info.id,
 			name: info.shell ?? info.program ?? "shell",
@@ -114,31 +115,39 @@ export class TerminalBridge {
 	async resize(id: string, cols: number, rows: number): Promise<void> {
 		const attached = this.#attached.get(id);
 		if (!attached) throw new Error("Terminal not found");
-		await this.#request(attached.base, `/api/terminal/${encodeURIComponent(id)}/resize`, {
+		terminalDimension(cols, "cols");
+		terminalDimension(rows, "rows");
+		await attached.host.gateway(`/api/terminal/${encodeURIComponent(id)}/resize`, {
 			method: "POST",
 			body: JSON.stringify({ cols, rows }),
 		});
+		attached.cols = cols;
+		attached.rows = rows;
 	}
 
 	async dispose(id: string): Promise<void> {
 		const attached = this.#attached.get(id);
 		if (!attached) return;
+		attached.ended = true;
+		attached.output.close();
+		this.#recorder.stop(id);
 		this.#attached.delete(id);
 		attached.socket?.close("terminal disposed");
-		await this.#request(attached.base, `/api/terminal/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
+		await attached.host.gateway(`/api/terminal/${encodeURIComponent(id)}`, { method: "DELETE" });
 	}
 
 	async profiles(targetId?: string): Promise<unknown> {
-		return this.#request(this.#base(targetId), "/api/terminal/profiles");
+		return this.#deps.connection(targetId).gateway("/api/terminal/profiles");
 	}
 
 	async list(targetId?: string): Promise<unknown> {
-		return this.#request(this.#base(targetId), "/api/terminal");
+		return this.#deps.connection(targetId).gateway("/api/terminal");
 	}
 
 	recordingStart(input: { id: string; workspaceId?: string; sessionId?: string }): RecordingStatus {
 		const attached = this.#attached.get(input.id);
 		if (!attached) throw new Error("Terminal not found");
+		attached.output.flush();
 		return this.#recorder.start({
 			terminalId: input.id,
 			cols: attached.cols,
@@ -148,6 +157,7 @@ export class TerminalBridge {
 	}
 
 	recordingStop(id: string): RecordingStatus {
+		this.#attached.get(id)?.output.flush();
 		return this.#recorder.stop(id);
 	}
 
@@ -163,27 +173,27 @@ export class TerminalBridge {
 		return this.#recorder.artifactPath(name);
 	}
 
-	#base(targetId: string | undefined): string {
-		if (!targetId) return this.#deps.localBase().replace(/\/$/, "");
-		const remote = this.#deps.remoteBase(targetId);
-		if (!remote) throw new Error("SSH target is not connected; terminal creation was not sent");
-		return remote.replace(/\/$/, "");
+	shutdown(): void {
+		for (const attached of [...this.#attached.values()]) this.#exit(attached);
 	}
 
-	#attach(attached: Attached, ticket: string): void {
-		const socket = new StudioEventSocket(
-			`${attached.base.replace(/^http/, "ws")}/api/terminal/${encodeURIComponent(attached.id)}/ws?ticket=${encodeURIComponent(ticket)}`,
-			undefined,
-		);
+	detach(id: string): void {
+		const attached = this.#attached.get(id);
+		if (attached) this.#exit(attached);
+	}
+
+	async #attach(attached: Attached, ticket: string): Promise<void> {
+		const socket = await attached.host.socket(`/api/terminal/${encodeURIComponent(attached.id)}/ws?ticket=${encodeURIComponent(ticket)}`);
+		if (attached.ended || this.#attached.get(attached.id) !== attached) { socket.close("terminal closed"); return; }
 		attached.socket = socket;
 		socket.onBinary = chunk => {
 			if (chunk.length > 0 && chunk[0] === 0) {
 				this.#control(attached, chunk.subarray(1).toString("utf8"));
 				return;
 			}
-			this.#output(attached, chunk.toString("utf8"));
+			attached.output.append(chunk);
 		};
-		socket.onMessage = text => this.#output(attached, text);
+		socket.onMessage = text => attached.output.append(text);
 		socket.onClose = reason => {
 			if (attached.ended || this.#attached.get(attached.id) !== attached) return;
 			if (attached.attempt >= 3) {
@@ -194,18 +204,16 @@ export class TerminalBridge {
 			const delay = Math.min(4_000, 250 * 2 ** attached.attempt);
 			setTimeout(() => {
 				if (attached.ended || this.#attached.get(attached.id) !== attached) return;
-				void this.#request<{ ticket?: string }>(attached.base, `/api/terminal/${encodeURIComponent(attached.id)}/ticket`, { method: "POST" })
-					.then(body => {
-						if (body.ticket) this.#attach(attached, body.ticket);
+				void attached.host.gateway<{ ticket?: string }>(`/api/terminal/${encodeURIComponent(attached.id)}/ticket`, { method: "POST" })
+					.then(async body => {
+						if (body.ticket) await this.#attach(attached, body.ticket);
 						else this.#exit(attached);
 					})
 					.catch(() => this.#exit(attached));
 			}, delay);
 			void reason;
 		};
-		socket.opened.catch(() => {
-			// `onClose` drives reconnect/exit; the failed promise is observed.
-		});
+		await socket.opened;
 	}
 
 	#control(attached: Attached, json: string): void {
@@ -217,31 +225,13 @@ export class TerminalBridge {
 		}
 	}
 
-	#output(attached: Attached, data: string): void {
-		if (data === "") return;
-		this.#recorder.append(attached.id, data);
-		this.#deps.data(attached.id, data);
-	}
-
 	#exit(attached: Attached): void {
 		if (attached.ended) return;
 		attached.ended = true;
+		attached.output.close();
 		this.#recorder.stop(attached.id);
 		attached.socket?.close("terminal exited");
 		this.#attached.delete(attached.id);
 		this.#deps.exit(attached.id);
-	}
-
-	async #request<T = unknown>(base: string, route: string, init: RequestInit = {}): Promise<T> {
-		const response = await fetch(`${base}${route}`, {
-			...init,
-			headers: { "content-type": "application/json", ...(init.headers ?? {}) },
-			signal: AbortSignal.timeout(15_000),
-		});
-		if (!response.ok) {
-			const text = await response.text().catch(() => "");
-			throw new Error(text || `Terminal request failed (${response.status})`);
-		}
-		return (await response.json()) as T;
 	}
 }

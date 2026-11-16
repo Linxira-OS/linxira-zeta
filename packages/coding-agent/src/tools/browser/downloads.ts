@@ -6,6 +6,7 @@ import type { Browser, CDPSession, Page } from "puppeteer-core";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { replaceFileAcrossDevices, replaceFileAtomically } from "../../utils/atomic-file";
 import { devtoolsFrameId } from "./frames";
+import { browserConnection } from "./launch";
 
 /** Completed download metadata returned by tab download helpers. */
 export interface BrowserDownload {
@@ -48,6 +49,10 @@ const FRAME_SESSION_EVENTS = ["frameattached", "framenavigated", "framedetached"
 
 /** Owns tab-scoped Chromium download behavior and completion events. */
 export class DownloadManager {
+	readonly #managed: boolean;
+	readonly #targetId: string;
+	readonly #claimed = new Set<string>();
+	readonly #closed = new AbortController();
 	readonly #browser: Browser;
 	readonly #page: Page;
 	readonly #defaultDirectory: string;
@@ -77,7 +82,9 @@ export class DownloadManager {
 	 * for a browser the user drives (connected, relay): there the folder also receives the user's own downloads, which
 	 * would otherwise be saved under bare GUIDs nobody renames. `pageEvents` is for the omp relay.
 	 */
-	constructor(browser: Browser, page: Page, tabId: string, options: { perTab: boolean; pageEvents: boolean }) {
+	constructor(browser: Browser, page: Page, tabId: string, options: { perTab: boolean; pageEvents: boolean; managed?: boolean }) {
+		this.#managed = options.managed === true;
+		this.#targetId = tabId;
 		this.#browser = browser;
 		this.#page = page;
 		this.#defaultDirectory = path.join(os.tmpdir(), `omp-downloads-${tabId}`);
@@ -90,6 +97,7 @@ export class DownloadManager {
 	 * browser setting, so the relay tracks them from here and a download clicked before any wait is listed.
 	 */
 	async start(directory?: string): Promise<void> {
+		if (this.#managed) { await this.enable(directory); return; }
 		if (this.#pageEvents) this.#hearPage();
 		else if (directory) await this.enable(directory);
 	}
@@ -100,6 +108,11 @@ export class DownloadManager {
 	 * relay cannot point Chrome anywhere (the tab supervisor refuses a folder for it), so there this only listens.
 	 */
 	async enable(directory?: string): Promise<void> {
+		if (this.#managed) {
+			await this.#managedCall("enable", directory);
+			this.#directory = directory;
+			return;
+		}
 		if (this.#pageEvents) {
 			this.#hearPage();
 			return;
@@ -124,6 +137,20 @@ export class DownloadManager {
 
 	/** Wait for the next unclaimed completed download. */
 	async wait(signal?: AbortSignal): Promise<BrowserDownload> {
+		if (this.#managed) {
+			const active = signal ? AbortSignal.any([signal, this.#closed.signal]) : this.#closed.signal;
+			await untilAborted(active, () => this.enable(this.#directory));
+			for (;;) {
+				const downloads = await untilAborted(active, () => this.#managedCall("list"));
+				for (const download of downloads) {
+					if (this.#claimed.has(download.id) || download.state === "progressing") continue;
+					this.#claimed.add(download.id);
+					if (download.state !== "completed") throw new ToolError(`Download ${download.state}: ${download.suggestedFilename}`);
+					return { path: download.path, url: download.url, suggestedFilename: download.suggestedFilename, bytes: download.bytes };
+				}
+				await untilAborted(active, () => Bun.sleep(150));
+			}
+		}
 		if (this.#unclaimed.length === 0) {
 			// A rejected `arming` nobody awaits would surface as an unhandled rejection.
 			if (signal?.aborted) throw signal.reason;
@@ -160,9 +187,21 @@ export class DownloadManager {
 	list(): BrowserDownload[] {
 		return this.#completed.map(download => ({ ...download }));
 	}
+	async read(): Promise<BrowserDownload[]> {
+		if (!this.#managed) return this.list();
+		return (await this.#managedCall("list")).filter(row => row.state === "completed")
+			.map(({ path, url, suggestedFilename, bytes }) => ({ path, url, suggestedFilename, bytes }));
+	}
+	async #managedCall(action: "enable" | "list", directory?: string): Promise<Array<BrowserDownload & { id: string; state: string }>> {
+		if (this.#closed.signal.aborted) throw this.#closed.signal.reason;
+		const connection = browserConnection(this.#browser) as unknown as { send(method: string, params: Record<string, unknown>): Promise<unknown> };
+		const result = await connection.send(`Studio.downloads.${action}`, { targetId: this.#targetId, ...(directory ? { directory } : {}) }) as { downloads: Array<BrowserDownload & { id: string; state: string }> };
+		return result.downloads;
+	}
 
 	/** Detach event listeners and reject outstanding waits. */
 	async close(): Promise<void> {
+		this.#closed.abort(new ToolError("Tab closed while waiting for a download"));
 		if (this.#onFrame) {
 			for (const event of FRAME_SESSION_EVENTS) this.#page.off(event, this.#onFrame);
 			this.#onFrame = undefined;

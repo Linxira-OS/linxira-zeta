@@ -51,10 +51,12 @@ import {
 	type WorkerInbound,
 	type WorkerInitPayload,
 	type WorkerOutbound,
+	type TabWebMcpRequest,
 } from "./tab-protocol";
 
 import { cfgBrowserScreenshotDir } from "./settings";
 import { newUploadStagingDir, removeUploadStaging, sweepUploadStaging } from "./upload-files";
+import { assertBrowserTabAgentControl, studioTabControlState } from "./studio-control";
 
 // Coding-agent binary/bundle workers route through the CLI entrypoint with a
 // hidden argv mode, so compiled/npm builds only need one JavaScript entry.
@@ -207,6 +209,7 @@ export interface AcquireTabResult {
 
 export interface RunInTabOptions {
 	code: string;
+	webmcp?: TabWebMcpRequest;
 	timeoutMs: number;
 	signal?: AbortSignal;
 	session: ToolSession;
@@ -215,6 +218,7 @@ export interface RunInTabOptions {
 }
 
 export interface ReleaseTabOptions {
+	closeManagedPage?: boolean;
 	kill?: boolean;
 	/** Leave a page zeta opened open in its browser and let go of it, instead of closing it. */
 	keepPage?: boolean;
@@ -436,6 +440,7 @@ async function acquireTabImpl(
 	const reattaching = awaitWorkerRecovery(name, opts, "Browser tab open aborted");
 	if (reattaching) await reattaching;
 	const existing = tabs.get(name);
+	assertBrowserTabAgentControl(existing);
 	if (existing) {
 		if (existing.browser === browser && existing.state === "alive") {
 			const requestedCmuxSurface = "client" in browser ? (opts.cmuxSurface ?? browser.surface) : undefined;
@@ -477,6 +482,7 @@ async function acquireTabImpl(
 				if (tabs.get(name) !== existing || existing.state !== "alive") {
 					return await acquireTabImpl(name, browser, { ...opts, deadlineStartMs: startedAt });
 				}
+				assertBrowserTabAgentControl(existing);
 				// The creator may opt out later: an explicit `persist` on
 				// reuse by the owning session updates the tab (omitted
 				// leaves it). Reuse by any other session never changes it.
@@ -812,6 +818,7 @@ export async function runInTab(name: string, opts: RunInTabOptions): Promise<Run
 		name,
 		{
 			code: opts.code,
+			webmcp: opts.webmcp,
 			timeoutMs: opts.timeoutMs,
 			signal: opts.signal,
 			session: opts.session,
@@ -837,6 +844,7 @@ async function runInTabWithSnapshot(
 	name: string,
 	opts: {
 		code: string;
+		webmcp?: TabWebMcpRequest;
 		timeoutMs: number;
 		signal?: AbortSignal;
 		session?: ToolSession;
@@ -875,6 +883,8 @@ async function runInTabWithSnapshot(
 				: `Tab ${JSON.stringify(name)} is busy: another call on this tab is still running. Await each call before starting the next instead of running them together (Promise.all, asyncio.gather), or group the steps in one tab.run(...)`,
 		);
 	}
+	if (!opts.webmcp || opts.webmcp.action === "invoke") assertBrowserTabAgentControl(tab);
+	if (opts.webmcp && tab.backend !== "worker") throw new ToolError("Native WebMCP requires a Chromium browser");
 	// An already-aborted call never runs: without this early exit the worker
 	// branch below would send `abort` before `run`, which the worker ignores
 	// for a not-yet-active run and then execute anyway.
@@ -998,6 +1008,7 @@ async function runInTabWithSnapshot(
 				id,
 				name,
 				code: opts.code,
+				webmcp: opts.webmcp,
 				timeoutMs: opts.timeoutMs,
 				session: snapshot,
 			});
@@ -1214,6 +1225,7 @@ export async function releaseTab(name: string, opts: ReleaseTabOptions = {}): Pr
 		// as the first release has not finished. (Not directly testable
 		// in-process: observing it needs a real spawned application.)
 		ongoing.opts.kill = ongoing.opts.kill || opts.kill;
+		ongoing.opts.closeManagedPage ||= opts.closeManagedPage;
 		// A joining close wins over a session end's `keepPage` while the page is still undecided.
 		if (!opts.keepPage) ongoing.opts.keepPage = false;
 		const joined = await ongoing.promise;
@@ -1353,7 +1365,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 	// close can fail and still report `closed` (its CDP socket broke), and the relay retracts a
 	// target whose debugger the user dismissed, so the worker cannot close it at all. A dead
 	// tab's page was closed by the teardown that killed it.
-	if (closesPage && wasAlive) {
+	if ((closesPage || (opts.closeManagedPage && tab.browser.kind.kind === "relay" && tab.browser.kind.studioManaged)) && wasAlive) {
 		try {
 			// `false` is "not confirmed closed" (the CDP session could not be
 			// created, or `Target.getTargets` failed) — the same unconfirmed
@@ -1473,6 +1485,24 @@ async function findTargetForTab(tab: WorkerTabSession): Promise<Target | undefin
 		return target;
 	}
 	return undefined;
+}
+
+/** Independent CDP observation of the exact Runtime-owned target. */
+export async function createStudioBrowserObservation(tab: TabSession): Promise<CDPSession> {
+	if (tab.backend !== "worker" || tab.state !== "alive" || tabs.get(tab.name) !== tab)
+		throw new ToolError("This browser backend cannot be observed through CDP");
+	const target = await findTargetForTab(tab);
+	if (!target || tabs.get(tab.name) !== tab) throw new ToolError("Browser target changed before observation");
+	return target.createCDPSession();
+}
+
+export async function resumeStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (!(await unfreezeTabSession(tab))) throw new ToolError("Browser target could not be resumed for human control");
+	tab.lastActivityAt = Date.now();
+}
+
+export async function settleStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (tabs.get(tab.name) === tab && tab.state === "alive") await setTabFrozen(tab, true);
 }
 
 /**
@@ -1616,6 +1646,7 @@ export async function freezeTabsForOwner(ownerId: string): Promise<number> {
 	let count = 0;
 	for (const tab of tabs.values()) {
 		if (tab.ownerSessionId !== ownerId) continue;
+		if (studioTabControlState(tab) !== "agent") continue;
 		if (await setTabFrozen(tab, true).catch(() => false)) count++;
 	}
 	return count;
@@ -1833,6 +1864,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 	}
 	return {
 		mode: "attach",
+		studioManaged: browser.kind.kind === "relay" && browser.kind.studioManaged === true,
 		browserWSEndpoint:
 			page.kind === "create" ? browserWSEndpoint : adoptEndpoint(browserWSEndpoint, browser, page.targetId),
 		safeDir,
@@ -2049,6 +2081,7 @@ async function recycleTimedOutWorkerTab(
 	const browserWSEndpoint = tab.browser.wsEndpoint;
 	const payload: WorkerInitPayload = {
 		mode: "attach",
+		studioManaged: tab.browser.kind.kind === "relay" && tab.browser.kind.studioManaged === true,
 		browserWSEndpoint: adoptEndpoint(browserWSEndpoint, tab.browser, tab.targetId),
 		safeDir: getPuppeteerDir(),
 		uploadDir: tab.uploadDir,
@@ -2237,6 +2270,7 @@ async function closeOrphanTarget(tab: WorkerTabSession, budgetMs: number): Promi
 function closeAbandonedWorkerPage(browser: PuppeteerBrowserHandle, worker: WorkerHandle): void {
 	const targetId = workerPageTargets.get(worker);
 	workerPageTargets.delete(worker);
+	if (browser.kind.kind === "relay" && browser.kind.studioManaged) return;
 	if (!targetId) return;
 	// The close outlives its caller, and every caller here may go on to release
 	// the last browser reference — `closeTargetById` yields before it looks the

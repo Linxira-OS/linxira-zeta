@@ -1,3 +1,5 @@
+import type { SearchCredentialStatus } from "@linxiraos/studio-protocol";
+import type { WebSearchProviderRecord } from "@linxiraos/studio-contract";
 /**
  * Preview fixtures for the model-config page, ported from
  * ui_reference/ver1/assets/js/models-data.js. Display only.
@@ -132,9 +134,9 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
   const providers: ModelProviderRecord[] = [
     provider({
       id: "anthropic", name: "Anthropic", source: "builtin", status: "available",
-      statusDetail: "已登录 · 演示账号", api: "anthropic-messages",
+      statusDetail: "已登录 · 个人账号", api: "anthropic-messages",
       endpointUrl: "https://api.anthropic.com/v1", local: false, enabled: true,
-      website: "https://www.anthropic.com", auth: { type: "oauth", hasSecret: true, account: "demo@anthropic.com" },
+      website: "https://www.anthropic.com", auth: { type: "oauth", hasSecret: true, account: "mira@studio.dev" },
       models: [
         m("claude-opus-4.8", "Claude Opus 4.8", 200000, 64000, { img: true, reason: true, cIn: 15, cOut: 75 }),
         m("claude-sonnet-4.5", "Claude Sonnet 4.5", 200000, 64000, { img: true, reason: true, cIn: 3, cOut: 15 }),
@@ -214,13 +216,14 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
             ? ["low", "medium", "high", "max"]
             : ["minimal", "low", "medium", "high"];
       return {
+        ...(item.id === "anthropic" ? { compatibility: { supportsMessageThreads: true } } : {}),
         provider: item.id,
         id: model.id,
         selector: model.selector,
         name: model.name,
         reasoning: model.reasoning,
         ...(model.kind === undefined ? {} : { kind: model.kind }),
-        ...(model.webSearch === undefined ? {} : { webSearch: model.webSearch }),
+        ...(item.id === "anthropic" ? { webSearch: "anthropic" } : model.webSearch === undefined ? {} : { webSearch: model.webSearch }),
         image: model.image,
         tools: model.tools,
         ...(model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow }),
@@ -231,24 +234,35 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
     }),
   );
 
-  availableModels.push(...["parallel", "perplexity", "exa"].map(id => ({ provider: "web", id, selector: "web/" + id, name: id, reasoning: false, kind: "search" as const })),
+  availableModels.push(...["parallel", "perplexity", "exa", "keenable", "deepseek", "ollama", "zai", "tinyfish", "jina", "kagi", "tavily", "firecrawl", "brave", "kimi", "synthetic", "searxng", "startpage", "duckduckgo", "ecosia", "google", "mojeek", "public"].map(id => ({ provider: "web", id, selector: "web/" + id, name: id, reasoning: false, kind: "search" as const })),
     { provider: "local", id: "title-model", selector: "local/title-model", name: "Local title model", reasoning: false, kind: "tiny" },
     { provider: "local", id: "rule-judge", selector: "local/rule-judge", name: "Local judge", reasoning: false, kind: "judge" });
 
+  availableModels.push(
+    { provider: "google", id: "gemini-2.5-flash", selector: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash", reasoning: true, webSearch: "gemini" },
+    { provider: "google", id: "gemini-2.5-pro", selector: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro", reasoning: true, webSearch: "gemini" },
+  );
   return {
     providers,
-    presets: MODEL_PRESETS,
+    catalog: { version: "2026.10", upstreamCommit: "preview", source: "builtin" },
+    presets: [...MODEL_PRESETS, { group: "登录与云服务", items: [
+      { id: "mistral", name: "Mistral", desc: "Vibe 浏览器登录或 API Key", api: "openai-completions", auth: ["oauth", "api-key"], oauth: true, endpoint: "https://api.mistral.ai/v1" },
+      { id: "devin", name: "Devin", desc: "Devin CLI / Windsurf 企业账号", api: "devin", auth: ["oauth", "api-key"], oauth: true },
+      { id: "modular", name: "Modular Cloud", desc: "云端模型", api: "openai-completions", auth: ["api-key", "env"], endpoint: "https://api.modular.com/v1" },
+    ] }],
     roles,
     cycleOrder: ["smol", "default", "slow"],
     availableModels,
     loginProviders: [
+      { id: "mistral", name: "Mistral", available: true, authenticated: false },
+      { id: "devin", name: "Devin", available: true, authenticated: false, flows: [{ id: "devin-cli", name: "导入 Devin CLI / Import Devin CLI" }, { id: "devin-windsurf", name: "Windsurf 企业账号 / Enterprise" }] },
       { id: "anthropic", name: "Anthropic", available: true, authenticated: true },
       { id: "openai", name: "OpenAI", available: true, authenticated: false },
       { id: "google-gemini", name: "Google Gemini", available: true, authenticated: true },
     ],
     generatedModelsYml: "providers:\n  anthropic:\n    api: anthropic-messages\n",
     generatedConfigYml: "modelRoles:\n  default: anthropic/claude-sonnet-4.5\n",
-    runtimeEffectHint: "演示数据不会写入本机 Zeta 配置。",
+    runtimeEffectHint: "改动只作用于当前页面，尚未写入本机 Zeta 配置。",
     loginAvailable: true,
     ompAvailable: true,
     modelRoleStorage: "project",
@@ -267,22 +281,24 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
       timeoutSeconds: 60,
       geminiModel: "gemini-2.5-flash",
       providers: [
-        { id: "parallel", name: "Parallel", description: "Keyless search with optional API key", credentialFree: true, hasCredential: true },
+        { id: "parallel", name: "Parallel", description: "Keyless search with optional API key", credentialFree: true, hasCredential: true, apiKeyId: "parallel" },
         { id: "perplexity", name: "Perplexity", description: "Uses auth when configured; explicit selection falls back to anonymous search", credentialFree: false, hasCredential: true, envKeys: ["PERPLEXITY_API_KEY", "PERPLEXITY_COOKIES"], loginId: "perplexity", apiKeyId: "perplexity", credentialKind: "api-key" },
         { id: "gemini", name: "Gemini", description: "Google Search grounding via Gemini (uses google-gemini-cli or google-antigravity OAuth)", credentialFree: false, hasCredential: true, envKeys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], apiKeyId: "google" },
-        { id: "anthropic", name: "Anthropic", description: "Claude's native web_search tool (uses Anthropic OAuth or ANTHROPIC_API_KEY)", credentialFree: false, hasCredential: true },
+        { id: "anthropic", name: "Anthropic", description: "Claude's native web_search tool (uses Anthropic OAuth or ANTHROPIC_API_KEY)", credentialFree: false, hasCredential: true, apiKeyId: "anthropic" },
         { id: "codex", name: "OpenAI", description: "OpenAI's native web_search (uses ChatGPT OAuth via /login openai-codex)", credentialFree: false, hasCredential: true, envKeys: [], loginId: "openai-codex" },
-        { id: "xai", name: "xAI", description: "Grok web search via xAI Responses API (uses SuperGrok/X Premium+ OAuth via /login xai-oauth, or XAI_API_KEY)", credentialFree: false, hasCredential: false },
-        { id: "zai", name: "Z.AI", description: "Calls Z.AI webSearchPrime MCP", credentialFree: false, hasCredential: false },
-        { id: "exa", name: "Exa", description: "API via /login exa or EXA_API_KEY; explicit keyless fallback via MCP", credentialFree: false, hasCredential: false },
-        { id: "tinyfish", name: "TinyFish", description: "Requires TINYFISH_API_KEY", credentialFree: false, hasCredential: false },
-        { id: "jina", name: "Jina", description: "Requires JINA_API_KEY", credentialFree: false, hasCredential: false },
-        { id: "kagi", name: "Kagi", description: "Requires KAGI_API_KEY and Kagi Search API beta access", credentialFree: false, hasCredential: false },
+        { id: "xai", name: "xAI", description: "Grok web search via xAI Responses API (uses SuperGrok/X Premium+ OAuth via /login xai-oauth, or XAI_API_KEY)", credentialFree: false, hasCredential: false, apiKeyId: "xai" },
+        { id: "zai", name: "Z.AI", description: "Calls Z.AI webSearchPrime MCP", credentialFree: false, hasCredential: false, apiKeyId: "zai" },
+        { id: "exa", name: "Exa", description: "Exa API with a key, public MCP without one", credentialFree: true, hasCredential: false, envKeys: ["EXA_API_KEY"], loginId: "exa", apiKeyId: "exa" },
+        { id: "keenable", name: "Keenable", description: "API key or explicit keyless search", credentialFree: false, hasCredential: false, envKeys: ["KEENABLE_API_KEY"], apiKeyId: "keenable" },
+        { id: "tinyfish", name: "TinyFish", description: "Requires TINYFISH_API_KEY", credentialFree: false, hasCredential: false, apiKeyId: "tinyfish" },
+        { id: "jina", name: "Jina", description: "Requires JINA_API_KEY", credentialFree: false, hasCredential: false, apiKeyId: "jina" },
+        { id: "kagi", name: "Kagi", description: "Requires KAGI_API_KEY and Kagi Search API beta access", credentialFree: false, hasCredential: false, apiKeyId: "kagi" },
         { id: "tavily", name: "Tavily", description: "Requires TAVILY_API_KEY", credentialFree: false, hasCredential: false, envKeys: ["TAVILY_API_KEY"], loginId: "tavily", apiKeyId: "tavily" },
-        { id: "firecrawl", name: "Firecrawl", description: "Uses Firecrawl API when FIRECRAWL_API_KEY is set; falls back to keyless mode", credentialFree: false, hasCredential: false },
+        { id: "firecrawl", name: "Firecrawl", description: "Uses Firecrawl API when FIRECRAWL_API_KEY is set; falls back to keyless mode", credentialFree: true, hasCredential: false, apiKeyId: "firecrawl" },
         { id: "brave", name: "Brave", description: "Requires BRAVE_API_KEY", credentialFree: false, hasCredential: false, envKeys: ["BRAVE_API_KEY"], apiKeyId: "brave" },
+        { id: "deepseek", name: "DeepSeek", description: "DeepSeek Search API using the existing DeepSeek key", credentialFree: false, hasCredential: false, envKeys: ["DEEPSEEK_API_KEY"], apiKeyId: "deepseek" },
         { id: "kimi", name: "Kimi", description: "Kimi Code search (requires a Kimi Code Console key via KIMI_SEARCH_API_KEY/MOONSHOT_SEARCH_API_KEY or /login kimi-code; not MOONSHOT_API_KEY)", credentialFree: false, hasCredential: false, envKeys: ["KIMI_SEARCH_API_KEY", "MOONSHOT_SEARCH_API_KEY"], loginId: "kimi-code", apiKeyId: "kimi-code" },
-        { id: "synthetic", name: "Synthetic", description: "Requires SYNTHETIC_API_KEY", credentialFree: false, hasCredential: false },
+        { id: "synthetic", name: "Synthetic", description: "Requires SYNTHETIC_API_KEY", credentialFree: false, hasCredential: false, apiKeyId: "synthetic" },
         { id: "ollama", name: "Ollama Cloud", description: "Hosted web search", credentialFree: false, hasCredential: false, envKeys: ["OLLAMA_CLOUD_API_KEY"], apiKeyId: "ollama-cloud" },
         { id: "searxng", name: "SearXNG", description: "Requires SEARXNG_ENDPOINT or searxng.endpoint", credentialFree: true, hasCredential: true },
         { id: "startpage", name: "Startpage", description: "Credential-free scrape of Startpage (Google-backed) results; may be bot-challenged", credentialFree: true, hasCredential: true },
@@ -312,4 +328,21 @@ export function createPreviewFetchedModels(): ModelDiscoveryModel[] {
     { id: "qwen3-max", name: "Qwen3 Max", contextWindow: 262_144, image: true },
     { id: "gpt-5-mini", name: "GPT-5 mini" },
   ];
+}
+
+/** Credential metadata only; preview never stores entered key bytes. */
+export function previewSearchCredentials(providers: readonly WebSearchProviderRecord[]): SearchCredentialStatus[] {
+  const rows = new Map<string, SearchCredentialStatus>();
+  for (const provider of providers) {
+    const ids = provider.credentialProviders ?? [...new Set([provider.apiKeyId, provider.loginId].filter((id): id is string => Boolean(id)))];
+    for (const id of ids) {
+      const configured = provider.hasCredential && !provider.credentialFree;
+      rows.set(id, { provider: id, configured, source: configured ? "api_key" : null,
+        apiKeyLogin: ["exa", "ollama-cloud", "parallel", "tavily", "kagi", "zai", "synthetic"].includes(id),
+        ...(id === "exa" ? { keyUrl: "https://dashboard.exa.ai/api-keys" } : id === "ollama-cloud" ? { keyUrl: "https://ollama.com/settings/keys" } : {}),
+        credentials: configured ? [{ id: rows.size + 1, label: "API key", type: "api_key" }] : [],
+      });
+    }
+  }
+  return [...rows.values()];
 }

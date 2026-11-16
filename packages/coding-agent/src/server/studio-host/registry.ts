@@ -32,7 +32,8 @@ import type {
 } from "./contract/index.js";
 import type { CapabilityManifest } from "./protocol/index.js";
 import { canonicalJson } from "./protocol/canonical-json.js";
-import { StudioOpError } from "./gateway.js";
+import { StudioOpError } from "./errors.js";
+import { runWithStudioSelection, type StudioSelection } from "./selection.js";
 
 export { StudioOpError };
 import { STUDIO_FAMILIES } from "./ops/index.js";
@@ -46,6 +47,9 @@ export interface StudioHostContext {
 	 * answer without the family importing the registry (which imports it).
 	 */
 	readonly capabilities: CapabilityManifest;
+	readonly selection?: StudioSelection;
+	/** Internal view lifetime; never serialized into public responses. */
+	readonly privateOwner?: { readonly id: string; readonly expiresAt: number; readonly isLive: () => boolean };
 }
 
 export type StudioQueryHandler<K extends QueryName> = (
@@ -154,7 +158,7 @@ export class StudioOperations {
 			return { ok: false, queryName: name, error: unsupportedError(name) };
 		}
 		try {
-			const result = await handler(request.input, context);
+			const result = await runWithStudioSelection(context.selection, () => handler(request.input, context));
 			return { ok: true, queryName: name, result };
 		} catch (error) {
 			return { ok: false, queryName: name, error: toClientError(error) };
@@ -179,7 +183,7 @@ export class StudioOperations {
 		if (!handler) {
 			throw new StudioOpError(UNSUPPORTED, `Operation ${name} is not supported by the Zeta host`);
 		}
-		const result = await handler(request.input, context);
+		const result = await runWithStudioSelection(context.selection, () => handler(request.input, context));
 		return {
 			accepted: {
 				commandName: name,
