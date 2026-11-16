@@ -8,15 +8,27 @@ import { TimeTravelStore } from "./time-travel-store.js";
 const DEFAULT_SETTINGS: TimeTravelSettings = { enabled: false, retentionDays: null, exclusions: [] };
 
 function settingsValue(value: unknown): TimeTravelSettings {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) throw invalid("Invalid Time Travel settings");
-	const input = value as Record<string, unknown>;
-	if (Object.keys(input).some(key => !["enabled", "retentionDays", "exclusions"].includes(key)) ||
-		typeof input.enabled !== "boolean" || !Array.isArray(input.exclusions) || input.exclusions.length > 256 ||
-		input.exclusions.some(pattern => typeof pattern !== "string" || pattern.length > 4096 || pattern.includes("\0")))
+	if (typeof value !== "object" || value === null || Array.isArray(value))
 		throw invalid("Invalid Time Travel settings");
-	if (input.retentionDays !== null && (!Number.isSafeInteger(input.retentionDays) || (input.retentionDays as number) < 1))
+	const input = value as Record<string, unknown>;
+	if (
+		Object.keys(input).some(key => !["enabled", "retentionDays", "exclusions"].includes(key)) ||
+		typeof input.enabled !== "boolean" ||
+		!Array.isArray(input.exclusions) ||
+		input.exclusions.length > 256 ||
+		input.exclusions.some(pattern => typeof pattern !== "string" || pattern.length > 4096 || pattern.includes("\0"))
+	)
+		throw invalid("Invalid Time Travel settings");
+	if (
+		input.retentionDays !== null &&
+		(!Number.isSafeInteger(input.retentionDays) || (input.retentionDays as number) < 1)
+	)
 		throw invalid("Retention must be a positive number of days");
-	return { enabled: input.enabled, retentionDays: input.retentionDays as number | null, exclusions: input.exclusions as string[] };
+	return {
+		enabled: input.enabled,
+		retentionDays: input.retentionDays as number | null,
+		exclusions: input.exclusions as string[],
+	};
 }
 
 /** One profile queue excludes settings/cleanup/capture for the whole code/tree restore. */
@@ -35,8 +47,12 @@ export class TimeTravelService {
 		return result;
 	}
 	async settings(): Promise<TimeTravelSettings> {
-		try { return settingsValue(JSON.parse(await readFile(this.#settingsFile, "utf8"))); }
-		catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return DEFAULT_SETTINGS; throw error; }
+		try {
+			return settingsValue(JSON.parse(await readFile(this.#settingsFile, "utf8")));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") return DEFAULT_SETTINGS;
+			throw error;
+		}
 	}
 	updateSettings(patch: Partial<TimeTravelSettings>, authorize: () => void = () => {}): Promise<TimeTravelSettings> {
 		return this.#serial(async () => {
@@ -48,7 +64,9 @@ export class TimeTravelService {
 				await writeFile(temporary, JSON.stringify(settings), { flag: "wx", mode: 0o600 });
 				authorize();
 				await rename(temporary, this.#settingsFile);
-			} finally { await rm(temporary, { force: true }); }
+			} finally {
+				await rm(temporary, { force: true });
+			}
 			return settings;
 		});
 	}
@@ -84,13 +102,17 @@ export class TimeTravelService {
 			return action(this.#store, settings);
 		});
 	}
-	storage() { return this.#serial(() => this.#store.storage()); }
+	storage() {
+		return this.#serial(() => this.#store.storage());
+	}
 	cleanup(scope: "expired" | "all", authorize: () => void = () => {}) {
 		return this.#serial(async () => {
 			const settings = await this.settings();
 			authorize();
 			if (scope === "expired" && settings.retentionDays === null) return { removed: 0 };
-			return this.#store.cleanup(scope === "all" ? null : new Date(Date.now() - settings.retentionDays! * 86_400_000));
+			return this.#store.cleanup(
+				scope === "all" ? null : new Date(Date.now() - settings.retentionDays! * 86_400_000),
+			);
 		});
 	}
 }

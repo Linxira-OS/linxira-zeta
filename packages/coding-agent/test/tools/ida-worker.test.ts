@@ -130,4 +130,18 @@ describe("IDA worker protocol", () => {
 		}
 		expect(worker.pid).toBe(pid);
 	});
+
+	it("forwards the studio fence and reports its native identity", async () => {
+		const status = await worker.request<{ identity: string; version: number }>("studio", { method: "status" });
+		expect(typeof status.identity).toBe("string");
+		expect(Number.isSafeInteger(status.version)).toBe(true);
+		const stale = worker.request("studio", {
+			method: "view",
+			identity: "another-instance",
+			version: status.version,
+			params: { kind: "overview" },
+		});
+		const caught = await stale.catch(error => error);
+		expect(String(caught)).toContain("IDA database changed");
+	});
 });

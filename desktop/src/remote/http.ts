@@ -137,6 +137,16 @@ export class StudioHttp {
 		return (await response.json()) as T;
 	}
 
+	/** Binary resources use the same paired cookie/CSRF authority, without write replay. */
+	async request(route: string, init: RequestInit = {}): Promise<Response> {
+		if (!route.startsWith("/api/v1/artifacts") || route.startsWith("//")) throw new Error("Invalid artifact route");
+		const mutate = !["GET", "HEAD"].includes((init.method ?? "GET").toUpperCase());
+		const headers = new Headers(this.#headers(mutate));
+		new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+		const response = await fetch(`${this.base}${route}`, { ...init, headers, signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000) });
+		return response;
+	}
+
 	async openContext(scope: { workspaceId: string; sessionId?: string }): Promise<string> {
 		const result = await this.#studio<{ contextId: string }>("/api/v1/context/open", scope, true);
 		if (typeof result.contextId !== "string" || !result.contextId) throw new Error("Invalid Studio context response");

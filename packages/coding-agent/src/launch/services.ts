@@ -279,7 +279,9 @@ export async function startService(
 	if (params.previewUrl !== undefined) {
 		const capabilities = await requestService(session, { op: "ping" }, signal, assertCurrent);
 		if (capabilities.op !== "ping" || !capabilities.previewUrls)
-			throw new ToolError("This project broker does not support preview URLs. Restart it with the updated Runtime before launching web services; no service was started or replaced.");
+			throw new ToolError(
+				"This project broker does not support preview URLs. Restart it with the updated Runtime before launching web services; no service was started or replaced.",
+			);
 	}
 	const result = await requestService(
 		session,
@@ -288,7 +290,7 @@ export async function startService(
 			spec,
 			owner: serviceOwner(session) ?? undefined,
 			replace: params.replace ?? true,
-			awaitReady: params.awaitReady ?? (readyInterrupt === undefined),
+			awaitReady: params.awaitReady ?? readyInterrupt === undefined,
 		},
 		signal,
 		assertCurrent,

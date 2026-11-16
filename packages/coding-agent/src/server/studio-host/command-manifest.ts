@@ -15,10 +15,18 @@ function classify(risk: Classification["risk"], effect: Classification["effect"]
 
 // A row covers every supported subcommand, not only the bare/status invocation.
 classify("normal", "read", "changelog tools context dirs team hotkeys extensions agents hub tree sidebar");
-classify("normal", "session", "plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff seance retry rename new resume branch fork btw teamworker");
+classify(
+	"normal",
+	"session",
+	"plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff seance retry rename new resume branch fork btw teamworker",
+);
 classify("normal", "workspace", "add-dir remove-dir git local tracking");
 classify("normal", "process", "language record pause quit exit restart");
-classify("sensitive", "process", "settings setup skillful extended-context browser modelpreset tool time forget-approvals jobs stats reload-plugins reload-skills live channels");
+classify(
+	"sensitive",
+	"process",
+	"settings setup skillful extended-context browser modelpreset tool time forget-approvals jobs stats reload-plugins reload-skills live channels",
+);
 classify("sensitive", "workspace", "security export dump copy open todo cd move wt design initzetateam");
 classify("sensitive", "external", "ssh share login logout mcp marketplace plugins skills force loop tan omfg cleanse");
 classify("sensitive", "read", "trace debug");
@@ -40,7 +48,9 @@ export function buildOperatorCommandManifest(instance?: Settings): OperatorComma
 		}
 		const classification = classifications.get(spec.name);
 		if (classification === undefined) unclassifiedBuiltins.push(spec.name);
-		const description = withActiveSettings(effective, () => resolveCommandDescription(spec.acpDescription ?? spec.description));
+		const description = withActiveSettings(effective, () =>
+			resolveCommandDescription(spec.acpDescription ?? spec.description),
+		);
 		commands.push({
 			id: `builtin.${spec.name}`,
 			name: spec.name,
@@ -63,7 +73,9 @@ export function buildOperatorCommandManifest(instance?: Settings): OperatorComma
 	return {
 		generatedAt: new Date().toISOString(),
 		upstreamCommit,
-		hash: createHash("sha256").update(canonicalJson({ upstreamCommit, commands, unclassifiedBuiltins })).digest("hex"),
+		hash: createHash("sha256")
+			.update(canonicalJson({ upstreamCommit, commands, unclassifiedBuiltins }))
+			.digest("hex"),
 		commands,
 		unclassifiedBuiltins,
 	};

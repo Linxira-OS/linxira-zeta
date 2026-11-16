@@ -31,6 +31,7 @@ import { serializeTitleSlot } from "../../session/session-title-slot";
 import { getRpcSession } from "./agents";
 import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
 import { getRunningSessionIds, notifyBotSessionDeleted, removeRunningSession } from "./running-sessions";
+import { withSessionArtifactMutation } from "./artifact-mutations";
 import type {
 	AgentMessage,
 	CompactionEntry,
@@ -1017,16 +1018,33 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 			// skip if dir unreadable
 		}
 
+		const wrapper = getRpcSession(sessionId);
+		if (wrapper !== undefined) {
+			const session = wrapper.getSession();
+			// Cancel native work before moving its transcript. Closing the sealed
+			// writer fences late events; unrelated memory/provider teardown may finish
+			// asynchronously without recreating the deleted file or holding the receipt.
+			session.beginDispose();
+			wrapper.destroy();
+			void session.dispose().catch(error => {
+				logger.warn("web-gateway: deleted session teardown failed", { sessionId, error: String(error) });
+			});
+			session.sessionManager.seal();
+			await session.sessionManager.close();
+		}
+
 		removeRunningSession(sessionId);
 		// Soft-delete through the same helper the TUI picker uses: the transcript
 		// (plus artifacts and stale backups) moves to
 		// `~/.zeta/trash/sessions/<timestamp>_<id>/` so `/trash` + `/restore` can
 		// recover it until the retention sweeper expires it, and shared hide/pin
 		// metadata is dropped in the same step.
-		await deleteSessionFiles(filePath, { mode: "trash" });
-		invalidateSessionPathCache(sessionId);
-		invalidateSessionListCache();
-		await maybeRemoveWorktreeAfterSessionDelete(sessionCwd);
+		await withSessionArtifactMutation(sessionId, async () => {
+			await deleteSessionFiles(filePath, { mode: "trash" });
+			invalidateSessionPathCache(sessionId);
+			invalidateSessionListCache();
+			await maybeRemoveWorktreeAfterSessionDelete(sessionCwd);
+		});
 		return json({ ok: true });
 	} catch (error) {
 		logger.error("web-gateway: delete session failed", { sessionId, error: String(error) });

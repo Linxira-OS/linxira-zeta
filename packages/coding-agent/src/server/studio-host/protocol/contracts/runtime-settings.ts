@@ -93,7 +93,10 @@ export interface StudioRuntimeSettingsActivation {
 	sources?: Partial<Record<StudioRuntimeSettingKey, "env" | "runtime" | "overlay" | "project" | "global" | "default">>;
 	configured: Partial<StudioRuntimeSettingsSnapshot>;
 	restartRequired: StudioRuntimeSettingKey[];
-	hindsightCredential?: { configured: boolean; source: "env" | "runtime" | "overlay" | "project" | "global" | "default" };
+	hindsightCredential?: {
+		configured: boolean;
+		source: "env" | "runtime" | "overlay" | "project" | "global" | "default";
+	};
 	resolvedEditMode?: NonNullable<GuiSettingsSnapshot["edit.mode"]>;
 }
 

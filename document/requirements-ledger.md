@@ -224,7 +224,7 @@ Shared file ownership remains: `sdk.ts` tools; `zeta-server.ts` IM; `App.tsx` St
 | REQ-100 | 用户原话：『左边是Agent说话，右边是用户说话』『他也要分清楚之前用户的气泡它究竟来自于哪一个渠道』『可能是多个IM接口绑定一个Agent』『群聊的事情……后面……针对性的UI适配。我们现在只管接入IM的形式』 | Message-level IM provenance and conversation bubbles across Web/TUI/IM; external-group-specific UI excluded | Incoming IM persists real user role and renders right; assistant left; each historical user message retains actual platform/instance/sender/source, not current channel; multiple interfaces bound to one main do not mix attribution or reply binding; ordinary client user messages remain correct. | P1 | IN_PROGRESS | conversation / TeamSurfacesFinish; channels / TeamRoomsFinish | REQ-081, REQ-098 | User corrected list-centric interpretation; workers briefed with message-level producer/contract/bubble requirements. | Implement actual metadata propagation, mixed-source bubble tests and reply binding tests; verify visible conversation surface. |
 | REQ-101 | 用户要求核对纸飞机Telegram、飞书/Lark、Discord私聊群聊、@触发与上文、文件图片、扫码接入及飞书CLI办公能力。 | Main-owned platform capability and integration work after upstream merges | Verify official platform contracts and actual adapters; default group model invocation requires explicit bot mention; preserve message/source/reply bindings; supported history/media/QR/CLI capabilities are real and permission-aware. External-group-specific UI remains later scope. | P1 | IN_PROGRESS | channels / main | REQ-099, REQ-100 | Supplied Feishu article7613711414611463386 confirms QR bot creation, separate user authorization, Lark and office API capabilities; official event/history scopes checked. No new worker authorized. | Finish upstream merges first, then compare adapters and implement reachable missing behavior with tests/docs. |
 | REQ-102 | 用户要求核查后端2FA，绑定外部设备推送确认，用于手机远程电脑及电脑间SSH连接。 | Main-owned remote authentication investigation and suitable implementation | Distinguish actual TOTP/recovery from push approval; verify backend enforcement, device binding, revoke and pairing; preserve SSH key/host validation; any new factor requires explicit secure challenge binding and ADR before implementation. | P1 | TRIAGED | auth / main | REQ-099 | Backend has two-factor-auth.ts TOTP/recovery grants and device registry; push approval not demonstrated. User asks execution after merges; no external device/account configuration authorized. | Verify actual backend tests and remote scenarios, decide architecture from existing device trust and record ADR before new push contract. |
-| REQ-103 | 用户原话：『合并完成之后……对readme进行拆分，默认显示英文，然后中英文要同步……rep-docs……主要是对外的……安全和贡献合作方法……展示的东西太多了……可以跳转到其他文件夹』 | Post-merge English default README and bilingual public repo documentation | Concise English README.md, synchronized Chinese in rep-docs/README.zh-CN.md; detailed public docs in root rep-docs; linked Chinese contribution/security guides; no license translation; runtime docs remain docs. Verify link targets and content parity. | P2 | SCOPED | public docs / main | REQ-099, REQ-098 | User explicitly orders after merges; main only, no new subagents. | Complete merges and Team integration first; inspect existing README, split without losing supported install/product facts, validate bilingual navigation. |
+| REQ-103 | 用户原话：『合并完成之后……对readme进行拆分，默认显示英文，然后中英文要同步……rep-docs……主要是对外的……安全和贡献合作方法……展示的东西太多了……可以跳转到其他文件夹』 | English default README and bilingual public repo documentation; user advanced independent docs work before final integration on 2026-11-16 | Concise English README.md, synchronized Chinese in rep-docs/README.zh-CN.md; detailed public docs in root rep-docs; linked Chinese contribution/security guides; no license translation; runtime docs remain docs. Verify link targets and content parity. | P2 | VERIFIED | public docs / PublicDocsFinish; integration and verification / main | — | Twelve files integrated by exact preimage/final SHA-256 (`temp/studio-closure-fast/public-docs-receipt.json`); English README, Chinese entrypoint, bilingual product/development/ownership, contribution and security guides. Main independently ran `node ../public-docs-finish/temp/public-docs-check.mjs`: 227 local links, 4 inbound references, 54 fact-parity checks pass. Coverage baseline and README coverage anchor retained; Studio acceptance/CI remains explicitly pending. | No remaining local documentation criterion. External URL availability was not network-probed; no GitHub metadata write was executed. |
 | REQ-104 | 用户原话：『现在确定了，下一次发布链是绝对完整的发布链』；用户发现 npm 安装的 zetacode update 仍认为 1.5.1 最新。 | Next release must complete the supported public publication and upgrade chain | Publish npm CLI and matching workspace/native dependencies, GitHub Release and supported product assets; verify upgrade discovery and installation from existing npm 1.5.1. Required publish jobs must succeed, not skip. Retired, private and owner-held surfaces keep their explicit scope. | P1 | SCOPED | release / main | REQ-099, REQ-098 | 2026-11-14: installed zetacode/1.5.1; update --check reports Already up to date; npm @linxiraos/zeta latest is 1.5.1 with no 1.5.2. CI43552832838 deliberately skipped npm/native publication under ADR0033 assets-only policy. Owner now requires a complete next release; this supersedes carrying that exception forward, not authorization to publish now. | Amend release policy and ADR before next release; verify all required publication jobs and real npm upgrade path before claiming release complete. |
 
 REQ-104 owner clarification: the complete publication chain applies to the very next release regardless of version, explicitly including 1.5.3 or any other chosen version. The old 1.5.x npm freeze must not force an assets-only release or a version jump; update the policy/ADR accordingly before publishing.
@@ -257,7 +257,8 @@ REQ-099 validation cutover (2026-11-16): official v0.2.1 removes unused shared o
 
 | ID | Requirement | Scope | Acceptance | Priority | Status | Lane / owner | Depends on | Evidence | Remaining |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| REQ-107 | 用户原话：『软件封包之后一定要做好这件事情，就是把第三方协议的那个TXT给弄好，还有几个上游项目给他明确在关于我们当前项目标注上，然后再指向对应的链接对应的仓库』 | Packaged third-party notices + in-repo and GitHub About attribution for OMP, OMP Studio, TermIDE and credited port sources | Every release artifact contains an accurate `THIRD-PARTY-NOTICES.txt`; `NOTICE`/`README` list each upstream with its repository URL and the integrated tag (never a newer tag than the tree); Desktop About repeats the links; `check-license-map` and packaging tests pass | P1 | IMPLEMENTED | release docs / main | REQ-104 | `NOTICE`, `THIRD-PARTY-NOTICES.txt`, `README.md` upstream table, `desktop/src/main.ts` About dialog, `document/release.md` §Third-party notices gate; `check-license-map` ok (107 AGPL sources, 8 vendored trees), `package-desktop-archives.test.ts` 3 pass | Approve GitHub repo About text/topics (write not yet executed); refresh baselines again when Studio v0.2.1 merge lands |
+| REQ-109 | Audit restatement of the user's two screenshots and report (2026-11-16; full original wording is unavailable in the retained handoff): the bottom integrated terminal intermittently has severe font and font-size problems, although it sometimes looks normal | Studio integrated-terminal sizing and typography through initialization, collapsed panels, font changes, zoom and destination windows | The xterm grid fits the visible panel; displayed rows and input composition use the configured terminal font/size; hide/show, resizing, zoom and moving windows retain the shell and output | P1 | VERIFIED | terminal typography / main + StudioSurfaceClosure verification | REQ-099 | `styles/workbench.css` flex minimum and terminal font inheritance; `terminalTheme.ts`, `TerminalPane.tsx`, `RecordingPlayer.tsx` read the destination document. Six TerminalPane tests pass; renderer production build passes. Independent actual Electron 45.3 DOM/WebGL: 12→20→28→12px, hide/show, resize, zoom 0.8/1/1.25, native floating window, exact command output and unchanged PTY IDs; `temp/studio-surface-closure-20261116/temp/surface/matrix-summary.json` and matrix evidence. Prior 420px grid inside 201px panel is gone. Hidden textarea line-height is xterm-owned cell geometry, not the UI font ramp. | No remaining criterion for the reported terminal regression; broader Studio cutover remains in REQ-099. |
+| REQ-107 | 用户原话：『软件封包之后一定要做好这件事情，就是把第三方协议的那个TXT给弄好，还有几个上游项目给他明确在关于我们当前项目标注上，然后再指向对应的链接对应的仓库』 | Packaged third-party notices + in-repo and GitHub About attribution for OMP, OMP Studio, TermIDE and credited port sources | Every release artifact contains an accurate `THIRD-PARTY-NOTICES.txt`; `NOTICE`/`README` list each upstream with its repository URL and the integrated tag (never a newer tag than the tree); Desktop About repeats the links; `check-license-map` and packaging tests pass | P1 | IMPLEMENTED | release docs / main | REQ-104 | NOTICE/THIRD-PARTY/README now name integrated OMP18.20.0, Studio0.2.1 and TermIDE0.49.0, with real repository links and corrected OMP Web lineage; Desktop About has all six credits. License map passes (107 AGPL sources, 8 vendored trees); artifact/media/native-link/packaging subset 11 pass, 91 assertions; embedded relay copies regenerated and freshness passes (6 copies). Public docs independently link/parity-checked. | GitHub repo About text/topics remain unapproved and unwritten; final released artifact contents await the authorized publication round. |
 | REQ-108 | 用户原话：『问题在于是那个TIM页面好像不见了放在后面TIM合并后TIM以及原始功能的补充』 | Team/IM (TIM) surfaces that disappeared from the product must return together with the Team and original-function supplements | After the Team/IM merge, the TIM page(s) are reachable again with Team rooms, membership, delivery/ack and IM routing wired to the real producer/read model; original-function supplements land in the same round; no placeholder page is shipped before that merge | P1 | DEFERRED | Team / main | REQ-098 | Deferral approved by the user in this message; re-entry trigger = Team/IM merge starts (T1). Current Studio phase does not rebuild TIM surfaces. | Resume in the Team phase; do not resurrect a TIM page ahead of its producer. |
 | REQ-106 | 用户原话：『现在是能够配置多个回退模型，根本不需要再加新的回退模型的机制』『有些模型我想删掉，从回退里边那个ruler里边删掉，但是我找不到在哪删』『这个页面……没有删除啊……是不是bug』『有些东西它只是追加，但是不能删掉，除非把整个服务商给删了』 | Existing fallback-rule editing and deletion; preserve current ordered global, provider-wildcard and exact-model chains | A user can discover and remove one fallback model or one rule without deleting a provider; unaffected rules and model order survive save/reload; no new fallback mechanism or silent truncation of longer chains | P1 | VERIFIED | model settings / main | REQ-099 | Screenshot identified as TUI `/models`. Model strip now changes append-only `retry-fallback` to `remove fallback` when present; one activation removes the first matching provider/model entry, retaining effort variants. Model-hub tests: 78/78, 300 assertions. Isolated source CLI PTY: global removal, exact-model/provider row removal, whole-rule removal and fresh-process reload all passed; both provider definitions and remaining order survived. Evidence: `temp/fallback-ui-live-20261115/{deletion-evidence,reload-evidence}.json` and painted UI frames. Runtime docs: `docs/models.md`; TUI changelog updated. | None for this reported TUI bug; no provider request or new fallback mechanism introduced. |
 
@@ -276,3 +277,96 @@ REQ-099 HOME isolation follow-up (2026-11-16): the Surface lane proved that the 
 REQ-099 evaluation export evidence (2026-11-16): with the isolated profile and a local fixture model, the actual current-source Electron UI clicked CSV export for a fixture benchmark and Electron wrote a real 390-byte CSV (1 row, `fixture/local-model`, http transport) to the lane's isolated downloads directory; the previously suspected renderer download bug did not reproduce. This is fixture-model product evidence for the export path, not external-provider success; the earlier real-provider benchmark/instruction/judgment run remains labelled non-isolated, and review fencing/cancel/reconnect/Ratchet acceptance is still reported separately by the lane.
 
 REQ-099 producer-gap inventory and integrated worker deltas (2026-11-16): the host-adaptation audit found renderer/shared surfaces whose Host families are unregistered, so the manifest hides them: `accounts.*`, `agent.btw.*`, `agent.model.inspect`, `annotations.*`, `benchmarks.*`, `extensions.links.*`, `ida.*`, `judgments.*`, `media.*`, `ratchet.*`, `search.credentials.*`, `session.compaction.*`, `shell.view.*`, `skillshare.*`, `worktrees.*`, `live.audio.*`. Skillshare stays retired (ADR-0047), live audio stays owner-held (ADR-0034); the rest are real gaps documented in `docs/studio-surfaces.md` §Gaps and are not silently presented as working. Integrated worker deltas: browser closure 8 files (Electron WebMCP feature switch, document identity, crash/observation lifecycle; 16 desktop + 4 Host tests pass; `launch.ts` now accepts both `WebMCP` and `WebMCPTesting` for Chromium 156/157), evaluation closure 3 files plus the test synced from its worktree (review gateway-theme fix, transient `_state.json` recovery; 24 producer/binding tests pass), surface closure returned no product delta (its owned files matched the snapshot; 23 desktop + 74 gateway tests pass). Main fixed `session.delete` to dispose the resident `AgentSession` so a running evaluation cannot survive a deleted transcript, and routed palette/terminal openers through `openBottomPanel` so a collapsed bottom region expands. Evidence: worker manifests under each worktree's `temp/`, `temp/eval-evidence*`, `temp/surface/journey-*.json`.
+
+REQ-099 source accounting and binary artifact integration (2026-11-16): final official-delta report `temp/studio-review-main-20261116-final5/report.json` covers 1,751 paths with live tag verification. `check-studio-sync --require-complete --require-ancestry` reports **1,248 accepted / 0 unresolved / 0 problems**, including truthful corrections for integrated producers and retained unavailable families. This is source accounting, not complete feature acceptance. Authenticated raw artifact routes, native same-session storage, exact Desktop local/SSH connection, native-dialog transfer and renderer previews/queue recovery are integrated. Reads require an open selected context; writes additionally require the connected event owner and exact resident native session, and serialize with session trash. Desktop export rechecks the captured context after temporary write before rename. Independent review resolved seven Host defects and three artifact defects; per-family tests and remaining blockers follow below. Durable evidence is archived outside ignored temp at `~/.zeta/parked-evidence/2026-11-16/studio-v0.2.1-final/`. OMP remains fixed at18.20.0; no tag, release or main merge is implied.
+
+REQ-099 artifact acceptance evidence (2026-11-16): actual Z Work Studio Electron 45.3 + current parent source Host (native persisted fixture session, no model/provider/credential bridge) exercised the artifact path end to end. Import through preload `importArtifact` with an injected native dialog stored a 528-byte PNG; the Artifact Library row previewed it as `zeta-artifact://library/…` with `naturalWidth=128`/`naturalHeight=96`; export with an injected native save dialog produced byte-identical 528 B (SHA-256 `a113d614cdc798138a3f6dbb59001fe137d3501e828c9898f78128aafd2d7a17`). Host HTTP: HEAD 200/528, GET 200/528, `Range: bytes=0-15` 206 with `content-range: bytes 0-15/528`. A `.studiocast` imported through the library rendered its real marker text in `RecordingPlayer`. A library URL with a bogus context answered 404 and never fell back to the recorder. A delayed picker resolved after the Host context closed, and after a main-window reload, produced no artifact row and a safe failure. The run found and Main fixed a real defect: the served renderer CSP omitted `zeta-artifact:` while the packaged meta CSP had it, so previews were blocked; the header now allows the scheme for `img-src`/`media-src`/`connect-src`. Iframe artifact loads were rejected. Not established and not claimed: untrusted-preload WebContents rejection (harness probe timed out) and a direct malformed `zeta-artifact:///…` fetch (product code does not build that form); native OS picker UI was harness-injected, not clicked. Evidence under `temp/artifact/` (`protocol-fixed.json`, `reopen-http.json`, `reject-tests.json`, `stale-context3.json`, `stale-nav.json`, screenshots).
+
+REQ-099 / REQ-103 execution-order clarification (2026-11-16), user verbatim:
+『那你先开始直接完成其他任务，有没有那些不需要合并就可以做的？反正尽可能走一些最快捷的方法验证，不要太保守毕竟，OMP studio 0.2.1到现在为止还没完全核完，以及验收是真的太慢了』.
+Independent public README/contribution/security work now proceeds before final
+Studio/Team integration. Four isolated lanes cover public docs, Evaluation,
+native Computer and existing surface evidence; Main retains source decisions,
+shared integration and final gates. Already proven scenarios are reused when
+their source is unchanged; only affected behavior and actual missing scenarios
+run again. Acceptance scope, existing owner holds and the single authorized
+integration push are preserved.
+
+REQ-099 history metadata / BTW image evidence (2026-11-16): the current Host
+passed an isolated native HTTP-dispatch smoke covering saved-title persistence,
+idempotent pin/unpin, foreign workspace refusal, secondary target device binding,
+exact PNG bytes without filesystem paths, ordinary text, matching bound-device
+reachability and closed-context refusal (`temp/studio-closure-fast/result.json`).
+The affected context/history/utility suites passed 30 tests / 253 assertions.
+No external model calls were made; independent final review remains separate.
+
+REQ-099 S5 closure (2026-11-16): existing actual Electron45.3 evidence plus
+targeted floating/pin and SSH transport checks establish 9/10 surface criteria.
+Pinned native windows are destroyed on navigation and recreated from persisted
+pins after reload by design; unpinned/closed windows do not persist. The only
+missing criterion is a reachable real SSH endpoint: the retained 4071ms TCP
+timeout occurred before authentication and was not repeated. Evidence:
+`temp/studio-surface-closure-20261116/temp/surface/acceptance-matrix.json`.
+
+REQ-099 S4 closure (2026-11-16): before final formatting, the integration matched
+all2076 Bazel-consumed inputs of the proven Linux addon (the2077th manifest
+difference is non-input windows-native-env.ts). Seven native desktop files then
+changed only by deterministic rustfmt; preimage/final hashes and formatter-output
+equality are retained in `temp/studio-closure-fast/native-format-equivalence.json`.
+Linux X11's49 checks remain evidence for the pre-format build, not a new byte-
+matched addon. All six existing Windows addons lack observationOnly/settle;
+the real wrapper refuses passive construction before any input-enabled native
+session is started (8 checks pass; ABI regression 1 test/3 assertions passes).
+No source-matched Windows addon, VS Build Tools or cached xwin/LLVM sysroot is
+available; live Windows capture and physical Wayland remain unverified, not
+waived. Evidence: `temp/omp-native-s4-nativeclose-20261116/evidence/native-s4-close.json`.
+
+REQ-099 final review and gates (2026-11-16): local resources accept kindless
+requests and pass original-view fences into asynchronous work; real file
+list/open/save smoke passes. Native BTW promotion rekeys its resident wrapper,
+returns the branch receipt and preserves a newer conversation selection.
+Recorded shell sources and portability secondary targets enforce workspace/
+device binding. Queue mutations retain initiating-view authority inside their
+serialized action; staged image cleanup preserves the pending message on
+revocation. Transfers no longer replace an in-flight view through a mutable
+cache, and another context cannot consume or cancel an import review.
+Independent static review resolved seven Host and three artifact findings;
+it did not execute tests. Main ran Host/artifact26tests255assertions,
+native authority35tests308assertions, Desktop3tests, affected renderer5files/
+21tests, public docs12files227links54parity facts, check:ts (544warnings,
+no lint errors, formatting and all workspace types), renderer/Desktop types
+and cargo fmt successfully. Startup smoke rejects a missing model by name and
+constructs the requested model before its first turn. `test:rs` stopped because
+cargo-nextest is missing; doctests were not reached. ADRs remain Proposed.
+
+REQ-099 S3 closure (2026-11-16): EvaluationClose's final-source isolated checks
+pass17tests74assertions and legacy subset5tests32assertions; review,
+reconnect, cancellation, retained rows and CSV export work. One minimal isolated
+opencode-go/deepseek-v4.1-flash attempt returned401 Invalid credential; it was
+not retried and no credential store was copied. Earlier external benchmark/
+instruction/judgment success is non-isolated historical evidence. A complete
+external Ratchet pilot with valid patch remains unproved. Evidence:
+`temp/studio-eval-close/temp/lane/evidence-final/closure-report.json`.
+
+REQ-099 acceptance remains open: fixed18.20.0 has no registered Studio producer
+for context.view.*, templates.*/mcp.runtime.status, preferences.native.* and
+GUI preference schemas, session.restore.inspect, runtime.pause, advisor
+configuration or tan.start. These are documented implementation gaps, not
+completed behavior or owner-approved deferrals. Latest execution steering
+prioritizes closing the existing edit/review batch without a new feature census.
+External prerequisites remain valid isolated provider credentials, a source-
+matched Windows addon/toolchain and physical desktop, and a reachable SSH
+endpoint. Team/TIM work and the final acceptance claim remain dependent on
+these unresolved phase-1 criteria.
+
+REQ-099 installation closure (2026-11-16, ADR-0059): SheetJS0.20.3 retains
+the exact official archive and original locked SHA-512 at
+`web-app/vendor/xlsx-0.20.3.tgz`. Isolated npm12 `ci` succeeds with the
+default `allow-remote=none`; the installed parser preserves four workbook
+rows exactly. Source-policy checks pass4tests9assertions; renderer production
+build and first-load check pass (2,810.9kB/41files). Remote registry policy
+remains closed; the new local-file path checks direct declaration, canonical
+containment, regular-file identity and locked integrity. This resolves the
+installation guard failure, not the external or unregistered-family criteria
+listed above. Final source accounting is1,248accepted/0unresolved/0problems;
+the sealed-final6 archive preserves current hashes and earlier provenance.

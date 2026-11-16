@@ -10,6 +10,7 @@ import type { MemoryCredentialResult } from "./memory-credentials-ipc";
 import type { ComputerViewRequest, ComputerViewResult, ComputerFrameRequest, ComputerFrameReadResult } from "./computer-frames-shared";
 import type { ComputerCaptureRequest, ComputerCaptureResult } from "./computer-observation-shared";
 import type { PredictionChannel, PredictionInput, PredictionEvent, PredictionResult } from "./prediction-protocol";
+import type { ArtifactExportInput, ArtifactImportInput, StudioArtifactFileResult } from "./artifact-library";
 
 let privateCapabilities: { browserObservation?: boolean; managedBrowser?: boolean; computerFrames?: boolean; computerCapture?: boolean; prediction?: boolean } | null = null;
 try { privateCapabilities = ipcRenderer.sendSync("zeta-studio:desktop:private-capabilities") ?? null; } catch { /* No private producer was discovered. */ }
@@ -131,6 +132,8 @@ const bridge = {
 	...computerFrameBridge,
 	...computerCaptureBridge,
 	...predictionBridge,
+	importArtifact: (input: ArtifactImportInput): Promise<StudioArtifactFileResult> => ipcRenderer.invoke("zeta-studio:artifact-import", input),
+	exportArtifact: (input: ArtifactExportInput): Promise<StudioArtifactFileResult> => ipcRenderer.invoke("zeta-studio:artifact-export", input),
 	memoryCredentialStatus: (input: { targetId: string | null; url: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-status", input),
 	setMemoryCredential: (input: { targetId: string | null; url: string; token: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-set", input),
 	removeMemoryCredential: (input: { targetId: string | null; url: string }): Promise<MemoryCredentialResult> => ipcRenderer.invoke("zeta-studio:memory-credential-remove", input),

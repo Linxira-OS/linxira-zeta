@@ -103,6 +103,12 @@ Capabilities the shell owns (paths never cross into the renderer):
 * terminal — `window.zetaStudioTerminal` owns the gateway socket, forwards PTY
   bytes, and records `.studiocast` files (`recordingStart`/`Stop`/`Status`/
   `Export`); playback is served by `zeta-artifact://`.
+* session artifacts — `importArtifact`/`exportArtifact` use native dialogs and
+  the Host's authenticated `/api/v1/artifacts` routes for the exact local or
+  SSH target. Renderer previews use `zeta-artifact://library/<opaque id>` with
+  the Host-issued context; the request is checked against the actual sending
+  document, a disconnected remote never falls back to local, and plain
+  `zeta-artifact://<recording>` URLs keep the terminal-recorder behaviour.
 
 * draft dictation — `attachLiveAudio`, `appendLiveAudio`, `detachLiveAudio`,
   `requestMicrophoneAccess`, `openMicrophoneSettings`.
@@ -185,8 +191,9 @@ the view or losing its document aborts reads. X3D previews load the bundled view
 through the separate sandboxed `zeta-graphics://viewer/` origin; only that document
 allows WebAssembly compilation. The main renderer keeps JavaScript eval disabled.
 
-Computer frame saving and Office installation remain unavailable without their
-required Host binary-artifact and trusted signed-component providers.
+Computer frame saving still needs its specific Host promotion operation;
+the general artifact library does not provide that operation. Office
+installation still needs a trusted signed-component provider.
 
 ## Hindsight credentials
 

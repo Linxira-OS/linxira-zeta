@@ -4,6 +4,8 @@
  * Validation stays at shape level; the overlay services enforce semantics.
  */
 
+import type { AgentSpawnOptions } from "./runtime-views.js";
+
 /** Upstream `TspTone` (pi-wire): colour intent of a widget part. */
 export type JobWidgetTone =
 	| "neutral"
@@ -92,7 +94,11 @@ export type RuntimeFeatureOperation =
 	| { kind: "mcp.auth.reauth"; sessionId: string; name: string }
 	| { kind: "mcp.auth.unauth"; sessionId: string; name: string }
 	| { kind: "mcp.auth.reconnect"; sessionId: string; name: string }
-	| { kind: "seance.ask"; sessionId: string; source: string; task: string; model?: string };
+	| { kind: "seance.ask"; sessionId: string; source: string; task: string; model?: string }
+	| { kind: "agent.spawn.options"; sessionId: string; definition: string }
+	| { kind: "btw.inject"; sessionId: string; injectId: string }
+	| { kind: "session.history.rename"; sessionId: string; targetSessionId: string; title: string }
+	| { kind: "session.history.pin"; sessionId: string; targetSessionId: string; pinned: boolean };
 export interface RuntimeFeatureResultMap {
 	"approvals.forget": { cleared: true };
 	"jobs.inspect": JobInspection;
@@ -100,6 +106,10 @@ export interface RuntimeFeatureResultMap {
 	"mcp.auth.unauth": McpAuthResult;
 	"mcp.auth.reconnect": McpAuthResult;
 	"seance.ask": SeanceResult;
+	"agent.spawn.options": AgentSpawnOptions;
+	"btw.inject": { sent: true };
+	"session.history.rename": { targetSessionId: string; title: string };
+	"session.history.pin": { targetSessionId: string; pinned: boolean };
 }
 export const RUNTIME_FEATURE_KINDS = [
 	"approvals.forget",
@@ -108,13 +118,18 @@ export const RUNTIME_FEATURE_KINDS = [
 	"mcp.auth.unauth",
 	"mcp.auth.reconnect",
 	"seance.ask",
+	"agent.spawn.options",
+	"btw.inject",
+	"session.history.rename",
+	"session.history.pin",
 ] as const;
-export const RUNTIME_FEATURE_READ_KINDS = ["jobs.inspect"] as const;
+export const RUNTIME_FEATURE_READ_KINDS = [
+	"jobs.inspect",
+	"agent.spawn.options",
+	"btw.inject",
+	"session.history.rename",
+	"session.history.pin",
+] as const;
 export function isRuntimeFeatureKind(kind: string): kind is RuntimeFeatureOperation["kind"] {
 	return (RUNTIME_FEATURE_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-

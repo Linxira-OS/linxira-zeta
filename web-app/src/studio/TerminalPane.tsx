@@ -283,15 +283,15 @@ function XtermScreen({
     if (!node || !api) return;
     let host = hosts.get(session.id);
     if (host === undefined) {
-      const typography = readTerminalTypography();
+      const typography = readTerminalTypography(document);
       // `?terminalRenderer=dom` is the diagnostic escape hatch for GPU-canvas
       // capture and for machines whose driver drops WebGL contexts.
-      const forcedRenderer = new URLSearchParams(location.search).get("terminalRenderer");
+      const forcedRenderer = new URLSearchParams(document.defaultView?.location.search).get("terminalRenderer");
       const screen = new XtermSession({
         container: node,
         ...typography,
         lineHeight: 1.25,
-        theme: readXtermTheme(),
+        theme: readXtermTheme(document),
         scrollback: TERMINAL_SCROLLBACK_LINES,
         renderer: forcedRenderer === "dom" ? "dom" : "webgl",
         active,
@@ -319,17 +319,17 @@ function XtermScreen({
     host.screen.term.options.disableStdin = session.status === "ended";
     host.screen.term.options.cursorBlink = session.status !== "ended";
     const links = registerTerminalBrowserLinks(host.screen.term, url => { hoveredLink.current = url; });
-    const observer = new MutationObserver(() => { applyTheme(host.screen.term); host.screen.fitToContainer(); });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const observer = new MutationObserver(() => { applyTheme(host.screen.term, document); host.screen.fitToContainer(); });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "style"] });
     return () => { observer.disconnect(); links.dispose(); };
   }, [api, hosts, store, session.id, session.status, document, onRendererChange, onError]);
 
   useEffect(() => {
     const host = hosts.get(session.id);
     if (!host) return;
-    applyTheme(host.screen.term);
+    applyTheme(host.screen.term, document);
     if (active) host.screen.fitToContainer();
-  }, [active, hosts, session.id, settings.terminalFontFamily, settings.terminalFontSize]);
+  }, [active, hosts, session.id, document, settings.terminalFontFamily, settings.terminalFontSize]);
 
   useEffect(() => {
     const host = hosts.get(session.id);

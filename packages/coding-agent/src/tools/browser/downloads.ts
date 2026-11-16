@@ -82,7 +82,12 @@ export class DownloadManager {
 	 * for a browser the user drives (connected, relay): there the folder also receives the user's own downloads, which
 	 * would otherwise be saved under bare GUIDs nobody renames. `pageEvents` is for the omp relay.
 	 */
-	constructor(browser: Browser, page: Page, tabId: string, options: { perTab: boolean; pageEvents: boolean; managed?: boolean }) {
+	constructor(
+		browser: Browser,
+		page: Page,
+		tabId: string,
+		options: { perTab: boolean; pageEvents: boolean; managed?: boolean },
+	) {
 		this.#managed = options.managed === true;
 		this.#targetId = tabId;
 		this.#browser = browser;
@@ -97,7 +102,10 @@ export class DownloadManager {
 	 * browser setting, so the relay tracks them from here and a download clicked before any wait is listed.
 	 */
 	async start(directory?: string): Promise<void> {
-		if (this.#managed) { await this.enable(directory); return; }
+		if (this.#managed) {
+			await this.enable(directory);
+			return;
+		}
 		if (this.#pageEvents) this.#hearPage();
 		else if (directory) await this.enable(directory);
 	}
@@ -145,8 +153,14 @@ export class DownloadManager {
 				for (const download of downloads) {
 					if (this.#claimed.has(download.id) || download.state === "progressing") continue;
 					this.#claimed.add(download.id);
-					if (download.state !== "completed") throw new ToolError(`Download ${download.state}: ${download.suggestedFilename}`);
-					return { path: download.path, url: download.url, suggestedFilename: download.suggestedFilename, bytes: download.bytes };
+					if (download.state !== "completed")
+						throw new ToolError(`Download ${download.state}: ${download.suggestedFilename}`);
+					return {
+						path: download.path,
+						url: download.url,
+						suggestedFilename: download.suggestedFilename,
+						bytes: download.bytes,
+					};
 				}
 				await untilAborted(active, () => Bun.sleep(150));
 			}
@@ -189,13 +203,22 @@ export class DownloadManager {
 	}
 	async read(): Promise<BrowserDownload[]> {
 		if (!this.#managed) return this.list();
-		return (await this.#managedCall("list")).filter(row => row.state === "completed")
+		return (await this.#managedCall("list"))
+			.filter(row => row.state === "completed")
 			.map(({ path, url, suggestedFilename, bytes }) => ({ path, url, suggestedFilename, bytes }));
 	}
-	async #managedCall(action: "enable" | "list", directory?: string): Promise<Array<BrowserDownload & { id: string; state: string }>> {
+	async #managedCall(
+		action: "enable" | "list",
+		directory?: string,
+	): Promise<Array<BrowserDownload & { id: string; state: string }>> {
 		if (this.#closed.signal.aborted) throw this.#closed.signal.reason;
-		const connection = browserConnection(this.#browser) as unknown as { send(method: string, params: Record<string, unknown>): Promise<unknown> };
-		const result = await connection.send(`Studio.downloads.${action}`, { targetId: this.#targetId, ...(directory ? { directory } : {}) }) as { downloads: Array<BrowserDownload & { id: string; state: string }> };
+		const connection = browserConnection(this.#browser) as unknown as {
+			send(method: string, params: Record<string, unknown>): Promise<unknown>;
+		};
+		const result = (await connection.send(`Studio.downloads.${action}`, {
+			targetId: this.#targetId,
+			...(directory ? { directory } : {}),
+		})) as { downloads: Array<BrowserDownload & { id: string; state: string }> };
 		return result.downloads;
 	}
 

@@ -27,6 +27,7 @@
  * keeper with a deadline is rejected too — that means someone scheduled a
  * deletion they never registered in `status`.
  */
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { DOMAIN_RE, INVENTORY, isReplaceStatus, longestMatch, validateInventory } from "./shared-infra-inventory";
@@ -139,7 +140,7 @@ for (const file of tracked) {
 	// npm lockfiles name the tarball host of every entry; check the field
 	// itself so an off-registry host is caught no matter what it is called.
 	if (/(^|\/)package-lock\.json$/.test(rel)) {
-		let lock: { packages?: Record<string, { resolved?: unknown }> };
+		let lock: { packages?: Record<string, { resolved?: unknown; integrity?: unknown }> };
 		try {
 			lock = JSON.parse(text);
 		} catch (err) {
@@ -148,6 +149,35 @@ for (const file of tracked) {
 		}
 		for (const [entry, meta] of Object.entries(lock.packages ?? {})) {
 			if (typeof meta?.resolved !== "string") continue;
+			if (meta.resolved.startsWith("file:")) {
+				try {
+					const packageRoot = await fs.realpath(path.dirname(path.join(ROOT, file)));
+					const manifest: {
+						dependencies?: Record<string, string>;
+						devDependencies?: Record<string, string>;
+						optionalDependencies?: Record<string, string>;
+					} = await Bun.file(path.join(packageRoot, "package.json")).json();
+					const name = entry.startsWith("node_modules/") ? entry.slice("node_modules/".length) : "";
+					const declared = [manifest.dependencies, manifest.devDependencies, manifest.optionalDependencies].some(
+						dependencies =>
+							dependencies && Object.hasOwn(dependencies, name) && dependencies[name] === meta.resolved,
+					);
+					if (!declared || !meta.resolved.endsWith(".tgz"))
+						throw new Error("not a directly declared local tarball");
+					const tarball = await fs.realpath(path.resolve(packageRoot, meta.resolved.slice("file:".length)));
+					const relative = path.relative(packageRoot, tarball);
+					if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+						throw new Error("local tarball resolves outside its package root");
+					}
+					if (!(await fs.stat(tarball)).isFile()) throw new Error("local tarball is not a regular file");
+					const bytes = await Bun.file(tarball).arrayBuffer();
+					const integrity = `sha512-${new Bun.CryptoHasher("sha512").update(bytes).digest("base64")}`;
+					if (meta.integrity !== integrity) throw new Error("local tarball SHA-512 integrity does not match");
+				} catch (error) {
+					hits.push(`${rel}: ${entry || "<root>"} has an invalid local tarball (${error})`);
+				}
+				continue;
+			}
 			let host: string;
 			try {
 				host = new URL(meta.resolved).host;
@@ -179,5 +209,5 @@ if (hits.length > 0) {
 
 const replaceCount = INVENTORY.filter(entry => isReplaceStatus(entry.status)).length;
 console.log(
-	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement); ${lockfiles} lockfile(s) on the public registry.`,
+	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement); ${lockfiles} lockfile(s) use the public registry or integrity-checked local tarballs.`,
 );

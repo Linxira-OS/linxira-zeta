@@ -29,7 +29,10 @@ function writeJsonLine(socket: net.Socket, value: unknown): void {
 }
 import { StudioPredictionService } from "../src/server/studio-host/services/prediction-service";
 import { StudioPredictionEngine } from "../src/server/studio-host/services/prediction-engine";
-import { type PredictionChannel, type PredictionEvent } from "../src/server/studio-host/protocol/contracts/prediction-channel";
+import {
+	type PredictionChannel,
+	type PredictionEvent,
+} from "../src/server/studio-host/protocol/contracts/prediction-channel";
 test("prediction channels keep prose private, apply native prose gates and close when session ownership changes", async () => {
 	const temp = TempDir.createSync(path.resolve(import.meta.dir, "../../../temp/studio-prediction-"));
 	const session = { sessionId: "main", settings: Settings.isolated() } as AgentSession;
@@ -37,10 +40,15 @@ test("prediction channels keep prose private, apply native prose gates and close
 		engine: "ngram",
 		suggestion: { suffix: "view", confidence: 0.99 },
 	});
-	const service = new StudioPredictionService(session, temp.path(), temp.path(), () => true, { directory: temp.join("corpus") });
+	const service = new StudioPredictionService(session, temp.path(), temp.path(), () => true, {
+		directory: temp.join("corpus"),
+	});
 	let socket: net.Socket | undefined;
 	try {
-		const prepared = (await service.execute({ kind: "prediction.prepare", sessionId: "main", protocolVersion: 2 }, { id: "owner", isLive: () => true })) as PredictionChannel;
+		const prepared = (await service.execute(
+			{ kind: "prediction.prepare", sessionId: "main", protocolVersion: 2 },
+			{ id: "owner", isLive: () => true },
+		)) as PredictionChannel;
 		const descriptor = (await Bun.file(
 			path.join(temp.path(), "prediction", prepared.channelId + ".json"),
 		).json()) as { token: string; endpoint: string };
@@ -79,7 +87,9 @@ test("prediction channels keep prose private, apply native prose gates and close
 		Object.assign(session, { sessionId: "other" });
 		writeJsonLine(socket, { kind: "update", revision: 3, text: "please re", caret: 9 });
 		await until(() => socket!.destroyed);
-		await expect(service.execute({ kind: "prediction.status", sessionId: "main" }, { id: "owner", isLive: () => true })).rejects.toMatchObject({
+		await expect(
+			service.execute({ kind: "prediction.status", sessionId: "main" }, { id: "owner", isLive: () => true }),
+		).rejects.toMatchObject({
 			code: "UNAVAILABLE",
 		});
 	} finally {

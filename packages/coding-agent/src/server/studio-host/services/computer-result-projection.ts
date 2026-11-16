@@ -15,16 +15,32 @@ export function computerResultProjection(value: unknown): JsonValue | undefined 
 	if (!record(value) || !Array.isArray(value.computerFrames) || value.computerFrames.length > 200) return undefined;
 	const references: JsonValue[] = [];
 	for (const item of value.computerFrames) {
-		if (!record(item) || typeof item.frameId !== "string" || !UUID.test(item.frameId) || !text(item.sessionId) || !text(item.toolCallId) || typeof item.delivered !== "boolean") return undefined;
-		references.push({ frameId: item.frameId, sessionId: item.sessionId, toolCallId: item.toolCallId, delivered: item.delivered });
+		if (
+			!record(item) ||
+			typeof item.frameId !== "string" ||
+			!UUID.test(item.frameId) ||
+			!text(item.sessionId) ||
+			!text(item.toolCallId) ||
+			typeof item.delivered !== "boolean"
+		)
+			return undefined;
+		references.push({
+			frameId: item.frameId,
+			sessionId: item.sessionId,
+			toolCallId: item.toolCallId,
+			delivered: item.delivered,
+		});
 	}
 	const result: Record<string, JsonValue> = { computerFrames: references };
-	for (const key of ["language", "notice", "code"]) if (typeof value[key] === "string" && value[key].length <= 128 * 1024) result[key] = value[key];
+	for (const key of ["language", "notice", "code"])
+		if (typeof value[key] === "string" && value[key].length <= 128 * 1024) result[key] = value[key];
 	if (Array.isArray(value.cells) && value.cells.length <= 100) {
 		result.cells = value.cells.filter(record).map(cell => {
 			const safe: Record<string, JsonValue> = {};
-			for (const key of ["title", "code", "language", "output", "status"]) if (typeof cell[key] === "string" && cell[key].length <= 128 * 1024) safe[key] = cell[key];
-			for (const key of ["index", "durationMs", "exitCode"]) if (typeof cell[key] === "number" && Number.isFinite(cell[key])) safe[key] = cell[key];
+			for (const key of ["title", "code", "language", "output", "status"])
+				if (typeof cell[key] === "string" && cell[key].length <= 128 * 1024) safe[key] = cell[key];
+			for (const key of ["index", "durationMs", "exitCode"])
+				if (typeof cell[key] === "number" && Number.isFinite(cell[key])) safe[key] = cell[key];
 			return safe;
 		});
 	}

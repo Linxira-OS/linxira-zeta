@@ -2148,7 +2148,13 @@ export class WorkerCore {
 				await page.close().catch(() => undefined);
 			}
 			// Attached browsers also own tabs created by omp, including spawned Chrome.
-			if (payload.mode === "attach" && !payload.studioManaged && payload.page.kind === "create" && page && !page.isClosed()) {
+			if (
+				payload.mode === "attach" &&
+				!payload.studioManaged &&
+				payload.page.kind === "create" &&
+				page &&
+				!page.isClosed()
+			) {
 				await page.close().catch(() => undefined);
 			}
 			this.#transport.send({ type: "init-failed", error: errorPayload(error) });
@@ -2350,99 +2356,102 @@ export class WorkerCore {
 				const operation = msg.webmcp;
 				returnValue = await untilAborted<WebMcpListResult | WebMcpInvokeResult | WebMcpEventsResult>(signal, () => {
 					switch (operation.action) {
-						case "list": return controller.list(operation.options, signal);
-						case "invoke": return controller.invoke(operation.name, operation.params, operation.options, signal);
-						case "events": return controller.events(operation.options, signal);
+						case "list":
+							return controller.list(operation.options, signal);
+						case "invoke":
+							return controller.invoke(operation.name, operation.params, operation.options, signal);
+						case "events":
+							return controller.events(operation.options, signal);
 					}
 				});
 				completed = true;
 			} else {
-			const runtime = this.#ensureRuntime(msg.session);
-			runtime.setCwd(msg.session.cwd);
-			const onFloatingRejection = (reason: unknown): void => this.#recordFloatingRejection(active, reason);
-			runtime.setRunScope({
-				page: bindRunFacade(
-					createRunPage(runPage.page, signal),
-					signal,
-					active.rejectionOwner,
-					onFloatingRejection,
-				),
-				browser: bindRunFacade(browser, signal, active.rejectionOwner, onFloatingRejection),
-				tab: bindRunFacade(tabApi, signal, active.rejectionOwner, onFloatingRejection),
-				assert: (cond: unknown, text?: string): void => {
-					if (!cond) throw new ToolError(text ?? "Assertion failed");
-				},
-				// Both wait forms register in the in-flight map so a cell that dies while
-				// sleeping/polling names the culprit instead of a bare whole-cell timeout.
-				wait: (msOrPredicate: number | (() => unknown), opts?: WaitPredicateOptions): Promise<unknown> => {
-					const label = typeof msOrPredicate === "number" ? `wait(${msOrPredicate}ms)` : "wait(predicate)";
-					const resolved =
-						typeof msOrPredicate === "number"
-							? undefined
-							: { timeout: resolvePredicateTimeout(msg.timeoutMs, opts?.timeout), interval: opts?.interval };
-					return observeBrowserRunPromise(
-						this.#runOp(active, label, signal, Number.POSITIVE_INFINITY, sig =>
-							waitForRun(msOrPredicate, sig, resolved),
-						),
+				const runtime = this.#ensureRuntime(msg.session);
+				runtime.setCwd(msg.session.cwd);
+				const onFloatingRejection = (reason: unknown): void => this.#recordFloatingRejection(active, reason);
+				runtime.setRunScope({
+					page: bindRunFacade(
+						createRunPage(runPage.page, signal),
+						signal,
 						active.rejectionOwner,
 						onFloatingRejection,
+					),
+					browser: bindRunFacade(browser, signal, active.rejectionOwner, onFloatingRejection),
+					tab: bindRunFacade(tabApi, signal, active.rejectionOwner, onFloatingRejection),
+					assert: (cond: unknown, text?: string): void => {
+						if (!cond) throw new ToolError(text ?? "Assertion failed");
+					},
+					// Both wait forms register in the in-flight map so a cell that dies while
+					// sleeping/polling names the culprit instead of a bare whole-cell timeout.
+					wait: (msOrPredicate: number | (() => unknown), opts?: WaitPredicateOptions): Promise<unknown> => {
+						const label = typeof msOrPredicate === "number" ? `wait(${msOrPredicate}ms)` : "wait(predicate)";
+						const resolved =
+							typeof msOrPredicate === "number"
+								? undefined
+								: { timeout: resolvePredicateTimeout(msg.timeoutMs, opts?.timeout), interval: opts?.interval };
+						return observeBrowserRunPromise(
+							this.#runOp(active, label, signal, Number.POSITIVE_INFINITY, sig =>
+								waitForRun(msOrPredicate, sig, resolved),
+							),
+							active.rejectionOwner,
+							onFloatingRejection,
+						);
+					},
+				});
+				const { promise: cancelRejection, reject: rejectCancel } = Promise.withResolvers<never>();
+				const onCancel = (): void => {
+					const abortError =
+						signal.reason instanceof ToolAbortError
+							? signal.reason
+							: new ToolAbortError(undefined, { cause: signal.reason });
+					if (timeoutSignal.aborted) {
+						const stalled = describeInflight(active.inflight);
+						const dialog = this.#dialogs?.state();
+						const dialogNote = dialog?.open
+							? `; a ${dialog.type}(${JSON.stringify(dialog.message?.slice(0, 80) ?? "")}) dialog opened during this run and may still block the page — use tab.handleDialog() or tab.setDialogs("accept"|"dismiss")`
+							: "";
+						const pageErrorCount = this.#consoleCapture.errorCountSince(runErrorStartSeq);
+						const pageErrorNote =
+							pageErrorCount > 0 ? `; ${pageErrorCount} page error(s) since run start — see tab.errors()` : "";
+						rejectCancel(
+							new ToolError(
+								`Browser code execution timed out after ${msg.timeoutMs}ms${stalled ? ` (stalled on ${stalled})` : ""}${dialogNote}${pageErrorNote}`,
+							),
+						);
+					} else {
+						rejectCancel(abortError);
+					}
+					// Cancel in-flight tool calls so user code's awaited proxies reject promptly.
+					const toolAbort = timeoutSignal.aborted
+						? postmortem.markExpectedCleanupError(new ToolAbortError(undefined, { cause: timeoutSignal.reason }))
+						: abortError;
+					for (const pending of active.pendingTools.values()) {
+						pending.reject(toolAbort);
+					}
+					active.pendingTools.clear();
+				};
+				if (signal.aborted) onCancel();
+				else signal.addEventListener("abort", onCancel, { once: true });
+				try {
+					const hooks = this.#hooksForActiveRun();
+					if (!hooks) throw new ToolError("Browser runtime started without an active run");
+					returnValue = await withBrowserPromiseCombinatorTracking(
+						active.rejectionOwner,
+						onFloatingRejection,
+						async () =>
+							await Promise.race([
+								runtime.run(msg.code, `browser-run-${msg.id}.js`, hooks, {
+									runId: msg.id,
+									cwd: msg.session.cwd,
+								}),
+								cancelRejection,
+								floatingFailure.promise,
+							]),
 					);
-				},
-			});
-			const { promise: cancelRejection, reject: rejectCancel } = Promise.withResolvers<never>();
-			const onCancel = (): void => {
-				const abortError =
-					signal.reason instanceof ToolAbortError
-						? signal.reason
-						: new ToolAbortError(undefined, { cause: signal.reason });
-				if (timeoutSignal.aborted) {
-					const stalled = describeInflight(active.inflight);
-					const dialog = this.#dialogs?.state();
-					const dialogNote = dialog?.open
-						? `; a ${dialog.type}(${JSON.stringify(dialog.message?.slice(0, 80) ?? "")}) dialog opened during this run and may still block the page — use tab.handleDialog() or tab.setDialogs("accept"|"dismiss")`
-						: "";
-					const pageErrorCount = this.#consoleCapture.errorCountSince(runErrorStartSeq);
-					const pageErrorNote =
-						pageErrorCount > 0 ? `; ${pageErrorCount} page error(s) since run start — see tab.errors()` : "";
-					rejectCancel(
-						new ToolError(
-							`Browser code execution timed out after ${msg.timeoutMs}ms${stalled ? ` (stalled on ${stalled})` : ""}${dialogNote}${pageErrorNote}`,
-						),
-					);
-				} else {
-					rejectCancel(abortError);
+					completed = true;
+				} finally {
+					signal.removeEventListener("abort", onCancel);
 				}
-				// Cancel in-flight tool calls so user code's awaited proxies reject promptly.
-				const toolAbort = timeoutSignal.aborted
-					? postmortem.markExpectedCleanupError(new ToolAbortError(undefined, { cause: timeoutSignal.reason }))
-					: abortError;
-				for (const pending of active.pendingTools.values()) {
-					pending.reject(toolAbort);
-				}
-				active.pendingTools.clear();
-			};
-			if (signal.aborted) onCancel();
-			else signal.addEventListener("abort", onCancel, { once: true });
-			try {
-				const hooks = this.#hooksForActiveRun();
-				if (!hooks) throw new ToolError("Browser runtime started without an active run");
-				returnValue = await withBrowserPromiseCombinatorTracking(
-					active.rejectionOwner,
-					onFloatingRejection,
-					async () =>
-						await Promise.race([
-							runtime.run(msg.code, `browser-run-${msg.id}.js`, hooks, {
-								runId: msg.id,
-								cwd: msg.session.cwd,
-							}),
-							cancelRejection,
-							floatingFailure.promise,
-						]),
-				);
-				completed = true;
-			} finally {
-				signal.removeEventListener("abort", onCancel);
-			}
 			}
 		} catch (error) {
 			failure = { error };

@@ -48,9 +48,23 @@
  * text artifact is returned byte for byte.
  */
 import * as path from "node:path";
+import { randomUUID } from "node:crypto";
+import { getRpcSession } from "../../web-gateway/agents.js";
+import type { MediaOutput } from "../protocol/contracts/media.js";
+import { currentStudioSelection } from "../selection.js";
+import { configureRuntimeViewArtifacts } from "../services/runtime-view-service.js";
 import { isRecord } from "@linxiraos/pi-utils";
 import type { CommandInput, QueryInput, WorkspaceFileMutationResult } from "../contract/index.js";
-import { callGateway, gatewayJson, invalid, optionalString, requiredString, segment, unavailable } from "../gateway.js";
+import {
+	callGateway,
+	callGatewayResponse,
+	gatewayJson,
+	invalid,
+	optionalString,
+	requiredString,
+	segment,
+	unavailable,
+} from "../gateway.js";
 import {
 	ARTIFACT_KINDS,
 	ARTIFACT_TEXT_MAX_BYTES,
@@ -59,7 +73,7 @@ import {
 	type ArtifactRecord,
 	type ArtifactTextResult,
 } from "../protocol/index.js";
-import type { StudioFamily } from "../registry.js";
+import type { StudioFamily, StudioHostContext } from "../registry.js";
 import { resolveWorkspacePath } from "./workspace.js";
 import { createWorkspaceFileService } from "../../web-gateway/workspace-files.js";
 
@@ -336,6 +350,16 @@ async function listArtifacts(input: QueryInput<"artifacts.list">): Promise<Artif
 	};
 }
 
+/** Session-only report source for unified evaluation history. */
+export function listSessionArtifactsForEvaluation(
+	sessionId: string,
+	kind: "benchmark" | "judgment",
+	limit: number,
+	cursor?: string,
+): Promise<ArtifactPage> {
+	return listArtifacts({ sessionId, kind, limit, ...(cursor === undefined ? {} : { cursor }) });
+}
+
 // ---------------------------------------------------------------------------
 // artifacts.text.read
 // ---------------------------------------------------------------------------
@@ -361,12 +385,171 @@ async function readArtifactText(input: QueryInput<"artifacts.text.read">): Promi
 	const reply = await callGateway(route);
 	if (reply.status === 404) throw invalid("artifact not found");
 	if (reply.status === 413) throw invalid("artifact is too large to read as text");
+
 	if (reply.status < 200 || reply.status >= 300) {
 		throw unavailable(`GET ${route} → ${reply.status}`);
 	}
 	const text =
 		reply.body === undefined ? "" : typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body);
 	return { artifact, text };
+}
+
+export function readTextArtifactForEvaluation(artifactId: string): Promise<ArtifactTextResult> {
+	return readArtifactText({ artifactId });
+}
+/** Binary access preserves the gateway's native session-artifact owner. */
+export function artifactSessionIdFor(artifactId: string): string {
+	return addressOf({ artifactId }).sessionId;
+}
+
+/** The owning session of a session-artifact handle, or undefined for a foreign id. */
+export function tryArtifactSessionIdFor(artifactId: string): string | undefined {
+	try {
+		return artifactSessionIdFor(artifactId);
+	} catch {
+		return undefined;
+	}
+}
+
+export async function readArtifactFile(artifactId: string): Promise<{ artifact: ArtifactRecord; response: Response }> {
+	const address = addressOf({ artifactId });
+	const artifact = await findArtifact(address);
+	const response = await callGatewayResponse(artifactPath(address));
+	if (!response.ok) {
+		await response.body?.cancel();
+		throw unavailable("The session artifact is unavailable");
+	}
+	return { artifact, response };
+}
+
+export const SESSION_ARTIFACT_MAX_BYTES = 28 * 1024 * 1024;
+const MEDIA_SUFFIX: Readonly<Record<string, string>> = {
+	"image/png": ".png",
+	"image/jpeg": ".jpg",
+	"image/webp": ".webp",
+	"image/gif": ".gif",
+	"image/avif": ".avif",
+	"video/mp4": ".mp4",
+	"video/webm": ".webm",
+	"audio/wav": ".wav",
+};
+
+configureRuntimeViewArtifacts({
+	async writeSessionMediaArtifact(sessionId, meta, bytes) {
+		const suffix = MEDIA_SUFFIX[meta.mimeType];
+		if (!suffix) throw invalid("Unsupported recovered image MIME type");
+		const data =
+			bytes.buffer instanceof ArrayBuffer
+				? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+				: Uint8Array.from(bytes);
+		const artifact = await writeSessionMediaArtifact(sessionId, { ...meta, name: `${meta.name}${suffix}` }, data);
+		return { ...artifact, kind: "image" };
+	},
+	async removeSessionMediaArtifacts(sessionId, assets) {
+		for (const asset of assets) await removeSessionMediaArtifact(sessionId, asset.artifactId);
+	},
+});
+
+function nativeArtifactFence(sessionId: string): () => void {
+	const session = getRpcSession(sessionId)?.getSession();
+	if (!session || session.isDisposed || session.sessionId !== sessionId)
+		throw unavailable("The artifact session is not resident");
+	return () => {
+		if (session.isDisposed || session.sessionId !== sessionId || getRpcSession(sessionId)?.getSession() !== session)
+			throw unavailable("The artifact session changed");
+	};
+}
+
+export async function writeSessionArtifact(
+	sessionId: string,
+	meta: Pick<ArtifactRecord, "kind" | "name" | "mimeType">,
+	bytes: Uint8Array<ArrayBuffer>,
+	assertCurrent: () => void = nativeArtifactFence(sessionId),
+): Promise<ArtifactRecord> {
+	if (bytes.byteLength === 0 || bytes.byteLength > SESSION_ARTIFACT_MAX_BYTES)
+		throw invalid("Artifact must contain between 1 byte and 28 MiB");
+	if (
+		!isSafeArtifactName(meta.name) ||
+		meta.name.includes("\\") ||
+		meta.name.length > 255 ||
+		/[\u0000-\u001f]/u.test(meta.name)
+	)
+		throw invalid("Invalid artifact filename");
+	const suffix = MEDIA_SUFFIX[meta.mimeType];
+	if (meta.kind === "image" || meta.kind === "video" || meta.kind === "audio") {
+		if (
+			!suffix ||
+			!meta.mimeType.startsWith(`${meta.kind}/`) ||
+			!(meta.name.toLowerCase().endsWith(suffix) || (suffix === ".jpg" && meta.name.toLowerCase().endsWith(".jpeg")))
+		)
+			throw invalid("Artifact kind, MIME type and filename disagree");
+	} else if (
+		!(
+			TEXT_ARTIFACT_NAME_RE.test(meta.name) ||
+			(meta.kind === "graphic" && /\.svg$/iu.test(meta.name) && meta.mimeType === "image/svg+xml") ||
+			(meta.kind === "recording" &&
+				/\.(?:studiocast|cast)$/iu.test(meta.name) &&
+				meta.mimeType === "application/x-studio-terminalcast") ||
+			(meta.kind === "export" &&
+				((/\.tar$/iu.test(meta.name) && meta.mimeType === "application/x-tar") ||
+					(/\.zip$/iu.test(meta.name) && meta.mimeType === "application/zip")))
+		)
+	)
+		throw invalid("Unsupported artifact filename");
+	assertCurrent();
+	const extension = path.extname(meta.name).toLowerCase();
+	const name = `${meta.kind}-${randomUUID()}${extension}`;
+	const address = { sessionId, name };
+	try {
+		const response = await callGatewayResponse(artifactPath(address), { method: "PUT", rawBody: bytes });
+		await response.body?.cancel();
+		if (!response.ok) throw unavailable("Unable to save the session artifact");
+		assertCurrent();
+		const artifact = await findArtifact(address);
+		assertCurrent();
+		return artifact;
+	} catch (error) {
+		const cleanup = await callGatewayResponse(artifactPath(address), { method: "DELETE" }).catch(() => undefined);
+		await cleanup?.body?.cancel().catch(() => {});
+		throw error;
+	}
+}
+
+export async function readSessionMediaArtifact(
+	sessionId: string,
+	artifactId: string,
+	kind?: "image" | "video" | "audio",
+): Promise<{ bytes: Uint8Array; meta: MediaOutput }> {
+	if (artifactSessionIdFor(artifactId) !== sessionId) throw invalid("Media input belongs to another session");
+	const assert = nativeArtifactFence(sessionId);
+	const { artifact, response } = await readArtifactFile(artifactId);
+	assert();
+	if (!["image", "video", "audio"].includes(artifact.kind) || (kind !== undefined && artifact.kind !== kind)) {
+		await response.body?.cancel();
+		throw invalid("Media input kind does not match");
+	}
+	const bytes = new Uint8Array(await response.arrayBuffer());
+	assert();
+	if (bytes.byteLength !== artifact.bytes || bytes.byteLength > SESSION_ARTIFACT_MAX_BYTES)
+		throw invalid("Media input changed while reading");
+	return { bytes, meta: { ...artifact, kind: artifact.kind as "image" | "video" | "audio" } };
+}
+
+export async function writeSessionMediaArtifact(
+	sessionId: string,
+	meta: Pick<MediaOutput, "kind" | "name" | "mimeType">,
+	bytes: Uint8Array<ArrayBuffer>,
+): Promise<MediaOutput> {
+	if (meta.kind !== "image" && meta.kind !== "video") throw invalid("This media kind is owner-held");
+	const artifact = await writeSessionArtifact(sessionId, meta, bytes);
+	return { ...artifact, kind: meta.kind };
+}
+
+export async function removeSessionMediaArtifact(sessionId: string, artifactId: string): Promise<void> {
+	if (artifactSessionIdFor(artifactId) !== sessionId) throw invalid("Media output belongs to another session");
+	const assert = nativeArtifactFence(sessionId);
+	await deleteArtifact({ artifactId });
+	assert();
 }
 
 // ---------------------------------------------------------------------------
@@ -485,6 +668,34 @@ async function saveTextArtifact(input: CommandInput<"artifacts.saveText">): Prom
 	return toArtifactRecord(sessionId, entry);
 }
 
+function artifactContext(context: StudioHostContext): { sessionId: string; workspaceId: string; contextId: string } {
+	const selection = currentStudioSelection(),
+		owner = context.privateOwner;
+	if (
+		!selection ||
+		selection !== context.selection ||
+		selection.closed ||
+		!selection.sessionId ||
+		!context.contextId ||
+		!owner?.isLive() ||
+		owner.expiresAt <= Date.now()
+	)
+		throw unavailable("Artifacts require a live selected conversation");
+	return { sessionId: selection.sessionId, workspaceId: selection.workspaceId, contextId: context.contextId };
+}
+
+async function artifactResource(
+	input: QueryInput<"artifacts.resource">,
+	context: StudioHostContext,
+): Promise<{ url: string }> {
+	const selected = artifactContext(context),
+		id = requiredString(input, "artifactId");
+	if (artifactSessionIdFor(id) !== selected.sessionId) throw invalid("Artifact belongs to another conversation");
+	await findArtifact(addressOf({ artifactId: id }));
+	if (artifactContext(context).sessionId !== selected.sessionId) throw unavailable("Artifact conversation changed");
+	return { url: `/api/v1/artifacts/${encodeURIComponent(id)}?contextId=${encodeURIComponent(selected.contextId)}` };
+}
+
 // ---------------------------------------------------------------------------
 // Family
 // ---------------------------------------------------------------------------
@@ -497,6 +708,8 @@ async function saveTextArtifact(input: CommandInput<"artifacts.saveText">): Prom
 export const filesOps: StudioFamily = {
 	id: "files",
 	queries: {
+		"artifacts.context": async (_input, context) => artifactContext(context),
+		"artifacts.resource": artifactResource,
 		"artifacts.list": listArtifacts,
 		"artifacts.text.read": readArtifactText,
 		"workspace.file.inspect": input => workspaceFiles.inspect(input),

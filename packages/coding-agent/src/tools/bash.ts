@@ -420,7 +420,9 @@ const bashSchemaWithService = type({
 	"cwd?": "string",
 	"pty?": "boolean",
 	"name?": "string <= 48",
-	"previewUrl?": type("string").describe("Real HTTP(S) preview URL for a named web development server; no embedded credentials"),
+	"previewUrl?": type("string").describe(
+		"Real HTTP(S) preview URL for a named web development server; no embedded credentials",
+	),
 	"ready?": type({
 		"log?": "string",
 		"port?": "number",
@@ -436,7 +438,9 @@ const bashSchemaWithAsyncAndService = type({
 	"pty?": "boolean",
 	"async?": "boolean",
 	"name?": "string <= 48",
-	"previewUrl?": type("string").describe("Real HTTP(S) preview URL for a named web development server; no embedded credentials"),
+	"previewUrl?": type("string").describe(
+		"Real HTTP(S) preview URL for a named web development server; no embedded credentials",
+	),
 	"ready?": type({
 		"log?": "string",
 		"port?": "number",

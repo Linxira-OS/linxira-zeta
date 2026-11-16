@@ -1,8 +1,21 @@
 import { rpcSync } from "../rpc";
 import type { ThreadService } from "../services";
 import { PeerCleanups, ignoreSettle } from "./support";
-import { computerRunPermits, hasComputerScope, emitComputerLifecycle, computerUserMessageStarted, computerToolResultDelivered, installComputerScopeBridge, type ComputerScopeBridge } from "../../tools/computer/lifecycle";
-import { registerComputerOwnerEndpoint, revokeLocalComputerSessions, bindRemoteComputerSession, type ComputerOwnerEndpoint } from "../../tools/computer/session-runtime";
+import {
+	computerRunPermits,
+	hasComputerScope,
+	emitComputerLifecycle,
+	computerUserMessageStarted,
+	computerToolResultDelivered,
+	installComputerScopeBridge,
+	type ComputerScopeBridge,
+} from "../../tools/computer/lifecycle";
+import {
+	registerComputerOwnerEndpoint,
+	revokeLocalComputerSessions,
+	bindRemoteComputerSession,
+	type ComputerOwnerEndpoint,
+} from "../../tools/computer/session-runtime";
 import { findLocalSession, onLocalSessionRegistered } from "../session-directory";
 
 interface ComputerThreadGlobals {
@@ -16,7 +29,8 @@ const cleanups = new PeerCleanups("computer");
 export const computerThreadService: ThreadService = {
 	name: "computer",
 	globals(peer): ComputerThreadGlobals {
-		const identity = (key?: string) => typeof key === "string" && key.startsWith(peer.threadId + ":") && !peer.link.closed;
+		const identity = (key?: string) =>
+			typeof key === "string" && key.startsWith(peer.threadId + ":") && !peer.link.closed;
 		return {
 			computer: {
 				has: rpcSync((id, owner, key) => identity(key) && hasComputerScope(id, owner, key)),
@@ -24,11 +38,19 @@ export const computerThreadService: ThreadService = {
 					if (!identity(key)) return Promise.reject(new Error("Computer session thread changed"));
 					return computerRunPermits(id, owner, key);
 				},
-				event: event => { if (identity(event.identity.instanceKey)) emitComputerLifecycle(event); },
-				consumeIntent: rpcSync((id, message, key) => { if (identity(key)) computerUserMessageStarted(id, message, key); }),
-				deliver: rpcSync((id, tool, result, key) => identity(key) ? computerToolResultDelivered(id, tool, result, key) : result),
+				event: event => {
+					if (identity(event.identity.instanceKey)) emitComputerLifecycle(event);
+				},
+				consumeIntent: rpcSync((id, message, key) => {
+					if (identity(key)) computerUserMessageStarted(id, message, key);
+				}),
+				deliver: rpcSync((id, tool, result, key) =>
+					identity(key) ? computerToolResultDelivered(id, tool, result, key) : result,
+				),
 			},
-			bind: endpoint => { cleanups.track(peer.threadId, registerComputerOwnerEndpoint(peer.threadId, endpoint)); },
+			bind: endpoint => {
+				cleanups.track(peer.threadId, registerComputerOwnerEndpoint(peer.threadId, endpoint));
+			},
 			session: rpcSync((key, value) => {
 				if (!identity(key)) throw new Error("Computer session home thread changed");
 				bindRemoteComputerSession(key, value);
@@ -44,7 +66,13 @@ export const computerThreadService: ThreadService = {
 		};
 		await source.bind({ revoke: revokeLocalComputerSessions });
 		onLocalSessionRegistered(session => {
-			const publish = () => source.session(session.instanceKey, session.isDisposed ? undefined : { sessionId: session.sessionId, ownerId: session.getEvalKernelOwnerId() });
+			const publish = () =>
+				source.session(
+					session.instanceKey,
+					session.isDisposed
+						? undefined
+						: { sessionId: session.sessionId, ownerId: session.getEvalKernelOwnerId() },
+				);
 			publish();
 			session.registerSessionChangeCallback(publish);
 			session.addDisposer(() => source.session(session.instanceKey, undefined));
@@ -57,10 +85,16 @@ export const computerThreadService: ThreadService = {
 				if (!owns(id, key)) throw new Error("Computer session changed while authorizing");
 				return permits;
 			},
-			event: event => { if (owns(event.identity.sessionId, event.identity.instanceKey)) ignoreSettle(source.computer.event(event)); },
-			consumeIntent: (id, message, key) => { if (owns(id, key)) source.computer.consumeIntent(id, message, key); },
-			deliver: (id, tool, result, key) => owns(id, key) ? source.computer.deliver(id, tool, result, key) : result,
+			event: event => {
+				if (owns(event.identity.sessionId, event.identity.instanceKey)) ignoreSettle(source.computer.event(event));
+			},
+			consumeIntent: (id, message, key) => {
+				if (owns(id, key)) source.computer.consumeIntent(id, message, key);
+			},
+			deliver: (id, tool, result, key) => (owns(id, key) ? source.computer.deliver(id, tool, result, key) : result),
 		});
 	},
-	onWorkerExit(peer): void { cleanups.release(peer.threadId); },
+	onWorkerExit(peer): void {
+		cleanups.release(peer.threadId);
+	},
 };

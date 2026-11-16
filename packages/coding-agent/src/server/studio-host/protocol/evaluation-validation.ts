@@ -30,18 +30,6 @@ export function isEvaluationOperationKind(kind: string): kind is EvaluationOpera
 	return Object.hasOwn(SHAPES, kind);
 }
 
-
-
-
-
-
-
 /** Validate Base64 without decoding or allocating a second large buffer. */
 
-
-
-
-
-
 /** Public alias used by the Desktop IPC validator. */
-

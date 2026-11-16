@@ -39,7 +39,7 @@ function renderProvisionalThread(submitted = true) {
       workspaces: {
         workspaces: [{
           workspaceId,
-          name: "omp-studio",
+          name: "zeta-studio",
           lastOpenedAt: "2026-08-25T00:00:00.000Z",
           active: true,
         }],

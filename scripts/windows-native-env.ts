@@ -45,7 +45,17 @@ export function configureWindowsNativeEnvironment(): void {
 				);
 			}
 			const probe = Bun.spawnSync(
-				[vswhere, "-utf8", "-latest", "-products", "*", "-requires", toolsComponent, "-property", "installationPath"],
+				[
+					vswhere,
+					"-utf8",
+					"-latest",
+					"-products",
+					"*",
+					"-requires",
+					toolsComponent,
+					"-property",
+					"installationPath",
+				],
 				{ stdout: "pipe", stderr: "pipe" },
 			);
 			vsRoot = probe.exitCode === 0 ? probe.stdout.toString("utf8").trim() : "";
@@ -77,7 +87,9 @@ export function configureWindowsNativeEnvironment(): void {
 			},
 		);
 		if (setup.error || setup.status !== 0) {
-			throw new Error(`Cannot initialize ${devCmd}: ${setup.error?.message ?? setup.stderr?.trim() ?? setup.status}`);
+			throw new Error(
+				`Cannot initialize ${devCmd}: ${setup.error?.message ?? setup.stderr?.trim() ?? setup.status}`,
+			);
 		}
 		for (const line of (setup.stdout ?? "").split(/\r?\n/u)) {
 			const separator = line.indexOf("=");

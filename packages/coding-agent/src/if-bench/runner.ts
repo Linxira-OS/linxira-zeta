@@ -287,12 +287,19 @@ async function requestTurnWithRefusalRetry(
 			if (options.sleep) await options.sleep(milliseconds);
 			else {
 				const { promise, resolve, reject } = Promise.withResolvers<void>();
-				const abort = () => { clearTimeout(timer); reject(options.signal?.reason); };
+				const abort = () => {
+					clearTimeout(timer);
+					reject(options.signal?.reason);
+				};
 				const timer = setTimeout(resolve, milliseconds);
 				options.signal?.addEventListener("abort", abort, { once: true });
 				if (options.signal?.aborted) abort();
-				try { await promise; }
-				finally { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); }
+				try {
+					await promise;
+				} finally {
+					clearTimeout(timer);
+					options.signal?.removeEventListener("abort", abort);
+				}
 			}
 		}
 		options.signal?.throwIfAborted();

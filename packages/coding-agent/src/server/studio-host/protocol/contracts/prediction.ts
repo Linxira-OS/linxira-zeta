@@ -23,5 +23,3 @@ export interface PredictionControlState {
 	};
 }
 export type PredictionOperation = PredictionQuery & { kind: "prediction.query" };
-
-

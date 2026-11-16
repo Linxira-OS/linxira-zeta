@@ -56,7 +56,14 @@ export type PredictionInput =
 	| { kind: "ping" }
 	| { kind: "import"; requestId: string; transferId: string };
 export type PredictionEvent =
-	| { kind: "next"; channelId: string; revision: number; suffix: string | null; choices?: readonly string[]; rank?: number }
+	| {
+			kind: "next";
+			channelId: string;
+			revision: number;
+			suffix: string | null;
+			choices?: readonly string[];
+			rank?: number;
+	  }
 	| {
 			kind: "suggestion";
 			channelId: string;
@@ -72,11 +79,3 @@ export type PredictionEvent =
 			count: number;
 			truncated: boolean;
 	  };
-
-
-
-
-
-
-
-

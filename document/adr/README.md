@@ -73,6 +73,11 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0052](0052-studio-input-validation-authority.md) | Studio validates operations at the existing Zeta Host boundary | Proposed | 2026-11-16 | — | [Host registry](../../packages/coding-agent/src/server/studio-host/registry.ts), [REQ-099](../requirements-ledger.md) |
 | [0053](0053-studio-private-prediction.md) | Studio prediction reuses native engines through view-owned private channels | Proposed | 2026-11-16 | — | [native prediction](../../packages/coding-agent/src/predict/client.ts), [REQ-099](../requirements-ledger.md) |
 | [0054](0054-desktop-webmcp-feature-switch.md) | Desktop enables Chromium WebMCP for typed page tools | Proposed | 2026-11-16 | — | [headless launcher](../../packages/coding-agent/src/tools/browser/launch.ts), [REQ-099](../requirements-ledger.md) |
+| [0055](0055-studio-session-compaction.md) | Conversation compaction and queued maintenance use native session ownership | Proposed | 2026-11-16 | — | [native session](../../packages/coding-agent/src/session/agent-session.ts), [REQ-099](../requirements-ledger.md) |
+| [0056](0056-studio-session-media-artifacts.md) | Studio image and video jobs publish into native session artifacts | Proposed | 2026-11-16 | — | [session artifacts](../../packages/coding-agent/src/server/web-gateway/artifacts.ts), [REQ-099](../requirements-ledger.md) |
+| [0057](0057-studio-native-worktree-lifetime.md) | Studio session worktrees retain native ownership through turns and shutdown | Proposed | 2026-11-16 | — | [native boundary](../../packages/coding-agent/src/server/studio-host/services/time-travel-boundary.ts), [REQ-099](../requirements-ledger.md) |
+| [0058](0058-studio-ida-worker-reviews.md) | Studio IDA reviews fence the existing native worker identity and version | Proposed | 2026-11-16 | — | [native worker](../../packages/coding-agent/src/ida/worker.py), [REQ-099](../requirements-ledger.md) |
+| [0059](0059-vendored-sheetjs-tarball.md) | Studio pins the authoritative SheetJS tarball as a local dependency | Proposed | 2026-11-16 | — | [renderer dependency](../../web-app/package.json), [REQ-099](../requirements-ledger.md) |
 
 ## File and numbering rules
 

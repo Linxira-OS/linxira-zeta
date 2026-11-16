@@ -15,4 +15,3 @@ export interface AskAnswerPayload {
 		noteImages?: AskImage[];
 	}>;
 }
-

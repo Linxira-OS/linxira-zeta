@@ -27,8 +27,9 @@ export type StudioManagedBrowserAccess = Pick<
 
 export function managedBrowserFor(sessionId: string | undefined): StudioManagedBrowserAccess | undefined {
 	if (!sessionId) return undefined;
-	return [...services.values()].find(service =>
-		service.isLive() && ownedStudioSessions(service.session).some(session => session.sessionId === sessionId),
+	return [...services.values()].find(
+		service =>
+			service.isLive() && ownedStudioSessions(service.session).some(session => session.sessionId === sessionId),
 	);
 }
 
@@ -53,16 +54,26 @@ export class StudioManagedBrowserService {
 		const previous = services.get(this.#sessionId);
 		if (previous?.isLive()) throw new ToolError("Another Studio view owns this session's managed browser.");
 		previous?.dispose();
-		this.#lifetime = setInterval(() => { if (!this.isLive()) this.dispose(); }, 100);
+		this.#lifetime = setInterval(() => {
+			if (!this.isLive()) this.dispose();
+		}, 100);
 		this.#lifetime.unref();
 		if (options.enabled && options.directory) {
 			services.set(session.sessionId, this);
 			this.#ready = this.#start();
-			void this.#ready.catch(error => { this.dispose(); logger.error("Managed browser initialization failed", { error: String(error) }); });
+			void this.#ready.catch(error => {
+				this.dispose();
+				logger.error("Managed browser initialization failed", { error: String(error) });
+			});
 		}
 	}
 	isLive(): boolean {
-		return !this.#disposed && !this.session.isDisposed && this.session.sessionId === this.#sessionId && this.options.isLive();
+		return (
+			!this.#disposed &&
+			!this.session.isDisposed &&
+			this.session.sessionId === this.#sessionId &&
+			this.options.isLive()
+		);
 	}
 	async #start(): Promise<void> {
 		const token = randomBytes(32).toString("hex");
@@ -85,7 +96,10 @@ export class StudioManagedBrowserService {
 			JSON.stringify({ version: 1, sessionId: this.#sessionId, generation, endpoint, pid: process.pid }),
 			{ mode: 0o600, flag: "wx" },
 		);
-		if (!this.isLive()) { this.dispose(); throw new ToolError("Managed browser owner closed during initialization."); }
+		if (!this.isLive()) {
+			this.dispose();
+			throw new ToolError("Managed browser owner closed during initialization.");
+		}
 	}
 	async begin(signal?: AbortSignal, readOnly = false): Promise<() => void> {
 		signal = AbortSignal.any([this.#closed.signal, ...(signal ? [signal] : [])]);
@@ -223,7 +237,9 @@ export class StudioManagedBrowserService {
 				return {
 					value: result.returnValue,
 					...(observed.studioDocumentId ? { documentId: observed.studioDocumentId } : {}),
-					chromiumMajor: Number(/(?:Chrome|Chromium)\/(\d+)/u.exec(version)?.[1] ?? /^(\d+)\./u.exec(version)?.[1] ?? 0),
+					chromiumMajor: Number(
+						/(?:Chrome|Chromium)\/(\d+)/u.exec(version)?.[1] ?? /^(\d+)\./u.exec(version)?.[1] ?? 0,
+					),
 				};
 			} finally {
 				await releaseBrowser(browser, { kill: false });

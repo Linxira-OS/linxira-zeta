@@ -122,6 +122,8 @@ export type EmptyInput = Readonly<Record<string, never>>;
 type ContextViewQueryMap = { [K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind"> };
 type ComputerWorkspaceQueryMap = { [K in ComputerWorkspaceQuery["kind"]]: Omit<Extract<ComputerWorkspaceQuery, { kind: K }>, "kind"> };
 export interface QueryInputMap extends TeamQueryInputMap, RuntimeViewQueryMap, ContextViewQueryMap, ComputerWorkspaceQueryMap {
+	"artifacts.context": EmptyInput;
+	"artifacts.resource": { readonly artifactId: string };
   "timeTravel.settings.get": EmptyInput;
   "timeTravel.storage.get": EmptyInput;
   "timeTravel.timeline.read": { readonly sessionId: SessionId; readonly branchLeafId?: string; readonly cursor?: string };
@@ -231,6 +233,8 @@ export interface QueryInputMap extends TeamQueryInputMap, RuntimeViewQueryMap, C
 }
 
 export interface QueryResultMap extends TeamQueryResultMap, RuntimeViewResultMap, ContextViewResultMap, Pick<ComputerWorkspaceResultMap, ComputerWorkspaceQuery["kind"]> {
+	"artifacts.context": { readonly sessionId: string; readonly workspaceId: string; readonly contextId: string };
+	"artifacts.resource": { readonly url: string };
   "timeTravel.settings.get": TimeTravelSettings;
   "timeTravel.storage.get": { readonly snapshots: number; readonly bytes: number };
   "timeTravel.timeline.read": TimeTravelTimeline;

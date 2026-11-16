@@ -1,4 +1,8 @@
-import { enforceStudioRatchetBoundary, notifyStudioRatchetGate, notifyStudioRatchetSetup } from "../server/studio-host/services/ratchet-boundary";
+import {
+	enforceStudioRatchetBoundary,
+	notifyStudioRatchetGate,
+	notifyStudioRatchetSetup,
+} from "../server/studio-host/services/ratchet-boundary";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import type { ModelCost } from "@linxiraos/pi-catalog/types";

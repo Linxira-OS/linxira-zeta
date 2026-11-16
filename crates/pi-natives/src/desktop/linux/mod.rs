@@ -39,8 +39,10 @@ fn pace_clicks(count: u32, mut send: impl FnMut(bool) -> CoreResult<()>) -> Core
 	Ok(())
 }
 
-
-pub fn new_backend_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+pub fn new_backend_observed(
+	display: DisplaySelector,
+	observation_only: bool,
+) -> CoreResult<Box<dyn Backend>> {
 	if std::env::var_os("WAYLAND_DISPLAY").is_some() {
 		return Ok(Box::new(wayland::WaylandBackend::new_observed(display, observation_only)));
 	}

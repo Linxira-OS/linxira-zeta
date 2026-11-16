@@ -147,18 +147,3 @@ export const SKILLSHARE_OPERATION_KINDS = [
 export function isSkillshareOperationKind(kind: string): kind is SkillshareOperation["kind"] {
 	return (SKILLSHARE_OPERATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

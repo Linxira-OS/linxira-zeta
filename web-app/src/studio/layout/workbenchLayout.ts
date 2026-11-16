@@ -5,7 +5,7 @@ export const SIDE_PANEL_LIMITS = { min: 360, max: 640, initial: 480 };
 export const BOTTOM_PANEL_LIMITS = { min: 120, max: 480, initial: 240 };
 
 export type LayoutPanel = "sidebar" | "side" | "bottom";
-/** Dock regions as they appear in dock-engine's `omp:dock-region` event. */
+/** Dock regions as they appear in dock-engine's `zeta:dock-region` event. */
 export type DockRegion = "left" | "rail" | "right" | "bottom";
 
 /** Dock region → layout panel that has to take the focus priority when the

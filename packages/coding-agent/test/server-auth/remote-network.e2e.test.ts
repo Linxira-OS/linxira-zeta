@@ -78,6 +78,8 @@ function serveHost(host: StudioHost): { server: Server<{ kind: "studio"; session
 			open(ws) {
 				host.attachSocket(ws.data.sessionId, ws);
 			},
+			// Subscriptions are established at the authenticated upgrade; clients
+			// cannot replace that namespace by sending a scope frame.
 			message() {},
 			close(ws) {
 				host.detachSocket(ws.data.sessionId, ws);
@@ -565,7 +567,6 @@ async function openEvents(cookie: string): Promise<{ ws: WebSocket; closed: Prom
 	ws.onerror = () => closed.resolve(true);
 	await new Promise<void>(resolve => {
 		ws.onopen = () => {
-			ws.send(JSON.stringify({ scope: { scope: "all" } }));
 			resolve();
 		};
 	});
@@ -600,7 +601,6 @@ describe("events websocket", () => {
 			headers: { host: HOST, origin: ORIGIN, "x-forwarded-for": PEER, cookie: device.cookie },
 		});
 		ws.onopen = () => {
-			ws.send(JSON.stringify({ scope: { scope: "all" } }));
 			opened.resolve(true);
 		};
 		ws.onclose = () => closed.resolve(true);

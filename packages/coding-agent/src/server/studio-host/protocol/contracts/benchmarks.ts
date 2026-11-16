@@ -100,11 +100,3 @@ export const BENCHMARK_OPERATION_KINDS = [
 export function isBenchmarkOperationKind(kind: string): kind is BenchmarkOperation["kind"] {
 	return (BENCHMARK_OPERATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-
-

@@ -172,6 +172,7 @@ export function emptyMirrorState(): SessionMirrorState {
 /** View state of a mirror main has not watched yet. */
 function emptyViewState(): SessionViewState {
 	return {
+		studioLinkSchemes: [],
 		providerSessionId: "",
 		sessionName: undefined,
 		seanceSourceArtifactsDir: null,
@@ -434,6 +435,20 @@ export class RemoteAgentSession implements AgentViewSession {
 	/** Extension runner of the nearest main-thread ancestor session, which loaded the extensions the worker re-imported. */
 	get extensionRunner(): ExtensionRunner | undefined {
 		return this.#mainAncestor()?.extensionRunner;
+	}
+
+	/**
+	 * Schemes the home worker session's own runner claims. Never read from
+	 * {@link extensionRunner}: that runner belongs to a main-thread ancestor.
+	 */
+	getStudioLinkSchemes(): string[] {
+		return this.#view.studioLinkSchemes;
+	}
+
+	/** Route a link click to the home worker session's own runner; a closed mirror handles nothing. */
+	activateStudioLink(url: string): Promise<boolean> {
+		if (this.#closed !== undefined) return Promise.resolve(false);
+		return this.#command("activateStudioLink", url);
 	}
 
 	get sessionId(): string {

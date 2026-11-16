@@ -11,12 +11,20 @@ afterEach(() => setLanguage(language));
 
 test("command catalog exposes text execution, preserves terminal mappings and hides retired commands", async () => {
 	const operations = new StudioOperations();
-	const response = await operations.query({ queryName: "commands.getManifest", input: {} }, { capabilities: operations.capabilities().manifest });
+	const response = await operations.query(
+		{ queryName: "commands.getManifest", input: {} },
+		{ capabilities: operations.capabilities().manifest },
+	);
 	expect(response.ok).toBe(true);
 	if (!response.ok) throw new Error(response.error.message);
 	const manifest = parseOperatorCommandManifest(response.result);
 	const command = (name: string) => manifest.commands.find(entry => entry.name === name);
-	expect(command("compact")).toMatchObject({ id: "builtin.compact", implementation: "headless-handle", presentation: "generic-form", availability: "available" });
+	expect(command("compact")).toMatchObject({
+		id: "builtin.compact",
+		implementation: "headless-handle",
+		presentation: "generic-form",
+		availability: "available",
+	});
 	expect(command("model")).toMatchObject({ aliases: ["models"] });
 	expect(command("quit")).toMatchObject({ implementation: "tui-compatibility", presentation: "terminal" });
 	expect(command("channels")).toBeUndefined();
@@ -37,7 +45,8 @@ test("command metadata follows language changes without unstable timestamps chan
 	const repeated = buildOperatorCommandManifest(instance);
 	setLanguage("zh");
 	const chinese = buildOperatorCommandManifest(instance);
-	const description = (manifest: typeof english) => manifest.commands.find(entry => entry.name === "compact")!.description;
+	const description = (manifest: typeof english) =>
+		manifest.commands.find(entry => entry.name === "compact")!.description;
 	expect(description(chinese)).not.toBe(description(english));
 	expect(english.hash).toBe(repeated.hash);
 	expect(chinese.hash).not.toBe(english.hash);

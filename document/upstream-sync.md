@@ -3406,8 +3406,57 @@ Automation completion checks (2026-11-15): fixed quick profile passed 3/3; autom
   contracts and renderer gates but no registered Host family stay hidden; they
   are not claimed as working. Skillshare stays retired (ADR-0047) and live
   audio stays owner-held (ADR-0034).
-- No official source-parent merge exists yet; `git merge-base HEAD v0.2.1`
-  still has no common ancestor. The planned merge is a real
-  `--allow-unrelated-histories` merge whose resolution keeps Zeta's front door
-  and maps upstream content to the reviewed landings; archives or copied trees
-  are not ancestry.
+- No official source-parent merge exists yet in that snapshot; superseded by
+  the real source-parent merge recorded in §"Studio v0.2.1 source-parent merge
+  and final accounting" below. Archives or copied trees were not used as
+  ancestry.
+
+## Studio v0.2.1 source-parent merge and final accounting (2026-11-16)
+
+- Tag pair verified online again before and during integration: `v0.1.17` =
+  `4e2cdc77dad93cd2a5b82be8ad36c740d34fb8d4`, `v0.2.1` =
+  `6d0b764bb9eac88c1671c0380229823c5630cc74` (no retag observed).
+- Reviewed behavior landed first as `a500fc73c639731610f7af2802fd549476a4217c`
+  (`sync: land reviewed Studio v0.2.1 behavior before source-parent merge`).
+- Then a **real merge, no squash**: `31f598f8a2e71f42c148d866eb530e596c056a32`
+  with parents `a500fc73c…` and `6d0b764bb9eac88c1671c0380229823c5630cc74`
+  (`Merge tag v0.2.1 of the-snowpear/omp-studio into Studio integration`). The
+  merge tree equals the first parent; `git merge-base --is-ancestor 'v0.2.1^{commit}' HEAD`
+  passes. Ancestry proves provenance, not feature completeness.
+- Final report `temp/studio-review-main-20261116-final6/report.json` (1,751
+  paths, live tag verification) with `temp/studio-decision-drafts/decisions.json`:
+  `check-studio-sync --require-complete --require-ancestry` reports
+  **1,248 accepted decisions / 0 unresolved / 0 problems**. The current
+  dispositions replace stale claims that already-integrated producers were
+  absent; actual unregistered families remain explicitly unavailable. Structural
+  completeness is not semantic acceptance; per-family evidence and unmet
+  acceptance criteria stay in the requirements ledger.
+- Durable review archive (outside gitignored `temp/`):
+  `~/.zeta/parked-evidence/2026-11-16/studio-v0.2.1-final/sealed-final6/`
+  (`report.json`, `decisions.json`, `receipts/`, final source manifest and check records). Earlier snapshots remain preserved in the parent archive.
+- Producer deltas were integrated by exact preimage/final SHA-256 (receipts in
+  the archive): evaluation legacy import, accounts/search credentials/extension
+  links, child BTW/model inspection, session worktrees, annotations, IDA,
+  compaction/queue, feature settings, media, prediction, plus the Desktop and
+  renderer artifact producers and the native worker-link RPC. Independent
+  review defects were fixed in the same bytes (credential and child-BTW
+  authority after awaited preparation, worker link home-thread routing, dormant
+  model journal projection, prototype-named pools, worktree preview/removal
+  fences, serve shutdown ordering).
+- Final review repairs: kindless local-resource dispatch and async authority,
+  native BTW wrapper rekey/original selection handoff, recorded-shell source and
+  portability secondary-target binding, immutable per-invocation transfer
+  authority, and serialized queue view fences. Artifact review fixed recorder
+  URL authority, generated import kind precedence and export authority before
+  the atomic native commit. Static independent review resolved all seven Host
+  and three artifact findings; exercised narrow checks are in the archived
+  closure record.
+- `bun run check:ts` passes (544 warnings, no lint errors; all workspace types),
+  and `cargo fmt --all -- --check` passes. `test:rs` could not start nextest:
+  `cargo-nextest` is not installed; doctests were not reached. Seven native
+  desktop source files changed only by deterministic rustfmt; the archived
+  preimage/final formatter-equivalence record links them to the proven Linux
+  build. The old addon is not claimed byte-matched to the formatted checkout.
+- npm12 installation gate: official SheetJS0.20.3 is retained as an unchanged local tarball (ADR-0059), matching the original locked SHA-512. Isolated npm12 `ci` succeeds with `allow-remote=none`; the installed parser round-trips four workbook rows exactly. Source-policy regressions pass4tests/9assertions; renderer build and first-load check pass (2,810.9kB/41files). No remote-host exception or parser downgrade was added.
+- No OMP version bump, tag, release, main merge or extra push is implied by this
+  entry.

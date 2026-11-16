@@ -19,7 +19,14 @@ export class ConversationContexts {
 		if (owned >= 64) throw new Error("context_limit");
 		if (expiresAt <= Date.now()) throw new Error("context_expired");
 		const id = randomBytes(24).toString("base64url");
-		const context: ConversationContext = { id, owner, expiresAt, workspaceId, closed: false, ...(sessionId === undefined ? {} : { sessionId }) };
+		const context: ConversationContext = {
+			id,
+			owner,
+			expiresAt,
+			workspaceId,
+			closed: false,
+			...(sessionId === undefined ? {} : { sessionId }),
+		};
 		this.#contexts.set(id, context);
 		const timer = setTimeout(() => this.close(owner, id), expiresAt - Date.now());
 		timer.unref();
@@ -30,7 +37,10 @@ export class ConversationContexts {
 	get(owner: string, id: string): ConversationContext | undefined {
 		const context = this.#contexts.get(id);
 		if (context?.owner !== owner) return undefined;
-		if (context.expiresAt <= Date.now()) { this.close(owner, id); return undefined; }
+		if (context.expiresAt <= Date.now()) {
+			this.close(owner, id);
+			return undefined;
+		}
 		return context;
 	}
 

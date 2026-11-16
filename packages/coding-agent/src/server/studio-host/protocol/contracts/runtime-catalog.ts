@@ -38,10 +38,3 @@ export const RUNTIME_CATALOG_OPERATION_KINDS = [
 export function isRuntimeCatalogOperationKind(kind: string): kind is RuntimeCatalogOperation["kind"] {
 	return (RUNTIME_CATALOG_OPERATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-

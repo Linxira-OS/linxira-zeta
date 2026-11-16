@@ -1063,7 +1063,9 @@ describe("terminal ensure (P1 slots)", () => {
 		const input = { workspaceId: workspaceIdFor(cwd), instanceId: "command-test", command, cols: 112, rows: 35 };
 		const created = await ensureOk(input);
 		expect(fakePtys[0].spec.cwd).toBe(cwd);
-		expect(fakePtys[0].spec.args.at(-1)).toBe(shell === "powershell" ? Buffer.from(command.text, "utf16le").toString("base64") : command.text);
+		expect(fakePtys[0].spec.args.at(-1)).toBe(
+			shell === "powershell" ? Buffer.from(command.text, "utf16le").toString("base64") : command.text,
+		);
 		expect(fakePtys[0].spec.cols).toBe(112);
 		expect(fakePtys[0].spec.rows).toBe(35);
 		expect(fakePtys[0].written).toEqual([]);
@@ -1080,13 +1082,25 @@ describe("terminal ensure (P1 slots)", () => {
 		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
 		setDeviceRegistryForTest(registry);
 		installFakePty();
-		const cwd = await makeCwd(), foreign = await makeCwd();
+		const cwd = await makeCwd(),
+			foreign = await makeCwd();
 		await registerProject(cwd);
 		await registerProject(foreign);
 		const workspaceId = workspaceIdFor(cwd);
 		const device = await registry.issue({ scopes: ["write"], binding: { workspaceId } });
-		setResourceOwnership({ workspaceOfSession: async () => undefined, workspaceOfCwd: async value => workspaceIdFor(value) });
-		const send = (body: unknown) => webGatewayFetch(new Request("http://127.0.0.1/api/terminal/ensure", { method: "POST", headers: { authorization: `Bearer ${device.token}`, "content-type": "application/json" }, body: JSON.stringify(body) }), "192.168.1.5");
+		setResourceOwnership({
+			workspaceOfSession: async () => undefined,
+			workspaceOfCwd: async value => workspaceIdFor(value),
+		});
+		const send = (body: unknown) =>
+			webGatewayFetch(
+				new Request("http://127.0.0.1/api/terminal/ensure", {
+					method: "POST",
+					headers: { authorization: `Bearer ${device.token}`, "content-type": "application/json" },
+					body: JSON.stringify(body),
+				}),
+				"192.168.1.5",
+			);
 		expect((await send({ workspaceId: workspaceIdFor(foreign) })).status).toBe(403);
 		expect((await send({ workspaceId, cwd: foreign })).status).toBe(400);
 		expect(fakePtys).toHaveLength(0);
@@ -1108,10 +1122,16 @@ describe("terminal ensure (P1 slots)", () => {
 		await setup();
 		installFakePty();
 		const cwd = await makeCwd();
-		for (const command of [{ shell: "cmd", text: "echo unsafe" }, { shell: "sh", text: "\0" }, { shell: "sh", text: "" }]) {
+		for (const command of [
+			{ shell: "cmd", text: "echo unsafe" },
+			{ shell: "sh", text: "\0" },
+			{ shell: "sh", text: "" },
+		]) {
 			expect((await ensureTerminal({ cwd, command })).status).toBe(400);
 		}
-		expect((await ensureTerminal({ cwd, command: { shell: "sh", text: "echo test" }, profileId: "anything" })).status).toBe(400);
+		expect(
+			(await ensureTerminal({ cwd, command: { shell: "sh", text: "echo test" }, profileId: "anything" })).status,
+		).toBe(400);
 		expect(fakePtys).toHaveLength(0);
 	});
 

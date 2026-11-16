@@ -253,8 +253,20 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 				browserWSEndpoint: `${cdpUrl.replace(/^http/, "ws")}/cdp`,
 				defaultViewport: null,
 				protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
-			}).catch(() => { throw new ToolError("Could not connect to the Studio managed browser. Reconnect the local desktop browser and retry."); });
-			return { key: browserKey(kind), kind, browser, wsEndpoint: browser.wsEndpoint(), cdpUrl, refCount: 0, stealth: { browserSession: null, override: null } };
+			}).catch(() => {
+				throw new ToolError(
+					"Could not connect to the Studio managed browser. Reconnect the local desktop browser and retry.",
+				);
+			});
+			return {
+				key: browserKey(kind),
+				kind,
+				browser,
+				wsEndpoint: browser.wsEndpoint(),
+				cdpUrl,
+				refCount: 0,
+				stealth: { browserSession: null, override: null },
+			};
 		}
 		// Loopback relays are owned by a machine-global broker and auto-started
 		// on demand (the extension dials in on its own). Hosts without a CLI

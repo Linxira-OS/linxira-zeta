@@ -251,7 +251,10 @@ export type ClientEvent =
 			readonly eventSeq: number;
 			readonly snapshot: BtwSnapshot;
 	  })
-	| (ClientEventBase & { readonly kind: "computer.changed"; readonly change: import("../protocol/contracts/computer-workspace.js").ComputerWorkspaceChange });
+	| (ClientEventBase & {
+			readonly kind: "computer.changed";
+			readonly change: import("../protocol/contracts/computer-workspace.js").ComputerWorkspaceChange;
+	  });
 
 /** What subset of the event stream a subscription requests. */
 export type SubscriptionScope =

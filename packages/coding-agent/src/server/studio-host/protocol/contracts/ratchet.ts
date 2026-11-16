@@ -73,9 +73,3 @@ export const RATCHET_OPERATION_KINDS = [
 export function isRatchetKind(kind: string): kind is RatchetOperation["kind"] {
 	return (RATCHET_OPERATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-

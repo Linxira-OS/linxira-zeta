@@ -85,7 +85,13 @@ export function studioSteps(profile: StudioProfile, report?: string, decisions?:
 		},
 		{ id: "host", name: "Conversation Host and identity", phase: "test", commands: [["bun", "test", ...HOST_TESTS]] },
 		{ id: "auth", name: "Cookie device 2FA remote auth", phase: "test", commands: [["bun", "test", ...AUTH_TESTS]] },
-		{ id: "shared", name: "Bun and Node Studio contracts", phase: "test", cwd: "web-app", commands: [["bun", "scripts/test-runtimes.ts"]] },
+		{
+			id: "shared",
+			name: "Bun and Node Studio contracts",
+			phase: "test",
+			cwd: "web-app",
+			commands: [["bun", "scripts/test-runtimes.ts"]],
+		},
 		{
 			id: "renderer",
 			name: "Conversation and terminal behavior",

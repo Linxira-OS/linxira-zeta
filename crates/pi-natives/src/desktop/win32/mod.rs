@@ -58,7 +58,10 @@ impl Win32Backend {
 		Self::new_observed(display, false)
 	}
 
-	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
+	pub(crate) fn new_observed(
+		display: DisplaySelector,
+		observation_only: bool,
+	) -> CoreResult<Self> {
 		// Initialize DPI awareness before xcap or input observes desktop
 		// geometry, keeping both APIs in the same per-monitor physical
 		// coordinate regime.
@@ -100,7 +103,12 @@ impl Backend for Win32Backend {
 				"unknown"
 			}
 			.to_string(),
-			input_permission: if self.global_input.is_some() { "granted" } else { "unavailable" }.to_string(),
+			input_permission: if self.global_input.is_some() {
+				"granted"
+			} else {
+				"unavailable"
+			}
+			.to_string(),
 			ax_permission: "granted".to_string(),
 			display_count,
 			screen_locked: screen.locked,
@@ -139,7 +147,9 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		let input = self.global_input.as_mut().ok_or_else(|| {
+			DesktopError::permission_denied("passive desktop has no input controller")
+		})?;
 		input::pointer(input, &mut self.ax, target, event, mode)
 	}
 
@@ -162,7 +172,9 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		let input = self.global_input.as_mut().ok_or_else(|| {
+			DesktopError::permission_denied("passive desktop has no input controller")
+		})?;
 		input::key_chord(input, target, keys, mode)
 	}
 
@@ -210,7 +222,9 @@ impl Backend for Win32Backend {
 		token: &OperationToken,
 	) -> CoreResult<()> {
 		token.check()?;
-		let input = self.global_input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?;
+		let input = self.global_input.as_mut().ok_or_else(|| {
+			DesktopError::permission_denied("passive desktop has no input controller")
+		})?;
 		input::hold_keys(input, target, keys, duration, mode)
 	}
 

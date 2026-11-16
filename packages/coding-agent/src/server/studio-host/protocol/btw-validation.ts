@@ -58,7 +58,19 @@ export function parseBtwSnapshot(value: unknown, path = "$snapshot"): BtwSnapsho
 	const input = record(value, path);
 	exactKeys(
 		input,
-		["ephemeralId", "status", "text", "copy", "error", "sessionId", "topicId", "question", "title"],
+		[
+			"ephemeralId",
+			"status",
+			"text",
+			"copy",
+			"error",
+			"sessionId",
+			"topicId",
+			"question",
+			"title",
+			"turnIndex",
+			"injection",
+		],
 		path,
 	);
 	for (const key of ["sessionId", "topicId"] as const)

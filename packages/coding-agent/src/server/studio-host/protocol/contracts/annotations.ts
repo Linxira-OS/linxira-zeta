@@ -114,5 +114,3 @@ export function validateAnnotationBundle(value: unknown): asserts value is Annot
 	if (row.sessionId !== undefined) text(row.sessionId);
 	content(row.sources, row.notes);
 }
-
-

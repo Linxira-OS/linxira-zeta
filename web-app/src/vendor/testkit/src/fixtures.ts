@@ -294,6 +294,8 @@ const QUERY_INPUTS = {
   "prediction.query": {sessionId:"test",version:1,before:"",prefix:""},
   "artifacts.text.read": { artifactId: "11111111-1111-4111-8111-111111111111" },
   "artifacts.list": {},
+  "artifacts.context": {},
+  "artifacts.resource": { artifactId: "artifact-fixture" },
   "artifacts.storage.get": {},
   "environment.get": {},
   "capabilities.get": {},
@@ -646,6 +648,8 @@ const QUERY_RESPONSES = {
     result: { sessionId: SESSION_ID, source: "live", semantics: "current-live", telemetry: { sessionId: SESSION_ID, capturedAt: "2026-08-16T00:00:00.000Z", tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: 0 }, context: null } },
   },
   "session.transcript.prefetch": { ok: true, queryName: "session.transcript.prefetch", result: { status: "skipped" } },
+  "artifacts.context": { ok: true, queryName: "artifacts.context", result: { sessionId: SESSION_ID, workspaceId: WORKSPACE_ID, contextId: "context-fixture" } },
+  "artifacts.resource": { ok: true, queryName: "artifacts.resource", result: { url: "/api/v1/artifacts/artifact-fixture?contextId=context-fixture" } },
   "session.transcript.readPage": {
     ok: true,
     queryName: "session.transcript.readPage",

@@ -1,6 +1,6 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { parsePlaybackRecording } from "./format";
+import { parsePlaybackRecording, type PlaybackRecording } from "./format";
 import { RecordingPlayer } from "./RecordingPlayer";
 
 const mocks = vi.hoisted(() => ({ writes: vi.fn(), dispose: vi.fn(), created: 0 }));
@@ -48,4 +48,17 @@ it("pauses a hidden panel without reparsing or recreating its recording terminal
   fireEvent.click(screen.getByRole("button", { name: /^(Play|播放)$/ }));
   await act(async () => { await vi.advanceTimersByTimeAsync(160); });
   expect(Number(seek.value)).toBeGreaterThan(Number(stoppedAt));
+});
+
+it("plays a native terminal recording through the recorder authority without a Host client", async () => {
+  const text = '{"studiocast":1,"cols":80,"rows":24,"title":"Native recorder","createdAt":"2026-11-16T00:00:00Z"}\n[0,{"t":"output","data":"NATIVE_RECORDER_OUTPUT"}]\n';
+  vi.stubGlobal("Worker", class {
+    onmessage?: (event: { data: { recording: PlaybackRecording } }) => void;
+    postMessage(input: { text: string }) { queueMicrotask(() => this.onmessage?.({ data: { recording: parsePlaybackRecording(input.text) } })); }
+    terminate() {}
+  });
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url === "zeta-artifact://recorder/recording-native.studiocast" ? new Response(text) : new Response(null, { status: 400 })));
+  render(<RecordingPlayer artifactId="recording-native.studiocast" />);
+  await act(async () => {});
+  await waitFor(() => expect(mocks.writes.mock.calls.some(([output]) => output.includes("NATIVE_RECORDER_OUTPUT"))).toBe(true));
 });

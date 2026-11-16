@@ -3037,7 +3037,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			return getEnabledEvalPreludes(builtins);
 		};
 		toolSession.getEvalPreludes = getEvalPreludes;
-		toolSession.computerPreludeAvailable = () => !restrictToolNames && toolRegistry.has("eval") && activeToolNames.has("eval");
+		toolSession.computerPreludeAvailable = () =>
+			!restrictToolNames && toolRegistry.has("eval") && activeToolNames.has("eval");
 		// SessionTools owns the advertised snapshot; before it exists the base
 		// prompt is built from, and therefore advertises, the live set.
 		toolSession.getAdvertisedEvalPreludes = () => session?.getAdvertisedEvalPreludes() ?? getEvalPreludes();

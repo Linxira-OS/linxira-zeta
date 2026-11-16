@@ -123,7 +123,15 @@ export type ToolReply = { ok: true; value: unknown } | { ok: false; error: RunEr
 
 export type WorkerInbound =
 	| { type: "init"; payload: WorkerInitPayload }
-	| { type: "run"; id: string; name: string; code: string; webmcp?: TabWebMcpRequest; timeoutMs: number; session: SessionSnapshot }
+	| {
+			type: "run";
+			id: string;
+			name: string;
+			code: string;
+			webmcp?: TabWebMcpRequest;
+			timeoutMs: number;
+			session: SessionSnapshot;
+	  }
 	| { type: "abort"; id: string; expectedCleanup?: boolean }
 	| { type: "tool-reply"; id: string; reply: ToolReply }
 	/** `keepPage` leaves a page omp created open in its browser; only the worker's hold on it goes. */

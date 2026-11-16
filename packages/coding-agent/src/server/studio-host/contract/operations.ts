@@ -4,6 +4,9 @@ import type { WorkbenchOperation, WorkbenchResultMap } from "../protocol/index.j
 import type { PredictionQuery, PredictionResult } from "../protocol/index.js";
 import type { UpgradeOperation, UpgradeResultMap } from "../protocol/index.js";
 import type { EvaluationOperation } from "../protocol/index.js";
+import type { ExtensionLinkListInput, ExtensionLinkQueryResultMap } from "../protocol/index.js";
+import type { RuntimeViewOperation, RuntimeViewResultMap } from "../protocol/index.js";
+import type { SessionCompactionRead } from "../protocol/contracts/session-compaction.js";
 /**
  * Semantic request/response maps and envelopes for the product client.
  *
@@ -102,22 +105,56 @@ import type {
 	WorkspaceFileMutationResult,
 } from "./read-models.js";
 import type { TeamCommandInputMap, TeamCommandResultMap, TeamQueryInputMap, TeamQueryResultMap } from "./team.js";
-import type { EvaluationWorkspaceQueryInputMap, EvaluationWorkspaceQueryResultMap, EvaluationWorkspaceCommandInputMap, EvaluationWorkspaceCommandResultMap } from "./evaluations.js";
-import type { TimeTravelSettings, TimeTravelTimeline, TimeTravelRestorePreview, TimeTravelRestoreInput, TimeTravelRestoreResult } from "./time-travel.js";
+import type {
+	EvaluationWorkspaceQueryInputMap,
+	EvaluationWorkspaceQueryResultMap,
+	EvaluationWorkspaceCommandInputMap,
+	EvaluationWorkspaceCommandResultMap,
+} from "./evaluations.js";
+import type {
+	TimeTravelSettings,
+	TimeTravelTimeline,
+	TimeTravelRestorePreview,
+	TimeTravelRestoreInput,
+	TimeTravelRestoreResult,
+} from "./time-travel.js";
 import type { ComputerQueryInputMap, ComputerQueryResultMap } from "./computer.js";
 
 /** Empty input shape for queries that take no arguments. */
 export type EmptyInput = Readonly<Record<string, never>>;
 
+type RuntimeViewQueryMap = {
+	[K in RuntimeViewOperation["kind"]]: Omit<Extract<RuntimeViewOperation, { kind: K }>, "kind">;
+};
 type ContextViewQueryMap = {
 	[K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind">;
 };
-export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap, EvaluationWorkspaceQueryInputMap, ComputerQueryInputMap {
+export interface QueryInputMap
+	extends
+		ContextViewQueryMap,
+		TeamQueryInputMap,
+		EvaluationWorkspaceQueryInputMap,
+		ComputerQueryInputMap,
+		RuntimeViewQueryMap {
+	"extensions.links.list": ExtensionLinkListInput;
+	"session.compaction.read": { readonly sessionId: SessionId };
+	"artifacts.context": EmptyInput;
+	"artifacts.resource": { readonly artifactId: string };
+	"session.lease.read": { readonly sessionId: SessionId; readonly targetSessionIds: readonly string[] };
+	"session.lease.inspect": { readonly sessionId: SessionId; readonly targetSessionIds: readonly string[] };
 	"timeTravel.settings.get": EmptyInput;
 	"timeTravel.storage.get": EmptyInput;
-	"timeTravel.timeline.read": { readonly sessionId: SessionId; readonly branchLeafId?: string; readonly cursor?: string };
+	"timeTravel.timeline.read": {
+		readonly sessionId: SessionId;
+		readonly branchLeafId?: string;
+		readonly cursor?: string;
+	};
 	"timeTravel.restore.preview": { readonly sessionId: SessionId; readonly snapshotId: string };
-	"browser.webmcp.list": { readonly sessionId: string; readonly pageId: string; readonly options?: import("../protocol/contracts/webmcp").WebMcpListOptions };
+	"browser.webmcp.list": {
+		readonly sessionId: string;
+		readonly pageId: string;
+		readonly options?: import("../protocol/contracts/webmcp").WebMcpListOptions;
+	};
 	"prediction.query": PredictionQuery;
 	"artifacts.text.read": { readonly artifactId: string };
 	"artifacts.list": import("../protocol/index.js").ArtifactListInput;
@@ -206,7 +243,19 @@ export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap, E
 	"github.pr.checks": { readonly workspaceId: WorkspaceId; readonly number: number };
 }
 
-export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap, EvaluationWorkspaceQueryResultMap, ComputerQueryResultMap {
+export interface QueryResultMap
+	extends
+		ContextViewResultMap,
+		TeamQueryResultMap,
+		EvaluationWorkspaceQueryResultMap,
+		ComputerQueryResultMap,
+		RuntimeViewResultMap {
+	"extensions.links.list": ExtensionLinkQueryResultMap["extensions.links.list"];
+	"session.compaction.read": SessionCompactionRead;
+	"artifacts.context": { readonly sessionId: string; readonly workspaceId: string; readonly contextId: string };
+	"artifacts.resource": { readonly url: string };
+	"session.lease.read": { readonly held: string[]; readonly unknown: string[] };
+	"session.lease.inspect": { readonly held: string[]; readonly unknown: string[] };
 	"timeTravel.settings.get": TimeTravelSettings;
 	"timeTravel.storage.get": { readonly snapshots: number; readonly bytes: number };
 	"timeTravel.timeline.read": TimeTravelTimeline;
@@ -467,7 +516,10 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
 	"queue.enqueue": { readonly text: string };
 	"runtime.pause": EmptyInput;
 	"runtime.resume": { readonly expectedPauseEpoch: number };
-	"runtime.settings.get": { readonly keys?: ReadonlyArray<StudioRuntimeSettingKey>; readonly checkHindsight?: boolean };
+	"runtime.settings.get": {
+		readonly keys?: ReadonlyArray<StudioRuntimeSettingKey>;
+		readonly checkHindsight?: boolean;
+	};
 	"runtime.settings.set": StudioRuntimeSettingSetInput;
 	"turn.retry": EmptyInput;
 	"core.continue": EmptyInput;
@@ -862,7 +914,10 @@ interface CoreCommandResultMap extends EvaluationWorkspaceCommandResultMap {
 	"timeTravel.settings.set": TimeTravelSettings;
 	"timeTravel.cleanup": { readonly removed: number };
 	"timeTravel.restore": TimeTravelRestoreResult;
-	"browser.webmcp.invoke": { readonly snapshot: OperatorStateSnapshot; readonly result: import("../protocol/contracts/webmcp").WebMcpInvokeResult };
+	"browser.webmcp.invoke": {
+		readonly snapshot: OperatorStateSnapshot;
+		readonly result: import("../protocol/contracts/webmcp").WebMcpInvokeResult;
+	};
 	"artifacts.saveText": import("../protocol/index.js").ArtifactRecord;
 	"artifacts.delete": { readonly deleted: true; readonly artifactId: string };
 	"runtime.install": RuntimeInstallState;

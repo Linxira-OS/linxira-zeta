@@ -1,8 +1,12 @@
 # Contributing to Zeta
 
+**English** · [简体中文](CONTRIBUTING.zh-CN.md)
+
 Zeta is a downstream runtime distribution maintained by Linxira. Pull requests
 are welcome; keep them focused and be prepared to explain and maintain the
-change.
+change. Public product and repository documentation lives in
+[`rep-docs/`](rep-docs/) and [`docs/`](docs/); internal engineering records live
+in [`document/`](document/).
 
 ## Before you start
 
@@ -14,16 +18,19 @@ Route a problem by where it reproduces. The full protocol is
 | Area | Where to report |
 | --- | --- |
 | OMP runtime, tools, models, or TUI; upstream bot updates | <https://github.com/can1357/oh-my-pi/issues> |
-| Renderer or host-contract defect that reproduces without the Zeta fork | Follow the ownership route in [`document/maintenance-ownership.md`](document/maintenance-ownership.md) |
+| OMP Studio renderer or host-contract defect that reproduces without the Zeta fork | <https://github.com/the-snowpear/omp-studio/issues> (follow the ownership route in [`document/maintenance-ownership.md`](document/maintenance-ownership.md) for a Zeta-only defect) |
 | TermIDE terminal/editor/LSP/DAP | <https://github.com/termide/termide/issues> |
-| Zeta-owned behavior: Work Studio, server/Studio host, IM, CLI/TUI product behavior, `zetaide` deviations, `desktop/`, `android/`, plugins, docs | This repository's issue tracker |
+| Zeta-owned behavior: Z Work Studio, server/Studio host, desktop editions, IM, CLI/TUI product behavior, `zetaide` deviations, `android/`, plugins, docs | This repository's issue tracker |
 | Security vulnerability | Private advisory via [`SECURITY.md`](.github/SECURITY.md), never a public issue or pull request |
 
 Upstream bot triage and release sync are maintainer workflows: syncs are
 on-demand and enter Zeta only through a named official release tag, never an
-upstream branch. OMP Web is frozen and is not a report or sync surface; Pi / Pi
-Web are semantic port sources, not raw merge sources. Upstream should not be
-asked to own Zeta product behavior or usage differences.
+upstream branch. The integrated runtime source is OMP `v18.20.0`. OMP Studio
+`v0.2.1` is the named integration target; its source ancestry is integrated
+while full acceptance and CI are still pending. OMP Web is frozen and is not a
+report or sync surface; Pi / Pi Web are semantic port sources, not raw merge
+sources. Upstream should not be asked to own Zeta product behavior or usage
+differences.
 
 ### Small changes
 
@@ -71,7 +78,8 @@ result in the pull request:
 “`bun check` passes” by itself is not sufficient verification. Use
 `bun run test:rs` for Rust changes; do not invoke `cargo test` directly. For
 coding-agent development commands and repository structure, see
-[`packages/coding-agent/DEVELOPMENT.md`](packages/coding-agent/DEVELOPMENT.md).
+[`packages/coding-agent/DEVELOPMENT.md`](packages/coding-agent/DEVELOPMENT.md)
+and [Repository and development](rep-docs/development.md).
 
 Keep each pull request to one logical change. Avoid unrelated cleanup,
 drive-by refactors, generated noise, or features outside the agreed scope.
@@ -93,21 +101,24 @@ contribution gate.
 
 Coverage is measured and reviewed, not enforced by a threshold. The current
 baseline, package-by-package limits, and the loaded-file caveat are in
-[`README.md`](README.md#coverage).
+[Repository and development](rep-docs/development.md#coverage).
 
 For runtime-behavior changes and release candidates, maintainers run the
 **Coverage** workflow and attach the `coverage-lcov` artifact to the review or
 release record. A drop larger than 0.5 percentage points in a package's line
 coverage needs an explanation. Do not report the `coding-agent` core sample as
-the whole package.
+the whole package. The Coverage workflow is report-only; normal CI remains the
+test gate.
 
 ## Contribution licensing
 
-Zeta uses a per-directory licence split: `main/` is AGPL-3.0, while
-`packages/`, `crates/`, `sdk/`, `termide/`, `editor/`, `web-ui/`, and `desktop/`
-are MIT. Submit work you have the right to licence under the terms that apply to
-the files you change. Third-party or vendored code keeps its own licence and
-attribution; do not relicense it.
+Zeta uses a per-directory licence split: `main/` is AGPL-3.0, while everything
+outside `main/` — including `packages/`, `crates/`, `sdk/`, `termide/`,
+`editor/`, `web-app/`, `desktop/`, `web-ui/`, `docs/`, `document/`, and
+`rep-docs/` — is MIT. Submit work you have the right to licence under the terms
+that apply to the files you change. Third-party or vendored code keeps its own
+licence and attribution; do not relicense it. The licence text is not
+translated.
 
 ## Review
 
@@ -120,4 +131,8 @@ human-written explanation, contain unreviewed agent output, or mix unrelated
 changes.
 
 Report security issues through the private channel in
-[`SECURITY.md`](.github/SECURITY.md), not a public issue or pull request.
+[`SECURITY.md`](.github/SECURITY.md), not a public issue or pull request. The
+advisory form is
+<https://github.com/Linxira-OS/linxira-zeta/security/advisories/new>.
+
+**English** · [简体中文](CONTRIBUTING.zh-CN.md)

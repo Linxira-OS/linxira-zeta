@@ -47,9 +47,3 @@ export const COMPUTER_OBSERVATION_KINDS = [
 export function isComputerObservationKind(kind: string): kind is ComputerObservationOperation["kind"] {
 	return (COMPUTER_OBSERVATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-

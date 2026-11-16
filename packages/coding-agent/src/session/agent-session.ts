@@ -398,6 +398,7 @@ import type {
 	ModelCycleResult,
 	Prewalk,
 	PromptOptions,
+	QueuedMessageEntry,
 	ResetSessionContextResult,
 	ResolvedRoleModel,
 	RestoredQueuedMessage,
@@ -408,6 +409,7 @@ import type {
 	SessionOAuthAccountList,
 	SessionStats,
 	SteerOptions,
+	StudioQueueSnapshotEntry,
 	UsageFallbackConfirmer,
 } from "./agent-session-types";
 // Zeta: the extension layer imports these from here; the merged import above makes
@@ -1250,6 +1252,26 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * command.
 	 */
 	readonly #queuedMessageRawText = new WeakMap<AgentMessage, string>();
+	/**
+	 * Stable generation-local identities for prepared message objects. Duplicate
+	 * display text never shares one, so Studio edits/removals/promotions address
+	 * the exact object they listed rather than matching text or position.
+	 */
+	readonly #queuedMessageIds = new WeakMap<AgentMessage, string>();
+	#studioQueueBarrier: string | undefined;
+	#studioQueueBarrierAbort: (() => void) | undefined;
+	/**
+	 * Prepared user groups held outside the agent's executable queues. A group
+	 * keeps its hidden companions, images and order; `sessionId` is the
+	 * transcript boundary it belongs to, so it is never restored into another
+	 * conversation. `barrier` marks groups held by the active queued compaction.
+	 */
+	readonly #heldQueueGroups: Array<{
+		sessionId: string;
+		queue: "steering" | "followUp";
+		messages: AgentMessage[];
+		barrier?: string;
+	}> = [];
 
 	// Event subscription state
 	#unsubscribeAgent?: () => void;
@@ -2993,7 +3015,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#reseedTokenRate();
 		this.agent.setQueuedMessageGrouping(
 			(previous, next) =>
-				isHiddenUserCompanion(previous) && (isHiddenUserCompanion(next) || isUserQueuedMessage(next)),
+				(this.#queuedMessageIds.has(previous) &&
+					this.#queuedMessageIds.get(previous) === this.#queuedMessageIds.get(next)) ||
+				(isHiddenUserCompanion(previous) && (isHiddenUserCompanion(next) || isUserQueuedMessage(next))),
 		);
 		this.sessionManager = config.sessionManager;
 		// Only a recorded approval may turn a draft file into an execution reference.
@@ -3999,8 +4023,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Await Host-owned snapshots before user delivery and before terminal completion publication. */
-	setBeforeNextUserTurn(hook: (() => Promise<void>) | undefined): void { this.#beforeNextUserTurn = hook; }
-	setAfterUserTurn(hook: (() => Promise<void>) | undefined): void { this.#afterUserTurn = hook; }
+	setBeforeNextUserTurn(hook: (() => Promise<void>) | undefined): void {
+		this.#beforeNextUserTurn = hook;
+	}
+	setAfterUserTurn(hook: (() => Promise<void>) | undefined): void {
+		this.#afterUserTurn = hook;
+	}
 
 	/**
 	 * Opt this session in to autonomous idle maintenance (the idle recap and idle compaction, both governed by
@@ -5021,8 +5049,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * everything it schedules — settles. */
 	#dispatchAgentEvent = async (event: AgentEvent): Promise<void> => {
 		if (event.type === "message_start") computerUserMessageStarted(this.sessionId, event.message, this.instanceKey);
-		if (event.type === "tool_execution_end") computerToolResultDelivered(this.sessionId, event.toolCallId, event.result, this.instanceKey);
-		if (event.type === "message_end" && event.message.role === "toolResult") computerToolResultDelivered(this.sessionId, event.message.toolCallId, event.message, this.instanceKey);
+		if (event.type === "tool_execution_end")
+			computerToolResultDelivered(this.sessionId, event.toolCallId, event.result, this.instanceKey);
+		if (event.type === "message_end" && event.message.role === "toolResult")
+			computerToolResultDelivered(this.sessionId, event.message.toolCallId, event.message, this.instanceKey);
 		// Revoke before the first await: delayed end-of-turn maintenance must
 		// never revoke a foreground-control grant acquired by a later prompt.
 		const computerControlRevocation =
@@ -6830,7 +6860,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// reported `running`; a late `idle` from this one would leave the session
 		// (and its registry ref) showing idle while it streams.
 		const runEpoch = this.#agentEndRunEpochs.get(event);
-		if (!options?.willContinue && (runEpoch === undefined || runEpoch === this.#runEpoch)) await this.#afterUserTurn?.();
+		if (!options?.willContinue && (runEpoch === undefined || runEpoch === this.#runEpoch))
+			await this.#afterUserTurn?.();
 		if (runEpoch === undefined || runEpoch === this.#runEpoch) this.#emitRunState("idle");
 		// Tagged isTerminal so subscribers can tell final settles from scheduled
 		// continuations, and `yielded` so they can tell the agent's own follow-up
@@ -7549,6 +7580,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	beginDispose(): void {
 		this.#isDisposed = true;
+		// Disposal is terminal: no transcript remains for held compaction input to
+		// return to, and no queued compaction may keep a barrier armed.
+		this.#studioQueueBarrier = undefined;
+		this.#studioQueueBarrierAbort = undefined;
+		this.#heldQueueGroups.length = 0;
 		for (const dispose of this.#disposers.splice(0)) dispose();
 		this.#modelDiscoveryAbortController.abort();
 		this.#queuedMessageDrainBlocked = false;
@@ -9293,8 +9329,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			throw new SessionBusyError("restore the workspace");
 		this.#workspaceRestoreActive = true;
 		this.#promptGeneration++;
-		try { return await action(); }
-		finally { this.#workspaceRestoreActive = false; }
+		try {
+			return await action();
+		} finally {
+			this.#workspaceRestoreActive = false;
+		}
 	}
 
 	/** Exact persisted tree selection; later branches remain reachable. Requires the restore fence. */
@@ -9303,23 +9342,36 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (leafId !== null && !this.sessionManager.getEntry(leafId)) throw new Error("Restore branch is unavailable");
 		const oldLeafId = this.sessionManager.getLeafId();
 		if (this.#extensionRunner?.hasHandlers("session_before_tree")) {
-			const result = await this.#extensionRunner.emit({ type: "session_before_tree", signal: new AbortController().signal, preparation: {
-				targetId: leafId ?? "root", oldLeafId, commonAncestorId: leafId,
-				entriesToSummarize: [], userWantsSummary: false,
-			} });
+			const result = await this.#extensionRunner.emit({
+				type: "session_before_tree",
+				signal: new AbortController().signal,
+				preparation: {
+					targetId: leafId ?? "root",
+					oldLeafId,
+					commonAncestorId: leafId,
+					entriesToSummarize: [],
+					userWantsSummary: false,
+				},
+			});
 			if ((result as SessionBeforeTreeResult | undefined)?.cancel) return false;
 		}
 		this.#assertIdleForSnapshot("restore the conversation");
 		await this.#bash.flushPending();
 		await this.sessionManager.selectLeafDurably(leafId);
-		const context = this.sessionManager.buildSessionContext({ maxFrameDataBytes: frameDataBytesBudget(this.model), model: this.model });
-		this.replaceMessagesFromSessionContext(this.#withEvalStateContext(deobfuscateSessionContext(context, this.#obfuscator)).messages);
+		const context = this.sessionManager.buildSessionContext({
+			maxFrameDataBytes: frameDataBytesBudget(this.model),
+			model: this.model,
+		});
+		this.replaceMessagesFromSessionContext(
+			this.#withEvalStateContext(deobfuscateSessionContext(context, this.#obfuscator)).messages,
+		);
 		this.#rehydrateCheckpointRewindState();
 		this.#advisors.resetSessionState({ preserveCost: true });
 		this.#todo.syncFromBranch();
 		this.#modelMentions.syncFromBranch();
 		this.#closeCodexProviderSessionsForHistoryRewrite();
-		if (this.#extensionRunner?.hasHandlers("session_tree")) await this.#extensionRunner.emit({ type: "session_tree", newLeafId: leafId, oldLeafId });
+		if (this.#extensionRunner?.hasHandlers("session_tree"))
+			await this.#extensionRunner.emit({ type: "session_tree", newLeafId: leafId, oldLeafId });
 		return true;
 	}
 
@@ -11665,13 +11717,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		timestamp: number,
 		rawText: string,
 	): AgentMessage[] {
-		this.#allowQueuedMessageDrainRetry();
 		const userMessage: AgentMessage =
 			mode === "followUp"
 				? { role: "user", content, attribution, timestamp }
 				: { role: "user", content, steering: true, attribution, timestamp };
 		this.#queuedMessageRawText.set(userMessage, rawText);
 		const group = [...companions, userMessage];
+		if (mode === "followUp" && this.#holdStudioFollowUp(group)) return group;
+		this.#allowQueuedMessageDrainRetry();
 		if (mode === "followUp") {
 			for (const message of group) this.agent.followUp(message);
 			return group;
@@ -12194,18 +12247,28 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#resumeStrandedIrcAsides();
 			return;
 		}
+		const preparedGroup = [
+			...prependMessages,
+			...(descriptionNotice ? [descriptionNotice] : []),
+			normalizedAppMessage,
+		];
+		// A user follow-up admitted behind a queued compaction waits outside the
+		// executable queue; its companions travel with it and keep their order.
+		if (deliverAs === "followUp" && this.#holdStudioFollowUp(preparedGroup)) {
+			onPromptQueued?.(preparedGroup);
+			onPromptAdmitted?.();
+			return;
+		}
 		this.#allowQueuedMessageDrainRetry();
 		// Keyword notices and their user message must enter the queue in one synchronous phase.
 		if (deliverAs === "followUp") {
-			for (const notice of prependMessages) this.agent.followUp(notice);
-			if (descriptionNotice) this.agent.followUp(descriptionNotice);
+			for (const notice of preparedGroup.slice(0, -1)) this.agent.followUp(notice);
 			this.agent.followUp(normalizedAppMessage);
 		} else {
-			for (const notice of prependMessages) this.agent.steer(notice);
-			if (descriptionNotice) this.agent.steer(descriptionNotice);
+			for (const notice of preparedGroup.slice(0, -1)) this.agent.steer(notice);
 			this.agent.steer(normalizedAppMessage);
 		}
-		onPromptQueued?.([...prependMessages, ...(descriptionNotice ? [descriptionNotice] : []), normalizedAppMessage]);
+		onPromptQueued?.(preparedGroup);
 		onPromptAdmitted?.();
 		this.#scheduleIdleQueueDrain();
 	}
@@ -12339,6 +12402,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				this.#irc.queueAside([normalizedAppMessage]);
 				return false;
 			}
+			if (options?.deliverAs === "followUp" && this.#holdStudioFollowUp([normalizedAppMessage])) return false;
 			this.#allowQueuedMessageDrainRetry();
 
 			if (options?.deliverAs === "followUp") {
@@ -12536,16 +12600,28 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 *  directives, which the user never sees.
 	 *  `forInterrupt` also withdraws input the run already dequeued but never recorded — live-steered
 	 *  into the aborted response, or taken for its next model call — and treats it as queued ahead of
-	 *  the rest (it was queued first). */
-	clearQueue(options?: { forInterrupt?: boolean }): {
+	 *  the rest (it was queued first).
+	 *  `preserveGroups` keeps each prepared user group (companions, images, attribution and order)
+	 *  in {@link #heldQueueGroups} for an identity-addressed restore instead of recording or
+	 *  discarding it. The group stays bound to this transcript; another session never sees it. */
+	clearQueue(options?: { forInterrupt?: boolean; preserveGroups?: boolean }): {
 		steering: RestoredQueuedMessage[];
 		followUp: RestoredQueuedMessage[];
 	} {
 		const withdrawn = options?.forInterrupt ? this.agent.withdrawUndeliveredQueuedMessages() : undefined;
 		const steeringAll = [...(withdrawn?.steering ?? []), ...this.agent.peekSteeringQueue()];
 		const followUpAll = [...(withdrawn?.followUp ?? []), ...this.agent.peekFollowUpQueue()];
-		const steering = steeringAll.filter(isUserAuthoredQueuedMessage).map(toRestoredQueuedMessage);
-		const followUp = followUpAll.filter(isUserAuthoredQueuedMessage).map(toRestoredQueuedMessage);
+		if (options?.preserveGroups) {
+			for (const [queue, messages] of [
+				["steering", steeringAll],
+				["followUp", followUpAll],
+			] as const) {
+				for (const group of this.#queuedUserGroups(messages))
+					this.#heldQueueGroups.push({ sessionId: this.sessionId, queue, messages: group.messages });
+			}
+		}
+		const steering = this.#queuedUserGroups(steeringAll).map(group => toRestoredQueuedMessage(group.anchor));
+		const followUp = this.#queuedUserGroups(followUpAll).map(group => toRestoredQueuedMessage(group.anchor));
 		const recordable = (m: AgentMessage): boolean =>
 			m.role !== "developer" && isDisplayableQueuedMessage(m) && !isUserAuthoredQueuedMessage(m);
 		const recordedOnInterrupt = new Set<AgentMessage>();
@@ -12609,14 +12685,198 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Chip texts for the queue display. Steering live steering took for the streaming response
 	 *  stays listed until the transcript records it, when the model actually switches to it. */
 	getQueuedMessages(): { steering: readonly string[]; followUp: readonly string[]; liveSteered: number } {
-		const liveSteered = this.agent.peekLiveSteeredMessages().filter(isUserAuthoredQueuedMessage).length;
+		const live = this.#queuedUserGroups(this.agent.peekLiveSteeredMessages());
 		return {
-			steering: [...this.agent.peekLiveSteeredMessages(), ...this.agent.peekSteeringQueue()]
-				.filter(isUserAuthoredQueuedMessage)
-				.map(queueChipText),
-			followUp: this.agent.peekFollowUpQueue().filter(isUserAuthoredQueuedMessage).map(queueChipText),
-			liveSteered,
+			steering: [...live, ...this.#queuedUserGroups(this.agent.peekSteeringQueue())].map(group =>
+				queueChipText(group.anchor),
+			),
+			followUp: this.#queuedUserGroups(this.agent.peekFollowUpQueue()).map(group => queueChipText(group.anchor)),
+			liveSteered: live.length,
 		};
+	}
+
+	/** Stable object identities are private to this Runtime generation, never text matched. */
+	#queuedMessageId(message: AgentMessage): string {
+		let id = this.#queuedMessageIds.get(message);
+		if (!id) {
+			id = Bun.randomUUIDv7();
+			this.#queuedMessageIds.set(message, id);
+		}
+		return id;
+	}
+
+	#queuedUserGroups(messages: readonly AgentMessage[]) {
+		const groups: Array<{ id: string; messages: AgentMessage[]; anchor: AgentMessage }> = [];
+		for (let index = messages.length - 1; index >= 0; index--) {
+			const anchor = messages[index]!;
+			if (!isUserAuthoredQueuedMessage(anchor)) continue;
+			const start = this.#queuedUserGroupStart(messages, index);
+			const id = this.#queuedMessageId(anchor);
+			const group = messages.slice(start, index + 1);
+			for (const message of group) this.#queuedMessageIds.set(message, id);
+			groups.push({ id, messages: group, anchor });
+			index = start;
+		}
+		return groups.reverse();
+	}
+
+	#queuedMessageGroups() {
+		const rows: Array<{
+			id: string;
+			queue: "steering" | "followUp";
+			state: "queued" | "inFlight" | "held";
+			messages: AgentMessage[];
+			anchor: AgentMessage;
+			heldFor?: "compaction";
+		}> = [];
+		for (const [queue, state, messages] of [
+			["steering", "inFlight", this.agent.peekLiveSteeredMessages()],
+			["steering", "queued", this.agent.peekSteeringQueue()],
+			["followUp", "queued", this.agent.peekFollowUpQueue()],
+		] as const) {
+			for (const group of this.#queuedUserGroups(messages)) rows.push({ ...group, queue, state });
+		}
+		for (const held of this.#heldQueueGroups)
+			if (held.sessionId === this.sessionId)
+				for (const group of this.#queuedUserGroups(held.messages))
+					rows.push({
+						...group,
+						queue: held.queue,
+						state: "held",
+						...(held.barrier && held.barrier === this.#studioQueueBarrier
+							? { heldFor: "compaction" as const }
+							: {}),
+					});
+		return rows;
+	}
+
+	/** Display rows for the TUI's native queue chips. Held groups stay in the typed entry surface. */
+	getStudioQueueSnapshot(): StudioQueueSnapshotEntry[] {
+		return this.#queuedMessageGroups()
+			.filter(row => row.state !== "held")
+			.map(({ id, queue, state, anchor }) => ({
+				id,
+				queue,
+				state: state === "inFlight" ? ("delivering" as const) : ("pending" as const),
+				text: this.#queuedMessageRawText.get(anchor) ?? queueChipText(anchor),
+				imageCount: toRestoredQueuedMessage(anchor).images?.length ?? 0,
+			}));
+	}
+
+	/** Editor-restorable draft for one queued entry, including images and the caller's raw text. */
+	getStudioQueueDraft(id: string): RestoredQueuedMessage | undefined {
+		const row = this.#queuedMessageGroups().find(row => row.id === id);
+		if (!row || row.state !== "queued") return undefined;
+		const draft = toRestoredQueuedMessage(row.anchor);
+		return { ...draft, text: this.#queuedMessageRawText.get(row.anchor) ?? draft.text };
+	}
+
+	steerStudioQueuedMessage(id: string): boolean {
+		const row = this.#queuedMessageGroups().find(row => row.id === id);
+		return !!row && row.state === "queued" && (row.queue === "steering" || this.promoteQueuedMessage({ id }));
+	}
+
+	removeStudioQueuedMessage(id: string): boolean {
+		const row = this.#queuedMessageGroups().find(row => row.id === id);
+		return !!row && row.state === "queued" && this.removeQueuedMessage({ id }, row.queue);
+	}
+
+	/**
+	 * Typed Studio queue surface: every prepared user group, including those held
+	 * outside the executable queues. `text` is display text; identity is `id`.
+	 */
+	getQueuedMessageEntries(): QueuedMessageEntry[] {
+		return this.#queuedMessageGroups().map(({ id, queue, state, anchor, heldFor }) => ({
+			...(heldFor ? { heldFor } : {}),
+			id,
+			queue,
+			state,
+			text: queueChipText(anchor),
+			imageCount: toRestoredQueuedMessage(anchor).images?.length ?? 0,
+			editable: state !== "inFlight" && anchor.role === "user",
+		}));
+	}
+
+	/** Edit prepared text in place. Keep images, attribution and hidden companions; never replay commands. */
+	editQueuedMessage(id: string, queue: "steering" | "followUp", expectedText: string, text: string): boolean {
+		const held = this.#heldQueueGroups.find(
+			group =>
+				group.sessionId === this.sessionId &&
+				group.queue === queue &&
+				group.messages.some(message => this.#queuedMessageIds.get(message) === id),
+		);
+		const messages =
+			held?.messages ?? (queue === "steering" ? this.agent.peekSteeringQueue() : this.agent.peekFollowUpQueue());
+		const index = this.#findQueuedUserMessage(messages, { id });
+		const message = messages[index];
+		if (!message || message.role !== "user" || queueChipText(message) !== expectedText) return false;
+		if (!text.trim() || text.length > 32768) throw new Error("Invalid queue text");
+		const images = typeof message.content === "string" ? [] : message.content.filter(part => part.type !== "text");
+		message.content = [{ type: "text", text }, ...images];
+		this.#queuedMessageRawText.set(message, text);
+		if (!held) {
+			this.agent.replaceQueue(queue, [...messages]);
+			this.#reconcileQueuedMessageDrain();
+		}
+		return true;
+	}
+
+	/** Return a held original group to execution only after an explicit operator action. */
+	restoreQueuedMessage(id: string): boolean {
+		const index = this.#heldQueueGroups.findIndex(
+			group =>
+				group.sessionId === this.sessionId &&
+				group.messages.some(message => this.#queuedMessageIds.get(message) === id),
+		);
+		if (index < 0) return false;
+		if (this.#studioQueueBarrier) return false;
+		const [group] = this.#heldQueueGroups.splice(index, 1);
+		this.#advisors.autoResumeSuppressed = false;
+		if (group.queue === "steering")
+			this.agent.moveFollowUpsToSteering([...this.agent.peekFollowUpQueue()], group.messages);
+		else this.agent.replaceQueue("followUp", [...this.agent.peekFollowUpQueue(), ...group.messages]);
+		this.#allowQueuedMessageDrainRetry();
+		this.#scheduleIdleQueueDrain();
+		return true;
+	}
+
+	/** Hold every later user follow-up outside executable queues until native compaction settles. */
+	beginStudioQueueBarrier(id: string, onAbort: () => void): void {
+		this.#studioQueueBarrier = id;
+		this.#studioQueueBarrierAbort = onAbort;
+	}
+
+	get hasStudioQueueBarrier(): boolean {
+		return this.#studioQueueBarrier !== undefined;
+	}
+
+	#holdStudioFollowUp(messages: AgentMessage[]): boolean {
+		if (!this.#studioQueueBarrier || !messages.some(isUserAuthoredQueuedMessage)) return false;
+		this.#heldQueueGroups.push({
+			sessionId: this.sessionId,
+			queue: "followUp",
+			messages,
+			barrier: this.#studioQueueBarrier,
+		});
+		return true;
+	}
+
+	/** Release one barrier. `restore` returns its held groups only inside their own transcript. */
+	releaseStudioQueueBarrier(id: string, restore: boolean): void {
+		if (this.#studioQueueBarrier === id) {
+			this.#studioQueueBarrier = undefined;
+			this.#studioQueueBarrierAbort = undefined;
+		}
+		if (!restore) return;
+		const ids = this.#heldQueueGroups
+			.filter(group => group.sessionId === this.sessionId && group.barrier === id)
+			.flatMap(group => this.#queuedUserGroups(group.messages).map(row => row.id));
+		for (const queued of ids) this.restoreQueuedMessage(queued);
+	}
+
+	/** Whether this transcript still owns input held out of execution. */
+	get hasHeldQueuedMessages(): boolean {
+		return this.#heldQueueGroups.some(group => group.sessionId === this.sessionId);
 	}
 
 	/** Last {@link getQueuedMessages} snapshot emitted as a `queue_update` event.
@@ -12661,7 +12921,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * already delivered target changes nothing; repeated calls may remove further
 	 * duplicates.
 	 */
-	removeQueuedMessage(text: string, queue: "steering" | "followUp"): boolean {
+	removeQueuedMessage(text: string | { id: string }, queue: "steering" | "followUp"): boolean {
 		return this.takeQueuedMessage(text, queue) !== undefined;
 	}
 
@@ -12683,7 +12943,19 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * {@link removeQueuedMessage}, returning the removed message as editor-restorable
 	 * content (its chip text and images); undefined when nothing matched.
 	 */
-	takeQueuedMessage(text: string, queue: "steering" | "followUp"): RestoredQueuedMessage | undefined {
+	takeQueuedMessage(text: string | { id: string }, queue: "steering" | "followUp"): RestoredQueuedMessage | undefined {
+		if (typeof text !== "string") {
+			const held = this.#heldQueueGroups.findIndex(
+				group =>
+					group.sessionId === this.sessionId &&
+					group.queue === queue &&
+					group.messages.some(message => this.#queuedMessageIds.get(message) === text.id),
+			);
+			if (held >= 0) {
+				const [group] = this.#heldQueueGroups.splice(held, 1);
+				return toRestoredQueuedMessage(group.messages[group.messages.length - 1]);
+			}
+		}
 		const selected = queue === "steering" ? this.agent.peekSteeringQueue() : this.agent.peekFollowUpQueue();
 		const index = this.#findQueuedUserMessage(selected, text);
 		if (index < 0) return undefined;
@@ -12700,7 +12972,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * {@link removeQueuedMessage}; agent-attributed handoffs are never promoted. A missing
 	 * or already delivered target changes nothing; repeated calls may promote duplicates.
 	 */
-	promoteQueuedMessage(text: string): boolean {
+	promoteQueuedMessage(text: string | { id: string }): boolean {
 		const followUp = this.agent.peekFollowUpQueue();
 		const index = this.#findQueuedUserMessage(followUp, text);
 		if (index < 0) return false;
@@ -12726,7 +12998,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * matches the raw text the caller originally submitted first, then the queued chip text
 	 * itself (exact); -1 when nothing matches.
 	 */
-	#findQueuedUserMessage(queue: readonly AgentMessage[], text: string): number {
+	#findQueuedUserMessage(queue: readonly AgentMessage[], text: string | { id: string }): number {
+		if (typeof text !== "string")
+			return queue.findLastIndex(
+				message => isUserAuthoredQueuedMessage(message) && this.#queuedMessageIds.get(message) === text.id,
+			);
 		let index = queue.findIndex(
 			message => isUserAuthoredQueuedMessage(message) && this.#queuedMessageRawText.get(message) === text,
 		);
@@ -12739,7 +13015,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Companions are inserted contiguously before their user; this is where that group starts. */
 	#queuedUserGroupStart(queue: readonly AgentMessage[], userIndex: number): number {
 		let start = userIndex;
-		while (start > 0 && isHiddenUserCompanion(queue[start - 1])) start--;
+		const id = this.#queuedMessageIds.get(queue[userIndex]);
+		while (
+			start > 0 &&
+			(isHiddenUserCompanion(queue[start - 1]) ||
+				(id !== undefined && this.#queuedMessageIds.get(queue[start - 1]) === id))
+		)
+			start--;
 		return start;
 	}
 
@@ -13513,8 +13795,19 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		deliverQueuedMessages?: boolean;
 		/** Internal `/compact` startup keeps the manual-compaction marker alive while aborting the active turn. */
 		preserveCompaction?: boolean;
+		/** Studio keeps admitted input groups in the native hold surface instead of recording or dropping them. */
+		preserveQueuedInput?: boolean;
 	}): Promise<void> {
 		const userInterrupt = options?.reason === USER_INTERRUPT_LABEL;
+		// A queued compaction owns the yield boundary: abort cancels its request
+		// first so no later turn starts while it is still queued. Input admitted
+		// behind that barrier is preserved for an explicit restore rather than
+		// auto-resumed or recorded into a transcript that never consumed it.
+		const studioBarrierActive = this.#studioQueueBarrier !== undefined;
+		if (!options?.preserveCompaction) this.#studioQueueBarrierAbort?.();
+		const preserveQueuedInput =
+			options?.preserveQueuedInput === true || (studioBarrierActive && options?.preserveCompaction !== true);
+		if (preserveQueuedInput) this.clearQueue({ forInterrupt: true, preserveGroups: true });
 		this.#pendingAbortErrorId = userInterrupt ? AIError.create(AIError.Flag.UserInterrupt) : undefined;
 		// Latch only when the interrupt stops something; an idle Esc would otherwise fold
 		// every later background completion for the rest of the session.
@@ -13625,6 +13918,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				} else this.#recordWithoutTurn([message]);
 			}
 		} finally {
+			// Input that arrived during the abort window belongs to the same held
+			// boundary: capture it before the stranded-queue drain can execute it.
+			if (preserveQueuedInput) this.clearQueue({ forInterrupt: true, preserveGroups: true });
 			this.#abortInProgress = false;
 			this.#drainStrandedQueuedMessages();
 			if (forceQueuedDelivery) this.#forcedQueuedMessageDeliveryCount--;
@@ -17798,6 +18094,26 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	get extensionRunner(): ExtensionRunner | undefined {
 		return this.#extensionRunner;
+	}
+
+	/**
+	 * Link schemes claimed by this session's own extension runner. The runner
+	 * gates them on `extensionRenderers.assistantText`, so a host that renders
+	 * links itself still sees only the schemes native rendering enabled.
+	 */
+	getStudioLinkSchemes(): string[] {
+		return this.#extensionRunner?.getLinkSchemes() ?? [];
+	}
+
+	/**
+	 * Deliver a link click to this session's own extension runner and its own UI
+	 * context. Disposal is terminal: nothing may reach a handler afterwards.
+	 */
+	async activateStudioLink(url: string): Promise<boolean> {
+		if (this.#isDisposed) return false;
+		const runner = this.#extensionRunner;
+		if (!runner) return false;
+		return runner.emitLinkActivate(url, runner.getUIContext());
 	}
 
 	/**

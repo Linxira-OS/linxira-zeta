@@ -1897,15 +1897,24 @@ impl Worker {
 }
 
 #[cfg(target_os = "macos")]
-fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+fn create_backend(
+	selector: DisplaySelector,
+	observation_only: bool,
+) -> CoreResult<Box<dyn Backend>> {
 	Ok(Box::new(macos::MacosBackend::new_observed(selector, observation_only)?))
 }
 #[cfg(target_os = "windows")]
-fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+fn create_backend(
+	selector: DisplaySelector,
+	observation_only: bool,
+) -> CoreResult<Box<dyn Backend>> {
 	Ok(Box::new(win32::Win32Backend::new_observed(selector, observation_only)?))
 }
 #[cfg(target_os = "linux")]
-fn create_backend(selector: DisplaySelector, observation_only: bool) -> CoreResult<Box<dyn Backend>> {
+fn create_backend(
+	selector: DisplaySelector,
+	observation_only: bool,
+) -> CoreResult<Box<dyn Backend>> {
 	linux::new_backend_observed(selector, observation_only)
 }
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]

@@ -112,10 +112,20 @@ export interface WebMcpEventsResult {
 }
 
 export interface StudioWebMcpCatalog extends WebMcpListResult {
-  pageId: string;
-  documentId?: string;
-  invocationAvailable: boolean;
+	pageId: string;
+	documentId?: string;
+	invocationAvailable: boolean;
 }
-export type WebMcpOperation = { kind: "browser.webmcp.invoke"; sessionId: string; pageId: string; documentId: string; name: string; params: Record<string, unknown>; options?: WebMcpInvokeOptions };
-export interface WebMcpResultMap { "browser.webmcp.invoke": WebMcpInvokeResult }
+export type WebMcpOperation = {
+	kind: "browser.webmcp.invoke";
+	sessionId: string;
+	pageId: string;
+	documentId: string;
+	name: string;
+	params: Record<string, unknown>;
+	options?: WebMcpInvokeOptions;
+};
+export interface WebMcpResultMap {
+	"browser.webmcp.invoke": WebMcpInvokeResult;
+}
 export const WEBMCP_KINDS = ["browser.webmcp.invoke"] as const;

@@ -13,18 +13,36 @@ test("draft queries never become confirmed history and clear leaves unrelated pr
 	const calls: Array<[string, string]> = [];
 	let stopped = false;
 	const client = {
-		async complete(_method: string, before: string, prefix: string) { calls.push([before, prefix]); return { engine: "ngram" as const, suggestion: { suffix: "view", confidence: 0.9 } }; },
-		sync() {}, close() {}, async stop() { stopped = true; },
+		async complete(_method: string, before: string, prefix: string) {
+			calls.push([before, prefix]);
+			return { engine: "ngram" as const, suggestion: { suffix: "view", confidence: 0.9 } };
+		},
+		sync() {},
+		close() {},
+		async stop() {
+			stopped = true;
+		},
 	};
-	const engine = new StudioPredictionEngine({ sessionId: "owner", settings: Settings.isolated() }, { directory: root.join("studio"), client });
+	const engine = new StudioPredictionEngine(
+		{ sessionId: "owner", settings: Settings.isolated() },
+		{ directory: root.join("studio"), client },
+	);
 	try {
-		expect(await engine.query({ sessionId: "owner", version: 2, before: "draft-only ", prefix: "re" })).toEqual({ version: 2, suffix: "view", engine: "ngram" });
+		expect(await engine.query({ sessionId: "owner", version: 2, before: "draft-only ", prefix: "re" })).toEqual({
+			version: 2,
+			suffix: "view",
+			engine: "ngram",
+		});
 		expect(await Bun.file(getHistoryDbPath(root.join("studio"))).exists()).toBe(false);
 		await engine.observeSent("submission-a", "confirmed prompt");
 		await engine.observeSent("submission-a", "confirmed prompt");
 		expect((await engine.control("status")).corpusCount).toBe(1);
 		const db = new Database(getHistoryDbPath(root.join("studio")), { readonly: true });
-		try { expect(db.query("SELECT prompt FROM history").all()).toEqual([{ prompt: "confirmed prompt" }]); } finally { db.close(); }
+		try {
+			expect(db.query("SELECT prompt FROM history").all()).toEqual([{ prompt: "confirmed prompt" }]);
+		} finally {
+			db.close();
+		}
 		await fs.mkdir(root.join("studio", "studio-predict"));
 		await Bun.write(root.join("studio", "studio-predict", "learned"), "private state");
 		await Bun.write(root.join("tui-history"), "keep");
@@ -33,7 +51,10 @@ test("draft queries never become confirmed history and clear leaves unrelated pr
 		expect(await Bun.file(root.join("studio", "studio-predict", "learned")).exists()).toBe(false);
 		expect(await Bun.file(root.join("tui-history")).text()).toBe("keep");
 		expect(calls).toEqual([["draft-only ", "re"]]);
-	} finally { engine.dispose(); await root.remove(); }
+	} finally {
+		engine.dispose();
+		await root.remove();
+	}
 });
 
 test("private prediction inputs reject unknown fields, malformed revisions and mismatched editor state", () => {
@@ -45,6 +66,12 @@ test("private prediction inputs reject unknown fields, malformed revisions and m
 		{ kind: "next", revision: 2, empty: true, text: "draft" },
 		{ kind: "next.accepted", revision: 2, rank: 4 },
 		{ kind: "import", requestId: "../escape", transferId: "not-a-transfer" },
-	]) expect(() => parsePredictionInput(input)).toThrow();
-	expect(parsePredictionInput({ kind: "next", revision: 0, empty: true, text: "" })).toEqual({ kind: "next", revision: 0, empty: true, text: "" });
+	])
+		expect(() => parsePredictionInput(input)).toThrow();
+	expect(parsePredictionInput({ kind: "next", revision: 0, empty: true, text: "" })).toEqual({
+		kind: "next",
+		revision: 0,
+		empty: true,
+		text: "",
+	});
 });

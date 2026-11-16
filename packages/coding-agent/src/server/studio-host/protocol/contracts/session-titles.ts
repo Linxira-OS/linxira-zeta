@@ -26,8 +26,3 @@ export const SESSION_TITLES_KINDS = ["session.titles.inspect"] as const;
 export function isSessionTitlesKind(kind: string): kind is SessionTitlesOperation["kind"] {
 	return kind === "session.titles.inspect";
 }
-
-
-
-
-

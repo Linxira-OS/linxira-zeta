@@ -3,17 +3,20 @@ import type { StudioClient } from "@linxiraos/studio-contract";
 import type { QueueTakeback, SessionQueueItem, SessionQueueSnapshot } from "@linxiraos/studio-protocol";
 import { waitReceipt, hostErrorMessage } from "../hostError";
 import { useI18n } from "../i18n";
-import { artifactUrl } from "../media/artifactUrl";
+import { resolveArtifactUrl } from "../media/artifactUrl";
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
 import { isImageMimeType, type ComposerSnapshot, type PromptImage } from "./types";
 import { displayDocFromSerializedText, snapshotFromDoc, snapshotFromTextAndImages } from "./serialize";
 
-export async function queueTakebackSnapshot(value:QueueTakeback):Promise<ComposerSnapshot> {
+export async function queueTakebackSnapshot(value:QueueTakeback,options:{client?:StudioClient|undefined;targetId?:string|null|undefined;signal?:AbortSignal|undefined}={}):Promise<ComposerSnapshot> {
  const images:PromptImage[]=[];
  for(const asset of value.images){
   if(!isImageMimeType(asset.mimeType))throw Error("Unsupported recovered image type");
-  const response=await fetch(artifactUrl(asset.artifactId));if(!response.ok)throw Error("Recovered image unavailable");
+  if(!options.client)throw Error("Recovered image unavailable");
+  const url=await resolveArtifactUrl(options.client,asset.artifactId,options.targetId,options.signal);
+  const response=await fetch(url,options.signal?{signal:options.signal}:{});if(!response.ok)throw Error("Recovered image unavailable");
   const blob=await response.blob();if(blob.size!==asset.bytes)throw Error("Recovered image size changed");
-  const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(Error("Image read failed"));reader.onload=()=>resolve(String(reader.result).split(",",2)[1]!);reader.readAsDataURL(blob);});
+  const {promise,resolve,reject}=Promise.withResolvers<string>();const reader=new FileReader();reader.onerror=()=>reject(Error("Image read failed"));reader.onload=()=>resolve(String(reader.result).split(",",2)[1]!);reader.readAsDataURL(blob);const data=await promise;
   images.push({type:"image",mimeType:asset.mimeType,data});
  }
  const restored=snapshotFromTextAndImages(value.text??"",images);
@@ -23,6 +26,9 @@ export async function queueTakebackSnapshot(value:QueueTakeback):Promise<Compose
 /** Authoritative Runtime queue. No send retry and no Renderer-owned flush loop. */
 export function RuntimeQueue({client,sessionId,available,hasDraft,onRecover,running=false,pending=0}:{client:StudioClient;sessionId:string|undefined;available:boolean;hasDraft:()=>boolean;onRecover:(snapshot:ComposerSnapshot,sessionId:string)=>void;running?:boolean;pending?:number}){
  const {resolvedLanguage}=useI18n();const zh=resolvedLanguage==="zh";
+ const {id:targetId}=useExecutionTarget();
+ const restoreSignals=useRef(new Set<AbortController>());
+ useEffect(()=>()=>{for(const controller of restoreSignals.current)controller.abort();restoreSignals.current.clear();},[]);
  const [offset,setOffset]=useState(0);
  const [snapshot,setSnapshot]=useState<SessionQueueSnapshot>();const [error,setError]=useState("");const [busy,setBusy]=useState(false);const [review,setReview]=useState<SessionQueueItem>();const [recovered,setRecovered]=useState<{value:QueueTakeback;sessionId:string}>();const epoch=useRef(0);const locked=useRef(false);const delivered=useRef(new Set<string>());
  const reading=useRef(false);const queuedRead=useRef<(()=>void)|undefined>(undefined);
@@ -50,18 +56,21 @@ export function RuntimeQueue({client,sessionId,available,hasDraft,onRecover,runn
  },[client,sessionId,available,offset,running,pending]);
  useEffect(()=>setOffset(0),[sessionId]);
  const restore=async(value:QueueTakeback,owner:string,generation:number)=>{
-  const key=owner+":"+value.recoveryId;
-  if(!value.recoveryId||!delivered.current.has(key)){
-   const draft=await queueTakebackSnapshot(value);
-   if(epoch.current!==generation)return;
-   onRecover(draft,owner);
-   if(value.recoveryId)delivered.current.add(key);
-  }
-  if(value.recoveryId){
-   const handle=await client.command("session.queue.ack",{sessionId:owner,id:value.recoveryId});
-   await waitReceipt(client,handle.requestId);
-  }
-  setRecovered(undefined);
+  const controller=new AbortController();restoreSignals.current.add(controller);
+  try{
+   const key=owner+":"+value.recoveryId;
+   if(!value.recoveryId||!delivered.current.has(key)){
+    const draft=await queueTakebackSnapshot(value,{client,targetId,signal:controller.signal});
+    if(epoch.current!==generation)return;
+    onRecover(draft,owner);
+    if(value.recoveryId)delivered.current.add(key);
+   }
+   if(value.recoveryId){
+    const handle=await client.command("session.queue.ack",{sessionId:owner,id:value.recoveryId});
+    await waitReceipt(client,handle.requestId);
+   }
+   setRecovered(undefined);
+  }finally{restoreSignals.current.delete(controller);}
  };
  const act=async(item:SessionQueueItem,takeback:boolean,steer=false)=>{if(!sessionId||locked.current)return;const owner=sessionId;const generation=epoch.current;locked.current=true;setBusy(true);setError("");try{
   if(takeback){const handle=await client.command("session.queue.takeback",{sessionId:owner,id:item.id});const {result}=await waitReceipt<{result:QueueTakeback}>(client,handle.requestId);if(!result.removed)throw Error(zh?"消息已被消费，无法取回":"Message already consumed; cannot take back");setRecovered({value:result,sessionId:owner});if(epoch.current===generation)await restore(result,owner,generation);}

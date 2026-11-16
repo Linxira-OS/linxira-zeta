@@ -56,10 +56,16 @@ export function registerComputerScope(hook: ComputerScopeHook): () => void {
 	scopes.add(hook);
 	return () => scopes.delete(hook);
 }
-export async function computerRunPermits(sessionId: string, ownerId?: string, instanceKey?: string): Promise<ComputerRunPermit[]> {
+export async function computerRunPermits(
+	sessionId: string,
+	ownerId?: string,
+	instanceKey?: string,
+): Promise<ComputerRunPermit[]> {
 	if (bridge) return bridge.permits(sessionId, ownerId, instanceKey);
 	return Promise.all(
-		[...scopes].filter(scope => scope.owns(sessionId, ownerId, instanceKey)).map(scope => scope.authorize(sessionId, ownerId, instanceKey)),
+		[...scopes]
+			.filter(scope => scope.owns(sessionId, ownerId, instanceKey))
+			.map(scope => scope.authorize(sessionId, ownerId, instanceKey)),
 	);
 }
 export function hasComputerScope(sessionId: string, ownerId?: string, instanceKey?: string): boolean {
@@ -86,9 +92,15 @@ export function computerUserMessageStarted(sessionId: string, message: unknown, 
 		bridge.consumeIntent(sessionId, message, instanceKey);
 		return;
 	}
-	for (const scope of scopes) if (scope.owns(sessionId, undefined, instanceKey)) scope.consumeIntent?.(sessionId, message, instanceKey);
+	for (const scope of scopes)
+		if (scope.owns(sessionId, undefined, instanceKey)) scope.consumeIntent?.(sessionId, message, instanceKey);
 }
-export function computerToolResultDelivered(sessionId: string, toolCallId: string, result: unknown, instanceKey?: string): unknown {
+export function computerToolResultDelivered(
+	sessionId: string,
+	toolCallId: string,
+	result: unknown,
+	instanceKey?: string,
+): unknown {
 	if (bridge) {
 		const delivered = bridge.deliver(sessionId, toolCallId, result, instanceKey);
 		if (result && typeof result === "object" && delivered && typeof delivered === "object") {
@@ -97,6 +109,7 @@ export function computerToolResultDelivered(sessionId: string, toolCallId: strin
 		}
 		return result;
 	}
-	for (const scope of scopes) if (scope.owns(sessionId, undefined, instanceKey)) scope.deliver?.(sessionId, toolCallId, result, instanceKey);
+	for (const scope of scopes)
+		if (scope.owns(sessionId, undefined, instanceKey)) scope.deliver?.(sessionId, toolCallId, result, instanceKey);
 	return result;
 }

@@ -11,12 +11,17 @@ import json
 import os
 import queue
 import re
+import shutil
 import signal
 import sys
 import threading
 import time
 import traceback
+import uuid
 from contextlib import redirect_stderr, redirect_stdout
+
+_STUDIO_IDENTITY = str(uuid.uuid4())
+_STUDIO_VERSION = 0
 
 # Keep a private handle on the real stdout for protocol frames, then point fd 1 at stderr so
 # kernel messages and stray prints can never corrupt the NDJSON stream.
@@ -437,21 +442,63 @@ def _view_overview():
 
 
 def _view_imports():
-    return _text(f"0x{ea:x}  {module}!{name}" for ea, module, name in imports())
+    return _text(_view_list("imports")[0])
 
 
 def _view_exports():
-    lines = []
-    for e in _db().entries.get_all():
-        line = f"0x{e.address:x}  {e.name}  (ordinal {e.ordinal})"
-        if e.forwarder_name:
-            line += f" -> {e.forwarder_name}"
-        lines.append(line)
-    return _text(lines)
+    return _text(_view_list("exports")[0])
 
 
 def _view_strings():
-    return _text(f"0x{ea:x}  {json.dumps(s, ensure_ascii=False)}" for ea, s in strings())
+    return _text(_view_list("strings")[0])
+
+
+def _view_list(kind, offset=0, limit=None):
+    db = _db()
+    if kind == "functions":
+        items = db.functions.get_all()
+        def render(item):
+            return f"0x{item.start_ea:x}  {ida_funcs.get_func_name(item.start_ea)}"
+    elif kind == "imports":
+        items = db.imports.get_all_imports()
+        def render(item):
+            return f"0x{item.address:x}  {item.module_name}!{item.name or f'#{item.ordinal}'}"
+    elif kind == "exports":
+        items = db.entries.get_all()
+        def render(item):
+            line = f"0x{item.address:x}  {item.name}  (ordinal {item.ordinal})"
+            return line + (f" -> {item.forwarder_name}" if item.forwarder_name else "")
+    elif kind == "strings":
+        items = db.strings.get_all()
+        def render(item):
+            raw = ida_bytes.get_strlit_contents(item.address, item.length, item.internal_type) or b""
+            return f"0x{item.address:x}  {json.dumps(raw.decode('utf-8', 'replace'), ensure_ascii=False)}"
+    else:
+        raise ValueError(f"unknown list view: {kind}")
+    lines = []
+    total = 0
+    for index, item in enumerate(items):
+        total = index + 1
+        if index >= offset and (limit is None or index < offset + limit):
+            lines.append(render(item).expandtabs(4))
+    return lines, total
+
+
+def _view_page(params, offset, limit, delegate):
+    if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
+        raise ValueError("Invalid IDA page")
+    if params.get("kind") in ("functions", "imports", "exports", "strings"):
+        page, total = _view_list(params["kind"], offset, limit)
+    else:
+        lines = delegate(params)["text"].splitlines()
+        total = len(lines)
+        page = lines[offset:offset + limit]
+    if offset > total:
+        raise ValueError("IDA page is out of range")
+    result = {"text": "\n".join(line[:2048] for line in page), "total": total, "offset": offset, "truncated": any(len(line) > 2048 for line in page)}
+    if offset + len(page) < total:
+        result["nextOffset"] = offset + len(page)
+    return result
 
 
 def _view_xrefs(target):
@@ -577,6 +624,8 @@ def _rpc_open(params):
 
 def _rpc_view(params):
     kind = params.get("kind") or "overview"
+    if kind == "functions":
+        return {"text": _text(_view_list("functions")[0])}
     if kind in _PLAIN_VIEWS:
         return {"text": _PLAIN_VIEWS[kind]()}
     if kind in _TARGET_VIEWS:
@@ -588,6 +637,10 @@ def _rpc_view(params):
 
 
 def _rpc_exec(params):
+    # Studio requests a checkpoint in this same serialized worker request: no
+    # other process can edit between the checkpoint and the requested code.
+    if params.get("studioBackup"):
+        _rpc_save({"studioBackup": params["studioBackup"]})
     code = params.get("code") or ""
     buf = io.StringIO()
     value = None
@@ -632,9 +685,23 @@ def _rpc_save(params):
     global _DIRTY
     _db()
     p = _idb_path()
+    backup = params.get("studioBackup")
+    if backup:
+        if not isinstance(backup, str) or not os.path.isabs(backup):
+            raise ValueError("Studio checkpoint must be an absolute file path")
+        if os.path.realpath(backup) == os.path.realpath(p):
+            raise ValueError("Studio checkpoint cannot replace the database")
+        # Exclusive creation preserves existing recovery copies. Keep the
+        # original disk version before saving the current in-memory database.
+        if os.path.isfile(p):
+            with open(p, "rb") as source, open(backup + ".before-flush", "xb") as target:
+                shutil.copyfileobj(source, target)
     if not ida_loader.save_database(p, 0):
         raise RuntimeError("save failed")
     _DIRTY = False
+    if backup:
+        with open(p, "rb") as source, open(backup, "xb") as target:
+            shutil.copyfileobj(source, target)
     return {"idb": p}
 
 
@@ -759,6 +826,7 @@ def _close_and_exit(save):
 
 
 def _handle(line):
+    global _STUDIO_VERSION
     _arm_sigint()
     req_id = None
     try:
@@ -768,8 +836,27 @@ def _handle(line):
         req_id = req.get("id")
         method = req.get("method")
         params = req.get("params") or {}
+        studio = method == "studio"
+        if studio:
+            envelope = params
+            method = envelope.get("method")
+            if method == "status":
+                _send({"id": req_id, "ok": True, "result": {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": {}}})
+                return
+            if envelope.get("identity") != _STUDIO_IDENTITY or type(envelope.get("version")) is not int or envelope["version"] != _STUDIO_VERSION:
+                raise ValueError("IDA database changed; review the current identity and version")
+            if method not in ("view", "exec", "rename", "comment", "set_type", "make_function", "save", "close"):
+                raise ValueError("Unsupported Studio IDA method")
+            params = envelope.get("params") or {}
+        if method in ("open", "exec", "rename", "comment", "set_type", "make_function", "save", "close"):
+            # Failures and cancellation can leave partial edits; invalidate reviews before dispatch.
+            _STUDIO_VERSION += 1
         if method == "close":
             save = bool(params.get("save"))
+            checkpoint = None
+            if studio and save and DB is not None:
+                checkpoint = os.path.abspath(_idb_path()) + ".studio-" + uuid.uuid4().hex + ".backup"
+                _rpc_save({"studioBackup": checkpoint})
             try:
                 if DB is not None:
                     DB.close(save=save)
@@ -777,7 +864,10 @@ def _handle(line):
                 _send({"id": req_id, "ok": False, "error": _error(e)})
                 traceback.print_exc()
                 sys.exit(1)
-            _send({"id": req_id, "ok": True, "result": {"closed": True, "saved": save}})
+            closed = {"closed": True, "saved": save}
+            if checkpoint:
+                closed["backup"] = checkpoint
+            _send({"id": req_id, "ok": True, "result": {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": closed} if studio else closed})
             sys.exit(0)
         handler = _METHODS.get(method)
         if handler is None:
@@ -787,6 +877,21 @@ def _handle(line):
     except BaseException as e:
         _send({"id": req_id, "ok": False, "error": _error(e)})
         return
+    if studio:
+        delegate = handler
+        def guarded(params):
+            checkpoint = None
+            if method in ("exec", "rename", "comment", "set_type", "make_function", "save"):
+                checkpoint = os.path.abspath(_idb_path()) + ".studio-" + uuid.uuid4().hex + ".backup"
+                _rpc_save({"studioBackup": checkpoint})
+            if method == "view":
+                result = _view_page(params, envelope.get("offset", 0), envelope.get("limit", 100), delegate)
+            else:
+                result = delegate(params)
+                if checkpoint:
+                    result = {"result": result, "backup": checkpoint}
+            return {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": result}
+        handler = guarded
     ok, result = _run(req_id, handler, params)
     if ok:
         _send({"id": req_id, "ok": True, "result": result, "dirty": _DIRTY})

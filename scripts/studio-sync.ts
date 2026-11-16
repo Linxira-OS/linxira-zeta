@@ -203,7 +203,11 @@ export async function syncStudio(
 		const row: SyncRow = { ...changed, ...(local === undefined ? {} : { local }), status: "repository-review" };
 		rows.push(row);
 		if (local === undefined) {
-			if (changed.upstream.startsWith("apps/desktop/") || changed.upstream.startsWith("packages/") || changed.upstream.startsWith("omp-patch/"))
+			if (
+				changed.upstream.startsWith("apps/desktop/") ||
+				changed.upstream.startsWith("packages/") ||
+				changed.upstream.startsWith("omp-patch/")
+			)
 				row.status = "host-adaptation";
 			continue;
 		}

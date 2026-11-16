@@ -247,11 +247,16 @@ function toFileNodes(entries: readonly FileEntry[], base: string): WorkspaceFile
 async function listProjects(): Promise<WorkspaceListReadModel> {
 	const result = toWorkspaceList(await loadProjectDirectory());
 	const selection = currentStudioSelection();
-	return selection === undefined ? result : {
-		...result,
-		activeWorkspaceId: selection.workspaceId as WorkspaceId,
-		workspaces: result.workspaces.map(workspace => ({ ...workspace, active: workspace.workspaceId === selection.workspaceId })),
-	};
+	return selection === undefined
+		? result
+		: {
+				...result,
+				activeWorkspaceId: selection.workspaceId as WorkspaceId,
+				workspaces: result.workspaces.map(workspace => ({
+					...workspace,
+					active: workspace.workspaceId === selection.workspaceId,
+				})),
+			};
 }
 
 /**

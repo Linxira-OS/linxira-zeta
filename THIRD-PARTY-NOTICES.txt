@@ -21,18 +21,17 @@ Forked application trees:
 |---|---|---|---|---|
 | `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.20.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
 | `web-ui/` | OMP Web, https://github.com/17380936778/omp-web | frozen snapshot, **abandoned 2026-11-05** (`document/upstream-sync.md`) | see upstream files | third-party UI, not maintained by Zeta: frozen as received, no builds, no fixes; the product renderer is `web-app/` (`Differences from Upstream` in README) |
-| `web-app/` (`src/studio`, `src/vendor/*`) | OMP Studio, https://github.com/the-snowpear/omp-studio | `0.1.17` integrated; official `v0.2.1` (`6d0b764bb9eac88c1671c0380229823c5630cc74`) is the current integration target | MIT | maintained by Zeta now: the host contract is reimplemented in `studio-host` (pair/CSRF/query/command/events), the renderer was rebranded (`zeta-studio` wire name, Zeta links/fixtures), and Zeta adds windowed transcripts, precompressed static serving, the plugin registry, and the usage dashboard |
+| `web-app/` (`src/studio`, `src/vendor/*`) | OMP Studio, https://github.com/the-snowpear/omp-studio | official `v0.2.1` (`6d0b764bb9eac88c1671c0380229823c5630cc74`) integrated 2026-11-16; `web-ui/` is a separate frozen OMP Web snapshot | MIT | maintained by Zeta now: the host contract is reimplemented in `studio-host` (pair/CSRF/query/command/events), the renderer was rebranded (`zeta-studio` wire name, Zeta links/fixtures), and Zeta adds windowed transcripts, precompressed static serving, the plugin registry, and the usage dashboard |
 | `termide/` | TermIDE, https://github.com/termide/termide | tag `0.49.0` = `057eb55e0a7c4ee969982fab62dc83bde028e052` | MIT | deviations listed in `termide/VENDOR.md` |
 | `editor/npm/*` (`@linxiraos/editor*`) | TermIDE `panel-editor` | same tree as `termide/` | MIT | built as the editor-only bin `termide-editor` (`editor/npm/editor/VENDOR.md`) |
 | `plugins/official/*` | per plugin | per plugin | per plugin | each directory carries `plugin.json`, README with source, and its license |
 
-Why the fork renames things at all: the upstream licenses and the product
-identity both require that a downstream distribution not present itself as the
-upstream. Renames therefore cover the product name, command names
-(`zetawork` / `zetacode` / `zetaide`), the `zeta://` scheme, the npm scope
-`@linxiraos/*`, and release asset names (`zeta-cli-*`). User-visible
-configuration keeps accepting the legacy names during the transition, so an
-existing installation does not silently break.
+Why the fork renames things: Zeta keeps its product identity distinct from its
+upstreams. Renames cover the product name, command names (`zetawork` /
+`zetacode` / `zetaide`), the `zeta://` scheme, the npm scope `@linxiraos/*`, and
+release asset names (`zeta-cli-*`). User-visible configuration uses Zeta names;
+upstream status directories and retired configuration aliases are not loaded.
+The component licenses below retain their original grants and notices.
 
 Brand and assets:
 
@@ -47,6 +46,18 @@ Frozen counterpart constants (interoperability, not branding):
   `docs.stencil.so/tern/protocol/`; the `__omp_judgment_images` upload key.
   These are wire-compatible identifiers Zeta must keep, listed here so that a
   brand sweep does not break them.
+
+SHEETJS COMMUNITY EDITION 0.20.3
+================================
+
+Copyright (C) 2012-present SheetJS LLC. Licensed under Apache-2.0; the full
+Apache License 2.0 is reproduced in this aggregate below. The unchanged official
+distribution, including its LICENSE and source notices, is retained at
+web-app/vendor/xlsx-0.20.3.tgz. Source: https://git.sheetjs.com/sheetjs/sheetjs
+Official archive: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+SHA-512: oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==
+Zeta changes dependency resolution to this local archive only; parser bytes
+and the upstream license are unchanged (ADR-0059).
 
 PYTHON DEPENDENCY DISTRIBUTION ROLE
 ===================================
@@ -432,7 +443,7 @@ SOFTWARE.
 web-app/src/studio + web-app/src/vendor/* + web-ui/components/studio +
 web-ui/styles/studio + web-ui/lib/studio-protocol
 
-Ported UI surface and protocol types from OMP Studio 0.1.17 (MIT).
+Ported UI surface and protocol types from OMP Studio (MIT): the original port was `0.1.17`; the current product renderer follows official `v0.2.1`, integrated 2026-11-16.
 
 - `web-ui/components/studio/` and `web-ui/styles/studio/` are derived from the
   OMP Studio renderer (`apps/renderer/src`).

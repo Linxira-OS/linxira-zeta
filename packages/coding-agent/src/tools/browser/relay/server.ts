@@ -120,7 +120,9 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 	const log = opts.log ?? (() => {});
 	const group =
 		opts.group === false ? null : opts.group === true || opts.group === undefined ? DEFAULT_GROUP : opts.group;
-	const updateExtension = opts.studio ? undefined : extensionUpdaterFor(opts.extensionDir ?? defaultRelayExtensionDir());
+	const updateExtension = opts.studio
+		? undefined
+		: extensionUpdaterFor(opts.extensionDir ?? defaultRelayExtensionDir());
 	const bridge = new RelayBridge({ log, group, updateExtension });
 	const sockets = new Set<RelayWebSocket>();
 	const startedAt = Date.now();
@@ -203,12 +205,36 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 				if (ws.data.role === "ext") {
 					if (opts.studio) {
 						let control: { t?: string; id?: number; control?: string };
-						try { control = JSON.parse(text); } catch { ws.close(); return; }
+						try {
+							control = JSON.parse(text);
+						} catch {
+							ws.close();
+							return;
+						}
 						if (control?.t === "studioControl") {
-							if ((control.control !== "human" && control.control !== "agent") || !Number.isSafeInteger(control.id)) { ws.close(); return; }
+							if (
+								(control.control !== "human" && control.control !== "agent") ||
+								!Number.isSafeInteger(control.id)
+							) {
+								ws.close();
+								return;
+							}
 							void opts.studio.control(control.control).then(
-								() => { if (sockets.has(ws)) ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: true })); },
-								error => { if (sockets.has(ws)) ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: false, error: String(error) })); },
+								() => {
+									if (sockets.has(ws))
+										ws.send(JSON.stringify({ t: "studioControlResult", id: control.id, ok: true }));
+								},
+								error => {
+									if (sockets.has(ws))
+										ws.send(
+											JSON.stringify({
+												t: "studioControlResult",
+												id: control.id,
+												ok: false,
+												error: String(error),
+											}),
+										);
+								},
 							);
 							return;
 						}

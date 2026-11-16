@@ -64,13 +64,3 @@ export interface AccountStatusResult {
 	usageUnavailable: boolean;
 	truncated: boolean;
 }
-
-
-
-
-
-
-
-
-
-

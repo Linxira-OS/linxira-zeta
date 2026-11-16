@@ -656,7 +656,8 @@ class DaemonBroker {
 			});
 			return this.#awaitStarted(record, generation, operation.awaitReady ?? true, signal);
 		}
-		const name = ["send", "stop", "restart", "mode"].includes(operation.op) && "name" in operation ? operation.name : undefined;
+		const name =
+			["send", "stop", "restart", "mode"].includes(operation.op) && "name" in operation ? operation.name : undefined;
 		if (name === undefined) return this.#dispatchOperation(operation, socket, signal);
 		return this.#serializeMutation(name, () => this.#dispatchOperation(operation, socket, signal));
 	}
@@ -832,7 +833,11 @@ class DaemonBroker {
 			// wake the wait rather than block for the full timeout.
 			const ready = await this.#waitUntil(
 				record,
-				() => record.generation !== generation || record.snapshot.state === "restarting" || record.snapshot.readyAt !== undefined || terminalState(record.snapshot.state),
+				() =>
+					record.generation !== generation ||
+					record.snapshot.state === "restarting" ||
+					record.snapshot.readyAt !== undefined ||
+					terminalState(record.snapshot.state),
 				spec.ready.timeoutMs,
 				signal,
 			);
@@ -1427,7 +1432,10 @@ class DaemonBroker {
 	#record(name: string, expectedInstanceId?: string): ManagedDaemon {
 		const record = this.#records.get(name);
 		if (record) {
-			if (expectedInstanceId !== undefined && expectedInstanceId !== record.snapshot.id + ":" + record.snapshot.startedAt)
+			if (
+				expectedInstanceId !== undefined &&
+				expectedInstanceId !== record.snapshot.id + ":" + record.snapshot.startedAt
+			)
 				throw new Error("Service instance changed; refresh before trying again");
 			return record;
 		}

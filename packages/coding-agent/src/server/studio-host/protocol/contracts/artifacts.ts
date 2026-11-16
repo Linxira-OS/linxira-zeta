@@ -77,7 +77,6 @@ export function validateArtifactTextInput(value: unknown): asserts value is Arti
 		throw new Error("Text artifact exceeds its limit or contains binary data");
 }
 
-
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected artifact object");
 	const record = value as Record<string, unknown>;
@@ -89,9 +88,3 @@ function short(value: unknown, optional = false): void {
 	if (typeof value !== "string" || !value.trim() || value.length > 1024 || /[\u0000-\u001f]/u.test(value))
 		throw new Error("Invalid artifact text");
 }
-
-
-
-
-
-

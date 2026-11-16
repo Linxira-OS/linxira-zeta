@@ -62,7 +62,14 @@ export type DaemonOperation =
 			renderTerminalRows?: boolean;
 			timeoutMs: number;
 	  }
-	| { op: "wait"; name: string; expectedInstanceId?: string; for: "ready" | "exit"; pattern?: string; timeoutMs: number }
+	| {
+			op: "wait";
+			name: string;
+			expectedInstanceId?: string;
+			for: "ready" | "exit";
+			pattern?: string;
+			timeoutMs: number;
+	  }
 	| { op: "send"; name: string; expectedInstanceId?: string; data?: string; signal?: DaemonSignal }
 	| {
 			op: "stop";

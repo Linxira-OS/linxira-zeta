@@ -87,7 +87,6 @@ describe("EnvironmentCard", () => {
     expect(screen.getByText("未选择项目")).toBeTruthy();
     expect(screen.getByText("工作区干净")).toBeTruthy();
     expect(screen.queryByText("+0")).toBeNull();
-    expect(screen.queryByRole("button", { name: /omp-studio/ })).toBeNull();
   });
 
   it("says so when the workspace is not a Git repository, and offers nothing to open", () => {

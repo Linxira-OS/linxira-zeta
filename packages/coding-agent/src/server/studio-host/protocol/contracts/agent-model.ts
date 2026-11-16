@@ -17,7 +17,3 @@ export const AGENT_MODEL_KINDS = ["agent.model.inspect"] as const;
 export function isAgentModelKind(kind: string): kind is AgentModelOperation["kind"] {
 	return kind === "agent.model.inspect";
 }
-
-
-
-

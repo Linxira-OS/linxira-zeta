@@ -1,10 +1,12 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { afterEach, expect, it, vi } from "vitest";
 import { __resetAppSettingsForTests, updateAppSettings, useAppSettings } from "./settings/appSettings";
 import { applyTypography } from "./settings/typography";
 import { TerminalPane } from "./TerminalPane";
 import { PENDING_MAX_BYTES, TerminalSessionsProvider, useTerminalSessions } from "./terminalSessions";
+import { SurfaceProvider } from "./dock/SurfaceContext";
 
 const mocks = vi.hoisted(() => ({ terminals: [] as { options: Record<string, unknown>; write: ReturnType<typeof vi.fn>; focus: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] }));
 vi.mock("@xterm/xterm", () => ({ Terminal: class {
@@ -97,7 +99,6 @@ it("updates live and hidden terminal fonts without recreating the shell or steal
   act(() => updateAppSettings({ terminalFontSize: 20, terminalFontFamily: "Consolas" }));
   expect(terminal.options.fontSize).toBe(20);
   expect(terminal.options.fontFamily).toContain("Consolas");
-  // The write carries the flow-control ACK callback (P0-4).
   expect(terminal.write).toHaveBeenCalledWith("retained shell output", expect.any(Function));
   expect(terminal.focus).toHaveBeenCalledTimes(focusCalls);
   view.rerender(<Harness visible={false} />);
@@ -108,6 +109,40 @@ it("updates live and hidden terminal fonts without recreating the shell or steal
   expect(api.create).toHaveBeenCalledTimes(1);
   expect(api.dispose).not.toHaveBeenCalled();
   expect(terminal.dispose).not.toHaveBeenCalled();
+});
+
+it("uses the destination window's terminal font after the panel moves and its appearance is mirrored", async () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const api = {
+    create: vi.fn().mockResolvedValue({ id: "floating-shell", name: "Shell", cwd: "D:/workspace" }),
+    write: vi.fn().mockResolvedValue(undefined), resize: vi.fn().mockResolvedValue(undefined), dispose: vi.fn().mockResolvedValue(undefined),
+    onData: vi.fn(() => () => {}), onExit: vi.fn(() => () => {}),
+  };
+  vi.stubGlobal("zetaStudioTerminal", api);
+  const iframe = document.createElement("iframe");
+  document.body.append(iframe);
+  const child = iframe.contentDocument!;
+  child.documentElement.style.setProperty("--font-terminal", '"Courier New", monospace');
+  child.documentElement.style.setProperty("--terminal-font-size", "24px");
+  child.documentElement.dataset.theme = "light";
+  const view = render(<TerminalSessionsProvider><SurfaceProvider document={child}>{createPortal(<TerminalPane visible />, child.body)}</SurfaceProvider></TerminalSessionsProvider>);
+  try {
+    await waitFor(() => expect(mocks.terminals).toHaveLength(1));
+    const terminal = mocks.terminals[0]!;
+    expect(terminal.options.fontSize).toBe(24);
+    expect(terminal.options.fontFamily).toContain("Courier New");
+    await act(async () => {
+      child.documentElement.style.setProperty("--font-terminal", '"Consolas", monospace');
+      child.documentElement.style.setProperty("--terminal-font-size", "18px");
+    });
+    await waitFor(() => expect(terminal.options.fontSize).toBe(18));
+    expect(terminal.options.fontFamily).toContain("Consolas");
+    expect(api.create).toHaveBeenCalledTimes(1);
+    expect(terminal.dispose).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+    iframe.remove();
+  }
 });
 
 it("shows a truncation notice instead of dropping a large background backlog silently", async () => {

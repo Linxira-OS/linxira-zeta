@@ -395,5 +395,7 @@ export async function startTextPredictDaemonFromEnvironment(): Promise<void> {
 	if (!endpoint || !agentDir) {
 		throw new Error(`${TEXT_PREDICT_SOCKET_ENV} and ${TEXT_PREDICT_AGENT_DIR_ENV} must be set`);
 	}
-	await new TextPredictDaemon(agentDir, Bun.env[TEXT_PREDICT_PROFILE_ENV] === "studio" ? "studio" : "default").serve(endpoint);
+	await new TextPredictDaemon(agentDir, Bun.env[TEXT_PREDICT_PROFILE_ENV] === "studio" ? "studio" : "default").serve(
+		endpoint,
+	);
 }

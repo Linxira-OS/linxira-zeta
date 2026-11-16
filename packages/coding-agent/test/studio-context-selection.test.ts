@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { currentStudioSelection, requireStudioWorkspace, runWithStudioSelection, selectStudioSession, type StudioSelection } from "../src/server/studio-host/selection.js";
+import {
+	currentStudioSelection,
+	requireStudioWorkspace,
+	runWithStudioSelection,
+	selectStudioSession,
+	type StudioSelection,
+} from "../src/server/studio-host/selection.js";
 
 test("interleaved operations retain independent session selections", async () => {
 	const first: StudioSelection = { workspaceId: "workspace-a", closed: false };

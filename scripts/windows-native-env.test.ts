@@ -55,9 +55,7 @@ function fixture() {
 			"",
 		].join("\r\n"),
 	);
-	const inheritedEnv = Object.fromEntries(
-		Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"),
-	);
+	const inheritedEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"));
 	const env = {
 		...inheritedEnv,
 		VSINSTALLDIR: vsRoot,

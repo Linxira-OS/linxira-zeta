@@ -12,11 +12,21 @@ export function ownedComputerSessions(session: AgentSession, disposing = false):
 	const result: AgentSessionHandle[] = [session];
 	if (!root) return result;
 	for (const candidate of refs) {
-		if (!candidate.session || candidate.session.instanceKey === session.instanceKey || Reflect.get(candidate.session, "isDisposed") === true || candidate.status === "parked" || candidate.status === "aborted") continue;
+		if (
+			!candidate.session ||
+			candidate.session.instanceKey === session.instanceKey ||
+			Reflect.get(candidate.session, "isDisposed") === true ||
+			candidate.status === "parked" ||
+			candidate.status === "aborted"
+		)
+			continue;
 		const seen = new Set<string>();
 		let ancestor: AgentRef | undefined = candidate;
 		while (ancestor && !seen.has(ancestor.id)) {
-			if (ancestor === root) { result.push(candidate.session); break; }
+			if (ancestor === root) {
+				result.push(candidate.session);
+				break;
+			}
 			seen.add(ancestor.id);
 			ancestor = ancestor.parentId ? registry.get(ancestor.parentId) : undefined;
 		}
@@ -26,5 +36,7 @@ export function ownedComputerSessions(session: AgentSession, disposing = false):
 
 export function ownedComputerAgent(session: AgentSession, sessionId: string): AgentRef | undefined {
 	const owned = new Set(ownedComputerSessions(session).map(candidate => candidate.instanceKey));
-	return AgentRegistry.global().list().find(ref => !!ref.session && owned.has(ref.session.instanceKey) && computerSessionId(ref.session) === sessionId);
+	return AgentRegistry.global()
+		.list()
+		.find(ref => !!ref.session && owned.has(ref.session.instanceKey) && computerSessionId(ref.session) === sessionId);
 }

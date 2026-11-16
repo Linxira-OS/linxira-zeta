@@ -30,7 +30,7 @@ export interface GatewayCallOptions {
 	 * JSON-encoded `body`. Routes that store request bytes (`PUT
 	 * /api/sessions/:id/artifacts/:name`) must receive the text unchanged.
 	 */
-	readonly rawBody?: string;
+	readonly rawBody?: string | Uint8Array<ArrayBuffer>;
 	/**
 	 * Multipart body. The bridge never sets a content-type for it: the
 	 * `Request` constructor writes the boundary the gateway's parser expects.
@@ -47,25 +47,32 @@ export interface GatewayCallOptions {
  * Call one gateway route. Non-2xx answers are returned, not thrown, so a caller
  * can distinguish "missing" from "broken" and shape the Studio error itself.
  */
-export async function callGateway(path: string, options: GatewayCallOptions = {}): Promise<GatewayReply> {
+export async function callGatewayResponse(path: string, options: GatewayCallOptions = {}): Promise<Response> {
 	const { webGatewayFetch } = await import("../web-gateway");
 	if (!path.startsWith("/api/")) throw invalid(`gateway path must start with /api/: ${path}`);
 	const url = new URL(path + (options.query ? `?${options.query}` : ""), GATEWAY_ORIGIN);
 	const headers = new Headers({ origin: GATEWAY_ORIGIN });
 	for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value);
 	if (options.cwd) headers.set("x-zeta-cwd", options.cwd);
-	let body: string | FormData | undefined;
+	let body: string | Uint8Array<ArrayBuffer> | FormData | undefined;
 	if (options.formData !== undefined) {
 		body = options.formData;
 	} else if (options.rawBody !== undefined) {
-		headers.set("content-type", "text/plain; charset=utf-8");
+		headers.set(
+			"content-type",
+			typeof options.rawBody === "string" ? "text/plain; charset=utf-8" : "application/octet-stream",
+		);
 		body = options.rawBody;
 	} else if (options.body !== undefined) {
 		headers.set("content-type", "application/json");
 		body = JSON.stringify(options.body);
 	}
 	const method = options.method ?? (body === undefined ? "GET" : "POST");
-	const response = await webGatewayFetch(new Request(url.toString(), { method, headers, body }), "127.0.0.1");
+	return webGatewayFetch(new Request(url.toString(), { method, headers, body }), "127.0.0.1");
+}
+
+export async function callGateway(path: string, options: GatewayCallOptions = {}): Promise<GatewayReply> {
+	const response = await callGatewayResponse(path, options);
 	const text = await response.text();
 	let parsed: unknown;
 	if (text !== "") {

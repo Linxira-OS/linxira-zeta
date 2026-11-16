@@ -105,7 +105,11 @@ export async function requestTarget(pathname: string, url: URL, req: Request): P
 
 	if (pathname === "/api/terminal/ensure" && req.method === "POST") {
 		let body: unknown;
-		try { body = await req.clone().json(); } catch { return undefined; }
+		try {
+			body = await req.clone().json();
+		} catch {
+			return undefined;
+		}
 		if (!body || typeof body !== "object" || Array.isArray(body)) return undefined;
 		if ("workspaceId" in body && typeof body.workspaceId === "string") {
 			const cwd = await gatewayWorkspacePath(body.workspaceId);

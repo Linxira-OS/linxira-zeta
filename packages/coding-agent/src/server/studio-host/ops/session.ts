@@ -63,10 +63,7 @@ import type {
 	StudioAgentUsage,
 } from "../protocol/contracts/agents-jobs.js";
 import type { ApprovalMode } from "../protocol/contracts/commands.js";
-import type {
-	ConversationItem,
-	ConversationTranscriptPage,
-} from "../protocol/contracts/conversation.js";
+import type { ConversationItem, ConversationTranscriptPage } from "../protocol/contracts/conversation.js";
 import { CONVERSATION_LIMITS } from "../protocol/contracts/conversation.js";
 import type { AgentId, OpaqueCursor, RuntimeEpoch, RuntimeId, StateVersion } from "../protocol/contracts/ids.js";
 import type {
@@ -83,8 +80,14 @@ import { utf8ByteLength } from "../protocol/conversation-text.js";
 import { readWorkspaceIdentities, resolveWorkspacePath } from "./workspace.js";
 import { resumePathKey } from "../../../resume/paths.js";
 import { setResourceOwnership } from "../../web-gateway/binding-guard.js";
-import { clearStudioSession, currentStudioSelection, requireStudioWorkspace, selectStudioSession } from "../selection.js";
+import {
+	clearStudioSession,
+	currentStudioSelection,
+	requireStudioWorkspace,
+	selectStudioSession,
+} from "../selection.js";
 import { plainText, projectConversationItems, type TranscriptRecord } from "../conversation-projector.js";
+import { readSessionCompaction } from "./compaction.js";
 
 /**
  * The host authority epoch; the same constant `bootstrap.ts` publishes. Zeta
@@ -433,7 +436,11 @@ export async function snapshotFor(sessionId: string): Promise<OperatorStateSnaps
 	const settings = getRpcSession(sessionId)?.getSession().settings;
 	if (!settings) return snapshot;
 	const metadata = runtimeSettingsFor(settings);
-	return { ...snapshot, runtimeSettings: metadata.values, ...(metadata.activation ? { runtimeSettingsActivation: metadata.activation } : {}) };
+	return {
+		...snapshot,
+		runtimeSettings: metadata.values,
+		...(metadata.activation ? { runtimeSettingsActivation: metadata.activation } : {}),
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -556,7 +563,6 @@ export async function readSessionAgents(sessionId: string): Promise<StudioAgentS
 // Transcript projection and paging
 // ---------------------------------------------------------------------------
 
-
 type CursorBinding =
 	| { readonly kind: "session"; readonly sessionId: string }
 	| { readonly kind: "agent"; readonly parentSessionId: string; readonly agentId: string };
@@ -645,9 +651,6 @@ function pageBackwards(
 		hasMoreBefore: start > 0,
 	};
 }
-
-
-
 
 /** id → persisted entry timestamp for every node the gateway's tree kept. */
 function entryTimestamps(tree: unknown): Map<string, string> {
@@ -1090,6 +1093,7 @@ async function lastUserEntryId(sessionId: string): Promise<string> {
 export const sessionOps: StudioFamily = {
 	id: "session",
 	queries: {
+		"session.compaction.read": readSessionCompaction,
 		/** `GET /api/sessions/:id/state` → `OperatorStateSnapshot`. */
 		"session.state": async () => snapshotFor(await currentSessionId()),
 
@@ -1179,7 +1183,9 @@ export const sessionOps: StudioFamily = {
 				body: {
 					cwd,
 					type: "ensure_session",
-					...(startupModel === undefined ? {} : { provider: startupModel.provider, modelId: startupModel.modelId }),
+					...(startupModel === undefined
+						? {}
+						: { provider: startupModel.provider, modelId: startupModel.modelId }),
 				},
 			});
 			if (!isRecord(body)) throw unavailable("agent/new returned no payload");
@@ -1228,15 +1234,6 @@ export const sessionOps: StudioFamily = {
 				path,
 				`unknown session: ${threadId}`,
 			);
-			// Deleting the transcript must also stop the resident session: otherwise a
-			// running turn (including an evaluation) keeps writing after its file moved
-			// to trash, and native work survives a delete the user believes finished.
-			const wrapper = getRpcSession(threadId);
-			if (wrapper !== undefined) {
-				const session = wrapper.getSession();
-				wrapper.destroy();
-				await session.dispose().catch(() => undefined);
-			}
 			if (!clearStudioSession(threadId) && activeSessionId === threadId) activeSessionId = undefined;
 			return { applied, runtimeEffect: "immediate" satisfies ConfigWriteResult["runtimeEffect"] };
 		},
@@ -1404,7 +1401,7 @@ export const sessionOps: StudioFamily = {
 		"interaction.respond": async input => {
 			const interactionId = requiredString(input, "interactionId");
 			const selection = currentStudioSelection();
-			if (selection !== undefined && extensionUiRequestSessionId(interactionId) !== await currentSessionId()) {
+			if (selection !== undefined && extensionUiRequestSessionId(interactionId) !== (await currentSessionId())) {
 				throw invalid("interaction does not belong to this conversation context");
 			}
 			if (input.decision === "cancel") {

@@ -74,3 +74,41 @@ GET /api/sessions                     → 历史 (and the left column, 会话管
 Nothing in these pages writes: 历史 is a view of a list another surface owns,
 and 跟踪 mirrors files the agent's tool owns. Archive, restore and pin live in
 [会话管理](gui-sessions-and-worktrees.md).
+
+## History utilities (Studio Host)
+
+The Work Studio history page reads and mutates the same native session store
+through registered Host operations; nothing here creates a second index or a
+second archive:
+
+- `session.titles.inspect` projects saved titles/cards from the session file
+  without opening or migrating it (`SessionManager.peekSessionTitle`).
+- `session.lease.read|inspect` reports which listed transcripts are held by a
+  live writer. Targets outside the live conversation's session directory are
+  reported `unknown`, never guessed free.
+- `session.portability.pack|anonymize` write a `.tar` (restorable) or `.zip`
+  (anonymous diagnostics) into the session artifact store; `prepare` inspects
+  an imported `.tar` (id/title/messages/artifacts/blobs/conflicts), `import`
+  lands it through native `unpackSession` with `preserveExisting` so an
+  existing local copy becomes a fork, and `moved` only records the operator's
+  explicit hand-off note.
+- `maintenance.compression.scan|apply` use the native GC collector and the
+  same idle/lease checks; `apply` reruns the collector with the reviewed
+  candidate set, so an idle transcript that changed in between is not
+  compressed. `maintenance.compression.status` reports the last run; the auto
+  status reads the redacted maintenance log.
+- `archive.sessions.list|recaps.list|prompts.search|session.inspect` read the
+  existing native archive/recap data; inspection returns path-free metadata.
+
+Every call requires a live authenticated conversation view whose selection
+still names the exact resident session, and the same view is rechecked after
+each await. Imports resolve the destination workspace through the existing
+projects registry, never through a renderer path. The transfer size limit is
+the native session-artifact bound (28 MiB); the pane states that limit rather
+than upstream's 64 MiB.
+
+Transfer operations capture their initiating view for the entire call. Another
+window's status read cannot substitute its authority. Import reviews expire
+after five minutes and belong to the context that prepared them. Secondary
+transcript targets and destination workspaces also obey the device binding;
+a credential bound to one session cannot import a new session outside its grant.

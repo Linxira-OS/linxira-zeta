@@ -100,11 +100,4 @@ export function isSessionGuiKind(kind: string): kind is SessionGuiOperation["kin
 	return (SESSION_GUI_KINDS as readonly string[]).includes(kind);
 }
 
-
-
-
-
-
-
-
 import type { PredictionControlAction, PredictionControlState } from "./prediction.js";

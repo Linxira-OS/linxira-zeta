@@ -47,6 +47,7 @@ import { STUDIO_RUNTIME_SETTING_KEYS, type StudioRuntimeSettingKey } from "../pr
 import { validateRuntimeSettingValue } from "../protocol/validation";
 import { computeBankScope } from "../../../hindsight/bank";
 import { runtimeSettingsFor } from "../services/runtime-settings";
+import { sessionCompactionCommands } from "./compaction.js";
 
 /** The setting behind the Renderer's approval-mode picker (Zeta's own YOLO default). */
 const APPROVAL_MODE_PATH = "tools.approvalMode";
@@ -57,10 +58,16 @@ async function readRuntimeSettings(input: {
 	readonly keys?: readonly string[];
 	readonly checkHindsight?: boolean;
 }): Promise<StudioRuntimeSettingsGetResult> {
-	if (input.checkHindsight !== undefined && typeof input.checkHindsight !== "boolean") throw invalid("checkHindsight must be boolean");
+	if (input.checkHindsight !== undefined && typeof input.checkHindsight !== "boolean")
+		throw invalid("checkHindsight must be boolean");
 	const selection = currentStudioSelection();
 	const live = selection?.sessionId ? getRpcSession(selection.sessionId)?.getSession() : undefined;
-	const settings = live?.settings ?? await Settings.loadReadOnly({ agentDir: getAgentDir(), cwd: selection ? await resolveWorkspacePath(selection.workspaceId) : process.cwd() });
+	const settings =
+		live?.settings ??
+		(await Settings.loadReadOnly({
+			agentDir: getAgentDir(),
+			cwd: selection ? await resolveWorkspacePath(selection.workspaceId) : process.cwd(),
+		}));
 	const result = runtimeSettingsFor(settings, input.keys);
 	if (input.checkHindsight) {
 		if (cfgMemoryBackend.get(settings) !== "hindsight") result.hindsightStatus = "inactive";
@@ -68,10 +75,23 @@ async function readRuntimeSettings(input: {
 			const state = live?.getHindsightSessionState();
 			const config = loadHindsightConfig(settings);
 			if (!config.hindsightApiUrl) result.hindsightStatus = "unavailable";
-			else try {
-				await (state?.client ?? createHindsightClient({ ...config, hindsightApiUrl: config.hindsightApiUrl })).listMemories(state?.bankId ?? computeBankScope(config, settings.getCwd()).bankId, { limit: 1, signal: AbortSignal.timeout(8_000) });
-				result.hindsightStatus = "ready";
-			} catch (error) { result.hindsightStatus = error instanceof HindsightError && [401, 403].includes(error.statusCode ?? 0) ? "authentication-failed" : error instanceof HindsightError && error.statusCode === 404 ? "not-found" : "unavailable"; }
+			else
+				try {
+					await (
+						state?.client ?? createHindsightClient({ ...config, hindsightApiUrl: config.hindsightApiUrl })
+					).listMemories(state?.bankId ?? computeBankScope(config, settings.getCwd()).bankId, {
+						limit: 1,
+						signal: AbortSignal.timeout(8_000),
+					});
+					result.hindsightStatus = "ready";
+				} catch (error) {
+					result.hindsightStatus =
+						error instanceof HindsightError && [401, 403].includes(error.statusCode ?? 0)
+							? "authentication-failed"
+							: error instanceof HindsightError && error.statusCode === 404
+								? "not-found"
+								: "unavailable";
+				}
 		}
 	}
 	return result;
@@ -96,27 +116,42 @@ async function writeRuntimeSetting(
 	input: CommandInput<"runtime.settings.set">,
 ): Promise<StudioRuntimeSettingsSetResult> {
 	const key = requiredString(input, "key");
-	if (!(STUDIO_RUNTIME_SETTING_KEYS as readonly string[]).includes(key) || lookup(key)?.isCredential) throw invalid("Unsupported Runtime setting key");
-	if (key === "providers.openai-codex.codeMode") throw invalid("Codex Code Mode was removed upstream; Codex uses direct tools");
+	if (!(STUDIO_RUNTIME_SETTING_KEYS as readonly string[]).includes(key) || lookup(key)?.isCredential)
+		throw invalid("Unsupported Runtime setting key");
+	if (key === "providers.openai-codex.codeMode")
+		throw invalid("Codex Code Mode was removed upstream; Codex uses direct tools");
 	validateRuntimeSettingValue(key as StudioRuntimeSettingKey, input.value, "runtime.settings.set.value");
 	if (typeof input.persist !== "boolean") throw invalid("persist must be boolean");
 	const selection = currentStudioSelection();
 	const live = selection?.sessionId ? getRpcSession(selection.sessionId)?.getSession() : undefined;
 	if (!input.persist) {
 		if (!live) throw unavailable("Session-only settings require an active conversation");
-		if (key === "compaction.experimentalContextManagement") throw invalid("This setting must be saved and requires a Runtime restart");
-		if (key === "modelRoles.judge") live.settings.writeValue(lookup("modelRoles")!, { ...live.settings.getModelRoles(), judge: input.value }, "override");
+		if (key === "compaction.experimentalContextManagement")
+			throw invalid("This setting must be saved and requires a Runtime restart");
+		if (key === "modelRoles.judge")
+			live.settings.writeValue(
+				lookup("modelRoles")!,
+				{ ...live.settings.getModelRoles(), judge: input.value },
+				"override",
+			);
 		else live.settings.writeValue(lookup(key)!, input.value, "override");
 		return { key: input.key, value: input.value, persisted: false };
 	}
 	const cwd = selection ? await resolveWorkspacePath(selection.workspaceId) : process.cwd();
-	const roles = key === "modelRoles.judge" ? (live?.settings ?? await Settings.loadReadOnly({ cwd, agentDir: getAgentDir() })).getModelRoles() : undefined;
+	const roles =
+		key === "modelRoles.judge"
+			? (live?.settings ?? (await Settings.loadReadOnly({ cwd, agentDir: getAgentDir() }))).getModelRoles()
+			: undefined;
 	const written = await gatewayJson<unknown>(SETTINGS_ROUTE, {
 		method: "PUT",
 		cwd,
 		body: roles ? { path: "modelRoles", value: { ...roles, judge: input.value } } : { path: key, value: input.value },
 	});
-	const effective = isRecord(written) ? (roles && isRecord(written["value"]) ? written["value"]["judge"] : written["value"]) : undefined;
+	const effective = isRecord(written)
+		? roles && isRecord(written["value"])
+			? written["value"]["judge"]
+			: written["value"]
+		: undefined;
 	return {
 		key: key as StudioRuntimeSettingsSetResult["key"],
 		value: input.value,
@@ -301,6 +336,7 @@ export const settingsOps: StudioFamily = {
 		"environment.get": readEnvironment,
 	},
 	commands: {
+		...sessionCompactionCommands,
 		"permissions.mode.set": setApprovalMode,
 		"runtime.settings.get": readRuntimeSettings,
 		"runtime.settings.set": writeRuntimeSetting,

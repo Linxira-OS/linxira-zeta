@@ -20,6 +20,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { InternalUrlRouter, listLocalFiles, type LocalFileEntry, type LocalProtocolOptions } from "../../internal-urls";
 import { resolveSessionPath } from "./sessions";
+import { getRpcSession } from "./agents";
+import { withSessionArtifactMutation } from "./artifact-mutations";
 
 const MAX_ARTIFACT_BYTES = 28 * 1024 * 1024;
 
@@ -32,6 +34,8 @@ const MAX_ARTIFACT_BYTES = 28 * 1024 * 1024;
 function artifactKind(name: string): string {
 	const stem = name.toLowerCase();
 	const extension = path.extname(stem);
+	if (stem.startsWith("graphic-")) return "graphic";
+	if (stem.startsWith("export-")) return "export";
 	if (stem.includes("judgment")) return "judgment";
 	if (stem.includes("bench")) return "benchmark";
 	if (stem.includes("annotation")) return "annotation";
@@ -69,6 +73,10 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
 	".mp4": "video/mp4",
 	".webm": "video/webm",
 	".mov": "video/quicktime",
+	".cast": "application/x-studio-terminalcast",
+	".studiocast": "application/x-studio-terminalcast",
+	".tar": "application/x-tar",
+	".zip": "application/zip",
 };
 
 /**
@@ -97,6 +105,10 @@ function json(data: unknown, status = 200): Response {
 async function localOptions(sessionId: string): Promise<LocalProtocolOptions | null> {
 	const sessionFile = await resolveSessionPath(sessionId);
 	if (!sessionFile?.endsWith(".jsonl")) return null;
+	// A brand-new resident session may not have flushed its journal yet; a
+	// deleted session has no file and no resident object, so it cannot be
+	// recreated by a late artifact write.
+	if (!getRpcSession(sessionId) && !(await fs.stat(sessionFile).catch(() => undefined))?.isFile()) return null;
 	const artifactsDir = sessionFile.slice(0, -".jsonl".length);
 	return { getArtifactsDir: () => artifactsDir, getSessionId: () => sessionId };
 }
@@ -155,6 +167,10 @@ export async function handleListArtifacts(
 
 /** `DELETE /api/sessions/:id/artifacts/:name` — containment is checked before unlink. */
 export async function handleDeleteArtifact(sessionId: string, encodedName: string): Promise<Response> {
+	return withSessionArtifactMutation(sessionId, () => deleteArtifact(sessionId, encodedName));
+}
+
+async function deleteArtifact(sessionId: string, encodedName: string): Promise<Response> {
 	const name = decodeName(encodedName);
 	if (name === null) return json({ error: "bad_name" }, 400);
 	const options = await localOptions(sessionId);
@@ -205,6 +221,10 @@ export async function handleReadArtifact(sessionId: string, encodedName: string)
 
 /** `PUT /api/sessions/:id/artifacts/:name` */
 export async function handleWriteArtifact(req: Request, sessionId: string, encodedName: string): Promise<Response> {
+	return withSessionArtifactMutation(sessionId, () => writeArtifact(req, sessionId, encodedName));
+}
+
+async function writeArtifact(req: Request, sessionId: string, encodedName: string): Promise<Response> {
 	const name = decodeName(encodedName);
 	if (name === null) return json({ error: "bad_name" }, 400);
 	const options = await localOptions(sessionId);

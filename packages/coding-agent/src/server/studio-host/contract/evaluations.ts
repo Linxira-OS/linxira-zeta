@@ -36,7 +36,13 @@ export interface EvaluationWorkspaceCommandInputMap {
 	"evaluations.start": EvaluationStartInput;
 	"evaluations.control": EvaluationControlInput;
 	"evaluations.export": EvaluationExportInput;
-	"evaluations.respond": { id: string; interactionId: string; leaseGeneration: number; decision: "submit" | "cancel"; value?: unknown };
+	"evaluations.respond": {
+		id: string;
+		interactionId: string;
+		leaseGeneration: number;
+		decision: "submit" | "cancel";
+		value?: unknown;
+	};
 	"evaluations.openWorkspace": { id: string };
 }
 export interface EvaluationWorkspaceCommandResultMap {

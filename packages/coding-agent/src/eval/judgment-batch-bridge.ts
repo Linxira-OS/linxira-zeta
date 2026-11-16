@@ -300,9 +300,17 @@ export class JudgmentBatch {
 		return this.#settled.slice(offset, offset + limit);
 	}
 
-	studioInput(): { items: Array<{ key: BatchKey; state: JudgmentState; images?: unknown }>; questions: Record<string, Question>; options: BatchOptions } {
+	studioInput(): {
+		items: Array<{ key: BatchKey; state: JudgmentState; images?: unknown }>;
+		questions: Record<string, Question>;
+		options: BatchOptions;
+	} {
 		return {
-			items: this.#inputs.map(item => ({ key: item.key, state: item.state, ...(item.imageSources ? { images: item.imageSources } : {}) })),
+			items: this.#inputs.map(item => ({
+				key: item.key,
+				state: item.state,
+				...(item.imageSources ? { images: item.imageSources } : {}),
+			})),
 			questions: this.#questions,
 			options: this.#options,
 		};
@@ -522,7 +530,9 @@ const batches = new Map<string, JudgmentBatch>();
 /** Resolve a batch owned by the calling session. */
 export function getJudgmentBatch(id: string, session: ToolSession): JudgmentBatch | undefined {
 	const batch = batches.get(id);
-	return batch && batch.ownerId === ownerOf(session) && batch.sessionId === (session.getSessionId?.() ?? undefined) ? batch : undefined;
+	return batch && batch.ownerId === ownerOf(session) && batch.sessionId === (session.getSessionId?.() ?? undefined)
+		? batch
+		: undefined;
 }
 
 /** Cancel and forget every batch owned by an agent session. */

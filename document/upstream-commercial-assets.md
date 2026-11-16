@@ -169,6 +169,7 @@ settings key、没有 env var、没有 CLI flag；设 `OTEL_EXPORTER_OTLP*` 端�
 
 - **未知域名**（出现未登记的上游端点）→ 失败；
 - **已知域名出现在未登记的落点**（非测试文件）→ 失败。
+- **锁文件来源**：远程 tarball 仅允许 `registry.npmjs.org`；根包明确声明、真实路径位于包内且 SHA-512 integrity 匹配的本地 tarball 可保留。Studio SheetJS 0.20.3 固定为官方原始 `web-app/vendor/xlsx-0.20.3.tgz`（[ADR-0059](adr/0059-vendored-sheetjs-tarball.md)），不添加 CDN 或 npm `allow-remote` 豁免。
 
 流程：**先改本台账，再改守卫的 `INVENTORY`，最后改代码**。测试文件豁免
 （fixture 可以任意引用端点）。替换某项（如 `qa.omp.sh` → GitHub Issues）时，

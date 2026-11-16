@@ -193,6 +193,12 @@ must be non-empty, contain no NUL and be at most 1 MiB of UTF-8. An explicit
 CSRF/origin checks, one-time tickets and the raw PTY WebSocket remain in use.
 The gateway does not advertise ACK-based flow control.
 
+Terminal font family and size are controlled by **Settings → Fonts → Terminal**,
+independently of UI and conversation text. Font changes, panel collapse/expand,
+window resize, zoom and moving the panel to a native window refit the existing
+grid without restarting its shell or discarding output. Native windows use
+their mirrored appearance; xterm owns the hidden input's cursor-cell geometry.
+
 File viewers use `workspace.file.inspect` and versioned
 `workspace.file.readChunk` (at most 512 KiB per call). The built-in text editor
 uses `workspace.file.readText` / `workspace.file.writeText`, supports UTF-8 and
@@ -375,6 +381,64 @@ environment variables and private runtime directories are not service-row
 fields. Session, persistent and detached modes retain their existing native
 lifetimes; detaching the shared managed-browser process is refused.
 
+## Binary artifacts (2026-11-16)
+
+Image, video and archive bytes never travel through `/api/v1/query|command`
+JSON. The same authenticated Host that owns sessions serves them:
+
+- `GET /api/v1/artifacts/<opaque id>?contextId=<opaque context>` returns the
+  exact stored bytes with `Range` support (`206`/`416`), `no-store`,
+  `nosniff`, a sandbox CSP and `accept-ranges: bytes`. `HEAD` answers the same
+  metadata with no body.
+- `POST /api/v1/artifacts?sessionId=&kind=&name=&mimeType=&contextId=` accepts
+  a raw body up to 28 MiB and answers `201 { artifact }`. Text, graphic
+  (`svg`), recording (`studiocast`/`cast`) and `export` (`tar`/`zip`) imports
+  are accepted; `audio` creation stays owner-held. The stored name is generated
+  from the kind and a UUID, so the renderer never chooses a path.
+- Both routes require the existing cookie/CSRF/device/2FA/scope checks and the
+  still-open selected conversation context. A **write** additionally requires
+  the live event socket and the exact resident native session; a read only
+  needs the open context, so a preview cannot race socket attach. A context
+  close, device revoke, session disposal or selection switch rejects the
+  request before bytes are committed; an upload that loses its authority is
+  discarded rather than left as a ghost file.
+- Writes and the session trash move are serialized per session, so a delete
+  cannot race a late artifact write into a resurrected directory.
+
+The renderer asks the Host for the URL (`artifacts.resource`) and renders the
+relative URL in a browser. Desktop converts it to
+`zeta-artifact://library/<id>?contextId=…&targetId=…`, where Main resolves the
+exact local or SSH connection and never falls back to local for a disconnected
+remote. Import/export use native dialogs in Main; the renderer never supplies a
+filesystem path. Export rechecks the captured Host connection and context after
+writing its temporary file, immediately before the atomic destination rename;
+revocation removes the temporary file. Native terminal recordings use
+`zeta-artifact://recorder/<recording>` independently of the context-bound library.
+
+## History metadata and BTW image paste
+
+History rows can rename or explicitly pin a saved conversation in the selected
+workspace. Changes use the same durable title and pin writers as the TUI.
+A device bound to one session cannot change another session's metadata.
+
+The BTW composer resolves pasted image paths through the native image loader
+using the live selected conversation's working directory. It returns image
+payloads without resolved filesystem paths; a closed or disconnected view
+cannot read them. Unsupported files and image-size limits are reported by the
+Host. Ordinary pasted text remains text.
+
+Native BTW branch promotion rekeys the resident wrapper before its receipt and
+moves only the initiating conversation's selection. A newer selection survives
+a branch that finishes later. Resources use kindless `resource.local.list`,
+`resource.local.open` and versioned `resource.local.save` inputs; asynchronous
+reads/saves retain the invoking view's authority. Recorded shell reads are
+confined to that session's transcript bucket or its registry-proven descendant,
+and a device session binding also applies to the recorded source.
+
+Queue takeback, ack, removal and steering retain their invoking view inside the
+serialized mutation. If takeback loses that view during image staging, the
+message stays pending and staged artifacts are removed.
+
 ## Operation validation (2026-11-16)
 
 Studio requests use the existing authenticated Zeta Host. The Host and gateway
@@ -387,19 +451,25 @@ See [ADR 0052](../document/adr/0052-studio-input-validation-authority.md).
 
 ## Gaps
 
-- **Host producer gaps (2026-11-16).** The renderer and shared contracts carry
-  surfaces whose `/api/v1/query|command` families have no registered Host
-  producer, so the capability manifest does not advertise them and the
-  renderer hides or gates the control. They are listed here so a hidden
-  control is never mistaken for a working one:
-  `accounts.*`, `agent.btw.*`, `agent.model.inspect`, `annotations.*`,
-  `benchmarks.*`, `extensions.links.*`, `ida.*`, `judgments.*`, `media.*`,
-  `ratchet.*`, `search.credentials.*`, `session.compaction.*`, `shell.view.*`,
-  `skillshare.*`, `worktrees.*`, and `live.audio.*`.
-  `skillshare.*` stays retired by ADR 0047; `live.audio.*` stays owner-held by
-  ADR 0034. The rest are real producer gaps tracked in the requirements
-  ledger; implementing one means adding its Host family, not re-enabling a
-  renderer switch. Desktop also dropped upstream's office-preview, chrome-api,
+- **Host producer gaps (2026-11-16, updated).** A hidden control is never a
+  working one: a surface appears only when its `/api/v1/query|command` family is
+  registered. `accounts.*`, `agent.btw.*`, `agent.model.inspect`,
+  `annotations.*`, `extensions.links.*`, `ida.*`, `media.*`,
+  `search.credentials.*`, `session.compaction.*`, `session.queue.*`,
+  `worktrees.session.*`, `preferences.features.*`, `models.compaction.*`,
+  `session.titles.inspect`, `session.portability.*`, `maintenance.compression.*`,
+  `archive.*`, `session.lease.read|inspect` and the binary artifact routes are
+  now registered. The old `benchmarks.*`,
+  `judgments.*` and `ratchet.*` namespaces are deliberately replaced by
+  `evaluations.*` (legacy history imports into it; no compatibility adapter).
+  `skillshare.*` stays retired by ADR 0047 and `live.audio.*` stays owner-held
+  by ADR 0034. Remaining unregistered families include `context.view.*`,
+  `templates.*`/`mcp.runtime.status`, `preferences.native.*` and GUI preference
+  schemas, `session.restore.inspect`, `runtime.pause`, advisor configuration
+  and `tan.start`. Their retained contracts/components do not establish working
+  Host behavior; they remain acceptance gaps. Main BTW, local resources and
+  shell views are now registered through the native session utility family.
+  Desktop also dropped upstream's office-preview, chrome-api,
   remote-provisioning and desktop git/GitHub services because those reads now
   live in Host ops or are retired (Office needs a trusted signed component).
 - **Mobile binding scope** is enforced only by navigation today: the renderer

@@ -1,7 +1,7 @@
 import type { ITheme, Terminal } from "@xterm/xterm";
 
-export function readCssVar(name: string, fallback: string): string {
-  const value = getComputedStyle(document.documentElement)
+export function readCssVar(name: string, fallback: string, doc: Document = document): string {
+  const value = (doc.defaultView ?? window).getComputedStyle(doc.documentElement)
     .getPropertyValue(name)
     .trim();
   return value.length > 0 ? value : fallback;
@@ -46,40 +46,41 @@ const LIGHT_ANSI = {
   brightWhite: "#ffffff",
 } as const;
 
-function isDarkTheme(): boolean {
-  const theme = document.documentElement.dataset.theme;
+function isDarkTheme(doc: Document): boolean {
+  const theme = doc.documentElement.dataset.theme;
   if (theme === "dark") return true;
   if (theme === "light") return false;
-  return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+  return doc.defaultView?.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
-export function readXtermTheme(): ITheme {
-  const dark = isDarkTheme();
+export function readXtermTheme(doc: Document = document): ITheme {
+  const dark = isDarkTheme(doc);
   const ansi = dark ? DARK_ANSI : LIGHT_ANSI;
   return {
-    background: readCssVar("--surface", dark ? "#1a1b1f" : "#ffffff"),
-    foreground: readCssVar("--text", dark ? "#e7e8eb" : "#1d2129"),
-    cursor: readCssVar("--accent", dark ? "#60a5fa" : "#2563eb"),
-    cursorAccent: readCssVar("--surface", dark ? "#1a1b1f" : "#ffffff"),
+    background: readCssVar("--surface", dark ? "#1a1b1f" : "#ffffff", doc),
+    foreground: readCssVar("--text", dark ? "#e7e8eb" : "#1d2129", doc),
+    cursor: readCssVar("--accent", dark ? "#60a5fa" : "#2563eb", doc),
+    cursorAccent: readCssVar("--surface", dark ? "#1a1b1f" : "#ffffff", doc),
     selectionBackground: readCssVar(
       "--accent-soft",
       dark ? "rgba(96, 165, 250, 0.28)" : "rgba(37, 99, 235, 0.18)",
+      doc,
     ),
-    selectionForeground: readCssVar("--text", dark ? "#e7e8eb" : "#1d2129"),
+    selectionForeground: readCssVar("--text", dark ? "#e7e8eb" : "#1d2129", doc),
     ...ansi,
   };
 }
 
-export function readTerminalTypography(): { fontFamily: string; fontSize: number } {
+export function readTerminalTypography(doc: Document = document): { fontFamily: string; fontSize: number } {
   return {
-    fontFamily: readCssVar("--font-terminal", "Menlo, Consolas, monospace"),
-    fontSize: Number.parseFloat(readCssVar("--terminal-font-size", "12px")),
+    fontFamily: readCssVar("--font-terminal", "Menlo, Consolas, monospace", doc),
+    fontSize: Number.parseFloat(readCssVar("--terminal-font-size", "12px", doc)),
   };
 }
 
-export function applyTheme(term: Terminal): void {
-  term.options.theme = readXtermTheme();
-  const typography = readTerminalTypography();
+export function applyTheme(term: Terminal, doc: Document = term.element?.ownerDocument ?? document): void {
+  term.options.theme = readXtermTheme(doc);
+  const typography = readTerminalTypography(doc);
   term.options.fontFamily = typography.fontFamily;
   term.options.fontSize = typography.fontSize;
 }

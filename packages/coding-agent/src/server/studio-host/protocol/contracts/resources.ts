@@ -15,5 +15,3 @@ export interface ResourcePage {
 	truncated: boolean;
 	image?: { mimeType: string; data: string };
 }
-
-

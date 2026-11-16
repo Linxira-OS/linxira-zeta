@@ -58,9 +58,3 @@ export const IDA_KINDS = ["ida.status", "ida.view", "ida.prepare", "ida.commit",
 export function isIdaKind(kind: string): kind is IdaOperation["kind"] {
 	return (IDA_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-

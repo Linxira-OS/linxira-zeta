@@ -105,12 +105,3 @@ export const SESSION_OPTIONS_KINDS = [
 export function isSessionOptionsKind(kind: string): kind is SessionOptionsOperation["kind"] {
 	return (SESSION_OPTIONS_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-
-
-

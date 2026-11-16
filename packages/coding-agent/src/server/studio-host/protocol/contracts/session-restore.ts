@@ -19,7 +19,3 @@ export const SESSION_RESTORE_KINDS = ["session.restore.inspect"] as const;
 export function isSessionRestoreKind(kind: string): kind is SessionRestoreOperation["kind"] {
 	return kind === "session.restore.inspect";
 }
-
-
-
-

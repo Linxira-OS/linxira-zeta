@@ -121,7 +121,10 @@ class DaemonConnection {
  * Connect and confirm the daemon speaks this zetacode version or a newer one;
  * `undefined` when nothing usable listens.
  */
-async function connectDaemon(endpoint: string, profile: TextPredictProfile = "default"): Promise<DaemonConnection | undefined> {
+async function connectDaemon(
+	endpoint: string,
+	profile: TextPredictProfile = "default",
+): Promise<DaemonConnection | undefined> {
 	let ipc: IpcConnection;
 	try {
 		ipc = await IpcConnection.connect(endpoint, { framing: "lines", timeoutMs: CONNECT_TIMEOUT_MS });
@@ -132,7 +135,8 @@ async function connectDaemon(endpoint: string, profile: TextPredictProfile = "de
 	try {
 		const pong = await connection.request(id => ({ id, op: "ping" }), REQUEST_TIMEOUT_MS);
 		if (
-			pong.ok && pong.op === "ping" &&
+			pong.ok &&
+			pong.op === "ping" &&
 			(pong.version === VERSION || compareVersions(pong.version, VERSION) > 0) &&
 			(profile === "default" || (pong.profile === profile && pong.protocol === 2))
 		) {
@@ -217,14 +221,24 @@ export class TextPredictionClient {
 		try {
 			const broker = await daemonClientForGlobal(TEXT_PREDICT_BROKER_SCOPE);
 			const ping = await broker.request({ op: "ping" });
-			if (ping.op !== "ping" || !ping.instanceFencing) throw new Error("Restart the prediction broker before clearing its corpus");
+			if (ping.op !== "ping" || !ping.instanceFencing)
+				throw new Error("Restart the prediction broker before clearing its corpus");
 			const { name } = textPredictDaemon(broker.projectDir, this.agentDirectory, this.profile);
 			const listed = await broker.request({ op: "list" });
 			if (listed.op !== "list") throw new Error("Unexpected prediction broker response");
-			const daemon = listed.daemons.find(row => row.name === name && row.state !== "exited" && row.state !== "failed");
+			const daemon = listed.daemons.find(
+				row => row.name === name && row.state !== "exited" && row.state !== "failed",
+			);
 			if (daemon) {
-				const stopped = await broker.request({ op: "stop", name, id: daemon.id, expectedInstanceId: `${daemon.id}:${daemon.startedAt}`, timeoutMs: 10000 });
-				if (stopped.op !== "stop" || !["exited", "failed"].includes(stopped.daemon.state)) throw new Error("Prediction daemon is still running");
+				const stopped = await broker.request({
+					op: "stop",
+					name,
+					id: daemon.id,
+					expectedInstanceId: `${daemon.id}:${daemon.startedAt}`,
+					timeoutMs: 10000,
+				});
+				if (stopped.op !== "stop" || !["exited", "failed"].includes(stopped.daemon.state))
+					throw new Error("Prediction daemon is still running");
 			}
 		} finally {
 			this.#closed = false;

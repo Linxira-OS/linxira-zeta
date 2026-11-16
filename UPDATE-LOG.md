@@ -2,6 +2,16 @@
 
 ## 下一版本（Unreleased）
 
+### Work Studio v0.2.1 适配与 Host producer（未发布）
+- **官方来源**：Studio `v0.2.1`（tag `6d0b764bb9eac88c1671c0380229823c5630cc74`）以真 merge 进入集成分支，`merge-base --is-ancestor` 成立；1,751 条官方路径核账为 1,248 accepted / 0 unresolved / 0 problems（最终 `final6` 报告，含本地 XLSX 来源修复）。这证明逐路径处置与源码来源，不等于全部功能验收。OMP 仍固定 `v18.20.0`。
+- **单一权威**：仍是 Zeta `serve` 的 HTTP/cookie/CSRF/设备绑定/2FA/会话上下文；Studio 只做适配层，不安装上游 Runtime/Host/独立 Desktop 工件库。
+- **二进制工件**：受认证的 `POST/GET/HEAD /api/v1/artifacts` 支持 `Range`/416、`no-store`/`nosniff`/sandbox CSP，实际字节上限 28 MiB。写入要求活跃上下文、事件 socket 和精确驻留会话，并与会话进回收站串行；读取要求打开的上下文。Desktop 经精确本地/SSH 连接处理 `zeta-artifact://library/…`，断线不回退本地；原生终端录制使用独立的 `zeta-artifact://recorder/…`。导出在临时文件写完后、原子 rename 前重查原上下文；失权清理临时文件。导入生成种类优先于冲突的文本后缀，音频创建仍 owner-held。
+- **已接线的 Host 家族**：`accounts.*`（原生凭据精确行登出、配额、池）、`search.credentials.*`、`extensions.links.*`（worker 子代理走其 home-thread runner）、`agent.btw.*`/`agent.model.inspect`（停驻代理读活动 journal 分支）、`annotations.*`、`ida.*`、`media.*`、`session.compaction.*`/`session.queue.*`、`worktrees.session.*`、`preferences.features.*`/`models.compaction.*`、`session.titles.inspect`、`session.portability.*`、`maintenance.compression.*`、`archive.*`、`session.lease.read|inspect`、evaluation 旧历史导入。
+- **并发与生命周期修复（独立 review 发现）**：凭据写入与子代理 BTW 在异步准备后重新校验视图权威；worktree 预览/删除在 lease 与原生计划后重查存活与脏状态，视图中途撤销不再执行删除；serve 关闭先停两个监听、再停 loop/goal 续跑，然后 abort 并清理 worktree。
+- **最终 review 修复**：资源页按实际不带 `kind` 的输入分派并转交异步视图 fence；BTW 原生分支先 rekey 驻留 wrapper，再交接当前选择，较新的选择不被覆盖；录制 shell 源限制在当前 transcript bucket/所属子代理并检查设备绑定；迁移检查次级会话与目标工作区，单会话绑定不能导入新会话。队列失权保留待发消息并丢弃暂存图片；迁移状态缓存不再替换进行中操作的原始视图权威。
+- **npm 12 安装修复（ADR-0059）**：SheetJS XLSX 0.20.3 改用仓库内官方原始 tarball，SHA-512 与集成前锁文件完全相同；不降级、不放开远程安装。守卫要求根包直接声明、包内真实路径与完整性匹配。npm12 `ci` 默认 `allow-remote=none` 成功，中文工作簿 4 行精确往返、来源守卫 4 tests / 9 assertions、renderer build/首屏 2,810.9 kB 通过；同步保留 Apache-2.0 版权和完整许可证。
+- **最新验证**：`check:ts` 通过（lint 544 warnings、0 errors，格式通过；Host 5,809 文件），Rust 格式通过；Host/工件 26 tests / 255 assertions，原生权威回归 35 tests / 308 assertions，Desktop 原始字节/录制 3 tests，受影响 renderer 5 files / 21 tests 通过。保留的完整 renderer 177 files / 1,428 tests 与 Electron45.3 实际导入→预览→导出/回放、终端字号和生命周期证据仍按原源码范围引用。原生 `test:rs` 因缺 `cargo-nextest` 未执行，后续 doctest 阶段未启动。隔离 provider 成功/完整 Ratchet、Windows source-matched addon/物理桌面和真实 SSH 验收仍受阻；未注册的原生偏好/目录/恢复等家族仍是缺口。ADR 0043–0058 按台账保留 Proposed；未 tag、未发布、未合并 `main`。
+
 ### 1.5.2（2026-11-12）
 - **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。
 - **上游基线**：OMP `v18.19.0`（tag `04cd1a7549a02d62ad1d24826198d52507595683`，merge `f2ad635e0142bf9c64b8fe8253683da4430698a7`，基于 `ddb44711b5d`）。

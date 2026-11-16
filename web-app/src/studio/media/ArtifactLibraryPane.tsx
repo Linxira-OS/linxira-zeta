@@ -15,10 +15,13 @@ import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { SettingRow, SettingSection } from "../settings/SettingRow";
 import { Icon } from "../icons";
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
 import "./media.css";
 
-import { artifactUrl } from "./artifactUrl";
-export { artifactUrl } from "./artifactUrl";
+import {
+  resolveArtifactContext,
+  useArtifactResource,
+} from "./artifactUrl";
 function bytesLabel(bytes: number): string {
 	return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KiB` : `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 }
@@ -127,7 +130,9 @@ export function ArtifactLibraryPane({
 	visible?: boolean;
 }) {
   const { preview, marks } = usePreviewMode();
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const { id: targetId } = useExecutionTarget();
+  const zh = resolvedLanguage === "zh";
   const [rows, setRows] = useState<readonly ArtifactRecord[]>([]);
   const [kind, setKind] = useState<ArtifactKind | "">("");
   const [cursor, setCursor] = useState<string>();
@@ -136,6 +141,20 @@ export function ArtifactLibraryPane({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const generation = useRef(0);
+  const needsResource =
+    selected !== undefined &&
+    selected.kind !== "recording" &&
+    (selected.kind === "graphic" ||
+      selected.kind === "image" ||
+      selected.kind === "video" ||
+      selected.kind === "audio" ||
+      graphicFormat(selected.name));
+  const resource = useArtifactResource(
+    preview || !needsResource ? undefined : client,
+    preview || !needsResource ? undefined : selected?.artifactId,
+    targetId,
+    sessionId,
+  );
   const load = useCallback(
     async (after?: string) => {
       const token = ++generation.current;
@@ -150,7 +169,11 @@ export function ArtifactLibraryPane({
           return;
         }
         const page = await client.query("artifacts.list", {
-          ...(workspaceId ? { workspaceId } : {}),
+          ...(sessionId
+            ? { sessionId }
+            : workspaceId
+              ? { workspaceId }
+              : {}),
           ...(kind ? { kind } : {}),
           ...(after ? { cursor: after } : {}),
           limit: 50,
@@ -167,7 +190,7 @@ export function ArtifactLibraryPane({
         if (generation.current === token) setBusy(false);
       }
     },
-    [client, workspaceId, kind, preview, t],
+    [client, sessionId, workspaceId, kind, preview, t],
   );
   useEffect(() => {
     setRows([]);
@@ -209,10 +232,19 @@ export function ArtifactLibraryPane({
     setBusy(true);
     setError("");
     try {
+      const context = await resolveArtifactContext(client);
+      if (sessionId && context.sessionId !== sessionId)
+        throw new Error(
+          zh
+            ? "当前会话已更改，请重试导入"
+            : "The active session changed; retry the import",
+        );
       const result = await globalThis.zetaStudioChrome?.importArtifact?.({
         kind: kind || "image",
-        ...(workspaceId ? { workspaceId } : {}),
-        ...(sessionId ? { sessionId } : {}),
+        sessionId: context.sessionId,
+        workspaceId: context.workspaceId,
+        contextId: context.contextId,
+        targetId,
       });
       if (!result) throw new Error(t("media.unavailable"));
       if (!result.ok) throw new Error(result.message);
@@ -362,68 +394,102 @@ export function ArtifactLibraryPane({
                 }
                 onClick={() => {
                   if (preview) return;
-                  void globalThis.zetaStudioChrome
-                    ?.exportArtifact?.({ artifactId: selected.artifactId })
-                    .then((result) => {
+                  void (async () => {
+                    try {
+                      const context = await resolveArtifactContext(client);
+                      if (sessionId && context.sessionId !== sessionId)
+                        throw new Error(
+                          zh
+                            ? "当前会话已更改，请重试导出"
+                            : "The active session changed; retry the export",
+                        );
+                      const result =
+                        await globalThis.zetaStudioChrome?.exportArtifact?.({
+                          artifactId: selected.artifactId,
+                          contextId: context.contextId,
+                          targetId,
+                        });
+                      if (!result) throw new Error(t("media.unavailable"));
                       if (!result.ok) setError(result.message);
-                    })
-                    .catch((cause) =>
-                      setError(hostErrorMessage(cause, t("media.failed"))),
-                    );
+                    } catch (cause) {
+                      setError(hostErrorMessage(cause, t("media.failed")));
+                    }
+                  })();
                 }}
               >
                 {t("media.saveAs")}
               </button>
             </div>
-            {!visible ? null : !preview &&
-              !globalThis.zetaStudioChrome?.exportArtifact ? (
-              <p className="muted">{t("media.unavailable")}</p>
+            {!visible ? null : !preview && needsResource && resource.error ? (
+              <p role="alert" className="small">
+                {resource.error}
+              </p>
+            ) : !preview && needsResource && !resource.url ? (
+              <p className="small muted" role="status">
+                {t("common.loading")}
+              </p>
             ) : selected.kind === "graphic" || graphicFormat(selected.name) ? (
-              <GraphicPreview
-                key={selected.artifactId}
-                name={selected.name}
-                {...(preview
-                  ? { text: PREVIEW_GRAPHICS[selected.name] ?? "" }
-                  : { src: artifactUrl(selected.artifactId) })}
-              />
+              preview ? (
+                <GraphicPreview
+                  key={selected.artifactId}
+                  name={selected.name}
+                  text={PREVIEW_GRAPHICS[selected.name] ?? ""}
+                />
+              ) : resource.url ? (
+                <GraphicPreview
+                  key={selected.artifactId}
+                  name={selected.name}
+                  src={resource.url}
+                />
+              ) : null
             ) : selected.kind === "recording" ? (
-              <DeferredPanel><RecordingPlayer
-                key={selected.artifactId}
-                {...(preview
-                  ? { demoText: PREVIEW_RECORDING }
-                  : { artifactId: selected.artifactId })}
-              /></DeferredPanel>
+              <DeferredPanel>
+                <RecordingPlayer
+                  key={(sessionId ?? "none") + ":" + selected.artifactId}
+                  {...(preview
+                    ? { demoText: PREVIEW_RECORDING }
+                    : { artifactId: selected.artifactId, client, targetId })}
+                />
+              </DeferredPanel>
             ) : selected.kind === "image" ? (
-              <img
-                src={
-                  preview
-                    ? previewMediaUrl(selected.kind)
-                    : artifactUrl(selected.artifactId)
-                }
-                alt={selected.name}
-              />
+              preview ? (
+                <img
+                  src={previewMediaUrl(selected.kind)}
+                  alt={selected.name}
+                />
+              ) : resource.url ? (
+                <img src={resource.url} alt={selected.name} />
+              ) : null
             ) : selected.kind === "video" ? (
-              <video
-                key={selected.artifactId}
-                controls
-                preload="metadata"
-                src={
-                  preview
-                    ? previewMediaUrl(selected.kind)
-                    : artifactUrl(selected.artifactId)
-                }
-              />
+              preview ? (
+                <video
+                  controls
+                  preload="metadata"
+                  src={previewMediaUrl(selected.kind)}
+                />
+              ) : resource.url ? (
+                <video
+                  key={selected.artifactId}
+                  controls
+                  preload="metadata"
+                  src={resource.url}
+                />
+              ) : null
             ) : selected.kind === "audio" ? (
-              <audio
-                key={selected.artifactId}
-                controls
-                preload="metadata"
-                src={
-                  preview
-                    ? previewMediaUrl(selected.kind)
-                    : artifactUrl(selected.artifactId)
-                }
-              />
+              preview ? (
+                <audio
+                  controls
+                  preload="metadata"
+                  src={previewMediaUrl(selected.kind)}
+                />
+              ) : resource.url ? (
+                <audio
+                  key={selected.artifactId}
+                  controls
+                  preload="metadata"
+                  src={resource.url}
+                />
+              ) : null
             ) : (
               <p className="muted">{t("media.exportToView")}</p>
             )}

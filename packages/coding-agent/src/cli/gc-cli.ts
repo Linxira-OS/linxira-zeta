@@ -107,6 +107,11 @@ export interface GcCommandFlags {
 
 export interface GcCommandArgs {
 	flags: GcCommandFlags;
+	/** Optional typed selection boundary for reviewed desktop compression operations. */
+	compressionCandidates?: (
+		sessionId: string,
+		candidates: readonly CompressCandidate[],
+	) => readonly CompressCandidate[];
 	/** Where to draw transient per-step progress bars; drawn only on a TTY, none when omitted. */
 	progress?: ProgressOutput;
 }
@@ -2025,7 +2030,11 @@ async function tryAcquireSessionTreeLeases(
  * deleted, so it stays resumable. Leftover scratch directories from a killed
  * run are removed first. A session that fails is reported and skipped.
  */
-async function runCompressGc(options: ResolvedGcOptions, archiveRoot: string): Promise<CompressGcResult> {
+async function runCompressGc(
+	options: ResolvedGcOptions,
+	archiveRoot: string,
+	select?: GcCommandArgs["compressionCandidates"],
+): Promise<CompressGcResult> {
 	const sessionsRoot = getSessionsDir(options.agentDir);
 	const method = await compressMethod(sessionsRoot);
 	const result: CompressGcResult = {
@@ -2070,14 +2079,17 @@ async function runCompressGc(options: ResolvedGcOptions, archiveRoot: string): P
 	const cutoffMs = Date.now() - Math.max(options.compressAfterDays * DAY_MS, GC_WRITE_GRACE_MS);
 	for (const transcript of options.track.each("Scanning sessions to compress", transcripts)) {
 		let files: string[];
+		let sessionId: string | undefined;
 		try {
 			if (!(await isIdleTranscript(transcript, cutoffMs))) continue;
+			sessionId = await readSessionHeaderId(transcript);
+			if (!sessionId) continue;
 			files = await collectSessionFiles(transcript);
 		} catch (error) {
 			result.errors.push(`${transcript}: ${errorMessage(error)}`);
 			continue;
 		}
-		const candidates: CompressCandidate[] = [];
+		let candidates: CompressCandidate[] = [];
 		for (const file of files) {
 			try {
 				const candidate = await compressCandidate(file);
@@ -2094,6 +2106,8 @@ async function runCompressGc(options: ResolvedGcOptions, archiveRoot: string): P
 				result.skippedLive += 1;
 				continue;
 			}
+			if (select && sessionId) candidates = [...select(sessionId, candidates)];
+			if (candidates.length === 0) continue;
 			result.sessions += 1;
 			result.wouldCompress += candidates.length;
 			for (const candidate of candidates) {
@@ -2523,7 +2537,8 @@ function renderText(result: GcResult): string {
 	return `${lines.join("\n")}\n`;
 }
 
-export async function runGcCommand(args: GcCommandArgs): Promise<GcResult> {
+/** Run the native collector without writing terminal output. */
+export async function collectGc(args: GcCommandArgs): Promise<GcResult> {
 	const options = await resolveOptions(args);
 	const archiveRoot = getArchivedSessionsDir(options.agentDir);
 	const result = await withGcLock(options.agentDir, async lockPath => {
@@ -2538,12 +2553,17 @@ export async function runGcCommand(args: GcCommandArgs): Promise<GcResult> {
 		if (options.runStrip) next.strip = await runStripGc(options, archiveRoot);
 		if (options.runBlobs) next.blobs = await runBlobGc(options, archiveRoot);
 		if (options.runArchive) next.archive = await runArchiveGc(options, archiveRoot, registeredSessionPaths);
-		if (options.runCompress) next.compress = await runCompressGc(options, archiveRoot);
+		if (options.runCompress) next.compress = await runCompressGc(options, archiveRoot, args.compressionCandidates);
 		if (options.runWal) next.wal = await runWalGc(options);
 		return next;
 	});
 
-	const output = options.json ? `${JSON.stringify(result, null, 2)}\n` : renderText(result);
+	return result;
+}
+
+export async function runGcCommand(args: GcCommandArgs): Promise<GcResult> {
+	const result = await collectGc(args);
+	const output = args.flags.json ? `${JSON.stringify(result, null, 2)}\n` : renderText(result);
 	process.stdout.write(output);
 	return result;
 }

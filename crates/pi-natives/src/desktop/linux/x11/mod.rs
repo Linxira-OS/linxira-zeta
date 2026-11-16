@@ -33,10 +33,16 @@ pub struct X11Backend {
 }
 
 impl X11Backend {
-
-	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
+	pub(crate) fn new_observed(
+		display: DisplaySelector,
+		observation_only: bool,
+	) -> CoreResult<Self> {
 		let capture = X11Capture::new(display)?;
-		let input = if observation_only { None } else { Some(X11Input::new(capture.connection(), capture.root(), None)?) };
+		let input = if observation_only {
+			None
+		} else {
+			Some(X11Input::new(capture.connection(), capture.root(), None)?)
+		};
 		let ax = AtSpiAx::new()
 			.ok()
 			.map(|ax| ax.with_native_windows(Box::new(capture.clone())));
@@ -44,14 +50,22 @@ impl X11Backend {
 	}
 
 	fn input(&mut self) -> CoreResult<&mut X11Input> {
-		self.input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))
+		self
+			.input
+			.as_mut()
+			.ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))
 	}
 }
 
 impl Backend for X11Backend {
 	fn capabilities(&mut self) -> DesktopCapabilities {
 		let displays = self.capture.displays();
-		let watched = self.input.as_mut().is_some_and(|input| input.watch_user().and_then(|activity| activity.sync()).is_ok());
+		let watched = self.input.as_mut().is_some_and(|input| {
+			input
+				.watch_user()
+				.and_then(|activity| activity.sync())
+				.is_ok()
+		});
 		DesktopCapabilities {
 			backend: "x11".to_string(),
 			display_server: self.display_server.clone(),
@@ -76,7 +90,12 @@ impl Backend for X11Backend {
 				"unavailable"
 			}
 			.to_string(),
-			input_permission: if self.input.is_some() { "granted" } else { "unavailable" }.to_string(),
+			input_permission: if self.input.is_some() {
+				"granted"
+			} else {
+				"unavailable"
+			}
+			.to_string(),
 			ax_permission: if self.ax.is_some() {
 				"granted"
 			} else {
@@ -206,7 +225,9 @@ impl Backend for X11Backend {
 		let window = ax.window_id(element, &windows)?;
 		let mut route = X11ElementKeys {
 			ax,
-			input: self.input.as_mut().ok_or_else(|| DesktopError::permission_denied("passive desktop has no input controller"))?,
+			input: self.input.as_mut().ok_or_else(|| {
+				DesktopError::permission_denied("passive desktop has no input controller")
+			})?,
 			element,
 			window: &window,
 			keys: input,

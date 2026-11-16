@@ -24,7 +24,10 @@ import {
 } from "../protocol/contracts/prediction-channel";
 import { unavailable } from "../errors";
 import { parsePredictionInput } from "./prediction-input";
-export interface PredictionView { readonly id: string; isLive(): boolean }
+export interface PredictionView {
+	readonly id: string;
+	isLive(): boolean;
+}
 interface Channel {
 	owner: PredictionView;
 	revision: number;
@@ -62,12 +65,13 @@ export class StudioPredictionService {
 	}
 	async control(action: PredictionControlAction, assertCurrent?: () => void) {
 		const result = await this.#engine.control(action, assertCurrent);
-		if (action === "clear" || action === "import") for (const channel of this.#channels.values()) {
-			channel.provider.setMethod("off");
-			channel.provider.setMethod(cfgSpellingAutocomplete.get(this.session.settings));
-			channel.input = undefined;
-			this.#send(channel, { kind: "suggestion", channelId: channel.id, revision: 0, suffix: null });
-		}
+		if (action === "clear" || action === "import")
+			for (const channel of this.#channels.values()) {
+				channel.provider.setMethod("off");
+				channel.provider.setMethod(cfgSpellingAutocomplete.get(this.session.settings));
+				channel.input = undefined;
+				this.#send(channel, { kind: "suggestion", channelId: channel.id, revision: 0, suffix: null });
+			}
 		return result;
 	}
 	observeSent(id: string, text: string) {
@@ -141,7 +145,8 @@ export class StudioPredictionService {
 		if (operation.kind === "prediction.prepare") return this.#prepare(owner, operation.protocolVersion);
 		if (operation.kind === "prediction.release") {
 			const channel = this.#channels.get(operation.channelId);
-			if (channel && channel.sessionId === operation.sessionId && channel.owner.id === owner.id) this.#close(channel);
+			if (channel && channel.sessionId === operation.sessionId && channel.owner.id === owner.id)
+				this.#close(channel);
 			return { released: true };
 		}
 		if (operation.kind === "prediction.download.cancel") await this.#engine.control("cancel");
@@ -174,7 +179,8 @@ export class StudioPredictionService {
 	): Promise<{ channelId: string; sessionId: string; expiresAt: number; protocolVersion?: 2 }> {
 		if (!this.directory || (!this.socketDirectory && process.platform !== "win32"))
 			throw unavailable("Private prediction transport is unavailable");
-		if (!owner.isLive() || this.#channels.size >= 4) throw unavailable("Prediction view is unavailable or has too many channels");
+		if (!owner.isLive() || this.#channels.size >= 4)
+			throw unavailable("Prediction view is unavailable or has too many channels");
 		const id = randomUUID(),
 			sessionId = this.session.sessionId,
 			token = randomBytes(32).toString("hex"),
@@ -187,7 +193,8 @@ export class StudioPredictionService {
 			throw unavailable("Prediction socket path is too long");
 		await fs.mkdir(folder, { recursive: true, mode: 0o700 });
 		this.#check(sessionId);
-		if (!owner.isLive() || this.#channels.size >= 4) throw unavailable("Prediction view is unavailable or has too many channels");
+		if (!owner.isLive() || this.#channels.size >= 4)
+			throw unavailable("Prediction view is unavailable or has too many channels");
 		const server = createServer(socket => this.#connect(channel, socket));
 		const backend = (method: WordCompletionEngine): WordPredictionBackend => ({
 			complete: async (before, prefix) => {
@@ -217,7 +224,12 @@ export class StudioPredictionService {
 			server,
 			peers: new Set(),
 			timer: setInterval(() => {
-				if (Date.now() - channel.lastSeen > 45000 || channel.sessionId !== this.session.sessionId || !owner.isLive() || !this.isLive())
+				if (
+					Date.now() - channel.lastSeen > 45000 ||
+					channel.sessionId !== this.session.sessionId ||
+					!owner.isLive() ||
+					!this.isLive()
+				)
 					this.#close(channel);
 			}, 5000),
 			lastSeen: Date.now(),
@@ -272,7 +284,8 @@ export class StudioPredictionService {
 			return;
 		}
 		channel.peers.add(socket);
-		let authenticated = false, pendingLength = 0;
+		let authenticated = false,
+			pendingLength = 0;
 		const pending = Buffer.alloc(32768);
 		const timer = setTimeout(() => socket.destroy(), 3000);
 		timer.unref();
@@ -283,11 +296,20 @@ export class StudioPredictionService {
 			if (channel.socket === socket) this.#close(channel);
 		});
 		socket.on("data", (chunk: Buffer) => {
-			if (typeof chunk === "string" || pendingLength + chunk.length > pending.length) { socket.destroy(); return; }
-			chunk.copy(pending, pendingLength); pendingLength += chunk.length;
-			for (let at = pending.subarray(0, pendingLength).indexOf(10); at >= 0; at = pending.subarray(0, pendingLength).indexOf(10)) {
+			if (typeof chunk === "string" || pendingLength + chunk.length > pending.length) {
+				socket.destroy();
+				return;
+			}
+			chunk.copy(pending, pendingLength);
+			pendingLength += chunk.length;
+			for (
+				let at = pending.subarray(0, pendingLength).indexOf(10);
+				at >= 0;
+				at = pending.subarray(0, pendingLength).indexOf(10)
+			) {
 				const line = pending.subarray(0, at).toString("utf8");
-				pending.copyWithin(0, at + 1, pendingLength); pendingLength -= at + 1;
+				pending.copyWithin(0, at + 1, pendingLength);
+				pendingLength -= at + 1;
 				try {
 					this.#check(channel.sessionId);
 					if (channel.closed || !channel.owner.isLive()) throw new Error("Prediction channel closed");
@@ -404,7 +426,10 @@ export class StudioPredictionService {
 	}
 	#send(channel: Channel, event: PredictionEvent): void {
 		if (channel.closed || !channel.socket) return;
-		if (!channel.owner.isLive() || !this.isLive()) { this.#close(channel); return; }
+		if (!channel.owner.isLive() || !this.isLive()) {
+			this.#close(channel);
+			return;
+		}
 		if (channel.socket.writableLength > 65536) {
 			this.#close(channel);
 			return;
@@ -415,7 +440,8 @@ export class StudioPredictionService {
 		if (channel.closed) return;
 		channel.closed = true;
 		this.#messagePrediction?.release(channel.id);
-		if (channel.socket && !channel.socket.destroyed && channel.socket.writableLength < 65536) channel.socket.write(JSON.stringify({ kind: "closed", channelId: channel.id }) + "\n");
+		if (channel.socket && !channel.socket.destroyed && channel.socket.writableLength < 65536)
+			channel.socket.write(JSON.stringify({ kind: "closed", channelId: channel.id }) + "\n");
 		clearInterval(channel.timer);
 		channel.provider.setMethod("off");
 		channel.provider.onUpdate = undefined;

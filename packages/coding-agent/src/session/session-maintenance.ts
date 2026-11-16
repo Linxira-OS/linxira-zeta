@@ -145,7 +145,7 @@ import {
 	cfgContextPromotionEnabled,
 	cfgSnapcompactShape,
 } from "./context-settings";
-import { resolveModelCompactionSettings } from "./model-compaction-threshold";
+import { resolveSessionCompactionSettings } from "./session-compaction";
 import { cfgProvidersOpenaiCodexDaybreak, cfgRetry } from "./settings";
 
 export type CompactionCheckResult = Readonly<{
@@ -671,7 +671,7 @@ export class SessionMaintenance {
 
 	/** Compaction policy in force for the active model (its `compaction.modelThresholds` entry applied). */
 	get #compactionSettings(): CompactionSettings {
-		return resolveModelCompactionSettings(this.#host.settings, this.#model);
+		return resolveSessionCompactionSettings(this.#host.settings, this.#model, this.#host.sessionManager);
 	}
 
 	get #tokenizer() {
@@ -5262,7 +5262,7 @@ export class SessionMaintenance {
 	#archiveTextBudget(model: Model): number | undefined {
 		const contextWindow = model.contextWindow ?? 0;
 		if (contextWindow <= 0) return undefined;
-		const settings = resolveModelCompactionSettings(this.#host.settings, model);
+		const settings = resolveSessionCompactionSettings(this.#host.settings, model, this.#host.sessionManager);
 		return Math.floor(SNAPCOMPACT_POST_COMPACTION_TARGET * resolveThresholdTokens(contextWindow, settings));
 	}
 

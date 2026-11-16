@@ -28,6 +28,7 @@ import {
 } from "@linxiraos/pi-utils";
 import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { splitCardTitle } from "../utils/title-card";
 import * as snapcompact from "@linxiraos/zeta-compact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
 import { moveSessionToTrash } from "./session-trash";
@@ -818,6 +819,13 @@ interface SessionManagerStateSnapshot {
 	taskSiblingCandidate: string | undefined;
 	header: SessionHeader;
 	entries: SessionEntry[];
+}
+
+/** Card index parsed from a card-form title, or recovered from a legacy title entry. */
+export interface SessionTitleCard {
+	code: string;
+	emoji?: string;
+	nf?: string;
 }
 
 interface DiskQueueOptions {
@@ -2164,7 +2172,12 @@ export class SessionManager {
 		this.#index.rebuild(entries);
 	}
 
-	#freshEntryFields(id?: string): { id: string; parentId: string | null; timestamp: string; runtime: RuntimeIdentity } {
+	#freshEntryFields(id?: string): {
+		id: string;
+		parentId: string | null;
+		timestamp: string;
+		runtime: RuntimeIdentity;
+	} {
 		return {
 			id: id ?? generateId(this.#index),
 			parentId: this.#index.leafId(),
@@ -3451,6 +3464,72 @@ export class SessionManager {
 		return this.#sessionName;
 	}
 
+	/**
+	 * The card index of the current title, if it has one. Read from the latest
+	 * title change rather than stored beside the title (header, title slot,
+	 * listings): a rename that passes no card drops it, and a resumed session
+	 * gets it back from its own entries.
+	 */
+	getSessionTitleCard(): SessionTitleCard | undefined {
+		return SessionManager.#cardForTitle(this.#sessionName, this.#entries);
+	}
+
+	static #cardForTitle(title: string | undefined, entries: readonly FileEntry[]): SessionTitleCard | undefined {
+		if (!title) return undefined;
+		const parsed = splitCardTitle(title);
+		if (parsed) return { code: parsed.code, emoji: parsed.icon };
+		// Legacy Studio sessions kept the card beside the title.
+		for (let i = entries.length - 1; i >= 0; i--) {
+			const entry = entries[i]!;
+			if (entry.type !== TITLE_CHANGE_ENTRY_TYPE) continue;
+			const record = entry as unknown as Record<string, unknown>;
+			if (record.title !== title) return undefined;
+			const value = record.card;
+			if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+			const card = value as Record<string, unknown>;
+			if (typeof card.code !== "string") return undefined;
+			return {
+				code: card.code,
+				...(typeof card.emoji === "string" ? { emoji: card.emoji } : {}),
+				...(typeof card.nf === "string" ? { nf: card.nf } : {}),
+			};
+		}
+		return undefined;
+	}
+
+	/** Read only title metadata without acquiring session ownership or writing migrations. */
+	static async peekSessionTitle(
+		filePath: string,
+		storage: SessionStorage = new FileSessionStorage(),
+	): Promise<{ sessionId: string; title?: string; source?: SessionTitleSource; card?: SessionTitleCard }> {
+		const [prefix, suffix] = await storage.readTextSlices(filePath, 64 * 1024, 64 * 1024);
+		const loaded = parseSessionContent(prefix);
+		const header = loaded.entries[0];
+		if (loaded.invalidHeader || !header || header.type !== "session")
+			throw new Error("The saved session is incomplete or damaged; title inspection cannot continue");
+		let card = SessionManager.#cardForTitle(header.title, []);
+		if (header.title && !card) {
+			const tail = parseSessionContent(suffix.slice(suffix.indexOf("\n") + 1)).entries;
+			let latest = tail.findLast(entry => entry.type === TITLE_CHANGE_ENTRY_TYPE);
+			if (!latest) {
+				await visitEntriesFromFile(
+					filePath,
+					entry => {
+						if (entry.type === TITLE_CHANGE_ENTRY_TYPE) latest = entry;
+					},
+					storage,
+				);
+			}
+			if (latest) card = SessionManager.#cardForTitle(header.title, [latest]);
+		}
+		return {
+			sessionId: header.id,
+			...(header.title ? { title: header.title } : {}),
+			...(header.titleSource ? { source: header.titleSource } : {}),
+			...(card ? { card } : {}),
+		};
+	}
+
 	onSessionNameChanged(cb: () => void): () => void {
 		this.#sessionNameChangedCallbacks.add(cb);
 		return () => {
@@ -3647,7 +3726,9 @@ export class SessionManager {
 	): string {
 		const entry: SessionMessageEntry = {
 			type: "message",
-			...this.#freshEntryFields(agentMessageIdentity(message) === undefined ? undefined : this.reserveMessageEntryId(message)),
+			...this.#freshEntryFields(
+				agentMessageIdentity(message) === undefined ? undefined : this.reserveMessageEntryId(message),
+			),
 			message,
 			...(metadata ? { metadata } : {}),
 		};
@@ -4198,8 +4279,12 @@ export class SessionManager {
 		if (leafId !== null && !this.#index.has(leafId)) throw new Error(`Entry ${leafId} not found`);
 		await this.appendEntriesAtomically(() => {
 			const entry: CustomEntry = {
-				type: "custom", customType: "zeta-active-leaf", data: { leafId },
-				...this.#freshEntryFields(), parentId: null, activeLeafId: leafId,
+				type: "custom",
+				customType: "zeta-active-leaf",
+				data: { leafId },
+				...this.#freshEntryFields(),
+				parentId: null,
+				activeLeafId: leafId,
 			};
 			this.#recordEntry(entry);
 		});

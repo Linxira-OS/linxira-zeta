@@ -100,7 +100,9 @@ describe("capability manifest", () => {
 
 describe("unsupported fallback", () => {
 	test("a query with no handler answers unsupported", async () => {
-		const response = await runQuery("session.telemetry.read", { sessionId: "missing" as import("../src/server/studio-host/contract/ids.js").SessionId });
+		const response = await runQuery("session.telemetry.read", {
+			sessionId: "missing" as import("../src/server/studio-host/contract/ids.js").SessionId,
+		});
 		expect(response.ok).toBe(false);
 		if (!response.ok) expect(response.error.code as string).toBe("unsupported");
 	});
@@ -389,7 +391,9 @@ describe("workspace commands", () => {
 
 	test("session.create rejects a malformed startup model before creating a runtime", async () => {
 		const { workspaceId } = await registerWorkspace();
-		await expect(runCommand("session.create", { workspaceId, model: "missing-provider-separator" })).rejects.toMatchObject({
+		await expect(
+			runCommand("session.create", { workspaceId, model: "missing-provider-separator" }),
+		).rejects.toMatchObject({
 			code: "INVALID_ARGUMENT",
 		});
 	});

@@ -504,6 +504,25 @@ export class AgentSessionWrapper {
 		}
 	}
 
+	/** Keep native branch promotion and the resident registry on the same identity. */
+	async branchSession<T>(branch: () => Promise<T>): Promise<T> {
+		this.#loopController.stopForSessionChange();
+		await this.#goalController.beginSessionChange();
+		try {
+			return await branch();
+		} finally {
+			const id = this.#inner.sessionId;
+			const file = this.#inner.sessionFile;
+			if (id !== this.realSessionId && file) {
+				sessions.delete(this.realSessionId);
+				cacheSessionPath(id, file);
+				this.#rekey(id, file);
+				invalidateSessionListCache();
+			}
+			await this.#goalController.endSessionChange();
+		}
+	}
+
 	#emitQueuedMessages(): void {
 		const queued = this.#inner.getQueuedMessages();
 		this.#emit({ type: "queue_update", steering: [...queued.steering], followUp: [...queued.followUp] });
@@ -789,31 +808,13 @@ export class AgentSessionWrapper {
 				const { switched } = await this.#inner.setModel(model);
 				return { ok: switched };
 			}
-			case "fork": {
-				// Goal state belongs to the transcript that set it: quiesce it, then
-				// adopt (or clear) the goal the fork's transcript carries.
-				this.#loopController.stopForSessionChange();
-				await this.#goalController.beginSessionChange();
-				try {
+			case "fork":
+				return this.branchSession(async () => {
 					const result = await this.#inner.branch(command.entryId);
-					if (result.cancelled) return { cancelled: true };
-					// branch() switched the session manager to the new file; the
-					// wrapper now lives under the NEW id (web-ui contract:
-					// `inner.sessionId` is the new session after fork).
-					const newSessionId = this.#inner.sessionId;
-					const newFile = this.#inner.sessionFile;
-					if (newSessionId && newFile) {
-						sessions.delete(this.realSessionId);
-						cacheSessionPath(newSessionId, newFile);
-						this.#rekey(newSessionId, newFile);
-					}
-					invalidateSessionListCache();
-					return { cancelled: false, newSessionId };
-				} finally {
-					// branch() switches files in-process without detaching a run.
-					await this.#goalController.endSessionChange();
-				}
-			}
+					return result.cancelled
+						? { cancelled: true }
+						: { cancelled: false, newSessionId: this.#inner.sessionId };
+				});
 			case "navigate_tree": {
 				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
@@ -1483,6 +1484,7 @@ export async function startRpcSession(
 	client: SessionClient = "web",
 	origin?: SessionOrigin,
 	agentProfile?: AgentProfileOptions,
+	startupModel?: { provider: string; modelId: string },
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -1518,6 +1520,7 @@ export async function startRpcSession(
 			workspaceRun: channelHooks?.workspaceRun,
 			imControl: channelHooks?.imControl,
 			...(agentProfile === undefined ? {} : { agentProfile }),
+			...(startupModel === undefined ? {} : { modelPattern: `${startupModel.provider}/${startupModel.modelId}` }),
 			// Serve-hosted sessions own a real UI backend: createGatewayUiContext
 			// below routes select/editor over SSE (`extension_ui_request`) and
 			// resolves them via the `extension_ui_response` command. Declaring
@@ -1527,6 +1530,13 @@ export async function startRpcSession(
 			// surface, which draws ```svg figures.
 			chatSvgRendering: true,
 		});
+		if (
+			startupModel !== undefined &&
+			(session.model?.provider !== startupModel.provider || session.model.id !== startupModel.modelId)
+		) {
+			await session.dispose();
+			throw new Error(`Model not found: ${startupModel.provider}/${startupModel.modelId}`);
+		}
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);
 		// The sink binds to the wrapper, not to a fixed path: a session gets its
@@ -1596,11 +1606,17 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 		};
 
 		const tempKey = `__new__${randomUUID()}`;
-		const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames, undefined, runClient);
-
-		if (provider && modelId) {
-			await session.send({ type: "set_model", provider, modelId });
-		}
+		const { session, realSessionId } = await startRpcSession(
+			tempKey,
+			"",
+			cwd,
+			toolNames,
+			undefined,
+			runClient,
+			undefined,
+			undefined,
+			provider && modelId ? { provider, modelId } : undefined,
+		);
 		if (thinkingLevel) {
 			await session.send({ type: "set_thinking_level", level: thinkingLevel });
 		}

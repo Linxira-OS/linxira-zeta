@@ -22,13 +22,14 @@ import {
 } from "../../../eval/judgment-batch-bridge";
 import { parseQuestions, parseState } from "../../../eval/judgment-bridge";
 import type { ToolSession } from "../../../tools";
-import type {
-	EvaluationSpec,
-	PerformanceEvaluationSpec,
-	EvaluationPlan,
-	EvaluationNativeSnapshot,
-	EvaluationWorkspaceOperation,
-	EvaluationResultRow,
+import {
+	evaluationTerminal,
+	type EvaluationSpec,
+	type PerformanceEvaluationSpec,
+	type EvaluationPlan,
+	type EvaluationNativeSnapshot,
+	type EvaluationWorkspaceOperation,
+	type EvaluationResultRow,
 } from "../protocol/contracts/evaluation-workspace";
 import { EvaluationRatchetRunner } from "./evaluation-ratchet-runner";
 import { cfgModelRoles } from "../../../config/model-settings";
@@ -223,7 +224,8 @@ export class StudioEvaluationWorkspaceService {
 				);
 				plan.spec = { ...plan.spec, models: plan.resolvedModels } as EvaluationSpec;
 				plan.requests = plan.phases.reduce((total, phase) => total + phase.requests, 0) * targets.length;
-				if ((plan.requests ?? 0) > EVALUATION_LIMITS.rows) throw new Error("Evaluation workload exceeds 20,000 native rows");
+				if ((plan.requests ?? 0) > EVALUATION_LIMITS.rows)
+					throw new Error("Evaluation workload exceeds 20,000 native rows");
 			}
 			return plan;
 		}
@@ -299,11 +301,15 @@ export class StudioEvaluationWorkspaceService {
 			return { rows, offset, nextOffset: offset + rows.length, total: task.rows.length };
 		}
 		if (op.kind === "evaluation.runtime.report" || op.kind === "evaluation.runtime.patch") {
-			const text = (op.offset ?? 0) > 0 && task.reportTransfer?.kind === op.kind
-				? task.reportTransfer.text
-				: op.kind === "evaluation.runtime.patch" ? await task.ratchet?.patch() : JSON.stringify(task.report, null, 2);
+			const text =
+				(op.offset ?? 0) > 0 && task.reportTransfer?.kind === op.kind
+					? task.reportTransfer.text
+					: op.kind === "evaluation.runtime.patch"
+						? await task.ratchet?.patch()
+						: JSON.stringify(task.report, null, 2);
 			if (text === undefined) throw new Error("No verified best-version patch is available");
-			if (Buffer.byteLength(text) > EVALUATION_LIMITS.reportBytes) throw new Error("Evaluation report exceeds 64 MiB");
+			if (Buffer.byteLength(text) > EVALUATION_LIMITS.reportBytes)
+				throw new Error("Evaluation report exceeds 64 MiB");
 			task.reportTransfer = { kind: op.kind, text };
 			const offset = op.offset ?? 0,
 				chunk = text.slice(offset, offset + 48000);
@@ -324,8 +330,12 @@ export class StudioEvaluationWorkspaceService {
 			if (op.action === "configure") {
 				if (!op.spec) throw new Error("Configuration required");
 				task.busy = true;
-				try { await task.ratchet.configure(op.spec); task.spec = op.spec; }
-				finally { task.busy = false; }
+				try {
+					await task.ratchet.configure(op.spec);
+					task.spec = op.spec;
+				} finally {
+					task.busy = false;
+				}
 			} else if (op.action === "approve") {
 				if (!op.stage) throw new Error("Choose an approval stage");
 				// Return immediately: the native InteractionPort owns the pending review.
@@ -334,7 +344,9 @@ export class StudioEvaluationWorkspaceService {
 					.approve(op.stage)
 					.then(() => this.#refreshRatchet(op.id, task))
 					.catch(error => this.#error(op.id, task!, error))
-					.finally(() => { task.busy = false; });
+					.finally(() => {
+						task.busy = false;
+					});
 			} else if (op.action === "start" || op.action === "pilot") {
 				task.view.state = "running";
 				task.busy = true;
@@ -342,7 +354,9 @@ export class StudioEvaluationWorkspaceService {
 					.run(op.action === "pilot")
 					.then(() => this.#refreshRatchet(op.id, task))
 					.catch(error => this.#error(op.id, task!, error))
-					.finally(() => { task.busy = false; });
+					.finally(() => {
+						task.busy = false;
+					});
 				const native = this.session.getEvalToolSession();
 				if (native?.trackEvalExecution) task.done = native.trackEvalExecution(task.done, task.abort);
 			}
@@ -431,7 +445,9 @@ export class StudioEvaluationWorkspaceService {
 				const native: ToolSession = {
 					...source,
 					getSessionId: () => this.session.sessionId,
-					...(spec.judgeModel ? { settings: source.settings.overlay({ "modelRoles.judge": spec.judgeModel }) } : {}),
+					...(spec.judgeModel
+						? { settings: source.settings.overlay({ "modelRoles.judge": spec.judgeModel }) }
+						: {}),
 				};
 				task.native = native;
 				const batch = spec.attachId
@@ -455,74 +471,72 @@ export class StudioEvaluationWorkspaceService {
 				if (task.abort.signal.aborted) task.batch?.cancel();
 				const { promise, resolve, reject } = Promise.withResolvers<void>();
 				const refresh = () => {
-						try {
-							const current = task.batch;
-							if (!current) throw new Error("Native batch was closed");
-							const status = current.status();
-							task.view.completed = status.done;
-							task.view.total = status.total;
-							task.view.failed = status.failed;
-							task.view.cost = status.cost;
-							task.view.detail = { ...status, questions: spec.questions };
-							const items: JudgmentBatchItem[] = [];
-							for (let offset = 0; offset < status.done; offset += 50)
-								items.push(...current.readItems(offset, 50));
-							task.rows = items.map(item => ({
-								key: String(item.key),
-								...(item.model ? { model: item.model } : {}),
-								data: item,
-							}));
-							task.view.metrics = Object.entries(spec.questions).map(([questionId, question]) => {
-								const answers = items.flatMap(item =>
-									item.answers?.[questionId] ? [item.answers[questionId]] : [],
-								);
-								const mean = answers.flatMap(answer =>
-									answer.type === "bool" ? [answer.bool] : answer.type === "score" ? [answer.score] : [],
-								);
-								const confidences = answers.flatMap(answer =>
-									answer.type === "choice" || answer.type === "score" ? [answer.confidence] : [],
-								);
-								const frequencies: Record<string, number> = {};
-								for (const answer of answers)
-									if (answer.type === "choice")
-										frequencies[`choice:${answer.choice}`] =
-											(frequencies[`choice:${answer.choice}`] ?? 0) + 1;
-								return {
-									id: questionId,
-									label: questionId,
-									state: status.running ? "running" : "completed",
-									completed: answers.length,
-									total: status.total,
-									failed: status.failed,
-									metrics: {
-										mean: mean.length ? mean.reduce((sum, n) => sum + n, 0) / mean.length : null,
-										confidence: confidences.length
-											? confidences.reduce((sum, n) => sum + n, 0) / confidences.length
-											: null,
-										answered: answers.length,
-										...frequencies,
-									},
-									detail: { question, frequencies },
-								};
-							});
-							task.report = {
-								batch: status,
-								items: task.rows.map(r => r.data),
-								configuration: spec.attachId ? current.studioInput() : undefined,
+					try {
+						const current = task.batch;
+						if (!current) throw new Error("Native batch was closed");
+						const status = current.status();
+						task.view.completed = status.done;
+						task.view.total = status.total;
+						task.view.failed = status.failed;
+						task.view.cost = status.cost;
+						task.view.detail = { ...status, questions: spec.questions };
+						const items: JudgmentBatchItem[] = [];
+						for (let offset = 0; offset < status.done; offset += 50) items.push(...current.readItems(offset, 50));
+						task.rows = items.map(item => ({
+							key: String(item.key),
+							...(item.model ? { model: item.model } : {}),
+							data: item,
+						}));
+						task.view.metrics = Object.entries(spec.questions).map(([questionId, question]) => {
+							const answers = items.flatMap(item =>
+								item.answers?.[questionId] ? [item.answers[questionId]] : [],
+							);
+							const mean = answers.flatMap(answer =>
+								answer.type === "bool" ? [answer.bool] : answer.type === "score" ? [answer.score] : [],
+							);
+							const confidences = answers.flatMap(answer =>
+								answer.type === "choice" || answer.type === "score" ? [answer.confidence] : [],
+							);
+							const frequencies: Record<string, number> = {};
+							for (const answer of answers)
+								if (answer.type === "choice")
+									frequencies[`choice:${answer.choice}`] = (frequencies[`choice:${answer.choice}`] ?? 0) + 1;
+							return {
+								id: questionId,
+								label: questionId,
+								state: status.running ? "running" : "completed",
+								completed: answers.length,
+								total: status.total,
+								failed: status.failed,
+								metrics: {
+									mean: mean.length ? mean.reduce((sum, n) => sum + n, 0) / mean.length : null,
+									confidence: confidences.length
+										? confidences.reduce((sum, n) => sum + n, 0) / confidences.length
+										: null,
+									answered: answers.length,
+									...frequencies,
+								},
+								detail: { question, frequencies },
 							};
-							this.#changed(id, task);
-							if (!status.running) {
-								clearInterval(task.timer);
-								if (status.error) task.view.error = status.error;
-								resolve();
-							}
-						} catch (error) {
+						});
+						task.report = {
+							batch: status,
+							items: task.rows.map(r => r.data),
+							configuration: spec.attachId ? current.studioInput() : undefined,
+						};
+						this.#changed(id, task);
+						if (!status.running) {
 							clearInterval(task.timer);
-							reject(error);
+							if (status.error) task.view.error = status.error;
+							resolve();
 						}
-					};
-					task.timer = setInterval(refresh, 300);
-					refresh();
+					} catch (error) {
+						clearInterval(task.timer);
+						reject(error);
+					}
+				};
+				task.timer = setInterval(refresh, 300);
+				refresh();
 				await promise;
 			} else {
 				const runner = await EvaluationRatchetRunner.create(
@@ -533,7 +547,10 @@ export class StudioEvaluationWorkspaceService {
 					this.interactions,
 				);
 				task.ratchet = runner;
-				if (task.abort.signal.aborted) { runner.stop(); task.abort.signal.throwIfAborted(); }
+				if (task.abort.signal.aborted) {
+					runner.stop();
+					task.abort.signal.throwIfAborted();
+				}
 				task.timer = setInterval(
 					() => void this.#refreshRatchet(id, task).catch(error => this.#error(id, task, error)),
 					1000,
@@ -677,10 +694,26 @@ export class StudioEvaluationWorkspaceService {
 		if (previous !== JSON.stringify({ ...task.view, revision: 0 })) this.#changed(id, task);
 	}
 	async settled(): Promise<void> {
-		await Promise.allSettled([...this.#tasks.values()].flatMap(task => task.done ? [task.done] : []));
+		await Promise.allSettled([...this.#tasks.values()].flatMap(task => (task.done ? [task.done] : [])));
 	}
 	release(): void {
-		for (const task of this.#tasks.values()) if (task.ratchet) { task.ratchet.release(); clearInterval(task.timer); }
+		for (const task of this.#tasks.values()) {
+			if (task.ratchet) {
+				task.ratchet.release();
+				clearInterval(task.timer);
+			}
+			// The Host saves report and rows before releasing a worker. Close the
+			// native batch only after its terminal snapshot is durable; the old
+			// judgments.close memory release must not outlive the saved report.
+			if (
+				task.spec.kind === "judgment" &&
+				task.spec.attachId === undefined &&
+				task.batchId !== undefined &&
+				task.native !== undefined &&
+				evaluationTerminal(task.view.state)
+			)
+				void runEvalJudgmentBatch({ op: "close", id: task.batchId }, { session: task.native }).catch(() => {});
+		}
 		this.#listeners.clear();
 	}
 	dispose(): void {

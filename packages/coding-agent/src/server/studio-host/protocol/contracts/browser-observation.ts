@@ -19,7 +19,11 @@ export interface BrowserObservationResultMap {
 	"browser.tabs.get": { tabs: StudioBrowserTab[] };
 	"browser.observe.prepare": { observationId: string; sessionId: string; tabId: string; expiresAt: number };
 }
-export const BROWSER_OBSERVATION_KINDS = ["browser.tabs.get", "browser.observe.prepare", "browser.managed.prepare"] as const;
+export const BROWSER_OBSERVATION_KINDS = [
+	"browser.tabs.get",
+	"browser.observe.prepare",
+	"browser.managed.prepare",
+] as const;
 export function isBrowserObservationKind(kind: string): kind is BrowserObservationOperation["kind"] {
 	return (BROWSER_OBSERVATION_KINDS as readonly string[]).includes(kind);
 }
@@ -59,12 +63,3 @@ export type BrowserObservationInput =
 	| { kind: "text"; sequence: number; text: string };
 export const BROWSER_FRAME_MAX_BASE64 = 2_796_204;
 export const BROWSER_PRIVATE_MAX_BYTES = 4 * 1024 * 1024;
-
-
-
-
-
-
-
-
-

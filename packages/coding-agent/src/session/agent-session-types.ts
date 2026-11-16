@@ -661,6 +661,28 @@ export interface ResetSessionContextResult {
 /** Queued user content restored to the editor. */
 export type RestoredQueuedMessage = { text: string; images?: ImageContent[] };
 
+/** One prepared user submission in a native executable queue or held outside it. */
+export interface QueuedMessageEntry {
+	/** Present while a queued compaction barrier holds this follow-up out of executable queues. */
+	heldFor?: "compaction";
+	/** Stable generation-local object identity; duplicate display text never shares one. */
+	id: string;
+	text: string;
+	queue: "steering" | "followUp";
+	state: "queued" | "inFlight" | "held";
+	imageCount: number;
+	editable: boolean;
+}
+
+/** Compact display row for native queue indicators. */
+export interface StudioQueueSnapshotEntry {
+	id: string;
+	queue: "steering" | "followUp";
+	state: "pending" | "delivering";
+	text: string;
+	imageCount: number;
+}
+
 /** Options for the same ephemeral side turn used by /btw. */
 export interface EphemeralTurnOptions {
 	promptText: string;

@@ -12,6 +12,7 @@ import type { AgentSession } from "./agent-session";
 import { resolveSpeculationMethod } from "./compaction-methods";
 import { estimateInlineSavings } from "./snapcompact-inline";
 import { resolveModelCompactionSettings } from "./model-compaction-threshold";
+import { resolveSessionCompactionSettings } from "./session-compaction";
 import { resolveSpeculationLeadTokens } from "./speculation-lead";
 
 import { cfgSnapcompactShape, cfgSnapcompactSystemPrompt, cfgSnapcompactToolResults } from "./context-settings";
@@ -55,7 +56,7 @@ export function computeSessionContextBreakdown(
 		}
 	}
 	return computeContextBreakdown(session, {
-		compaction: resolveModelCompactionSettings(session.settings, session.model),
+		compaction: resolveSessionCompactionSettings(session.settings, session.model, session.sessionManager),
 		sourceRevision: session.settings.revision,
 		snapcompact,
 	});

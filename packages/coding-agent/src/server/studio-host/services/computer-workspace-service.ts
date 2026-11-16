@@ -6,7 +6,11 @@ import type { AgentSession } from "../../../session/agent-session";
 import type { SessionManager } from "../../../session/session-manager";
 import { cfgComputerEnabled } from "../../../tools/settings";
 import { computerPreludeAvailableForOwner } from "../../../tools/computer/supervisor";
-import { computerSessionId, computerSessionOwner, revokeComputerSessions } from "../../../tools/computer/session-runtime";
+import {
+	computerSessionId,
+	computerSessionOwner,
+	revokeComputerSessions,
+} from "../../../tools/computer/session-runtime";
 import { registerComputerScope, type ComputerLifecycleEvent } from "../../../tools/computer/lifecycle.js";
 import type {
 	ComputerAction,
@@ -27,7 +31,8 @@ import { ownedComputerSessions, ownedComputerAgent } from "./computer-owned-sess
 import { StudioOpError as SessionControlError } from "../errors.js";
 import { ComputerViewLeases } from "./computer-view-leases";
 import { validateComputerWorkspaceResult } from "../protocol/computer-workspace-validation.js";
-const continuePrompt = "I explicitly allow this session and its agents to resume computer operations for the current task. Continue from the current state; do not replay cancelled input. Native foreground-control approval and physical Escape/user-intervention rules still apply.";
+const continuePrompt =
+	"I explicitly allow this session and its agents to resume computer operations for the current task. Continue from the current state; do not replay cancelled input. Native foreground-control approval and physical Escape/user-intervention rules still apply.";
 
 const CONTROL_ENTRY = "studio.computer.control.v1";
 const HISTORY_ENTRY = "studio.computer.history.v1";
@@ -104,13 +109,26 @@ export class StudioComputerWorkspaceService {
 		this.#options = options;
 		this.#unregister = registerComputerScope({
 			owns: (id, owner, key) => {
-				const owned = !this.#disposed && this.#options.isLive?.() !== false && this.#owned().some(session =>
-					key ? session.instanceKey === key && computerSessionId(session) === id : !!owner && computerSessionOwner(session) === owner && computerSessionId(session) === id);
+				const owned =
+					!this.#disposed &&
+					this.#options.isLive?.() !== false &&
+					this.#owned().some(session =>
+						key
+							? session.instanceKey === key && computerSessionId(session) === id
+							: !!owner && computerSessionOwner(session) === owner && computerSessionId(session) === id,
+					);
 				if (owned) this.#bind();
 				return owned;
 			},
 			authorize: async (id, owner, key) => {
-				const valid = () => !this.#disposed && this.#options.isLive?.() !== false && this.#owned().some(session => (key ? session.instanceKey === key : !!owner && computerSessionOwner(session) === owner) && computerSessionId(session) === id);
+				const valid = () =>
+					!this.#disposed &&
+					this.#options.isLive?.() !== false &&
+					this.#owned().some(
+						session =>
+							(key ? session.instanceKey === key : !!owner && computerSessionOwner(session) === owner) &&
+							computerSessionId(session) === id,
+					);
 				if (!valid()) throw new SessionControlError("UNAVAILABLE", "Computer session ownership changed");
 				const permit = await this.#policy.authorize(id);
 				if (!valid()) throw new SessionControlError("UNAVAILABLE", "Computer session ownership changed");
@@ -137,7 +155,8 @@ export class StudioComputerWorkspaceService {
 		return this.#owned().some(session => computerSessionId(session) === id);
 	}
 	#check(id: string): void {
-		if (this.#disposed || this.#options.isLive?.() === false) throw new SessionControlError("UNAVAILABLE", "Computer session scope changed");
+		if (this.#disposed || this.#options.isLive?.() === false)
+			throw new SessionControlError("UNAVAILABLE", "Computer session scope changed");
 		this.#bind();
 		if (this.#disposed || this.#options.isLive?.() === false || !this.#owns(id))
 			throw new SessionControlError("UNAVAILABLE", "Computer session scope changed");
@@ -177,7 +196,17 @@ export class StudioComputerWorkspaceService {
 		this.#manager = this.session.sessionManager;
 		const id = this.#sessionId,
 			manager = this.#manager;
-		const record = manager.getEntries().findLast(entry => entry.type === "custom" && entry.customType === CONTROL_ENTRY && !!entry.data && typeof entry.data === "object" && "sessionId" in entry.data && entry.data.sessionId === id);
+		const record = manager
+			.getEntries()
+			.findLast(
+				entry =>
+					entry.type === "custom" &&
+					entry.customType === CONTROL_ENTRY &&
+					!!entry.data &&
+					typeof entry.data === "object" &&
+					"sessionId" in entry.data &&
+					entry.data.sessionId === id,
+			);
 		let restored: ComputerControlState | undefined;
 		if (record?.type === "custom" && record.data && typeof record.data === "object" && "control" in record.data) {
 			validateComputerWorkspaceResult("computer.control.stop", record.data.control);
@@ -212,7 +241,11 @@ export class StudioComputerWorkspaceService {
 			? new ComputerWorkspaceMedia(
 					directory,
 					id,
-					sessionId => !this.#disposed && this.#options.isLive?.() !== false && this.#sessionId === id && this.#owns(sessionId),
+					sessionId =>
+						!this.#disposed &&
+						this.#options.isLive?.() !== false &&
+						this.#sessionId === id &&
+						this.#owns(sessionId),
 					() => this.#now(),
 				)
 			: undefined;
@@ -256,11 +289,18 @@ export class StudioComputerWorkspaceService {
 		return this.#manager.getEntries().flatMap(entry => {
 			if (entry.type !== "custom" || entry.customType !== HISTORY_ENTRY) return [];
 			const value = entry.data as HistoryRecord;
-			if (!value || value.sessionId !== this.#sessionId || !["start", "terminal", "frames"].includes(value.kind)) return [];
+			if (!value || value.sessionId !== this.#sessionId || !["start", "terminal", "frames"].includes(value.kind))
+				return [];
 			try {
-				validateComputerWorkspaceResult("computer.activity.list", { items: value.actions, frames: value.frames, revision: 0 });
+				validateComputerWorkspaceResult("computer.activity.list", {
+					items: value.actions,
+					frames: value.frames,
+					revision: 0,
+				});
 				return [value];
-			} catch { return []; }
+			} catch {
+				return [];
+			}
 		});
 	}
 	#remember(action: ComputerAction): void {
@@ -373,7 +413,10 @@ export class StudioComputerWorkspaceService {
 		try {
 			observer = this.#observer ?? (this.#options.observer ?? createComputerObserver)();
 			if (observer !== this.#observer) this.#probes.add(observer);
-			if (observer.observationOnly !== true) throw new Error("The native binding does not support passive observation; rebuild the source-matched native addon");
+			if (observer.observationOnly !== true)
+				throw new Error(
+					"The native binding does not support passive observation; rebuild the source-matched native addon",
+				);
 			const capabilities = observer.capabilities,
 				screen = observer.screenState;
 			const supported = observer.observationOnly === true;
@@ -418,8 +461,12 @@ export class StudioComputerWorkspaceService {
 				(this.#targetsAt === 0 || this.#now() - this.#targetsAt >= 10_000)
 			) {
 				const generation = this.#generation;
-				const [displays, windows] = await Promise.all([observer.listDisplays(), capabilities.ax ? observer.listWindows() : Promise.resolve([])]);
-				if (generation !== this.#generation || this.#disposed || this.#options.isLive?.() === false) throw new SessionControlError("UNAVAILABLE", "Computer scope changed while reading targets");
+				const [displays, windows] = await Promise.all([
+					observer.listDisplays(),
+					capabilities.ax ? observer.listWindows() : Promise.resolve([]),
+				]);
+				if (generation !== this.#generation || this.#disposed || this.#options.isLive?.() === false)
+					throw new SessionControlError("UNAVAILABLE", "Computer scope changed while reading targets");
 				this.#snapshot.targets = [
 					...displays.slice(0, 32).map(display => ({
 						id: `display:${display.id}`,
@@ -428,7 +475,17 @@ export class StudioComputerWorkspaceService {
 						width: display.width,
 						height: display.height,
 					})),
-					...(capabilities.backend === "wayland" && capabilities.capture && displays.length === 0 ? [{ id: "display:all", kind: "display" as const, name: "Choose monitor in the ScreenCast portal", width: 0, height: 0 }] : []),
+					...(capabilities.backend === "wayland" && capabilities.capture && displays.length === 0
+						? [
+								{
+									id: "display:all",
+									kind: "display" as const,
+									name: "Choose monitor in the ScreenCast portal",
+									width: 0,
+									height: 0,
+								},
+							]
+						: []),
 					...windows.slice(0, 224).map(window => ({
 						id: `window:${window.id}`,
 						kind: "window" as const,
@@ -440,15 +497,26 @@ export class StudioComputerWorkspaceService {
 				this.#targetsAt = this.#now();
 			}
 		} catch (error) {
-			if (this.#disposed || this.#options.isLive?.() === false) throw new SessionControlError("UNAVAILABLE", "Computer session scope changed");
+			if (this.#disposed || this.#options.isLive?.() === false)
+				throw new SessionControlError("UNAVAILABLE", "Computer session scope changed");
 			this.#snapshot = {
 				...this.#current(),
-				capabilities: { capture: false, input: false, accessibility: false, globalEscape: false, observationOnly: false },
+				capabilities: {
+					capture: false,
+					input: false,
+					accessibility: false,
+					globalEscape: false,
+					observationOnly: false,
+				},
 				targets: [],
-				reason: "Passive native observation is unavailable. Rebuild the source-matched addon and check capture and accessibility permissions.",
+				reason:
+					"Passive native observation is unavailable. Rebuild the source-matched addon and check capture and accessibility permissions.",
 			};
 		} finally {
-			if (observer && observer !== this.#observer) { this.#probes.delete(observer); await observer.close(); }
+			if (observer && observer !== this.#observer) {
+				this.#probes.delete(observer);
+				await observer.close();
+			}
 		}
 		return this.#current();
 	}
@@ -527,7 +595,10 @@ export class StudioComputerWorkspaceService {
 				if (!operation.consumerId || operation.consumerId.length > 512)
 					throw new SessionControlError("INVALID_ARGUMENT", "Observation consumer identity is required");
 				const existing = [...this.#leases.values()].find(
-					lease => lease.consumerId === operation.consumerId && lease.sessionId === operation.sessionId && lease.ownerId === view.ownerId,
+					lease =>
+						lease.consumerId === operation.consumerId &&
+						lease.sessionId === operation.sessionId &&
+						lease.ownerId === view.ownerId,
 				);
 				if (existing) {
 					existing.expiresAt = this.#now() + LEASE_TTL;
@@ -535,13 +606,17 @@ export class StudioComputerWorkspaceService {
 					await this.#viewLeases!.publish({ ...existing, scopeSessionId: this.#sessionId });
 					this.#checkView(view);
 					this.#check(operation.sessionId);
-					if (this.#leases.get(existing.leaseId) !== existing) throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
+					if (this.#leases.get(existing.leaseId) !== existing)
+						throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
 					this.#armExpiry();
 					return this.#leasePublic(existing);
 				}
-				if (this.#leases.size >= 32)
-					throw new SessionControlError("UNAVAILABLE", "Too many observation consumers");
-				if (!this.#media) throw new SessionControlError("CAPABILITY_UNAVAILABLE", "Private Computer image transport is unavailable");
+				if (this.#leases.size >= 32) throw new SessionControlError("UNAVAILABLE", "Too many observation consumers");
+				if (!this.#media)
+					throw new SessionControlError(
+						"CAPABILITY_UNAVAILABLE",
+						"Private Computer image transport is unavailable",
+					);
 				const lease: Lease = {
 					leaseId: crypto.randomUUID(),
 					sessionId: operation.sessionId,
@@ -555,7 +630,8 @@ export class StudioComputerWorkspaceService {
 					await this.#viewLeases!.publish({ ...lease, scopeSessionId: this.#sessionId });
 					this.#checkView(view);
 					this.#check(operation.sessionId);
-					if (this.#leases.get(lease.leaseId) !== lease) throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
+					if (this.#leases.get(lease.leaseId) !== lease)
+						throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
 					this.#armExpiry();
 					return this.#leasePublic(lease);
 				} catch (error) {
@@ -600,7 +676,9 @@ export class StudioComputerWorkspaceService {
 				{ streamingBehavior: "followUp", onPromptAdmitted: () => admitted.resolve() },
 			);
 			void dispatch.then(
-				() => { admitted.resolve(); },
+				() => {
+					admitted.resolve();
+				},
 				error => {
 					policy.cancelIntent(intent.nonce);
 					admitted.reject(error);
@@ -666,10 +744,11 @@ export class StudioComputerWorkspaceService {
 		this.#generation++;
 		this.#observer?.cancel();
 		await this.#flight?.catch(() => {});
-		for (const [id, stored] of this.#frames) if (stored.leaseId === leaseId) {
-			await this.#media?.remove(stored.frame);
-			this.#frames.delete(id);
-		}
+		for (const [id, stored] of this.#frames)
+			if (stored.leaseId === leaseId) {
+				await this.#media?.remove(stored.frame);
+				this.#frames.delete(id);
+			}
 	}
 	async releaseLease(leaseId: string, ownerId: string): Promise<void> {
 		const lease = this.#leases.get(leaseId);
@@ -680,10 +759,11 @@ export class StudioComputerWorkspaceService {
 		this.#armExpiry();
 	}
 	async releaseOwner(ownerId: string): Promise<void> {
-		for (const lease of [...this.#leases.values()]) if (lease.ownerId === ownerId) {
-			this.#leases.delete(lease.leaseId);
-			await Promise.all([this.#viewLeases?.release(lease.leaseId), this.#releaseLeaseFrames(lease.leaseId)]);
-		}
+		for (const lease of [...this.#leases.values()])
+			if (lease.ownerId === ownerId) {
+				this.#leases.delete(lease.leaseId);
+				await Promise.all([this.#viewLeases?.release(lease.leaseId), this.#releaseLeaseFrames(lease.leaseId)]);
+			}
 		if (!this.#leases.size) await this.#releaseObservation();
 		this.#armExpiry();
 	}
@@ -694,16 +774,20 @@ export class StudioComputerWorkspaceService {
 		structure: boolean,
 		view: ComputerWorkspaceView,
 	): Promise<ComputerFrame | ComputerStructureSnapshot> {
-		if (!cfgComputerEnabled.get(this.session.settings)) throw new SessionControlError("UNAVAILABLE", "Computer Use is disabled in native settings");
+		if (!cfgComputerEnabled.get(this.session.settings))
+			throw new SessionControlError("UNAVAILABLE", "Computer Use is disabled in native settings");
 		const lease = this.#leases.get(leaseId);
-		if (!lease || lease.sessionId !== sessionId || lease.ownerId !== view.ownerId || !lease.isLive() || lease.expiresAt <= this.#now())
+		if (
+			!lease ||
+			lease.sessionId !== sessionId ||
+			lease.ownerId !== view.ownerId ||
+			!lease.isLive() ||
+			lease.expiresAt <= this.#now()
+		)
 			throw new SessionControlError("UNAVAILABLE", "The visible observation lease expired");
 		const observer = this.#ensureObserver();
 		if (observer.screenState.screenLocked || observer.screenState.displayAsleep)
-			throw new SessionControlError(
-				"UNAVAILABLE",
-				"The screen is locked or asleep; observation will not wake it",
-			);
+			throw new SessionControlError("UNAVAILABLE", "The screen is locked or asleep; observation will not wake it");
 		if (!this.#snapshot?.targets.some(target => target.id === targetId)) {
 			await this.#workspace();
 			if (!this.#snapshot?.targets.some(target => target.id === targetId))
@@ -714,7 +798,8 @@ export class StudioComputerWorkspaceService {
 		lease.expiresAt = this.#now() + LEASE_TTL;
 		await this.#viewLeases!.publish({ ...lease, scopeSessionId: this.#sessionId });
 		this.#checkView(view);
-		if (this.#leases.get(leaseId) !== lease) throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
+		if (this.#leases.get(leaseId) !== lease)
+			throw new SessionControlError("UNAVAILABLE", "Observation lease changed");
 		const key = `${leaseId}:${sessionId}:${targetId}:${structure}`;
 		if (this.#flight) {
 			if (this.#flightKey === key) return this.#flight;
@@ -725,7 +810,10 @@ export class StudioComputerWorkspaceService {
 		const valid = (): boolean =>
 			!this.#disposed &&
 			this.#generation === generation &&
-			view.isLive() && this.#leases.get(leaseId) === lease && lease.expiresAt > this.#now() && this.#owns(sessionId);
+			view.isLive() &&
+			this.#leases.get(leaseId) === lease &&
+			lease.expiresAt > this.#now() &&
+			this.#owns(sessionId);
 		const nativeTarget = targetId.startsWith("window:") ? targetId.slice(7) : targetId;
 		const perform = async (): Promise<ComputerFrame | ComputerStructureSnapshot> => {
 			const reservedId = crypto.randomUUID();
@@ -750,7 +838,11 @@ export class StudioComputerWorkspaceService {
 				const descriptor = await media.save(frame, capture.data, valid, leaseId);
 				try {
 					for (const [id, stored] of this.#frames)
-						if (stored.frame.source === "observation" && stored.frame.targetId === targetId && stored.leaseId === leaseId) {
+						if (
+							stored.frame.source === "observation" &&
+							stored.frame.targetId === targetId &&
+							stored.leaseId === leaseId
+						) {
 							await media.remove(stored.frame);
 							this.#frames.delete(id);
 						}
@@ -820,9 +912,19 @@ export class StudioComputerWorkspaceService {
 		};
 	}
 	#activity(event: ComputerLifecycleEvent): void {
-		if (this.#disposed || this.#options.isLive?.() === false || !this.#owned().some(session => session.instanceKey === event.identity.instanceKey && computerSessionId(session) === event.identity.sessionId)) return;
+		if (
+			this.#disposed ||
+			this.#options.isLive?.() === false ||
+			!this.#owned().some(
+				session =>
+					session.instanceKey === event.identity.instanceKey &&
+					computerSessionId(session) === event.identity.sessionId,
+			)
+		)
+			return;
 		const { identity } = event;
-		const agent = identity.sessionId === this.#sessionId ? undefined : ownedComputerAgent(this.session, identity.sessionId);
+		const agent =
+			identity.sessionId === this.#sessionId ? undefined : ownedComputerAgent(this.session, identity.sessionId);
 		if (event.kind === "control") {
 			this.#foreground.set(identity.sessionId, event.foreground);
 			const values = [...this.#foreground.values()];
@@ -966,7 +1068,12 @@ export class StudioComputerWorkspaceService {
 		const generation = this.#scopeGeneration,
 			media = this.#media;
 		const valid = (): boolean =>
-			!this.#disposed && this.#options.isLive?.() !== false && generation === this.#scopeGeneration && this.#owned().some(session => session.instanceKey === identity.instanceKey && computerSessionId(session) === frame.sessionId);
+			!this.#disposed &&
+			this.#options.isLive?.() !== false &&
+			generation === this.#scopeGeneration &&
+			this.#owned().some(
+				session => session.instanceKey === identity.instanceKey && computerSessionId(session) === frame.sessionId,
+			);
 		const persist = async (): Promise<void> => {
 			try {
 				await this.#writes;
@@ -975,7 +1082,17 @@ export class StudioComputerWorkspaceService {
 				let bytes: Buffer;
 				try {
 					const [stat, pathStat] = await Promise.all([file.stat(), fs.lstat(shot.path)]);
-					if (!stat.isFile() || !pathStat.isFile() || pathStat.isSymbolicLink() || stat.ino !== pathStat.ino || stat.dev !== pathStat.dev || stat.size < 33 || stat.size > 16 * 1024 * 1024 || !valid()) throw new Error("Computer image exceeds resource budget");
+					if (
+						!stat.isFile() ||
+						!pathStat.isFile() ||
+						pathStat.isSymbolicLink() ||
+						stat.ino !== pathStat.ino ||
+						stat.dev !== pathStat.dev ||
+						stat.size < 33 ||
+						stat.size > 16 * 1024 * 1024 ||
+						!valid()
+					)
+						throw new Error("Computer image exceeds resource budget");
 					bytes = Buffer.alloc(stat.size);
 					let offset = 0;
 					while (offset < bytes.length) {
@@ -984,8 +1101,11 @@ export class StudioComputerWorkspaceService {
 						offset += chunk.bytesRead;
 					}
 					const final = await file.stat();
-					if (final.size !== stat.size || final.mtimeMs !== stat.mtimeMs || !valid()) throw new Error("Computer evidence changed after capture");
-				} finally { await file.close(); }
+					if (final.size !== stat.size || final.mtimeMs !== stat.mtimeMs || !valid())
+						throw new Error("Computer evidence changed after capture");
+				} finally {
+					await file.close();
+				}
 				const digest = createHash("sha256").update(bytes).digest("hex");
 				if (shot.sha256 && digest !== shot.sha256) throw new Error("Computer evidence changed after capture");
 				frame.delivered = this.#delivered.get(`${frame.sessionId}:${frame.toolCallId}`)?.has(digest) ?? false;
@@ -1080,7 +1200,8 @@ export class StudioComputerWorkspaceService {
 				});
 				void this.#media?.update(stored.frame).catch(() => {});
 			}
-		if (changed) this.#append({ kind: "frames", actions: [], frames: frames.map(item => ({ ...item.frame })).slice(-50) });
+		if (changed)
+			this.#append({ kind: "frames", actions: [], frames: frames.map(item => ({ ...item.frame })).slice(-50) });
 	}
 	async dispose(): Promise<void> {
 		if (this.#disposed) return;
@@ -1093,7 +1214,9 @@ export class StudioComputerWorkspaceService {
 		this.#observer?.cancel();
 		for (const observer of this.#probes) observer.cancel();
 		await Promise.allSettled([
-			(this.#options.revoke ?? revokeComputerSessions)(this.#options.ownedSessions?.() ?? ownedComputerSessions(this.session, true)),
+			(this.#options.revoke ?? revokeComputerSessions)(
+				this.#options.ownedSessions?.() ?? ownedComputerSessions(this.session, true),
+			),
 			...[...this.#probes].map(observer => observer.close()),
 			this.#viewLeases?.dispose(),
 			this.#releaseObservation(),

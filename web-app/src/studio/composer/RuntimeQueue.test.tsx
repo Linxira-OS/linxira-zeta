@@ -4,7 +4,7 @@ import type { StudioClient } from "@linxiraos/studio-contract";
 import { I18nProvider } from "../i18n";
 import { RuntimeQueue, queueTakebackSnapshot } from "./RuntimeQueue";
 vi.mock("../hostError",()=>({waitReceipt:async(client:{results:Record<string,unknown>},id:string)=>client.results[id],hostErrorMessage:(error:Error)=>error.message}));
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 function fake(){let seq=0;const results:Record<string,unknown>={};const command=vi.fn(async(kind:string,input:{id?:string})=>{const requestId=String(++seq);results[requestId]={result:kind==="session.queue.list"?{sessionId:"s",total:2,followUpMode:"one-at-a-time",steeringMode:"all",items:[{id:"first",queue:"followUp",state:"pending",text:"same",imageCount:0},{id:"second",queue:"followUp",state:"pending",text:"same",imageCount:0}]}:{removed:false,images:[]}};return {requestId};});return {client:{command,results} as unknown as StudioClient,command};}
 it("sends the selected identity for duplicate text and never restores consumed messages",async()=>{
  const {client,command}=fake();const recover=vi.fn();render(<I18nProvider forcedLanguage="zh"><RuntimeQueue client={client} sessionId="s" available hasDraft={()=>false} onRecover={recover}/></I18nProvider>);
@@ -60,4 +60,39 @@ it("retries recovery acknowledgement without inserting the draft twice",async()=
  const recover=vi.fn();render(<I18nProvider forcedLanguage="zh"><RuntimeQueue client={{command,results} as unknown as StudioClient} sessionId="s" available hasDraft={()=>false} onRecover={recover}/></I18nProvider>);
  fireEvent.click(await screen.findByRole("button",{name:"取回编辑"}));await screen.findByText("ack disconnected");expect(recover).toHaveBeenCalledTimes(1);
  fireEvent.click(screen.getByRole("button",{name:/恢复草稿 \/ 确认已恢复/}));await waitFor(()=>expect(acks).toBe(2));expect(recover).toHaveBeenCalledTimes(1);expect(command.mock.calls.some(([kind])=>kind.startsWith("core."))).toBe(false);
+});
+
+it("fetches opaque recovery image bytes before acknowledging the takeback",async()=>{
+ const bytes=new Uint8Array([137,80,78,71]);const order:string[]=[];let seq=0;const results:Record<string,unknown>={};
+ const image={artifactId:"opaque-image",kind:"image",name:"shot.png",mimeType:"image/png",bytes:bytes.length,sha256:"0".repeat(64)};
+ const query=vi.fn(async(name:string)=>{order.push("query:"+name);return {url:"/api/v1/artifacts/opaque-image?contextId=ctx"};});
+ const command=vi.fn(async(kind:string)=>{order.push("command:"+kind);const requestId=String(++seq);results[requestId]={result:kind==="session.queue.list"?{sessionId:"s",total:1,followUpMode:"all",steeringMode:"all",items:[{id:"recover",queue:"followUp",state:"recovering",text:"draft",imageCount:1}]}:kind==="session.queue.takeback"?{removed:true,recoveryId:"recover",text:"draft",images:[image]}:{removed:true}};return {requestId};});
+ vi.stubGlobal("fetch",vi.fn(async(url:string)=>{order.push("fetch:"+url);return {ok:true,blob:async()=>new Blob([bytes])};}));
+ const recover=vi.fn((_snapshot:unknown,_owner:string)=>{order.push("recover");});
+ render(<I18nProvider forcedLanguage="zh"><RuntimeQueue client={{command,query,results} as unknown as StudioClient} sessionId="s" available hasDraft={()=>false} onRecover={recover}/></I18nProvider>);
+ fireEvent.click(await screen.findByRole("button",{name:"取回编辑"}));
+ await waitFor(()=>expect(recover).toHaveBeenCalledTimes(1));
+ const draft=recover.mock.calls[0]![0] as {images:readonly {type:string;mimeType:string;data:string}[]};
+ expect(draft.images).toEqual([{type:"image",mimeType:"image/png",data:"iVBORw=="}]);
+ const index=(needle:string)=>order.findIndex(entry=>entry.includes(needle));
+ expect(index("command:session.queue.takeback")).toBeGreaterThanOrEqual(0);
+ expect(index("query:artifacts.resource")).toBeGreaterThan(index("command:session.queue.takeback"));
+ expect(index("fetch:/api/v1/artifacts/opaque-image?contextId=ctx")).toBeGreaterThan(index("query:artifacts.resource"));
+ expect(index("recover")).toBeGreaterThan(index("fetch:"));
+ await waitFor(()=>expect(command.mock.calls.some(([kind])=>kind==="session.queue.ack")).toBe(true));
+ expect(index("command:session.queue.ack")).toBeGreaterThan(index("recover"));
+});
+
+it("does not acknowledge a takeback when recovered image bytes are truncated",async()=>{
+ let seq=0;const results:Record<string,unknown>={};
+ const image={artifactId:"opaque-image",kind:"image",name:"shot.png",mimeType:"image/png",bytes:3,sha256:"0".repeat(64)};
+ const query=vi.fn(async()=>({url:"/api/v1/artifacts/opaque-image?contextId=ctx"}));
+ const command=vi.fn(async(kind:string)=>{const requestId=String(++seq);results[requestId]={result:kind==="session.queue.list"?{sessionId:"s",total:1,followUpMode:"all",steeringMode:"all",items:[{id:"recover",queue:"followUp",state:"recovering",text:"draft",imageCount:1}]}:kind==="session.queue.takeback"?{removed:true,recoveryId:"recover",text:"draft",images:[image]}:{removed:true}};return {requestId};});
+ vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,blob:async()=>new Blob([new Uint8Array([1,2])])})));
+ const recover=vi.fn();
+ render(<I18nProvider forcedLanguage="zh"><RuntimeQueue client={{command,query,results} as unknown as StudioClient} sessionId="s" available hasDraft={()=>false} onRecover={recover}/></I18nProvider>);
+ fireEvent.click(await screen.findByRole("button",{name:"取回编辑"}));
+ await screen.findByText("Recovered image size changed");
+ expect(recover).not.toHaveBeenCalled();
+ expect(command.mock.calls.some(([kind])=>kind==="session.queue.ack")).toBe(false);
 });

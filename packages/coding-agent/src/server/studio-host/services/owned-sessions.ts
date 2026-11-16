@@ -7,7 +7,9 @@ export function ownedStudioSessions(session: AgentSession): AgentViewSession[] {
 	if (session.isDisposed) return [];
 	const registry = AgentRegistry.global();
 	const refs = registry.list();
-	const main = refs.find(ref => ref.session === session || (!!session.instanceKey && ref.session?.instanceKey === session.instanceKey));
+	const main = refs.find(
+		ref => ref.session === session || (!!session.instanceKey && ref.session?.instanceKey === session.instanceKey),
+	);
 	const result = new Map<string, AgentViewSession>([[session.sessionId, session]]);
 	if (!main) return [...result.values()];
 	for (const candidate of refs) {
@@ -16,7 +18,8 @@ export function ownedStudioSessions(session: AgentSession): AgentViewSession[] {
 		let ref = candidate;
 		while (!seen.has(ref.id)) {
 			if (ref.id === main.id) {
-				if (candidate.session && isAgentViewSession(candidate.session)) result.set(candidate.session.sessionId, candidate.session);
+				if (candidate.session && isAgentViewSession(candidate.session))
+					result.set(candidate.session.sessionId, candidate.session);
 				break;
 			}
 			seen.add(ref.id);

@@ -43,7 +43,12 @@ export class ComputerControlPolicy {
 	}
 	async authorize(sessionId = this.sessionId): Promise<ComputerRunPermit> {
 		await this.#resume;
-		if (this.#disposed || this.#gate.signal.aborted || this.#state.status !== "allowed" || this.#staleInputs.has(sessionId))
+		if (
+			this.#disposed ||
+			this.#gate.signal.aborted ||
+			this.#state.status !== "allowed" ||
+			this.#staleInputs.has(sessionId)
+		)
 			throw new SessionControlError(
 				"UNAVAILABLE",
 				"Computer operations are stopped. Submit a new explicit continue request for the current stop revision.",

@@ -237,7 +237,9 @@ impl WaylandBackend {
 		action: impl FnOnce(&mut libei::Libei) -> CoreResult<()>,
 	) -> CoreResult<()> {
 		if self.observation_only {
-			return Err(DesktopError::permission_denied("observation-only desktop session refuses input initialization"));
+			return Err(DesktopError::permission_denied(
+				"observation-only desktop session refuses input initialization",
+			));
 		}
 		control::check()?;
 		Self::window_input_error(target, kind)?;
@@ -273,7 +275,8 @@ impl WaylandBackend {
 
 impl Backend for WaylandBackend {
 	fn capabilities(&mut self) -> DesktopCapabilities {
-		let input_unavailable = self.observation_only || (self.input.is_none() && self.input_unavailable().is_some());
+		let input_unavailable =
+			self.observation_only || (self.input.is_none() && self.input_unavailable().is_some());
 		let input_permission = if self.input.is_some() {
 			"granted"
 		} else if input_unavailable {
@@ -401,7 +404,11 @@ impl Backend for WaylandBackend {
 		#[cfg(not(feature = "wayland-pipewire"))]
 		{
 			let _ = (target, selector);
-			Err(DesktopError::capture_failed("Passive Wayland capture is unavailable: this native addon was built without wayland-pipewire ScreenCast support; RemoteDesktop/input capture is never used as a fallback"))
+			Err(DesktopError::capture_failed(
+				"Passive Wayland capture is unavailable: this native addon was built without \
+				 wayland-pipewire ScreenCast support; RemoteDesktop/input capture is never used as a \
+				 fallback",
+			))
 		}
 		#[cfg(feature = "wayland-pipewire")]
 		{
@@ -571,7 +578,8 @@ mod tests {
 		assert_eq!(capabilities.input_permission, "unavailable");
 		assert_eq!(capabilities.capture, cfg!(feature = "wayland-pipewire"));
 		assert!(backend.input_unavailable.get().is_none());
-		let result = backend.run_input(&Target::Desktop, "key", |_| panic!("passive backend must never create input"));
+		let result = backend
+			.run_input(&Target::Desktop, "key", |_| panic!("passive backend must never create input"));
 		assert_eq!(result.unwrap_err().code.as_str(), "PermissionDenied");
 		assert!(backend.input.is_none());
 		assert!(backend.input_unavailable.get().is_none());

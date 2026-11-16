@@ -75,7 +75,6 @@ async function mount(cold = false) {
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const initial = structuredClone(contractFixtures.bootstrap);
   const listeners = new Set<(event: ClientEvent) => void>();
-  let cursor = 0;
   const snapshot = initial.snapshot!;
   const transport = {
     bootstrap: async () => cold ? { ...initial, snapshot: undefined, selected: { environmentId: initial.selected.environmentId, workspaceId: "ws-default" }, cursor: "0", residents: { ...initial.residents, activeSessionId: null, residents: [] } } : ({ ...initial, cursor: "0", residents: { ...initial.residents, activeSessionId: snapshot.sessionId, residents: [] } }),

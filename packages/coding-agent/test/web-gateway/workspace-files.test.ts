@@ -17,9 +17,13 @@ beforeEach(async () => {
 		return directory.join("workspace");
 	});
 });
-afterEach(async () => { await directory.remove(); });
+afterEach(async () => {
+	await directory.remove();
+});
 
-function target(path: string) { return { workspaceId, path }; }
+function target(path: string) {
+	return { workspaceId, path };
+}
 
 describe("workspace file resources", () => {
 	test("canonical links keep one identity, binary chunks retain exact bytes and refuse stale versions", async () => {
@@ -33,11 +37,23 @@ describe("workspace file resources", () => {
 		const chunk = await service.readChunk({ ...target("image.png"), version: info.version, offset: 1, length: 3 });
 		expect(chunk.bytes).toBe(3);
 		expect(Buffer.from(chunk.data, "base64")).toEqual(bytes.subarray(1, 4));
-		expect(await service.readChunk({ ...target("image.png"), version: info.version, offset: 100, length: 2 })).toEqual({ data: "", bytes: 0 });
+		expect(
+			await service.readChunk({ ...target("image.png"), version: info.version, offset: 100, length: 2 }),
+		).toEqual({ data: "", bytes: 0 });
 		await writeFile(file, "changed-size");
-		await expect(service.readChunk({ ...target("image.png"), version: info.version, offset: 0, length: 2 })).rejects.toThrow("变化");
-		for (const [offset, length] of [[-1, 1], [0, 0], [0, FILE_CHUNK_BYTES + 1], [0.5, 1], [Number.MAX_SAFE_INTEGER + 1, 1]]) {
-			await expect(service.readChunk({ ...target("image.png"), version: info.version, offset: offset!, length: length! })).rejects.toThrow("Invalid file range");
+		await expect(
+			service.readChunk({ ...target("image.png"), version: info.version, offset: 0, length: 2 }),
+		).rejects.toThrow("变化");
+		for (const [offset, length] of [
+			[-1, 1],
+			[0, 0],
+			[0, FILE_CHUNK_BYTES + 1],
+			[0.5, 1],
+			[Number.MAX_SAFE_INTEGER + 1, 1],
+		]) {
+			await expect(
+				service.readChunk({ ...target("image.png"), version: info.version, offset: offset!, length: length! }),
+			).rejects.toThrow("Invalid file range");
 		}
 	});
 
@@ -49,7 +65,9 @@ describe("workspace file resources", () => {
 		for (const path of ["../outside/secret.txt", join(outside, "secret.txt"), "linked/secret.txt"]) {
 			await expect(service.inspect(target(path))).rejects.toThrow("工作区");
 		}
-		await expect(service.inspect({ workspaceId: "foreign" as WorkspaceId, path: "file.txt" })).rejects.toThrow("unknown workspace");
+		await expect(service.inspect({ workspaceId: "foreign" as WorkspaceId, path: "file.txt" })).rejects.toThrow(
+			"unknown workspace",
+		);
 	});
 
 	test("UTF-16 and CRLF survive editing while stale and concurrent writers cannot overwrite a newer version", async () => {
@@ -60,13 +78,24 @@ describe("workspace file resources", () => {
 		await writeFile(file, Buffer.concat([Buffer.from([254, 255]), encoded]));
 		const read = await service.readText(target("notes.txt"));
 		expect(read).toMatchObject({ text: "你好\nworld\n", encoding: "utf16be", bom: true, lineEnding: "crlf" });
-		const input = { ...target("notes.txt"), expectedVersion: read.file.version, encoding: read.encoding, bom: read.bom, lineEnding: read.lineEnding };
+		const input = {
+			...target("notes.txt"),
+			expectedVersion: read.file.version,
+			encoding: read.encoding,
+			bom: read.bom,
+			lineEnding: read.lineEnding,
+		};
 		const texts = ["first\n", "second\n"];
 		const outcomes = await Promise.all(texts.map(text => service.writeText({ ...input, text })));
 		expect(outcomes.filter(result => result.saved)).toHaveLength(1);
 		expect(outcomes.find(result => !result.saved)).toMatchObject({ saved: false, conflict: true });
 		const winner = texts[outcomes.findIndex(result => result.saved)]!;
-		expect(await service.readText(target("notes.txt"))).toMatchObject({ text: winner, encoding: "utf16be", bom: true, lineEnding: "crlf" });
+		expect(await service.readText(target("notes.txt"))).toMatchObject({
+			text: winner,
+			encoding: "utf16be",
+			bom: true,
+			lineEnding: "crlf",
+		});
 		const saved = Buffer.from(winner.replace(/\n/g, "\r\n"), "utf16le");
 		saved.swap16();
 		expect(await readFile(file)).toEqual(Buffer.concat([Buffer.from([254, 255]), saved]));

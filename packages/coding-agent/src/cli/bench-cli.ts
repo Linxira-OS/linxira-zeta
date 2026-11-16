@@ -1120,11 +1120,41 @@ export function resolveBenchPlan(command: BenchCommandArgs) {
 		? detailedSteps(runsPerStep, par)
 		: [{ kinds, runs: runsPerStep, concurrency: par }];
 	const runs = cacheMode ? cachePairs! * 2 : steps.reduce((sum, step) => sum + step.runs, 0);
-	return { cacheMode, detailed, profile, cachePairs, cacheConcurrency, runsPerStep, maxTokensOverride, cacheMaxTokens, par, promptOverride, explicitPrefillBytes, kinds, steps, runs };
+	return {
+		cacheMode,
+		detailed,
+		profile,
+		cachePairs,
+		cacheConcurrency,
+		runsPerStep,
+		maxTokensOverride,
+		cacheMaxTokens,
+		par,
+		promptOverride,
+		explicitPrefillBytes,
+		kinds,
+		steps,
+		runs,
+	};
 }
 
 export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDependencies = {}): Promise<BenchSummary> {
-	const { cacheMode, detailed, profile, cachePairs, cacheConcurrency, runsPerStep, maxTokensOverride, cacheMaxTokens, par, promptOverride, explicitPrefillBytes, kinds, steps, runs } = resolveBenchPlan(command);
+	const {
+		cacheMode,
+		detailed,
+		profile,
+		cachePairs,
+		cacheConcurrency,
+		runsPerStep,
+		maxTokensOverride,
+		cacheMaxTokens,
+		par,
+		promptOverride,
+		explicitPrefillBytes,
+		kinds,
+		steps,
+		runs,
+	} = resolveBenchPlan(command);
 	const tableSpec = detailed ? detailedTableSpec(par) : profileTableSpec(kinds);
 	// Detailed phases each run a single kind under a phase header; only a mixed profile needs per-run kind tags.
 	const tagKind = kinds.length > 1;
@@ -1387,52 +1417,57 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				const startedAt = now();
 				// Runs finish out of order under concurrency; lines print in index order.
 				let nextToPrint = 0;
-				await runWithConcurrency(step.runs, step.concurrency, async index => {
-					const runIndex = offset + index;
-					const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
-					const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
-						promptOverride,
-						prefillBytes,
-						nonce: randomSessionId(),
-						random,
-						maxTokensOverride,
-					});
-					progress.inFlight++;
-					updateProgress();
-					const result: BenchRunResult = {
-						...(await runBenchRequest(
-							model,
-							{
-								signal: deps.signal,
-								apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
-								sessionId,
-								messages: challenge.messages,
-								maxTokens: challenge.maxTokens,
-								reasoning: toReasoningEffort(thinking),
-								disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
-								serviceTier,
-							},
-							streamFn,
-							now,
-						)),
-						challenge: challenge.kind,
-						phase,
-					};
-					results[runIndex] = result;
-					finished.push(result);
-					progress.inFlight--;
-					progress.completed++;
-					if (!result.ok) progress.failed++;
-					if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
-					row.report = buildModelReport(selector, model, thinking, results, phases);
-					updateProgress();
-					if (!json) {
-						while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
-							print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
-							nextToPrint++;
+				await runWithConcurrency(
+					step.runs,
+					step.concurrency,
+					async index => {
+						const runIndex = offset + index;
+						const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
+						const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
+							promptOverride,
+							prefillBytes,
+							nonce: randomSessionId(),
+							random,
+							maxTokensOverride,
+						});
+						progress.inFlight++;
+						updateProgress();
+						const result: BenchRunResult = {
+							...(await runBenchRequest(
+								model,
+								{
+									signal: deps.signal,
+									apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
+									sessionId,
+									messages: challenge.messages,
+									maxTokens: challenge.maxTokens,
+									reasoning: toReasoningEffort(thinking),
+									disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
+									serviceTier,
+								},
+								streamFn,
+								now,
+							)),
+							challenge: challenge.kind,
+							phase,
+						};
+						results[runIndex] = result;
+						finished.push(result);
+						progress.inFlight--;
+						progress.completed++;
+						if (!result.ok) progress.failed++;
+						if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
+						row.report = buildModelReport(selector, model, thinking, results, phases);
+						updateProgress();
+						if (!json) {
+							while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
+								print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
+								nextToPrint++;
+							}
 						}
-					}
-				}, deps.signal);
+					},
+					deps.signal,
+				);
 				// Chat phases close with the combined output rate across every in-flight request.
 				const phaseReport = phase && phase !== "prefill" ? phases[phase] : undefined;
 				if (!json && phaseReport) {

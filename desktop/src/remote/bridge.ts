@@ -373,6 +373,9 @@ export class RemoteBridge {
 		const owned = () => { if (this.#session(id) !== session) throw new Error(RESYNC_REQUIRED); };
 		return {
 			base: session.http.base,
+			request: async (route: string, init?: RequestInit): Promise<Response> => {
+				owned(); const response = await session.http.request(route, init); owned(); return response;
+			},
 			gateway: async <T>(route: string, init?: RequestInit): Promise<T> => {
 				owned(); const result = await session.http.gateway<T>(route, init); owned(); return result;
 			},

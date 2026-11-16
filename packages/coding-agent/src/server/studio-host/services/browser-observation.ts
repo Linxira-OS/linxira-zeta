@@ -76,7 +76,13 @@ export class StudioBrowserObservationService {
 		readonly isViewLive: () => boolean = () => true,
 	) {}
 	#owners(): Set<string> {
-		return new Set(ownedStudioSessions(this.session).flatMap(session => "getEvalKernelOwnerId" in session && typeof session.getEvalKernelOwnerId === "function" ? [session.getEvalKernelOwnerId() as string] : []));
+		return new Set(
+			ownedStudioSessions(this.session).flatMap(session =>
+				"getEvalKernelOwnerId" in session && typeof session.getEvalKernelOwnerId === "function"
+					? [session.getEvalKernelOwnerId() as string]
+					: [],
+			),
+		);
 	}
 	#tabs(): TabSession[] {
 		const owners = this.#owners();
@@ -97,7 +103,13 @@ export class StudioBrowserObservationService {
 			title: (tab.info.title ?? "").slice(0, 4096),
 			url: tab.info.url.slice(0, 4096),
 			kind: tab.kindTag,
-			ownerSessionId: ownedStudioSessions(this.session).find(session => "getEvalKernelOwnerId" in session && typeof session.getEvalKernelOwnerId === "function" && session.getEvalKernelOwnerId() === tab.ownerSessionId)?.sessionId ?? this.session.sessionId,
+			ownerSessionId:
+				ownedStudioSessions(this.session).find(
+					session =>
+						"getEvalKernelOwnerId" in session &&
+						typeof session.getEvalKernelOwnerId === "function" &&
+						session.getEvalKernelOwnerId() === tab.ownerSessionId,
+				)?.sessionId ?? this.session.sessionId,
 			busy: tab.pending.size > 0,
 			frozen: tab.frozen,
 			observable,
@@ -114,7 +126,12 @@ export class StudioBrowserObservationService {
 	async execute(
 		operation: Exclude<BrowserObservationOperation, { kind: "browser.managed.prepare" }>,
 	): Promise<unknown> {
-		if (this.#disposed || !this.isViewLive() || this.session.isDisposed || operation.sessionId !== this.session.sessionId)
+		if (
+			this.#disposed ||
+			!this.isViewLive() ||
+			this.session.isDisposed ||
+			operation.sessionId !== this.session.sessionId
+		)
 			throw new SessionControlError("UNAVAILABLE", "The active session changed; reload browser targets");
 		const tabs = this.#tabs();
 		if (operation.kind === "browser.tabs.get") return { tabs: tabs.map(tab => this.#describe(tab)) };
@@ -198,7 +215,8 @@ export class StudioBrowserObservationService {
 	#current(o: Observation): boolean {
 		return (
 			!this.#disposed &&
-			this.isViewLive() && !this.session.isDisposed &&
+			this.isViewLive() &&
+			!this.session.isDisposed &&
 			!o.closed &&
 			this.session.sessionId === o.sessionId &&
 			getTab(o.tab.name) === o.tab &&
@@ -306,7 +324,10 @@ export class StudioBrowserObservationService {
 	async #start(o: Observation): Promise<void> {
 		const cdp = await this.#bounded(o, async () => {
 			const session = await createStudioBrowserObservation(o.tab);
-			if (!this.#current(o)) { await session.detach(); throw new Error("Browser view closed while attaching observation"); }
+			if (!this.#current(o)) {
+				await session.detach();
+				throw new Error("Browser view closed while attaching observation");
+			}
 			return session;
 		});
 		if (!this.#current(o)) {

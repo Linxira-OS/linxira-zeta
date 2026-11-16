@@ -1365,7 +1365,10 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 	// close can fail and still report `closed` (its CDP socket broke), and the relay retracts a
 	// target whose debugger the user dismissed, so the worker cannot close it at all. A dead
 	// tab's page was closed by the teardown that killed it.
-	if ((closesPage || (opts.closeManagedPage && tab.browser.kind.kind === "relay" && tab.browser.kind.studioManaged)) && wasAlive) {
+	if (
+		(closesPage || (opts.closeManagedPage && tab.browser.kind.kind === "relay" && tab.browser.kind.studioManaged)) &&
+		wasAlive
+	) {
 		try {
 			// `false` is "not confirmed closed" (the CDP session could not be
 			// created, or `Target.getTargets` failed) — the same unconfirmed

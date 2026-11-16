@@ -122,10 +122,6 @@ export function isMediaOperationKind(kind: string): kind is MediaOperation["kind
 	return (MEDIA_OPERATION_KINDS as readonly string[]).includes(kind);
 }
 
-
-
-
-
 export function mediaInputArtifacts(request: MediaRequest): string[] {
 	return [
 		...new Set(
@@ -143,7 +139,3 @@ export function mediaInputArtifacts(request: MediaRequest): string[] {
 		),
 	];
 }
-
-
-
-

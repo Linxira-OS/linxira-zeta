@@ -340,7 +340,9 @@ async function invokeBrowser(
 				: undefined);
 		const timeoutSeconds = clampTimeout("browser", requested, cfgToolsMaxTimeout.get(session.settings));
 		const timeoutMs = timeoutSeconds * 1000;
-		const signal = managed ? AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(context.signal ? [context.signal] : [])]) : context.signal;
+		const signal = managed
+			? AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(context.signal ? [context.signal] : [])])
+			: context.signal;
 		releaseManaged = await managed?.begin(signal);
 		const displayName = parsed.name ?? DEFAULT_TAB_NAME;
 		const name = managed ? managed.name(displayName) : displayName;
@@ -359,9 +361,19 @@ async function invokeBrowser(
 					signal,
 				);
 			case "close":
-				return await closeBrowser(session, name, parsed, details, timeoutMs, signal, managed ? candidate => managed.contains(candidate) : undefined);
+				return await closeBrowser(
+					session,
+					name,
+					parsed,
+					details,
+					timeoutMs,
+					signal,
+					managed ? candidate => managed.contains(candidate) : undefined,
+				);
 			case "tabs":
-				details.value = listTabs().filter(tab => !managed || managed.contains(tab.name)).map(tab => managed ? { ...tab, name: tab.name.slice(managed.name("").length) } : tab);
+				details.value = listTabs()
+					.filter(tab => !managed || managed.contains(tab.name))
+					.map(tab => (managed ? { ...tab, name: tab.name.slice(managed.name("").length) } : tab));
 				return toolResult(details).done();
 			case "targets":
 				return await listTargets(session, parsed, details, timeoutMs, signal);
@@ -373,7 +385,12 @@ async function invokeBrowser(
 			throw new ToolAbortError();
 		}
 		if (managed && error instanceof Error && /\/managed\/[a-f0-9]{64}/u.test(error.message))
-			throw new ToolError(error.message.replace(/(?:https?|wss?):\/\/127\.0\.0\.1:\d+\/managed\/[a-f0-9]{64}[^\s"')`]*/gu, "[Studio browser connection]"));
+			throw new ToolError(
+				error.message.replace(
+					/(?:https?|wss?):\/\/127\.0\.0\.1:\d+\/managed\/[a-f0-9]{64}[^\s"')`]*/gu,
+					"[Studio browser connection]",
+				),
+			);
 		throw error;
 	} finally {
 		releaseManaged?.();
@@ -606,7 +623,10 @@ async function closeBrowser(
 	if (params.all) {
 		if (owned) {
 			const targets = listTabs().filter(tab => owned(tab.name));
-			for (const target of targets) { assertBrowserTabAgentControl(getTab(target.name)); await untilAborted(signal, () => releaseTab(target.name, { kill, timeoutMs, closeManagedPage: true })); }
+			for (const target of targets) {
+				assertBrowserTabAgentControl(getTab(target.name));
+				await untilAborted(signal, () => releaseTab(target.name, { kill, timeoutMs, closeManagedPage: true }));
+			}
 			return toolResult(details).text(`Closed ${targets.length} browser tabs`).done();
 		}
 		// Only the caller's own tabs: another agent's tabs (a parent's, a sibling's)
@@ -621,7 +641,9 @@ async function closeBrowser(
 	}
 	assertBrowserTabAgentControl(getTab(name));
 	const closed = await untilAborted(signal, () => releaseTab(name, { kill, timeoutMs, closeManagedPage: true }));
-	const text = closed ? `Released managed tab ${JSON.stringify(details.name)}` : `No tab named ${JSON.stringify(details.name)}`;
+	const text = closed
+		? `Released managed tab ${JSON.stringify(details.name)}`
+		: `No tab named ${JSON.stringify(details.name)}`;
 	return toolResult(details).text(text).done();
 }
 

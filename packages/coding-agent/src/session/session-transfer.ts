@@ -93,6 +93,8 @@ export interface PackSessionResult {
 
 /** Options for {@link unpackSession}. */
 export interface UnpackSessionOptions {
+	/** Always fork when a local copy exists; desktop imports never replace an existing transcript. */
+	preserveExisting?: boolean;
 	/** Directory the session continues in on this machine; becomes the header `cwd`. */
 	cwd: string;
 	/** Session directory to land in; defaults to `cwd`'s session directory. */
@@ -573,6 +575,34 @@ async function placeSession(
  * copy diverged, the incoming transcript lands as a fork with a new id whose
  * `parentSession` is the original id, and local copies stay untouched.
  */
+export async function inspectSessionArchive(
+	archivePath: string,
+	cwd: string,
+): Promise<{
+	id: string;
+	title: string;
+	cwd: string;
+	omp: string;
+	messages: number;
+	artifacts: number;
+	blobs: number;
+	conflicts: boolean;
+}> {
+	const contents = await readSessionArchive(path.resolve(archivePath));
+	await requireDirectory(path.resolve(cwd));
+	const copies = await findLocalCopies(contents.header.id, SessionManager.getDefaultSessionDir(cwd));
+	return {
+		id: contents.header.id,
+		title: contents.header.title || contents.header.id,
+		cwd: contents.header.cwd || contents.manifest.cwd,
+		omp: contents.manifest.omp,
+		messages: contents.entries.filter(entry => entry.type === "message").length,
+		artifacts: contents.artifacts.length,
+		blobs: contents.blobs.length,
+		conflicts: copies.length > 0,
+	};
+}
+
 export async function unpackSession(archivePath: string, options: UnpackSessionOptions): Promise<UnpackSessionResult> {
 	const archive = path.resolve(archivePath);
 	const cwd = path.resolve(options.cwd);
@@ -607,7 +637,7 @@ export async function unpackSession(archivePath: string, options: UnpackSessionO
 			if (!isTranscriptPrefix(entries, contents.entries)) diverged = true;
 		}
 
-		if (diverged) {
+		if (diverged || (options.preserveExisting && localCopies.length > 0)) {
 			const placed = await placeSession(() => SessionManager.forkFrom(stagedFile, cwd, sessionDir), arrival);
 			logger.info("Unpacked session as a fork of a diverged local copy", { parent: id, ...placed });
 			return { ...placed, mode: "forked" };

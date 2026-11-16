@@ -43,7 +43,7 @@
     "remark-gfm": "^4.0.1",
     "three": "0.187.0",
     "x_ite": "16.7.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "xlsx": "file:vendor/xlsx-0.20.3.tgz",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

@@ -72,10 +72,20 @@ export class ComputerWorkspaceMedia {
 	): Promise<ComputerFrameDescriptor> {
 		if (!this.owns(frame.sessionId) || !valid()) throw new Error("Computer frame scope changed");
 		const png = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		if (bytes.byteLength > (frame.source === "observation" ? 8 : 16) * 1024 * 1024 || bytes.byteLength < 33 ||
-			!png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || png.readUInt32BE(8) !== 13 ||
-			png.toString("ascii", 12, 16) !== "IHDR" || png.readUInt32BE(16) !== frame.width || png.readUInt32BE(20) !== frame.height ||
-			!Number.isSafeInteger(frame.width) || !Number.isSafeInteger(frame.height) || frame.width < 1 || frame.height < 1 || frame.width * frame.height > 4_000_000)
+		if (
+			bytes.byteLength > (frame.source === "observation" ? 8 : 16) * 1024 * 1024 ||
+			bytes.byteLength < 33 ||
+			!png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+			png.readUInt32BE(8) !== 13 ||
+			png.toString("ascii", 12, 16) !== "IHDR" ||
+			png.readUInt32BE(16) !== frame.width ||
+			png.readUInt32BE(20) !== frame.height ||
+			!Number.isSafeInteger(frame.width) ||
+			!Number.isSafeInteger(frame.height) ||
+			frame.width < 1 ||
+			frame.height < 1 ||
+			frame.width * frame.height > 4_000_000
+		)
 			throw new Error("Computer frame exceeds the PNG budget");
 		const descriptor: ComputerFrameDescriptor = {
 			version: 1,
@@ -110,7 +120,13 @@ export class ComputerWorkspaceMedia {
 			.catch(() => {})
 			.then(async () => {
 				const descriptor = await this.read(frame.frameId);
-				if (descriptor && !this.#disposed && !this.#removed.has(frame.frameId) && this.owns(frame.sessionId) && (frame.expiresAt ?? Infinity) > this.now())
+				if (
+					descriptor &&
+					!this.#disposed &&
+					!this.#removed.has(frame.frameId) &&
+					this.owns(frame.sessionId) &&
+					(frame.expiresAt ?? Infinity) > this.now()
+				)
 					await this.#atomic(
 						this.#descriptor(frame.frameId),
 						JSON.stringify({
@@ -133,9 +149,25 @@ export class ComputerWorkspaceMedia {
 			const stat = await fs.lstat(file);
 			if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 32 * 1024) return undefined;
 			const value = (await Bun.file(file).json()) as ComputerFrameDescriptor;
-			if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !["version", "scopeSessionId", "frame", "bytes", "sha256", "leaseId", "runFinished"].includes(key))) throw new Error("Computer frame descriptor is corrupt");
+			if (
+				!value ||
+				typeof value !== "object" ||
+				Array.isArray(value) ||
+				Object.keys(value).some(
+					key =>
+						!["version", "scopeSessionId", "frame", "bytes", "sha256", "leaseId", "runFinished"].includes(key),
+				)
+			)
+				throw new Error("Computer frame descriptor is corrupt");
 			validateComputerFrame(value.frame);
-			if (!Number.isSafeInteger(value.bytes) || value.bytes < 33 || value.bytes > 16 * 1024 * 1024 || !/^[a-f0-9]{64}$/u.test(value.sha256) || (value.leaseId !== undefined && !uuid.test(value.leaseId))) throw new Error("Computer frame descriptor is corrupt");
+			if (
+				!Number.isSafeInteger(value.bytes) ||
+				value.bytes < 33 ||
+				value.bytes > 16 * 1024 * 1024 ||
+				!/^[a-f0-9]{64}$/u.test(value.sha256) ||
+				(value.leaseId !== undefined && !uuid.test(value.leaseId))
+			)
+				throw new Error("Computer frame descriptor is corrupt");
 			if (
 				value.version !== 1 ||
 				value.scopeSessionId !== this.scopeSessionId ||

@@ -3,6 +3,7 @@ import { StudioEventSocket } from "./remote/http";
 /** A connection to the existing Zeta Host, never a second authority. */
 export interface DesktopHostConnection {
 	readonly base: string;
+	request(route: string, init?: RequestInit): Promise<Response>;
 	gateway<T = unknown>(route: string, init?: RequestInit): Promise<T>;
 	query<T = unknown>(request: unknown): Promise<T>;
 	socket(route: string): Promise<StudioEventSocket>;
@@ -18,7 +19,7 @@ export interface LocalHostOptions {
 export function localHostConnection(options: LocalHostOptions): DesktopHostConnection {
 	const base = options.base.replace(/\/$/, "");
 	let csrf: string | undefined;
-	const request = async <T>(route: string, init: RequestInit = {}): Promise<T> => {
+	const request = async (route: string, init: RequestInit = {}): Promise<Response> => {
 		if (!route.startsWith("/api/") || route.startsWith("//")) throw new Error("Invalid Host route");
 		const mutate = !["GET", "HEAD"].includes((init.method ?? "GET").toUpperCase()) && route !== "/api/v1/query";
 		if (mutate && csrf === undefined) {
@@ -28,20 +29,25 @@ export function localHostConnection(options: LocalHostOptions): DesktopHostConne
 			await bootstrap.body?.cancel();
 		}
 		const headers = new Headers(init.headers);
-		headers.set("accept", "application/json");
+		if (!headers.has("accept")) headers.set("accept", "application/json");
 		if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
 		if (mutate && csrf) headers.set("x-studio-csrf", csrf);
 		const response = await options.fetch(`${base}${route}`, {
 			...init, credentials: "include", headers,
 			signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
 		});
+		return response;
+	};
+	const json = async <T>(route: string, init?: RequestInit): Promise<T> => {
+		const response = await request(route, init);
 		if (!response.ok) throw new Error((await response.text().catch(() => "")) || `Host request failed (${response.status})`);
 		return await response.json() as T;
 	};
 	return {
 		base,
-		gateway: request,
-		query: body => request("/api/v1/query", { method: "POST", body: JSON.stringify(body) }),
+		request,
+		gateway: json,
+		query: <T>(body: unknown): Promise<T> => json("/api/v1/query", { method: "POST", body: JSON.stringify(body) }),
 		async socket(route) {
 			if (!route.startsWith("/api/terminal/") || route.startsWith("//")) throw new Error("Invalid terminal socket route");
 			return new StudioEventSocket(`${base.replace(/^http/, "ws")}${route}`, await options.cookie());

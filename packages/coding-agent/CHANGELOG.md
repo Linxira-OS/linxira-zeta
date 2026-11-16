@@ -23,8 +23,13 @@
 - Studio composer prediction now has real producers: the existing native text-prediction daemon runs under an isolated Studio corpus/profile, next-message alternatives reuse the native composer controller, and drafts travel only over bounded authenticated private sockets owned by one live view. Desktop adopts the prepared channel through trusted top-frame IPC and imports history only through a file picker; settings, session disposal and window loss release the channel. Clearing the corpus stops that exact daemon without touching the shared model cache or TUI history (ADR-0053).
 - `session.create` applies the chosen provider/model inside session creation instead of a post-create switch, so the first turn cannot run on the default model.
 - Managed desktop WebMCP now works on Chromium 156 and 157 (both `WebMCPTesting` and `WebMCP` are enabled), keeps a stable document identity across same-document navigation, invalidates catalogs/references on cross-document commit or renderer crash, and closes private observation on inspector crash/detach while releasing the human-control lease (ADR-0054).
-- `session.delete` disposes the resident native session after the transcript moves to trash, so a running turn or evaluation cannot keep writing after the delete.
+- `session.delete` cancels the resident native session and closes its sealed writer before moving the transcript to trash; late teardown cannot recreate a ghost transcript, and the receipt does not wait for unrelated memory consolidation.
 - Palette and topbar terminal openers expand a collapsed bottom region instead of selecting a tab nobody can see.
+- Integrated terminal grids shrink with the bottom panel instead of keeping a clipped 24-row surface. Terminal rows and input inherit the configured terminal font; native floating windows read their own mirrored typography and theme.
+- Studio history rename and explicit pin controls now persist through the existing native writers, enforce the selected workspace and device session binding, and report the saved title. BTW image-path paste uses the native image loader within the live selected conversation.
+- Native terminal recordings use their own recorder URL authority. Artifact imports retain their declared kind despite conflicting filename suffixes; Desktop export rechecks the invoking Host context immediately before committing the destination file.
+- Studio local-resource commands accept the renderer's kindless input and keep live-view fences through asynchronous reads and saves. BTW promotion rekeys the resident wrapper and preserves a later conversation selection; recorded shell sources and portability secondary targets obey workspace/device binding.
+- Queue mutations retain their invoking view while waiting in the serialized queue and discard staged takeback images on revocation. Session transfers retain per-invocation authority, so another window's status read cannot authorize an older transfer.
 
 ### Breaking Changes
 

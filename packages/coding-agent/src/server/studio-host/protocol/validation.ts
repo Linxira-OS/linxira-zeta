@@ -1,14 +1,20 @@
 import { GUI_SETTING_KEYS, isGuiSettingKey, validateGuiSetting } from "./contracts/gui-settings.js";
 
-
-
-
 import { ContractValidationError } from "./contract-error.js";
 import type { AgentTranscriptMessage, AgentTranscriptPage } from "./contracts/agents-jobs.js";
 import { parseBtwSnapshot } from "./btw-validation.js";
 import type { AgentId, Generation, OpaqueCursor } from "./contracts/ids.js";
 
-import { STUDIO_PROTOCOL_NAME, STUDIO_PROTOCOL_VERSION, type FrameHeader, type StudioEventEnvelope, type StudioHelloRequest, type StudioHelloResponse, type StudioReceipt, type StudioSnapshotResponse } from "./contracts/protocol.js";
+import {
+	STUDIO_PROTOCOL_NAME,
+	STUDIO_PROTOCOL_VERSION,
+	type FrameHeader,
+	type StudioEventEnvelope,
+	type StudioHelloRequest,
+	type StudioHelloResponse,
+	type StudioReceipt,
+	type StudioSnapshotResponse,
+} from "./contracts/protocol.js";
 import { SESSION_THINKING_LEVELS, SESSION_THINKING_SELECTORS } from "./contracts/state.js";
 import type { OperatorStateSnapshot } from "./contracts/state.js";
 import {
@@ -146,7 +152,10 @@ function validateLoopCondition(value: unknown, path: string): void {
 }
 
 export function validateRuntimeSettingValue(key: StudioRuntimeSettingKey, value: unknown, path: string): void {
-	if (isGuiSettingKey(key)) { validateGuiSetting(key, value); return; }
+	if (isGuiSettingKey(key)) {
+		validateGuiSetting(key, value);
+		return;
+	}
 	switch (key) {
 		case "modelRoles.judge":
 			if (typeof value !== "string" || value.length > 4096 || /[\u0000-\u001f]/u.test(value)) {
@@ -270,10 +279,6 @@ function validateRuntimeSettingsSnapshot(value: unknown, path: string): void {
 		validateRuntimeSettingValue(key, settings[key], `${path}.${key}`);
 	}
 }
-
-
-
-
 
 export function parseFrameHeader(value: unknown): FrameHeader {
 	const input = record(value, "$header");
@@ -718,12 +723,21 @@ export function parseOperatorStateSnapshot(value: unknown): OperatorStateSnapsho
 			["configured", "restartRequired", "sources", "hindsightCredential", "resolvedEditMode"],
 			"$snapshot.snapshot.runtimeSettingsActivation",
 		);
-		if (activation.resolvedEditMode !== undefined) oneOf(activation.resolvedEditMode, ["apply_patch", "hashline", "patch", "replace", "sloppy"], "activation.resolvedEditMode");
+		if (activation.resolvedEditMode !== undefined)
+			oneOf(
+				activation.resolvedEditMode,
+				["apply_patch", "hashline", "patch", "replace", "sloppy"],
+				"activation.resolvedEditMode",
+			);
 		if (activation.hindsightCredential !== undefined) {
 			const credential = record(activation.hindsightCredential, "activation.hindsightCredential");
 			exactKeys(credential, ["configured", "source"], "activation.hindsightCredential");
 			booleanValue(credential.configured, "activation.hindsightCredential.configured");
-			oneOf(credential.source, ["env", "runtime", "overlay", "project", "global", "default"], "activation.hindsightCredential.source");
+			oneOf(
+				credential.source,
+				["env", "runtime", "overlay", "project", "global", "default"],
+				"activation.hindsightCredential.source",
+			);
 		}
 		if (activation.sources !== undefined) {
 			const sources = record(activation.sources, "activation.sources");
@@ -1057,16 +1071,6 @@ function validateRemoteInteractionRequest(request: Record<string, unknown>, path
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
 const THINKING_LEVEL_SET = new Set<string>(SESSION_THINKING_LEVELS);
 const THINKING_SELECTOR_SET = new Set<string>(SESSION_THINKING_SELECTORS);
 
@@ -1112,14 +1116,6 @@ function jsonValue(value: unknown, path: string, seen: Set<object> = new Set()):
 			throw new ContractValidationError("expected a JSON-safe value", path);
 	}
 }
-
-
-
-
-
-
-
-
 
 const RECEIPT_STATUSES = new Set(["accepted", "completed", "rejected", "failed", "outcome_unknown"]);
 const ERROR_CODES = new Set([
@@ -1218,4 +1214,3 @@ export function parseAgentTranscriptPage(value: unknown): AgentTranscriptPage {
 		eof: input.eof as boolean,
 	};
 }
-

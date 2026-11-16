@@ -5,6 +5,9 @@ import "@xterm/xterm/css/xterm.css";
 import { applyTheme, readTerminalTypography, readXtermTheme } from "../terminalTheme";
 import { useAppSettings } from "../settings/appSettings";
 import { useI18n } from "../i18n";
+import { useSurfaceDocument } from "../dock/SurfaceContext";
+import type { StudioClient } from "@linxiraos/studio-contract";
+import { resolveArtifactUrl } from "../media/artifactUrl";
 import {
 	applyRecordedFrame,
 	RECORDING_ACCEPT,
@@ -18,14 +21,19 @@ import "./recordings.css";
 export function RecordingPlayer({
   artifactId,
   demoText,
+  client,
+  targetId,
   visible = true,
 }: {
   artifactId?: string | undefined;
   demoText?: string | undefined;
+  client?: StudioClient | undefined;
+  targetId?: string | null | undefined;
   visible?: boolean;
 }) {
   const { resolvedLanguage } = useI18n();
   const { settings } = useAppSettings();
+  const document = useSurfaceDocument();
   const zh = resolvedLanguage === "zh";
   const [recording, setRecording] = useState<PlaybackRecording>();
   const [error, setError] = useState("");
@@ -86,12 +94,17 @@ export function RecordingPlayer({
         worker.terminate();
         return;
       }
-      const response = await fetch(
-        `zeta-artifact://library/${encodeURIComponent(artifactId)}`,
-        { signal: controller.signal },
-      );
+      const url = client
+        ? await resolveArtifactUrl(
+            client,
+            artifactId,
+            targetId,
+            controller.signal,
+          )
+        : `zeta-artifact://recorder/${encodeURIComponent(artifactId)}`;
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok || !response.body)
-        throw new Error("Recording unavailable; import or open it in Desktop");
+        throw new Error("Recording unavailable or protected");
       const size = Number(response.headers.get("content-length"));
       if (size > RECORDING_MAX_BYTES)
         throw new Error("Recording exceeds 32 MiB");
@@ -126,7 +139,7 @@ export function RecordingPlayer({
       controller.abort();
       worker.terminate();
     };
-  }, [artifactId, source, demoText]);
+  }, [artifactId, source, demoText, client, targetId]);
   useEffect(() => {
     if (!node.current || !recording) return;
     const terminal = new Terminal({
@@ -134,10 +147,10 @@ export function RecordingPlayer({
       rows: recording.rows,
       disableStdin: true,
       cursorBlink: false,
-      ...readTerminalTypography(),
+      ...readTerminalTypography(document),
       scrollback: 1000,
       allowProposedApi: false,
-      theme: readXtermTheme(),
+      theme: readXtermTheme(document),
     });
     terminal.open(node.current);
     term.current = terminal;
@@ -151,21 +164,21 @@ export function RecordingPlayer({
       viewport: [],
     };
     setSeek((value) => value + 1);
-    const observer = new MutationObserver(() => applyTheme(terminal));
+    const observer = new MutationObserver(() => applyTheme(terminal, document));
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme"],
+      attributeFilter: ["data-theme", "style"],
     });
     return () => {
       observer.disconnect();
       term.current = undefined;
       terminal.dispose();
     };
-  }, [recording]);
+  }, [recording, document]);
   useEffect(() => {
     const terminal = term.current;
-    if (terminal) applyTheme(terminal);
-  }, [recording, settings.terminalFontFamily, settings.terminalFontSize]);
+    if (terminal) applyTheme(terminal, document);
+  }, [recording, document, settings.terminalFontFamily, settings.terminalFontSize]);
   useEffect(() => {
     if (!recording || !playing || !visible || document.hidden) return;
     let frame = 0;
@@ -277,7 +290,7 @@ export function RecordingPlayer({
             ref={fileInput}
             hidden
             type="file"
-            accept=".ompcast,.studiocast"
+            accept={RECORDING_ACCEPT}
             aria-label={zh ? "选择录制文件" : "Choose recording"}
             onChange={(event) => {
               const file = event.target.files?.[0];

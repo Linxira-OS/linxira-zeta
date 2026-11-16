@@ -78,7 +78,9 @@ import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-
 import { shutdownStudioEvaluations } from "./studio-host/services/evaluation-runtime";
 import { shutdownComputerPrivateResources } from "./studio-host/services/computer-runtime";
 import { shutdownPredictionPrivateResources } from "./studio-host/services/prediction-runtime";
-import { startRpcSession } from "./web-gateway/agents";
+import { shutdownStudioMedia } from "./studio-host/services/media-runtime.js";
+import { sessions, startRpcSession } from "./web-gateway/agents";
+import { cleanupSessionWorktreesOnShutdown } from "./studio-host/services/session-worktrees-runtime";
 import { serveSessionClient } from "./web-gateway/desktop";
 import { getSharedModelRegistry } from "./web-gateway/auth";
 import { setBotSessionDispose } from "./web-gateway/running-sessions";
@@ -583,8 +585,22 @@ export class ZetaServer {
 		// removes our own record, never a successor's.
 		registerServeInstanceUrls(null);
 		clearServeRegistration();
+		// Stop both ingress listeners before awaiting producers or worktree cleanup.
+		if (this.#server) {
+			this.#server.stop(true);
+			this.#server = null;
+		}
+		const gatewayShutdown = this.#gateway?.shutdown();
+		this.#gateway = null;
+		const exiting = [...sessions.values()].filter(wrapper => wrapper.isAlive());
+		for (const wrapper of exiting) {
+			wrapper.getLoopController().stop();
+			wrapper.getGoalController().stopForHostAbort();
+		}
+		const exitingSessions = exiting.map(wrapper => wrapper.getSession());
+		await gatewayShutdown?.catch(() => {});
 		shutdownPredictionPrivateResources();
-		await Promise.all([shutdownStudioEvaluations(), shutdownComputerPrivateResources()]);
+		await Promise.all([shutdownStudioEvaluations(), shutdownComputerPrivateResources(), shutdownStudioMedia()]);
 
 		await this.#stopChannelRuntime();
 		registerRestartChannels(null);
@@ -609,20 +625,14 @@ export class ZetaServer {
 		}
 		setBotSessionDispose(null);
 
-		if (this.#server) {
-			this.#server.stop();
-			this.#server = null;
-		}
-
 		if (this.#webUiChild) {
 			this.#webUiChild.kill();
 			this.#webUiChild = null;
 		}
 
-		if (this.#gateway) {
-			await this.#gateway.shutdown().catch(() => {});
-			this.#gateway = null;
-		}
+		await Promise.all(exitingSessions.map(session => session.abort().catch(() => {})));
+		for (const message of await cleanupSessionWorktreesOnShutdown(exitingSessions))
+			logger.warn("worktree.onExit", { message });
 
 		if (this.#statsServer) {
 			try {

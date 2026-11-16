@@ -164,9 +164,23 @@ export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 	if (typeof record.webUrl !== "string" || record.webUrl.length === 0) return null;
 	if (typeof record.version !== "string" || record.version.length === 0) return null;
 	const privateRecord = record.studioPrivate;
-	const studioPrivate = privateRecord && typeof privateRecord === "object" && "schema" in privateRecord && privateRecord.schema === 1 && "mediaDirectory" in privateRecord && typeof privateRecord.mediaDirectory === "string" && path.isAbsolute(privateRecord.mediaDirectory) && "socketDirectory" in privateRecord && typeof privateRecord.socketDirectory === "string" && path.isAbsolute(privateRecord.socketDirectory)
-		? { schema: 1 as const, mediaDirectory: privateRecord.mediaDirectory, socketDirectory: privateRecord.socketDirectory }
-		: undefined;
+	const studioPrivate =
+		privateRecord &&
+		typeof privateRecord === "object" &&
+		"schema" in privateRecord &&
+		privateRecord.schema === 1 &&
+		"mediaDirectory" in privateRecord &&
+		typeof privateRecord.mediaDirectory === "string" &&
+		path.isAbsolute(privateRecord.mediaDirectory) &&
+		"socketDirectory" in privateRecord &&
+		typeof privateRecord.socketDirectory === "string" &&
+		path.isAbsolute(privateRecord.socketDirectory)
+			? {
+					schema: 1 as const,
+					mediaDirectory: privateRecord.mediaDirectory,
+					socketDirectory: privateRecord.socketDirectory,
+				}
+			: undefined;
 	return {
 		pid,
 		webUrl: record.webUrl,

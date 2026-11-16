@@ -33,6 +33,7 @@ const STDERR_TAIL_LINES = 20;
 
 /** RPC methods implemented by the IDA worker. */
 export type IdaMethod =
+	| "studio"
 	| "open"
 	| "view"
 	| "exec"
@@ -256,9 +257,12 @@ export class IdaWorker {
 		try {
 			await this.#waitTurn(previous, signal, timeoutMs);
 			const remaining = deadline === undefined ? undefined : Math.max(1, deadline - Date.now());
+			const studioMethod =
+				method === "studio" && "method" in params && typeof params.method === "string" ? params.method : undefined;
+			if (studioMethod === "exec") this.#execSinceSave = true;
 			const value = await this.#send(method, params, { signal, timeoutMs: remaining });
-			if (method === "exec") this.#execSinceSave = true;
-			else if (method === "save") this.#execSinceSave = false;
+			if (method === "exec" || studioMethod === "exec") this.#execSinceSave = true;
+			else if (method === "save" || studioMethod === "save") this.#execSinceSave = false;
 			// The worker answers with the JSON shape documented for `method`.
 			return value as T;
 		} finally {

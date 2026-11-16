@@ -1,5 +1,8 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { ComposerPredictionController, predictionAnchor } from "../../../modes/controllers/composer-prediction-controller";
+import {
+	ComposerPredictionController,
+	predictionAnchor,
+} from "../../../modes/controllers/composer-prediction-controller";
 import type { AgentSession } from "../../../session/agent-session";
 import { cfgComposerPredictions } from "../../../modes/settings";
 
@@ -73,7 +76,12 @@ export class StudioMessagePrediction {
 		if (this.#active?.channelId === channelId && this.#active.revision === revision) this.#controller.shown();
 	}
 	accepted(channelId: string, revision: number, rank: number): void {
-		if (this.#active?.channelId === channelId && this.#active.revision === revision && rank >= 0 && rank < (this.#controller.choices?.length ?? 0)) {
+		if (
+			this.#active?.channelId === channelId &&
+			this.#active.revision === revision &&
+			rank >= 0 &&
+			rank < (this.#controller.choices?.length ?? 0)
+		) {
 			this.#active.accepted = true;
 			this.#controller.accepted(rank);
 		}

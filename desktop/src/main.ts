@@ -100,6 +100,7 @@ import { DesktopComputerViews } from "./computer-views";
 import { ComputerFrameStore, registerComputerFrameIpc } from "./computer-frames";
 import { registerComputerCaptureIpc } from "./computer-observation";
 import { DesktopPrediction, registerPredictionIpc } from "./prediction";
+import { isArtifactLibraryUrl, registerArtifactLibrary, type ArtifactLibrary } from "./artifact-library";
 
 // Must match packages/utils/src/ports.ts (this standalone package cannot import
 // the workspace); `scripts/check-service-ports.ts` fails CI when they drift.
@@ -118,6 +119,7 @@ const START_HIDDEN = process.argv.includes("--hidden");
 let serveChild: ChildProcess | null = null;
 let serviceLogFd: number | null = null;
 let serviceOwned = false;
+let artifactLibrary: ArtifactLibrary | undefined;
 let serviceWorkspacePath = process.cwd();
 let quitting = false;
 // Effective service origins: the reused instance's when boot adopted one, else
@@ -1872,15 +1874,48 @@ if (!app.hasSingleInstanceLock()) {
 				async pickExport(name) { const result = await dialog.showSaveDialog({ defaultPath: name }); return result.canceled ? undefined : result.filePath; },
 				show(owner) { const contents = webContents.fromId(owner); const window = contents ? BrowserWindow.fromWebContents(contents) : null; if (window && !window.isDestroyed()) { window.show(); window.focus(); } },
 			});
-			session.defaultSession.webRequest.onBeforeRequest({ urls: ["zeta-file://*/*"] }, (details, callback) => {
+			artifactLibrary = registerArtifactLibrary({
+				ipcMain,
+				connection: targetId => hostConnection(targetId ?? undefined),
+				isTrustedSender: sender => {
+					const contents = webContents.fromId(sender.id);
+					return !!contents && contents === sender && isTrustedDesktopSender(contents);
+				},
+				async pickImport(kind) {
+					const result = await dialog.showOpenDialog({ title: `Import ${kind} artifact`, properties: ["openFile"] });
+					return result.canceled ? undefined : result.filePaths[0];
+				},
+				async pickExport(name) {
+					const result = await dialog.showSaveDialog({ title: "Export artifact", defaultPath: name });
+					return result.canceled ? undefined : result.filePath;
+				},
+			});
+			session.defaultSession.webRequest.onBeforeRequest({ urls: ["zeta-artifact://*/*", "zeta-file://*/*"] }, (details, callback) => {
 				const sender = details.webContentsId !== undefined && details.webContentsId > 0 ? webContents.fromId(details.webContentsId) : undefined;
-				callback({ cancel: !sender || !isTrustedDesktopSender(sender) || !fileViewer?.allowsRequest(details.url, sender, details.frame, details.resourceType) });
+				if (!sender || !isTrustedDesktopSender(sender)) {
+					callback({ cancel: true });
+					return;
+				}
+				if (details.url.startsWith("zeta-file:")) {
+					// The viewer owns its own frame policy: its document frame plus
+					// one sandboxed child frame reading that same lease.
+					callback({ cancel: fileViewer?.allowsRequest(details.url, sender, details.frame, details.resourceType) !== true });
+					return;
+				}
+				if (isArtifactLibraryUrl(details.url)) {
+					callback({ cancel: artifactLibrary?.allowsRequest(details.url, sender, details.frame, details.resourceType) !== true });
+					return;
+				}
+				// Plain recorder URLs stay main-document only.
+				callback({ cancel: details.frame !== sender.mainFrame });
 			});
 			protocol.handle("zeta-file", request => fileResources!.response(request, new URL(webUiUrl).origin));
 			protocol.handle("zeta-graphics", request => graphicAssetResponse(request, { base: webUiUrl, fetch: session.defaultSession.fetch.bind(session.defaultSession) as typeof fetch }));
 			registerChromeMedia({ root: app.getPath("userData"), trusted: isTrustedDesktopSender });
 			await installPerfProfiles({ root: app.getPath("userData"), trusted: isTrustedPreloadSender, log: writeDesktopLog });
 			protocol.handle("zeta-artifact", request => {
+				if (isArtifactLibraryUrl(request.url))
+					return artifactLibrary?.response(request, new URL(webUiUrl).origin) ?? new Response(null, { status: 404 });
 				const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ""));
 				const file = terminalBridge?.artifactPath(name);
 				if (!file) return new Response("Recording not found", { status: 404 });
@@ -1912,6 +1947,8 @@ if (!app.hasSingleInstanceLock()) {
 		void remoteBridge?.dispose();
 		terminalBridge?.shutdown();
 		memoryCredentials?.dispose();
+		artifactLibrary?.dispose();
+		artifactLibrary = undefined;
 		memoryCredentials = null;
 		stopPrivateProducers();
 		managedBrowserIpc?.dispose();

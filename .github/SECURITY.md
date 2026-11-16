@@ -1,5 +1,7 @@
 # Security Policy
 
+**English** · [简体中文](SECURITY.zh-CN.md)
+
 ## Supported versions
 
 Only the latest stable Zeta release receives security updates. Pre-release
@@ -22,7 +24,9 @@ Include:
 - relevant logs with secrets, tokens, and personal data removed.
 
 If the advisory form is unavailable, contact the repository maintainers
-privately through GitHub rather than posting details publicly.
+privately through GitHub rather than posting details publicly. Do not include
+secrets, pairing codes, TOTP secrets, live tokens, or credential-bearing
+screenshots in issues, logs, or reports.
 
 ## IM and server vulnerabilities
 
@@ -39,7 +43,7 @@ public issue or pull request for them is prohibited. This especially covers:
 
 The owning roles are **Zeta server maintainers** and **Zeta IM maintainers**.
 Do not include secrets, pairing codes, TOTP secrets, live tokens, or
-credential-bearing screenshots in issues, logs, or reports.
+credential-bearing screenshots in issues, logs, chat, or reports.
 
 If the defect is upstream, use the upstream project's private security channel
 (not a public issue), and open our advisory in parallel when Zeta is affected.
@@ -50,3 +54,5 @@ Do not disclose before coordination.
 Reports are handled on a best-effort basis. You can expect an initial
 acknowledgement within a few days. Please allow time for a fix and coordinated
 disclosure before publishing details.
+
+**English** · [简体中文](SECURITY.zh-CN.md)

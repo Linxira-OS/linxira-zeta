@@ -1,7 +1,12 @@
 import type { PredictionInput } from "../protocol/contracts/prediction-channel";
 
 function record(value: unknown, fields: readonly string[]): Record<string, unknown> {
-	if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !fields.includes(key)))
+	if (
+		!value ||
+		typeof value !== "object" ||
+		Array.isArray(value) ||
+		Object.keys(value).some(key => !fields.includes(key))
+	)
 		throw new Error("Invalid prediction fields");
 	return value as Record<string, unknown>;
 }
@@ -10,14 +15,25 @@ function integer(value: unknown, max = Number.MAX_SAFE_INTEGER): asserts value i
 		throw new Error("Invalid prediction number");
 }
 function text(value: unknown): asserts value is string {
-	if (typeof value !== "string" || value.length > 4096 || value.includes("\0")) throw new Error("Invalid prediction text");
+	if (typeof value !== "string" || value.length > 4096 || value.includes("\0"))
+		throw new Error("Invalid prediction text");
 }
 function identifier(value: unknown): asserts value is string {
 	if (typeof value !== "string" || !/^[a-f0-9-]{36}$/u.test(value)) throw new Error("Invalid prediction identity");
 }
 /** Private editor socket input, independent of the authenticated HTTP operation boundary. */
 export function parsePredictionInput(value: unknown): PredictionInput {
-	const row = record(value, ["kind", "revision", "empty", "text", "caret", "accepted", "rank", "requestId", "transferId"]);
+	const row = record(value, [
+		"kind",
+		"revision",
+		"empty",
+		"text",
+		"caret",
+		"accepted",
+		"rank",
+		"requestId",
+		"transferId",
+	]);
 	switch (row.kind) {
 		case "ping":
 			record(row, ["kind"]);
@@ -30,7 +46,12 @@ export function parsePredictionInput(value: unknown): PredictionInput {
 				text(row.text);
 				if (row.empty !== (row.text.trimEnd() === "")) throw new Error("Prediction draft state changed");
 			}
-			return { kind: row.kind, revision: row.revision, empty: row.empty, ...(row.text === undefined ? {} : { text: row.text }) };
+			return {
+				kind: row.kind,
+				revision: row.revision,
+				empty: row.empty,
+				...(row.text === undefined ? {} : { text: row.text }),
+			};
 		case "next.shown":
 			record(row, ["kind", "revision"]);
 			integer(row.revision);

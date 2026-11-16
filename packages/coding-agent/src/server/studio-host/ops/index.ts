@@ -16,6 +16,7 @@ import { pluginHostOps } from "./plugin-host.js";
 import { roomsOps } from "./rooms.js";
 import { runtimeOps } from "./runtime.js";
 import { sessionOps } from "./session.js";
+import { sessionUtilitiesOps } from "./session-utilities.js";
 import { settingsOps } from "./settings.js";
 import { skillsOps } from "./skills.js";
 import { teamOps } from "./team.js";
@@ -27,9 +28,21 @@ import { timeTravelOps } from "./time-travel.js";
 import { computerOps } from "./computer.js";
 import { servicesOps } from "./services.js";
 import { predictionOps } from "./prediction";
+import { accountsOps } from "./accounts.js";
+import { agentDetailsOps } from "./agent-details.js";
+import { worktreesOps } from "./worktrees.js";
+import { idaOps } from "./ida.js";
+import { annotationsOps } from "./annotations.js";
+import { compactionOps } from "./compaction.js";
+import { featureSettingsOps } from "./feature-settings.js";
+import { mediaOps } from "./media.js";
+import { historyUtilitiesOps } from "./history-utilities.js";
+import { historyMetadataOps } from "./history-metadata.js";
+import { btwImagesOps } from "./btw-images.js";
 
 export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	sessionOps,
+	sessionUtilitiesOps,
 	operatorOps,
 	modelsOps,
 	agentsOps,
@@ -44,6 +57,7 @@ export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	filesOps,
 	usageOps,
 	settingsOps,
+	featureSettingsOps,
 	runtimeOps,
 	browserOps,
 	evaluationsOps,
@@ -51,4 +65,14 @@ export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	computerOps,
 	servicesOps,
 	predictionOps,
+	accountsOps,
+	agentDetailsOps,
+	worktreesOps,
+	idaOps,
+	annotationsOps,
+	compactionOps,
+	mediaOps,
+	historyUtilitiesOps,
+	historyMetadataOps,
+	btwImagesOps,
 ];

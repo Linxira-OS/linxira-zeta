@@ -58,10 +58,3 @@ export const IDA_OPERATION_KINDS = [
 export function isIdaOperationKind(kind: string): kind is StudioIdaOperation["kind"] {
 	return (IDA_OPERATION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-

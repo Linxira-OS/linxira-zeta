@@ -28,6 +28,8 @@ export * from "./performance-diagnostics.js";
 
 export * from "./contracts/runtime-upgrade.js";
 export * from "./contracts/accounts.js";
+export * from "./contracts/search-credentials.js";
+export * from "./contracts/extension-links.js";
 export * from "./contracts/annotations.js";
 export * from "./contracts/judgments.js";
 export * from "./contracts/runtime-catalog.js";
@@ -52,6 +54,7 @@ export * from "./contracts/ratchet.js";
 export * from "./contracts/native-preferences.js";
 
 export * from "./contracts/runtime-queue.js";
+export * from "./contracts/session-compaction.js";
 
 export * from "./contracts/session-restore.js";
 
@@ -69,6 +72,7 @@ export * from "./contracts/gui-settings.js";
 export * from "./contracts/session-gui.js";
 export * from "./contracts/prediction.js";
 export * from "./contracts/agent-btw.js";
+export * from "./contracts/runtime-views.js";
 export * from "./contracts/ida.js";
 export * from "./contracts/ask-attachments.js";
 export * from "./contracts/resources.js";

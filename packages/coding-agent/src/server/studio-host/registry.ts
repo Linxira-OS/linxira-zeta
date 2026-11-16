@@ -48,6 +48,8 @@ export interface StudioHostContext {
 	 */
 	readonly capabilities: CapabilityManifest;
 	readonly selection?: StudioSelection;
+	/** Opaque authenticated context id for binary resources; never a credential. */
+	readonly contextId?: string;
 	/** Internal view lifetime; never serialized into public responses. */
 	readonly privateOwner?: { readonly id: string; readonly expiresAt: number; readonly isLive: () => boolean };
 }

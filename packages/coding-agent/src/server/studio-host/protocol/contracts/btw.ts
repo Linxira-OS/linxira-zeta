@@ -23,10 +23,13 @@ export interface BtwError {
 }
 
 export interface BtwSnapshot {
+	readonly injection?: BtwInjection;
 	readonly sessionId?: string;
 	readonly topicId?: string;
 	readonly title?: string;
 	readonly question?: string;
+	/** Zero-based turn within its topic, including the currently streaming turn. */
+	readonly turnIndex?: number;
 	readonly ephemeralId: string;
 	readonly status: BtwStatus;
 	/** Answer text accumulated so far; grows while `status` is `running`. */
@@ -34,6 +37,14 @@ export interface BtwSnapshot {
 	/** Trimmed copy payload; present only once the answer completed non-empty. */
 	readonly copy?: string;
 	readonly error?: BtwError;
+}
+
+export interface BtwInjection {
+	readonly id: string;
+	readonly text: string;
+	readonly before: string;
+	readonly after: string;
+	readonly state: "ready" | "sending" | "sent";
 }
 
 export const BTW_STATUSES = ["running", "completed", "failed", "aborted"] as const satisfies readonly BtwStatus[];

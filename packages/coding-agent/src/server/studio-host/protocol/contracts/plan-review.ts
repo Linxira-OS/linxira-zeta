@@ -30,7 +30,3 @@ export const NATIVE_PLAN_REVIEW_KINDS = ["mode.plan.review.details", "mode.plan.
 export function isNativePlanReviewKind(kind: string): kind is NativePlanReviewOperation["kind"] {
 	return (NATIVE_PLAN_REVIEW_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-

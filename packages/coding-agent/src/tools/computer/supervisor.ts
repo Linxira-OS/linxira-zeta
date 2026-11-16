@@ -29,11 +29,7 @@ import {
 	type RunErrorPayload,
 } from "./protocol";
 
-import {
-	computerRunPermits,
-	emitComputerLifecycle,
-	type ComputerRunIdentity,
-} from "./lifecycle";
+import { computerRunPermits, emitComputerLifecycle, type ComputerRunIdentity } from "./lifecycle";
 
 const START_TIMEOUT_MS = 10_000;
 const CLOSE_TIMEOUT_MS = 1_500;
@@ -297,7 +293,11 @@ export class ComputerSupervisor implements ComputerController {
 		if (this.#escapeStopped()) throw new ToolError(ESCAPE_REFUSED_MESSAGE);
 		if (signal?.aborted) throw new ToolAbortError();
 		const instanceKey = this.#session.getSessionInstanceKey?.();
-		const permits = await computerRunPermits(snapshot.sessionId, this.#session.getEvalKernelOwnerId?.() ?? undefined, instanceKey);
+		const permits = await computerRunPermits(
+			snapshot.sessionId,
+			this.#session.getEvalKernelOwnerId?.() ?? undefined,
+			instanceKey,
+		);
 		if (permits.length)
 			signal = AbortSignal.any([...permits.map(permit => permit.signal), ...(signal ? [signal] : [])]);
 		const epoch = this.#controlEpoch;
@@ -309,7 +309,14 @@ export class ComputerSupervisor implements ComputerController {
 			this.#startingRuns.delete(session);
 		}
 		if (signal?.aborted || epoch !== this.#controlEpoch) throw new ToolAbortError();
-		if ((this.#session.getComputerSessionId?.() ?? this.#session.getSessionId?.() ?? this.#session.getEvalSessionId?.() ?? "computer") !== snapshot.sessionId || this.#session.getSessionInstanceKey?.() !== instanceKey) throw new ToolAbortError();
+		if (
+			(this.#session.getComputerSessionId?.() ??
+				this.#session.getSessionId?.() ??
+				this.#session.getEvalSessionId?.() ??
+				"computer") !== snapshot.sessionId ||
+			this.#session.getSessionInstanceKey?.() !== instanceKey
+		)
+			throw new ToolAbortError();
 
 		const id = `computer-${++this.#nextId}`;
 		const { promise, resolve, reject } = Promise.withResolvers<ComputerRunOk>();

@@ -42,7 +42,7 @@ export function formatBytes(size: number | undefined): string {
 }
 export interface FileReference { path: string; line?: number; column?: number }
 export function parseFileReference(value: string, explicitLink = false): FileReference | null {
-  let text = value.trim();
+  const text = value.trim();
   if (!text || /^[#?]/.test(text) || /^(?:https?:|mailto:|data:|javascript:|tel:)/i.test(text)) return null;
   if (/^[a-z][\w+.-]*:/i.test(text) && !/^(?:file:|[a-z]:[\\/])/i.test(text)) return null;
   const location = /(?::(\d+)(?::(\d+))?|#L(\d+)(?:C(\d+))?(?:-L?\d+)?)$/.exec(text);

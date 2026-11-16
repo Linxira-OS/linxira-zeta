@@ -282,6 +282,14 @@ export interface AgentViewSession extends AgentSessionHandle {
 	readonly modelRegistry: ModelRegistry;
 	/** Extension runner, when extensions are loaded. */
 	readonly extensionRunner: ExtensionRunner | undefined;
+	/**
+	 * Link schemes this session's own home extension runner claims. A mirror of
+	 * a session homed on another thread answers from its home session, never
+	 * from an ancestor's runner.
+	 */
+	getStudioLinkSchemes(): string[];
+	/** Deliver a link click to this session's own home extension runner. */
+	activateStudioLink(url: string): Promise<boolean>;
 	/** Stable session id. */
 	readonly sessionId: string;
 	/** Generation tok/s meter of this session. */

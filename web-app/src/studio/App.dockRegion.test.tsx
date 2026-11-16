@@ -50,7 +50,6 @@ async function mount(width: number) {
   stubWindowWidth(width);
   const initial = structuredClone(contractFixtures.bootstrap);
   const listeners = new Set<(event: ClientEvent) => void>();
-  let cursor = 0;
   const snapshot = initial.snapshot!;
   const transport = {
     bootstrap: async () => ({ ...initial, cursor: "0", residents: { ...initial.residents, activeSessionId: snapshot.sessionId, residents: [] } }),

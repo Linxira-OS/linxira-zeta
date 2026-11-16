@@ -101,6 +101,7 @@ for (const { file, full, tokenBan } of trackedFiles()) {
 		if (!full && !rule.extraFiles) continue;
 		lines.forEach((line, index) => {
 			if (rule.skipCommentLines && COMMENT_LINE.test(line)) return;
+			if (rule.allowPatterns?.some(pattern => pattern.test(`${relPath}:${line}`))) return;
 			if (rule.needle.test(line)) {
 				hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: rule.why });
 			}

@@ -134,16 +134,43 @@ function readTerminalCommand(value: unknown): TerminalCommand | undefined {
 	if (typeof value !== "object" || value === null || !("shell" in value) || !("text" in value)) return undefined;
 	const { shell, text } = value;
 	if (shell !== "bash" && shell !== "sh" && shell !== "zsh" && shell !== "powershell") return undefined;
-	if (typeof text !== "string" || text.trim() === "" || text.includes("\0") || Buffer.byteLength(text, "utf8") > 1024 * 1024) return undefined;
+	if (
+		typeof text !== "string" ||
+		text.trim() === "" ||
+		text.includes("\0") ||
+		Buffer.byteLength(text, "utf8") > 1024 * 1024
+	)
+		return undefined;
 	return { shell, text };
 }
 
 /** The requested shell receives the whole script as one argv, without input injection. */
-export function commandSessionProgram(command: TerminalCommand, ctx = defaultProbeContext(), profiles = terminalShellCatalog().profiles): SessionProgram | null {
-	const profile = profiles.find(entry => command.shell === "powershell" ? entry.kind === "pwsh" || entry.kind === "powershell" : entry.kind === command.shell || command.shell === "bash" && entry.kind === "git-bash");
-	const executable = profile?.command ?? (command.shell === "powershell" ? whichCommand("pwsh", ctx) ?? whichCommand("powershell", ctx) : whichCommand(command.shell, ctx));
+export function commandSessionProgram(
+	command: TerminalCommand,
+	ctx = defaultProbeContext(),
+	profiles = terminalShellCatalog().profiles,
+): SessionProgram | null {
+	const profile = profiles.find(entry =>
+		command.shell === "powershell"
+			? entry.kind === "pwsh" || entry.kind === "powershell"
+			: entry.kind === command.shell || (command.shell === "bash" && entry.kind === "git-bash"),
+	);
+	const executable =
+		profile?.command ??
+		(command.shell === "powershell"
+			? (whichCommand("pwsh", ctx) ?? whichCommand("powershell", ctx))
+			: whichCommand(command.shell, ctx));
 	if (!executable) return null;
-	return { kind: "shell", label: command.shell, command: executable, args: command.shell === "powershell" ? ["-NoLogo", "-EncodedCommand", Buffer.from(command.text, "utf16le").toString("base64")] : ["-lc", command.text.replace(/\r\n/g, "\n")], fallbackReason: null };
+	return {
+		kind: "shell",
+		label: command.shell,
+		command: executable,
+		args:
+			command.shell === "powershell"
+				? ["-NoLogo", "-EncodedCommand", Buffer.from(command.text, "utf16le").toString("base64")]
+				: ["-lc", command.text.replace(/\r\n/g, "\n")],
+		fallbackReason: null,
+	};
 }
 
 // --- PTY backend seam ---
@@ -409,7 +436,13 @@ class TerminalManager {
 		termProgramVersion?: string;
 	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
-		if (options.command && (options.profileId || options.program || options.file)) return { ok: false, status: 400, code: "command_program_conflict", error: "command cannot be combined with a shell profile, program or file injection" };
+		if (options.command && (options.profileId || options.program || options.file))
+			return {
+				ok: false,
+				status: 400,
+				code: "command_program_conflict",
+				error: "command cannot be combined with a shell profile, program or file injection",
+			};
 		const requestedProfile = options.profileId ? findShellProfile(options.profileId) : null;
 		if (options.profileId && !requestedProfile) {
 			return {
@@ -431,7 +464,9 @@ class TerminalManager {
 		// pane, the picker and the reported profile id always agree. Workbench /
 		// companion sessions keep their own resolution.
 		const wantsPlainShell = options.program === undefined || options.program === "shell";
-		const profile = requestedProfile ?? (!options.command && wantsPlainShell ? (terminalShellCatalog().profiles[0] ?? null) : null);
+		const profile =
+			requestedProfile ??
+			(!options.command && wantsPlainShell ? (terminalShellCatalog().profiles[0] ?? null) : null);
 		const resolved = this.#resolveCwd(options.cwd ?? normalizeProfileCwd(profile?.cwd));
 		if (!resolved.ok) return resolved;
 		const cwd = resolved.cwd;
@@ -455,9 +490,11 @@ class TerminalManager {
 			};
 		}
 
-		const program = options.command ? commandSessionProgram(options.command) : profile
-			? profileSessionProgram(profile)
-			: resolveSessionProgram(defaultProbeContext(), { program: options.program });
+		const program = options.command
+			? commandSessionProgram(options.command)
+			: profile
+				? profileSessionProgram(profile)
+				: resolveSessionProgram(defaultProbeContext(), { program: options.program });
 		if (!program)
 			return { ok: false, status: 500, code: "no_program", error: "no terminal shell found on this system" };
 
@@ -545,7 +582,13 @@ class TerminalManager {
 	}): Promise<
 		{ ok: true; session: TerminalSession; ticket: string; reused: boolean; injected: boolean } | TerminalFailure
 	> {
-		if (options.command && (options.profileId || options.program || options.file)) return { ok: false, status: 400, code: "command_program_conflict", error: "command cannot be combined with a shell profile, program or file injection" };
+		if (options.command && (options.profileId || options.program || options.file))
+			return {
+				ok: false,
+				status: 400,
+				code: "command_program_conflict",
+				error: "command cannot be combined with a shell profile, program or file injection",
+			};
 		const instance = options.instanceId?.trim() || DEFAULT_TERMINAL_INSTANCE;
 		if (!INSTANCE_ID_RE.test(instance)) {
 			return {
@@ -569,7 +612,16 @@ class TerminalManager {
 
 		const existing = this.findBySlot(sessionSlotKey(resolved.cwd, instance));
 		if (existing) {
-			if (options.command && (existing.command?.shell !== options.command.shell || existing.command?.text !== options.command.text)) return { ok: false, status: 409, code: "command_slot_conflict", error: "terminal slot belongs to a different command" };
+			if (
+				options.command &&
+				(existing.command?.shell !== options.command.shell || existing.command?.text !== options.command.text)
+			)
+				return {
+					ok: false,
+					status: 409,
+					code: "command_slot_conflict",
+					error: "terminal slot belongs to a different command",
+				};
 			// A caller that names a profile gets that shell: silently reusing the
 			// slot's old one would make the picker lie. An unspecified profile id
 			// keeps the legacy reattach contract (whatever the slot runs).
@@ -1252,17 +1304,22 @@ export function isTerminalProgram(value: unknown): value is TerminalProgram {
 export async function handleTerminalEnsure(req: Request): Promise<Response> {
 	const body = await readJsonBody(req);
 	const command = readTerminalCommand(body.command);
-	if (body.command !== undefined && !command) return json({ error: "Invalid terminal command", code: "invalid_command" }, 400);
+	if (body.command !== undefined && !command)
+		return json({ error: "Invalid terminal command", code: "invalid_command" }, 400);
 	let cwd = typeof body.cwd === "string" ? body.cwd : undefined;
 	if (body.workspaceId !== undefined) {
-		if (typeof body.workspaceId !== "string" || !body.workspaceId) return json({ error: "Invalid workspace id", code: "invalid_workspace" }, 400);
+		if (typeof body.workspaceId !== "string" || !body.workspaceId)
+			return json({ error: "Invalid workspace id", code: "invalid_workspace" }, 400);
 		const workspaceCwd = await gatewayWorkspacePath(body.workspaceId);
 		if (!workspaceCwd) return json({ error: "Unknown workspace", code: "unknown_workspace" }, 400);
-		if (cwd && path.resolve(cwd) !== path.resolve(workspaceCwd)) return json({ error: "Terminal cwd conflicts with workspace", code: "workspace_cwd_conflict" }, 400);
+		if (cwd && path.resolve(cwd) !== path.resolve(workspaceCwd))
+			return json({ error: "Terminal cwd conflicts with workspace", code: "workspace_cwd_conflict" }, 400);
 		cwd = workspaceCwd;
 	}
-	const cols = intOrUndefined(body.cols), rows = intOrUndefined(body.rows);
-	if ([cols, rows].some(value => value !== undefined && (!Number.isInteger(value) || value < 2 || value > 1000))) return json({ error: "cols and rows must be integers in [2, 1000]", code: "invalid_size" }, 400);
+	const cols = intOrUndefined(body.cols),
+		rows = intOrUndefined(body.rows);
+	if ([cols, rows].some(value => value !== undefined && (!Number.isInteger(value) || value < 2 || value > 1000)))
+		return json({ error: "cols and rows must be integers in [2, 1000]", code: "invalid_size" }, 400);
 	const result = await manager.ensure({
 		cwd,
 		command,

@@ -163,9 +163,60 @@ describe("gateway session artifacts", () => {
 		expect(traversal.status).toBe(403);
 	});
 
+	test("generated import kinds win over conflicting text suffixes", async () => {
+		await setup();
+		const { id, artifactsDir } = await seedSession();
+		const localRoot = resolveLocalRoot({ getArtifactsDir: () => artifactsDir, getSessionId: () => id });
+		await fs.mkdir(localRoot, { recursive: true });
+		await fs.writeFile(join(localRoot, "graphic-550e8400-e29b-41d4-a716-446655440000.json"), "{}");
+		await fs.writeFile(join(localRoot, "export-550e8400-e29b-41d4-a716-446655440000.jsonl"), "{}\n");
+		await fs.writeFile(join(localRoot, "session.jsonl"), "{}\n");
+		const listed = await handleListArtifacts(id);
+		const body = (await listed.json()) as { entries: Array<{ name: string; kind: string }> };
+		expect(Object.fromEntries(body.entries.map(entry => [entry.name, entry.kind]))).toEqual({
+			"graphic-550e8400-e29b-41d4-a716-446655440000.json": "graphic",
+			"export-550e8400-e29b-41d4-a716-446655440000.jsonl": "export",
+			"session.jsonl": "transcript",
+		});
+	});
+
 	test("unknown session is a miss", async () => {
 		await setup();
 		expect((await handleListArtifacts("missing-session")).status).toBe(404);
 		expect((await handleReadArtifact("missing-session", "x.md")).status).toBe(404);
+	});
+
+	test("writes serialize before the same session's delete, and other sessions do not block", async () => {
+		await setup();
+		const { id, artifactsDir } = await seedSession();
+		const localRoot = resolveLocalRoot({ getArtifactsDir: () => artifactsDir, getSessionId: () => id });
+		await fs.mkdir(localRoot, { recursive: true });
+		const order: string[] = [];
+		const gate = Promise.withResolvers<void>();
+		const body = new ReadableStream<Uint8Array>({
+			async start(controller) {
+				order.push("write-start");
+				await gate.promise;
+				controller.enqueue(new TextEncoder().encode("late bytes"));
+				controller.close();
+			},
+		});
+		const write = handleWriteArtifact(
+			new Request("http://gateway.local/", { method: "PUT", body }),
+			id,
+			"late.md",
+		).then(response => {
+			order.push(`write-${response.status}`);
+		});
+		const deleted = handleDeleteArtifact(id, "late.md").then(response => {
+			order.push(`delete-${response.status}`);
+		});
+		// A different session's delete is not queued behind this one.
+		const other = await seedSession();
+		await handleDeleteArtifact(other.id, "anything.md");
+		expect(order).toEqual(["write-start"]);
+		gate.resolve();
+		await Promise.all([write, deleted]);
+		expect(order).toEqual(["write-start", "write-204", "delete-204"]);
 	});
 });

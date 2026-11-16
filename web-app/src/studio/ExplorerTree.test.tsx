@@ -49,7 +49,7 @@ describe("RealFileTree", () => {
         ]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
 
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     const packageRow = screen.getByText("package.json").closest<HTMLDivElement>("[role=treeitem]");
@@ -85,7 +85,7 @@ describe("RealFileTree", () => {
       : tree([{ type: "dir", name: "src", path: "src" }]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
 
     fireEvent.click(src);
@@ -105,7 +105,7 @@ describe("RealFileTree", () => {
     const selected = vi.fn();
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} onSelectionChange={selected} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} onSelectionChange={selected} />);
 
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     fireEvent.click(src);
@@ -135,7 +135,7 @@ describe("RealFileTree", () => {
       <RealFileTree
         client={client}
         workspaceId={workspaceId}
-        label="OMP Studio"
+        label="Z Work Studio"
         refreshToken={0}
         search=""
         createKind="file"
@@ -172,7 +172,7 @@ describe("RealFileTree", () => {
       <RealFileTree
         client={client}
         workspaceId={workspaceId}
-        label="OMP Studio"
+        label="Z Work Studio"
         refreshToken={0}
         search=""
         createKind="directory"
@@ -210,7 +210,7 @@ describe("RealFileTree", () => {
       { path: "src/notes.md", index: "unmodified", worktree: "untracked", conflicted: false },
     ]);
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" gitStatus={gitStatus} {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" gitStatus={gitStatus} {...noCreation} />);
 
     const fileRow = await waitFor(() => {
       const row = screen.getByText("main.ts").closest<HTMLDivElement>("[role=treeitem]");
@@ -232,12 +232,12 @@ describe("RealFileTree", () => {
     ]));
     const client = { query } as unknown as StudioClient;
 
-    const { unmount } = render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" gitStatus={new Map()} {...noCreation} />);
+    const { unmount } = render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" gitStatus={new Map()} {...noCreation} />);
     await screen.findByRole("treeitem", { name: "src 文件夹" });
     expect(document.querySelector(".fstat")).toBeNull();
     unmount();
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     await screen.findByRole("treeitem", { name: "src 文件夹" });
     expect(document.querySelector(".fstat")).toBeNull();
   });
@@ -253,7 +253,7 @@ describe("RealFileTree", () => {
       <RealFileTree
         client={client}
         workspaceId={workspaceId}
-        label="OMP Studio"
+        label="Z Work Studio"
         refreshToken={0}
         search=""
         fileActivity={{ reading: ["src/main.ts"], writing: [] }}
@@ -286,7 +286,7 @@ describe("RealFileTree", () => {
       <RealFileTree
         client={client}
         workspaceId={workspaceId}
-        label="OMP Studio"
+        label="Z Work Studio"
         refreshToken={0}
         search=""
         fileActivity={{ reading: [], writing: ["README.md"] }}
@@ -309,7 +309,7 @@ describe("RealFileTree", () => {
     const query = vi.fn(async () => tree([{ type: "file", name: "README.md", path: "README.md" }]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     await screen.findByText("README.md");
     expect(document.querySelector(".tree-row .live")).toBeNull();
   });
@@ -318,7 +318,7 @@ describe("RealFileTree", () => {
     const query = vi.fn(async () => tree([{ type: "file", name: "package.json", path: "package.json" }]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     const fileRow = await screen.findByText("package.json");
     fireEvent.click(fileRow);
 
@@ -332,7 +332,7 @@ describe("RealFileTree", () => {
       : tree([{ type: "dir", name: "src", path: "src" }]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
 
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     await waitFor(() => expect(src.getAttribute("aria-expanded")).toBe("true"));
@@ -349,7 +349,7 @@ describe("RealFileTree", () => {
     });
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
 
     await screen.findByText("App.tsx");
     expect(screen.getByRole("treeitem", { name: "conversation 文件夹" }).getAttribute("aria-expanded")).toBe("true");
@@ -361,7 +361,7 @@ describe("RealFileTree", () => {
       : tree([{ type: "dir", name: "src", path: "src" }]));
     const client = { query } as unknown as StudioClient;
 
-    const { rerender } = render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    const { rerender } = render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     fireEvent.click(src);
     await waitFor(() => expect(src.getAttribute("aria-expanded")).toBe("true"));
@@ -369,7 +369,7 @@ describe("RealFileTree", () => {
 
     rerender(
       <I18nProvider forcedLanguage="zh">
-        <RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={1} search="" {...noCreation} />
+        <RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={1} search="" {...noCreation} />
       </I18nProvider>,
     );
     const srcAfterRefresh = await screen.findByRole("treeitem", { name: "src 文件夹" });
@@ -387,7 +387,7 @@ describe("RealFileTree", () => {
         ]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     await waitFor(() => expect(src.getAttribute("aria-expanded")).toBe("true"));
     fireEvent.click(src);
@@ -403,7 +403,7 @@ describe("RealFileTree", () => {
     const client = { query } as unknown as StudioClient;
     const addContext = vi.fn();
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} onAddContext={addContext} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} onAddContext={addContext} />);
     await screen.findByText("package.json");
 
     const atButtons = screen.getAllByRole("button", { name: /添加上下文/ });
@@ -424,7 +424,7 @@ describe("RealFileTree", () => {
     ]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     await screen.findByText("package.json");
 
     const fileRow = screen.getByText("package.json").closest<HTMLDivElement>("[role=treeitem]");
@@ -452,7 +452,7 @@ describe("RealFileTree", () => {
     ]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
 
     // 之前文件行没有 aria-label，可访问名由 .fname + git sr-only + live dot +
     // @ 按钮 + ⋯ 按钮串起来，findByRole 根本召不回。纯增量，不影响 getByText。
@@ -468,7 +468,7 @@ describe("RealFileTree", () => {
     ]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     await screen.findByText("blob.xyz");
 
     for (const name of ["blob.xyz", "NOTICE"]) {
@@ -486,7 +486,7 @@ describe("RealFileTree", () => {
     const client = { query } as unknown as StudioClient;
     const fileAction = vi.fn();
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} onFileAction={fileAction} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} onFileAction={fileAction} />);
     await screen.findByText("package.json");
 
     const moreButtons = screen.getAllByRole("button", { name: /更多操作/ });
@@ -513,7 +513,7 @@ describe("RealFileTree", () => {
     const fileAction = vi.fn();
     const addContext = vi.fn();
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} onFileAction={fileAction} onAddContext={addContext} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} onFileAction={fileAction} onAddContext={addContext} />);
     const src = await screen.findByRole("treeitem", { name: "src 文件夹" });
     expect(src.getAttribute("aria-expanded")).toBe("false");
 
@@ -532,7 +532,7 @@ describe("RealFileTree", () => {
     const query = vi.fn(async () => tree([{ type: "file", name: "package.json", path: "package.json" }]));
     const client = { query } as unknown as StudioClient;
 
-    render(<RealFileTree client={client} workspaceId={workspaceId} label="OMP Studio" refreshToken={0} search="" {...noCreation} />);
+    render(<RealFileTree client={client} workspaceId={workspaceId} label="Z Work Studio" refreshToken={0} search="" {...noCreation} />);
     await screen.findByText("package.json");
 
     fireEvent.click(screen.getByRole("button", { name: /更多操作/ }));

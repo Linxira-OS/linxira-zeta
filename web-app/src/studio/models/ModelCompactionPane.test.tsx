@@ -21,7 +21,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); window.localStorage.removeItem(PREVIEW_MODE_STORAGE_KEY); });
 
 function nativeClient(initial: Record<string, number | string | null> = {}) {
-  let entries = { ...initial };
+  const entries = { ...initial };
   const commands: Record<string, unknown> = {};
   let request = 0;
   const command = vi.fn(async (kind: string, input: { selector?: string; input?: string; confirmed?: boolean }) => {

@@ -70,6 +70,15 @@ import { releasePredictionPrivateOwner } from "./services/prediction-runtime";
 import { releaseMemoryCredentials, replaceMemoryCredentials } from "../../hindsight/private-credentials";
 import { subscribeComputerWorkspace } from "./services/computer-runtime.js";
 import { validateComputerWorkspaceChange } from "./protocol/computer-workspace-validation.js";
+import { ARTIFACT_KINDS, type ArtifactKind } from "./protocol/contracts/artifacts.js";
+import {
+	artifactSessionIdFor,
+	readArtifactFile,
+	SESSION_ARTIFACT_MAX_BYTES,
+	tryArtifactSessionIdFor,
+	writeSessionArtifact,
+} from "./ops/files.js";
+import { readArtifactBody } from "./services/artifact-body.js";
 
 /** Prefix every Studio route hangs off. */
 export const STUDIO_API_PREFIX = "/api/v1/";
@@ -122,8 +131,14 @@ type StudioEventBody =
 	| { readonly kind: "resync.required"; readonly reason: string }
 	| { readonly kind: "state.changed" }
 	| { readonly kind: "snapshot"; readonly snapshot: OperatorStateSnapshot }
-	| { readonly kind: "computer.changed"; readonly change: import("./protocol/contracts/computer-workspace.js").ComputerWorkspaceChange }
-	| Pick<Extract<ClientEvent, { kind: "conversation.changed" }>, "kind" | "sessionId" | "streamSeq" | "eventSeq" | "update">;
+	| {
+			readonly kind: "computer.changed";
+			readonly change: import("./protocol/contracts/computer-workspace.js").ComputerWorkspaceChange;
+	  }
+	| Pick<
+			Extract<ClientEvent, { kind: "conversation.changed" }>,
+			"kind" | "sessionId" | "streamSeq" | "eventSeq" | "update"
+	  >;
 
 function token(bytes = 24): string {
 	return randomBytes(bytes).toString("base64url");
@@ -237,7 +252,10 @@ export class StudioHost {
 		const cookie = readCookie(req, STUDIO_SESSION_COOKIE);
 		if (cookie !== undefined) {
 			const live = await sessionStore().get(cookie);
-			if (live === undefined) { this.#closeSockets(cookie); this.#contexts.closeOwner(cookie); }
+			if (live === undefined) {
+				this.#closeSockets(cookie);
+				this.#contexts.closeOwner(cookie);
+			}
 			if (live === undefined) return undefined;
 			const counters = this.#counters.get(cookie) ?? { outstanding: 0, scope: { scope: "all" } };
 			this.#counters.set(cookie, counters);
@@ -357,6 +375,11 @@ export class StudioHost {
 				return await this.#bootstrap(req, remoteAddr, local);
 			if (url.pathname === "/api/v1/memory/credentials" && ["GET", "POST"].includes(req.method))
 				return await this.#memoryCredentials(req, remoteAddr);
+			if (
+				(url.pathname === "/api/v1/artifacts" && req.method === "POST") ||
+				(url.pathname.startsWith("/api/v1/artifacts/") && ["GET", "HEAD"].includes(req.method))
+			)
+				return await this.#artifact(req, remoteAddr);
 			if (url.pathname === "/api/v1/query" && req.method === "POST")
 				return await this.#query(req, remoteAddr, context);
 			if (url.pathname === "/api/v1/command" && req.method === "POST")
@@ -489,7 +512,8 @@ export class StudioHost {
 
 	#memoryOwnerConnected(owner: string): boolean {
 		for (const id of this.#sockets.keys()) {
-			if (id === owner || id.startsWith("context:") && this.#contexts.peek(id.slice(8))?.owner === owner) return true;
+			if (id === owner || (id.startsWith("context:") && this.#contexts.peek(id.slice(8))?.owner === owner))
+				return true;
 		}
 		return false;
 	}
@@ -499,13 +523,15 @@ export class StudioHost {
 		if (!authorized || !readCookie(req, STUDIO_SESSION_COOKIE)) return json({ error: "unauthenticated" }, 401);
 		const [owner, session] = authorized;
 		if (session.binding) return json({ error: "binding_scope" }, 403);
-		if (req.method === "POST" && !this.#memoryOwnerConnected(owner)) return json({ error: "owner_disconnected" }, 409);
+		if (req.method === "POST" && !this.#memoryOwnerConnected(owner))
+			return json({ error: "owner_disconnected" }, 409);
 		if (req.method === "POST") {
 			const denied = await guardStudioTwoFactor(req, remoteAddr, "/api/v1/command");
 			if (denied) return denied;
 			const entries = await this.#body(req);
 			const current = await this.#authorize(req, remoteAddr, true);
-			if (!current || current[0] !== owner || !this.#memoryOwnerConnected(owner)) return json({ error: "unauthenticated" }, 401);
+			if (!current || current[0] !== owner || !this.#memoryOwnerConnected(owner))
+				return json({ error: "unauthenticated" }, 401);
 			replaceMemoryCredentials(owner, current[1].expiresAt, entries);
 		}
 		return json({ supported: true });
@@ -527,19 +553,35 @@ export class StudioHost {
 
 	async #openContext(req: Request, remoteAddr?: string): Promise<Response> {
 		const authorized = await this.#authorize(req, remoteAddr, true);
-		if (authorized === undefined || !readCookie(req, STUDIO_SESSION_COOKIE)) return json({ error: "unauthenticated" }, 401);
+		if (authorized === undefined || !readCookie(req, STUDIO_SESSION_COOKIE))
+			return json({ error: "unauthenticated" }, 401);
 		const [owner, session] = authorized;
 		const admission = this.#counters.get(owner);
 		const body = await this.#body(req);
-		if (body === null || typeof body !== "object" || !("workspaceId" in body) || typeof body.workspaceId !== "string") return json({ error: "bad_request" }, 400);
+		if (body === null || typeof body !== "object" || !("workspaceId" in body) || typeof body.workspaceId !== "string")
+			return json({ error: "bad_request" }, 400);
 		const sessionId = "sessionId" in body ? body.sessionId : undefined;
-		if (sessionId !== undefined && (typeof sessionId !== "string" || sessionId === "")) return json({ error: "bad_request" }, 400);
+		if (sessionId !== undefined && (typeof sessionId !== "string" || sessionId === ""))
+			return json({ error: "bad_request" }, 400);
 		await resolveWorkspacePath(body.workspaceId);
-		if (typeof sessionId === "string" && await workspaceOfSessionResolver()?.(sessionId) !== body.workspaceId) return json({ error: "context_scope" }, 403);
-		if (!(await this.#bindingAllows(session, { workspaceId: body.workspaceId, ...(typeof sessionId === "string" ? { sessionId } : {}) }))) return json({ error: "binding_scope" }, 403);
+		if (typeof sessionId === "string" && (await workspaceOfSessionResolver()?.(sessionId)) !== body.workspaceId)
+			return json({ error: "context_scope" }, 403);
+		if (
+			!(await this.#bindingAllows(session, {
+				workspaceId: body.workspaceId,
+				...(typeof sessionId === "string" ? { sessionId } : {}),
+			}))
+		)
+			return json({ error: "binding_scope" }, 403);
 		const live = await sessionStore().get(owner);
-		if (live === undefined || admission === undefined || this.#counters.get(owner) !== admission) return json({ error: "unauthenticated" }, 401);
-		const context = this.#contexts.create(owner, live.expiresAt, body.workspaceId, typeof sessionId === "string" ? sessionId : undefined);
+		if (live === undefined || admission === undefined || this.#counters.get(owner) !== admission)
+			return json({ error: "unauthenticated" }, 401);
+		const context = this.#contexts.create(
+			owner,
+			live.expiresAt,
+			body.workspaceId,
+			typeof sessionId === "string" ? sessionId : undefined,
+		);
 		return json({ contextId: context.id });
 	}
 
@@ -564,24 +606,37 @@ export class StudioHost {
 		if (target.workspaceId !== undefined && target.workspaceId !== context.workspaceId) return false;
 		if (target.sessionId === undefined) return true;
 		if (context.sessionId !== undefined && target.sessionId !== context.sessionId) return false;
-		return await workspaceOfSessionResolver()?.(target.sessionId) === context.workspaceId;
+		return (await workspaceOfSessionResolver()?.(target.sessionId)) === context.workspaceId;
 	}
 
 	async #bootstrap(req: Request, remoteAddr: string | undefined, genuinelyLocal: boolean): Promise<Response> {
 		let bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
 		const hasCookie = readCookie(req, STUDIO_SESSION_COOKIE) !== undefined;
 		const authorized = await this.#authorize(req, remoteAddr);
-		if (authorized === undefined && (req.headers.has("x-studio-context") || new URL(req.url).searchParams.has("contextId"))) return json({ error: "unauthenticated" }, 401);
+		if (
+			authorized === undefined &&
+			(req.headers.has("x-studio-context") || new URL(req.url).searchParams.has("contextId"))
+		)
+			return json({ error: "unauthenticated" }, 401);
 		const selection = authorized === undefined ? undefined : this.#requestContext(req, authorized[0]);
-		if (selection !== undefined) bootstrap = { ...bootstrap, selected: {
-			workspaceId: selection.workspaceId as NonNullable<ClientBootstrap["selected"]["workspaceId"]>,
-			...(selection.sessionId === undefined ? {} : { sessionId: selection.sessionId as NonNullable<ClientBootstrap["selected"]["sessionId"]> }),
-		} };
+		if (selection !== undefined)
+			bootstrap = {
+				...bootstrap,
+				selected: {
+					workspaceId: selection.workspaceId as NonNullable<ClientBootstrap["selected"]["workspaceId"]>,
+					...(selection.sessionId === undefined
+						? {}
+						: { sessionId: selection.sessionId as NonNullable<ClientBootstrap["selected"]["sessionId"]> }),
+				},
+			};
 		if (this.#operations.queries.includes("commands.getManifest")) {
-			const manifest = await this.#operations.query({ queryName: "commands.getManifest", input: {} }, {
-				capabilities: bootstrap.capabilityManifest,
-				...(selection === undefined ? {} : { selection }),
-			});
+			const manifest = await this.#operations.query(
+				{ queryName: "commands.getManifest", input: {} },
+				{
+					capabilities: bootstrap.capabilityManifest,
+					...(selection === undefined ? {} : { selection }),
+				},
+			);
 			if (!manifest.ok) return json({ error: manifest.error }, 503);
 			bootstrap = { ...bootstrap, commandManifestHash: manifest.result.hash };
 		}
@@ -617,6 +672,123 @@ export class StudioHost {
 		return json({ error: "unauthenticated" }, 401);
 	}
 
+	async #artifact(req: Request, remoteAddr?: string): Promise<Response> {
+		const write = req.method === "POST";
+		const authorized = await this.#authorize(req, remoteAddr, write);
+		if (!authorized) return json({ error: "unauthenticated" }, 401);
+		if (write) {
+			const denied = await guardStudioTwoFactor(req, remoteAddr, "/api/v1/command");
+			if (denied) return denied;
+		}
+		const url = new URL(req.url);
+		const artifactId = write ? undefined : decodeURIComponent(url.pathname.slice("/api/v1/artifacts/".length));
+		const sessionId = write ? url.searchParams.get("sessionId") : artifactSessionIdFor(artifactId!);
+		if (!sessionId || sessionId.length > 512 || sessionId.includes("\0")) return json({ error: "bad_request" }, 400);
+		const selection = this.#requestContext(req, authorized[0]);
+		if (!selection || selection.sessionId !== sessionId) return json({ error: "context_scope" }, 403);
+		const target = { sessionId };
+		if (!(await this.#contextAllows(selection, target))) return json({ error: "context_scope" }, 403);
+		if (!(await this.#bindingAllows(authorized[1], target))) return json({ error: "binding_scope" }, 403);
+		const assertContext = () => {
+			if (
+				req.signal.aborted ||
+				selection.closed ||
+				selection.sessionId !== sessionId ||
+				this.#contexts.peek(selection.id) !== selection
+			)
+				throw new ConversationContextError("context_closed");
+		};
+		// A write needs the live event socket (the owner is present); a read only
+		// needs the still-open context so a preview cannot race socket attach.
+		const assertView = () => {
+			assertContext();
+			if (!this.#sockets.has(`context:${selection.id}`)) throw new ConversationContextError("context_closed");
+		};
+		const guard = write ? assertView : assertContext;
+		guard();
+		const reauthorize = async () => {
+			const current = await this.#authorize(req, remoteAddr, write);
+			if (
+				!current ||
+				current[0] !== authorized[0] ||
+				!(await this.#bindingAllows(current[1], target)) ||
+				!(await this.#contextAllows(selection, target))
+			)
+				throw new ConversationContextError("context_closed");
+			guard();
+		};
+		if (write) {
+			const kind = url.searchParams.get("kind"),
+				name = url.searchParams.get("name"),
+				mimeType = url.searchParams.get("mimeType");
+			if (!kind || !(ARTIFACT_KINDS as readonly string[]).includes(kind) || !name || !mimeType || kind === "audio")
+				return json({ error: "bad_request" }, 400);
+			const session = getRpcSession(sessionId)?.getSession();
+			if (!session || session.isDisposed || session.sessionId !== sessionId)
+				return json({ error: "session_unavailable" }, 409);
+			const assert = () => {
+				assertView();
+				if (
+					session.isDisposed ||
+					session.sessionId !== sessionId ||
+					getRpcSession(sessionId)?.getSession() !== session
+				)
+					throw new ConversationContextError("context_closed");
+			};
+			const bytes = await readArtifactBody(req, SESSION_ARTIFACT_MAX_BYTES);
+			await reauthorize();
+			assert();
+			const artifact = await writeSessionArtifact(
+				sessionId,
+				{ kind: kind as ArtifactKind, name, mimeType },
+				bytes,
+				assert,
+			);
+			await reauthorize();
+			assert();
+			return json({ artifact }, 201);
+		}
+		const { artifact, response } = await readArtifactFile(artifactId!);
+		try {
+			await reauthorize();
+			const headers = new Headers({
+				"content-type": artifact.mimeType,
+				"content-length": String(artifact.bytes),
+				"cache-control": "no-store",
+				"x-content-type-options": "nosniff",
+				"content-security-policy": "default-src 'none'; sandbox",
+				"accept-ranges": "bytes",
+			});
+			const range = req.headers.get("range");
+			if (range) {
+				const match = /^bytes=(\d*)-(\d*)$/u.exec(range);
+				const start = match?.[1] ? Number(match[1]) : Math.max(0, artifact.bytes - Number(match?.[2]));
+				const end = match?.[1] && match[2] ? Number(match[2]) : artifact.bytes - 1;
+				if (
+					!match ||
+					(!match[1] && !match[2]) ||
+					!Number.isSafeInteger(start) ||
+					!Number.isSafeInteger(end) ||
+					start < 0 ||
+					end < start ||
+					start >= artifact.bytes
+				)
+					return new Response(null, { status: 416, headers: { "content-range": `bytes */${artifact.bytes}` } });
+				const last = Math.min(end, artifact.bytes - 1);
+				headers.set("content-range", `bytes ${start}-${last}/${artifact.bytes}`);
+				headers.set("content-length", String(last - start + 1));
+				if (req.method === "HEAD") return new Response(null, { status: 206, headers });
+				const bytes = new Uint8Array(await response.arrayBuffer());
+				await reauthorize();
+				return new Response(bytes.subarray(start, last + 1), { status: 206, headers });
+			}
+			return new Response(req.method === "HEAD" ? null : response.body, { headers });
+		} finally {
+			if (req.method === "HEAD" || (response.body?.locked === false && req.headers.has("range")))
+				await response.body?.cancel().catch(() => {});
+		}
+	}
+
 	async #query(req: Request, remoteAddr: string | undefined, context: StudioHostContext): Promise<Response> {
 		const authorized = await this.#authorize(req, remoteAddr);
 		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
@@ -626,8 +798,13 @@ export class StudioHost {
 		}
 		const selection = this.#requestContext(req, authorized[0]);
 		const explicitTarget = payloadTarget(body);
-		const queryTarget = selection !== undefined && body.queryName.startsWith("evaluations.") ? selection : explicitTarget ?? (selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.queryName) ? selection : undefined);
-		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body)))) return json({ error: "context_scope" }, 403);
+		const queryTarget =
+			selection !== undefined && body.queryName.startsWith("evaluations.")
+				? selection
+				: (explicitTarget ??
+					(selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.queryName) ? selection : undefined));
+		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body))))
+			return json({ error: "context_scope" }, 403);
 		if (authorized[1].binding !== undefined) {
 			// A bound device may read only its own conversation. The few ambient
 			// queries that carry no session content (boot facts) stay readable so
@@ -639,12 +816,26 @@ export class StudioHost {
 		if (!(await this.#bindingAllows(authorized[1], queryTarget))) {
 			return json({ error: "binding_scope" }, 403);
 		}
+		if (
+			(body.queryName === "shell.view.read" || body.queryName === "shell.view.release") &&
+			body.input &&
+			typeof body.input === "object" &&
+			"sourceSessionId" in body.input &&
+			typeof body.input.sourceSessionId === "string" &&
+			!(await this.#bindingAllows(authorized[1], { sessionId: body.input.sourceSessionId }))
+		)
+			return json({ error: "binding_scope" }, 403);
 		const eventOwner = selection === undefined ? authorized[0] : `context:${selection.id}`;
 		const response = await this.#operations.query(body, {
-			...context, ...(selection === undefined ? {} : { selection }),
+			...context,
+			...(selection === undefined ? {} : { selection, contextId: selection.id }),
 			privateOwner: {
-				id: eventOwner, expiresAt: authorized[1].expiresAt,
-				isLive: () => this.#sockets.has(eventOwner) && authorized[1].expiresAt > Date.now() && (selection === undefined || this.#contexts.peek(selection.id) === selection),
+				id: eventOwner,
+				expiresAt: authorized[1].expiresAt,
+				isLive: () =>
+					this.#sockets.has(eventOwner) &&
+					authorized[1].expiresAt > Date.now() &&
+					(selection === undefined || this.#contexts.peek(selection.id) === selection),
 			},
 		});
 		await this.#syncRuntime(selection === undefined ? authorized[0] : `context:${selection.id}`);
@@ -661,24 +852,60 @@ export class StudioHost {
 		}
 		if (session.binding !== undefined && body.input && typeof body.input === "object") {
 			const input = body.input;
-			if ((body.commandName === "prediction.configure" && "scope" in input && input.scope === "global") ||
-				(body.commandName === "prediction.control" && "action" in input && input.action !== "status")) return json({ error: "binding_scope" }, 403);
+			if (
+				(body.commandName === "prediction.configure" && "scope" in input && input.scope === "global") ||
+				(body.commandName === "prediction.control" && "action" in input && input.action !== "status")
+			)
+				return json({ error: "binding_scope" }, 403);
 		}
 		const selection = this.#requestContext(req, sessionId);
-		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body)))) return json({ error: "context_scope" }, 403);
+		if (selection !== undefined && !(await this.#contextAllows(selection, payloadTarget(body))))
+			return json({ error: "context_scope" }, 403);
 		const eventOwner = selection === undefined ? sessionId : `context:${selection.id}`;
 		const operationContext: StudioHostContext = {
 			...context,
-			...(selection === undefined ? {} : { selection }),
+			...(selection === undefined ? {} : { selection, contextId: selection.id }),
 			privateOwner: {
 				id: eventOwner,
 				expiresAt: session.expiresAt,
-				isLive: () => this.#sockets.has(eventOwner) && session.expiresAt > Date.now() && (selection === undefined || this.#contexts.peek(selection.id) === selection),
+				isLive: () =>
+					this.#sockets.has(eventOwner) &&
+					session.expiresAt > Date.now() &&
+					(selection === undefined || this.#contexts.peek(selection.id) === selection),
 			},
 		};
-		const target = selection !== undefined && body.commandName.startsWith("evaluations.") ? selection : payloadTarget(body) ?? (selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.commandName) ? selection : undefined);
+		const target =
+			selection !== undefined && body.commandName.startsWith("evaluations.")
+				? selection
+				: (payloadTarget(body) ??
+					(selection !== undefined && SESSION_SELECTION_OPERATIONS.has(body.commandName) ? selection : undefined));
 		if (!(await this.#bindingAllows(session, target))) {
 			return json({ error: "binding_scope" }, 403);
+		}
+		if (
+			(body.commandName === "session.history.rename" ||
+				body.commandName === "session.history.pin" ||
+				body.commandName.startsWith("session.portability.")) &&
+			body.input &&
+			typeof body.input === "object"
+		) {
+			if (
+				"targetSessionId" in body.input &&
+				typeof body.input.targetSessionId === "string" &&
+				!(await this.#bindingAllows(session, { sessionId: body.input.targetSessionId }))
+			)
+				return json({ error: "binding_scope" }, 403);
+			if (
+				"targetWorkspaceId" in body.input &&
+				typeof body.input.targetWorkspaceId === "string" &&
+				!(await this.#bindingAllows(session, { workspaceId: body.input.targetWorkspaceId }))
+			)
+				return json({ error: "binding_scope" }, 403);
+			if (
+				session.binding?.sessionId !== undefined &&
+				(body.commandName === "session.portability.prepare" || body.commandName === "session.portability.import")
+			)
+				return json({ error: "binding_scope" }, 403);
 		}
 		const counter = sessionId === "" ? undefined : this.#counters.get(sessionId);
 		const outstanding = counter?.outstanding ?? 0;
@@ -762,19 +989,29 @@ export class StudioHost {
 		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
 		const [sessionId] = authorized;
 		let selection: ConversationContext | undefined;
-		try { selection = this.#requestContext(req, sessionId); }
-		catch { return json({ error: "context_closed" }, 404); }
-		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId: selection === undefined ? sessionId : `context:${selection.id}` } });
+		try {
+			selection = this.#requestContext(req, sessionId);
+		} catch {
+			return json({ error: "context_closed" }, 404);
+		}
+		const upgraded = server.upgrade(req, {
+			data: { kind: "studio", sessionId: selection === undefined ? sessionId : `context:${selection.id}` },
+		});
 		return upgraded ? null : json({ error: "websocket_upgrade_failed" }, 500);
 	}
 
 	/** Track a live event socket for a paired session (called on socket open). */
 	attachSocket(sessionId: string, socket: StudioSocket): void {
-		if (sessionId.startsWith("context:") && !this.#contexts.isLive(sessionId.slice(8))) { socket.close?.(); return; }
+		if (sessionId.startsWith("context:") && !this.#contexts.isLive(sessionId.slice(8))) {
+			socket.close?.();
+			return;
+		}
 		const set = this.#sockets.get(sessionId) ?? new Set<StudioSocket>();
 		set.add(socket);
 		this.#sockets.set(sessionId, set);
-		void this.#syncRuntime(sessionId).catch(error => logger.warn("Studio runtime subscription failed", { error: String(error) }));
+		void this.#syncRuntime(sessionId).catch(error =>
+			logger.warn("Studio runtime subscription failed", { error: String(error) }),
+		);
 	}
 
 	/** Drop a closed socket. */
@@ -783,7 +1020,10 @@ export class StudioHost {
 		const set = this.#sockets.get(sessionId);
 		if (!set) return;
 		set.delete(socket);
-		if (set.size === 0) { this.#sockets.delete(sessionId); this.#stopRuntime(sessionId); }
+		if (set.size === 0) {
+			this.#sockets.delete(sessionId);
+			this.#stopRuntime(sessionId);
+		}
 		if (set.size === 0) {
 			releaseStudioPrivateOwner(sessionId);
 			releaseStudioEvaluationOwner(sessionId);
@@ -842,41 +1082,102 @@ export class StudioHost {
 	async #syncRuntime(owner: string): Promise<void> {
 		if (!this.#sockets.has(owner)) return;
 		const context = owner.startsWith("context:") ? this.#contexts.peek(owner.slice(8)) : undefined;
-		if (owner.startsWith("context:") && context === undefined) { this.#stopRuntime(owner); return; }
+		if (owner.startsWith("context:") && context === undefined) {
+			this.#stopRuntime(owner);
+			return;
+		}
 		let sessionId = context?.sessionId;
 		if (context === undefined) {
-			try { sessionId = await currentSessionId(); } catch { this.#stopRuntime(owner); return; }
+			try {
+				sessionId = await currentSessionId();
+			} catch {
+				this.#stopRuntime(owner);
+				return;
+			}
 			if (!this.#sockets.has(owner)) return;
 			const liveSession = owner === "" ? undefined : await sessionStore().get(owner);
-			if (owner !== "" && (liveSession === undefined || !(await bindingAllows(liveSession.binding, { sessionId }, workspaceOfSessionResolver())))) { this.#stopRuntime(owner); return; }
+			if (
+				owner !== "" &&
+				(liveSession === undefined ||
+					!(await bindingAllows(liveSession.binding, { sessionId }, workspaceOfSessionResolver())))
+			) {
+				this.#stopRuntime(owner);
+				return;
+			}
 		}
-		if (sessionId === undefined) { this.#stopRuntime(owner); return; }
+		if (sessionId === undefined) {
+			this.#stopRuntime(owner);
+			return;
+		}
 		const wrapper = getRpcSession(sessionId);
-		if (!wrapper?.isAlive()) { this.#stopRuntime(owner); return; }
+		if (!wrapper?.isAlive()) {
+			this.#stopRuntime(owner);
+			return;
+		}
 		if (this.#feeds.get(owner)?.sessionId === sessionId) return;
 		this.#stopRuntime(owner);
 		let disposed = false;
-		const live = () => !disposed && this.#sockets.has(owner) && (!owner.startsWith("context:") || this.#contexts.peek(owner.slice(8))?.sessionId === sessionId);
+		const live = () =>
+			!disposed &&
+			this.#sockets.has(owner) &&
+			(!owner.startsWith("context:") || this.#contexts.peek(owner.slice(8))?.sessionId === sessionId);
 		const feed = conversationFeed(wrapper);
 		const detachConversation = feed.subscribe(event => {
-			if (live()) this.#emit(owner, { kind: "conversation.changed", sessionId: sessionId as Extract<ClientEvent, { kind: "conversation.changed" }>["sessionId"], streamSeq: event.streamSeq, eventSeq: event.eventSeq, update: event.update }, event.stateVersion);
+			if (live())
+				this.#emit(
+					owner,
+					{
+						kind: "conversation.changed",
+						sessionId: sessionId as Extract<ClientEvent, { kind: "conversation.changed" }>["sessionId"],
+						streamSeq: event.streamSeq,
+						eventSeq: event.eventSeq,
+						update: event.update,
+					},
+					event.stateVersion,
+				);
 		});
 		const detachComputer = subscribeComputerWorkspace(owner, change => {
 			if (!live() || wrapper.getSession().isDisposed || wrapper.getSession().sessionId !== sessionId) return;
-			try { validateComputerWorkspaceChange(change); }
-			catch { this.#emit(owner, { kind: "resync.required", reason: "Computer workspace metadata changed" }); return; }
+			try {
+				validateComputerWorkspaceChange(change);
+			} catch {
+				this.#emit(owner, { kind: "resync.required", reason: "Computer workspace metadata changed" });
+				return;
+			}
 			this.#emit(owner, { kind: "computer.changed", change }, wrapper.getSession().getStateVersion());
 		});
 		let refreshPending = false;
 		const refresh = () => {
 			if (refreshPending) return;
 			refreshPending = true;
-			void snapshotFor(sessionId).then(snapshot => { if (live()) this.#emit(owner, { kind: "snapshot", snapshot }, snapshot.stateVersion); })
-				.catch(error => { if (live()) this.#emit(owner, { kind: "resync.required", reason: String(error) }); })
-				.finally(() => { refreshPending = false; });
+			void snapshotFor(sessionId)
+				.then(snapshot => {
+					if (live()) this.#emit(owner, { kind: "snapshot", snapshot }, snapshot.stateVersion);
+				})
+				.catch(error => {
+					if (live()) this.#emit(owner, { kind: "resync.required", reason: String(error) });
+				})
+				.finally(() => {
+					refreshPending = false;
+				});
 		};
-		const detachState = wrapper.onEvent(event => { if (["running", "not-running", "state_changed", "model_changed", "queue_update", "agent_end"].includes(event.type)) refresh(); });
-		this.#feeds.set(owner, { sessionId, dispose: () => { disposed = true; detachConversation(); detachComputer(); detachState(); } });
+		const detachState = wrapper.onEvent(event => {
+			if (
+				["running", "not-running", "state_changed", "model_changed", "queue_update", "agent_end"].includes(
+					event.type,
+				)
+			)
+				refresh();
+		});
+		this.#feeds.set(owner, {
+			sessionId,
+			dispose: () => {
+				disposed = true;
+				detachConversation();
+				detachComputer();
+				detachState();
+			},
+		});
 		refresh();
 	}
 
@@ -886,11 +1187,19 @@ export class StudioHost {
 		if (!sockets || sockets.size === 0) return;
 		const cursor = (this.#cursors.get(sessionId) ?? 0) + 1;
 		this.#cursors.set(sessionId, cursor);
-		const envelope = { ...event, authorityEpoch: 1, stateVersion, cursor: String(cursor) as EventCursor, occurredAt: new Date().toISOString(), ...(event.kind === "snapshot" || event.kind === "conversation.changed" || event.kind === "computer.changed" ? { runtimeEpoch: 1 } : {}) } as ClientEvent;
+		const envelope = {
+			...event,
+			authorityEpoch: 1,
+			stateVersion,
+			cursor: String(cursor) as EventCursor,
+			occurredAt: new Date().toISOString(),
+			...(event.kind === "snapshot" || event.kind === "conversation.changed" || event.kind === "computer.changed"
+				? { runtimeEpoch: 1 }
+				: {}),
+		} as ClientEvent;
 		const payload = JSON.stringify(envelope);
 		for (const socket of sockets) socket.send(payload);
 	}
-
 }
 
 /** Queries that carry no conversation content and are readable to a bound device. */
@@ -900,15 +1209,55 @@ const AMBIENT_QUERY_NAMES: Readonly<Record<string, true>> = {
 
 /** These handlers address the session selected by the authenticated context. */
 const SESSION_SELECTION_OPERATIONS = new Set<string>([
-	"evaluations.context", "evaluations.list", "evaluations.read", "evaluations.rows",
-	"evaluations.retrySpec", "evaluations.patch", "evaluations.exportChunk",
-	"evaluations.prepare", "evaluations.start", "evaluations.control",
-	"evaluations.export", "evaluations.respond", "evaluations.openWorkspace",
-	"session.state", "session.transcript.read", "agent.transcript.read", "agent.conversation.read",
-	"session.fork", "session.tree.get", "session.tree.navigate", "session.tree.branch",
-	"session.model.set", "session.thinking.set", "core.prompt", "core.steer", "core.followUp",
-	"core.abort", "core.continue", "queue.enqueue", "mode.plan.enter", "mode.plan.exit",
-	"mode.plan.review.open", "mode.plan.review.respond", "operator.invoke",
+	"accounts.status",
+	"accounts.status.details",
+	"annotations.capture",
+	"annotations.prepare",
+	"artifacts.context",
+	"artifacts.resource",
+	"session.lease.read",
+	"session.lease.inspect",
+	"btw.ask",
+	"btw.abort",
+	"btw.branch",
+	"btw.history.list",
+	"btw.history.read",
+	"btw.followUp",
+	"btw.images.resolve",
+	"evaluations.context",
+	"evaluations.list",
+	"evaluations.read",
+	"evaluations.rows",
+	"evaluations.retrySpec",
+	"evaluations.patch",
+	"evaluations.exportChunk",
+	"evaluations.prepare",
+	"evaluations.start",
+	"evaluations.control",
+	"evaluations.export",
+	"evaluations.respond",
+	"evaluations.openWorkspace",
+	"session.state",
+	"session.transcript.read",
+	"agent.transcript.read",
+	"agent.conversation.read",
+	"session.fork",
+	"session.tree.get",
+	"session.tree.navigate",
+	"session.tree.branch",
+	"session.model.set",
+	"session.thinking.set",
+	"core.prompt",
+	"core.steer",
+	"core.followUp",
+	"core.abort",
+	"core.continue",
+	"queue.enqueue",
+	"mode.plan.enter",
+	"mode.plan.exit",
+	"mode.plan.review.open",
+	"mode.plan.review.respond",
+	"operator.invoke",
 	"interaction.respond",
 ]);
 
@@ -945,10 +1294,21 @@ function payloadTarget(body: unknown): RequestTarget | undefined {
 	if (body === null || typeof body !== "object" || !("input" in body)) return undefined;
 	const input = body.input;
 	if (input === null || typeof input !== "object") return undefined;
+	if ("artifactId" in input && typeof input.artifactId === "string") {
+		// Only a session-artifact handle names a conversation; evaluation and
+		// other opaque artifact ids carry their own operation scope.
+		const sessionId = tryArtifactSessionIdFor(input.artifactId);
+		if (sessionId !== undefined) return { sessionId };
+	}
 	const nested = "target" in input && input.target !== null && typeof input.target === "object" ? input.target : input;
-	const sessionId = "sessionId" in nested && typeof nested.sessionId === "string" ? nested.sessionId
-		: "parentSessionId" in nested && typeof nested.parentSessionId === "string" ? nested.parentSessionId
-		: "threadId" in input && typeof input.threadId === "string" ? input.threadId : undefined;
+	const sessionId =
+		"sessionId" in nested && typeof nested.sessionId === "string"
+			? nested.sessionId
+			: "parentSessionId" in nested && typeof nested.parentSessionId === "string"
+				? nested.parentSessionId
+				: "threadId" in input && typeof input.threadId === "string"
+					? input.threadId
+					: undefined;
 	const workspaceId = "workspaceId" in input && typeof input.workspaceId === "string" ? input.workspaceId : undefined;
 	if (sessionId === undefined && workspaceId === undefined) return undefined;
 	return {

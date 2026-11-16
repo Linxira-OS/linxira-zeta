@@ -68,8 +68,8 @@ declare global {
         saveServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
         removeServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
         chooseArtifactDirectory?(): Promise<StudioArtifactFileResult>;
-        importArtifact?(input: { kind: import("@linxiraos/studio-protocol").ArtifactKind; sessionId?: string; workspaceId?: string }): Promise<StudioArtifactFileResult>;
-        exportArtifact?(input: { artifactId: string }): Promise<StudioArtifactFileResult>;
+        importArtifact?(input: { kind: import("@linxiraos/studio-protocol").ArtifactKind; sessionId: string; workspaceId?: string; contextId: string; targetId?: string | null }): Promise<StudioArtifactFileResult>;
+        exportArtifact?(input: { artifactId: string; contextId?: string; targetId?: string | null }): Promise<StudioArtifactFileResult>;
         /** Initial workbench health; absent on older installed main/preload versions. */
         reportPayloadHealth?(status: "ready" | "failed"): Promise<boolean>;
         reportPerformanceSample?(sample: import("@linxiraos/studio-protocol").MemorySample): Promise<boolean>;

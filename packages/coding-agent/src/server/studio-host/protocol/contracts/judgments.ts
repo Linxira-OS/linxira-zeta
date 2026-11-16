@@ -66,16 +66,3 @@ export const JUDGMENT_OPERATION_KINDS = [
 export function isJudgmentOperationKind(value: string): value is JudgmentOperation["kind"] {
 	return (JUDGMENT_OPERATION_KINDS as readonly string[]).includes(value);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

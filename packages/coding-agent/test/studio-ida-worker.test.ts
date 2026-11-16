@@ -1,0 +1,56 @@
+import { expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
+
+const python = Bun.which("python3") ?? Bun.which("python");
+const worker = fileURLToPath(new URL("../src/ida/worker.py", import.meta.url));
+const checkpoint = fileURLToPath(new URL("./studio-ida-checkpoint.py", import.meta.url));
+
+test.skipIf(!python)(
+	"native worker checkpoints preserve both database states and block execution on backup failure",
+	() => {
+		if (!python) return;
+		const result = Bun.spawnSync([python, checkpoint, worker]);
+		expect(new TextDecoder().decode(result.stderr)).toBe("");
+		expect(result.exitCode).toBe(0);
+	},
+);
+
+test.skipIf(!python)("native studio fence rejects stale reviews and pages list views without scanning all rows", () => {
+	if (!python) return;
+	const script = `import ast,json,os,sys,threading,time,uuid
+source=ast.parse(open(sys.argv[1],encoding='utf8').read())
+nodes=[n for n in source.body if isinstance(n,ast.FunctionDef) and n.name in ('_handle','_run','_view_page','_view_list')]
+sent=[]
+calls=[]
+checkpoints=[]
+def rename(p): calls.append('rename');return {}
+def fail(p): calls.append('comment');raise ValueError('partial failure')
+scope={'_STUDIO_VERSION':0,'_STUDIO_IDENTITY':'native','_arm_sigint':lambda:None,'_send':sent.append,'json':json,'_error':lambda e:str(e),'_DIRTY':False,'_METHODS':{'rename':rename,'comment':fail,'view':lambda p:{'text':'one\\ntwo\\nthree'}},'DB':None,'sys':sys,'os':os,'uuid':uuid,'time':time,'_running_lock':threading.Lock(),'_running_id':None,'_interrupt_pending':False,'_INTERRUPT_ABSORB_S':0.02,'_idb_path':lambda:os.path.abspath('fixture.i64'),'_rpc_save':checkpoints.append}
+exec(compile(ast.Module(body=nodes,type_ignores=[]),'<ida-fence>','exec'),scope)
+def call(method,params): scope['_handle'](json.dumps({'id':1,'method':method,'params':params}));return sent[-1]
+assert call('rename',{})['ok']
+assert calls==['rename']
+assert not call('studio',{'method':'rename','identity':'native','version':0})['ok']
+assert not call('studio',{'method':'comment','identity':'native','version':1})['ok']
+assert calls==['rename','comment'] and len(checkpoints)==1
+assert scope['_STUDIO_VERSION']==2
+assert not call('studio',{'method':'rename','identity':'other','version':2})['ok']
+page=call('studio',{'method':'view','identity':'native','version':2,'offset':1,'limit':1})['result']['result']
+assert page['text']=='two' and page['nextOffset']==2
+assert not call('studio',{'method':'view','identity':'native','version':2,'offset':99})['ok']
+from types import SimpleNamespace
+reads=[]
+items=[SimpleNamespace(address=index,length=4,internal_type=0) for index in range(1000)]
+scope['_db']=lambda:SimpleNamespace(strings=SimpleNamespace(get_all=lambda:iter(items)))
+def read_string(address,length,kind): reads.append(address);return b'test'
+scope['ida_bytes']=SimpleNamespace(get_strlit_contents=read_string)
+page=call('studio',{'method':'view','identity':'native','version':2,'params':{'kind':'strings'},'offset':500,'limit':2})['result']['result']
+assert reads==[500,501] and page['total']==1000 and page['nextOffset']==502
+assert page['text']=='0x1f4  "test"\\n0x1f5  "test"'
+assert calls==['rename','comment']
+print('fence and exactly-once execution passed')
+`;
+	const result = Bun.spawnSync([python, "-c", script, worker]);
+	expect(new TextDecoder().decode(result.stderr)).toBe("");
+	expect(result.exitCode).toBe(0);
+});

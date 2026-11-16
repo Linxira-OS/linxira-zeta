@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { StudioClient, WorkspaceFileNode, WorkspaceId } from "@linxiraos/studio-contract"
 import type {
   EvaluationSpec,
@@ -9,6 +9,7 @@ import { AppSelect } from "../AppSelect";
 import { WorkspaceDialog } from "../workspaces/Workspace";
 import { hostErrorMessage } from "../hostError";
 import { useExecutionTarget } from "../workspaces/ExecutionTargets";
+import { resolveArtifactContext } from "../media/artifactUrl";
 
 type T = (cn: string, en: string) => string;
 export const lines = (text: string) =>
@@ -191,6 +192,8 @@ export function EvaluationConfig({
   t: T;
 }) {
   const executionTarget = useExecutionTarget();
+  const importEpoch = useRef(0);
+  useEffect(() => { importEpoch.current++; return () => { importEpoch.current++; }; }, [client, currentSessionId, executionTarget.id]);
   const [imagePicker, setImagePicker] = useState<number>();
   const [search, setSearch] = useState(""),
     [step, setStep] = useState(0),
@@ -541,7 +544,7 @@ export function EvaluationConfig({
                       className="btn small"
                       disabled={
                         !preview &&
-                        (!!executionTarget.id || !globalThis.zetaStudioChrome?.importArtifact)
+                        (!currentSessionId || !globalThis.zetaStudioChrome?.importArtifact)
                       }
                       onClick={() => {
                         if (preview) {
@@ -553,28 +556,19 @@ export function EvaluationConfig({
                           );
                           return;
                         }
-                        void globalThis.zetaStudioChrome
-                          ?.importArtifact?.({
-                            kind: "image",
-                            ...(workspaceId ? { workspaceId } : {}),
-                          })
-                          .then((result) => {
-                            if (result?.ok && result.artifact)
-                              set(
-                                "items",
-                                spec.items.map((row, index) =>
-                                  index === i
-                                    ? {
-                                        ...row,
-                                        images: [
-                                          ...(row.images ?? []),
-                                          `artifact://${result.artifact!.artifactId}`,
-                                        ],
-                                      }
-                                    : row,
-                                ),
-                              );
+                        const generation = importEpoch.current;
+                        void (async () => {
+                          const scope = await resolveArtifactContext(client);
+                          if (generation !== importEpoch.current) return;
+                          if (scope.sessionId !== currentSessionId) throw Error("Artifact conversation changed");
+                          const result = await globalThis.zetaStudioChrome?.importArtifact?.({
+                            kind: "image", ...scope, targetId: executionTarget.id,
                           });
+                          if (generation !== importEpoch.current || !result?.ok || result.cancelled || !result.artifact) return;
+                          const artifactId = result.artifact.artifactId;
+                          set("items", spec.items.map((row, index) => index === i
+                            ? { ...row, images: [...(row.images ?? []), `artifact://${artifactId}`] } : row));
+                        })().catch(cause => { if (generation === importEpoch.current) setError(hostErrorMessage(cause, "Cannot import image")); });
                       }}
                     >
                       {t("添加本机图片", "Add local image")}

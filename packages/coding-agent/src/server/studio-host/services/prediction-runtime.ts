@@ -7,7 +7,11 @@ import type { StudioHostContext } from "../registry";
 import { sessionWorkspaceId } from "../ops/session";
 import { StudioPredictionService, type PredictionView } from "./prediction-service";
 
-interface Resident { sessionId: string; service: StudioPredictionService; owners: Set<string> }
+interface Resident {
+	sessionId: string;
+	service: StudioPredictionService;
+	owners: Set<string>;
+}
 const residents = new WeakMap<AgentSession, Resident>();
 const liveResidents = new Set<Resident>();
 const views = new Map<string, { resident: Resident; view: PredictionView }>();
@@ -28,17 +32,31 @@ export function shutdownPredictionPrivateResources(): void {
 	views.clear();
 }
 /** Native residency is shared; editor channels remain exact-view owned. */
-export async function predictionRuntime(input: unknown, context: StudioHostContext): Promise<{ service: StudioPredictionService; view: PredictionView; assertCurrent(): void }> {
-	const sessionId = requiredString(input, "sessionId"), owner = context.privateOwner;
+export async function predictionRuntime(
+	input: unknown,
+	context: StudioHostContext,
+): Promise<{ service: StudioPredictionService; view: PredictionView; assertCurrent(): void }> {
+	const sessionId = requiredString(input, "sessionId"),
+		owner = context.privateOwner;
 	if (sessionId.length > 512 || sessionId.includes("\0")) throw unavailable("Invalid prediction session");
-	const live = () => !!owner && owner.isLive() && owner.expiresAt > Date.now() && !context.selection?.closed && (context.selection === undefined || context.selection.sessionId === sessionId);
+	const live = () =>
+		!!owner &&
+		owner.isLive() &&
+		owner.expiresAt > Date.now() &&
+		!context.selection?.closed &&
+		(context.selection === undefined || context.selection.sessionId === sessionId);
 	if (!owner || !live()) throw unavailable("Prediction requires a live authenticated view");
 	await ensureLiveSession(sessionId);
 	const session = getRpcSession(sessionId)?.getSession();
 	if (!session || session.isDisposed || !live()) throw unavailable("Prediction session is not resident");
 	const workspaceId = await sessionWorkspaceId(sessionId);
 	const paths = await studioPrivateResources();
-	const valid = () => live() && !session.isDisposed && session.sessionId === sessionId && getRpcSession(sessionId)?.getSession() === session && (context.selection === undefined || context.selection.workspaceId === workspaceId);
+	const valid = () =>
+		live() &&
+		!session.isDisposed &&
+		session.sessionId === sessionId &&
+		getRpcSession(sessionId)?.getSession() === session &&
+		(context.selection === undefined || context.selection.workspaceId === workspaceId);
 	if (!valid()) throw unavailable("Prediction session changed while attaching");
 	let resident = residents.get(session);
 	if (resident && resident.sessionId !== sessionId) {
@@ -48,7 +66,15 @@ export async function predictionRuntime(input: unknown, context: StudioHostConte
 		resident = undefined;
 	}
 	if (!resident) {
-		const service = new StudioPredictionService(session, paths.mediaDirectory, paths.socketDirectory, () => !session.isDisposed && session.sessionId === sessionId && getRpcSession(sessionId)?.getSession() === session);
+		const service = new StudioPredictionService(
+			session,
+			paths.mediaDirectory,
+			paths.socketDirectory,
+			() =>
+				!session.isDisposed &&
+				session.sessionId === sessionId &&
+				getRpcSession(sessionId)?.getSession() === session,
+		);
 		service.enableMessagePrediction(session);
 		resident = { sessionId, service, owners: new Set() };
 		residents.set(session, resident);
@@ -62,7 +88,10 @@ export async function predictionRuntime(input: unknown, context: StudioHostConte
 			bound.service.dispose();
 		};
 		const unregister = session.registerSessionChangeCallback(dispose);
-		session.addDisposer(() => { unregister(); dispose(); });
+		session.addDisposer(() => {
+			unregister();
+			dispose();
+		});
 	}
 	let current = views.get(owner.id);
 	if (current?.resident !== resident || !current.view.isLive()) {
@@ -73,5 +102,11 @@ export async function predictionRuntime(input: unknown, context: StudioHostConte
 		resident.owners.add(owner.id);
 	}
 	const view = current.view;
-	return { service: resident.service, view, assertCurrent() { if (!view.isLive()) throw unavailable("Prediction view changed"); } };
+	return {
+		service: resident.service,
+		view,
+		assertCurrent() {
+			if (!view.isLive()) throw unavailable("Prediction view changed");
+		},
+	};
 }

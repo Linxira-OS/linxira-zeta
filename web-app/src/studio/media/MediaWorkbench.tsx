@@ -15,6 +15,7 @@ import {
   type MediaModelChoice,
   type MediaRequest,
   type MediaResultMap,
+  type MediaOutput,
 } from "@linxiraos/studio-protocol";
 import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";
@@ -27,13 +28,63 @@ import {
 } from "../preview/mediaWorkbenchPreview";
 import { AudioCapturePane } from "./AudioCapturePane";
 import { previewMediaUrl } from "../preview/mediaFixtureUrls";
-import { artifactUrl } from "./artifactUrl";
+import { useArtifactResource } from "./artifactUrl";
+import { useExecutionTarget } from "../workspaces/ExecutionTargets";
 import "./mediaWorkbench.css";
 
 import { takeMediaIntent } from "../pageIntents";
 export { MEDIA_INTENT_KEY, setMediaIntent, takeMediaIntent } from "../pageIntents";
 const active = (job: MediaJob) =>
   ["queued", "running", "waiting"].includes(job.state);
+
+/** One media output row; the resource URL is resolved per exact selection. */
+function MediaOutputPreview({
+  client,
+  targetId,
+  sessionId,
+  output,
+  preview,
+  visible,
+}: {
+  client: StudioClient;
+  targetId: string | null;
+  sessionId: string | undefined;
+  output: MediaOutput;
+  preview: boolean;
+  visible: boolean;
+}) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const renderable =
+    output.kind === "image" ||
+    output.kind === "video" ||
+    (output.kind === "audio" && output.mimeType !== "audio/pcm");
+  const resource = useArtifactResource(
+    preview || !renderable ? undefined : client,
+    preview || !renderable ? undefined : output.artifactId,
+    targetId,
+    sessionId,
+  );
+  if (!visible || !renderable) return null;
+  if (!preview && resource.error)
+    return (
+      <p className="muted" role="alert">
+        {resource.error}
+      </p>
+    );
+  const source = preview ? previewMediaUrl(output.kind) : resource.url;
+  if (!source)
+    return (
+      <p className="small muted" role="status">
+        {zh ? "正在读取产物…" : "Loading artifact…"}
+      </p>
+    );
+  if (output.kind === "image") return <img src={source} alt={output.name} />;
+  if (output.kind === "video")
+    return <video src={source} controls preload="metadata" />;
+  return <audio src={source} controls preload="metadata" />;
+}
+
 export function MediaWorkbench({
   client,
   workspaceId,
@@ -58,6 +109,7 @@ export function MediaWorkbench({
   onArtifactsChanged(): void;
 }) {
   const { preview, marks } = usePreviewMode();
+  const { id: targetId } = useExecutionTarget();
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
   const t = (cn: string, en: string) => (zh ? cn : en);
@@ -145,8 +197,18 @@ export function MediaWorkbench({
         setInputCursor(undefined);
         return;
       }
+      const scope = sessionId
+        ? { sessionId }
+        : workspaceId
+          ? { workspaceId }
+          : undefined;
+      if (!scope) {
+        setInputs([]);
+        setInputCursor(undefined);
+        return;
+      }
       const page = await client.query("artifacts.list", {
-        ...(workspaceId ? { workspaceId } : {}),
+        ...scope,
         limit: 200,
         ...(cursor ? { cursor } : {}),
       });
@@ -155,15 +217,19 @@ export function MediaWorkbench({
           (rows) =>
             [
               ...(cursor ? rows : []),
-              ...page.artifacts.filter((row) =>
-                ["image", "audio", "video"].includes(row.kind),
+              ...page.artifacts.filter(
+                (row) =>
+                  ["image", "audio", "video"].includes(row.kind) &&
+                  (!sessionId ||
+                    row.sessionId === undefined ||
+                    row.sessionId === sessionId),
               ),
             ] as ArtifactRecord[],
         );
         setInputCursor(page.nextCursor);
       }
     },
-    [client, workspaceId, preview],
+    [client, sessionId, workspaceId, preview],
   );
   useEffect(() => {
     epoch.current++;
@@ -1138,54 +1204,19 @@ export function MediaWorkbench({
                 </div>
               ) : null}
               {detail.outputs.map((output) => (
-                <div className="media-job-output" key={output.artifactId}>
+                <div
+                  className="media-job-output"
+                  key={(sessionId ?? "none") + ":" + output.artifactId}
+                >
                   <strong>{output.name}</strong>
-                  {!visible ? null : (
-                      preview
-                        ? previewMediaUrl(output.kind)
-                        : globalThis.zetaStudioChrome?.exportArtifact
-                    ) ? (
-                    output.kind === "image" ? (
-                      <img
-                        src={
-                          preview
-                            ? previewMediaUrl(output.kind)
-                            : artifactUrl(output.artifactId)
-                        }
-                        alt={output.name}
-                      />
-                    ) : output.kind === "video" ? (
-                      <video
-                        src={
-                          preview
-                            ? previewMediaUrl(output.kind)
-                            : artifactUrl(output.artifactId)
-                        }
-                        controls
-                        preload="metadata"
-                      />
-                    ) : output.kind === "audio" &&
-                      output.mimeType !== "audio/pcm" ? (
-                      <audio
-                        src={
-                          preview
-                            ? previewMediaUrl(output.kind)
-                            : artifactUrl(output.artifactId)
-                        }
-                        controls
-                        preload="metadata"
-                      />
-                    ) : null
-                  ) : (
-                    <p className="muted">
-                      {preview && marks
-                        ? t("演示产物", "Demo artifact")
-                        : t(
-                            "文件预览需桌面文件通道。",
-                            "File preview needs the desktop file channel.",
-                          )}
-                    </p>
-                  )}
+                  <MediaOutputPreview
+                    client={client}
+                    targetId={targetId}
+                    sessionId={sessionId}
+                    output={output}
+                    preview={preview}
+                    visible={visible}
+                  />
                 </div>
               ))}
               {detail.text ? (

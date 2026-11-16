@@ -40,11 +40,11 @@ portions of the upstream tree. Those changes are Zeta's, not upstream's.
 
 - Project: OMP Studio
 - Repository: https://github.com/the-snowpear/omp-studio
-- Source integrated by Zeta: `0.1.17`
-- Official target under integration: `v0.2.1`
-  (`6d0b764bb9eac88c1671c0380229823c5630cc74`); until that merge lands, the
-  vendored renderer remains the `0.1.17` port plus Zeta's own changes. The
-  per-tag accounting lives in [`document/upstream-sync.md`](./document/upstream-sync.md).
+- Source integrated by Zeta: official tag `v0.2.1`
+  (`6d0b764bb9eac88c1671c0380229823c5630cc74`), merged 2026-11-16 (merge
+  `31f598f8a2e71f42c148d866eb530e596c056a32`); its renderer fork lives in
+  `web-app/`. The separate frozen `web-ui/` snapshot comes from OMP Web.
+  Per-tag accounting lives in [`document/upstream-sync.md`](./document/upstream-sync.md).
 - Upstream licence: MIT
 - Upstream copyright: Copyright (c) 2026 snowpear and OMP Studio contributors
 - Zeta modifications: Work Studio's renderer (`web-app/`) is a maintained fork;

@@ -44,8 +44,3 @@ export const SESSION_COMPRESSION_KINDS = [
 export function isSessionCompressionKind(kind: string): kind is SessionCompressionOperation["kind"] {
 	return (SESSION_COMPRESSION_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-

@@ -261,11 +261,17 @@ async function runComputer(
 	params: ComputerRunParams | ComputerCallParams,
 	context: EvalPreludeContext,
 ): Promise<AgentToolResult<unknown>> {
-	const sessionId = session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer";
+	const sessionId =
+		session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer";
 	const ownerId = session.getEvalKernelOwnerId?.() ?? undefined;
 	const instanceKey = session.getSessionInstanceKey?.();
 	const permits = await computerRunPermits(sessionId, ownerId, instanceKey);
-	if (session.getSessionInstanceKey?.() !== instanceKey || (session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer") !== sessionId) throw new ToolError("Computer session changed while authorizing");
+	if (
+		session.getSessionInstanceKey?.() !== instanceKey ||
+		(session.getComputerSessionId?.() ?? session.getSessionId?.() ?? session.getEvalSessionId?.() ?? "computer") !==
+			sessionId
+	)
+		throw new ToolError("Computer session changed while authorizing");
 	const signals = [...permits.map(permit => permit.signal), ...(context.signal ? [context.signal] : [])];
 	const signal = signals.length ? AbortSignal.any(signals) : undefined;
 	const code = resolveComputerRunCode(params);

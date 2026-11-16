@@ -1,36 +1,106 @@
 import { ADVISOR_CONFIG_KINDS, type AdvisorConfigOperation, type AdvisorConfigResultMap } from "./advisor-config.js";
 import { LOCAL_RESOURCE_KINDS, type LocalResourceOperation, type LocalResourceResultMap } from "./local-resources.js";
 import { DICTATION_KINDS, type DictationOperation, type DictationResultMap } from "./dictation.js";
-import { NATIVE_PLAN_REVIEW_KINDS, type NativePlanReviewOperation, type NativePlanReviewResultMap } from "./plan-review.js";
-import { SESSION_WORKTREE_KINDS, type SessionWorktreeOperation, type SessionWorktreeResultMap } from "./session-worktrees.js";
-import { SESSION_COMPRESSION_KINDS, type SessionCompressionOperation, type SessionCompressionResultMap } from "./session-compression.js";
-import { SESSION_PORTABILITY_KINDS, type SessionPortabilityOperation, type SessionPortabilityResultMap } from "./session-portability.js";
-import { FEATURE_SETTINGS_KINDS, FEATURE_SETTINGS_READ_KINDS, type FeatureSettingsOperation, type FeatureSettingsResultMap } from "./feature-settings.js";
+import {
+	NATIVE_PLAN_REVIEW_KINDS,
+	type NativePlanReviewOperation,
+	type NativePlanReviewResultMap,
+} from "./plan-review.js";
+import {
+	SESSION_WORKTREE_KINDS,
+	type SessionWorktreeOperation,
+	type SessionWorktreeResultMap,
+} from "./session-worktrees.js";
+import {
+	SESSION_COMPRESSION_KINDS,
+	type SessionCompressionOperation,
+	type SessionCompressionResultMap,
+} from "./session-compression.js";
+import {
+	SESSION_PORTABILITY_KINDS,
+	type SessionPortabilityOperation,
+	type SessionPortabilityResultMap,
+} from "./session-portability.js";
+import {
+	FEATURE_SETTINGS_KINDS,
+	FEATURE_SETTINGS_READ_KINDS,
+	type FeatureSettingsOperation,
+	type FeatureSettingsResultMap,
+} from "./feature-settings.js";
 import { SESSION_TITLES_KINDS, type SessionTitlesOperation, type SessionTitlesResultMap } from "./session-titles.js";
 import { PREDICTION_KINDS, type PredictionChannelOperation, type PredictionResultMap } from "./prediction-channel.js";
-import { MAINTENANCE_OPERATION_KINDS, MAINTENANCE_READ_KINDS, type MaintenanceOperation, type MaintenanceResultMap } from "./maintenance.js";
+import {
+	MAINTENANCE_OPERATION_KINDS,
+	MAINTENANCE_READ_KINDS,
+	type MaintenanceOperation,
+	type MaintenanceResultMap,
+} from "./maintenance.js";
 import { ARCHIVE_OPERATION_KINDS, type ArchiveOperation, type ArchiveResultMap } from "./archive.js";
 import { AGENT_MODEL_KINDS, type AgentModelOperation, type AgentModelResultMap } from "./agent-model.js";
-import { SESSION_RESTORE_KINDS, type SessionRestoreOperation, type SessionRestoreResultMap } from "./session-restore.js";
+import {
+	SESSION_RESTORE_KINDS,
+	type SessionRestoreOperation,
+	type SessionRestoreResultMap,
+} from "./session-restore.js";
 import { RUNTIME_QUEUE_KINDS, type RuntimeQueueOperation, type RuntimeQueueResultMap } from "./runtime-queue.js";
-import { NATIVE_PREFERENCE_KINDS, type NativePreferenceOperation, type NativePreferenceResultMap } from "./native-preferences.js";
+import {
+	NATIVE_PREFERENCE_KINDS,
+	type NativePreferenceOperation,
+	type NativePreferenceResultMap,
+} from "./native-preferences.js";
 import { RATCHET_OPERATION_KINDS, type RatchetOperation, type RatchetResultMap } from "./ratchet.js";
-import { COMPUTER_OBSERVATION_KINDS, type ComputerObservationOperation, type ComputerObservationResultMap } from "./computer-observation.js";
-import { COMPUTER_WORKSPACE_COMMAND_KINDS, type ComputerWorkspaceCommand, type ComputerWorkspaceResultMap } from "./computer-workspace.js";
+import {
+	COMPUTER_OBSERVATION_KINDS,
+	type ComputerObservationOperation,
+	type ComputerObservationResultMap,
+} from "./computer-observation.js";
+import {
+	COMPUTER_WORKSPACE_COMMAND_KINDS,
+	type ComputerWorkspaceCommand,
+	type ComputerWorkspaceResultMap,
+} from "./computer-workspace.js";
 
-import { BROWSER_OBSERVATION_KINDS, type BrowserObservationOperation, type BrowserObservationResultMap } from "./browser-observation.js";
+import {
+	BROWSER_OBSERVATION_KINDS,
+	type BrowserObservationOperation,
+	type BrowserObservationResultMap,
+} from "./browser-observation.js";
 import { IDA_OPERATION_KINDS, type StudioIdaOperation, type StudioIdaResultMap } from "./ida-details.js";
-import { SESSION_OPTIONS_KINDS, type SessionOptionsOperation, type SessionOptionsResultMap } from "./session-options.js";
-import { SESSION_GUI_KINDS, SESSION_GUI_READ_KINDS, type SessionGuiOperation, type SessionGuiResultMap } from "./session-gui.js";
+import {
+	SESSION_OPTIONS_KINDS,
+	type SessionOptionsOperation,
+	type SessionOptionsResultMap,
+} from "./session-options.js";
+import {
+	SESSION_GUI_KINDS,
+	SESSION_GUI_READ_KINDS,
+	type SessionGuiOperation,
+	type SessionGuiResultMap,
+} from "./session-gui.js";
 import { SKILLSHARE_OPERATION_KINDS, type SkillshareOperation, type SkillshareResultMap } from "./skillshare.js";
 import { LIVE_AUDIO_OPERATION_KINDS, type LiveAudioOperation, type LiveAudioResultMap } from "./live-audio.js";
 import { MEDIA_OPERATION_KINDS, type MediaOperation, type MediaResultMap } from "./media.js";
 import { BENCHMARK_OPERATION_KINDS, type BenchmarkOperation, type BenchmarkResultMap } from "./benchmarks.js";
-import { RUNTIME_CATALOG_OPERATION_KINDS, type RuntimeCatalogOperation, type RuntimeCatalogResultMap } from "./runtime-catalog.js";
+import {
+	RUNTIME_CATALOG_OPERATION_KINDS,
+	type RuntimeCatalogOperation,
+	type RuntimeCatalogResultMap,
+} from "./runtime-catalog.js";
 import { JUDGMENT_OPERATION_KINDS, type JudgmentOperation, type JudgmentResultMap } from "./judgments.js";
-import { RUNTIME_FEATURE_KINDS, RUNTIME_FEATURE_READ_KINDS, type RuntimeFeatureOperation, type RuntimeFeatureResultMap } from "./runtime-features.js";
+import {
+	RUNTIME_FEATURE_KINDS,
+	RUNTIME_FEATURE_READ_KINDS,
+	type RuntimeFeatureOperation,
+	type RuntimeFeatureResultMap,
+} from "./runtime-features.js";
 import { ANNOTATION_OPERATION_KINDS, type AnnotationOperation, type AnnotationResultMap } from "./annotations.js";
 import { type AccountStatusResult } from "./accounts.js";
+import {
+	SEARCH_CREDENTIAL_KINDS,
+	type SearchCredentialsOperation,
+	type SearchCredentialsResultMap,
+} from "./search-credentials.js";
+import { EXTENSION_LINK_KINDS, type ExtensionLinkOperation, type ExtensionLinkResultMap } from "./extension-links.js";
 /** Shared, presentation-neutral tools added with OMP 18.3.0. */
 export interface StudioServiceSpec {
 	name: string;
@@ -116,6 +186,8 @@ export type WorkbenchOperation =
 	| JudgmentOperation
 	| AnnotationOperation
 	| RuntimeFeatureOperation
+	| SearchCredentialsOperation
+	| ExtensionLinkOperation
 	| { kind: "accounts.logout"; sessionId: string; accountId: string }
 	| { kind: "accounts.status"; refresh?: boolean }
 	| { kind: "accounts.status.details"; refresh?: boolean }
@@ -162,6 +234,8 @@ export interface WorkbenchResultMap
 		RuntimeCatalogResultMap,
 		BenchmarkResultMap,
 		MediaResultMap,
+		SearchCredentialsResultMap,
+		ExtensionLinkResultMap,
 		RuntimeFeatureResultMap {
 	"accounts.status": AccountStatusResult;
 	"accounts.status.details": AccountStatusResult;
@@ -178,6 +252,8 @@ export interface WorkbenchResultMap
 	"runtime.models.list": { models: RuntimeModelChoice[]; total: number; nextCursor?: string };
 }
 export const WORKBENCH_OPERATION_KINDS = [
+	...SEARCH_CREDENTIAL_KINDS,
+	...EXTENSION_LINK_KINDS,
 	...ADVISOR_CONFIG_KINDS,
 	...LOCAL_RESOURCE_KINDS,
 	...DICTATION_KINDS,
@@ -224,6 +300,8 @@ export const WORKBENCH_OPERATION_KINDS = [
 	"runtime.models.describe",
 ] as const;
 export const WORKBENCH_READ_KINDS: readonly WorkbenchOperation["kind"][] = [
+	"search.credentials.list",
+	"session.compaction.status",
 	...SESSION_GUI_READ_KINDS,
 	"prediction.status",
 	"prediction.prepare",
@@ -342,7 +420,3 @@ export function validateServiceSpec(value: unknown): asserts value is StudioServ
 		throw new Error("Invalid restart policy");
 	if (spec.mode !== undefined) mode(spec.mode);
 }
-
-
-
-

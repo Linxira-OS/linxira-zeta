@@ -171,8 +171,8 @@ async function saveImagesToTemp(images: ImageGenerationResult["images"]): Promis
  * call: the session model when it can carry the tool on the same provider,
  * otherwise the cheapest available carrier there.
  */
-function resolveHostedImageCarrier(
-	modelRegistry: ModelRegistry,
+export function resolveHostedImageCarrier(
+	modelRegistry: Pick<ModelRegistry, "getAvailable">,
 	selectedModel: Model,
 	activeModel: Model | undefined,
 ): Model | undefined {

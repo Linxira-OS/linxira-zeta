@@ -11,7 +11,11 @@ import { cfgSpellingAutocomplete } from "../../../modes/settings";
 import type { AgentSession } from "../../../session/agent-session";
 import { readForeignPrompts } from "../../../predict/foreign-history";
 import { ensureSmolLmWeights, smolLmWeightsReady, SMOLLM_TOTAL_BYTES } from "../../../predict/smollm-weights";
-import type { PredictionControlAction, PredictionControlState, PredictionResult } from "../protocol/contracts/prediction";
+import type {
+	PredictionControlAction,
+	PredictionControlState,
+	PredictionResult,
+} from "../protocol/contracts/prediction";
 
 export interface StudioPredictionQuery {
 	sessionId: string;
@@ -38,7 +42,9 @@ export class StudioPredictionEngine {
 		options: { directory?: string; client?: Pick<TextPredictionClient, "complete" | "sync" | "close"> } = {},
 	) {
 		this.directory = options.directory ?? join(getAgentDir(), "studio", "prediction");
-		this.client = options.client ?? new TextPredictionClient({ agentDirectory: this.directory, profile: "studio", downloadWeights: false });
+		this.client =
+			options.client ??
+			new TextPredictionClient({ agentDirectory: this.directory, profile: "studio", downloadWeights: false });
 		this.#unsubscribe = session.subscribe?.(event => {
 			if (event.type !== "message_end" || event.message.role !== "user") return;
 			const message = event.message;
@@ -160,7 +166,10 @@ export class StudioPredictionEngine {
 		);
 		return db;
 	}
-	async control(action: PredictionControlAction, assertCurrent: () => void = () => {}): Promise<PredictionControlState> {
+	async control(
+		action: PredictionControlAction,
+		assertCurrent: () => void = () => {},
+	): Promise<PredictionControlState> {
 		if (this.#disposed) throw Error("Prediction unavailable");
 		assertCurrent();
 		if (action === "download" && this.#download.state !== "running") {

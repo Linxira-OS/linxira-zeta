@@ -54,10 +54,17 @@ pub struct MacosBackend {
 }
 
 impl MacosBackend {
-	pub(crate) fn new_observed(display: DisplaySelector, observation_only: bool) -> CoreResult<Self> {
+	pub(crate) fn new_observed(
+		display: DisplaySelector,
+		observation_only: bool,
+	) -> CoreResult<Self> {
 		Ok(Self {
 			capture: MacCapture::new(display),
-			input:   if observation_only { None } else { Some(MacInput::new()?) },
+			input:   if observation_only {
+				None
+			} else {
+				Some(MacInput::new()?)
+			},
 			ax:      MacAx::new(),
 		})
 	}
@@ -105,7 +112,11 @@ impl Backend for MacosBackend {
 			secure_input,
 			secure_input_app,
 			capture_permission: permission_label(capture_permission),
-			input_permission: if self.input.is_some() { permission_label(permission::post_events()) } else { "unavailable".to_string() },
+			input_permission: if self.input.is_some() {
+				permission_label(permission::post_events())
+			} else {
+				"unavailable".to_string()
+			},
 			ax_permission: permission_label(ax_trusted),
 			display_count,
 			screen_locked: screen.locked,
@@ -179,7 +190,8 @@ impl Backend for MacosBackend {
 		release_guard::scope(pointer_presses(&event, target, mode), || {
 			self
 				.input
-				.as_mut().ok_or_else(Self::input_unavailable)?
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
 				.pointer(target, event, None, mode, EntryFront::now(), &self.capture)
 		})
 	}
@@ -210,7 +222,8 @@ impl Backend for MacosBackend {
 		release_guard::scope(pointer_presses(&event, target, mode), || {
 			self
 				.input
-				.as_mut().ok_or_else(Self::input_unavailable)?
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
 				.pointer(target, event, Some(path), mode, EntryFront::now(), &self.capture)
 		})
 	}
@@ -229,7 +242,11 @@ impl Backend for MacosBackend {
 		token.check()?;
 		self.require_input_permission()?;
 		release_guard::scope(presses(target, mode), || {
-			self.input.as_mut().ok_or_else(Self::input_unavailable)?.type_text(target, text, mode, &self.capture)
+			self
+				.input
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
+				.type_text(target, text, mode, &self.capture)
 		})
 	}
 
@@ -243,7 +260,11 @@ impl Backend for MacosBackend {
 		token.check()?;
 		self.require_input_permission()?;
 		release_guard::scope(presses(target, mode), || {
-			self.input.as_mut().ok_or_else(Self::input_unavailable)?.key_chord(target, keys, mode, &self.capture)
+			self
+				.input
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
+				.key_chord(target, keys, mode, &self.capture)
 		})
 	}
 
@@ -265,14 +286,11 @@ impl Backend for MacosBackend {
 			self.ax.window_id(element, &windows)
 		})?;
 		release_guard::scope(window_presses(mode), || {
-			self.input.as_mut().ok_or_else(Self::input_unavailable)?.element_input(
-				&id,
-				ax::mac_handle(element)?,
-				input,
-				mode,
-				entry_front,
-				&self.capture,
-			)
+			self
+				.input
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
+				.element_input(&id, ax::mac_handle(element)?, input, mode, entry_front, &self.capture)
 		})
 	}
 
@@ -296,7 +314,8 @@ impl Backend for MacosBackend {
 		release_guard::scope(pointer_presses(&event, &target, click.mode), || {
 			self
 				.input
-				.as_mut().ok_or_else(Self::input_unavailable)?
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
 				.pointer(&target, event, click.menu, click.mode, entry_front, &self.capture)
 		})
 	}
@@ -314,7 +333,8 @@ impl Backend for MacosBackend {
 		release_guard::scope(presses(target, mode), || {
 			self
 				.input
-				.as_mut().ok_or_else(Self::input_unavailable)?
+				.as_mut()
+				.ok_or_else(Self::input_unavailable)?
 				.hold_keys(target, keys, duration, mode, &self.capture)
 		})
 	}

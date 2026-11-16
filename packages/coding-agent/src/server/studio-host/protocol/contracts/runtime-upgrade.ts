@@ -1,3 +1,4 @@
+import type { BtwInjection } from "./btw.js";
 export interface BtwImage {
 	type: "image";
 	mimeType: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/svg+xml";
@@ -7,6 +8,7 @@ export interface BtwImage {
 export type ForeignSource = "claude" | "codex";
 export type RuntimeAuthProvider = "typesafe" | "exa" | "ollama-cloud";
 export type UpgradeOperation =
+	| { kind: "btw.images.resolve"; text: string }
 	| { kind: "btw.history.list" }
 	| { kind: "btw.history.read"; topicId: string }
 	| { kind: "btw.followUp"; topicId: string; question: string; images?: BtwImage[] }
@@ -24,6 +26,7 @@ export type UpgradeOperation =
 	| { kind: "runtime.auth.set"; provider: RuntimeAuthProvider; apiKey: string }
 	| { kind: "runtime.auth.remove"; provider: RuntimeAuthProvider };
 export const UPGRADE_OPERATION_KINDS = [
+	"btw.images.resolve",
 	"btw.history.list",
 	"btw.history.read",
 	"btw.followUp",
@@ -39,6 +42,8 @@ export function isUpgradeOperationKind(kind: string): kind is UpgradeOperation["
 	return (UPGRADE_OPERATION_KINDS as readonly string[]).includes(kind);
 }
 export interface BtwHistoryTurn {
+	injection?: BtwInjection;
+	images?: readonly BtwImage[];
 	question: string;
 	answer: string;
 	status: "running" | "complete" | "cancelled" | "error" | "interrupted";
@@ -70,6 +75,7 @@ export interface ModelMentionInfo {
 	name: string;
 }
 export interface UpgradeResultMap {
+	"btw.images.resolve": { images: BtwImage[] };
 	"btw.history.list": { sessionId: string; topics: BtwTopicSummary[] };
 	"btw.history.read": { sessionId: string; topicId: string; turns: BtwHistoryTurn[] };
 	"btw.followUp": { ephemeralId: string; status: "running" };
@@ -99,6 +105,4 @@ export interface UpgradeResultMap {
 	};
 }
 
-
 /** Validate results at the IPC boundary; credentials and native replay payloads have no public field. */
-

@@ -69,13 +69,3 @@ export const SESSION_PORTABILITY_KINDS = [
 export function isSessionPortabilityKind(kind: string): kind is SessionPortabilityOperation["kind"] {
 	return (SESSION_PORTABILITY_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-
-
-
-

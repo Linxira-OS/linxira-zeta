@@ -15,7 +15,13 @@ import {
 import { runStructuredSubagent } from "../../../task/structured-subagent";
 import { writeIsolationOwner } from "../../../task/isolation-ownership";
 import { createRatchetPrelude } from "../../../ratchet/prelude-definition";
-import { loadState, requireState, approvalStatus, type RatchetStage, type RatchetState } from "../../../ratchet/ratchet";
+import {
+	loadState,
+	requireState,
+	approvalStatus,
+	type RatchetStage,
+	type RatchetState,
+} from "../../../ratchet/ratchet";
 import ratchetKickoff from "../../../prompts/ratchet-kickoff.md" with { type: "text" };
 import type {
 	RatchetEvaluationSpec,
@@ -28,8 +34,28 @@ import type { EvaluationInteractionPort } from "./evaluation-interactions.js";
 import { type } from "@linxiraos/zeta-schema";
 import { EVALUATION_LIMITS, validateEvaluationSpec } from "./evaluation-limits.js";
 
-const repoBaseline = type({ repoRoot: "string", headCommit: "string", staged: "string", unstaged: "string", untracked: "string[]", untrackedPatch: "string" });
-const savedFlowSchema = type({ version: "1", id: "string", sessionId: "string", source: "string", workspace: "string", spec: "object", baseline: { root: repoBaseline, nested: type({ relativePath: "string", baseline: repoBaseline }).array() }, cost: "number >= 0", state: "'preparing' | 'ready' | 'running' | 'cancelling' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'interrupted'", gates: "object", "error?": "string", "best?": { variant: "string", patch: "string", sha256: "string" } });
+const repoBaseline = type({
+	repoRoot: "string",
+	headCommit: "string",
+	staged: "string",
+	unstaged: "string",
+	untracked: "string[]",
+	untrackedPatch: "string",
+});
+const savedFlowSchema = type({
+	version: "1",
+	id: "string",
+	sessionId: "string",
+	source: "string",
+	workspace: "string",
+	spec: "object",
+	baseline: { root: repoBaseline, nested: type({ relativePath: "string", baseline: repoBaseline }).array() },
+	cost: "number >= 0",
+	state: "'preparing' | 'ready' | 'running' | 'cancelling' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'interrupted'",
+	gates: "object",
+	"error?": "string",
+	"best?": { variant: "string", patch: "string", sha256: "string" },
+});
 
 interface SavedFlow {
 	version: 1;
@@ -70,7 +96,8 @@ export class EvaluationRatchetRunner {
 		const source = session.sessionManager.getCwd();
 		const isolation = await ensureIsolation(source, `studio-evaluation-${id}`);
 		await writeIsolationOwner(path.dirname(isolation.mergedDir), `studio-evaluation-${id}`);
-		if (session.isDisposed || session.sessionId !== sessionId) throw new Error("Evaluation session changed while creating its isolation");
+		if (session.isDisposed || session.sessionId !== sessionId)
+			throw new Error("Evaluation session changed while creating its isolation");
 		const saved: SavedFlow = {
 			version: 1,
 			id,
@@ -87,13 +114,18 @@ export class EvaluationRatchetRunner {
 		await runner.#save();
 		return runner;
 	}
-	static async restore(session: AgentSession, id: string, interactions?: EvaluationInteractionPort): Promise<EvaluationRatchetRunner | undefined> {
+	static async restore(
+		session: AgentSession,
+		id: string,
+		interactions?: EvaluationInteractionPort,
+	): Promise<EvaluationRatchetRunner | undefined> {
 		if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error("Invalid evaluation identity");
 		const source = session.sessionManager.getCwd();
 		let data: string;
 		try {
 			const info = await fs.lstat(path.join(source, ".zeta", "studio-evaluations", `${id}.json`));
-			if (!info.isFile() || info.isSymbolicLink() || info.size > EVALUATION_LIMITS.reportBytes) throw new Error("Invalid retained evaluation isolation");
+			if (!info.isFile() || info.isSymbolicLink() || info.size > EVALUATION_LIMITS.reportBytes)
+				throw new Error("Invalid retained evaluation isolation");
 			data = await fs.readFile(path.join(source, ".zeta", "studio-evaluations", `${id}.json`), "utf8");
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
@@ -107,7 +139,13 @@ export class EvaluationRatchetRunner {
 		const root = await fs.realpath(getWorktreeDir("")),
 			workspace = await fs.realpath(saved.workspace);
 		const relative = path.relative(root, workspace);
-		if (saved.id !== id || saved.sessionId !== session.sessionId || saved.source !== source || relative.startsWith("..") || path.isAbsolute(relative))
+		if (
+			saved.id !== id ||
+			saved.sessionId !== session.sessionId ||
+			saved.source !== source ||
+			relative.startsWith("..") ||
+			path.isAbsolute(relative)
+		)
 			throw new Error("The retained isolation is unavailable");
 		saved.state = "ready";
 		return new EvaluationRatchetRunner(session, saved, () => {}, interactions);
@@ -133,7 +171,8 @@ export class EvaluationRatchetRunner {
 			.then(async () => {
 				await fs.mkdir(path.dirname(destination), { recursive: true });
 				const temp = `${destination}.${randomUUID()}.tmp`;
-				if (Buffer.byteLength(text) > EVALUATION_LIMITS.reportBytes) throw new Error("Ratchet retained state exceeds 64 MiB");
+				if (Buffer.byteLength(text) > EVALUATION_LIMITS.reportBytes)
+					throw new Error("Ratchet retained state exceeds 64 MiB");
 				await fs.writeFile(temp, text, { mode: 0o600 });
 				await fs.rename(temp, destination);
 			});
@@ -375,7 +414,27 @@ export class EvaluationRatchetRunner {
 				keepAlive: false,
 				enableIrc: false,
 				signal: this.#abort.signal,
-				...(ask ? { customTools: [{ name: ask.name, label: ask.label, description: ask.description, parameters: ask.parameters, approval: ask.approval, execute: (toolCallId, params, onUpdate, _context, signal) => ask.execute(toolCallId, ask.parameters.assert(params), signal, onUpdate, this.interactions!.context(signal)) }] } : {}),
+				...(ask
+					? {
+							customTools: [
+								{
+									name: ask.name,
+									label: ask.label,
+									description: ask.description,
+									parameters: ask.parameters,
+									approval: ask.approval,
+									execute: (toolCallId, params, onUpdate, _context, signal) =>
+										ask.execute(
+											toolCallId,
+											ask.parameters.assert(params),
+											signal,
+											onUpdate,
+											this.interactions!.context(signal),
+										),
+								},
+							],
+						}
+					: {}),
 				onProgress: progress => {
 					const nextCost = startingCost + progress.cost;
 					if (nextCost !== this.saved.cost) {
@@ -419,7 +478,11 @@ export class EvaluationRatchetRunner {
 		this.saved.error = error instanceof Error ? error.message : String(error);
 		void this.#save().catch(() => {});
 	}
-	release(): void { this.#abort.abort(); this.#guard?.(); this.#guard = undefined; }
+	release(): void {
+		this.#abort.abort();
+		this.#guard?.();
+		this.#guard = undefined;
+	}
 	async patch(): Promise<string> {
 		const best = this.saved.best;
 		if (!best || createHash("sha256").update(best.patch).digest("hex") !== best.sha256)

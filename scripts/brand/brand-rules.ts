@@ -463,6 +463,8 @@ export const MUST_NOT_CONTAIN: Array<{
 	needle: RegExp;
 	why: string;
 	exempt?: string[];
+	/** Exact `relativePath:sourceLine` patterns for legal attribution and interop. */
+	allowPatterns?: RegExp[];
 	/**
 	 * When true, line-leading comment lines are never flagged for this rule.
 	 * Only rules that ban a token in *copy* (not in code identifiers) set this:
@@ -490,13 +492,23 @@ export const MUST_NOT_CONTAIN: Array<{
 	},
 	{
 		needle: /OMP[- ]Studio|omp-studio/i,
-		why: "Work Studio ships as Zeta: upstream Studio's name may appear only in provenance comments and the legacy IndexedDB keys kept for existing local data",
+		why: "Work Studio ships as Zeta: upstream names are limited to explicit legal attribution, source-sync mappings and existing-data compatibility",
 		skipCommentLines: true,
+		allowPatterns: [
+			/^desktop\/src\/main\.ts:\s*"· OMP Studio — https:\/\/github\.com\/the-snowpear\/omp-studio",\s*$/,
+		],
 		exempt: [
 			"web-app/src/studio/background/backgroundLibrary.ts",
 			"web-app/src/studio/conversation/userMessageThumbs.ts",
 			"README.md", // MIT attribution for the ported renderer names the upstream project
 			"packages/coding-agent/test/studio-protocol.test.ts", // the wire-contract test must name the rejected upstream protocol
+			"scripts/studio-sync.ts", // exact official repository and upstream package names are synchronization inputs
+			"scripts/studio-sync.test.ts", // upstream import fixture proves the namespace mapping
+			"CONTRIBUTING.md", // upstream issue routing and attribution
+			"CONTRIBUTING.zh-CN.md",
+			"rep-docs/README.zh-CN.md", // bilingual upstream credits
+			"rep-docs/ownership.md",
+			"rep-docs/ownership.zh-CN.md",
 		],
 	},
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
@@ -561,6 +573,7 @@ export const MUST_NOT_CONTAIN: Array<{
 			"src/stream/recording.ts",
 			"test/stream/recording-compat.test.ts",
 			"scripts/check-no-upstream-agent-compat.ts",
+			"web-app/src/studio/recordings/RecordingPlayer.tsx", // picker keeps explicitly supported old recording input
 		],
 	},
 	{

@@ -79,10 +79,3 @@ export const SESSION_WORKTREE_KINDS = [
 export function isSessionWorktreeKind(kind: string): kind is SessionWorktreeOperation["kind"] {
 	return (SESSION_WORKTREE_KINDS as readonly string[]).includes(kind);
 }
-
-
-
-
-
-
-

@@ -10,5 +10,5 @@ export function agentMessageIdentity(message: object): object | undefined {
 
 export function identifyAgentMessage(message: object, identity?: object): object {
 	const identified = message as IdentifiedAgentMessage;
-	return identified[AGENT_MESSAGE_IDENTITY] ??= identity ?? {};
+	return (identified[AGENT_MESSAGE_IDENTITY] ??= identity ?? {});
 }

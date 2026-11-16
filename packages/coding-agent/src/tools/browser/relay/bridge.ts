@@ -1498,9 +1498,20 @@ export class RelayBridge {
 				const targetId = typeof msg.params?.targetId === "string" ? msg.params.targetId : "";
 				const parsed = parseTargetId(targetId);
 				const tab = parsed ? this.#tabs.get(parsed.key) : undefined;
-				if (!tab?.studioPageId) { this.#replyError(conn, msg, "Managed browser page is unavailable"); return; }
+				if (!tab?.studioPageId) {
+					this.#replyError(conn, msg, "Managed browser page is unavailable");
+					return;
+				}
 				const directory = typeof msg.params?.directory === "string" ? msg.params.directory : undefined;
-				const result = await this.#rpc({ op: "studioDownloads", tabId: tab.tabId, action: msg.method.endsWith("enable") ? "enable" : "list", ...(directory ? { directory } : {}) }, this.#instanceFor(tab));
+				const result = await this.#rpc(
+					{
+						op: "studioDownloads",
+						tabId: tab.tabId,
+						action: msg.method.endsWith("enable") ? "enable" : "list",
+						...(directory ? { directory } : {}),
+					},
+					this.#instanceFor(tab),
+				);
 				this.#reply(conn, msg, { downloads: result });
 				return;
 			}
