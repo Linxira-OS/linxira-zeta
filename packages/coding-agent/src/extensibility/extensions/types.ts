@@ -1514,7 +1514,7 @@ export interface PlanReviewResolvedEvent {
  * loop it replaces that text, and on a paused loop `enter` resumes it.
  */
 export type SessionModeRequest =
-	| { mode: "plan" | "vibe" | "lead"; action: "enter" | "exit" }
+	| { mode: "plan" | "vibe" | "lead" | "team"; action: "enter" | "exit" }
 	| { mode: "goal"; action: "enter"; objective: string; tokenBudget?: number }
 	| { mode: "goal"; action: "pause" | "resume" | "drop" }
 	| { mode: "loop"; action: "enter"; prompt?: string; limit?: LoopLimitConfig; condition?: LoopConditionConfig }
@@ -1526,6 +1526,7 @@ export interface SessionModeState {
 	/** Lead (PM) mode; optional for consumers that predate it. */
 	lead?: { status: "inactive" | "active" };
 	vibe: { status: "inactive" | "active" };
+	team?: { status: "inactive" | "active" };
 	goal: { status: "inactive" | "active" | "paused"; objective?: string; tokenBudget?: number };
 	loop: { status: "inactive" | "active" | "paused" };
 }

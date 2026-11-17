@@ -471,6 +471,10 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		aliases: ["pm"],
 		icon: "agents",
 		description: () => M.cmdLead,
+		// Legacy PM/Lead surfaces are the pre-Team system (ADR 0038): callable by
+		// name, but kept out of the palette and advertised command list now that
+		// `/team` is the Team entry point. Being renamed Super Team.
+		hidden: true,
 		handle: async (_command, runtime) => {
 			const state = runtime.session.getLeadModeState();
 			try {

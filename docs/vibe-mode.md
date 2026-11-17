@@ -7,13 +7,34 @@ Vibe mode turns the top-level interactive session into a **director** for persis
 | Mode | Status | Behavior |
 | ---- | ------ | -------- |
 | Coding `/vibe` | **IMPLEMENTED** | Hard Director. The active toolset is reduced to `read`, optional parent-owned `todo`, and `vibe_spawn/send/wait/kill/list`; `task`, `edit`, `write`, `bash`, `grep`, and `glob` are removed while the mode is on. |
-| Team Vibe v2 | **PLANNED** (design only) | Engineer-only (PM, secretary, and Boss cannot enable it). It preserves the engineer's full coding toolset **and** `task` **and** persistent `vibe_*`; it does not reuse the hard Director mode. Budgets: max concurrency, per-turn spawn cap, per-worker token/turn cap, idle auto-kill, digest/compact, no broadcast by default. `/team vibe` is not implemented. |
+| Team mode | **PARTIAL** (ADR 0038) | `/team [on|off]` enters a Vibe-backed Team lead: worker tools only (`vibe_spawn/send/wait/kill/list`), stable module `role`, and `tracking.enabled` forced on for that session scope (runtime override, never persisted). Team prompts, worker roles, scratch isolation and tracking are implemented; governed Team rooms, IM routing, the Super Team (legacy lead) rename, and the Work Studio Team read model are not. |
 
 Vibe is an execution/orchestration feature, not a Team role or an organization
 layer. Model routing for the bundled `sonic`/`task` workers follows
 `task.agentModelOverrides.*` and `modelRoles` (see
 [Settings](./settings.md)); the worker tool surface is described in
 [`task`](./tools/task.md).
+
+## Team mode
+
+`/team` (or `/team on`) enters Team mode; `/team off` exits it. Team mode reuses the
+Vibe worker runtime with a hierarchy rather than a flat director:
+
+- `vibe_spawn` requires a stable module `role` (a lowercase slug such as `planner`), separate
+  from the assignment text; ids default to `<role>-<generation>`.
+- `lifecycle: "resident" | "ephemeral"` selects retention: resident workers keep their
+  conversation across assignments, ephemeral ones are for one bounded task.
+- Project tracking is forced on for the Team session scope with a runtime override
+  (`tracking.enabled`), so `tracking_update` is in the toolset; exiting restores the prior
+  override instead of writing the global setting.
+- The Team directive is injected as a hidden `team-mode-context` custom message (never
+  persisted), and the `adr` skill body is loaded once per Team scope when it is installed.
+- The lead owns the canonical architecture summary and `INDEX.md`; workers write module
+  notes only, and worker `local://` writes stay under `local/agents/<worker-id>/`.
+
+Legacy Lead/PM mode (`/lead`, `/pm`) remains the pre-Team system; it is being renamed
+**Super Team** and hidden from default surfaces. Its Team DB, room service and Work Studio
+page are not the source of truth for Team mode.
 
 ## Enabling and disabling
 
@@ -51,7 +72,7 @@ The tier always selects the bundled `sonic` or `task` definition, not a same-nam
 
 | Tool         | Input and behavior                                                                                                                                                                                   |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vibe_spawn` | `{ cli: "fast" \| "good", prompt, name? }`. Starts a blank worker with a complete, self-contained first brief. `name` is sanitized/capped at 48 characters; an id is generated when omitted.         |
+| `vibe_spawn` | `{ cli: "fast" | "good", role, prompt, lifecycle?, name? }`. `role` is a stable lowercase module slug (1-32 characters); `prompt` is this turn's assignment. Omitted names become `<role>-<generation>`; explicit names are sanitized and collision-suffixed. |
 | `vibe_send`  | `{ session, message }`. Steers a streaming turn at its next step; if a turn exists but cannot be steered, queues an automatic next turn; if idle/parked, starts the next turn immediately.           |
 | `vibe_wait`  | `{ sessions?, timeout? }`. Waits for the first watched turn to settle (all in-flight workers when omitted), default 30 seconds. It acknowledges settled jobs so their result is not delivered twice. |
 | `vibe_kill`  | `{ session }`. Cancels an in-flight turn, clears queued messages, releases the worker, and retains any initialized transcript at `history://<id>`.                                                   |

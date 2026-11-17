@@ -60,7 +60,7 @@ async function spawnAndCaptureOptions(cli: VibeCli, settings: Settings, name?: s
 	});
 
 	const registry = VibeSessionRegistry.global();
-	await registry.spawn(makeParentSession(settings), { cli, name, prompt: "work" });
+	await registry.spawn(makeParentSession(settings), { cli, role: "reviewer", name, prompt: "work" });
 	return captured.promise;
 }
 
@@ -127,10 +127,35 @@ describe("vibe worker spawn options", () => {
 		expect(options.oauthAccountPools).toEqual({ anthropic: ["email:a@example.com|org:org-a"] });
 	});
 
-	it("keeps only [A-Za-z0-9_-] from a custom worker name", async () => {
-		const options = await spawnAndCaptureOptions("good", Settings.isolated(), "../My Worker!");
+	it("allocates successive generations for the same role and preserves the assignment-independent identity", async () => {
+		const registry = VibeSessionRegistry.global();
+		const settings = Settings.isolated();
+		const first = await registry.spawn(makeParentSession(settings), {
+			cli: "good",
+			role: "planner",
+			prompt: "first assignment",
+		});
+		const second = await registry.spawn(makeParentSession(settings), {
+			cli: "good",
+			role: "planner",
+			prompt: "second assignment",
+		});
+		expect(first.id).toBe("planner-1");
+		expect(second.id).toBe("planner-2");
+		expect(registry.screens(makeParentSession(settings)).map(screen => screen.identity)).toEqual([
+			{ role: "planner", generation: 1, lifecycle: "resident" },
+			{ role: "planner", generation: 2, lifecycle: "resident" },
+		]);
+	});
 
-		expect(options.id).toBe("MyWorker");
+	it("rejects an invalid role slug before creating a worker", async () => {
+		await expect(
+			VibeSessionRegistry.global().spawn(makeParentSession(Settings.isolated()), {
+				cli: "good",
+				role: "../planner",
+				prompt: "work",
+			}),
+		).rejects.toThrow("stable module slug");
 	});
 
 	it("falls back to a generated name when nothing in the custom name survives", async () => {

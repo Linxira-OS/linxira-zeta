@@ -22,6 +22,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -96,6 +97,8 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			["write", writeTool],
 			["read", readTool],
 			["goal", goalTool],
+			["tracking_update", makeTool("tracking_update")],
+			["local_room_read", makeTool("local_room_read")],
 		]);
 
 		const mock = options?.mock ?? createMockModel({ responses: [{ content: ["ok"] }] });
@@ -124,6 +127,8 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			builtInToolNames: ["ask", "write", "read", "goal"],
 			advisorTools: [],
 			createVibeTools: () => [makeTool("vibe_dir"), makeTool("vibe_worker")],
+			createTeamTools: () => [makeTool("team_dir"), makeTool("team_worker")],
+			builtInToolNames: ["ask", "write", "read", "goal", "tracking_update", "local_room_read"],
 		});
 		session = created;
 		return { session: created, mock };
@@ -224,6 +229,36 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		expect(harness.session.getVibeModeState()).toBeUndefined();
 		expect(harness.session.getActiveToolNames()).toEqual(preVibeTools);
 		expect(harness.session.getActiveToolNames()).not.toContain("vibe_dir");
+	});
+
+	it("enterMode('team')/exitMode('team') activates Team tools, forces tracking, and restores both", async () => {
+		const settings = Settings.isolated({ "compaction.enabled": false, "retry.enabled": false });
+		const harness = await createModeSession(settings);
+		const preTeamTools = harness.session.getActiveToolNames();
+		expect(cfgTrackingEnabled.get(settings)).toBe(false);
+
+		await harness.session.enterMode("team");
+
+		expect(harness.session.getTeamModeState()?.enabled).toBe(true);
+		const teamTools = harness.session.getActiveToolNames();
+		expect(teamTools).toContain("read");
+		expect(teamTools).toContain("team_dir");
+		expect(teamTools).toContain("team_worker");
+		expect(teamTools).toContain("tracking_update");
+		expect(teamTools).toContain("local_room_read");
+		// Session-scoped runtime override, not a persisted global write.
+		expect(cfgTrackingEnabled.get(settings)).toBe(true);
+		expect(cfgTrackingEnabled.provenance(settings)).toBe("runtime");
+		expect(modeChangeEntries().at(-1)?.mode).toBe("team");
+
+		await harness.session.exitMode("team");
+
+		expect(harness.session.getTeamModeState()).toBeUndefined();
+		expect(harness.session.getActiveToolNames()).toEqual(preTeamTools);
+		expect(harness.session.getActiveToolNames()).not.toContain("team_dir");
+		expect(cfgTrackingEnabled.get(settings)).toBe(false);
+		expect(cfgTrackingEnabled.provenance(settings)).not.toBe("runtime");
+		expect(modeChangeEntries().at(-1)?.mode).toBe("none");
 	});
 
 	it("mode entry bumps the external state version", async () => {

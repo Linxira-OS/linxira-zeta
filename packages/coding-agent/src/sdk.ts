@@ -317,6 +317,7 @@ import {
 	BUILTIN_TOOLS,
 	createLeadTools,
 	createTools,
+	createTeamTools,
 	createVibeTools,
 	createXdevState,
 	type DeferredDiagnosticsEntry,
@@ -5631,6 +5632,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			createVibeTools:
 				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
 					? () => createVibeTools(toolSession)
+					: undefined,
+			createTeamTools:
+				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
+					? () => createTeamTools(toolSession)
 					: undefined,
 			createLeadTools:
 				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix

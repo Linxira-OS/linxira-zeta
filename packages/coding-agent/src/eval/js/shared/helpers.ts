@@ -126,8 +126,12 @@ function resolveHelperPath(ctx: HelperContext, rawPath: string, op: "read" | "wr
 	const match = INTERNAL_URL_RE.exec(rawPath);
 	if (!match) return resolvePath(ctx, rawPath);
 	const scheme = match[1].toLowerCase();
-	const root = ctx.localRoots()[scheme];
-	// Artifacts are immutable, and their root is a lookup dir rather than a path prefix.
+	const roots = ctx.localRoots();
+	const root =
+		op === "write" ? (roots[`${scheme}-write`] ?? roots[scheme]) : (roots[scheme] ?? roots[`${scheme}-shared`]);
+	if (op === "write" && root === "!readonly!") {
+		throw new ToolError(`Protocol paths are not supported by ${op}(): ${rawPath}`);
+	}
 	if (!root || scheme === "artifact") {
 		throw new ToolError(`Protocol paths are not supported by ${op}(): ${rawPath}`);
 	}

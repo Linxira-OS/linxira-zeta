@@ -51,6 +51,7 @@ export type VibeSessionState = "starting" | "running" | "idle" | "dead";
  * Every string is already one-line sanitized.
  */
 export interface VibeScreenSnapshot {
+	identity: { role: string; generation: number; lifecycle: "resident" | "ephemeral" };
 	id: string;
 	cli: VibeCli;
 	state: VibeSessionState;
