@@ -11,6 +11,7 @@
 - 整合接缝修复：headless会话导航按源恢复Team状态、Plan/Goal/Vibe/Lead对活动Team对称互斥；完成用户气泡在持久entry提交后投影。attach/RPC按连接逐消息保存CLI来源，即时/steer/followUp与既有Web头及旧历史隔离；13tests49assertions通过。真实StudioHost浏览器已打开Team房间历史，未启动worker或调用外部服务。
 - 房间唤醒任务在live/cold-revive路径固定发起transcript；来源无法解析时拒绝回退当前会话。Team worker挂载后重送启动窗口留下的durable round，重复ready不重复投递；普通Vibe不初始化Team房间。wake19tests71assertions、ready/lifecycle24tests158assertions、真实inactive-origin落盘1test4assertions通过；沿用1.5.1addon，非新编1.5.2native。
 - 最终`bun run check:ts`通过：545条warning、0 errors，7797文件格式通过，coding-agent5833文件与TUI1458文件类型通过；ADR51条、requirements112行、181本地分支登记、1.5.2版本线、19SVG/13PNG/4ICO与Nix锁输入新鲜度检查通过。这不覆盖内存超标、Bazel生成超时或Windows symlink EPERM，也不替代完整CI/发布验收。
+- 完成主线收口：源码提交`d98528f022a`；171临时worktree与778其余顶层条目经归档、hash校验及junction-safe删除后清空，Git仅余根main。181本地heads与8stashes保留，保护源码9处hash一致；完整恢复bundle验证通过（1300106471bytes，SHA256`28e1c31103e370bebb24fe6a6b0051bb2aba1a428e0022541a06d34d402dbc36`）。REQ112仅对本次整合/核账/清理标VERIFIED；原始功能与发布验收缺口不升级。
 
 ### Work Studio v0.2.1 适配与 Host producer（未发布）
 - **官方来源**：Studio `v0.2.1`（tag `6d0b764bb9eac88c1671c0380229823c5630cc74`）以真 merge 进入集成分支，`merge-base --is-ancestor` 成立；1,751 条官方路径核账为 1,248 accepted / 0 unresolved / 0 problems（最终 `final6` 报告，含本地 XLSX 来源修复）。这证明逐路径处置与源码来源，不等于全部功能验收。OMP 仍固定 `v18.20.0`。

@@ -435,10 +435,16 @@ REQ098保留IN_PROGRESS：Team9/10治理缺口仍在。REQ108的等待Team整合
 恢复；实际完整产品验收继续归REQ098，不把旧DEFERRED当本轮暂挂。REQ099保留既有producer
 和外部验收缺口，CI红不阻断本轮整合。ADR0043–0062/0064–0066均保留Proposed。
 
+原始local核账保留稳定编号：76详细项=58显式ID+J1–J12+H3-1–H3-6；20个排除/暂挂项不进入活跃56。现为55源码完整/1部分/0全缺；Team15组为13源码完整/2部分/0全缺。37粗项和19发布程序是其他视图，不重复相加。
+
+13个历史独立验证ID为MV1–MV3、J1/J2/J5/J6/J8/J9/J10、H3-3、P1/P2。42个源码完整待独立验收ID为R1–R3、W1–W3、T1–T6、I1–I2、A1–A10、N2/N5、S3–S5、C1/C2/C4、P4、J3/J4/J7/J11、H3-2/H3-4、T7、J12、H3-5。
+
+源码剩余只有I5飞书post与Team9入场tracking骨架、Team10canonical摘要/revision/hash/写权执行。T7当前工件来源、J12真实running部署和H3-5内存门槛属于验收未闭合，不把恢复源码计成验收成功。细目与原始文件映射保存在`final-task-accounting.md`及`stable-task-id-accounting.json`。
+
 证据正本：`~/.zeta/parked-evidence/2026-11-17/main-consolidation/`；原始输入、历史refs、dirty
 patches、nonignored/ignored有意义工件先保存，清理只删除临时载体，用户与park/dev引用保留。
 后续主代理开发在main；暂挂事项唯一入口为`document/roadmap.md`，不列入56/15活跃分母。
 
 | ID | Requirement | Scope | Acceptance | Priority | Status | Lane / owner | Depends on | Evidence | Remaining |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| REQ-112 | 用户要求无论CI结果将近期改动合入main，核对最早local任务余量，暂挂入路线图，后续集中main，审查并清理temp所有临时仓库和文件。 | Recent source consolidation, task accounting, evidence preservation and junction-safe temp cleanup | Unique applicable deltas in main; stable56/15 counts with exact gaps; holds only roadmap; archive original refs/WIP/patches/evidence before deleting temporary carriers; final root main and temp rescan | P1 | IN_PROGRESS | consolidation / main | REQ-098, REQ-099 | Main真merge `c25b45e854b`/`1d7a35b8bed` and adapted saved deltas; `local://main-consolidation-final-task-accounting.md`; parked archive `2026-11-17/main-consolidation/`; no release/tag/native build authorization | Complete review repairs, final commit and safe cleanup receipts; CI failure is evidence, not merge blocker. |
+| REQ-112 | 用户要求无论CI结果将近期改动合入main，核对最早local任务余量，暂挂入路线图，后续集中main，审查并清理temp所有临时仓库和文件。 | Recent source consolidation, task accounting, evidence preservation and junction-safe temp cleanup | Unique applicable deltas in main; stable56/15 counts with exact gaps; holds only roadmap; archive original refs/WIP/patches/evidence before deleting temporary carriers; final root main and temp rescan | P1 | VERIFIED | consolidation / main | REQ-098, REQ-099 | Main真merge `c25b45e854b`/`1d7a35b8bed` plus source `d98528f022af7f388958c8a9a164e56f96ed3343` (221files); stable task accounting, focused/workspace checks; archive171worktrees/44dirty,4058untracked files/0hash mismatch; final history bundle1300106471bytes SHA256`28e1c31103e370bebb24fe6a6b0051bb2aba1a428e0022541a06d34d402dbc36`; cleanup-receipt and preclosure rescan prove171worktrees+778scratch entries removed,one root main,empty temp,181heads/8stashes and9source hashes preserved | This consolidation request is complete. Original source partials and acceptance failures remain under their own REQs; no push/tag/release/new native build. |
