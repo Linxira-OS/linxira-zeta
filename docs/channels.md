@@ -372,40 +372,35 @@ Lifecycle:
 Channels that are enabled but missing credentials are skipped by the adapter
 with a warning, exactly as in `serve`. WeChat without a token is skipped by the
 CLI host specifically (rather than starting a hidden QR login that would
-compete with `channels login wechat`); pair first, or use `/channels login
-wechat` (below), then restart the session if you paired elsewhere.
+compete with `channels login`); pair through the instance's login control or
+`zetacode channels login <instance-id>`, then restart a separately hosted session.
 
 ## `/channels` in the TUI
 
-`/channels` is the operator entry for a TUI-only machine; it is hidden from the
-everyday command palette and documented here instead. It shares `web.yml` and
-the same login flow as the CLI:
+`/channels` opens **Settings → Runtime → IM runtime**. The same page is
+discoverable in the command palette and supports mouse selection, configured
+confirm/cancel keys and a visible Back action. It uses the registered local
+`zetacode serve` of the same version and the existing `web.yml` authority.
 
-```
+The nested pages edit bot instances, Agent Profiles and explicit bindings to
+existing native conversations. Instance login holds credentials only in the
+temporary editor; WeChat can show the instance's QR, reconnect or unbind.
+Returning discards unsaved credentials. QR/secret/recovery content never enters
+the transcript. For navigation, sharing rules and validation limits, see
+[IM runtime](./im-runtime-ui.md).
+
+Explicit administrative commands remain available:
+
+```text
 /channels status
-/channels login wechat [timeout-seconds]
-/channels login feishu|telegram|discord|qq
-/channels enable <channel>
-/channels disable <channel>
-/channels logout <channel>
+/channels instances
+/channels enable-instance <instance-id>
+/channels disable-instance <instance-id>
 ```
 
-`<channel>` is `wechat`, `feishu`, `telegram`, `discord`, or `qq`.
-
-- `status` prints the same enabled/running/configured/peers/route/login facts
-  as `zetacode channels status`.
-- `login wechat` renders the QR in the transcript with the workspace's
-  half-block encoder. Before opening the flow it suspends this session's
-  channel host (if any), so the QR poll never competes with a running adapter;
-  it then restarts whichever channels the fresh `web.yml` enables. A second
-  login is serialized by `<agent dir>/run/channels.pairing.lock`.
-- `login feishu|telegram|discord|qq` does **not** prompt for secrets inside the
-  transcript. It prints the equivalent `zetacode channels login …` command
-  (including the OneBot endpoint/mode flags for QQ); the CLI validates and
-  saves the credential.
-- `enable`/`disable` persist the flag and restart the live host immediately
-  when this session previously attempted hosting.
-- `logout` is guidance only; the CLI performs the actual credential clear.
+Status output stays redacted. Instance switches preserve saved credentials.
+CLI-only login remains `zetacode channels login <instance-id>`; the nested
+editor does not start another channel runtime. QQ/WeCom development is paused.
 
 Lock behavior: a session that has only an unpaired WeChat enabled starts no
 host and takes **no** `channels.lock`, so `zetacode channels login wechat` from
@@ -422,12 +417,11 @@ independently of `channels.lock`.
 | `zetacode serve --channels` | Hosts the runtime in the web server process with the coordinator/workspace router.                                             |
 | `zetacode` / `zetacode -p`  | Hosts the runtime in the normal session (no workspace router; messages go to that session).                                    |
 | `zetacode channels …`       | Inspects/pairs/configures the shared `web.yml`; never hosts.                                                                   |
-| `/channels` (TUI)           | Same facts/pairing from inside a live TUI; suspends and restarts this session's host around a WeChat QR login.                 |
-| GUI settings page (Work Studio) | Reads/writes the same `web.yml`, shows the QR from `GET /api/channels/wechat/qrcode` (server-rendered `svg`), and edits `remote.sessionMappings`; a CLI login is visible there and vice versa. See [GUI IM channels](./gui-im-channels.md). |
+| `/channels` (TUI)           | Nested runtime settings using the registered local serve: instance login, Profile configuration and explicit existing-conversation binding; no second host. |
+| GUI settings page (Work Studio) | Reads/writes the same instance/Profile/binding config and native conversation registry. See [IM runtime](./im-runtime-ui.md). |
 
-The gateway routes (`/api/channels/status`, `/api/channels/send`,
-`/api/channels/credentials`, `/api/channels/wechat/{qrcode,reconnect,unbind}`)
-are unchanged: they read the in-process serve runtime. They are one more
+The gateway routes (`/api/channels/instances`, `/api/im/*`, and the per-instance
+WeChat login controls) read the in-process serve runtime. They are one more
 front-end, not a second state store.
 
 ## Examples

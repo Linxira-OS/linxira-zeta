@@ -88,6 +88,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0064](0064-robomp-read-only-running-verification.md) | Robomp running verification reports only the behavior it exercises | Proposed | 2026-11-14 | — | [robomp workflow](../agents/workflow/robomp.md), [operator reference](../../python/robomp/README.md), [REQ-060](../requirements-ledger.md) |
 | [0065](0065-feishu-bounded-inbound-resources.md) | Feishu inbound image and file resources use the shared bounded inbox | Proposed | 2026-11-14 | — | [Channels reference](../../packages/channels/README.md), [ADR 0030](0030-im-secret-storage.md), [REQ-040](../requirements-ledger.md) |
 | [0066](0066-model-visibility-fallback-slots.md) | Model visibility and fixed three-level fallback slots | Proposed | 2026-11-11 | — | [PR #321](https://github.com/Linxira-OS/linxira-zeta/pull/321), [REQ-028/029/076](../requirements-ledger.md) |
+| [0067](0067-tui-runtime-settings.md) | TUI runtime settings reuse the existing serve authority | Proposed | 2026-11-17 | — | [IM runtime](../../docs/im-runtime-ui.md), [REQ-124](../requirements-ledger.md) |
 
 ## File and numbering rules
 

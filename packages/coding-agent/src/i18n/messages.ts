@@ -21,6 +21,7 @@
  * whitespace, so the same field works wherever it appears.
  */
 export interface Messages {
+	ssTabRuntime: string;
 	// welcome box
 	welcomeBack: string; // heading above the logo
 	welcomeTipsTitle: string; // right-column "Tips" heading

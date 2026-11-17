@@ -9968,8 +9968,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	// Selector handling
-	showSettingsSelector(): void {
-		this.#selectorController.showSettingsSelector();
+	showSettingsSelector(page?: "identity" | "im"): void {
+		this.#selectorController.showSettingsSelector(page);
 	}
 
 	showUsageDashboard(reports: UsageReport[]): void {

@@ -2,6 +2,7 @@
 
 ### Changed
 
+- TUI Settings now opens nested Identity & devices and IM runtime pages, also reachable through `/2fa` and `/channels`. Mouse and configured keys share navigation; temporary QR/credential editors use the existing local serve, and bindings explicitly select an existing native conversation while retaining its target/Profile/model locks (ADR-0067).
 - Coding-agent package packing now executes the rebuilt CLI and checks its embedded source commit, refusing missing or stale provenance before a release can pack the artifact (REQ-036).
 - Studio maintenance compares explicit official release tags in one mapped three-way batch, preserves Zeta Host/transport contracts for review, and records safe applications with backups. Reusable quick/behavior/final gates report per-step evidence; final accounting rejects stale decisions and missing source ancestry (ADR-0044).
 - Studio v0.2.1 shared contracts remove obsolete mirrored request/result validators and the unused frontend protocol copy. The existing Zeta Host keeps the actual launch, browser/Computer, private IPC, workspace and native-work input checks (ADR-0052).

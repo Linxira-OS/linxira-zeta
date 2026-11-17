@@ -151,6 +151,7 @@ import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashbo
 import { renderUsageReports } from "./command-controller";
 import { closeActiveTeamHub, showActiveTeamHub } from "./active-team-hub";
 import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { createRuntimeSettingsPages } from "../components/runtime-settings";
 
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
@@ -364,8 +365,12 @@ export class SelectorController {
 		this.ctx.ui.requestRender();
 	}
 
-	showSettingsSelector(): void {
-		if (this.#focusOpenMenu("settings")) return;
+	showSettingsSelector(page?: "identity" | "im"): void {
+		if (this.#focusOpenMenu("settings")) {
+			const existing = this.#openMenus.get("settings")?.component;
+			if (page && existing instanceof SettingsSelectorComponent) existing.openRuntimePage(page);
+			return;
+		}
 		const menu = this.#claimMenu("settings");
 		getAvailableThemes()
 			.then(availableThemes => {
@@ -392,6 +397,7 @@ export class SelectorController {
 						imageBudget: this.ctx.ui.imageBudget,
 						requestRender: () => this.ctx.ui.requestRender(),
 						composerPreviewStatus: this.ctx.statusLine,
+						runtimePages: createRuntimeSettingsPages(() => this.ctx.ui.requestRender()),
 					},
 					{
 						onChange: (id, value) => this.handleSettingChange(id, value),
@@ -436,6 +442,7 @@ export class SelectorController {
 							this.ctx.ui.requestRender();
 						},
 						onCancel: () => {
+							selector.dispose();
 							done();
 							// Restore status line to saved settings
 							this.ctx.statusLine.updateSettings({
@@ -454,6 +461,7 @@ export class SelectorController {
 						},
 					},
 				);
+				if (page) selector.openRuntimePage(page);
 				this.#mountMenu(menu, selector, () => this.#showFullscreenMenu(selector));
 			})
 			.catch((error: unknown) => {

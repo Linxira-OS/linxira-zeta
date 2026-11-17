@@ -1,15 +1,15 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.19.0
+## Integrated through: v18.20.0
 
-**Integrated through**: `v18.19.0`
+**Integrated through**: `v18.20.0` (`c308970263ae13744ea15ab67302e3dac840e266`), now on `main@13accf0fc18` after the 2026-11-17 consolidation.
 
-_(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
-`sync/omp-release/v18.18.3`. Previous headers: `v18.16.0` until 2026-11-08,
-`v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream
-release and is NOT integrated; see the probe below.)_
+_Historical headers were `v18.18.2` until 2026-11-09, then `v18.18.3` (PR #272),
+and `v18.19.0` until the current consolidation. Older probes below describe
+their observation time; current integrated and observed-only tags are indexed in
+[`upstream-baselines.md`](./upstream-baselines.md)._
 
-## v18.20.0 integration in progress (2026-11-14)
+## v18.20.0 integration (2026-11-14; consolidated into main 2026-11-17)
 
 - Owner: main assistant personally; user forbids delegating either upstream merge.
 - Start: `main@e37c23c144d`; prior integrated upstream `v18.19.0@04cd1a7549a02d62ad1d24826198d52507595683`.
@@ -21,6 +21,8 @@ release and is NOT integrated; see the probe below.)_
 - Local merge commit `c74a5ea4612` (true parents Zeta main + official tag); subsequent `36b1dfff4d4` migrates browser mode interface and fixture callers. No push yet. Full workspace check:ts green; Rustfmt green; brand0/0;118 sentinels;23,082 scope imports;CI surface/license green; member audit0 unexpected losses (22 upstream removals explained).
 - Behavioral evidence: tools/retry/picker37/0; stack/todo37/0; scoped gateway24/0 (initial parallel timeout, isolated+full rerun passed); Google cap11/0; catalog/maintenance batch98 passed with Google timeout subsequently resolved. Browser certificate override regression exposed `insecure` vs `ignoreHttpsErrors` wire split: unified producer/consumer, recycle test1/0 and typecheck clean.
 - Remaining: Bazel full crate lock regeneration stuck in main repo mapping (first300s timeout, retry running); hash-only --inputs-only was not regeneration and new committed Cargo hashes still mismatch. Native addon here is borrowed generation-only, not source matched: JSON parse error regression remains native mismatch. Do not weaken error test. CI pending.
+- Closure: the true merge and follow-ups reached main through the completed consolidation (`d98528f022af7f388958c8a9a164e56f96ed3343`, metadata `13accf0fc1849852b9814b1f072a5e45a2f1d928`). One authorized main push started [CI 44041010183](https://github.com/Linxira-OS/linxira-zeta/actions/runs/44041010183) on 2026-11-17; the run remains in progress at inspection, with Bazel lock freshness and the existing legal-attribution brand guard already failed. This is source integration closure, not green CI or release acceptance.
+- Observation only: OMP `v18.22.0` and Studio `v0.2.2` are newer official releases; neither was fetched or merged in this inspection. See the baseline index for exact remote tag objects/commits and `local://upstream-release-inspection-20261117.json` for release/comparison receipts.
 
 ## v18.19.0 integration (2026-11-12)
 

@@ -34,8 +34,10 @@ each command's `--help`.
 enrollment, required policy, pending enrollment and recovery-code count. Add
 `--json` for secret-free structured output. A damaged store reports unavailable
 and exits unsuccessfully; it never reports protection as disabled. `/2fa status`
-opens the same read-only status in the interactive TUI. Enrollment/reset uses
-local Work Studio settings; see [serve authentication](./zeta-serve-web.md).
+retains read-only status in the interactive TUI. `/2fa`, or **Settings → Runtime
+→ Identity & devices**, opens enrollment, temporary QR, verification, recovery
+and device controls through the registered local serve of the same version.
+See [serve authentication](./zeta-serve-web.md) and [IM runtime](./im-runtime-ui.md).
 
 ## Launch (the default command)
 

@@ -65,6 +65,9 @@ import { actionHint, hintsRow, type NativeHint, overlayCard } from "../native/ov
 import { styledSpans } from "../native/spans";
 import { sameItems } from "../native/memo";
 import type { KeyName } from "../key-hint-format";
+import { tuiText } from "../i18n";
+
+type SettingsPanel = SettingTab | "plugins" | "runtime";
 
 /** The native page id of the plugins tab. */
 const PLUGINS_PAGE = "plugins";
@@ -549,8 +552,9 @@ function settingsSidebarWidth(entries: readonly SettingsDisplayEntry[]): number 
 	return Math.min(22, nameWidth) + 4;
 }
 
-function getSettingsTabs(): Tab[] {
+function getSettingsTabs(runtime = false): Tab[] {
 	return [
+		...(runtime ? [{ id: "runtime", label: tuiText("ssTabRuntime", "Runtime"), short: "R" }] : []),
 		...SETTING_TABS.map(id => {
 			const meta = TAB_METADATA[id];
 			const icon = theme.symbol(meta.icon);
@@ -558,6 +562,14 @@ function getSettingsTabs(): Tab[] {
 		}),
 		{ id: "plugins", label: `${theme.icon.package} Plugins`, short: theme.icon.package },
 	];
+}
+
+/** Host-owned child pages; the TUI package never imports runtime services. */
+export interface SettingsRuntimePage {
+	id: string;
+	label: string;
+	description: string;
+	create(onBack: () => void): Component;
 }
 
 /**
@@ -583,6 +595,7 @@ export interface SettingsRuntimeContext {
 	requestRender?: () => void;
 	/** Live status renderer for composer-shape previews (the session's status line). */
 	composerPreviewStatus?: ComposerPreviewStatusSource;
+	runtimePages?: readonly SettingsRuntimePage[];
 }
 
 /** Status line settings subset for preview */
@@ -627,9 +640,11 @@ export class SettingsSelectorComponent implements Component {
 	readonly #changedCounts = new Map<SettingTab, number>();
 	#currentList: SettingsList | null = null;
 	#searchList: SettingsList | null = null;
+	#runtimePage: Component | null = null;
+	#runtimeReturn: (() => void) | undefined;
 	#pluginComponent: PluginSettingsComponent | null = null;
-	#currentTabId: SettingTab | "plugins" = "appearance";
-	#preSearchTabId: SettingTab | "plugins" = "appearance";
+	#currentTabId: SettingsPanel = "appearance";
+	#preSearchTabId: SettingsPanel = "appearance";
 	#searchQuery = "";
 	/** Single-line editor backing the search banner (cursor, word ops, paste). */
 	#searchInput = new Input();
@@ -672,12 +687,12 @@ export class SettingsSelectorComponent implements Component {
 		this.#sidebarWidth = settingsSidebarWidth(context.settings.entries);
 		// No label prefix (the frame title already says Settings) and no
 		// "(tab to cycle)" hint (folded into the footer hint line).
-		const tabs = getSettingsTabs();
+		const tabs = getSettingsTabs(Boolean(context.runtimePages?.length));
 		this.#tabs = tabs;
 		this.#tabBar = new TabBar("", tabs, getTabBarTheme());
 		this.#tabBar.showHint = false;
 		this.#tabBar.onTabChange = () => {
-			const tabId = this.#tabBar.getActiveTab().id as SettingTab | "plugins";
+			const tabId = this.#tabBar.getActiveTab().id as SettingsPanel;
 			if (this.#searchList) {
 				// While searching, tabs act as jump targets into the result list.
 				const firstId = this.#searchFirstMatch.get(tabId);
@@ -687,8 +702,9 @@ export class SettingsSelectorComponent implements Component {
 			this.#switchToTab(tabId);
 		};
 
-		// Initialize with first tab
-		this.#switchToTab("appearance");
+		const initial = context.runtimePages?.length ? "runtime" : "appearance";
+		this.#tabBar.setActiveById(initial);
+		this.#switchToTab(initial);
 	}
 
 	invalidate(): void {
@@ -697,11 +713,43 @@ export class SettingsSelectorComponent implements Component {
 		this.#currentList?.invalidate();
 		this.#searchList?.invalidate();
 		this.#pluginComponent?.invalidate();
+		this.#runtimePage?.invalidate?.();
+	}
+
+	get debugChildren(): readonly Component[] {
+		const content = this.#runtimePage ?? this.#searchList ?? this.#currentList ?? this.#pluginComponent;
+		return content ? [content] : [];
+	}
+
+	dispose(): void {
+		this.#runtimePage?.dispose?.();
+		this.#runtimeReturn?.();
+		this.#runtimeReturn = undefined;
+		this.#runtimePage = null;
+	}
+
+	openRuntimePage(id: string, onBack?: () => void): void {
+		const page = this.#context.runtimePages?.find(candidate => candidate.id === id);
+		if (!page) return;
+		if (this.#searchList) this.#endSearch(false);
+		this.#runtimePage?.dispose?.();
+		this.#runtimeReturn = onBack ?? this.#runtimeReturn;
+		this.#runtimePage = page.create(() => {
+			this.#runtimePage = null;
+			this.#runtimeReturn?.();
+			this.#runtimeReturn = undefined;
+			this.#context.requestRender?.();
+		});
+		this.#context.requestRender?.();
 	}
 
 	/** Swap the active content (per-tab list, search list, or plugins). */
 	#setContent(build: () => void): void {
 		this.#prefsRevision += 1;
+		this.#runtimePage?.dispose?.();
+		this.#runtimeReturn?.();
+		this.#runtimeReturn = undefined;
+		this.#runtimePage = null;
 		this.#currentList = null;
 		this.#searchList = null;
 		this.#pluginComponent = null;
@@ -717,7 +765,7 @@ export class SettingsSelectorComponent implements Component {
 		else this.#setSearchQuery(pending);
 	}
 
-	#switchToTab(tabId: SettingTab | "plugins"): void {
+	#switchToTab(tabId: SettingsPanel): void {
 		this.#currentTabId = tabId;
 		this.#setContent(() => {
 			if (tabId === "plugins") {
@@ -765,6 +813,15 @@ export class SettingsSelectorComponent implements Component {
 	 * then a footer hint pinned above the bottom border.
 	 */
 	render(width: number): readonly string[] {
+		if (this.#runtimePage) {
+			const height = Math.max(14, process.stdout.rows || 40);
+			const content = this.#runtimePage.render(Math.max(1, width - 4));
+			return [
+				topBorder(width, "Settings"),
+				...Array.from({ length: height - 2 }, (_, index) => row(content[index] ?? "", width)),
+				bottomBorder(width),
+			];
+		}
 		this.#flushSearchQuery();
 		const height = Math.max(14, process.stdout.rows || 40);
 		const innerWidth = Math.max(1, width - 4);
@@ -830,6 +887,7 @@ export class SettingsSelectorComponent implements Component {
 	 * root card of today's generic composition.
 	 */
 	describe(cx: DescribeContext): NativeNode {
+		if (this.#runtimePage) return overlayCard("zeta.overlay.settings", "Settings", [this.#runtimePage]);
 		this.#flushSearchQuery();
 		return cx.supports("prefs") ? this.#describePrefs() : this.#describeCard();
 	}
@@ -848,13 +906,15 @@ export class SettingsSelectorComponent implements Component {
 		const entries = this.#context.settings.entries;
 		const plugins = this.#currentTabId === "plugins" ? this.#pluginComponent : null;
 		const pluginPage = plugins?.prefsPage();
-		const tab = this.#currentTabId === "plugins" ? undefined : this.#currentTabId;
+		const tab = this.#currentTabId === "plugins" || this.#currentTabId === "runtime" ? undefined : this.#currentTabId;
 
 		const pages: TspPrefsProps["pages"][number][] = SETTING_TABS.map(id => {
 			const changed = this.#changedCount(id);
 			return { id, label: TAB_METADATA[id].label, icon: id, changed: changed > 0 ? changed : undefined };
 		});
 		pages.push({ id: PLUGINS_PAGE, label: "Installed", icon: "plugins", group: "Plugins" });
+		if (this.#context.runtimePages?.length)
+			pages.unshift({ id: "runtime", label: tuiText("ssTabRuntime", "Runtime") });
 
 		let focus: string | null = null;
 		let editing: TspPrefsProps["editing"] = null;
@@ -904,7 +964,10 @@ export class SettingsSelectorComponent implements Component {
 					const id = prefsSectionId(group);
 					return searching && def ? { id: `${def.tab}/${id}`, title: group, page: def.tab } : { id, title: group };
 				},
-				item => this.#prefsControl(item.id, item.currentValue),
+				item =>
+					item.id.startsWith("runtime:")
+						? { k: "action", label: "Open…", act: "edit" }
+						: this.#prefsControl(item.id, item.currentValue),
 			);
 			const open = list.openSubmenu;
 			if (open && !editing) {
@@ -1054,6 +1117,14 @@ export class SettingsSelectorComponent implements Component {
 	 * open menu cancels it (reverting its preview).
 	 */
 	#handlePrefsEvent(event: NativeUiEvent): void {
+		if (event.type === "action" && event.act === "edit" && event.value?.startsWith("runtime:")) {
+			this.openRuntimePage(event.value.slice(8));
+			return;
+		}
+		if ((event.type === "select" || event.type === "activate") && event.item.startsWith("runtime:")) {
+			this.openRuntimePage(event.item.slice(8));
+			return;
+		}
 		if (this.#currentTabId === "plugins" && this.#pluginComponent) {
 			if (event.type === "action" && event.act === "page" && event.value === PLUGINS_PAGE) {
 				this.#switchToTab("plugins");
@@ -1219,7 +1290,11 @@ export class SettingsSelectorComponent implements Component {
 			this.#searchCorpora = null;
 			this.#setSearchQuery(this.#searchQuery);
 		} else if (this.#currentTabId !== "plugins")
-			this.#refreshCurrentTabItems(getSettingsForTab(this.#context.settings.entries, this.#currentTabId));
+			this.#refreshCurrentTabItems(
+				this.#currentTabId === "runtime"
+					? []
+					: getSettingsForTab(this.#context.settings.entries, this.#currentTabId),
+			);
 	}
 
 	/**
@@ -1307,6 +1382,10 @@ export class SettingsSelectorComponent implements Component {
 	 * jump, while searching), unless an open submenu owns the pointer.
 	 */
 	handleNativeEvent(event: NativeUiEvent): void {
+		if (this.#runtimePage) {
+			this.#runtimePage.handleNativeEvent?.(event);
+			return;
+		}
 		this.#flushSearchQuery();
 		this.#prefsRevision += 1;
 		if (event.key === "") {
@@ -1331,6 +1410,12 @@ export class SettingsSelectorComponent implements Component {
 	}
 
 	#routeMouseEvent(event: SgrMouseEvent): boolean {
+		if (this.#runtimePage) {
+			const page = this.#runtimePage;
+			if ("routeMouse" in page && typeof page.routeMouse === "function")
+				page.routeMouse(event, event.row - 1, event.col - 2);
+			return true;
+		}
 		const list = this.#searchList ?? this.#currentList;
 		// row() insets content by the border column plus a space.
 		const contentColInset = 2;
@@ -1378,7 +1463,7 @@ export class SettingsSelectorComponent implements Component {
 				const wasSelected = list.getSelectedItem()?.id === id;
 				list.selectItem(id);
 				// Only repeated setting-row clicks activate. Sidebar section clicks navigate.
-				if (wasSelected && itemId !== undefined) list.handleInput("\n");
+				if ((wasSelected || id.startsWith("runtime:")) && itemId !== undefined) list.handleInput("\n");
 			}
 		}
 		return true;
@@ -1440,6 +1525,7 @@ export class SettingsSelectorComponent implements Component {
 		let total = 0;
 		this.#searchCorpora ??= SETTING_TABS.map(tab => {
 			const candidates: SettingItem[] = [];
+			if (tab === "interaction") candidates.push(...this.#runtimeItems());
 			for (const def of getSettingsForTab(this.#context.settings.entries, tab)) {
 				const item = this.#defToItem(def);
 				if (item) candidates.push(item);
@@ -1495,13 +1581,13 @@ export class SettingsSelectorComponent implements Component {
 		this.#prefsRevision += 1;
 		const selected = jumpToSelection ? this.#searchList.getSelectedItem() : undefined;
 		const selectedDef = selected ? getSettingDef(this.#context.settings.entries, selected.id) : undefined;
-		const targetTab: SettingTab | "plugins" = selectedDef?.tab ?? this.#preSearchTabId;
+		const targetTab: SettingsPanel = selectedDef?.tab ?? this.#preSearchTabId;
 
 		this.#searchQuery = "";
 		this.#searchCorpora = null;
 		this.#searchFirstMatch.clear();
 		this.#searchMatchCount = 0;
-		this.#tabs = getSettingsTabs();
+		this.#tabs = getSettingsTabs(Boolean(this.#context.runtimePages?.length));
 		this.#tabBar.setTabs(this.#tabs, targetTab);
 		this.#switchToTab(targetTab);
 		if (selectedDef) {
@@ -1914,10 +2000,13 @@ export class SettingsSelectorComponent implements Component {
 	/**
 	 * Show a settings tab using definitions.
 	 */
-	#showSettingsTab(tabId: SettingTab): void {
-		const defs = getSettingsForTab(this.#context.settings.entries, tabId);
+	#showSettingsTab(tabId: SettingTab | "runtime"): void {
+		const defs = tabId === "runtime" ? [] : getSettingsForTab(this.#context.settings.entries, tabId);
 
-		const items = this.#buildItemsForDefs(defs);
+		const items = [
+			...(tabId === "runtime" || tabId === "interaction" ? this.#runtimeItems() : []),
+			...this.#buildItemsForDefs(defs),
+		];
 		// Mirror SettingsList's section detection (leading ungrouped items form
 		// an implicit section) so the footer hint only advertises PgUp/PgDn
 		// when the jump actually changes sections.
@@ -1960,6 +2049,19 @@ export class SettingsSelectorComponent implements Component {
 		);
 	}
 
+	#runtimeItems(): SettingItem[] {
+		return (this.#context.runtimePages ?? []).map(page => ({
+			id: `runtime:${page.id}`,
+			label: page.label,
+			description: page.description,
+			currentValue: "›",
+			submenu: (_current, done) => {
+				this.openRuntimePage(page.id, done);
+				return new Container();
+			},
+		}));
+	}
+
 	/**
 	 * Map a definition list to UI items, dropping any whose condition is false.
 	 * Inserts a heading row whenever the (group-sorted) definition list crosses
@@ -1985,7 +2087,10 @@ export class SettingsSelectorComponent implements Component {
 	#refreshCurrentTabItems(defs: SettingDef[]): void {
 		if (this.#currentTabId === "plugins" || !this.#currentList) return;
 		this.#prefsRevision += 1;
-		this.#currentList.setItems(this.#buildItemsForDefs(defs));
+		this.#currentList.setItems([
+			...(this.#currentTabId === "runtime" || this.#currentTabId === "interaction" ? this.#runtimeItems() : []),
+			...this.#buildItemsForDefs(defs),
+		]);
 	}
 
 	/**
@@ -2022,6 +2127,11 @@ export class SettingsSelectorComponent implements Component {
 	}
 
 	handleInput(data: string): void {
+		if (this.#runtimePage) {
+			if (data.startsWith("\x1b[<")) this.#handleMouse(data);
+			else this.#runtimePage.handleInput?.(data);
+			return;
+		}
 		// SGR mouse reports (the fullscreen overlay enables tracking).
 		if (data.startsWith("\x1b[<")) {
 			this.#handleMouse(data);

@@ -6,9 +6,9 @@
  * not synthesized or toggled here — migration is a one-time backend step. If
  * `web.yml` has not been migrated, the page says so and shows no rows.
  *
- * Secrets are never accepted or printed: credential pairing belongs to Studio
- * or the CLI, and the page is redacted. The command stays hidden from the
- * everyday palette; an explicit `/channels` still resolves.
+ * The default command opens the same nested runtime settings as /settings.
+ * Explicit status commands remain redacted. Secrets are accepted only inside
+ * the transient settings editor, never printed into the transcript.
  */
 
 import { Text } from "@linxiraos/pi-tui";
@@ -39,7 +39,7 @@ const USAGE = [
 	"  /channels enable-instance <id>   per-instance switch (channels.instances)",
 	"  /channels disable-instance <id>",
 	"",
-	"Credential pairing is in Work Studio or `zetacode channels login`; the TUI never accepts a secret.",
+	"Open /channels for nested settings. Credentials are entered only in its temporary editor; status output stays redacted.",
 ].join("\n");
 
 /** Build the redacted admin page from web.yml + the live runtime (v2 only). */
@@ -122,10 +122,14 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	icon: "broadcast",
 	description: () => M.cmdChannels,
 	allowArgs: true,
-	hidden: true,
+	hidden: false,
 	subcommands: SUBCOMMANDS.map(subcommand => ({ ...subcommand })),
 	handleTui: async (command: ParsedSlashCommand, runtime) => {
 		const ctx = runtime.ctx;
+		if (!command.args.trim()) {
+			ctx.showSettingsSelector("im");
+			return commandConsumed();
+		}
 		const [action = "status", ...rest] = command.args.trim().split(/\s+/).filter(Boolean);
 		switch (action.toLowerCase()) {
 			case "status":

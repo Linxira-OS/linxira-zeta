@@ -2,6 +2,7 @@ import type { Messages } from "./messages";
 
 /** Chinese (Simplified) catalogue. */
 export const zh = {
+	ssTabRuntime: "运行时",
 	welcomeBack: "欢迎回来！",
 	welcomeTipsTitle: "提示",
 	welcomePromptActionsHint: " 触发提示词操作",

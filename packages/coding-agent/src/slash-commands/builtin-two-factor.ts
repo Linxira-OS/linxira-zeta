@@ -6,7 +6,7 @@ import type { SlashCommandSpec } from "./types";
 export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
 	name: "2fa",
 	description: () =>
-		currentLanguage() === "zh" ? "查看远程二次验证状态" : "Show remote two-factor authentication status",
+		currentLanguage() === "zh" ? "打开身份、设备与二次验证设置" : "Open identity, devices and two-factor settings",
 	allowArgs: true,
 	subcommandOptional: true,
 	subcommands: [
@@ -19,6 +19,10 @@ export const BUILTIN_TWO_FACTOR_SLASH_COMMAND: SlashCommandSpec = {
 		},
 	],
 	handleTui: async (command, runtime) => {
+		if (command.args.trim() === "") {
+			runtime.ctx.showSettingsSelector("identity");
+			return;
+		}
 		if (command.args.trim() !== "" && command.args.trim() !== "status") {
 			runtime.ctx.showError("Usage: /2fa [status]");
 			return;
