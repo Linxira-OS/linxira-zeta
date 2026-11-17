@@ -33,6 +33,7 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `sync/omp-release/v18.22.0` | sync | 用户指定 OMP v18.22.0 完整真合并；基线 main `90117b00b65b32f38282027e4d3c97d45720c830`；隔离 `temp/sync-omp-v18.22.0` | main | 2026-11-17 | 完成合并与本地门禁后由用户审查；不推送，删前登记最终 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/saved-build-fixes` | fix | 2026-11-17 保存的 Nix/browser/release-scope 窄修复恢复；tip `9e0f70904c0284bd9bbbdf97a86ec97f4bfdfe0c`，补丁已适配主线 | SavedBuildFixes / main | 2026-11-17 | 本轮清除 worktree；分支保留作恢复引用，后续由 main 开发 |
