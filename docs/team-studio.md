@@ -1,14 +1,51 @@
 # Team in Work Studio
 
-The Work Studio Team pane is the browser surface over the same Team database the
-CLI and TUI use. It never keeps a second store: onboarding, PM/engineer/repo
-state, rooms, events, tasks, leases, bootstrap runs, and doctor checks are real
-`~/.zeta/data/zeta.db` rows read through the Team service.
+The default **Team** route (`#!team`, also File menu → Team and the command palette)
+opens the active Team graph. The Host joins durable Team/mains room membership
+with source-scoped Vibe worker views and actual main-agent registry facts. It does
+not read the legacy TeamDb to infer agents, modes, ownership or activity.
 
-## Entry
+Each source conversation keeps its own Team boundary across `/resume`. Worker
+cards show module role, generation, lifecycle, model tier, current status and
+activity. Selecting a room shows its durable ordered history. A detached source
+owner is offline; a parked worker is parked. Main mode badges are live facts
+(Team, Vibe, normal), and unavailable mode state stays unknown.
 
-Work Studio's **Team** navigation route opens this workspace page; its Graph tab
-is the existing `team.graph.get` view. There is no second Team page.
+## TUI invocation and smoke
+
+Start `zetacode` in a normal project, enter `/team`, then `/team hub`. The Hub
+stays mounted while its source supplies live rows. `j/k` selects a room or worker,
+`g` selects the Team room, `m` selects the mains room, `s` composes a room message,
+and `/` filters workers while room navigation stays visible. Worker details keep
+the room timeline visible below them. `Enter` observes an available worker;
+returning from the observer restores the same Hub selection/search/draft.
+`Esc` backs out of the focused pane/filter before closing the Hub.
+
+For an actual acceptance smoke: spawn a resident worker through the active Team
+tools, open `/team hub`, filter/select that worker and observe it; return and
+confirm search/selection persist. Post a Team message, refresh, and confirm its
+host sequence/history survive closing/reopening the Hub. In Studio, open
+`#!team`, select that worker and room, then navigate the main session elsewhere:
+the source Team must remain separate and must not borrow the new main's mode or
+activity. These are invocation instructions, not executed verification.
+
+## Message sources in ordinary conversations
+
+IM input stays a real user message on the right; agent replies stay on the left.
+Each user bubble carries only its own immutable entry attribution: IM platform,
+instance and sender, or the actual Web/TUI/desktop client that submitted it.
+Multiple interfaces bound to one main do not relabel earlier bubbles. Older
+entries without provenance display unknown source. Session `origin.kind=team`
+is legacy provenance and does not identify active Team mode. IM history remains
+hidden by default; external group-chat-specific layouts are out of scope.
+
+## Preserved Super Team reference (hidden by default)
+
+The PM/engineer/Secretary workspace page and its services remain in source, with
+database rows intact. They are not the default Team navigation. The following
+sections describe that legacy page, not the active Team graph.
+
+### Legacy entry
 
 - The pane lists every registered Team by id/name. Selecting one loads
   `team.read` and `team.doctor`; no Team root is guessed from the browser's cwd.
@@ -72,11 +109,9 @@ The queue is the durable Team work queue, not a per-session todo.
 
 ## Graph
 
-The Graph tab is the existing `team.graph.get` relationship view over the real
-Team rows plus the live main-agent registry. The Team root is an ownerless
-boundary; PM workspaces, repos, bindings, engineers, worktrees, DB rooms,
-membership edges, and Secretary spawn edges are real producers. There is no
-character, persona, or emotion node.
+The preserved workspace shell still contains its Graph tab, but that tab now
+uses the active `team.graph.get` projection described above. Legacy database
+PM/repository/worktree/Secretary records are never graph authority.
 
 ## IM chat
 

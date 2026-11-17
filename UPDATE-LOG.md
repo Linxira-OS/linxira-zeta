@@ -2,6 +2,16 @@
 
 ## 下一版本（Unreleased）
 
+### 2026-11-17 主线整合（未发布）
+
+- 按用户裁决将 OMP18.20.0、Studio0.2.1、2FA/共享IM/中文命名及保存的 Team/runtime/source 增量集中到 `main`；历史分支只作恢复引用，后续主代理开发在 `main`，子代理写入仍用短命隔离工作树。
+- 恢复飞书 image/file 有界入站附件、Robomp 离线与只读 running probe、工件来源拒绝门禁，以及 Nix/browser/release-scope 保存修复。飞书富文本 post、Team 首次 tracking 骨架和 canonical architecture revision/hash 仍未完成；不借整合改写为已验收。
+- 原始活跃56项按源码为55完整/1部分；Team15组为13完整/2部分。检查通过与源码完成分开；180秒内存检查 RSS 增长2963.64MiB，超过384MiB门槛。Bazel锁生成超时，现有依赖覆盖守卫通过，锁新鲜度不冒充成功。
+- 1.5.2只作统一源码版本线；TermIDE叶二进制、发布图标是保存工件恢复，未新编native、未tag、未发布。ADR0063沿用既有Accepted，0064–0066与0043–0062保留Proposed。
+- 整合接缝修复：headless会话导航按源恢复Team状态、Plan/Goal/Vibe/Lead对活动Team对称互斥；完成用户气泡在持久entry提交后投影。attach/RPC按连接逐消息保存CLI来源，即时/steer/followUp与既有Web头及旧历史隔离；13tests49assertions通过。真实StudioHost浏览器已打开Team房间历史，未启动worker或调用外部服务。
+- 房间唤醒任务在live/cold-revive路径固定发起transcript；来源无法解析时拒绝回退当前会话。Team worker挂载后重送启动窗口留下的durable round，重复ready不重复投递；普通Vibe不初始化Team房间。wake19tests71assertions、ready/lifecycle24tests158assertions、真实inactive-origin落盘1test4assertions通过；沿用1.5.1addon，非新编1.5.2native。
+- 最终`bun run check:ts`通过：545条warning、0 errors，7797文件格式通过，coding-agent5833文件与TUI1458文件类型通过；ADR51条、requirements112行、181本地分支登记、1.5.2版本线、19SVG/13PNG/4ICO与Nix锁输入新鲜度检查通过。这不覆盖内存超标、Bazel生成超时或Windows symlink EPERM，也不替代完整CI/发布验收。
+
 ### Work Studio v0.2.1 适配与 Host producer（未发布）
 - **官方来源**：Studio `v0.2.1`（tag `6d0b764bb9eac88c1671c0380229823c5630cc74`）以真 merge 进入集成分支，`merge-base --is-ancestor` 成立；1,751 条官方路径核账为 1,248 accepted / 0 unresolved / 0 problems（最终 `final6` 报告，含本地 XLSX 来源修复）。这证明逐路径处置与源码来源，不等于全部功能验收。OMP 仍固定 `v18.20.0`。
 - **单一权威**：仍是 Zeta `serve` 的 HTTP/cookie/CSRF/设备绑定/2FA/会话上下文；Studio 只做适配层，不安装上游 Runtime/Host/独立 Desktop 工件库。
@@ -15,6 +25,8 @@
 - 恢复 `systemPromptDigest()` 的 BigInt seed 与按块 `Bun.hash.wyhash` 累积，修复安装会话探针中的 `hash is not defined`（REQ-093）。CLI settings/session isolation 安装冒烟通过。
 - 修复 TUI `/team on/off` 被误当作切换的问题：显式命令幂等，裸 `/team` 继续切换，命令等待状态变更完成；定向回归 1 pass / 0 fail。
 - Gateway 的 `get_state.modes` 与 `mode_changed` 补上活动 Team 状态，避免 Team 已启用但客户端读不到；真实 AgentSession + wrapper 进出状态与事件回归通过。
+- Active Team surfaces（REQ-098，定向检查通过，整体仍部分）：`/team hub` 读取源会话绑定的 Vibe worker 与 mesh Team/mains 房间；持久 TUI Hub、worker observer 返回保留选择/搜索，Studio Team 默认导航读取活动关系图；旧 Super Team 数据保留。
+- 逐消息来源（REQ-100，ADR0063）：用户/IM 保持右侧 user 气泡，Agent 保持左侧；来源取每条持久entry，Web/TUI/IM不按当前绑定重标旧历史。即时、steer、followUp、aside实测live/persisted一致；完整外部平台验收另列。
 
 ### 1.5.2（2026-11-12）
 - **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。

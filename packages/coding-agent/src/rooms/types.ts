@@ -54,6 +54,8 @@ export interface RoomMember {
 	readonly repoRoot?: string;
 	/** Registered main/child session id when known; stable across park/revive. */
 	readonly homeSessionId?: string;
+	/** Host-owned room extensions, independent of the display label. */
+	readonly metadata?: Readonly<Record<string, unknown>>;
 	readonly createdAt: string;
 }
 
@@ -70,6 +72,8 @@ export interface RoomEvent {
 	readonly mentions: readonly string[];
 	readonly roundId?: string;
 	readonly status?: RoomTargetStatus;
+	/** Immutable event provenance; never execution authority. */
+	readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 export interface RoomRound {
@@ -132,3 +136,8 @@ export interface RoomSummary {
 export const ROOM_KINDS: readonly RoomKind[] = ["super", "repo", "main"];
 export const ROOM_ROLES: readonly RoomMemberRole[] = ["super", "repo", "main", "resident"];
 export const ROOM_DELIVERY_MODES: readonly RoomDeliveryMode[] = ["parallel", "serial", "mention"];
+
+/** Reserved active-Team log rooms are governed by vibe/team-rooms, never contacts mutations. */
+export function isTeamRoomId(id: string): boolean {
+	return /^(?:team|mains)_[0-9a-f]{16}$/.test(id);
+}

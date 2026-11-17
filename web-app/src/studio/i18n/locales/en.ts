@@ -3553,8 +3553,7 @@ export const en: LocaleDictionary = {
 	},
 	team: {
 		title: "Team graph",
-		subtitle:
-			"The Team root is an ownerless container — not an agent, workspace or Git repo. The graph reads the Team DB (teams, PM workspaces, base repos, bindings, engineers, worktrees, rooms, secretaries) and the live agent registry. A DB record without an attached session is offline, never a fabricated agent.",
+		subtitle: "Main agents, Vibe workers and durable Team rooms. Membership follows the owning source conversation; workers show real runtime identity and status. Legacy Super Team database records are not used by this graph.",
 		generatedAt: "Generated {time}",
 		refresh: "Refresh team graph",
 		partial: "Partial data",
@@ -3584,6 +3583,7 @@ export const en: LocaleDictionary = {
 			task: "Task worktree",
 		},
 		mode: {
+			team: "Team",
 			vibe: "Vibe",
 			normal: "Normal",
 			unknown: "Unknown",
@@ -3591,22 +3591,24 @@ export const en: LocaleDictionary = {
 		nodeKind: {
 			team: "TEAM",
 			agent: "AGENT",
-			subagent: "SUBAGENT",
+			subagent: "VIBE WORKER",
 			engineer: "ENGINEER",
 			"pm-workspace": "PM WORKSPACE",
 			"git-repo": "GIT REPO",
-			"db-room": "DB ROOM",
+			"db-room": "TEAM ROOM",
 			"linked-worktree": "LINKED WORKTREE",
 		},
 		agentRole: {
+			owner: "Main owner",
+			worker: "Worker",
 			pm: "PM",
 			engineer: "Engineer",
 			secretary: "Secretary",
 			unknown: "Unclassified",
 		},
 		container: {
-			unassigned: "Live agents without a team record",
-			noTeamRecord: "No team.json",
+			unassigned: "Main agents outside Team mode",
+			noTeamRecord: "No active Team scope",
 			noAgent: "container · not an agent",
 			hint: "The Team root is ownerless: no agent, workspace, Git, session or AGENTS.md.",
 		},
@@ -3649,10 +3651,9 @@ export const en: LocaleDictionary = {
 		},
 		empty: {
 			title: "No live agent in this host",
-			detail:
-				"The graph reads the Team DB and the agents registered in this process. An empty Team DB still leaves live agents in the unassigned boundary; no row is invented.",
+			detail: "Enter /team in a main conversation. This page reads real registry mains, Vibe workers and mesh room membership; it never fabricates TeamDb agents.",
 			filteredTitle: "No node matches the filters",
-			filteredDetail: "Clear the project, PM, room, repo or lifetime filter and try again.",
+			filteredDetail: "Clear the project, room or lifetime filter and try again.",
 			clearFilters: "Clear filters",
 		},
 		preview: {

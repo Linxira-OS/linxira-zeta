@@ -332,7 +332,7 @@ function buildAdapter(
 			const appSecret = instanceCredentialString(instance, "appSecret");
 			if (!appId || !appSecret) return undefined;
 			const domain = instance.credentials.domain === "lark" ? "lark" : "feishu";
-			return new FeishuChannel({ instanceId: instance.id, appId, appSecret, domain, onMessage });
+			return new FeishuChannel({ instanceId: instance.id, appId, appSecret, domain, onMessage, attachmentDir });
 		}
 		case "discord": {
 			const botToken = instanceCredentialString(instance, "botToken");

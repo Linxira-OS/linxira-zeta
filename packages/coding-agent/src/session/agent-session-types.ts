@@ -26,6 +26,7 @@ import type { AsyncJob, AsyncJobDeliveryState, AsyncJobManager, AsyncJobManagerA
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { AgentDefinition } from "../task/types";
 import type { AgentRegistryApi } from "../registry/agent-registry";
+import type { SessionClient } from "./session-client";
 import type { SessionAccountPoolScope } from "../config/account-pools";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ZetaLanguage } from "../i18n";
@@ -456,6 +457,8 @@ export interface AgentSessionConfig {
 
 /** Options for AgentSession.prompt(). */
 export interface PromptOptions {
+	/** Actual ingress client for this message; captured before queueing, never a session label. */
+	client?: SessionClient;
 	/** Whether to expand file-based prompt templates (default: true). */
 	expandPromptTemplates?: boolean;
 	/**
@@ -542,6 +545,8 @@ export interface DroppedPrompt {
 
 /** Options for AgentSession.followUp(). */
 export interface FollowUpOptions {
+	/** Ingress client for this user message; see {@link PromptOptions.client}. */
+	client?: SessionClient;
 	/** Enqueue as a hidden developer message instead of a user follow-up. */
 	synthetic?: boolean;
 	/** Whether to expand file-based prompt templates (default: true). */
@@ -556,6 +561,8 @@ export interface FollowUpOptions {
 
 /** Options for AgentSession.steer(). */
 export interface SteerOptions {
+	/** Ingress client for this user message; see {@link PromptOptions.client}. */
+	client?: SessionClient;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the steering queue. See {@link PromptOptions.onPromptQueued}. */

@@ -21,6 +21,7 @@ import { readSessionHeaderId } from "../../session/session-loader";
 interface RootSessionExtras {
 	readonly sessionName?: string | undefined;
 	getVibeModeState?: () => { enabled?: boolean } | undefined;
+	getTeamModeState?: () => { enabled?: boolean } | undefined;
 }
 
 export interface TeamRootAgentFact {
@@ -34,6 +35,8 @@ export interface TeamRootAgentFact {
 	readonly live: boolean;
 	readonly hasTranscript: boolean;
 	readonly vibeEnabled: boolean;
+	readonly teamEnabled: boolean;
+	readonly modeKnown: boolean;
 	/** Internal hop only: `ops/team.ts` hashes it into a Studio WorkspaceId. */
 	readonly cwd?: string;
 	readonly activity?: string;
@@ -60,6 +63,8 @@ async function rootFact(ref: AgentRef): Promise<TeamRootAgentFact> {
 		live: session !== null,
 		hasTranscript: ref.sessionFile !== null,
 		vibeEnabled: extras?.getVibeModeState?.()?.enabled === true,
+		teamEnabled: extras?.getTeamModeState?.()?.enabled === true,
+		modeKnown: typeof extras?.getVibeModeState === "function" && typeof extras?.getTeamModeState === "function",
 		...(cwd ? { cwd } : {}),
 		...(ref.activity ? { activity: ref.activity } : {}),
 	};

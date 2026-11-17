@@ -1,6 +1,11 @@
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-13
+
+### Changed
+
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+- Feishu/Lark image and file events now stream authenticated resources to the instance inbox with the shared byte cap. Media-only messages and unavailable downloads reach the agent with their sender/message attribution; unsupported message types are explicitly rejected.
 
 ## [1.5.1] - 2026-11-10
 

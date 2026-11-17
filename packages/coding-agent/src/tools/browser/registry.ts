@@ -183,7 +183,7 @@ export function normalizeConnectedCdpUrl(rawCdpUrl: string): string {
 	const cdpUrl = rawCdpUrl.replace(/\/+$/, "");
 	if (/^wss?:\/\//i.test(cdpUrl)) {
 		throw new ToolError(
-			"browser app.cdp_url must be the HTTP CDP discovery endpoint (for example http://127.0.0.1:9222), not a ws:// browser websocket URL.",
+			"browser app CDP URL must be the HTTP CDP discovery endpoint (for example http://127.0.0.1:9222), not a ws:// browser websocket URL.",
 		);
 	}
 	return cdpUrl;
@@ -213,7 +213,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		const { browser, wsEndpoint, userDataDir } = await launchHeadlessBrowser({
 			headless: kind.headless,
 			viewport: opts.viewport,
-			ignoreHttpsErrors: kind.ignoreHttpsErrors,
+			insecure: kind.ignoreHttpsErrors,
 			allowFileAccess: kind.allowFileAccess,
 		});
 		return {

@@ -16,6 +16,7 @@ import localRoomReplyDescription from "../prompts/tools/local-room-reply.md" wit
 import { RoomError } from "../rooms/errors";
 import { recordRoomReply, roomRuntime } from "../rooms/transport";
 import type { RoomEvent } from "../rooms/types";
+import { isTeamRoomId, post as postTeamRoom, reply as replyTeamRoom, teamRoomScopeForMember } from "../vibe/team-rooms";
 import type { Tool, ToolSession } from "./index";
 
 export const LOCAL_ROOM_TOOL_NAMES = ["local_room_read", "local_room_post", "local_room_reply"] as const;
@@ -64,7 +65,21 @@ export class LocalRoomReadTool implements AgentTool<typeof readSchema, { rooms?:
 		try {
 			const { rooms } = roomRuntime();
 			if (!params.roomId) {
-				const list = rooms.listRooms();
+				const memberId = this.session.getAgentId?.();
+				const list = rooms.listRooms().filter(room => {
+					if (!isTeamRoomId(room.id)) return true;
+					if (!memberId) return false;
+					try {
+						teamRoomScopeForMember(
+							room.id,
+							memberId,
+							this.session.getSessionId?.() ?? this.session.sessionManager?.getSessionId?.(),
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				});
 				return {
 					content: [
 						{
@@ -78,6 +93,12 @@ export class LocalRoomReadTool implements AgentTool<typeof readSchema, { rooms?:
 					details: { rooms: list },
 				};
 			}
+			if (isTeamRoomId(params.roomId))
+				teamRoomScopeForMember(
+					params.roomId,
+					sender(this.session),
+					this.session.getSessionId?.() ?? this.session.sessionManager?.getSessionId?.(),
+				);
 			const snapshot = rooms.snapshot(params.roomId, {
 				...(params.afterSeq === undefined ? {} : { afterSeq: params.afterSeq }),
 				...(params.limit === undefined ? {} : { limit: params.limit }),
@@ -119,6 +140,15 @@ export class LocalRoomPostTool implements AgentTool<typeof postSchema, { event?:
 	async execute(_id: string, params: typeof postSchema.infer): Promise<AgentToolResult<{ event?: RoomEvent }>> {
 		try {
 			const memberId = sender(this.session);
+			if (isTeamRoomId(params.roomId)) {
+				const scope = teamRoomScopeForMember(
+					params.roomId,
+					memberId,
+					this.session.getSessionId?.() ?? this.session.sessionManager?.getSessionId?.(),
+				);
+				const result = await postTeamRoom(scope.owner, memberId, params.body, scope.room);
+				return { content: [{ type: "text", text: `Posted #${result.event.seq} to room ${params.roomId}.` }] };
+			}
 			const { rooms } = roomRuntime();
 			const member = rooms.log.getMember(params.roomId, memberId);
 			if (!member) throw new RoomError(`Agent "${memberId}" is not a member of this room`);
@@ -156,6 +186,18 @@ export class LocalRoomReplyTool implements AgentTool<typeof replySchema, { seq: 
 	): Promise<AgentToolResult<{ seq: number; next: string[] }>> {
 		try {
 			const memberId = sender(this.session);
+			if (isTeamRoomId(params.roomId)) {
+				const scope = teamRoomScopeForMember(
+					params.roomId,
+					memberId,
+					this.session.getSessionId?.() ?? this.session.sessionManager?.getSessionId?.(),
+				);
+				const result = await replyTeamRoom(scope.owner, memberId, params.body, params.replyTo, scope.room);
+				return {
+					content: [{ type: "text", text: `Replied as #${result.event.seq}.` }],
+					details: { seq: result.event.seq, next: [] },
+				};
+			}
 			const result = await recordRoomReply({
 				roomId: params.roomId,
 				memberId,

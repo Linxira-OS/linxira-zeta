@@ -57,6 +57,8 @@ export interface MeshEnvelope {
 	body: string;
 	sentAt: number;
 	replyTo?: string;
+	/** Immutable message provenance, preserved through durable mailbox replay. */
+	metadata?: Record<string, unknown>;
 }
 
 export type MeshAgentRole = "main" | "sub" | "team-host" | "team-member";

@@ -567,6 +567,8 @@ jobs:
          # 同 GitHub：冻结策略的单元测试 + 对 ci.yml / 独立发布 workflow 的静态断言。
          - name: Unit-test the release freeze policy
            run: bun test scripts/release-freeze.test.ts
+         - name: Test built artifact provenance and soak verdicts
+           run: bun test scripts/check-release-artifact.test.ts scripts/memory-soak.test.ts
          # ADR 索引守卫的结构测试：单调缺口通过，重复 ID / 缺索引行 / 非法编号 / 空占位失败。
          - name: Unit-test the ADR index guard
            run: bun test scripts/check-adr-index.test.ts
@@ -935,8 +937,10 @@ jobs:
               # 不跑 `test:scripts`：scripts/musl-release.test.ts 在 main 上就是红的
               #（install.sh 冒烟会执行假二进制），与本 job 无关。与 GitHub 同款拆分。
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
-         # 镜像 GitHub `test_workspace` 的 REQ-065 内存守卫：消费层 retained-byte
-         # 测试是真正的门禁；180s soak 只出报告，不在未实测的 runner 上设 RSS 预算。
+         - name: Test Feishu inbound media and bounded attachment storage
+           run: bun test packages/channels/test/feishu.test.ts packages/channels/test/attachments.test.ts
+         # 同 GitHub 的 retained-byte 门禁。此 runner 尚无实测 RSS 基线，
+         # 保留 report-only；GitHub ubuntu-22.04 使用实测后的 384 MiB cap。
          - name: Test memory retention caps
            run: bun test packages/tui/test/render-cache-consumer-bounds.test.ts packages/tui/test/render-cache-pressure-restore.test.ts
          - name: Run bounded memory soak (report-only)

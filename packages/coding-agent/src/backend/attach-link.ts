@@ -29,10 +29,11 @@ import {
 	type SessionMessageEntry,
 } from "../session/session-entries";
 import type { BackendLoopState } from "../loop/continuation-controller";
+import { SESSION_CLIENT_HEADER } from "../session/session-client";
 import { FileSessionStorage, tryAcquireSessionLease } from "../session/session-storage";
 import { computeDefaultSessionDir } from "../session/session-paths";
 import { setSessionTerminalTitle } from "../utils/title-generator";
-import { AttachWire } from "./attach-wire";
+import { ATTACH_SESSION_CLIENT, AttachWire } from "./attach-wire";
 import { mirrorSubagents } from "./subagent-mirror";
 import { workspaceBranch } from "../session/workspace-branch";
 import { BackendClient, type BackendEvent, type BackendSessionDetail, type BackendSessionInfo } from "./client";
@@ -47,6 +48,21 @@ interface PendingDialog {
 
 /** Replica ids currently leased by this process, used to keep the sweep from deleting a live mirror. */
 const ATTACH_ACTIVE_REPLICA_IDS = new Set<string>();
+
+/**
+ * The REST fallback is the same CLI transport as the wire handshake, so it
+ * declares the same client on every request. Otherwise a backend session this
+ * attach creates, or the run it resumes, is stamped with the gateway's own
+ * web default while its prompts come from the terminal.
+ */
+const attachClientFetch = Object.assign(
+	(input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+		const headers = new Headers(init?.headers);
+		headers.set(SESSION_CLIENT_HEADER, ATTACH_SESSION_CLIENT);
+		return fetch(input, { ...init, headers });
+	},
+	{ preconnect: fetch.preconnect },
+) satisfies typeof fetch;
 
 /** Whether this backend is reached over a loopback URL (same-machine `serve`). */
 function backendIsLoopback(baseUrl: string): boolean {
@@ -142,7 +158,7 @@ export class BackendAttachLink {
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
 		this.#ctx = ctx;
 		this.#target = target;
-		this.client = new BackendClient(target.backend.baseUrl);
+		this.client = new BackendClient(target.backend.baseUrl, attachClientFetch);
 		this.#replicaDir = options.replicaDir ?? path.join(getConfigRootDir(), "backend");
 		this.#replicaDirExplicit = options.replicaDir !== undefined;
 	}
@@ -628,7 +644,7 @@ export class BackendAttachLink {
 			id: mintSessionId(),
 			timestamp: now,
 			cwd: backendCwd,
-			client: "cli",
+			client: ATTACH_SESSION_CLIENT,
 		};
 		const replicaPath = path.join(replicaDir, `${this.#sessionId}-${header.id}.jsonl`);
 		const storage = new FileSessionStorage();

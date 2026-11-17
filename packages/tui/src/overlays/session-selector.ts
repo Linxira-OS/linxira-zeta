@@ -3014,7 +3014,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				primary: true,
 			}),
 		];
-		if (!selectedAgent && this.#onDelete) actions.push(pickerAction("delete", "Delete", bindingKeys("app.session.delete")));
+		if (!selectedAgent && this.#onDelete)
+			actions.push(pickerAction("delete", "Delete", bindingKeys("app.session.delete")));
 		if (!selectedAgent && this.#onRename) actions.push(pickerAction("rename", "Rename", "f2"));
 		const pin = selectedAgent ? undefined : this.#pinAction();
 		if (pin) actions.push(pickerAction("pin", pin.label === "pin" ? "Pin" : "Unpin", bindingKeys(pin.binding)));

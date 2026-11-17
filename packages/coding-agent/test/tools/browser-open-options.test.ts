@@ -60,7 +60,7 @@ describe("browser open options CDP helpers", () => {
 	it("adds the per-open launch switches when requested", () => {
 		const args = buildHeadlessLaunchArgs({ width: 800, height: 600 }, { insecure: true });
 		expect(args).toContain("--hide-scrollbars");
-		expect(args).toContain("--enable-features=WebMCPTesting,DevToolsWebMCPSupport");
+		expect(args).toContain("--enable-features=WebMCP,WebMCPTesting,DevToolsWebMCPSupport");
 		expect(args).toContain("--ignore-certificate-errors");
 		expect(args).toContain("--allow-file-access-from-files");
 	});
@@ -69,9 +69,9 @@ describe("browser open options CDP helpers", () => {
 		// No relay listens here, so an option refused only after connecting fails differently, and no test reaches a real one.
 		const port = await findFreeCdpPort();
 		const host = browserHost(process.cwd(), { "browser.relayUrl": `http://127.0.0.1:${port}` });
-		for (const option of [{ ignore_https_errors: true }, { downloads: "relay-downloads" }]) {
+		for (const option of [{ insecure: true }, { downloads: "relay-downloads" }]) {
 			const name = `relay-option-${crypto.randomUUID()}`;
-			const error = await rejectionOf(host({ action: "open", name, app: { relay: true }, ...option }));
+			const error = await rejectionOf(host({ action: "open", name, app: "relay", ...option }));
 			expect(error).toBeInstanceOf(ToolError);
 			expect(error).toMatchObject({
 				message: expect.stringContaining(
@@ -519,8 +519,8 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				action: "open",
 				name,
 				url: server.url.href,
-				app: { cdp_url: `http://${new URL(wsEndpoint).host}` },
-				ignore_https_errors: true,
+				app: `http://${new URL(wsEndpoint).host}`,
+				insecure: true,
 			});
 			expect(
 				returnedValue(

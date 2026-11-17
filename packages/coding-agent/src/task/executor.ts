@@ -6,6 +6,7 @@
  * progress tracking.
  */
 
+import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
@@ -26,6 +27,7 @@ import {
 	ASYNC_JOB_MANAGER_SHUTDOWN_REASON,
 	AsyncJobError,
 	type AsyncJobManagerApi,
+	type AsyncJobOrigin,
 	type AsyncJobRunResult,
 } from "../async";
 import type { Rule } from "../capability/rule";
@@ -99,6 +101,7 @@ import { type CostCapRefusal, CostCapError, type CostGateApi } from "../session/
 import { INTERRUPTED_TURN_ERROR } from "../session/exit-diagnostics";
 import { SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
 import { hasConversationalHistory, SessionManager } from "../session/session-manager";
+import { parseTitleSlotFromContent } from "../session/session-title-slot";
 import { truncateTail } from "@linxiraos/pi-tui/tools/streaming-output";
 import {
 	AUTO_THINKING,
@@ -3237,6 +3240,57 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 	};
 }
 
+/** Bytes read when resolving a spawner transcript's header: its title slot plus header line fit well inside. */
+const PARENT_SESSION_HEADER_PREFIX_BYTES = 64 * 1024;
+
+/**
+ * Session id in the header of the transcript at `sessionPath`, read from a
+ * bounded prefix past the optional title slot. A subagent captures its parent
+ * as a file when its session is created, and that file name does not encode the
+ * id for a nested parent (a subagent transcript is named `<agentId>.jsonl`), so
+ * the header is the only exact identity available without the live session.
+ */
+function readSessionHeaderIdSync(sessionPath: string): string | undefined {
+	let prefix: string;
+	try {
+		const fd = fsSync.openSync(sessionPath, "r");
+		try {
+			const buffer = Buffer.alloc(PARENT_SESSION_HEADER_PREFIX_BYTES);
+			prefix = buffer.toString("utf8", 0, fsSync.readSync(fd, buffer, 0, buffer.length, 0));
+		} finally {
+			fsSync.closeSync(fd);
+		}
+	} catch {
+		return undefined;
+	}
+	if (parseTitleSlotFromContent(prefix)) prefix = prefix.slice(prefix.indexOf("\n") + 1);
+	const end = prefix.indexOf("\n");
+	if (end === -1) return undefined;
+	try {
+		const entry: unknown = JSON.parse(prefix.slice(0, end));
+		if (!isRecord(entry) || Reflect.get(entry, "type") !== "session") return undefined;
+		const id = Reflect.get(entry, "id");
+		return typeof id === "string" && id.length > 0 ? id : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Transcript that owns a subagent's async completions, from the parent session
+ * file captured at spawn (or derived from a persisted child's location). Never
+ * the owner's currently active session: after a `/resume` that transcript is
+ * not where the subagent was spawned, and injecting there would hand one
+ * conversation's result to another (ADR 0039).
+ */
+function resolveParentJobOrigin(parentSessionFile: string | null | undefined): AsyncJobOrigin | undefined {
+	if (!parentSessionFile) return undefined;
+	const sessionFile = path.resolve(parentSessionFile);
+	const sessionId = readSessionHeaderIdSync(sessionFile);
+	if (!sessionId) throw new Error(`Cannot resolve the source transcript for worker wake results: ${sessionFile}`);
+	return { sessionId, sessionFile };
+}
+
 /** Inputs for {@link attachIrcWakeTurnMonitor}. */
 export interface IrcWakeTurnMonitorOptions {
 	/** Registry id of the kept-alive subagent whose undriven turns are monitored. */
@@ -3252,6 +3306,13 @@ export interface IrcWakeTurnMonitorOptions {
 	parentToolCallId?: string;
 	/** Fallback session file when the registry ref carries none. */
 	sessionFile?: string;
+	/**
+	 * Session file of the transcript that spawned this subagent, captured at
+	 * spawn (or derived from a persisted child's own location on cold revive).
+	 * Jobs registered for its wake turns carry that transcript's {@link AsyncJobOrigin}
+	 * so a completion still lands there after the owner navigates elsewhere.
+	 */
+	parentSessionFile?: string | null;
 	maxRuntimeMs?: number;
 	/**
 	 * Whether a turn the owner's own message woke asks for completion estimates
@@ -3454,6 +3515,10 @@ export function attachIrcWakeTurnMonitor(session: AgentSession, options: IrcWake
 	const maxRuntimeMs = options.maxRuntimeMs ?? 0;
 	const softRequestBudget = options.softRequestBudget ?? 0;
 	const softRequestBudgetNotice = options.softRequestBudgetNotice ?? softRequestBudget > 0;
+	// Resolved once from the captured spawner transcript: every wake turn of
+	// this worker owns its completion, and the owner's live session may have
+	// navigated elsewhere by the time one runs (ADR 0039).
+	const parentOrigin = resolveParentJobOrigin(options.parentSessionFile);
 	session.setIrcWakeTurnObserver(records => {
 		// Autonomous IRC wake turns reuse the session's YieldTool just like
 		// runSubagentFollowUpTurn; clear the prior run's incremental-section flag
@@ -3514,6 +3579,7 @@ export function attachIrcWakeTurnMonitor(session: AgentSession, options: IrcWake
 						id,
 						agentId: id,
 						ownerId,
+						...(parentOrigin ? { origin: parentOrigin } : {}),
 						widgetInputs: createTaskWidgetInputs({
 							manager,
 							agentId: id,
@@ -3679,7 +3745,17 @@ export function attachIrcWakeTurnMonitor(session: AgentSession, options: IrcWake
 				if (messageResult && !wakeJob && ownerId && session.asyncJobManager && result) {
 					const text = formatTaskResultSummary(result, { totalDurationMs: result.durationMs });
 					try {
-						session.asyncJobManager.publishCompleted("task", id, { text }, { id, agentId: id, ownerId });
+						session.asyncJobManager.publishCompleted(
+							"task",
+							id,
+							{ text },
+							{
+								id,
+								agentId: id,
+								ownerId,
+								...(parentOrigin ? { origin: parentOrigin } : {}),
+							},
+						);
 					} catch (error) {
 						logger.warn("User-resumed subagent result delivery failed", {
 							id,
@@ -4771,6 +4847,10 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		subagentEventBus: options.subagentEventBus,
 		parentToolCallId: options.parentToolCallId,
 		sessionFile: subtaskSessionFile,
+		// The spawner's transcript, captured before the run starts. Not
+		// re-read from the owner's live session at wake time: a `/resume`
+		// during this run may already have moved it to another transcript.
+		parentSessionFile: options.sessionFile,
 		maxRuntimeMs,
 		softRequestBudget,
 		softRequestBudgetNotice,

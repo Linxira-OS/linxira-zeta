@@ -70,6 +70,10 @@ instruction naming that item.
   and no WeCom adapter are added, and there is no live validation. Feishu is
   the existing enterprise channel; TIM remains PLANNED. Re-entry needs a new
   explicit owner ruling and a new ADR superseding ADR-0035; see REQ-091.
+- **Mobile remote / external-device push confirmation — owner-held 2026-11-16.**
+  REQ-102 的本地 TOTP、恢复码和设备绑定实现及证据保留；不安装 push provider、不配置
+  外部设备、不借此重开原生客户端。仅在 owner 明确重开该项后继续；ADR-0060 保留 Proposed。
+
 
 ## Legacy migration
 
@@ -1174,6 +1178,21 @@ protocols and auth flows.
   才把对应条目移入执行计划。**取证**：`document/jcode-evaluation.md`；上游公共仓库
   <https://github.com/1jehuang/jcode>，固定 commit
   `e5bfa5b8307a14f0a44801bedba48ba9ed378e11`（评估用的稀疏克隆为一次性临时产物，已删除未保留）。
+
+- **Agent 工具调用 token/成本效率研究（2026-11-13 用户裁决：长期挂账，只登记，不排期）**：
+  FrontierHarness Eval v1.1 live 页按 **cost per pass** 排名，不是 raw pass rate。
+  2026-11-13 快照（live 数值会漂移）：cost/pass 为 Pi #1 `$0.902`、OMP #2 `$0.935`、
+  Codex #3 `$0.961`；time/pass 为 Codex #1 `41m45s`、Pi #2 `41m47s`、OMP #10 `56m54s`；
+  pass rate 为 Codex `64.9%`、Pi `59.0%`、OMP `57.4%`。Pi/OMP 的优势观察在 cost/pass，
+  不据此宣称速度获胜。framework familiarity / contamination 对速度与通过率的影响仅是
+  **待验证假设**，不是事实。pass efficiency 与 token efficiency 分开测量；不逆向/克隆
+  其它 harness，研究范围只限自身 Pi/OMP/Zeta tool-call 层：tools、prompts、context、
+  snapcompact 与工具文档，包含 schema/result 预算、read/edit、并行、错误反馈、压缩和缓存。
+  重启条件：基础功能及绝大多数非核心/表面功能完成，且时间充裕、资源有冗余；无 active
+  owner、不承诺日期，不进入 1.5.x/1.6.0 执行范围。开工前确定 cost/pass、time/pass、
+  pass rate 联合口径、单变量子集实验，以及 familiarity 假设的独立验证方法。
+  来源快照：<https://frontierharness.org/live>；原始长条目已归档于
+  `~/.zeta/parked-evidence/2026-11-17/main-consolidation/worktrees/toolcall-deferred-1400eb09/tracked.patch`。
 
 ## Notes
 

@@ -7,7 +7,7 @@ Vibe mode turns the top-level interactive session into a **director** for persis
 | Mode | Status | Behavior |
 | ---- | ------ | -------- |
 | Coding `/vibe` | **IMPLEMENTED** | Hard Director. The active toolset is reduced to `read`, optional parent-owned `todo`, and `vibe_spawn/send/wait/kill/list`; `task`, `edit`, `write`, `bash`, `grep`, and `glob` are removed while the mode is on. |
-| Team mode | **PARTIAL** (ADR 0038) | `/team [on|off]` enters a Vibe-backed Team lead: worker tools only (`vibe_spawn/send/wait/kill/list`), stable module `role`, and `tracking.enabled` forced on for that session scope (runtime override, never persisted). Team prompts, worker roles, scratch isolation and tracking are implemented; governed Team rooms, IM routing, the Super Team (legacy lead) rename, and the Work Studio Team read model are not. |
+| Team mode | **PARTIAL** (ADR 0038) | `/team [on|off]` reuses Vibe worker tools, stable module roles and session-scoped tracking, with durable Team/mains rooms and TUI Hub/Studio projections. Entry-time tracking skeleton and canonical architecture summary/revision/hash enforcement remain incomplete. Legacy Super Team is hidden by default. |
 
 Vibe is an execution/orchestration feature, not a Team role or an organization
 layer. Model routing for the bundled `sonic`/`task` workers follows
@@ -22,9 +22,10 @@ Vibe worker runtime with a hierarchy rather than a flat director:
 
 - `vibe_spawn` requires a stable module `role` (a lowercase slug such as `planner`), separate
   from the assignment text; ids default to `<role>-<generation>`.
-- `lifecycle: "resident" | "ephemeral"` is **partial**: it is recorded in the spawn lifecycle
-  metadata and prompts, but no retention branch terminates ephemeral workers by lifecycle
-  today. Both values currently behave like resident keep-alive workers.
+- `lifecycle: "resident" | "ephemeral"` controls retention. Residents use the task executor's
+  idle TTL to park and revive when their owner sends another assignment. Ephemeral workers
+  terminate after a successful final turn and any already queued directives, or at a persisted
+  30-minute lifetime bound. Their transcript and final output remain; worker-local scratch is removed.
 - Project tracking is forced on for the Team session scope with a runtime override
   (`tracking.enabled`), so `tracking_update` is in the toolset; exiting restores the prior
   override instead of writing the global setting.
@@ -39,6 +40,32 @@ Legacy Lead/PM mode (`/lead`, `/pm`) remains the pre-Team system; it is being re
 **Super Team** and hidden from default surfaces. Its Team DB, room service and Work Studio
 page are not the source of truth for Team mode.
 
+### Team Hub and Studio
+
+While Team mode is active, `/team hub` opens a persistent split view of its
+Team/mains rooms and direct Vibe workers. Host-supplied worker rows carry module
+role, generation, lifecycle, tier, real registry status/activity and creation
+time. Room history stays visible while selecting a worker. Enter observes an
+available worker and returning restores the same Hub selection and filter;
+ordinary `/resume` running-agent picker state remains independent.
+
+Work Studio's Team route (`#!team`) reads that same active room/runtime model.
+Legacy PM/engineer/Secretary rows never supply the graph. See
+[Team surfaces](./team-studio.md) for the concrete invocation/smoke steps and
+the per-message IM source labels in ordinary conversations.
+
+Room notifications posted while a Team worker is still starting stay pending in
+the durable room log. Once that exact source-owned child attaches, its lifecycle
+start retries the same round without another post or navigation. Ordinary Vibe
+does not initialize Team rooms.
+
+Autonomous worker wake results retain the spawner transcript captured at startup
+or cold revival, even after the main agent resumes a different conversation. A
+declared source that cannot be resolved fails rather than delivering into the
+currently viewed conversation. Plan, Goal, Vibe and Lead entry reject an active
+Team session before changing mode.
+
+
 ## Enabling and disabling
 
 Toggle it with the `/vibe` slash command:
@@ -51,7 +78,7 @@ Toggle it with the `/vibe` slash command:
 
 - Entering activates a parent-session worker scope, installs the vibe tools, reduces the active toolset to `read`, optional parent-owned `todo`, and the vibe tools, and injects the director instructions.
 - An inline prompt (`/vibe <prompt>`) enters the mode and submits that prompt as the first directive.
-- Exiting aborts any running director turn, suppresses queued-message replay during teardown, restores the prior toolset, cancels in-flight worker turns, and persists terminal lifecycle records for every worker in the scope.
+- Exiting records terminal intent for the scope and its recursive task descendants before cancelling turns and releasing sessions, then restores the prior toolset. Intent-write failures retain sessions for retry and report an error instead of claiming successful termination.
 - Vibe mode is mutually exclusive with both active **and paused** plan/goal modes, and with Lead (PM) mode; exit those modes first. Lead mode uses rooms, not Vibe workers.
 - Starting, deleting, forking, moving (including `/wt`), or handing off the session is rejected while vibe mode is active. Reset-style `/loop` actions are also blocked.
 - The status line shows a `Vibe` indicator while the mode is on; its token-rate display aggregates generating workers even while the director is idle.

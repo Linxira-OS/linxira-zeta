@@ -13,6 +13,7 @@ import { AgentRegistry, type AgentStatus } from "../registry/agent-registry";
 import { RoomError } from "./errors";
 import type { RoomService } from "./service";
 import type { RoomMember } from "./types";
+import { isTeamRoomId } from "./types";
 
 export interface PromoteResidentOptions {
 	roomId: string;
@@ -59,6 +60,7 @@ export function promoteResident(rooms: RoomService, options: PromoteResidentOpti
 }
 
 export async function parkResident(rooms: RoomService, roomId: string, agentId: string): Promise<ResidentActionResult> {
+	if (isTeamRoomId(roomId)) throw new RoomError("Team lifecycle is controlled by its owner runtime");
 	const member = rooms.log.getMember(roomId, agentId);
 	if (!member || member.role !== "resident") throw new RoomError(`"${agentId}" is not a resident of this room`);
 	await AgentLifecycleManager.global().park(agentId);
@@ -70,6 +72,7 @@ export async function reviveResident(
 	roomId: string,
 	agentId: string,
 ): Promise<ResidentActionResult> {
+	if (isTeamRoomId(roomId)) throw new RoomError("Team lifecycle is controlled by its owner runtime");
 	const member = rooms.log.getMember(roomId, agentId);
 	if (!member || member.role !== "resident") throw new RoomError(`"${agentId}" is not a resident of this room`);
 	await AgentLifecycleManager.global().ensureLive(agentId, {});

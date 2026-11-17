@@ -185,6 +185,29 @@ and native cache remain POSIX/Linux-root targets; Windows is not a deployment
 target. `.omp-session` / `.omp-*` scratch names are unchanged baseline
 identifiers in this pass.
 
+### Read-only verification of a running deployment
+
+`robomp verify-running --url http://127.0.0.1:8080` probes an **already running**
+server. It GETs `/healthz`, `/readyz`, `/api/status`, `/events`, `/issues`, and
+`/releases`, refuses failures/redirects/malformed projections, and emits JSON
+with runtime identity and visible row counts. It does not load local GitHub
+credentials, start a deployment, submit a webhook, or enqueue a task.
+
+Its `github_writes_verified`, `agent_execution_verified`, and
+`container_contract_verified` fields remain `false`. Use the command inside
+the deployment environment or against its existing operator-only URL; do not
+publish the status endpoints just for acceptance.
+[ADR-0064](../../document/adr/0064-robomp-read-only-running-verification.md)
+proposes this CLI contract.
+
+J12's remaining live acceptance needs explicit approval naming the test
+repository and issue, the bot identity, allowed labels and exact comment/PR
+content, the branch it may push, and any cleanup writes. No approval to move
+tags, push the default branch, or enable the release sentinel is implied.
+The deployed container's CLI/XDG contract and a real model-backed worker run
+must be recorded separately. A local fixture replay or successful HTTP probe
+does not establish these results.
+
 ## Tests
 
 ```bash
@@ -195,6 +218,14 @@ ROBOMP_INTEGRATION=1 pytest -x tests/test_worker_smoke.py
 The integration test spawns a real `zetacode --mode rpc` against an
 `httpx.MockTransport` GitHub and a local bare repo, so it needs `zetacode` on
 `PATH`. `bun run test:py` runs the unit suite.
+
+`test_offline_replay.py` also invokes the shipped `python -m robomp` entrypoint
+in separate processes: triage, persisted status, terminal-replay refusal, forced
+replay, and remote-clone refusal. It uses real SQLite and local git worktrees,
+with network git protocols disabled and an intentionally unavailable agent
+command. `test_acceptance.py` exercises the read-only verifier through a real
+loopback HTTP server and checks that every request is GET. These are regression
+tests, not evidence that a production deployment has been exercised.
 
 ## Security posture
 

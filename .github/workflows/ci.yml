@@ -573,6 +573,8 @@ jobs:
          # 1.5.x tag can upload assets or publish npm by default.
          - name: Unit-test the release freeze policy
            run: bun test scripts/release-freeze.test.ts
+         - name: Test built artifact provenance and soak verdicts
+           run: bun test scripts/check-release-artifact.test.ts scripts/memory-soak.test.ts
          # The ADR index guard is structural: monotonic gaps pass, while
          # duplicates, missing index rows, illegal IDs and empty placeholders fail.
          - name: Unit-test the ADR index guard
@@ -1198,13 +1200,15 @@ jobs:
               # (its install.sh smoke-check executes a fake binary), so running
               # the whole group here would red this job on an unrelated break.
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts scripts/run-rs-task.test.ts
-         # REQ-065 memory guardrails. The consumer retained-byte tests are the
-         # real gate; the bounded soak is report-only until a threshold is
-         # measured on this runner, so it asserts no RSS budget.
+         - name: Test Feishu inbound media and bounded attachment storage
+           run: bun test packages/channels/test/feishu.test.ts packages/channels/test/attachments.test.ts
+         # REQ-065: ubuntu-22.04 artifacts from runs 43470058996, 43547233642,
+         # and 43564367593 measured 186.87/248.88/197.21 MiB RSS growth.
+         # 384 MiB leaves >50% headroom above the largest measured growth.
          - name: Test memory retention caps
            run: bun test packages/tui/test/render-cache-consumer-bounds.test.ts packages/tui/test/render-cache-pressure-restore.test.ts
-         - name: Run bounded memory soak (report-only)
-           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --out=temp/memory-soak.json
+         - name: Run bounded memory soak (384 MiB RSS growth cap)
+           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --max-rss-growth-mib=384 --out=temp/memory-soak.json
          - name: Upload memory soak report
            if: always()
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

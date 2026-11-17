@@ -91,9 +91,14 @@
         let
           pkgs = pkgsFor system;
           localPkgs = localPackagesFor system;
+          # The derivation builds from a store copy without .git, so build
+          # provenance (REQ-036) must travel as data. A dirty tree has no `rev`;
+          # its builds fall back to the builder's own git probe.
+          revision = self.rev or null;
         in
         pkgs.callPackage ./nix/package.nix {
           source = self.outPath;
+          inherit revision;
           inherit (localPkgs) bun bun2nix;
           craneLib = (crane.mkLib pkgs).overrideToolchain localPkgs.rustToolchain;
         };

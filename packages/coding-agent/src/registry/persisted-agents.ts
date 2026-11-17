@@ -670,6 +670,10 @@ export async function registerPersistedSubagents(
 	options: {
 		shouldContinue?: () => boolean;
 		hydrateHistory?: boolean;
+		/** Known parent when scanning a subagent's own transcript tree. */
+		ownerId?: string;
+		/** Terminal discovery cannot reclaim a same-id parked ref belonging to another root. */
+		replaceForeignParked?: boolean;
 		/**
 		 * When supplied, every (id → sessionFile) pair this scan restores or
 		 * confirms as this root's parked ref is recorded here: the narrowest
@@ -679,6 +683,8 @@ export async function registerPersistedSubagents(
 		owned?: Map<string, string>;
 		/** Observe refs already registered from a different root whose transcript is also present in this root. */
 		onCopiedRef?: (ref: AgentRef) => void;
+		/** Observe source-tree transcripts even when their ids collide with foreign refs. */
+		onSubagentTranscript?: (id: string, sessionFile: string) => void;
 	} = {},
 ): Promise<void> {
 	if (!sessionFile?.endsWith(".jsonl")) return;
@@ -692,7 +698,8 @@ export async function registerPersistedSubagents(
 	// Attribute restored children/advisors to THIS transcript's root, not to the
 	// constant main id: a process can host several top-level sessions, and each
 	// keeps its own subagent parentage (and advisor ids) under its own id.
-	const ownerId = registry.list().find(ref => isRootAgentRef(ref) && ref.sessionFile === sessionFile)?.id;
+	const ownerId =
+		options.ownerId ?? registry.list().find(ref => isRootAgentRef(ref) && ref.sessionFile === sessionFile)?.id;
 	const transcripts: PersistedTranscript[] = [];
 	await registerPersistedSubagentsFromDir(
 		registry,
@@ -704,6 +711,8 @@ export async function registerPersistedSubagents(
 		sessionFile,
 		options.owned,
 		options.onCopiedRef,
+		options.replaceForeignParked ?? true,
+		options.onSubagentTranscript,
 	);
 	if (!hydrateHistory || !shouldContinue()) return;
 	let nextTranscript = 0;
@@ -737,6 +746,8 @@ async function registerPersistedSubagentsFromDir(
 	rootSessionFile: string,
 	owned?: Map<string, string>,
 	onCopiedRef?: (ref: AgentRef) => void,
+	replaceForeignParked = true,
+	onSubagentTranscript?: (id: string, sessionFile: string) => void,
 ): Promise<void> {
 	if (!shouldContinue()) return;
 	let entries: fs.Dirent[];
@@ -821,6 +832,7 @@ async function registerPersistedSubagentsFromDir(
 			continue;
 		}
 		const id = entry.name.slice(0, -6);
+		onSubagentTranscript?.(id, sessionFile);
 		const existing = registry.get(id);
 		if (existing?.sessionFile !== sessionFile && (await vibeOwned()).has(id)) continue;
 		let tombstoned = false;
@@ -835,6 +847,7 @@ async function registerPersistedSubagentsFromDir(
 		}
 		if (!shouldContinue()) return;
 		const replaceable =
+			replaceForeignParked &&
 			existing !== undefined &&
 			existing.kind === "sub" &&
 			existing.status === "parked" &&
@@ -924,6 +937,8 @@ async function registerPersistedSubagentsFromDir(
 				rootSessionFile,
 				owned,
 				onCopiedRef,
+				replaceForeignParked,
+				onSubagentTranscript,
 			);
 		}
 	}

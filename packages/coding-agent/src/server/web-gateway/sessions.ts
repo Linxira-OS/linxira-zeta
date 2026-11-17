@@ -23,6 +23,7 @@ import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
 import { normalizeImMessageMetadata, normalizeImSwitchControlMetadata } from "../../session/session-im";
+import { normalizeSessionClient } from "../../session/session-client";
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { BLOB_EXTERNALIZE_THRESHOLD } from "../../session/session-persistence";
@@ -514,6 +515,7 @@ function projectContextWindow(
 	const messages: AgentMessage[] = [];
 	const entryIds: string[] = [];
 	const messageMetadata: NonNullable<SessionContext["messageMetadata"]> = [];
+	const messageClients: NonNullable<SessionContext["messageClients"]> = [];
 	const controlEvents: NonNullable<SessionContext["controlEvents"]> = [];
 	for (let index = start; index < end; index += 1) {
 		const entry = branch.contextEntries[index];
@@ -528,6 +530,7 @@ function projectContextWindow(
 			messages.push(message);
 			entryIds.push(entry.id);
 			messageMetadata.push(entry.type === "message" ? (normalizeImMessageMetadata(entry.metadata) ?? null) : null);
+			messageClients.push(entry.type === "message" ? (normalizeSessionClient(entry.client) ?? null) : null);
 		}
 	}
 	return {
@@ -536,6 +539,7 @@ function projectContextWindow(
 		thinkingLevel: branch.thinkingLevel,
 		model: branch.model,
 		...(messageMetadata.some(metadata => metadata !== null) ? { messageMetadata } : {}),
+		...(messageClients.some(client => client !== null) ? { messageClients } : {}),
 		...(controlEvents.length > 0 ? { controlEvents } : {}),
 	};
 }

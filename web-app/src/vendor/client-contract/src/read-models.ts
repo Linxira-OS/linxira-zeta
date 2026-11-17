@@ -273,25 +273,8 @@ export interface ResidentsReadModel {
   readonly generatedAt: string;
 }
 
-/**
- * Object kind a Team graph node represents.
- *
- * The Team root is deliberately NOT a node kind: it is an ownerless container
- * (`TeamGraphCluster` kind `"team"`) with no agent, workspace, Git repo, session
- * or `AGENTS.md`. Only the objects below own something:
- * - `pm-workspace`: `pms/<pm>/`, the PM main agent's plain-folder workspace;
- * - `git-repo`: a canonical base repository at `<team>/repos/<repo>` (the only
- *   Git layer); PMs bind to it through DB `repo_bindings`, never a per-PM copy;
- * - `db-room`: a `rooms` row + `room_events`, never a folder;
- * - `linked-worktree`: a worktree of a repository, outside it;
- * - `engineer`: a Team DB engineer record; it carries a live main agent when
- *   one is attached, and stays `offline` otherwise;
- * - `agent`: a live main agent that no Team record claims;
- * - `subagent`: a spawned child; it owns no folder, branch or worktree.
- *
- * Every kind except `agent`/`subagent` comes from the Team DB or a live-agent
- * fact. A missing row is absent, never synthesized.
- */
+/** Active graph emits registry mains, actual Vibe workers and mesh room rows.
+ * Legacy structural kinds remain for preserved Super Team consumers only. */
 export type TeamNodeKind =
   | "pm-workspace"
   | "git-repo"
@@ -301,40 +284,19 @@ export type TeamNodeKind =
   | "agent"
   | "subagent";
 
-/**
- * Agent role inside a team. `unknown` is the honest value for a live main agent
- * that no PM/engineer/secretary record claims.
- */
-export type TeamAgentRole = "pm" | "engineer" | "secretary" | "unknown";
+/** Owner/worker are active Team roles; PM/engineer/secretary belong to legacy Super Team. */
+export type TeamAgentRole = "owner" | "worker" | "pm" | "engineer" | "secretary" | "unknown";
 
-/**
- * How an agent executes. `vibe` is a live director session or a Team engineer
- * recorded as `vibe`; `unknown` is a root whose session is not attached in this
- * process (no mode state to read).
- */
-export type TeamExecutionMode = "vibe" | "normal" | "unknown";
+/** Live mode only. Detached source owners have unknown mode. */
+export type TeamExecutionMode = "team" | "vibe" | "normal" | "unknown";
 
-/**
- * Whether the node can be revived from its transcript. Derived: a main agent is
- * always persistent; a subagent is persistent when its transcript is retained.
- */
+/** Worker lifecycle class determines lifetime independently of transcript retention. */
 export type TeamNodeLifetime = "persistent" | "ephemeral";
 
-/**
- * Lifecycle state. `offline` is a Team DB record whose main session is not
- * attached in this process, so no live registry status exists.
- */
+/** Offline means no registry session matches this source conversation. */
 export type TeamNodeStatus = "running" | "idle" | "parked" | "aborted" | "offline";
 
-/**
- * Edge kinds, all backed by a producer:
- * - `spawn`: registry parentage or a PM-owned persistent subagent row;
- * - `assignment`: Team DB `engineers.pm_id`;
- * - `room`: Team DB `room_members` (member → room);
- * - `contains`: a worktree holds its engineer's workspace;
- * - `binding`: Team DB `repo_bindings` (PM → base repo);
- * - `worktree-of`: Team DB `worktrees.repo_id` (base repo → linked worktree).
- */
+/** Active graph emits source spawn and mesh membership edges; legacy kinds remain preserved. */
 export type TeamEdgeKind = "spawn" | "assignment" | "room" | "contains" | "binding" | "worktree-of";
 
 interface TeamGraphNodeBase {
@@ -368,6 +330,15 @@ export interface TeamAgentNode extends TeamGraphNodeBase {
   /** Spawn brief shown as the edge/node label, truncated for display. */
   readonly assignment?: string;
   readonly activity?: string;
+  /** Actual Vibe identity, never inferred from a generic task agent. */
+  readonly worker?: {
+    readonly role?: string;
+    readonly generation?: number;
+    readonly lifecycle?: "resident" | "ephemeral";
+    readonly cli?: "fast" | "good";
+    readonly model?: string;
+    readonly queued?: number;
+  };
 }
 
 /**
@@ -389,6 +360,16 @@ export interface TeamPathNode extends TeamGraphNodeBase {
   readonly status?: TeamNodeStatus;
   readonly executionMode?: TeamExecutionMode;
   readonly lifetime?: TeamNodeLifetime;
+  readonly roomKind?: "team" | "mains";
+  readonly memberCount?: number;
+  readonly lastSeq?: number;
+  readonly events?: ReadonlyArray<{
+    readonly seq: number;
+    readonly sentAt: string;
+    readonly senderId: string;
+    readonly senderName: string;
+    readonly body: string;
+  }>;
 }
 
 /**
@@ -424,7 +405,7 @@ export interface TeamGraphEdge {
 export interface TeamGraphCluster {
   readonly clusterId: string;
   readonly kind: "team" | "unassigned";
-  /** Team id from `.zeta/team.json`; absent for `unassigned`. */
+  /** Stable owner/source Team key; absent for unassigned roots. */
   readonly teamId?: string;
   /** Team name; absent for `unassigned` (the renderer localizes its label). */
   readonly label?: string;

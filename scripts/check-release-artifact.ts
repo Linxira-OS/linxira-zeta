@@ -20,7 +20,6 @@
 import { existsSync, mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { $ } from "bun";
 
 const STAGED_DIST = "packages/coding-agent/dist/cli.js";
 
@@ -29,10 +28,18 @@ function argValue(args: string[], flag: string): string | null {
 	return index === -1 ? null : (args[index + 1] ?? null);
 }
 
-async function headCommit(): Promise<string | null> {
-	const result = await $`git rev-parse HEAD`.quiet().nothrow();
-	const sha = result.stdout.toString().trim();
-	return result.exitCode === 0 && /^[0-9a-f]{7,40}$/i.test(sha) ? sha : null;
+function headCommit(): string | null {
+	try {
+		const result = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
+			stdout: "pipe",
+			stderr: "pipe",
+			windowsHide: true,
+		});
+		const sha = result.stdout.toString().trim();
+		return result.exitCode === 0 && /^[0-9a-f]{7,40}$/i.test(sha) ? sha : null;
+	} catch {
+		return null;
+	}
 }
 
 function parseSmokeOutput(stdout: string): { ok: boolean; buildCommit: string | null } {
@@ -64,9 +71,15 @@ if (!existsSync(path)) {
 	process.exit(1);
 }
 
-const expected = argValue(args, "--expect-commit") ?? process.env.GITHUB_SHA ?? (await headCommit());
+const expected =
+	argValue(args, "--expect-commit") ??
+	(process.env.ZETA_EXPECTED_COMMIT?.trim() || undefined) ??
+	(process.env.GITHUB_SHA?.trim() || undefined) ??
+	headCommit();
 if (!expected && !allowUnknown) {
-	console.error("check-release-artifact: no expected commit (pass --expect-commit, set GITHUB_SHA, or run in git).");
+	console.error(
+		"check-release-artifact: no expected commit (pass --expect-commit, set ZETA_EXPECTED_COMMIT/GITHUB_SHA, or run in git).",
+	);
 	process.exit(1);
 }
 
@@ -103,7 +116,7 @@ if (!ok) {
 	process.exit(1);
 }
 if (!buildCommit || buildCommit === "unknown") {
-	if (allowUnknown && !expected) {
+	if (allowUnknown && !expected && buildCommit === "unknown") {
 		console.log(`check-release-artifact: ${path} reports an unknown build commit (allowed outside releases).`);
 		process.exit(0);
 	}

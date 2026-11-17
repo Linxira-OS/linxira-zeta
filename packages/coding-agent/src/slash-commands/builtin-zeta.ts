@@ -5,9 +5,7 @@ import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
 import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
 import { runTeamWorkerCommand } from "../team/engineer-worker";
-import { resolveTeamEntry } from "../team/entry";
-import { createTeamHubDataSource } from "../team/hub-data";
-import { formatTeamHubSnapshot } from "../team/hub-text";
+import { createActiveTeamHubSource } from "../vibe/team-hub-data";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -53,6 +51,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "initzetateam",
+		hidden: true,
 		description: () => M.cmdInitZetaTeam,
 		icon: "agents",
 		allowArgs: true,
@@ -78,6 +77,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "teamworker",
+		hidden: true,
 		description: () => M.cmdTeamWorker,
 		icon: "agents",
 		allowArgs: true,
@@ -147,20 +147,28 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return commandConsumed();
 			}
 			try {
-				const entry = await resolveTeamEntry(runtime.cwd);
-				if (!entry.teamRoot || !entry.teamId) {
-					await runtime.output(
-						"Team Hub is available inside a Team root or PM/engineer worktree. Run `zetacode team init <name> --root <path>` first.",
-					);
+				if (!runtime.session.getTeamModeState()?.enabled) {
+					await runtime.output("Enter /team before opening /team hub.");
 					return commandConsumed();
 				}
-				const source = createTeamHubDataSource({
-					teamRoot: entry.teamRoot,
-					teamId: entry.teamId,
-					teamName: entry.teamName,
+				const source = createActiveTeamHubSource({
+					ownerId: runtime.session.getAgentId() ?? "Main",
+					parentSessionId: runtime.sessionManager.getSessionId(),
+					parentSessionFile: runtime.sessionManager.getSessionFile() ?? null,
 				});
 				const snapshot = await source.load();
-				await runtime.output(formatTeamHubSnapshot(snapshot));
+				await runtime.output(
+					[
+						`Team · ${snapshot.label}`,
+						...snapshot.agents.map(
+							agent => `${agent.kind} ${agent.label} · ${agent.status} · ${agent.activity ?? "—"}`,
+						),
+						...snapshot.rooms.flatMap(room => [
+							`#${room.name} · ${room.members.length} members · #${room.lastSeq}`,
+							...room.events.map(event => `${event.seq} ${event.senderName}: ${event.body}`),
+						]),
+					].join("\n"),
+				);
 			} catch (error) {
 				await runtime.output(`Team Hub unavailable: ${error instanceof Error ? error.message : String(error)}`);
 				return { consumed: true, failed: true };

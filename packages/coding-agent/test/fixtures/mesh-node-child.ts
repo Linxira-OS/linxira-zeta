@@ -105,6 +105,7 @@ async function main(): Promise<void> {
 				from: envelope.from,
 				to: envelope.to,
 				body: envelope.body,
+				...(envelope.metadata === undefined ? {} : { metadata: envelope.metadata }),
 			});
 			for (const waiter of waiters) waiter(envelope);
 			if (options.reply && envelope.kind === "message") {
@@ -152,6 +153,11 @@ async function handle(line: string): Promise<void> {
 	const command = space === -1 ? line : line.slice(0, space);
 	const rest = space === -1 ? "" : line.slice(space + 1);
 	switch (command) {
+		case "send-json": {
+			const input = JSON.parse(rest) as { to: string; body: string; metadata?: Record<string, unknown> };
+			emit("SEND", await node.send({ from: "Main", ...input }));
+			return;
+		}
 		case "send": {
 			const separator = rest.indexOf(" ");
 			const to = separator === -1 ? rest : rest.slice(0, separator);

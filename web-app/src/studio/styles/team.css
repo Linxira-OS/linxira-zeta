@@ -741,3 +741,15 @@
   color: var(--text-2);
   font-weight: var(--fw-medium);
 }
+
+.team-room-history {
+  list-style: none;
+  padding: 0;
+  max-height: 40vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.team-room-history li { border-top: 1px solid var(--border); padding: var(--sp-8) 0; }
+.team-room-history time { color: var(--text-3); font-size: var(--fs-11); }
+.team-room-history p { white-space: pre-wrap; margin: var(--sp-4) 0; }
+.team-chip.mode-team, .team-chip.role-owner { color: var(--blue); }

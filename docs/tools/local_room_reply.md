@@ -19,6 +19,7 @@
   triggering seq, and round id. `local_room_reply` calls
   `recordRoomReply`, the same service the host uses, so the reply lands in the
   durable room log and a serial round advances.
+- Reserved active-Team rooms use the owner-scoped Team reply API. A reply validates membership and its same-room reply target, appends to the shared log, and sends reference-only peer notifications. It never controls workers or changes modes.
 
 ## Inputs
 

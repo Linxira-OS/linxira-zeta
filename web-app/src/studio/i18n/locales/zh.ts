@@ -3475,8 +3475,7 @@ const zhRaw = {
 	},
 	team: {
 		title: "团队关系图",
-		subtitle:
-			"Team 根是无主容器（不是 Agent、workspace 或 Git）。图读取 Team 数据库（Team、PM workspace、基础仓库、绑定、工程师、工作树、房间、秘书）与本进程的活跃 Agent 注册表。数据库记录没有活跃会话时标为离线，不伪造 Agent。",
+		subtitle: "主 Agent、Vibe worker 与持久 Team 房间。成员关系绑定发起工作的源会话；worker 显示真实身份和运行状态。本图不使用旧 Super Team 数据库记录。",
 		generatedAt: "生成于 {time}",
 		refresh: "刷新团队关系图",
 		partial: "部分数据",
@@ -3506,6 +3505,7 @@ const zhRaw = {
 			task: "任务工作树",
 		},
 		mode: {
+			team: "Team",
 			vibe: "Vibe",
 			normal: "普通",
 			unknown: "未知",
@@ -3513,22 +3513,24 @@ const zhRaw = {
 		nodeKind: {
 			team: "TEAM",
 			agent: "AGENT",
-			subagent: "SUBAGENT",
+			subagent: "VIBE WORKER",
 			engineer: "工程师",
 			"pm-workspace": "PM WORKSPACE",
 			"git-repo": "GIT REPO",
-			"db-room": "DB ROOM",
+			"db-room": "TEAM 房间",
 			"linked-worktree": "LINKED WORKTREE",
 		},
 		agentRole: {
+			owner: "主 Agent",
+			worker: "Worker",
 			pm: "PM",
 			engineer: "工程师",
 			secretary: "秘书",
 			unknown: "未分类",
 		},
 		container: {
-			unassigned: "无 Team 记录的活跃 Agent",
-			noTeamRecord: "无 team.json",
+			unassigned: "Team 模式外的主 Agent",
+			noTeamRecord: "无活跃 Team scope",
 			noAgent: "容器 · 不是 Agent",
 			hint: "Team 根是无主容器：没有 Agent、workspace、Git、会话或 AGENTS.md。",
 		},
@@ -3571,10 +3573,9 @@ const zhRaw = {
 		},
 		empty: {
 			title: "当前 Host 没有活跃 Agent",
-			detail:
-				"团队图读取 Team 数据库与本进程内已注册的 Agent。Team 数据库为空时，活跃 Agent 仍显示在无归属边界中，不伪造任何行。",
+			detail: "在主会话中输入 /team。此页读取真实注册表、Vibe worker 与 mesh 房间成员，不从旧 TeamDb 伪造 Agent。",
 			filteredTitle: "没有符合筛选条件的节点",
-			filteredDetail: "试试清除项目、PM、房间、仓库或生命周期筛选。",
+			filteredDetail: "试试清除项目、房间或生命周期筛选。",
 			clearFilters: "清除筛选",
 		},
 		preview: {

@@ -16,12 +16,16 @@
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
-| `operation` | `"list_workspaces" \| "list_sessions" \| "use_session" \| "new_session" \| "rename_session" \| "delete_session" \| "set_language" \| "list_models" \| "set_model" \| "status"` | Yes | Which IM control intent to execute. |
+| `operation` | `list_workspaces`, `list_sessions`, `use_session`, `new_session`, `rename_session`, `delete_session`, `set_language`, `list_models`, `set_model`, `status`, `route_team_room` | Yes | Which IM control intent to execute. |
 | `session` | `string` | No | Session selector for `use_session` / `rename_session` / `delete_session`: bare id, `{n}` list index, or `[id]`. |
 | `name` | `string` | No | Display name for `new_session` / `rename_session`. |
 | `language` | `"zh" \| "en"` | No | Reply language for `set_language`. |
 | `provider` | `string` | No | Provider id from `list_models`, for `set_model`. |
 | `model` | `string` | No | Model id from `list_models`, for `set_model`. |
+| `body` | `string` | For `route_team_room` | Owner-authored text to forward once. |
+| `messageId` | `string` | For `route_team_room` | Platform message id of a real inbound user entry in the calling transcript. |
+| `sourceEntryId` | `string` | When ambiguous | Transcript entry id disambiguating repeated message ids across IM instances. |
+| `room` | `team` or `mains` | No | Target room, default `team`. |
 
 ## Outputs
 - `content[0].type = "text"` — the operation result (listings use `{n}` numbers and `[name]` names; pass them back verbatim).
@@ -29,6 +33,8 @@
 
 ## Side Effects
 - Chat-scoped operations (`use_session`, `set_language`, `set_model`) mutate the session registry / `web.yml` (persisted) exactly like their `!`-command counterparts. No model round-trip — the controller is local state only.
+- `route_team_room` requires an authenticated main caller in its current active Team scope. It appends one owner-authored room event with the original inbound entry's platform, instance, chat, sender, message id and route metadata. The client cannot supply caller identity or replace provenance. Normal IM delivery and chat/workspace bindings do not change.
+- External IM remains a real `role: user` transcript message. Multiple IM instances sharing a main keep each entry's own metadata; later channel or workspace switches do not relabel old entries. Room forwarding is one-shot, after the main receives the inbound.
 
 ## Errors
 - `im_control is not available in this session (CLI mode or no IM relay).`

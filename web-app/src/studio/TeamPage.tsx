@@ -1,14 +1,4 @@
-/**
- * Team relationship graph.
- *
- * Reads only `team.graph.get`. The Host decides what is real: live main agents,
- * their spawned subagents, and the producers it does not have (`gaps`).
- *
- * The Team root is an ownerless container, never an agent node: it is drawn as
- * a dashed boundary. Path objects (PM workspace, Git repo, DB room, linked
- * worktree) appear only when a producer ships; today the ownership legend says
- * so explicitly instead of inventing them.
- */
+/** Active Team topology, projected by the Host from source-scoped rooms and Vibe workers. */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   StudioClient,
@@ -26,6 +16,7 @@ import { hostErrorMessage } from "./hostError";
 import { Icon } from "./icons";
 import { useI18n } from "./i18n";
 import { usePreviewMode } from "./preview/PreviewContext";
+import "./styles/team.css";
 import {
   buildTeamLanes,
   filterTeamGraph,
@@ -50,25 +41,18 @@ const LIFETIME_FILTERS: ReadonlyArray<{ id: LifetimeFilter; key: string }> = [
 
 const EDGE_KINDS: ReadonlyArray<TeamEdgeKind> = [
   "spawn",
-  "assignment",
   "room",
-  "contains",
-  "binding",
-  "worktree-of",
 ];
 
 /** Ownership objects, in the order the model note lists them. */
 const NODE_KINDS: ReadonlyArray<TeamNodeKind> = [
-  "pm-workspace",
-  "git-repo",
   "db-room",
-  "linked-worktree",
-  "engineer",
   "agent",
   "subagent",
 ];
 
 const MODE_KEY: Record<TeamExecutionMode, string> = {
+  team: "team.mode.team",
   vibe: "team.mode.vibe",
   normal: "team.mode.normal",
   unknown: "team.mode.unknown",
@@ -94,6 +78,7 @@ const GAP_KEY: Record<TeamGraphGap["id"], string> = {
 };
 
 function formatTime(value: string, locale: string): string {
+  if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale);
 }
@@ -146,6 +131,8 @@ function NodeCard({
             </>
           ) : null}
         </span>
+        {agent && node.worker ? <span className="team-node-activity">{[node.worker.role, node.worker.generation === undefined ? undefined : `g${node.worker.generation}`, node.worker.lifecycle, node.worker.cli, node.worker.model].filter(Boolean).join(" · ")}</span> : null}
+        {!agent && node.kind === "db-room" ? <span className="team-node-activity">{node.memberCount ?? 0} members · #{node.lastSeq ?? 0}</span> : null}
         {agent && node.assignment ? <span className="team-node-assignment">{node.assignment}</span> : null}
         {agent && node.activity && node.activity !== node.assignment ? (
           <span className="team-node-activity">{node.activity}</span>
@@ -164,9 +151,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
   const [graph, setGraph] = useState<TeamGraphReadModel | undefined>(undefined);
   const [error, setError] = useState("");
   const [project, setProject] = useState("all");
-  const [pm, setPm] = useState("all");
   const [room, setRoom] = useState("all");
-  const [repo, setRepo] = useState("all");
   const [lifetime, setLifetime] = useState<LifetimeFilter>("all");
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const [nonce, setNonce] = useState(0);
@@ -204,12 +189,10 @@ export function TeamPage({ client }: { client: StudioClient }) {
     () =>
       graph
         ? filterTeamGraph(graph, {
-            ...(pm === "all" ? {} : { pmId: pm }),
             ...(room === "all" ? {} : { roomId: room }),
-            ...(repo === "all" ? {} : { repoId: repo }),
           })
         : undefined,
-    [graph, pm, room, repo],
+    [graph, room],
   );
   const lanes = useMemo(() => (viewGraph ? buildTeamLanes(viewGraph) : []), [viewGraph]);
   const projects = useMemo(() => (graph ? teamProjectOptions(graph) : []), [graph]);
@@ -218,7 +201,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
   const kindCounts = useMemo(() => teamKindCounts(viewGraph?.nodes ?? []), [viewGraph]);
   const nodeById = useMemo(() => new Map((viewGraph?.nodes ?? []).map(node => [node.nodeId, node])), [viewGraph]);
   const selectedNode = selected === undefined ? undefined : nodeById.get(selected);
-  const filtered = project !== "all" || pm !== "all" || room !== "all" || repo !== "all" || lifetime !== "all";
+  const filtered = project !== "all" || room !== "all" || lifetime !== "all";
   const selectedParentLabel =
     selectedNode?.parentNodeId === undefined ? undefined : nodeById.get(selectedNode.parentNodeId)?.displayName;
   const selectedRole = selectedNode === undefined ? undefined : nodeRole(selectedNode);
@@ -227,6 +210,12 @@ export function TeamPage({ client }: { client: StudioClient }) {
     selectedNode !== undefined && "agentId" in selectedNode ? selectedNode.agentId : undefined;
 
   const refresh = useCallback(() => setNonce(value => value + 1), []);
+
+  useEffect(() => {
+    if (preview) return;
+    const timer = setInterval(refresh, 2000);
+    return () => clearInterval(timer);
+  }, [preview, refresh]);
 
   if (preview) {
     return (
@@ -275,28 +264,10 @@ export function TeamPage({ client }: { client: StudioClient }) {
           </AppSelect>
         </div>
         <div className="team-filter">
-          <span>{t("team.filters.pm")}</span>
-          <AppSelect value={pm} onChange={event => setPm(event.target.value)}>
-            <option value="all">{t("team.filters.allPms")}</option>
-            {filterOptions.pms.map(option => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </AppSelect>
-        </div>
-        <div className="team-filter">
           <span>{t("team.filters.room")}</span>
           <AppSelect value={room} onChange={event => setRoom(event.target.value)}>
             <option value="all">{t("team.filters.allRooms")}</option>
             {filterOptions.rooms.map(option => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </AppSelect>
-        </div>
-        <div className="team-filter">
-          <span>{t("team.filters.repo")}</span>
-          <AppSelect value={repo} onChange={event => setRepo(event.target.value)}>
-            <option value="all">{t("team.filters.allRepos")}</option>
-            {filterOptions.repos.map(option => (
               <option key={option.id} value={option.id}>{option.label}</option>
             ))}
           </AppSelect>
@@ -357,7 +328,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
         </div>
         <div className="team-legend-group">
           <span className="team-legend-title">{t("team.legend.roles")}</span>
-          {(["pm", "engineer", "secretary", "unknown"] as const).map(role => (
+          {(["owner", "worker", "unknown"] as const).map(role => (
             <span key={role} className="team-legend-item">
               <span className={`team-chip role-${role}`}>{t(`team.agentRole.${role}`)}</span>
             </span>
@@ -365,7 +336,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
         </div>
         <div className="team-legend-group">
           <span className="team-legend-title">{t("team.legend.modes")}</span>
-          {(["vibe", "normal", "unknown"] as const).map(mode => (
+          {(["team", "vibe", "normal", "unknown"] as const).map(mode => (
             <span key={mode} className="team-legend-item">
               <span className={`team-chip mode-${mode}`}>{t(MODE_KEY[mode])}</span>
             </span>
@@ -420,9 +391,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
               className="btn small outline"
               onClick={() => {
                 setProject("all");
-                setPm("all");
                 setRoom("all");
-                setRepo("all");
                 setLifetime("all");
               }}
             >
@@ -520,7 +489,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
               </>
             ) : null}
             {selectedNode.parentNodeId ? (<><dt>{t("team.detail.parent")}</dt><dd>{selectedParentLabel ?? selectedNode.parentNodeId}</dd></>) : null}
-            {selectedNode.kind === "agent" && selectedNode.assignment ? (<><dt>{t("team.detail.assignment")}</dt><dd>{selectedNode.assignment}</dd></>) : null}
+            {isAgentNode(selectedNode) && selectedNode.assignment ? (<><dt>{t("team.detail.assignment")}</dt><dd>{selectedNode.assignment}</dd></>) : null}
             {selectedNode.sessionId ? (<><dt>{t("team.detail.session")}</dt><dd>{selectedNode.sessionId}</dd></>) : null}
             {"objectId" in selectedNode && selectedNode.objectId ? (<><dt>{t("team.detail.object")}</dt><dd>{selectedNode.objectId}</dd></>) : null}
             {selectedNode.kind === "linked-worktree" && selectedNode.worktreeKind ? (
@@ -534,6 +503,12 @@ export function TeamPage({ client }: { client: StudioClient }) {
             <dt>{t("team.detail.created")}</dt><dd>{formatTime(selectedNode.createdAt, resolvedLanguage)}</dd>
             <dt>{t("team.detail.lastActivity")}</dt><dd>{formatTime(selectedNode.lastActivityAt, resolvedLanguage)}</dd>
           </dl>
+          {selectedNode.kind === "db-room" ? <section aria-label={selectedNode.displayName}>
+            <h3>{selectedNode.displayName} · #{selectedNode.lastSeq ?? 0}</h3>
+            <ol className="team-room-history">
+              {(selectedNode.events ?? []).map(event => <li key={event.seq}><b>{event.senderName}</b> <time dateTime={event.sentAt}>{formatTime(event.sentAt, resolvedLanguage)}</time><p>{event.body}</p></li>)}
+            </ol>
+          </section> : null}
         </aside>
       ) : null}
 

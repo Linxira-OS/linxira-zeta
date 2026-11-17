@@ -3,11 +3,14 @@ import type { ConversationContentBlock, ConversationItem, JsonValue } from "./pr
 import { CONVERSATION_LIMITS } from "./protocol/contracts/conversation.js";
 import { truncateUtf8 } from "./protocol/conversation-text.js";
 import { computerResultProjection, hasComputerResultDetails } from "./services/computer-result-projection.js";
+import { conversationMessageSource } from "./ops/message-source.js";
 
 export interface TranscriptRecord {
 	readonly id: string;
 	readonly createdAt: string | undefined;
 	readonly message: unknown;
+	readonly metadata?: unknown;
+	readonly client?: unknown;
 }
 function stringField(value: Record<string, unknown>, key: string): string | undefined {
 	return typeof value[key] === "string" ? value[key] : undefined;
@@ -135,7 +138,16 @@ export function projectConversationItems(
 		const role = stringField(message, "role");
 		if (role === "user" || role === "assistant") {
 			const content = messageContentBlocks(message.content);
-			items.push({ kind: "message", itemId: record.id, parentId, createdAt, role, content });
+			const source = role === "user" ? conversationMessageSource(record.metadata, record.client) : undefined;
+			items.push({
+				kind: "message",
+				itemId: record.id,
+				parentId,
+				createdAt,
+				role,
+				content,
+				...(source ? { source } : {}),
+			});
 			lastAssistantContent = role === "assistant" ? content : undefined;
 			parentId = record.id;
 			continue;

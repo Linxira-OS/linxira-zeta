@@ -149,6 +149,7 @@ import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector"
 import { ThinkingSelectorComponent } from "@linxiraos/pi-tui/overlays/thinking-selector";
 import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 import { renderUsageReports } from "./command-controller";
+import { closeActiveTeamHub, showActiveTeamHub } from "./active-team-hub";
 import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
@@ -2221,6 +2222,7 @@ export class SelectorController {
 		options?: { workspacePath?: string; initialScope?: ResumeScopeKindLike },
 	): Promise<void> {
 		void options;
+		closeActiveTeamHub(this.ctx.ui);
 		// A previous picker may still be hidden behind the observer it opened;
 		// release its subscription/timer before opening a new one.
 		this.#closeHiddenAgentPicker();
@@ -2658,6 +2660,7 @@ export class SelectorController {
 			(options?.followContinuation ? await findSessionContinuation(sessionPath) : undefined);
 		const target = await this.#relocateFromRemovedWorktree(continuation?.session.path ?? sessionPath);
 		if (!target) return false;
+		closeActiveTeamHub(this.ctx.ui);
 		await this.ctx.prepareSessionSwitch();
 		this.ctx.resetObserverRegistry();
 		// AgentSession owns the transaction. It restores the complete source state
@@ -3250,6 +3253,6 @@ export class SelectorController {
 		}
 	}
 	showTeamHub(): void {
-		this.ctx.showWarning("Team Hub is unavailable in this merged build.");
+		showActiveTeamHub(this.ctx);
 	}
 }

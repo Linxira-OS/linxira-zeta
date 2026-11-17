@@ -162,11 +162,12 @@ export interface SessionMessageEntry extends SessionEntryBase {
 	type: "message";
 	message: AgentMessage;
 	/**
-	 * IM provenance for this row: the real inbound user message or the assistant
-	 * reply that answers it. Entry-level so it never enters the provider payload;
-	 * immutable after append (a later binding switch must not rewrite it).
+	 * IM provenance for this row, immutable after append and kept out of the
+	 * provider payload. A binding change never relabels earlier messages.
 	 */
 	metadata?: ImMessageMetadata;
+	/** Client that actually appended this user message; absent on older entries. */
+	client?: SessionClient;
 }
 
 /**

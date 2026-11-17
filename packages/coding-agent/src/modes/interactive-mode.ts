@@ -229,6 +229,7 @@ import {
 	truncateToWidth,
 } from "@linxiraos/pi-tui/render/render-utils";
 import { setAutoQaConsentHandler } from "../tools/report-tool-issue";
+import { closeActiveTeamHub } from "./controllers/active-team-hub";
 import { type CfgApproval, type CfgChangeRequest, setCfgApprovalHost } from "../internal-urls/cfg-protocol";
 import {
 	createTodoHudStateData,
@@ -3869,6 +3870,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				}
 				if (request.action !== "enter") break;
 				if (this.planModeEnabled) return undefined;
+				if (this.session.getTeamModeState()?.enabled) return conflict("team");
 				if (!cfgPlanEnabled.get(this.session.settings)) {
 					return { code: "disabled", message: "Plan mode is disabled in settings (plan.enabled)." };
 				}
@@ -3880,6 +3882,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (request.action === "exit") return this.leadModeEnabled ? () => this.#exitLeadMode() : undefined;
 				if (request.action !== "enter") break;
 				if (this.leadModeEnabled) return undefined;
+				if (this.session.getTeamModeState()?.enabled) return conflict("team");
 				if (planBlocks) return conflict("plan");
 				if (goalBlocks) return conflict("goal");
 				if (this.vibeModeEnabled) return conflict("vibe");
@@ -3888,6 +3891,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (request.action === "exit") return this.vibeModeEnabled ? () => this.#exitVibeMode() : undefined;
 				if (request.action !== "enter") break;
 				if (this.vibeModeEnabled) return undefined;
+				if (this.session.getTeamModeState()?.enabled) return conflict("team");
 				if (planBlocks) return conflict("plan");
 				if (goalBlocks) return conflict("goal");
 				if (this.leadModeEnabled) return conflict("lead");
@@ -5946,10 +5950,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 	}
 
-	async #clearTransientModeState(options?: {
-		preserveVibe?: boolean;
-		restorePlanModel?: boolean;
-	}): Promise<void> {
+	async #clearTransientModeState(options?: { preserveVibe?: boolean; restorePlanModel?: boolean }): Promise<void> {
 		if (this.planModeEnabled || this.planModePaused) {
 			const previousModel = this.#planModePreviousModelState;
 			this.session.setPlanModeState(undefined);
@@ -6176,6 +6177,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		preserveRestoredModel?: boolean;
 		objective?: string;
 	}): Promise<void> {
+		if (this.session.getTeamModeState()?.enabled) throw new Error("Exit Team mode first.");
 		if (this.planModeEnabled) {
 			return;
 		}
@@ -6438,6 +6440,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		resume?: boolean;
 		silent?: boolean;
 	}): Promise<void> {
+		if (this.session.getTeamModeState()?.enabled) throw new Error("Exit Team mode first.");
 		using _hold = this.#holdModeChanges();
 		if (this.goalModeEnabled) {
 			return;
@@ -7460,6 +7463,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			await this.#exitVibeMode();
 			return false;
 		}
+		if (this.session.getTeamModeState()?.enabled) {
+			this.showWarning("Exit Team mode first.");
+			return false;
+		}
 		if (this.planModeEnabled || this.planModePaused) {
 			this.#warnPlanModeBlocks();
 			return false;
@@ -7570,6 +7577,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	async #enterVibeMode(options?: { persistModeChange?: boolean; previousTools?: string[] }): Promise<void> {
+		if (this.session.getTeamModeState()?.enabled) throw new Error("Exit Team mode first.");
 		if (this.vibeModeEnabled) {
 			return;
 		}
@@ -8479,6 +8487,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	stop(): void {
+		closeActiveTeamHub(this.ui);
 		this.#closeAttempt?.abort();
 		this.#closeAttempt = undefined;
 		this.syncIdleMaintenanceView(null);

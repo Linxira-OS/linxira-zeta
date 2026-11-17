@@ -894,6 +894,7 @@ export class ZetaServer {
 						to: localAgentId,
 						body: envelope.body,
 						...(envelope.replyTo !== undefined && { replyTo: envelope.replyTo }),
+						...(envelope.metadata === undefined ? {} : { metadata: envelope.metadata }),
 					});
 					return { outcome: receipt.outcome, ...(receipt.error !== undefined && { error: receipt.error }) };
 				},
@@ -1287,7 +1288,10 @@ export class ZetaServer {
 		// workspace, which would answer for a repository it does not own.
 		const route = router ? await router.resolveChatTarget(instanceId, peer, context) : ({ kind: "relay" } as const);
 		if (route.kind === "agent" && router) {
-			const result = await router.deliverToAgent(route.target, instanceId, peer, body);
+			const result = await router.deliverToAgent(route.target, instanceId, peer, body, {
+				...context,
+				...(messageId ? { messageId } : {}),
+			});
 			if (!result.ok) {
 				logger.warn("Agent-target injection failed", { channel: instanceId, error: result.error });
 				await runtime.sendText(

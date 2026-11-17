@@ -138,7 +138,7 @@
 		{
 			"ecosystem": "npm",
 			"name": "zeta-desktop",
-			"version": "1.5.1",
+			"version": "1.5.2",
 			"status": "private",
 			"role": "desktop shell npm identity (desktop/package.json). Private: not published to the npm registry; no npm upgrade path exists for it."
 		},

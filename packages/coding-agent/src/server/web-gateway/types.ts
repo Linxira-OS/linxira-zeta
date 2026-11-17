@@ -131,6 +131,7 @@ export interface SessionMessageEntry extends SessionEntryBase {
 	message: AgentMessage;
 	/** IM provenance for this row; never part of the provider payload. */
 	metadata?: ImMessageMetadata;
+	client?: SessionClient;
 }
 
 export interface ThinkingLevelChangeEntry extends SessionEntryBase {
@@ -256,6 +257,8 @@ export interface SessionContext {
 	 * carries it. `null` marks a message without IM metadata.
 	 */
 	messageMetadata?: (ImMessageMetadata | null)[];
+	/** Immutable client stamps parallel to messages. Unknown history stays null. */
+	messageClients?: (SessionClient | null)[];
 	/**
 	 * Durable IM switch handshakes in transcript order. These are not LLM
 	 * messages; a viewer renders them from the same transcript, no second store.

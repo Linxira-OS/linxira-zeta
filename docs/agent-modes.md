@@ -23,7 +23,7 @@ defines them so they are not used interchangeably.
 
 - **Team mode** — Vibe-backed main/worker coordination entered with `/team`; currently partial. See [Vibe and Team mode](./vibe-mode.md).
 - **Super Team** — the preserved PM/engineer system with its Team database, rooms and legacy Hub; independent of active Team mode.
-- **Legacy Team Hub** — the database-backed UI opened by `/team hub` or a Team-root launch; never an agent. The new Team Hub is not yet implemented.
+- **Team Hub** — `/team hub` reads the active source-bound main, Vibe workers and durable mesh rooms. The legacy database-backed Hub remains part of hidden Super Team.
 - **Lead mode** — the legacy PM main agent's mode in a Super Team PM workspace (`/lead`, alias `/pm`); hidden from default command listings.
 - **Vibe mode** — director mode over persistent worker sessions (`/vibe`).
 - **Super Agent** — Vibe mode's director metaphor; not a legacy PM role.
@@ -35,7 +35,7 @@ defines them so they are not used interchangeably.
 | --- | --- | --- |
 | Coding Agent | **IMPLEMENTED** | Project cwd, normal coding prompt, existing tools and session behavior |
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
-| Team mode | **PARTIAL** | `/team [on|off]`, Vibe-backed module workers, private scratch and session tracking; Team rooms, IM routing, persistent Hub and canonical summary recovery remain incomplete |
+| Team mode | **PARTIAL** | `/team [on|off]`, module workers, private scratch, session tracking, Team/mains rooms, explicit IM forwarding, persistent TUI Hub and Studio graph exist; entry-time tracking skeleton and canonical summary/revision/hash remain incomplete |
 | Lead mode (PM) | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, the Team Hub, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
 | External binding | **PARTIAL** | Runtime chat → agent (`!agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |

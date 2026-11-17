@@ -10,8 +10,10 @@ import sys
 from pathlib import Path
 
 import click
+import httpx
 import uvicorn
 
+from robomp.acceptance import verify_running
 from robomp.config import Settings, get_settings, reset_settings_cache
 from robomp.db import INACTIVE_EVENT_STATES, get_database
 from robomp.git_ops import GitCommandError
@@ -316,6 +318,18 @@ def status(offline: bool, as_json: bool) -> None:
             f"{row.key:<40} state={row.state:<12} rounds={row.rounds:<2} "
             f"sha={row.current_sha[:12]} updated={row.updated_at}{error}"
         )
+
+
+@main.command("verify-running")
+@click.option("--url", default="http://127.0.0.1:8080", show_default=True, help="Already-running robomp HTTP base URL.")
+@click.option("--timeout", type=click.FloatRange(min=0.1), default=10.0, show_default=True)
+def verify_running_command(url: str, timeout: float) -> None:
+    """Read health/readiness/status only; do not enqueue work or write GitHub."""
+    try:
+        result = verify_running(url, timeout=timeout)
+    except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
+        raise click.ClickException(f"running verification failed ({type(exc).__name__})") from exc
+    click.echo(json.dumps(result, indent=2))
 
 
 @main.command()

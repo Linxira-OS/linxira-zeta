@@ -186,8 +186,16 @@ export class ConversationFeed {
 			(message.role === "user" || message.role === "assistant")
 		) {
 			const prior = this.#messages.get(messageId);
+			const entry = this.wrapper.getSession().sessionManager.getEntry(messageId);
 			const projected = projectConversationItems(
-				[{ id: messageId, createdAt: prior?.createdAt, message }],
+				[
+					{
+						id: messageId,
+						createdAt: prior?.createdAt,
+						message,
+						...(entry?.type === "message" ? { metadata: entry.metadata, client: entry.client } : {}),
+					},
+				],
 				undefined,
 			)[0];
 			if (projected?.kind === "message") {

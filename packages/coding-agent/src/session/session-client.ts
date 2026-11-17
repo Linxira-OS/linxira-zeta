@@ -7,12 +7,14 @@
  * nothing must report "unknown" rather than guess (the earlier behaviour of
  * treating an absent stamp as CLI is deliberately not repeated).
  *
- * Two levels share this one field name, so there is no parallel `initiatedBy`
+ * These stamps share one field name; there is no parallel `initiatedBy`
  * authority:
  * - `SessionHeader.client` — the client that created the session.
  * - `SessionRunInitEntry.client` — the client that started a later run of that
  *   session (resume/attach), leaving the creator's header untouched.
  * - `SessionInitEntry.client` — the client that initiated a subagent run.
+ * - `SessionMessageEntry.client` — the submitting client captured for that
+ *   individual user message, independent of later attaches or IM bindings.
  *
  * IM/Team `origin` remains a separate, orthogonal dimension: a session can be
  * created by the web client inside an IM chat, and each run can still be

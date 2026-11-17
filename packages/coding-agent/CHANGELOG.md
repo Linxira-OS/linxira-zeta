@@ -2,6 +2,7 @@
 
 ### Changed
 
+- Coding-agent package packing now executes the rebuilt CLI and checks its embedded source commit, refusing missing or stale provenance before a release can pack the artifact (REQ-036).
 - Studio maintenance compares explicit official release tags in one mapped three-way batch, preserves Zeta Host/transport contracts for review, and records safe applications with backups. Reusable quick/behavior/final gates report per-step evidence; final accounting rejects stale decisions and missing source ancestry (ADR-0044).
 - Studio v0.2.1 shared contracts remove obsolete mirrored request/result validators and the unused frontend protocol copy. The existing Zeta Host keeps the actual launch, browser/Computer, private IPC, workspace and native-work input checks (ADR-0052).
 
@@ -138,6 +139,11 @@ Older entries are archived in [packages/coding-agent/CHANGELOG.md@98457bf8eab0](
 - Removed `task.file` and the task tool's `taskFile` field; subagent instructions are always inline
 - Todo tasks can no longer be blocked: the `blocked` status and `blocker` note are gone from the `todo` tool, `/todo edit` (`[!]` is now an unknown marker), the HUD, ACP plans, goal continuation (which no longer pauses on a blocked-only list) and the RPC `TodoStatus`/`TodoItem` wire types and SDKs (Go, Python, Rust). A saved todo list that still holds a blocked task reads back with it pending on resume
 
+## [1.5.2] - 2026-11-13
+
+### Changed
+
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
 ## [1.5.1] - 2026-11-10
 

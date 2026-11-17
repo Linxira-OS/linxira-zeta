@@ -92,6 +92,39 @@ the real reply hook; no exported callback is left unconnected.
 - SDK tools: `local_room_read`, `local_room_post`, `local_room_reply`.
   `local_room_reply` appends to the durable log and advances serial delivery.
 
+## Active Team rooms (ADR0038)
+
+`vibe/team-rooms.ts` reuses this RoomLog/RoomService SQLite store, durable delivery
+rounds, and the existing IrcBus/mesh transport. Reserved `team_<key>` and
+`mains_<key>` ids derive from the Vibe owner and its source session/transcript;
+they do not use legacy TeamDb rows. Existing log audiences represent the Team
+room as `main` plus residents, and mains as `super` contacts. The public Team
+projection exposes their actual names as `team` and `mains`.
+
+Only the owner and its direct workers enter `team`. `mains` admits registered
+main agents only, with other mains added explicitly. Membership and module
+identity persist in room member metadata. Generic contacts mutations cannot
+bypass the Team owner layer or park/stop its workers.
+
+Posts append durable host-ordered events before delivery. Automatic delivery
+carries only room id/sequence references and an explicit no-authority notice;
+room conversation bodies are not copied into session JSONL. Members read the
+log with `local_room_read` and post/reply with the existing local-room tools.
+These explicit reads remain normal tool evidence. No message grants tool,
+mode, spawn, kill, lifecycle, or governance authority. Failed notifications stay
+pending oldest-first and can be retried after worker restore or source return.
+Team exit revokes membership and pending rounds, retaining history.
+
+External IM first reaches its bound main as a real user entry with immutable
+per-message provenance. The owner can explicitly call `im_control` operation
+`route_team_room` to forward one message or summary with that stored source
+identity. It never enables automatic forwarding or changes main/workspace routes.
+
+The data-only `snapshot`, `history`, and `listTeamSnapshots` projections read
+existing rooms without creating Team scopes, including source scopes whose
+main has navigated to another transcript. Room/member timestamps come from
+their real persisted rows.
+
 ## Verification status
 
 The room log, delivery coordinator, resident lifecycle, and host manifest were

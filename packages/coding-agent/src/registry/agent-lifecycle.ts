@@ -54,7 +54,8 @@ export interface EnsureLiveOptions {
 
 const AGENT_RELEASE_GRACE_MS = 5000;
 
-async function persistAgentTombstone(sessionFile: string): Promise<void> {
+/** Persist terminal intent before a caller begins recursive session teardown. */
+export async function persistAgentTombstone(sessionFile: string): Promise<void> {
 	try {
 		await fs.writeFile(getAgentTombstonePath(sessionFile), "", { encoding: "utf8", flag: "wx", mode: 0o600 });
 	} catch (error) {

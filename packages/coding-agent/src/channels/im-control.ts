@@ -27,7 +27,8 @@ export type ImControlOperation =
 	| "set_language"
 	| "list_models"
 	| "set_model"
-	| "status";
+	| "status"
+	| "route_team_room";
 
 export interface ImControlParams {
 	operation: ImControlOperation;
@@ -43,6 +44,13 @@ export interface ImControlParams {
 	provider?: string;
 	/** Model id from list_models, for set_model. */
 	model?: string;
+	/** Owner-authored text to forward once; never changes the chat's route. */
+	body?: string;
+	/** Platform id of an actual IM user entry in the calling source transcript. */
+	messageId?: string;
+	/** Disambiguates platform message ids repeated across instances on one main. */
+	sourceEntryId?: string;
+	room?: "team" | "mains";
 }
 
 export interface ImControlResult {
@@ -81,6 +89,22 @@ export async function runImControl(
 ): Promise<ImControlResult> {
 	if (!router) {
 		return { text: "IM relay is not available in this mode (CLI).", isError: true };
+	}
+	if (params.operation === "route_team_room") {
+		if (!params.body?.trim() || !params.messageId?.trim())
+			return { text: "route_team_room requires body and the inbound messageId.", isError: true };
+		try {
+			const result = await router.routeToTeamRoom(
+				sessionKey,
+				params.body,
+				params.messageId,
+				params.room ?? "team",
+				params.sourceEntryId,
+			);
+			return { text: `Forwarded IM message to ${result.room} room as #${result.event.seq}.` };
+		} catch (error) {
+			return { text: error instanceof Error ? error.message : String(error), isError: true };
+		}
 	}
 	const chat = resolveChat(router, sessionKey);
 	if (!chat) {

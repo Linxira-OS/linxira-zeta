@@ -10,13 +10,22 @@
  */
 
 import type { BackendEvent } from "./client";
+import type { SessionClient } from "../session/session-client";
 import { RpcSocketClient } from "./rpc-socket";
+
+/**
+ * The TUI attach transport is the CLI surface. Provenance only: the backend
+ * validates the declaration and stamps it on the user messages this
+ * connection admits; it never grants anything.
+ */
+export const ATTACH_SESSION_CLIENT: SessionClient = "cli";
 
 /** Gateway listener path for a backend-owned session. */
 export function attachSocketUrl(baseUrl: string, sessionId: string): string {
 	const url = new URL(`${baseUrl.replace(/\/+$/, "")}/api/rpc/ws`);
 	url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 	url.searchParams.set("sessionId", sessionId);
+	url.searchParams.set("client", ATTACH_SESSION_CLIENT);
 	return url.toString();
 }
 

@@ -214,7 +214,13 @@ export class MeshNode {
 	 * an ack; `parked|gone` peers get an atomic mailbox write plus a `wake`,
 	 * reported as `queued`.
 	 */
-	async send(input: { from: string; to: string; body: string; replyTo?: string }): Promise<MeshSendResult> {
+	async send(input: {
+		from: string;
+		to: string;
+		body: string;
+		replyTo?: string;
+		metadata?: Record<string, unknown>;
+	}): Promise<MeshSendResult> {
 		const raw = input.to.trim();
 		let parsed: ParsedAddress;
 		try {
@@ -244,6 +250,7 @@ export class MeshNode {
 			sentAt: this.#now(),
 		};
 		if (input.replyTo !== undefined) envelope.replyTo = input.replyTo;
+		if (input.metadata !== undefined) envelope.metadata = input.metadata;
 		if (serializedSize(envelope) > MESH_MAX_ENVELOPE_BYTES) {
 			return { to: raw, outcome: "failed", error: `Message exceeds the ${MESH_MAX_ENVELOPE_BYTES} byte limit.` };
 		}

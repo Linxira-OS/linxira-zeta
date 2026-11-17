@@ -41,7 +41,7 @@ export interface AgentMessenger {
 export type AgentMessengerBus = {
 	send(
 		msg: Omit<IrcMessage, "id" | "ts">,
-		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
 	): Promise<IrcDeliveryReceipt>;
 	wait: IrcBus["wait"];
 	inbox: IrcBus["inbox"];

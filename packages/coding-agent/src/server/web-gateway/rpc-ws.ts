@@ -23,15 +23,23 @@
 
 import { Writable } from "node:stream";
 import { runRpcMode } from "../../modes/rpc/rpc-mode";
+import {
+	clientFromHeaderValue,
+	normalizeSessionClient,
+	SESSION_CLIENT_HEADER,
+	type SessionClient,
+} from "../../session/session-client";
 import { getRpcSession, type AgentSessionWrapper } from "./agents";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 
-/** WebSocket `data` for this plane. Structurally the terminal plane's shape:
+/** WebSocket `data` for this plane: structurally the terminal plane's shape:
  *  one listener serves both and `kind` routes the socket. */
 export interface RpcWsData {
 	/** `studio` sockets belong to the renderer event feed; never dispatched here. */
 	kind?: "terminal" | "rpc" | "studio";
 	sessionId: string;
+	/** Client kind the socket handshake declared; provenance only, never authorization. */
+	client?: SessionClient;
 }
 
 /** `/api/rpc/ws?sessionId=…` */
@@ -60,13 +68,19 @@ interface HostedRpc {
 	close(): void;
 }
 
+interface RpcHostSocket {
+	readonly data: RpcWsData;
+	send(data: string): unknown;
+	close(code?: number, reason?: string): void;
+}
+
 const hosts = new WeakMap<object, HostedRpc>();
 
 /**
  * Start the protocol host for one socket. Returns the receive/close bridge the
  * WebSocket handler drives.
  */
-export function startHostedRpc(wrapper: AgentSessionWrapper, ws: WebSocket): HostedRpc {
+export function startHostedRpc(wrapper: AgentSessionWrapper, ws: RpcHostSocket): HostedRpc {
 	const sink = new Writable({
 		write(chunk: Buffer | string, _encoding, done) {
 			try {
@@ -95,6 +109,7 @@ export function startHostedRpc(wrapper: AgentSessionWrapper, ws: WebSocket): Hos
 	});
 
 	const host = runRpcMode(wrapper.getSession(), {
+		client: ws.data.client,
 		sink,
 		input,
 		loopController: wrapper.getLoopController(),
@@ -179,13 +194,13 @@ function toUiResponse(frame: {
 
 /** The WebSocket handler for the RPC plane. */
 export const rpcWebSocketHandler = {
-	open(ws: { data: RpcWsData; close: (code?: number, reason?: string) => void }) {
+	open(ws: RpcHostSocket) {
 		const wrapper = getRpcSession(ws.data.sessionId);
 		if (!wrapper) {
 			ws.close(4004, "session not found");
 			return;
 		}
-		startHostedRpc(wrapper, ws as unknown as WebSocket);
+		startHostedRpc(wrapper, ws);
 	},
 	message(ws: object, message: string | Buffer | ArrayBuffer | Uint8Array) {
 		const entry = hosts.get(ws);
@@ -226,6 +241,15 @@ export async function handleRpcWsUpgrade(
 	if (!sessionId) return refuse("sessionId is required", 400);
 	if (!getRpcSession(sessionId)) return refuse("session not found", 404);
 
-	const upgraded = srv.upgrade(req, { data: { kind: "rpc", sessionId } });
+	// Metadata only, never authorization. A raw WebSocket client can set the
+	// standard transport header; the bundled attach client cannot set headers,
+	// so it declares the same closed value on the handshake URL instead.
+	const client =
+		clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ??
+		normalizeSessionClient(url.searchParams.get("client"));
+
+	const upgraded = srv.upgrade(req, {
+		data: { kind: "rpc", sessionId, ...(client === undefined ? {} : { client }) },
+	});
 	return upgraded ? null : refuse("websocket upgrade failed", 500);
 }

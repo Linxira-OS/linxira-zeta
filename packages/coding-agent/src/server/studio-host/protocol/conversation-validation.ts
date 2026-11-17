@@ -6,6 +6,7 @@ import {
 	type ConversationItem,
 	type ConversationMessageError,
 	type ConversationMessageItem,
+	type ConversationMessageSource,
 	type ConversationResetBoundaryItem,
 	type ConversationRole,
 	type ConversationOpenResult,
@@ -231,6 +232,28 @@ function parseParentId(value: unknown, path: string): string | null {
 	return boundedId(value, path);
 }
 
+function parseMessageSource(value: unknown, path: string): ConversationMessageSource {
+	const input = record(value, path);
+	exactKeys(input, ["kind", "platform", "instance", "senderId", "senderName", "client"], path);
+	if (input.kind !== "im" && input.kind !== "client")
+		throw new ContractValidationError("invalid message source", path);
+	const source: ConversationMessageSource = { kind: input.kind };
+	for (const field of ["platform", "instance", "senderId", "senderName"] as const) {
+		if (input[field] !== undefined) source[field] = boundedUtf8(input[field], `${path}.${field}`, 512);
+	}
+	if (input.client !== undefined) {
+		if (
+			input.client !== "cli" &&
+			input.client !== "web" &&
+			input.client !== "desktop" &&
+			input.client !== "automation"
+		)
+			throw new ContractValidationError("invalid client source", path);
+		source.client = input.client;
+	}
+	return source;
+}
+
 export function parseConversationItem(value: unknown, path: string): ConversationItem {
 	const input = record(value, path);
 	const kind = nonEmptyString(input.kind, `${path}.kind`);
@@ -238,7 +261,7 @@ export function parseConversationItem(value: unknown, path: string): Conversatio
 	const parentId = parseParentId(input.parentId, `${path}.parentId`);
 	const createdAt = nonEmptyString(input.createdAt, `${path}.createdAt`);
 	if (kind === "message") {
-		exactKeys(input, ["kind", "itemId", "parentId", "createdAt", "role", "content"], path);
+		exactKeys(input, ["kind", "itemId", "parentId", "createdAt", "role", "content", "source"], path);
 		if (!Array.isArray(input.content)) {
 			throw new ContractValidationError("expected an array", `${path}.content`);
 		}
@@ -252,6 +275,7 @@ export function parseConversationItem(value: unknown, path: string): Conversatio
 			createdAt,
 			role: parseRole(input.role, `${path}.role`),
 			content,
+			...(input.source === undefined ? {} : { source: parseMessageSource(input.source, `${path}.source`) }),
 		} satisfies ConversationMessageItem;
 	}
 	if (kind === "compaction") {

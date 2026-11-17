@@ -30,6 +30,16 @@ export type ConversationContentBlock =
 			truncated?: boolean;
 	  };
 
+/** Immutable per-message display attribution; never inferred from a session/channel. */
+export interface ConversationMessageSource {
+	kind: "im" | "client";
+	platform?: string;
+	instance?: string;
+	senderId?: string;
+	senderName?: string;
+	client?: "cli" | "web" | "desktop" | "automation";
+}
+
 export type ConversationMessageItem = {
 	kind: "message";
 	itemId: string;
@@ -37,6 +47,7 @@ export type ConversationMessageItem = {
 	createdAt: string;
 	role: ConversationRole;
 	content: readonly ConversationContentBlock[];
+	source?: ConversationMessageSource;
 };
 
 export type ConversationCompactionItem = {

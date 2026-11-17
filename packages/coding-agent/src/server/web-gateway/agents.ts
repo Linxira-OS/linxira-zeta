@@ -680,16 +680,16 @@ export class AgentSessionWrapper {
 		return null;
 	}
 
-	async send(command: AgentCommand): Promise<unknown> {
+	async send(command: AgentCommand, client?: SessionClient): Promise<unknown> {
 		if (this.#destroyed) {
 			throw new Error("Agent session is not available");
 		}
-		const result = await this.#processCommand(command);
+		const result = await this.#processCommand(command, client);
 		this.updateRunningState();
 		return result;
 	}
 
-	async #processCommand(command: AgentCommand): Promise<unknown> {
+	async #processCommand(command: AgentCommand, client?: SessionClient): Promise<unknown> {
 		switch (command.type) {
 			case "prompt": {
 				// The runtime owns steer/followUp queueing via `streamingBehavior`;
@@ -733,6 +733,7 @@ export class AgentSessionWrapper {
 				if (builtin !== false) {
 					if ("prompt" in builtin) {
 						await this.#inner.prompt(builtin.prompt, {
+							...(client ? { client } : {}),
 							...(images?.length ? { images: images as ImageContent[] } : {}),
 							...(streamingBehavior ? { streamingBehavior } : {}),
 							...(language === undefined ? {} : { language }),
@@ -741,6 +742,7 @@ export class AgentSessionWrapper {
 					return { ok: true };
 				}
 				await this.#inner.prompt(message, {
+					...(client ? { client } : {}),
 					...(images?.length ? { images: images as ImageContent[] } : {}),
 					...(streamingBehavior ? { streamingBehavior } : {}),
 					...(language === undefined ? {} : { language }),
@@ -770,20 +772,18 @@ export class AgentSessionWrapper {
 			}
 			case "steer":
 				this.#loopController.noteUserPrompt(command.text);
-				await this.#inner.steer(
-					command.text,
-					command.images as ImageContent[] | undefined,
-					command.language === undefined ? undefined : { language: command.language },
-				);
+				await this.#inner.steer(command.text, command.images as ImageContent[] | undefined, {
+					...(client ? { client } : {}),
+					...(command.language === undefined ? {} : { language: command.language }),
+				});
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "follow_up":
 				this.#loopController.noteUserPrompt(command.text);
-				await this.#inner.followUp(
-					command.text,
-					command.images as ImageContent[] | undefined,
-					command.language === undefined ? undefined : { language: command.language },
-				);
+				await this.#inner.followUp(command.text, command.images as ImageContent[] | undefined, {
+					...(client ? { client } : {}),
+					...(command.language === undefined ? {} : { language: command.language }),
+				});
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "abort":
@@ -1638,7 +1638,7 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 			return json({ success: true, sessionId: realSessionId, data: null });
 		}
 
-		const result = await session.send(promptCommand as AgentCommand);
+		const result = await session.send(promptCommand as AgentCommand, runClient);
 		return json({ success: true, sessionId: realSessionId, data: result });
 	} catch (error) {
 		logger.error("web-gateway: agent new failed", { error: String(error) });
@@ -1667,7 +1667,7 @@ export async function handleAgentCommand(req: Request, sessionId: string): Promi
 		}
 		const existing = sessions.get(sessionId);
 		if (existing?.isAlive()) {
-			const result = await existing.send(body);
+			const result = await existing.send(body, runClient);
 			return json({ success: true, data: result });
 		}
 
@@ -1677,7 +1677,7 @@ export async function handleAgentCommand(req: Request, sessionId: string): Promi
 		}
 
 		const { session } = await startRpcSession(sessionId, filePath, undefined, undefined, undefined, runClient);
-		const result = await session.send(body);
+		const result = await session.send(body, runClient);
 		return json({ success: true, data: result });
 	} catch (error) {
 		logger.error("web-gateway: agent command failed", { sessionId, error: String(error) });

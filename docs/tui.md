@@ -334,6 +334,17 @@ no commit value rather than a fabricated zero. It is report-only unless given
 `--max-rss-growth-mib=<measured + headroom>`; do not commit a threshold that was
 not measured on the runner it gates.
 
+GitHub's `ubuntu-22.04` workspace job now passes a **384 MiB RSS-growth cap**
+for the 180-second workload. Reports from runs
+[43470058996](https://github.com/Linxira-OS/linxira-zeta/actions/runs/43470058996),
+[43547233642](https://github.com/Linxira-OS/linxira-zeta/actions/runs/43547233642),
+and [43564367593](https://github.com/Linxira-OS/linxira-zeta/actions/runs/43564367593)
+recorded 186.87, 248.88, and 197.21 MiB growth respectively; the cap leaves
+over 50% headroom above the maximum. Reports are uploaded even on a failed
+gate. Gitea stays report-only until that runner has its own measured baseline.
+This is a TUI-process regression guard; it does not certify desktop aggregate
+memory or Windows system commit headroom.
+
 ## Key implementation files
 
 - `packages/tui/src/tui.ts` — `Component`, `Focusable`, cursor marker, focus, overlay, input dispatch.

@@ -5,13 +5,11 @@ This page documents the preserved **Super Team** PM/engineer system exposed by
 [Vibe and Team mode](./vibe-mode.md); its workers do not use this database.
 The legacy collaboration primitives include the ownerless team root, PM workspaces,
 canonical base repositories, PM bindings, engineers, linked worktrees,
-database-only rooms, and a durable work queue. The TUI adds
-**path entry** and the **Team Hub**: launching at a Team root or PM workspace
-opens a read/write view of the Team database, while engineer worktrees and base
-repositories open the ordinary coding TUI. Explicit session launches
-(`--continue`, `--resume`, `--fork`, or a prompt) still open a coding session in
-a PM workspace, where `/lead` (alias `/pm`) runs the **PM main agent** with a
-coordination-only toolset and can spawn its one persistent Secretary subagent.
+database-only rooms, and a durable work queue. Its old path-entry Hub and browser
+workspace page remain in source as legacy Super Team surfaces, hidden by default.
+The active `/team hub` reads the current main's Vibe worker/mesh room projection;
+see [Team surfaces](./team-studio.md). Explicit `/lead` (alias `/pm`) still runs
+the legacy PM main agent with a coordination-only toolset and one Secretary.
 There is still **no team-wide agent, no automatic dispatch, and no channel
 binding**. `--execution vibe` records the engineer's
 execution choice; it does not start Vibe, and no Team entry ever enables Vibe
@@ -20,8 +18,9 @@ a lease, and the PM reviews.
 
 The `pi-messenger` plugin's mesh and crew surfaces are independent of active
 Team mode and the legacy Team database. It is not a dependency of Vibe-backed
-Team. `/team` enters active Team mode; `/team hub` still opens the legacy Hub,
-and `/lead` (alias `/pm`) remains an explicitly callable hidden legacy command.
+Team. `/team` enters active Team mode and `/team hub` opens its new Hub.
+`/lead`, `/pm`, `/teamworker`, `/initzetateam` and the legacy `zetacode team`
+command stay callable by exact name but are hidden from default discovery.
 
 ## Path model
 

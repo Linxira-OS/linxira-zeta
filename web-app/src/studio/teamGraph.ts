@@ -49,11 +49,11 @@ export function nodeLifecycle(node: TeamGraphNode): TeamNodeLifecycle | undefine
 }
 
 /** Role badge: a PM workspace is its PM, an engineer record is an engineer. */
-export function nodeRole(node: TeamGraphNode): "pm" | "engineer" | "secretary" | "unknown" | undefined {
+export function nodeRole(node: TeamGraphNode): TeamAgentNode["role"] {
   if (node.kind === "pm-workspace") return "pm";
   if (node.kind === "engineer") return "engineer";
   if (node.kind === "agent") return node.role ?? "unknown";
-  if (node.kind === "subagent") return node.role === "secretary" ? "secretary" : undefined;
+  if (node.kind === "subagent") return node.role;
   return undefined;
 }
 
@@ -119,12 +119,13 @@ export function buildTeamLanes(graph: TeamGraphReadModel): TeamLane[] {
       const bAgent = isAgentNode(b) && b.kind === "agent";
       return (
         Number(bAgent) - Number(aAgent) ||
+        Number(isAgentNode(b) && b.role === "owner") - Number(isAgentNode(a) && a.role === "owner") ||
         a.createdAt.localeCompare(b.createdAt) ||
         a.displayName.localeCompare(b.displayName) ||
         a.nodeId.localeCompare(b.nodeId)
       );
     });
-    const anchor = nodes.find(node => isAgentNode(node) && node.kind === "agent");
+    const anchor = nodes.find(node => isAgentNode(node) && node.role === "owner") ?? nodes.find(node => isAgentNode(node) && node.kind === "agent");
     return {
       clusterId: cluster.clusterId,
       kind: cluster.kind,

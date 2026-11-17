@@ -580,6 +580,18 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **后续门禁**：在选定的 IM 平台批次诊断 bare peer 的 group/user 匹配，保留群聊与私聊的允许/拒绝四条行为；外部 QQ 实际投递仍未验收。
 
 
+## 2026-11-17 主线整合本地检查记录
+
+- **内存预算（REQ-065）**：`memory-soak.ts --seconds=180 --max-rss-growth-mib=384` 真实退出1；
+  360个采样，RSS起点120.27MiB、峰值3083.91MiB、增长2963.64MiB。收据为
+  `~/.zeta/parked-evidence/2026-11-17/main-consolidation/memory-soak.json`。
+  使用复用的1.5.1 addon，未证明当前源码native；超额根因未定位，门槛保留、不重跑或放宽。
+- **Bazel锁生成**：`gen-bazel-lock.ts` 900秒停在main repo mapping并超时；
+  `bazel-lock-drift.ts`实际通过依赖覆盖，不替代输入新鲜度或成功生成。未新编native。
+- **Windows symlink**：保存的browser-open-options用例在创建UUID路径symlink时EPERM；
+  同批61项通过、1项失败。沿用CI-001环境类别，不skip、不删断言，不声称已通过。
+- 上述失败不阻断用户要求的源码整合；发布仍需完整CI与当前工件证据。
+
 ---
 
 ## 附：1.4.8 发布链路时间线（供后续复盘）

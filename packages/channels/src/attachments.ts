@@ -1,9 +1,9 @@
 /**
  * Inbound attachment storage.
  *
- * Platforms hand out media either inline (OneBot base64) or as an expiring
- * signed URL (Discord's CDN). The agent needs a real file path, and a URL that
- * dies in 24 hours is not one. Downloads therefore stream to disk with a hard
+ * Platforms provide inline media (OneBot), expiring URLs (Discord), or
+ * authenticated resource streams (Feishu). The agent needs a real file path.
+ * Downloads therefore stream to disk with a hard
  * size cap — never `arrayBuffer()` of an untrusted size — and a failure is
  * reported on the message instead of dropping the text.
  */
@@ -22,6 +22,8 @@ export interface AttachmentSource {
 	url?: string;
 	/** Base64 payload (OneBot `base64://` / inline images). */
 	base64?: string;
+	/** Authenticated platform resource; the response body is streamed under the same byte cap. */
+	open?: (signal: AbortSignal) => Promise<Response>;
 	name?: string;
 	mime?: string;
 	kind?: AttachmentKind;
@@ -90,7 +92,7 @@ async function writeStream(response: Response, target: string, maxBytes: number)
 	return total;
 }
 
-/** Store up to `maxPerMessage` attachments; failures become URL-only entries. */
+/** Store up to `maxPerMessage` attachments; failures remain visible on the message. */
 export async function storeAttachments(
 	sources: readonly AttachmentSource[],
 	options: AttachmentStoreOptions,
@@ -119,12 +121,14 @@ export async function storeAttachments(
 				stored.push({ ...base, path: target, size: bytes.byteLength });
 				continue;
 			}
-			if (!source.url) throw new Error("attachment has no download source");
-			const response = await fetchImpl(source.url, {
-				signal: AbortSignal.timeout(timeoutMs),
-				redirect: "follow",
-			});
+			if (!source.url && !source.open) throw new Error("attachment has no download source");
+			const signal = AbortSignal.timeout(timeoutMs);
+			const response = source.open
+				? await source.open(signal)
+				: await fetchImpl(source.url!, { signal, redirect: "follow" });
 			if (!response.ok) throw new Error(`attachment download failed (HTTP ${response.status})`);
+			const mime = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
+			if (!base.mime && mime) base.mime = mime;
 			const declared = Number(response.headers.get("content-length") ?? "");
 			if (Number.isFinite(declared) && declared > maxBytes) {
 				await response.body?.cancel().catch(() => {});

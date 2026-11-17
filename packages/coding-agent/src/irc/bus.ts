@@ -71,7 +71,7 @@ export interface IrcBusApi {
 	/** Fire-and-forget delivery; the receipt reports how the message reached the recipient. */
 	send(
 		msg: Omit<IrcMessage, "id" | "ts">,
-		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
 	): Promise<IrcDeliveryReceipt>;
 	/** Whether `from` successfully sent `to` anything, progress included, at or after `sinceTs`. */
 	sentSince(from: string, to: string, sinceTs: number): boolean;
@@ -186,9 +186,9 @@ export class IrcBus implements IrcBusApi {
 	 */
 	async send(
 		msg: Omit<IrcMessage, "id" | "ts">,
-		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
 	): Promise<IrcDeliveryReceipt> {
-		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
+		const message: IrcMessage = { ...msg, id: opts?.messageId ?? Snowflake.next(), ts: Date.now() };
 		// Taken before delivery: a reply sent while this message is still being
 		// delivered must still order after it.
 		const mark: SendMark = { ts: message.ts, seq: ++this.#sendSeq };
@@ -492,6 +492,7 @@ export class IrcBus implements IrcBusApi {
 			to,
 			body: message.body,
 			...(message.replyTo !== undefined && { replyTo: message.replyTo }),
+			...(message.metadata === undefined ? {} : { metadata: message.metadata }),
 		});
 		return result.outcome === "failed"
 			? { to, outcome: "failed", error: result.error }

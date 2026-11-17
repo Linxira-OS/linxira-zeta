@@ -39,7 +39,7 @@ export type AssistantSegment =
   | { readonly type: "thinking"; readonly key: string; readonly text: string; readonly truncated?: boolean }
   | { readonly type: "batch"; readonly key: string; readonly tools: readonly ToolView[] };
 export type TimelineRow =
-  | { readonly type: "user"; readonly itemId: string; readonly createdAt: string; readonly text: string; readonly pending?: PendingUser["status"]; readonly requestId?: string; readonly error?: string; readonly doc?: ComposerDoc; readonly thumbs?: readonly UserMessageThumb[] }
+  | { readonly type: "user"; readonly itemId: string; readonly createdAt: string; readonly text: string; readonly source?: ConversationMessageItem["source"]; readonly pending?: PendingUser["status"]; readonly requestId?: string; readonly error?: string; readonly doc?: ComposerDoc; readonly thumbs?: readonly UserMessageThumb[] }
   | { readonly type: "extension"; readonly itemId: string; readonly createdAt: string; readonly text: string }
   | { readonly type: "assistant"; readonly itemId: string; readonly createdAt: string; readonly segments: readonly AssistantSegment[]; readonly status: "streaming" | "completed" | "aborted" | "error"; readonly presentation?: "process" | "reply"; readonly turnOpen?: boolean; readonly error?: ConversationMessageError }
   | { readonly type: "compaction"; readonly item: ConversationCompactionItem }
@@ -217,7 +217,7 @@ function persistedTimelineRow(state: ConversationState, item: ConversationItem, 
   if (item.role === "extension") return cachedRow(cache, item.itemId, [item], () => ({ type: "extension", itemId: item.itemId, createdAt: item.createdAt, text: messageText(item) }));
   if (item.role === "user") {
     const doc = state.userDisplays[item.itemId]; const thumbs = state.userThumbs[item.itemId];
-    return cachedRow(cache, item.itemId, [item, doc, thumbs], () => ({ type: "user", itemId: item.itemId, createdAt: item.createdAt, text: messageText(item), ...(doc === undefined ? {} : { doc }), ...(thumbs === undefined ? {} : { thumbs }) }));
+    return cachedRow(cache, item.itemId, [item, doc, thumbs], () => ({ type: "user", itemId: item.itemId, createdAt: item.createdAt, text: messageText(item), ...(item.source === undefined ? {} : { source: item.source }), ...(doc === undefined ? {} : { doc }), ...(thumbs === undefined ? {} : { thumbs }) }));
   }
   const turnOpen = state.openTurnItems[item.itemId] !== undefined; const error = state.messageErrors?.[item.itemId];
   return cachedRow(cache, item.itemId, [item, ...tools, turnOpen, error], () => ({ type: "assistant", itemId: item.itemId, createdAt: item.createdAt, segments: assistantSegments(item.content, tools, turnOpen), status: error === undefined ? "completed" : "error", presentation: "reply", ...(turnOpen ? { turnOpen: true } : {}), ...(error === undefined ? {} : { error }) }));

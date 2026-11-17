@@ -219,7 +219,8 @@ export const webHelp = {
 } satisfies CommandMetadata;
 
 export const teamHelp = {
-	description: "Manage an ownerless team root, PM workspaces, base repos, engineers, worktrees, and rooms",
+	hidden: true,
+	description: "Super Team (legacy): manage PM workspaces, repositories, engineers and database rooms",
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {

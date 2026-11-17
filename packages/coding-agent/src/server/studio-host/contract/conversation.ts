@@ -10,6 +10,7 @@ export type {
 	ConversationItem,
 	ConversationMessageError,
 	ConversationMessageItem,
+	ConversationMessageSource,
 	ConversationResetBoundaryItem,
 	ConversationRole,
 	ConversationRuntimeEvent,

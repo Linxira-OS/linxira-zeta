@@ -119,3 +119,10 @@ turns); jobs registered before a switch are bound at the switch observation.
 - Cross-process concurrent writes to one source are handled by the manager's
   conflict recovery, not by a new lock; the completion may become a side branch.
   A future explicit source-writer lease could remove that ambiguity.
+
+## Links
+
+- [Vibe mode](../../docs/vibe-mode.md)
+- [Source-bound session switching](../../packages/coding-agent/src/session/agent-session.ts)
+- [Async delivery lifecycle](../../packages/coding-agent/src/async/job-manager.ts)
+- [Source-binding regression tests](../../packages/coding-agent/test/agent-session-async-delivery.test.ts)

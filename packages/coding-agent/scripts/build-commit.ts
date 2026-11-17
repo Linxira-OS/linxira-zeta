@@ -13,13 +13,20 @@ const COMMIT_PATTERN = /^[0-9a-f]{7,40}$/i;
 export function resolveBuildCommit(root: string): string {
 	const explicit = process.env.ZETA_BUILD_COMMIT?.trim();
 	if (explicit && COMMIT_PATTERN.test(explicit)) return explicit;
-	const result = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"], {
-		stdout: "pipe",
-		stderr: "ignore",
-	});
-	if (result.success) {
-		const sha = result.stdout.toString().trim();
-		if (COMMIT_PATTERN.test(sha)) return sha;
+	// Git may be absent entirely (Nix build sandbox, git-less npm install).
+	// Bun throws ENOENT instead of returning a failed result, so an unguarded
+	// probe would turn the documented "unknown" fallback into a build failure.
+	try {
+		const result = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"], {
+			stdout: "pipe",
+			stderr: "ignore",
+		});
+		if (result.success) {
+			const sha = result.stdout.toString().trim();
+			if (COMMIT_PATTERN.test(sha)) return sha;
+		}
+	} catch {
+		// Fall through to "unknown".
 	}
 	return "unknown";
 }

@@ -163,21 +163,17 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 
 ## 7. 分支、工作树与推送
 
-- 根 checkout 永远干净且停在 `main`。开工前 `git rev-parse --abbrev-ref HEAD` +
-  `git status --porcelain`；不在 `main` 就先安顿改动再切回。根里只做无副作用操作
-  （读、`git fetch`、worktree / branch 管理）。
-- 所有开发在 worktree：`git worktree add temp/<topic> -b <branch> refs/heads/main`。
-  新方向先开本地分支，不直接在 `main` 上开发；`dev/*` 只能用户开，永不并入 `main`。
-- 子代理自建 worktree，**不推、不合并 `main`、不打 tag、不改根 checkout**；委托时把
-  这条写进 brief。
-- 推任何集成分支前先 `git merge main` 并跑本地门禁。**集成分支（`feat/**`、
-  `port/**`）各开一个 PR**：PR 就是评审面与 CI 面；**合并永远由用户手动点**，
-  agent 不合并自己的 PR。短命的子代理分支只在本地并入集成分支，**不开自己的 PR**。
-  `sync/omp-release/**` 与 `port/**` 的 push 会自动触发 `ci.yml`（非 PR 路径，会
-  真构建 natives）；其他集成分支仍用唯一一次
-  `gh workflow run ci.yml --ref <branch>` 手动 dispatch。
-- **worktree 分支上允许阶段性 commit（不推）**：一轮落地以「本地门禁全绿」为结束
-  条件，中间状态可以分多次提交，但**只在收尾推一次**。
+- **2026-11-17 用户裁决：后续开发集中在 `main`。** 根 checkout 保持在 `main`，由主代理
+  统一编辑、验证、提交与整合；开工先查 `git rev-parse --abbrev-ref HEAD` +
+  `git status --porcelain`，保留已有未提交改动，不再默认创建长期 feature/integration 分支。
+- 子代理需要独立写代码时仍自建短命 worktree：
+  `git worktree add temp/<topic> -b <branch> refs/heads/main`；**不推、不合并 `main`、
+  不打 tag、不改根 checkout**。主代理回收独有增量与证据后安全清理。
+- 历史分支保留作恢复引用；`dev/*` 只能用户开，永不自动并入 `main`。已有 PR 的合并仍由
+  用户操作；开 PR 的标题和正文仍须事先批准。
+- **源码整合与验收分开记录。** 本轮用户明确要求无论 CI 结果均整合近期独有改动；失败、
+  skipped、cancelled 与未执行项如实登记，不因此冒充验收成功。发布仍遵守 §8 的完整 CI 门禁。
+- 上游同步仍必须走 §6 的确切 release tag、真 merge 与台账，不因主线开发改变来源约束。
 - **一轮落地 ≤1 次 push**；在途 run 不推同一分支（先看 `gh run list --branch <b>`）；
   `cancelled` 不是失败也不是通过——**它没有信号**，不得当绿。
 - **分支登记**：每条本地分支都要登记在

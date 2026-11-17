@@ -10,12 +10,13 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { createMockModel, type MockHandler } from "@linxiraos/pi-ai/providers/mock";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import type { SessionClient } from "../../src/session/session-client";
 import { AgentSessionWrapper, sessions as gatewaySessions } from "../../src/server/web-gateway/agents";
 import { cacheSessionPath } from "../../src/server/web-gateway/sessions";
 import { startWebGateway } from "../../src/server/web-gateway";
@@ -57,19 +58,26 @@ afterEach(async () => {
 });
 
 /** Real AgentSession over a mock provider, persisted in a temp session dir. */
-async function createMockBackendSession(cwd: string, sessionDir: string, reply: string) {
+async function createMockBackendSession(
+	cwd: string,
+	sessionDir: string,
+	reply: string,
+	options: { client?: SessionClient; handler?: MockHandler } = {},
+) {
 	const settings = Settings.isolated({ "compaction.enabled": false });
-	const model = createMockModel({ handler: { content: [reply] } });
+	const model = createMockModel({ handler: options.handler ?? { content: [reply] } });
 	const authStorage = createInMemoryAuthStorage();
 	authStorage.keys.setRuntime(model.model.provider, "test-key");
 	const modelRegistry = new ModelRegistry(authStorage);
-	const sessionManager = SessionManager.create(cwd, sessionDir, new FileSessionStorage(), { client: "cli" });
+	const sessionManager = SessionManager.create(cwd, sessionDir, new FileSessionStorage(), {
+		client: options.client ?? "cli",
+	});
 	// Force the file to exist before the gateway resolves it from disk.
 	sessionManager.appendMessage({
 		role: "user",
-		content: "seed",
+		content: [{ type: "text", text: "seed" }],
 		timestamp: Date.now(),
-	} as never);
+	});
 	const session = new AgentSession({
 		agent: new Agent({
 			initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
@@ -231,6 +239,71 @@ describe("backend attach transport", () => {
 		expect(await answered.promise).toEqual({ confirmed: true });
 		expect(await resolvedFrame.promise).toBe("wire-dialog");
 	});
+
+	test("CLI attach keeps message provenance separate from a web-created session through queues", async () => {
+		const cwd = join(agentDir, "client-provenance");
+		await mkdir(cwd, { recursive: true });
+		const started = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		let calls = 0;
+		const { sessionId, wrapper } = await createMockBackendSession(cwd, join(agentDir, "client-sessions"), "reply", {
+			client: "web",
+			handler: async () => {
+				if (++calls === 1) {
+					started.resolve();
+					await release.promise;
+				}
+				return { content: ["local response"] };
+			},
+		});
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		const server = await startWebGateway(port);
+		cleanups.push(() => server.shutdown());
+		const wire = await AttachWire.connect({
+			baseUrl: server.url,
+			sessionId,
+			onDialog: () => {},
+			onDialogResolved: () => {},
+		});
+		cleanups.push(async () => wire.close());
+		try {
+			await wire.sendPrompt("CLI immediate");
+			await started.promise;
+			await wire.sendPrompt("CLI steering", { behavior: "steer" });
+			await wire.sendPrompt("CLI follow-up", { behavior: "followUp" });
+			release.resolve();
+			await wrapper.getSession().waitForIdle();
+			const manager = wrapper.getSession().sessionManager;
+			const entries = manager.getEntries().flatMap(entry =>
+				entry.type === "message" && entry.message.role === "user"
+					? [
+							{
+								client: entry.client,
+								text:
+									typeof entry.message.content === "string"
+										? entry.message.content
+										: entry.message.content
+												.filter(block => block.type === "text")
+												.map(block => block.text)
+												.join(""),
+							},
+						]
+					: [],
+			);
+			expect(entries).toEqual([
+				{ text: "seed", client: "web" },
+				{ text: "CLI immediate", client: "cli" },
+				{ text: "CLI steering", client: "cli" },
+				{ text: "CLI follow-up", client: "cli" },
+			]);
+			expect(manager.getHeader()?.client).toBe("web");
+			expect(manager.getEntries().filter(entry => entry.type === "run_init")).toEqual([]);
+		} finally {
+			release.resolve();
+		}
+	}, 20_000);
 
 	test("session addressing picks the newest exact-cwd session across repositories", () => {
 		const sessions = [

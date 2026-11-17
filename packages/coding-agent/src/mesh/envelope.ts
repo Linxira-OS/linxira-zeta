@@ -94,6 +94,12 @@ export function validateEnvelope(value: unknown): MeshEnvelope {
 	if (raw.replyTo !== undefined && (typeof raw.replyTo !== "string" || raw.replyTo.length > 128)) {
 		throw new MeshProtocolError("Envelope replyTo is invalid.");
 	}
+	if (
+		raw.metadata !== undefined &&
+		(raw.metadata === null || typeof raw.metadata !== "object" || Array.isArray(raw.metadata))
+	) {
+		throw new MeshProtocolError("Envelope metadata must be an object.");
+	}
 	const envelope: MeshEnvelope = {
 		v: MESH_PROTOCOL_VERSION,
 		id: raw.id,
@@ -104,6 +110,7 @@ export function validateEnvelope(value: unknown): MeshEnvelope {
 		sentAt: raw.sentAt,
 	};
 	if (raw.replyTo !== undefined) envelope.replyTo = raw.replyTo as string;
+	if (raw.metadata !== undefined) envelope.metadata = raw.metadata as Record<string, unknown>;
 	if (serializedSize(envelope) > MESH_MAX_ENVELOPE_BYTES) {
 		throw new MeshProtocolError(`Envelope exceeds the ${MESH_MAX_ENVELOPE_BYTES} byte limit.`);
 	}

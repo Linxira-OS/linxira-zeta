@@ -1,8 +1,8 @@
-<!-- 从根 AGENTS.md 原文移出（2026-10-25 精简，未改写）。并行代理、feature branch、内部整合批次、dev/* 实验分支、工作树与分支纪律。 -->
+# 主线开发、工作树与恢复引用
 
-# 分支、工作树与推送纪律（展开版）
-
-> 硬约束摘要见根 AGENTS.md「分支、工作树与推送」；本文是完整流程与理由。
+2026-11-17 用户裁决：后续改动集中在 `main`。本规则取代此前根 checkout 只读、
+新方向必须独立 feature/integration 分支和等待 CI 成功才落主线的默认流程。
+上游确切 tag、发布验收、GitHub 写操作审批与用户 `dev/*` 保护规则继续有效。
 
 ## 分支登记（2026-11-01 起）
 
@@ -19,95 +19,20 @@
 - worktree 脏着就删等于丢数据：先 commit，或拷到
   `~/.zeta/parked-evidence/<date>/`，再删 worktree。
 
-## Parallel Agent Branches (2026-10-20 用户立规)
+## 主线开发与并行写入
 
-多子代理并行开发的标准流程，**每一条都是硬规则**：
+1. 主代理在根 `main` 上统一编辑、验证和提交，先检查分支与已有改动；不重置用户 WIP。
+2. 子代理需要修改源码时自建短命 worktree/分支，给出文件归属、基线和返回证据；
+   不改根、不推送、不合并 `main`、不打 tag。只读审查无需 worktree。
+3. 主代理审查增量并迁移到当前实现，解决共享文件冲突，运行受影响的最窄验证。
+   同源代码已被 cherry-pick 或重构覆盖时按内容核对，不机械重放旧分支。
+4. 源码整合不等于验收或发布。本轮无论 CI 结果均整合近期独有改动；检查失败和外部
+   前提缺失必须保留证据，不能写成绿。发布仍需 `document/release.md` 的完整门禁。
+5. 需要推送时每轮最多一次；先查看同分支在途 run。`cancelled`/`skipped` 不算成功。
+   不主动创建 PR、tag、release 或发布包；已有 PR 仍由用户合并。
+6. 回收后先归档未提交内容、独有引用、原始补丁与验证证据，再安全移除临时工作树。
+   `dev/*`、有意 park 和用户保留的分支不自动并入或删除。
 
-1. **每个子代理自建 worktree + 分支**（`temp/<topic>` ← `feat/*`/`fix/*`/`chore/*`），
-   根 checkout 始终干净停在 `main`；子代理不得推送、不得合并 `main`、不得打 tag。
-2. **本地先合、跑通测试**：父代理把各分支按依赖顺序合入一个
-   `chore/integration-<version>` 分支，解决冲突后跑本地门禁——
-   `check-version-consistency`、`check-ci-surface`、`check-workbench-bundles`、
-   `check-scope-imports`、`brand-check`、`bun run check:ts`、`cargo fmt --all -- --check`
-   （用 `main/rust-toolchain.toml` 钉的 1.97.1）——以及受影响套件的测试。
-3. **推分支、跑 CI**：本地绿才推 `chore/integration-<version>`，并用
-   `gh workflow run ci.yml --ref <branch>` 跑**一次**分支 CI；CI 覆盖本地做不到的
-   多系统/原生构建/打包面（`makensis`、`appimagetool`、`makepkg`、bazel natives）。
-   例外：`sync/omp-release/**` 与 `port/**` 已加入 `ci.yml` 的 push 分支，
-   push 会自动跑非 PR 路径（native_addons 真构建）；不要再重复 dispatch，
-   只在需要重跑时 dispatch。
-4. **新功能必须带测试**：没有对应测试的功能改动不进整合分支；环境性失败必须在
-   报告里给出「基线同样红」的证据，不得以 `skip` 或删除断言换取绿。
-5. **zetacode 新特性必须写进 `docs/`**：`docs/` 是随产品打包的运行时文档
-   （`zeta://docs`）。新的 CLI 子命令/标志、扩展 API、工具、内部 URL 面都要在
-   `docs/` 对应文件补齐，不能只留在 CHANGELOG 或代码注释里。
-
-## Feature Branch Workflow (mandatory)
-
-Any new-direction development (new features, new surfaces, refactors that are
-not pure fixes to `main`) MUST follow the offline-branch workflow:
-
-1. **Create a local offline branch first** — never develop new directions
-   directly on `main`. The branch name MUST be designed up front when the
-   feature plan is written (e.g. `feat/web-ui-next`, `feat/<scope>`); plans
-   MUST name their branch.
-2. Work and commit on that branch locally until functionally complete.
-3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
-   `port/*`, `feat/*`, `chore/*`): merge the latest `main` into it first
-   (`git merge main`), then run the local minimum gate —
-   `bun scripts/check-version-consistency.ts`, `bun run check:ts`,
-   `bun scripts/check-lsp-servers.ts` (the coding-agent and termide LSP tables
-   are generated from `lsp/servers.json`), `oxlint`/`oxfmt`
-   on the changed files, plus a re-run of any suite that was red in the last CI
-   round. Never push a branch that is behind `main`; a CI failure triage
-   starts with "is this already fixed on `main`, and is `main` fully merged
-   into this branch?" before touching the branch itself.
-4. **Integration branches open one PR each; agent branches do not.**
-   `feat/**` and `port/**` are integration branches: each opens **one PR**, and
-   that PR is the review and CI surface. Merging stays manual — the user merges;
-   an agent never merges its own PR. Short-lived agent branches (`temp/<topic>`
-   branches feeding an integration branch) merge into the integration branch
-   locally and **never get a PR of their own**. PR title and body count as a
-   GitHub write: show both to the user before `gh pr create` (root `AGENTS.md`
-   §9). Stage commits on a worktree branch are allowed (no push); the round ends
-   when the local gate is green, and then it is pushed **once**.
-   `sync/omp-release/**` and `port/**`
-   pushes trigger `ci.yml` directly (non-PR path, so natives really build).
-   Other branches outside `main`/`dev/*` still need one
-   `gh workflow run ci.yml --ref <branch>` after the last push. Do not dispatch
-   a sync branch again unless the automatic run failed and needs a rerun.
-5. **Land through the local integration batch** (see below), then push `main`
-   once.
-6. Delete the branch and its worktree after the landing (both remote and local).
-
-`main` stays reserved for released/stable work; a new direction only lands on
-`main` via this merge path, never by committing directly to it.
-
-### 内部整合批次：本地先合、一次推（2026-10-16 用户裁决）
-
-当多个**已各自验过的分支**要一起落 `main`（同步分支 + 编辑器/GUI/文档批次）：
-
-1. 每个分支**合并前**过本地最小门禁（`bun run merge-gate --gates-only` +
-   `bun run check:ts`；动过 `crates/` 再加 `cargo fmt --all -- --check`）；
-2. 在**本地**按顺序合并进 `main`（真 merge commit、禁 squash）。推荐做法：先在
-   `temp/<topic>` 工作树里把批次合出来并跑完整门禁，再用 `git merge --ff-only`
-   把 `main` 推进到它 —— 根 checkout 因此只承担"推进引用 + 推送"，不承担编辑；
-3. 合并后刷新依赖：`bun install --frozen-lockfile`。它同时是锁文件一致性检验；
-   若它改动了**跟踪的**生成物，说明合并后的生成物过期，必须先修再推；
-4. **一次 push** `main`，且**在上一轮 run 结束前不推**（2026-10-17 立规，
-   起因：同一轮对 main 连推 4 次，`#1212`–`#1214` 被并发组互相取消，整条流水线
-   一次都没跑完，等于没有信号）。落规三条：
-   - 一轮落地的推送次数 **≤1**；CI 红之后的修复一律**先在 worktree 里累积**
-     （`merge-gate --gates-only` + clippy 本地跑绿），攒到下一次整轮推送；
-   - **在途 run 存在时不推同一分支**；推送前先看 `gh run list --branch <b>`；
-   - `cancelled` 既不是失败也不是通过——只有 `success` 才算证据；被取消的 run
-     必须在报告里写明"无信号"，不得当作绿。
-   `ci.yml` 的 `concurrency` 已对 **main 推送**改为**排队**（不再互相取消）：
-   即便误推两次，两轮都会完整跑完，信号不会被抹掉。release run 与 main 推送
-   都在 no-cancel 组，分支 dispatch 仍会互相取代。**本地先合仍然才有意义**；
-5. **高风险或发布性质**的变更（上游 tag 同步、品牌面、发布链、CI 自身）仍按各自
-   章节走完整证据链；上游同步分支的权威证据是它的 `workflow_dispatch`（本地做不了
-   真编 natives 与依赖 natives 的桶）。
 
 ### `dev/*` — 用户指定的实验分支
 
@@ -128,30 +53,13 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 （v18.2.5 → v18.3.0），并测定**最稳的合并步长**（按冲突量决定一次合几个
 tag）；结论成立则写入 `document/merge-playbook.md`。
 
-### 工作树与分支纪律（2026-10-15 立规）
+### 根 checkout 与恢复引用
 
-根 checkout 必须永远是"干净且停在 `main`"的状态；任何开发都在短命 worktree
-里做。立的由头：2026-10-11 的 v18.8.7 同步轮把根 checkout 留在
-`sync/omp-release/v18.8.7` 且带 79 个未提交改动，一直没人切回，之后**从这棵
-陈旧树里读出了 `packageManager = bun@1.4.0` 这种错误事实**（main 上其实是
-`bun@1.4.3`）——凡读现状必须读 `refs/heads/main`。
-
-- **开工前先查根**：`git rev-parse --abbrev-ref HEAD` 必须是 `main`，
-  `git status --porcelain` 必须为空。不在 `main` 时先把改动安顿好
-  （`git stash push -u -m "<说明>"` 或提交到对应分支），**切回 `main` 再干活**。
-- **根 checkout 只做无副作用操作**：读文件、`git fetch`、`git worktree` /
-  `git branch` 管理。**禁止**在根里改文件、提交、或跑会写盘的构建。
-- **所有开发在 worktree 里**：
-  `git worktree add temp/<topic> -b <branch> refs/heads/main`；分支名**开工前
-  定好**（`feat/*`、`fix/*`、`docs/*`、`chore/*`、`sync/omp-release/<tag>`）。
-- **一轮合并 / 一个 PR 结束后立刻切回 `main`**，`sync/omp-release/<release>`
-  分支与其 worktree **用完即删**（`git worktree remove <path>` +
-  `git branch -d <branch>`）。干净且已并入 `main` 的 `temp/*` worktree 属残留，
-  随时可删；**有未提交内容的一律先保留并登记**。
-- **推送任何集成分支前先 `git merge main`**；不允许落后 `main` 就推。
-- **读事实只认 `refs/heads/main`**（根即 main 时可直接读）。禁止从陈旧 worktree、
-  旧 stash、旧分支里读"现状"。
-- 子代理一律**自建 worktree**，禁止改根 checkout 的文件；委托时把这条写进 brief。
+- 开工确认根为 `main`，读取现状以根工作树为准；旧分支、stash 与 archive 只作恢复输入。
+- 根可以包含本轮正在实现的改动；已有用户改动先识别、保留，禁止 blanket reset/clean。
+- 子代理的写入必须隔离到 `temp/<topic>`，由主代理回收；临时分支不是第二条长期产品线。
+- 历史分支即使不再保留工作树，也保留引用与登记。删除分支前登记 SHA；用户 `dev/*`
+  与明确暂存的分支仍由用户决定，不借 temp 清理擅自删除。
 
 #### `temp/` 的用途、路径与清理（2026-10-15 立规）
 

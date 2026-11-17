@@ -147,6 +147,19 @@ export function persistedAgentDefinition(displayName: string, init: PersistedSes
 }
 
 /**
+ * Transcript that spawned a persisted child: the parent file its header
+ * recorded at creation, else the directory beside its own session file (a
+ * seance fork records its source session id there, not the spawner's path).
+ * Never the root's live session, which may have been resumed elsewhere since
+ * the spawn; wake completions belong to the transcript that asked for them.
+ */
+function persistedSpawnParentSessionFile(session: SessionManager, childSessionFile: string): string {
+	const recorded = session.getHeader()?.parentSession;
+	if (recorded?.endsWith(".jsonl") && path.isAbsolute(recorded)) return path.resolve(recorded);
+	return `${path.dirname(childSessionFile)}.jsonl`;
+}
+
+/**
  * Build the factory the {@link AgentLifecycleManager} uses to cold-revive a
  * `parked` subagent ref restored from disk (Agent Hub scan, collab mirror, or a
  * resumed process). Such a ref carries a sessionFile but no in-memory adoption —
@@ -558,6 +571,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 		eventBus: spec.eventBus,
 		subagentEventBus: spec.subagentEventBus,
 		sessionFile,
+		parentSessionFile: persistedSpawnParentSessionFile(reopened, sessionFile),
 		structured,
 		outputSchema: init.outputSchema,
 		outputSchemaMode: init.outputSchemaMode,

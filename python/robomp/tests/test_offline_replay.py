@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -212,6 +214,95 @@ def test_cli_triage_and_status_offline(
     payload = json.loads(status.output)
     assert any(event["delivery_id"] == "fixture-1" and event["state"] == "done" for event in payload["events"])
     close_database()
+
+
+def test_real_cli_process_replay_persists_across_process_restarts(
+    offline_settings: Settings, tmp_path: Path
+) -> None:
+    """Run the shipped entrypoint, SQLite and git without a model or GitHub writes."""
+    repo = _local_repo(tmp_path)
+    fixture_path = tmp_path / "process-fixture.json"
+    fixture_path.write_text(json.dumps(_payload(repo)), encoding="utf-8")
+    process_env = os.environ | {
+        "ROBOMP_OMP_COMMAND": "robomp-must-not-spawn-an-agent",
+        "GIT_ALLOW_PROTOCOL": "file",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+    }
+
+    def invoke(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "-m", "robomp", *args],
+            cwd=tmp_path,
+            env=process_env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    triage = invoke("triage", "--offline", "--fixture", str(fixture_path))
+    assert triage.returncode == 0, triage.stdout + triage.stderr
+    result = json.loads(triage.stdout)
+    assert result["state"] == "done"
+    saved = json.loads(Path(result["result_path"]).read_text(encoding="utf-8"))
+    assert saved["no_network"] is True
+    assert saved["agent_invoked"] is False
+    worktree_head = subprocess.run(
+        ["git", "-C", str(Path(result["workspace"]) / "repo"), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    source_head = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    assert worktree_head == source_head
+
+    status = invoke("status", "--offline", "--json")
+    assert status.returncode == 0, status.stdout + status.stderr
+    persisted = next(row for row in json.loads(status.stdout)["events"] if row["delivery_id"] == "fixture-1")
+    assert persisted["state"] == "done" and persisted["attempts"] == 1
+
+    refused = invoke("replay", "fixture-1", "--offline")
+    assert refused.returncode == 2
+    assert "terminal events require --force" in refused.stderr
+    replayed = invoke("replay", "fixture-1", "--offline", "--force")
+    assert replayed.returncode == 0, replayed.stdout + replayed.stderr
+    status = invoke("status", "--offline", "--json")
+    assert status.returncode == 0, status.stdout + status.stderr
+    persisted = next(row for row in json.loads(status.stdout)["events"] if row["delivery_id"] == "fixture-1")
+    assert persisted["state"] == "done" and persisted["attempts"] == 2
+
+
+def test_real_cli_process_refuses_remote_fixture_before_fetch(
+    offline_settings: Settings, tmp_path: Path
+) -> None:
+    fixture_path = tmp_path / "remote-fixture.json"
+    fixture_path.write_text(
+        json.dumps(_payload(tmp_path, clone_url="https://github.com/octo/widget.git")), encoding="utf-8"
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "robomp", "triage", "--offline", "--fixture", str(fixture_path)],
+        cwd=tmp_path,
+        env=os.environ | {"ROBOMP_OMP_COMMAND": "robomp-must-not-spawn-an-agent", "GIT_ALLOW_PROTOCOL": "file"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 2
+    assert "offline replay refuses remote clone_url" in result.stderr
+    db = Database(offline_settings.sqlite_path)
+    try:
+        row = db.get_event("fixture-1")
+        assert row is not None and row.state == "failed"
+        assert not (offline_settings.workspace_root / "octo__widget__7").exists()
+    finally:
+        db.close()
 
 
 def test_load_fixture_reads_recorded_payload(tmp_path: Path) -> None:

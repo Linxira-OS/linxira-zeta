@@ -1,32 +1,14 @@
-/**
- * Studio operations — Team relationship graph.
- *
- * Operation → gateway route:
- * - `team.graph.get` → `GET /api/agents` (live root agents, `web-gateway/team.ts`)
- *   plus `GET /api/agent/:sessionId/subagents` (existing spawn roster, through
- *   `readSessionAgents`) and `GET /api/projects` (workspace display names,
- *   through `readWorkspaceNames`). The pure projection lives in
- *   `team-projection.ts`.
- * - The global Team DB (`~/.zeta/data/zeta.db`) supplies the structural rows:
- *   teams, PM workspaces, base repos, bindings, engineers, worktrees, rooms,
- *   room members and PM-owned persistent agents. `team-db.ts` reads one
- *   snapshot; a missing database is an empty inventory, not an error.
- *
- * Every node and edge has a producer:
- * - mains are process root refs, so a host in another process is not visible;
- * - subagents come from the root-scoped roster (live + persisted rows);
- * - a live main whose cwd is a PM workspace or engineer worktree is attached
- *   to that DB record; a DB record with no attached session is `offline`;
- * - spawn edges are registry parentage or a PM-owned Secretary row;
- * - bindings, assignments, room membership and worktree edges are Team DB rows.
- */
+/** Active Team graph reads mesh room membership, Vibe worker views and registry mains.
+ * Legacy Super Team operations remain callable but never supply graph facts. */
 import { logger } from "@linxiraos/pi-utils";
 import type { TeamGraphReadModel, TeamNodeLifetime, WorkspaceId } from "../contract/index.js";
-import type { StudioAgentSnapshot } from "../protocol/index.js";
+import { AgentRegistry } from "../../../registry/agent-registry.js";
+import { VibeSessionRegistry } from "../../../vibe/runtime.js";
+import { listTeamSnapshots } from "../../../vibe/team-rooms.js";
+import { projectActiveTeamHub } from "../../../vibe/team-hub-data.js";
+import { readSessionInfo } from "../../../session/session-listing.js";
 import { gatewayJson, invalid } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
-import { readSessionAgents } from "./session.js";
-import { emptyTeamDbFacts, readTeamDbFacts } from "./team-db.js";
 import { LIFETIMES, TEAM_STATUS, projectTeamGraph, type TeamGraphQuery, type TeamMainFact } from "./team-projection.js";
 import { readWorkspaceNames } from "./workspace.js";
 import { teamWorkspaceCommands, teamWorkspaceQueries } from "./team-workspace.js";
@@ -65,6 +47,8 @@ function mainFact(value: unknown): TeamMainFact | undefined {
 		lastActivity,
 		live: record.live === true,
 		hasTranscript: record.hasTranscript === true,
+		teamEnabled: record.teamEnabled === true,
+		modeKnown: record.modeKnown === true,
 		vibeEnabled: record.vibeEnabled === true,
 		...(cwd ? { cwd } : {}),
 		...(activity ? { activity } : {}),
@@ -106,42 +90,32 @@ async function readTeamGraph(input: unknown): Promise<TeamGraphReadModel> {
 			return new Map<WorkspaceId, string>();
 		}),
 	]);
-	const rosters = new Map<string, readonly StudioAgentSnapshot[]>();
-	const incompleteMainIds: string[] = [];
-	await Promise.all(
-		mains.flatMap(main => {
-			if (main.sessionId === undefined) return [];
-			const sessionId = main.sessionId;
-			return [
-				readSessionAgents(sessionId)
-					.then(rows => {
-						rosters.set(sessionId, rows);
-					})
-					.catch(error => {
-						logger.warn("studio-host: team graph roster unavailable", { sessionId, error: String(error) });
-						incompleteMainIds.push(main.id);
-					}),
-			];
+	const registry = AgentRegistry.global();
+	const vibe = VibeSessionRegistry.global();
+	const teams = await Promise.all(
+		listTeamSnapshots({ limit: 100 }).map(async rooms => {
+			const source = rooms.ownerScope;
+			const root = registry.get(source.ownerId);
+			const cwd =
+				root?.session?.sessionManager.getSessionId() === source.parentSessionId
+					? root.session.sessionManager.getCwd()
+					: source.parentSessionFile
+						? (await readSessionInfo(source.parentSessionFile))?.cwd
+						: undefined;
+			return {
+				snapshot: projectActiveTeamHub(rooms, vibe.view(source), registry),
+				sourceSessionId: source.parentSessionId,
+				...(cwd ? { cwd } : {}),
+			};
 		}),
 	);
-
-	let teamDb = emptyTeamDbFacts();
-	try {
-		teamDb = readTeamDbFacts();
-	} catch (error) {
-		// A corrupt or locked DB must not hide the live agents the gateway read.
-		logger.warn("studio-host: team graph Team DB unavailable", { error: String(error) });
-	}
 
 	const query: TeamGraphQuery = {
 		...(record.workspaceId !== undefined ? { workspaceId: record.workspaceId as WorkspaceId } : {}),
 		...(lifetime !== undefined ? { lifetime: lifetime as TeamNodeLifetime } : {}),
 		...(record.clusterId !== undefined ? { clusterId: record.clusterId as string } : {}),
 	};
-	const graph = projectTeamGraph({ mains, rosters, workspaceNames, teamDb, generatedAt: new Date() }, query);
-	// A failed roster read is reported, not hidden: the page still shows the
-	// mains it could read and names the teams whose spawn tree is missing.
-	return incompleteMainIds.length === 0 ? graph : { ...graph, incompleteMainIds };
+	return projectTeamGraph({ mains, teams, workspaceNames, generatedAt: new Date() }, query);
 }
 
 /** Team family: graph plus the workspace operations used by the Studio pane. */

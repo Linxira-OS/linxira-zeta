@@ -33,11 +33,11 @@
   a `members:` line of `displayName (memberId, role)`; then each retained event
   as `#<seq> <sentAt> <actor.name>: <body>` with `(reply to #N)` when the event
   answers another one. `details.events` carries the event records.
+- Reserved active-Team rooms require membership. Owner access is also bound to the source session, so navigating to a different transcript cannot read or post into the earlier Team as that owner. The list hides reserved rooms the caller cannot read.
 
 ## Side Effects
 
-None. `local_room_read` only queries the room log; it appends no event, advances
-no round, and writes no session JSONL.
+The tool only queries the room log: it appends no room event and advances no round or cursor. Its explicit result remains ordinary tool evidence in the calling session transcript; automatic Team delivery never copies room conversation bodies.
 
 ## Errors
 

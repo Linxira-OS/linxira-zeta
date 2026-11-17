@@ -353,8 +353,9 @@ if (import.meta.main) {
 	if (command === "check" && !isPublicRelease(version)) {
 		console.log(`release-scope: ${version} does not publish (freeze policy); running structural checks only.`);
 	}
+	const notesPath = argValue(args, "--notes");
 	const report = checkReleaseScope(version, {
-		notes: argValue(args, "--notes") ?? undefined,
+		notes: notesPath ? readFileSync(notesPath, "utf8") : undefined,
 		structuralOnly: structuralOnly || (command === "check" && !isPublicRelease(version)),
 	});
 	if (args.includes("--json")) console.log(JSON.stringify(report, null, 2));

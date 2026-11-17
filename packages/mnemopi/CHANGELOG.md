@@ -1,6 +1,8 @@
 ## [Unreleased]
 
-- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+## [1.5.2] - 2026-11-13
+
+### Changed
 
 ### Fixed
 
@@ -8,6 +10,7 @@
 
 
 ## [1.5.1] - 2026-11-10
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
 ## [1.5.0] - 2026-11-09
 

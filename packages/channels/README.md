@@ -24,3 +24,16 @@ package directly (no channel listeners exist outside a `ZetaServer`).
   wake-turn observer (`ReplyCorrelator`): a turn answers the chat whose
   message it was started for, and Studio/attach turns on the same session
   never consume an IM reply slot.
+
+## Feishu / Lark inbound media
+
+Text, image, and file events reach the same inbound session route. Image and
+file resources are fetched with the bot's SDK client and streamed into the
+instance's `channels-inbox/<instance>/<message-id>` directory. The shared
+attachment byte cap is 100 MiB; a failed or oversized download reaches the
+agent as an unavailable attachment, without a partial file or a fabricated
+download URL. Missing resource keys and disabled storage are also explicit
+attachment failures. Other Feishu message types are rejected with a warning.
+This does not add outbound file support or change secret storage (ADR-0030).
+The additive authenticated-source API is proposed in
+[ADR-0065](../../document/adr/0065-feishu-bounded-inbound-resources.md).

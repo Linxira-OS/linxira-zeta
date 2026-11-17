@@ -24,6 +24,10 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
 import { AgentSessionWrapper } from "@linxiraos/zeta/server/web-gateway/agents";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { RoomService } from "@linxiraos/zeta/rooms/service";
+import { roomRuntime } from "@linxiraos/zeta/rooms/transport";
+import { resetTeamRoomsForTests } from "@linxiraos/zeta/vibe/team-rooms";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -59,6 +63,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
 	let session: AgentSession | undefined;
+	let rooms: RoomService;
 
 	beforeAll(async () => {
 		authDir = TempDir.createSync("@pi-mode-controller-auth-");
@@ -74,6 +79,10 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 
 	beforeEach(() => {
 		tempDir = TempDir.createSync("@pi-mode-controller-");
+		AgentRegistry.resetGlobalForTests();
+		resetTeamRoomsForTests();
+		rooms = new RoomService(tempDir.join("rooms.db"));
+		roomRuntime(() => rooms);
 	});
 
 	afterEach(async () => {
@@ -81,6 +90,9 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			await session?.dispose();
 		} finally {
 			session = undefined;
+			rooms.close();
+			resetTeamRoomsForTests();
+			AgentRegistry.resetGlobalForTests();
 			await tempDir?.remove();
 		}
 	});
@@ -121,7 +133,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 
 		const created = new AgentSession({
 			agent,
-			sessionManager: SessionManager.inMemory(),
+			sessionManager: SessionManager.create(tempDir.path(), tempDir.join("sessions")),
 			settings,
 			modelRegistry,
 			toolRegistry,
@@ -131,6 +143,13 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			builtInToolNames: ["ask", "write", "read", "goal", "tracking_update", "local_room_read"],
 		});
 		session = created;
+		AgentRegistry.global().register({
+			id: "Main",
+			displayName: "Main",
+			kind: "main",
+			status: "idle",
+			session: created,
+		});
 		return { session: created, mock };
 	}
 
@@ -268,6 +287,45 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		expect(cfgTrackingEnabled.get(settings)).toBe(false);
 		expect(cfgTrackingEnabled.provenance(settings)).not.toBe("runtime");
 		expect(modeChangeEntries().at(-1)?.mode).toBe("none");
+	});
+
+	it("Team excludes every other shared mode until explicit exit", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+		await harness.session.enterMode("team");
+		for (const mode of ["plan", "goal", "vibe", "lead"] as const) {
+			await expect(harness.session.enterMode(mode)).rejects.toThrow("Exit Team mode first.");
+			expect(harness.session.getTeamModeState()?.enabled).toBe(true);
+		}
+		expect(harness.session.getVibeModeState()).toBeUndefined();
+		await harness.session.exitMode("team");
+		await harness.session.enterMode("vibe");
+		expect(harness.session.getVibeModeState()?.enabled).toBe(true);
+	});
+
+	it("headless resume detaches Team from the target and restores only its source scope", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+		const manager = harness.session.sessionManager;
+		await manager.newSession();
+		await manager.ensureOnDisk();
+		const source = manager.getSessionFile()!;
+		const ordinary = SessionManager.create(manager.getCwd(), tempDir.path());
+		await ordinary.ensureOnDisk();
+		const target = ordinary.getSessionFile()!;
+		await ordinary.close();
+		await harness.session.enterMode("team");
+		await manager.flush();
+		expect(await harness.session.switchSession(target, { keepModel: true })).toBe(true);
+		expect(harness.session.getTeamModeState()).toBeUndefined();
+		expect(cfgTrackingEnabled.get(harness.session.settings)).toBe(false);
+		expect(harness.session.getActiveToolNames()).toEqual(["ask", "write", "read"]);
+		expect(await harness.session.switchSession(source, { keepModel: true })).toBe(true);
+		expect(harness.session.getTeamModeState()?.enabled).toBe(true);
+		expect(cfgTrackingEnabled.get(harness.session.settings)).toBe(true);
+		expect(harness.session.getActiveToolNames()).toContain("team_worker");
 	});
 
 	it("mode entry bumps the external state version", async () => {

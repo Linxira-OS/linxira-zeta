@@ -116,6 +116,10 @@ CREATE INDEX IF NOT EXISTS idx_room_events_room_seq ON room_events(room_id, seq)
 CREATE INDEX IF NOT EXISTS idx_room_round_targets_member ON room_round_targets(room_id, member_id);
 CREATE INDEX IF NOT EXISTS idx_room_proposals_room ON room_proposals(room_id, seq);
 `,
+	`
+ALTER TABLE room_members ADD COLUMN metadata_json TEXT;
+ALTER TABLE room_events ADD COLUMN metadata_json TEXT;
+`,
 ];
 
 export function resolveRoomsDbPath(): string {
@@ -140,6 +144,7 @@ interface DbMemberRow {
 	repo_root: string | null;
 	home_session_id: string | null;
 	created_at: number;
+	metadata_json: string | null;
 }
 
 interface DbEventRow {
@@ -156,6 +161,7 @@ interface DbEventRow {
 	mentions_json: string;
 	round_id: string | null;
 	status: RoomTargetStatus | null;
+	metadata_json: string | null;
 }
 
 interface DbCursorRow {
@@ -208,6 +214,14 @@ function parseMentions(raw: string): string[] {
 	}
 }
 
+function parseMetadata(raw: string | null): Record<string, unknown> | undefined {
+	if (raw === null) return undefined;
+	const value: unknown = JSON.parse(raw);
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: undefined;
+}
+
 function toRoom(row: DbRoomRow): Room {
 	return {
 		id: row.room_id,
@@ -228,6 +242,7 @@ function toMember(row: DbMemberRow): RoomMember {
 		...(row.repo_root === null ? {} : { repoRoot: row.repo_root }),
 		...(row.home_session_id === null ? {} : { homeSessionId: row.home_session_id }),
 		createdAt: iso(row.created_at),
+		...(row.metadata_json === null ? {} : { metadata: parseMetadata(row.metadata_json) }),
 	};
 }
 
@@ -245,6 +260,7 @@ function toEvent(row: DbEventRow): RoomEvent {
 		mentions: parseMentions(row.mentions_json),
 		...(row.round_id === null ? {} : { roundId: row.round_id }),
 		...(row.status === null ? {} : { status: row.status }),
+		...(row.metadata_json === null ? {} : { metadata: parseMetadata(row.metadata_json) }),
 	};
 }
 
@@ -304,6 +320,7 @@ export interface AppendEventInput {
 	mentions?: readonly string[];
 	roundId?: string;
 	status?: RoomTargetStatus;
+	metadata?: Readonly<Record<string, unknown>>;
 }
 
 export interface CreateRoomRecord {
@@ -330,14 +347,20 @@ export class RoomLog {
 	}
 
 	#migrate(): void {
-		const row = this.#db.query("PRAGMA user_version").get() as { user_version: number } | null;
-		const current = row?.user_version ?? 0;
-		for (let version = current; version < MIGRATIONS.length; version++) {
-			this.#db.transaction(() => {
-				this.#db.run(MIGRATIONS[version]);
-				this.#db.run(`PRAGMA user_version = ${version + 1}`);
-			})();
-		}
+		this.#db
+			.transaction(() => {
+				const row = this.#db.query("PRAGMA user_version").get() as { user_version: number } | null;
+				for (let version = row?.user_version ?? 0; version < MIGRATIONS.length; version++) {
+					this.#db.run(MIGRATIONS[version]);
+					this.#db.run(`PRAGMA user_version = ${version + 1}`);
+				}
+			})
+			.immediate();
+	}
+
+	/** Serialize a host membership/log mutation across processes sharing this log. */
+	transaction<T>(operation: () => T): T {
+		return this.#db.transaction(operation).immediate();
 	}
 
 	// ── rooms ─────────────────────────────────────────────────────────────
@@ -405,8 +428,8 @@ export class RoomLog {
 		this.#db
 			.query(
 				`INSERT INTO room_members
-				 (room_id, member_id, role, display_name, repo_root, home_session_id, created_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				 (room_id, member_id, role, display_name, repo_root, home_session_id, created_at, metadata_json)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				member.roomId,
@@ -416,8 +439,26 @@ export class RoomLog {
 				member.repoRoot ?? null,
 				member.homeSessionId ?? null,
 				now,
+				member.metadata === undefined ? null : JSON.stringify(member.metadata),
 			);
 		return { ...member, createdAt: iso(now) };
+	}
+
+	/** Refresh member identity without resetting durable delivery/read cursors. */
+	updateMember(member: Omit<RoomMember, "createdAt">): void {
+		this.#db
+			.query(`UPDATE room_members SET role = ?, display_name = ?, repo_root = ?,
+			home_session_id = ?, metadata_json = ? WHERE room_id = ? AND member_id = ?`)
+			.run(
+				member.role,
+				member.displayName,
+				member.repoRoot ?? null,
+				member.homeSessionId ?? null,
+				member.metadata === undefined ? null : JSON.stringify(member.metadata),
+				member.roomId,
+				member.memberId,
+			);
+		this.touchRoom(member.roomId);
 	}
 
 	deleteMember(roomId: string, memberId: string): void {
@@ -443,8 +484,8 @@ export class RoomLog {
 			this.#db
 				.query(
 					`INSERT INTO room_events
-					 (room_id, seq, event_id, kind, actor_kind, actor_id, actor_name, sent_at, body, reply_to, mentions_json, round_id, status)
-					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					 (room_id, seq, event_id, kind, actor_kind, actor_id, actor_name, sent_at, body, reply_to, mentions_json, round_id, status, metadata_json)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				)
 				.run(
 					input.roomId,
@@ -460,6 +501,7 @@ export class RoomLog {
 					JSON.stringify(mentions),
 					input.roundId ?? null,
 					input.status ?? null,
+					input.metadata === undefined ? null : JSON.stringify(input.metadata),
 				);
 			this.touchRoom(input.roomId);
 			return {
@@ -474,6 +516,7 @@ export class RoomLog {
 				mentions,
 				...(input.roundId === undefined ? {} : { roundId: input.roundId }),
 				...(input.status === undefined ? {} : { status: input.status }),
+				...(input.metadata === undefined ? {} : { metadata: input.metadata }),
 			};
 		})();
 	}
@@ -519,6 +562,14 @@ export class RoomLog {
 	}
 
 	// ── cursors ───────────────────────────────────────────────────────────
+
+	/** Read without creating a cursor, for host projections. */
+	readCursor(roomId: string, memberId: string): RoomCursor | null {
+		const row = this.#db
+			.query<DbCursorRow, [string, string]>("SELECT * FROM room_cursors WHERE room_id = ? AND member_id = ?")
+			.get(roomId, memberId);
+		return row ? toCursor(row) : null;
+	}
 
 	getCursor(roomId: string, memberId: string): RoomCursor {
 		this.#db.query("INSERT OR IGNORE INTO room_cursors (room_id, member_id) VALUES (?, ?)").run(roomId, memberId);

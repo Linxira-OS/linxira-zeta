@@ -28,7 +28,7 @@
 ## Outputs
 
 - `content[0].type = "text"` — `Posted #<seq> to room <roomId>.`
-- `details.event` — the appended `RoomEvent`, including its host-assigned seq.
+- `details.event` — the appended `RoomEvent` for ordinary contact rooms. Active Team posts return the event sequence without duplicating the room body in the tool result.
 
 ## Side Effects
 
@@ -37,6 +37,7 @@
   another repository's tracking.
 - A user-triggered round opened by the post may schedule delivery to its
   targets; the posting agent itself is not broadcast to.
+- Reserved active-Team rooms use `vibe/team-rooms.ts`: sender membership is enforced, and a post notifies other members with a room id/seq reference. It cannot grant execution or governance authority.
 
 ## Errors
 

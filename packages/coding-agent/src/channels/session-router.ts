@@ -51,6 +51,9 @@ import {
 	type ImRouteSnapshot,
 	type ImSwitchControlMetadata,
 } from "../session/session-im";
+import { isImUserMessageMetadata, normalizeImMessageMetadata } from "../session/session-im";
+import { isRootAgentRef } from "../registry/agent-registry";
+import { postForwardedIm, type TeamRoomName, type TeamRoomPostResult } from "../vibe/team-rooms";
 import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
@@ -303,6 +306,11 @@ export class SessionRouter {
 	readonly #observedBridges = new Set<string>();
 	/** Latest chat each bot session answers (channel_send/im_control resolution). */
 	readonly #botLastChat = new Map<string, BotChatTarget>();
+	/** Subscriptions for explicit local-agent IM targets, separate from workspace ownership. */
+	readonly #agentReplySubscriptions = new Map<string, () => void>();
+	readonly #agentReplySessions = new Map<string, AgentSession>();
+	/** IM sources of the current wake turn, never the chat that happened to arrive last. */
+	readonly #activeImSources = new WeakMap<AgentSession, Readonly<Record<string, unknown>>[]>();
 	/** Workspace alias → absolute directory (mirror of web.yml entries). */
 	readonly #aliases = new Map<string, string>();
 	#activeRun: ActiveRun | null = null;
@@ -480,7 +488,25 @@ export class SessionRouter {
 		const observer = session.setIrcWakeTurnObserver;
 		if (typeof observer === "function") {
 			try {
-				observer.call(session, records => correlator.observe(records));
+				observer.call(session, records => {
+					const sources = records.flatMap(record => {
+						if (
+							record.role !== "custom" ||
+							!record.details ||
+							typeof record.details !== "object" ||
+							!("metadata" in record.details)
+						)
+							return [];
+						const metadata = normalizeImMessageMetadata(record.details.metadata);
+						return metadata && isImUserMessageMetadata(metadata) ? [{ ...metadata }] : [];
+					});
+					this.#activeImSources.set(session, sources);
+					const finish = correlator.observe(records);
+					return () => {
+						if (this.#activeImSources.get(session) === sources) this.#activeImSources.delete(session);
+						finish?.();
+					};
+				});
 				this.#observedBridges.add(key);
 			} catch (error) {
 				logger.warn("Reply correlation observer unavailable", {
@@ -1414,26 +1440,89 @@ export class SessionRouter {
 		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
+		context: ImDeliveryContext = {},
 	): Promise<{ ok: boolean; error?: string }> {
 		const coordinatorId = this.#coordinator.getAgentId?.() ?? MAIN_AGENT_ID;
-		// `@agent use main` (any case) names this process's workspace main, which
-		// may be the coordinator itself; normalize before the direct branch so it
-		// is not routed through the bus as a self-send.
 		const resolvedTarget = AgentRegistry.global().resolveMainAlias(target, coordinatorId) ?? target;
+		const ref = AgentRegistry.global().get(resolvedTarget);
+		if (
+			(ref && !isRootAgentRef(ref)) ||
+			(!ref &&
+				resolvedTarget !== coordinatorId &&
+				!(await this.listAgentTargets()).some(
+					candidate => candidate.address === resolvedTarget && candidate.role === "main",
+				))
+		) {
+			return { ok: false, error: "External IM must target a main agent; its owner may forward to a Team room." };
+		}
+		const session = resolvedTarget === coordinatorId ? this.#coordinator : ref?.session;
+		const ownedWorkspace = session
+			? [...this.#sessions].find(([, handle]) => handle.session === session)?.[0]
+			: undefined;
+		const ownedBot = session
+			? [...this.#botSessions].find(([, handle]) => handle.session === session)?.[0]
+			: undefined;
+		const key = ownedWorkspace ?? ownedBot ?? `im-agent:${resolvedTarget}`;
+		if (session && this.#agentReplySessions.get(key) && this.#agentReplySessions.get(key) !== session) {
+			this.#agentReplySubscriptions.get(key)?.();
+			this.#agentReplySubscriptions.delete(key);
+			this.#detachBridge(key, this.#agentReplySessions.get(key));
+			this.#agentReplySessions.delete(key);
+		}
+		const messageId = Snowflake.next();
+		const metadata = this.#imUserMetadata(
+			channelId,
+			peer,
+			context,
+			{ agentId: resolvedTarget },
+			messageId,
+			Date.now(),
+		);
+		const bridge = session ? this.#bridgeFor(key, session as AgentSession) : undefined;
+		if (
+			session &&
+			ownedWorkspace === undefined &&
+			ownedBot === undefined &&
+			!this.#agentReplySubscriptions.has(key)
+		) {
+			this.#agentReplySessions.set(key, session as AgentSession);
+			this.#agentReplySubscriptions.set(
+				key,
+				session.subscribe(event => {
+					if (event.type === "turn_end") this.#bridges.get(key)?.onTurnText(assistantText(event.message));
+				}),
+			);
+		}
+		bridge?.expect(messageId, {
+			kind: "chat",
+			instanceId: channelId,
+			peer,
+			...(context.messageId ? { messageId: context.messageId } : {}),
+			context: {
+				...(context.threadId ? { threadId: context.threadId } : {}),
+				...(context.userId ? { userId: context.userId } : {}),
+			},
+		});
 		try {
 			if (resolvedTarget === coordinatorId) {
 				await this.#coordinator.deliverIrcMessage({
-					id: `${channelId}:${peer}:${Date.now()}`,
+					id: messageId,
 					from: "user",
 					to: resolvedTarget,
 					body,
 					ts: Date.now(),
+					metadata,
 				});
 				return { ok: true };
 			}
-			const receipt = await IrcBus.global().send({ from: coordinatorId, to: resolvedTarget, body });
+			const receipt = await IrcBus.global().send(
+				{ from: coordinatorId, to: resolvedTarget, body, metadata },
+				{ messageId },
+			);
+			if (receipt.outcome === "failed") bridge?.forget(messageId);
 			return receipt.outcome === "failed" ? { ok: false, error: receipt.error } : { ok: true };
 		} catch (error) {
+			bridge?.forget(messageId);
 			return { ok: false, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
@@ -2187,6 +2276,65 @@ export class SessionRouter {
 		return this.#getLastInbound();
 	}
 
+	/** One-shot forwarding by the authenticated calling main, without changing any chat binding. */
+	async routeToTeamRoom(
+		sessionKey: string,
+		body: string,
+		sourceMessageId: string,
+		room: TeamRoomName = "team",
+		sourceEntryId?: string,
+	): Promise<TeamRoomPostResult> {
+		const session =
+			sessionKey === "coordinator"
+				? this.#coordinator
+				: (this.#botSessions.get(sessionKey)?.session ??
+					this.#sessions.get(this.resolveDir(sessionKey) ?? sessionKey)?.session);
+		if (!session || !session.getTeamModeState()?.enabled)
+			throw new Error("route_team_room requires the calling main's active Team mode");
+		const agentId = session.getAgentId();
+		const ref = agentId ? AgentRegistry.global().get(agentId) : undefined;
+		if (!ref || !isRootAgentRef(ref)) throw new Error("Only a registered main agent may forward IM to a Team room");
+		const entries = session.sessionManager.getBranch();
+		const sources = entries.flatMap(entry => {
+			if (
+				entry.type !== "message" ||
+				entry.message.role !== "user" ||
+				(sourceEntryId !== undefined && entry.id !== sourceEntryId)
+			)
+				return [];
+			const provenance = normalizeImMessageMetadata(entry.metadata);
+			return provenance && isImUserMessageMetadata(provenance) && provenance.messageId === sourceMessageId
+				? [provenance]
+				: [];
+		});
+		if (sources.length === 0)
+			throw new Error("No matching inbound IM user message exists in the calling source transcript");
+		if (sources.length !== 1)
+			throw new Error("Ambiguous messageId across IM messages; supply sourceEntryId from the transcript entry");
+		const activeSources = this.#activeImSources.get(session);
+		if (
+			activeSources?.length &&
+			!activeSources.some(
+				source =>
+					source.instance === sources[0]!.instance &&
+					source.chatId === sources[0]!.chatId &&
+					source.messageId === sources[0]!.messageId,
+			)
+		) {
+			throw new Error("The requested IM message does not belong to the calling wake turn");
+		}
+		return postForwardedIm(
+			{
+				ownerId: ref.id,
+				parentSessionId: session.sessionManager.getSessionId(),
+				parentSessionFile: session.sessionManager.getSessionFile() ?? null,
+			},
+			body,
+			{ ...sources[0]! },
+			room,
+		);
+	}
+
 	/** Drop one chat/thread/sender's bot-session pointer (falls back to the relay). */
 	async clearActiveBotSession(
 		channelId: ChannelInstanceId,
@@ -2629,6 +2777,10 @@ export class SessionRouter {
 		this.#botSessions.clear();
 		this.#botStarts.clear();
 		this.#botLastChat.clear();
+		for (const unsubscribe of this.#agentReplySubscriptions.values()) unsubscribe();
+		for (const [key, session] of this.#agentReplySessions) this.#detachBridge(key, session);
+		this.#agentReplySessions.clear();
+		this.#agentReplySubscriptions.clear();
 		this.#bridges.clear();
 		this.#observedBridges.clear();
 	}

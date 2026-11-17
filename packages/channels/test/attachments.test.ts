@@ -75,4 +75,30 @@ describe("storeAttachments", () => {
 		expect(await readFile(stored[0]!.path!, "utf8")).toBe("hi");
 		await rm(dir, { recursive: true, force: true });
 	});
+
+	test("stores an authenticated response without exposing a protected URL", async () => {
+		const dir = await tempDir();
+		try {
+			const stored = await storeAttachments(
+				[
+					{
+						kind: "file",
+						name: "resource.txt",
+						open: async signal => {
+							expect(signal.aborted).toBe(false);
+							return new Response("protected bytes", {
+								headers: { "content-type": "text/plain; charset=utf-8" },
+							});
+						},
+					},
+				],
+				{ dir, messageKey: "authenticated" },
+			);
+			expect(stored[0]).toMatchObject({ name: "resource.txt", kind: "file", mime: "text/plain", size: 15 });
+			expect(stored[0]!.url).toBeUndefined();
+			expect(await readFile(stored[0]!.path!, "utf8")).toBe("protected bytes");
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
 });

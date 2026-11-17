@@ -16,6 +16,9 @@
   pipewire,
   removeReferencesTo,
   source,
+  # Clean source commit embedded in the compiled CLI (REQ-036). The store copy
+  # has no .git, so the builder cannot recover it with `git rev-parse`.
+  revision ? null,
   stdenv,
   # onnxruntime-node (downloaded into the agent cache on first use) ships CUDA
   # execution providers that dlopen vendor libraries absent from the NixOS
@@ -131,6 +134,7 @@ stdenv.mkDerivation {
   env = {
     SOURCE_DATE_EPOCH = "1";
   }
+  // lib.optionalAttrs (revision != null) { ZETA_BUILD_COMMIT = revision; }
   // lib.optionalAttrs stdenv.hostPlatform.isDarwin { BUN_NO_CODESIGN_MACHO_BINARY = "1"; };
 
   buildPhase = ''

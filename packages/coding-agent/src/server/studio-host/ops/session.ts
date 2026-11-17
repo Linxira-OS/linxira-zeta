@@ -87,6 +87,7 @@ import {
 	selectStudioSession,
 } from "../selection.js";
 import { plainText, projectConversationItems, type TranscriptRecord } from "../conversation-projector.js";
+export { projectConversationItems } from "../conversation-projector.js";
 import { readSessionCompaction } from "./compaction.js";
 
 /**
@@ -714,6 +715,9 @@ async function loadSessionTranscript(
 	const context = isRecord(body.context) ? body.context : undefined;
 	const messages = context !== undefined && Array.isArray(context.messages) ? context.messages : undefined;
 	const entryIds = context !== undefined && Array.isArray(context.entryIds) ? context.entryIds : undefined;
+	const messageMetadata =
+		context !== undefined && Array.isArray(context.messageMetadata) ? context.messageMetadata : [];
+	const messageClients = context !== undefined && Array.isArray(context.messageClients) ? context.messageClients : [];
 	if (messages === undefined || entryIds === undefined) {
 		throw unavailable(`session ${sessionId} returned no transcript context`);
 	}
@@ -740,7 +744,13 @@ async function loadSessionTranscript(
 		earliest ??= isoFromMilliseconds(
 			isRecord(messages[index]) ? numberField(messages[index], "timestamp") : undefined,
 		);
-		records.push({ id, createdAt: timestamps.get(id), message: messages[index] });
+		records.push({
+			id,
+			createdAt: timestamps.get(id),
+			message: messages[index],
+			metadata: messageMetadata[index],
+			client: messageClients[index],
+		});
 	}
 	const fallbackCreatedAt = created ?? modified ?? earliest;
 	if (fallbackCreatedAt === undefined && records.length > 0) {
@@ -789,7 +799,13 @@ async function loadAgentTranscript(parentSessionId: string, agentId: string): Pr
 		if (type !== "message") continue;
 		const id = stringField(entry, "id");
 		if (id === undefined || id === "") continue;
-		records.push({ id, createdAt: stringField(entry, "timestamp"), message: entry.message });
+		records.push({
+			id,
+			createdAt: stringField(entry, "timestamp"),
+			message: entry.message,
+			metadata: entry.metadata,
+			client: entry.client,
+		});
 	}
 	const nextByte = numberField(body, "nextByte");
 	return {

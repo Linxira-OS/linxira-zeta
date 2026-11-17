@@ -258,6 +258,7 @@ import { GoalRuntime } from "../goals/runtime";
 import type { GoalModeState, GoalTokenUsage } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
+import type { SessionClient } from "./session-client";
 import { type ChainJudge, hasNativeJudge, journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import type { JobWidgetEntry } from "@linxiraos/pi-tui/tools/job-widget";
@@ -382,6 +383,7 @@ import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
 import { generateSessionTitle, generatedNameLanguage, nerdGlyphsActive } from "../utils/title-generator";
 import type { ZetaLanguage } from "../i18n";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
+import { ensureTeam, isActiveTeamScope, leaveTeam } from "../vibe/team-rooms";
 import { type LeadModeState, resolveLeadWorkspace } from "../team/lead";
 import { applyEngineerSkillAssignments, type EngineerSkillInjectionResult } from "./engineer-skills";
 import {
@@ -1336,6 +1338,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	readonly #queuedMessageRawText = new WeakMap<AgentMessage, string>();
 	/** Language a user message carries, keyed by the exact message instance the turn/queue holds. */
 	readonly #messageNameLanguage = new WeakMap<AgentMessage, ZetaLanguage>();
+	/** Request-local ingress identity follows the exact user message through queues and persistence. */
+	readonly #messageClients = new WeakMap<AgentMessage, SessionClient>();
 	/**
 	 * Stable generation-local identities for prepared message objects. Duplicate
 	 * display text never shares one, so Studio edits/removals/promotions address
@@ -2594,6 +2598,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * initial prompt (or the plan-mode context when already streaming).
 	 */
 	async enterPlanMode(initialPrompt?: string, options: PlanModeEntryOptions = {}): Promise<void> {
+		if (this.#teamModeEnabled) throw new Error("Exit Team mode first.");
 		if (this.#planModeState?.enabled) {
 			// Re-entry while already armed (e.g. `/plan <task>` sent from the web
 			// while plan mode is on): the mode half is a no-op, but a supplied
@@ -2862,6 +2867,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 
 	async enterGoalMode(options: GoalModeEntryOptions = {}): Promise<void> {
+		if (this.#teamModeEnabled) throw new Error("Exit Team mode first.");
 		if (this.#goalModeState?.enabled) return;
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
 		if (this.#leadModeState?.enabled) throw new Error("Exit lead mode first.");
@@ -3012,6 +3018,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * when already streaming. Returns the owner scope for the caller.
 	 */
 	async enterVibeMode(options: VibeModeEntryOptions = {}): Promise<VibeOwnerScope> {
+		if (this.#teamModeEnabled) throw new Error("Exit Team mode first.");
 		if (this.#vibeModeState?.enabled) return this.#vibeModeOwnerScope!;
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
 		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
@@ -3060,6 +3067,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * check throws with the reason, leaving the session untouched.
 	 */
 	async enterLeadMode(options: LeadModeEntryOptions = {}): Promise<LeadModeState> {
+		if (this.#teamModeEnabled) throw new Error("Exit Team mode first.");
 		if (this.#leadModeState?.enabled) return this.#leadModeState;
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
 		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
@@ -3124,7 +3132,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// after a previous Vibe exit until a new scope is activated.
 		const vibeRegistry = VibeSessionRegistry.global();
 		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
-		vibeRegistry.activateScope(ownerScope);
+		vibeRegistry.activateScope(ownerScope, true);
 		this.#teamModeOwnerScope = ownerScope;
 		const baseTools = ["read"];
 		if (this.hasBuiltInTool("todo")) baseTools.push("todo");
@@ -3134,9 +3142,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		for (const name of ["local_room_read", "local_room_post", "local_room_reply"]) {
 			if (this.hasBuiltInTool(name)) baseTools.push(name);
 		}
+		if (this.hasBuiltInTool("im_control")) baseTools.push("im_control");
+		let createdTeamScope = false;
 		try {
+			createdTeamScope = !isActiveTeamScope(ownerScope);
+			ensureTeam(ownerScope);
 			await this.activateTeamTools(baseTools);
 		} catch (error) {
+			if (createdTeamScope) leaveTeam(ownerScope);
+			vibeRegistry.deactivateTeamScope(ownerScope);
 			if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
 			else cfgTrackingEnabled.override(this.settings, previousOverride);
 			this.#teamTrackingPreviousOverride = undefined;
@@ -3161,6 +3175,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		}
 		if (this.isStreaming) await this.sendTeamModeContext({ deliverAs: "steer" });
 		if (options.persistModeChange !== false) this.sessionManager.appendModeChange("team", { previousTools });
+		await vibeRegistry.syncTeamMembers(ownerScope);
 	}
 
 	/** Deliver the Team directive to a running turn (entry while streaming, or a re-sync). */
@@ -3185,6 +3200,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		await this.runModeExitTeardown(async () => {
 			if (this.isStreaming) await this.abort();
 			await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#teamModeOwnerScope);
+			if (this.#teamModeOwnerScope) {
+				leaveTeam(this.#teamModeOwnerScope);
+				VibeSessionRegistry.global().deactivateTeamScope(this.#teamModeOwnerScope);
+			}
 			await this.deactivateTeamTools(this.#teamModePreviousTools ?? []);
 			this.#teamModeEnabled = false;
 			this.bumpStateVersion();
@@ -3195,6 +3214,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
 		else cfgTrackingEnabled.override(this.settings, previousOverride);
 		this.sessionManager.appendModeChange("none");
+		this.#teamModeOwnerScope = undefined;
 	}
 
 	getTeamModeState(): { enabled: boolean } | undefined {
@@ -3246,6 +3266,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#teamTrackingPreviousOverride = undefined;
 		if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
 		else cfgTrackingEnabled.override(this.settings, previousOverride);
+		this.#teamModeOwnerScope = undefined;
+		this.#teamModePreviousTools = undefined;
 	}
 
 	async getPlanFileContent(planFilePath: string): Promise<string | null> {
@@ -4603,6 +4625,26 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#sessionSwitchReconciler = reconciler ?? undefined;
 	}
 
+	async #reconcileTeamAfterTransition(): Promise<void> {
+		const context = this.sessionManager.buildSessionContext();
+		const scope = this.#teamModeOwnerScope;
+		const sameSource =
+			scope !== undefined &&
+			scope.parentSessionId === this.sessionManager.getSessionId() &&
+			sourceFileMatches(scope.parentSessionFile, this.sessionManager.getSessionFile() ?? null);
+		if (this.#teamModeEnabled && (context.mode !== "team" || !sameSource)) {
+			const previousTools = this.#teamModePreviousTools;
+			await this.exitTeamModePreservingActive();
+			if (!this.#sessionSwitchReconciler && previousTools) await this.setActiveToolsByName(previousTools);
+		}
+		if (!this.#sessionSwitchReconciler && context.mode === "team" && !this.#teamModeEnabled) {
+			const saved = context.modeData?.previousTools;
+			const previousTools =
+				Array.isArray(saved) && saved.every((name): name is string => typeof name === "string") ? saved : undefined;
+			await this.enterTeamMode({ persistModeChange: false, previousTools });
+		}
+	}
+
 	/**
 	 * Re-anchor mode state to the session a branch or `/new` just minted. Both
 	 * mint a new session id/file, so without this the interactive-mode reconciler
@@ -4615,6 +4657,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	async #reconcileModeAfterTransition(): Promise<void> {
 		try {
+			await this.#reconcileTeamAfterTransition();
 			await this.#sessionSwitchReconciler?.();
 		} catch (error) {
 			logger.warn("Failed to reconcile session mode after session transition", {
@@ -5157,6 +5200,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const sessionId = this.sessionManager.getSessionId();
 		const sessionFile = this.sessionManager.getSessionFile() ?? null;
 		VibeSessionRegistry.global().reattachScopeToLive(sessionId, sessionFile);
+		for (const scope of VibeSessionRegistry.global().ownerScopes()) {
+			if (scope.parentSessionId === sessionId && scope.parentSessionFile === sessionFile) {
+				await VibeSessionRegistry.global().syncTeamMembers(scope);
+			}
+		}
 		for (const binding of [...this.#asyncSourceBindings.values()]) {
 			if (!originsMatch(binding.origin, { sessionId, sessionFile, leafId: binding.origin.leafId })) continue;
 			await this.#closeSourceBindingIfIdle(binding);
@@ -5205,7 +5253,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			const run = binding.writes.then(async () => {
 				if (this.#isDisposed || binding.closed) return false;
 				const current = this.#leavingAsyncSource;
-				if (this.#matchesCurrentAsyncSource(binding.origin) && !(current && originsMatch(binding.origin, current))) {
+				if (
+					this.#matchesCurrentAsyncSource(binding.origin) &&
+					!(current && originsMatch(binding.origin, current))
+				) {
 					return work(this.sessionManager);
 				}
 				return work(binding.manager);
@@ -5230,10 +5281,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (binding.closed || binding.jobs.size > 0 || binding.pendingWrites > 0) return;
 		if (this.#asyncSourceBindings.get(binding.key) !== binding) return;
 		if (
-			VibeSessionRegistry.global().hasPendingWorkForTranscript(
-				binding.origin.sessionId,
-				binding.origin.sessionFile,
-			)
+			VibeSessionRegistry.global().hasPendingWorkForTranscript(binding.origin.sessionId, binding.origin.sessionFile)
 		) {
 			return;
 		}
@@ -5917,7 +5965,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const wasFresh = cache !== undefined && cache.anchor === this.#persistedMessageKeysAnchor();
 		// A digest entry carries no persistence key, so the memo stays valid across it.
 		if (message.role === "assistant") this.#tools.recordReplyPrompt(message);
-		const entryId = this.sessionManager.appendMessage(message);
+		const entryId = this.sessionManager.appendMessage(message, undefined, this.#messageClients.get(message));
 		if (message.role === "assistant") {
 			(message as PersistedAssistantMessage)[kPersistedSessionEntryId] = entryId;
 		}
@@ -6420,6 +6468,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 		if (event.type !== "agent_end") {
 			try {
+				// User provenance lives on the committed entry, not the transient event.
+				if (event.type === "message_end" && event.message.role === "user") await messageEndPersistence;
 				await this.#emitSessionEvent(displayEvent);
 			} catch (error) {
 				if (event.type === "message_end") {
@@ -10720,6 +10770,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// command execution, image normalization, vision-model description — so the
 		// prompt→yield delta includes the whole wait, whatever path the prompt takes.
 		const submittedAt = Date.now();
+		options = options ? { ...options } : undefined;
 		// Client-ownership reservation: claimed before the first await so a
 		// steer landing anywhere in dispatch preprocessing (maintenance wait,
 		// command expansion, image normalization) parks instead of being
@@ -10732,7 +10783,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// count.
 		const claimEpoch = this.#inFlightEpoch;
 		this.#clientPromptInFlightCount++;
-		const followUps = this.#createPromptFollowUps(options?.followUps);
+		const followUps = this.#createPromptFollowUps(options?.followUps, options?.client);
 		try {
 			this.#rejectQueuedExtensionCommands(options?.followUps);
 			// Idle compaction rewrites history without owning a prompt. Manual `/compact`
@@ -11000,6 +11051,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				prependMessages: prependNotices,
 				rawText: typedText,
 				language: options?.language,
+				client: options?.client,
 				onPromptQueued: options?.onPromptQueued,
 				onPromptAdmitted: onPromptQueuedAdmitted,
 				promptGeneration: queueGeneration,
@@ -11082,6 +11134,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				prependMessages: prependNotices,
 				rawText: typedText,
 				language: options?.language,
+				client: options?.client,
 				preprocessed: {
 					images: normalizedImages,
 					descriptionNotice: imageDescriptionNotice,
@@ -11114,6 +11167,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// Resolve an omitted language now, at admission: a later settings switch
 		// from another view must not change the name this prompt generates.
 		this.#messageNameLanguage.set(message, options?.language ?? generatedNameLanguage(this.settings));
+		if (message.role === "user" && promptAttribution !== "agent" && options?.client)
+			this.#messageClients.set(message, options.client);
 
 		const preludeMessages: AgentMessage[] = [];
 		if (eagerTodoPrelude) {
@@ -12132,6 +12187,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			attribution: options?.attribution,
 			rawText: text,
 			language: options?.language,
+			client: options?.client,
 			onPromptQueued: options?.onPromptQueued,
 		});
 	}
@@ -12159,6 +12215,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				attribution: options?.attribution,
 				rawText: text,
 				language: options?.language,
+				client: options?.client,
 				onPromptQueued: options?.onPromptQueued,
 			});
 			return;
@@ -12317,6 +12374,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			attribution?: MessageAttribution;
 			/** Language for names generated from this queued turn; see {@link PromptOptions.language}. */
 			language?: ZetaLanguage;
+			client?: SessionClient;
 			prependMessages?: readonly CustomMessage[];
 			/** Text the caller originally submitted, before slash/custom-command
 			 *  rewriting, prompt-template expansion, or `^model` mention substitution.
@@ -12365,6 +12423,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// Resolve here, before the first await: the generation that may follow
 		// uses this capture, not whatever another view's settings switch leaves.
 		const nameLanguage = options?.language ?? generatedNameLanguage(this.settings);
+		const client = options?.client;
 		const attribution = options?.attribution ?? "user";
 		const timestamp = options?.timestamp;
 		// A genuine user submission opens a fresh exchange and carries its own
@@ -12434,6 +12493,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			if (imageDescriptionNotice) records.push(imageDescriptionNotice);
 			const userMessage: AgentMessage = { role: "user", content, attribution, timestamp: timestamp ?? Date.now() };
 			this.#queuedMessageRawText.set(userMessage, rawText);
+			this.#messageNameLanguage.set(userMessage, nameLanguage);
+			if (attribution !== "agent" && client) this.#messageClients.set(userMessage, client);
 			records.push(userMessage);
 			this.#irc.queueAside(records);
 			options?.onPromptAdmitted?.();
@@ -12454,6 +12515,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			timestamp ?? Date.now(),
 			rawText,
 			nameLanguage,
+			client,
 		);
 		options?.onPromptQueued?.(queued);
 		options?.onPromptAdmitted?.();
@@ -12478,6 +12540,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		timestamp: number,
 		rawText: string,
 		language: ZetaLanguage,
+		client?: SessionClient,
 	): AgentMessage[] {
 		const userMessage: AgentMessage =
 			mode === "followUp"
@@ -12485,6 +12548,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				: { role: "user", content, steering: true, attribution, timestamp };
 		this.#queuedMessageRawText.set(userMessage, rawText);
 		this.#messageNameLanguage.set(userMessage, language);
+		if (attribution !== "agent" && client) this.#messageClients.set(userMessage, client);
 		const group = [...companions, userMessage];
 		if (mode === "followUp" && this.#holdStudioFollowUp(group)) return group;
 		this.#allowQueuedMessageDrainRetry();
@@ -12504,7 +12568,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Queue text follow-ups without yielding, as {@link followUp} queues them without images. */
-	#queueFollowUpTexts(texts: readonly string[]): void {
+	#queueFollowUpTexts(texts: readonly string[], client?: SessionClient): void {
 		this.#advisors.autoResumeSuppressed = false;
 		for (const text of texts) {
 			const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
@@ -12516,15 +12580,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				Date.now(),
 				text,
 				generatedNameLanguage(this.settings),
+				client,
 			);
 		}
 		this.#scheduleIdleQueueDrain();
 	}
 
 	/** The {@link PromptOptions.followUps} batch for one prompt, or undefined without follow-ups. */
-	#createPromptFollowUps(texts: readonly string[] | undefined): PromptFollowUps | undefined {
+	#createPromptFollowUps(texts: readonly string[] | undefined, client?: SessionClient): PromptFollowUps | undefined {
 		if (!texts?.length) return undefined;
-		return new PromptFollowUps(texts, released => this.#queueFollowUpTexts(released));
+		return new PromptFollowUps(texts, released => this.#queueFollowUpTexts(released, client));
 	}
 
 	/** The follow-up queue cannot hold extension commands: refuse the batch before any of it is sent. */
@@ -16839,6 +16904,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			this.#reconnectToAgent();
 			try {
+				await this.#reconcileTeamAfterTransition();
 				await this.#sessionSwitchReconciler?.();
 			} catch (error) {
 				logger.warn("Failed to reconcile session mode after switch", {
@@ -16954,6 +17020,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#advisors.reattachRecorderFeeds();
 			this.#reconnectToAgent();
 			try {
+				await this.#reconcileTeamAfterTransition();
 				await this.#sessionSwitchReconciler?.();
 			} catch (reconcileError) {
 				logger.warn("Failed to reconcile session mode after switch rollback", {

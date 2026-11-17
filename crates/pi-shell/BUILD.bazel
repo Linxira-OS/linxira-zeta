@@ -40,7 +40,7 @@ rust_library(
         "//bazel:fastbuild": ["-Copt-level=1"],
         "//conditions:default": [],
     }),
-    version = "1.5.1",
+    version = "1.5.2",
     deps = all_crate_deps(normal = True) + [
         ":build_script",
         "//crates/pi-builtins",
@@ -66,7 +66,7 @@ rust_binary(
         "@platforms//os:macos": ["-Clink-arg=-Wl,-dead_strip_dylibs"],
         "//conditions:default": [],
     }),
-    version = "1.5.1",
+    version = "1.5.2",
     deps = all_crate_deps(normal = True) + [":pi-shell"],
 )
 

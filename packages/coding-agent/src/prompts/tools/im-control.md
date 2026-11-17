@@ -5,6 +5,7 @@ Call this ONLY when the user asks — in any language (e.g. "把语言改成英�
 - `list_workspaces` / `list_sessions` / `status` — listing or current state
 - `use_session` / `new_session` / `rename_session` / `delete_session`
 - `set_language` (`zh`|`en`) / `list_models` / `set_model`
+- `route_team_room` (`body`, `messageId`, optional `sourceEntryId`, optional `room: team|mains`) — explicitly forward one IM message into your active Team. Only its main owner may call this. Select the authentic inbound message id from this source transcript; provide its entry id if several instances share that id. Platform, instance, chat and sender attribution come from the stored inbound entry, never tool arguments. This does not change normal IM routing.
 
 Listings print `{n}` numbers and `[name]` names; pass those back verbatim in follow-up calls.
 

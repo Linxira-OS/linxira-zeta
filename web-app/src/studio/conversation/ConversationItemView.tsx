@@ -15,6 +15,7 @@ import { compactRuleLabel, compactSummaryFoldable } from "./compactSummary";
 import type { AssistantSegment, TimelineRow } from "./conversationViewModel";
 import type { SubagentHubTarget, ThinkView, TurnFileChange } from "./toolMeta";
 import { UserMessageBody } from "./UserMessageBody";
+import { UserMessageSource } from "./UserMessageSource";
 
 function formatTime(iso: string): string {
   if (!iso) return "";
@@ -574,6 +575,7 @@ export const ConversationItemView = memo(function ConversationItemView({
         <div className="ev-head">
           <span className="who"><span className="role-badge u">S</span>你</span>
           <span>{formatTime(row.createdAt)}</span>
+          <UserMessageSource source={row.source} />
           {row.pending === "pending" ? <span className="chip gray xs">发送中</span> : null}
           {row.pending === "failed" ? <span className="chip red xs">发送失败</span> : null}
         </div>

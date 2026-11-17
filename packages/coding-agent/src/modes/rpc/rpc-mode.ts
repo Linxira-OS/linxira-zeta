@@ -59,6 +59,7 @@ import type { RestoredQueuedMessage } from "../../session/agent-session-types";
 import type { PlanModeState } from "../../plan-mode/state";
 import type { VibeModeState } from "../../vibe/state";
 import { CACHE_WARMING_MODES } from "../../session/cache-warmer";
+import type { SessionClient } from "../../session/session-client";
 import { findMostRecentNonEmptySession, findRecentSessionContinuation } from "../../session/session-listing";
 import { probeSessionLeases } from "../../session/session-storage";
 import { SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
@@ -1318,6 +1319,14 @@ export function registerRpcPersistenceSurface(
 export type RpcFrameSink = Writable;
 
 export interface RpcModeOptions {
+	/**
+	 * Client kind that actually owns this protocol connection (provenance
+	 * metadata only, never authorization). A hosted transport passes what its
+	 * client declared; the stdio transport omits it so submissions fall back to
+	 * the session's creating run source. It tags the user messages admitted on
+	 * this connection; it never rewrites the session header or earlier entries.
+	 */
+	client?: SessionClient;
 	/** `--mode rpc-ui`: route tool UI (e.g. ask) over the protocol, independently of headless extensions. */
 	setToolUIContext?: (uiContext: ExtensionUIContext, hasUI: boolean) => void;
 	/** `--no-ui`: extensions run with `hasUI=false` and no UI frames; tool UI and host-issued login are unaffected. */
@@ -1368,6 +1377,7 @@ export interface RpcModeOptions {
  */
 export async function runRpcMode(session: AgentSession, options: RpcModeOptions = {}): Promise<void> {
 	const {
+		client,
 		setToolUIContext,
 		headless = false,
 		subagentEventBus,
@@ -1919,12 +1929,16 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			}
 			if (!isCurrent()) return "cancelled";
 			if (!text.trim() && !images?.length) return "local";
+			// Provenance for the exact user message, not a session label: host
+			// transports declare their client, stdio leaves it to the creating
+			// run source. It rides the same option object through queueing.
+			const submissionOptions = client ? { client } : undefined;
 			if (command.type === "steer") {
-				await session.steer(text, images);
+				await session.steer(text, images, submissionOptions);
 				return "admitted";
 			}
 			if (command.type === "follow_up") {
-				await session.followUp(text, images);
+				await session.followUp(text, images, submissionOptions);
 				return "admitted";
 			}
 			if (command.type === "prompt") {
@@ -2005,6 +2019,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 				startPrompt: onPromptAdmitted =>
 					session.prompt(text, {
 						images,
+						...(submissionOptions ?? {}),
 						...(command.type === "prompt" ? { streamingBehavior: command.streamingBehavior } : {}),
 						onPromptAdmitted,
 					}),

@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/zeta",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Coding agent CLI with read, bash, edit, write tools and session management",
   "keywords": [
     "coding-agent",
@@ -548,9 +548,10 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run format-prompts",
     "format-prompts": "bun scripts/format-prompts.ts",
     "gen:bundle": "bun scripts/bundle-dist.ts",
+    "check:bundle": "bun ../../scripts/check-release-artifact.ts --path dist/cli.js --allow-unknown",
     "gen:rpc": "bun scripts/gen-rpc/index.ts",
     "gen:web-app": "bun scripts/build-web-app.ts",
-    "prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run gen:web-app",
+    "prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run gen:web-app && bun run check:bundle",
     "bench:guard": "bun scripts/bench-guard.ts",
     "gen:export-viewer": "bun --cwd=../export-web run gen:export-viewer"
   },

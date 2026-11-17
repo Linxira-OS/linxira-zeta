@@ -167,7 +167,10 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 					if (consumed) return;
 					const route = await router.resolveChatTarget(instanceId, peer, context);
 					if (route.kind === "agent") {
-						const result = await router.deliverToAgent(route.target, instanceId, peer, body);
+						const result = await router.deliverToAgent(route.target, instanceId, peer, body, {
+							...context,
+							...(messageId ? { messageId } : {}),
+						});
 						if (!result.ok)
 							await runtime.sendText(
 								instanceId,

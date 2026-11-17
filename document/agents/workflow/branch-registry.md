@@ -25,10 +25,18 @@
    先 commit（或拷到 `~/.zeta/parked-evidence/<date>/`），再删 worktree。
 5. 一轮落地 ≤1 次 push（见根 `AGENTS.md` §7）；本表不改变那条规则。
 
+2026-11-17 主线开发裁决：本轮已核账的历史分支保留为恢复引用，表内旧 `temp/<topic>`
+路径是来源记录，不代表工作树仍存在；主代理收口后统一移除临时载体。旧“合入后删”行不
+授权自动删除用户/dev/park分支；本轮不删除heads，后续活跃开发统一在main。
+
 ## 在册分支（2026-11-01）
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
+| `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
+| `fix/saved-build-fixes` | fix | 2026-11-17 保存的 Nix/browser/release-scope 窄修复恢复；tip `9e0f70904c0284bd9bbbdf97a86ec97f4bfdfe0c`，补丁已适配主线 | SavedBuildFixes / main | 2026-11-17 | 本轮清除 worktree；分支保留作恢复引用，后续由 main 开发 |
+| `recover/original-gaps-20261117` | recover | Feishu/Robomp/工件来源门禁原始补丁恢复，基线 `c25b45e854ba41d769fd564fe1126325310407c8`，staged delta 已归档并纳入 main | OriginalGapRecovery / main | 2026-11-17 | 本轮清除 worktree；分支保留作恢复引用 |
 | `fix/studio-evaluation-producer` | fix | REQ-099 Studio v0.2.1 evaluation Host/runtime producer adaptation; isolated `temp/studio-evaluation-producer` | StudioEvaluationProducer | 2026-11-15 | 验收并入集成分支后删（删前记 SHA） |
 | `fix/studio-computer-producer` | fix | REQ-099 Studio v0.2.1 passive native computer/Host private media producer; isolated `temp/studio-computer-producer` | StudioComputerProducer | 2026-11-15 | 验收并入集成分支后删（删前记 SHA） |
 | `fix/report-automation` | fix | REQ060 roboomp 离线回放/XDG/CLI + REQ022 v18.18.3 台账纠正；worktree `temp/report-automation`（sparse） | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |

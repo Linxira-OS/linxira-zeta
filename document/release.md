@@ -155,6 +155,13 @@ not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
   for `@linxiraos/zeta-web` binds to `ci.yml`. The job installs and builds
   web-ui itself — the published tarball's `files` list ships `.next`, and a
   bare `npm publish` from a fresh checkout would ship a stale or missing build.
+- Coding-agent `prepack` rebuilds the bundle, then `check:bundle` executes the
+  resulting `dist/cli.js --smoke-test` and compares its embedded source commit
+  with `ZETA_EXPECTED_COMMIT`, `GITHUB_SHA`, or the checkout's HEAD. A missing,
+  unknown, or stale marker fails packing when a commit is known (REQ-036).
+  `--allow-unknown` keeps git-less source packs usable; it cannot override a
+  release's expected commit. Operators can run `bun run check:bundle` from
+  `packages/coding-agent` to check an existing local dist without rebuilding it.
 - The `check` job runs `bun run ci:check:full` plus the web build. Desktop
   jobs install web-ui with `npm ci`, which resolves `@linxiraos/pi-*` from the npm
   registry — so **the `@linxiraos` npm publish chain is a hard dependency of

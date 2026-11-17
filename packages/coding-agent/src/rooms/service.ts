@@ -16,6 +16,7 @@ import {
 	ROOM_DELIVERY_MODES,
 	ROOM_KINDS,
 	ROOM_ROLES,
+	isTeamRoomId,
 	type Room,
 	type RoomActor,
 	type RoomContact,
@@ -156,6 +157,7 @@ export class RoomService {
 
 	addMember(options: AddMemberOptions): RoomMember {
 		const room = this.getRoom(options.roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Team membership is managed by its owner scope");
 		if (!(ROOM_ROLES as readonly string[]).includes(options.role)) {
 			throw new RoomError(`Unknown room role "${options.role}". Expected: ${ROOM_ROLES.join(", ")}`);
 		}
@@ -188,6 +190,7 @@ export class RoomService {
 
 	removeMember(roomId: string, memberId: string): void {
 		const room = this.getRoom(roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Team membership is managed by its owner scope");
 		this.log.deleteMember(room.id, memberId);
 	}
 
@@ -218,6 +221,7 @@ export class RoomService {
 
 	postMessage(options: PostMessageOptions): PostMessageResult {
 		const room = this.getRoom(options.roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Post Team messages through the owner-scoped Team room API");
 		const body = options.body.trim();
 		if (!body) throw new RoomError("A room message must not be empty");
 		if (options.mode !== undefined && !(ROOM_DELIVERY_MODES as readonly string[]).includes(options.mode)) {
@@ -272,6 +276,7 @@ export class RoomService {
 		roundId?: string;
 	}): ReplyResult {
 		const room = this.getRoom(options.roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Reply through the owner-scoped Team room API");
 		const member = this.log.getMember(room.id, options.actor.id);
 		if (!member) throw new RoomError(`Agent "${options.actor.id}" is not a member of room "${room.name}"`);
 		const body = options.body.trim();
@@ -315,6 +320,7 @@ export class RoomService {
 
 	markPass(roomId: string, memberId: string, roundId: string): RoomRound | null {
 		const room = this.getRoom(roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Team rounds are managed by its owner runtime");
 		const round = this.log.getRound(roundId);
 		if (!round || round.roomId !== room.id) throw new RoomError(`Unknown round "${roundId}"`);
 		this.log.setTargetStatus(roundId, memberId, "passed");
@@ -328,6 +334,7 @@ export class RoomService {
 
 	stopRound(roomId: string, roundId: string, actor: RoomActor): RoomEvent {
 		const room = this.getRoom(roomId);
+		if (isTeamRoomId(room.id)) throw new RoomError("Team room messages cannot control worker turns");
 		const round = this.log.getRound(roundId);
 		if (!round || round.roomId !== room.id) throw new RoomError(`Unknown round "${roundId}"`);
 		for (const target of this.log.listRoundTargets(roundId)) {
@@ -361,8 +368,8 @@ export class RoomService {
 	unread(roomId: string, memberId: string): number {
 		const room = this.getRoom(roomId);
 		const last = this.log.lastEvent(room.id)?.seq ?? 0;
-		const cursor = this.log.getCursor(room.id, memberId);
-		return Math.max(0, last - cursor.readThroughSeq);
+		const cursor = this.log.readCursor(room.id, memberId);
+		return Math.max(0, last - (cursor?.readThroughSeq ?? 0));
 	}
 
 	contacts(roomId: string, statusOf: (memberId: string) => RoomContact["status"]): RoomContact[] {
@@ -415,6 +422,8 @@ export class RoomService {
 		body: string;
 	}): { event: RoomEvent; proposal: RoomProposal } {
 		const room = this.getRoom(options.roomId);
+		if (isTeamRoomId(room.id))
+			throw new RoomError("Team decisions remain owner-governed; room messages grant no decision authority");
 		const targetRepo = canonicalRepoRoot(options.targetRepo);
 		if (!targetRepo) throw new RoomError("A proposal needs a target repository");
 		const event = this.log.appendEvent({
@@ -449,6 +458,8 @@ export class RoomService {
 		body?: string;
 	}): { event: RoomEvent; proposal: RoomProposal } {
 		const room = this.getRoom(options.roomId);
+		if (isTeamRoomId(room.id))
+			throw new RoomError("Team decisions remain owner-governed; room messages grant no decision authority");
 		const proposal = this.log.getProposal(options.proposalId);
 		if (!proposal || proposal.roomId !== room.id) throw new RoomError(`Unknown proposal "${options.proposalId}"`);
 		if (options.actor.id !== "user" && !this.log.getMember(room.id, options.actor.id)) {

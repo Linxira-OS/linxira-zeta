@@ -13,10 +13,11 @@ import { type } from "@linxiraos/zeta-schema";
 import type { ImControlParams } from "../channels/im-control";
 import imControlDescription from "../prompts/tools/im-control.md" with { type: "text" };
 import type { ToolSession } from "./index";
+import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 
 const imControlSchema = type({
 	operation: type(
-		"'list_workspaces' | 'list_sessions' | 'use_session' | 'new_session' | 'rename_session' | 'delete_session' | 'set_language' | 'list_models' | 'set_model' | 'status'",
+		"'list_workspaces' | 'list_sessions' | 'use_session' | 'new_session' | 'rename_session' | 'delete_session' | 'set_language' | 'list_models' | 'set_model' | 'status' | 'route_team_room'",
 	).describe("Which IM control intent to execute."),
 	"session?": type("string > 0").describe(
 		"Session selector for use/rename/delete_session: bare id, {n} list index, or [id].",
@@ -25,6 +26,14 @@ const imControlSchema = type({
 	"language?": type("'zh' | 'en'").describe("Reply language for set_language."),
 	"provider?": type("string > 0").describe("Provider id from list_models, for set_model."),
 	"model?": type("string > 0").describe("Model id from list_models, for set_model."),
+	"body?": type("string > 0").describe("Owner-authored text to forward once to a Team room."),
+	"messageId?": type("string > 0").describe(
+		"Source platform message id from a real inbound IM user entry in this transcript.",
+	),
+	"sourceEntryId?": type("string > 0").describe(
+		"Transcript entry id; required when several IM instances use the same messageId.",
+	),
+	"room?": type("'team' | 'mains'").describe("Team room target; defaults to team. Does not change normal IM routing."),
 });
 
 export type ImControlToolParams = typeof imControlSchema.infer;
@@ -42,6 +51,15 @@ export class ImControlTool implements AgentTool<typeof imControlSchema> {
 	constructor(private readonly session: ToolSession) {}
 
 	async execute(_id: string, params: ImControlToolParams): Promise<AgentToolResult> {
+		if (params.operation === "route_team_room") {
+			const id = this.session.getAgentId?.();
+			const ref = id ? AgentRegistry.global().get(id) : undefined;
+			if (!ref || !isRootAgentRef(ref))
+				return {
+					content: [{ type: "text", text: "Only the Team's main owner may forward IM to a room." }],
+					isError: true,
+				};
+		}
 		const imControl = this.session.imControl;
 		if (!imControl) {
 			return {

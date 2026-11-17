@@ -23,6 +23,7 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
 import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@linxiraos/zeta/task/executor";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WaitTool } from "@linxiraos/zeta/tools/wait";
@@ -669,6 +670,71 @@ describe("runSubprocess result acceptance", () => {
 		} finally {
 			tempDir.removeSync();
 		}
+	});
+
+	it("a wake registered after navigation retains its captured source transcript", async () => {
+		using temp = TempDir.createSync("@wake-source-origin-");
+		const source = SessionManager.create(temp.path(), temp.path());
+		source.appendMessage({ role: "user", content: "source A", timestamp: 1 });
+		await source.ensureOnDisk();
+		const sourceFile = source.getSessionFile()!;
+		const manager = new AsyncJobManager({});
+		const harness = createHarness({ asyncJobManager: manager });
+		AgentRegistry.global().register({
+			id: AGENT_ID,
+			displayName: AGENT_ID,
+			kind: "sub",
+			parentId: "Parent",
+			session: harness.session,
+			status: "idle",
+		});
+		try {
+			attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, parentSessionFile: sourceFile });
+			const observer = harness.wakeObserver();
+			if (!observer) throw new Error("wake-turn observer was not registered");
+			// Navigation and new jobs happen after the monitor's source capture.
+			await source.newSession();
+			expect(source.getSessionFile()).not.toBe(sourceFile);
+			const finish = observer([
+				{
+					role: "custom",
+					customType: "irc:incoming",
+					content: "late wake",
+					display: false,
+					details: { id: "late", from: "Parent", message: "late wake" },
+					attribution: "agent",
+					timestamp: Date.now(),
+				},
+			]);
+			const job = manager.getRunningJobs({ ownerId: "Parent" })[0];
+			const reopened = await SessionManager.open(sourceFile, undefined, undefined, { throwIfMissing: true });
+			try {
+				expect(job?.origin).toEqual({ sessionId: reopened.getSessionId(), sessionFile: path.resolve(sourceFile) });
+			} finally {
+				await reopened.close();
+			}
+			harness.emitAssistantText("source A result");
+			await finish?.();
+			await manager.waitForAll();
+			expect(job?.status).toBe("completed");
+			expect(job?.resultText).toContain("source A result");
+		} finally {
+			await manager.dispose({ timeoutMs: 1000 });
+			await source.close();
+		}
+	});
+
+	it("an unavailable declared source cannot fall back to the current conversation", () => {
+		using temp = TempDir.createSync("@wake-missing-source-");
+		const harness = createHarness();
+		expect(() =>
+			attachIrcWakeTurnMonitor(harness.session, {
+				id: AGENT_ID,
+				agent: baseAgent,
+				parentSessionFile: path.join(temp.path(), "missing.jsonl"),
+			}),
+		).toThrow("Cannot resolve the source transcript");
+		expect(harness.wakeObserver()).toBeUndefined();
 	});
 
 	it.each([true, false])(

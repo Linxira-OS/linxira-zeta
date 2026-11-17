@@ -156,6 +156,23 @@ describe("summarizeSamples", () => {
 		expect(summarizeSamples(samples, { maxRssGrowthMiB: 49 }).exceeded).toBe(true);
 	});
 
+	test("the CI cap catches a transient peak even when final RSS returns to baseline", () => {
+		const samples = [snapshot(0, 100, 20), snapshot(90_000, 485, 30), snapshot(180_000, 100, 20)];
+		const summary = summarizeSamples(samples, { maxRssGrowthMiB: 384 });
+		expect(summary.exceeded).toBe(true);
+		expect(summary.rssGrowthMiB).toBe(385);
+		expect(summary.durationMs).toBe(180_000);
+	});
+
+	test("unrelated system commit growth does not fabricate a TUI RSS regression", () => {
+		const summary = summarizeSamples([snapshot(0, 100, 20, 1000), snapshot(180_000, 297.21, 30, 8000)], {
+			maxRssGrowthMiB: 384,
+		});
+		expect(summary.exceeded).toBe(false);
+		expect(summary.rssGrowthMiB).toBe(197.21);
+		expect(summary.systemCommitPeakMiB).toBe(8000);
+	});
+
 	test("degrades to zeroes when no sample was taken", () => {
 		const summary = summarizeSamples([], { maxRssGrowthMiB: 10 });
 		expect(summary).toMatchObject({

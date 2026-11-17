@@ -3723,6 +3723,7 @@ export class SessionManager {
 			| PythonExecutionMessage
 			| FileMentionMessage,
 		metadata?: ImMessageMetadata,
+		client?: SessionClient,
 	): string {
 		const entry: SessionMessageEntry = {
 			type: "message",
@@ -3731,6 +3732,9 @@ export class SessionManager {
 			),
 			message,
 			...(metadata ? { metadata } : {}),
+			...(message.role === "user" && message.attribution !== "agent" && (client ?? this.#client)
+				? { client: client ?? this.#client }
+				: {}),
 		};
 		this.#recordEntry(entry);
 		return entry.id;
@@ -3776,6 +3780,9 @@ export class SessionManager {
 			timestamp: nowIso(),
 			runtime: currentRuntimeIdentity(),
 			message,
+			...(message.role === "user" && message.attribution !== "agent" && this.#client
+				? { client: this.#client }
+				: {}),
 			...(options?.preserveActiveLeaf === false ? {} : { activeLeafId }),
 		};
 		// The entry never joins the active branch; keep it out of any branch view
