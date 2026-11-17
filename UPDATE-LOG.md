@@ -11,6 +11,10 @@
 - **最终 review 修复**：资源页按实际不带 `kind` 的输入分派并转交异步视图 fence；BTW 原生分支先 rekey 驻留 wrapper，再交接当前选择，较新的选择不被覆盖；录制 shell 源限制在当前 transcript bucket/所属子代理并检查设备绑定；迁移检查次级会话与目标工作区，单会话绑定不能导入新会话。队列失权保留待发消息并丢弃暂存图片；迁移状态缓存不再替换进行中操作的原始视图权威。
 - **npm 12 安装修复（ADR-0059）**：SheetJS XLSX 0.20.3 改用仓库内官方原始 tarball，SHA-512 与集成前锁文件完全相同；不降级、不放开远程安装。守卫要求根包直接声明、包内真实路径与完整性匹配。npm12 `ci` 默认 `allow-remote=none` 成功，中文工作簿 4 行精确往返、来源守卫 4 tests / 9 assertions、renderer build/首屏 2,810.9 kB 通过；同步保留 Apache-2.0 版权和完整许可证。
 - **最新验证**：`check:ts` 通过（lint 544 warnings、0 errors，格式通过；Host 5,809 文件），Rust 格式通过；Host/工件 26 tests / 255 assertions，原生权威回归 35 tests / 308 assertions，Desktop 原始字节/录制 3 tests，受影响 renderer 5 files / 21 tests 通过。保留的完整 renderer 177 files / 1,428 tests 与 Electron45.3 实际导入→预览→导出/回放、终端字号和生命周期证据仍按原源码范围引用。原生 `test:rs` 因缺 `cargo-nextest` 未执行，后续 doctest 阶段未启动。隔离 provider 成功/完整 Ratchet、Windows source-matched addon/物理桌面和真实 SSH 验收仍受阻；未注册的原生偏好/目录/恢复等家族仍是缺口。ADR 0043–0058 按台账保留 Proposed；未 tag、未发布、未合并 `main`。
+### Team 开发分支修复（未发布）
+- 恢复 `systemPromptDigest()` 的 BigInt seed 与按块 `Bun.hash.wyhash` 累积，修复安装会话探针中的 `hash is not defined`（REQ-093）。CLI settings/session isolation 安装冒烟通过。
+- 修复 TUI `/team on/off` 被误当作切换的问题：显式命令幂等，裸 `/team` 继续切换，命令等待状态变更完成；定向回归 1 pass / 0 fail。
+- Gateway 的 `get_state.modes` 与 `mode_changed` 补上活动 Team 状态，避免 Team 已启用但客户端读不到；真实 AgentSession + wrapper 进出状态与事件回归通过。
 
 ### 1.5.2（2026-11-12）
 - **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。

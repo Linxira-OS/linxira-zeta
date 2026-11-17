@@ -2897,6 +2897,11 @@ export const zh = {
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: "未找到会话",
+	ssRunningAgents: "运行中的 Agent",
+	ssRunningAgentCreated: "创建于",
+	ssRunningAgentOpen: "查看",
+	ssRunningAgentActivity: "当前任务与活动",
+	ssRunningAgentIdle: "暂无当前活动",
 	ssEmptyNoFolderSessions: "当前文件夹没有会话，按 Tab 查看全部。",
 	ssLoadingProjects: "正在加载所有项目…",
 	ssCurrentMark: "当前",

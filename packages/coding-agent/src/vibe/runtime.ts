@@ -25,7 +25,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { logger, prompt, Snowflake } from "@linxiraos/pi-utils";
-import type { AsyncJob, AsyncJobManagerApi, AsyncJobRunResult } from "../async/job-manager";
+import type { AsyncJob, AsyncJobManagerApi, AsyncJobOrigin, AsyncJobRunResult } from "../async/job-manager";
 import { validateAgentAccountPools } from "../config/account-pools";
 import { resolveAgentModelSelection } from "../config/model-resolver";
 import { removeLocalAgentScratch, sessionLocalProtocolOptions } from "../internal-urls";
@@ -108,6 +108,32 @@ export interface VibeParentSession {
 	settings: ToolSession["settings"];
 	getActiveModelString?: () => string | undefined;
 	getModelString?: () => string | undefined;
+	/**
+	 * Serialize a source-transcript write with the result writer and the
+	 * session-switch gates. `work` receives the manager to write through: the
+	 * live one when the pinned source is active again, otherwise the pinned
+	 * clone. Only AgentSession's synthetic pinned parent supplies this.
+	 */
+	serializePersistence?: (
+		work: (sessionManager: NonNullable<VibeParentSession["sessionManager"]>) => Promise<boolean>,
+	) => Promise<boolean>;
+}
+
+/**
+ * A source transcript pinned for workers whose parent session navigated away.
+ * The manager is the clone an `AgentSession` takes at the switch (the same
+ * `SessionManager.cloneCurrentSession` ownership snapshot the bash runner
+ * uses), so lifecycle writes and queued follow-up turns keep landing in the
+ * transcript the worker was spawned from instead of the active one.
+ */
+export interface VibeSourceSession {
+	parentSessionId: string;
+	parentSessionFile: string | null;
+	leafId?: string | null;
+	sessionManager: NonNullable<VibeParentSession["sessionManager"]>;
+	serializePersistence?: VibeParentSession["serializePersistence"];
+	/** Model selector active when the source was left, for a spawn whose first turn starts after the switch. */
+	activeModelString?: string;
 }
 
 interface VibeRestoreCandidate {
@@ -171,6 +197,10 @@ interface VibeRecord {
 	killed: boolean;
 	/** True while a parent switch is detaching this process-local record without terminating it. */
 	suspended: boolean;
+	/** Source transcript pinned across a parent-session switch; live again when that session returns. */
+	source?: VibeSourceSession;
+	/** Lifecycle writes in flight; keeps its source writer alive across reattach/close. */
+	pendingPersistence: number;
 	/** True only after a terminal lifecycle event has durably flushed. */
 	terminalPersisted: boolean;
 }
@@ -282,12 +312,16 @@ export class VibeSessionRegistry {
 		state?: VibeSessionState;
 		killed?: boolean;
 		jobId?: string;
+		parentSessionId?: string;
+		parentSessionFile?: string | null;
+		queue?: string[];
+		childSessionFile?: string;
 	}): void {
 		const now = Date.now();
 		const scope: VibeOwnerScope = {
 			ownerId: record.ownerId,
-			parentSessionId: "test-parent-session",
-			parentSessionFile: null,
+			parentSessionId: record.parentSessionId ?? "test-parent-session",
+			parentSessionFile: record.parentSessionFile ?? null,
 		};
 		this.#records.set(scopeKey(scope, record.id), {
 			id: record.id,
@@ -295,6 +329,7 @@ export class VibeSessionRegistry {
 			ownerId: record.ownerId,
 			parentSessionId: scope.parentSessionId,
 			parentSessionFile: scope.parentSessionFile,
+			childSessionFile: record.childSessionFile,
 			agent: getBundledAgent("sonic")!,
 			identity: { role: "test", generation: 1, lifecycle: "resident" },
 			state: record.state ?? "running",
@@ -303,10 +338,11 @@ export class VibeSessionRegistry {
 			turn: record.jobId
 				? { jobId: record.jobId, message: "test turn", startedAt: now, trace: [], toolCount: 0 }
 				: undefined,
-			queue: [],
+			queue: [...(record.queue ?? [])],
 			turnCount: 0,
 			killed: record.killed ?? false,
 			suspended: false,
+			pendingPersistence: 0,
 			terminalPersisted: false,
 		});
 	}
@@ -338,6 +374,85 @@ export class VibeSessionRegistry {
 	/** Re-open spawn admission after an explicit Vibe-mode entry. */
 	activateScope(scope: VibeOwnerScope): void {
 		this.#terminatedScopes.delete(scopeKey(scope, ""));
+	}
+
+	/**
+	 * Pin every live record of this scope to the transcript it belongs to when
+	 * the parent session navigates away. Workers keep running: their turns are
+	 * not cancelled, queued directives stay queued for the next turn, and
+	 * lifecycle entries are appended to the pinned manager rather than to the
+	 * newly active session. Returns the number of records pinned.
+	 */
+	pinScopeToSource(scope: VibeOwnerScope, source: VibeSourceSession): number {
+		let pinned = 0;
+		for (const record of this.#records.values()) {
+			if (!matchesScope(record, scope)) continue;
+			record.source = source;
+			pinned++;
+		}
+		return pinned;
+	}
+
+	/**
+	 * Clear the source pins whose transcript is active again. Records keep their
+	 * queues and in-flight turns; only the write destination changes, back to
+	 * the live parent session.
+	 */
+	reattachScopeToLive(parentSessionId: string, parentSessionFile: string | null): number {
+		const targetFile = parentSessionFile ? path.resolve(parentSessionFile) : null;
+		let reattached = 0;
+		for (const record of this.#records.values()) {
+			const source = record.source;
+			if (!source) continue;
+			if (source.parentSessionId !== parentSessionId) continue;
+			const sourceFile = source.parentSessionFile ? path.resolve(source.parentSessionFile) : null;
+			if (sourceFile !== targetFile) continue;
+			record.source = undefined;
+			reattached++;
+		}
+		return reattached;
+	}
+
+	/** Whether the scope owns a turn in flight or a queued follow-up that can still write. */
+	hasPendingWork(scope: VibeOwnerScope): boolean {
+		for (const record of this.#records.values()) {
+			if (!matchesScope(record, scope)) continue;
+			if (
+				record.turn ||
+				record.queue.length > 0 ||
+				record.pendingPersistence > 0 ||
+				record.state === "running" ||
+				record.state === "starting"
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether this parent transcript still owns a turn or queue that can write
+	 * lifecycle entries, regardless of whether the record currently carries a
+	 * source pin. Lets a source writer be released only after its workers are
+	 * quiescent.
+	 */
+	hasPendingWorkForTranscript(parentSessionId: string, parentSessionFile: string | null): boolean {
+		const targetFile = parentSessionFile ? path.resolve(parentSessionFile) : null;
+		for (const record of this.#records.values()) {
+			if (record.parentSessionId !== parentSessionId) continue;
+			const recordFile = record.parentSessionFile ? path.resolve(record.parentSessionFile) : null;
+			if (recordFile !== targetFile) continue;
+			if (
+				record.turn ||
+				record.queue.length > 0 ||
+				record.pendingPersistence > 0 ||
+				record.state === "running" ||
+				record.state === "starting"
+			) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	async #withTerminationLock<T>(scope: VibeOwnerScope, operation: () => Promise<T>): Promise<T> {
@@ -375,12 +490,61 @@ export class VibeSessionRegistry {
 		return { agent, modelOverride: patterns, modelRole: role };
 	}
 
+	/**
+	 * Write destination for a record: the live parent while it is the record's
+	 * own transcript, otherwise the source session pinned at the switch. Without
+	 * this, a turn that settles after the director resumed another session would
+	 * journal its turn-settled event into the wrong transcript, and a queued
+	 * follow-up would inherit the new session's artifact directory.
+	 */
+	#parentForRecord(record: VibeRecord, session: VibeParentSession): VibeParentSession {
+		const source = record.source;
+		if (!source) return session;
+		const currentSessionId = session.getSessionId?.();
+		const currentSessionFile = session.getSessionFile();
+		const currentFile = currentSessionFile ? path.resolve(currentSessionFile) : null;
+		const sourceFile = source.parentSessionFile ? path.resolve(source.parentSessionFile) : null;
+		if (currentSessionId === source.parentSessionId && currentFile === sourceFile) return session;
+		return {
+			getAgentId: () => record.ownerId,
+			getSessionId: () => source.parentSessionId,
+			getSessionFile: () => source.parentSessionFile,
+			sessionManager: source.sessionManager,
+			asyncJobManager: session.asyncJobManager,
+			settings: session.settings,
+			getActiveModelString: () => source.activeModelString,
+			getModelString: () => source.activeModelString,
+			serializePersistence: source.serializePersistence,
+		};
+	}
+
+	#originForRecord(record: VibeRecord, session: VibeParentSession): AsyncJobOrigin | undefined {
+		const parent = this.#parentForRecord(record, session);
+		if (!record.source || parent === session) return undefined;
+		return { sessionId: record.parentSessionId, sessionFile: record.parentSessionFile };
+	}
+
 	async #appendLifecycleEvent(
 		session: VibeParentSession,
 		event: VibeLifecycleEvent,
 		expectedParentSessionFile: string | null,
+		record: VibeRecord,
 	): Promise<boolean> {
-		if (!expectedParentSessionFile || !session.sessionManager) return false;
+		record.pendingPersistence += 1;
+		try {
+			return await this.#appendLifecycleEventLocked(session, event, expectedParentSessionFile);
+		} finally {
+			record.pendingPersistence -= 1;
+		}
+	}
+
+	async #appendLifecycleEventLocked(
+		session: VibeParentSession,
+		event: VibeLifecycleEvent,
+		expectedParentSessionFile: string | null,
+	): Promise<boolean> {
+		const manager = session.sessionManager;
+		if (!expectedParentSessionFile || !manager) return false;
 		const matchesCurrentScope = (): boolean => {
 			const currentSessionFile = session.getSessionFile();
 			return (
@@ -390,12 +554,15 @@ export class VibeSessionRegistry {
 				path.resolve(currentSessionFile) === expectedParentSessionFile
 			);
 		};
-		if (!matchesCurrentScope()) return false;
-		await session.sessionManager.ensureOnDisk();
-		if (!matchesCurrentScope()) return false;
-		session.sessionManager.appendCustomEntry(VIBE_LIFECYCLE_CUSTOM_TYPE, event);
-		await session.sessionManager.flush();
-		return true;
+		const write = async (writeManager: NonNullable<VibeParentSession["sessionManager"]>): Promise<boolean> => {
+			if (!matchesCurrentScope()) return false;
+			await writeManager.ensureOnDisk();
+			if (!matchesCurrentScope()) return false;
+			writeManager.appendCustomEntry(VIBE_LIFECYCLE_CUSTOM_TYPE, event);
+			await writeManager.flush();
+			return true;
+		};
+		return session.serializePersistence ? session.serializePersistence(write) : write(manager);
 	}
 
 	#eventBase(record: VibeRecord): VibeLifecycleBase {
@@ -420,6 +587,7 @@ export class VibeSessionRegistry {
 				reason,
 			},
 			record.parentSessionFile,
+			record,
 		);
 	}
 
@@ -800,6 +968,7 @@ export class VibeSessionRegistry {
 				turnCount: candidate.turnCount,
 				killed: false,
 				suspended: false,
+				pendingPersistence: 0,
 				terminalPersisted: false,
 			});
 			restored++;
@@ -892,6 +1061,7 @@ export class VibeSessionRegistry {
 			turnCount: 0,
 			killed: false,
 			suspended: false,
+			pendingPersistence: 0,
 			terminalPersisted: false,
 		};
 		const key = scopeKey(scope, id);
@@ -911,6 +1081,7 @@ export class VibeSessionRegistry {
 						createdAt,
 					},
 					record.parentSessionFile,
+					record,
 				);
 				if (!spawnPersisted) throw new ToolError("Vibe parent session changed before the worker could start.");
 			}
@@ -1334,16 +1505,29 @@ export class VibeSessionRegistry {
 		signal: AbortSignal,
 		onProgress: (progress: AgentProgress) => void,
 	): Promise<ExecutorOptions> {
-		const sessionFile = session.getSessionFile();
+		// A first turn can start after the director switched away: the spawn was
+		// admitted on the source transcript, so its artifacts and local:// root
+		// stay there even though the live manager now reads another session.
+		const parent = this.#parentForRecord(record, session);
+		const sessionFile = parent.getSessionFile();
 		const sessionArtifactsDir = sessionFile ? sessionFile.slice(0, -6) : null;
 		const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `omp-vibe-${Snowflake.next()}`);
 		await fs.mkdir(artifactsDir, { recursive: true });
 		if (!sessionArtifactsDir) registerArtifactsDir(artifactsDir);
+		const sourceSession: ToolSession = {
+			...session,
+			getSessionFile: parent.getSessionFile,
+			getSessionId: parent.getSessionId,
+			getAgentId: parent.getAgentId,
+			getArtifactsDir: () => sessionArtifactsDir,
+		};
 		const localProtocolOptions = {
-			...sessionLocalProtocolOptions(session),
-			agentId: session.getAgentId?.() ?? MAIN_AGENT_ID,
+			...sessionLocalProtocolOptions(sourceSession),
+			agentId: parent.getAgentId?.() ?? MAIN_AGENT_ID,
 			callerAgentId: record.id,
 			canWriteShared: false,
+			getArtifactsDir: () => sessionArtifactsDir,
+			getSessionId: () => parent.getSessionId?.() ?? null,
 		};
 		// Same exact-name pool task dispatch and persisted revival apply, so a
 		// worker is restricted from its first turn, not only after a revive.
@@ -1361,7 +1545,7 @@ export class VibeSessionRegistry {
 			detached: true,
 			modelOverride: record.modelOverride,
 			modelRole: record.modelRole,
-			parentActiveModelPattern: session.getActiveModelString?.(),
+			parentActiveModelPattern: parent.getActiveModelString?.(),
 			thinkingLevel: record.agent.thinkingLevel,
 			sessionFile,
 			persistArtifacts: Boolean(sessionFile),
@@ -1435,6 +1619,11 @@ export class VibeSessionRegistry {
 			record.lastActivityAt = Date.now();
 		};
 
+		// A follow-up turn starts while the parent is already pinned to its source
+		// transcript (the director resumed another session). State that origin on
+		// the job so its completion persists there even when no switch observation
+		// has bound this job id yet.
+		const origin = this.#originForRecord(record, session);
 		const jobId = manager.register(
 			"task",
 			`vibe ${record.cli} ${record.id}: ${firstLine(message, 60)}`,
@@ -1443,18 +1632,21 @@ export class VibeSessionRegistry {
 				record.turnCount = turnIndex;
 				record.lastActivityAt = Date.now();
 				try {
+					const parent = this.#parentForRecord(record, session);
 					const turnStartedPersisted = await this.#appendLifecycleEvent(
-						session,
+						parent,
 						{
 							...this.#eventBase(record),
 							action: "turn-started",
 							turn: turnIndex,
 						},
 						record.parentSessionFile,
+						record,
 					);
 					if (record.childSessionFile && !turnStartedPersisted) {
 						throw new ToolError(`Vibe session "${record.id}" changed parent scope before its turn started.`);
 					}
+					const followUpParent = this.#parentForRecord(record, session);
 					const result = options.first
 						? await runSubprocess(await this.#buildSpawnOptions(session, record, message, signal, onProgress))
 						: await runSubagentFollowUpTurn({
@@ -1466,7 +1658,9 @@ export class VibeSessionRegistry {
 								onProgress,
 								eventBus: session.eventBus,
 								subagentEventBus: session.subagentEventBus,
-								artifactsDir: session.getSessionFile()?.slice(0, -6),
+								// Queued follow-up artifacts stay with the transcript that
+								// owns the worker, not with whichever session is active now.
+								artifactsDir: followUpParent.getSessionFile()?.slice(0, -6),
 							});
 					return await this.#settleTurn(session, manager, record, turn, ownJobId, turnIndex, result);
 				} catch (error) {
@@ -1479,7 +1673,12 @@ export class VibeSessionRegistry {
 					);
 				}
 			},
-			{ id: `${record.id}-t${turnIndex}`, agentId: record.id, ownerId: record.ownerId },
+			{
+				id: `${record.id}-t${turnIndex}`,
+				agentId: record.id,
+				ownerId: record.ownerId,
+				...(origin ? { origin } : {}),
+			},
 		);
 		turn.jobId = jobId;
 		record.turn = turn;
@@ -1501,21 +1700,25 @@ export class VibeSessionRegistry {
 			record.state = "dead";
 			return;
 		}
+		// A pinned record writes its settle/tombstone entries to the source
+		// transcript, never to the session the director has resumed since.
+		const parent = this.#parentForRecord(record, session);
 		// Only an idle/parked ref with this parent's exact child file is resumable.
 		const registered = this.#registeredAgent(record);
 		record.state = registered && (registered.status === "idle" || registered.status === "parked") ? "idle" : "dead";
 		if (record.state === "dead") {
-			record.terminalPersisted = await this.#appendTombstone(session, record, "unrecoverable");
+			record.terminalPersisted = await this.#appendTombstone(parent, record, "unrecoverable");
 			return;
 		}
 		const settledPersisted = await this.#appendLifecycleEvent(
-			session,
+			parent,
 			{
 				...this.#eventBase(record),
 				action: "turn-settled",
 				turn: record.turnCount,
 			},
 			record.parentSessionFile,
+			record,
 		);
 		if (record.childSessionFile && !settledPersisted) {
 			record.state = "dead";

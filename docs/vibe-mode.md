@@ -22,15 +22,18 @@ Vibe worker runtime with a hierarchy rather than a flat director:
 
 - `vibe_spawn` requires a stable module `role` (a lowercase slug such as `planner`), separate
   from the assignment text; ids default to `<role>-<generation>`.
-- `lifecycle: "resident" | "ephemeral"` selects retention: resident workers keep their
-  conversation across assignments, ephemeral ones are for one bounded task.
+- `lifecycle: "resident" | "ephemeral"` is **partial**: it is recorded in the spawn lifecycle
+  metadata and prompts, but no retention branch terminates ephemeral workers by lifecycle
+  today. Both values currently behave like resident keep-alive workers.
 - Project tracking is forced on for the Team session scope with a runtime override
   (`tracking.enabled`), so `tracking_update` is in the toolset; exiting restores the prior
   override instead of writing the global setting.
 - The Team directive is injected as a hidden `team-mode-context` custom message (never
   persisted), and the `adr` skill body is loaded once per Team scope when it is installed.
-- The lead owns the canonical architecture summary and `INDEX.md`; workers write module
-  notes only, and worker `local://` writes stay under `local/agents/<worker-id>/`.
+- The lead-owns-canonical-summary / `INDEX.md` rule and "workers write module notes only" are
+  **prompt-only**: worker `local://` writes are constrained to
+  `local/agents/<worker-id>/`, but there is no canonical-summary entry kind, revision, or hash
+  enforcement yet. The **PARTIAL** status above covers those missing pieces.
 
 Legacy Lead/PM mode (`/lead`, `/pm`) remains the pre-Team system; it is being renamed
 **Super Team** and hidden from default surfaces. Its Team DB, room service and Work Studio
@@ -55,7 +58,7 @@ Toggle it with the `/vibe` slash command:
 
 `/vibe` is an interactive-TUI command. The mode and worker lifecycle events are persisted with the parent session. Resuming a session whose current mode is `vibe` rehydrates completed workers as idle/parked sessions with their child transcripts; a turn interrupted by process restart is not resumed automatically. Explicitly killed or mode-exit workers stay terminal.
 
-Switching to a saved session suspends the source scope: running worker turns are cancelled and queued directives are cleared, but the persisted child conversations are not tombstoned. Returning to that parent can rehydrate them; this differs from deliberately exiting `/vibe`.
+Switching to a saved session (`/resume`) navigates; it does not suspend the source scope. Running worker turns and queued directives keep going, and their lifecycle entries and turn results are written to the source transcript (ADR 0039). Team tools are detached without killing workers. Returning to that parent reattaches its live workers and shows completions that settled while it was away; a process restart still rehydrates only completed workers, because in-flight turns are process-local. Deliberately exiting `/vibe` or `/team` remains a terminal action and kills the scope.
 
 ## The two worker tiers
 

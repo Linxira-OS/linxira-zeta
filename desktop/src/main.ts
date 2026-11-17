@@ -1299,6 +1299,7 @@ interface TrayPrefs {
 
 interface DesktopLabels {
 	showWindow: string;
+	home: string;
 	statsDashboard: string;
 	imChannels: string;
 	security: string;
@@ -1315,6 +1316,7 @@ interface DesktopLabels {
 
 const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	showWindow: "Show Window",
+	home: "Home",
 	statsDashboard: "Stats Dashboard",
 	imChannels: "IM Channels",
 	security: "Identity & Devices",
@@ -1431,6 +1433,7 @@ let trayLabels: DesktopLabels = DEFAULT_DESKTOP_LABELS;
 function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 	return [
 		{ label: trayLabels.showWindow, click: () => showMainWindow() },
+		{ label: trayLabels.home, click: () => { showMainWindow(); sendMenuCommand("app.home"); } },
 		{ label: trayLabels.statsDashboard, click: () => openStatsWindow() },
 		{
 			label: trayLabels.imChannels,

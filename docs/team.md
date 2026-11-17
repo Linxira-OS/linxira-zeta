@@ -1,7 +1,9 @@
-# Team foundation (paths, database, rooms, work queue, and the Team Hub)
+# Super Team foundation (legacy paths, database, rooms, work queue, and Hub)
 
-`zetacode team` implements the **Zeta Team** product surface (Team mode) and
-its collaboration primitives: the ownerless team root, PM workspaces,
+This page documents the preserved **Super Team** PM/engineer system exposed by
+`zetacode team`. Active Vibe-backed `/team` mode is documented in
+[Vibe and Team mode](./vibe-mode.md); its workers do not use this database.
+The legacy collaboration primitives include the ownerless team root, PM workspaces,
 canonical base repositories, PM bindings, engineers, linked worktrees,
 database-only rooms, and a durable work queue. The TUI adds
 **path entry** and the **Team Hub**: launching at a Team root or PM workspace
@@ -16,10 +18,10 @@ execution choice; it does not start Vibe, and no Team entry ever enables Vibe
 automatically. The work queue is pull-based: a PM assigns, a worker claims with
 a lease, and the PM reviews.
 
-The `pi-messenger` official plugin owns only the mesh and crew surfaces. Its
-`/teamagent` command registers crew roles as spawnable subagents; it is not
-Team mode and does not read the Zeta Team database. `/team`, `/team hub`, and
-`/lead` (alias `/pm`) stay core.
+The `pi-messenger` plugin's mesh and crew surfaces are independent of active
+Team mode and the legacy Team database. It is not a dependency of Vibe-backed
+Team. `/team` enters active Team mode; `/team hub` still opens the legacy Hub,
+and `/lead` (alias `/pm`) remains an explicitly callable hidden legacy command.
 
 ## Path model
 

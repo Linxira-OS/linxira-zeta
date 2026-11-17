@@ -186,6 +186,7 @@ describe("InteractiveMode vibe mode toggle", () => {
 			toolRegistry: new Map(registryTools.map(tool => [tool.name, tool])),
 			builtInToolNames: registryTools.map(tool => tool.name),
 			createVibeTools: () => VIBE_TOOL_NAMES.map(stubTool),
+			createTeamTools: () => [stubTool("team_spawn")],
 		});
 		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus());
 	});
@@ -201,6 +202,26 @@ describe("InteractiveMode vibe mode toggle", () => {
 	afterAll(() => {
 		authStorage.close();
 		tempDir.removeSync();
+	});
+
+	it("keeps explicit Team on and off commands idempotent", async () => {
+		await mode.handleTeamModeCommand(false);
+		expect(session.getTeamModeState()?.enabled ?? false).toBe(false);
+		await mode.handleTeamModeCommand(true);
+		await mode.handleTeamModeCommand(true);
+		expect(session.getTeamModeState()?.enabled).toBe(true);
+		expect(session.getActiveToolNames()).toContain("team_spawn");
+		await mode.handleTeamModeCommand(false);
+		await mode.handleTeamModeCommand(false);
+		expect(session.getTeamModeState()?.enabled ?? false).toBe(false);
+		expect(session.getActiveToolNames()).not.toContain("team_spawn");
+	});
+	it("keeps extension Team transitions synchronized with the interactive mode", async () => {
+		await mode.init({ suppressWelcomeIntro: true });
+		await mode.sessionModes.set({ mode: "team", action: "enter" });
+		expect(mode.teamModeEnabled).toBe(true);
+		await mode.sessionModes.set({ mode: "team", action: "exit" });
+		expect(mode.teamModeEnabled).toBe(false);
 	});
 
 	it("preserves the parent Todo tool and restores the exact pre-vibe toolset on exit", async () => {
@@ -497,12 +518,12 @@ describe("InteractiveMode vibe mode toggle", () => {
 		await readGate.started;
 		const suspendCallsBeforeRead = suspend.mock.calls.length;
 		readGate.release();
-		expect(suspendCallsBeforeRead).toBe(1);
+		expect(suspendCallsBeforeRead).toBe(0);
 		expect(await switching).toBe(true);
 
 		expect(mode.vibeModeEnabled).toBe(true);
 		expect(session.getActiveToolNames()).toEqual(expect.arrayContaining(["read", "todo", ...VIBE_TOOL_NAMES]));
-		expect(suspend).toHaveBeenCalledTimes(1);
+		expect(suspend).not.toHaveBeenCalled();
 		expect(terminate).not.toHaveBeenCalled();
 		expect(vibeModeEntryCount(session.sessionManager)).toBe(1);
 	});
@@ -677,11 +698,10 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(activeModelDuringRehydrate).toBe(`${expectedModel.provider}/${expectedModel.id}:high`);
 	});
 
-	it("suspends the old scope without tombstones when switching to another vibe parent", async () => {
+	it("detaches the old scope without suspending it or adding tombstones when switching to another vibe parent", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
 		await mode.handleVibeModeCommand();
 		await session.sessionManager.ensureOnDisk();
-		const originalSessionId = session.sessionManager.getSessionId();
 		const targetManager = SessionManager.create(tempDir.path(), tempDir.path());
 		targetManager.appendModeChange("vibe");
 		await targetManager.ensureOnDisk();
@@ -695,8 +715,7 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(await session.switchSession(targetFile)).toBe(true);
 
 		expect(mode.vibeModeEnabled).toBe(true);
-		expect(suspend).toHaveBeenCalledTimes(1);
-		expect(suspend.mock.calls[0]?.[0]).toMatchObject({ parentSessionId: originalSessionId });
+		expect(suspend).not.toHaveBeenCalled();
 		expect(terminate).not.toHaveBeenCalled();
 		expect(vibeModeEntryCount(session.sessionManager)).toBe(1);
 	});

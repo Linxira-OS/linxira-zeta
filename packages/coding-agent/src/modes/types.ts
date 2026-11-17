@@ -661,7 +661,7 @@ export interface InteractiveModeContext {
 	handleLeadModeCommand(): Promise<boolean>;
 	/** Team mode (Vibe-backed worker hierarchy); distinct from the hidden legacy Lead mode. */
 	teamModeEnabled: boolean;
-	handleTeamModeCommand(): Promise<boolean>;
+	handleTeamModeCommand(enabled?: boolean): Promise<boolean>;
 	handlePlanUltraCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,

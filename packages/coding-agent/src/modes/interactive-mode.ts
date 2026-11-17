@@ -1467,8 +1467,9 @@ export class InteractiveMode implements InteractiveModeContext {
 	#reportedModeState: SessionModeState = {
 		plan: { status: "inactive" },
 		lead: { status: "inactive" },
-		vibe: { status: "inactive" },
 		team: { status: "inactive" },
+		vibe: { status: "inactive" },
+		goal: { status: "inactive" },
 		loop: { status: "inactive" },
 	};
 	#reportedModeKey = JSON.stringify(this.#reportedModeState);
@@ -1870,7 +1871,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	// failure unblocks every waiter instead of hanging it.
 	#vibeSkillTail: Promise<void> = Promise.resolve();
 	#vibeSkillInFlight = 0;
-	#vibeScopeSuspendedForSwitch = false;
 	#goalContinuationTimer: NodeJS.Timeout | undefined;
 	/** Submitted continuation turns awaiting their asynchronously delivered `agent_end`. */
 	#pendingGoalContinuationTurns = 0;
@@ -2905,7 +2905,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		// Restore mode from session (e.g. plan mode on resume)
 		this.session.setSessionBeforeSwitchReconciler?.(async () => {
 			await this.#liveCommandController.stop();
-			await this.#quiesceVibeForSessionSwitch();
 		});
 		this.session.setSessionSwitchReconciler?.(() => this.#reconcileModeFromSession({ preserveActiveGoal: true }));
 		await logger.time("InteractiveMode.init:reconcileMode", () => this.#reconcileModeFromSession());
@@ -3895,14 +3894,20 @@ export class InteractiveMode implements InteractiveModeContext {
 				return () => this.#enterVibeMode();
 			case "team":
 				if (request.action === "exit")
-					return this.session.getTeamModeState()?.enabled ? () => this.session.exitTeamMode() : undefined;
+					return this.session.getTeamModeState()?.enabled
+						? async () => {
+								await this.handleTeamModeCommand(false);
+							}
+						: undefined;
 				if (request.action !== "enter") break;
 				if (this.session.getTeamModeState()?.enabled) return undefined;
 				if (planBlocks) return conflict("plan");
 				if (goalBlocks) return conflict("goal");
 				if (this.leadModeEnabled) return conflict("lead");
 				if (this.vibeModeEnabled) return conflict("vibe");
-				return () => this.session.enterTeamMode();
+				return async () => {
+					await this.handleTeamModeCommand(true);
+				};
 			case "goal":
 				switch (request.action) {
 					case "enter": {
@@ -5775,13 +5780,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		};
 	}
 
-	async #quiesceVibeForSessionSwitch(): Promise<void> {
-		const ownerScope = this.#vibeModeOwnerScope;
-		if (!this.vibeModeEnabled || !ownerScope) return;
-		await VibeSessionRegistry.global().suspendScope(ownerScope, this.session.asyncJobManager);
-		this.#vibeScopeSuspendedForSwitch = true;
-	}
-
 	#updateGoalModeStatus(): void {
 		const status =
 			this.goalModeEnabled || this.goalModePaused
@@ -5950,7 +5948,6 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	async #clearTransientModeState(options?: {
 		preserveVibe?: boolean;
-		vibeScopeAlreadySuspended?: boolean;
 		restorePlanModel?: boolean;
 	}): Promise<void> {
 		if (this.planModeEnabled || this.planModePaused) {
@@ -6005,28 +6002,30 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#updateLeadModeStatus();
 		}
 
-		if (this.teamModeEnabled) {
+		// Read the AgentSession's own Team state as well as the UI mirror: a
+		// programmatic transition (`/team off`, or a restored mode) can change
+		// the session without this flag being updated, and a stale flag would
+		// leave Team tools mounted on the target.
+		if (this.teamModeEnabled || this.session.getTeamModeState()?.enabled) {
 			// Same rule as vibe: the target session's active set is already loaded,
-			// so drop only Team's transient tools and keep it intact.
+			// so drop only Team's transient tools and keep it intact. Workers keep
+			// running; they are source-bound by AgentSession (ADR 0039).
 			await this.session.exitTeamModePreservingActive();
 			this.teamModeEnabled = false;
 		}
 
 		if (this.vibeModeEnabled && !options?.preserveVibe) {
-			const ownerScope = this.#vibeModeOwnerScope;
 			// This runs only from #reconcileModeFromSession, i.e. after switchSession
 			// already loaded and restored the target session's active tools. The
 			// #vibeModePreviousTools snapshot belongs to the SOURCE session, so
 			// applying it here would clobber the target's tools — strip only the
 			// transient vibe tools and keep the target's active set intact.
+			// Workers are left running, pinned to the transcript that spawned them.
 			await this.session.removeVibeToolsPreservingActive();
 			this.session.setVibeModeState(undefined);
 			this.vibeModeEnabled = false;
 			this.#vibeModePreviousTools = undefined;
 			this.#vibeModeOwnerScope = undefined;
-			if (ownerScope && !options?.vibeScopeAlreadySuspended) {
-				await VibeSessionRegistry.global().suspendScope(ownerScope, this.session.asyncJobManager);
-			}
 			this.#updateVibeModeStatus();
 		}
 	}
@@ -6035,8 +6034,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	async #reconcileModeFromSession(options?: { preserveActiveGoal?: boolean }): Promise<void> {
 		// Report only the restored result, not the cleared state in between.
 		using _hold = this.#holdModeChanges();
-		const vibeScopeAlreadySuspended = this.#vibeScopeSuspendedForSwitch;
-		this.#vibeScopeSuspendedForSwitch = false;
 		this.#guidedGoalInterviewActive = false;
 		const sessionContext = this.sessionManager.buildSessionContext();
 		const vibeSession = this.#vibeParentSession();
@@ -6061,7 +6058,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		// pre-plan model instead. A recorded model was already restored by switchSession.
 		await this.#clearTransientModeState({
 			preserveVibe,
-			vibeScopeAlreadySuspended,
 			restorePlanModel: Object.keys(sessionContext.models).length === 0,
 		});
 		await VibeSessionRegistry.global().rehydrate(vibeSession);
@@ -7407,8 +7403,10 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * (runtime override, never persisted), and restores the prior toolset and
 	 * tracking state on exit. Legacy Lead/PM state is untouched.
 	 */
-	async handleTeamModeCommand(): Promise<boolean> {
-		if (this.teamModeEnabled || this.session.getTeamModeState()?.enabled) {
+	async handleTeamModeCommand(enabled?: boolean): Promise<boolean> {
+		const active = this.teamModeEnabled || this.session.getTeamModeState()?.enabled === true;
+		if (enabled === active) return active;
+		if (active) {
 			await this.session.exitTeamMode();
 			this.teamModeEnabled = false;
 			this.lastAssistantUsage = undefined;

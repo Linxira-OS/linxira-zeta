@@ -135,7 +135,9 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 						await runtime.output("Team mode disabled.");
 					}
 				} catch (error) {
-					await runtime.output(`Could not change Team mode: ${errorMessage(error)}`);
+					await runtime.output(
+						`Could not change Team mode: ${error instanceof Error ? error.message : String(error)}`,
+					);
 					return { consumed: true, failed: true };
 				}
 				return commandConsumed();
@@ -165,7 +167,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}
 			return commandConsumed();
 		},
-		handleTui: (command, runtime) => {
+		handleTui: async (command, runtime) => {
 			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
 			if (sub === "hub") {
 				runtime.ctx.showTeamHub();
@@ -173,7 +175,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return;
 			}
 			if (sub === "on" || sub === "off" || sub === "") {
-				void runtime.ctx.handleTeamModeCommand();
+				await runtime.ctx.handleTeamModeCommand(sub === "" ? undefined : sub === "on");
 				runtime.ctx.editor.setText("");
 				return;
 			}

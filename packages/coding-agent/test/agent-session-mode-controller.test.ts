@@ -23,6 +23,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
+import { AgentSessionWrapper } from "@linxiraos/zeta/server/web-gateway/agents";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -124,7 +125,6 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			settings,
 			modelRegistry,
 			toolRegistry,
-			builtInToolNames: ["ask", "write", "read", "goal"],
 			advisorTools: [],
 			createVibeTools: () => [makeTool("vibe_dir"), makeTool("vibe_worker")],
 			createTeamTools: () => [makeTool("team_dir"), makeTool("team_worker")],
@@ -234,12 +234,18 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 	it("enterMode('team')/exitMode('team') activates Team tools, forces tracking, and restores both", async () => {
 		const settings = Settings.isolated({ "compaction.enabled": false, "retry.enabled": false });
 		const harness = await createModeSession(settings);
+		const gateway = new AgentSessionWrapper(harness.session, "team-mode-state", null);
+		const teamEvents: unknown[] = [];
+		gateway.onEvent(event => {
+			if (event.type === "mode_changed" && event.mode === "team") teamEvents.push(event.state);
+		});
 		const preTeamTools = harness.session.getActiveToolNames();
 		expect(cfgTrackingEnabled.get(settings)).toBe(false);
 
 		await harness.session.enterMode("team");
 
 		expect(harness.session.getTeamModeState()?.enabled).toBe(true);
+		expect(await gateway.send({ type: "get_state" })).toMatchObject({ modes: { team: { enabled: true } } });
 		const teamTools = harness.session.getActiveToolNames();
 		expect(teamTools).toContain("read");
 		expect(teamTools).toContain("team_dir");
@@ -254,6 +260,9 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		await harness.session.exitMode("team");
 
 		expect(harness.session.getTeamModeState()).toBeUndefined();
+		const gatewayState = (await gateway.send({ type: "get_state" })) as { modes: { team?: unknown } };
+		expect(gatewayState.modes.team).toBeUndefined();
+		expect(teamEvents).toEqual([{ enabled: true }, null]);
 		expect(harness.session.getActiveToolNames()).toEqual(preTeamTools);
 		expect(harness.session.getActiveToolNames()).not.toContain("team_dir");
 		expect(cfgTrackingEnabled.get(settings)).toBe(false);

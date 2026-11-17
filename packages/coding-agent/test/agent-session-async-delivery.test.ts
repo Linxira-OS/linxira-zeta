@@ -1222,6 +1222,8 @@ describe("AgentSession owner-routed async delivery", () => {
 		manager: AsyncJobManager;
 		mock: MockModel;
 		targetSessionFile: string;
+		sourceSessionFile: string;
+		sourceSessionId: string;
 	}> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
@@ -1239,7 +1241,9 @@ describe("AgentSession owner-routed async delivery", () => {
 
 		const sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 		sessionManager.appendMessage({ role: "user", content: "outgoing session", timestamp: 1 });
-		await sessionManager.flush();
+		await sessionManager.ensureOnDisk();
+		const sourceSessionFile = sessionManager.getSessionFile()!;
+		const sourceSessionId = sessionManager.getSessionId();
 		const target = SessionManager.create(tempDir.path(), tempDir.path());
 		target.appendMessage({ role: "user", content: "resumed session", timestamp: 2 });
 		await target.flush();
@@ -1269,18 +1273,17 @@ describe("AgentSession owner-routed async delivery", () => {
 			ownedAsyncJobManager: manager,
 			extensionRunner,
 		});
-		return { manager, mock, targetSessionFile };
+		return { manager, mock, targetSessionFile, sourceSessionFile, sourceSessionId };
 	}
 
-	it("cancels the outgoing session's background jobs when resuming another session", async () => {
+	it("keeps the outgoing session's background job running and persists its result into that transcript", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-async-jobs-");
-		const { manager, mock, targetSessionFile } = await startResumableSession(tempDir);
+		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
 		const gate = Promise.withResolvers<void>();
 		manager.register(
 			"bash",
 			"outgoing session job",
-			async ({ signal }) => {
-				signal.addEventListener("abort", () => gate.resolve(), { once: true });
+			async () => {
 				await gate.promise;
 				return "PRIOR SESSION RESULT";
 			},
@@ -1289,18 +1292,27 @@ describe("AgentSession owner-routed async delivery", () => {
 		expect(session.hasPendingAsyncWork()).toBe(true);
 
 		expect(await session.switchSession(targetSessionFile)).toBe(true);
+		expect(manager.getJob("outgoing-job")?.status).toBe("running");
 		gate.resolve();
 		await manager.waitForAll();
 		await manager.drainDeliveries({ timeoutMs: 1_000, filter: { ownerId: "Main" } });
 		await session.settleAsyncWork();
 
-		expect(manager.getJob("outgoing-job")?.status).toBe("cancelled");
+		expect(manager.getJob("outgoing-job")?.status).toBe("completed");
 		expect(session.hasPendingAsyncWork()).toBe(false);
+		// The completion never entered the resumed conversation and never started
+		// a turn there.
 		expect(mock.calls).toHaveLength(0);
-		const leaked = session.sessionManager
-			.getEntries()
-			.some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"));
-		expect(leaked).toBe(false);
+		expect(
+			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT")),
+		).toBe(false);
+		// It was persisted into the transcript that owned the job.
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
 	});
 
 	it("keeps background jobs running across a same-session reload", async () => {
@@ -1323,9 +1335,9 @@ describe("AgentSession owner-routed async delivery", () => {
 		await manager.waitForAll();
 	});
 
-	it("does not start a turn for an outgoing job that finishes while the resumed session loads", async () => {
+	it("persists an outgoing job that finishes while the resumed session loads without starting a turn there", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-mid-switch-");
-		const { manager, mock, targetSessionFile } = await startResumableSession(tempDir);
+		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
 		const gate = Promise.withResolvers<void>();
 		manager.register(
 			"bash",
@@ -1347,20 +1359,26 @@ describe("AgentSession owner-routed async delivery", () => {
 		try {
 			expect(await session.switchSession(targetSessionFile)).toBe(true);
 			await session.waitForIdle();
+			await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
 		} finally {
 			spy.mockRestore();
 		}
 
 		expect(mock.calls).toHaveLength(0);
-		const leaked = session.sessionManager
-			.getEntries()
-			.some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT"));
-		expect(leaked).toBe(false);
+		expect(
+			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT")),
+		).toBe(false);
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
 	});
 
-	it("keeps background jobs when the resumed session's cwd is rejected", async () => {
+	it("keeps background jobs and still delivers their result when the resumed session's cwd is rejected", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-cwd-reject-");
-		const { manager, targetSessionFile } = await startResumableSession(tempDir);
+		const { manager, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
 		const target = await SessionManager.open(targetSessionFile);
 		target.setCwdWithoutRelocation(tempDir.join("other-project"));
 		await target.flush();
@@ -1371,7 +1389,7 @@ describe("AgentSession owner-routed async delivery", () => {
 			"outgoing session job",
 			async () => {
 				await gate.promise;
-				return "done";
+				return "CWD ROLLBACK RESULT";
 			},
 			{ id: "cwd-reject-job", ownerId: "Main" },
 		);
@@ -1382,6 +1400,132 @@ describe("AgentSession owner-routed async delivery", () => {
 		expect(manager.getJob("cwd-reject-job")?.status).toBe("running");
 		gate.resolve();
 		await manager.waitForAll();
+		await session.settleAsyncWork();
+
+		expect(manager.getJob("cwd-reject-job")?.status).toBe("completed");
+		// The rolled-back switch restored the source as the live destination, so
+		// the result is still delivered into the transcript the user is back on.
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("CWD ROLLBACK RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
+	});
+
+	it("shows the source completion when returning to that session after the job settled there", async () => {
+		using tempDir = TempDir.createSync("@pi-resume-return-source-");
+		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
+		const gate = Promise.withResolvers<void>();
+		manager.register(
+			"bash",
+			"return-to-source job",
+			async () => {
+				await gate.promise;
+				return "RETURNED SOURCE RESULT";
+			},
+			{ id: "return-source-job", ownerId: "Main" },
+		);
+
+		expect(await session.switchSession(targetSessionFile)).toBe(true);
+		const callsWhileAway = mock.calls.length;
+		gate.resolve();
+		await manager.waitForAll();
+		await manager.drainDeliveries({ timeoutMs: 1_000, filter: { ownerId: "Main" } });
+
+		expect(await session.switchSession(sourceSessionFile)).toBe(true);
+		expect(mock.calls).toHaveLength(callsWhileAway);
+		// Returning loads the persisted follow-up into the live transcript.
+		expect(
+			session.agent.state.messages.some(
+				message => message.role === "custom" && JSON.stringify(message.content).includes("RETURNED SOURCE RESULT"),
+			),
+		).toBe(true);
+	});
+
+	it("persists a job registered while the source is inactive when it states its origin", async () => {
+		using tempDir = TempDir.createSync("@pi-resume-explicit-origin-");
+		const { manager, mock, targetSessionFile, sourceSessionFile, sourceSessionId } =
+			await startResumableSession(tempDir);
+
+		expect(await session.switchSession(targetSessionFile)).toBe(true);
+		const gate = Promise.withResolvers<void>();
+		// This is the shape of a Vibe queued follow-up turn: the job starts after
+		// the parent navigated away and carries the pinned transcript's origin.
+		manager.register(
+			"task",
+			"follow-up from source",
+			async () => {
+				await gate.promise;
+				return "EXPLICIT ORIGIN RESULT";
+			},
+			{
+				id: "explicit-origin-job",
+				ownerId: "Main",
+				origin: { sessionId: sourceSessionId, sessionFile: sourceSessionFile },
+			},
+		);
+		const callsWhileAway = mock.calls.length;
+		gate.resolve();
+		await manager.waitForAll();
+		await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
+
+		expect(mock.calls).toHaveLength(callsWhileAway);
+		expect(
+			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("EXPLICIT ORIGIN RESULT")),
+		).toBe(false);
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("EXPLICIT ORIGIN RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
+	});
+
+	it("re-delivers a receipt queued before the switch into the source transcript", async () => {
+		using tempDir = TempDir.createSync("@pi-resume-queued-receipt-");
+		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
+		const receiptQueued = Promise.withResolvers<void>();
+		const releaseReceipt = Promise.withResolvers<void>();
+		const enqueue = session.yieldQueue.enqueueWithReceipt.bind(session.yieldQueue);
+		const enqueueSpy = vi.spyOn(session.yieldQueue, "enqueueWithReceipt").mockImplementation(async (kind, entry) => {
+			if (kind === "async-result") {
+				receiptQueued.resolve();
+				await releaseReceipt.promise;
+			}
+			return enqueue(kind, entry);
+		});
+		const gate = Promise.withResolvers<void>();
+		manager.register(
+			"bash",
+			"receipt job",
+			async () => {
+				await gate.promise;
+				return "QUEUED RECEIPT RESULT";
+			},
+			{ id: "queued-receipt-job", ownerId: "Main" },
+		);
+		gate.resolve();
+		await manager.waitForOwnerJobs("Main");
+		await receiptQueued.promise;
+		try {
+			expect(await session.switchSession(targetSessionFile)).toBe(true);
+			releaseReceipt.resolve();
+			await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
+		} finally {
+			enqueueSpy.mockRestore();
+		}
+
+		expect(mock.calls).toHaveLength(0);
+		expect(
+			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("QUEUED RECEIPT RESULT")),
+		).toBe(false);
+		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
+		try {
+			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("QUEUED RECEIPT RESULT"))).toBe(true);
+		} finally {
+			await source.close();
+		}
 	});
 
 	it("keeps a job that a session_switch hook starts for the resumed session", async () => {

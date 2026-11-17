@@ -81,6 +81,7 @@ import { isUserRequestEntry } from "@linxiraos/pi-tui/chat/transcript-entry";
 import type { TurnAct, TurnMessage } from "@linxiraos/pi-tui/chat/transcript-actions";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import { findSessionContinuation, readSessionInfo, type SessionInfo } from "../../session/session-listing";
+import { AgentRegistry, type AgentRegistryApi } from "../../registry/agent-registry";
 import { SessionManager } from "../../session/session-manager";
 import { loadPinnedSessionIds, setSessionPinned } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
@@ -137,7 +138,11 @@ import { PluginSelectorComponent } from "@linxiraos/pi-tui/overlays/plugin-selec
 import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@linxiraos/pi-tui/overlays/reset-usage-selector";
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/pi-tui/overlays/rewind-selector";
 import { SessionAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/session-account-selector";
-import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxiraos/pi-tui/overlays/session-selector";
+import {
+	SessionSelectorComponent,
+	type SessionSelectorOptions,
+	type SessionSelectorRunningAgent,
+} from "@linxiraos/pi-tui/overlays/session-selector";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
@@ -225,8 +230,22 @@ export class SelectorController {
 	 * focuses it instead of stacking another menu on top.
 	 */
 	#openMenus = new Map<MenuKind, OpenMenu>();
+	/**
+	 * A `/resume` picker hidden while its selected live agent occupies the main
+	 * view. It is kept (not disposed) so returning restores the same search
+	 * query and selected row; a new picker request closes the stale one first.
+	 */
+	#hiddenAgentPicker?: { close(): void };
 
 	constructor(private ctx: InteractiveModeContext) {}
+
+	/** Close a picker left hidden behind an agent observer (new request or teardown). */
+	#closeHiddenAgentPicker(): void {
+		const hidden = this.#hiddenAgentPicker;
+		if (!hidden) return;
+		this.#hiddenAgentPicker = undefined;
+		hidden.close();
+	}
 	/**
 	 * Mount a primary fullscreen menu through the one polished modal path shared
 	 * by Settings, Model Hub, and Agent Hub.
@@ -2202,9 +2221,53 @@ export class SelectorController {
 		options?: { workspacePath?: string; initialScope?: ResumeScopeKindLike },
 	): Promise<void> {
 		void options;
+		// A previous picker may still be hidden behind the observer it opened;
+		// release its subscription/timer before opening a new one.
+		this.#closeHiddenAgentPicker();
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
 		let selectorOptions: SessionSelectorOptions<SessionInfo>;
+		let registry: AgentRegistryApi | undefined;
+		let runningAgentRows: (() => readonly SessionSelectorRunningAgent[]) | undefined;
+		/** Row object → registry generation at mapping time; a recycled id never re-focuses an old row. */
+		const runningAgentGenerations = new WeakMap<SessionSelectorRunningAgent, number>();
+		let registryUnsubscribe: (() => void) | undefined;
+		let runningAgentsTimer: NodeJS.Timeout | undefined;
+		let lastRunningAgentsSignature: string | undefined;
+		const runningAgentsSignature = (rows: readonly SessionSelectorRunningAgent[]): string =>
+			rows
+				.map(row =>
+					[
+						row.id,
+						row.displayName,
+						row.activity ?? "",
+						row.createdAt.getTime(),
+						row.sessionFile ?? "",
+						runningAgentGenerations.get(row) ?? -1,
+					].join("\u0001"),
+				)
+				.join("\u0002");
+		const stopRunningAgentsRefresh = (): void => {
+			if (runningAgentsTimer !== undefined) {
+				clearInterval(runningAgentsTimer);
+				runningAgentsTimer = undefined;
+			}
+		};
+		const startRunningAgentsRefresh = (): void => {
+			if (!runningAgentRows || runningAgentsTimer !== undefined) return;
+			// AgentRegistry.setActivity is display-only and emits no event, so
+			// poll at a low rate while the picker is live; sync only repaints
+			// when the row signature (including registry generation) changes.
+			runningAgentsTimer = setInterval(() => syncRunningAgents(), 1000);
+			runningAgentsTimer.unref?.();
+		};
+		let observerReturnTimer: NodeJS.Timeout | undefined;
+		const stopObserverReturnWatch = (): void => {
+			if (observerReturnTimer !== undefined) {
+				clearTimeout(observerReturnTimer);
+				observerReturnTimer = undefined;
+			}
+		};
 
 		if (source) {
 			const sourceName = foreignSessionSourceName(source);
@@ -2265,6 +2328,36 @@ export class SelectorController {
 				? (query: string) => historyStorage.matchingSessionIds(query)
 				: undefined;
 			onSelectSession = session => this.handleResumeSession(session.path, { followContinuation: true });
+			if (!onSelect) {
+				// The live section reads the process registry, not this session's
+				// observer list, so workers started by other source conversations
+				// are included. Ordinary persisted subagent sessions are not.
+				registry = this.ctx.agentRegistry ?? AgentRegistry.global();
+				runningAgentRows = () => {
+					const ownSessionFile = this.ctx.sessionManager.getSessionFile?.() ?? undefined;
+					const rows: SessionSelectorRunningAgent[] = [];
+					for (const ref of registry!.list()) {
+						if (ref.status !== "running") continue;
+						// Exclude only the root of the conversation this picker
+						// belongs to; other roots (including a running `main` from
+						// another source conversation) are live workers here.
+						if (ref.kind === "main" && ownSessionFile !== undefined && ref.sessionFile === ownSessionFile) {
+							continue;
+						}
+						const activity = ref.activity?.trim();
+						const row: SessionSelectorRunningAgent = {
+							id: ref.id,
+							displayName: ref.displayName || ref.id,
+							createdAt: new Date(ref.createdAt),
+							...(activity ? { activity } : {}),
+							...(ref.sessionFile ? { sessionFile: ref.sessionFile } : {}),
+						};
+						runningAgentGenerations.set(row, ref.generation);
+						rows.push(row);
+					}
+					return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+				};
+			}
 			selectorOptions = {
 				...(!onSelect
 					? {
@@ -2334,15 +2427,107 @@ export class SelectorController {
 				// Live getter so detach/newSession stays accurate; tolerant of partial
 				// contexts and in-memory sessions (undefined file means no marker).
 				currentSessionPath: () => this.ctx.sessionManager.getSessionFile?.() ?? undefined,
+				...(runningAgentRows
+					? {
+							runningAgents: () => {
+								const rows = runningAgentRows!();
+								lastRunningAgentsSignature = runningAgentsSignature(rows);
+								return rows;
+							},
+							onSelectRunningAgent: (agent: SessionSelectorRunningAgent) => {
+								void focusRunningAgent(agent);
+							},
+						}
+					: {}),
 			};
 		}
 
 		// Keep the fullscreen picker on the alternate buffer while a selected
 		// session is loaded and its transcript is rebuilt.
 		const done = () => {
-			overlayHandle?.hide();
+			stopObserverReturnWatch();
+			stopRunningAgentsRefresh();
+			this.#hiddenAgentPicker = undefined;
+			registryUnsubscribe?.();
+			registryUnsubscribe = undefined;
+			overlayHandle.hide();
+			selector.dispose();
 			this.focusActiveEditorArea();
 			this.ctx.ui.requestRender();
+		};
+		/**
+		 * Open a live agent's existing observer without resuming its transcript
+		 * as the main conversation. The picker stays mounted but hidden so its
+		 * search query and selected row return unchanged; a done cleanup drops
+		 * the registry subscription, the activity timer, and the return timer.
+		 */
+		const focusRunningAgent = async (agent: SessionSelectorRunningAgent) => {
+			const expectedGeneration = runningAgentGenerations.get(agent);
+			const ref = registry?.get(agent.id);
+			if (
+				expectedGeneration === undefined ||
+				!ref ||
+				ref.status !== "running" ||
+				ref.generation !== expectedGeneration
+			) {
+				syncRunningAgents();
+				this.ctx.showWarning(`Agent ${agent.displayName} is no longer running.`);
+				return;
+			}
+			selector.lockInput();
+			try {
+				await this.ctx.focusAgentSession(agent.id);
+			} catch (error) {
+				selector.unlockInput();
+				this.ctx.showError(sanitizeErrorLine(error));
+				this.ctx.ui.requestRender();
+				return;
+			}
+			// A focus request can resolve without taking the view (e.g. the
+			// registry's `main` alias unfocused instead of attaching); hiding
+			// here would only bounce back on the first watcher tick.
+			if (this.ctx.focusedAgentId !== agent.id) {
+				selector.unlockInput();
+				this.ctx.showWarning(`Agent ${agent.displayName} did not take over the view.`);
+				this.ctx.ui.requestRender();
+				return;
+			}
+			const picker = selector;
+			const overlay = overlayHandle;
+			stopRunningAgentsRefresh();
+			overlay.setHidden(true);
+			this.#hiddenAgentPicker = {
+				close: () => {
+					stopObserverReturnWatch();
+					stopRunningAgentsRefresh();
+					registryUnsubscribe?.();
+					registryUnsubscribe = undefined;
+					overlay.hide();
+					picker.dispose();
+				},
+			};
+			const watchObserverReturn = (): void => {
+				observerReturnTimer = setTimeout(() => {
+					if (this.ctx.focusedAgentId !== undefined) {
+						watchObserverReturn();
+						return;
+					}
+					// Re-read the registry before exposing the old rows: an id
+					// may have been reused by a newer generation while the
+					// observer was open, so the restored selection is revalidated.
+					syncRunningAgents();
+					picker.unlockInput();
+					this.#hiddenAgentPicker = undefined;
+					overlay.setHidden(false);
+					this.ctx.ui.setFocus(picker);
+					this.ctx.ui.requestRender();
+					startRunningAgentsRefresh();
+					stopObserverReturnWatch();
+				}, 200);
+				observerReturnTimer.unref?.();
+			};
+			this.focusActiveEditorArea();
+			watchObserverReturn();
 		};
 		const selector = new SessionSelectorComponent(
 			sessions,
@@ -2394,6 +2579,25 @@ export class SelectorController {
 			margin: 0,
 			fullscreen: true,
 		});
+		const syncRunningAgents = (): void => {
+			if (!runningAgentRows) return;
+			const rows = runningAgentRows();
+			const signature = runningAgentsSignature(rows);
+			if (signature === lastRunningAgentsSignature) return;
+			lastRunningAgentsSignature = signature;
+			selector.setRunningAgents(rows);
+		};
+		if (registry) {
+			registryUnsubscribe = registry.onChange(() => {
+				// Registry events cover registration/status/metadata. Activity
+				// heartbeats intentionally emit no event, so the low-rate timer
+				// below catches them; both paths repaint only on a real row
+				// signature change, never per unrelated render.
+				if (overlayHandle.isHidden()) return;
+				syncRunningAgents();
+			});
+			startRunningAgentsRefresh();
+		}
 		this.ctx.ui.setFocus(selector);
 		this.ctx.ui.requestRender();
 	}

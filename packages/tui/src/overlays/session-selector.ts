@@ -65,6 +65,24 @@ export interface SessionSelectorEntry {
 	/** Path to the parent session when this one was forked. */
 	parentSessionPath?: string;
 }
+
+/**
+ * A live agent row for the picker's separate Running Agents section.
+ *
+ * pi-tui must not import the coding-agent registry (dependency direction), so
+ * the host maps its registry refs to this presentation-only shape. Rows are
+ * never session entries: selecting one opens the agent's existing observer and
+ * must never resume its transcript as the main conversation.
+ */
+export interface SessionSelectorRunningAgent {
+	id: string;
+	displayName: string;
+	/** Current task / latest activity gist, when the registry has one. */
+	activity?: string;
+	createdAt: Date;
+	/** Worker transcript, shown for orientation only; never passed to session resume. */
+	sessionFile?: string;
+}
 import { shortenPath } from "../render/render-utils";
 import { formTheme } from "../chrome/form-theme";
 import { HookSelectorComponent } from "./hook-selector";
@@ -279,6 +297,8 @@ interface SessionCatalogue {
 	minute: number;
 	items: readonly TspPickerItem[];
 	byPath: ReadonlyMap<string, TspPickerItem>;
+	/** Item by row key (session path or synthetic live-agent key) for search-hit labels. */
+	byKey: ReadonlyMap<string, TspPickerItem>;
 }
 
 /** The session list's part of the picker props, plus the memo keys it was built from. */
@@ -354,6 +374,72 @@ function sessionTextLower(session: SessionSelectorEntry): string {
 		tagged[kSearchTextLower] = textLower;
 	}
 	return textLower;
+}
+
+/**
+ * Synthetic row keys for live agents. The NUL prefix keeps them disjoint from
+ * session paths, so native picker event values can never name both a session
+ * file and an agent id.
+ */
+const RUNNING_AGENT_KEY_PREFIX = "\u0000agent:";
+
+interface SessionPickerRow<T extends SessionSelectorEntry> {
+	readonly kind: "session";
+	readonly key: string;
+	readonly session: T;
+}
+
+interface RunningAgentPickerRow {
+	readonly kind: "agent";
+	readonly key: string;
+	readonly agent: SessionSelectorRunningAgent;
+}
+
+type PickerRow<T extends SessionSelectorEntry> = SessionPickerRow<T> | RunningAgentPickerRow;
+
+function runningAgentRowKey(id: string): string {
+	return `${RUNNING_AGENT_KEY_PREFIX}${id}`;
+}
+
+const kAgentSearchTextLower = Symbol("runningAgent.searchTextLower");
+
+interface SearchableRunningAgent extends SessionSelectorRunningAgent {
+	[kAgentSearchTextLower]?: string;
+}
+
+function runningAgentSearchText(agent: SessionSelectorRunningAgent): string {
+	return [agent.id, agent.displayName, agent.activity ?? "", agent.sessionFile ?? ""].filter(Boolean).join(" ");
+}
+
+function runningAgentTextLower(agent: SessionSelectorRunningAgent): string {
+	const tagged = agent as SearchableRunningAgent;
+	let textLower = tagged[kAgentSearchTextLower];
+	if (textLower === undefined) {
+		textLower = runningAgentSearchText(agent).toLowerCase();
+		tagged[kAgentSearchTextLower] = textLower;
+	}
+	return textLower;
+}
+
+/**
+ * Live-agent search: same token semantics as sessions (literal substring
+ * matches rank as matches; non-literal tokens fall back to fuzzy). Agent count
+ * is small, so this keeps the original registry/creation order instead of the
+ * session recency ranking.
+ */
+function filterRunningAgents(
+	agents: readonly SessionSelectorRunningAgent[],
+	query: string,
+): readonly SessionSelectorRunningAgent[] {
+	const tokens = tokenizeSessionQuery(query);
+	if (tokens.length === 0) return agents;
+	return agents.filter(agent => {
+		const textLower = runningAgentTextLower(agent);
+		if (isLiteralMatch(textLower, tokens)) return true;
+		const fuzzy = new FuzzyText(textLower);
+		for (const token of tokens) if (!fuzzy.match(token).matches) return false;
+		return true;
+	});
 }
 
 function tokenizeSessionQuery(query: string): string[] {
@@ -552,7 +638,7 @@ const FUZZY_SCAN_CHUNK_COUNT = 150;
  * Custom session list component with multi-line items and search
  */
 class SessionList<T extends SessionSelectorEntry> implements Component {
-	#menu: MenuSelection<T>;
+	#menu: MenuSelection<PickerRow<T>>;
 	// Maps a 0-based line within this list's own render to a filtered-session
 	// index, or undefined for chrome rows (search line, blanks, scrollbar gap).
 	// Rebuilt every render so the picker's mouse hit-testing tracks the live
@@ -571,8 +657,12 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	onDeleteRequest?: (session: T) => void;
 	onRenameRequest?: (session: T) => void;
 	onPinRequest?: (session: T, pinned: boolean) => void;
+	/** Select a live agent row: opens its observer/hub; never resumes it as a session. */
+	onSelectRunningAgent?: (agent: SessionSelectorRunningAgent) => void;
 
 	#allSessions: T[];
+	/** Live agent rows supplied by the host. Kept separate from resume entries and their ranking. */
+	#runningAgents: readonly SessionSelectorRunningAgent[];
 	#showCwd: boolean;
 	#pinnedIds: ReadonlySet<string>;
 	readonly #getCurrentSessionPath: () => string | undefined;
@@ -607,7 +697,9 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	/** Bumped whenever the visible session set may have changed (native memo key). */
 	#itemsVersion = 0;
 	/** Per-row line heights of the visible list for the ANSI window, reused until the set changes. */
-	#rowHeights: { items: readonly T[]; length: number; version: number; heights: readonly number[] } | undefined;
+	#rowHeights:
+		| { items: readonly PickerRow<T>[]; length: number; version: number; heights: readonly number[] }
+		| undefined;
 	#itemsNative:
 		| { version: number; showCwd: boolean; currentPath: string | undefined; items: NativeNode[] }
 		| undefined;
@@ -636,17 +728,20 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		getTerminalRows: () => number = () => 24,
 		pinnedIds: ReadonlySet<string> = new Set(),
 		currentSessionPath?: string | (() => string | undefined),
+		runningAgents: readonly SessionSelectorRunningAgent[] = [],
 	) {
 		this.#getTerminalRows = getTerminalRows;
 		this.#allSessions = sessions;
+		this.#runningAgents = runningAgents;
 		this.#showCwd = showCwd;
 		this.#pinnedIds = pinnedIds;
 		this.#getCurrentSessionPath =
 			typeof currentSessionPath === "function" ? currentSessionPath : () => currentSessionPath;
 		this.#historyMatcher = historyMatcher;
-		this.#menu = new MenuSelection<T>(this.#pinnedFirst(sessions), {
-			getKey: session => session.path,
-			getSearchText: sessionSearchText,
+		this.#menu = new MenuSelection<PickerRow<T>>(this.#rowsFor(this.#pinnedFirst(sessions)), {
+			getKey: row => row.key,
+			getSearchText: row =>
+				row.kind === "session" ? sessionSearchText(row.session) : runningAgentSearchText(row.agent),
 		});
 		this.#selectCurrentSession();
 		this.#searchInput = new Input();
@@ -654,10 +749,35 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		// Handle Enter in search input - select current item
 		this.#searchInput.onSubmit = () => {
 			const selected = this.#menu.selectedItem;
-			if (selected) {
-				this.onSelect?.(selected);
-			}
+			if (!selected) return;
+			if (selected.kind === "agent") this.onSelectRunningAgent?.(selected.agent);
+			else this.onSelect?.(selected.session);
 		};
+	}
+
+	/** Retain a surviving row, or its previous cursor slot when it was deleted. */
+	#retainSelection(rows: readonly PickerRow<T>[], preferredKey?: string | null): void {
+		const keep = preferredKey && rows.some(row => row.key === preferredKey) ? preferredKey : undefined;
+		if (keep !== undefined) {
+			this.#menu.setItems(rows, keep);
+			return;
+		}
+		const previousIndex = this.#menu.selectedIndex;
+		this.#menu.setItems(rows, rows[0]?.key);
+		if (previousIndex >= 0 && rows.length > 0) {
+			this.#menu.setSelectedIndex(Math.min(previousIndex, rows.length - 1));
+		}
+	}
+
+	/** Rows in display order: the live-agent section first, then the resume entries. */
+	#rowsFor(
+		sessions: readonly T[],
+		agents: readonly SessionSelectorRunningAgent[] = this.#runningAgents,
+	): PickerRow<T>[] {
+		const rows: PickerRow<T>[] = [];
+		for (const agent of agents) rows.push({ kind: "agent", key: runningAgentRowKey(agent.id), agent });
+		for (const session of sessions) rows.push({ kind: "session", key: session.path, session });
+		return rows;
 	}
 
 	/**
@@ -675,7 +795,9 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	#lineBudget(): number {
 		const CHROME = 7;
 		const RESERVE = 1;
-		return Math.max(8, this.#getTerminalRows() - CHROME - RESERVE);
+		// The separate Running Agents section owns one header row above its rows.
+		const AGENT_HEADER = this.#runningAgents.length > 0 ? 1 : 0;
+		return Math.max(8, this.#getTerminalRows() - CHROME - RESERVE - AGENT_HEADER);
 	}
 
 	/** PageUp/PageDown jump, approximated from the worst-case session height. */
@@ -683,11 +805,22 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		return Math.max(2, Math.floor(this.#lineBudget() / 4));
 	}
 
+	/** Preferred no-search row: the live session, else the first resume entry (agents never steal default Enter). */
+	#preferredRowKey(rows: readonly PickerRow<T>[]): string | undefined {
+		const currentPath = this.#getCurrentSessionPath();
+		if (currentPath) {
+			const current = rows.find(row => row.kind === "session" && row.session.path === currentPath);
+			if (current) return current.key;
+		}
+		return rows.find(row => row.kind === "session")?.key ?? rows[0]?.key;
+	}
+
 	/** Focus the live session when it is in the visible list. */
 	#selectCurrentSession(): void {
-		const currentPath = this.#getCurrentSessionPath();
-		if (!currentPath) return;
-		const index = this.#menu.visibleItems.findIndex(s => s.path === currentPath);
+		const rows = this.#menu.visibleItems;
+		const preferred = this.#preferredRowKey(rows);
+		if (!preferred) return;
+		const index = rows.findIndex(row => row.key === preferred);
 		if (index >= 0) this.#menu.setSelectedIndex(index);
 	}
 
@@ -703,17 +836,43 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	}
 
 	/**
+	 * Replace the live-agent rows; the host refreshes them from its registry
+	 * subscription. The selection and the search query survive when their row
+	 * still exists, so an activity/status update never moves the cursor under
+	 * the user or re-runs their search.
+	 */
+	setRunningAgents(agents: readonly SessionSelectorRunningAgent[]): void {
+		// Always replace: the host maps fresh row objects from registry refs, and
+		// a registry id can be reused by a newer generation with identical
+		// display fields. Keeping the old object would leave a stale row that a
+		// later selection could misidentify as still current.
+		this.#runningAgents = [...agents];
+		this.#datasetVersion++;
+		this.#pickerCatalogue = undefined;
+		this.#itemsNative = undefined;
+		this.#listNative = undefined;
+		this.#rowHeights = undefined;
+		this.#filterSessions(this.#searchInput.getValue());
+	}
+
+	/**
 	 * Resume-model mode: the given sessions are already the model's ordered,
 	 * filtered view, so mirror them and keep the selection when it survives.
 	 */
 	syncSessions(sessions: readonly T[], preferredPath?: string | null): void {
 		this.#resumeDriven = true;
-		if (this.#menu.visibleItems === sessions && (preferredPath == null || this.#menu.selectedKey === preferredPath)) {
+		const current = this.#menu.visibleItems;
+		if (
+			current.length === sessions.length &&
+			current.every((row, index) => row.kind === "session" && row.session === sessions[index]) &&
+			(preferredPath == null || this.#menu.selectedKey === preferredPath)
+		) {
 			return;
 		}
+		const rows = this.#rowsFor(sessions, []);
 		const selected = preferredPath ?? this.#menu.selectedKey;
-		const keep = selected && sessions.some(session => session.path === selected) ? selected : sessions[0]?.path;
-		this.#menu.setItems(sessions, keep);
+		const keep = selected && rows.some(row => row.key === selected) ? selected : rows[0]?.key;
+		this.#menu.setItems(rows, keep);
 	}
 
 	/** Search query changed while resume-driven: the model rebuilds the rows, not this list. */
@@ -740,9 +899,8 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		this.#hadFilterQuery = tokens.length > 0;
 		this.#lastFilterQuery = query;
 		if (tokens.length === 0) {
-			const items = this.#pinnedFirst(this.#allSessions);
-			const keepIndex = Math.min(this.#menu.selectedIndex, Math.max(0, items.length - 1));
-			this.#menu.setItems(items, keepIndex >= 0 ? items[keepIndex]?.path : undefined);
+			const rows = this.#rowsFor(this.#pinnedFirst(this.#allSessions));
+			this.#retainSelection(rows, this.#menu.selectedKey);
 			if (hadQuery) this.#selectCurrentSession();
 			this.#scheduleHistoryMerge(query);
 			return;
@@ -816,9 +974,11 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	}
 
 	/**
-	 * Rebuild the menu's visible list with pinned sessions first, then title
-	 * matches, other prompt-history hits, literal matches (recency), and
-	 * fuzzy-only hits (score).
+	 * Rebuild the menu's visible list: the separate live-agent section first
+	 * (filtered by the same query), then pinned sessions, title matches, other
+	 * prompt-history hits, literal matches (recency), and fuzzy-only hits
+	 * (score). Agent rows keep registry/creation order and are never ranked as
+	 * resume entries.
 	 */
 	#composeFiltered(): void {
 		this.#itemsVersion++;
@@ -826,22 +986,21 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		const base: T[] = [];
 		for (const match of this.#literalRanked) base.push(match.session);
 		for (const match of this.#fuzzyRanked) base.push(match.session);
-		const composed = this.#pinnedFirst(
+		const composedSessions = this.#pinnedFirst(
 			prioritizeTitleMatches(
 				this.#historyIds.length > 0 ? mergeSessionRanking(this.#allSessions, base, this.#historyIds) : base,
 				tokenizeSessionQuery(this.#searchInput.getValue()),
 				this.#literalRanked,
 			),
 		);
+		const rows = this.#rowsFor(
+			composedSessions,
+			filterRunningAgents(this.#runningAgents, this.#searchInput.getValue()),
+		);
 		// A late pinned or history match can land above the cursor: a moved
-		// selection follows its session, an untouched one keeps the top rank.
-		// The query path resets explicitly.
-		if (this.#selectionMoved) {
-			this.#menu.setItems(composed);
-			return;
-		}
-		const keepIndex = Math.min(this.#menu.selectedIndex, Math.max(0, composed.length - 1));
-		this.#menu.setItems(composed, keepIndex >= 0 ? composed[keepIndex]?.path : undefined);
+		// selection follows its row; otherwise the selected row (including a
+		// live agent) survives while it is still visible.
+		this.#retainSelection(rows, this.#menu.selectedKey);
 	}
 
 	/** Stable partition: pinned sessions first, each group in its incoming order. */
@@ -900,8 +1059,10 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		}
 		if (this.#resumeDriven) {
 			// The host owns the resume view; the picker hides the path itself.
-			const remain = this.#menu.visibleItems.filter(session => session.path !== sessionPath);
-			this.#menu.setItems(remain, remain[0]?.path);
+			const remain = this.#menu.visibleItems.filter(
+				row => !(row.kind === "session" && row.session.path === sessionPath),
+			);
+			this.#menu.setItems(remain, remain[0]?.key);
 			return;
 		}
 		// Re-filter to update the composed result set
@@ -940,49 +1101,60 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		this.#menu.move(delta, false);
 	}
 
-	/** Mouse click: select the session under the pointer and resume it. */
+	/** Mouse click: select the row under the pointer and activate it (session resume or agent observer). */
 	selectAndConfirm(index: number): void {
-		const session = this.#menu.visibleItems[index];
-		if (!session) return;
+		const row = this.#menu.visibleItems[index];
+		if (!row) return;
 		this.#menu.setSelectedIndex(index);
-		this.onSelect?.(session);
+		if (row.kind === "agent") this.onSelectRunningAgent?.(row.agent);
+		else this.onSelect?.(row.session);
 	}
 
 	/** Native click on a session item: the same outcome as a mouse click (select + resume). */
-	confirmSession(path: string): void {
-		const index = this.#menu.visibleItems.findIndex(s => s.path === path);
+	confirmSession(sessionPath: string): void {
+		const index = this.#menu.visibleItems.findIndex(
+			row => row.kind === "session" && row.session.path === sessionPath,
+		);
 		if (index >= 0) this.selectAndConfirm(index);
 	}
 
 	/** Native row click: move the selection there, as the arrow keys would. */
-	selectSession(path: string): void {
-		if (this.#menu.setSelectedKey(path)) this.#selectionMoved = true;
+	selectSession(key: string): void {
+		if (this.#menu.setSelectedKey(key)) this.#selectionMoved = true;
 	}
 
-	/** Enter: resume the selected session. */
+	/** Native activate: resume the session row or open the agent observer row, never a worker transcript. */
+	activateKey(key: string): void {
+		const index = this.#menu.visibleItems.findIndex(row => row.key === key);
+		if (index >= 0) this.selectAndConfirm(index);
+	}
+
+	/** Enter: resume the selected session, or open the selected live agent's observer. */
 	resumeSelected(): void {
-		const selected = this.#menu.selectedItem;
-		if (selected) this.onSelect?.(selected);
+		const row = this.#menu.selectedItem;
+		if (!row) return;
+		if (row.kind === "agent") this.onSelectRunningAgent?.(row.agent);
+		else this.onSelect?.(row.session);
 	}
 
 	/** `app.session.delete`: ask the parent to confirm deleting the selected session. */
 	requestDelete(): void {
 		const selected = this.#menu.selectedItem;
-		if (selected) this.onDeleteRequest?.(selected);
+		if (selected?.kind === "session") this.onDeleteRequest?.(selected.session);
 	}
 
 	/** F2: ask the parent to rename the selected session. */
 	requestRename(): void {
 		const selected = this.#menu.selectedItem;
-		if (selected) this.onRenameRequest?.(selected);
+		if (selected?.kind === "session") this.onRenameRequest?.(selected.session);
 	}
 
 	/** Pin keys: ask the parent to pin or unpin the selected session (default: flip it); no-op when already there. */
 	requestPin(pinned?: boolean): void {
 		const selected = this.#menu.selectedItem;
-		if (!selected) return;
-		const isPinned = this.#pinnedIds.has(selected.id);
-		if (pinned !== isPinned) this.onPinRequest?.(selected, !isPinned);
+		if (selected?.kind !== "session") return;
+		const isPinned = this.#pinnedIds.has(selected.session.id);
+		if (pinned !== isPinned) this.onPinRequest?.(selected.session, !isPinned);
 	}
 
 	/** Apply a persisted pin change; the list re-partitions and the cursor follows the session. */
@@ -998,14 +1170,14 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			this.#composeFiltered();
 		} else {
 			this.#itemsVersion++;
-			this.#menu.setItems(this.#pinnedFirst(this.#allSessions));
+			this.#menu.setItems(this.#rowsFor(this.#pinnedFirst(this.#allSessions)), this.#menu.selectedKey);
 		}
 	}
 
 	/** Whether the selected session is pinned (picks the pin action's direction). */
 	get selectedPinned(): boolean {
 		const selected = this.#menu.selectedItem;
-		return selected !== undefined && this.#pinnedIds.has(selected.id);
+		return selected?.kind === "session" && this.#pinnedIds.has(selected.session.id);
 	}
 
 	/** Empty the search query (the empty state's "Clear search"). */
@@ -1019,7 +1191,19 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	}
 
 	get selectedSession(): T | undefined {
-		return this.#menu.selectedItem;
+		const selected = this.#menu.selectedItem;
+		return selected?.kind === "session" ? selected.session : undefined;
+	}
+
+	/** The selected live-agent row, when the cursor is in the separate Running Agents section. */
+	get selectedRunningAgent(): SessionSelectorRunningAgent | undefined {
+		const selected = this.#menu.selectedItem;
+		return selected?.kind === "agent" ? selected.agent : undefined;
+	}
+
+	/** Stable key of the selected row (session path or synthetic agent key). */
+	get selectedRowKey(): string | undefined {
+		return this.#menu.selectedKey;
 	}
 
 	/** Label of the session at `sessionPath` in this listing, else its file name. */
@@ -1058,29 +1242,47 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		const tokens = tokenizeSessionQuery(query);
 		const order: (string | TspPickerGroup)[] = [];
 		let hits: Record<string, (readonly [number, number])[]> | undefined;
+		const agentCount =
+			visible.findIndex(row => row.kind === "session") === -1
+				? visible.length
+				: visible.findIndex(row => row.kind === "session");
 		if (tokens.length === 0) {
+			if (agentCount > 0) {
+				order.push({
+					group: "running-agents",
+					label: tuiText("ssRunningAgents", "Running Agents"),
+					count: agentCount,
+				});
+				for (let i = 0; i < agentCount; i++) order.push(visible[i]!.key);
+			}
 			const now = new Date();
 			const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-			// Pins lead the listing (`#pinnedFirst`), so they get their own group ahead of the days.
-			const groups = visible.map(session =>
-				this.#pinnedIds.has(session.id) ? PINNED_GROUP : sessionDayGroup(session.modified, startOfToday),
-			);
-			for (let i = 0; i < visible.length; i++) {
-				const group = groups[i]!;
-				if (i === 0 || groups[i - 1]!.id !== group.id) {
+			// Pins lead the session rows (`#pinnedFirst`), so they get their own group ahead of the days.
+			const groups = visible
+				.slice(agentCount)
+				.map(row =>
+					row.kind === "session" && this.#pinnedIds.has(row.session.id)
+						? PINNED_GROUP
+						: row.kind === "session"
+							? sessionDayGroup(row.session.modified, startOfToday)
+							: sessionDayGroup(new Date(0), startOfToday),
+				);
+			for (let i = agentCount; i < visible.length; i++) {
+				const group = groups[i - agentCount]!;
+				if (i === agentCount || groups[i - 1 - agentCount]!.id !== group.id) {
 					let count = 1;
-					while (i + count < visible.length && groups[i + count]!.id === group.id) count++;
+					while (i + count < visible.length && groups[i + count - agentCount]!.id === group.id) count++;
 					order.push({ group: `${group.id}-${i}`, label: group.label, count });
 				}
-				order.push(visible[i]!.path);
+				order.push(visible[i]!.key);
 			}
 		} else {
-			for (const session of visible) {
-				order.push(session.path);
-				const label = catalogue.byPath.get(session.path)?.label;
+			for (const row of visible) {
+				order.push(row.key);
+				const label = catalogue.byKey.get(row.key)?.label;
 				if (typeof label !== "string") continue;
 				const ranges = pickerHits(label, tokens);
-				if (ranges.length > 0) (hits ??= {})[session.path] = ranges;
+				if (ranges.length > 0) (hits ??= {})[row.key] = ranges;
 			}
 		}
 		const next: SessionPickerView = {
@@ -1113,12 +1315,20 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			return cached;
 		}
 		const now = Date.now();
+		const items: TspPickerItem[] = [];
 		const byPath = new Map<string, TspPickerItem>();
-		const items = this.#allSessions.map(session => {
+		const byKey = new Map<string, TspPickerItem>();
+		for (const agent of this.#runningAgents) {
+			const item = this.#agentPickerItem(agent, now);
+			items.push(item);
+			byKey.set(item.id, item);
+		}
+		for (const session of this.#allSessions) {
 			const item = this.#pickerItem(session, currentPath, now);
+			items.push(item);
 			byPath.set(session.path, item);
-			return item;
-		});
+			byKey.set(session.path, item);
+		}
 		this.#pickerPatched.clear();
 		const catalogue: SessionCatalogue = {
 			version: this.#datasetVersion,
@@ -1128,9 +1338,32 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			minute,
 			items,
 			byPath,
+			byKey,
 		};
 		this.#pickerCatalogue = catalogue;
 		return catalogue;
+	}
+
+	/** Native item for a live agent: name, current activity, creation time, running dot. */
+	#agentPickerItem(agent: SessionSelectorRunningAgent, now: number): TspPickerItem {
+		const activity = agent.activity?.trim();
+		const created = pickerDate(agent.createdAt);
+		return {
+			id: runningAgentRowKey(agent.id),
+			label: agent.displayName || agent.id,
+			detail: [span(activity || tuiText("ssRunningAgentIdle", "No current activity"), activity ? "dim" : "muted")],
+			facts: { when: pickerAge(agent.createdAt, now) },
+			dot: "pending",
+			badges: [
+				{ text: tuiText("agentHubStatusRunning", "running"), tone: "accent" },
+				...(agent.sessionFile
+					? [{ text: `${tuiText("ssRunningAgentCreated", "created")} ${created}`, title: agent.sessionFile }]
+					: [{ text: `${tuiText("ssRunningAgentCreated", "created")} ${created}` }]),
+			],
+			title: `${agent.displayName || agent.id} ${theme.sep.dot} ${tuiText("ssRunningAgentCreated", "created")} ${created}${
+				agent.sessionFile ? `\n${agent.sessionFile}` : ""
+			}`,
+		};
 	}
 
 	#pickerItem(session: T, currentPath: string | undefined, now: number): TspPickerItem {
@@ -1161,7 +1394,8 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		if (this.#historyIds.length === 0 || tokenizeSessionQuery(this.#searchInput.getValue()).length === 0) return "";
 		const ids = new Set(this.#historyIds);
 		const paths: string[] = [];
-		for (const session of this.#menu.visibleItems) if (ids.has(session.id)) paths.push(session.path);
+		for (const row of this.#menu.visibleItems)
+			if (row.kind === "session" && ids.has(row.session.id)) paths.push(row.session.path);
 		return paths.join("\n");
 	}
 
@@ -1198,9 +1432,10 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	}
 
 	/**
-	 * The session list as a native `list` keyed `"list"`, items keyed by
-	 * session path. The terminal owns scrolling and virtualization; item nodes
-	 * are cached per session and the list node while nothing visible changed.
+	 * The session list as a native `list` keyed `"list"`, items keyed by row
+	 * (session path or synthetic live-agent key). The terminal owns scrolling
+	 * and virtualization; item nodes are cached per session/agent and the list
+	 * node while nothing visible changed.
 	 */
 	describeList(): NativeNode {
 		const currentPath = this.#getCurrentSessionPath();
@@ -1214,7 +1449,11 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 				version: this.#itemsVersion,
 				showCwd: this.#showCwd,
 				currentPath,
-				items: this.#menu.visibleItems.map(session => this.#describeSession(session, currentPath)),
+				items: this.#menu.visibleItems.map(row =>
+					row.kind === "agent"
+						? this.#describeRunningAgent(row.agent)
+						: this.#describeSession(row.session, currentPath),
+				),
 			};
 			this.#itemsNative = items;
 		}
@@ -1233,6 +1472,32 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		);
 		this.#listNative = { items: items.items, selected, query, node: list };
 		return list;
+	}
+
+	/** Native fallback row for a live agent: name, activity, creation age and transcript hint. */
+	#describeRunningAgent(agent: SessionSelectorRunningAgent): NativeNode {
+		const activity = agent.activity?.trim();
+		const created = pickerDate(agent.createdAt);
+		return node(
+			"item",
+			{
+				label: agent.displayName || agent.id,
+				detail: [
+					span(activity || tuiText("ssRunningAgentIdle", "No current activity"), activity ? "dim" : "muted"),
+				],
+				value: [
+					span(
+						`${tuiText("ssRunningAgentCreated", "created")} ${created}${
+							agent.sessionFile ? ` ${theme.sep.dot} ${path.basename(agent.sessionFile)}` : ""
+						}`,
+						"dim",
+					),
+				],
+				icon: "pending",
+			},
+			undefined,
+			runningAgentRowKey(agent.id),
+		);
 	}
 
 	#describeSession(session: T, currentPath: string | undefined): NativeNode {
@@ -1294,10 +1559,9 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		}
 
 		// Window the list around the selection by actual line height (3 lines
-		// per session, 4 when a title adds a preview line) until the viewport
-		// budget is spent, so short sessions never strand blank rows a
-		// worst-case count-based window would leave (then padded by
-		// fill-height).
+		// per agent/session, 4 when a session title adds a preview line) until the
+		// viewport budget is spent, so short rows never strand blank rows a
+		// worst-case count-based window would leave (then padded by fill-height).
 		const filtered = this.#menu.visibleItems;
 		const budget = this.#lineBudget();
 		const {
@@ -1307,84 +1571,118 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 			totalRows: rawTotalRows,
 		} = getMenuWindow(this.#visibleRowHeights(filtered), this.#menu.selectedIndex, budget);
 
-		// Each session block is built into sessionLines, then wrapped by ScrollView
+		// Each row block is built into sessionLines, then wrapped by ScrollView
 		// so the right-edge scrollbar is proportional at the physical-line level.
 		const sessionLines: string[] = [];
 		const sessionRowIndex: number[] = [];
 		const rowWidth = contentRowWidth(width, rawTotalRows, budget);
 		const currentPath = this.#getCurrentSessionPath();
+		const agentCount =
+			filtered.findIndex(row => row.kind === "session") === -1
+				? filtered.length
+				: filtered.findIndex(row => row.kind === "session");
+		const sectionHeader = agentCount > 0 && startIndex === 0;
+		if (sectionHeader) {
+			sessionLines.push(
+				truncateToWidth(
+					theme.fg("muted", `${tuiText("ssRunningAgents", "Running Agents")} (${agentCount})`),
+					width,
+				),
+			);
+		}
 		for (let i = startIndex; i < endIndex; i++) {
 			const blockStart = sessionLines.length;
-			const session = filtered[i];
-			if (!session) continue;
+			const row = filtered[i];
+			if (!row) continue;
 			const isSelected = i === this.#menu.selectedIndex;
 
-			// Normalize first message to single line
-			const normalizedMessage = session.firstMessage.replace(/\n/g, " ").trim();
-
-			// First line: cursor + optional pin icon + title (or first message if no title)
 			const cursorSymbol = `${theme.nav.cursor} `;
 			const cursorWidth = visibleWidth(cursorSymbol);
 			const cursor = isSelected ? theme.fg("accent", cursorSymbol) : padding(cursorWidth);
-			const maxWidth = rowWidth - cursorWidth; // Account for cursor width
-
-			const isPinned = this.#pinnedIds.has(session.id);
-			const pinPrefix = isPinned ? `${theme.fg("accent", theme.icon.pin)} ` : "";
-			const pinPrefixWidth = isPinned ? visibleWidth(`${theme.icon.pin} `) : 0;
-			const maxTextWidth = Math.max(0, maxWidth - pinPrefixWidth);
-
-			if (session.title) {
-				// Has title: show title on first line, dimmed first message on second line
-				const truncatedTitle = truncateToWidth(session.title, maxTextWidth);
-				const titleLine = `${cursor}${pinPrefix}${isSelected ? theme.bold(truncatedTitle) : truncatedTitle}`;
-				sessionLines.push(titleLine);
-
-				// Second line: dimmed first message preview
-				const truncatedPreview = truncateToWidth(normalizedMessage, maxWidth);
-				sessionLines.push(`  ${theme.fg("dim", truncatedPreview)}`);
-			} else {
-				// No title: show first message as main line
-				const truncatedMsg = truncateToWidth(normalizedMessage, maxTextWidth);
-				const messageLine = `${cursor}${pinPrefix}${isSelected ? theme.bold(truncatedMsg) : truncatedMsg}`;
-				sessionLines.push(messageLine);
-			}
-
-			// Metadata line: date + file size + current marker + lifecycle status
-			// (+ project dir in all-projects scope). The status segment carries
-			// its own color, so each segment is dimmed individually rather than
-			// wrapping the whole line.
+			const maxWidth = rowWidth - cursorWidth;
 			const dim = (s: string) => theme.fg("dim", s);
 			const dot = dim(theme.sep.dot);
-			const modified = formatSessionDate(session.modified);
-			let metadata = `  ${dim(modified)} ${dot} ${dim(formatBytes(session.size))}`;
-			if (currentPath !== undefined && session.path === currentPath) {
-				metadata += ` ${dot} ${theme.fg("accent", "current")}`;
-			}
-			const status = formatSessionStatus(session.status);
-			if (status) {
-				metadata += ` ${dot} ${status}`;
-			}
-			if (session.parentSessionPath) {
-				metadata += ` ${dot} ${dim(`${theme.icon.branch} fork`)}`;
-			}
-			if (this.#showCwd && session.cwd) {
-				metadata += ` ${dot} ${dim(shortenPath(session.cwd))}`;
-			}
-			const metadataLine = truncateToWidth(metadata, rowWidth);
 
-			sessionLines.push(metadataLine);
-			// Blank separator between sessions; the last block ends flush against
+			if (row.kind === "agent") {
+				const agent = row.agent;
+				const name =
+					plainText(agent.displayName || agent.id)
+						.replace(/\s+/g, " ")
+						.trim() || agent.id;
+				const activity = agent.activity?.trim();
+				const runningLabel = tuiText("agentHubStatusRunning", "running");
+				const truncatedName = truncateToWidth(name, Math.max(0, maxWidth - visibleWidth(` ${runningLabel}`)));
+				sessionLines.push(
+					`${cursor}${isSelected ? theme.bold(truncatedName) : truncatedName} ${dim(runningLabel)}`,
+				);
+				sessionLines.push(
+					`  ${activity ? dim(truncateToWidth(activity, maxWidth)) : theme.fg("muted", tuiText("ssRunningAgentIdle", "No current activity"))}`,
+				);
+				let metadata = `  ${dim(`${tuiText("ssRunningAgentCreated", "created")} ${pickerDate(agent.createdAt)}`)}`;
+				if (agent.sessionFile) {
+					metadata += ` ${dot} ${dim(path.basename(agent.sessionFile))}`;
+				}
+				sessionLines.push(truncateToWidth(metadata, rowWidth));
+			} else {
+				const session = row.session;
+				// Normalize first message to single line
+				const normalizedMessage = session.firstMessage.replace(/\n/g, " ").trim();
+
+				// First line: cursor + optional pin icon + title (or first message if no title)
+				const isPinned = this.#pinnedIds.has(session.id);
+				const pinPrefix = isPinned ? `${theme.fg("accent", theme.icon.pin)} ` : "";
+				const pinPrefixWidth = isPinned ? visibleWidth(`${theme.icon.pin} `) : 0;
+				const maxTextWidth = Math.max(0, maxWidth - pinPrefixWidth);
+
+				if (session.title) {
+					// Has title: show title on first line, dimmed first message on second line
+					const truncatedTitle = truncateToWidth(session.title, maxTextWidth);
+					const titleLine = `${cursor}${pinPrefix}${isSelected ? theme.bold(truncatedTitle) : truncatedTitle}`;
+					sessionLines.push(titleLine);
+
+					// Second line: dimmed first message preview
+					const truncatedPreview = truncateToWidth(normalizedMessage, maxWidth);
+					sessionLines.push(`  ${theme.fg("dim", truncatedPreview)}`);
+				} else {
+					// No title: show first message as main line
+					const truncatedMsg = truncateToWidth(normalizedMessage, maxTextWidth);
+					const messageLine = `${cursor}${pinPrefix}${isSelected ? theme.bold(truncatedMsg) : truncatedMsg}`;
+					sessionLines.push(messageLine);
+				}
+
+				// Metadata line: date + file size + current marker + lifecycle status
+				// (+ project dir in all-projects scope). The status segment carries
+				// its own color, so each segment is dimmed individually rather than
+				// wrapping the whole line.
+				const modified = formatSessionDate(session.modified);
+				let metadata = `  ${dim(modified)} ${dot} ${dim(formatBytes(session.size))}`;
+				if (currentPath !== undefined && session.path === currentPath) {
+					metadata += ` ${dot} ${theme.fg("accent", "current")}`;
+				}
+				const status = formatSessionStatus(session.status);
+				if (status) {
+					metadata += ` ${dot} ${status}`;
+				}
+				if (session.parentSessionPath) {
+					metadata += ` ${dot} ${dim(`${theme.icon.branch} fork`)}`;
+				}
+				if (this.#showCwd && session.cwd) {
+					metadata += ` ${dot} ${dim(shortenPath(session.cwd))}`;
+				}
+				sessionLines.push(truncateToWidth(metadata, rowWidth));
+			}
+			// Blank separator between rows; the last block ends flush against
 			// the footer, whose leading blank provides the same gap.
 			if (i < endIndex - 1) sessionLines.push("");
 			for (let k = blockStart; k < sessionLines.length; k++) sessionRowIndex[k] = i;
 		}
 
 		// Wrap the rendered window in a ScrollView for a proportional right-edge
-		// bar, with exact physical-line totals from the per-session heights.
-		// The last session's separator blank is never rendered (see the block
+		// bar, with exact physical-line totals from the per-row heights.
+		// The last row's separator blank is never rendered (see the block
 		// loop above), so exclude it or a fully visible list would still show a
 		// scrollbar.
-		const totalRows = rawTotalRows - 1;
+		const totalRows = rawTotalRows - 1 + (sectionHeader ? 1 : 0);
 		const sv = new ScrollView(sessionLines, {
 			height: sessionLines.length,
 			scrollbar: "auto",
@@ -1400,13 +1698,13 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		return lines;
 	}
 
-	/** Line height per visible session (3, or 4 when a title adds a preview line), memoized per visible set. */
-	#visibleRowHeights(items: readonly T[]): readonly number[] {
+	/** Line height per visible row (3; 4 when a session title adds a preview line), memoized per visible set. */
+	#visibleRowHeights(items: readonly PickerRow<T>[]): readonly number[] {
 		const cached = this.#rowHeights;
 		if (cached?.items === items && cached.length === items.length && cached.version === this.#itemsVersion) {
 			return cached.heights;
 		}
-		const heights = items.map(session => (session.title ? 4 : 3));
+		const heights = items.map(row => (row.kind === "session" && row.session.title ? 4 : 3));
 		this.#rowHeights = { items, length: items.length, version: this.#itemsVersion, heights };
 		return heights;
 	}
@@ -1557,6 +1855,19 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 	/** Path of the live session, or a getter so detach/newSession stays accurate. */
 	currentSessionPath?: string | (() => string | undefined);
 	/**
+	 * Live agent rows, supplied generically by the host (pi-tui never imports
+	 * the coding-agent registry). A getter is re-read by
+	 * {@link SessionSelectorComponent.refreshRunningAgents} when the host's
+	 * registry subscription reports a change.
+	 */
+	runningAgents?: readonly SessionSelectorRunningAgent[] | (() => readonly SessionSelectorRunningAgent[]);
+	/**
+	 * Activate a running-agent row. The host opens the agent's existing
+	 * observer/hub here; it must never resume the agent's session file as the
+	 * main conversation. When omitted, agent rows are presentation-only.
+	 */
+	onSelectRunningAgent?: (agent: SessionSelectorRunningAgent) => void;
+	/**
 	 * The picker is the whole program (`zetacode --resume`): the native picker
 	 * fills the screen surface (`size:"screen"`) instead of floating as a
 	 * sheet over the transcript.
@@ -1628,6 +1939,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	#onDelete?: (session: T) => Promise<boolean>;
 	#onRename?: (session: T, title: string) => Promise<string | null>;
 	#onSetPinned?: (session: T, pinned: boolean) => Promise<void>;
+	#onSelectRunningAgent?: (agent: SessionSelectorRunningAgent) => void;
+	/** Live rows getter; absent when the host passed a static array. */
+	readonly #runningAgentsSource?: () => readonly SessionSelectorRunningAgent[];
 	#onRequestRender?: () => void;
 	readonly #loadAllSessions?: () => Promise<T[] | { sessions: T[] }>;
 	#folderSessions: T[];
@@ -1702,6 +2016,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	#previewPending: T | undefined;
 	#previewSettled: T | undefined;
 	#previewTimer: NodeJS.Timeout | undefined;
+	/** Preview cache for a selected live agent; identity changes when the registry row refreshes. */
+	#runningAgentPreviewMemo: { agent: SessionSelectorRunningAgent; nodes: readonly NativeChild[] } | undefined;
 	#pickerMemo:
 		| {
 				view: SessionPickerView;
@@ -1738,6 +2054,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		this.#onDelete = options.onDelete;
 		this.#onRename = options.onRename;
 		this.#onSetPinned = options.onSetPinned;
+		this.#onSelectRunningAgent = options.onSelectRunningAgent;
+		this.#runningAgentsSource = typeof options.runningAgents === "function" ? options.runningAgents : undefined;
+		const initialRunningAgents =
+			typeof options.runningAgents === "function" ? options.runningAgents() : (options.runningAgents ?? []);
 		this.#loadAllSessions = options.loadAllSessions;
 		this.#folderSessions = sessions;
 		// Storage directory, not recorded cwd: one folder's sessions may record
@@ -1755,7 +2075,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		if (options.completeSessions) {
 			void options.completeSessions.then(rows => {
 				const next = rows.filter(row => !this.#resumeHidden.has(row.path));
-				const selected = this.#sessionList.selectedSession?.path;
+				const selected = this.#sessionList.selectedRowKey;
 				this.#folderSessions = next;
 				if (this.#scope === "folder") {
 					this.#sessionList.setSessions(next, this.#folderShowCwd);
@@ -1786,6 +2106,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			options.getTerminalRows,
 			options.pinnedIds,
 			options.currentSessionPath,
+			initialRunningAgents,
 		);
 		// Every exit path cancels the list's pending history merge, so a stale
 		// debounce timer can never run its SQLite lookup after the picker closed.
@@ -1801,6 +2122,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			this.#sessionList.dispose();
 			onExit();
 		};
+		// Agent rows are a different activation: the host opens the existing
+		// observer/hub. The list never routes them through onSelect (session
+		// resume), so a worker transcript cannot replace the main conversation.
+		this.#sessionList.onSelectRunningAgent = agent => this.#onSelectRunningAgent?.(agent);
 		this.#sessionList.onRequestRender = () => this.#onRequestRender?.();
 		if (this.#onDelete || this.#resumeSource?.deleteConversation) {
 			this.#sessionList.onDeleteRequest = (session: T) => {
@@ -1922,6 +2247,25 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		this.#onRequestRender = callback;
 		if (this.#resumeTree) this.#resumeTree.onRequestRender = callback;
 	}
+
+	/**
+	 * Replace the Running Agents rows (host registry subscription). The current
+	 * search query and selected row survive while they still exist; the picker
+	 * repaints on the next frame.
+	 */
+	setRunningAgents(agents: readonly SessionSelectorRunningAgent[]): void {
+		this.#sessionList.setRunningAgents(agents);
+		this.#pickerMemo = undefined;
+		this.#nativeMemo = undefined;
+		this.#onRequestRender?.();
+	}
+
+	/** Re-read the host's live-row getter (registry event); no-op for static arrays. */
+	refreshRunningAgents(): void {
+		const agents = this.#runningAgentsSource?.();
+		if (agents) this.setRunningAgents(agents);
+	}
+
 	/** Ignore input after selection while the host resumes the session. */
 	lockInput(): void {
 		this.#inputLocked = true;
@@ -2643,7 +2987,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		if (this.#resumeSource) return this.#describeResumePicker();
 		const list = this.#sessionList;
 		const view = list.pickerView();
-		const preview = this.#previewFor(list.selectedSession);
+		const selectedAgent = list.selectedRunningAgent;
+		const preview = selectedAgent
+			? this.#previewForRunningAgent(selectedAgent)
+			: this.#previewFor(list.selectedSession);
 		const message = this.#message;
 		const errorOpen = this.#pickerErrorOpen && message?.kind === "error";
 		const choice = this.#deleteChoice;
@@ -2662,10 +3009,14 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		}
 		const loading = message?.kind === "loading";
 		const toggle = list.onToggleScope !== undefined;
-		const actions = [pickerAction("resume", this.#actionLabel, "enter", { primary: true })];
-		if (this.#onDelete) actions.push(pickerAction("delete", "Delete", bindingKeys("app.session.delete")));
-		if (this.#onRename) actions.push(pickerAction("rename", "Rename", "f2"));
-		const pin = this.#pinAction();
+		const actions = [
+			pickerAction("resume", selectedAgent ? tuiText("ssRunningAgentOpen", "Open") : this.#actionLabel, "enter", {
+				primary: true,
+			}),
+		];
+		if (!selectedAgent && this.#onDelete) actions.push(pickerAction("delete", "Delete", bindingKeys("app.session.delete")));
+		if (!selectedAgent && this.#onRename) actions.push(pickerAction("rename", "Rename", "f2"));
+		const pin = selectedAgent ? undefined : this.#pinAction();
 		if (pin) actions.push(pickerAction("pin", pin.label === "pin" ? "Pin" : "Unpin", bindingKeys(pin.binding)));
 		if (toggle) {
 			actions.push(pickerAction("scope", this.#scope === "all" ? "This folder" : "All projects", "tab"));
@@ -2753,6 +3104,31 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		return nodes;
 	}
 
+	/** Preview for a live agent: identity, activity, creation time, and the transcript hint. */
+	#previewForRunningAgent(agent: SessionSelectorRunningAgent): readonly NativeChild[] {
+		const memo = this.#runningAgentPreviewMemo;
+		if (memo?.agent === agent) return memo.nodes;
+		const activity = agent.activity?.trim();
+		const nodes = compact([
+			node("text", { text: agent.displayName || agent.id, role: "zeta.picker.title" }),
+			kv([
+				["Status", [span(tuiText("agentHubStatusRunning", "running"), "accent")]],
+				["Created", pickerDate(agent.createdAt)],
+				["Agent", agent.id],
+				["Transcript", agent.sessionFile ? path.basename(agent.sessionFile) : undefined],
+			]),
+			node(
+				"section",
+				{ head: tuiText("ssRunningAgentActivity", "Current activity") },
+				activity
+					? [md(activity)]
+					: [node("text", { spans: [span(tuiText("ssRunningAgentIdle", "No current activity"), "muted")] })],
+			),
+		]);
+		this.#runningAgentPreviewMemo = { agent, nodes };
+		return nodes;
+	}
+
 	/**
 	 * Picker pointer events run the keys' paths: a row click selects (arrows),
 	 * a second click or `Resume` resumes (Enter), `Delete` asks (`app.session.delete`),
@@ -2765,7 +3141,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		if (ev.kind !== "action") {
 			if (choice || this.#renameDialog) return;
 			if (ev.kind === "select") list.selectSession(ev.item);
-			else list.confirmSession(ev.item);
+			else list.activateKey(ev.item);
 			return;
 		}
 		if (ev.act === "delete-confirm") choice?.confirm();
@@ -2808,7 +3184,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			return;
 		}
 		if (event.key === "list" && !this.#confirmationDialog && !this.#renameDialog)
-			this.#sessionList.confirmSession(event.item);
+			this.#sessionList.activateKey(event.item);
 	}
 
 	handleInput(keyData: string): void {

@@ -175,6 +175,12 @@ export interface AsyncJob {
 	 * that answer for this turn. Undefined where the body does not report it.
 	 */
 	agentOutputPublished?: boolean;
+	/**
+	 * Transcript that owns this job's completion; see {@link AsyncJobOrigin}.
+	 * Absent for jobs the owner session must bind at its first switch, and for
+	 * job bodies whose lifetime cannot outlive the active transcript.
+	 */
+	origin?: AsyncJobOrigin;
 	/** The process the job runs, when it spawns one. */
 	process?: AsyncJobProcess;
 	/** What the job's live widget reads; set by bash and task jobs. */
@@ -220,6 +226,22 @@ export interface AsyncJobProcess {
 
 /** Delivery callback for a settled job's result text. */
 export type AsyncJobDeliverySink = (jobId: string, text: string, job?: AsyncJob) => void | Promise<void>;
+
+/**
+ * Transcript that owns a job's completion when the owner session navigates
+ * away. A job without an explicit origin belongs to the session that was
+ * active when it was registered; the owner session binds those jobs at the
+ * switch, while bodies that keep running from a previously pinned transcript
+ * (Vibe queued follow-up turns) state the origin at registration. The
+ * delivery sink uses it to persist the result into the originating transcript
+ * instead of injecting it into whichever session happens to be active.
+ */
+export interface AsyncJobOrigin {
+	/** Session id of the transcript this job's completion belongs to. */
+	sessionId: string;
+	/** Session file of that transcript; null for an in-memory session. */
+	sessionFile: string | null;
+}
 
 export interface AsyncJobManagerOptions {
 	/**
@@ -286,6 +308,7 @@ interface AsyncJobDelivery {
 		| "agentId"
 		| "agentOutputPublished"
 		| "latestDetails"
+		| "origin"
 	>;
 }
 
@@ -321,6 +344,8 @@ export interface AsyncJobRegisterOptions {
 	request?: string;
 	/** See {@link AsyncJob.widgetInputs}. */
 	widgetInputs?: JobWidgetInputs;
+	/** See {@link AsyncJob.origin}. */
+	origin?: AsyncJobOrigin;
 }
 
 /**
@@ -369,7 +394,7 @@ export interface AsyncJobManagerApi {
 		type: AsyncJobType,
 		label: string,
 		result: AsyncJobRunResult,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string;
 	/** Cancel one running job; a filter whose owner does not match reads as not-found. */
 	cancel(id: string, filter?: AsyncJobFilter): boolean;
@@ -583,6 +608,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 			label,
 			...(options?.intent ? { intent: options.intent } : {}),
 			...(options?.request ? { request: options.request } : {}),
+			...(options?.origin ? { origin: options.origin } : {}),
 			abortController,
 			promise: Promise.resolve(),
 			ownerId: options?.ownerId,
@@ -668,7 +694,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		type: AsyncJobType,
 		label: string,
 		result: AsyncJobRunResult,
-		options: { id?: string; ownerId?: string; agentId?: string },
+		options: { id?: string; ownerId?: string; agentId?: string; origin?: AsyncJobOrigin },
 	): string {
 		if (this.#disposed) throw new Error("Async job manager is disposed");
 		const id = this.#claimJobId(options.id);
@@ -687,6 +713,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 			resultText: result.text,
 			structured: result.structured,
 			agentOutputPublished: result.agentOutputPublished,
+			...(options.origin ? { origin: options.origin } : {}),
 		};
 		this.#jobs.set(id, job);
 		this.#recordAgentReply(job);
@@ -1401,6 +1428,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 						agentId: job.agentId,
 						agentOutputPublished: job.agentOutputPublished,
 						latestDetails: job.latestDetails,
+						origin: job.origin,
 					}
 				: undefined,
 		});
@@ -1546,6 +1574,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 			agentId: snapshot.agentId,
 			agentOutputPublished: snapshot.agentOutputPublished,
 			latestDetails: snapshot.latestDetails,
+			origin: snapshot.origin,
 		};
 	}
 

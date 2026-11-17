@@ -1,16 +1,17 @@
 # Agent modes, workspaces, and IM routing
 
-Zeta runs three agent modes on one runtime. They differ in what an agent owns,
-not in how a turn executes:
+Zeta's project and personal roles share one runtime. Active Team coordination
+and the preserved Super Team PM role differ in ownership and tool policy:
 
 | Mode | Starting point | Owns |
 | --- | --- | --- |
 | **Coding Agent** | A project directory (the session cwd) | That project's code, tools, and project state |
 | **Personal Harness** | The kept default workspace | The person's conversations; a project only when explicitly bound |
-| **Lead mode** (PM) | A manually bound Team PM workspace | That project's task/board/calendar and the Team around it |
+| **Team mode** (partial) | A project main-agent session (`/team`) | Vibe-backed workers with stable module roles and session-scoped tracking |
+| **Super Team Lead mode** (legacy PM) | A manually bound Team PM workspace | That project's task/board/calendar and the legacy PM/engineer Team |
 
 A mode is a product role, not a separate engine. A session, a workspace, a
-chat binding, and a relay are distinct concepts inside all three; this page
+chat binding, and a relay are distinct concepts within these roles; this page
 defines them so they are not used interchangeably.
 
 > Status labels on this page: **IMPLEMENTED** means the behavior ships in
@@ -20,13 +21,13 @@ defines them so they are not used interchangeably.
 
 ## Naming glossary
 
-- **Zeta Team** — the product surface: Team paths, the Team database, rooms, and the Team Hub.
-- **Team mode** — coordination inside a Zeta Team (PM/engineer roles and rooms), distinct from Vibe mode.
-- **Team Hub** — the database-backed UI opened by `/team hub` or a Team-root launch; never an agent.
-- **Lead mode** — the PM main agent's mode in a Team PM workspace (`/lead`, alias `/pm`).
+- **Team mode** — Vibe-backed main/worker coordination entered with `/team`; currently partial. See [Vibe and Team mode](./vibe-mode.md).
+- **Super Team** — the preserved PM/engineer system with its Team database, rooms and legacy Hub; independent of active Team mode.
+- **Legacy Team Hub** — the database-backed UI opened by `/team hub` or a Team-root launch; never an agent. The new Team Hub is not yet implemented.
+- **Lead mode** — the legacy PM main agent's mode in a Super Team PM workspace (`/lead`, alias `/pm`); hidden from default command listings.
 - **Vibe mode** — director mode over persistent worker sessions (`/vibe`).
-- **Super Agent** — Vibe mode's director metaphor only; never a Team role or product.
-- **TIM** — the Tencent IM channel adapter; never a Team product. "Super Team" is not a product name.
+- **Super Agent** — Vibe mode's director metaphor; not a legacy PM role.
+- **TIM** — also names the planned Tencent IM adapter. In spoken Team requirements, “TIM” means Team; no `/tim` command is registered.
 
 ## Status at a glance
 
@@ -34,6 +35,7 @@ defines them so they are not used interchangeably.
 | --- | --- | --- |
 | Coding Agent | **IMPLEMENTED** | Project cwd, normal coding prompt, existing tools and session behavior |
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
+| Team mode | **PARTIAL** | `/team [on|off]`, Vibe-backed module workers, private scratch and session tracking; Team rooms, IM routing, persistent Hub and canonical summary recovery remain incomplete |
 | Lead mode (PM) | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, the Team Hub, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
 | External binding | **PARTIAL** | Runtime chat → agent (`!agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
@@ -42,7 +44,7 @@ defines them so they are not used interchangeably.
 | Context rotation | **PARTIAL** | JSONL is not size-capped; compaction and `/handoff` summarize in place; `/rotate` plus archive-and-link is planned |
 | Board and calendar tools | **IMPLEMENTED** | Both are built-in and project-scoped; subagents receive them only by explicit profile opt-in. No Work Studio calendar page |
 
-## 1. The three modes
+## 1. Runtime roles
 
 ### Coding Agent — IMPLEMENTED
 
@@ -85,9 +87,9 @@ and one uniform personal-surface presentation for several personal agents.
 Those are the remaining PARTIAL pieces; do not describe a Personal Harness as
 owning a repository unless it was explicitly bound.
 
-### Lead (PM) mode — PARTIAL
+### Super Team Lead (PM) mode — legacy / PARTIAL
 
-Lead mode runs the PM main agent for a Team PM workspace. It ships the PM's
+Lead mode runs the PM main agent for a legacy Super Team PM workspace. It ships the PM's
 coordination surface and its PM-owned persistent Secretary; the Team Hub is a
 separate shipped UI over the Team database.
 
@@ -312,9 +314,9 @@ not size-capped.
 Status: **PARTIAL**. No rotation command exists yet; the no-silent-deletion
 guarantee and in-place compaction/handoff do.
 
-## 7. Vibe, Advisor, and `/review` are not modes
+## 7. Execution policies, Advisor, and `/review`
 
-These are easy to confuse with the three modes. They are not:
+These execution policies and helpers have separate responsibilities:
 
 - **Vibe** is a worker execution policy. It turns the top-level session into a
   director whose toolset is reduced to `read`, optional `todo`, and the
