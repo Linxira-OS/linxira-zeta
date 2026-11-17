@@ -124,14 +124,16 @@ From a bound chat (Feishu/WeChat/Telegram):
 
 | Command | Effect |
 |---|---|
-| `@agent list` | Agents visible here — this workspace and every live peer — with role and status |
-| `@agent use <id>` | Route this chat's later messages to that agent (wins over the workspace binding); no id clears the override |
-| `@team <name>` | Route this chat to a team's host agent **only when a team plugin is installed**; Zeta ships no team provider, so without one every team name is unknown |
+| `!agent list` | Agents visible here — this workspace and every live peer — with role and status |
+| `!agent use <id>` | Route this chat's later messages to that agent (wins over the workspace binding); no id clears the override |
+| `!team <name>` | Route this chat to a team's host agent **only when a team plugin is installed**; Zeta ships no team provider, so without one every team name is unknown |
 
-The override follows the same precedence as `@workspace use`: runtime override
+The override follows the same precedence as `!workspace use`: runtime override
 first, then the persisted chat binding, then the channel's default workspace.
-`@agent use zeta/Main`, `@agent use zeta-main` (alias), and a bare local id are
+`!agent use zeta/Main`, `!agent use zeta-main` (alias), and a bare local id are
 all accepted; ambiguous or unknown ids are rejected with candidates.
+`@agent`/`@team`/`@workspace` remain compatibility aliases; help and ordinary
+examples use ASCII `!`.
 
 ## Files and lifecycle
 

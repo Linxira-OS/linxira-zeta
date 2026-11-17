@@ -25,17 +25,20 @@
  * losing a phone must not lock the operator out of the machine itself.
  */
 
-import type { DeviceRecord } from "./device-registry";
-import { deviceRegistry } from "./device-registry";
 import { renderQrSvg } from "../pairing";
 import {
 	getRemoteAuthLimiter,
 	isGenuinelyLocalRequest,
 	rateLimitedRemoteResponse,
-	readCookie,
+	resolveCredential,
 } from "../web-gateway/remote-access";
-import { sessionStore } from "./session-store";
-import { twoFactorStore, type TwoFactorStore } from "./two-factor-store";
+import {
+	twoFactorIdentity,
+	twoFactorStore,
+	TwoFactorStoreUnavailableError,
+	type TwoFactorFile,
+	type TwoFactorStore,
+} from "./two-factor-store";
 
 /** Ordinary remote writes stay authorized for this long after a verify. */
 export const WRITE_VERIFICATION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -55,13 +58,17 @@ interface Grant {
 	verifiedAt: number;
 	/** How long ordinary writes accept the grant. */
 	verifiedUntil: number;
+	/** The active factor, never sent to clients. */
+	factor: string;
 }
 
 const grants = new Map<string, Grant>();
+let verificationEpoch = 0;
 
 /** Test hook: forget every verification grant. */
 export function resetTwoFactorGrantsForTests(): void {
 	grants.clear();
+	verificationEpoch += 1;
 }
 
 /** Drop one device's grant when it is revoked. */
@@ -72,6 +79,7 @@ export function forgetDeviceVerification(deviceId: string): void {
 /** Drop every grant (revoke-all). */
 export function forgetAllVerifications(): void {
 	grants.clear();
+	verificationEpoch += 1;
 }
 
 /**
@@ -79,27 +87,24 @@ export function forgetAllVerifications(): void {
  * (phones change networks); the legacy machine token has no id, so the peer
  * address is the only stable handle the gateway already trusts.
  */
-async function grantKey(req: Request, remoteAddr?: string): Promise<string> {
-	// A cookie session is the strongest identity available (it is device-bound and
-	// revocable), so its device owns the grant. Then a device token, then the
-	// machine token, which has no id and can only be keyed by peer address.
-	const cookie = readCookie(req, "studio_session");
-	if (cookie !== undefined) {
-		const session = await sessionStore().get(cookie);
-		if (session !== undefined) return `device:${session.deviceId}`;
-	}
-	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token") ?? "";
-	const device: DeviceRecord | undefined = await deviceRegistry().findByToken(provided);
-	if (device !== undefined) return `device:${device.id}`;
-	return `peer:${remoteAddr ?? "unknown"}`;
+async function grantKey(req: Request, remoteAddr?: string): Promise<string | undefined> {
+	const credential = await resolveCredential(req);
+	if (credential?.kind === "session" || credential?.kind === "device") return `device:${credential.device.id}`;
+	if (credential?.kind === "machine") return `peer:${remoteAddr ?? "unknown"}`;
+	return isGenuinelyLocalRequest(req, remoteAddr) ? "local" : undefined;
 }
 
 /** The caller's current grant, or `undefined` when it expired. */
-async function currentGrant(req: Request, remoteAddr?: string): Promise<Grant | undefined> {
+async function currentGrant(
+	req: Request,
+	remoteAddr: string | undefined,
+	file: TwoFactorFile,
+): Promise<Grant | undefined> {
 	const key = await grantKey(req, remoteAddr);
+	if (key === undefined) return undefined;
 	const grant = grants.get(key);
 	if (grant === undefined) return undefined;
-	if (grant.verifiedUntil <= Date.now()) {
+	if (grant.verifiedUntil <= Date.now() || grant.factor !== twoFactorIdentity(file)) {
 		grants.delete(key);
 		return undefined;
 	}
@@ -120,18 +125,30 @@ function totpRequired(stepUp: boolean): Response {
 	return json({ error: "totp_required", retryable: true, ...(stepUp ? { stepUp: true } : {}) }, 403);
 }
 
+function unavailable(error: unknown): Response {
+	if (!(error instanceof TwoFactorStoreUnavailableError)) throw error;
+	return json({ error: "two_factor_unavailable", retryable: true }, 503);
+}
+
 /**
  * Enroll/confirm/disable/regenerate need the machine itself or a recent
  * step-up. First enrollment is therefore local-only: a stolen remote token
  * must not be able to install an attacker-controlled second factor.
  */
-async function requireLocalOrStepUp(req: Request, remoteAddr?: string): Promise<Response | null> {
+async function requireLocalOrStepUp(
+	req: Request,
+	remoteAddr: string | undefined,
+	store: TwoFactorStore,
+): Promise<Response | null> {
 	if (isGenuinelyLocalRequest(req, remoteAddr)) return null;
-	const key = await grantKey(req, remoteAddr);
-	const grant = grants.get(key);
-	if (grant !== undefined && grant.verifiedAt + STEP_UP_TTL_MS > Date.now()) return null;
-	const status = await twoFactorStore().status();
-	return status.enrolled ? totpRequired(true) : json({ error: "local_required" }, 403);
+	try {
+		const file = await store.read();
+		const grant = await currentGrant(req, remoteAddr, file);
+		if (grant !== undefined && grant.verifiedAt + STEP_UP_TTL_MS > Date.now()) return null;
+		return file.secret !== null ? totpRequired(true) : json({ error: "local_required" }, 403);
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /** Whether a remote caller may pass a write request; local callers always can. */
@@ -141,10 +158,14 @@ export async function twoFactorWriteDenial(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response | null> {
 	if (isGenuinelyLocalRequest(req, remoteAddr)) return null;
-	if (!(await store.isRequired())) return null;
-	const grant = await currentGrant(req, remoteAddr);
-	if (grant !== undefined && grant.verifiedUntil > Date.now()) return null;
-	return totpRequired(false);
+	try {
+		const file = await store.read();
+		if (!file.required) return null;
+		const grant = await currentGrant(req, remoteAddr, file);
+		return grant !== undefined ? null : totpRequired(false);
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /** The ten-minute gate for device/token mutations. */
@@ -154,11 +175,15 @@ export async function twoFactorStepUpDenial(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response | null> {
 	if (isGenuinelyLocalRequest(req, remoteAddr)) return null;
-	if (!(await store.isRequired())) return null;
-	const key = await grantKey(req, remoteAddr);
-	const grant = grants.get(key);
-	if (grant !== undefined && grant.verifiedAt + STEP_UP_TTL_MS > Date.now()) return null;
-	return totpRequired(true);
+	try {
+		const file = await store.read();
+		if (!file.required) return null;
+		const grant = await currentGrant(req, remoteAddr, file);
+		if (grant !== undefined && grant.verifiedAt + STEP_UP_TTL_MS > Date.now()) return null;
+		return totpRequired(true);
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /**
@@ -208,13 +233,17 @@ export async function handleTwoFactorStatusGet(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response> {
 	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-	const status = await store.status();
-	const grant = await currentGrant(req, remoteAddr);
-	return json({
-		...status,
-		verified: grant !== undefined,
-		verifiedUntil: grant === undefined ? null : new Date(grant.verifiedUntil).toISOString(),
-	});
+	try {
+		const status = await store.status();
+		const grant = await currentGrant(req, remoteAddr, await store.read());
+		return json({
+			...status,
+			verified: grant !== undefined,
+			verifiedUntil: grant === undefined ? null : new Date(grant.verifiedUntil).toISOString(),
+		});
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /** `POST /api/auth/2fa/enroll` — secret, otpauth URL, QR and recovery codes once. */
@@ -224,16 +253,20 @@ export async function handleTwoFactorEnrollPost(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response> {
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-	const denial = await requireLocalOrStepUp(req, remoteAddr);
+	const denial = await requireLocalOrStepUp(req, remoteAddr, store);
 	if (denial) return denial;
-	const enrollment = await store.enroll();
-	return json({
-		secret: enrollment.secret,
-		otpauthUrl: enrollment.otpauthUrl,
-		qrSvg: renderQrSvg(enrollment.otpauthUrl, { margin: 2 }),
-		recoveryCodes: enrollment.recoveryCodes,
-		expiresAt: enrollment.expiresAt,
-	});
+	try {
+		const enrollment = await store.enroll();
+		return json({
+			secret: enrollment.secret,
+			otpauthUrl: enrollment.otpauthUrl,
+			qrSvg: renderQrSvg(enrollment.otpauthUrl, { margin: 2 }),
+			recoveryCodes: enrollment.recoveryCodes,
+			expiresAt: enrollment.expiresAt,
+		});
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /** `POST /api/auth/2fa/confirm` — `{code}` activates the pending secret. */
@@ -243,7 +276,7 @@ export async function handleTwoFactorConfirmPost(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response> {
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-	const denial = await requireLocalOrStepUp(req, remoteAddr);
+	const denial = await requireLocalOrStepUp(req, remoteAddr, store);
 	if (denial) return denial;
 	const body = await readBody(req);
 	const code = typeof body.code === "string" ? body.code : "";
@@ -251,14 +284,19 @@ export async function handleTwoFactorConfirmPost(
 	const limiter = getRemoteAuthLimiter();
 	const blocked = limiter.status(limiterKey);
 	if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
-	const result = await store.confirm(code);
-	if (!result.ok) {
-		const afterFailure = limiter.recordFailure(limiterKey);
-		if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
-		return json({ error: result.reason }, result.reason === "invalid_code" ? 401 : 400);
+	try {
+		const result = await store.confirm(code);
+		if (!result.ok) {
+			const afterFailure = limiter.recordFailure(limiterKey);
+			if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
+			return json({ error: result.reason }, result.reason === "invalid_code" ? 401 : 400);
+		}
+		limiter.clear(limiterKey);
+		forgetAllVerifications();
+		return json({ ok: true, enrolledAt: result.enrolledAt });
+	} catch (error) {
+		return unavailable(error);
 	}
-	limiter.clear(limiterKey);
-	return json({ ok: true, enrolledAt: result.enrolledAt });
 }
 
 /** `POST /api/auth/2fa/verify` — `{code}` or `{recoveryCode}`. */
@@ -278,34 +316,42 @@ export async function handleTwoFactorVerifyPost(
 	const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode : "";
 	if (code === "" && recoveryCode === "") return json({ error: "expected_code" }, 400);
 
-	let method: "totp" | "recovery" = "totp";
-	let accepted = false;
-	if (code !== "") {
-		accepted = (await store.verifyCode(code)).ok;
-	} else {
-		method = "recovery";
-		accepted = await store.consumeRecoveryCode(recoveryCode);
-	}
+	try {
+		const epoch = verificationEpoch;
+		const key = await grantKey(req, remoteAddr);
+		if (key === undefined) return json({ error: "unauthorized" }, 401);
+		const factor = twoFactorIdentity(await store.read());
+		let method: "totp" | "recovery" = "totp";
+		let accepted = false;
+		if (code !== "") {
+			accepted = (await store.verifyCode(code)).ok;
+		} else {
+			method = "recovery";
+			accepted = await store.consumeRecoveryCode(recoveryCode);
+		}
 
-	if (!accepted) {
-		const afterFailure = limiter.recordFailure(limiterKey);
-		if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
-		return json({ error: "invalid_code" }, 401);
-	}
+		if (!accepted) {
+			const afterFailure = limiter.recordFailure(limiterKey);
+			if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
+			return json({ error: "invalid_code" }, 401);
+		}
 
-	limiter.clear(limiterKey);
-	const now = Date.now();
-	grants.set(await grantKey(req, remoteAddr), {
-		verifiedAt: now,
-		verifiedUntil: now + WRITE_VERIFICATION_TTL_MS,
-	});
-	const status = await store.status();
-	return json({
-		ok: true,
-		method,
-		verifiedUntil: new Date(now + WRITE_VERIFICATION_TTL_MS).toISOString(),
-		recoveryCodesRemaining: status.recoveryCodesRemaining,
-	});
+		const status = await store.status();
+		if (factor === null || factor !== twoFactorIdentity(await store.read())) return totpRequired(false);
+		if (key !== (await grantKey(req, remoteAddr))) return json({ error: "unauthorized" }, 401);
+		if (epoch !== verificationEpoch) return totpRequired(false);
+		limiter.clear(limiterKey);
+		const now = Date.now();
+		grants.set(key, { verifiedAt: now, verifiedUntil: now + WRITE_VERIFICATION_TTL_MS, factor });
+		return json({
+			ok: true,
+			method,
+			verifiedUntil: new Date(now + WRITE_VERIFICATION_TTL_MS).toISOString(),
+			recoveryCodesRemaining: status.recoveryCodesRemaining,
+		});
+	} catch (error) {
+		return unavailable(error);
+	}
 }
 
 /** `POST /api/auth/2fa/disable` — local, or remote with a recent grant + code. */
@@ -315,20 +361,33 @@ export async function handleTwoFactorDisablePost(
 	store: TwoFactorStore = twoFactorStore(),
 ): Promise<Response> {
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-	const denial = await requireLocalOrStepUp(req, remoteAddr);
+	const denial = await requireLocalOrStepUp(req, remoteAddr, store);
 	if (denial) return denial;
-	if (!isGenuinelyLocalRequest(req, remoteAddr)) {
-		const body = await readBody(req);
-		const code = typeof body.code === "string" ? body.code : "";
-		const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode : "";
-		if (code === "" && recoveryCode === "") return json({ error: "expected_code" }, 400);
-		const valid = code !== "" ? (await store.verifyCode(code)).ok : await store.consumeRecoveryCode(recoveryCode);
-		if (!valid) return json({ error: "invalid_code" }, 401);
+	try {
+		if (!isGenuinelyLocalRequest(req, remoteAddr)) {
+			const body = await readBody(req);
+			const code = typeof body.code === "string" ? body.code : "";
+			const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode : "";
+			if (code === "" && recoveryCode === "") return json({ error: "expected_code" }, 400);
+			const limiterKey = `${TWO_FACTOR_LIMITER_PREFIX}disable:${remoteAddr ?? "unknown"}`;
+			const limiter = getRemoteAuthLimiter();
+			const blocked = limiter.status(limiterKey);
+			if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
+			const valid = code !== "" ? (await store.verifyCode(code)).ok : await store.consumeRecoveryCode(recoveryCode);
+			if (!valid) {
+				const failed = limiter.recordFailure(limiterKey);
+				return failed.blocked
+					? rateLimitedRemoteResponse(failed.retryAfterSeconds)
+					: json({ error: "invalid_code" }, 401);
+			}
+			limiter.clear(limiterKey);
+		}
+		await store.disable(isGenuinelyLocalRequest(req, remoteAddr));
+		forgetAllVerifications();
+		return json({ ok: true, enrolled: false, required: false });
+	} catch (error) {
+		return unavailable(error);
 	}
-	const key = await grantKey(req, remoteAddr);
-	await store.disable();
-	grants.delete(key);
-	return json({ ok: true, enrolled: false, required: false });
 }
 
 /** `POST /api/auth/2fa/recovery/regenerate` — `{code}`; old codes are dead. */
@@ -350,16 +409,20 @@ export async function handleTwoFactorRecoveryRegeneratePost(
 	const limiter = getRemoteAuthLimiter();
 	const blocked = limiter.status(limiterKey);
 	if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
-	const valid = code !== "" ? (await store.verifyCode(code)).ok : await store.consumeRecoveryCode(recoveryCode);
-	if (!valid) {
-		const afterFailure = limiter.recordFailure(limiterKey);
-		if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
-		return json({ error: "invalid_code" }, 401);
+	try {
+		const valid = code !== "" ? (await store.verifyCode(code)).ok : await store.consumeRecoveryCode(recoveryCode);
+		if (!valid) {
+			const afterFailure = limiter.recordFailure(limiterKey);
+			if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
+			return json({ error: "invalid_code" }, 401);
+		}
+		limiter.clear(limiterKey);
+		const result = await store.regenerateRecoveryCodes();
+		if (!result.ok) return json({ error: "not_enrolled" }, 400);
+		return json({ recoveryCodes: result.recoveryCodes });
+	} catch (error) {
+		return unavailable(error);
 	}
-	limiter.clear(limiterKey);
-	const result = await store.regenerateRecoveryCodes();
-	if (!result.ok) return json({ error: "not_enrolled" }, 400);
-	return json({ recoveryCodes: result.recoveryCodes });
 }
 
 /** `PUT /api/auth/2fa/policy` — `{required}`; enabling needs enrollment. */
@@ -375,7 +438,12 @@ export async function handleTwoFactorPolicyPut(
 	}
 	const body = await readBody(req);
 	if (typeof body.required !== "boolean") return json({ error: "expected_required_boolean" }, 400);
-	const result = await store.setRequired(body.required);
-	if (!result.ok) return json({ error: result.reason }, 400);
-	return json({ ok: true, required: body.required });
+	try {
+		const result = await store.setRequired(body.required);
+		if (!result.ok) return json({ error: result.reason }, 400);
+		forgetAllVerifications();
+		return json({ ok: true, required: body.required });
+	} catch (error) {
+		return unavailable(error);
+	}
 }

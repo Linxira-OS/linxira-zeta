@@ -3086,10 +3086,10 @@ export async function runRootCommand(
 						coordinator: session,
 						webConfig: sessionChannelsWebConfig,
 						getLastInbound: () => activeSessionChannelHost()?.lastInbound ?? null,
-						sendText: async (instanceId, to, text) => {
+						sendText: async (instanceId, to, text, options) => {
 							const host = activeSessionChannelHost();
 							if (!host) throw new Error("IM channels are not started in this session");
-							await host.runtime.sendText(instanceId, to, text);
+							await host.runtime.sendText(instanceId, to, text, options);
 						},
 						defaultCwd: session.sessionManager.getCwd(),
 					})

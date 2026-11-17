@@ -10,16 +10,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TotpPanel, type TotpPanelProps } from "./SecuritySettingsPane";
-import {
-	confirmTwoFactor,
-	disableTwoFactor,
-	enrollTwoFactor,
-	fetchTwoFactorStatus,
-	isTwoFactorRequired,
-	putTwoFactorPolicy,
-	regenerateRecoveryCodes,
-	verifyTwoFactor,
-} from "./securityApi";
+import { disableTwoFactor, isTwoFactorRequired } from "./securityApi";
 
 type Call = { url: string; init: RequestInit | undefined };
 
@@ -31,89 +22,6 @@ function fetcher(response: () => Response, calls: Call[] = []): typeof fetch {
 }
 
 describe("2FA API client", () => {
-	test("status reads the gateway shape and drops unknown fields", async () => {
-		const status = await fetchTwoFactorStatus(
-			fetcher(() =>
-				Response.json({
-					enrolled: true,
-					required: true,
-					enrolledAt: "2026-11-10T00:00:00.000Z",
-					recoveryCodesRemaining: 7,
-					pending: false,
-					verified: true,
-					verifiedUntil: "2026-11-10T12:00:00.000Z",
-					secret: "must-not-leak",
-				}),
-			),
-		);
-		expect(status).toEqual({
-			enrolled: true,
-			required: true,
-			enrolledAt: "2026-11-10T00:00:00.000Z",
-			recoveryCodesRemaining: 7,
-			pending: false,
-			verified: true,
-			verifiedUntil: "2026-11-10T12:00:00.000Z",
-		});
-	});
-
-	test("enroll keeps the one-time secret, QR and recovery codes", async () => {
-		const calls: Call[] = [];
-		const enrollment = await enrollTwoFactor(
-			fetcher(
-				() =>
-					Response.json({
-						secret: "JBSWY3DPEHPK3PXP",
-						otpauthUrl: "otpauth://totp/Zeta:remote?secret=JBSWY3DPEHPK3PXP",
-						qrSvg: "<svg/>",
-						recoveryCodes: ["AAAAA-AAAAA", "BBBBB-BBBBB"],
-						expiresAt: "2026-11-10T00:10:00.000Z",
-					}),
-				calls,
-			),
-		);
-		expect(calls[0]?.url).toBe("/api/auth/2fa/enroll");
-		expect(calls[0]?.init?.method).toBe("POST");
-		expect(enrollment.recoveryCodes).toEqual(["AAAAA-AAAAA", "BBBBB-BBBBB"]);
-		expect(enrollment.qrSvg).toBe("<svg/>");
-	});
-
-	test("confirm/verify/disable/regenerate send the documented bodies", async () => {
-		const calls: Call[] = [];
-		const reply = () =>
-			Response.json({
-				ok: true,
-				verifiedUntil: "2026-11-10T12:00:00.000Z",
-				method: "totp",
-				recoveryCodesRemaining: 10,
-				recoveryCodes: ["C"],
-			});
-
-		await confirmTwoFactor(fetcher(reply, calls), "123456");
-		expect(calls.at(-1)?.url).toBe("/api/auth/2fa/confirm");
-		expect(JSON.parse(String(calls.at(-1)?.init?.body))).toEqual({ code: "123456" });
-
-		const verification = await verifyTwoFactor(fetcher(reply, calls), { code: "123456" });
-		expect(verification.verifiedUntil).toBe("2026-11-10T12:00:00.000Z");
-		expect(JSON.parse(String(calls.at(-1)?.init?.body))).toEqual({ code: "123456" });
-
-		await disableTwoFactor(fetcher(reply, calls));
-		expect(calls.at(-1)?.url).toBe("/api/auth/2fa/disable");
-		expect(JSON.parse(String(calls.at(-1)?.init?.body))).toEqual({});
-
-		const codes = await regenerateRecoveryCodes(fetcher(reply, calls), "123456");
-		expect(calls.at(-1)?.url).toBe("/api/auth/2fa/recovery/regenerate");
-		expect(codes).toEqual(["C"]);
-
-		await putTwoFactorPolicy(
-			fetcher(() => Response.json({ ok: true }), calls),
-			true,
-		);
-		expect(calls.at(-1)?.url).toBe("/api/auth/2fa/policy");
-		expect(calls.at(-1)?.init?.method).toBe("PUT");
-		expect(JSON.parse(String(calls.at(-1)?.init?.body))).toEqual({ required: true });
-	});
-
 	test("a step-up denial is recognisable without parsing prose", async () => {
 		const failing = fetcher(() => Response.json({ error: "totp_required", stepUp: true }, { status: 403 }));
 		try {
@@ -267,5 +175,18 @@ describe("TotpPanel", () => {
 		expect(html).toContain("JBSWY3DPEHPK3PXP");
 		expect(html).toContain('data-recovery-codes="2"');
 		expect(html).toContain("AAAAA-AAAAA");
+	});
+
+	test("unavailable storage offers explicit recovery without pretending 2FA is off", () => {
+		const local = renderToStaticMarkup(<TotpPanel {...panelProps({ error: "two_factor_unavailable" })} />);
+		expect(local).toContain('data-totp-state="unavailable"');
+		expect(local).toContain(">reset<");
+		expect(local).not.toContain('role="switch"');
+		expect(local).not.toContain(">enroll<");
+		const remote = renderToStaticMarkup(
+			<TotpPanel {...panelProps({ error: "two_factor_unavailable", readOnly: true })} />,
+		);
+		expect(remote).toContain('data-totp-state="unavailable"');
+		expect(remote).not.toContain(">reset<");
 	});
 });

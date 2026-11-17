@@ -159,7 +159,8 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 						peer,
 						...(context?.threadId ? { threadId: context.threadId } : {}),
 						...(context?.userId ? { userId: context.userId } : {}),
-						sendText: text => runtime.sendText(instanceId, peer, text),
+						...(messageId ? { messageId } : {}),
+						sendText: (text, options) => runtime.sendText(instanceId, peer, text, options),
 						fallback: async () => {},
 						planRequest: async () => {},
 					});

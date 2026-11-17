@@ -102,6 +102,12 @@ export interface ImBinding {
 	threadId?: string;
 	userId?: string;
 	agentProfileId: string;
+	/**
+	 * Canonical conversation key. Several bindings may name the same value when
+	 * their target, profile and model agree: that is an explicit shared Agent
+	 * conversation, not a second transcript. Distinct values never merge just
+	 * because they use the same profile.
+	 */
 	sessionId: string;
 	target: ImTarget;
 	role: ImBindingRole;
@@ -110,6 +116,24 @@ export interface ImBinding {
 	createdAt: string;
 	needsReview?: boolean;
 	needsReviewReason?: string;
+}
+
+/**
+ * The conversation-side facts a binding must agree with when it shares a
+ * `sessionId`. `WebConfig` passes the current bot-session entries; the
+ * validator never invents an entry for a binding that has not materialized
+ * yet (that first binding creates the conversation).
+ */
+export interface ImSessionOwnershipSnapshot {
+	id: string;
+	target?: ImTarget;
+	agentProfileId?: string;
+	model?: { provider: string; model: string };
+}
+
+/** Comparable model identity; `undefined` means "inherit the conversation". */
+export function imModelKey(model: { provider: string; model: string } | undefined): string | undefined {
+	return model === undefined ? undefined : `${model.provider}/${model.model}`;
 }
 
 export const CHANNEL_PLATFORMS: readonly ChannelPlatform[] = ["wechat", "feishu", "telegram", "discord", "qq"];
@@ -387,14 +411,19 @@ export function validateImBindings(
 	value: unknown,
 	instances: readonly ChannelInstanceConfig[],
 	profiles: readonly ImAgentProfile[],
+	conversations: readonly ImSessionOwnershipSnapshot[] = [],
 ): ImBinding[] {
 	const issues: ConfigIssue[] = [];
 	if (!Array.isArray(value)) throw new ImConfigError([{ path: "remote.imBindings", message: "expected an array" }]);
 	const instanceById = new Map(instances.map(instance => [instance.id, instance]));
 	const profileIds = new Set(profiles.map(profile => profile.id));
+	const conversationById = new Map(conversations.map(conversation => [conversation.id, conversation]));
 	const keys = new Set<string>();
 	const bindingIds = new Set<string>();
-	const sessions = new Set<string>();
+	const sharedSessions = new Map<
+		string,
+		{ targetKey: string; agentProfileId: string; modelKey: string | undefined }
+	>();
 	const answers = new Set<string>();
 	const bindings: ImBinding[] = [];
 	for (const [index, entry] of value.entries()) {
@@ -421,8 +450,6 @@ export function validateImBindings(
 			issues.push({ path: `${p}.agentProfileId`, message: "unknown profile" });
 		const sessionId = text(rec.sessionId);
 		if (!sessionId) issues.push({ path: `${p}.sessionId`, message: "sessionId is required" });
-		else if (sessions.has(sessionId)) issues.push({ path: `${p}.sessionId`, message: "sessionId must be unique" });
-		else sessions.add(sessionId);
 		const role =
 			rec.role === undefined
 				? "answer"
@@ -451,6 +478,66 @@ export function validateImBindings(
 		const modelId = modelRec ? text(modelRec.model) : null;
 		if (modelRec && (!modelProvider || !modelId)) {
 			issues.push({ path: `${p}.model`, message: "provider and model are required" });
+		}
+		const bindingModelKey =
+			modelProvider && modelId ? imModelKey({ provider: modelProvider, model: modelId }) : undefined;
+		if (sessionId && target && profileId) {
+			const conversationKey = targetKey(target);
+			const shared = sharedSessions.get(sessionId);
+			if (!shared) {
+				sharedSessions.set(sessionId, {
+					targetKey: conversationKey,
+					agentProfileId: profileId,
+					modelKey: bindingModelKey,
+				});
+			} else {
+				if (shared.targetKey !== conversationKey) {
+					issues.push({
+						path: `${p}.target`,
+						message: "bindings sharing a sessionId must use the same target",
+					});
+				}
+				if (shared.agentProfileId !== profileId) {
+					issues.push({
+						path: `${p}.agentProfileId`,
+						message: "bindings sharing a sessionId must use the same agent profile",
+					});
+				}
+				if (shared.modelKey !== undefined && bindingModelKey !== undefined && shared.modelKey !== bindingModelKey) {
+					issues.push({
+						path: `${p}.model`,
+						message: "bindings sharing a sessionId must use the same model override",
+					});
+				} else if (shared.modelKey === undefined && bindingModelKey !== undefined) {
+					shared.modelKey = bindingModelKey;
+				}
+			}
+			const conversation = conversationById.get(sessionId);
+			if (conversation) {
+				if (conversation.target && targetKey(conversation.target) !== conversationKey) {
+					issues.push({
+						path: `${p}.target`,
+						message: "target does not match the selected conversation's workspace",
+					});
+				}
+				if (conversation.agentProfileId && conversation.agentProfileId !== profileId) {
+					issues.push({
+						path: `${p}.agentProfileId`,
+						message: "agent profile does not match the selected conversation",
+					});
+				}
+				const conversationModelKey = imModelKey(conversation.model);
+				if (
+					conversationModelKey !== undefined &&
+					bindingModelKey !== undefined &&
+					conversationModelKey !== bindingModelKey
+				) {
+					issues.push({
+						path: `${p}.model`,
+						message: "model override does not match the selected conversation",
+					});
+				}
+			}
 		}
 		const createdAt = rec.createdAt === undefined ? new Date().toISOString() : text(rec.createdAt);
 		if (createdAt === null || (createdAt !== null && Number.isNaN(Date.parse(createdAt)))) {

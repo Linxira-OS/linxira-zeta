@@ -996,6 +996,12 @@ function imagePayloads(images: unknown): unknown[] | undefined {
 	});
 }
 
+function promptLanguage(input: unknown): "en" | "zh" | undefined {
+	const language = optionalString(input, "language");
+	if (language !== undefined && language !== "en" && language !== "zh") throw invalid("language must be en or zh");
+	return language;
+}
+
 // ---------------------------------------------------------------------------
 // Input helpers
 // ---------------------------------------------------------------------------
@@ -1351,10 +1357,12 @@ export const sessionOps: StudioFamily = {
 		"core.prompt": async input => {
 			const text = requiredString(input, "text");
 			const images = imagePayloads(input.images);
+			const language = promptLanguage(input);
 			return await dispatchTurn(await currentSessionId(), {
 				type: "prompt",
 				message: text,
 				...(images === undefined ? {} : { images }),
+				...(language === undefined ? {} : { language }),
 			});
 		},
 
@@ -1362,10 +1370,12 @@ export const sessionOps: StudioFamily = {
 		"core.steer": async input => {
 			const text = requiredString(input, "text");
 			const images = imagePayloads(input.images);
+			const language = promptLanguage(input);
 			return await commandSnapshot(await currentSessionId(), {
 				type: "steer",
 				text,
 				...(images === undefined ? {} : { images }),
+				...(language === undefined ? {} : { language }),
 			});
 		},
 
@@ -1373,10 +1383,12 @@ export const sessionOps: StudioFamily = {
 		"core.followUp": async input => {
 			const text = requiredString(input, "text");
 			const images = imagePayloads(input.images);
+			const language = promptLanguage(input);
 			return await commandSnapshot(await currentSessionId(), {
 				type: "follow_up",
 				text,
 				...(images === undefined ? {} : { images }),
+				...(language === undefined ? {} : { language }),
 			});
 		},
 

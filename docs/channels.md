@@ -28,6 +28,36 @@ its backups can read the secrets. Protect the agent directory and backups with
 OS access controls, and rotate platform credentials after suspected disclosure.
 There is no automatic migration into the provider credential vault.
 
+## Explicit shared conversations
+
+`remote.imBindings` is the chat → conversation registry. Several bindings may
+name the same `sessionId` only when they also name the same typed target,
+`agentProfileId` and explicit model override; that is an explicit shared Agent
+conversation with one transcript. The validator rejects a conflicting
+target/profile/model instead of rebinding or forking it. Distinct session ids
+never merge because their profiles match.
+
+Conversations may be attached from an existing Studio/TUI/main transcript:
+`POST /api/im/conversations/attach` records the same file and its canonical
+header id, without copying or rewriting the transcript. IM origin is stamped
+only when the conversation starts for an IM delivery. A live non-IM writer (or
+another process holding the session writer lease) is refused until it closes.
+
+Inbound messages remain `role: user` with immutable per-message platform,
+instance, chat/thread/sender and route metadata. Replies correlate to the
+message that woke the turn, so a delayed answer goes back to its originating
+entrance even when another entrance queued a message later. The outbound sink
+receives the originating platform message id (`replyToMessageId`) and thread id
+(`threadId`) when known; adapters that support reply refs/topics use them, and
+adapters without thread support keep the chat target rather than inventing one.
+Unbinding or editing one entrance leaves sibling entrances and the transcript
+intact.
+
+Sharing is a trust expansion: every entrance to one conversation can read the
+others' history. Use different conversations when isolation is required. See
+[ADR-0061](../document/adr/0061-explicit-shared-im-conversation.md) and the
+[IM runtime UI](./im-runtime-ui.md).
+
 ## Status
 
 | Area                                 | Status                        | Where it stands                                                                                                                                                                                                                                                                                                                                                          |

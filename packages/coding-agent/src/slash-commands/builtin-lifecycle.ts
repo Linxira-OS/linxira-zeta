@@ -713,7 +713,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 					sessionManager.getSessionId() === sessionId &&
 					sessionManager.titleRevision === titleRevision;
 				try {
-					const generation = session.renameTitle(command.args, runtime.signal);
+					const generation = session.renameTitle(command.args, runtime.signal, runtime.language);
 					titleRevision = sessionManager.titleRevision;
 					const title = await generation;
 					if (!isCurrent() || title === undefined) return;

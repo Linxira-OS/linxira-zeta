@@ -238,9 +238,11 @@ export interface SessionStorage {
 	 * caller's appends would land in that session's journal; `SessionManager`
 	 * then moves its session to a sibling instead of writing that file.
 	 * Optional because only backends with a process-owned lock can tell that
-	 * another process writes a session.
+	 * another process writes a session. `failClosed` treats an unavailable
+	 * lease as "not proven exclusive" (returns null); the default keeps the
+	 * legacy no-op release for callers that must not be blocked by a lock error.
 	 */
-	claimSession?(sessionId: string, sessionPath: string): (() => void) | null;
+	claimSession?(sessionId: string, sessionPath: string, options?: { failClosed?: boolean }): (() => void) | null;
 	/**
 	 * Atomically delete a session and its artifacts only when `shouldDelete`
 	 * accepts the current session content. Optional because backends without a
@@ -1364,10 +1366,11 @@ export class FileSessionStorage implements SessionStorage {
 	/**
 	 * The lease is an OS lock (abstract socket, named mutex, or `flock` sidecar
 	 * under ~/.zeta/run/session-owners), so the kernel drops a dead owner's claim.
-	 * Never throws: a lock that cannot be taken for another reason counts as
-	 * owned, so it never moves a session off its file.
+	 * Never throws. By default a lock that cannot be taken for another reason
+	 * counts as owned so it never moves a session off its file; `failClosed`
+	 * instead reports "not proven exclusive" to the IM attach/start rails.
 	 */
-	claimSession(sessionId: string, sessionPath: string): (() => void) | null {
+	claimSession(sessionId: string, sessionPath: string, options?: { failClosed?: boolean }): (() => void) | null {
 		const onDisk = readSessionHeaderIdSync(sessionPath);
 		if (onDisk !== undefined && onDisk !== sessionId) return null;
 		let held = sessionLeases.get(sessionId);
@@ -1377,7 +1380,10 @@ export class FileSessionStorage implements SessionStorage {
 				lease = tryAcquireSessionLease(sessionId);
 			} catch (err) {
 				logger.debug("Session ownership lease unavailable", { sessionId, error: toError(err).message });
-				return () => {};
+				// Default callers keep the legacy "cannot prove another owner"
+				// behavior. Attach/IM start rails opt into fail-closed so an
+				// unavailable lease cannot be mistaken for proven exclusivity.
+				return options?.failClosed === true ? null : () => {};
 			}
 			if (!lease) return null;
 			held = { lease, holders: 0 };

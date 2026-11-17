@@ -118,9 +118,9 @@ punctuation from Chinese IMEs is auto-normalized):
 - `!hello` — verify the bot is connected; `!help` — full reference;
   `!status` — channels / routing / workspaces / language / model at a glance.
 - `!lang <zh|en>` — set this chat's reply language.
-- `!session list` / `new <name>` / `use <id|n>` / `rename` / `delete` —
-  manage extra default-space sessions (per-chat context; the relay session
-  can never be deleted).
+- `!session list` / `new <name>` / `use <selector>` / `rename` / `delete` —
+  manage extra default-space sessions (per instance/chat/thread/sender
+  context; the relay session can never be deleted).
 - `!model` / `!model <p>-<m>` — list and switch models by number.
 - `!workspace list` / `open <path> [alias]` / `create <path> [alias]` /
   `close <alias>` — manage registered workspaces (multi-repo delegation).

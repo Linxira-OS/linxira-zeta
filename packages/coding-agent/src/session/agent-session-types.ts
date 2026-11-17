@@ -28,6 +28,7 @@ import type { AgentDefinition } from "../task/types";
 import type { AgentRegistryApi } from "../registry/agent-registry";
 import type { SessionAccountPoolScope } from "../config/account-pools";
 import type { ModelRegistry } from "../config/model-registry";
+import type { ZetaLanguage } from "../i18n";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import type { SkillsSettings } from "../extensibility/settings";
@@ -482,6 +483,12 @@ export interface PromptOptions {
 	attribution?: MessageAttribution;
 	/** Skip pre-send compaction checks for this prompt. */
 	skipCompactionCheck?: boolean;
+	/**
+	 * Language for automatic session titles and task labels generated from this
+	 * prompt's turn. When omitted, admission captures the then-effective
+	 * `language` setting; the value never inherits another prompt or view.
+	 */
+	language?: ZetaLanguage;
 	/** Delegator's open-endedness description (task tool `solutionSpace`); replaces the prompt as `auto` thinking classification input. */
 	solutionSpace?: string;
 	/**
@@ -541,6 +548,8 @@ export interface FollowUpOptions {
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the follow-up queue. See {@link PromptOptions.onPromptQueued}. */
 	onPromptQueued?: PromptOptions["onPromptQueued"];
+	/** Language for names generated from this turn; see {@link PromptOptions.language}. */
+	language?: ZetaLanguage;
 }
 
 /** Options for AgentSession.steer(). */
@@ -549,6 +558,8 @@ export interface SteerOptions {
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the steering queue. See {@link PromptOptions.onPromptQueued}. */
 	onPromptQueued?: PromptOptions["onPromptQueued"];
+	/** Language for names generated from this turn; see {@link PromptOptions.language}. */
+	language?: ZetaLanguage;
 }
 
 /** Options for AgentSession.sendUserMessage(). */

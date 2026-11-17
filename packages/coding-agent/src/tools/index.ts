@@ -25,6 +25,7 @@ import type { Skill, SkillRediscoveryHost } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
 import type { HindsightSessionState } from "../hindsight/state";
+import type { ZetaLanguage } from "../i18n";
 import type { LocalProtocolOptions } from "../internal-urls";
 import type { DaemonCompletionNotification } from "../launch/protocol";
 import { LspTool } from "../lsp";
@@ -279,6 +280,12 @@ export interface ToolSession {
 	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
 	/** Current session whose stored credential affinities should seed a child session. */
 	getCredentialSourceSessionId?: () => string | undefined;
+	/**
+	 * Language captured for the turn that is spawning a subagent, for its
+	 * one-sentence label. Read synchronously at spawn; undefined falls back to
+	 * the effective `language` setting instead of a prior view's choice.
+	 */
+	getGeneratedNameLanguage?: () => ZetaLanguage | undefined;
 	/** Skip subprocess-kernel availability checks and warmup */
 	skipPythonPreflight?: boolean;
 	/** Pre-loaded context files (AGENTS.md, etc) */

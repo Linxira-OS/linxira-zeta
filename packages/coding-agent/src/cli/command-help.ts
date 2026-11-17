@@ -19,6 +19,10 @@ export const authHelp = {
 	description: "Export or import stored provider credentials (API keys and OAuth logins) as JSON",
 } satisfies CommandMetadata;
 
+export const twoFactorHelp = {
+	description: "Show account/device two-factor authentication status without secrets",
+} satisfies CommandMetadata;
+
 export const authBrokerHelp = {
 	description: "Manage the zetacode auth-broker (credential vault)",
 } satisfies CommandMetadata;

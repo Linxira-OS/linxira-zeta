@@ -132,7 +132,7 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
 | LFM2.5-350M        | 292MB |     166 / 266ms |      4/30 | Aggressively terse, often a one-word label      |
 
 **Shipped local options**: `lfm2.5-230m`, `lfm2.5-350m`, `falcon-h1-90m`.
-When `modelRoles.tiny` is unset, title generation resolves its built-in online role path; no local weights are downloaded automatically. A local primary is an explicit no-billing boundary: if its worker fails or returns no title, the session stays untitled instead of falling through to an online model. The default download for a bare `zetacode tiny-models` command is `lfm2.5-230m`.
+When `modelRoles.tiny` is unset, title generation resolves its built-in online role path; no local weights are downloaded automatically. A local primary is an explicit no-billing boundary: if its worker fails or returns no title, the session stays untitled instead of falling through to an online model. The default download for a bare `zetacode tiny-models` command is `lfm2.5-230m`. A selected Chinese title policy is sent as the local worker's system turn; small local models may still produce imperfect Chinese, and the session stays untitled rather than falling back online when they fail.
 
 ## Task 2: Mnemopi memory (`modelRoles.memory`)
 

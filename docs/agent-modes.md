@@ -36,7 +36,7 @@ defines them so they are not used interchangeably.
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
 | Lead mode (PM) | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, the Team Hub, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
-| External binding | **PARTIAL** | Runtime chat → agent (`@agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
+| External binding | **PARTIAL** | Runtime chat → agent (`!agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
 | Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
 | IM visibility in local lists | **IMPLEMENTED** (local surfaces) / **PLANNED** (binding-scoped mobile) | Work Studio, History, the resume picker, and `history.list` hide IM conversations by default behind an explicit IM / Bot filter; alias labels replace absolute cwds. A mobile client scoped to one binding is planned |
 | Context rotation | **PARTIAL** | JSONL is not size-capped; compaction and `/handoff` summarize in place; `/rotate` plus archive-and-link is planned |
@@ -170,15 +170,15 @@ target. It is not a workspace registration and it grants no permissions.
 - The persisted form is a row in `web.yml`
   `remote.sessionMappings: [{ platform, chatId, workspaceAlias?, sessionId?,
   mode? }]` (plus WeChat peer tokens). It survives restarts.
-- Runtime overrides sit above it: `@workspace use <alias>` / `*<alias>` for
-  the current chat, and `@agent use <id>` for the current chat. Runtime
+- Runtime overrides sit above it: `!workspace use <alias>` / `*<alias>` for
+  the current chat, and `!agent use <id>` for the current chat. Runtime
   overrides do not persist.
 - A channel can also have a default workspace (`channels.<id>.workspaceRoot`),
   which is consulted after the per-chat bindings.
 - The session origin records `{ channel, chatId, agentId, bindingId,
   workspaceAlias }` when known. Persisting a chat binding to one `agentId`
   is **PLANNED**; today the persisted route targets a workspace alias or a bot
-  session, and `@agent use` is a runtime-only override.
+  session, and `!agent use` is a runtime-only override.
 
 ### Session origin — local vs `im`
 
@@ -283,8 +283,8 @@ project may use.
   limited to that project. Cross-project access is refused. The relay keeps
   its documented cross-repo role.
 - **Precedence** (detailed command surface in
-  [remote-workspaces.md](./remote-workspaces.md)): runtime `@agent use` →
-  runtime `@workspace use` / `*<alias>` → active bot session → persisted
+  [remote-workspaces.md](./remote-workspaces.md)): runtime `!agent use` →
+  runtime `!workspace use` / `*<alias>` → active bot session → persisted
   per-chat binding → channel default workspace → relay.
 
 ## 6. Context rotation
@@ -336,7 +336,7 @@ mutually exclusive, and Lead dispatches through rooms to engineer main agents.
 ## Related
 
 - [agent-mesh.md](./agent-mesh.md) — cross-process workspace/agent addressing
-  and the IM `@agent` commands.
+  and the IM `!agent` commands.
 - [agent-hub.md](./agent-hub.md) — live subagent roster, transcripts, and
   steering.
 - [channels.md](./channels.md) — CLI hosting, login, and channel configuration.

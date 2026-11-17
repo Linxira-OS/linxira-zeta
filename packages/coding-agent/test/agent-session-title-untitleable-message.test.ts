@@ -139,6 +139,23 @@ describe("AgentSession titles a session whose operator message cannot be titled"
 		expect(titleInputs[0]).toContain("ShellPortAudit");
 	});
 
+	it("uses the deferred prompt's Chinese language when retitling from the assistant's reading", async () => {
+		const main = createMockModel({ responses: [{ content: [AUDIT_REPLY] }] });
+		const target = await createSession(main, [], { language: "en" });
+		let systemText = "";
+		vi.spyOn(ai, "completeSimple").mockImplementation(async (_model, context) => {
+			systemText = context.systemPrompt?.join("\n") ?? "";
+			return createAssistantMessage("<title>梳理 ShellPortAudit 审计</title>");
+		});
+		const titled = nextTitle(target);
+
+		await target.prompt("hi", { language: "zh" });
+		await titled;
+
+		expect(target.sessionName).toBe("梳理 ShellPortAudit 审计");
+		expect(systemText).toContain("简体中文");
+	});
+
 	it("asks the title model once per operator message, however many assistant turns follow", async () => {
 		// The bound: assistant turns never drive title requests. Five turns, one request.
 		const toolCall = { type: "toolCall" as const, name: "step", arguments: {} };

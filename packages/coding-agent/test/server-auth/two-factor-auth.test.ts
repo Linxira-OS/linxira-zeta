@@ -7,18 +7,22 @@
  * these tests exercise the real routing and the real limiter.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import * as fsAsync from "node:fs/promises";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { WebConfig } from "../../src/config/web-config";
 import { DeviceRegistry, setDeviceRegistryForTest } from "../../src/server/auth/device-registry";
 import { TwoFactorStore, setTwoFactorStoreForTest } from "../../src/server/auth/two-factor-store";
-import { resetTwoFactorGrantsForTests } from "../../src/server/auth/two-factor-auth";
+import {
+	resetTwoFactorGrantsForTests,
+	STEP_UP_TTL_MS,
+	WRITE_VERIFICATION_TTL_MS,
+} from "../../src/server/auth/two-factor-auth";
 import { totp } from "../../src/server/auth/totp";
 import { StudioHost, StudioOperations, setStudioHostForTest } from "../../src/server/studio-host/index.js";
-import { sessionStore } from "../../src/server/auth/session-store";
+import { sessionStore, SessionStore, setSessionStoreForTest } from "../../src/server/auth/session-store";
 import { resetRemoteAccessForTests } from "../../src/server/web-gateway/remote-access";
 import { webGatewayFetch } from "../../src/server/web-gateway";
 
@@ -58,7 +62,8 @@ interface StatusBody {
 }
 
 async function setup(): Promise<void> {
-	agentDir = await mkdtemp(join(tmpdir(), "zeta-2fa-http-"));
+	await mkdir(join(import.meta.dir, "../../../../temp"), { recursive: true });
+	agentDir = await mkdtemp(join(import.meta.dir, "../../../../temp/zeta-2fa-http-"));
 	cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 	for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
 	process.env.ZETA_CODING_AGENT_DIR = agentDir;
@@ -68,6 +73,7 @@ async function setup(): Promise<void> {
 	store = new TwoFactorStore(join(agentDir, "auth", "totp.json"));
 	setDeviceRegistryForTest(registry);
 	setTwoFactorStoreForTest(store);
+	setSessionStoreForTest(new SessionStore(join(agentDir, "auth", "sessions.json")));
 	setStudioHostForTest(new StudioHost(operations(), { pairingCode: "424242" }));
 }
 
@@ -113,6 +119,7 @@ beforeEach(() => {
 afterEach(async () => {
 	setDeviceRegistryForTest(undefined);
 	setTwoFactorStoreForTest(undefined);
+	setSessionStoreForTest(undefined);
 	setStudioHostForTest(undefined);
 	for (const key of ENV_KEYS) {
 		const saved = savedEnv.get(key);
@@ -391,6 +398,38 @@ describe("verification", () => {
 		expect(again.status).toBe(401);
 	});
 
+	test("a failed durable recovery consumption never publishes a grant or loses the code", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "web" });
+		const original = await readFile(store.filePath, "utf8");
+		const rename = fsAsync.rename;
+		const failure = new Error("fixture durable publication failure");
+		Object.assign(failure, { code: "EIO" });
+		const publication = spyOn(fsAsync, "rename").mockImplementation((source, destination) =>
+			destination === store.filePath ? Promise.reject(failure) : rename(source, destination),
+		);
+		try {
+			const response = await call(
+				"/api/auth/2fa/verify",
+				{
+					method: "POST",
+					headers: jsonHeaders(issued.token),
+					body: JSON.stringify({ recoveryCode: enrollment.recoveryCodes[0] }),
+				},
+				REMOTE_PEER,
+			);
+			expect(response.status).toBe(503);
+			expect(await response.json()).toMatchObject({ error: "two_factor_unavailable" });
+		} finally {
+			publication.mockRestore();
+		}
+		expect(await readFile(store.filePath, "utf8")).toBe(original);
+		const status = await call("/api/auth/2fa", { headers: jsonHeaders(issued.token) }, REMOTE_PEER);
+		expect(await status.json()).toMatchObject({ verified: false, recoveryCodesRemaining: 10 });
+		expect(await store.consumeRecoveryCode(enrollment.recoveryCodes[0]!)).toBe(true);
+	});
+
 	test("repeated wrong codes trip the 2FA limiter", async () => {
 		await setup();
 		await enableTwoFactor();
@@ -476,6 +515,40 @@ describe("disable and recovery regeneration", () => {
 		expect(disabled.status).toBe(200);
 	});
 
+	test("repeated wrong remote disable codes are limited without changing the active factor", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "web" });
+		expect(
+			(
+				await call(
+					"/api/auth/2fa/verify",
+					{
+						method: "POST",
+						headers: jsonHeaders(issued.token),
+						body: JSON.stringify({ recoveryCode: enrollment.recoveryCodes[0] }),
+					},
+					REMOTE_PEER,
+				)
+			).status,
+		).toBe(200);
+		const attempt = () =>
+			call(
+				"/api/auth/2fa/disable",
+				{
+					method: "POST",
+					headers: jsonHeaders(issued.token),
+					body: JSON.stringify({ code: "invalid" }),
+				},
+				REMOTE_PEER,
+			);
+		for (let index = 0; index < 9; index += 1) expect((await attempt()).status).toBe(401);
+		const blocked = await attempt();
+		expect(blocked.status).toBe(429);
+		expect(blocked.headers.get("retry-after")).not.toBeNull();
+		expect(await store.status()).toMatchObject({ enrolled: true, required: true, recoveryCodesRemaining: 9 });
+	});
+
 	test("regenerating recovery codes needs a code and replaces the old set", async () => {
 		await setup();
 		const enrollment = await enableTwoFactor();
@@ -492,14 +565,173 @@ describe("disable and recovery regeneration", () => {
 });
 
 describe("damaged store", () => {
-	test("a corrupt file reads as 2FA off instead of locking the machine", async () => {
+	test("damage denies remote mutations without overwriting the file and local reset restores enrollment", async () => {
 		await setup();
-		await mkdir(join(agentDir, "auth"), { recursive: true });
-		await writeFile(join(agentDir, "auth", "totp.json"), "{not json", "utf8");
-		const status = (await (await call("/api/auth/2fa")).json()) as StatusBody;
-		expect(status.enrolled).toBe(false);
-		expect(status.required).toBe(false);
-		// And the local recovery path still works.
+		await enableTwoFactor();
+		const issued = await registry.issue({ platform: "desktop" });
+		const target = await registry.issue({ platform: "web" });
+		const file = join(agentDir, "auth", "totp.json");
+		await writeFile(file, "{not json", "utf8");
+		for (const [path, init] of [
+			["/api/auth/2fa", {}],
+			["/api/auth/2fa/verify", { method: "POST", body: JSON.stringify({ code: "123456" }) }],
+			["/api/auth/2fa/enroll", { method: "POST" }],
+			["/api/auth/2fa/disable", { method: "POST" }],
+			[`/api/remote/devices/${target.device.id}`, { method: "DELETE" }],
+		] satisfies Array<[string, RequestInit]>) {
+			const response = await call(path, { ...init, headers: jsonHeaders(issued.token) }, REMOTE_PEER);
+			expect(response.status).toBe(503);
+			expect(await response.json()).toEqual({ error: "two_factor_unavailable", retryable: true });
+		}
+		expect((await registry.get(target.device.id))?.revokedAt).toBeNull();
+		const command = await new StudioHost(operations()).handle(
+			new Request("http://127.0.0.1/api/v1/command", {
+				method: "POST",
+				headers: jsonHeaders(issued.token),
+				body: JSON.stringify({ commandName: "core.abort" }),
+			}),
+			REMOTE_PEER,
+		);
+		expect(command.status).toBe(503);
+		expect(await command.json()).toEqual({ error: "two_factor_unavailable", retryable: true });
+		expect(await readFile(file, "utf8")).toBe("{not json");
+		expect((await call("/api/auth/2fa/disable", { method: "POST" })).status).toBe(200);
 		expect((await call("/api/auth/2fa/enroll", { method: "POST" })).status).toBe(200);
+	});
+});
+
+describe("verification ownership and lifetime", () => {
+	async function verify(token: string, recoveryCode: string): Promise<Response> {
+		return call(
+			"/api/auth/2fa/verify",
+			{ method: "POST", headers: jsonHeaders(token), body: JSON.stringify({ recoveryCode }) },
+			REMOTE_PEER,
+		);
+	}
+	async function isVerified(token: string): Promise<boolean> {
+		return ((await (await call("/api/auth/2fa", { headers: jsonHeaders(token) }, REMOTE_PEER)).json()) as StatusBody)
+			.verified;
+	}
+
+	test("a verification already awaiting storage cannot republish a grant after a policy change", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "web" });
+		const consumed = Promise.withResolvers<void>();
+		const resume = Promise.withResolvers<void>();
+		const consume = store.consumeRecoveryCode.bind(store);
+		const held = spyOn(store, "consumeRecoveryCode").mockImplementation(async code => {
+			const accepted = await consume(code);
+			consumed.resolve();
+			await resume.promise;
+			return accepted;
+		});
+		const pending = verify(issued.token, enrollment.recoveryCodes[0]!);
+		try {
+			await consumed.promise;
+			const policy = await call("/api/auth/2fa/policy", {
+				method: "PUT",
+				headers: jsonHeaders(),
+				body: JSON.stringify({ required: true }),
+			});
+			expect(policy.status).toBe(200);
+			resume.resolve();
+			expect((await pending).status).toBe(403);
+			expect(await isVerified(issued.token)).toBe(false);
+		} finally {
+			resume.resolve();
+			await pending;
+			held.mockRestore();
+		}
+	});
+
+	test("disable and replacement confirmation invalidate every device's old grant", async () => {
+		await setup();
+		const first = await enableTwoFactor();
+		const a = await registry.issue({ platform: "desktop" });
+		const b = await registry.issue({ platform: "web" });
+		expect((await verify(a.token, first.recoveryCodes[0]!)).status).toBe(200);
+		expect((await verify(b.token, first.recoveryCodes[1]!)).status).toBe(200);
+		await call("/api/auth/2fa/disable", { method: "POST" });
+		expect(await isVerified(a.token)).toBe(false);
+		expect(await isVerified(b.token)).toBe(false);
+		const replacement = await enableTwoFactor();
+		const denied = await call(
+			"/api/remote/token/rotate",
+			{ method: "POST", headers: jsonHeaders(b.token) },
+			REMOTE_PEER,
+		);
+		expect(denied.status).toBe(403);
+		expect((await verify(a.token, replacement.recoveryCodes[0]!)).status).toBe(200);
+		const next = await enrollLocally();
+		expect(await isVerified(a.token)).toBe(true);
+		expect(
+			(
+				await call("/api/auth/2fa/confirm", {
+					method: "POST",
+					headers: jsonHeaders(),
+					body: JSON.stringify({ code: totp(next.secret) }),
+				})
+			).status,
+		).toBe(200);
+		expect(await isVerified(a.token)).toBe(false);
+	});
+
+	test("a factor changed through another store instance cannot reuse the previous grant", async () => {
+		await setup();
+		const first = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "desktop" });
+		expect((await verify(issued.token, first.recoveryCodes[0]!)).status).toBe(200);
+		const other = new TwoFactorStore(store.filePath);
+		const next = await other.enroll();
+		await other.confirm(totp(next.secret));
+		expect(await isVerified(issued.token)).toBe(false);
+	});
+
+	test("write and sensitive windows expire independently at their boundaries", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "desktop" });
+		const instant = Date.now();
+		const clock = spyOn(Date, "now").mockReturnValue(instant);
+		try {
+			expect((await verify(issued.token, enrollment.recoveryCodes[0]!)).status).toBe(200);
+			clock.mockReturnValue(instant + STEP_UP_TTL_MS);
+			const sensitive = await call(
+				"/api/remote/token/rotate",
+				{ method: "POST", headers: jsonHeaders(issued.token) },
+				REMOTE_PEER,
+			);
+			expect(sensitive.status).toBe(403);
+			expect(await sensitive.json()).toMatchObject({ error: "totp_required", stepUp: true });
+			expect(await isVerified(issued.token)).toBe(true);
+			clock.mockReturnValue(instant + WRITE_VERIFICATION_TTL_MS);
+			expect(await isVerified(issued.token)).toBe(false);
+		} finally {
+			clock.mockRestore();
+		}
+	});
+
+	test("a verified device cannot unlock another device on the same peer and revocation wins", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const a = await registry.issue({ platform: "desktop" });
+		const b = await registry.issue({ platform: "web" });
+		expect((await verify(a.token, enrollment.recoveryCodes[0]!)).status).toBe(200);
+		expect(await isVerified(b.token)).toBe(false);
+		expect((await call(`/api/remote/devices/${a.device.id}`, { method: "DELETE" })).status).toBe(200);
+		expect((await verify(a.token, enrollment.recoveryCodes[1]!)).status).toBe(401);
+	});
+
+	test("forwarded loopback still needs verification and a restarted grant map does too", async () => {
+		await setup();
+		const enrollment = await enableTwoFactor();
+		const issued = await registry.issue({ platform: "desktop" });
+		const headers = { ...jsonHeaders(issued.token), "x-forwarded-for": REMOTE_PEER };
+		expect((await call("/api/remote/token/rotate", { method: "POST", headers })).status).toBe(403);
+		expect((await verify(issued.token, enrollment.recoveryCodes[0]!)).status).toBe(200);
+		expect(await isVerified(issued.token)).toBe(true);
+		resetTwoFactorGrantsForTests();
+		expect(await isVerified(issued.token)).toBe(false);
 	});
 });

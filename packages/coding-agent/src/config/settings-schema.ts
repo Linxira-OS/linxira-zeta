@@ -593,7 +593,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "appearance",
 			group: "General",
 			label: "Language",
-			description: "CLI language for user-facing text (system prompts stay English)",
+			description: "Language for CLI text and automatic session/task names (system prompts stay English)",
 			options: [
 				{ value: "en", label: "English", description: "English UI text (default)" },
 				{ value: "zh", label: "中文", description: "Simplified Chinese UI" },

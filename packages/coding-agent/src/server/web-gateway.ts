@@ -88,6 +88,8 @@ import {
 	handleImBindingsGet,
 	handleImBindingsPut,
 	handleImCommands,
+	handleImConversationsAttach,
+	handleImConversationsGet,
 	handleImSessions,
 	handleImSwitchCancel,
 	handleImSwitchConfirm,
@@ -341,6 +343,8 @@ const CHANNELS_INSTANCE_WECHAT_RE =
 const IM_AGENTS_RE = /^\/api\/im\/agents$/;
 const IM_BINDINGS_RE = /^\/api\/im\/bindings$/;
 const IM_COMMANDS_RE = /^\/api\/im\/commands$/;
+const IM_CONVERSATIONS_RE = /^\/api\/im\/conversations$/;
+const IM_CONVERSATIONS_ATTACH_RE = /^\/api\/im\/conversations\/attach$/;
 const IM_SESSIONS_RE = /^\/api\/im\/sessions$/;
 const IM_SWITCH_RE = /^\/api\/im\/switch$/;
 const IM_SWITCH_CONFIRM_RE = /^\/api\/im\/switch\/confirm$/;
@@ -1237,6 +1241,16 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (IM_COMMANDS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 		return handleImCommands(req);
+	}
+
+	if (IM_CONVERSATIONS_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImConversationsGet();
+	}
+
+	if (IM_CONVERSATIONS_ATTACH_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleImConversationsAttach(req);
 	}
 
 	if (IM_SESSIONS_RE.test(pathname)) {

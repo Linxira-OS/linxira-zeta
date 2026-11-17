@@ -140,6 +140,15 @@ export interface ImBinding {
 	/** Backend-resolved label, so the table does not have to join profiles. */
 	agentProfileLabel?: string;
 	sessionId: string;
+	/** Backend target key (`workspace:<alias>`, `team-pm:…`), for form matching. */
+	targetKey?: string;
+	/** Human conversation name; the ordinary table never renders `sessionId`. */
+	conversationName?: string;
+	/** How many entrances share this conversation; >1 is an explicit share. */
+	conversationEntrances?: number;
+	conversationShared?: boolean;
+	/** Canonical transcript header id; diagnostic only. */
+	nativeSessionId?: string;
 	target?: ImTarget;
 	/** Backend-projected display facts; optional during rollout. */
 	targetDisplay?: string;
@@ -157,6 +166,36 @@ export interface ImBinding {
 	createdAt: string;
 	needsReview?: boolean;
 	needsReviewReason?: string;
+}
+
+/**
+ * One selectable conversation for the binding editor. `name` is the only text
+ * the ordinary UI shows for identity; `id`/`nativeSessionId` are internal and
+ * stay out of table labels.
+ */
+export interface ImConversation {
+	/** Registry id used as `ImBinding.sessionId` once attached. */
+	id: string;
+	name: string;
+	kind: "relay" | "bot" | "draft" | "native";
+	/** True when a registry row already points at this transcript. */
+	attached: boolean;
+	shared: boolean;
+	entrances: number;
+	/** Canonical transcript header id; diagnostic only. */
+	nativeSessionId?: string;
+	workspaceAlias?: string;
+	workspaceDisplay: string;
+	targetKey?: string;
+	targetDisplay: string;
+	targetAvailable: boolean;
+	agentProfileId?: string;
+	agentProfileLabel?: string;
+	model?: { provider: string; model: string };
+	source?: string;
+	lastActiveAt?: string;
+	available: boolean;
+	reason?: string;
 }
 
 export interface BotCommands {
@@ -351,6 +390,11 @@ function bindingOf(value: Record<string, unknown>): ImBinding | null {
 		createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
 	};
 	if (typeof value.agentProfileLabel === "string") binding.agentProfileLabel = value.agentProfileLabel;
+	if (typeof value.conversationName === "string") binding.conversationName = value.conversationName;
+	if (typeof value.conversationEntrances === "number") binding.conversationEntrances = value.conversationEntrances;
+	if (typeof value.conversationShared === "boolean") binding.conversationShared = value.conversationShared;
+	if (typeof value.nativeSessionId === "string") binding.nativeSessionId = value.nativeSessionId;
+	if (typeof value.targetKey === "string") binding.targetKey = value.targetKey;
 	if (typeof value.threadId === "string") binding.threadId = value.threadId;
 	if (typeof value.userId === "string") binding.userId = value.userId;
 	if (typeof value.lang === "string") binding.lang = value.lang === "en" ? "en" : "zh";
@@ -368,6 +412,40 @@ function bindingOf(value: Record<string, unknown>): ImBinding | null {
 	if (value.needsReview === true) binding.needsReview = true;
 	if (typeof value.needsReviewReason === "string") binding.needsReviewReason = value.needsReviewReason;
 	return binding;
+}
+
+function conversationOf(value: Record<string, unknown>): ImConversation | null {
+	if (
+		typeof value.id !== "string" ||
+		typeof value.name !== "string" ||
+		(value.kind !== "relay" && value.kind !== "bot" && value.kind !== "draft" && value.kind !== "native")
+	) {
+		return null;
+	}
+	const conversation: ImConversation = {
+		id: value.id,
+		name: value.name,
+		kind: value.kind,
+		attached: value.attached === true,
+		shared: value.shared === true,
+		entrances: typeof value.entrances === "number" ? value.entrances : 0,
+		workspaceDisplay: typeof value.workspaceDisplay === "string" ? value.workspaceDisplay : "",
+		targetDisplay: typeof value.targetDisplay === "string" ? value.targetDisplay : "",
+		targetAvailable: value.targetAvailable === true,
+		available: value.available === true,
+	};
+	if (typeof value.nativeSessionId === "string") conversation.nativeSessionId = value.nativeSessionId;
+	if (typeof value.workspaceAlias === "string") conversation.workspaceAlias = value.workspaceAlias;
+	if (typeof value.targetKey === "string") conversation.targetKey = value.targetKey;
+	if (typeof value.agentProfileId === "string") conversation.agentProfileId = value.agentProfileId;
+	if (typeof value.agentProfileLabel === "string") conversation.agentProfileLabel = value.agentProfileLabel;
+	if (typeof value.source === "string") conversation.source = value.source;
+	if (typeof value.lastActiveAt === "string") conversation.lastActiveAt = value.lastActiveAt;
+	if (typeof value.reason === "string") conversation.reason = value.reason;
+	if (isRecord(value.model) && typeof value.model.provider === "string" && typeof value.model.model === "string") {
+		conversation.model = { provider: value.model.provider, model: value.model.model };
+	}
+	return conversation;
 }
 
 function commandsOf(value: unknown): BotCommands {
@@ -457,6 +535,35 @@ export async function fetchImBindings(fetcher: ImFetch = defaultFetch, instanceI
 		const binding = bindingOf(entry);
 		return binding === null ? [] : [binding];
 	});
+}
+
+/** `GET /api/im/conversations` — name-first chooser rows over registry + native sessions. */
+export async function fetchImConversations(fetcher: ImFetch = defaultFetch): Promise<ImConversation[]> {
+	const payload = await gatewayJson(fetcher, "/api/im/conversations");
+	if (!isRecord(payload) || !Array.isArray(payload.conversations)) {
+		throw new Error("Conversations response is malformed");
+	}
+	return records(payload.conversations).flatMap(entry => {
+		const conversation = conversationOf(entry);
+		return conversation === null ? [] : [conversation];
+	});
+}
+
+/**
+ * `POST /api/im/conversations/attach` — canonicalize a native conversation
+ * into a registry row without writing its transcript. The returned id is what
+ * a binding stores in `sessionId`.
+ */
+export async function attachImConversation(fetcher: ImFetch, sessionId: string): Promise<ImConversation> {
+	const payload = await gatewayJson(fetcher, "/api/im/conversations/attach", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ sessionId }),
+	});
+	if (!isRecord(payload) || !isRecord(payload.conversation)) throw new Error("Attach response is malformed");
+	const conversation = conversationOf(payload.conversation);
+	if (conversation === null) throw new Error("Attach response is malformed");
+	return conversation;
 }
 
 export async function fetchBotCommands(

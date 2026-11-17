@@ -98,7 +98,9 @@ export async function fetchPairedDevices(fetcher: SecurityFetch = defaultFetch):
 			id: entry.id,
 			label: typeof entry.label === "string" ? entry.label : "",
 			platform: typeof entry.platform === "string" ? entry.platform : "unknown",
-			scopes: Array.isArray(entry.scopes) ? entry.scopes.filter((scope): scope is string => typeof scope === "string") : [],
+			scopes: Array.isArray(entry.scopes)
+				? entry.scopes.filter((scope): scope is string => typeof scope === "string")
+				: [],
 			createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
 			lastSeenAt: typeof entry.lastSeenAt === "string" ? entry.lastSeenAt : null,
 			revokedAt: typeof entry.revokedAt === "string" ? entry.revokedAt : null,
@@ -229,6 +231,13 @@ export async function confirmTwoFactor(fetcher: SecurityFetch, code: string): Pr
 	});
 }
 
+/** The shared text input accepts an authenticator code or a printed recovery code. */
+export function twoFactorCredential(input: string): { code: string } | { recoveryCode: string } {
+	const value = input.trim();
+	const digits = value.replace(/\s/gu, "");
+	return /^\d{6}$/u.test(digits) ? { code: digits } : { recoveryCode: value };
+}
+
 /** `POST /api/auth/2fa/verify` — `{code}` or `{recoveryCode}`. */
 export async function verifyTwoFactor(
 	fetcher: SecurityFetch,
@@ -254,7 +263,7 @@ export async function disableTwoFactor(fetcher: SecurityFetch, code?: string): P
 	await gatewayJson(fetcher, "/api/auth/2fa/disable", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify(code !== undefined && code !== "" ? { code } : {}),
+		body: JSON.stringify(code !== undefined && code.trim() !== "" ? twoFactorCredential(code) : {}),
 	});
 }
 
@@ -263,7 +272,7 @@ export async function regenerateRecoveryCodes(fetcher: SecurityFetch, code: stri
 	const payload = await gatewayJson(fetcher, "/api/auth/2fa/recovery/regenerate", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ code }),
+		body: JSON.stringify(twoFactorCredential(code)),
 	});
 	return isRecord(payload) && Array.isArray(payload.recoveryCodes)
 		? payload.recoveryCodes.filter((entry): entry is string => typeof entry === "string")

@@ -23,10 +23,12 @@ import {
 	CHANNEL_PLATFORMS,
 	ImConfigError,
 	bindingKey,
+	imModelKey,
 	isPersistableKeyText,
 	type ChannelInstanceConfig,
 	type ImAgentProfile,
 	type ImBinding,
+	type ImSessionOwnershipSnapshot,
 	validateChannelInstances,
 	validateImAgentProfiles,
 	validateImBindings,
@@ -83,6 +85,20 @@ export interface BotSessionEntry {
 	instanceId?: string;
 	/** Binding row id (new model). */
 	bindingId?: string;
+	/**
+	 * Canonical transcript id from the session header. Present once the file
+	 * exists and its id is known; equal to {@link id} for a conversation
+	 * attached from an existing Studio/TUI transcript. Diagnostic only: the
+	 * gateway transcript route resolves this id, while bindings keep the stable
+	 * registry key in `sessionId`.
+	 */
+	nativeSessionId?: string;
+	/**
+	 * The transcript was created outside IM (Studio/TUI/main) and is attached,
+	 * not owned. IM must never delete or relocate it; detaching removes only the
+	 * registry entry and bindings.
+	 */
+	reusesExistingTranscript?: boolean;
 	/** Agent profile id (new model). */
 	agentProfileId?: string;
 	/** Resolved target snapshot (new model). */
@@ -364,6 +380,53 @@ function repairImBindings(
 	}
 	if (kept.length !== rows.length) healed = true;
 	return { bindings: validateImBindings(kept, instances, profiles), healed };
+}
+
+/**
+ * Conversation ownership facts for write-time binding validation. Load-time
+ * repair deliberately does not use these: a legacy entry/binding drift must
+ * not silently delete a persisted binding. A new write, however, must agree
+ * with the conversation it selects, otherwise one entrance could hijack a
+ * shared transcript's workspace or profile.
+ */
+function conversationSnapshots(entries: readonly BotSessionEntry[]): ImSessionOwnershipSnapshot[] {
+	return entries.map(entry => ({
+		id: entry.id,
+		...(entry.target === undefined ? {} : { target: entry.target }),
+		...(entry.agentProfileId === undefined ? {} : { agentProfileId: entry.agentProfileId }),
+		...(entry.model === undefined ? {} : { model: entry.model }),
+	}));
+}
+
+/** Validate bindings against the config's instances, profiles and conversations. */
+function validatedBindings(data: WebConfigData, value: unknown): ImBinding[] {
+	return validateImBindings(
+		value,
+		data.channels.instances,
+		data.imAgents,
+		conversationSnapshots(data.remote.botSessions ?? []),
+	);
+}
+
+/** Reject a conversation write that would make existing bindings disagree. */
+function assertConversationOwnership(data: WebConfigData, conversations: readonly BotSessionEntry[]): void {
+	const bindings = data.remote.imBindings ?? [];
+	if (bindings.length === 0) return;
+	validateImBindings(bindings, data.channels.instances, data.imAgents, conversationSnapshots(conversations));
+}
+
+/** Model override that every entrance to one conversation must share. */
+function normalizedBindingModels(
+	rows: readonly ImBinding[],
+	sessionId: string,
+	current: { provider: string; model: string },
+): ImBinding[] {
+	const key = imModelKey(current);
+	return rows.map(row => {
+		if (row.sessionId !== sessionId) return row;
+		if (imModelKey(row.model) === key) return row;
+		return { ...row, model: { provider: current.provider, model: current.model } };
+	});
 }
 
 /**
@@ -925,6 +988,15 @@ export class WebConfig {
 		return structuredClone(this.#data.remote.imBindings ?? []);
 	}
 
+	/** How many entrances explicitly share one conversation (no clone). */
+	countImBindingsForSession(sessionId: string): number {
+		let count = 0;
+		for (const binding of this.#data.remote.imBindings ?? []) {
+			if (binding.sessionId === sessionId) count += 1;
+		}
+		return count;
+	}
+
 	findImBinding(
 		instanceId: string,
 		chatId: string,
@@ -936,7 +1008,7 @@ export class WebConfig {
 
 	async setImBindings(value: unknown): Promise<ImBinding[]> {
 		return this.#mutate(data => {
-			const bindings = validateImBindings(value, data.channels.instances, data.imAgents);
+			const bindings = validatedBindings(data, value);
 			data.remote.imBindings = bindings;
 			return { changed: true, value: structuredClone(bindings) };
 		});
@@ -950,7 +1022,7 @@ export class WebConfig {
 				),
 				binding,
 			];
-			data.remote.imBindings = validateImBindings(next, data.channels.instances, data.imAgents);
+			data.remote.imBindings = validatedBindings(data, next);
 			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
 		});
 	}
@@ -1014,19 +1086,79 @@ export class WebConfig {
 						createdAt: new Date().toISOString(),
 						...patch,
 					};
-			data.remote.imBindings = validateImBindings(
-				[...current.filter(entry => entry.id !== next.id && bindingKey(entry) !== key), next],
-				data.channels.instances,
-				data.imAgents,
-			);
+			data.remote.imBindings = validatedBindings(data, [
+				...current.filter(entry => entry.id !== next.id && bindingKey(entry) !== key),
+				next,
+			]);
 			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
 		});
 	}
 
-	async removeImBindingByChat(instanceId: string, chatId: string): Promise<boolean> {
+	/**
+	 * Change the model of one binding's conversation in a single write. Every
+	 * entrance that shares the sessionId and the conversation's model snapshot
+	 * move together; a per-entrance override that disagrees is rejected rather
+	 * than letting one chat hijack a shared transcript.
+	 */
+	async setImConversationModel(
+		instanceId: string,
+		chatId: string,
+		model: { provider: string; model: string },
+		opts: { threadId?: string; userId?: string } = {},
+	): Promise<ImBinding> {
+		return this.#mutate(data => {
+			const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
+			const binding = (data.remote.imBindings ?? []).find(entry => bindingKey(entry) === key);
+			if (!binding) throw new Error(`No binding for ${instanceId}/${chatId}`);
+			const entries = data.remote.botSessions ?? [];
+			const nextEntries = entries.map(entry =>
+				entry.id === binding.sessionId && imModelKey(entry.model) !== imModelKey(model)
+					? { ...entry, model: { provider: model.provider, model: model.model } }
+					: entry,
+			);
+			const nextBindings = normalizedBindingModels(data.remote.imBindings ?? [], binding.sessionId, model);
+			data.remote.botSessions = nextEntries;
+			data.remote.imBindings = validateImBindings(
+				nextBindings,
+				data.channels.instances,
+				data.imAgents,
+				nextEntries.map(entry => ({
+					id: entry.id,
+					...(entry.target === undefined ? {} : { target: entry.target }),
+					...(entry.agentProfileId === undefined ? {} : { agentProfileId: entry.agentProfileId }),
+					...(entry.model === undefined ? {} : { model: entry.model }),
+				})),
+			);
+			return {
+				changed: true,
+				value: structuredClone(data.remote.imBindings.find(entry => bindingKey(entry) === key)!),
+			};
+		});
+	}
+
+	/**
+	 * Remove exactly one chat/thread/sender binding. Omitting `opts` keeps the
+	 * legacy whole-chat removal for callers that have no thread/user scope; a
+	 * scoped removal never deletes a sibling entrance's row.
+	 */
+	async removeImBindingByChat(
+		instanceId: string,
+		chatId: string,
+		opts: { threadId?: string; userId?: string } = {},
+	): Promise<boolean> {
 		return this.#mutate(data => {
 			const current = data.remote.imBindings ?? [];
-			const next = current.filter(binding => !(binding.instanceId === instanceId && binding.chatId === chatId));
+			const scoped = opts.threadId !== undefined || opts.userId !== undefined;
+			const next = current.filter(binding =>
+				scoped
+					? !(
+							binding.instanceId === instanceId &&
+							binding.chatId === chatId &&
+							(binding.threadId ?? "") === (opts.threadId ?? "") &&
+							(binding.userId ?? "") === (opts.userId ?? "")
+						)
+					: !(binding.instanceId === instanceId && binding.chatId === chatId),
+			);
 			data.remote.imBindings = next;
 			return { changed: next.length !== current.length, value: next.length !== current.length };
 		});
@@ -1170,6 +1302,11 @@ export class WebConfig {
 		await this.#mutate(data => {
 			const next = (data.remote.botSessions ?? []).filter(existing => existing.id !== entry.id);
 			next.push(entry);
+			// A conversation edit must not make an existing entrance disagree
+			// with the transcript's target/profile/model. A first materialization
+			// has no bound entrance yet, and a genuine rebind writes the bindings
+			// in the same mutation.
+			assertConversationOwnership(data, next);
 			data.remote.botSessions = next;
 			return { changed: true, value: undefined };
 		});

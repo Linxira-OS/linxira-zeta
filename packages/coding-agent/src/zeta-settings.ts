@@ -10,7 +10,7 @@ import type { ZetaLanguage } from "./i18n";
 
 const LANGUAGE_VALUES = ["en", "zh"] as const satisfies readonly ZetaLanguage[];
 
-/** CLI display language; system prompts remain English. */
+/** UI and automatic-name language; system prompts remain English. */
 export const cfgLanguage = register({
 	id: "language",
 	type: "enum",
@@ -20,7 +20,7 @@ export const cfgLanguage = register({
 		tab: "appearance",
 		group: "General",
 		label: "Language",
-		description: "CLI language for user-facing text (system prompts stay English)",
+		description: "Language for CLI text and automatic session/task names (system prompts stay English)",
 		options: [
 			{ value: "en", label: "English", description: "English UI text (default)" },
 			{ value: "zh", label: "中文", description: "Simplified Chinese UI" },

@@ -110,8 +110,8 @@ Zeta 会通过 Telegram、飞书、微信、Discord 或 QQ 回复你的消息，
 - `!hello` — 验证机器人连接；`!help` — 完整参考；`!status` — 渠道 / 路由 /
   工作区 / 语言 / 模型一览。
 - `!lang <zh|en>` — 设置本聊天的回复语言。
-- `!session list` / `new <名称>` / `use <id|编号>` / `rename` / `delete` —
-  管理额外的默认空间会话（每聊天独立上下文；relay 会话不可删除）。
+- `!session list` / `new <名称>` / `use <selector>` / `rename` / `delete` —
+  管理额外的默认空间会话（按实例/聊天/线程/发送者独立上下文；relay 会话不可删除）。
 - `!model` / `!model <p>-<m>` — 按编号列出 / 切换模型。
 - `!workspace list` / `open <路径> [别名]` / `create <路径> [别名]` /
   `close <别名>` — 管理已注册工作区（多仓库委派）。`*<别名>` 让当前聊天

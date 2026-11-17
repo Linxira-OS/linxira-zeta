@@ -5,6 +5,9 @@ Name this session for a small card: an icon, a short code, then a 3-6 word title
 {{else}}
 Name this session with a 3-6 word title for the user's goal, informed by the user's request and your reasoning so far.
 {{/if}}
+{{#if zh}}
+- Language: write the title in Simplified Chinese (简体中文), even when the user's request and your reasoning are in English. Keep code identifiers, file paths, API and product names, CLI flags and other proper nouns exactly as written; never translate them. Only the human-readable words are Chinese.
+{{/if}}
 {{#if nerdFonts}}
 - nf: the Nerd Fonts class name (nf-md-*, nf-cod-*, nf-dev-*, nf-fa-*, nf-oct-*, nf-seti-*) of the most specific picture of this session's subject, one that tells it apart from the user's other sessions in the same project:
   - the concrete object or feature the title names (nf-md-file_tree for a directory walker); a variant only when it pictures the change itself (nf-md-bell_off for muting notifications);
@@ -17,15 +20,30 @@ Name this session with a 3-6 word title for the user's goal, informed by the use
 {{/if}}
 {{#if card}}
 - code: 1-6 capital letters or digits, never more, that name the subject at a glance, made from one word or name in the title: the whole word when it has 6 letters or fewer (SEED, SCOPE, FREEZE, Z3, 404), else cut to its first syllable or leading consonants (PROV for provider, FLBK for fallback). Never initials of several words unless the user writes them so (CTA, SDK), nor a code that passes for an unrelated name.
+{{#if zh}}
+- Keep the code ASCII even when the title is Chinese: prefer a Latin technical term or product name from the request; otherwise use 1-6 capital letters from the pinyin initials of the title's key words (修复测试失败 → XFCS). Never put Chinese characters in the code.
+{{/if}}
 {{/if}}
 - Title: imperative phrase built from the user's own key words: the feature, component, or error they name.
 - No task to name (greeting, acknowledgement, gibberish)? Answer `<title/>`.
 - No quotes, trailing punctuation, or explanation.
 {{#if nerdFonts}}
+{{#if zh}}
+Output exactly one line: `<title nf="nf-md-flask" emoji="🧪" code="XFCS">修复测试失败</title>` (your own icon, emoji, code and title), or `<title/>`.
+{{else}}
 Output exactly one line: `<title nf="nf-md-parking" emoji="🅿️" code="PARK">Fix flaky park tests</title>` (your own icon, emoji, code and title), or `<title/>`.
+{{/if}}
 {{else if card}}
+{{#if zh}}
+Output exactly one line: `<title emoji="🧪" code="XFCS">修复测试失败</title>` (your own emoji, code and title), or `<title/>`.
+{{else}}
 Output exactly one line: `<title emoji="🅿️" code="PARK">Fix flaky park tests</title>` (your own emoji, code and title), or `<title/>`.
+{{/if}}
+{{else}}
+{{#if zh}}
+Output exactly one line: `<title>修复测试失败</title>` (your own title), or `<title/>`.
 {{else}}
 Output exactly one line: `<title>Fix flaky park tests</title>` (your own title), or `<title/>`.
+{{/if}}
 {{/if}}
 </title-request>

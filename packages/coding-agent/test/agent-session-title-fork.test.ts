@@ -105,6 +105,64 @@ function nextTitle(target: AgentSession): Promise<void> {
 }
 
 describe("AgentSession title fork", () => {
+	it("forks a Chinese title from a Chinese-selected prompt even when the session setting is English", async () => {
+		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
+		const side = createMockModel({
+			handler: { content: ['<title emoji="🧪" code="REDIS">修复 Redis 重试测试</title>'] },
+		});
+		const target = await createSession(main, side, { language: "en" });
+		const titleModel = vi.spyOn(ai, "completeSimple");
+		const titled = nextTitle(target);
+
+		await target.prompt(FIRST_MESSAGE, { language: "zh" });
+		await titled;
+
+		expect(target.sessionName).toBe("🧪 REDIS: 修复 Redis 重试测试");
+		expect(titleModel).not.toHaveBeenCalled();
+		expect(side.calls).toHaveLength(1);
+		const forkText = (side.calls[0]!.context.messages ?? [])
+			.map(message => (typeof message.content === "string" ? message.content : JSON.stringify(message.content)))
+			.join("\n");
+		expect(forkText).toContain(FIRST_MESSAGE);
+		expect(forkText).toContain("简体中文");
+	});
+
+	it("does not inherit a prior prompt's language when the next invocation omits it", async () => {
+		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
+		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
+		const target = await createSession(main, side, { language: "en" });
+		const titleModel = vi
+			.spyOn(ai, "completeSimple")
+			.mockResolvedValue(createAssistantMessage("<title>English fallback title</title>"));
+		const titled = nextTitle(target);
+
+		await target.prompt(FIRST_MESSAGE, { language: "zh" });
+		await titled;
+		expect(target.turnNameLanguage).toBe("zh");
+
+		await target.prompt("a second, unrelated request");
+		expect(target.turnNameLanguage).toBe("en");
+
+		await target.generateTitle("name another topic", undefined, undefined, undefined);
+		const request = titleModel.mock.calls.at(-1)?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
+	});
+
+	it("leaves an explicitly named session alone under a Chinese generation language", async () => {
+		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
+		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
+		const target = await createSession(main, side, { language: "en" });
+		const titleModel = vi.spyOn(ai, "completeSimple");
+		await target.sessionManager.setSessionName("Manual 名称", "user");
+
+		await target.prompt(FIRST_MESSAGE, { language: "zh" });
+
+		expect(target.sessionName).toBe("Manual 名称");
+		expect(target.sessionManager.titleSource).toBe("user");
+		expect(side.calls).toHaveLength(0);
+		expect(titleModel).not.toHaveBeenCalled();
+	});
+
 	it("titles the session from a fork of the first reply, sharing the main request's prefix and cache key", async () => {
 		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
 		const side = createMockModel({ handler: { content: [CARD_REPLY] } });

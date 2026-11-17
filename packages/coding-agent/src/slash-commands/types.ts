@@ -1,4 +1,5 @@
 import type { Settings } from "../config/settings";
+import type { ZetaLanguage } from "../i18n";
 import type { SlashCommandIconName } from "@linxiraos/pi-tui/theme/symbols";
 import type { InteractiveModeContext, SubmittedUserInput } from "../modes/types";
 import type { ImageContent } from "@linxiraos/pi-ai";
@@ -104,6 +105,8 @@ export interface SlashCommandRuntime {
 	cwd: string;
 	/** Images attached to the host prompt that invoked this command, when any. */
 	images?: ImageContent[];
+	/** Language carried by the host prompt that invoked this command, for generated names. */
+	language?: ZetaLanguage;
 	/** Cancellation of the host prompt/request, when supported. */
 	signal?: AbortSignal;
 	/** Emit text to the operator. TUI maps to `ctx.showStatus`, ACP to `sessionUpdate`. */

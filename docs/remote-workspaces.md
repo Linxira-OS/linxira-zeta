@@ -142,6 +142,9 @@ sender. `confirm` is required: `!workspace use` alone writes nothing.
 Workspace/model listings use `{n}` numbers and `[name]` labels; bot sessions
 use the stable `NN-00001` selector from `!session list`. Pass them back verbatim
 (e.g. `!session use 01-00002`, `!model {1-1}`, `!workspace use {2}`).
+`!session use` changes only the command's instance/chat/thread/sender; a
+conversation explicitly shared by other entrances keeps those siblings intact.
+The success reply names the session and its short selector, never its raw id.
 
 ## Natural-language control
 

@@ -36,7 +36,8 @@ write re-reads it, and nothing renders a value the gateway did not send.
 | Instance lifecycle | `POST /api/channels/instances/<id>/enable`, `…/disable`, `…/validate`                 | Toggle one instance, validate its credential bag against the platform                                        |
 | WeChat login       | `GET /api/channels/instances/<id>/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | Per-instance QR + state, fresh login, logout                                                                 |
 | Agent profiles     | `GET/PUT /api/im/agents`                                                              | Persona, model, location, tool allowlists and memory backend                                                 |
-| Bindings           | `GET/PUT /api/im/bindings`                                                            | Instance + chat + profile + target + session + answer/mention/observe                                        |
+| Bindings           | `GET/PUT /api/im/bindings`                                                            | Instance + chat + profile + target + conversation key + answer/mention/observe                               |
+| Conversations      | `GET /api/im/conversations`, `POST /api/im/conversations/attach`                      | Name-first chooser over bot sessions and existing Studio/TUI transcripts; attach reuses the file, no copy     |
 | Bot commands       | `GET /api/im/commands`                                                                | Backend-resolved binding/session/model/role/voice/examples                                                   |
 | One test message   | `POST /api/channels/send`                                                             | `{channelId, to, text}` through the running channel                                                          |
 
@@ -102,7 +103,31 @@ binding) is editable with an absolute path; empty means the coordinator session.
 
 ## Chat bindings
 
-`remote.sessionMappings` rows are listed as a table and edited in place:
+The mounted Settings page binds conversations through `remote.imBindings`.
+The conversation column shows a human name, never the raw `sessionId`: the
+chooser reads `GET /api/im/conversations`, which joins the persisted bot-session
+registry with the gateway's existing session listing. Selecting an existing
+Studio/TUI/main transcript calls `POST /api/im/conversations/attach`; that route
+only records the same file (`nativeSessionId`, `reusesExistingTranscript`) and
+does not create, copy, rename or rewrite the transcript. IM origin is stamped
+only when the conversation actually starts for an IM delivery. Attach refuses
+an unregistered project cwd, an ambiguous native id, or a conversation still
+owned by a live Studio/TUI/other-process writer; those rows stay unavailable
+instead of being imported or forked.
+
+Several entrances (different instances, chats, threads or senders) may choose
+the same conversation. They then share one transcript, target, profile and model;
+a conflicting target/profile/model override is rejected instead of silently
+rebinding or forking. Choosing a different conversation — or not choosing one —
+keeps histories separate even when profiles match. Unbinding/changing one row
+leaves sibling entrances and the transcript alone. This is a deliberate trust
+expansion: every entrance to a shared conversation can read the others' history.
+
+### Legacy `remote.sessionMappings` component
+
+`ImChannelsPane.tsx` is not mounted; it remains only as a reference for the old
+`PUT /api/web-config` shape. It too renders the session *name* when the config's
+`remote.botSessions` list knows it, instead of the raw id. Its rows are:
 
 - platform (the five adapters the runtime registers), chat ID;
 - workspace alias (only aliases registered under `remote.workspaces`) or a bot

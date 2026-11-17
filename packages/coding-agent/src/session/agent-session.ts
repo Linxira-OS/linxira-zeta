@@ -365,7 +365,8 @@ import { parseCardReply, formatCardTitle, keepTitleCard } from "../utils/title-c
 import { TokenRateMeter } from "../utils/token-rate";
 import { resumeCommand } from "../utils/resume-command";
 import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
-import { generateSessionTitle, nerdGlyphsActive } from "../utils/title-generator";
+import { generateSessionTitle, generatedNameLanguage, nerdGlyphsActive } from "../utils/title-generator";
+import type { ZetaLanguage } from "../i18n";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
 import { type LeadModeState, resolveLeadWorkspace } from "../team/lead";
 import { applyEngineerSkillAssignments, type EngineerSkillInjectionResult } from "./engineer-skills";
@@ -1044,6 +1045,8 @@ interface TitleInput {
 	replied: boolean;
 	/** A title request ran for it; an interrupt clears this so its next reply tries again. */
 	tried: boolean;
+	/** Language captured when this prompt was admitted (explicit or the then-effective `language` setting). */
+	language: ZetaLanguage;
 }
 
 const kPersistedSessionEntryId = Symbol("persistedSessionEntryId");
@@ -1252,6 +1255,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * command.
 	 */
 	readonly #queuedMessageRawText = new WeakMap<AgentMessage, string>();
+	/** Language a user message carries, keyed by the exact message instance the turn/queue holds. */
+	readonly #messageNameLanguage = new WeakMap<AgentMessage, ZetaLanguage>();
 	/**
 	 * Stable generation-local identities for prepared message objects. Duplicate
 	 * display text never shares one, so Studio edits/removals/promotions address
@@ -1409,12 +1414,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 *  replied, the title is regenerated once from the recent
 	 *  user/assistant/thinking turns. At most one such request per operator
 	 *  message: no assistant turn ever arms it. */
-	#deferredTitle: { sessionId: string; declined: boolean; replied: boolean; words: number } | undefined;
+	#deferredTitle:
+		| { sessionId: string; declined: boolean; replied: boolean; words: number; language: ZetaLanguage | undefined }
+		| undefined;
 	/** What the next automatic title names (see {@link #maybeStartTitle}). */
 	#titleInput: TitleInput | undefined;
 	#titleGenerationInFlightFor: string | undefined;
 	/** Operator prompts since the last title check, toward `title.refreshAfterPrompts`. */
-	#titleDrift: { sessionId: string; prompts: number } | undefined;
+	#titleDrift: { sessionId: string; prompts: number; language: ZetaLanguage | undefined } | undefined;
+	/** Language carried by the prompt/steer/follow-up that started the current turn; consumed by task labels. */
+	#turnNameLanguage: ZetaLanguage | undefined;
 	#titleProviderSessionId: string | undefined;
 	#titleProviderParentSessionId: string | undefined;
 	/** Host hook invoked when a typed user prompt is dropped before dispatch;
@@ -5872,7 +5881,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				const semanticResult = semanticToolResult(toolName, event.message);
 				const semanticDetails = isRecord(semanticResult?.details) ? semanticResult.details : undefined;
 				if (toolName === "todo" && !isError && details && this.#todo.onTodoResultDetails(details, toolCallId)) {
-					this.#scheduleTitleRefresh("replan");
+					this.#scheduleTitleRefresh("replan", this.#turnNameLanguage);
 				}
 				if (toolName === "todo" && !isError && details?.op !== "view") {
 					const retry = this.#todoCallArguments(toolCallId);
@@ -10262,6 +10271,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				attribution: promptAttribution,
 				prependMessages: prependNotices,
 				rawText: typedText,
+				language: options?.language,
 				onPromptQueued: options?.onPromptQueued,
 				onPromptAdmitted: onPromptQueuedAdmitted,
 				promptGeneration: queueGeneration,
@@ -10343,6 +10353,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				attribution: promptAttribution,
 				prependMessages: prependNotices,
 				rawText: typedText,
+				language: options?.language,
 				preprocessed: {
 					images: normalizedImages,
 					descriptionNotice: imageDescriptionNotice,
@@ -10372,6 +10383,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					userInitiated: options?.userInitiated === true ? true : undefined,
 				}
 			: { role: "user" as const, content: userContent, attribution: promptAttribution, timestamp: submittedAt };
+		// Resolve an omitted language now, at admission: a later settings switch
+		// from another view must not change the name this prompt generates.
+		this.#messageNameLanguage.set(message, options?.language ?? generatedNameLanguage(this.settings));
 
 		const preludeMessages: AgentMessage[] = [];
 		if (eagerTodoPrelude) {
@@ -10863,7 +10877,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		expandedText: string,
 		options?: Pick<
 			PromptOptions,
-			"toolChoice" | "images" | "skipCompactionCheck" | "solutionSpace" | "onPromptAdmitted"
+			"toolChoice" | "images" | "skipCompactionCheck" | "solutionSpace" | "onPromptAdmitted" | "language"
 		> & {
 			prependMessages?: AgentMessage[];
 			skipPostPromptRecoveryWait?: boolean;
@@ -10876,6 +10890,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// every pre-dispatch bail (generation bump from abort, disposal, usage
 		// preflight denial) exits silently, and prompt() uses the outcome to hand
 		// the typed text back to the host instead of losing it.
+		// Capture this turn's name language synchronously, before any await: task
+		// labels spawned later in the turn read it, and a concurrent prompt from
+		// another view cannot mutate the value captured here. A message that
+		// carried no explicit language captured the effective setting at
+		// admission; an internal message resolves it here, before the turn starts.
+		this.#turnNameLanguage =
+			options?.language ?? this.#messageNameLanguage.get(message) ?? generatedNameLanguage(this.settings);
 		const inFlightEpoch = this.#beginInFlight();
 		// Client ownership is reserved by #prompt before dispatch preprocessing
 		// and released when its bracket settles; callers that reach this
@@ -11378,6 +11399,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			timestamp: submittedAt,
 			attribution: options?.attribution,
 			rawText: text,
+			language: options?.language,
 			onPromptQueued: options?.onPromptQueued,
 		});
 	}
@@ -11404,6 +11426,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				timestamp: submittedAt,
 				attribution: options?.attribution,
 				rawText: text,
+				language: options?.language,
 				onPromptQueued: options?.onPromptQueued,
 			});
 			return;
@@ -11560,6 +11583,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		options?: {
 			timestamp?: number;
 			attribution?: MessageAttribution;
+			/** Language for names generated from this queued turn; see {@link PromptOptions.language}. */
+			language?: ZetaLanguage;
 			prependMessages?: readonly CustomMessage[];
 			/** Text the caller originally submitted, before slash/custom-command
 			 *  rewriting, prompt-template expansion, or `^model` mention substitution.
@@ -11605,6 +11630,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			promptGeneration?: number;
 		},
 	): Promise<boolean> {
+		// Resolve here, before the first await: the generation that may follow
+		// uses this capture, not whatever another view's settings switch leaves.
+		const nameLanguage = options?.language ?? generatedNameLanguage(this.settings);
 		const attribution = options?.attribution ?? "user";
 		const timestamp = options?.timestamp;
 		// A genuine user submission opens a fresh exchange and carries its own
@@ -11693,6 +11721,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			attribution,
 			timestamp ?? Date.now(),
 			rawText,
+			nameLanguage,
 		);
 		options?.onPromptQueued?.(queued);
 		options?.onPromptAdmitted?.();
@@ -11716,12 +11745,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		attribution: MessageAttribution,
 		timestamp: number,
 		rawText: string,
+		language: ZetaLanguage,
 	): AgentMessage[] {
 		const userMessage: AgentMessage =
 			mode === "followUp"
 				? { role: "user", content, attribution, timestamp }
 				: { role: "user", content, steering: true, attribution, timestamp };
 		this.#queuedMessageRawText.set(userMessage, rawText);
+		this.#messageNameLanguage.set(userMessage, language);
 		const group = [...companions, userMessage];
 		if (mode === "followUp" && this.#holdStudioFollowUp(group)) return group;
 		this.#allowQueuedMessageDrainRetry();
@@ -11745,7 +11776,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#advisors.autoResumeSuppressed = false;
 		for (const text of texts) {
 			const expandedText = expandPromptTemplate(text, [...this.#promptTemplates]);
-			this.#pushQueuedUserMessage("followUp", [], [{ type: "text", text: expandedText }], "user", Date.now(), text);
+			this.#pushQueuedUserMessage(
+				"followUp",
+				[],
+				[{ type: "text", text: expandedText }],
+				"user",
+				Date.now(),
+				text,
+				generatedNameLanguage(this.settings),
+			);
 		}
 		this.#scheduleIdleQueueDrain();
 	}
@@ -13285,7 +13324,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * it was last refreshed and the judge finds it no longer fits. A title the
 	 * user set is never replaced.
 	 */
-	#scheduleTitleRefresh(trigger: SessionNameTrigger): void {
+	#scheduleTitleRefresh(trigger: SessionNameTrigger, language?: ZetaLanguage): void {
 		if ($env.PI_NO_TITLE) return;
 		// Headless subagent sessions have no operator-visible title, so a refresh
 		// only burns a tiny-model call whose result lands in JSONL and is never
@@ -13302,7 +13341,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (!this.#titleRefreshable(sessionId, trigger)) return;
 		// A check consumes the prompts that triggered it whatever its verdict; prompts sent while it runs count toward the next.
 		if (trigger === "drift") this.#titleDrift = undefined;
-		const refresh = this.#refreshTitle(sessionId, trigger)
+		const refresh = this.#refreshTitle(sessionId, trigger, language)
 			.catch(err => {
 				logger.warn("title-generator: title refresh failed", {
 					sessionId,
@@ -13336,8 +13375,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const text = operatorTitleText(message);
 		if (!text || isLowSignalTitleInput(text)) return;
 		const sessionId = this.sessionManager.getSessionId();
-		if (this.#titleDrift?.sessionId === sessionId) this.#titleDrift.prompts++;
-		else this.#titleDrift = { sessionId, prompts: 1 };
+		const language = this.#messageNameLanguage.get(message) ?? generatedNameLanguage(this.settings);
+		if (this.#titleDrift?.sessionId === sessionId) {
+			this.#titleDrift.prompts++;
+			this.#titleDrift.language = language;
+		} else this.#titleDrift = { sessionId, prompts: 1, language };
 	}
 
 	/** At a settled run's end, check the title once `title.refreshAfterPrompts` operator prompts have counted. */
@@ -13345,7 +13387,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const drift = this.#titleDrift;
 		if (drift?.sessionId !== this.sessionManager.getSessionId()) return;
 		if (drift.prompts < cfgTitleRefreshAfterPrompts.get(this.settings)) return;
-		this.#scheduleTitleRefresh("drift");
+		this.#scheduleTitleRefresh("drift", drift.language);
 	}
 
 	/**
@@ -13379,13 +13421,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const text = operatorTitleText(message);
 		if (!text) return;
 		const sessionId = this.sessionManager.getSessionId();
+		const language = this.#messageNameLanguage.get(message) ?? generatedNameLanguage(this.settings);
 		if (isLowSignalTitleInput(text)) {
 			if (this.#deferredTitle?.sessionId !== sessionId) {
-				this.#deferredTitle = { sessionId, declined: true, replied: false, words: 0 };
+				this.#deferredTitle = { sessionId, declined: true, replied: false, words: 0, language };
 			}
 			return;
 		}
-		this.#titleInput = { sessionId, text, replied: false, tried: false };
+		this.#titleInput = { sessionId, text, replied: false, tried: false, language };
 	}
 
 	/**
@@ -13410,7 +13453,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (!input?.replied || input.tried || input.sessionId !== sessionId || this.sessionName) return false;
 		if (this.#titleGenerationInFlightFor === sessionId) return false;
 		input.tried = true;
-		this.#deferredTitle = { sessionId, declined: false, replied: false, words: 0 };
+		this.#deferredTitle = { sessionId, declined: false, replied: false, words: 0, language: input.language };
 		if (this.#cardsAutoTitles() && this.model !== undefined) this.#forkTitle(input);
 		else this.#titleWithTitleModel(input);
 		return true;
@@ -13422,7 +13465,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// task the text-only title model can see; skip straight to retitling from
 		// the assistant's own description of it.
 		if (isAttachmentOnlyTitleInput(input.text)) this.#afterTitleRequest();
-		else this.#startAutoTitle(input.text, input.sessionId);
+		else this.#startAutoTitle(input.text, input.sessionId, input.language);
 	}
 
 	/**
@@ -13432,6 +13475,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	#forkTitle(input: TitleInput): void {
 		const { sessionId } = input;
+		// Capture this prompt's language before the fork starts: a later prompt from
+		// another view must not change names generated for this turn.
+		const language = input.language ?? generatedNameLanguage(this.settings);
 		this.#titleGenerationInFlightFor = sessionId;
 		const signal = this.#titleGenerationAbortController.signal;
 		const started = performance.now();
@@ -13443,6 +13489,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			promptText: prompt.render(titleForkPrompt, {
 				card: icons !== "boring",
 				nerdFonts: icons === "nf+emoji",
+				zh: language === "zh",
 			}),
 			// Journaled where the billed message exists, so a fork that ends in a
 			// provider error still records its spend before rejecting.
@@ -13466,7 +13513,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					}
 					// A reply that broke the card form (no code, a code over 6 letters) still
 					// names the session; the request stays in flight while it gets its card.
-					const named = await this.#cardTitle(title).finally(() => {
+					const named = await this.#cardTitle(title, undefined, language).finally(() => {
 						if (this.#titleGenerationInFlightFor === sessionId) this.#titleGenerationInFlightFor = undefined;
 					});
 					if (this.sessionManager.getSessionId() !== sessionId || this.sessionName) return;
@@ -13518,17 +13565,20 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * Run one title-model request for `sessionId`, applying the result unless the
 	 * session was renamed or replaced meanwhile.
 	 */
-	#startAutoTitle(text: string, sessionId: string): void {
+	#startAutoTitle(text: string, sessionId: string, languageOverride?: ZetaLanguage): void {
+		// Capture the language before the first await; the card request that may
+		// follow must use the same one even if another prompt arrives meanwhile.
+		const language = languageOverride ?? generatedNameLanguage(this.settings);
 		this.#titleGenerationInFlightFor = sessionId;
 		const signal = this.#titleGenerationAbortController.signal;
-		this.generateTitle(text)
+		this.generateTitle(text, undefined, undefined, language)
 			.then(async title => {
 				// Re-check after generation so a later completion cannot replace
 				// the first title, and a request from a replaced session cannot
 				// name the current one.
 				if (this.sessionManager.getSessionId() !== sessionId) return;
 				if (!title || this.sessionName) return;
-				const named = this.#cardsAutoTitles() ? await this.#cardTitle(title) : title;
+				const named = this.#cardsAutoTitles() ? await this.#cardTitle(title, undefined, language) : title;
 				if (this.sessionManager.getSessionId() !== sessionId || this.sessionName) return;
 				await this.sessionManager.setSessionName(named, "auto");
 			})
@@ -13595,7 +13645,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if ($env.PI_NO_TITLE) return;
 		const context = this.#buildReplanTitleContext();
 		if (!context || isLowSignalTitleInput(context)) return;
-		this.#startAutoTitle(context, sessionId);
+		this.#startAutoTitle(context, sessionId, deferred.language);
 	}
 
 	#resolveTitleProviderSessionId(parentSessionId: string): string {
@@ -13616,11 +13666,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * foreground provider session while its request is waiting.
 	 * `customSystemPrompt` swaps the title prompt for special-purpose titling
 	 * (e.g. plan-save filename topics) without touching the session override.
+	 * `language` is this invocation's captured name language; omitted uses the
+	 * effective `language` setting at this call. A custom prompt is not
+	 * language-rewritten.
 	 */
 	async generateTitle(
 		firstMessage: string,
 		customSystemPrompt?: string,
 		signal?: AbortSignal,
+		language?: ZetaLanguage,
 	): Promise<string | null> {
 		const parentSessionId = this.sessionId;
 		const sessionGeneration = this.#sessionGeneration;
@@ -13653,6 +13707,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					costGate.record(message.usage.cost.total);
 					this.#reportTitleUsage(usageOwner, message);
 				},
+				language,
 			),
 		);
 		if (await this.#sessionGenerationChanged(sessionGeneration)) return null;
@@ -13693,6 +13748,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/**
+	 * Language captured synchronously for the turn being dispatched, consumed by
+	 * task labels spawned in that turn. A turn resolves an omitted command value
+	 * from the effective `language` setting at admission/dispatch, so this never
+	 * inherits another view's choice; `undefined` only before any turn starts.
+	 */
+	get turnNameLanguage(): ZetaLanguage | undefined {
+		return this.#turnNameLanguage;
+	}
+
+	/**
 	 * The title `/rename` gives the session: `title` as typed, else a fresh
 	 * title-model title for the recent conversation that keeps the current
 	 * title's card. A result without a card is headed by one the title model
@@ -13712,15 +13777,17 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * Regenerate the title from recent conversation. A prompt-count check first
 	 * asks the judge, and regenerates only a title it finds stale.
 	 */
-	async #refreshTitle(sessionId: string, trigger: SessionNameTrigger): Promise<void> {
+	async #refreshTitle(sessionId: string, trigger: SessionNameTrigger, languageOverride?: ZetaLanguage): Promise<void> {
+		// Capture before the judge await so a later prompt cannot change it.
+		const language = languageOverride ?? generatedNameLanguage(this.settings);
 		// A fitting title, one no judge could rate, or a session renamed or switched meanwhile keeps its title.
 		if (trigger === "drift" && !((await this.#titleDrifted()) && this.#titleRefreshable(sessionId, trigger))) return;
 		const context = this.#buildReplanTitleContext();
 		if (!context) return;
-		const retitled = await this.#retitle(context);
+		const retitled = await this.#retitle(context, undefined, language);
 		if (!retitled) return;
 		// A session first named without a card (a subagent, a title-model title) gets one here.
-		const title = this.#cardsAutoTitles() ? await this.#cardTitle(retitled) : retitled;
+		const title = this.#cardsAutoTitles() ? await this.#cardTitle(retitled, undefined, language) : retitled;
 		if (!this.#titleRefreshable(sessionId, trigger) || title === this.sessionName) return;
 		const setSessionName = this.sessionManager.setSessionName as SetSessionNameWithTrigger;
 		await setSessionName.call(this.sessionManager, title, "auto", trigger);
@@ -18173,7 +18240,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * the request, or an interrupt cancelled a generated title (a typed title
 	 * still applies, without the card it was waiting for).
 	 */
-	async renameTitle(title?: string, signal?: AbortSignal): Promise<string | null | undefined> {
+	async renameTitle(
+		title?: string,
+		signal?: AbortSignal,
+		languageOverride?: ZetaLanguage,
+	): Promise<string | null | undefined> {
+		// A typed title is returned as typed; only generated/card names use this.
+		const language = languageOverride ?? generatedNameLanguage(this.settings);
 		const icons = this.#cardIcons();
 		const needsCard = (name: string) => icons !== "boring" && !splitCardTitle(name);
 		if (title && !needsCard(title)) return title;
@@ -18187,19 +18260,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			(!title && titleSignal.aborted) ||
 			sessionManager.getSessionId() !== sessionId ||
 			sessionManager.titleRevision !== revision;
-		const named = context === undefined ? title : await this.#retitle(context, signal);
+		const named = context === undefined ? title : await this.#retitle(context, signal, language);
 		if (stale()) return undefined;
 		if (!named || !needsCard(named)) return named ?? null;
-		const cardPrompt = prompt.render(titleCardPrompt, { nerdFonts: icons === "nf+emoji" });
-		const reply = await this.generateTitle(named, cardPrompt, signal);
+		const cardPrompt = prompt.render(titleCardPrompt, {
+			nerdFonts: icons === "nf+emoji",
+			zh: language === "zh",
+		});
+		const reply = await this.generateTitle(named, cardPrompt, signal, language);
 		if (stale()) return undefined;
 		const card = reply ? parseCardReply(reply, icons) : undefined;
 		return card ? formatCardTitle(card, named) : named;
 	}
 
 	/** A fresh title-model title for `context` that keeps the current title's card; null when generation fails. */
-	async #retitle(context: string, signal?: AbortSignal): Promise<string | null> {
-		const title = await this.generateTitle(context, undefined, signal);
+	async #retitle(context: string, signal?: AbortSignal, language?: ZetaLanguage): Promise<string | null> {
+		const title = await this.generateTitle(context, undefined, signal, language);
 		return title && keepTitleCard(this.sessionName, title);
 	}
 
@@ -18208,11 +18284,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * automatic titles that came out plain. `title` unchanged when it already has
 	 * a card, `title.icons` is `boring`, or the card request fails or names no valid card.
 	 */
-	async #cardTitle(title: string, signal?: AbortSignal): Promise<string> {
+	async #cardTitle(title: string, signal?: AbortSignal, languageOverride?: ZetaLanguage): Promise<string> {
+		const language = languageOverride ?? generatedNameLanguage(this.settings);
 		const icons = this.#cardIcons();
 		if (icons === "boring" || splitCardTitle(title)) return title;
-		const cardPrompt = prompt.render(titleCardPrompt, { nerdFonts: icons === "nf+emoji" });
-		const reply = await this.generateTitle(title, cardPrompt, signal);
+		const cardPrompt = prompt.render(titleCardPrompt, {
+			nerdFonts: icons === "nf+emoji",
+			zh: language === "zh",
+		});
+		const reply = await this.generateTitle(title, cardPrompt, signal, language);
 		const card = reply ? parseCardReply(reply, icons) : undefined;
 		return card ? formatCardTitle(card, title) : title;
 	}

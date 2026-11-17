@@ -56,12 +56,21 @@ describe("bindings table", () => {
 			{ platform: "feishu", chatId: "oc_1", workspaceAlias: "alpha", userId: "ou_1", lang: "zh", label: "kept" },
 			{ platform: "telegram", chatId: "42", sessionId: "s1" },
 		];
-		const html = renderToStaticMarkup(<BindingsTable rows={rows} onEdit={noop} onRemove={noop} />);
+		const html = renderToStaticMarkup(
+			<BindingsTable
+				rows={rows}
+				sessions={[{ id: "s1", name: "Release review" }]}
+				onEdit={noop}
+				onRemove={noop}
+			/>,
+		);
 		expect(html.includes("<table")).toBe(true);
 		const tableBody = /<tbody>([\s\S]*)<\/tbody>/.exec(html)?.[1] ?? "";
 		expect(tableBody.match(/<tr[\s>]/g)?.length).toBe(2);
 		expect(html).toContain("oc_1");
 		expect(html).toContain("alpha");
+		expect(html).toContain("Release review");
+		expect(html).not.toContain(">s1<");
 		expect(html).toContain('data-unavailable="agent"');
 		expect(/1 other field|保留 1 个其他字段/.test(html)).toBe(true);
 		expect(html).not.toContain("agentId");

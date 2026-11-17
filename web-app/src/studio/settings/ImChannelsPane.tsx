@@ -54,6 +54,7 @@ import {
 	workspaceAliases,
 	type BindingDraft,
 	type BindingProblem,
+	type BotSessionView,
 	type ChannelId,
 	type ChannelRuntimeState,
 	type ChannelStatusEntry,
@@ -125,11 +126,14 @@ export function RuntimeChip({ state }: { state: ChannelRuntimeState }) {
  */
 export function BindingsTable({
 	rows,
+	sessions = [],
 	onEdit,
 	onRemove,
 	disabled = false,
 }: {
 	rows: readonly ChatBinding[];
+	/** Name source for the ordinary table; a raw session id is never the label. */
+	sessions?: readonly BotSessionView[];
 	onEdit: (row: ChatBinding) => void;
 	onRemove: (row: ChatBinding) => void;
 	disabled?: boolean;
@@ -154,6 +158,7 @@ export function BindingsTable({
 				<tbody>
 					{rows.map(row => {
 						const preserved = unknownBindingKeys(row);
+						const sessionName = sessions.find(session => session.id === row.sessionId)?.name;
 						return (
 							<tr key={bindingKey(row)}>
 								<td>{row.platform}</td>
@@ -166,7 +171,13 @@ export function BindingsTable({
 										</span>
 									) : null}
 								</td>
-								<td>{row.sessionId !== undefined ? <code>{row.sessionId}</code> : <span className="im-muted">{t("settings.imChannels.bindingNone")}</span>}</td>
+								<td>
+									{row.sessionId !== undefined ? (
+										<span>{sessionName ?? t("settings.imChannels.bindingSession")}</span>
+									) : (
+										<span className="im-muted">{t("settings.imChannels.bindingNone")}</span>
+									)}
+								</td>
 								<td>
 									<span className="chip xs gray" data-unavailable="agent">
 										{t("settings.imChannels.bindingAgentUnavailable")}
@@ -519,7 +530,7 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 			) : null}
 
 			<SettingSection title={t("settings.imChannels.bindings")} desc={t("settings.imChannels.bindingsDesc")}>
-				<BindingsTable rows={rows} onEdit={editRow} onRemove={removeRow} disabled={pending === "bindings"} />
+				<BindingsTable rows={rows} sessions={sessions} onEdit={editRow} onRemove={removeRow} disabled={pending === "bindings"} />
 				<form
 					className="im-binding-form"
 					onSubmit={event => {

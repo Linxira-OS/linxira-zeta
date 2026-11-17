@@ -492,6 +492,7 @@ export type PromptImageInput = {
 export type PromptTextInput = {
 	readonly text: string;
 	readonly images?: ReadonlyArray<PromptImageInput>;
+	readonly language?: "en" | "zh";
 };
 
 /** Public semantic command inputs exposed by the Runtime control surface. */

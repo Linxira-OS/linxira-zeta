@@ -501,6 +501,85 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **规则**：这是环境绕过，不是降低 CI；发布源代码仍以 `1ea59944579` 的
   完整 CI 为准。换镜像/代理时同样只允许绕过网络，不允许绕过测试或断言。
 
+## CI-031 Studio 来源署名被品牌守卫误判；本地未跟踪文件漏扫
+
+- **现象**：集成 run `43867774185`（`faad80d5ed4`）的 `Lint, type check & web build` 在 `Brand residue guard` 失败，2 hits / 0 missing assertions：`rep-docs/product.md:20` 与 `rep-docs/product.zh-CN.md:16`。两行均为 OMP Studio 官方仓库的来源署名；npm 安装、renderer build、first-load、cargo-deny 和 workspace 类型检查已通过。其后的 check-job 步骤未执行，不能算通过。
+- **触发点**：`sync/studio-release/v0.2.0` 的唯一 `full=true / skip_npm=true` dispatch；job `133300965984`。
+- **根因**：`brand-check.ts` 的扫描集合来自 `git ls-files`；本地零命中是在新 `rep-docs` 文件暂存之前取得。CI 扫到了提交后的新文件，而 `OMP Studio` 规则没有为这两条明确的来源署名配置精确 `allowPatterns`。这不是产品名回退，不应删除用户要求保留的上游归属。
+- **当时的处理**：只记录，不改规则、不再推送或 dispatch；保留失败 job 原始日志与诊断至 `~/.zeta/parked-evidence/2026-11-16/studio-v0.2.1-final/sealed-final6/ci-check-job.log` 及 `ci-brand-failure-diagnosis.json`。整条 CI 的最终结论另记于同目录，本文不预判。
+- **建议方案 / 门禁**：下一批给这两条来源链接增加精确 path+line 内容模式，仍拒绝同文件里的其他产品残留；提交前必须在完整暂存清单上运行扫描。保留官方仓库链接、双语一致性和公开归属；禁止把整个 `rep-docs/` 加入豁免。
+
+## CI-032 原生 desktop 三处 Clippy 错误
+
+- **现象**：同一集成 run `43867774185` 的 `Validate Rust workspace (bazel)` 在 `Clippy (workspace lint policy on opted-in crates)` 退出123。此前 Rust tests 已执行17/17并全部通过；后续其他 Clippy/rustfmt 步骤未执行，不能当绿。
+- **触发点**：`faad80d5ed4`，job `133300966004`；目标 `//crates/pi-natives:pi_natives`。
+- **根因**：`desktop/linux/wayland/mod.rs:183` 的 `WaylandBackend::new` 仅剩同文件测试调用（约682行），生产构建未使用而触发 `dead_code`；`desktop/ax.rs:1159` 的 `Option.map(...).unwrap_or_default()` 触发 `clippy::map_unwrap_or`；`desktop/types.rs:298` 的自引用 `Vec<DesktopObservationNode>` 触发 `clippy::use_self`。CI `-D warnings` 把三项判为错误；本机 Rust 格式检查不覆盖 Clippy。
+- **当时的处理**：只记录，保留 `sealed-final6/ci-rust-validate.log`；不加 allow/suppress、不改阈值、不发第二次 push。主工作台 job 已通过；TermIDE nextest3580passed/9skipped，属于独立 job，不能抵消本项失败。
+- **建议方案 / 门禁**：下一批将同文件测试的构造迁到 `new_observed(display, false)` 后删除仅测试使用的构造器包装，使用 `map_or_else` 和 `Self` 表达原语义，再跑原生目标的严格 Clippy；保留所有测试及 passive Computer 权威边界。
+
+## CI-033 Desktop 夹具的干净检出与异步等待
+
+- **现象 / 触发点**：run `43867774185` 的 job `133317011347` 在 `Test desktop contract suite` 失败。`memory-credentials.test.mjs` 两项和 `prediction.test.mjs` 三项报 repo `temp/` 下 `mkdtemp` ENOENT；managed relay 三项报 owner changed / ECONNREFUSED。
+- **根因**：两个文件直接 `mkdtemp(<repo>/temp/<prefix>)`，没有创建干净 checkout 缺省不存在的父目录，已由代码与日志确认。relay 夹具最多100次 `setImmediate` 便假设描述文件读取已完成，失败后恢复 fetch；这与未完成 attach 的症状一致，但竞态因果尚未独立确认，不能直接标作 flaky。
+- **处理**：保存 `sealed-final6/ci-job-133317011347.log`，不重跑或削弱断言。已有真实 Electron 证据保留原范围，不用它抹掉 CI 红。
+- **建议方案 / 门禁**：夹具先创建 repo-local temp 父目录；relay 改用有截止时间的明确 socket/handshake 状态并在 finally 结清 pending attach。干净检出执行完整 contract 命令。
+
+## CI-034 Gateway ask 夹具没有跟随原生 session hook
+
+- **现象 / 触发点**：run `43867774185`，runtime job `133317011578` 的 `web-gateway/ask-channel.test.ts` 四项在创建 wrapper 时抛 `session.setBeforeNextUserTurn is not a function`，尚未进入 ask 行为断言。
+- **根因**：`makeSession()` 仅把 `{sessionManager:{},subscribe(){…}} as never` 交给真实 `AgentSessionWrapper`，但 wrapper 现在会安装 TimeTravel/Worktree 的原生 turn hooks；实际 `AgentSession` 已有这些方法。
+- **处理**：保存 `ci-job-133317011578.log`，不向生产 attach 添加 optional/no-op 回退；其余40个 runtime chunks通过不抵消这4项失败。
+- **建议方案 / 门禁**：改为符合原生会话生命周期的真实隔离夹具或现有完整 fixture，保留多问题、超时、取消与错误响应断言。
+
+## CI-035 UI/TUI 与 spotlight 断言失败
+
+- **现象 / 触发点**：run `43867774185`，UI job `133317011299` 三个 chunks失败：prewalk-off:202 持久化前后对象出现内部 identity symbol 与 `details:undefined` 差异；date-cwd-reminder:1686 的第2个请求缓存未读到最新 tool result；中文设置 `encourageEdits` label 仍为 `Encourage Edits`。native packages job `133317011572` 的 spotlight 双窗口 code 查询得到0，期望2。
+- **根因**：spotlight实现的 role 为 `zeta.spotlight.code`，test:705 仍过滤 `omp.spotlight.code`，已确认契约落点不一致；label在原生 setting注册时未本地化。prewalk对象身份差异与cache边界失败尚未定位产品原因，禁止把后一项归为纯夹具或重钉旧错误行为。
+- **处理**：保存两 job 日志，只记录。上游/本地断言与产品不变量需成对核对；没有运行“重试确认”。
+- **建议方案 / 门禁**：spotlight保留双窗口内容、编号与折叠行为，移除对内部role字符串的耦合；中文文本做实际注册本地化；prewalk验证持久语义而非瞬态对象标记；cache继续断言跨日期和context hook后复用历史到最新tool result。
+
+## CI-036 安装 prepack 的 Vite 配置加载失败
+
+- **现象 / 触发点**：run `43867774185`，install job `133317011945`：`gen:web-app` → `npm run build` 在加载 `web-app/node_modules/.vite-temp/vite.config.ts…mjs` 时无法解析 `vite-module-runner:import-meta-resolve`，prepack与安装方式 smoke退出1。
+- **根因**：已确认在嵌套 prepack/build 路径发生；相同提交check job的直接 `npm ci`/renderer build通过，因此不是已修的SheetJS来源拒绝。是否Bun调用链环境或Vite/Vitest配置交互尚未定位，不声称已解决。
+- **处理**：保存 `ci-job-133317011945.log`；不换旧Vite版本、不跳build、不发布半成品。
+- **建议方案 / 门禁**：下一批沿 `scripts/install-tests/run-ci.sh` 与 `packages/coding-agent/scripts/build-web-app.ts` 的真实嵌套入口诊断，证明安装payload实际可用；直接renderer build不能替代这个场景。
+
+## CI-037 Native/unit 九个失败 chunks
+
+- **现象 / 触发点**：run `43867774185`，job `133317011394`，1191files/120chunks 中9个chunks失败，原始日志 `sealed-final6/ci-job-133317011394.log`，去重前完整用例标记与chunk目录为 `ci-final-failure-inventory.json`。
+- **已确认分组**：`session-sync.test.ts`/`subagents.test.ts` 与CI-034同为夹具缺 `setBeforeNextUserTurn`；Computer policy/workspace/budget、Host services夹具在缺repo temp父目录时ENOENT，部分teardown再抛undefined host。`tools/computer.test.ts` 多项在 `supervisor.ts:319` 的会话实例fence抛ToolAbortError。另有ACP context/mode、disposing后空abort重试、cost-gate print exit、CLI help inventory、task prompt-cache切会话断言失败。
+- **根因边界**：hook与temp前置条件由日志确认；Computer旧fixture是否缺实例key、retry/cost/cache是否产品回归尚未定位。禁止将49条原始用例标记都归咎于同一个夹具、或声称已验证基线同红。
+- **处理**：只记录，不重跑确认、不跳用例、不为旧fixture放松实例fence；保留实际原生Linux addon与smoke通过证据。
+- **建议方案 / 门禁**：按9个失败chunk分别诊断；先统一干净检出temp初始化与真实会话fixture，再验Computer取消/授权/stop和cache/成本/重试的实际可见行为。
+
+## CI-038 Singleton 夹具与 advisor fork
+
+- **现象 / 触发点**：run `43867774185`，job `133317011772`：`advisor-toggle.test.ts:924` 的fork历史对象包含断言失败；service preview四项与service fencing一项因repo temp父目录缺失而ENOENT。日志还输出desktop app not found；没有把它直接列为已确认的独立失败原因。
+- **根因**：temp父目录问题与CI-033同类；advisor预期对象与带内部identity symbol的实际历史对象不匹配，是否仅瞬态身份或持久成本丢失尚未定位。
+- **处理**：保存原始 `ci-job-133317011772.log` 与完整标记目录；不将未定位advisor归成flaky，不因其他singleton测试通过而给本桶绿。
+- **建议方案 / 门禁**：先修隔离fixture前置条件，再按持久化/跨fork成本语义检查advisor，避免把内部对象身份当用户契约。
+
+## 2026-11-16 本轮集成 CI 最终结果
+
+提交 `faad80d5ed4d947283e7ebc7cbc445aa1d3d39ec` 已一次发布到 `sync/studio-release/v0.2.0`；唯一 `full=true / skip_npm=true` run [43867774185](https://github.com/Linxira-OS/linxira-zeta/actions/runs/43867774185) 已 completed/failure：8success、9failure、18skipped、0cancelled。CI-031–038涵盖9个失败job；均只登记，未第二次推送或dispatch。
+
+已通过：Bazel lock、release metadata、主工作台、TermIDE（3580passed/9skipped）、Linux baseline/modern addon构建及原生smoke、跨目标addon构建、CLI smoke、TS workspace fast。Rust validation的17个测试目标通过后在Clippy失败；check job在品牌守卫前的npm安装、renderer build、first-load、cargo-deny和类型检查通过，不代表整个job绿。
+
+跨目标job `133300966557` 为当前提交真构建 `linux-musl-x64-baseline` 与 `win32-x64-baseline`，产物 `native-addons` ID `14229990773`，105233356bytes，SHA256 `413367ee7dfaf2202fc93ea837dbf5819fe103df4c9ae70828c6881e5b7406e3`。Linux pair产物 `14227223884`，106993749bytes，SHA256 `30966cf6508c09ea79d705008fb012fe7d0ddbeee28f86eeffcca1c17effbd51`。这补充了当前提交的构建来源；不等于Windows实机被动捕获/物理Wayland/完整release验收。Linux产物本地下载超时，仅留不完整文件，明确不可加载或计为本地验收。
+
+最终job JSON、全部失败日志、源码核账、当前/提交字节hash、传输回执与未决原因存于 `~/.zeta/parked-evidence/2026-11-16/studio-v0.2.1-final/sealed-final6/`。本段与CI-031–038是推送后的本地未提交记录，不伪称已在远端。
+
+本批只携入上述已封存记录，不改其结论或顺手修复 CI-031–038。当前 2FA、共享 IM 对话与中文命名另走独立验收和一次新 CI。
+
+## CI-039 QQ allowlist 的既有本地回归失败
+
+- **现象**：本批运行 `packages/channels/test/runtime.test.ts`，`QQ allowlists hold bare numbers and match group:/user: peers` 在第199行期望 `["group:42", "user:900"]`，实际仅 `["group:42"]`。该文件4项通过、1项失败；不是本轮 CI 结论。
+- **范围证据**：发布基线 `faad80d5ed4` 的独立工作区执行同一文件也得到4通过、1失败，同样缺 `user:900`。当前共享 IM 改动未引入该失败；具体 adapter/allowlist 根因尚未诊断。
+- **处理**：只登记，不改 QQ 适配器、allowlist 或断言。共享 IM 的69项后端回归及16项界面回归另行通过，不拿它们覆盖此失败。
+- **后续门禁**：在选定的 IM 平台批次诊断 bare peer 的 group/user 匹配，保留群聊与私聊的允许/拒绝四条行为；外部 QQ 实际投递仍未验收。
+
+
 ---
 
 ## 附：1.4.8 发布链路时间线（供后续复盘）

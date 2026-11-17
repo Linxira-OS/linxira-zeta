@@ -16,16 +16,17 @@
  *
  * Recovery codes are stored as SHA-256 hashes and consumed one at a time.
  *
- * Failure policy: a missing file means "2FA off". A corrupt file is treated as
- * off too — the operator is never locked out, and a local caller can enroll
- * again. (A corrupt file therefore cannot *silently* disable 2FA on a running
- * process beyond the next read; the honest recovery path is loopback.)
+ * Failure policy: only a missing file means "2FA off". Unreadable or malformed
+ * state is unavailable and must deny remote mutations. A genuine local caller
+ * can explicitly reset damaged state through disable before re-enrolling.
  */
 
 import * as fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import * as path from "node:path";
 import { getAgentDir, logger } from "@linxiraos/pi-utils";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
+import { replaceFileWithRetry } from "../../utils/atomic-file";
 import {
 	buildOtpauthUrl,
 	generateRecoveryCodes,
@@ -90,6 +91,19 @@ export type ConfirmResult =
 
 export type CodeResult = { ok: true; step: number } | { ok: false; reason: "format" | "mismatch" | "replay" };
 
+export class TwoFactorStoreUnavailableError extends Error {
+	constructor() {
+		super("two_factor_unavailable");
+		this.name = "TwoFactorStoreUnavailableError";
+	}
+}
+
+/** Private grant binding: never expose the secret or its digest in HTTP state. */
+export function twoFactorIdentity(file: TwoFactorFile): string | null {
+	if (file.secret === null || file.enrolledAt === null) return null;
+	return createHash("sha256").update(file.secret).update("\0").update(file.enrolledAt).digest("hex");
+}
+
 const EMPTY_FILE: TwoFactorFile = {
 	version: TOTP_SCHEMA_VERSION,
 	secret: null,
@@ -112,49 +126,65 @@ function isHashList(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every(entry => typeof entry === "string" && HASH_RE.test(entry));
 }
 
-/** Defensive parse: anything malformed yields the empty (2FA off) file. */
+/** Reject damaged state rather than dropping the write policy or replay counter. */
 function parseFile(raw: unknown): TwoFactorFile {
-	if (raw === null || typeof raw !== "object") return { ...EMPTY_FILE };
+	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw new TwoFactorStoreUnavailableError();
 	const source = raw as Record<string, unknown>;
-	const secret =
-		typeof source.secret === "string" && BASE32_RE.test(source.secret.toUpperCase())
-			? source.secret.toUpperCase()
-			: null;
-	const enrolledAt = typeof source.enrolledAt === "string" && source.enrolledAt !== "" ? source.enrolledAt : null;
-	const required = source.required === true && secret !== null && enrolledAt !== null;
-	const lastUsedStep =
-		typeof source.lastUsedStep === "number" && Number.isSafeInteger(source.lastUsedStep) && source.lastUsedStep >= 0
-			? source.lastUsedStep
-			: 0;
-	const recoveryCodeHashes = isHashList(source.recoveryCodeHashes) ? [...source.recoveryCodeHashes] : [];
-
+	if (
+		source.version !== TOTP_SCHEMA_VERSION ||
+		typeof source.required !== "boolean" ||
+		typeof source.lastUsedStep !== "number" ||
+		!Number.isSafeInteger(source.lastUsedStep) ||
+		source.lastUsedStep < 0 ||
+		!isHashList(source.recoveryCodeHashes)
+	)
+		throw new TwoFactorStoreUnavailableError();
+	const secret = parseSecret(source.secret);
+	const enrolledAt = source.enrolledAt;
+	if (
+		(secret === null &&
+			(enrolledAt !== null ||
+				source.required ||
+				source.lastUsedStep !== 0 ||
+				source.recoveryCodeHashes.length !== 0)) ||
+		(secret !== null && (typeof enrolledAt !== "string" || !Number.isFinite(Date.parse(enrolledAt))))
+	)
+		throw new TwoFactorStoreUnavailableError();
 	let pending: PendingEnrollment | null = null;
-	if (source.pending !== null && typeof source.pending === "object") {
+	if (source.pending !== null) {
+		if (typeof source.pending !== "object" || source.pending === undefined || Array.isArray(source.pending))
+			throw new TwoFactorStoreUnavailableError();
 		const candidate = source.pending as Record<string, unknown>;
+		const pendingSecret = parseSecret(candidate.secret);
 		if (
-			typeof candidate.secret === "string" &&
-			BASE32_RE.test(candidate.secret.toUpperCase()) &&
-			typeof candidate.createdAt === "string" &&
-			!Number.isNaN(Date.parse(candidate.createdAt)) &&
-			isHashList(candidate.recoveryCodeHashes)
-		) {
-			pending = {
-				secret: candidate.secret.toUpperCase(),
-				createdAt: candidate.createdAt,
-				recoveryCodeHashes: [...candidate.recoveryCodeHashes],
-			};
-		}
+			pendingSecret === null ||
+			typeof candidate.createdAt !== "string" ||
+			!Number.isFinite(Date.parse(candidate.createdAt)) ||
+			!isHashList(candidate.recoveryCodeHashes)
+		)
+			throw new TwoFactorStoreUnavailableError();
+		pending = {
+			secret: pendingSecret,
+			createdAt: candidate.createdAt,
+			recoveryCodeHashes: candidate.recoveryCodeHashes,
+		};
 	}
-
 	return {
 		version: TOTP_SCHEMA_VERSION,
 		secret,
-		enrolledAt: secret === null ? null : enrolledAt,
-		required,
-		lastUsedStep,
-		recoveryCodeHashes: secret === null ? [] : recoveryCodeHashes,
+		enrolledAt: typeof enrolledAt === "string" ? enrolledAt : null,
+		required: source.required,
+		lastUsedStep: source.lastUsedStep,
+		recoveryCodeHashes: source.recoveryCodeHashes,
 		pending,
 	};
+}
+
+function parseSecret(value: unknown): string | null {
+	if (value === null) return null;
+	if (typeof value !== "string" || value.length !== 32 || !BASE32_RE.test(value.toUpperCase()))
+		throw new TwoFactorStoreUnavailableError();
+	return value.toUpperCase();
 }
 
 /**
@@ -179,26 +209,21 @@ export class TwoFactorStore {
 		try {
 			text = await fs.readFile(this.#filePath, "utf8");
 		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !this.#warned.has("read")) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ...EMPTY_FILE, recoveryCodeHashes: [] };
+			if (!this.#warned.has("read")) {
 				this.#warned.add("read");
-				logger.warn("Failed to read 2FA store; treating 2FA as disabled", {
-					filePath: this.#filePath,
-					error: error instanceof Error ? error.message : String(error),
-				});
+				logger.warn("Failed to read 2FA store; remote mutations remain blocked", { filePath: this.#filePath });
 			}
-			return { ...EMPTY_FILE };
+			throw new TwoFactorStoreUnavailableError();
 		}
 		try {
 			return parseFile(JSON.parse(text) as unknown);
-		} catch (error) {
+		} catch {
 			if (!this.#warned.has("parse")) {
 				this.#warned.add("parse");
-				logger.warn("Ignoring malformed 2FA store; two-factor is disabled until re-enrolled", {
-					filePath: this.#filePath,
-					error: error instanceof Error ? error.message : String(error),
-				});
+				logger.warn("Malformed 2FA store; local reset is required", { filePath: this.#filePath });
 			}
-			return { ...EMPTY_FILE };
+			throw new TwoFactorStoreUnavailableError();
 		}
 	}
 
@@ -321,7 +346,7 @@ export class TwoFactorStore {
 	}
 
 	/** Turn 2FA off and erase the secret, pending enrollment and recovery codes. */
-	async disable(): Promise<void> {
+	async disable(recoverUnavailable = false): Promise<void> {
 		await this.#mutate(file => {
 			const changed =
 				file.secret !== null ||
@@ -336,7 +361,7 @@ export class TwoFactorStore {
 			file.recoveryCodeHashes = [];
 			file.pending = null;
 			return changed;
-		});
+		}, recoverUnavailable);
 	}
 
 	/**
@@ -375,11 +400,23 @@ export class TwoFactorStore {
 		return result;
 	}
 
-	async #mutate(mutation: (file: TwoFactorFile) => boolean): Promise<void> {
+	async #mutate(mutation: (file: TwoFactorFile) => boolean, recoverUnavailable = false): Promise<void> {
 		await withFileLock(this.#filePath, async () => {
-			const file = await this.read();
-			if (!mutation(file)) return;
-			await this.#write(file);
+			let file: TwoFactorFile;
+			let recovered = false;
+			try {
+				file = await this.read();
+			} catch (error) {
+				if (!recoverUnavailable || !(error instanceof TwoFactorStoreUnavailableError)) throw error;
+				file = { ...EMPTY_FILE, recoveryCodeHashes: [] };
+				recovered = true;
+			}
+			if (!mutation(file) && !recovered) return;
+			try {
+				await this.#write(file);
+			} catch {
+				throw new TwoFactorStoreUnavailableError();
+			}
 		});
 	}
 
@@ -397,7 +434,7 @@ export class TwoFactorStore {
 			} finally {
 				await handle.close();
 			}
-			await fs.rename(tempPath, this.#filePath);
+			await replaceFileWithRetry(tempPath, this.#filePath);
 			removeTemp = false;
 		} finally {
 			if (removeTemp) await fs.rm(tempPath, { force: true }).catch(() => {});

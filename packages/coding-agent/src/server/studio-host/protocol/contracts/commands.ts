@@ -18,9 +18,9 @@ export interface LoopLimit {
 }
 
 export type CoreOperation =
-	| { kind: "core.prompt"; text: string; images?: unknown[] }
-	| { kind: "core.steer"; text: string; images?: unknown[] }
-	| { kind: "core.followUp"; text: string; images?: unknown[] }
+	| { kind: "core.prompt"; text: string; images?: unknown[]; language?: "en" | "zh" }
+	| { kind: "core.steer"; text: string; images?: unknown[]; language?: "en" | "zh" }
+	| { kind: "core.followUp"; text: string; images?: unknown[]; language?: "en" | "zh" }
 	| { kind: "core.abort" }
 	| { kind: "runtime.snapshot" }
 	| { kind: "runtime.pause" }

@@ -2809,6 +2809,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			imControl: options.imControl,
 
 			getCredentialSourceSessionId: options.getApiKey ? undefined : () => agent.sessionId,
+			// Captured from the turn that is spawning a subagent; undefined falls
+			// back to that generation's effective `language` setting.
+			getGeneratedNameLanguage: () => session.turnNameLanguage,
 			get additionalDirectories() {
 				return sessionManager.getAdditionalDirectories();
 			},

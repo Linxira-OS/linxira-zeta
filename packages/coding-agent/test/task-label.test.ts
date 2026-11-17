@@ -11,9 +11,10 @@ function getModelOrThrow(id: string): Model<Api> {
 	return model;
 }
 
-function createSettings(model: Model<Api>) {
+function createSettings(model: Model<Api>, extra: Record<string, unknown> = {}) {
 	return Settings.isolated({
 		modelRoles: { tiny: `${model.provider}/${model.id}` },
+		...extra,
 	});
 }
 
@@ -87,6 +88,68 @@ describe("task label generation", () => {
 			"AuthLoader",
 		);
 		expect(labeled).toBe("Sleep then reply done");
+	});
+
+	it("writes Chinese labels for a Chinese session while preserving identifiers", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>修复 Redis 重试队列</title>" }],
+		} as never);
+
+		const label = await generateTaskLabel(
+			"Fix the Redis retry queue dropping jobs when a worker restarts",
+			createRegistry(model),
+			createSettings(model, { language: "zh" }),
+			"RetryFixer",
+		);
+
+		expect(label).toBe("修复 Redis 重试队列");
+		expect(label).toContain("Redis");
+		expect(label).not.toBe("RetryFixer");
+		expect(completeSimpleMock).toHaveBeenCalledTimes(1);
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).toContain("简体中文");
+	});
+
+	it("keeps the English task label request for an English session", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>Fix Redis retry queue</title>" }],
+		} as never);
+
+		const label = await generateTaskLabel(
+			"Fix the Redis retry queue",
+			createRegistry(model),
+			createSettings(model, { language: "en" }),
+			"RetryFixer",
+		);
+
+		expect(label).toBe("Fix Redis retry queue");
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
+	});
+
+	it("uses an explicit invocation language over the session setting", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>修复登录过期</title>" }],
+		} as never);
+
+		const label = await generateTaskLabel(
+			"Fix expired login",
+			createRegistry(model),
+			createSettings(model, { language: "en" }),
+			"LoginFixer",
+			undefined,
+			"zh",
+		);
+
+		expect(label).toBe("修复登录过期");
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).toContain("简体中文");
 	});
 
 	it("treats a case-insensitive Name-N collision as an echoed handle", () => {

@@ -7,6 +7,7 @@
 
 ### Fixed
 
+- Account/device 2FA fails closed when its store is damaged, keeps verification grants tied to the active factor and clears them after factor/policy changes. Recovery codes work from the global prompt and Settings; concurrent requests share one verification and cancellation settles late challenges. `/2fa status` and `zetacode 2fa status` expose secret-free terminal status (ADR-0060).
 - **Z Work Studio identity** — sidebar, About, empty conversations, BTW labels, logs, session import/resume and bilingual previews use Z Work Studio / Zeta. Browser preferences consistently use `zeta.*`; the existing startup migration preserves earlier `omp.*` preferences. Existing IndexedDB databases and old recording files remain readable.
 - Studio command terminals retain their selected workspace and launch a dedicated script process instead of dropping the command; the Host rejects conflicting profile/program inputs and retains device-binding ownership (ADR-0045).
 - Studio workspace files have bounded, version-checked chunk reads and UTF-8/UTF-16 text editing with atomic saves and conflict detection through the existing authenticated Host. Optional Office controls reflect the actual signed-component capability (ADR-0046).
@@ -40,6 +41,8 @@
 
 ### Added
 
+- IM entrances can explicitly select the same existing Agent conversation and share its canonical native transcript and id; the binding UI lists conversation names, `!session list/use` is scoped to the exact instance/chat/thread/sender, and delayed replies return to their originating entrance (ADR-0061).
+- Automatically generated session titles and spawned-task labels follow the effective UI language: Chinese selection produces Chinese-preferred names through the tiny/fork/refresh/task paths while explicit names, ids, paths and card codes stay unchanged (ADR-0062).
 - Added the Gemini Decision 1 judge (`google/gemini-decision-1`) for the `judge` role, and `models.yml` accepts the `google-decisions` API ([#19060](https://github.com/can1357/oh-my-pi/pull/19060) by [@kevcube](https://github.com/kevcube))
 - `ssh://` host listing, `ssh://` autocomplete and `/ssh list` now include the `Host` aliases from `~/.ssh/config` and `/etc/ssh/ssh_config` (following `Include`); `ssh.json` entries win on a name clash
 - Added `find.verifyModel`, a model selector whose judge answers only `find`'s passage verification while filename and sketch ranking stay on the `judge` role ([#19006](https://github.com/can1357/oh-my-pi/pull/19006) by [@alphastorm](https://github.com/alphastorm))

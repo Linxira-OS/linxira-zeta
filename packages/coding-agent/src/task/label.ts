@@ -3,11 +3,15 @@
  */
 import { logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
+import type { ZetaLanguage } from "../i18n";
 import type { Settings } from "../config/settings";
 import taskLabelSystemPrompt from "../prompts/system/task-label.md" with { type: "text" };
-import { generateSessionTitle } from "../utils/title-generator";
+import { generateSessionTitle, generatedNameLanguage } from "../utils/title-generator";
 
-const TASK_LABEL_SYSTEM_PROMPT = prompt.render(taskLabelSystemPrompt);
+const TASK_LABEL_SYSTEM_PROMPTS = {
+	en: prompt.render(taskLabelSystemPrompt),
+	zh: prompt.render(taskLabelSystemPrompt, { zh: true }),
+};
 
 /** True when a generated label is just the spawn handle, including `Name-2`. */
 export function labelEchoesHandle(handle: string | undefined, label: string): boolean {
@@ -27,9 +31,13 @@ export async function generateTaskLabel(
 	settings: Settings,
 	sessionId?: string,
 	signal?: AbortSignal,
+	language?: ZetaLanguage,
 ): Promise<string | null> {
 	const text = assignment.trim();
 	if (!text) return null;
+	// Resolve once, before the request: the prompt branch and the generation
+	// override must agree even if another view reloads settings meanwhile.
+	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	try {
 		const label = await generateSessionTitle(
 			text,
@@ -38,8 +46,11 @@ export async function generateTaskLabel(
 			sessionId,
 			undefined,
 			undefined,
-			TASK_LABEL_SYSTEM_PROMPT,
+			TASK_LABEL_SYSTEM_PROMPTS[resolvedLanguage],
 			signal,
+			undefined,
+			undefined,
+			resolvedLanguage,
 		);
 		if (!label || labelEchoesHandle(sessionId, label)) return null;
 		return label;

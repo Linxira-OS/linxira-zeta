@@ -122,6 +122,8 @@ export interface ChannelHealth {
 export interface ChannelSendOptions {
 	/** Platform message id to reply to, when the channel supports reply refs. */
 	replyToMessageId?: string;
+	/** Thread/topic id when the channel separates one chat into threads. */
+	threadId?: string;
 }
 
 export interface ChatChannel {

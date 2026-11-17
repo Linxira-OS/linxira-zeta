@@ -1,7 +1,8 @@
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
 import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
+import { BUILTIN_TWO_FACTOR_SLASH_COMMAND } from "./builtin-two-factor";
 import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
-import { clearSubmittedText, restoreDetachedDraft } from "./helpers/draft";
+import { clearSubmittedText } from "./helpers/draft";
 import {
 	buildArgumentCompletions,
 	buildDirectoryArgumentCompletions,
@@ -57,6 +58,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_EDITS_SLASH_COMMANDS,
 	...BUILTIN_ZETA_SLASH_COMMANDS,
 	BUILTIN_CHANNELS_SLASH_COMMAND,
+	BUILTIN_TWO_FACTOR_SLASH_COMMAND,
 ];
 
 const BUILTIN_SLASH_COMMAND_LOOKUP = new Map<string, SlashCommandSpec>();

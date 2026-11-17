@@ -23,7 +23,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
+import { type ChannelInstanceId, type ChannelSendOptions, ReplyCorrelator } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
@@ -41,6 +41,7 @@ import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
+import { FileSessionStorage } from "../session/session-storage";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
 import { type ImBinding, type ImTarget, targetKey, targetScopedBindingId } from "./im-config";
@@ -263,7 +264,12 @@ export class SessionRouter {
 	readonly #coordinator: AgentSession;
 	readonly #webConfig: WebConfig;
 	readonly #getLastInbound: () => { channelId: ChannelInstanceId; peer: string } | null;
-	readonly #sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
+	readonly #sendText: (
+		channelId: ChannelInstanceId,
+		to: string,
+		text: string,
+		options?: ChannelSendOptions,
+	) => Promise<void>;
 	/** IM channel tool sinks forwarded to bot sessions (undefined in CLI mode). */
 	readonly #channelSend?: (
 		opts: { text: string; to?: string; channel?: string },
@@ -289,6 +295,8 @@ export class SessionRouter {
 	readonly #sessions = new Map<string, SessionHandle>();
 	/** Default-space bot sessions, keyed by registry id. */
 	readonly #botSessions = new Map<string, BotSessionHandle>();
+	/** In-flight first starts, coalesced by canonical conversation id. */
+	readonly #botStarts = new Map<string, Promise<{ ok: true; session: AgentSession } | { ok: false; error: string }>>();
 	/** Reply correlation per live target session (workspace dir or bot id). */
 	readonly #bridges = new Map<string, ReplyCorrelator>();
 	/** Bridge keys whose session exposes the IRC wake-turn observer we installed. */
@@ -334,7 +342,7 @@ export class SessionRouter {
 		getLastInbound: () =>
 			| ({ channelId: ChannelInstanceId; peer: string } | { instanceId: string; peer: string })
 			| null;
-		sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
+		sendText: (channelId: ChannelInstanceId, to: string, text: string, options?: ChannelSendOptions) => Promise<void>;
 		/** Default cwd for newly created bot sessions (defaults to process.cwd()). */
 		defaultCwd?: string;
 		/** channel_send sink for bot sessions (defaults to the coordinator's pattern). */
@@ -455,10 +463,17 @@ export class SessionRouter {
 				// unchanged; only a late answer after a switch needs a separate notice.
 				const current = this.#webConfig.findImBinding(target.instanceId, target.peer, target.context ?? {});
 				const currentLabel = current ? `${targetKey(current.target)} · ${current.agentProfileId}` : undefined;
+				const replyOptions: ChannelSendOptions | undefined =
+					target.messageId === undefined && target.context?.threadId === undefined
+						? undefined
+						: {
+								...(target.messageId ? { replyToMessageId: target.messageId } : {}),
+								...(target.context?.threadId ? { threadId: target.context.threadId } : {}),
+							};
 				if (target.originLabel && currentLabel && currentLabel !== target.originLabel) {
-					await this.#sendText(target.instanceId, target.peer, `原目标回复：${target.originLabel}`);
+					await this.#sendText(target.instanceId, target.peer, `原目标回复：${target.originLabel}`, replyOptions);
 				}
-				await this.#sendText(target.instanceId, target.peer, text);
+				await this.#sendText(target.instanceId, target.peer, text, replyOptions);
 			},
 		});
 		this.#bridges.set(key, correlator);
@@ -741,27 +756,72 @@ export class SessionRouter {
 		}
 	}
 
+	#sessionIsShared(sessionId: string): boolean {
+		return this.#webConfig.countImBindingsForSession(sessionId) > 1;
+	}
+
+	/**
+	 * A conversation materialized from the first entrance carries its owner
+	 * metadata. Later entrances must reuse it, never replace its profile/target
+	 * or runtime identity; missing metadata is stamped exactly once.
+	 */
+	async #stampBindingSession(entry: BotSessionEntry, binding: ImBinding): Promise<void> {
+		const ownsIdentity = entry.instanceId && entry.bindingId && entry.agentProfileId && entry.target;
+		// A model override is conversation state, not entrance state: record the
+		// first explicit one on the entry so a later entrance inherits it.
+		if (ownsIdentity && (entry.model || !binding.model)) return;
+		const updated: BotSessionEntry = {
+			...entry,
+			...(entry.instanceId ? {} : { instanceId: binding.instanceId }),
+			...(entry.bindingId ? {} : { bindingId: targetScopedBindingId(binding) }),
+			...(entry.agentProfileId ? {} : { agentProfileId: binding.agentProfileId }),
+			...(entry.target ? {} : { target: binding.target }),
+			...(entry.model || !binding.model ? {} : { model: binding.model }),
+			...(entry.platform ? {} : { platform: binding.platform }),
+			...(entry.chatId ? {} : { chatId: binding.chatId }),
+			...(entry.lang || !binding.lang ? {} : { lang: binding.lang }),
+		};
+		await this.#webConfig.upsertBotSession(updated);
+	}
+
 	/**
 	 * Materialize the BotSessionEntry that owns one binding. The binding id is
 	 * the stable identity; the entry records the profile/target snapshot and
 	 * lives under the target cwd so a Team PM/engineer never shares a
 	 * transcript or memory home with another binding.
+	 *
+	 * A binding that explicitly names an existing `sessionId` reuses that
+	 * conversation (same transcript, target, profile and runtime). It never
+	 * forks a copy; incompatible target/profile/model is an explicit error.
 	 */
 	async ensureImBindingSession(binding: ImBinding): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
 		const resolved = await this.resolveImTargetCwd(binding.target);
 		if (!resolved.ok) return resolved;
+		const shared = this.#sessionIsShared(binding.sessionId);
 		// One deterministic transcript per binding+target: switching away and
 		// back resumes the same conversation, while a different workspace never
 		// inherits another target's history or memory.
 		const current = this.#webConfig.getBotSession(binding.sessionId);
-		if (
-			current &&
-			current.cwd === resolved.cwd &&
-			(!current.target || targetKey(current.target) === targetKey(binding.target)) &&
-			(!current.agentProfileId || current.agentProfileId === binding.agentProfileId)
-		) {
-			return { ok: true, id: current.id };
+		if (current) {
+			const targetMatches = !current.target || targetKey(current.target) === targetKey(binding.target);
+			const profileMatches = !current.agentProfileId || current.agentProfileId === binding.agentProfileId;
+			const modelMatches =
+				!current.model ||
+				!binding.model ||
+				(current.model.provider === binding.model.provider && current.model.model === binding.model.model);
+			if (current.cwd === resolved.cwd && targetMatches && profileMatches && modelMatches) {
+				await this.#stampBindingSession(current, binding);
+				return { ok: true, id: current.id };
+			}
+			if (shared || current.reusesExistingTranscript) {
+				return {
+					ok: false,
+					error:
+						`Conversation "${current.name}" is already owned by another target/profile. ` +
+						"Shared conversations cannot be remapped by one entrance; choose a different conversation.",
+				};
+			}
 		}
 		const targetSessionId = `im-${targetScopedBindingId(binding).replace(/[^a-z0-9-]+/gi, "-")}`;
 		const existing = this.#webConfig.getBotSession(targetSessionId);
@@ -777,9 +837,15 @@ export class SessionRouter {
 					},
 				);
 			}
+			await this.#stampBindingSession(existing, binding);
 			return { ok: true, id: existing.id };
 		}
-		if (binding.sessionId !== targetSessionId) {
+		// A shared `sessionId` selected before its first message must become one
+		// conversation, not two target-scoped copies. Keep the explicit key as
+		// the registry id and derive the transcript from the conversation, never
+		// from the entrance that happened to deliver first.
+		const materializedId = shared ? binding.sessionId : targetSessionId;
+		if (!shared && binding.sessionId !== targetSessionId) {
 			await this.#webConfig.patchImBinding(
 				binding.instanceId,
 				binding.chatId,
@@ -793,10 +859,13 @@ export class SessionRouter {
 		}
 		const profile = this.#webConfig.getImAgent(binding.agentProfileId);
 		if (!profile) return { ok: false, error: `Unknown agent profile "${binding.agentProfileId}"` };
-		const safeName = `${profile.label}-${targetScopedBindingId(binding)}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-");
+		const conversationSuffix = shared
+			? targetScopedBindingId({ id: binding.sessionId, target: binding.target })
+			: targetScopedBindingId(binding);
+		const safeName = `${profile.label}-${conversationSuffix}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-");
 		const entry: BotSessionEntry = {
-			id: targetSessionId,
-			name: `${profile.label} · ${binding.chatId}`,
+			id: materializedId,
+			name: `${profile.label} · ${shared ? "shared" : binding.chatId}`,
 			tag: "bot",
 			sessionFile: path.join(SessionManager.getDefaultSessionDir(resolved.cwd), `${safeName}.jsonl`),
 			cwd: resolved.cwd,
@@ -1564,10 +1633,15 @@ export class SessionRouter {
 		return this.#webConfig.getBotSession(id);
 	}
 
-	/** The origin stamp for one registry entry. */
+	/**
+	 * The origin stamp for one registry entry. A conversation shared by several
+	 * entrances has no single chat/channel: its per-message metadata carries the
+	 * actual source, so the header stamp names only the conversation.
+	 */
 	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelInstanceId; peer: string }): SessionOrigin {
-		const channel = chat?.channelId ?? entry.platform;
-		const chatId = chat?.peer ?? entry.chatId;
+		const shared = this.#sessionIsShared(entry.id);
+		const channel = shared ? undefined : (chat?.channelId ?? entry.platform);
+		const chatId = shared ? undefined : (chat?.peer ?? entry.chatId);
 		return {
 			kind: "im",
 			botSessionId: entry.id,
@@ -1601,6 +1675,30 @@ export class SessionRouter {
 	async #rememberBotChat(id: string, channelId: ChannelInstanceId, peer: string): Promise<void> {
 		const entry = this.#webConfig.getBotSession(id);
 		if (!entry) return;
+		// A shared conversation answers several chats. Pinning the last one in
+		// web.yml would make a restart believe the transcript belongs to whichever
+		// entrance spoke most recently; per-message metadata is the only source.
+		// The header stamp names only the conversation and its workspace.
+		if (this.#sessionIsShared(id)) {
+			const handle = this.#botSessions.get(id);
+			const manager = handle?.session.sessionManager;
+			// A shared conversation has no owning chat. Drop a platform/chatId
+			// left by the single-entrance phase so restart/tool fallbacks cannot
+			// route to the entrance that happened to be first.
+			let effective = entry;
+			if (entry.platform !== undefined || entry.chatId !== undefined) {
+				const { platform: _platform, chatId: _chatId, ...rest } = entry;
+				effective = rest;
+				await this.#webConfig.upsertBotSession(effective);
+				if (handle) handle.entry = effective;
+			}
+			if (!manager) return;
+			const desired = this.#botOrigin(effective);
+			if (!sameSessionOrigin(manager.getOrigin(), desired)) {
+				await manager.setOrigin(desired).catch(() => {});
+			}
+			return;
+		}
 		const changed = entry.platform !== channelId || entry.chatId !== peer;
 		const updated: BotSessionEntry = { ...entry, platform: channelId, chatId: peer };
 		if (changed) {
@@ -1742,6 +1840,18 @@ export class SessionRouter {
 		const entry = this.#webConfig.getBotSession(id);
 		if (!entry) return { ok: false, error: `Unknown bot session "${id}"` };
 		if (entry.tag === "relay") return { ok: false, error: "relay 会话固定在默认工作区，不能改绑项目" };
+		if (this.#sessionIsShared(id)) {
+			return {
+				ok: false,
+				error: "该会话被多个入口共享；项目由会话及其绑定共同拥有，不能用单条命令迁移。先解除共享或改绑定目标。",
+			};
+		}
+		if (entry.reusesExistingTranscript) {
+			return {
+				ok: false,
+				error: "该会话是复用的现有 Studio/TUI 转录；IM 不能迁移其文件，请在 Studio 中选择新的工作区会话。",
+			};
+		}
 		const resolved = await this.#resolveProject({ alias });
 		if (!resolved.ok) return resolved;
 		const handle = this.#botSessions.get(id);
@@ -1807,6 +1917,14 @@ export class SessionRouter {
 				});
 			}
 		}
+		if (entry.reusesExistingTranscript) {
+			// The transcript belongs to Studio/TUI/main. Deleting the IM
+			// conversation detaches every entrance but keeps the user's history.
+			await this.#webConfig.removeBotSession(id);
+			await this.#webConfig.clearChatSessionReferences(id);
+			logger.info("Attached conversation detached from IM", { id, sessionFile: entry.sessionFile });
+			return { ok: true };
+		}
 		try {
 			await fs.rm(entry.sessionFile, { force: true });
 		} catch (error) {
@@ -1847,23 +1965,80 @@ export class SessionRouter {
 		return entry.model ? { ...options, model: `${entry.model.provider}/${entry.model.model}` } : options;
 	}
 
-	/** Get (or lazily create) the live session for a registered bot session. */
+	/**
+	 * Get (or lazily create) the live session for a registered bot session.
+	 * Concurrent first deliveries coalesce on the canonical conversation id so
+	 * two entrances can never start two runtimes for one transcript.
+	 */
 	async ensureBotSession(
 		entry: BotSessionEntry,
 	): Promise<{ ok: true; session: AgentSession } | { ok: false; error: string }> {
 		const existing = this.#botSessions.get(entry.id);
 		if (existing) return { ok: true, session: existing.session };
+		const inFlight = this.#botStarts.get(entry.id);
+		if (inFlight) return await inFlight;
+		const start = this.#startBotSession(entry);
+		this.#botStarts.set(entry.id, start);
+		try {
+			return await start;
+		} finally {
+			if (this.#botStarts.get(entry.id) === start) this.#botStarts.delete(entry.id);
+		}
+	}
+
+	/** The one actual start for a coalesced conversation. */
+	async #startBotSession(
+		entry: BotSessionEntry,
+	): Promise<{ ok: true; session: AgentSession } | { ok: false; error: string }> {
+		// Attached native files already have another owner's history. Probe the
+		// cross-process writer lease before opening; a failed claim must surface
+		// as an error, never let SessionManager fork the session to a sibling.
+		let releaseAttached: (() => void) | undefined;
+		if (entry.reusesExistingTranscript) {
+			const claim = new FileSessionStorage().claimSession(entry.nativeSessionId ?? entry.id, entry.sessionFile, {
+				failClosed: true,
+			});
+			if (claim === null) {
+				return {
+					ok: false,
+					error:
+						`Conversation "${entry.name}" is written by another zeta process, or its transcript id changed. ` +
+						"Close that writer before using it from IM.",
+				};
+			}
+			releaseAttached = claim;
+		}
 		try {
 			const session = this.#createBotSessionRuntime
 				? await this.#createBotSessionRuntime(entry)
 				: await this.#defaultBotSessionRuntime(entry);
+			// Record the canonical transcript id once. A conversation attached
+			// from an existing Studio/TUI file keeps that file and its header id;
+			// a fresh IM file gets its own id, never a second transcript.
+			let effective = entry;
+			const nativeSessionId = session.sessionManager?.getSessionId?.();
+			if (nativeSessionId && entry.nativeSessionId && nativeSessionId !== entry.nativeSessionId) {
+				// A runtime factory may have returned an already-live session; do
+				// not dispose someone else's handle, only a default runtime we made.
+				if (!this.#createBotSessionRuntime) await session.dispose().catch(() => {});
+				return {
+					ok: false,
+					error:
+						`Conversation "${entry.name}" resolved transcript ${nativeSessionId}, ` +
+						`but its canonical id is ${entry.nativeSessionId}. Refusing to rewrite the conversation identity.`,
+				};
+			}
+			if (nativeSessionId && !entry.nativeSessionId) {
+				effective = { ...entry, nativeSessionId };
+				await this.#webConfig.upsertBotSession(effective);
+			}
 			const unsubscribe = session.subscribe(event => this.#onBotSessionEvent(entry.id, event));
-			this.#botSessions.set(entry.id, { entry, session, unsubscribe });
+			this.#botSessions.set(entry.id, { entry: effective, session, unsubscribe });
 			this.#bridgeFor(entry.id, session);
 			// The registry owns the name and IM stamp; a transcript created before
 			// the stamp existed is corrected here (one rewrite, then a no-op).
-			await this.#syncBotSessionMetadata(entry, session);
-			if (entry.lang) this.#applyLanguageToSession(session, entry.lang);
+			await this.#syncBotSessionMetadata(effective, session);
+			if (effective.lang) this.#applyLanguageToSession(session, effective.lang);
 			return { ok: true, session };
 		} catch (error) {
 			logger.error("Failed to open bot session", {
@@ -1871,6 +2046,10 @@ export class SessionRouter {
 				error: error instanceof Error ? error.message : String(error),
 			});
 			return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		} finally {
+			// The runtime manager holds its own lease after open; the probe only
+			// covers the window between checking ownership and starting it.
+			releaseAttached?.();
 		}
 	}
 
@@ -1910,9 +2089,13 @@ export class SessionRouter {
 	}
 
 	/** The bot session id this chat currently uses ("" / null → relay). */
-	async activeBotSessionIdFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
+	async activeBotSessionIdFor(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<string | null> {
 		// `relay` is the explicit sentinel; a removed field is the implicit default.
-		return this.#webConfig.findImBinding(channelId, peer)?.sessionId ?? null;
+		return this.#webConfig.findImBinding(channelId, peer, context)?.sessionId ?? null;
 	}
 
 	/** Point one chat at a bot session (clears direct workspace mode). Relay is
@@ -1921,36 +2104,43 @@ export class SessionRouter {
 		channelId: ChannelInstanceId,
 		peer: string,
 		id: string,
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (id === "relay") {
-			// Relay means the coordinator: drop the chat's row entirely so the
-			// active-session pointer reads null, and pin the runtime route to relay
-			// until a later switch writes a new binding.
-			await this.#webConfig.removeImBindingByChat(channelId, peer);
+			// Relay means the coordinator: drop exactly this chat/thread/sender's
+			// row so the active-session pointer reads null, and pin the runtime
+			// route to relay until a later switch writes a new binding.
+			const current = this.#webConfig.findImBinding(channelId, peer, context);
+			if (current) await this.#webConfig.removeImBinding(current.id);
 			this.#runtimeBindings.set(`${channelId}:${peer}`, COORDINATOR_ALIAS);
 			return { ok: true, id: "relay" };
 		}
 		const entry = this.#webConfig.getBotSession(id);
 		if (!entry) return { ok: false, error: `Unknown bot session "${id}"` };
 		if (entry.tag === "relay") {
-			return this.setActiveBotSession(channelId, peer, "relay");
+			return this.setActiveBotSession(channelId, peer, "relay", context);
 		}
 		const ensured = await this.ensureBotSession(entry);
 		if (!ensured.ok) return ensured;
 		// The selected session owns its project: a stale workspace binding must
 		// not keep routing this chat to a different repository.
-		await this.#webConfig.patchImBinding(channelId, peer, {
-			sessionId: id,
-			...(entry.agentProfileId ? { agentProfileId: entry.agentProfileId } : {}),
-			...(entry.target
-				? { target: entry.target }
-				: entry.workspaceAlias
-					? { target: { kind: "workspace" as const, workspace: entry.workspaceAlias } }
-					: {}),
-		});
+		await this.#webConfig.patchImBinding(
+			channelId,
+			peer,
+			{
+				sessionId: id,
+				...(entry.agentProfileId ? { agentProfileId: entry.agentProfileId } : {}),
+				...(entry.target
+					? { target: entry.target }
+					: entry.workspaceAlias
+						? { target: { kind: "workspace" as const, workspace: entry.workspaceAlias } }
+						: {}),
+			},
+			context,
+		);
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		await this.#rememberBotChat(id, channelId, peer);
-		const lang = (await this.languageFor(channelId, peer)) ?? entry.lang;
+		const lang = (await this.languageFor(channelId, peer, context)) ?? entry.lang;
 		if (lang) this.#applyLanguageToSession(ensured.session, lang);
 		return { ok: true, id };
 	}
@@ -1997,24 +2187,33 @@ export class SessionRouter {
 		return this.#getLastInbound();
 	}
 
-	/** Drop a chat's bot-session pointer (falls back to the relay). */
-	async clearActiveBotSession(channelId: ChannelInstanceId, peer: string): Promise<void> {
-		await this.#webConfig.patchImBinding(channelId, peer, {
-			sessionId: "relay",
-			target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
-		});
+	/** Drop one chat/thread/sender's bot-session pointer (falls back to the relay). */
+	async clearActiveBotSession(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<void> {
+		await this.#webConfig.patchImBinding(
+			channelId,
+			peer,
+			{
+				sessionId: "relay",
+				target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			},
+			context,
+		);
 	}
 
-	/** Persist the chat's model so a restarted binding resumes the same model. */
+	/** Persist the chat's model so a restarted (possibly shared) binding resumes it. */
 	async setChatModel(
 		channelId: ChannelInstanceId,
 		peer: string,
 		model: { provider: string; model: string },
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<void> {
-		await this.#webConfig.patchImBinding(channelId, peer, { model });
-		const binding = this.#webConfig.findImBinding(channelId, peer);
-		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
-		if (entry) await this.#webConfig.upsertBotSession({ ...entry, model });
+		const updated = await this.#webConfig.setImConversationModel(channelId, peer, model, context);
+		const handle = this.#botSessions.get(updated.sessionId);
+		if (handle) handle.entry = { ...handle.entry, model };
 	}
 
 	/** The reply language configured for one chat ("" → unset). */
@@ -2132,6 +2331,10 @@ export class SessionRouter {
 						kind: "chat",
 						instanceId: channelId,
 						peer,
+						// The platform's message id is the reply reference; the internal
+						// Snowflake id only correlates the wake turn and must never be
+						// sent as a platform reply id.
+						...(context.messageId ? { messageId: context.messageId } : {}),
 						originLabel: binding
 							? `${targetKey(binding.target)} · ${binding.agentProfileId}`
 							: handle.entry.target
@@ -2215,7 +2418,20 @@ export class SessionRouter {
 			ts: Date.now(),
 			metadata: this.#imUserMetadata(channelId, peer, context, { workspaceAlias }, messageId, Date.now()),
 		};
-		bridge.expect(msg.id, { kind: "chat", instanceId: channelId, peer });
+		bridge.expect(msg.id, {
+			kind: "chat",
+			instanceId: channelId,
+			peer,
+			...(context.messageId ? { messageId: context.messageId } : {}),
+			...(context.threadId || context.userId
+				? {
+						context: {
+							...(context.threadId ? { threadId: context.threadId } : {}),
+							...(context.userId ? { userId: context.userId } : {}),
+						},
+					}
+				: {}),
+		});
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
@@ -2411,6 +2627,7 @@ export class SessionRouter {
 			}
 		}
 		this.#botSessions.clear();
+		this.#botStarts.clear();
 		this.#botLastChat.clear();
 		this.#bridges.clear();
 		this.#observedBridges.clear();

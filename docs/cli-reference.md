@@ -30,6 +30,13 @@ flags accepted by `zetacode` / `zetacode launch`) and every top-level **subcomma
 Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
+`zetacode 2fa status` displays the active profile's account/device TOTP status:
+enrollment, required policy, pending enrollment and recovery-code count. Add
+`--json` for secret-free structured output. A damaged store reports unavailable
+and exits unsuccessfully; it never reports protection as disabled. `/2fa status`
+opens the same read-only status in the interactive TUI. Enrollment/reset uses
+local Work Studio settings; see [serve authentication](./zeta-serve-web.md).
+
 ## Launch (the default command)
 
 `zetacode` and `zetacode launch` start a coding session. Positional arguments become the

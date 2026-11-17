@@ -28,7 +28,9 @@ import {
 	fetchChannelStatus,
 	fetchImAgents,
 	fetchImBindings,
+	fetchImConversations,
 	fetchInstanceQr,
+	attachImConversation,
 	isValidInstanceId,
 	isValidBindingId,
 	isValidProfileId,
@@ -53,6 +55,7 @@ import {
 	type CredentialBag,
 	type ImAgentProfile,
 	type ImBinding,
+	type ImConversation,
 	type SecretDraft,
 } from "./imRuntimeApi";
 import { SettingSection, Switch } from "./SettingRow";
@@ -99,6 +102,7 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 	const [instances, setInstances] = useState<readonly ChannelInstance[] | null>(null);
 	const [agents, setAgents] = useState<AgentsEnvelope | null>(null);
 	const [bindings, setBindings] = useState<readonly ImBinding[] | null>(null);
+	const [conversations, setConversations] = useState<readonly ImConversation[] | null>(null);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [notice, setNotice] = useState<string | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
@@ -113,7 +117,7 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 
 	const load = useCallback(async () => {
 		const nextErrors: Record<string, string> = {};
-		const [nextStatus, nextInstances, nextAgents, nextBindings] = await Promise.all([
+		const [nextStatus, nextInstances, nextAgents, nextBindings, nextConversations] = await Promise.all([
 			fetchChannelStatus().catch(error => {
 				nextErrors.status = errorText(error);
 				return null;
@@ -130,11 +134,16 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 				nextErrors.bindings = errorText(error);
 				return null;
 			}),
+			fetchImConversations().catch(error => {
+				nextErrors.conversations = errorText(error);
+				return null;
+			}),
 		]);
 		setStatus(nextStatus?.instances ?? null);
 		setInstances(nextInstances);
 		setAgents(nextAgents);
 		setBindings(nextBindings);
+		setConversations(nextConversations);
 		setErrors(nextErrors);
 		// Keep the selected instance without making `load` depend on it: rebuilding
 		// the loader when the selection changed re-ran the visible effect and
@@ -214,11 +223,20 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 		});
 	};
 
-	const saveBinding = (next: ImBinding): void => {
+	const saveBinding = (draft: ImBinding): void => {
 		if (bindings === null) return;
-		const exists = bindings.some(binding => binding.id === next.id);
-		const rows = exists ? bindings.map(binding => (binding.id === next.id ? next : binding)) : [...bindings, next];
 		void run("binding-save", async () => {
+			// A selected native transcript is canonicalized into the registry
+			// before the binding is written. This reuses the file; no transcript
+			// is created or stamped until a real IM message is delivered.
+			let next = draft;
+			const selected = conversations?.find(conversation => conversation.id === draft.sessionId);
+			if (selected !== undefined && !selected.attached) {
+				const attached = await attachImConversation(fetch, selected.id);
+				next = { ...draft, sessionId: attached.id };
+			}
+			const exists = bindings.some(binding => binding.id === next.id);
+			const rows = exists ? bindings.map(binding => (binding.id === next.id ? next : binding)) : [...bindings, next];
 			await putImBindings(fetch, rows);
 			setEditingBinding(null);
 			return t("绑定已保存。", "Binding saved.");
@@ -261,6 +279,10 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 		instances?.find(instance => instance.id === id)?.label ?? id;
 	const profileLabel = (id: string): string =>
 		agents?.profiles.find(profile => profile.id === id)?.label ?? id;
+	const conversationLabel = (binding: ImBinding): string =>
+		conversations?.find(conversation => conversation.id === binding.sessionId)?.name ??
+		binding.conversationName ??
+		t("待创建会话", "Pending conversation");
 
 	const filteredBindings = useMemo(() => {
 		if (bindings === null) return null;
@@ -432,7 +454,11 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 						</div>
 						{errors.bindings !== undefined ? (
 							<p className="imr-error" role="alert">{t("读取绑定失败：", "Could not read bindings: ")}{errors.bindings}</p>
-						) : filteredBindings === null ? (
+						) : null}
+						{errors.conversations !== undefined ? (
+							<p className="imr-error" role="alert">{t("读取会话失败：", "Could not read conversations: ")}{errors.conversations}</p>
+						) : null}
+						{filteredBindings === null ? (
 							<p className="imr-empty">{t("加载中…", "Loading…")}</p>
 						) : filteredBindings.length === 0 ? (
 							<p className="imr-empty">{t("还没有绑定。", "No bindings yet.")}</p>
@@ -463,7 +489,17 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 														{!target.available ? <div className="imr-error">{target.reason === "needsReview" ? t("待复核", "needs review") : target.reason}</div> : null}
 													</td>
 													<td>{binding.agentProfileLabel ?? profileLabel(binding.agentProfileId)}</td>
-													<td className="imr-mono">{binding.sessionId}</td>
+													<td>
+														{conversationLabel(binding)}
+														{binding.conversationShared === true ? (
+															<div className="imr-hint">
+																{t(
+																	`共享 · ${binding.conversationEntrances ?? 2} 个入口`,
+																	`shared · ${binding.conversationEntrances ?? 2} entrances`,
+																)}
+															</div>
+														) : null}
+													</td>
 													<td>{binding.model ? `${binding.model.provider} / ${binding.model.model}` : t("继承", "inherit")}</td>
 													<td>
 														<span className={`chip sm ${binding.role === "answer" ? "green" : binding.role === "mention" ? "blue" : "gray"}`}>
@@ -490,6 +526,7 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 							profiles={agents?.profiles ?? []}
 							targets={agents?.targets ?? []}
 							bindings={bindings ?? []}
+							conversations={conversations ?? []}
 							busy={busy !== null}
 							zh={zh}
 							onCancel={() => setEditingBinding(null)}
@@ -901,6 +938,16 @@ function isArrayCredentialField(key: string): boolean {
 	return key === "allowedChannels" || key === "allowedUsers" || key === "allowedGroups";
 }
 
+/** Selector sentinel for a conversation that starts with the first message. */
+const NEW_CONVERSATION = "__new__";
+
+/** Opaque internal id for a not-yet-materialized conversation; never rendered. */
+function newPendingSessionId(): string {
+	const bytes = new Uint8Array(8);
+	globalThis.crypto.getRandomValues(bytes);
+	return `pending-${Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
 interface BindingFormState {
 	id: string;
 	instanceId: string;
@@ -916,12 +963,13 @@ interface BindingFormState {
 	model: string;
 }
 
-function BindingEditor({
+export function BindingEditor({
 	initial,
 	instances,
 	profiles,
 	targets,
 	bindings,
+	conversations,
 	busy,
 	zh,
 	onCancel,
@@ -932,6 +980,7 @@ function BindingEditor({
 	profiles: readonly ImAgentProfile[];
 	targets: AgentsEnvelope["targets"];
 	bindings: readonly ImBinding[];
+	conversations: readonly ImConversation[];
 	busy: boolean;
 	zh: boolean;
 	onCancel: () => void;
@@ -945,14 +994,37 @@ function BindingEditor({
 		threadId: initial?.threadId ?? "",
 		userId: initial?.userId ?? "",
 		agentProfileId: initial?.agentProfileId ?? profiles[0]?.id ?? "",
-		targetKey: initial?.target?.key ?? targets.find(target => target.available !== false)?.key ?? "",
-		sessionId: initial?.sessionId ?? "",
+		targetKey: initial?.targetKey ?? initial?.target?.key ?? targets.find(target => target.available !== false)?.key ?? "",
+		// Never preselect an existing conversation: sharing must be an explicit
+		// choice. A new entrance starts with a new conversation by default.
+		sessionId: initial?.sessionId ?? NEW_CONVERSATION,
 		role: initial?.role ?? "answer",
 		lang: initial?.lang ?? "",
 		provider: initial?.model?.provider ?? "",
 		model: initial?.model?.model ?? "",
 	}));
-	const selectedTarget = targets.find(target => target.key === form.targetKey);
+	const selectedConversation = conversations.find(conversation => conversation.id === form.sessionId);
+	const lockedProfileId = selectedConversation?.agentProfileId;
+	const lockedTargetKey = selectedConversation?.targetKey;
+	const lockedModel = selectedConversation?.model;
+	const conversationUnavailable =
+		selectedConversation !== undefined &&
+		selectedConversation.available !== true &&
+		selectedConversation.id !== initial?.sessionId;
+	const conversationTarget =
+		selectedConversation?.targetKey !== undefined && selectedConversation.targetKey === form.targetKey
+			? {
+					kind: selectedConversation.targetKey.includes(":")
+						? selectedConversation.targetKey.slice(0, selectedConversation.targetKey.indexOf(":"))
+						: "workspace",
+					key: selectedConversation.targetKey,
+					targetKey: selectedConversation.targetKey,
+					display: selectedConversation.targetDisplay,
+					available: selectedConversation.targetAvailable,
+					...(selectedConversation.reason ? { reason: selectedConversation.reason } : {}),
+				}
+			: undefined;
+	const selectedTarget = targets.find(target => target.key === form.targetKey) ?? conversationTarget;
 	const targetUsable = selectedTarget !== undefined && selectedTarget.available !== false;
 	const duplicate = bindings.some(binding =>
 		binding.id !== form.id &&
@@ -978,9 +1050,40 @@ function BindingEditor({
 		!duplicateId &&
 		!controlChar &&
 		!partialModel &&
-		!answerConflict;
+		!answerConflict &&
+		!conversationUnavailable;
+	const chooseConversation = (sessionId: string): void => {
+		const conversation = conversations.find(candidate => candidate.id === sessionId);
+		setForm({
+			...form,
+			sessionId,
+			...(conversation?.agentProfileId ? { agentProfileId: conversation.agentProfileId } : {}),
+			...(conversation?.targetKey ? { targetKey: conversation.targetKey } : {}),
+			...(conversation?.model
+				? { provider: conversation.model.provider, model: conversation.model.model }
+				: {}),
+		});
+	};
+	const reasonLabel = (reason: string | undefined): string => {
+		switch (reason) {
+			case "workspace-not-registered":
+				return t("工作区未注册", "workspace not registered");
+			case "session-running":
+				return t("会话正在其他窗口运行", "conversation is live elsewhere");
+			case "session-owned-elsewhere":
+				return t("会话正被另一个进程写入", "conversation is owned by another process");
+			case "ambiguous-session-id":
+				return t("会话 ID 不唯一", "conversation id is ambiguous");
+			case "missing-target":
+				return t("缺少目标", "missing target");
+			case "temporary-session":
+				return t("临时会话", "temporary session");
+			default:
+				return reason ?? t("不可用", "unavailable");
+		}
+	};
 	return (
-		<SettingSection title={initial === null ? t("新增绑定", "New binding") : t("编辑绑定", "Edit binding")} desc={t("目标必须是后端解析出的可用 target；needsReview 的旧绑定要重新选择目标才能保存。", "The target must be a backend-resolved available target; a needs-review row must pick a target before it can be saved.")}>
+		<SettingSection title={initial === null ? t("新增绑定", "New binding") : t("编辑绑定", "Edit binding")} desc={t("选择现有会话即显式共享其历史；不同会话不会因为 Profile 相同而合并。目标必须是后端解析出的可用 target。", "Choosing an existing conversation explicitly shares its history; different conversations never merge just because they use the same profile. The target must be a backend-resolved available target.")}>
 			<form
 				className="imr-form"
 				onSubmit={event => {
@@ -994,7 +1097,10 @@ function BindingEditor({
 						...(form.threadId.trim() !== "" ? { threadId: form.threadId.trim() } : {}),
 						...(form.userId.trim() !== "" ? { userId: form.userId.trim() } : {}),
 						agentProfileId: form.agentProfileId,
-						sessionId: form.sessionId.trim(),
+						sessionId:
+							form.sessionId === NEW_CONVERSATION
+								? newPendingSessionId()
+								: form.sessionId.trim(),
 						...(selectedTarget !== undefined ? { target: selectedTarget } : {}),
 						role: form.role,
 						...(form.lang !== "" ? { lang: form.lang } : {}),
@@ -1026,14 +1132,37 @@ function BindingEditor({
 				</label>
 				<label className="imr-field">
 					<span>{t("Agent Profile", "Agent profile")}</span>
-					<select className="select" value={form.agentProfileId} onChange={event => setForm({ ...form, agentProfileId: event.target.value })}>
+					<select
+						className="select"
+						value={form.agentProfileId}
+						disabled={lockedProfileId !== undefined}
+						onChange={event => setForm({ ...form, agentProfileId: event.target.value })}
+					>
+						{lockedProfileId !== undefined && !profiles.some(profile => profile.id === lockedProfileId) ? (
+							<option value={lockedProfileId}>
+								{selectedConversation?.agentProfileLabel ?? t("会话所属 Profile", "conversation profile")}
+							</option>
+						) : null}
 						{profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
 					</select>
+					{lockedProfileId !== undefined ? (
+						<small className="imr-hint">{t("由共享会话锁定。", "Locked by the shared conversation.")}</small>
+					) : null}
 				</label>
 				<label className="imr-field">
 					<span>{t("目标", "Target")}</span>
-					<select className="select" value={form.targetKey} onChange={event => setForm({ ...form, targetKey: event.target.value })}>
+					<select
+						className="select"
+						value={form.targetKey}
+						disabled={lockedTargetKey !== undefined}
+						onChange={event => setForm({ ...form, targetKey: event.target.value })}
+					>
 						<option value="">{t("选择…", "Select…")}</option>
+						{lockedTargetKey !== undefined && !targets.some(target => target.key === lockedTargetKey) ? (
+							<option value={lockedTargetKey}>
+								{selectedConversation?.targetDisplay ?? t("会话目标", "conversation target")}
+							</option>
+						) : null}
 						{targets.map(target => (
 							<option key={target.key ?? target.display ?? target.kind} value={target.key ?? ""} disabled={target.available === false}>
 								{target.display ?? target.key ?? target.kind}{target.available === false ? ` — ${target.reason ?? t("不可用", "unavailable")}` : ""}
@@ -1041,10 +1170,44 @@ function BindingEditor({
 						))}
 					</select>
 					{selectedTarget !== undefined && selectedTarget.available === false ? <small className="imr-error">{selectedTarget.reason ?? t("目标不可用", "Target unavailable")}</small> : null}
+					{lockedTargetKey !== undefined ? (
+						<small className="imr-hint">{t("由共享会话锁定。", "Locked by the shared conversation.")}</small>
+					) : null}
 				</label>
 				<label className="imr-field">
-					<span>{t("会话 ID", "Session id")}</span>
-					<input className="input" value={form.sessionId} onChange={event => setForm({ ...form, sessionId: event.target.value })} />
+					<span>{t("会话", "Conversation")}</span>
+					<select className="select" value={form.sessionId} onChange={event => chooseConversation(event.target.value)}>
+						<option value={NEW_CONVERSATION}>{t("新建会话（首条消息后创建）", "New conversation (created on first message)")}</option>
+						{initial !== null &&
+						initial.sessionId !== "" &&
+						!conversations.some(conversation => conversation.id === initial.sessionId) ? (
+							<option value={initial.sessionId}>
+								{initial.conversationName ?? t("当前会话", "Current conversation")}
+							</option>
+						) : null}
+						{conversations.map(conversation => (
+							<option
+								key={conversation.id}
+								value={conversation.id}
+								disabled={conversation.available !== true && conversation.id !== initial?.sessionId}
+							>
+								{conversation.name} · {conversation.workspaceDisplay}
+								{conversation.shared ? ` · ${t(`共享 ${conversation.entrances} 个入口`, `shared by ${conversation.entrances} entrances`)}` : ""}
+								{conversation.available !== true ? ` — ${reasonLabel(conversation.reason)}` : ""}
+							</option>
+						))}
+					</select>
+					{selectedConversation?.shared === true ? (
+						<small className="imr-hint">
+							{t(
+								"共享会话：所有入口读写同一历史、记忆与目标；回复仍按各自消息回到原聊天。",
+								"Shared conversation: every entrance reads and writes the same history, memory and target; replies still return to each originating chat.",
+							)}
+						</small>
+					) : null}
+					{conversationUnavailable ? (
+						<small className="imr-error">{reasonLabel(selectedConversation?.reason)}</small>
+					) : null}
 				</label>
 				<label className="imr-field">
 					<span>{t("角色", "Role")}</span>
@@ -1077,11 +1240,24 @@ function BindingEditor({
 				</label>
 				<label className="imr-field">
 					<span>{t("模型 provider", "Model provider")}</span>
-					<input className="input" value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value })} />
+					<input
+						className="input"
+						value={form.provider}
+						disabled={lockedModel !== undefined}
+						onChange={event => setForm({ ...form, provider: event.target.value })}
+					/>
 				</label>
 				<label className="imr-field">
 					<span>{t("模型 id", "Model id")}</span>
-					<input className="input" value={form.model} onChange={event => setForm({ ...form, model: event.target.value })} />
+					<input
+						className="input"
+						value={form.model}
+						disabled={lockedModel !== undefined}
+						onChange={event => setForm({ ...form, model: event.target.value })}
+					/>
+					{lockedModel !== undefined ? (
+						<small className="imr-hint">{t("由共享会话锁定。", "Locked by the shared conversation.")}</small>
+					) : null}
 				</label>
 				<div className="imr-actions imr-field-wide">
 					<button type="submit" className="btn small primary" disabled={busy || !canSave}>{t("保存绑定", "Save binding")}</button>

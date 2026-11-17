@@ -6,6 +6,8 @@
  * path.
  */
 
+import { createHash } from "node:crypto";
+import * as path from "node:path";
 import { logger } from "@linxiraos/pi-utils";
 import {
 	CHANNEL_PLATFORM_CAPABILITIES,
@@ -19,9 +21,15 @@ import type { ChannelInstanceConfig, ImAgentProfile, ImBinding, ImTarget } from 
 import { bindingKey, credentialFields, targetKey, targetScopedBindingId } from "../../channels/im-config";
 import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
+import { defaultCoordinatorWorkspace } from "../../default-workspace";
+import { FileSessionStorage } from "../../session/session-storage";
 import { resolveTeamDbPath, TeamDb } from "../../team/db";
 import { imAgentRuntimeId } from "../../agent-profile";
 import { readImSessionCandidates, readImSwitchGateway } from "../../channels/session-router";
+import { getRpcSession } from "./agents";
+import { getRunningSessionIds } from "./running-sessions";
+import { listAllSessionsWeb } from "./sessions";
+import type { SessionInfo as GatewaySessionInfo } from "./types";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -150,14 +158,233 @@ function targetDisplayFor(webConfig: WebConfig, target: ImTarget): string {
 function bindingView(webConfig: WebConfig, binding: ImBinding): Record<string, unknown> {
 	const target = targetAvailability(webConfig, binding.target);
 	const profile = webConfig.getImAgent(binding.agentProfileId);
+	const conversation = webConfig.getBotSession(binding.sessionId);
+	const entrances = webConfig.countImBindingsForSession(binding.sessionId);
 	return {
 		...binding,
 		agentProfileLabel: profile?.label ?? binding.agentProfileId,
-		agentRuntimeId: imAgentRuntimeId(binding.instanceId, binding.agentProfileId, targetScopedBindingId(binding)),
+		// A shared conversation has one runtime identity: the entry's owner
+		// metadata. Computing it from this binding would pretend each entrance
+		// owns a different runtime/memory home for the same transcript.
+		agentRuntimeId: imAgentRuntimeId(
+			conversation?.instanceId ?? binding.instanceId,
+			conversation?.agentProfileId ?? binding.agentProfileId,
+			conversation?.bindingId ?? targetScopedBindingId(binding),
+		),
+		targetKey: targetKey(binding.target),
 		targetDisplay: target.display,
 		targetAvailable: target.available,
 		...(target.reason ? { targetReason: target.reason } : {}),
+		...(conversation
+			? {
+					// A legacy row may have stored its id as the name; the ordinary
+					// table must never receive that as a human label.
+					...(conversation.name &&
+					conversation.name !== conversation.id &&
+					conversation.name !== conversation.nativeSessionId
+						? { conversationName: conversation.name }
+						: {}),
+					conversationEntrances: entrances,
+					conversationShared: entrances > 1,
+					...(conversation.nativeSessionId ? { nativeSessionId: conversation.nativeSessionId } : {}),
+				}
+			: {}),
 	};
+}
+
+/** Path identity for matching a registry row to a native transcript. */
+function normalizeFilePath(value: string): string {
+	const resolved = path.resolve(value);
+	return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+interface ConversationWorkspace {
+	target: ImTarget;
+	alias?: string;
+	display: string;
+	available: boolean;
+	reason?: string;
+}
+
+/**
+ * Map a native transcript's cwd to the same typed target a binding must carry.
+ * Only the default workspace and registered aliases are acceptable; an
+ * unregistered project is an explicit prerequisite, never an invented target.
+ */
+function workspaceForCwd(webConfig: WebConfig, cwd: string | undefined): ConversationWorkspace | undefined {
+	if (!cwd || cwd.trim() === "") return undefined;
+	const resolved = path.resolve(cwd);
+	const normalized = normalizeFilePath(resolved);
+	if (normalized === normalizeFilePath(defaultCoordinatorWorkspace())) {
+		return {
+			target: { kind: "workspace", workspace: "main" },
+			alias: "main",
+			display: "默认工作区",
+			available: true,
+		};
+	}
+	const entry = webConfig.getWorkspaces().find(workspace => normalizeFilePath(workspace.path) === normalized);
+	if (!entry) return undefined;
+	const target: ImTarget = { kind: "workspace", workspace: entry.alias };
+	const availability = targetAvailability(webConfig, target);
+	return {
+		target,
+		alias: entry.alias,
+		display: availability.display,
+		available: availability.available,
+		...(availability.reason ? { reason: availability.reason } : {}),
+	};
+}
+
+/** Human conversation label; never an id and never an absolute path. */
+function conversationName(
+	name: string | undefined,
+	firstMessage: string | undefined,
+	...excludedIds: Array<string | undefined>
+): string {
+	const title = name?.replace(/\s+/g, " ").trim();
+	if (title && !excludedIds.includes(title)) return title;
+	const first = firstMessage?.replace(/\s+/g, " ").trim();
+	if (first && !excludedIds.includes(first)) return first.length > 80 ? `${first.slice(0, 79)}…` : first;
+	return "Untitled conversation";
+}
+
+interface ConversationView {
+	id: string;
+	name: string;
+	kind: "relay" | "bot" | "draft" | "native";
+	attached: boolean;
+	shared: boolean;
+	entrances: number;
+	nativeSessionId?: string;
+	workspaceAlias?: string;
+	workspaceDisplay: string;
+	targetKey?: string;
+	targetDisplay: string;
+	targetAvailable: boolean;
+	agentProfileId?: string;
+	agentProfileLabel?: string;
+	model?: { provider: string; model: string };
+	source?: string;
+	lastActiveAt?: string;
+	available: boolean;
+	reason?: string;
+}
+
+/**
+ * One conversation row for the Settings chooser. Registry rows are listed
+ * from `remote.botSessions`; remaining native transcripts come from the
+ * gateway's existing session listing. Nothing here writes or opens a session.
+ */
+function conversationViews(webConfig: WebConfig, sessions: readonly GatewaySessionInfo[]): ConversationView[] {
+	const bindings = webConfig.getImBindings();
+	const botEntries = webConfig.getBotSessions();
+	const botById = new Map(botEntries.map(entry => [entry.id, entry]));
+	const nativeByPath = new Map(sessions.map(session => [normalizeFilePath(session.path), session]));
+	const nativeIdCounts = new Map<string, number>();
+	for (const session of sessions) nativeIdCounts.set(session.id, (nativeIdCounts.get(session.id) ?? 0) + 1);
+	const rows: ConversationView[] = [];
+	const registeredPaths = new Set<string>();
+	for (const entry of botEntries) {
+		registeredPaths.add(normalizeFilePath(entry.sessionFile));
+		const native = nativeByPath.get(normalizeFilePath(entry.sessionFile));
+		const entrances = bindings.filter(binding => binding.sessionId === entry.id);
+		const binding = entrances[0];
+		const profileId = entry.agentProfileId ?? binding?.agentProfileId;
+		const profile = profileId ? webConfig.getImAgent(profileId) : undefined;
+		const target =
+			entry.tag === "relay"
+				? ({ kind: "workspace", workspace: "main" } as const)
+				: (entry.target ??
+					binding?.target ??
+					(entry.workspaceAlias ? { kind: "workspace" as const, workspace: entry.workspaceAlias } : undefined) ??
+					workspaceForCwd(webConfig, entry.cwd)?.target);
+		const availability: { display: string; available: boolean; reason?: string } =
+			entry.tag === "relay"
+				? { display: "默认工作区", available: true }
+				: target
+					? targetAvailability(webConfig, target)
+					: { display: "未绑定目标", available: false, reason: "missing-target" };
+		const nativeSessionId = entry.nativeSessionId ?? native?.id;
+		const workspaceAlias = entry.workspaceAlias ?? (target?.kind === "workspace" ? target.workspace : undefined);
+		const model = entry.model ?? entrances.find(candidate => candidate.model !== undefined)?.model;
+		rows.push({
+			id: entry.id,
+			// An attached native transcript's own title is the human truth; an
+			// IM-owned entry keeps the registry name rename_session maintains.
+			name: conversationName(
+				entry.reusesExistingTranscript && native?.name ? native.name : entry.name,
+				native?.name,
+				entry.id,
+				entry.nativeSessionId,
+				native?.id,
+			),
+			kind: entry.tag,
+			attached: true,
+			shared: entrances.length > 1,
+			entrances: entrances.length,
+			...(nativeSessionId ? { nativeSessionId } : {}),
+			...(workspaceAlias ? { workspaceAlias } : {}),
+			workspaceDisplay: availability.display,
+			...(target ? { targetKey: targetKey(target) } : {}),
+			targetDisplay: availability.display,
+			targetAvailable: availability.available,
+			...(profileId ? { agentProfileId: profileId } : {}),
+			...(profile ? { agentProfileLabel: profile.label } : {}),
+			...(model ? { model } : {}),
+			source: entry.tag,
+			...(native?.modified ? { lastActiveAt: native.modified } : {}),
+			available: availability.available,
+			...(availability.reason ? { reason: availability.reason } : {}),
+		});
+	}
+	for (const session of sessions) {
+		const fileKey = normalizeFilePath(session.path);
+		if (registeredPaths.has(fileKey)) continue;
+		const workspace = workspaceForCwd(webConfig, session.cwd);
+		const running = getRunningSessionIds().includes(session.id);
+		const alreadyIm = session.origin?.kind === "im";
+		const collisionEntry = botById.get(session.id);
+		const registryCollision =
+			collisionEntry !== undefined && normalizeFilePath(collisionEntry.sessionFile) !== fileKey;
+		const ambiguous = (nativeIdCounts.get(session.id) ?? 0) > 1 || registryCollision;
+		const reason = ambiguous
+			? "ambiguous-session-id"
+			: running && !alreadyIm
+				? "session-running"
+				: workspace === undefined
+					? "workspace-not-registered"
+					: workspace.reason;
+		rows.push({
+			id: session.id,
+			name: conversationName(session.name, session.firstMessage, session.id),
+			kind: "native",
+			attached: false,
+			shared: false,
+			entrances: 0,
+			nativeSessionId: session.id,
+			...(workspace?.alias ? { workspaceAlias: workspace.alias } : {}),
+			workspaceDisplay: workspace?.display ?? "未注册工作区",
+			...(workspace ? { targetKey: targetKey(workspace.target) } : {}),
+			targetDisplay: workspace?.display ?? "未注册工作区",
+			targetAvailable: workspace?.available === true,
+			source: session.client ?? "native",
+			...(session.modified ? { lastActiveAt: session.modified } : {}),
+			available: reason === undefined,
+			...(reason ? { reason } : {}),
+		});
+	}
+	return rows.sort((a, b) => {
+		const byShared = Number(b.shared) - Number(a.shared);
+		if (byShared !== 0) return byShared;
+		return (b.lastActiveAt ?? "").localeCompare(a.lastActiveAt ?? "");
+	});
+}
+
+function conversationViewForEntry(webConfig: WebConfig, entryId: string): ConversationView | undefined {
+	const entry = webConfig.getBotSession(entryId);
+	if (!entry) return undefined;
+	return conversationViews(webConfig, []).find(view => view.id === entry.id);
 }
 
 export async function handleChannelsStatus(): Promise<Response> {
@@ -273,6 +500,132 @@ export async function handleImBindingsPut(req: Request): Promise<Response> {
 		return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 400);
 	}
 	return json({ ok: true });
+}
+
+/**
+ * GET /api/im/conversations — name-first chooser rows over the existing
+ * registry plus the gateway's session listing. Read-only: no transcript is
+ * created or registered here.
+ */
+export async function handleImConversationsGet(): Promise<Response> {
+	const webConfig = await WebConfig.shared();
+	try {
+		const sessions = await listAllSessionsWeb();
+		return json({ conversations: conversationViews(webConfig, sessions) });
+	} catch (error) {
+		logger.warn("IM conversation listing failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return json({ error: "Could not list conversations" }, 500);
+	}
+}
+
+/**
+ * POST /api/im/conversations/attach — canonicalize one existing native
+ * transcript into the bot-session registry. The file is reused in place; no
+ * copy is made and no transcript write happens. The registry id equals the
+ * header id when possible; `nativeSessionId` always records the durable id.
+ */
+export async function handleImConversationsAttach(req: Request): Promise<Response> {
+	const body = await readBody(req);
+	const sessionId = typeof body?.sessionId === "string" ? body.sessionId.trim() : "";
+	if (!sessionId) return json({ error: "sessionId is required" }, 400);
+	const webConfig = await WebConfig.shared();
+	const existing = webConfig.getBotSession(sessionId);
+	if (existing) {
+		const collision = (await listAllSessionsWeb().catch(() => null))?.some(
+			session =>
+				session.id === sessionId && normalizeFilePath(session.path) !== normalizeFilePath(existing.sessionFile),
+		);
+		if (collision) return json({ error: "Conversation id is ambiguous", reason: "ambiguous-session-id" }, 409);
+		const view = conversationViewForEntry(webConfig, existing.id);
+		return view ? json({ conversation: view }) : json({ error: "Conversation is not readable" }, 500);
+	}
+	let sessions: GatewaySessionInfo[];
+	try {
+		sessions = await listAllSessionsWeb();
+	} catch (error) {
+		logger.warn("IM conversation attach listing failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return json({ error: "Could not list conversations" }, 500);
+	}
+	const matches = sessions.filter(session => session.id === sessionId);
+	if (matches.length === 0) return json({ error: "Unknown conversation" }, 404);
+	if (matches.length > 1) return json({ error: "Conversation id is ambiguous" }, 409);
+	const session = matches[0]!;
+	const fileKey = normalizeFilePath(session.path);
+	const attached = webConfig.getBotSessions().find(entry => normalizeFilePath(entry.sessionFile) === fileKey);
+	if (attached) {
+		const view = conversationViewForEntry(webConfig, attached.id);
+		return view ? json({ conversation: view }) : json({ error: "Conversation is not readable" }, 500);
+	}
+	const live = getRpcSession(session.id);
+	const liveOrigin = live?.isAlive() ? live.getSession().sessionManager?.getOrigin() : undefined;
+	const running = getRunningSessionIds().includes(session.id) || live?.isAlive() === true;
+	if (running && liveOrigin?.kind !== "im" && session.origin?.kind !== "im") {
+		return json(
+			{
+				error: "This conversation is live in Studio/TUI. Close it there before attaching IM, so one transcript never has two writers.",
+				reason: "session-running",
+			},
+			409,
+		);
+	}
+	if (!running) {
+		// Probe the cross-process writer lease without opening the transcript.
+		// Null means another live zeta process owns the file; attach must fail
+		// rather than letting a later bot start fork it to a new transcript.
+		const release = new FileSessionStorage().claimSession(session.id, session.path, { failClosed: true });
+		if (release === null) {
+			return json(
+				{
+					error:
+						"This conversation is written by another zeta process, or its transcript id changed. " +
+						"Close that writer and reload before attaching IM.",
+					reason: "session-owned-elsewhere",
+				},
+				409,
+			);
+		}
+		release();
+	}
+	const workspace = workspaceForCwd(webConfig, session.cwd);
+	if (!workspace) {
+		return json(
+			{
+				error:
+					`Conversation project ${session.cwd || "(unknown)"} is not a registered workspace. ` +
+					"Register it in Settings → Workspaces (or run @workspace open) first.",
+				reason: "workspace-not-registered",
+			},
+			409,
+		);
+	}
+	if (!workspace.available) {
+		return json({ error: workspace.reason ?? "Conversation workspace is unavailable" }, 409);
+	}
+	const usedIds = new Set(webConfig.getBotSessions().map(entry => entry.id));
+	let id = session.id;
+	if (id === "relay" || usedIds.has(id)) {
+		const base = `s_${createHash("sha1").update(fileKey).digest("hex").slice(0, 12)}`;
+		id = base;
+		for (let suffix = 2; usedIds.has(id); suffix += 1) id = `${base}-${suffix}`;
+	}
+	const entry = {
+		id,
+		name: conversationName(session.name, session.firstMessage, session.id),
+		tag: "bot" as const,
+		sessionFile: session.path,
+		cwd: session.cwd || defaultCoordinatorWorkspace(),
+		...(workspace.alias ? { workspaceAlias: workspace.alias } : {}),
+		nativeSessionId: session.id,
+		reusesExistingTranscript: true,
+		createdAt: new Date().toISOString(),
+	};
+	await webConfig.upsertBotSession(entry);
+	const view = conversationViewForEntry(webConfig, entry.id);
+	return view ? json({ conversation: view }) : json({ error: "Conversation is not readable" }, 500);
 }
 
 /** The same typed candidates `!session list` uses (selector/canonicalSessionId/label/taskSummary). */

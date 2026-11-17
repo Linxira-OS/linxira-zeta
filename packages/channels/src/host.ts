@@ -73,13 +73,18 @@ export class ChannelHost {
 		this.#send = send;
 		this.#allow = allow;
 		this.#replies = new ReplyCorrelator({
-			sendText: (target, text) =>
-				this.#send(
+			sendText: (target, text) => {
+				const options: ChannelSendOptions = {
+					...(target.messageId ? { replyToMessageId: target.messageId } : {}),
+					...(target.context?.threadId ? { threadId: target.context.threadId } : {}),
+				};
+				return this.#send(
 					target.instanceId,
 					target.peer,
 					text,
-					target.messageId ? { replyToMessageId: target.messageId } : undefined,
-				),
+					options.replyToMessageId === undefined && options.threadId === undefined ? undefined : options,
+				);
+			},
 		});
 	}
 
@@ -162,6 +167,10 @@ export class ChannelHost {
 			ts: Date.now(),
 			...(metadata ? { metadata } : {}),
 		};
+		// Thread/sender scope is pinned with the delivered message so a reply
+		// returns to the same conversation scope, never the latest arrival.
+		const metadataThreadId = typeof metadata?.threadId === "string" ? metadata.threadId : undefined;
+		const senderId = identity?.senderId;
 		// Registered before delivery: a wake turn can start synchronously inside
 		// `deliverIrcMessage`, and the observer must find the expectation.
 		this.#replies.expect(recordId, {
@@ -169,6 +178,14 @@ export class ChannelHost {
 			instanceId,
 			peer,
 			...(messageId !== undefined && messageId !== "" ? { messageId } : {}),
+			...(metadataThreadId || senderId
+				? {
+						context: {
+							...(metadataThreadId ? { threadId: metadataThreadId } : {}),
+							...(senderId ? { userId: senderId } : {}),
+						},
+					}
+				: {}),
 		});
 		if (dedupeKey) this.#rememberDelivered(dedupeKey);
 		try {

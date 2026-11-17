@@ -1535,9 +1535,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       onPreviewDone: () => { if (marks) setStatusToast("演示：已从这条消息新建会话（未调用 Host）"); },
     });
   };
-  const promptInputOf = (payload: ComposerSnapshot): { text: string; images?: PromptImageInput[] } => {
+  const promptInputOf = (payload: ComposerSnapshot): { text: string; images?: PromptImageInput[]; language: "en" | "zh" } => {
     const text = injectMagicKeyword(payload.text.trim(), magicKeyword);
-    return payload.images.length === 0 ? { text } : { text, images: [...payload.images] };
+    return payload.images.length === 0
+      ? { text, language: resolvedLanguage }
+      : { text, images: [...payload.images], language: resolvedLanguage };
   };
   const prepareDictationSession = async (signal: AbortSignal): Promise<string> => {
     const expected = selectedTargetRef.current;

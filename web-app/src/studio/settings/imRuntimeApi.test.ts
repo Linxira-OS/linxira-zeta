@@ -1,14 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
 	SECRET_MASK,
+	attachImConversation,
 	bindingWire,
 	buildCredentialDraft,
+	fetchImConversations,
 	isValidInstanceId,
 	isValidProfileId,
 	roleRepliesAutomatically,
 	secretDraftFor,
 	targetState,
 	type ImBinding,
+	type ImFetch,
 } from "./imRuntimeApi";
 
 describe("credential write projection", () => {
@@ -102,5 +105,40 @@ describe("id validation", () => {
 		expect(isValidInstanceId("has space")).toBe(false);
 		expect(isValidProfileId("pm_1")).toBe(true);
 		expect(isValidProfileId("")).toBe(false);
+	});
+});
+
+describe("conversation chooser wire", () => {
+	test("reads human names/sharing facts and attaches by native id without exposing ids as labels", async () => {
+		const calls: Array<{ url: string; init?: RequestInit }> = [];
+		const conversation = {
+			id: "native-1",
+			name: "Release review",
+			kind: "native",
+			attached: false,
+			shared: false,
+			entrances: 0,
+			nativeSessionId: "native-1",
+			workspaceDisplay: "alpha",
+			targetKey: "workspace:alpha",
+			targetDisplay: "alpha",
+			targetAvailable: true,
+			available: true,
+		};
+		const fetcher: ImFetch = async (url, init) => {
+			calls.push({ url, ...(init === undefined ? {} : { init }) });
+			if (url.endsWith("/conversations/attach")) {
+				return Response.json({ conversation: { ...conversation, id: "native-1", attached: true, entrances: 1 } });
+			}
+			return Response.json({ conversations: [conversation] });
+		};
+		const rows = await fetchImConversations(fetcher);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ id: "native-1", name: "Release review", attached: false, available: true });
+		const attached = await attachImConversation(fetcher, "native-1");
+		expect(attached).toMatchObject({ id: "native-1", attached: true, entrances: 1 });
+		const attachCall = calls.find(call => call.url.endsWith("/conversations/attach"));
+		expect(attachCall?.init?.method).toBe("POST");
+		expect(attachCall?.init?.body).toBe(JSON.stringify({ sessionId: "native-1" }));
 	});
 });

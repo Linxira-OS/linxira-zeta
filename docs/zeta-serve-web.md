@@ -101,10 +101,29 @@ Two-factor (TOTP) guards remote device access (never IM credentials):
 
 State lives in `<agentDir>/auth/totp.json` (`0600`, atomic). Verification
 grants are in memory (12 h for writes, 10 min for sensitive device actions);
-a serve restart forgets them. There is no OS keychain here: the base32 secret
-is protected by file permissions only, so 2FA defends against a stolen token,
-not a compromised local account. A corrupt/missing file reads as "2FA off" and
-the local operator can re-enroll.
+a serve restart forgets them. Confirmation of a replacement factor, disabling
+2FA or changing its required policy invalidates old grants. There is no OS
+keychain here: the base32 secret is protected by file permissions only, so 2FA
+defends against a stolen token, not a compromised local account. Only a missing
+file means "2FA off". A damaged, inconsistent or unreadable store returns
+`503 two_factor_unavailable` and blocks remote mutations; it is never silently
+disabled. The local settings pane offers an explicit reset before re-enrollment.
+Failed replay-counter or recovery-code commits also return this unavailable
+error without creating a verification grant. Atomic replacement retains the
+previous file until the new state commits.
+
+The global verification prompt and Settings accept both authenticator codes
+and one-time recovery codes. Concurrent challenged requests share verification,
+then each request replays at most once. Cancel or closing the prompt sends no
+verification or replay.
+
+In the terminal, `/2fa status` opens the TUI status page. `zetacode 2fa status`
+prints the same profile's enrollment, required policy, pending enrollment and
+remaining recovery-code count; add `--json` for secret-free machine-readable
+state. The terminal does not claim a remote device's in-memory verification
+grant. Manage enrollment/reset in local Work Studio → Settings → Identity and
+devices. These are TOTP/recovery flows; external-device push confirmation is
+not implemented. SSH port forwarding retains the existing local-trust boundary.
 
 `zetacode serve` prints the single-use pairing code (60 s TTL) and Settings
 shows the same code beside its QR (`#zeta-pair=<code>`); set

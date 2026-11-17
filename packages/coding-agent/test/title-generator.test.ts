@@ -34,8 +34,8 @@ function getModelFor(provider: GeneratedProvider, id: string): Model<Api> {
 	return model;
 }
 
-function createSettings(model: Model<Api>): Settings {
-	return Settings.isolated({ modelRoles: { tiny: `${model.provider}/${model.id}` } });
+function createSettings(model: Model<Api>, extra: Record<string, unknown> = {}): Settings {
+	return Settings.isolated({ modelRoles: { tiny: `${model.provider}/${model.id}` }, ...extra });
 }
 
 function createRegistry(model: Model<Api>, availableModels: Model<Api>[] = [model]) {
@@ -78,6 +78,95 @@ describe("title generator", () => {
 		expect(messages?.map(message => message.role)).toEqual(["user"]);
 	});
 
+	it("requests a Chinese title when the session language is Chinese and preserves identifiers", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>修复 Redis 重试队列丢任务</title>" }],
+		} as never);
+
+		const title = await generateSessionTitle(
+			"Fix the Redis retry queue dropping jobs when a worker restarts",
+			createRegistry(model),
+			createSettings(model, { language: "zh" }),
+		);
+
+		expect(title).toBe("修复 Redis 重试队列丢任务");
+		expect(title).toContain("Redis");
+		expect(completeSimpleMock).toHaveBeenCalledTimes(1);
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		const promptText = request?.systemPrompt?.join("\n") ?? "";
+		expect(promptText).toContain("简体中文");
+		expect(promptText).toContain("Simplified Chinese");
+	});
+
+	it("keeps the English title request for an English session", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>Fix Redis retry queue drops</title>" }],
+		} as never);
+
+		const title = await generateSessionTitle(
+			"Fix the Redis retry queue dropping jobs",
+			createRegistry(model),
+			createSettings(model, { language: "en" }),
+		);
+
+		expect(title).toBe("Fix Redis retry queue drops");
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
+	});
+
+	it("lets an explicit invocation language override the session setting", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>修复缓存失效</title>" }],
+		} as never);
+
+		const title = await generateSessionTitle(
+			"Fix the cache invalidation",
+			createRegistry(model),
+			createSettings(model, { language: "en" }),
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			"zh",
+		);
+
+		expect(title).toBe("修复缓存失效");
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.join("\n")).toContain("简体中文");
+	});
+
+	it("leaves a caller-supplied title prompt untranslated", async () => {
+		const model = getModelOrThrow("claude-sonnet-4-5");
+		const customPrompt = "Name the plan: a 1-3 word topic for its filename.";
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
+			stopReason: "stop",
+			content: [{ type: "text", text: "<title>retry-queue</title>" }],
+		} as never);
+
+		await generateSessionTitle(
+			"# Plan\nFix the retry queue",
+			createRegistry(model),
+			createSettings(model, { language: "zh" }),
+			undefined,
+			undefined,
+			undefined,
+			customPrompt,
+		);
+
+		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+		expect(request?.systemPrompt?.[0]).toBe(customPrompt);
+		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
+	});
+
 	it("selects an available local-inference model from the tiny role", async () => {
 		const localModel = getBundledModel("local", "lfm2.5-230m");
 		if (!localModel) throw new Error("Expected bundled local tiny model");
@@ -95,6 +184,25 @@ describe("title generator", () => {
 
 		expect(title).toBe("Local Title");
 		expect(generateMock).toHaveBeenCalledWith(localModel.id, "Investigate the resolver");
+		expect(completeSimpleMock).not.toHaveBeenCalled();
+	});
+
+	it("sends the Chinese title policy to a local tiny worker", async () => {
+		const localModel = getBundledModel("local", "lfm2.5-230m");
+		if (!localModel) throw new Error("Expected bundled local tiny model");
+		const settings = createSettings(localModel, { language: "zh" });
+		const registry = createRegistry(localModel, [localModel]);
+		const generateMock = vi.spyOn(tinyTitleClient, "generate").mockResolvedValue("修复重试队列");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple");
+
+		const title = await generateSessionTitle("Fix the retry queue", registry, settings);
+
+		expect(title).toBe("修复重试队列");
+		expect(generateMock).toHaveBeenCalledWith(
+			localModel.id,
+			"Fix the retry queue",
+			expect.objectContaining({ systemPrompt: expect.stringContaining("简体中文") }),
+		);
 		expect(completeSimpleMock).not.toHaveBeenCalled();
 	});
 

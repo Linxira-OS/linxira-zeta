@@ -6,18 +6,21 @@
  * |---|---|
  * | `!workspace help` | print usage |
  * | `!workspace list` | list workspaces (alias + path) and this chat's binding |
- * | `@workspace open <path> [alias]` | register an existing directory as a workspace |
- * | `@workspace create <path> [alias]` | mkdir -p the directory and register it |
- * | `@workspace close <alias>` | stop the workspace session and unregister it |
- * | `@workspace rename <old> <new>` | change a workspace alias |
- * | `@workspace use <alias>` | preview a switch to that workspace |
- * | `@workspace confirm` / `cancel` | apply or discard the pending switch |
- * | `@workspace relay` | preview a switch back to the relay coordinator |
- * | `@workspace bind <alias>` | persist this chat → workspace binding |
- * | `@workspace unbind` | remove this chat's binding, back to relay |
- * | `@workspace bindings` | list every persisted binding for this platform |
- * | `*<alias>` | shorthand for `@workspace use <alias>` |
- * | `*relay` / `*back` / `*main` | shorthand for `@workspace relay` |
+ * | `!workspace open <path> [alias]` | register an existing directory as a workspace |
+ * | `!workspace create <path> [alias]` | mkdir -p the directory and register it |
+ * | `!workspace close <alias>` | stop the workspace session and unregister it |
+ * | `!workspace rename <old> <new>` | change a workspace alias |
+ * | `!workspace use <alias>` | preview a switch to that workspace |
+ * | `!workspace confirm` / `cancel` | apply or discard the pending switch |
+ * | `!workspace relay` | preview a switch back to the relay coordinator |
+ * | `!workspace bind <alias>` | persist this chat → workspace binding |
+ * | `!workspace unbind` | remove this chat's binding, back to relay |
+ * | `!workspace bindings` | list every persisted binding for this platform |
+ * | `*<alias>` | shorthand for `!workspace use <alias>` |
+ * | `*relay` / `*back` / `*main` | shorthand for `!workspace relay` |
+ *
+ * `@workspace` (and `@agent`/`@team`/`@plan`/`@session`) remain accepted
+ * compatibility aliases; help text and ordinary examples show ASCII `!`.
  *
  * Messages that don't match any control command are returned as-is via
  * the `fallback` callback so the caller can route them to the coordinator
@@ -26,6 +29,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { ChannelSendOptions } from "@linxiraos/pi-channels";
 import { isEnoent, logger } from "@linxiraos/pi-utils";
 import type { PlanWorkflow } from "../plan-mode/state";
 import { COORDINATOR_ALIAS, type SessionRouter } from "./session-router";
@@ -42,7 +46,9 @@ export interface WorkspaceRouterDeps {
 	/** Thread/topic and sender identity; a pending switch is scoped to these. */
 	threadId?: string;
 	userId?: string;
-	sendText(text: string): Promise<void>;
+	/** Platform message id of the command, for a reply ref when supported. */
+	messageId?: string;
+	sendText(text: string, options?: ChannelSendOptions): Promise<void>;
 	/** Called when the message is NOT a control command. */
 	fallback(body: string, peer: string): Promise<void>;
 	/** Start a remote plan-mode request (`@plan <title>`; optional `workflow` selects ultra). */
@@ -660,12 +666,12 @@ const HELP_TEXT = [
 	"  !help                     this reference",
 	"  !status                   channel / routing / workspace / language / model overview",
 	"  !lang <zh|en>             set this chat's reply language",
-	"  !session list             list default-space sessions ({n} [id])",
+	"  !session list             list default-space sessions (short selector + name)",
 	"  !session new <name> [project:<alias>]  create a session bound to a repo",
-	"  !session use {n}|[id]     switch this chat to a session",
+	"  !session use <selector>   switch this chat/thread to a session",
 	"  !session project <alias|main>  bind the active session to a project",
-	"  !session rename {n}|[id] <name>",
-	"  !session delete {n}|[id]  delete a session (relay is protected)",
+	"  !session rename <selector> <name>",
+	"  !session delete <selector>  delete a session (relay is protected)",
 	"  !model                    list available models by number ({p-m})",
 	"  !model {p-m}              switch this chat's model (e.g. !model {1-1})",
 	"  !workspace ...            workspace management (list/open/create/close/rename/bind/unbind)",
@@ -679,6 +685,14 @@ const HELP_TEXT = [
 	"",
 	"Plain messages: bound chats go direct; unbound chats go through the relay coordinator.",
 ].join("\n");
+
+/** The exact command scope: one instance/chat plus its thread/sender. */
+function commandScope(deps: WorkspaceRouterDeps): { threadId?: string; userId?: string } {
+	return {
+		...(deps.threadId ? { threadId: deps.threadId } : {}),
+		...(deps.userId ? { userId: deps.userId } : {}),
+	};
+}
 
 /** `!status` — local state only, never reaches a model. */
 async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
@@ -696,11 +710,11 @@ async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
 		if (binding && binding !== COORDINATOR_ALIAS) {
 			lines.push(`当前路由: 工作区 [${binding}] (直达)`);
 		} else {
-			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
+			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer, commandScope(deps));
 			const active = activeId ? router.botSession(activeId) : undefined;
 			lines.push(
 				active
-					? `当前路由: bot 会话 [${active.name}] → [${active.workspaceAlias ?? COORDINATOR_ALIAS}]`
+					? `当前路由: bot 会话 [${displaySessionName(active)}] → [${active.workspaceAlias ?? COORDINATOR_ALIAS}]`
 					: "当前路由: relay 协调者 (main)",
 			);
 		}
@@ -722,13 +736,38 @@ async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
 				? "工作区: 无"
 				: `工作区: ${workspaces.map((w, i) => `{${i + 1}} [${w.alias}]`).join(", ")}`,
 		);
-		const lang = await router.languageFor(deps.channelId as never, deps.peer);
+		const lang = await router.languageFor(deps.channelId as never, deps.peer, commandScope(deps));
 		lines.push(`语言: ${lang === "zh" ? "中文 (zh)" : lang === "en" ? "English (en)" : "未设置"}`);
 	}
 
 	const model = deps.getChatModel ? await deps.getChatModel() : null;
 	lines.push(model ? `模型: [${model.provider}] [${model.modelId}]` : "模型: 未设置");
 	await deps.sendText(lines.join("\n"));
+}
+
+/** Reply to the command in its originating thread, with a platform reply ref when known. */
+function sessionReplyOptions(deps: WorkspaceRouterDeps): ChannelSendOptions | undefined {
+	const options: ChannelSendOptions = {
+		...(deps.threadId ? { threadId: deps.threadId } : {}),
+		...(deps.messageId ? { replyToMessageId: deps.messageId } : {}),
+	};
+	return options.threadId === undefined && options.replyToMessageId === undefined ? undefined : options;
+}
+
+async function sendSessionReply(deps: WorkspaceRouterDeps, text: string): Promise<void> {
+	await deps.sendText(text, sessionReplyOptions(deps));
+}
+
+/** A persisted row may carry its raw id as a legacy name; never render that. */
+function displaySessionName(entry: { id: string; name: string; nativeSessionId?: string }): string {
+	const name = entry.name?.replace(/\s+/g, " ").trim();
+	return name && name !== entry.id && name !== entry.nativeSessionId ? name : "会话";
+}
+
+/** Human-facing selector for a conversation, when it is in the current list window. */
+async function selectorForSession(router: SessionRouter, sessionId: string): Promise<string | undefined> {
+	const snapshot = await router.listSessionCandidates();
+	return snapshot.candidates.find(candidate => candidate.canonicalSessionId === sessionId)?.selector;
 }
 
 /** `!session ...` — default-space session management (zero AI). */
@@ -740,12 +779,14 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 	}
 	const parts = body.split(/\s+/);
 	const cmd = parts[1]?.toLowerCase();
+	const scope = commandScope(deps);
 	switch (cmd) {
 		case "list": {
 			const snapshot = await router.listSessionCandidates();
-			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
+			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer, scope);
 			if (snapshot.candidates.length === 0) {
-				await deps.sendText(
+				await sendSessionReply(
+					deps,
 					"近 3 天没有可选会话。更早的会话请在电脑上的 Studio 查看；!session new <name> 可新建。",
 				);
 				return;
@@ -755,7 +796,8 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				const summary = candidate.latestTaskSummary ? ` — ${candidate.latestTaskSummary}` : "";
 				return `${candidate.selector} ${candidate.label}${summary} [${candidate.workspaceAlias}]${mark}`;
 			});
-			await deps.sendText(
+			await sendSessionReply(
+				deps,
 				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join(
 					"\n",
 				),
@@ -771,7 +813,7 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				.join(" ")
 				.trim();
 			if (!name) {
-				await deps.sendText("Usage: !session new <name> [project:<alias>]");
+				await sendSessionReply(deps, "Usage: !session new <name> [project:<alias>]");
 				return;
 			}
 			// A PM/secretary session binds one project at creation time; its
@@ -779,50 +821,58 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 			const result = await router.createBotSession(name, "draft", project ? { alias: project } : undefined);
 			if (result.ok) {
 				const where = result.entry.workspaceAlias ?? COORDINATOR_ALIAS;
-				await deps.sendText(
+				await sendSessionReply(
+					deps,
 					`会话 [${result.entry.name}] 已创建 (项目 [${where}])。回复 !session list 获取短 selector 后切换。`,
 				);
 			} else {
-				await deps.sendText(result.error);
+				await sendSessionReply(deps, result.error);
 			}
 			return;
 		}
 		case "project": {
 			const alias = parts[2];
 			if (!alias) {
-				await deps.sendText("Usage: !session project <alias|main>");
+				await sendSessionReply(deps, "Usage: !session project <alias|main>");
 				return;
 			}
-			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
+			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer, scope);
 			if (!activeId || activeId === "relay") {
-				await deps.sendText("No active bot session for this chat. Use !session use <id> first.");
+				await sendSessionReply(deps, "No active bot session for this chat. Use !session use <selector> first.");
 				return;
 			}
 			const result = await router.bindBotSessionProject(activeId, alias);
 			if (result.ok) {
-				await deps.sendText(`Session bound to project [${result.alias ?? COORDINATOR_ALIAS}] → ${result.cwd}.`);
+				await sendSessionReply(
+					deps,
+					`Session bound to project [${result.alias ?? COORDINATOR_ALIAS}] → ${result.cwd}.`,
+				);
 			} else {
-				await deps.sendText(result.error);
+				await sendSessionReply(deps, result.error);
 			}
 			return;
 		}
 		case "use": {
 			const selector = parts[2];
 			if (!selector) {
-				await deps.sendText("Usage: !session use <id|n>");
+				await sendSessionReply(deps, "Usage: !session use <selector>");
 				return;
 			}
 			const canonicalId = router.resolveSessionSelector(selector);
 			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
+				await sendSessionReply(deps, `Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
-			const result = await router.setActiveBotSession(deps.channelId as never, deps.peer, entry.id);
+			const shortSelector = await selectorForSession(router, entry.id);
+			const result = await router.setActiveBotSession(deps.channelId as never, deps.peer, entry.id, scope);
 			if (result.ok) {
-				await deps.sendText(`Now talking to session [${entry.name}] (${entry.id}).`);
+				await sendSessionReply(
+					deps,
+					`Now talking to session [${displaySessionName(entry)}]${shortSelector ? ` (${shortSelector})` : ""}.`,
+				);
 			} else {
-				await deps.sendText(result.error);
+				await sendSessionReply(deps, result.error);
 			}
 			return;
 		}
@@ -830,46 +880,47 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 			const selector = parts[2];
 			const name = parts.slice(3).join(" ");
 			if (!selector || !name) {
-				await deps.sendText("Usage: !session rename <id|n> <name>");
+				await sendSessionReply(deps, "Usage: !session rename <selector> <name>");
 				return;
 			}
 			const canonicalId = router.resolveSessionSelector(selector);
 			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
+				await sendSessionReply(deps, `Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.renameBotSession(entry.id, name);
 			if (result.ok) {
-				await deps.sendText(`Session renamed to [${result.name}].`);
+				await sendSessionReply(deps, `Session renamed to [${result.name}].`);
 			} else {
-				await deps.sendText(result.error);
+				await sendSessionReply(deps, result.error);
 			}
 			return;
 		}
 		case "delete": {
 			const selector = parts[2];
 			if (!selector) {
-				await deps.sendText("Usage: !session delete <id|n>");
+				await sendSessionReply(deps, "Usage: !session delete <selector>");
 				return;
 			}
 			const canonicalId = router.resolveSessionSelector(selector);
 			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
+				await sendSessionReply(deps, `Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.deleteBotSession(entry.id);
 			if (result.ok) {
-				await deps.sendText(`Session [${entry.name}] deleted.`);
+				await sendSessionReply(deps, `Session [${displaySessionName(entry)}] deleted.`);
 			} else {
-				await deps.sendText(result.error);
+				await sendSessionReply(deps, result.error);
 			}
 			return;
 		}
 		default:
-			await deps.sendText(
-				"Usage: !session list | new <name> [project:<alias>] | use {n}|[id] | project <alias|main> | rename {n}|[id] <name> | delete {n}|[id]",
+			await sendSessionReply(
+				deps,
+				"Usage: !session list | new <name> [project:<alias>] | use <selector> | project <alias|main> | rename <selector> <name> | delete <selector>",
 			);
 			return;
 	}

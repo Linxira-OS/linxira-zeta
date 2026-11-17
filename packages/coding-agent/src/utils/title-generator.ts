@@ -19,6 +19,7 @@ import { theme } from "@linxiraos/pi-tui/theme";
 import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
 import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
+import type { ZetaLanguage } from "../i18n";
 
 import { roleCandidatePool } from "../config/model-roles";
 import { formatModelStringWithRouting } from "../config/model-resolver";
@@ -29,11 +30,26 @@ import titleSystemPrompt from "../prompts/system/title-system.md" with { type: "
 import { formatTitleUserMessage } from "../tiny/message-preproc";
 import { isLowSignalTitleInput, normalizeGeneratedTitle } from "../tiny/text";
 import { tinyTitleClient } from "../tiny/title-client";
+import { cfgLanguage } from "../zeta-settings";
 
 import { cfgRetryModelFallback } from "../session/settings";
 import { DEFAULT_SPINNER_INTERVAL_MS, SPINNER_INTERVAL_STATIC } from "@linxiraos/pi-tui/spinner-clock";
 
-const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
+/**
+ * The language automatic session names and task labels are written in when a
+ * command does not carry its own: the effective `language` setting of the
+ * session's settings. Explicit user titles never pass through here, and a
+ * caller-supplied title prompt (a `TITLE_SYSTEM.md` override or a
+ * plan-filename topic) keeps its own wording.
+ */
+export function generatedNameLanguage(settings: Settings): ZetaLanguage {
+	return cfgLanguage.get(settings);
+}
+
+const TITLE_SYSTEM_PROMPTS: Record<ZetaLanguage, string> = {
+	en: prompt.render(titleSystemPrompt),
+	zh: prompt.render(titleSystemPrompt, { zh: true }),
+};
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
 // Plain ζ, not the nerd-font `icon.omp` glyph: window/tab titles render in the
@@ -200,6 +216,8 @@ export type TitleUsageReporter = (message: AssistantMessage) => void;
  *   OAuth credential should seed an isolated title-request session.
  * @param onUsage Optional reporter for every title attempt the provider billed,
  *   so the caller can record its usage on the session's cost ledger.
+ * @param language Optional invocation language; omitted uses the effective
+ *   `language` setting captured at the start of this call.
  */
 export async function generateSessionTitle(
 	firstMessage: string,
@@ -212,6 +230,7 @@ export async function generateSessionTitle(
 	signal?: AbortSignal,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
+	language?: ZetaLanguage,
 ): Promise<string | null> {
 	// Defer titling for greetings / acknowledgements / empty input. The default
 	// tiny title model can't reliably decline trivial input, so this happens
@@ -230,6 +249,7 @@ export async function generateSessionTitle(
 	}
 
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
+	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	if (firstModel.api !== "local-inference") {
 		return generateTitleOnlineWithModels(
 			firstMessage,
@@ -241,23 +261,27 @@ export async function generateSessionTitle(
 			titleSystemPrompt,
 			credentialSourceSessionId,
 			onUsage,
+			resolvedLanguage,
 		);
 	}
 
 	// A local role selection is an explicit no-billing boundary. If the worker
 	// fails (download missing, runtime crash, abort, or no output), leave the
 	// session untitled rather than advancing into a paid fallback candidate.
+	// The English prompt stays the worker's built-in default; only a selected
+	// Chinese policy (or an explicit override) is sent as a system turn.
+	const localSystemPrompt = titleSystemPrompt ?? (resolvedLanguage === "zh" ? TITLE_SYSTEM_PROMPTS.zh : undefined);
 	try {
 		let localTitle: string | null;
 		if (signal) {
 			localTitle = await tinyTitleClient.generate(
 				firstModel.id,
 				firstMessage,
-				titleSystemPrompt ? { signal, systemPrompt: titleSystemPrompt } : { signal },
+				localSystemPrompt ? { signal, systemPrompt: localSystemPrompt } : { signal },
 			);
-		} else if (titleSystemPrompt) {
+		} else if (localSystemPrompt) {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage, {
-				systemPrompt: titleSystemPrompt,
+				systemPrompt: localSystemPrompt,
 			});
 		} else {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage);
@@ -308,6 +332,7 @@ export async function generateTitleOnline(
 		customSystemPrompt,
 		credentialSourceSessionId,
 		onUsage,
+		generatedNameLanguage(settings),
 	);
 }
 
@@ -321,14 +346,18 @@ async function generateTitleOnlineWithModels(
 	customSystemPrompt?: string,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
+	language: ZetaLanguage = "en",
 ): Promise<string | null> {
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
 	// The model is always asked to wrap the title in `<title>...</title>` and
 	// the title is parsed from text. A forced `set_title` tool call was the old
 	// scheme, but hosts that ignore or reject forced `tool_choice` then echoed
 	// the prompt's `{"title": ...}` JSON example verbatim as the session title;
-	// markers work uniformly everywhere.
-	const systemPrompt = titleSystemPrompt ? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION] : [TITLE_SYSTEM_PROMPT];
+	// markers work uniformly everywhere. A selected Chinese policy is part of
+	// the bundled prompt; caller-supplied prompts keep their own wording.
+	const systemPrompt = titleSystemPrompt
+		? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION]
+		: [TITLE_SYSTEM_PROMPTS[language]];
 	const userMessage = formatTitleUserMessage(firstMessage);
 
 	for (const model of models) {

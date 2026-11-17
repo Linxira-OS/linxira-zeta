@@ -98,6 +98,7 @@ export type AgentCommand =
 			chain?: string;
 			thinkingLevel?: string;
 			streamingBehavior?: "steer" | "followUp";
+			language?: "en" | "zh";
 			/** False when the host is forwarding a slash command, not a user body. */
 			loopBody?: boolean;
 	  }
@@ -106,8 +107,8 @@ export type AgentCommand =
 	| { type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
 	| { type: "promote_queued_message"; message: string }
 	| { type: "abort_and_restore_queue" }
-	| { type: "steer"; text: string; images?: unknown[] }
-	| { type: "follow_up"; text: string; images?: unknown[] }
+	| { type: "steer"; text: string; images?: unknown[]; language?: "en" | "zh" }
+	| { type: "follow_up"; text: string; images?: unknown[]; language?: "en" | "zh" }
 	| { type: "abort" }
 	| { type: "continue" }
 	| { type: "get_state" }
@@ -694,7 +695,7 @@ export class AgentSessionWrapper {
 				// the legacy `chain`/`thinkingLevel` hints have no runtime
 				// PromptOptions equivalent and are ignored (the web-ui client
 				// never sends them; thinkingLevel goes through set_thinking_level).
-				const { message, images, streamingBehavior, loopBody } = command;
+				const { message, images, streamingBehavior, loopBody, language } = command;
 				if (loopBody !== false) this.#loopController.noteUserPrompt(message);
 				// A slash command is not model text. `AgentSession.prompt` expands
 				// extension/custom/file commands but not builtins with an ACP handler,
@@ -707,6 +708,7 @@ export class AgentSessionWrapper {
 					settings: this.#inner.settings,
 					cwd: this.#inner.sessionManager.getCwd(),
 					images: images as ImageContent[] | undefined,
+					...(language === undefined ? {} : { language }),
 					output: text => this.#emit({ type: "command_output", text }),
 					refreshCommands: () => {},
 					reloadPlugins: async () => {
@@ -732,6 +734,7 @@ export class AgentSessionWrapper {
 						await this.#inner.prompt(builtin.prompt, {
 							...(images?.length ? { images: images as ImageContent[] } : {}),
 							...(streamingBehavior ? { streamingBehavior } : {}),
+							...(language === undefined ? {} : { language }),
 						});
 					}
 					return { ok: true };
@@ -739,6 +742,7 @@ export class AgentSessionWrapper {
 				await this.#inner.prompt(message, {
 					...(images?.length ? { images: images as ImageContent[] } : {}),
 					...(streamingBehavior ? { streamingBehavior } : {}),
+					...(language === undefined ? {} : { language }),
 				});
 				return { ok: true };
 			}
@@ -765,12 +769,20 @@ export class AgentSessionWrapper {
 			}
 			case "steer":
 				this.#loopController.noteUserPrompt(command.text);
-				await this.#inner.steer(command.text, command.images as ImageContent[] | undefined);
+				await this.#inner.steer(
+					command.text,
+					command.images as ImageContent[] | undefined,
+					command.language === undefined ? undefined : { language: command.language },
+				);
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "follow_up":
 				this.#loopController.noteUserPrompt(command.text);
-				await this.#inner.followUp(command.text, command.images as ImageContent[] | undefined);
+				await this.#inner.followUp(
+					command.text,
+					command.images as ImageContent[] | undefined,
+					command.language === undefined ? undefined : { language: command.language },
+				);
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "abort":
@@ -1639,6 +1651,13 @@ export async function handleAgentCommand(req: Request, sessionId: string): Promi
 	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	try {
 		const body = (await req.json()) as AgentCommand;
+		if (
+			(body.type === "prompt" || body.type === "steer" || body.type === "follow_up") &&
+			body.language !== undefined &&
+			body.language !== "en" &&
+			body.language !== "zh"
+		)
+			return json({ error: "language must be en or zh" }, 400);
 		if (
 			isGatewayDraining() &&
 			(DRAIN_BLOCKED_COMMANDS.has(body.type) || (body.type === "goal" && DRAIN_BLOCKED_GOAL_OPS.has(body.op)))

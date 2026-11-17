@@ -340,7 +340,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	language: {
 		label: "语言",
-		description: "面向用户文本的 CLI 语言（系统提示词保持英文）",
+		description: "面向用户文本及自动生成的会话/任务名称所用语言（系统提示词保持英文）",
 	},
 	"theme.dark": {
 		label: "深色主题",

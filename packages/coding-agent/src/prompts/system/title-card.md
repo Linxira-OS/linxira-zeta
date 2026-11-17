@@ -11,15 +11,35 @@ You head coding-agent session titles with a small card. Pick the card for the se
 - emoji: the most specific emoji picture of this session's subject, one that tells it apart from the user's other sessions in the same project: the concrete object or feature the title names (🌲 for a directory walker, 🔕 for muting notifications); a mascot or symbol whenever the session is about that language, tool or service (🐳 for Docker builds), never just because the project is written in it; 🐛, 🧪 or ⚡ only when the session is about that very thing, never as a stand-in for the kind of work (any fix, test or speedup); never a generic ✨, 🚀, 🔧, ⚙️ or 🧩.
 {{/if}}
 - code: 1-6 capital letters or digits, never more, that name the subject at a glance, made from one word or name in the title: the whole word when it has 6 letters or fewer (SEED, SCOPE, FREEZE, Z3, 404), else cut to its first syllable or leading consonants (PROV for provider, FLBK for fallback). Never initials of several words unless the title writes them so (CTA, SDK).
+{{#if zh}}
+- The generated title follows the Simplified Chinese (简体中文) policy. Keep the code ASCII; for a Chinese title, prefer a Latin technical term or product name from the title, otherwise use 1-6 capital letters from the pinyin initials of its key words (修复测试失败 → XFCS). Never put Chinese characters in the code.
+{{/if}}
 - Never repeat the title, quote, or explain.
 
 {{#if nerdFonts}}
+{{#if zh}}
+Output exactly one line: `<title>nf-md-flask 🧪 XFCS</title>` (your own icon, emoji and code).
+
+Examples:
+- "修复测试失败" → `<title>nf-md-flask 🧪 XFCS</title>`
+- "加速 Docker 镜像构建" → `<title>nf-dev-docker 🐳 DOCKER</title>`
+- "为 provider 增加模型回退" → `<title>nf-md-lifebuoy 🛟 FLBK</title>`
+{{else}}
 Output exactly one line: `<title>nf-md-parking 🅿️ PARK</title>` (your own icon, emoji and code).
 
 Examples:
 - "Fix flaky park tests" → `<title>nf-md-parking 🅿️ PARK</title>`
 - "Speed up Docker image builds" → `<title>nf-dev-docker 🐳 DOCKER</title>`
 - "Add provider model fallback" → `<title>nf-md-lifebuoy 🛟 FLBK</title>`
+{{/if}}
+{{else}}
+{{#if zh}}
+Output exactly one line: `<title>🧪 XFCS</title>` (your own emoji and code).
+
+Examples:
+- "修复测试失败" → `<title>🧪 XFCS</title>`
+- "加速 Docker 镜像构建" → `<title>🐳 DOCKER</title>`
+- "为 provider 增加模型回退" → `<title>🛟 FLBK</title>`
 {{else}}
 Output exactly one line: `<title>🅿️ PARK</title>` (your own emoji and code).
 
@@ -27,4 +47,5 @@ Examples:
 - "Fix flaky park tests" → `<title>🅿️ PARK</title>`
 - "Speed up Docker image builds" → `<title>🐳 DOCKER</title>`
 - "Add provider model fallback" → `<title>🛟 FLBK</title>`
+{{/if}}
 {{/if}}

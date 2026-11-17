@@ -25,7 +25,7 @@
  * reuse the protocol without rendering the UI.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { verifyTwoFactor } from "./securityApi";
+import { twoFactorCredential, verifyTwoFactor } from "./securityApi";
 import { defaultGatewayFetch, type GatewayFetch } from "./gatewayRequest";
 
 export type StepUpPrompt = () => Promise<string | null>;
@@ -59,17 +59,14 @@ function requestCode(): Promise<PromptResult> {
 }
 
 function settle(result: PromptResult): void {
-	const next = queue.shift();
-	if (next === undefined) {
+	if (result === null || prompter === null) {
+		while (queue.length > 0) queue.shift()?.resolve(null);
 		active = false;
 		return;
 	}
-	prompter?.({ resolve: next.resolve });
-	if (result === null) {
-		// Cancel drains the queue so nothing waits on a prompt that is gone.
-		while (queue.length > 0) queue.shift()?.resolve(null);
-		active = false;
-	}
+	const next = queue.shift();
+	if (next === undefined) active = false;
+	else prompter(next);
 }
 
 interface TotpChallenge {
@@ -135,30 +132,31 @@ const defaultInner: FetchLike = (input, init) =>
 
 export function createStepUpFetch(inner: FetchLike = defaultInner, options: StepUpFetchOptions = {}): FetchLike {
 	const ask = options.prompt ?? requestCode;
+	let batch: { verification?: Promise<boolean> } = {};
+	const verify = async (): Promise<boolean> => {
+		try {
+			const code = await ask();
+			if (code === null) return false;
+			const gateway: GatewayFetch = (path, init) => inner(path, init);
+			await verifyTwoFactor(gateway, twoFactorCredential(code));
+			return true;
+		} catch {
+			return false;
+		}
+	};
 	return async (input, init) => {
+		const owner = batch;
 		const primary: RequestInfo | URL = input instanceof Request ? input.clone() : input;
-		const response = await inner(primary, init as RequestInit | undefined);
+		const response = await inner(primary, init);
 		const challenge = await readChallenge(response);
 		if (challenge === null) return response;
-
-		const replayable =
-			(typeof input === "string" || input instanceof URL || input instanceof Request) &&
-			replayableBody(init as RequestInit | undefined);
-		if (!replayable) return response;
-
-		const code = await ask();
-		if (code === null) return response;
-		try {
-			// `verifyTwoFactor` speaks the gateway shape (a path string); adapt the
-			// general fetcher once here instead of widening every settings pane.
-			const gateway: GatewayFetch = (path, init) => inner(path, init);
-			await verifyTwoFactor(gateway, { code });
-		} catch {
-			return Response.json({ error: "totp_required", retryable: true }, { status: 403 });
-		}
-		// Exactly one replay. The retry is not passed through the challenge
-		// handler again; a second 403 is returned to the caller.
-		return inner(input, init as RequestInit | undefined);
+		if (!replayableBody(init)) return response;
+		owner.verification ??= verify().finally(() => {
+			if (batch === owner) batch = {};
+		});
+		if (!(await owner.verification)) return response;
+		// The Host refused before executing; each request can replay once.
+		return inner(input, init);
 	};
 }
 
@@ -205,6 +203,7 @@ export function AuthStepUpBoundary({ children, labels = DEFAULT_LABELS }: AuthSt
 			prompter = null;
 			pending.current?.resolve(null);
 			pending.current = null;
+			settle(null);
 		};
 	}, []);
 
@@ -236,7 +235,6 @@ export function AuthStepUpBoundary({ children, labels = DEFAULT_LABELS }: AuthSt
 					<p className="muted small">{labels.description}</p>
 					<input
 						className="input"
-						inputMode="numeric"
 						autoComplete="one-time-code"
 						aria-label={labels.code}
 						placeholder={labels.placeholder}

@@ -54,8 +54,7 @@ const server = Bun.serve({
 });
 
 const base = `http://127.0.0.1:${server.port}`;
-const inner: FetchLike = (input, init) =>
-	fetch(input instanceof Request ? input : new URL(String(input), base), init);
+const inner: FetchLike = (input, init) => fetch(input instanceof Request ? input : new URL(String(input), base), init);
 
 const prompt = (): Promise<string | null> => Promise.resolve("123456");
 const cancel = (): Promise<string | null> => Promise.resolve(null);
@@ -111,5 +110,86 @@ describe("global step-up fetch boundary", () => {
 		expect(await response.text()).toBe("payload");
 		expect(counters.protectedHits).toBe(2);
 		expect(counters.verifyHits).toBe(1);
+	});
+
+	test("concurrent writes share one recovery-code verification and each execute once", async () => {
+		const challenged = Promise.withResolvers<void>();
+		let waiting = 0;
+		let verified = false;
+		let verifyHits = 0;
+		const executed: string[] = [];
+		const recoveryServer = Bun.serve({
+			port: 0,
+			async fetch(request) {
+				if (new URL(request.url).pathname === "/api/auth/2fa/verify") {
+					verifyHits += 1;
+					const body = (await request.json()) as { recoveryCode?: string };
+					if (verified || body.recoveryCode !== "ABCDE-23456")
+						return Response.json({ error: "invalid_code" }, { status: 401 });
+					verified = true;
+					return Response.json({ verifiedUntil: "2026-11-16T12:00:00Z", method: "recovery" });
+				}
+				if (!verified) {
+					waiting += 1;
+					if (waiting === 2) challenged.resolve();
+					await challenged.promise;
+					return Response.json({ error: "totp_required" }, { status: 403 });
+				}
+				executed.push(await request.text());
+				return new Response("saved");
+			},
+		});
+		try {
+			let prompts = 0;
+			const wrapped = createStepUpFetch((input, init) => fetch(new URL(String(input), recoveryServer.url), init), {
+				prompt: async () => {
+					prompts += 1;
+					return "ABCDE-23456";
+				},
+			});
+			const responses = await Promise.all([
+				wrapped("/save", { method: "POST", body: "first" }),
+				wrapped("/save", { method: "POST", body: "second" }),
+			]);
+			expect(responses.map(response => response.status)).toEqual([200, 200]);
+			expect(executed.sort()).toEqual(["first", "second"]);
+			expect(verifyHits).toBe(1);
+			expect(prompts).toBe(1);
+		} finally {
+			recoveryServer.stop(true);
+		}
+	});
+
+	test("a cancelled shared challenge settles every request and a later action may retry", async () => {
+		const prompted = Promise.withResolvers<void>();
+		const decision = Promise.withResolvers<string | null>();
+		const releaseLateChallenge = Promise.withResolvers<void>();
+		let prompts = 0;
+		let verificationCalls = 0;
+		const wrapped = createStepUpFetch(
+			async input => {
+				if (String(input).endsWith("/verify")) verificationCalls += 1;
+				if (String(input) === "/two") await releaseLateChallenge.promise;
+				return Response.json({ error: "totp_required" }, { status: 403 });
+			},
+			{
+				prompt: async () => {
+					prompts += 1;
+					prompted.resolve();
+					return decision.promise;
+				},
+			},
+		);
+		const first = wrapped("/one");
+		const second = wrapped("/two");
+		await prompted.promise;
+		decision.resolve(null);
+		expect((await first).status).toBe(403);
+		releaseLateChallenge.resolve();
+		expect((await second).status).toBe(403);
+		expect(prompts).toBe(1);
+		expect(verificationCalls).toBe(0);
+		expect((await wrapped("/later")).status).toBe(403);
+		expect(prompts).toBe(2);
 	});
 });

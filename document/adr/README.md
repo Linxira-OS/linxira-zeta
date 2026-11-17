@@ -78,6 +78,9 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0057](0057-studio-native-worktree-lifetime.md) | Studio session worktrees retain native ownership through turns and shutdown | Proposed | 2026-11-16 | — | [native boundary](../../packages/coding-agent/src/server/studio-host/services/time-travel-boundary.ts), [REQ-099](../requirements-ledger.md) |
 | [0058](0058-studio-ida-worker-reviews.md) | Studio IDA reviews fence the existing native worker identity and version | Proposed | 2026-11-16 | — | [native worker](../../packages/coding-agent/src/ida/worker.py), [REQ-099](../requirements-ledger.md) |
 | [0059](0059-vendored-sheetjs-tarball.md) | Studio pins the authoritative SheetJS tarball as a local dependency | Proposed | 2026-11-16 | — | [renderer dependency](../../web-app/package.json), [REQ-099](../requirements-ledger.md) |
+| [0060](0060-two-factor-failure-and-grant-lifetime.md) | Two-factor storage failures deny remote writes and factor changes revoke grants | Proposed | 2026-11-16 | — | [TOTP authority](../../packages/coding-agent/src/server/auth/two-factor-auth.ts), [REQ-102](../requirements-ledger.md) |
+| [0061](0061-explicit-shared-im-conversation.md) | Multiple IM entrances may explicitly share one Agent conversation | Proposed | 2026-11-16 | — | [IM router](../../packages/coding-agent/src/channels/session-router.ts), [REQ-110](../requirements-ledger.md) |
+| [0062](0062-generated-name-language.md) | Automatically generated names follow the selected language without translating identity | Proposed | 2026-11-16 | — | [title generator](../../packages/coding-agent/src/utils/title-generator.ts), [REQ-111](../requirements-ledger.md) |
 
 ## File and numbering rules
 

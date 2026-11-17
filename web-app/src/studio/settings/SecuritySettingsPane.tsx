@@ -33,6 +33,7 @@ import {
 	revokePairedDevice,
 	revokeRemoteToken,
 	rotateRemoteToken,
+	twoFactorCredential,
 	verifyTwoFactor,
 	type DeviceInventory,
 	type PairingQr,
@@ -40,14 +41,7 @@ import {
 	type TwoFactorEnrollment,
 	type TwoFactorStatus,
 } from "./securityApi";
-import {
-	SURFACE_ACTIONS,
-	accessFor,
-	detectSurface,
-	type SurfaceAccess,
-	type SurfaceAction,
-	type SurfaceId,
-} from "../surfaces";
+import { SURFACE_ACTIONS, accessFor, detectSurface, type SurfaceAccess, type SurfaceId } from "../surfaces";
 import "./security.css";
 
 function errorText(error: unknown): string {
@@ -141,7 +135,16 @@ export function TotpPanel({
 	canVerify = false,
 	t,
 }: TotpPanelProps) {
-	const state = status === null ? "loading" : !status.enrolled ? "off" : status.required ? "required" : "enrolled";
+	const unavailable = error === "two_factor_unavailable";
+	const state = unavailable
+		? "unavailable"
+		: status === null
+			? "loading"
+			: !status.enrolled
+				? "off"
+				: status.required
+					? "required"
+					: "enrolled";
 	return (
 		<div className="sec-totp" data-totp-state={state} data-read-only={readOnly}>
 			<div className="sec-totp-head">
@@ -163,12 +166,21 @@ export function TotpPanel({
 					{error}
 				</p>
 			) : null}
-			{status === null ? (
+			{unavailable && !readOnly ? (
+				<button type="button" className="btn small danger" disabled={pending !== null} onClick={onDisable}>
+					{t("settings.security.totp.reset")}
+				</button>
+			) : null}
+			{unavailable ? (
+				<p className="sec-hint">{t("settings.security.totp.unavailable")}</p>
+			) : status === null ? (
 				<p className="sec-empty">{t("settings.security.loading")}</p>
 			) : status.enrolled ? (
 				<>
 					<p className="sec-hint">
-						{status.required ? t("settings.security.totp.requiredNote") : t("settings.security.totp.optionalNote")}
+						{status.required
+							? t("settings.security.totp.requiredNote")
+							: t("settings.security.totp.optionalNote")}
 					</p>
 					<p className="sec-hint" data-totp-remaining>
 						{t("settings.security.totp.remaining", { count: status.recoveryCodesRemaining })}
@@ -177,7 +189,6 @@ export function TotpPanel({
 						<div className="sec-actions sec-totp-verify">
 							<input
 								className="input"
-								inputMode="numeric"
 								autoComplete="one-time-code"
 								aria-label={t("settings.security.totp.code")}
 								placeholder={t("settings.security.totp.codePlaceholder")}
@@ -262,7 +273,6 @@ export function TotpPanel({
 						<span>{t("settings.security.totp.code")}</span>
 						<input
 							className="input"
-							inputMode="numeric"
 							autoComplete="one-time-code"
 							placeholder={t("settings.security.totp.codePlaceholder")}
 							value={code}
@@ -327,6 +337,7 @@ export function SecuritySettingsPane({
 			setTotpError(null);
 		} catch (error) {
 			setTotpError(errorText(error));
+			setTotp(null);
 		}
 	}, []);
 
@@ -417,7 +428,7 @@ export function SecuritySettingsPane({
 		if (stepUp === null) return;
 		const action = stepUp;
 		void run("stepup", async () => {
-			await verifyTwoFactor(fetch, { code: stepUpCode.trim() });
+			await verifyTwoFactor(fetch, twoFactorCredential(stepUpCode));
 			setStepUp(null);
 			setStepUpCode("");
 			return performStepUpAction(action);
@@ -426,12 +437,16 @@ export function SecuritySettingsPane({
 
 	const revokeDevice = (id: string, label: string): void => {
 		if (!window.confirm(t("settings.security.devices.revokeConfirm", { label }))) return;
-		void run(`revoke:${id}`, () => withStepUp({ kind: "revoke", id }, () => performStepUpAction({ kind: "revoke", id })));
+		void run(`revoke:${id}`, () =>
+			withStepUp({ kind: "revoke", id }, () => performStepUpAction({ kind: "revoke", id })),
+		);
 	};
 
 	const revokeAllDevices = (): void => {
 		if (!window.confirm(t("settings.security.devices.revokeAllConfirm"))) return;
-		void run("revoke-all", () => withStepUp({ kind: "revoke-all" }, () => performStepUpAction({ kind: "revoke-all" })));
+		void run("revoke-all", () =>
+			withStepUp({ kind: "revoke-all" }, () => performStepUpAction({ kind: "revoke-all" })),
+		);
 	};
 
 	const showPairing = (): void => {
@@ -493,7 +508,7 @@ export function SecuritySettingsPane({
 
 	const verifyTotp = (): void => {
 		void run("totp-verify", async () => {
-			const result = await verifyTwoFactor(fetch, { code: totpCode.trim() });
+			const result = await verifyTwoFactor(fetch, twoFactorCredential(totpCode));
 			setTotpCode("");
 			await loadTwoFactor();
 			return result.method === "recovery"
@@ -511,7 +526,16 @@ export function SecuritySettingsPane({
 	};
 
 	const disableTotp = (): void => {
-		if (!window.confirm(t("settings.security.totp.disableConfirm"))) return;
+		if (
+			!window.confirm(
+				t(
+					totpError === "two_factor_unavailable"
+						? "settings.security.totp.resetConfirm"
+						: "settings.security.totp.disableConfirm",
+				),
+			)
+		)
+			return;
 		void run("totp-disable", async () => {
 			await disableTwoFactor(fetch);
 			setTotpEnrollment(null);
@@ -564,13 +588,21 @@ export function SecuritySettingsPane({
 					<span className="chip sm blue" data-surface={surface}>
 						{t(`settings.security.surfaceName.${surface}`)}
 					</span>
-					<span className={`chip sm ${hostDesktop === true ? "green" : "gray"}`} data-host-desktop={hostDesktop === true}>
+					<span
+						className={`chip sm ${hostDesktop === true ? "green" : "gray"}`}
+						data-host-desktop={hostDesktop === true}
+					>
 						{hostDesktop === true
 							? t("settings.security.surfaceHostDesktop")
 							: t("settings.security.surfaceHostServe")}
 					</span>
-					<span className={`chip sm ${runtimeConnected ? "green" : "red"}`} data-runtime-connected={runtimeConnected}>
-						{runtimeConnected ? t("settings.security.surfaceRuntimeOn") : t("settings.security.surfaceRuntimeOff")}
+					<span
+						className={`chip sm ${runtimeConnected ? "green" : "red"}`}
+						data-runtime-connected={runtimeConnected}
+					>
+						{runtimeConnected
+							? t("settings.security.surfaceRuntimeOn")
+							: t("settings.security.surfaceRuntimeOff")}
 					</span>
 					{busy ? <span className="sec-hint">{t("settings.security.loading")}</span> : null}
 				</div>
@@ -650,9 +682,7 @@ export function SecuritySettingsPane({
 									<p className="sec-pair-code" data-pair-code>
 										<code className="sec-mono">{pairing.code}</code>
 										{pairing.expiresAt !== null ? (
-											<span className="sec-hint">
-												{new Date(pairing.expiresAt).toLocaleTimeString()}
-											</span>
+											<span className="sec-hint">{new Date(pairing.expiresAt).toLocaleTimeString()}</span>
 										) : null}
 									</p>
 									<code className="sec-mono">{pairing.url}</code>
@@ -733,7 +763,9 @@ export function SecuritySettingsPane({
 													type="button"
 													className="btn small danger"
 													disabled={device.revokedAt !== null || pending === `revoke:${device.id}`}
-													onClick={() => revokeDevice(device.id, device.label !== "" ? device.label : device.id)}
+													onClick={() =>
+														revokeDevice(device.id, device.label !== "" ? device.label : device.id)
+													}
 												>
 													{t("settings.security.devices.revoke")}
 												</button>
@@ -757,7 +789,6 @@ export function SecuritySettingsPane({
 						<div className="sec-actions">
 							<input
 								className="input"
-								inputMode="numeric"
 								autoComplete="one-time-code"
 								placeholder={t("settings.security.totp.codePlaceholder")}
 								value={stepUpCode}

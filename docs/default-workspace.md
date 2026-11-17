@@ -14,15 +14,15 @@ and their status are defined in [agent-modes.md](./agent-modes.md).
 | Source | Landing point | Route |
 | --- | --- | --- |
 | No repository selected (gateway default chat — the deferred Web UI would be one client — or a new chat without a project) | default workspace | `relay` |
-| IM bot chat (no `@workspace use` / binding, no channel `workspaceRoot`) | default workspace | `relay` |
-| Explicit repository selection (`@workspace use <alias>`, `@workspace bind <alias>`, or the GUI project picker) | that repository | `direct` |
+| IM bot chat (no `!workspace use` / binding, no channel `workspaceRoot`) | default workspace | `relay` |
+| Explicit repository selection (`!workspace use <alias>`, `!workspace bind <alias>`, or the GUI project picker) | that repository | `direct` |
 
-`@workspace use` is a runtime override for the current chat only; `@workspace
-bind` persists it. `@workspace relay` / `*main` returns the chat to the
+`!workspace use` is a runtime override for the current chat only; `!workspace
+bind` persists it. `!workspace relay` / `*main` returns the chat to the
 default workspace. An unknown alias is reported with the available aliases and
 never guessed — the chat stays on relay.
 
-`@status` prints the resolved landing point, `direct`/`relay`, whether the
+`!status` prints the resolved landing point, `direct`/`relay`, whether the
 persona is active, the workspace's memory backend (project layer), and the
 relay report policy.
 
@@ -88,5 +88,5 @@ directly — the settings panel still writes only the user layer:
 { "memory": { "backend": "mnemopi" } }
 ```
 
-`@status` shows `记忆: off` until that file exists. See
+`!status` shows `记忆: off` until that file exists. See
 [Memory](./memory.md#project-scoped-memory) for the layered lookup order.

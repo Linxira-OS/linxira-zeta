@@ -393,6 +393,20 @@ describe("AgentSession eager todo enforcement", () => {
 			expect(recent).toContainEqual({ role: "user", text: "publish the release notes to the changelog" });
 		});
 
+		it("regenerates a stale title in the language of the prompt that triggered the refresh", async () => {
+			await autoTitled({ "title.refreshAfterPrompts": 1, language: "en" });
+			vi.spyOn(titleDriftClassifier, "classifyTitleDrift").mockResolvedValue(true);
+			const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue(titleReply("修复解析器恢复"));
+
+			const titleApplied = waitForSessionName("修复解析器恢复");
+			await session.prompt("修复解析器恢复问题", { language: "zh" });
+			await titleApplied;
+
+			const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
+			expect(request?.systemPrompt?.join("\n")).toContain("简体中文");
+			expect(session.sessionManager.getSessionName()).toBe("修复解析器恢复");
+		});
+
 		it.each([
 			["still fits", false],
 			["no judge answers", undefined],

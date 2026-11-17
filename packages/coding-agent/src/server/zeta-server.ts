@@ -760,10 +760,10 @@ export class ZetaServer {
 			coordinator: this.#channelCoordinator,
 			webConfig: config,
 			getLastInbound: () => this.#channelRuntimeRef?.host.lastInbound ?? null,
-			sendText: (channelId, to, text) => {
+			sendText: (channelId, to, text, options) => {
 				const runtime = this.#channelRuntimeRef;
 				if (!runtime) throw new Error("IM channels are not started");
-				return runtime.sendText(channelId, to, text);
+				return runtime.sendText(channelId, to, text, options);
 			},
 			defaultCwd: defaultWorkspace,
 			channelSend: (opts, caller) => this.#channelSendHook(opts, caller),
@@ -801,6 +801,19 @@ export class ZetaServer {
 			// web gateway (web-UI plan approval opens them by id) and never spawn
 			// a duplicate live session on the same transcript.
 			createBotSessionRuntime: async entry => {
+				// An attached native conversation may already be resident in the
+				// gateway (Studio/TUI). A live non-IM runtime cannot be re-owned
+				// under a binding profile; fail explicitly rather than running two
+				// writers or silently claiming the existing runtime.
+				if (entry.reusesExistingTranscript) {
+					const live = sessions.get(entry.nativeSessionId ?? entry.id);
+					const origin = live?.isAlive() ? live.getSession().sessionManager?.getOrigin() : undefined;
+					if (live?.isAlive() && origin?.kind !== "im") {
+						throw new Error(
+							`Conversation "${entry.name}" is live in Studio/TUI. Close it there before using it from IM.`,
+						);
+					}
+				}
 				// A bot/PM session runs in ITS project: never the default workspace
 				// when the entry is bound to another repo.
 				const cwd = entry.cwd ?? defaultWorkspace;
@@ -1257,7 +1270,8 @@ export class ZetaServer {
 			peer,
 			...(context.threadId ? { threadId: context.threadId } : {}),
 			...(context.userId ? { userId: context.userId } : {}),
-			sendText: text => runtime.sendText(instanceId, peer, text),
+			...(messageId ? { messageId } : {}),
+			sendText: (text, options) => runtime.sendText(instanceId, peer, text, options),
 			planRequest: (title, workflow) => this.#startRemotePlanRequest(instanceId, peer, title, runtime, workflow),
 			fallback: async () => {},
 			channelStatus: () => getChannelStatus(),

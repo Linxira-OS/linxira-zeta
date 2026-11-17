@@ -1,21 +1,25 @@
 /**
  * The 2FA store: enrollment lifecycle, replay counter, recovery codes,
- * atomic 0600 persistence, and corrupt/missing-file tolerance.
+ * atomic 0600 persistence, and fail-closed damaged storage.
  *
  * Every test uses its own temp file; no shared process state is touched.
  */
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PENDING_ENROLLMENT_TTL_MS, TwoFactorStore } from "../../src/server/auth/two-factor-store";
+import {
+	PENDING_ENROLLMENT_TTL_MS,
+	TwoFactorStore,
+	TwoFactorStoreUnavailableError,
+} from "../../src/server/auth/two-factor-store";
 import { totp, totpStep } from "../../src/server/auth/totp";
 
 const cleanups: Array<() => Promise<void>> = [];
 
 async function setup(): Promise<{ store: TwoFactorStore; file: string }> {
-	const dir = await mkdtemp(join(tmpdir(), "zeta-2fa-store-"));
+	await mkdir(join(import.meta.dir, "../../../../temp"), { recursive: true });
+	const dir = await mkdtemp(join(import.meta.dir, "../../../../temp/zeta-2fa-store-"));
 	cleanups.push(() => rm(dir, { recursive: true, force: true }));
 	const file = join(dir, "auth", "totp.json");
 	return { store: new TwoFactorStore(file), file };
@@ -112,6 +116,19 @@ describe("verification", () => {
 		expect(await store.consumeRecoveryCode("AAAAA-AAAAA")).toBe(false);
 	});
 
+	test("concurrent recovery attempts across stores publish exactly one consumption", async () => {
+		const { store, file } = await setup();
+		const enrollment = await store.enroll();
+		await store.confirm(totp(enrollment.secret));
+		const code = enrollment.recoveryCodes[0]!;
+		const outcomes = await Promise.all([
+			store.consumeRecoveryCode(code),
+			new TwoFactorStore(file).consumeRecoveryCode(code),
+		]);
+		expect(outcomes.sort()).toEqual([false, true]);
+		expect((await new TwoFactorStore(file).status()).recoveryCodesRemaining).toBe(9);
+	});
+
 	test("regenerating recovery codes invalidates the old set", async () => {
 		const { store } = await setup();
 		const enrollment = await store.enroll();
@@ -145,12 +162,44 @@ describe("storage", () => {
 		for (const code of enrollment.recoveryCodes) expect(text).not.toContain(code);
 	});
 
-	test("a corrupt file is treated as 2FA off, never a crash", async () => {
+	test("damaged state is preserved and only an explicit local reset can replace it", async () => {
 		const { store, file } = await setup();
 		await mkdir(join(file, ".."), { recursive: true });
-		await writeFile(file, "{ this is not json", "utf8");
-		expect((await store.status()).enrolled).toBe(false);
-		expect((await store.status()).required).toBe(false);
+		const damaged = "{ this is not json";
+		await writeFile(file, damaged, "utf8");
+		await expect(store.status()).rejects.toBeInstanceOf(TwoFactorStoreUnavailableError);
+		await expect(store.enroll()).rejects.toBeInstanceOf(TwoFactorStoreUnavailableError);
+		await expect(store.disable()).rejects.toBeInstanceOf(TwoFactorStoreUnavailableError);
+		expect(await readFile(file, "utf8")).toBe(damaged);
+		await store.disable(true);
+		expect(await store.status()).toMatchObject({ enrolled: false, required: false });
+		const enrollment = await store.enroll();
+		expect(await store.confirm(totp(enrollment.secret))).toMatchObject({ ok: true });
+	});
+
+	test("unsupported schema and inconsistent policy or replay state never turn protection off", async () => {
+		const { store, file } = await setup();
+		const enrollment = await store.enroll();
+		await store.confirm(totp(enrollment.secret));
+		await store.setRequired(true);
+		const active = await store.read();
+		for (const damage of [
+			{ version: 2 },
+			{ required: "true" },
+			{ secret: "" },
+			{ enrolledAt: null },
+			{ lastUsedStep: -1 },
+			{ pending: {} },
+		]) {
+			await writeFile(file, JSON.stringify({ ...active, ...damage }));
+			await expect(new TwoFactorStore(file).isRequired()).rejects.toBeInstanceOf(TwoFactorStoreUnavailableError);
+		}
+	});
+
+	test("a non-file store is unavailable rather than a fresh installation", async () => {
+		const { store, file } = await setup();
+		await mkdir(file, { recursive: true });
+		await expect(store.isRequired()).rejects.toBeInstanceOf(TwoFactorStoreUnavailableError);
 	});
 
 	test("disable erases the secret, policy and recovery codes", async () => {
