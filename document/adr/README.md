@@ -89,6 +89,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0065](0065-feishu-bounded-inbound-resources.md) | Feishu inbound image and file resources use the shared bounded inbox | Proposed | 2026-11-14 | — | [Channels reference](../../packages/channels/README.md), [ADR 0030](0030-im-secret-storage.md), [REQ-040](../requirements-ledger.md) |
 | [0066](0066-model-visibility-fallback-slots.md) | Model visibility and fixed three-level fallback slots | Proposed | 2026-11-11 | — | [PR #321](https://github.com/Linxira-OS/linxira-zeta/pull/321), [REQ-028/029/076](../requirements-ledger.md) |
 | [0067](0067-tui-runtime-settings.md) | TUI runtime settings reuse the existing serve authority | Proposed | 2026-11-17 | — | [IM runtime](../../docs/im-runtime-ui.md), [REQ-124](../requirements-ledger.md) |
+| [0068](0068-omp-18-22-runtime-alignment.md) | Align Zeta consumers to the OMP 18.22 runtime contracts | Proposed | 2026-11-17 | — | [REQ-125](../requirements-ledger.md), [ADR 0036](0036-upstream-interface-alignment.md), [sync ledger](../upstream-sync.md) |
 
 ## File and numbering rules
 
