@@ -12,8 +12,8 @@ export const costs = {
 		"costs.empty-hint": "Pick a wider range in the top bar.",
 		// ── daily estimate card ─────────────────────────────────────────────
 		"costs.daily-estimate": "Daily estimate",
-		"costs.daily-by-model": "Per UTC day, stacked by model",
-		"costs.daily-by-component": "Per UTC day, stacked by billing component",
+		"costs.daily-by-model": "Per day, stacked by model",
+		"costs.daily-by-component": "Per day, stacked by billing component",
 		"costs.split-by": "Split by",
 		"costs.by-model": "By model",
 		"costs.by-component": "By component",
@@ -61,8 +61,8 @@ export const costs = {
 		"costs.empty-hint": "请在顶栏选择更宽的时间范围。",
 		// ── daily estimate card ─────────────────────────────────────────────
 		"costs.daily-estimate": "每日估算",
-		"costs.daily-by-model": "按 UTC 日统计，按模型堆叠",
-		"costs.daily-by-component": "按 UTC 日统计，按计费组件堆叠",
+		"costs.daily-by-model": "按本地日统计，按模型堆叠",
+		"costs.daily-by-component": "按本地日统计，按计费组件堆叠",
 		"costs.split-by": "拆分依据",
 		"costs.by-model": "按模型",
 		"costs.by-component": "按组件",

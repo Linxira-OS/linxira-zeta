@@ -10,13 +10,13 @@
 
 | 工具 | 来源 | 现行最低/精确版本 | 谁在读 |
 |---|---|---|---|
-| Bun | `package.json` `packageManager`（**精确** `bun@1.4.3`） | 精确钉版，CI 与本机同版 | `.github/actions/bun-install/action.yml`、`.gitea/workflows/local-ci.yml`、`scripts/check-ci-surface.ts` (`bun-pin-exact`) |
-| TypeScript | workspace catalog `typescript`（`^7.0.2`）+ 各包 `check:types` | TS 7 稳定版；`tsc` 即原生编译器 | 每个 `packages/*/package.json` 的 `check:types` |
+| Bun | `package.json` `packageManager`（**精确** `bun@1.4.4`） | 精确钉版，CI 与本机同版 | `.github/actions/bun-install/action.yml`、`.gitea/workflows/local-ci.yml`、`scripts/check-ci-surface.ts` (`bun-pin-exact`) |
+| TypeScript | workspace catalog `typescript`（`^7.0.2`）+ 各包 `check:types` | workspace 使用 `bun check --no-script`；独立 renderer 使用其 npm TypeScript | 每个包的 `check:types` 与独立 renderer 配置 |
 | npm | 本机全局（开发用）；CI 发布路径 | **≥ 11.5.1**（见 `document/release.md`：trusted publishing / OIDC 的下限） | `.github/workflows/ci.yml` 发布 job、本机手工 `npm publish` |
 
 - **Bun 的 pin 必须是精确版本，不能写范围**。范围 pin（`bun@>=1.4`）会让 `bun-install` action 去装 latest，把 CI 静默挪到未经测试的运行时上；`scripts/check-ci-surface.ts` 的 `bun-pin-exact` 规则会直接拦下范围 pin。升级 bun = 改这一处 `packageManager`（Dockerfile 的 `ARG BUN_VERSION` 与叶包 Dockerfile 要一起改），然后重跑 `bun install`、`bun run check:ts` 与各守卫。
-- **Nix 侧的 bun 是另一个 pin，不由 `packageManager` 推导**：`flake.nix` 把 `sourcesFile` 指向 `nix-bun` 输入的 `versions/<v>.json`，`nix/package.nix` 用那个 bun 做 `bun --compile`（所以 nix 产物内嵌的是**该**版本的运行时，不是 `packageManager`）。当前值 `1.4.2` 落后于 `packageManager` 的 `1.4.3`：`flake.lock` 钉住的 nix-bun rev（`48e887d79`）`versions/` 下只收录到 `1.4.2.json`，要跟上必须同时更新 `flake.lock`（narHash 得在 nix 侧算）。`nix/bun.nix` 与 bun 版本**无关**——它只由 `bun.lock` 经钉版 bun2nix 生成，所以升 bun 不必重生成它，但每次合并/依赖改动后都用 `bun run check:nix-bun` 复核。
-- **类型检查只有一个入口：TypeScript 7 稳定版的 `tsc`**。它自带原生（Go）编译器，所以不再需要 `@typescript/native-preview` / `tsgo` 这套预览分发：全仓统一写 `tsc -p <tsconfig> --noEmit`（发布路径是 `bun x tsc -p tsconfig.publish*.json`）。新增包照抄既有 `check:types` 形态，不要引入第二个类型检查器。
+- **Nix 侧的 bun 是另一个精确 pin**：`flake.nix` 的 `sourcesFile` 当前为 `versions/1.4.4.json`，与 `packageManager` 一致；更新时还要确认 `flake.lock` 钉住的 `nix-bun` 输入包含该版本（输入更新的 narHash 必须由 Nix 计算）。`nix/package.nix` 用这个 bun 做 `bun --compile`，产物内嵌的是该运行时。`nix/bun.nix` 是 `bun.lock` 经钉版 bun2nix 生成的依赖集；每次合并或依赖改动后用 `bun run check:nix-bun` 复核。
+- **工作区类型检查走各包的 `check:types`（`bun check --no-script -p <tsconfig>`）**，根入口为 `bun run check:types`。独立 `web-app/` 的 npm TypeScript 与 `tsconfig.app.json` 自行拥有 `baseUrl`/paths 解析；用它的构建或类型检查入口验证，不把配置改写成根检查器的兼容层。发布声明仍由拥有它的发布脚本生成。
 - **npm 只在两处出现**：本机开发（`npm ci` 装 `web-app/`、手工补发）与 CI 发布（`npm publish` + provenance）。发布路径要求 npm CLI ≥ 11.5.1，本机开发也建议同版或更新（当前 12.x）；版本不够时 trusted publishing/OIDC 不会生效。
 - **入库的 npm lockfile 的远程来源必须落在公共 registry**（`desktop/package-lock.json`、`web-app/package-lock.json`）：远程 `resolved` 一律 `https://registry.npmjs.org/`。本机 `~/.npmrc` 若配了镜像（`registry.npmmirror.com` 之类），`npm install` 会把镜像 URL 写进 lockfile，而 npm ≥ 12 的 `allowRemote` 随后在**别人**的机器上以 `EALLOWREMOTE` 直接拒绝安装（desktop 带 323 条镜像 URL 入库，2026-10-14 才被发现；同族的 `bun.lock` 泄漏见 `document/upstream-sync.md`，发布步已钉源）。所以每次重生成都显式带 `--registry=https://registry.npmjs.org`；只想换主机名时按 `resolved` 行改写即可，**不要**为此做真重解析（重解析会顺带抬版本，改依赖是独立决策）。守卫：`bun scripts/check-shared-infra.ts`（`check` job 每次 PR 跑）。
 - **有意固定的本地 tarball** 可以用根包直接声明的 `file:vendor/<name>-<version>.tgz`；锁文件必须保留 SHA-512 integrity，文件的真实路径必须在包目录内且字节匹配。不得把镜像或任意远程地址伪装成本地包。Studio 的 SheetJS 0.20.3 按 [ADR-0059](adr/0059-vendored-sheetjs-tarball.md) 保留官方原始包，避免退回公共 registry 的旧版本；仍不启用 `allow-remote`。

@@ -17,6 +17,9 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { Skill } from "@linxiraos/zeta/extensibility/skills";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { RoomService } from "@linxiraos/zeta/rooms/service";
+import { roomRuntime } from "@linxiraos/zeta/rooms/transport";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -27,6 +30,7 @@ import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta
 import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { resetTeamRoomsForTests } from "@linxiraos/zeta/vibe/team-rooms";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
@@ -146,6 +150,7 @@ describe("InteractiveMode vibe mode toggle", () => {
 	let mode: InteractiveMode;
 	let modelRegistry: ModelRegistry;
 	let storage: ExitFaultStorage;
+	let rooms: RoomService;
 
 	beforeAll(async () => {
 		await initTheme();
@@ -156,6 +161,10 @@ describe("InteractiveMode vibe mode toggle", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
+		AgentRegistry.resetGlobalForTests();
+		resetTeamRoomsForTests();
+		rooms = new RoomService(":memory:");
+		roomRuntime(() => rooms);
 		VibeSessionRegistry.resetGlobalForTests();
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
@@ -188,12 +197,22 @@ describe("InteractiveMode vibe mode toggle", () => {
 			createVibeTools: () => VIBE_TOOL_NAMES.map(stubTool),
 			createTeamTools: () => [stubTool("team_spawn")],
 		});
+		AgentRegistry.global().register({
+			id: MAIN_AGENT_ID,
+			displayName: MAIN_AGENT_ID,
+			kind: "main",
+			status: "idle",
+			session,
+		});
 		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus());
 	});
 
 	afterEach(async () => {
 		mode?.stop();
 		await session?.dispose();
+		rooms.close();
+		resetTeamRoomsForTests();
+		AgentRegistry.resetGlobalForTests();
 		VibeSessionRegistry.resetGlobalForTests();
 		vi.restoreAllMocks();
 		resetSettingsForTest();

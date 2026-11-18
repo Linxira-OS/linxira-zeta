@@ -14,7 +14,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
-import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { createInMemoryAuthStorage, fixedAdvisorTools } from "./helpers/agent-session-setup";
 
 const ADVISE_CALL = {
 	type: "toolCall",
@@ -72,7 +72,7 @@ describe("advisor advise-only turn terminates the review", () => {
 			sessionManager: SessionManager.inMemory(tempDir.path()),
 			settings,
 			modelRegistry: new ModelRegistry(authStorage, tempDir.join("models.yml")),
-			advisorTools: [readTool],
+			advisorTools: fixedAdvisorTools(readTool),
 			advisorStreamFn: advisorMock.stream,
 		});
 		settings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");

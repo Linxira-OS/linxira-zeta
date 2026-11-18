@@ -11,6 +11,7 @@ import { IrcBus, type IrcBusApi } from "../irc/bus";
 import { type AgentLifecycleApi, AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { type AgentRef, AgentRegistry, type AgentRegistryApi, isRootAgentRef } from "../registry/agent-registry";
 import { registerPersistedSubagents, sessionFileBelongsToRoot } from "../registry/persisted-agents";
+import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import { normalizeAssistantUsage, parseSessionEntries } from "../session/session-loader";
 
 /** Filesystem and parser used by local and host-backed transcript viewers. */
@@ -91,12 +92,14 @@ export function sumSubagentTreeCost(args: {
 	const { observers, rootSessionFile, sessionCosts } = args;
 	const rows: AgentRef[] = [];
 	const observedById = new Map<string, ObservableSession>();
-	// Multiple top-level sessions share the registry; every root is its own
-	// billing root, and a root's own advisors are billed by its status line.
-	const rootIds = new Set(args.refs.filter(isRootAgentRef).map(ref => ref.id));
+	// Multi-session hosts (ACP, SDK) register each root as `kind: "main"` under
+	// its own id, not `MAIN_AGENT_ID`. A root and its advisors are billed apart
+	// from the tree, and a root's transcript always belongs to itself.
+	const mainIds = new Set([MAIN_AGENT_ID]);
+	for (const ref of args.refs) if (ref.kind === "main") mainIds.add(ref.id);
 	for (const ref of args.refs) {
-		if (isRootAgentRef(ref)) continue;
-		if (ref.kind === "advisor" && (ref.parentId === undefined || rootIds.has(ref.parentId))) continue;
+		if (mainIds.has(ref.id)) continue;
+		if (ref.kind === "advisor" && mainIds.has(ref.parentId ?? MAIN_AGENT_ID)) continue;
 		const observed = observers.getSession(ref.id);
 		const inTree = ref.sessionFile
 			? rootSessionFile !== undefined && sessionFileBelongsToRoot(ref.sessionFile, rootSessionFile)

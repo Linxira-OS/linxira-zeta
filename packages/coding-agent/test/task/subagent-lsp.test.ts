@@ -10,6 +10,7 @@ import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TaskTool } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
@@ -253,6 +254,12 @@ describe("subagent LSP availability", () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolated-session-cwd-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
+			const parent = await SessionManager.open(parentSessionFile, undefined, undefined, {
+				initialCwd: tempDir,
+				suppressBreadcrumb: true,
+			});
+			await parent.ensureOnDisk();
+			await parent.close();
 			const tool = await TaskTool.create(createSession({ isolationEnabled: true, sessionFile: parentSessionFile }));
 			await tool.execute("tool-call", { ...TEST_TASK, isolated: true });
 

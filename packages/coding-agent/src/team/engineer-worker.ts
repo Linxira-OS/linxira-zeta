@@ -93,7 +93,7 @@ async function executeTask(
 	if (signal.aborted) onAbort();
 	else signal.addEventListener("abort", onAbort, { once: true });
 	const unsubscribe = session.subscribe(event => {
-		if (event.type === "agent_end" && (event.isTerminal || event.yielded)) done.resolve();
+		if (event.type === "agent_end") done.resolve();
 	});
 	try {
 		await session.sendUserMessage(

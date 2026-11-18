@@ -90,7 +90,7 @@ export default defineConfig({
 			"@linxiraos/studio-testkit": fileURLToPath(new URL("./src/vendor/testkit/src/index.ts", import.meta.url)),
 			"@linxiraos/studio-client": fileURLToPath(new URL("./src/vendor/client/src/index.ts", import.meta.url)),
 			"@linxiraos/studio-transport-web": fileURLToPath(
-				new URL("./src/vendor/transport-web/src/index.ts", import.meta.url),
+				new URL("./src/vendor/transport-web/src/browser-client.ts", import.meta.url),
 			),
 			"@linxiraos/studio-platform": fileURLToPath(new URL("./src/vendor/platform/src/index.ts", import.meta.url)),
 			"@linxiraos/studio-runtime-installer": fileURLToPath(

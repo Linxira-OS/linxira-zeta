@@ -110,7 +110,7 @@ const browserSchema = type({
 	"name?": type("string").describe("tab id (default 'main')"),
 	"url?": type("string").describe("url to open"),
 	"app?": type("string").describe(
-		"browser to drive: 'relay' (the user's Chrome), 'tern' (Tern picture-in-picture), 'webkit', 'chromium' (managed), 'own' (Zeta's own browser: WebKit if installed, else Chromium), 'auto' (default choice without the relay), a CDP endpoint URL to attach to, or an executable path to spawn",
+		"browser to drive: 'relay' (the user's Chrome), 'chromium' or 'own' (managed Chromium), 'auto' (default choice without the relay), a CDP endpoint URL to attach to, or an executable path to spawn",
 	),
 	"argv?": type("string[]").describe("extra cli args when app is an executable path"),
 	"target?": type("string").describe("URL/title substring picking the page to drive"),
@@ -156,10 +156,9 @@ interface BrowserPreludeDetails {
 
 /**
  * The browser an open drives, by precedence: an explicit `app` (an executable
- * path or CDP URL, or a keyword: `relay`, `tern`, `webkit`, `chromium`, `own`),
- * the relay, `browser.cdpUrl`, a cmux surface, then Chromium. `app: "auto"`
- * is that chain without the relay. `app: "tern"` and `app: "webkit"` require
- * their engines, which this tree does not ship yet.
+ * path, CDP URL, `relay`, `chromium`, or `own`), the relay, `browser.cdpUrl`,
+ * a cmux surface, then Chromium. `app: "auto"` is that chain without the relay.
+ * Retired Tern and WebKit keywords fail explicitly instead of naming executables.
  */
 export function resolveBrowserKind(
 	params: BrowserParams,
@@ -191,12 +190,10 @@ export function resolveBrowserKind(
 		if (relayKind) return relayKind;
 	}
 	if (app === "tern") {
-		throw new ToolError('app: "tern" requires running inside a Tern pane, which this build does not support.');
+		throw new ToolError('The Tern browser backend is retired. Use app: "chromium" or leave app unset.');
 	}
 	if (app === "webkit") {
-		throw new ToolError(
-			'app: "webkit" requires Zeta\'s WebKit engine, which this build does not ship. Use app: "chromium" or leave app unset for managed Chromium.',
-		);
+		throw new ToolError('The WebKit browser backend is retired. Use app: "chromium" or leave app unset.');
 	}
 	if (app === "chromium" || app === "own") return chromiumKind(params, session);
 	// Relay before cdpUrl among settings: enabling the opt-out-by-default relay

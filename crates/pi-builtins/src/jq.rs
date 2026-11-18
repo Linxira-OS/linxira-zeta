@@ -3046,7 +3046,7 @@ mod tests {
 			"",
 		);
 		assert_eq!((code, out.as_str()), (0, "2\n4\n"));
-		assert_eq!(err, "Error: cannot calculate \"x\" + 1\n");
+		assert_eq!(err, "jq: error (at in.jsonl:2): string (\"x\") and number (1) cannot be added\n");
 	}
 
 	#[test]

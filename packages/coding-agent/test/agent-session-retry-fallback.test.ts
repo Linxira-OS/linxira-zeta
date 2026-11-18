@@ -2325,7 +2325,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "fallback-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				const selector = `${model.provider}/${model.id}`;
@@ -2454,7 +2453,6 @@ describe("AgentSession retry fallback", () => {
 				sessionManager: SessionManager.inMemory(),
 				settings,
 				modelRegistry,
-				advisorTools: [],
 				advisorStreamFn: (model, context, options) => {
 					requestedModels.push(model);
 					advisorMock.push(
@@ -2529,7 +2527,6 @@ describe("AgentSession retry fallback", () => {
 				sessionManager: SessionManager.inMemory(),
 				settings,
 				modelRegistry,
-				advisorTools: [],
 				advisorStreamFn: (model, context, options) => {
 					requestedModels.push(`${model.provider}/${model.id}`);
 					advisorMock.push(
@@ -2617,7 +2614,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "media-budget-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				const selector = `${model.provider}/${model.id}`;
@@ -2698,7 +2694,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "media-budget-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				const selector = `${model.provider}/${model.id}`;
@@ -2775,7 +2770,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "transient-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				requestedAdvisorModels.push(`${model.provider}/${model.id}`);
@@ -2844,7 +2838,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "quota-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				requestedAdvisorModels.push(`${model.provider}/${model.id}`);
@@ -2912,7 +2905,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "quota-switch-test", model: advisorSelector }],
 			advisorStreamFn: (model, context, options) => {
 				advisorRequests++;
@@ -2971,7 +2963,6 @@ describe("AgentSession retry fallback", () => {
 				sessionManager: SessionManager.inMemory(),
 				settings,
 				modelRegistry,
-				advisorTools: [],
 				advisorConfigs: [{ name: "capacity-test", model: advisorSelector }],
 				advisorStreamFn: model => {
 					advisorRequests++;
@@ -3064,7 +3055,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "chain-hop-test", model: advisorRoleSelector }],
 			advisorStreamFn: (model, context, options) => {
 				const selector = `${model.provider}/${model.id}`;
@@ -3150,7 +3140,6 @@ describe("AgentSession retry fallback", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorStreamFn: advisorMock.stream,
 		});
 		session.setAdvisorEnabled(true);

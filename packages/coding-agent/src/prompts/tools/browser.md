@@ -17,8 +17,8 @@ BrowserTab, every helper awaited:
 navigation: url title goto back forward reload pushState
 inspection: observe({selector?, compact?, viewportOnly?, includeAll?}) ariaSnapshot(selector?, {interactive?, compact?, urls?, diff?}) a11y extract(format?, {selector?, outline?, filter?}) text html value attr count box styles isVisible isEnabled isChecked
 capture: screenshot({selector?, fullPage?, silent?, annotate?, format?, quality?, ifChanged?, threshold?}) diffScreenshot(baselinePath, {threshold?, output?}) pdf({path?, format?, landscape?, scale?, printBackground?, margin?, pageRanges?})
-interaction: click(selector, {button?, count?}) dblclick hover focus check uncheck type fill press keyDown keyUp mouseMove mouseDown mouseUp clickAt wheel scroll drag highlight scrollIntoView select uploadFile
-waiting: waitFor waitForSelector waitForUrl waitForText
+interaction: click(selector, {button?, count?}) dblclick hover focus check uncheck type fill press keyDown keyUp mouseMove(x, y, {steps?, css?}) mouseDown mouseUp clickAt(x, y, {button?, count?, css?}) wheel scroll drag highlight scrollIntoView select uploadFile
+waiting: waitFor waitForSelector waitForUrl(urlPattern, {timeout?}) waitForText
 frames: frames() → frame tree; frame(selectorOrNameOrUrl) → handle with click fill type press text html value attr count isVisible ariaSnapshot evaluate waitFor waitForSelector screenshot
 dialogs: dialog handleDialog setDialogs
 emulation: emulate(options?) devices()
@@ -29,7 +29,7 @@ downloads: waitForDownload downloads
 diagnostics: console errors clearConsole traceStart traceStop profileStart profileStop metrics
 recording: recordStart(path, options?) recordStop recordRestart(path, options?) recording
 vitals, React: vitals reactEnable reactTree reactInspect reactRenders reactSuspense
-network: route unroute routes requests request clearRequests harStart harStop allowedDomains
+network: route(urlGlob, {abort?, status?, headers?, contentType?, body?, delay?, resourceType?}) unroute routes requests({filter?, type?, method?, status?, since?, limit?}) → metadata request(id) → with bodies clearRequests harStart harStop allowedDomains
 WebMCP (experimental, Chromium only): webmcpList webmcpInvoke webmcpEvents
 execution: evaluate run(fnOrCode, {args?, timeout?})
 elements: id(n) ref("e5") → BrowserElement with click dblclick check uncheck highlight type fill press hover focus select uploadFile scrollIntoView boundingBox isVisible isHidden text html value attr styles isEnabled isChecked evaluate
@@ -41,17 +41,23 @@ selectors: CSS, or Puppeteer aria/… text/… xpath/… pierce/… label/… pl
   - `console({level?, since?, limit?, clear?})` and `errors({since?, limit?, clear?})` return `{entries, nextSeq, dropped}`, not a list: read its `entries` field (`r.entries` in JavaScript, `r["entries"]` in Python), and pass `nextSeq` as `since` to read only later entries.
 
 - `targets` resolves the browser like `open` (pass the same `app`, e.g. `"relay"`) and lists pages `target` can adopt:
-  - a Tern window's browser blocks (`tab`: the zeta tab holding one), or
   - the relay's Chrome pages (`shown`: the active tab).
   - Pass an entry's `target`; never guess.
 - `viewportOnly`: on-screen elements only (ignored on cmux). `includeAll`: non-interactive nodes too. `text()` and `html()` without a selector read `<body>`.
 - `click`: `button` presses another mouse button (`"right"` opens a context menu); `count` clicks more than once. `<select>` elements: `select`, not `fill`.
+- `clickAt`, `mouseMove`, `drag` `{x, y}` points: the position as read off the tab's latest screenshot.
+  - That is viewport CSS pixels, unless the screenshot's line says it is scaled.
+  - After a scaled screenshot, pass values measured on the page (`box`, `evaluate`) with `css: true` instead of scaling them: `clickAt(x, y, {css: true})`, `{x, y, css: true}`.
 - `waitFor*` resolve as soon as the condition holds: after a click or navigation wait for the expected text, URL, or selector, never a fixed sleep.
+- The cell's own `wait(handles)` waits for agents and completions, not time; `wait(ms | predicate)` sleeps or polls only inside `tab.run`.
+- URL patterns (`waitForUrl`, `waitForResponse`, `requests({filter})`): a string with `*` is a glob (`*` within a path segment, `**` across: `"**/cart.php"`), any other string a substring; or a RegExp. `route` strings are always globs.
+- `route` is declarative: matching requests are aborted or fulfilled from its options; it takes no handler.
+  - Watching traffic: `requests()` lists metadata; `request(id)` adds request and response bodies.
 - Navigation and re-renders invalidate observed ids and refs: re-observe, then act in the same cell. `pushState(url)`: SPA navigation without a document load.
-- No dialog policy: alerts and beforeunload prompts auto-accept; confirms and prompts stay pending for `handleDialog`.
+- No dialog policy: alerts and beforeunload prompts auto-accept; confirms and prompts stay pending for `handleDialog`, and page calls fail naming them until answered.
 - `emulate` merges device/viewport, geolocation, offline/network, media, headers/auth, UA, timezone/locale, and CPU overrides.
 - `devices()` lists valid device names.
-- Cookie imports accept objects, raw `Cookie:` headers, DevTools cURL dumps, or JSON arrays.
+- Cookie imports accept objects, arrays of them (`setCookies(await other.cookies())` copies a session), raw `Cookie:` headers, DevTools cURL dumps, or JSON array strings.
 - `waitForDownload` holds the tab until a file arrives, so start it and the downloading click in one `tab.run`:
   `const download = tab.waitForDownload(); await tab.click(selector); return await download;`.
 - Recording: `.mp4` is H.264, `.webm` VP9/VP8; optional cursor overlay and changed-frame contact sheet.
@@ -67,7 +73,7 @@ selectors: CSS, or Puppeteer aria/… text/… xpath/… pierce/… label/… pl
   - Python passes a JavaScript code string only: `await tab.run(code, timeout=…)`.
   - Executes in an isolated JavaScript tab runtime with raw Puppeteer `page`/`browser` and ordinary Eval helpers.
   - Text it prints shows in the outer Eval cell; screenshots surface as Eval images; helpers and `tab.run` return real structured values.
-  - Raw `page.setRequestInterception` and `page.on("request")` inside `tab.run` coexist with `tab.route` handlers and are cleaned up after that run.
+  - Chromium: raw `page.setRequestInterception` and `page.on("request")` inside `tab.run` coexist with `tab.route` handlers and are cleaned up after that run.
   - `tab.route` persists until `tab.unroute` or tab close.
 - `allowed_domains`: exact hosts and `*.example.com` patterns (bare domain included); other navigation, subresource, fetch, and WebSocket requests abort.
 
@@ -76,39 +82,18 @@ Browser choice:
 - No `app` → the first that applies:
   1. the user's Chrome through the relay (`browser.relay` setting; `PI_BROWSER_RELAY=1`/`=0` overrides it)
   2. `browser.cdpUrl`
-  3. Tern inside a Tern pane
-  4. cmux
-  5. zeta's own browser: headless WebKit when installed, downloaded first when no browser is (off with the `browser.webkit` setting or `PI_BROWSER_WEBKIT=0`),
-     else managed Chromium (installs on first use)
+  3. cmux
+  4. Zeta's managed Chromium (installs on first use)
 - The open result names the browser and any fallback it took.
 - `app` is one string:
-  - `"relay"` (the user's Chrome), `"tern"`, `"webkit"`, `"chromium"` (managed)
-  - `"own"` (zeta's own browser: WebKit when installed, else Chromium; skips the relay, `browser.cdpUrl`, Tern and cmux)
+  - `"relay"` (the user's Chrome), `"chromium"` (managed)
+  - `"own"` (managed Chromium; skips the relay, `browser.cdpUrl` and cmux)
   - `"auto"` (the choice above without the relay)
   - a CDP endpoint URL (`http://127.0.0.1:9222`) to attach to
   - or an executable path to launch (Chromium-family browsers use an Zeta-owned profile unless `argv` supplies `--user-data-dir`)
-- `headed`: visible or hidden tab per open.
-  - A WebKit tab gets its own window where the engine ships a viewer (macOS), and an open of a live WebKit tab shows or hides it at once.
-  - Elsewhere a visible browser is Chromium.
+- `headed`: visible or hidden Chromium per open.
 - `file:` pages can always read other local files. `insecure` applies per tab.
 
-WebKit (open result: `zetacode's headless WebKit browser`, or `zetacode's WebKit browser (in a window)` when shown):
-
-- Off screen unless shown (there the user can click and type too); the page always sees a visible, focused window and no automation flag.
-- `target` names nothing there. Engine cannot start → Chromium.
-- `app: "chromium"`: managed Chromium for this open.
-- `app: "webkit"`: require WebKit, downloading a missing engine; fails when that download fails and, with `headed: true`, where it ships no viewer.
-- Has WebGL, WebGPU, silent video and audio playback (no sound leaves the machine), Web Audio, WebRTC; camera and microphone requests are denied.
-- A page misbehaves (DRM-protected video, speech synthesis)? Reopen it with `app: "chromium"`.
-- The page cannot tell it is driven:
-  `observe`, selectors, input, `console`, `errors`, `requests`, HAR and network-idle waits come from the engine, not from script in the page.
-- These do put detectable code in the page's world; AVOID them on a site that fingerprints:
-  - `route` (wraps `fetch`/`XMLHttpRequest`/`console`; gone from new documents after the last `unroute`)
-  - `emulate` with `geolocation`, `locale` or `offline` (until cleared)
-  - `vitals` and `reactEnable` (for the tab's life)
-  - `init_scripts`
-  - a recording's cursor overlay
-  - whatever `evaluate` code leaves behind
 
 Relay (`app: "relay"`: the user's Chrome through the zeta relay):
 
@@ -130,41 +115,10 @@ Relay (`app: "relay"`: the user's Chrome through the zeta relay):
     `focus()` then `press("Enter")` for a button, `press("Space")` for a checkbox, `uploadFile` on the file input itself.
 {{/if}}
 
-Tern:
-
-- Inside a Tern pane a tab opens as a browser picture-in-picture (PiP; native WKWebView, not Chromium) over your own pane,
-  a passive corner card while the user looks at another Tern tab; it never takes focus or input.
-- When the open result says it is not on screen (the user hid PiPs), tell the user where it is.
-- An explicit `app`, the relay, and a configured CDP URL win over Tern.
-- `target` adopts a browser block the user already has open (block id, or URL/title substring; no match lists the window's blocks).
-  - It is the user's page and signed-in session: `url` navigates it, so pass one only when asked.
-  - Closing releases it without closing it.
-- `app: "own"` skips Tern, the user's Chrome, `browser.cdpUrl` and cmux (e.g. parallel scraping by subagents, where PiPs would pile up over one pane).
-- `app: "auto"` skips only the relay.
-- `app: "tern"` requires Tern; `headed` never chooses between Tern and Chromium.
-- No Tern window can host a PiP → zeta's own browser.
-
-Tern and WebKit tab limits:
-
-- Input is trusted native mouse/keyboard events at element centres; `evaluate` runs in the page world.
-- Frames inside CSS-scaled/rotated elements cannot be driven.
-- `console`, `requests`, HAR:
-  - Tern: the page's `fetch`/XHR plus navigation responses only (no images/scripts/styles); request bodies only for the current document.
-  - WebKit: every resource load (XHR reads as `fetch`, no timings), but no response bodies
-    (`request(id)` returns no `body`, `response.text()` throws): read a body in the page with `evaluate`.
-- `route` accepts only `resourceType` `fetch`/`xhr`.
-- `emulate`:
-  - supports viewport/device, userAgent, colorScheme, credentials, geolocation, locale, offline (JS-visible);
-  - timezone, headers, any reducedMotion, CPU and network throttling throw;
-  - `emulate({ colorScheme })` applies to every WebKit tab at once, the last call winning.
-- `pdf` supports only `path` and throws on WebKit; `a11y` covers the main frame.
-- `loadState` restores storage for the current origin only; `webmcp*` throw.
-- `traceStart`/`traceStop`/`profileStart`/`profileStop` are unsupported; clipboard helpers use the system clipboard.
-- Raw `page`/`browser` in `tab.run` are a Puppeteer-like subset: goto, evaluate, content, $, $$, locator, waits, screenshot, keyboard, mouse, cookies.
 
 Lifetime:
 
-- Closing releases the managed tab and closes tabs zeta opened in the relay, never borrowed relay tabs, CDP-attached pages, or adopted Tern blocks.
+- Closing releases the managed tab and closes tabs Zeta opened in the relay, never borrowed relay tabs or CDP-attached pages.
 - `browser.close({ all: true })` releases the tabs you opened, not other agents'.
 - `kill: true` terminates only applications spawned by this process, never reused browser processes.
 - Idle tabs auto-freeze at turn settle, unfreeze on next use, and close past the idle-close timeout.

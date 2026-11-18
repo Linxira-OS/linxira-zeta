@@ -12,7 +12,7 @@
 | `web-app/perf-harness.html` | 测量页（唯一 document） |
 | `web-app/src/perf/entry.ts` | 挂载 `perf-harness-entry`（真实 `ConversationPane` + `ConversationMinimap` + `ConversationStore`）与真实 `ChipComposer` |
 | `web-app/src/perf/collect.ts` | 页内采集器；`window.__perf.run()` / `window.__perfReport` |
-| `web-app/vite.perf.config.ts` | 只以 `perf-harness.html` 为输入，输出 `web-app/dist-perf/`（产物入口改名为 `index.html`） |
+| `web-app/vite.perf.config.ts` | 以 `perf-harness.html` 为输入，输出 `web-app/dist-perf/` |
 | `web-app/scripts/serve-perf.mjs` | `dist-perf/` 的 Bun 静态服务器（loopback + 临时端口） |
 
 ---
@@ -26,7 +26,7 @@ bun scripts/serve-perf.mjs
 # 输出一行：perf harness: http://127.0.0.1:<port>/
 ```
 
-`dist-perf/` 内含 `index.html`、`assets/` 与图形 vendor 资源。服务器不做
+`dist-perf/` 内含 `perf-harness.html`、`assets/` 与图形 vendor 资源。服务器在 `/` 返回测量页，除此之外不做
 history fallback、不发缓存头（`cache-control: no-store`），端口由系统分配。
 复核：`curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:<port>/`
 应为 `200`。

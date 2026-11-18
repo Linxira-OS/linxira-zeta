@@ -32,13 +32,7 @@ import {
 	untilAborted,
 } from "@linxiraos/pi-utils";
 import { peekFile } from "@linxiraos/pi-utils/peek-file";
-import {
-	cfgIdaAvailable,
-	EXECUTABLE_SNIFF_BYTES,
-	isExecutableFile,
-	isExecutableHeader,
-	isIdaDatabasePath,
-} from "../ida";
+import { cfgDisasmBackend, DISASM_BACKENDS, isExecutableFile } from "../disasm";
 import { normalizeToLF } from "../edit/normalize";
 import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { extractUriScheme, InternalUrlRouter, type SchemeSpec, sessionResolveContext } from "../internal-urls";
@@ -196,6 +190,7 @@ import {
 import { parseSqlitePathCandidates } from "./sqlite-reader";
 import { formatBytes, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
+import { getToolConversationState, ToolConversationState } from "./tool-state";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
@@ -1022,12 +1017,6 @@ const REPEAT_READ_HINT_THRESHOLD = 3;
 /** Per-session cap on tracked read keys; the map resets when exceeded. */
 const REPEAT_READ_TRACKER_CAP = 64;
 
-const kRepeatReadTracker = Symbol("read.repeatTracker");
-
-interface SessionWithRepeatReadTracker extends ToolSession {
-	[kRepeatReadTracker]?: Map<string, { hash: bigint; count: number }>;
-}
-
 /**
  * Append a loop-breaking hint when the same read selector returns
  * byte-identical output repeatedly. Weak models re-issue an unchanged read
@@ -1050,9 +1039,9 @@ function repeatReadNotice(
 	const block = result.content?.find(entry => entry.type === "text");
 	if (!block || typeof block.text !== "string" || block.text.length === 0 || result.isError) return;
 
-	const holder = session as SessionWithRepeatReadTracker;
-	holder[kRepeatReadTracker] ??= new Map();
-	const tracker = holder[kRepeatReadTracker];
+	const state = getToolConversationState(session);
+	state.repeatReads ??= new Map();
+	const tracker = state.repeatReads;
 	if (tracker.size > REPEAT_READ_TRACKER_CAP) tracker.clear();
 
 	let hash = BigInt(result.content.length);
@@ -1078,8 +1067,8 @@ function repeatReadNotice(
 
 /**
  * Whether `path` takes a trailing `:A-B` line selector: filesystem paths, web
- * URLs and `lines` schemes do; selector-free devices (`xd://`), opaque MCP
- * resources and unregistered schemes would read the tail as part of the URL.
+ * URLs and `lines` schemes do; selector-free schemes (`out://`, `attachment://`),
+ * opaque MCP resources and unregistered schemes would read the tail as part of the URL.
  */
 function acceptsLineSelector(path: string): boolean {
 	const router = InternalUrlRouter.instance();
@@ -1265,7 +1254,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	get description(): string {
 		return prompt.render(readDescription, {
 			IS_HL_MODE: resolveFileDisplayMode(this.session).hashLines,
-			BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings),
+			BINARY_VIEWS: cfgDisasmBackend.get(this.session.settings) !== undefined,
 		});
 	}
 	/**
@@ -1274,7 +1263,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	 */
 	docTopics(): Record<string, string> {
 		return {
-			sources: prompt.render(readSourcesDoc, { BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings) }),
+			sources: prompt.render(readSourcesDoc, {
+				BINARY_VIEWS: cfgDisasmBackend.get(this.session.settings) !== undefined,
+			}),
 			urls: InternalUrlRouter.instance()
 				.reference()
 				.map(line => `- ${line}`)
@@ -1333,14 +1324,11 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		const absolutePath = target.resolved;
 		let snapshotDigest: string | undefined;
 		try {
+			// A fresh conversation state: snapshots this read stages land in their own
+			// store and only reach the session's when the read commits.
 			const speculativeSession = Object.create(this.session) as ToolSession;
-			Object.defineProperty(speculativeSession, "editStore", {
-				value: undefined,
-				writable: true,
-				configurable: true,
-			});
-			Object.defineProperty(speculativeSession, "conflictHistory", {
-				value: undefined,
+			Object.defineProperty(speculativeSession, "state", {
+				value: new ToolConversationState(),
 				writable: true,
 				configurable: true,
 			});
@@ -2381,7 +2369,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			}
 
 			// `bin:main`, `bin:imports`, `bin:main:10-40`: an executable/IDB prefix
-			// routes to an IDA view; `:raw` keeps the byte-verbatim escape hatch.
+			// routes to a disassembler view; `:raw` keeps the byte-verbatim escape hatch.
 			if (question === undefined) {
 				const binaryParsed = parseSel(literalSplit.sel);
 				if (!isRawSelector(binaryParsed)) {
@@ -2542,6 +2530,19 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			media.path = absolutePath;
 		}
 
+		// Metadata inspection precedes whole-file snapshots and never starts analysis.
+		// Raw/image and speculative reads retain their existing safety/fallback routes.
+		if (
+			question === undefined &&
+			!isRawSelector(parsed) &&
+			parsed.kind !== "image" &&
+			lexicalAbsolutePath === undefined &&
+			(DISASM_BACKENDS.ida.isDatabasePath(absolutePath) || (await isExecutableFile(absolutePath)))
+		) {
+			const backend = cfgDisasmBackend.get(this.session.settings);
+			return readBinary(this.session, { backend, absolutePath, view: "" }, parsed, signal);
+		}
+
 		const ext = path.extname(renderAbsolutePath).toLowerCase();
 		// Buffer once for every consumer below: the image sniff, the binary sniff,
 		// the structural summary, the rendered window, bracket context, and the
@@ -2694,20 +2695,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				(wholeFileBytes
 					? isProbablyBinaryHeader(wholeFileBytes.subarray(0, BINARY_SNIFF_BYTES))
 					: await isProbablyBinary(absolutePath));
-			// Executables and IDBs open in IDA instead of being refused. Speculative
-			// reads (lexicalAbsolutePath set) never launch IDA; they fall back to an
-			// ordinary execution that does.
-			if (
-				looksBinary &&
-				lexicalAbsolutePath === undefined &&
-				cfgIdaAvailable.get(this.session.settings) &&
-				(isIdaDatabasePath(absolutePath) ||
-					(wholeFileBytes
-						? isExecutableHeader(wholeFileBytes.subarray(0, EXECUTABLE_SNIFF_BYTES))
-						: await isExecutableFile(absolutePath)))
-			) {
-				return readBinary(this.session, { absolutePath, view: "" }, parsed, signal);
-			}
 			if (looksBinary) {
 				return toolResult<ReadToolDetails>({ resolvedPath: renderAbsolutePath, suffixResolution })
 					.text(

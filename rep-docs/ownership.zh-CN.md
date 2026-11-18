@@ -30,7 +30,7 @@ Zeta 是下游发行版，边界是刻意的：上游缺陷走上游发布流程
    模型走 OMP；有干净上游复现的 renderer/host-contract 缺陷走 OMP Studio；终端、
    编辑器、LSP 与 DAP 走 TermIDE。Zeta 只通过下一个**点名的官方 release tag**
    接收修复；绝不合并上游 `main` 或分支，也绝不 cherry-pick 部分 diff。集成的
-   运行时源码为 OMP `v18.20.0`。Z Work Studio 的 OMP Studio `v0.2.1` 源码谱系
+   运行时源码为 OMP `v18.22.0`。Z Work Studio 的 OMP Studio `v0.2.1` 源码谱系
    已集成，完整验收与 CI 仍待完成；后续 tag 在点名发布同步落地前不集成。
 2. **Zeta 功能、使用差异或集成问题** → 本仓库 issue，并按上表找对应维护角色。
    不应要求上游接管我们的产品行为或使用差异。
@@ -74,8 +74,8 @@ Zeta 修改与新增的部分。按产品面说明：
 ### `zetacode` —— 编码 Agent 与运行时（源自 OMP）
 
 - **上游**：[OMP](https://github.com/can1357/oh-my-pi)，只在官方发布 tag 上整树
-  合并。集成源码为 `v18.20.0`
-  （`c308970263ae13744ea15ab67302e3dac840e266`）：`packages/*`、`crates/*`、
+  合并。集成源码为 `v18.22.0`
+  （`3e8cff3b7ce19a805c11a26a6dd1703066435851`）：`packages/*`、`crates/*`、
   `sdk/*`、`python/*` 与 TUI。
 - **Zeta 的改动**：产品身份（`.zeta`、`zetacode`、`zeta://`、`@linxiraos/*`、
   `zeta-cli-*` 资产名、冻结的启动字符画）；内部 `__zeta*` 记号；用户可见配置使用

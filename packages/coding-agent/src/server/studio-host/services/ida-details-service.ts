@@ -11,17 +11,18 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import {
-	acquireIdaDatabase,
-	cfgIdaInstall,
-	findOpenIdaDatabase,
-	listIdaDatabases,
-	resolveIdaRuntime,
-	type AcquireIdaDatabaseOptions,
-	type IdaRuntime,
-} from "../../../ida";
-import type { IdaCallMethod, IdaHostStatus } from "../../../ida/protocol";
-import type { IdaDatabaseInfo, IdaRequestOptions } from "../../../ida/supervisor";
-import { cfgIdaEnabled, cfgIdaInstallDir, cfgIdaPython } from "../../../ida/settings";
+	acquireDatabase,
+	cfgDisassembler,
+	findOpenDatabase,
+	listDatabases,
+	type AcquireDatabaseOptions,
+	type WorkerRuntime,
+} from "../../../disasm";
+import type { HostCallMethod, HostStatus } from "../../../disasm/protocol";
+import type { DatabaseInfo, WorkerRequestOptions } from "../../../disasm/supervisor";
+import { cfgIdaInstall } from "../../../ida/install";
+import { resolveIdaRuntime } from "../../../ida/runtime";
+import { cfgIdaInstallDir, cfgIdaPython } from "../../../ida/settings";
 import type { Settings } from "../../../config/settings";
 import type { ToolSession } from "../../../tools";
 import { invalid, unavailable } from "../errors";
@@ -35,31 +36,31 @@ export interface StudioIdaDetailsSession {
 	getEvalToolSession(): ToolSession | undefined;
 }
 
-/** The open-database operations Studio needs; `IdaDatabase` satisfies this structurally. */
+/** The open IDA database operations Studio needs; `DisasmDatabase` satisfies this structurally. */
 export interface StudioIdaHandle {
 	readonly id: string;
 	readonly ref: string;
 	readonly name: string;
 	readonly idbPath: string;
-	readonly info: IdaDatabaseInfo;
-	readonly status: IdaHostStatus;
-	request(method: IdaCallMethod, params: object, options?: IdaRequestOptions): Promise<unknown>;
+	readonly info: DatabaseInfo;
+	readonly status: HostStatus;
+	request(method: HostCallMethod, params: object, options?: WorkerRequestOptions): Promise<unknown>;
 	close(options: { save: boolean }): Promise<void>;
 }
 
 /** Native calls behind the producer; tests substitute them without starting IDA. */
 export interface StudioIdaDetailsDeps {
-	resolve(toolSession: ToolSession): Promise<IdaRuntime>;
+	resolve(toolSession: ToolSession): Promise<WorkerRuntime>;
 	list(toolSession: ToolSession): Promise<StudioIdaHandle[]>;
-	acquire(toolSession: ToolSession, source: string, options?: AcquireIdaDatabaseOptions): Promise<StudioIdaHandle>;
+	acquire(toolSession: ToolSession, source: string, options?: AcquireDatabaseOptions): Promise<StudioIdaHandle>;
 	findOpen(toolSession: ToolSession, ref: string): Promise<StudioIdaHandle | undefined>;
 }
 
 const nativeIdaDetailsDeps: StudioIdaDetailsDeps = {
 	resolve: resolveIdaRuntime,
-	list: listIdaDatabases,
-	acquire: acquireIdaDatabase,
-	findOpen: findOpenIdaDatabase,
+	list: toolSession => listDatabases(toolSession, "ida"),
+	acquire: (toolSession, source, options) => acquireDatabase(toolSession, "ida", source, options),
+	findOpen: (toolSession, ref) => findOpenDatabase(toolSession, "ida", ref),
 };
 
 /** Public facts of one open database; no host path or connection details. */
@@ -165,25 +166,34 @@ export class StudioIdaDetailsService {
 	#toolSession(): ToolSession {
 		const toolSession = this.session.getEvalToolSession();
 		if (!toolSession) throw unavailable("Native IDA context is unavailable in this Runtime");
+		const backend = cfgDisassembler.get(toolSession.settings);
+		if (backend !== "auto" && backend !== "ida") throw unavailable("The selected disassembler backend is not IDA");
 		return toolSession;
 	}
 
 	async status(): Promise<StudioIdaStatus> {
 		const settings = this.session.settings;
 		const result: StudioIdaStatus = {
-			enabled: cfgIdaEnabled.get(settings),
+			backend: cfgDisassembler.get(settings),
 			installDir: cfgIdaInstallDir.get(settings),
 			python: cfgIdaPython.get(settings),
 			available: false,
 			databases: [],
 		};
+		if (result.backend === "none" || result.backend === "ghidra")
+			return {
+				...result,
+				reason:
+					result.backend === "none"
+						? "Disassembler analysis is disabled."
+						: "The selected disassembler backend is Ghidra; this page requires IDA.",
+			};
 		const detectedInstall = cfgIdaInstall.get(settings);
 		if (!detectedInstall)
 			return {
 				...result,
-				reason: result.enabled
-					? "No IDA installation with idalib was found. Configure the install directory and Python interpreter."
-					: "IDA is disabled.",
+				reason:
+					"No IDA installation with idalib was found. Configure the install directory and Python interpreter.",
 			};
 		result.detectedInstall = detectedInstall;
 		try {
@@ -210,7 +220,7 @@ export class StudioIdaDetailsService {
 		if (operation.kind === "ida.status.details") return this.status();
 		if (operation.kind === "ida.configure") {
 			if (this.#running.size) throw unavailable("Stop the current IDA request before changing its configuration");
-			cfgIdaEnabled.set(this.session.settings, operation.enabled);
+			cfgDisassembler.set(this.session.settings, operation.backend);
 			cfgIdaInstallDir.set(this.session.settings, operation.installDir);
 			cfgIdaPython.set(this.session.settings, operation.python);
 			await this.session.settings.flush();

@@ -8,7 +8,13 @@ import type { TSchema } from "@linxiraos/pi-ai";
 import type { MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
 import type { CustomTool } from "../../extensibility/custom-tools/types";
 import type { MCPManagerApi, MCPToolScope } from "../../mcp/manager";
-import type { MCPRequestOptions, MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "../../mcp/types";
+import type {
+	MCPRequestOptions,
+	MCPResource,
+	MCPResourceReadResult,
+	MCPResourceTemplate,
+	MCPServerConfig,
+} from "../../mcp/types";
 import type { RemoteObject, RpcMethod } from "../rpc";
 
 /** Remote-object kind of a main-thread `MCPManager`. */
@@ -36,6 +42,8 @@ export type McpManagerProtocol = {
 	onToolsChanged: RpcMethod<[listener: () => void], () => void>;
 	onNotification: RpcMethod<[listener: McpNotificationListener], () => void>;
 	connectedServers: RpcMethod<[], string[]>;
+	serverConfig: RpcMethod<[name: string], MCPServerConfig | undefined>;
+	allServerNames: RpcMethod<[], string[]>;
 	serverResources: RpcMethod<
 		[name: string],
 		{ resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined
@@ -90,6 +98,14 @@ export class RemoteMCPManager implements MCPManagerApi {
 
 	getConnectedServers(): string[] {
 		return this.#remote.callSync("connectedServers");
+	}
+
+	getServerConfig(name: string): MCPServerConfig | undefined {
+		return this.#remote.callSync("serverConfig", name);
+	}
+
+	getAllServerNames(): string[] {
+		return this.#remote.callSync("allServerNames");
 	}
 
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined {

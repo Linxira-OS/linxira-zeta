@@ -108,8 +108,8 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	// them with a pointer to the commands that do exist.
 	theme: true,
 	help: true,
-	// `/channels` operates on the local web.yml and this process's channel
-	// host; an attached TUI cannot manage the backend's runtime.
+	// An attached session does not select the local identity or IM authority.
+	"2fa": true,
 	channels: true,
 };
 
@@ -144,6 +144,7 @@ export function backendAttachRefusalHint(verb: string): string {
 	if (verb === "theme") return "there is no `/theme` command; change themes in `/settings`";
 	if (verb === "help")
 		return "open the shortcut sheet with `/hotkeys` (the plain `zetacode attach` client answers `/help` itself)";
+	if (verb === "2fa") return "run `/2fa` in the terminal that owns the local Serve runtime";
 	if (verb === "channels")
 		return "run `/channels` in the terminal that hosts the channel runtime, or use `zetacode channels …`";
 	return "run it from the terminal that owns the backend session";

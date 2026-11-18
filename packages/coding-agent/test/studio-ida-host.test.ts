@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "../src/config/settings";
-import type { IdaHostStatus } from "../src/ida/protocol";
+import type { HostStatus } from "../src/disasm/protocol";
 import { StudioOperations } from "../src/server/studio-host/registry";
 import type { StudioHostContext } from "../src/server/studio-host/registry";
 import { idaOps } from "../src/server/studio-host/ops/ida";
@@ -173,10 +173,12 @@ function fakeHandle(
 	const id = options.id ?? "db";
 	const info = { module: "sample.exe", format: "pe", arch: "metapc", bitness: 64 };
 	const idbPath = options.idbPath ?? path.join(workspace, "sample.i64");
-	const status: IdaHostStatus = {
+	const status: HostStatus = {
 		id,
 		ref: id,
 		idbPath,
+		handle: `dsm:ida:${id}`,
+		references: 0,
 		info,
 		state: "open",
 		busy: options.busy ?? false,
@@ -212,13 +214,13 @@ function detailsDeps(
 
 describe("IDA details producer", () => {
 	test("disabled IDA reports configuration status without probing Python", async () => {
-		const settings = Settings.isolated({ "ida.enabled": false });
+		const settings = Settings.isolated({ "disassembler.backend": "none" });
 		const service = new StudioIdaDetailsService(detailsSession(settings), detailsDeps([]));
 		expect(await service.execute({ kind: "ida.status.details", sessionId: "s" })).toMatchObject({
-			enabled: false,
+			backend: "none",
 			available: false,
 			databases: [],
-			reason: "IDA is disabled.",
+			reason: "Disassembler analysis is disabled.",
 		});
 		await expect(
 			service.execute({ kind: "ida.run", sessionId: "old", id: "db", code: "print(1)", timeoutMs: 1000 }),
@@ -231,17 +233,17 @@ describe("IDA details producer", () => {
 		const status = (await service.execute({
 			kind: "ida.configure",
 			sessionId: "s",
-			enabled: false,
+			backend: "none",
 			installDir: path.join(directory, "missing-ida"),
 			python: "/missing/python",
 		})) as StudioIdaStatus;
 		expect(status).toMatchObject({
-			enabled: false,
+			backend: "none",
 			installDir: path.join(directory, "missing-ida"),
 			python: "/missing/python",
 			available: false,
 			databases: [],
-			reason: "IDA is disabled.",
+			reason: "Disassembler analysis is disabled.",
 		});
 	});
 

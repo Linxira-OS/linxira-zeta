@@ -26,6 +26,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import type { CustomMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AgentSessionWrapper, type AgentEvent } from "../../src/server/web-gateway/agents";
+import { fixedAdvisorTools } from "../helpers/agent-session-setup";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -184,7 +185,7 @@ describe("web-gateway plan approval → goal", () => {
 				["read", readTool],
 			]),
 			builtInToolNames: ["ask", "write", "read"],
-			advisorTools: [],
+			advisorTools: fixedAdvisorTools(),
 		});
 		sessionRef.current = created;
 		session = created;

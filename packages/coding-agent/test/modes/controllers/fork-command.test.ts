@@ -53,6 +53,7 @@ function createContext(
 	const session = {
 		isStreaming: options.streaming ?? false,
 		fork: vi.fn(async () => true),
+		abort: vi.fn(async () => undefined),
 		flushToDisk: vi.fn(async () => undefined),
 		sessionFile,
 		sessionId: "parent-session-id",
@@ -65,6 +66,7 @@ function createContext(
 		getHeader: vi.fn(() => undefined),
 		getCwd: vi.fn(() => options.cwd ?? "/workspace/project"),
 		getSessionFile: vi.fn(() => sessionFile),
+		getSessionId: vi.fn(() => "parent-session-id"),
 		isSessionOnDisk: vi.fn(() => sessionFile !== undefined),
 		flush,
 	};

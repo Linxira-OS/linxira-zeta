@@ -96,6 +96,11 @@ The runner workspace is persistent, so:
 - the native addon is built once, in place; no artifact upload/download
   round-trip and no `actions/cache` key bookkeeping.
 
+On Windows, run ordinary editing and lightweight checks on the Windows checkout.
+When a Linux build or test is needed, copy the candidate inputs to a WSL-native
+filesystem first and run there. In one `ci:test:ts` dry run, the ext4 copy
+generated the identical 277-command plan in 0.98 s versus 15.93 s on `/mnt/c`.
+
 Deliberate deviations from `ci.yml`, all documented inline in the workflow:
 
 - no GitHub artifact/cache plumbing (see above);

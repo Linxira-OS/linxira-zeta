@@ -1,7 +1,6 @@
 /**
  * Centralized path helpers for zetacode config directories.
  *
- * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
  * Uses ZETA_CONFIG_DIR (default ".zeta") for the config root and
  * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
@@ -133,14 +132,6 @@ export function getBaseConfigRoot(): string {
 function getProfileConfigRoot(profile: string | undefined): string {
 	const root = getBaseConfigRoot();
 	return profile ? path.join(root, "profiles", profile) : root;
-}
-
-function readPiProfileFromEnvSafe(): string | undefined {
-	try {
-		return normalizeProfileName(process.env.ZETA_PROFILE);
-	} catch {
-		return undefined;
-	}
 }
 
 function getProfileAgentDir(profile: string): string {
@@ -360,7 +351,7 @@ export function getConfigDirName(): string {
 	return normalized;
 }
 
-/** Get the config agent directory name relative to home (e.g. ".zeta/agent" or PI_CONFIG_DIR + "/agent"). */
+/** Get the config agent directory name relative to home (e.g. ".zeta/agent" or ZETA_CONFIG_DIR + "/agent"). */
 export function getConfigAgentDirName(): string {
 	const profile = getActiveProfile();
 	return profile ? path.join(getConfigDirName(), "profiles", profile, "agent") : `${getConfigDirName()}/agent`;
@@ -538,9 +529,6 @@ function resolveActiveAgentDirOverride(): string | undefined {
 	const env = process.env.ZETA_CODING_AGENT_DIR;
 	if (env && /[/\\]profiles[/\\][^/\\]+[/\\]agent$/.test(env.replace(/\\/g, "/"))) return undefined;
 	return resolvePreProfileAgentDir(undefined, env);
-	return activeProfile
-		? undefined
-		: resolvePreProfileAgentDir(undefined, process.env.ZETA_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
 }
 
 let dirs = new DirResolver({
@@ -561,7 +549,7 @@ let dirs = new DirResolver({
 let preProfileAgentDirEnv: string | undefined = resolvePreProfileAgentDir(
 	activeProfile,
 	process.env.ZETA_CODING_AGENT_DIR,
-	activeProfile ?? readPiProfileFromEnvSafe(),
+	activeProfile ?? readProfileFromEnvSafe(),
 );
 // Anchor home for the resolver. Captured at module load to stay stable across
 // test mocks of `os.homedir()`. `getPluginsDir(home)` compares against this so
@@ -618,7 +606,7 @@ export function __resetProfileSnapshotForTests(): void {
 	preProfileAgentDirEnv = resolvePreProfileAgentDir(
 		activeProfile,
 		process.env.ZETA_CODING_AGENT_DIR,
-		activeProfile ?? readPiProfileFromEnvSafe(),
+		activeProfile ?? readProfileFromEnvSafe(),
 	);
 }
 
@@ -644,17 +632,10 @@ export function setProfile(profile: string | undefined): void {
 		// snapshot — the "pre-profile" baseline is the state before profiles
 		// entered the picture, not the state between two activations.
 		preProfileAgentDirEnv = resolveActiveAgentDirOverride();
-		preProfileAgentDirEnv = resolvePreProfileAgentDir(
-			undefined,
-			process.env.ZETA_CODING_AGENT_DIR,
-			readPiProfileFromEnvSafe(),
-		);
 	}
 	activeProfile = next;
 	if (activeProfile) {
 		dirs = new DirResolver({ profile: activeProfile });
-		process.env.ZETA_PROFILE = activeProfile;
-		process.env.ZETA_PROFILE = activeProfile;
 		process.env.ZETA_PROFILE = activeProfile;
 		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
@@ -939,9 +920,19 @@ export function getPythonEnvDir(): string {
 	return dirs.rootSubdir("python-env", "data");
 }
 
+/** Get managed Ghidra installs, JDK, PyGhidra venv and Gradle cache (~/.zeta/ghidra). */
+export function getGhidraDir(): string {
+	return dirs.rootSubdir("ghidra", "data");
+}
+
 /** Get the shared Python gateway state directory (~/.zeta/agent/python-gateway; XDG default: $XDG_STATE_HOME/zeta/python-gateway). */
 export function getPythonGatewayDir(): string {
 	return dirs.agentSubdir(undefined, "python-gateway", "state");
+}
+
+/** Get the managed Antigravity CLI directory (~/.zeta/antigravity-cli): the `agy` binary and its isolated state. */
+export function getAntigravityCliDir(): string {
+	return dirs.rootSubdir("antigravity-cli", "data");
 }
 
 /** Get the puppeteer sandbox directory (~/.zeta/puppeteer). */

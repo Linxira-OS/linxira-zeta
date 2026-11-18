@@ -7,8 +7,8 @@
  * `agentInfo.name = "omp"`). `brand-check.ts` passes because no rule covers
  * those exact tokens.
  *
- * This scan looks at the merge diff (`git diff <base> HEAD`) and prints, per
- * file, added lines that carry an upstream `zetacode` token next to removed lines
+ * This scan looks at the current merge diff (`git diff <base> --`) and prints, per
+ * file, added lines that carry an upstream name next to removed lines
  * that carried a Zeta token — i.e. spots where the merge moved a line from
  * Zeta spelling to upstream spelling.
  *
@@ -24,12 +24,9 @@ const BASE = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@oh-my-pi|\.omp-plugin|omp\.sh/;
 const ZETA_TOKEN = /zeta|CLI_BIN_NAME|ZETA_|\.zeta/;
 
-// The trailing `--` is load-bearing: this repo also has a `main/` directory
-// (the npm distribution leaves), so a bare `git diff main HEAD` dies with
-// "fatal: ambiguous argument 'main': both revision and filename" — the script's
-// own default base was unusable. `--` ends the revision list, so `main` is read
-// as a ref and the diff still covers the whole tree (no pathspecs).
-const diff = execFileSync("git", ["diff", "-U0", BASE, "HEAD", "--"], { encoding: "utf8", maxBuffer: 1 << 30 });
+// The trailing `--` disambiguates the base ref from the `main/` directory.
+// Omitting a second ref includes both committed and uncommitted merge changes.
+const diff = execFileSync("git", ["diff", "-U0", BASE, "--"], { encoding: "utf8", maxBuffer: 1 << 30 });
 
 interface Hit {
 	file: string;
@@ -71,4 +68,4 @@ for (const line of diff.split("\n")) {
 }
 
 for (const h of hits) console.log(`${h.file}\n     ${h.added}\n`);
-console.log(`${hits.length} brand regressions in the merge diff (${BASE}..HEAD)`);
+console.log(`${hits.length} brand regressions in the merge diff (${BASE}..working tree)`);

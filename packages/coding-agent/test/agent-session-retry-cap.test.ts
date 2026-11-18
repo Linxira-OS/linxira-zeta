@@ -2780,7 +2780,6 @@ describe("AgentSession retry delay cap", () => {
 			sessionManager: SessionManager.inMemory(),
 			settings,
 			modelRegistry,
-			advisorTools: [],
 			advisorConfigs: [{ name: "cyber-policy", model: advisorSelector }],
 			advisorStreamFn: (requestedModel, context, options) => {
 				requestedAdvisorModels.push(`${requestedModel.provider}/${requestedModel.id}`);
@@ -4228,9 +4227,15 @@ describe("AgentSession retry delay cap", () => {
 		// transient provider abort. It MUST settle the turn instead of entering
 		// auto-retry: a retry here schedules a continuation that the disposed guard
 		// skips without resolving #retryPromise, hanging prompt() during shutdown.
+		const started = Promise.withResolvers<void>();
+		const finish = Promise.withResolvers<void>();
 		const mock = createMockModel({
 			responses: [
-				{ stopReason: "aborted", errorMessage: "Request was aborted" },
+				async () => {
+					started.resolve();
+					await finish.promise;
+					return { stopReason: "aborted", errorMessage: "Request was aborted" };
+				},
 				{ content: ["should not be reached after dispose"] },
 			],
 		});
@@ -4266,10 +4271,11 @@ describe("AgentSession retry delay cap", () => {
 			if (event.type === "auto_retry_start") retryStartEvents.push(event);
 		});
 
-		// Enter the disposing window before the empty abort lands. Without the
-		// #isDisposed guard this prompt would hang on an orphaned retry promise.
+		const prompt = session.prompt("Trigger an abort while the request is in flight");
+		await started.promise;
 		session.beginDispose();
-		await session.prompt("Trigger empty aborted turn while disposing");
+		finish.resolve();
+		await prompt;
 		await session.waitForIdle();
 
 		expect(retryStartEvents).toHaveLength(0);

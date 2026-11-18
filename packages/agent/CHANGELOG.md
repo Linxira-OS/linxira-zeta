@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixed
+
+- Corrected context cost estimates for requests that omit reasoning history, so billing estimates now include thinking text only when it is sent or reconstructed for a tool call.
+
 ## [1.5.2] - 2026-11-13
 
 ### Changed

@@ -1,20 +1,19 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, getBaseConfigRoot } from "@linxiraos/pi-utils";
+import { __resetDirsFromEnvForTests, getAgentDir, getBaseConfigRoot } from "@linxiraos/pi-utils";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { getConfigDirs } from "@linxiraos/zeta/config";
 import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
 import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
+import { restoreEnvValue } from "../helpers/settings-test-state";
 
 describe("ZETA_CONFIG_DIR", () => {
-	const original = process.env.ZETA_CONFIG_DIR;
+	const inheritedKeys = ["ZETA_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE"] as const;
+	const original = inheritedKeys.map(key => [key, process.env[key]] as const);
 	afterEach(() => {
-		if (original === undefined) {
-			delete process.env.ZETA_CONFIG_DIR;
-		} else {
-			process.env.ZETA_CONFIG_DIR = original;
-		}
+		for (const [key, value] of original) restoreEnvValue(key, value);
+		__resetDirsFromEnvForTests();
 	});
 
 	test("getUserPath resolves the native user scope via getAgentDir (profile-aware)", () => {
@@ -33,6 +32,9 @@ describe("ZETA_CONFIG_DIR", () => {
 
 	test("getConfigDirs respects ZETA_CONFIG_DIR for user base", () => {
 		process.env.ZETA_CONFIG_DIR = ".config/omp";
+		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.ZETA_PROFILE;
+		__resetDirsFromEnvForTests();
 		const result = getConfigDirs("commands", { project: false });
 		const expected = path.resolve(path.join(os.homedir(), ".config/omp", "agent", "commands"));
 		expect(result[0]).toEqual({ path: expected, source: ".zeta", level: "user" });

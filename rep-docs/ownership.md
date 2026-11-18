@@ -35,7 +35,7 @@ Route a problem by where it reproduces, not by which file happens to be nearest.
    reproduction; TermIDE for terminal, editor, LSP, and DAP. Zeta consumes a
    fix only through the next **named official release tag**; never merge
    upstream `main` or a branch, and never cherry-pick a partial diff. The
-   integrated runtime source is OMP `v18.20.0`. Z Work Studio's OMP Studio
+   integrated runtime source is OMP `v18.22.0`. Z Work Studio's OMP Studio
    `v0.2.1` source ancestry is integrated, with full acceptance and CI still
    pending; later tags are not integrated until a named release sync lands.
 2. **Zeta feature, usage difference, or integration** → this repository's
@@ -86,8 +86,8 @@ top. Per product surface:
 ### `zetacode` — coding agent and runtime (from OMP)
 
 - **Upstream**: [OMP](https://github.com/can1357/oh-my-pi), merged whole at
-  official release tags. The integrated source is `v18.20.0`
-  (`c308970263ae13744ea15ab67302e3dac840e266`): `packages/*`, `crates/*`,
+  official release tags. The integrated source is `v18.22.0`
+  (`3e8cff3b7ce19a805c11a26a6dd1703066435851`): `packages/*`, `crates/*`,
   `sdk/*`, `python/*`, and the TUI.
 - **Zeta changes**: product identity (`.zeta`, `zetacode`, `zeta://`,
   `@linxiraos/*`, `zeta-cli-*` assets, frozen splash art); internal `__zeta*`

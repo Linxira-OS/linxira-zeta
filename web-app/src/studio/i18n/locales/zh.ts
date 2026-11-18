@@ -1621,6 +1621,8 @@ const zhRaw = {
 		roleDescSubtask: "通用子任务",
 		roleDescAdvisor: "第二模型审查",
 		roleDescWidget: "后台任务实时小组件（未设置时使用 Fast）",
+		roleDescTaste: "写法先进：分类与校准",
+		roleNameTaste: "写法先进",
 		newProvider: "新建供应商",
 		editProviderNamed: "编辑 · {name}",
 		presetTemplateNamed: "预设模板：{name}",

@@ -33,6 +33,17 @@ describe("settings page zh localization", () => {
 		}
 	});
 
+	test("zh: exposes 写法先进 through the existing taste settings", () => {
+		setLanguage("zh");
+		const entries = createSettingsHost().entries.filter(entry => entry.path.startsWith("taste."));
+		expect(entries.map(entry => [entry.path, entry.ui?.group, entry.ui?.label])).toEqual([
+			["taste.enabled", "写法先进", "写法先进"],
+			["taste.scoping", "写法先进", "写法先进作用范围"],
+			["taste.injectionTokenLimit", "写法先进", "写法先进注入预算"],
+			["taste.confidenceFloor", "写法先进", "写法先进置信下限"],
+		]);
+	});
+
 	test("en: schema English preserved", () => {
 		setLanguage("en");
 		const host = createSettingsHost();

@@ -14,7 +14,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
-import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { createInMemoryAuthStorage, fixedAdvisorTools } from "./helpers/agent-session-setup";
 
 const FILE_CONTENTS = "export const retryBudget = 3; // advisor investigation payload\n".repeat(32);
 const READ_CALL = { type: "toolCall", name: "read", arguments: { path: "src/retry.ts" } } as const;
@@ -69,7 +69,7 @@ describe("advisor stale tool-result eviction", () => {
 			sessionManager: SessionManager.inMemory(tempDir.path()),
 			settings,
 			modelRegistry: new ModelRegistry(authStorage, tempDir.join("models.yml")),
-			advisorTools: [readTool],
+			advisorTools: fixedAdvisorTools(readTool),
 			advisorStreamFn: advisorMock.stream,
 		});
 		settings.setModelRole("advisor", "anthropic/claude-sonnet-4-5");

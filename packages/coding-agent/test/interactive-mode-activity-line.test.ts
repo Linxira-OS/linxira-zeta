@@ -71,7 +71,7 @@ describe("InteractiveMode native dock activity line", () => {
 		mode.statusContainer.disposeChildren();
 		mode.setTodos([]);
 		session.tokenRate.reset();
-		cfgComposerTokenRate.clearOverride(settings);
+		cfgComposerTokenRate.clearOverride(session.settings);
 	});
 
 	afterAll(async () => {
@@ -121,7 +121,7 @@ describe("InteractiveMode native dock activity line", () => {
 		session.tokenRate.seed(1_000, 10_000);
 		expect(rate()).toBeUndefined();
 
-		cfgComposerTokenRate.override(settings, true);
+		cfgComposerTokenRate.override(session.settings, true);
 		expect(rate()?.p).toMatchObject({ value: 100, unit: "tok/s" });
 
 		session.tokenRate.reset();

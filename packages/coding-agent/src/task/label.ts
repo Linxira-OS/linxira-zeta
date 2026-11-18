@@ -2,8 +2,10 @@
  * Tiny-model UI labels for spawned subagents.
  */
 import { logger, prompt } from "@linxiraos/pi-utils";
+import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import type { ZetaLanguage } from "../i18n";
+import { resolveModelOverride } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import taskLabelSystemPrompt from "../prompts/system/task-label.md" with { type: "text" };
 import { generateSessionTitle, generatedNameLanguage } from "../utils/title-generator";
@@ -32,6 +34,8 @@ export async function generateTaskLabel(
 	sessionId?: string,
 	signal?: AbortSignal,
 	language?: ZetaLanguage,
+	parentActiveModelPattern?: string,
+	parentActiveProvider?: string,
 ): Promise<string | null> {
 	const text = assignment.trim();
 	if (!text) return null;
@@ -39,12 +43,20 @@ export async function generateTaskLabel(
 	// override must agree even if another view reloads settings meanwhile.
 	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	try {
+		const resolvedModel =
+			cfgOffline.get(settings) && parentActiveModelPattern
+				? resolveModelOverride([parentActiveModelPattern], registry, settings, { exactOnly: true }).model
+				: undefined;
+		const currentModel =
+			resolvedModel && (!parentActiveProvider || resolvedModel.provider === parentActiveProvider)
+				? resolvedModel
+				: undefined;
 		const label = await generateSessionTitle(
 			text,
 			registry,
 			settings,
 			sessionId,
-			undefined,
+			currentModel,
 			undefined,
 			TASK_LABEL_SYSTEM_PROMPTS[resolvedLanguage],
 			signal,

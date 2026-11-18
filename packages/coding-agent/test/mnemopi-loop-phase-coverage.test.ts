@@ -14,6 +14,7 @@ import {
 } from "@linxiraos/zeta/mnemopi/state";
 import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
 import { currentLoopPhase, TempDir } from "@linxiraos/pi-utils";
+import { memoryRelevanceJudge } from "./helpers/memory-relevance-judge";
 
 // State construction uses the same preloaded, synchronous facade as memory-tools.test.ts.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -116,12 +117,14 @@ function registerMnemopiState(entries: () => unknown[]): MnemopiSessionState {
 	const registered = new MnemopiSessionState({
 		sessionId: SESSION_ID,
 		config: makeMnemopiConfig(),
+		automaticRecallJudge: memoryRelevanceJudge(),
 		session: {
 			sessionId: SESSION_ID,
 			settings: Settings.isolated({
 				"memory.backend": "mnemopi",
 				"mnemopi.noEmbeddings": true,
 				"mnemopi.llmMode": "none",
+				"mnemopi.recallRelevance": "on",
 			}),
 			modelRegistry: {
 				getApiKeyForProvider: async () => undefined,

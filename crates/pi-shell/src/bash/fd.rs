@@ -548,7 +548,7 @@ impl FdTable {
 	/// The lowest closed fd ≥ `from` (`{var}>` allocates from 10).
 	pub(crate) fn lowest_free(&self, from: i32) -> i32 {
 		(from..i32::MAX)
-			.find(|&fd| self.get(fd).is_none())
+			.find(|&fd| self.get(fd).is_none_or(|h| h.origin() == FdOrigin::Closed))
 			.unwrap_or(from)
 	}
 

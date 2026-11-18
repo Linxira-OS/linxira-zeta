@@ -92,19 +92,20 @@ describe("approved plan execution is goal-directed (TUI)", () => {
 	}
 
 	/** Seed the plan file on disk and stub the review overlay + execution turn. */
-	async function approvePlan(
-		created: InteractiveMode,
-		planFilePath: string,
-		choice: string,
-	): Promise<{ prompt: ReturnType<typeof vi.spyOn> }> {
+	async function approvePlan(created: InteractiveMode, planFilePath: string, choice: "keep" | "execute") {
 		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
 			getArtifactsDir: () => session!.sessionManager.getArtifactsDir(),
 			getSessionId: () => session!.sessionManager.getSessionId(),
 		});
 		await Bun.write(resolvedPlanPath, "# Plan\n\nImplement it.");
 		vi.spyOn(session!, "getContextUsage").mockReturnValue(undefined);
-		vi.spyOn(created, "showPlanReview").mockResolvedValue(choice);
-		const prompt = vi.spyOn(session!, "prompt").mockResolvedValue(undefined as never);
+		vi.spyOn(created, "showPlanReview").mockImplementation(async (_content, _title, choices) => {
+			const option = choices.find(candidate => candidate.id === choice);
+			expect(option).toBeDefined();
+			expect(option?.disabled).not.toBe(true);
+			return choice;
+		});
+		const prompt = vi.spyOn(session!, "prompt").mockResolvedValue(true);
 		await created.handlePlanApproval({ planFilePath, planExists: true, title: "PLAN" });
 		return { prompt };
 	}
@@ -119,7 +120,7 @@ describe("approved plan execution is goal-directed (TUI)", () => {
 		expect(await created.handlePlanModeCommand("Ship the release")).toBe(false);
 		expect(session!.getPlanModeState()).toMatchObject({ enabled: true, objective: "Ship the release" });
 
-		const { prompt } = await approvePlan(created, planFilePath, "Approve and keep context");
+		const { prompt } = await approvePlan(created, planFilePath, "keep");
 
 		expect(created.planModeEnabled).toBe(false);
 		expect(created.goalModeEnabled).toBe(true);
@@ -142,7 +143,7 @@ describe("approved plan execution is goal-directed (TUI)", () => {
 		const planFilePath = "local://PLAN.md";
 		await created.handlePlanModeCommand();
 
-		await approvePlan(created, planFilePath, "Approve and keep context");
+		await approvePlan(created, planFilePath, "keep");
 
 		expect(session!.getGoalModeState()?.goal.objective).toBe("Plan");
 	});
@@ -154,7 +155,7 @@ describe("approved plan execution is goal-directed (TUI)", () => {
 		const planFilePath = "local://PLAN.md";
 		await created.handlePlanModeCommand("Ship the release");
 
-		const { prompt } = await approvePlan(created, planFilePath, "Approve and keep context");
+		const { prompt } = await approvePlan(created, planFilePath, "keep");
 
 		expect(created.goalModeEnabled).toBe(false);
 		expect(session!.getGoalModeState()).toBeUndefined();
@@ -169,7 +170,7 @@ describe("approved plan execution is goal-directed (TUI)", () => {
 		const planFilePath = "local://PLAN.md";
 		await created.handlePlanModeCommand("Ship the release");
 
-		const { prompt } = await approvePlan(created, planFilePath, "Approve and execute");
+		const { prompt } = await approvePlan(created, planFilePath, "execute");
 
 		// The transcript was cleared, then the goal was armed on the new session
 		// (a goal armed before the clear would be discarded with it).

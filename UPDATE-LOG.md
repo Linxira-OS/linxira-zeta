@@ -2,6 +2,15 @@
 
 ## 下一版本（Unreleased）
 
+### Zeta 1.5.10 发布候选
+
+- 基线：OMP `v18.22.0`。沿用现有 Work Studio 和 TermIDE 产品边界；Android 和移动真机流程不纳入本版（ADR-0071、REQ-125、REQ-141）。
+- 适配上游会话生命周期与 DSM。分离任务完成、恢复和 IM 回复按原会话归属；Work Studio 与 TUI 继续共用 `zetacode serve` 的运行时、配置和认证（ADR-0068、REQ-125）。
+- 简体中文设置与 Work Studio 将「品味」显示为「写法先进」，原有 `taste.*` 配置、`@taste` 模型角色和 `taste.md` 不变（REQ-130）。
+- 保留项目看板 `board` 和日历 `calendar` 工具；不包含新的 Work Studio 页面、页面编辑或 Outlook 导入（REQ-140、REQ-141）。
+- 从 `1.5.10` 起恢复常规稳定版本发布，发布通过现有 CI 和 npm OIDC 流程执行（ADR-0072、REQ-142）。
+- 基线不包含 GPT‑6.2 Astra 和 Sol 的内置目录条目。本版不承诺这两个模型；`v18.22.2` 另行评估（REQ-127、REQ-137）。
+
 ### 2026-11-17 主线整合（未发布）
 
 - 按用户裁决将 OMP18.20.0、Studio0.2.1、2FA/共享IM/中文命名及保存的 Team/runtime/source 增量集中到 `main`；历史分支只作恢复引用，后续主代理开发在 `main`，子代理写入仍用短命隔离工作树。

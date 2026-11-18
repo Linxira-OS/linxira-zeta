@@ -14,7 +14,7 @@ import { CapabilityEditor } from "./CapabilityEditor";
 import "./ida.css";
 
 type Confirmation =
-  | { kind: "configure"; enabled: boolean; installDir: string; python: string }
+  | { kind: "configure"; backend: StudioIdaStatus["backend"]; installDir: string; python: string }
   | { kind: "open"; path: string }
   | { kind: "run"; id: string; code: string }
   | { kind: "save" | "close"; id: string };
@@ -27,7 +27,7 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
   const [selected, setSelected] = useState<string>();
   const [tab, setTab] = useState<"browse" | "python" | "info">("browse");
   const [configuration, setConfiguration] = useState(false);
-  const [enabled, setEnabled] = useState(true);
+  const [backend, setBackend] = useState<StudioIdaStatus["backend"]>("auto");
   const [installDir, setInstallDir] = useState("");
   const [python, setPython] = useState("");
   const [path, setPath] = useState("");
@@ -67,7 +67,7 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
       if (generation !== epoch.current || serial !== readSerial.current) return;
       setStatus(next);
       if (!configLoaded.current) {
-        setEnabled(next.enabled); setInstallDir(next.installDir); setPython(next.python); configLoaded.current = true;
+        setBackend(next.backend); setInstallDir(next.installDir); setPython(next.python); configLoaded.current = true;
       }
     } catch (cause) {
       if (generation === epoch.current && serial === readSerial.current) setError(hostErrorMessage(cause, zh ? "IDA 状态读取失败" : "Cannot read IDA status"));
@@ -108,7 +108,7 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
     lock.current = true; readSerial.current++; setLoading(false); setOperation(action); setConfirm(undefined); setError(""); setNotice("");
     try {
       if (preview) {
-        if (action.kind === "configure") { setStatus(current => ({ ...current!, enabled: action.enabled, available: action.enabled, installDir: action.installDir, python: action.python })); setConfiguration(false); }
+        if (action.kind === "configure") { setStatus(current => ({ ...current!, backend: action.backend, available: action.backend === "auto" || action.backend === "ida", installDir: action.installDir, python: action.python })); setConfiguration(false); }
         else if (action.kind === "open") {
           const name = action.path.split(/[\\/]/).at(-1) || "sample.exe";
           const existing = status?.databases.find(row => row.ref === action.path || row.path === action.path);
@@ -122,7 +122,7 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
         if (marks) setNotice(zh ? "演示：操作已完成，本机 IDA 和文件未更改。" : "Demo: operation complete. Local IDA and files are unchanged.");
       } else {
         if (action.kind === "configure") {
-          const next = await invoke("ida.configure", { sessionId: sessionId!, enabled: action.enabled, installDir: action.installDir, python: action.python });
+          const next = await invoke("ida.configure", { sessionId: sessionId!, backend: action.backend, installDir: action.installDir, python: action.python });
           if (generation !== epoch.current) return;
           setStatus(next); setConfiguration(false); setNotice(zh ? "配置已保存并重新检测。" : "Configuration saved and checked.");
         } else if (action.kind === "open") {
@@ -159,7 +159,7 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
   return <section className="ida-pane" aria-label="IDA">
     <header className="ida-page-heading"><div className="ida-heading-icon"><Icon name="cpu" /></div><div><h2>IDA{preview && marks ? <span className="chip gray xs">{zh ? "演示" : "Demo"}</span> : null}</h2><p>{zh ? "浏览原生数据库，检查符号与引用，在同一处执行 Python。" : "Explore native databases, inspect symbols and references, and run Python in one place."}</p></div><button className="btn small outline" onClick={() => setConfiguration(true)}><Icon name="settings" />{zh ? "环境配置" : "Environment"}</button></header>
     <div className={`ida-environment ${status?.available ? "is-ready" : ""}`}>
-      <Icon name={status?.available ? "check" : "info"} /><strong>{!canRead ? (zh ? "IDA 管理不可用" : "IDA management unavailable") : !status ? (zh ? "正在检测 IDA" : "Detecting IDA") : !status.enabled ? (zh ? "IDA 未启用" : "IDA disabled") : status.available ? (zh ? "IDA 已就绪" : "IDA ready") : (zh ? "需要配置 IDA" : "IDA setup required")}</strong>
+      <Icon name={status?.available ? "check" : "info"} /><strong>{!canRead ? (zh ? "IDA 管理不可用" : "IDA management unavailable") : !status ? (zh ? "正在检测 IDA" : "Detecting IDA") : status.backend === "none" ? (zh ? "反汇编已关闭" : "Disassembler disabled") : status.backend === "ghidra" ? (zh ? "当前为 Ghidra 后端" : "Ghidra backend selected") : status.available ? (zh ? "IDA 已就绪" : "IDA ready") : (zh ? "需要配置 IDA" : "IDA setup required")}</strong>
       <span>{status?.reason || (status?.available ? (zh ? "数据库由当前项目共享，修改对其他代理可见。" : "Databases are shared with agents in this project.") : (zh ? "需要已授权的 IDA Pro / idalib，以及匹配的 Python。" : "Requires licensed IDA Pro / idalib and matching Python."))}</span>
       <button className="icon-btn" aria-label={zh ? "刷新 IDA 状态" : "Refresh IDA status"} disabled={!canRead || busy || loading} onClick={() => { setError(""); void refresh(); setRefreshKey(key => key + 1); }}><Icon name="refresh" /></button>
     </div>
@@ -199,9 +199,9 @@ export function IdaPane({ client, sessionId, available, visible = true, capabili
       </main>
     </div>
     {busy || db?.busy ? <div className="ida-activity" role="status"><WorkspaceStatus state="running" /><span>{operation ? actionTitle(operation.kind) : db?.current?.method}{operation?.kind === "open" ? (zh ? "，原生分析会在后台继续。" : ". Native analysis continues in the background.") : ""}</span>{(operation?.kind === "run" || !operation && db?.busy) && can("ida.database.cancel") ? <button className="btn small outline danger" onClick={() => void cancel()}><Icon name="stop" />{zh ? "停止请求" : "Stop request"}</button> : null}</div> : null}
-    {configuration ? <WorkspaceDialog title={zh ? "安装与依赖配置" : "Installation and dependencies"} onClose={() => { if (!busy) setConfiguration(false); }}><div className="ida-edit-form"><p className="ida-hint">{zh ? "需要已安装并授权的 IDA Pro / idalib。Z Work Studio 不会自动安装商业软件。设置保存到原生全局配置。" : "Requires licensed IDA Pro / idalib. Z Work Studio does not install commercial software. These settings are saved globally."}</p><label className="ida-checkbox"><input type="checkbox" checked={enabled} disabled={busy} onChange={event => setEnabled(event.target.checked)} />{zh ? "启用 IDA" : "Enable IDA"}</label><label>{zh ? "安装目录" : "Install directory"}<input className="input mono" value={installDir} disabled={busy} onChange={event => setInstallDir(event.target.value)} placeholder={zh ? "留空自动检测" : "Leave empty to detect"} /></label><label>{zh ? "Python 路径" : "Python path"}<input className="input mono" value={python} disabled={busy} onChange={event => setPython(event.target.value)} placeholder={zh ? "需支持 ida_domain 与 idapro" : "Must provide ida_domain and idapro"} /></label>{status?.detectedInstall || status?.detectedPython ? <dl className="ida-facts"><div><dt>{zh ? "检测到的 IDA" : "Detected IDA"}</dt><dd>{status.detectedInstall || (zh ? "未检测到" : "Not detected")}</dd></div><div><dt>Python</dt><dd>{status.detectedPython || (zh ? "未检测到" : "Not detected")}</dd></div></dl> : null}<div className="ida-dialog-actions"><button className="btn outline" disabled={busy} onClick={() => setConfiguration(false)}>{zh ? "返回" : "Back"}</button><button className="btn primary" disabled={busy || !can("ida.configure")} onClick={() => { setConfiguration(false); setConfirm({ kind: "configure", enabled, installDir, python }); }}>{zh ? "保存并检测" : "Save and detect"}</button></div></div></WorkspaceDialog> : null}
+    {configuration ? <WorkspaceDialog title={zh ? "安装与依赖配置" : "Installation and dependencies"} onClose={() => { if (!busy) setConfiguration(false); }}><div className="ida-edit-form"><p className="ida-hint">{zh ? "需要已安装并授权的 IDA Pro / idalib。Z Work Studio 不会自动安装商业软件。设置保存到原生全局配置。" : "Requires licensed IDA Pro / idalib. Z Work Studio does not install commercial software. These settings are saved globally."}</p><label>{zh ? "反汇编后端" : "Disassembler backend"}<select className="input" value={backend} disabled={busy} onChange={event => { const value = event.target.value; if (value === "auto" || value === "ida" || value === "ghidra" || value === "none") setBackend(value); }}><option value="auto">{zh ? "自动（优先 IDA）" : "Auto (prefer IDA)"}</option><option value="ida">IDA Pro</option><option value="ghidra">Ghidra</option><option value="none">{zh ? "关闭分析" : "Disable analysis"}</option></select></label><label>{zh ? "安装目录" : "Install directory"}<input className="input mono" value={installDir} disabled={busy} onChange={event => setInstallDir(event.target.value)} placeholder={zh ? "留空自动检测" : "Leave empty to detect"} /></label><label>{zh ? "Python 路径" : "Python path"}<input className="input mono" value={python} disabled={busy} onChange={event => setPython(event.target.value)} placeholder={zh ? "需支持 ida_domain 与 idapro" : "Must provide ida_domain and idapro"} /></label>{status?.detectedInstall || status?.detectedPython ? <dl className="ida-facts"><div><dt>{zh ? "检测到的 IDA" : "Detected IDA"}</dt><dd>{status.detectedInstall || (zh ? "未检测到" : "Not detected")}</dd></div><div><dt>Python</dt><dd>{status.detectedPython || (zh ? "未检测到" : "Not detected")}</dd></div></dl> : null}<div className="ida-dialog-actions"><button className="btn outline" disabled={busy} onClick={() => setConfiguration(false)}>{zh ? "返回" : "Back"}</button><button className="btn primary" disabled={busy || !can("ida.configure")} onClick={() => { setConfiguration(false); setConfirm({ kind: "configure", backend, installDir, python }); }}>{zh ? "保存并检测" : "Save and detect"}</button></div></div></WorkspaceDialog> : null}
     {confirm ? <WorkspaceDialog title={zh ? "确认 IDA 操作" : "Confirm IDA action"} onClose={() => setConfirm(undefined)}><div className="ida-edit-form"><div className="ida-review-heading"><Icon name="shield" /><div><strong>{actionTitle(confirm.kind)}</strong><p>{"id" in confirm ? status?.databases.find(row => row.id === confirm.id)?.module : confirm.kind === "open" ? confirm.path : (zh ? "原生全局配置" : "Native global configuration")}</p></div></div>
-      <p className="ida-hint">{confirm.kind === "configure" ? (zh ? "将启用状态、安装目录和 Python 路径保存到原生全局设置。" : "Save the enabled state, installation directory and Python path to native global settings.") : confirm.kind === "open" ? (zh ? "二进制将使用独立分析数据库。已有 IDB / i64 会原位打开，分析可能需要一些时间。" : "A binary uses a separate analysis database. Existing IDB / i64 files open in place. Analysis can take a while.") : confirm.kind === "close" ? (zh ? "先保留恢复副本并保存数据库，再关闭。其他使用此数据库的代理也会受影响。" : "Keep a recovery copy, save, then close the database. Other agents using it will be affected.") : confirm.kind === "run" ? (zh ? "先保留恢复副本。Python 可修改数据库并访问本机资源，命名空间与其他代理共享。" : "A recovery copy is kept first. Python can modify the database and access local resources. Its namespace is shared with other agents.") : (zh ? "保留恢复副本后，将当前数据库更改保存到磁盘。" : "Keep a recovery copy, then save database changes to disk.")}</p>
+      <p className="ida-hint">{confirm.kind === "configure" ? (zh ? "将反汇编后端、IDA 安装目录和 Python 路径保存到原生全局设置。此页面的数据库操作仅支持 IDA 后端。" : "Save the disassembler backend, IDA installation directory and Python path to native global settings. This page's database operations require IDA.") : confirm.kind === "open" ? (zh ? "二进制将使用独立分析数据库。已有 IDB / i64 会原位打开，分析可能需要一些时间。" : "A binary uses a separate analysis database. Existing IDB / i64 files open in place. Analysis can take a while.") : confirm.kind === "close" ? (zh ? "先保留恢复副本并保存数据库，再关闭。其他使用此数据库的代理也会受影响。" : "Keep a recovery copy, save, then close the database. Other agents using it will be affected.") : confirm.kind === "run" ? (zh ? "先保留恢复副本。Python 可修改数据库并访问本机资源，命名空间与其他代理共享。" : "A recovery copy is kept first. Python can modify the database and access local resources. Its namespace is shared with other agents.") : (zh ? "保留恢复副本后，将当前数据库更改保存到磁盘。" : "Keep a recovery copy, then save database changes to disk.")}</p>
       {confirm.kind === "run" ? <CapabilityEditor label={zh ? "待执行 Python" : "Python to execute"} value={confirm.code} language="python" readOnly /> : null}
       <div className="ida-dialog-actions"><button className="btn outline" onClick={() => setConfirm(undefined)}>{zh ? "取消" : "Cancel"}</button><button className="btn primary" onClick={() => void run()}>{zh ? "确认" : "Confirm"}</button></div></div></WorkspaceDialog> : null}
   </section>;

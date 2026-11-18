@@ -6,7 +6,7 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { VcsRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { getKeybindings, setKeybindings, TUI } from "@linxiraos/pi-tui";
+import { Container, getKeybindings, setKeybindings, TUI } from "@linxiraos/pi-tui";
 import type {
 	ExtensionCustomOptions,
 	ExtensionUIContext,
@@ -15,7 +15,10 @@ import type {
 import type { Theme } from "@linxiraos/pi-tui/theme";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
-import type { SessionPick } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-source";
+import {
+	selectSessionTextReviewSource,
+	type SessionPick,
+} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-source";
 import { AnnotateCommand, runAnnotateCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate";
 import {
 	type AnnotationOverlayContext,
@@ -25,6 +28,8 @@ import {
 import { loadAnnotationDrafts } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/draft-store";
 import * as externalEditor from "@linxiraos/zeta/utils/external-editor";
 import type { CustomCommandAPI, CustomCommandContext } from "@linxiraos/zeta/extensibility/custom-commands/types";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import type { ReviewPrRef } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
 import {
 	createResolvedReviewTarget,
@@ -41,6 +46,9 @@ import type {
 import * as gh from "@linxiraos/zeta/tools/gh";
 import { github } from "@linxiraos/zeta/utils/github";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
+import { Editor } from "@linxiraos/pi-tui/components/editor";
+import { defaultEditorTheme } from "../../../../tui/test/test-themes";
+import { TspHarness } from "../../../../tui/test/native/tsp-harness";
 
 const ENTER = "\r";
 const UP = "\x1b[A";
@@ -406,6 +414,68 @@ describe("/annotate contracts", () => {
 		expect(pasteToEditor).toHaveBeenCalledTimes(1);
 		expect(pasteToEditor.mock.calls[0]?.[0]).toContain(note);
 		expect(pasteToEditor.mock.calls[0]?.[0]).not.toContain(latestText);
+	});
+
+	it.each([true, false])("selects an older reply and restores the draft (native=%s)", async native => {
+		const older = makeAssistantEntry("older", "Older answer");
+		const { ctx } = createContext({
+			branch: [
+				makeUserEntry("user", "First question"),
+				older,
+				makeAssistantEntry("latest", "Latest answer", "older"),
+			],
+		});
+		const editor = new Editor(defaultEditorTheme);
+		editor.setText("Unsent draft");
+		const editorContainer = new Container();
+		editorContainer.addChild(editor);
+		const h = await TspHarness.start(
+			tui => {
+				tui.addChild(editorContainer);
+				tui.setFocus(editor);
+			},
+			{ reply: native },
+		);
+		const controller = new ExtensionUiController({
+			ui: h.tui,
+			editor,
+			editorContainer,
+			closeLinkBrowser: vi.fn(),
+		} as unknown as InteractiveModeContext);
+		ctx.ui.custom = controller.showHookCustom.bind(controller);
+		try {
+			const pending = selectSessionTextReviewSource(ctx);
+			await h.until(() => {
+				// Advance the manual clock for the classic renderer's throttled paints.
+				h.flush(100);
+				return native ? h.region("layer")?.c?.[0]?.k === "picker" : h.terminal.rowBytes.includes("\x1b[?1049h");
+			});
+			expect(editorContainer.children).toEqual([editor]);
+			if (native) {
+				const picker = h.region("layer")?.c?.[0];
+				expect(picker?.k).toBe("picker");
+				if (!picker) throw new Error("Native annotation picker was not mounted");
+				h.event({ ev: "activate", sf: h.terminal.surface!, id: picker.id, item: "older" });
+			} else {
+				h.terminal.send(UP);
+				h.flush();
+				h.terminal.send(ENTER);
+				h.flush();
+			}
+			expect(await pending).toMatchObject({ text: "Older answer", kind: "message" });
+			h.flush(100);
+			if (native) {
+				expect(h.region("layer")?.c ?? []).toEqual([]);
+				expect(h.terminal.rowBytes).not.toContain("\x1b[?1049h");
+				expect(h.terminal.rowBytes).not.toContain("\x1b[?1049l");
+			} else {
+				expect(h.terminal.rowBytes).toContain("\x1b[?1049l");
+			}
+			expect(h.tui.getFocused()).toBe(editor);
+			expect(editor.getText()).toBe("Unsent draft");
+		} finally {
+			h.stop();
+		}
 	});
 
 	it("uses the native selector for a whole session message and preserves its entry without a block", async () => {

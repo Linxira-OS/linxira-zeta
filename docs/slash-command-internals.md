@@ -403,8 +403,7 @@ than a byte-for-byte native provider transcript.
   question that asks for a steering, correction, or instruction prompt for the main session
   gets one in a single `<inject>…</inject>` block (the prompt shows the exact form). The
   answer shows the block apart from its prose, behind a `btw.rail` (`▎`, pink while pending)
-  with "Inject into main session" on the row below; in Tern, which wraps rows itself, the
-  block is a toned card. `app.btw.inject` (`Alt+I` by default; see
+  with "Inject into main session" on the row below. `app.btw.inject` (`Alt+I` by default; see
   [keybindings](keybindings.md)) sends its text as shown (trimmed, control sequences
   stripped, tabs expanded) to the main session as a user message: a steer while the main
   agent is running, else a new turn. It is never run as a slash command or expanded as a
@@ -551,6 +550,8 @@ Without an interactive UI, `code-review` delegates to `/review` instead of openi
 
 `/plan-review` reopens the Plan Review overlay for the latest plan (plan mode only). In the Contents sidebar `a` annotates the selected section; in the plan body `a` annotates the top visible line. `e` edits the annotation(s) at that section or line (with a chooser when several apply) and `u` undoes the latest section deletion or annotation change. The note editor behaves like `/annotate`'s: Enter saves, Shift+Enter inserts a newline, Escape discards the draft, the external-editor key replaces the draft without saving, and saving an empty edit deletes the annotation.
 
+The decision options are the approval choices and **Save**, which writes the plan to a chosen path and leaves the review open (plan mode and the session stay as they are). **Refine plan** appears only while the plan has feedback (annotations or deleted sections); it is then the first, preselected option and re-prompts the model with that feedback.
+
 ## 14) Built-in command note: `/context`
 
 `/context` opens a read-only Context Viewer over a snapshot of the active system prompt, loaded instruction files and skill listings, tool definitions, and messages, with estimated tokens per entry and per category. The snapshot is taken on open and does not refresh; close and reopen to update. It does not run extension hooks (`context`, `before_provider_request`), so inspecting context cannot trigger their side effects. Messages go through the same per-message conversion as `convertToLlm`, with steering wrapped by `wrapSteeringForModel` and provider refusals dropped as live replay drops them, but not image blocking, obfuscation, request normalization, provider encoding, or provider transforms, so content and token counts can differ from the provider request.
@@ -559,7 +560,7 @@ Instruction files and skill listings stay in the provider-facing system prompt b
 
 Estimate rules: Overview category and per-tool rows split the reported Used total by each row's estimated share, while entry headers show their own unscaled estimates, so the entries in a category need not add up to its Overview row; the Overview notes this under its legend. Multiple thinking blocks in one message share a total shown on a group heading, and grouped entries show `—`; empty interrupted thinking without usage shows `N/A · Interrupted`, not zero. Retained Anthropic web-search and tool-search calls and results appear in Tool Calls and Tool Output as JSON; opaque provider data (thinking signatures, `encrypted_content`, `encrypted_index`) is shown only as its size, such as `signature · 1,024 chars`, while still counted.
 
-Navigation uses the `tui.select.*` bindings: up/down select and scroll, confirm opens an entry, cancel goes back or closes, and page up/down scroll full-content view (see [keybindings](./keybindings.md)). In Tern, click selects, double-click opens, and the mouse wheel scrolls. Categories without entries cannot be opened. Opening the viewer does not submit the composer draft or interrupt a background turn.
+Navigation uses the `tui.select.*` bindings: up/down select and scroll, confirm opens an entry, cancel goes back or closes, and page up/down scroll full-content view (see [keybindings](./keybindings.md)). Categories without entries cannot be opened. Opening the viewer does not submit the composer draft or interrupt a background turn.
 
 ## 15) Bundled command note: `/review`
 

@@ -29,7 +29,18 @@ type Fixture = {
 };
 
 function makeSession(id: string): Fixture {
-	const wrapper = new AgentSessionWrapper({ sessionManager: {}, subscribe: () => () => {} } as never, id, null);
+	const wrapper = new AgentSessionWrapper(
+		{
+			sessionManager: {},
+			subscribe: () => () => {},
+			setBeforeNextUserTurn: () => {},
+			setAfterUserTurn: () => {},
+			registerSessionChangeCallback: () => () => {},
+			addDisposer: () => {},
+		} as never,
+		id,
+		null,
+	);
 	sessions.set(id, wrapper);
 	created.push(wrapper);
 	const frames: Array<Record<string, unknown>> = [];

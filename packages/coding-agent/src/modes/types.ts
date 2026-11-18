@@ -8,6 +8,10 @@ import type { BackendAttachLink } from "../backend/attach-link";
 import type { DroppedPrompt } from "../session/agent-session-types";
 import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import type { HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import type {
+	PlanReviewAnnotationState,
+	PlanReviewOverlayChoice,
+} from "@linxiraos/pi-tui/overlays/plan-review-overlay";
 import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "../extensibility/extensions/types";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
@@ -109,6 +113,12 @@ export type SubmittedUserInput = {
 	started: boolean;
 };
 
+/** A dialog that hands typing to the composer: registered by the ExtensionUiController approval, form and ask presenters, read by InputController's image and HTML paste routing. */
+export interface ComposerOwner {
+	component: Component;
+	owns(): boolean;
+}
+
 export interface InteractiveModeInitOptions {
 	suppressWelcomeIntro?: boolean;
 	clearInitialTerminalHistory?: boolean;
@@ -120,8 +130,6 @@ export interface InteractiveModeInitOptions {
 
 export type InteractiveSelectorDialogOptions = ExtensionUIDialogOptions &
 	Pick<HookSelectorOptions, "disabledIndices" | "inline">;
-
-export type SessionPickHandler = (session: SessionInfo) => void | Promise<void>;
 
 /** How {@link InteractiveModeContext.handleResumeSession} picks the file it opens. */
 export interface ResumeSessionOptions {
@@ -137,6 +145,8 @@ export interface ResumeSessionOptions {
 	 */
 	continuation?: SessionContinuation;
 }
+
+export type SessionPickHandler = (session: SessionInfo) => void | Promise<void>;
 
 export interface RenderSessionContextOptions {
 	updateFooter?: boolean;
@@ -165,13 +175,6 @@ export interface ShowStatusOptions {
 	toast?: boolean;
 	/** A button on the native toast (Undo); the ANSI line has none. */
 	action?: StatusNoticeAction;
-}
-
-export interface SelectOnlyModelSelectorOptions {
-	/** Use the selected `provider/id` for the caller's operation without mutating session defaults. */
-	onSelect: (selector: string) => void | Promise<void>;
-	/** `provider/id` initially highlighted in the picker. */
-	currentSelector?: string;
 }
 
 export interface AgentHubOpenOptions {
@@ -228,6 +231,8 @@ export interface InteractiveModeContext {
 	readonly focusedAgentId: string | undefined;
 	/** Set while a tool-approval dialog owns the composer: its drafts steer the main session awaiting that approval, even from a focused agent's view. */
 	approvalOwnsComposer?: boolean;
+	/** The mounted dialog that currently hands typing to the composer, if any. */
+	composerOwner?: ComposerOwner;
 	/** Focus the main view on an agent's live session (delegates to SessionFocusController.focusAgent). */
 	focusAgentSession(id: string): Promise<void>;
 	/** Focus the focused agent's parent session, falling back to main (delegates to focusParent). */
@@ -644,10 +649,10 @@ export interface InteractiveModeContext {
 	showAgentsDashboard(): void;
 	/** Open the fullscreen git UI, optionally pinned to a revision (`/git <rev>`). */
 	showGitUi(revision?: string): void;
-	showModelSelector(options?: { temporaryOnly?: boolean; selectOnly?: SelectOnlyModelSelectorOptions }): void;
+	showModelSelector(options?: { temporaryOnly?: boolean }): void;
 	/** Session-only switch to an already-resolved model (`/switch <selector>`); compacts first when over context. */
 	switchSessionModel(model: Model, thinkingLevel?: ConfiguredThinkingLevel): Promise<void>;
-	showPluginSelector(mode?: "install" | "uninstall"): void;
+	showPluginSelector(mode?: "install" | "uninstall"): Promise<void>;
 	showUserMessageSelector(startAt?: string): void;
 	showCopySelector(): void;
 	showTreeSelector(): void;
@@ -710,6 +715,10 @@ export interface InteractiveModeContext {
 	handleTanCommand(work: string, images?: ImageContent[]): Promise<boolean>;
 	hasActiveBtw(): boolean;
 	handleBtwEscape(): boolean;
+	/** The composer talks to a `/btw` note (Tern): plain drafts go to its topic as follow-ups. */
+	readonly isBtwFocused: boolean;
+	/** Sends a draft to the focused `/btw` note's topic; false when no follow-up started. */
+	submitBtwFollowUp(question: string, images?: ImageContent[]): Promise<boolean>;
 	handleBtwBranchKey(): Promise<boolean>;
 	canBranchBtw(): boolean;
 	handlesBtwBranchKey(): boolean;
@@ -784,8 +793,20 @@ export interface InteractiveModeContext {
 	showPlanReview(
 		planContent: string,
 		title: string,
-		options: string[],
-		dialogOptions?: { helpText?: string; disabledIndices?: number[] },
+		options: readonly PlanReviewOverlayChoice[],
+		dialogOptions?: {
+			helpText?: string;
+			refine?: { id: string; label: string };
+			onSave?: (content: string) => void;
+			onExternalEditor?: () => void;
+			onPlanEdited?: (content: string) => void;
+			onFeedbackChange?: (feedback: string) => void;
+			annotationState?: PlanReviewAnnotationState;
+			onAnnotationStateChange?: (state: PlanReviewAnnotationState) => void;
+			initialIndex?: number;
+			onClose?: (choice: string | undefined) => void;
+		},
+		extra?: { slider?: HookSelectorSlider },
 	): Promise<string | undefined>;
 	readonly sessionModes: ExtensionSessionModes;
 

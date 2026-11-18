@@ -1106,9 +1106,9 @@
     url = "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz";
     hash = "sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==";
   };
-  "axios@1.21.0" = fetchurl {
-    url = "https://registry.npmjs.org/axios/-/axios-1.21.0.tgz";
-    hash = "sha512-YCzXMB53Q9PZBsh7yN7wtapit4WepwcHS2fP8QhGsBxSz5YtgYobV7GGlWlAJi+RxfU77GQTQi2DSLUma42EYA==";
+  "axios@1.21.1" = fetchurl {
+    url = "https://registry.npmjs.org/axios/-/axios-1.21.1.tgz";
+    hash = "sha512-6eI5Q/Y4u/Um9dDlsRoq5pY2rxnUTv+L4PpLitnbk/i4jb3MxLZ5CsN5Ih3IysbeRYK4pR+P7qfMsOQl9fwwFQ==";
   };
   "babel-plugin-jsx-dom-expressions@0.40.10" = fetchurl {
     url = "https://registry.npmjs.org/babel-plugin-jsx-dom-expressions/-/babel-plugin-jsx-dom-expressions-0.40.10.tgz";

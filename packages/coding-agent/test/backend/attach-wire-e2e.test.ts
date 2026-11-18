@@ -36,7 +36,7 @@ import { startWebGateway, type WebGatewayInstance } from "../../src/server/web-g
 import { AgentSessionWrapper, sessions as gatewaySessions } from "../../src/server/web-gateway/agents";
 import { serveIdentity } from "../../src/server/web-gateway/identity";
 import { cacheSessionPath } from "../../src/server/web-gateway/sessions";
-import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
+import { createInMemoryAuthStorage, fixedAdvisorTools } from "../helpers/agent-session-setup";
 
 function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row => Bun.stripANSI(row).trimEnd());
@@ -515,7 +515,7 @@ describe("attached TUI over the wire protocol", () => {
 			modelRegistry: new ModelRegistry(authStorage),
 			toolRegistry: new Map<string, AgentTool>([["write", writeTool]]),
 			builtInToolNames: ["write"],
-			advisorTools: [],
+			advisorTools: fixedAdvisorTools(),
 		});
 		const backend = backendSession;
 		const sessionId = backendManager.getSessionId();

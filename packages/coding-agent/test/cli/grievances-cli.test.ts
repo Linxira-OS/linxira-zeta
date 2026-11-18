@@ -61,7 +61,8 @@ afterEach(() => {
 		if (savedEnv[key] === undefined) delete Bun.env[key];
 		else Bun.env[key] = savedEnv[key];
 	}
-	process.exitCode = originalExitCode as number | undefined;
+	// Bun does not clear a prior nonzero exit status when assigned undefined.
+	process.exitCode = originalExitCode ?? 0;
 	vi.restoreAllMocks();
 });
 

@@ -157,21 +157,21 @@ export function formatTimestamp(timestamp: number): string {
 	return formatter.format(timestamp);
 }
 
-const utcDayFormatters = new Map<string, Intl.DateTimeFormat>();
+const localDayFormatters = new Map<string, Intl.DateTimeFormat>();
 
-/** UTC day label for the cost/gain charts; `long` adds the weekday and year. */
-export function formatUtcDay(timestamp: number, long = false): string {
+/** Local day label for the cost/gain charts; `long` adds the weekday and year. */
+export function formatLocalDay(timestamp: number, long = false): string {
 	const locale = getLocale();
 	const key = `${locale}:${long ? "long" : "short"}`;
-	let formatter = utcDayFormatters.get(key);
+	let formatter = localDayFormatters.get(key);
 	if (!formatter) {
 		formatter = new Intl.DateTimeFormat(
 			locale,
 			long
-				? { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }
-				: { month: "short", day: "numeric", timeZone: "UTC" },
+				? { weekday: "short", month: "short", day: "numeric", year: "numeric" }
+				: { month: "short", day: "numeric" },
 		);
-		utcDayFormatters.set(key, formatter);
+		localDayFormatters.set(key, formatter);
 	}
 	return formatter.format(timestamp);
 }

@@ -1,6 +1,6 @@
 /**
  * OMP 18.11–18.12 Runtime features surfaced to Studio: remembered approvals,
- * job inspection and widgets, MCP re-authorization and read-only Seance.
+ * job inspection and widgets, and MCP re-authorization.
  * Validation stays at shape level; the overlay services enforce semantics.
  */
 
@@ -76,25 +76,12 @@ export interface McpAuthResult {
 	message?: string;
 }
 
-export interface SeanceResult {
-	/** The answer text of the read-only consult. */
-	text: string;
-	sourceSessionId: string;
-	/** Agent id to send follow-up questions to, when the consult stays addressable. */
-	agentId?: string;
-	model?: string;
-	/** `running` when `async.enabled` detached the consult into a background job (`text` is then a notice). */
-	state: "completed" | "running";
-	jobId?: string;
-}
-
 export type RuntimeFeatureOperation =
 	| { kind: "approvals.forget"; sessionId: string }
 	| { kind: "jobs.inspect"; sessionId: string; jobId: string }
 	| { kind: "mcp.auth.reauth"; sessionId: string; name: string }
 	| { kind: "mcp.auth.unauth"; sessionId: string; name: string }
 	| { kind: "mcp.auth.reconnect"; sessionId: string; name: string }
-	| { kind: "seance.ask"; sessionId: string; source: string; task: string; model?: string }
 	| { kind: "agent.spawn.options"; sessionId: string; definition: string }
 	| { kind: "btw.inject"; sessionId: string; injectId: string }
 	| { kind: "session.history.rename"; sessionId: string; targetSessionId: string; title: string }
@@ -105,7 +92,6 @@ export interface RuntimeFeatureResultMap {
 	"mcp.auth.reauth": McpAuthResult;
 	"mcp.auth.unauth": McpAuthResult;
 	"mcp.auth.reconnect": McpAuthResult;
-	"seance.ask": SeanceResult;
 	"agent.spawn.options": AgentSpawnOptions;
 	"btw.inject": { sent: true };
 	"session.history.rename": { targetSessionId: string; title: string };
@@ -117,7 +103,6 @@ export const RUNTIME_FEATURE_KINDS = [
 	"mcp.auth.reauth",
 	"mcp.auth.unauth",
 	"mcp.auth.reconnect",
-	"seance.ask",
 	"agent.spawn.options",
 	"btw.inject",
 	"session.history.rename",

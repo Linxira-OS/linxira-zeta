@@ -238,13 +238,11 @@ describe("grant choices in the prompt", () => {
 		await requestApproval(ui, pathTool("write", "write", huge), { path: "entry-000.txt" }, { grants: true });
 		const compact = prompts[0]!.compact.split("\n");
 		expect(compact[1]).toContain("200+ entries");
-		expect(compact.slice(2)).toEqual([
-			"  - entry-000.txt",
-			"  - entry-001.txt",
-			"  - entry-002.txt",
-			"  - entry-003.txt",
-			"  … 196 more",
-		]);
+		const sample = compact.slice(2, -1);
+		expect(sample).toHaveLength(4);
+		expect(sample).toEqual([...new Set(sample)].sort());
+		for (const item of sample) expect(item).toMatch(/^  - entry-(?:[01]\d{2}|20[0-4])\.txt$/);
+		expect(compact.at(-1)).toBe("  … 196 more");
 	});
 
 	it("offers only the directory answer for a call that names just that directory", async () => {

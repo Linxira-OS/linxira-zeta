@@ -284,6 +284,9 @@ describe("runSubprocess soft request budget", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(handle.session);
 		registerRunning(id, handle.session);
 		const parentSessionFile = `${tempDir.path()}/parent.jsonl`;
+		const parent = await SessionManager.open(parentSessionFile, undefined, undefined, { initialCwd: tempDir.path() });
+		await parent.ensureOnDisk();
+		await parent.close();
 
 		const result = await runSubprocess({ ...baseOptions(id), sessionFile: parentSessionFile });
 

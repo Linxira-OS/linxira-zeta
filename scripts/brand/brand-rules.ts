@@ -292,9 +292,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the Tokio install export keeps its upstream name ON PURPOSE — sweeping it to __zeta* made Tokio silently fail to install (v18.0.10)",
 	},
 	{
-		file: "packages/coding-agent/src/ida/protocol.ts",
-		needle: 'export const IDA_DAEMON_PREFIX = "zeta.ida.";',
-		why: "IDA daemon name shown in `zetacode ps`; upstream is omp.ida.*",
+		file: "packages/coding-agent/src/disasm/protocol.ts",
+		needle: 'export const DISASM_DAEMON_PREFIXES = ["zeta.ida.", "zeta.ghidra."];',
+		why: "Disassembler daemon names shown in zetacode ps use the Zeta namespace",
 	},
 	{
 		file: "packages/coding-agent/src/stream/recording.ts",
@@ -507,6 +507,8 @@ export const MUST_NOT_CONTAIN: Array<{
 			"CONTRIBUTING.md", // upstream issue routing and attribution
 			"CONTRIBUTING.zh-CN.md",
 			"rep-docs/README.zh-CN.md", // bilingual upstream credits
+			"rep-docs/product.md", // explicit linked attribution of the maintained renderer fork
+			"rep-docs/product.zh-CN.md",
 			"rep-docs/ownership.md",
 			"rep-docs/ownership.zh-CN.md",
 		],

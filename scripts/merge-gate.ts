@@ -358,8 +358,8 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 				if (!match) return { status: "fail", detail: "no brand-regression verdict line in the output" };
 				const hits = Number(match[1]);
 				return hits === 0
-					? { status: "pass", detail: `0 regressions in the diff ${base}..HEAD` }
-					: { status: "fail", detail: `${hits} brand regression(s) in the diff ${base}..HEAD` };
+					? { status: "pass", detail: `0 regressions in the diff ${base}..working tree` }
+					: { status: "fail", detail: `${hits} brand regression(s) in the diff ${base}..working tree` };
 			},
 		},
 		{

@@ -67,6 +67,7 @@ import {
 } from "@linxiraos/zeta/task/settings";
 import { cfgMnemopiDbPath, cfgMnemopiScoping } from "@linxiraos/zeta/mnemopi/settings";
 import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
+import { cfgSpeechVoice, cfgTtsLocalVoice } from "@linxiraos/zeta/tts/settings";
 import { cfgHindsightBankId, cfgHindsightScoping } from "@linxiraos/zeta/hindsight/settings";
 import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
 import { cfgExaEnabled } from "@linxiraos/zeta/web/settings";
@@ -1920,7 +1921,7 @@ describe("Settings", () => {
 				{ image: imageOrderedCandidates[0] },
 				{ image: imageOrderedCandidates.slice(1) },
 			],
-			["local speech provider", "providers.tts", "local", { speech: "local/kokoro" }, { speech: [] }],
+			["local speech provider", "providers.tts", "local", { speech: "local/phonon-31m" }, { speech: [] }],
 			["xAI speech provider", "providers.tts", "xai", { speech: "xai/grok-tts" }, { speech: [] }],
 			[
 				"DeepInfra speech provider",
@@ -1952,7 +1953,7 @@ describe("Settings", () => {
 			],
 			["tiny model", "providers.tinyModel", "lfm2.5-230m", { tiny: "local/lfm2.5-230m" }, {}],
 			["memory model", "providers.memoryModel", "lfm2-1.2b", { memory: "local/lfm2-1.2b" }, {}],
-			["local speech model", "tts.localModel", "kokoro", {}, {}],
+			["local speech model", "tts.localModel", "phonon-31m", {}, {}],
 			["fast dictation model", "stt.modelName", "fast", { dictation: "local/whisper-base" }, {}],
 			["balanced dictation model", "stt.modelName", "balanced", { dictation: "local/whisper-small" }, {}],
 			["turbo dictation model", "stt.modelName", "turbo", { dictation: "local/whisper-large-v3-turbo" }, {}],
@@ -2355,6 +2356,20 @@ describe("Settings", () => {
 			expect(cfgMemoryBackend.get(settings)).toBe("mnemopi");
 			expect(cfgMnemopiDbPath.get(settings)).toBe("/tmp/old.db");
 			expect(cfgMnemopiScoping.get(settings)).toBe("global");
+		});
+
+		it("migrates legacy Kokoro voices and speech role to Phonon", async () => {
+			await writeSettings({
+				tts: { localVoice: "bm_george" },
+				speech: { voice: "af_bella" },
+				modelRoles: { speech: "local/kokoro" },
+			});
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+
+			expect(cfgTtsLocalVoice.get(settings)).toBe("edwin");
+			expect(cfgSpeechVoice.get(settings)).toBe("harper");
+			expect(settings.getModelRole("speech")).toBe("local/phonon-31m");
 		});
 
 		it("does not clobber an explicit mnemopi block when the legacy mnemosyne block is also present", async () => {

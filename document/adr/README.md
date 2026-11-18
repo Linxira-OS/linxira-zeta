@@ -90,6 +90,10 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0066](0066-model-visibility-fallback-slots.md) | Model visibility and fixed three-level fallback slots | Proposed | 2026-11-11 | — | [PR #321](https://github.com/Linxira-OS/linxira-zeta/pull/321), [REQ-028/029/076](../requirements-ledger.md) |
 | [0067](0067-tui-runtime-settings.md) | TUI runtime settings reuse the existing serve authority | Proposed | 2026-11-17 | — | [IM runtime](../../docs/im-runtime-ui.md), [REQ-124](../requirements-ledger.md) |
 | [0068](0068-omp-18-22-runtime-alignment.md) | Align Zeta consumers to the OMP 18.22 runtime contracts | Proposed | 2026-11-17 | — | [REQ-125](../requirements-ledger.md), [ADR 0036](0036-upstream-interface-alignment.md), [sync ledger](../upstream-sync.md) |
+| [0069](0069-zeta-1-6-0-release-scope.md) | Zeta 1.6.0 targets OMP v18.22.2 and keeps Android on hold | Superseded | 2026-11-18 | Superseded by [0070](0070-zeta-1-6-0-stable-upstream-baseline.md) | [Release readiness](../release.md#160-public-release-readiness), [REQ-136](../requirements-ledger.md) |
+| [0070](0070-zeta-1-6-0-stable-upstream-baseline.md) | Release Zeta 1.6.0 from OMP v18.22.0 | Superseded | 2026-11-18 | Supersedes [0069](0069-zeta-1-6-0-release-scope.md); superseded by [0071](0071-zeta-1-5-10-public-release.md) | [REQ-136](../requirements-ledger.md) |
+| [0071](0071-zeta-1-5-10-public-release.md) | Publish Zeta 1.5.10 from OMP v18.22.0 | Superseded | 2026-11-18 | Superseded by [0072](0072-restore-normal-public-releases.md) | [REQ-141](../requirements-ledger.md) |
+| [0072](0072-restore-normal-public-releases.md) | Restore normal public releases | Accepted | 2026-11-18 | Supersedes the ongoing freeze in [0006](0006-release-freeze-internal-line.md) and override in [0071](0071-zeta-1-5-10-public-release.md) | [Release readiness](../release.md#1510-public-release-readiness), [REQ-142](../requirements-ledger.md) |
 
 ## File and numbering rules
 

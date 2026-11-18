@@ -117,7 +117,7 @@ describe("backend-attach command routing", () => {
 		// `/theme` and `/help` have no top-level builtin: forwarding them would
 		// send the literal slash text to the model, so they are refused with a
 		// pointer to `/settings` and `/hotkeys`.
-		for (const verb of ["live", "theme", "help"]) {
+		for (const verb of ["live", "theme", "help", "channels", "2fa"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}

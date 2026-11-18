@@ -28,6 +28,7 @@ import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { RoomService } from "@linxiraos/zeta/rooms/service";
 import { roomRuntime } from "@linxiraos/zeta/rooms/transport";
 import { resetTeamRoomsForTests } from "@linxiraos/zeta/vibe/team-rooms";
+import { fixedAdvisorTools } from "./helpers/agent-session-setup";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -137,7 +138,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			settings,
 			modelRegistry,
 			toolRegistry,
-			advisorTools: [],
+			advisorTools: fixedAdvisorTools(),
 			createVibeTools: () => [makeTool("vibe_dir"), makeTool("vibe_worker")],
 			createTeamTools: () => [makeTool("team_dir"), makeTool("team_worker")],
 			builtInToolNames: ["ask", "write", "read", "goal", "tracking_update", "local_room_read"],

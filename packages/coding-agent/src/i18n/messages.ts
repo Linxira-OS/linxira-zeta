@@ -1873,6 +1873,7 @@ export interface Messages {
 	trashRestoredFmt: string;
 	trashRestoreUsage: string;
 	trashRestoreBadIndexFmt: string;
+	cmdCommit: string;
 	cmdCompact: string;
 	cmdCompactElide: string;
 	cmdCompactImages: string;
@@ -1911,6 +1912,9 @@ export interface Messages {
 	cmdSecurityDisposition: string;
 	cmdSettings: string;
 	cmdSettingsReset: string;
+	cmdTwoFactor: string;
+	cmdTwoFactorStatus: string;
+	cmdTwoFactorUsage: string;
 	cmdChannels: string;
 	cmdChannelsStatus: string;
 	cmdChannelsInstances: string;
@@ -1961,12 +1965,6 @@ export interface Messages {
 	cmdAdvisorStatus: string;
 	cmdAdvisorDump: string;
 	cmdAdvisorConfigure: string;
-	cmdSeance: string;
-	cmdSeanceConsultWith: string;
-	cmdSeanceUseSavedModel: string;
-	cmdSeanceUseSavedModelDescription: string;
-	cmdSeanceChooseModel: string;
-	cmdSeanceChooseModelDescription: string;
 	cmdExportHtml: string;
 	cmdDumpTranscript: string;
 	cmdShare: string;
@@ -2556,8 +2554,6 @@ export interface Messages {
 	todoNoTodosFallback: string; // "No todos"
 	todoTaskOne: string; // "1 task"
 	todoTaskManyFmt: string; // "%d tasks"
-	todoItemOne: string; // "1 item"
-	todoItemManyFmt: string; // "%d items"
 	wsErrorFmt: string; // "Error: %s"
 	wsSourceOne: string; // "1 source"
 	wsSourceManyFmt: string; // "%d sources"

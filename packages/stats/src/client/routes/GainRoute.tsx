@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { getGainDashboardStats } from "../api";
 import { t } from "../i18n";
 import { Chart, type ChartSeries, Legend } from "../charts";
-import { formatBytes, formatCompact, formatInteger, formatPercent, formatUtcDay } from "../data/formatters";
+import { formatBytes, formatCompact, formatInteger, formatPercent, formatLocalDay } from "../data/formatters";
 import { useQuery } from "../data/query";
 import { bucketAxis, rangeMeta } from "../data/range";
 import { densify } from "../data/series";
@@ -29,7 +29,7 @@ const DAY_MS = 86_400_000;
 
 const SOURCE_LABEL: Record<GainSource, string> = { snapcompact: "Snapcompact" };
 
-/** The server buckets gain by UTC calendar day (`YYYY-MM-DD`). */
+/** The server buckets gain by local calendar day (`YYYY-MM-DD`). */
 interface SourceRow extends GainSourceTotals {
 	source: GainSource;
 	/** Share of all saved tokens (0-1). */
@@ -45,7 +45,8 @@ export function GainRoute({ active, range }: GainRouteProps) {
 	const data = gain.data;
 
 	const series = useMemo(() => {
-		const points = (data?.timeSeries ?? []).map(p => ({ ...p, timestamp: Date.parse(`${p.date}T00:00:00Z`) }));
+		// A date-time string without an offset parses as local midnight.
+		const points = (data?.timeSeries ?? []).map(p => ({ ...p, timestamp: Date.parse(`${p.date}T00:00:00`) }));
 		const buckets = bucketAxis(
 			range,
 			points.map(p => p.timestamp),
@@ -164,7 +165,7 @@ export function GainRoute({ active, range }: GainRouteProps) {
 						>
 							<Chart
 								slots={series.buckets.length}
-								tickLabel={i => formatUtcDay(series.buckets[i])}
+								tickLabel={i => formatLocalDay(series.buckets[i])}
 								series={chartSeries}
 								height={260}
 								formatTooltip={formatInteger}

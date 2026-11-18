@@ -18,17 +18,28 @@ import type { SessionEntry } from "../../src/session/session-entries";
 
 const cleanups: Array<() => Promise<void>> = [];
 
+function makeWrapper(id: string): AgentSessionWrapper {
+	return new AgentSessionWrapper(
+		{
+			sessionManager: {},
+			subscribe: () => () => {},
+			setBeforeNextUserTurn: () => {},
+			setAfterUserTurn: () => {},
+			registerSessionChangeCallback: () => () => {},
+			addDisposer: () => {},
+		} as never,
+		id,
+		null,
+	);
+}
+
 afterEach(async () => {
 	await Promise.all(cleanups.splice(0).map(fn => fn()));
 });
 
 describe("AgentSessionWrapper durable-entry replication", () => {
 	test("onEntryAppended emits session_entry with monotonic seq and buffers frames", () => {
-		const wrapper = new AgentSessionWrapper(
-			{ sessionManager: {}, subscribe: () => () => {} } as never,
-			"sess-unit",
-			null,
-		);
+		const wrapper = makeWrapper("sess-unit");
 		const seen: Array<{ seq: number; entryId: string }> = [];
 		wrapper.onEvent(event => {
 			if ((event as { type?: string }).type === "session_entry") {
@@ -54,11 +65,7 @@ describe("AgentSessionWrapper durable-entry replication", () => {
 
 		// Cursor older than the ring → resync. Shrink the ring by pushing past
 		// the limit? Instead assert against an empty buffer (fresh wrapper):
-		const fresh = new AgentSessionWrapper(
-			{ sessionManager: {}, subscribe: () => () => {} } as never,
-			"sess-unit-2",
-			null,
-		);
+		const fresh = makeWrapper("sess-unit-2");
 		// Empty ring + cursor past last seq → nothing to replay.
 		expect(fresh.getEntryFramesSince(5)).toEqual([]);
 		expect(fresh.getEntryFramesSince(0)).toEqual([]);
@@ -73,11 +80,7 @@ describe("GET /api/agent/:id/events?since= (SSE via real HTTP)", () => {
 		cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 
 		// A real wrapper so onEntryAppended fires through the constructor hook.
-		const wrapper = new AgentSessionWrapper(
-			{ sessionManager: {}, subscribe: () => () => {} } as never,
-			"sess-sse",
-			null,
-		);
+		const wrapper = makeWrapper("sess-sse");
 		const sm = wrapper.getSession().sessionManager as { onEntryAppended?: (entry: SessionEntry) => void };
 		const entry = (id: string): SessionEntry =>
 			({ id, parentId: null, timestamp: Date.now() }) as unknown as SessionEntry;

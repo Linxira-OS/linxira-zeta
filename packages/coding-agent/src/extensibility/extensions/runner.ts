@@ -3,11 +3,13 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
+	agentMessageIdentity,
 	type AgentMessage,
 	type AgentTool,
 	type AgentToolContext,
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
+	identifyAgentMessage,
 	isNonBlankContext,
 	joinAdditionalContext,
 } from "@linxiraos/pi-agent-core";
@@ -2667,7 +2669,13 @@ export class ExtensionRunner {
 		}
 		for (let index = 0; index < currentMessages.length; index++) {
 			const message = currentMessages[index];
-			if (message) setContextHistoryIndex(message, index);
+			if (!message) continue;
+			// structuredClone drops symbol keys. Keep the live message's identity
+			// so its otherwise unchanged clone compares as historical context.
+			const source = messages[index];
+			const identity = source && agentMessageIdentity(source);
+			if (identity) identifyAgentMessage(message, identity);
+			setContextHistoryIndex(message, index);
 		}
 
 		for (const ext of this.extensions) {

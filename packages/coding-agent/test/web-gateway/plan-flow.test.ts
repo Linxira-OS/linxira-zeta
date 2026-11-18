@@ -26,6 +26,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AgentSessionWrapper, type AgentEvent } from "../../src/server/web-gateway/agents";
 import type { ToolSession } from "../../src/tools";
 import { dispatchResolutionDevice, PROPOSE_DEVICE_PATH } from "../../src/tools/resolve";
+import { fixedAdvisorTools } from "../helpers/agent-session-setup";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -203,7 +204,7 @@ describe("web-gateway plan chain", () => {
 				["read", readTool],
 			]),
 			builtInToolNames: ["ask", "write", "read"],
-			advisorTools: [],
+			advisorTools: fixedAdvisorTools(),
 		});
 		session = created;
 

@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
+import * as compatAuth from "@linxiraos/pi-catalog/compat/auth";
 import { type Api, type FetchImpl, type Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { factoryDroidRegistry } from "@linxiraos/pi-catalog/compat/factory-droid";
@@ -101,6 +102,32 @@ function collectPaths(result: CustomToolResult<{ imagePaths: string[] }>): void 
 
 describe("imageGenTool catalog routing", () => {
 	afterEach(() => vi.restoreAllMocks());
+
+	it("offline skips a foreign image backend and uses a same-provider fallback", async () => {
+		const foreign = catalogModel("deepinfra", "foreign-image", "openai-images");
+		const local = catalogModel("xai", "same-image", "openai-images");
+		const active = catalogModel("xai", "active-chat", "openai-responses", "chat");
+		const urls: string[] = [];
+		const settings = Settings.isolated({
+			"models.offline": true,
+			modelRoles: { image: "deepinfra/foreign-image" },
+			"retry.fallbackChains": { image: ["xai/same-image"] },
+		});
+		const ctx = createContext({
+			models: [foreign, local, active],
+			settings,
+			activeModel: active,
+			fetch: async input => {
+				urls.push(input.toString());
+				return imageResponse();
+			},
+		});
+
+		const result = await imageGenTool.execute("offline", { subject: "a harbor" }, undefined, ctx);
+		collectPaths(result);
+		expect(urls).toEqual(["https://xai.example/v1/images/generations"]);
+		expect(result.details?.model).toBe("same-image");
+	});
 
 	it("registers without resolving credentials", async () => {
 		const registry = createRegistry([]);
@@ -412,6 +439,8 @@ describe("imageGenTool catalog routing", () => {
 	});
 
 	it("falls back to the selected Antigravity id when discovery advertises no image model", async () => {
+		// Antigravity is paused in its auth rules; its image transport stays for when it is turned back on.
+		vi.spyOn(compatAuth, "providerDisabledReason").mockReturnValue(undefined);
 		const model = catalogModel("google-antigravity", "gemini-selected-image", "google-gemini-cli");
 		const requestBodies: Array<Record<string, unknown>> = [];
 		const fetchMock: FetchImpl = async (input, init) => {

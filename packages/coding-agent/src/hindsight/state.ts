@@ -1,6 +1,7 @@
-import { logger, sanitizeText, truncate } from "@linxiraos/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { memoryNoticeErrorText } from "../memory-backend/messages";
 import { findPersistedRecall, persistRecall } from "../memory-backend/recall-entry";
 import type { MemoryPromptPreparation } from "../memory-backend/types";
 import { cfgMemoryExtractionMode } from "../memory-backend/settings";
@@ -27,11 +28,6 @@ import { type DrainResult, HindsightOutbox, type RetainInput } from "./outbox";
 
 /** `notice` source of Hindsight recall/retain failures; print mode writes these to stderr. */
 export const HINDSIGHT_NOTICE_SOURCE = "Hindsight";
-
-/** Error text for a failure notice: it can carry server response text, so strip terminal controls and bound it. */
-function noticeErrorText(errorText: string): string {
-	return truncate(sanitizeText(errorText).replace(/\s+/g, " ").trim(), 200);
-}
 
 const RETAIN_FLUSH_BATCH_SIZE = 16;
 const RETAIN_FLUSH_INTERVAL_MS = 5_000;
@@ -187,7 +183,9 @@ export class HindsightRetainQueue {
 		} catch (err) {
 			const errorText = err instanceof Error ? err.message : String(err);
 			logger.warn("Hindsight outbox drain failed", { bankId: this.#state.bankId, error: errorText });
-			notice(`Hindsight outbox unavailable: ${noticeErrorText(errorText)}. Undelivered memories stay on disk.`);
+			notice(
+				`Hindsight outbox unavailable: ${memoryNoticeErrorText(errorText)}. Undelivered memories stay on disk.`,
+			);
 			this.#schedule(RETAIN_FLUSH_INTERVAL_MS);
 			return;
 		}
@@ -211,7 +209,7 @@ export class HindsightRetainQueue {
 		// One notice per outage, not per retry.
 		if (++this.#failures === 1) {
 			notice(
-				`Memory retention failed; ${result.kept} ${result.kept === 1 ? "memory" : "memories"} kept in the Hindsight outbox for retry: ${noticeErrorText(result.error)}`,
+				`Memory retention failed; ${result.kept} ${result.kept === 1 ? "memory" : "memories"} kept in the Hindsight outbox for retry: ${memoryNoticeErrorText(result.error)}`,
 			);
 		}
 		// Exponential backoff from the debounce interval; ±20% jitter spreads processes sharing an outage.
@@ -378,7 +376,7 @@ export class HindsightSessionState implements HindsightSessionStateApi {
 			if (this.#recallGeneration === generation) {
 				this.session.emitNotice(
 					"warning",
-					`Memory recall failed: ${noticeErrorText(errorText)}`,
+					`Memory recall failed: ${memoryNoticeErrorText(errorText)}`,
 					HINDSIGHT_NOTICE_SOURCE,
 				);
 			}

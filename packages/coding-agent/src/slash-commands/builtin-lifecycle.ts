@@ -1,4 +1,3 @@
-import { SEANCE_SLASH_COMMAND } from "./seance";
 import { handleOmfgSlashCommand } from "./omfg";
 import { handleTanSlashCommand } from "./tan";
 import { clearSubmittedText, refuseImages, restoreDetachedDraft, runWithDetachedDraft } from "./helpers/draft";
@@ -6,9 +5,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { logger, setProjectDir } from "@linxiraos/pi-utils";
-import { clearClaudePluginRootsCache } from "../discovery/helpers";
-import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { M } from "../i18n";
+import { rescopeSessionToCwd } from "../session/cwd-rescope";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import { continuesConversation } from "../modes/utils/conversation-position";
 import type { FreshSessionResult, HandoffResult } from "../session/agent-session";
@@ -24,7 +22,6 @@ import {
 	type SessionWorktree,
 } from "../session/session-worktree";
 import { formatShakeSummary, type ShakeMode } from "../session/shake-types";
-import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { resolveShellDirectory, resolveToCwd } from "../tools/path-utils";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { shutdownHandlerTui } from "./helpers/shutdown";
@@ -429,7 +426,6 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			await runtime.ctx.handleHandoffCommand(customInstructions);
 		},
 	},
-	SEANCE_SLASH_COMMAND,
 	{
 		name: "resume",
 		icon: "history",
@@ -993,13 +989,6 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 ];
 async function rescopeHeadlessToCwd(runtime: SlashCommandRuntime, cwd: string): Promise<void> {
 	setProjectDir(cwd);
-	await runtime.settings.reloadForCwd(cwd);
-	await rebindMemoryBackendForCwd(runtime.session);
-	clearClaudePluginRootsCache();
-	const src = discoverTitleSystemPromptFile(cwd);
-	const p = await resolvePromptInput(src, "title system prompt");
-	runtime.session.setTitleSystemPrompt(p);
-	await runtime.session.refreshSkillsAndCommands();
+	await rescopeSessionToCwd(runtime.session, runtime.settings, cwd);
 	await runtime.refreshCommands?.();
-	await runtime.reloadPlugins();
 }

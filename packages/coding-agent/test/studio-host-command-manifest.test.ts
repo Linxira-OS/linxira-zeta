@@ -27,7 +27,14 @@ test("command catalog exposes text execution, preserves terminal mappings and hi
 	});
 	expect(command("model")).toMatchObject({ aliases: ["models"] });
 	expect(command("quit")).toMatchObject({ implementation: "tui-compatibility", presentation: "terminal" });
-	expect(command("channels")).toBeUndefined();
+	for (const name of ["2fa", "channels"]) {
+		expect(command(name)).toMatchObject({
+			implementation: "tui-compatibility",
+			presentation: "terminal",
+			risk: "sensitive",
+			effect: "process",
+		});
+	}
 	expect(command("setup")).toBeUndefined();
 	expect(command("live")).toBeUndefined();
 	// These commands contain destructive subcommands even when their bare form reads status.

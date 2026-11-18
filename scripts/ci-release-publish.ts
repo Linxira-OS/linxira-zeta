@@ -908,9 +908,7 @@ async function publishWorkspacePackages(): Promise<string[]> {
 }
 
 if (import.meta.main) {
-	// Release freeze (ADR 0006, scripts/release-policy.ts): every entry point —
-	// including the standalone `*-publish.yml` workflows — fails closed before
-	// npm is touched. A `--dry-run` rehearsal never publishes, so it is exempt.
+	// Require a publishable version for every entry point. Dry runs never publish.
 	if (!isDryRun) {
 		const manifestDir = publishEditor
 			? "editor/npm/editor"
@@ -927,7 +925,7 @@ if (import.meta.main) {
 								: "packages/coding-agent";
 		const manifest = (await Bun.file(path.join(repoRoot, manifestDir, "package.json")).json()) as PackageManifest;
 		if (typeof manifest.version !== "string") {
-			console.error(`Release freeze guard: no version in ${manifestDir}/package.json; refusing to publish.`);
+			console.error(`No version in ${manifestDir}/package.json. Refusing to publish.`);
 			process.exit(1);
 		}
 		try {

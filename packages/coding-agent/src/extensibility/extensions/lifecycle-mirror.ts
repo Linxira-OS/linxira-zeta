@@ -4,12 +4,10 @@
  * The mapping is the single owner of the translation, so extensions see the
  * same event shapes regardless of where the session event originated.
  *
- * The `agent_end` shape mirrors the session's public-notification shape
- * (`#emitAgentEndNotification`): `messages` plus the continuation and async-wait
- * flags. The session-layer `isTerminal: false` marks a non-final settle, either
- * an automatic continuation or a background-job wait; the latter has
- * `awaitingAsyncWork: true`. Older hosts omit these flags and such settles
- * map without them, matching the pre-flag notification.
+ * Extensions keep one `agent_end` per stopped model loop: the session's
+ * `agent_pause` (a loop stop inside a run) maps to `agent_end` with
+ * `willContinue` (and `awaitingAsyncWork` when only outside work resumes the
+ * run), the session's `agent_end` (the run's end) to a plain `agent_end`.
  */
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AgentSessionEvent } from "../../session/agent-session";
@@ -103,13 +101,15 @@ export function extensionEventFromSessionEvent(
 	switch (event.type) {
 		case "agent_start":
 			return { type: "agent_start" };
-		case "agent_end":
+		case "agent_pause":
 			return {
 				type: "agent_end",
 				messages: event.messages,
-				willContinue: event.isTerminal === false ? true : undefined,
-				...(event.isTerminal === false && event.awaitingAsyncWork === true ? { awaitingAsyncWork: true } : {}),
+				willContinue: true,
+				...(event.awaiting ? { awaitingAsyncWork: true } : {}),
 			};
+		case "agent_end":
+			return { type: "agent_end", messages: event.messages };
 		case "turn_start":
 			return { type: "turn_start", turnIndex, timestamp: Date.now() };
 		case "turn_end":

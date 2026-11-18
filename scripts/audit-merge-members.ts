@@ -291,16 +291,38 @@ const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
 	],
 	"packages/coding-agent/src/session/session-storage.ts": ["moveSessionWithArtifactsToTrash"],
 	"packages/coding-agent/src/config.ts": ["export discoverAppendSystemPromptPath"],
+	// Seance was removed by the official runtime release and from Zeta's Host/renderer.
+	"packages/coding-agent/src/server/studio-host/protocol/contracts/runtime-features.ts": ["export SeanceResult"],
 };
 
 /**
- * Completed old-name -> upstream-v18.19.0 boundary migrations.
+ * Reviewed migrations across named upstream release boundaries.
  *
  * Only add an entry after the Zeta call sites are actually moved and TS plus the
  * group's narrow behaviour test pass; an unmigrated member stays `dropped`.
  * This is a reviewed mapping, not a blanket allowlist.
  */
 const MIGRATED: Record<string, Record<string, string>> = {
+	"packages/coding-agent/src/internal-urls/local-protocol.ts": {
+		assertLocalWriteNamespace: "localScopedPath applies namespace admission before resolving the scoped path",
+	},
+	"packages/coding-agent/src/sdk.ts": {
+		sameMcpManagerTools: "refreshMCPTools serializes reconciliation against the live registry in SessionTools",
+	},
+	"packages/coding-agent/src/slash-commands/builtin-two-factor.ts": {
+		currentLanguage: "description and usage from the live bilingual message catalog; status still formats by locale",
+	},
+	"packages/utils/src/dirs.ts": {
+		readPiProfileFromEnvSafe: "readProfileFromEnvSafe reads the existing ZETA_PROFILE contract",
+	},
+	"packages/coding-agent/src/tts/models.ts": {
+		"export DEFAULT_TTS_LOCAL_MODEL_KEY": "TTS_LOCAL_MODELS[0].key and getTtsLocalModelSpec",
+		"export TTS_LOCAL_MODEL_OPTIONS": "fixed Phonon backend and per-voice choices",
+		"export TTS_LOCAL_MODEL_VALUES": "fixed Phonon backend and migration of retired settings",
+	},
+	"packages/stats/src/client/data/formatters.ts": {
+		"export formatUtcDay": "formatLocalDay, with local calendar and DST regression coverage",
+	},
 	"packages/coding-agent/src/goals/continuation-controller.ts": {
 		"export GOAL_CONTINUATION_MODE_INTERACTIVE": "RpcGoalController continuation mode/options",
 		"export GoalContinuationCommand": "RpcGoalCommand / RpcGoalOp",
@@ -311,12 +333,6 @@ const MIGRATED: Record<string, Record<string, string>> = {
 		"export GoalContinuationOp": "local web constant / RpcGoal types",
 		"export GoalContinuationResult": "local web constant / RpcGoal types",
 		"export GoalContinuationSession": "local web constant / RpcGoal types",
-	},
-	"packages/coding-agent/src/irc/bus.ts": {
-		"#bumpMailboxRevision": "#bumpMailboxGeneration",
-		"#mailboxRevision": "#mailboxGeneration",
-		onMailboxChange: "IrcBusApi.onMailboxChange",
-		unsubscribeLiveness: "onMailboxChange unsubscribe",
 	},
 	"packages/ai/src/auth/cascade.ts": {
 		mirrorKey: "upstream refactor accepted; no remaining call site",
@@ -369,6 +385,7 @@ const MIGRATED: Record<string, Record<string, string>> = {
 	"packages/coding-agent/src/irc/bus.ts": {
 		"#bumpMailboxRevision": "#bumpMailboxGeneration",
 		"#mailboxRevision": "#mailboxGeneration",
+		onMailboxChange: "IrcBusApi.onMailboxChange",
 		unsubscribeLiveness: "onMailboxChange unsubscribe",
 		"#localWorkspaceRef": "upstream refactor accepted; no remaining call site",
 		"#spawningMainId": "upstream refactor accepted; no remaining call site",

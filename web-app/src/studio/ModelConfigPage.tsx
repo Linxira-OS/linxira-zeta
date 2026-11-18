@@ -47,7 +47,7 @@ import { ROLE_ICONS, ROLE_TINTS, groupModelsByProvider, fmtK } from "./models/mo
 import { type Draft, type ModelEditState, type ModelRoleDraft, type ModelsTab, type TestResultView } from "./models/config/types";
 import { mergeProviderOrder, permuteVisible, readProviderOrder, sameOrder, sortProviders, writeProviderOrder } from "./models/config/providerOrder";
 import { applyRoleSelector, assignedRoleIds, blankCustomForm, blankDraft, blankOverrideForm, draftFromPreset, draftFromProvider, draftsEqual, editorTestSecret, previewProviderFromDraft, providerUpsertFromDraft, readModelRoles, roleAssignDiff, roleAssignModCount, rolePrimaryUpdates, roleSelector, roleThinkingUi, rolesEqual, sameStringList, withPreviewLogin, withRoleModel, withRolePrimaryUpdates } from "./models/config/drafts";
-import { SOURCE_GROUP, STATUS_META, formatProviderStatusDetail, formatRoleDesc } from "./models/config/presentation";
+import { SOURCE_GROUP, STATUS_META, formatProviderStatusDetail, formatRoleDesc, formatRoleName } from "./models/config/presentation";
 import { runProbe, runTest, runWrite } from "./models/config/commands";
 import { AuthTypeSelect, BrandMark, DiscoveryResultBlock, ModelCaps, ProviderTestRow, confirmDiscardDirty } from "./models/config/ProviderControls";
 import { RoleAssignControl, RoleModelPicker, RoleThinkingSeg } from "./models/config/RoleControls";
@@ -181,7 +181,7 @@ function PurposeCategoryCards({
           return (
             <div className="role-row" key={card.key} data-tint={ROLE_TINTS[role.id] ?? "purple"} style={{ display: "block", padding: 12 }}>
               <div className="role-header" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="r-name">{role.name}<span className="alias">{role.alias}</span></span>
+                <span className="r-name">{formatRoleName(role, t)}<span className="alias">{role.alias}</span></span>
                 {role.builtin ? null : <span className="chip purple xs">{t("modelConfig.customRole")}</span>}
                 <span className="spacer" style={{ flex: 1 }} />
                 <button type="button" className="btn small outline" onClick={() => onOpen(role)} disabled={busy}>{t("common.edit")}</button>
@@ -2204,7 +2204,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             <>
               <div className="mr-toolbar">
                 <button type="button" className="icon-btn" onClick={closeRoleEditor}><Icon name="arrow-l" /></button>
-                <b style={{ fontSize: "var(--fs-14)" }}>{roleDraft.name}</b>
+                <b style={{ fontSize: "var(--fs-14)" }}>{formatRoleName(roleDraft, t)}</b>
                 <span className="chip-code">{roleDraft.alias}</span>
                 <span className={`chip ${roleDraft.builtin ? "gray" : "purple"} xs`}>{roleDraft.builtin ? t("modelConfig.builtinRole") : t("modelConfig.customRole")}</span>
                 <span className="chip blue xs">{roleDraft.scope === "project" ? "Project" : "Global"}</span>
@@ -2441,7 +2441,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                   <button type="button" className="role-row-nav" onClick={() => { setRoleId(role.id); setRoleDraft({ ...role }); }}>
                     <span className="role-icon-area"><span className={`a-ic${role.issue ? " amber" : ""}`}><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" /></span></span>
                     <span className="role-name-section">
-                      <span className="role-header"><span className="r-name">{role.name}</span><span className="alias">{role.alias}</span></span>
+                      <span className="role-header"><span className="r-name">{formatRoleName(role, t)}</span><span className="alias">{role.alias}</span></span>
                       <span className="role-meta"><span className="r-desc" title={formatRoleDesc(role, t)}>{formatRoleDesc(role, t)}</span>{role.scope === "project" ? <span className="role-tag">Project</span> : null}{role.builtin ? null : <span className="role-tag">{t("modelConfig.customRole")}</span>}</span>
                     </span>
                   </button>
@@ -2477,7 +2477,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                       </button>
                     ) : null}
                   </span>
-                  <button type="button" className="role-chevron" aria-label={t("modelConfig.editRoleAria", { name: role.name })} onClick={() => { setRoleId(role.id); setRoleDraft({ ...role }); }}>
+                  <button type="button" className="role-chevron" aria-label={t("modelConfig.editRoleAria", { name: formatRoleName(role, t) })} onClick={() => { setRoleId(role.id); setRoleDraft({ ...role }); }}>
                     <Icon name="chevron-r" extra="sm" />
                   </button>
                 </div>
@@ -2496,7 +2496,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                         return (
                           <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                             {index ? <span className="cycle-arrow"><Icon name="arrow-r" extra="sm" /></span> : null}
-                            <span className="cycle-chip"><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" />{role.name} <span className="mono">{role.alias}</span>
+                            <span className="cycle-chip"><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" />{formatRoleName(role, t)} <span className="mono">{role.alias}</span>
                               <span className="chip-remove" role="button" tabIndex={0} onClick={() => setCycleDraft((current) => current.filter((x) => x !== id))}><Icon name="x" /></span>
                             </span>
                           </span>
@@ -2506,7 +2506,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                     <div className="cycle-pool">
                       <span className="cycle-pool-label">{t("modelConfig.cyclePoolLabel")}</span>
                       {roles.filter((role) => !cycleDraft.includes(role.id)).map((role) => (
-                        <button type="button" key={role.id} className="btn small outline" onClick={() => setCycleDraft((current) => [...current, role.id])}><Icon name="plus" extra="sm" />{role.name} <span className="mono">{role.alias}</span></button>
+                        <button type="button" key={role.id} className="btn small outline" onClick={() => setCycleDraft((current) => [...current, role.id])}><Icon name="plus" extra="sm" />{formatRoleName(role, t)} <span className="mono">{role.alias}</span></button>
                       ))}
                     </div>
                     <div className="cycle-edit-actions">
@@ -2523,7 +2523,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                         return (
                           <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                             {index ? <span className="cycle-arrow"><Icon name="arrow-r" extra="sm" /></span> : null}
-                            <span className="cycle-chip"><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" />{role.name} <span className="mono">{role.alias}</span></span>
+                            <span className="cycle-chip"><Icon name={ROLE_ICONS[role.id] ?? "cpu"} extra="sm" />{formatRoleName(role, t)} <span className="mono">{role.alias}</span></span>
                           </span>
                         );
                       })}

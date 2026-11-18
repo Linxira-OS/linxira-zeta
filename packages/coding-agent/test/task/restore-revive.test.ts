@@ -95,6 +95,7 @@ async function restoreInterruptedChild(options: { transcript?: "handoff" | "fall
 	main.appendMessage({ role: "user", content: "fan out", timestamp: Date.now() });
 	const mainFile = main.getSessionFile();
 	if (!mainFile) throw new Error("Expected a persisted session file");
+	await main.ensureOnDisk();
 	await main.close();
 	const child = await SessionManager.open(
 		path.join(mainFile.slice(0, -6), `${AGENT_ID}.jsonl`),

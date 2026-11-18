@@ -79,7 +79,9 @@ compaction 条目**。旧窗口的原始消息仍在 entries 里，因此 memory
 - sharpshooter 与 taste 在 style 上重叠；不建议同时开。
 - 后台抽取读取独立上下文，通常没有主对话缓存命中；比主模型工具调用更贵。
 
-## 4. Taste 的真实触发
+## 4. 「写法先进」的真实触发
+
+简体中文设置中的「写法先进」对应 `taste`。已有 `taste.*` 配置和 `taste.md` 存储继续使用原路径。
 
 - 抽取：`message_start` 的 user 消息；主会话才跑，子代理不跑；短于
   `taste.minPromptLength`（默认 16 字）跳过；**每个提示都触发**，不是每 N 轮。
@@ -198,7 +200,7 @@ Tracking 不需要频次配置；保持 phase 完成 nudge。
 
 ## 9. 推荐档位
 
-| 档位 | Tracking | Memory | Taste | Compaction |
+| 档位 | Tracking | Memory | 写法先进 | Compaction |
 |---|---|---|---|---|
 | 省成本 | 开 | mnemopi `llmMode=none`，manual/12 轮 | 关或 agent 手动 | async 可关；snapcompact |
 | 平衡 | 开 | mnemopi per-project，12 轮 | `window` 模式或 prompt+高频阈值 | async 开 |

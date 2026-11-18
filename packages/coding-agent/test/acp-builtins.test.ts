@@ -66,6 +66,7 @@ interface FakeAcpBuiltinSession {
 	setTitleSystemPrompt(prompt: string | undefined): void;
 	setSlashCommands(commands: unknown[]): void;
 	refreshSkillsAndCommands(): Promise<void>;
+	refreshProjectScope(): Promise<void>;
 	getTodoPhases(): Array<{ name: string; tasks: Array<{ content: string; status: string }> }>;
 	commitTodoPhases(phases: Array<{ name: string; tasks: Array<{ content: string; status: string }> }>): void;
 	refreshBaseSystemPrompt(): Promise<void>;
@@ -109,6 +110,7 @@ function createRuntime() {
 		setTitleSystemPrompt: (_prompt: string | undefined) => {},
 		setSlashCommands: (_commands: unknown[]) => {},
 		refreshSkillsAndCommands: async () => {},
+		refreshProjectScope: async () => {},
 		toggleFastMode() {
 			this.fastMode = !this.fastMode;
 			return this.fastMode;
@@ -912,6 +914,9 @@ describe("session lifecycle commands", () => {
 			const nextFile = manager.getSessionFile();
 			if (!nextFile) throw new Error("Expected a new session path");
 			expect(output[0]).toContain(nextFile);
+			// The successor stays lazy: deleting must not leave an empty listed session behind.
+			expect(await Bun.file(nextFile).exists()).toBe(false);
+			expect(await SessionManager.list(tempDir.path(), tempDir.path())).toEqual([]);
 
 			manager.appendMessage({ role: "user", content: "second turn", timestamp: 2 });
 			manager.appendMessage(makeAssistantMessage());
@@ -1690,12 +1695,14 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /context breakdown
 	it("/context: lists more than one breakdown line for session with messages", async () => {
-		const { output, session, runtime } = createRuntime();
-		// computeContextBreakdown needs model.contextWindow; fake session falls back gracefully
+		const { output, session, runtime, fakeSessionManager } = createRuntime();
+		Object.assign(session, { sessionManager: fakeSessionManager });
+		// Use a text-only model so the report can also evaluate inline-image eligibility.
 		(session as unknown as Record<string, unknown>).model = {
 			provider: "anthropic",
 			id: "claude-test",
 			contextWindow: 200_000,
+			input: ["text"],
 		};
 		(session as unknown as Record<string, unknown>).skills = [];
 		(session as unknown as Record<string, unknown>).agent = { state: { tools: [] }, tokenizer: new Tokenizer() };

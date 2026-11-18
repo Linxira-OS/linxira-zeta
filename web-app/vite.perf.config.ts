@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { graphicVendorPlugin } from "./graphic-vendor-plugin";
 
@@ -8,20 +8,6 @@ import { graphicVendorPlugin } from "./graphic-vendor-plugin";
 // The alias table must stay in lockstep with the product config so the same
 // modules resolve; it is copied because a measurement build must not inherit
 // product-only plugins (CSP injection and chunk policy are not needed).
-function indexHtmlOutput(): Plugin {
-  return {
-    name: "perf-index-html",
-    apply: "build",
-    enforce: "post",
-    generateBundle(_options, bundle) {
-      const entry = bundle["perf-harness.html"];
-      if (entry === undefined || entry.type !== "asset") return;
-      delete bundle["perf-harness.html"];
-      entry.fileName = "index.html";
-      bundle["index.html"] = entry;
-    },
-  };
-}
 
 export default defineConfig({
   resolve: {
@@ -34,7 +20,7 @@ export default defineConfig({
       "@linxiraos/studio-runtime-installer": fileURLToPath(new URL("./src/zeta/runtime-installer.ts", import.meta.url)),
     },
   },
-  plugins: [react(), graphicVendorPlugin(), indexHtmlOutput()],
+  plugins: [react(), graphicVendorPlugin()],
   base: "./",
   build: {
     outDir: fileURLToPath(new URL("./dist-perf", import.meta.url)),

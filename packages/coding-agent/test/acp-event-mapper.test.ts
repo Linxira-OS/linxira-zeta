@@ -115,6 +115,10 @@ class ReplayTestSession {
 	}
 
 	async refreshMCPTools(_tools: unknown): Promise<void> {}
+
+	runToolRegistryMutation<T>(mutation: () => Promise<T>): Promise<T> {
+		return mutation();
+	}
 }
 
 describe("ACP event mapper", () => {

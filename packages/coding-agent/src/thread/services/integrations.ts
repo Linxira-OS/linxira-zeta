@@ -120,7 +120,7 @@ export function toWorkerCustomTool<TParams extends TSchema, TDetails>(
  * behave identically in a worker. Call once on the options a main-thread caller hands to a
  * worker-hosted `runSubprocess`; returns a shallow copy (other fields are untouched).
  *
- * - `extensionRoots`, `preparedSession.promptSuffix`: called synchronously by the child → `rpcSync`.
+ * - `extensionRoots`: called synchronously by the child → `rpcSync`.
  * - `customTools`: {@link toWorkerCustomTool} views.
  * - `parentTelemetry`: `toWorkerTelemetryConfig` (captures the active span as the child's parent, so
  *   call this inside the parent's `execute_tool task` context).
@@ -133,14 +133,6 @@ export function bridgeIntegrationOptions(options: ExecutorOptions): ExecutorOpti
 	const bridged: ExecutorOptions = { ...options };
 	const extensionRoots = options.extensionRoots;
 	if (extensionRoots) bridged.extensionRoots = rpcSync(() => extensionRoots());
-	const seance = options.preparedSession;
-	if (seance) {
-		const promptSuffix = seance.promptSuffix;
-		bridged.preparedSession = {
-			fork: seance.fork,
-			promptSuffix: rpcSync((resolvedModel?: string) => promptSuffix(resolvedModel)),
-		};
-	}
 	if (options.customTools) bridged.customTools = options.customTools.map(tool => toWorkerCustomTool(tool));
 	if (options.parentTelemetry) bridged.parentTelemetry = toWorkerTelemetryConfig(options.parentTelemetry);
 	return bridged;
@@ -351,6 +343,13 @@ function serveMcpManager(state: PeerIntegrationState): RpcServe<MCPManager, McpM
 				),
 			),
 		connectedServers: manager => manager.getConnectedServers(),
+		serverConfig: (manager, name) => {
+			const config = manager.getServerConfig(name);
+			if (!config) return undefined;
+			if (config.type === "http" || config.type === "sse") return { type: config.type, url: config.url };
+			return { type: "stdio", command: config.command, ...(config.args ? { args: config.args } : {}) };
+		},
+		allServerNames: manager => manager.getAllServerNames(),
 		serverResources: (manager, name) => manager.getServerResources(name),
 		ensureServerResources: (manager, name) => manager.ensureServerResources(name),
 		waitForPendingConnections: manager => manager.waitForPendingConnections(),

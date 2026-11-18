@@ -33,18 +33,14 @@ function installStub(dir: string, name: string): string {
 	return stub;
 }
 
-/** System32 keeps Windows child processes able to load their DLLs. The
- * spread can carry both `Path` and `PATH` spellings; both must go, or the
- * child's env block keeps a duplicate whose value wins unpredictably.
- * `BUN_INSTALL_CACHE_DIR` points at an empty dir so bun's global-cache
- * package fallback can never satisfy the shim's vendored-leaf resolution
- * from the CI machine's real cache (its leaf binaries are not executable,
- * which would turn the die-state assertion into a spawn EACCES). */
+/** A private PATH excludes host installations. Windows locates system DLLs via SystemRoot.
+ * Remove every inherited PATH spelling before setting the fixture's value. */
 function envWith(overrides: Record<string, string | undefined>): Record<string, string | undefined> {
 	const base: Record<string, string | undefined> = { ...process.env };
-	delete base.PATH;
-	delete base.Path;
-	const defaultPath = IS_WIN ? "C:\\Windows\\System32" : "/usr/bin:/bin";
+	for (const key of Object.keys(base)) {
+		if (key.toUpperCase() === "PATH" || key.toUpperCase() === "NODE_PATH") delete base[key];
+	}
+	const defaultPath = cacheSandboxDir();
 	return {
 		...base,
 		PATH: defaultPath,
@@ -128,7 +124,7 @@ describe("npm launcher shim discovery (e2e)", () => {
 		const shim = installLauncher(path.join(tree, "bin"));
 		const leafBin = path.join(tree, "node_modules", LEAF, "bin");
 		installStub(leafBin, EXE);
-		const { code, stdout } = await runShim(shim, envWith({ PATH: envWith({}).PATH }));
+		const { code, stdout } = await runShim(shim, envWith({}));
 		expect(code).toBe(0);
 		expect(stdout).toMatch(/^\d+\.\d+\.\d+/m);
 	});

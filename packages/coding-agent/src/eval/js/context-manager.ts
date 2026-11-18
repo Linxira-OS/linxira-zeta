@@ -16,6 +16,7 @@ import { getEnabledEvalPreludes } from "../preludes";
 import {
 	abortReasonError,
 	attachSessionOwner,
+	type DisposeByOwnerOptions,
 	EvalKernelNotRunningError,
 	formatKernelRestartNotice,
 	type SessionOwners,
@@ -123,6 +124,7 @@ interface JsSession {
 }
 
 interface StartingJsSession extends SessionOwners {
+	sessionId: string;
 	promise: Promise<JsSession>;
 }
 
@@ -427,11 +429,13 @@ export async function disposeAllVmContexts(): Promise<void> {
 /**
  * Shut down retained JS contexts owned solely by `ownerId`; contexts with other
  * owners (e.g. an in-memory session keyed only by cwd) just drop the registration.
+ * Contexts for `options.keepSessionId` are left untouched.
  */
-export async function disposeVmContextsByOwner(ownerId: string): Promise<void> {
+export async function disposeVmContextsByOwner(ownerId: string, options?: DisposeByOwnerOptions): Promise<void> {
+	const keepSessionId = options?.keepSessionId;
 	const toKill: JsSession[] = [];
 	for (const session of Array.from(sessions.values())) {
-		if (!session.ownerIds.has(ownerId)) continue;
+		if (!session.ownerIds.has(ownerId) || session.sessionId === keepSessionId) continue;
 		if (session.ownerIds.size === 1) {
 			toKill.push(session);
 			continue;
@@ -440,7 +444,7 @@ export async function disposeVmContextsByOwner(ownerId: string): Promise<void> {
 	}
 	const startingToKill: StartingJsSession[] = [];
 	for (const [sessionKey, starting] of Array.from(startingSessions.entries())) {
-		if (sessions.has(sessionKey) || !starting.ownerIds.has(ownerId)) continue;
+		if (sessions.has(sessionKey) || !starting.ownerIds.has(ownerId) || starting.sessionId === keepSessionId) continue;
 		if (starting.ownerIds.size === 1) {
 			startingSessions.delete(sessionKey);
 			startingToKill.push(starting);
@@ -703,6 +707,7 @@ async function acquireSession(
 	startingSession = {
 		ownerIds: new Set(),
 		hasFallbackOwner: false,
+		sessionId: snapshot.sessionId,
 		promise: startup,
 	};
 	attachSessionOwner(startingSession, snapshot.sessionId, ownerId);
@@ -1035,7 +1040,7 @@ function spawnBunWorker(): JsEvalWorkerHandle {
 
 function spawnJsProcess(): JsEvalWorkerHandle {
 	const spawned = createWorkerSubprocess<WorkerOutbound>({
-		spawnCommand: resolveWorkerSpawnCmd(JS_EVAL_PROCESS_ARG),
+		spawnCommand: resolveWorkerSpawnCmd(JS_EVAL_PROCESS_ARG, { sameBuild: true }),
 		env: workerEnvFromParent(),
 		exitLabel: "JS eval worker",
 		detached: shouldDetachKernel(process.platform),

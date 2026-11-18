@@ -10,10 +10,11 @@ import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallb
 import type { Api, AuthStorage, Model } from "@linxiraos/pi-ai";
 import { modelKind } from "@linxiraos/pi-catalog/types";
 import { formatAge, formatCount, prompt, truncate } from "@linxiraos/pi-utils";
+import { cfgOffline } from "../../config/auxiliary-model-policy";
 import { ModelRegistry } from "../../config/model-registry";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
 import { roleCandidatePool } from "../../config/model-roles";
-import { settings } from "../../config/settings";
+import { settings, type Settings } from "../../config/settings";
 import type { CustomTool, CustomToolContext } from "../../extensibility/custom-tools/types";
 import webSearchSystemPrompt from "../../prompts/system/web-search.md" with { type: "text" };
 import webSearchDescription from "../../prompts/tools/web-search.md" with { type: "text" };
@@ -158,6 +159,7 @@ interface ExecuteSearchOptions {
 	sessionId?: string;
 	/** The session's active model; `web/hosted` searches through it. */
 	sessionModel?: Model<Api>;
+	settings?: Settings;
 	signal?: AbortSignal;
 }
 
@@ -280,6 +282,18 @@ async function executeSearch(
 	let lastProvider: { id: string; label: string } | undefined;
 	let failedResponseProvider: SearchResponse["provider"] = "none";
 	for (const candidate of expanded) {
+		if (cfgOffline.get(options.settings ?? settings)) {
+			const activeProvider = options.sessionModel?.provider;
+			// Search-only catalog entries use the synthetic "web" provider; their
+			// backend is not the session's model endpoint, so do not infer a match.
+			if (
+				!activeProvider ||
+				candidate.model.provider !== activeProvider ||
+				modelKind(candidate.model) === "search"
+			) {
+				continue;
+			}
+		}
 		let provider: SearchProvider | undefined;
 		const candidateMeta = { id: candidate.model.id, label: candidate.model.name };
 		lastProvider = candidateMeta;
@@ -380,9 +394,11 @@ async function executeSearch(
 	}
 
 	if (availableProviderCount === 0 && failures.length === 0) {
-		const message = params.model
-			? `No web search model matches selector "${params.model}".`
-			: "No web search model configured.";
+		const message = cfgOffline.get(options.settings ?? settings)
+			? "No web search backend is available on the active model's provider under --offline."
+			: params.model
+				? `No web search model matches selector "${params.model}".`
+				: "No web search model configured.";
 		return {
 			content: [{ type: "text" as const, text: `Error: ${message}` }],
 			details: { response: { provider: "none", sources: [] }, error: message },
@@ -420,6 +436,7 @@ export async function runSearchQuery(
 		modelRegistry?: ModelRegistry;
 		sessionId?: string;
 		sessionModel?: Model<Api>;
+		settings?: Settings;
 		signal?: AbortSignal;
 	} = {},
 ): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchResultDetails }> {
@@ -434,6 +451,7 @@ export async function runSearchQuery(
 			modelRegistry: options.modelRegistry,
 			sessionId: options.sessionId,
 			sessionModel: options.sessionModel,
+			settings: options.settings,
 			signal: options.signal,
 		});
 	} finally {
@@ -493,6 +511,7 @@ export class WebSearchTool implements AgentTool<typeof webSearchSchema, SearchRe
 			modelRegistry: this.#session.modelRegistry,
 			sessionId,
 			sessionModel: this.#session.getActiveModel?.(),
+			settings: this.#session.settings,
 			signal,
 		});
 	}

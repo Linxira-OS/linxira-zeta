@@ -1,26 +1,16 @@
 #!/usr/bin/env bun
 /**
- * Release freeze policy — single source of truth for "may this version tag /
- * upload assets / publish?".
+ * Stable release eligibility and historical tag handling (ADR 0072).
  *
- * Owner ruling (2026-11-11, ADR 0006; corrected 2026-11-11): the 1.5 line is a
- * high-speed internal iteration line.
+ *   1.5.1              previously published npm baseline
+ *   1.5.2 … 1.5.9      annotated code-only tags (1.5.2 has an assets-only exception)
+ *   1.5.10 and later   normal public releases (ADR 0072)
  *
- *   1.5.1              current public version; users stay here
- *   1.5.2 … 1.5.10     internal build tags ARE cut (annotated, code-only):
- *                      no GitHub Release assets, no installers, no binaries,
- *                      no npm publish — CI may still build/package/test
- *   1.5.11+ / 1.6.x    the train jumps to 1.6.0; nothing tags or publishes
- *                      without explicit owner approval
- *   1.6.0              next public release, only after explicit owner approval
- *
- * Default is fail-closed: no version uploads assets or publishes unless an
- * explicit override names exactly that version and carries an audit reason.
- * 1.5.x is never publishable, with or without an override, so a stray tag
- * cannot leak a minor build to npm or the GitHub Releases page.
+ * The historical assets-only review still requires its original override.
+ * Public tags continue through the standard scope and source CI gates.
  *
  * Override (owner-approved, auditable):
- *   ZETA_RELEASE_OVERRIDE_VERSION=1.6.0
+ *   ZETA_RELEASE_OVERRIDE_VERSION=1.5.2
  *   ZETA_RELEASE_OVERRIDE_REASON="<why this release is approved>"
  *
  * In GitHub Actions the values come from the `release_override_version` /
@@ -40,14 +30,12 @@
 import { compareVersions } from "../packages/utils/src/version";
 
 export const RELEASE_FREEZE = {
-	/** Minor line that stays internal-build-only for its whole span. */
+	/** Historical internal build line. */
 	frozenLine: "1.5",
 	/** First internal build tag on the frozen line (1.5.1 is the public version). */
 	internalBuildMin: "1.5.2",
-	/** Highest internal build version on the frozen line. */
-	internalBuildMax: "1.5.10",
-	/** First public version after the freeze; still requires owner approval. */
-	nextPublicVersion: "1.6.0",
+	/** First version on the restored public release line (ADR 0072). */
+	nextPublicVersion: "1.5.10",
 	/** Exact 1.5.x version the owner may release as GitHub assets only (ADR 0033). */
 	assetReviewVersion: "1.5.2",
 } as const;
@@ -117,9 +105,8 @@ function denied(version: string | null, channel: ReleaseChannel, reason: string)
 
 /**
  * Classify a version against the freeze. `internal-build` covers the planned
- * 1.5.2–1.5.10 tag range; the rest of the 1.5 line and retired pre-1.6 lines
- * are `internal-build` too but not taggable, so a slipped patch cannot reopen
- * the line.
+ * historical 1.5.2–1.5.9 tag range. Stable releases at or above 1.5.10
+ * use the normal public path.
  */
 export function classifyReleaseVersion(input: string): PublishPolicyDecision {
 	const parsed = parseReleaseVersion(input);
@@ -137,19 +124,16 @@ export function classifyReleaseVersion(input: string): PublishPolicyDecision {
 			`${parsed.version}-${parsed.prerelease} is a prerelease; the freeze only considers stable versions`,
 		);
 	}
-	if (parsed.major === 1 && parsed.minor === 5) {
+	if (
+		parsed.major === 1 &&
+		parsed.minor === 5 &&
+		compareVersions(parsed.version, RELEASE_FREEZE.nextPublicVersion) < 0
+	) {
 		if (compareVersions(parsed.version, RELEASE_FREEZE.internalBuildMin) < 0) {
 			return denied(
 				parsed.version,
 				"internal-build",
 				`${parsed.version} is already released; 1.5.1 is the current public version and is not re-tagged`,
-			);
-		}
-		if (compareVersions(parsed.version, RELEASE_FREEZE.internalBuildMax) > 0) {
-			return denied(
-				parsed.version,
-				"internal-build",
-				`${parsed.version} is past the internal build ceiling ${RELEASE_FREEZE.internalBuildMax}; the train jumps to ${RELEASE_FREEZE.nextPublicVersion}`,
 			);
 		}
 		return {
@@ -173,12 +157,12 @@ export function classifyReleaseVersion(input: string): PublishPolicyDecision {
 	return {
 		version: parsed.version,
 		channel: "public",
-		tagAllowed: false,
-		publishAllowed: false,
-		assetsAllowed: false,
-		requiresOverride: true,
+		tagAllowed: true,
+		publishAllowed: true,
+		assetsAllowed: true,
+		requiresOverride: false,
 		overrideApplied: false,
-		reason: `${parsed.version} is a public-line version but requires explicit owner approval (override) to tag, upload assets, or publish`,
+		reason: `${parsed.version} is a stable public release`,
 	};
 }
 
@@ -227,34 +211,7 @@ export function evaluatePublishPolicy(input: PublishPolicyInput): PublishPolicyD
 			reason: `${decision.version} is an owner-review GitHub-assets release; npm publish remains disabled: ${overrideReason}`,
 		};
 	}
-	// An internal-build/invalid version is never overridable: the override
-	// exists for the 1.6.0+ public line only.
-	if (!decision.requiresOverride || decision.version === null) return decision;
-
-	const overrideVersion = input.overrideVersion?.trim();
-	if (!overrideVersion) return decision;
-
-	const normalizedOverride = parseReleaseVersion(overrideVersion)?.version ?? overrideVersion;
-	if (normalizedOverride !== decision.version) {
-		return {
-			...decision,
-			reason: `${decision.reason}; override names ${overrideVersion}, which does not match ${decision.version}`,
-		};
-	}
-	if (!input.overrideReason?.trim()) {
-		return {
-			...decision,
-			reason: `${decision.reason}; override for ${decision.version} has no audit reason`,
-		};
-	}
-	return {
-		...decision,
-		tagAllowed: true,
-		publishAllowed: true,
-		assetsAllowed: true,
-		overrideApplied: true,
-		reason: `${decision.version} is approved by the owner override: ${input.overrideReason.trim()}`,
-	};
+	return decision;
 }
 
 /** Read the override from the environment (shared by release scripts and CI). */
@@ -281,9 +238,6 @@ export function internalBuildTagMessage(version: string): string {
 		"不发布 npm 包、不生成 GitHub Release 资产、不提供安装包或二进制。",
 		"Internal build only: code-only tag. No npm publish, no release assets,",
 		"no installers or binaries are produced for this version.",
-		"",
-		"公开用户请继续使用 1.5.1，直到 1.6.0 公开发布（需所有者明确批准）。",
-		"Public users stay on 1.5.1 until the owner-approved 1.6.0 release.",
 	].join("\n");
 }
 
@@ -294,23 +248,14 @@ export function assertTagAllowed(
 ): PublishPolicyDecision {
 	const decision = evaluateFromEnv(version, env);
 	if (decision.tagAllowed) return decision;
-	throw new Error(
-		`release freeze: refusing to tag ${decision.version ?? version}.\n  ${decision.reason}\n` +
-			`  Internal builds tag only ${RELEASE_FREEZE.internalBuildMin}–${RELEASE_FREEZE.internalBuildMax} (annotated, code-only). ` +
-			`${RELEASE_FREEZE.nextPublicVersion}+ requires an owner override: ` +
-			"ZETA_RELEASE_OVERRIDE_VERSION=<version> ZETA_RELEASE_OVERRIDE_REASON=<audit reason>.",
-	);
+	throw new Error(`release freeze: refusing to tag ${decision.version ?? version}.\n  ${decision.reason}`);
 }
 
 /** Throw when the version may not publish to npm; used by every publish entry point. */
 export function assertPublishAllowed(version: string, env: Record<string, string | undefined> = process.env): void {
 	const decision = evaluateFromEnv(version, env);
 	if (decision.publishAllowed) return;
-	throw new Error(
-		`release freeze: refusing to publish ${decision.version ?? version}.\n  ${decision.reason}\n` +
-			`  1.5.x is internal-build-only (no npm publish); ${RELEASE_FREEZE.nextPublicVersion}+ needs an owner ` +
-			"override: ZETA_RELEASE_OVERRIDE_VERSION=<version> ZETA_RELEASE_OVERRIDE_REASON=<audit reason>.",
-	);
+	throw new Error(`release freeze: refusing to publish ${decision.version ?? version}.\n  ${decision.reason}`);
 }
 
 /** Throw when the version may not upload GitHub Release assets. */
@@ -388,7 +333,5 @@ if (import.meta.main) {
 	}
 	console.error(`release freeze: refusing to ${action.verb} ${decision.version ?? version}.`);
 	console.error(`  ${decision.reason}`);
-	console.error("  1.5.x internal builds are code-only tags; 1.6.0+ needs explicit owner approval");
-	console.error("  (ZETA_RELEASE_OVERRIDE_VERSION + ZETA_RELEASE_OVERRIDE_REASON).");
 	process.exit(1);
 }

@@ -18,14 +18,14 @@ classify("normal", "read", "changelog tools context dirs team hotkeys extensions
 classify(
 	"normal",
 	"session",
-	"plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff seance retry rename new resume branch fork btw teamworker",
+	"plan plan-ultra plan-review vibe lead goal guided-goal queue model switch fast slow effort computer ratchet prewalk advisor fresh compact shake handoff retry rename new resume branch fork btw teamworker",
 );
-classify("normal", "workspace", "add-dir remove-dir git local tracking");
+classify("normal", "workspace", "add-dir remove-dir git local tracking commit");
 classify("normal", "process", "language record pause quit exit restart");
 classify(
 	"sensitive",
 	"process",
-	"settings setup skillful extended-context browser modelpreset tool time forget-approvals jobs stats reload-plugins reload-skills live channels",
+	"settings setup skillful extended-context browser modelpreset tool time forget-approvals jobs stats reload-plugins reload-skills live channels 2fa",
 );
 classify("sensitive", "workspace", "security export dump copy open todo cd move wt design initzetateam");
 classify("sensitive", "external", "ssh share login logout mcp marketplace plugins skills force loop tan omfg cleanse");

@@ -50,26 +50,22 @@ Build time belongs in the changelog and the git tag, not the version.
   `__piNativesV1_1_20_rc_2`) — was removed upstream in v18.3.3, so there is no
   derived name for the checker and the setter to disagree on.
 
-### Release freeze: 1.5 internal build line (ADR 0006)
+### Stable release policy (ADR 0072)
 
-The 1.5 line is an **internal high-speed iteration line**. The policy lives in
-one place — `scripts/release-policy.ts` — and CI/job gating, the tag driver,
-and the npm publisher all consult it.
+Stable releases starting at `1.5.10` follow the normal public workflow without a freeze override. `scripts/release-policy.ts` also preserves the previous treatment of historical versions.
 
 | Version | Tag | npm publish | GitHub Release assets / installers / binaries |
 | --- | --- | --- | --- |
 | `1.5.1` | no (already public) | no | no |
 | `1.5.2` | only with exact owner-review override; default annotated code-only | no | only with the same exact `1.5.2` owner-review override (GitHub stable assets; npm remains 1.5.1) |
-| `1.5.3`–`1.5.10` | **yes, annotated and code-only** | no | no |
-| `1.5.11`+ / retired lines | no | no | no |
-| `1.6.0`+ | only with owner override | only with owner override | only with owner override |
+| `1.5.3`–`1.5.9` | **yes, annotated and code-only** | no | no |
+| `1.5.10` and later stable versions | yes, after the standard gates | yes | yes |
 
 - **One 1.5.2 owner-review asset exception (ADR 0033).** The owner may upload
   GitHub Release assets for exactly `1.5.2` only with matching
   `ZETA_RELEASE_OVERRIDE_VERSION=1.5.2` and a non-empty audit reason. The same
   override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
-  override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
-  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+  override, 1.5.2 remains code-only. This exception does not alter other versions.
 - **1.5.2 asset tag form.** The exact 1.5.2 asset-review release uses the same
   lightweight `v1.5.2` tag form as the published `v1.5.0` / `v1.5.1` tags.
   `release-v2.ts` selects that form from `channel=public`; the annotated tag
@@ -78,55 +74,32 @@ and the npm publisher all consult it.
   [`legacy-webui-migration.md`](./legacy-webui-migration.md); that is a pointer,
   not a 1.5.2 readiness claim (release readiness stays with the release worker).
 
-- **Internal build tags are code-only, with one explicit exception.** `release-v2.ts` creates a code-only annotated tag for normal 1.5.2–1.5.10 builds. The only exception is exact 1.5.2 with a matching owner-review override, which may upload the full GitHub asset set while npm remains 1.5.1; without that override 1.5.2 stays code-only. CI still builds/tests; no npm publish is authorized here.
+- Historical `1.5.2`–`1.5.9` code-only tags remain annotated. ADR-0033 preserves the exact `1.5.2` assets-only review.
 - **Default is fail-closed.** `release_metadata` evaluates the policy for the
   tag at HEAD and exposes `publish-allowed` / `assets-allowed` outputs. Every
   publish job (`release_npm`, `release_native_leaves`, editor/ide/web-ui/main/
   plugin legs) requires `publish-allowed == 'true'`; `release_github` requires
-  `assets-allowed == 'true'`. A 1.5.x tag therefore runs the build/package
-  chain and skips publishing.
+  `assets-allowed == 'true'`. Code-only tags run the build/package chain and skip publishing.
 - **Standalone republish workflows** (`main-publish.yml`, `ide-publish.yml`,
-  `editor-publish.yml`) declare empty `override_version` / `override_reason`
-  inputs and run a freeze-guard step before publishing;
-  `scripts/ci-release-publish.ts` re-checks the policy before touching npm, so
-  a local or manual invocation cannot bypass it.
-- **Owner override (auditable).** For the approved public release (or an
-  emergency release) set `release_override_version` /
-  `release_override_reason` on a dispatch, or the repository variables
-  `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`; locally
-  `scripts/release-v2.ts` reads `ZETA_RELEASE_OVERRIDE_VERSION` /
-  `ZETA_RELEASE_OVERRIDE_REASON`. The override must name exactly the release
-  version, needs a reason, and for asset uploads applies to the exact 1.5.2
-  owner-review exception or **1.6.0 and later**; it never unlocks npm for
-  1.5.x. 1.6.0 is not published until the owner records that approval.
-- **Guard test.** `scripts/release-freeze.test.ts` pins the version table and
-  fails if any publish job loses its policy condition, if an override input
-  stops defaulting to empty, or if a 1.5.x path becomes publishable. It runs in
-  the `check` job on GitHub and in the Gitea `local-ci` mirror.
+  `editor-publish.yml`) validate the manifest version before publishing.
+  `scripts/ci-release-publish.ts` enforces the same policy for every invocation.
+- The historical `1.5.2` assets-only review still uses the exact version and audit reason. No override is required for normal stable releases.
+- **Guard tests.** `scripts/release-freeze.test.ts` covers the historical tag
+  cases and the normal stable release path. GitHub CI and the Gitea mirror run it.
 
-### 1.6.0 public-release readiness (owner-confirmed 2026-11-12)
+### 1.5.10 public-release readiness
 
-The 1.5.1 npm line and the normal `1.5.3`–`1.5.10` code-only line remain
-unchanged; exact `1.5.2` is the asset-review exception above. No 1.6.0 tag,
-version bump, publish, PR, or main merge is authorized now. A 1.6.0 public
-release may be dispatched only after **all** of the following:
+[ADR-0071](adr/0071-zeta-1-5-10-public-release.md) selects `1.5.10` for the
+next full public release. Run the standard pre-tag gates and publish the
+supported GitHub assets and npm packages. Verify the upgrade from npm `1.5.1`.
 
-1. Every planned development item is complete with per-item source and behavior
-   evidence; `SCOPED`, held, blocked, or unverified work cannot be counted as
-   100% complete.
-2. The owner has personally exercised every feature on the 1.5.x line and
-   confirmed the complete set is stable.
-3. Mobile development is fully complete and the real-device flow (pairing,
-   device, and 2FA) has been accepted on physical hardware.
-4. SSH works against a real target with the full feature set.
-5. No unresolved known bug remains.
+1. The release source contains the verified official OMP `v18.22.0` merge. Release notes describe the verified support level for `gpt-6.2-astra` and `gpt-6.2-sol`. Evaluate GPT‑6.2 and `v18.22.2` after publishing before deciding whether to integrate that tag.
+2. Every requirement in the approved release scope has source and behavior evidence. Each deferral records its approval and re-entry condition.
+3. The owner has exercised the features in scope and confirmed their stability. Verify pairing and 2FA on supported clients. Keep the `board` and `calendar` tools. Dedicated pages, page editing, Outlook imports, Android delivery and mobile physical-device acceptance are out of scope.
+4. SSH works against a real target across the features in scope.
+5. Resolve known bugs affecting the release scope.
 
-The existing exact-version `release_override_version` remains the final
-mechanical gate; the readiness list is the owner acceptance that override must
-cite, not a second unlock path. ADR-0006 is superseded only for exact 1.5.2 by
-ADR-0033; its 1.6.0 gate is unchanged. The owner has explicitly asked to
-proceed with the upstream tag merge and the 1.5.2 asset review first; that is
-not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
+Publication requires the verified source CI run and the standard scope and artifact gates. ADR-0072 restores the regular release workflow; ADR-0071 records this version's feature exclusions.
 
 ## CI and Release
 
@@ -171,10 +144,12 @@ not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
   `npm publish` OIDC + provenance — an older CLI cannot authenticate through the
   id-token, and the publish silently falls back to a token), Node ≥ 22.14
   (runners already force Node 24). Local dev npm should be at or above the same
-  floor (current: 12.2.0). The trusted-publisher entry on
-  npmjs.com must match the workflow filename exactly (`.github/workflows/ci.yml`)
-  and the repo (Linxira-OS/linxira-zeta). OIDC publishes automatically attach
-  provenance.
+  floor (current: 12.2.0). On npmjs.com, bind each package to the repository
+  `Linxira-OS/linxira-zeta` and the workflow that executes `npm publish`.
+  Workspace packages, native leaves and the official plugin use `ci.yml`.
+  Editor, TermIDE and the paused workbench use `editor-publish.yml`,
+  `ide-publish.yml` and `main-publish.yml`, respectively. Run
+  `bun scripts/setup-npm-trust.ts --dry-run` for the package-to-workflow mapping.
 - **No npm tokens, ever (2026-10-19 裁定).** `NPM_TOKEN`/`NODE_AUTH_TOKEN` are
   not used anywhere in this repository: npm is retiring token publishes
   (2FA-bypass tokens lose direct publish in January 2027, account changes from
@@ -196,7 +171,7 @@ not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
   首发时 npm 侧无匹配 trusted publisher，OIDC 静默回退到 `NODE_AUTH_TOKEN`，而该
   token 无新包首发权限 → `PUT 404`）。新包第一次发布前，在 npmjs.com 上为该包
   （或账号级默认）配置 Publishing access：Repository `Linxira-OS/linxira-zeta`、
-  Workflow filename `.github/workflows/ci.yml`、Environment 留空。逐包清单 =
+  Workflow filename 按包对应上文的发布 workflow，Environment 留空。工作区发布清单 =
   `workspaces.catalog` 的 `@linxiraos/*` 13 个键 + 2 个已发布 `pi-natives-<tag>`
   leaf（`linux-x64` / `win32-x64`，见 `SHIPPED_LEAF_TAGS`）+
   `zeta-web` / `pi-messenger`。新 leaf 包出现时同步补 npm 配置。
@@ -372,7 +347,7 @@ watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
   artifacts and `!inputs.skip_npm`. They also require the release-freeze
   outputs from `release_metadata`: `assets-allowed == 'true'` for
   `release_github`, `publish-allowed == 'true'` for every npm leg (see
-  [Release freeze](#release-freeze-15-internal-build-line-adr-0006)). The web-ui
+  [Stable release policy](#stable-release-policy-adr-0072)). The web-ui
   leg (`release_web_ui_packages`, damage class 12) is gated on the same
   `release_gate` + `publish-allowed` + `!inputs.skip_npm` but waits on no
   artifact: it installs and builds web-ui in-job and publishes

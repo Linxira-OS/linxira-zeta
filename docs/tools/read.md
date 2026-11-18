@@ -162,12 +162,12 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 - Other file entries are UTF-8 decoded. Unsupported binary entries return `[Cannot read binary archive entry '...' (...)]` instead of bytes.
 - Text archive entries are paginated in memory as immutable resources (no hashline anchors) and accept [JSON queries](#json-queries).
 
-### Executables and IDA databases
+### Executables and analysis databases
 
-- When IDA is available, ELF/PE/Mach-O binaries (including extensionless files) and IDA database files open an IDA-backed overview and function list instead of a binary-file notice.
-- Views: `:<func|0xaddr>` for pseudocode, `:<func>:asm`, `:imports`, `:exports`, `:strings`, and `:xrefs:<func|0xaddr>`. Append line selectors to page the rendered view (`bin:main:10-40`).
-- Universal Mach-O reads use the host-architecture slice by default; `bin:@x86_64:main` selects another slice.
-- Views are immutable generated text and do not seed hashline edits. First use may open or create an IDA database; `:raw` bypasses the view path.
+- A bare ELF, PE or Mach-O path (including extensionless files) returns on-disk metadata without opening an analysis database or provisioning a backend.
+- Explicit selectors opt into the configured [DSM backend](./dsm.md). Views are `:overview`, `:<func|0xaddr>`, `:<func>:asm`, `:imports`, `:exports`, `:strings`, and `:xrefs:<func|0xaddr>`. Append a line selector to page a rendered view (`bin:main:10-40`).
+- A universal Mach-O uses the host architecture by default. `bin:@x86_64` shows metadata for another slice, and `bin:@x86_64:overview` requests analysis of it.
+- Analysis views are immutable and do not seed hashline edits. `:raw` bypasses analysis.
 
 ### Video
 
@@ -335,7 +335,7 @@ Notes: ...
    - Uses Bun SQLite for `.db`/`.sqlite*`.
    - Reads archives through the unified `@linxiraos/pi-utils/ar` registry; ZIP is framed in `packages/utils/src/ar/zip.ts` over the `node:zlib` DEFLATE codec.
    - URL HTML rendering can delegate into site handlers and HTML-to-text backends from `packages/coding-agent/src/tools/fetch.ts`.
-   - Video invokes `ffmpeg`/`ffprobe`; PDF page screenshots use headless Chromium; executable views may create/open an IDA database and request rendered views.
+   - Video invokes `ffmpeg`/`ffprobe` and PDF page screenshots use headless Chromium. Explicit executable analysis views may open a managed database through DSM.
 - Session state
    - Records local text snapshots and seen lines in the session's native `EditStore` for later stale-anchor recovery.
    - Passes session `cwd`, `settings`, and `localProtocolOptions` into the process-global `InternalUrlRouter.instance().resolve()` for internal URLs.
@@ -386,7 +386,7 @@ Notes: ...
 - Missing local/archive/sqlite paths first attempt unique suffix resolution; if no unique match or guarded recovery exists they error. Explicit semicolon lists fan out after literal/archive/SQLite precedence, including when the combined filename is too long; each member keeps its selectors and errors. A single overlong filename retains its filesystem error. Permission and I/O errors do not trigger missing-path recovery.
 - Targets that are neither regular files nor directories (character or block device, FIFO, socket) throw a `ToolError` naming the file kind; SQLite detection skips them rather than sniffing their header.
 - Out-of-bounds line reads do not throw. They return explanatory text with a suggestion such as `Use :1 ...` or `Use :<last line> ...`.
-- Probable binary local files return a notice unless `:raw` was requested or an available IDA-backed executable/database view handles them.
+- Other probable binary files return a notice unless `:raw` was requested. Explicit analysis selectors report an error when their configured backend is disabled or unavailable.
 - Binary archive entries return a text notice without throwing, unless a JSON selector is attached (JSON selectors on directory, PDF, or binary archive entries throw a `ToolError`).
 - Document conversion failure returns a text notice.
 - Image oversize/unsupported/invalid cases throw.

@@ -59,7 +59,7 @@ Key integration points:
 
 User-level bases:
 
-- Zeta native: `~/<PI_CONFIG_DIR>/agent` (normally `~/.zeta/agent`; a named profile changes this as described below)
+- Zeta native: the active agent directory, `getAgentDir()` (normally `~/.zeta/agent`; `PI_CONFIG_DIR`, a named profile, or the default-profile `ZETA_CODING_AGENT_DIR` changes it as described below)
 - Claude's active config directory (`~/.claude` by default; `CLAUDE_CONFIG_DIR` overrides it)
 - `~/.codex`
 - `~/.gemini`
@@ -71,7 +71,7 @@ Project-level bases:
 - `<cwd>/.codex`
 - `<cwd>/.gemini`
 
-`CONFIG_DIR_NAME` is `.zeta` (`packages/utils/src/dirs.ts`). `PI_CONFIG_DIR` changes the Zeta user root used by the generic helpers. `ZETA_CODING_AGENT_DIR` is different: for the default profile it changes `getAgentDir()` consumers such as native discovery, settings, and runtime state, but it does **not** change the generic `getConfigDirs()` / `findConfigFile()` Zeta base. Named profiles ignore `ZETA_CODING_AGENT_DIR`.
+`CONFIG_DIR_NAME` is `.zeta` (`packages/utils/src/dirs.ts`). `PI_CONFIG_DIR` changes the Zeta user root used by the generic helpers. In the default profile, `ZETA_CODING_AGENT_DIR` replaces the whole agent directory, so it relocates the generic `getConfigDirs()` / `findConfigFile()` Zeta user base along with native discovery, settings, and runtime state. Project bases stay `<cwd>/.omp`. Named profiles ignore `ZETA_CODING_AGENT_DIR`.
 
 ## Profiles
 

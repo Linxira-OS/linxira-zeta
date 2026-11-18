@@ -118,6 +118,9 @@ class LazyFakeSession {
 	async abort(): Promise<void> {}
 	async promptCustomMessage(): Promise<void> {}
 	async refreshMCPTools(): Promise<void> {}
+	runToolRegistryMutation<T>(mutation: () => Promise<T>): Promise<T> {
+		return mutation();
+	}
 	getContextUsage(): undefined {
 		return undefined;
 	}
@@ -345,7 +348,7 @@ describe("ACP lazy startup", () => {
 		};
 
 		for (const mode of ["rpc", "rpc-ui", "acp"] as const) {
-			await expect(runProtocolStartup(mode)).resolves.toEqual({ ...explicit, ...rpcOnlyExplicit });
+			expect(await runProtocolStartup(mode)).toEqual({ ...explicit, ...rpcOnlyExplicit });
 		}
 	});
 

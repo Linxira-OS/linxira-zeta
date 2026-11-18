@@ -176,8 +176,9 @@
 		// A non-silent observe() already printed its tree; `ax` stays readable but is left out
 		// of printing, spread and serialization, so a trailing `await win.observe()` shows it once.
 		defineMethod(win, "observe", async options => {
-			const silent = Boolean(options?.silent);
-			const observation = await callValue(via(step("observe", [options])));
+			const request = options === undefined ? undefined : { ...validateOptions("observe", options) };
+			const silent = Boolean(request?.silent);
+			const observation = await callValue(via(step("observe", [request])));
 			if (!silent && typeof observation?.ax === "string") {
 				Object.defineProperty(observation, "ax", { enumerable: false });
 			}

@@ -31,7 +31,7 @@ def _make_computer():
         return values
 
     async def _invoke(action, options):
-        response = await _omp_prelude(
+        response = await _zeta_prelude(
             "computer",
             {
                 **{

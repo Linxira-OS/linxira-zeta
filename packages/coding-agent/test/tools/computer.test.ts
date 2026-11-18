@@ -421,7 +421,7 @@ const snapshot = (
 	backgroundFallback: ComputerSessionSnapshot["backgroundFallback"] = "takeover",
 ): ComputerSessionSnapshot => ({
 	cwd: import.meta.dir,
-	sessionId: crypto.randomUUID(),
+	sessionId: "computer", // Matches the default identity of toolSession().
 	captureMaxWidth: 1280,
 	captureMaxHeight: 896,
 	display: "active",

@@ -1,7 +1,9 @@
 import { Database } from "bun:sqlite";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/zeta/session/auth-storage";
+import type { AdvisorToolFactory } from "@linxiraos/zeta/session/session-advisors";
 import { TodoTool } from "@linxiraos/zeta/tools";
 
 /**
@@ -51,4 +53,9 @@ export function activateTodoTool(session: AgentSession, cwd: string): void {
 			settings: session.settings,
 		}),
 	]);
+}
+
+/** Advisor tools that hand every advisor the same fixture instances; for mocks whose state does not matter. */
+export function fixedAdvisorTools(...tools: AgentTool[]): AdvisorToolFactory {
+	return { names: () => tools.map(tool => tool.name), create: () => ({ tools }) };
 }

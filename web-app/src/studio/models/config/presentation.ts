@@ -26,7 +26,12 @@ const BUILTIN_ROLE_DESC_KEYS: Record<string, string> = {
   task: "modelConfig.roleDescSubtask",
   advisor: "modelConfig.roleDescAdvisor",
   widget: "modelConfig.roleDescWidget",
+  taste: "modelConfig.roleDescTaste",
 };
+
+export function formatRoleName(role: { id: string; name: string; builtin?: boolean }, t: (k: string) => string): string {
+  return role.builtin && role.id === "taste" && role.name === "Taste" ? t("modelConfig.roleNameTaste") : role.name;
+}
 
 export function formatRoleDesc(role: { id: string; desc: string; builtin?: boolean }, t: (k: string) => string): string {
   const key = BUILTIN_ROLE_DESC_KEYS[role.id];

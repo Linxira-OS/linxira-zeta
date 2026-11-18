@@ -432,10 +432,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		process.exit(1);
 	}
 
-	// Step 1b: release freeze (ADR 0006). 1.5.2–1.5.10 may be tagged, but the
-	// tag is code-only: no npm publish and no GitHub Release assets. 1.5.0/1.5.1,
-	// anything past the internal ceiling, and 1.6.0+ (without an owner override)
-	// are refused before any bump work starts.
+	// Historical code-only tags remain distinct from normal public releases (ADR 0072).
 	let policy: PublishPolicyDecision;
 	try {
 		policy = assertTagAllowed(version);
@@ -449,7 +446,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 			`  Freeze policy: internal build tag (${INTERNAL_BUILD_MARKER}) — no npm publish, no release assets.\n`,
 		);
 	} else {
-		console.log(`  Freeze policy: owner-approved public release — ${policy.reason}\n`);
+		console.log(`  Public release: ${policy.reason}\n`);
 	}
 
 	// Step 1c: mechanical release scope (REQ-021). A public release needs every

@@ -40,6 +40,8 @@ import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { ExtensionRunner, PreparedExtension } from "../extensibility/extensions";
+import type { MCPLoadResult } from "../mcp";
+import type { AnalysisMcpRefreshInput } from "../mcp/analysis-precedence-hook";
 import type { CacheWarmer } from "./cache-warmer";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import type { SkillDescriptionCatalog } from "../extensibility/skill-descriptions";
@@ -53,6 +55,7 @@ import type { ToolSession } from "../tools";
 import type { XdevState } from "../tools/xdev";
 import type { CodexAutoRedeemCoordinator } from "./codex-auto-reset";
 import type { SettingsGatedToolDelta, SystemPromptRebuilder } from "./session-tools";
+import type { AdvisorToolFactory } from "./session-advisors";
 import type { CostGateApi } from "./cost-gate";
 import type { SessionManager } from "./session-manager";
 
@@ -183,6 +186,12 @@ export interface AgentSessionConfig {
 	approvalCacheDir?: string;
 	/** Zeta MCP tool admission filter. */
 	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	/** Snapshot current MCP precedence for reconnects and command-driven refreshes. */
+	buildMcpRefreshAnalysis?: (
+		tools: CustomTool[],
+		activeToolNames: readonly string[],
+		cwd: string,
+	) => Promise<AnalysisMcpRefreshInput>;
 	/** Zeta skill admission filter. */
 	skillFilter?: (name: string) => boolean;
 	sessionManager: SessionManager;
@@ -398,20 +407,8 @@ export interface AgentSessionConfig {
 	accountPoolScope?: SessionAccountPoolScope;
 	/** Whether the provider prompt-cache key was explicit or fork-inherited. */
 	providerPromptCacheKeySource?: "explicit" | "fork";
-	/** Full advisor toolset built against an advisor-scoped tool session. */
-	advisorTools?: AgentTool[];
-	/**
-	 * Build a `grep` honoring a Cursor `pi_grep` frame's own context width and
-	 * match cap, against the advisor-scoped tool session. Without it an advisor
-	 * running on Cursor silently drops both fields.
-	 */
-	advisorCreateGrepTool?(options: { context?: number; totalMatchLimit?: number }): AgentTool | undefined;
-	/**
-	 * Build the `replace`-mode `edit` a Cursor `pi_edit` frame needs, against the
-	 * advisor-scoped tool session. The advisor's ordinary instance follows the
-	 * configured `edit.mode` and rejects the frame's `old_string`/`new_string` args.
-	 */
-	advisorCreateEditTool?(): AgentTool | undefined;
+	/** Builds each advisor's own tool slate against a tool session no other advisor shares. */
+	advisorTools?: AdvisorToolFactory;
 	/**
 	 * The execute-time context for the advisor's loop and bridge tools.
 	 *
@@ -445,6 +442,12 @@ export interface AgentSessionConfig {
 	advisorConfigWarnings?: string[];
 	/** Disconnect the MCP manager owned by this session during disposal. */
 	disconnectOwnedMcpManager?: () => Promise<void>;
+	/**
+	 * Reconnect the MCP manager owned by this session against the session's current cwd and
+	 * rebind its tools; serialized. Resolves `undefined` once the session is disposed. Absent
+	 * when the session borrows or disables MCP.
+	 */
+	reloadOwnedMcpServers?: () => Promise<MCPLoadResult | undefined>;
 	/** System prompt used by automatic session-title generation. */
 	titleSystemPrompt?: string;
 	/**
@@ -703,6 +706,8 @@ export interface StudioQueueSnapshotEntry {
 	imageCount: number;
 }
 
+/** A queued message the dequeue key took back, tagged with the queue it left so the editor can restore its delivery. */
+export type DequeuedMessage = RestoredQueuedMessage & { queue: "steering" | "followUp" };
 /** Options for the same ephemeral side turn used by /btw. */
 export interface EphemeralTurnOptions {
 	promptText: string;

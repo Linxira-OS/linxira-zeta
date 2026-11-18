@@ -24,7 +24,11 @@ Adopt the complete official release in a true non-squash merge. Preserve Zeta's 
 
 Background work admitted under one transcript remains bound to that exact source identity through navigation, restart and late completion (ADR 0039). A run ending or being abandoned does not authorize redirecting source work to the currently visible session. Team worker role, agent definition and lifetime remain distinct. This integration does not implement the pending Team governance/type/perception requirements by assumption.
 
+File-backed worker spawns materialize the parent journal before recording its source. Cold revival uses the parent recorded in the child header and refuses a declared source it cannot verify. Standalone and legacy children without a recorded parent can answer a correlated wake message. They cannot publish an owner-routed job result from a guessed conversation.
+
 Standalone Zeta serve remains the only session/config/auth/workspace/IM authority. Native-only project-source admission, default YOLO, hidden GUI helper processes, ports, package names, frozen startup art, hard-disabled telemetry and current product-surface boundaries remain mandatory. Studio upstream v0.2.2 integration stays paused; adapting existing Zeta callers to OMP does not reopen it.
+
+MCP registry refresh keeps REQ-053 analysis precedence and Profile admission on the new serialized tool-registry boundary. Read the current cwd, selected native tools and settings inside that mutation. Borrowed managers expose configured names and recognition fields (`type`, `command`, `args` or `url`) through the worker bridge, omitting transport environment, headers and authentication/OAuth objects. Recognition fields can themselves contain operator-supplied values; this is not a general credential-redaction boundary. The child still owns only its scoped proxy catalog and never its parent's callbacks or transports. Refresh cannot re-enable a native tool the user deselected while MCP suppressed it, and shadowed analysis-server instructions must stay out of the session prompt.
 
 ## Consequences
 
