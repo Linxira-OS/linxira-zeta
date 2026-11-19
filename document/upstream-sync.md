@@ -1,13 +1,22 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.20.0
+## Integrated through: v19.0.0
 
-**Integrated through**: `v18.20.0` (`c308970263ae13744ea15ab67302e3dac840e266`), on local `main`. The candidate below is not yet a two-parent commit.
+**Integrated through**: `v19.0.0` (`57771ae562b9345e0579bceb2d68d585e3e6927e`), on `sync/omp-release/v19.0.0`. Merge commit `1c89d546d9` has parents `a84dda442f9` + `57771ae562b9`; reconciliation commit `ebe4787905` carries the Zeta surface restore, branding overlay and gate repairs.
 
 _Historical headers were `v18.18.2` until 2026-11-09, then `v18.18.3` (PR #272),
 and `v18.19.0` until the current consolidation. Older probes below describe
 their observation time; current integrated and observed-only tags are indexed in
 [`upstream-baselines.md`](./upstream-baselines.md)._
+
+## v19.0.0 source integration (2026-11-20)
+
+- Source: [official release](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v19.0.0) checked at `57771ae562b9345e0579bceb2d68d585e3e6927e`; remote tag rechecked before merge. Starting parent `a84dda442f9` (v1.5.10 baseline); previous tag and merge base `v18.22.0@3e8cff3b7ce19a805c11a26a6dd1703066435851`. True two-parent merge `1c89d546d9`.
+- Scope: ADR-0073 dual-stack — keep Zeta launch broker, Studio host/services, channels, Vibe/Team, IRC/registry, stats and predict surfaces; adopt the v19 single daemon for upstream per-feature hosts; retire collab/share, hosted build-service, telemetry settings and the old blob/LSP/predict/mnemopi/disasm host processes.
+- Branding: Zeta-owned brand-check/brand-rules restored from `main`; overlay applied; 0 hits and 0 missing assertions. Product paths, CLI references, TUI semantic roles, native globals, worker selectors and docs rebranded to Zeta.
+- Gates: `check:ts` zero errors; `brand-check` 0/0; `check-zeta-sentinels` 117; version line 1.5.10 consistent; `audit-merge-members --tag v19.0.0` 0 dropped; `check-removed-upstream-files` 23 absent; package linkage, license map, scope imports, CI surface and merge lineage green; `check-i18n-consistency` 3153/3153/3153.
+- Tests: `compaction-speculation.test.ts` 34/34; `modes/controllers/extension-ui-controller.test.ts` 36/36. Full suite not run on this Windows worktree; the copied native addon reports `@linxiraos/pi-natives@1.5.1` against the `1.5.10` checkout.
+- Product fixes: compaction bridge commits at the pending tool-call boundary; extended UI controller layout/OSC blocked status; Chinese job-caption prompt, localized `formatMoreItems` and todo blocked suffix; Zeta release-channel updater restored; hosted WebKit/build-service paths retired.
 
 ## v18.22.0 source integration (2026-11-18)
 
