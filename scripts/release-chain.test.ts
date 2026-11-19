@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { parse } from "yaml";
 import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages";
 import { SHIPPED_CLI_ASSETS, shippedCliAssetName } from "../packages/utils/src/release-assets";
-import { buildNativeOptionalDependencies } from "./ci-release-publish";
+import { buildNativeOptionalDependencies, prepareStandalonePackage } from "./ci-release-publish";
 import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { leafStampProblem, STAMP_SUFFIX, type LeafStamp, WORKBENCH_LEAVES } from "./workbench-leaves";
 
@@ -133,6 +133,35 @@ describe("CLI asset / updater shipped matrix", () => {
 		expect(shippedCliAssetName("darwin", "arm64")).toBeUndefined();
 		expect(shippedCliAssetName("win32", "arm64")).toBeUndefined();
 		expect(shippedCliAssetName("linux", "x64", { musl: true })).toBe("zeta-cli-linux-musl-x64");
+	});
+});
+
+describe("standalone npm package payload", () => {
+	it("packs notices alongside the allowlisted payload", async () => {
+		const scratch = path.join(ROOT, "temp");
+		fs.mkdirSync(scratch, { recursive: true });
+		const fixture = fs.mkdtempSync(path.join(scratch, "release-package-"));
+		try {
+			fs.writeFileSync(
+				path.join(fixture, "package.json"),
+				JSON.stringify({ name: "release-payload-fixture", version: "1.0.0", license: "MIT", files: ["bin"] }),
+			);
+			fs.mkdirSync(path.join(fixture, "bin"));
+			fs.writeFileSync(path.join(fixture, "bin", "fixture"), "payload");
+			await prepareStandalonePackage(fixture, true);
+			const pack = Bun.spawnSync([process.execPath, "pm", "pack", "--quiet"], { cwd: fixture });
+			expect(pack.exitCode, pack.stderr.toString()).toBe(0);
+			const archive = path.join(fixture, "release-payload-fixture-1.0.0.tgz");
+			for (const filename of ["LICENSE", "THIRD-PARTY-NOTICES.txt"]) {
+				const entry = Bun.spawnSync(["tar", "-xOzf", archive, `package/${filename}`]);
+				expect(entry.exitCode, entry.stderr.toString()).toBe(0);
+				expect(entry.stdout.equals(fs.readFileSync(path.join(ROOT, filename)))).toBe(true);
+			}
+			const payload = Bun.spawnSync(["tar", "-xOzf", archive, "package/bin/fixture"]);
+			expect(payload.stdout.toString()).toBe("payload");
+		} finally {
+			fs.rmSync(fixture, { recursive: true, force: true });
+		}
 	});
 });
 
