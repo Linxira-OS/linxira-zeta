@@ -16,6 +16,7 @@ import { roomRuntime } from "../../src/rooms/transport";
 import { IrcBridge } from "../../src/session/irc-bridge";
 import type { AgentSession } from "../../src/session/agent-session";
 import type { AgentSessionEvent } from "../../src/session/agent-session-events";
+import { imUserWakeSource } from "../../src/session/messages";
 import { normalizeImMessageMetadata } from "../../src/session/session-im";
 import { SessionManager } from "../../src/session/session-manager";
 import { ensureTeam, history, leaveTeam, resetTeamRoomsForTests, snapshot } from "../../src/vibe/team-rooms";
@@ -69,7 +70,25 @@ describe("owner-directed Team IM forwarding", () => {
 			isStreaming: () => false,
 			planModeEnabled: () => false,
 			emitSessionEvent: async () => {},
-			wakeForIrc: () => {},
+			wakeForIrc: records => {
+				// This fixture drives turn completion manually to exercise replies out
+				// of order. Model consumption here, not at router admission.
+				for (const record of records) {
+					if (record.role !== "custom") throw new Error("Expected an IRC wake record");
+					const source = imUserWakeSource(record);
+					const details = record.details as { message?: unknown } | undefined;
+					if (!source || typeof details?.message !== "string") throw new Error("Expected an IM user wake");
+					manager.appendMessage(
+						{
+							role: "user",
+							content: [{ type: "text", text: details.message }],
+							attribution: "user",
+							timestamp: record.timestamp,
+						},
+						source,
+					);
+				}
+			},
 		});
 		session = {
 			getAgentId: () => "Main",

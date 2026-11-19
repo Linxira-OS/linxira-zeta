@@ -1,6 +1,6 @@
 /**
- * Served/TUI IM routing writes a real `role: user` transcript row through the
- * real router + IrcBridge + SessionManager. No model call, no fake transcript.
+ * Served/TUI IM routing writes a real user transcript row when AgentSession
+ * consumes the incoming message. Only the model provider is simulated.
  */
 
 import { afterEach, describe, expect, test, vi } from "bun:test";
@@ -8,23 +8,27 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { YAML } from "bun";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import type { IrcMessage } from "@linxiraos/pi-channels";
 import { SessionRouter } from "../../src/channels/session-router";
+import { ModelRegistry } from "../../src/config/model-registry";
+import { Settings } from "../../src/config/settings";
 import { WebConfig } from "../../src/config/web-config";
-import { IrcBridge } from "../../src/session/irc-bridge";
-import type { AgentSession } from "../../src/session/agent-session";
+import { AgentSession } from "../../src/session/agent-session";
+import { convertToLlm } from "../../src/session/messages";
 import { normalizeImMessageMetadata } from "../../src/session/session-im";
 import { SessionManager } from "../../src/session/session-manager";
-import * as sdk from "../../src/sdk";
-import type { LoadExtensionsResult } from "../../src/extensibility/extensions/types";
-import { EventBus } from "../../src/utils/event-bus";
+import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const dirs: string[] = [];
+const cleanups: Array<() => void | Promise<void>> = [];
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 
 afterEach(async () => {
 	vi.restoreAllMocks();
+	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 	for (const dir of dirs.splice(0)) await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 	if (originalAgentDir) setAgentDir(originalAgentDir);
 	else delete process.env.ZETA_CODING_AGENT_DIR;
@@ -36,6 +40,7 @@ async function makeRouter(): Promise<{
 	dir: string;
 	deliveries: IrcMessage[];
 	manager: SessionManager;
+	session: AgentSession;
 }> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-provenance-"));
 	dirs.push(dir);
@@ -84,51 +89,28 @@ async function makeRouter(): Promise<{
 		timestamp: 0,
 	} as never);
 
-	const deliveries: IrcMessage[] = [];
-	type Observer = (records: readonly unknown[]) => (() => void) | undefined;
-	const observers = new Set<Observer>();
-	const bridge = new IrcBridge({
-		agent: {
-			appendMessage: () => {},
-			steer: () => {},
-			emitExternalEvent: () => {},
-		} as never,
+	const auth = createInMemoryAuthStorage();
+	cleanups.push(() => auth.close());
+	const model = createMockModel({ handler: () => ({ content: ["received"] }) });
+	auth.keys.setRuntime(model.provider, "fixture-key");
+	const session = new AgentSession({
+		agent: new Agent({
+			getApiKey: () => "fixture-key",
+			initialState: { model, systemPrompt: ["Test"], tools: [], messages: [] },
+			convertToLlm,
+			streamFn: model.stream,
+		}),
 		sessionManager: manager,
-		isDisposed: () => false,
-		isStreaming: () => false,
-		planModeEnabled: () => false,
-		emitSessionEvent: async () => {},
-		wakeForIrc: (records: never[]) => {
-			for (const observer of observers) observer(records);
-		},
+		settings: Settings.isolated({ "compaction.enabled": false }),
+		modelRegistry: new ModelRegistry(auth, path.join(dir, "models.yml")),
 	});
-	const session = {
-		getAgentId: () => "bot-shared",
-		subscribe: () => () => {},
-		deliverIrcMessage: async (msg: IrcMessage) => {
-			deliveries.push(msg);
-			return bridge.deliver(msg);
-		},
-		setIrcWakeTurnObserver: (next: Observer | null) => {
-			if (next) {
-				observers.add(next);
-				return () => observers.delete(next);
-			}
-			return () => {};
-		},
-		agent: {
-			state: { systemPrompt: [] as string[] },
-			setSystemPrompt: () => {},
-		},
-		sessionManager: manager,
-		dispose: async () => {},
-	} as unknown as AgentSession;
-	vi.spyOn(sdk, "createAgentSession").mockImplementation(async () => ({
-		session,
-		extensionsResult: { loaded: [] } as unknown as LoadExtensionsResult,
-		setToolUIContext: () => {},
-		eventBus: new EventBus(),
-	}));
+	cleanups.push(() => session.dispose());
+	const deliveries: IrcMessage[] = [];
+	const deliver = session.deliverIrcMessage.bind(session);
+	vi.spyOn(session, "deliverIrcMessage").mockImplementation(message => {
+		deliveries.push(message);
+		return deliver(message);
+	});
 
 	const router = new SessionRouter({
 		coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
@@ -136,14 +118,16 @@ async function makeRouter(): Promise<{
 		getLastInbound: () => null,
 		sendText: async () => {},
 		defaultCwd: dir,
+		createBotSessionRuntime: async () => session,
 	});
-	return { router, webConfig, dir, deliveries, manager };
+	cleanups.push(() => router.stopAll());
+	return { router, webConfig, dir, deliveries, manager, session };
 }
 
 describe("served IM provenance", () => {
 	test("real user row carries sender/thread/time/attachments and an immutable route", async () => {
-		const { router, webConfig, manager, deliveries } = await makeRouter();
-		await router.ensureRelaySession(path.join(os.tmpdir(), "zeta-provenance-relay.jsonl"));
+		const { router, webConfig, dir, manager, deliveries, session } = await makeRouter();
+		await router.ensureRelaySession(path.join(dir, "relay.jsonl"));
 		const created = await router.createBotSession("shared");
 		if (!created.ok) throw new Error(created.error);
 		await webConfig.patchImBinding("telegram", "peer-a", {}, { threadId: "t1", userId: "u1" });
@@ -157,6 +141,7 @@ describe("served IM provenance", () => {
 		};
 		const delivered = await router.deliverToBotSession(created.entry.id, "telegram", "peer-a", "hello", context);
 		expect(delivered).toEqual({ ok: true });
+		await session.waitForIdle();
 
 		const userRow = manager
 			.getEntries()
