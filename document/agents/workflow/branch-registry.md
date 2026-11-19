@@ -177,6 +177,7 @@
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
 | `sync/omp-release/v18.20.0` | sync | Main亲自集成官方v18.19.0→v18.20.0，base e37c23c144d；worktree temp/omp-v18.20.0-sync；不交子代理合并 | main agent | 2026-11-14 | 本地门禁与CI绿、用户手动合PR后登记SHA退役 |
+| `sync/omp-release/v19.0.0` | sync | OMP `v19.0.0`（`57771ae5`）真 merge `1c89d546d9`；ADR-0073 双栈对齐；当前 WIP `bc0b6d79ef3` 恢复 Zeta 产品面，`check:ts` 未绿；worktree `temp/omp-v19.0.0` | main agent | 2026-11-19 | 门禁与 CI 绿、用户手动合 PR 后登记 SHA 退役 |
 | `sync/studio-release/v0.2.0` | sync | Main-owned complete official v0.1.17→v0.2.1 renderer/Host/Desktop integration; branch name predates final target; worktree `temp/omp-studio-v0.2.0-sync` | main agent | 2026-11-14 | 独立审查门禁CI绿、用户手动合PR后退役 |
 | `feat/team-lifecycle-finish` | feat | REQ098生命周期切片；worktree temp/team-lifecycle-finish；不做上游merge | TeamLifecycleFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |
 | `feat/team-rooms-finish` | feat | REQ098房间/IM切片；worktree temp/team-rooms-finish；不做上游merge | TeamRoomsFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |

@@ -94,6 +94,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0070](0070-zeta-1-6-0-stable-upstream-baseline.md) | Release Zeta 1.6.0 from OMP v18.22.0 | Superseded | 2026-11-18 | Supersedes [0069](0069-zeta-1-6-0-release-scope.md); superseded by [0071](0071-zeta-1-5-10-public-release.md) | [REQ-136](../requirements-ledger.md) |
 | [0071](0071-zeta-1-5-10-public-release.md) | Publish Zeta 1.5.10 from OMP v18.22.0 | Superseded | 2026-11-18 | Superseded by [0072](0072-restore-normal-public-releases.md) | [REQ-141](../requirements-ledger.md) |
 | [0072](0072-restore-normal-public-releases.md) | Restore normal public releases | Accepted | 2026-11-18 | Supersedes the ongoing freeze in [0006](0006-release-freeze-internal-line.md) and override in [0071](0071-zeta-1-5-10-public-release.md) | [Release readiness](../release.md#1510-public-release-readiness), [REQ-142](../requirements-ledger.md) |
+| [0073](0073-omp-v19-runtime-alignment.md) | OMP v19.0.0 runtime alignment keeps the Zeta broker and ports upstream runtime features selectively | Proposed | 2026-11-19 | — | [Upstream ledger](../upstream-sync.md), [merge playbook](../merge-playbook.md) |
 | [0079](0079-external-skill-pack-initialization.md) | External skill packs enter through a pinned, conflict-checked initialization step, not a bulk install | Proposed | 2026-11-19 | — | [Skills runtime](../skills.md), [ADR-0037](0037-team-runtime-governance.md) |
 
 ## File and numbering rules
