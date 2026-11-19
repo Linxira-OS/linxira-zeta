@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
 import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { describeAuthBrokerStartupError, discoverAuthStorage } from "@linxiraos/zeta/session/auth-broker-config";
 import { setInteractiveHost, TempDir } from "@linxiraos/pi-utils";
