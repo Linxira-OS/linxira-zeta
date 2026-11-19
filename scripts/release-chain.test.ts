@@ -231,9 +231,10 @@ describe("release asset surfaces", () => {
 			expect(upload).not.toContain(family);
 			expect(checksums).not.toContain(family);
 		}
-		for (const suffix of ["-setup-x64.exe", "-windows-x64.zip", ".AppImage", ".pkg.tar.zst"]) {
-			expect(preflight).not.toContain(suffix);
-		}
+		expect(preflight).not.toMatch(/\/zeta-work-/u);
+		expect(preflight).not.toMatch(
+			/\/linxira-zeta-(?:\$\{?version\}?|\*)(?:-setup-x64\.exe|-windows-x64\.zip|\.AppImage|\.pkg\.tar\.zst)(?=["'\s]|$)/u,
+		);
 		expect(preflight).toContain("plugins/dist/zeta-plugin-example-*.zip");
 		expect(preflight).toContain("packages/browser-relay/dist/zeta-browser-relay-extension.zip");
 	});
