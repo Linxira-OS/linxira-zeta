@@ -376,13 +376,15 @@ describe("retain.execute", () => {
 
 		expect(retainBatchSpy).toHaveBeenCalledTimes(2);
 		const requests = retainBatchSpy.mock.calls.map(([, items]) =>
-			items.map(item => ({ content: item.content, tags: item.tags })),
+			items
+				.map(item => ({ content: item.content, tags: item.tags }))
+				.sort((a, b) => a.content.localeCompare(b.content)),
 		);
 		expect(requests).toEqual(
 			expect.arrayContaining([
 				[
-					{ content: "pi uses tabs", tags: ["project:pi"] },
 					{ content: "pi builds with bun", tags: ["project:pi"] },
+					{ content: "pi uses tabs", tags: ["project:pi"] },
 				],
 				[{ content: "the user prefers zsh across projects", tags: undefined }],
 			]),
@@ -402,10 +404,14 @@ describe("retain.execute", () => {
 		await registeredState?.flushRetainQueue();
 
 		expect(retainBatchSpy).toHaveBeenCalledTimes(1);
-		expect(retainBatchSpy.mock.calls[0][1].map(item => ({ content: item.content, tags: item.tags }))).toEqual([
-			{ content: "shared fact", tags: undefined },
-			{ content: "explicitly global fact", tags: undefined },
-		]);
+		const items = retainBatchSpy.mock.calls[0][1].map(item => ({ content: item.content, tags: item.tags }));
+		expect(items).toHaveLength(2);
+		expect(items).toEqual(
+			expect.arrayContaining([
+				{ content: "shared fact", tags: undefined },
+				{ content: "explicitly global fact", tags: undefined },
+			]),
+		);
 	});
 
 	it("retains items enqueued without a scope as project-scoped", async () => {

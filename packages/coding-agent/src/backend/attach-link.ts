@@ -1128,7 +1128,10 @@ export class BackendAttachLink {
 		} catch (error) {
 			logger.warn("backend attach plan content unavailable", { error: String(error) });
 		}
-		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"];
+		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"].map(label => ({
+			id: label,
+			label,
+		}));
 		const choice = await this.#ctx.showPlanReview(planContent, title, options, {
 			helpText: "Esc cancel · edit the plan inline before approving",
 		});
@@ -1386,7 +1389,10 @@ export class BackendAttachLink {
 			this.#ctx.showStatus("The backend session has no plan to review.");
 			return;
 		}
-		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"];
+		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"].map(label => ({
+			id: label,
+			label,
+		}));
 		const choice = await this.#ctx.showPlanReview(content, "Plan mode - next step", options, {
 			helpText: "Esc cancel",
 		});

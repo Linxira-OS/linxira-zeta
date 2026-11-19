@@ -3,6 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getAgentDir, setAgentDir, VERSION } from "@linxiraos/pi-utils";
+import * as gcCompress from "@linxiraos/zeta/cli/gc-compress";
+import { cfgGcCompressAfterDays } from "@linxiraos/zeta/cli/gc-settings";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
@@ -367,31 +369,46 @@ describe("native compression review", () => {
 		const file = await writeArchiveSession(app, id, "Cold session", "x".repeat(32_000));
 		const old = new Date(Date.now() - 8 * 86_400_000);
 		await fs.utimes(file, old, old);
+		const volume = spyOn(gcCompress, "compressMethod").mockResolvedValue("ntfs");
+		const probe = spyOn(gcCompress, "compressionWorks").mockResolvedValue(true);
+		const compressed: string[] = [];
+		const backend = spyOn(gcCompress, "compressFilesInPlace").mockImplementation(async candidates => {
+			compressed.push(...candidates.map(candidate => candidate.path));
+			return { compressed: candidates.length, allocatedAfter: 0, errors: [] };
+		});
 		const stdout = spyOn(process.stdout, "write").mockImplementation(() => {
 			throw new Error("collectGc wrote to stdout");
 		});
 		try {
+			const settings = Settings.isolated();
+			cfgGcCompressAfterDays.override(settings, 1);
 			const service = new StudioSessionCompressionService(
-				fakeSession("live-compression", { getCwd: () => app }, { settings: Settings.isolated() }),
+				fakeSession("live-compression", { getCwd: () => app }, { settings }),
 			);
 			const scanned = await service.execute({
 				kind: "maintenance.compression.scan",
 				sessionId: "live-compression",
 			});
-			expect(scanned.phase === "ready" || scanned.phase === "complete").toBe(true);
+			expect(scanned.phase).toBe("ready");
 			expect(scanned.summary?.scanned).toBeGreaterThan(0);
-			if (scanned.phase === "ready" && scanned.token) {
-				const applied = await service.execute({
-					kind: "maintenance.compression.apply",
-					sessionId: "live-compression",
-					token: scanned.token,
-				});
-				expect(applied.phase).toBe("complete");
-				expect(applied.summary?.compressed).toBeLessThanOrEqual(applied.summary?.candidates ?? 0);
-				expect(service.running).toBe(false);
-			}
+			expect(scanned.summary?.files.map(candidate => candidate.sessionId)).toEqual([id]);
+			if (!scanned.token) throw new Error("Missing compression review token");
+			const late = await writeArchiveSession(app, `${id}-late`, "Unreviewed", "y".repeat(32_000));
+			await fs.utimes(late, old, old);
+			const applied = await service.execute({
+				kind: "maintenance.compression.apply",
+				sessionId: "live-compression",
+				token: scanned.token,
+			});
+			expect(applied.phase).toBe("complete");
+			expect(compressed).toEqual([file]);
+			expect(applied.summary?.compressed).toBe(1);
+			expect(service.running).toBe(false);
 		} finally {
 			stdout.mockRestore();
+			backend.mockRestore();
+			probe.mockRestore();
+			volume.mockRestore();
 		}
 		expect(getAgentDir()).toBe(path.join(root, "agent"));
 	});

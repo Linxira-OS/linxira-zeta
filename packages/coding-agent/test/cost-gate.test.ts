@@ -588,15 +588,28 @@ describe("cost gate in a running session", () => {
 
 		it("exits 0 for a run after the cap was raised, though an earlier run was capped", async () => {
 			const api = "test-cost-gate-print-recover";
-			scriptedProvider(api, [response(1.2, true), response(0.1)]);
-			const session = await createSession(api, { "session.maxCost": 1 });
+			const provider = scriptedProvider(api, [response(1.2, true), response(0.1)]);
+			using saved = TempDir.createSync("@zeta-cost-gate-print-recover-");
+			const session = await createSession(
+				api,
+				{ "session.maxCost": 1 },
+				{ sessionManager: SessionManager.create(saved.path(), saved.path()) },
+			);
 			const output = captureOutput();
 
 			expect(await runPrintMode(session, { mode: "text", initialMessage: "first" })).toBe(
 				PRINT_MODE_COST_CAP_EXIT_CODE,
 			);
-			cfgSessionMaxCost.override(session.settings, 10);
-			expect(await runPrintMode(session, { mode: "text", initialMessage: "second" })).toBe(0);
+			const file = session.sessionFile;
+			if (!file) throw new Error("Expected the capped print run to save its transcript");
+			const resumed = await createSession(
+				api,
+				{ "session.maxCost": 10 },
+				{ sessionManager: await SessionManager.open(file, saved.path()) },
+			);
+			expect(resumed.costGate.spent).toBeCloseTo(1.2);
+			expect(await runPrintMode(resumed, { mode: "text", initialMessage: "second" })).toBe(0);
+			expect(provider.calls()).toBe(2);
 			expect(output.stdout.join("")).toContain("Answer");
 		});
 

@@ -64,7 +64,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Experimental: "实验性",
 	"Auto-Learn": "自动学习",
 	Mnemopi: "记忆模型",
-	Taste: "品味",
+	Taste: "写法先进",
 	Catalog: "模型目录",
 	SiYuan: "思源",
 	Hindsight: "回溯分析",
@@ -77,7 +77,10 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	"Available Tools": "可用工具",
 	Todos: "待办",
 	"Grep & Browser": "Grep 与浏览器",
+	Find: "查找",
 	Computer: "电脑",
+	Disassembler: "反汇编",
+	Ghidra: "Ghidra 分析",
 	"IDA Pro": "IDA Pro",
 	GitHub: "GitHub 集成",
 	"Output Limits": "输出限制",
@@ -109,6 +112,52 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; description?: string }>> = {
+	"tui.renderEmbeds": {
+		label: "渲染内嵌图像与页面",
+		description: "允许代理通过 img 和 iframe 在支持图形的终端中显示图片与网页，包括远程地址",
+	},
+	encourageEdits: {
+		label: "优先使用编辑工具",
+		description: "文件修改使用 edit 工具，禁止通过 sed、Perl 或 Python 直接修改文件",
+	},
+	"mnemopi.recallRelevance": {
+		label: "记忆召回相关性",
+		description: "自动召回的记忆注入上下文前，由裁判模型判断它是否与当前任务相关",
+	},
+	"mnemopi.embeddingQueryPrefix": {
+		label: "记忆查询嵌入前缀",
+		description: "查询嵌入前添加的文本；适用于 Qwen3-Embedding、E5 等指令型模型，已存储记忆的嵌入保持原样",
+	},
+	"mnemopi.embeddingInputType": {
+		label: "记忆嵌入输入类型",
+		description: "嵌入请求发送 input_type：召回使用 query，保存记忆使用 passage；适用于 NVIDIA NIM 等非对称嵌入模型",
+	},
+	"bash.allowedEnvVars": {
+		label: "Shell 允许的环境变量",
+		description:
+			"匹配 bash.patterns 允许规则时，可作为命令前缀的环境变量精确名称；无通配符，变量值不受限制，只应列出普通构建或测试变量",
+	},
+	"todo.midRunNudges": { label: "运行中待办提醒", description: "长任务持续修改内容时，提醒代理更新待办列表的频率" },
+	"find.verifyModel": {
+		label: "查找验证模型",
+		description: "段落验证优先尝试的模型选择器；未设置或不可用时使用裁判模型，文件名与摘要排序仍使用裁判模型",
+	},
+	"commit.enabled": {
+		label: "选择性提交",
+		description: "启用 commit Eval 能力和 /commit，只提交当前代理及其子代理编写的行",
+	},
+	"ghidra.installDir": {
+		label: "Ghidra 安装目录",
+		description: "Ghidra 12 及以上版本的安装目录；留空时查找 GHIDRA_INSTALL_DIR、Homebrew 或使用受管下载",
+	},
+	"ghidra.python": {
+		label: "Ghidra Python 解释器",
+		description: "可导入 pyghidra 的 Python 解释器；留空时使用安装包内置 wheel 创建的受管环境",
+	},
+	"auth.unpausedProviders": {
+		label: "恢复已暂停服务商",
+		description: "恢复已暂停服务商的登录、令牌刷新与已存凭据使用；每项暂停说明需接受的账户风险，项目设置不可修改此项",
+	},
 	"task.steps": {
 		label: "顺序任务步骤",
 		description:
@@ -318,9 +367,9 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "MCP 启动等待窗口",
 		description: "等待 MCP 服务器完成初始化的毫秒数；超时后按未连接处理",
 	},
-	"ida.enabled": {
-		label: "IDA Pro 集成",
-		description: "允许代理读取并在 IDA Pro 中标注反编译结果",
+	"disassembler.backend": {
+		label: "反汇编后端",
+		description: "显式分析使用 IDA 或 Ghidra；直接读取二进制只显示文件元数据",
 	},
 	"ida.python": {
 		label: "IDA Python 解释器",
@@ -330,13 +379,13 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "IDA 安装目录",
 		description: "IDA Pro 的安装目录；用于定位 idalib 与头文件",
 	},
-	"ida.maxOpen": {
-		label: "IDA 最大打开数据库数",
-		description: "同时保持打开的 IDA 数据库上限",
+	"disassembler.maxOpen": {
+		label: "最大打开数据库数",
+		description: "每个项目同时打开的数据库上限；被引用的数据库不会被自动关闭",
 	},
-	"ida.idleCloseSec": {
-		label: "IDA 空闲关闭超时（分钟）",
-		description: "无操作达到该时长后自动关闭 IDA 数据库；0 表示不自动关闭",
+	"disassembler.idleCloseSec": {
+		label: "空闲关闭超时（秒）",
+		description: "无引用数据库空闲达到该时长后保存并关闭；0 表示不自动关闭",
 	},
 	language: {
 		label: "语言",
@@ -1067,19 +1116,19 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description: "抽取/整合所用的模型选择器，留空使用 smol 角色",
 	},
 	"taste.enabled": {
-		label: "品味层",
+		label: "写法先进",
 		description: "从你的提示中学习持久的编码偏好，并注入有把握的部分；需要记忆后端，令牌预算紧张时不建议开启",
 	},
 	"taste.scoping": {
-		label: "品味作用范围",
+		label: "写法先进作用范围",
 		description: "项目读取哪一份存储：全局共享、仅本项目，或本项目加全局",
 	},
 	"taste.injectionTokenLimit": {
-		label: "品味注入预算",
+		label: "写法先进注入预算",
 		description: "注入的偏好块大致令牌上限",
 	},
 	"taste.confidenceFloor": {
-		label: "品味置信下限",
+		label: "写法先进置信下限",
 		description: "偏好进入提示所需的最低注入分数（0–1）",
 	},
 	"autolearn.enabled": {
@@ -1493,7 +1542,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"speechgen.enabled": {
 		label: "语音生成",
-		description: "启用 tts 工具进行设备端（Kokoro）或 xAI Grok Voice 语音文件合成",
+		description: "启用 tts 工具进行设备端（Phonon）或 xAI Grok Voice 语音文件合成",
 	},
 	"generate_image.enabled": {
 		label: "生成图片",
@@ -1932,19 +1981,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"providers.tts": {
 		label: "文字转语音服务商",
-		description: "tts 工具的后端：本地设备端神经 TTS（Kokoro-82M）或 xAI Grok Voice",
-	},
-	"tts.localModel": {
-		label: "本地 TTS 模型",
-		description: "本地 TTS 后端使用的设备端神经 TTS 模型（Kokoro-82M）",
+		description: "tts 工具的后端：本地 Phonon 31M、xAI Grok Voice 或 DeepInfra 语音",
 	},
 	"tts.localVoice": {
 		label: "本地 TTS 音色",
-		description: "本地 TTS 后端使用的 Kokoro 音色（美式/英式，女声/男声）",
+		description: "本地 TTS 后端使用的 Phonon 音色（美式或英式，女声或男声）",
 	},
 	"tts.localSpeed": {
 		label: "本地 TTS 语速",
-		description: "本地 TTS 后端的朗读语速（tts 工具、zetacode say）。1 = 正常；限制在 0.5–2.5",
+		description: "本地 TTS 后端的朗读语速（tts 工具、zetacode say）。1 为正常语速，有效范围为 0.8–1.3",
 	},
 	"speech.enabled": {
 		label: "语音朗读",
@@ -1961,11 +2006,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"speech.voice": {
 		label: "语音朗读音色",
-		description: "朗读助手输出时使用的 Kokoro 音色",
+		description: "朗读助手输出时使用的 Phonon 音色",
 	},
 	"speech.speed": {
 		label: "语音朗读语速",
-		description: "朗读助手输出时的语速。1 = 正常；限制在 0.5–2.5",
+		description: "朗读助手输出时的语速。1 为正常语速，有效范围为 0.8–1.3",
 	},
 	"catalog.remoteRefresh": {
 		label: "远程模型刷新",
@@ -2442,11 +2487,62 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 };
 export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
 
+const ZH_PHONON_VOICE_LABELS = {
+	harper: "Harper（美式女声）",
+	hadley: "Hadley（美式女声）",
+	delia: "Delia（美式女声）",
+	everly: "Everly（美式女声）",
+	easton: "Easton（美式男声）",
+	preston: "Preston（美式男声）",
+	miles: "Miles（美式男声）",
+	trevor: "Trevor（美式男声）",
+	maeve: "Maeve（英式女声）",
+	bryony: "Bryony（英式女声）",
+	edwin: "Edwin（英式男声）",
+	hugh: "Hugh（英式男声）",
+};
+
 /**
  * Submenu option label/description texts, keyed by `${path}::${optionValue}`.
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"auth.unpausedProviders::google-antigravity": {
+		label: "Google Antigravity",
+		description:
+			"Google Antigravity 已暂停：Google 条款不允许第三方登录，Google 已停用部分使用此方式的账户（见 #18341）。请改用 AI Studio 的 GEMINI_API_KEY 或 google-vertex。",
+	},
+	"disassembler.backend::auto": {
+		label: "自动",
+		description: "检测到带 idalib 的 IDA Pro 时优先使用，否则使用 Ghidra",
+	},
+	"disassembler.backend::ghidra": {
+		label: "Ghidra 分析",
+		description: "通过 PyGhidra 分析；未安装时首次分析会准备 Ghidra 12.2、JDK 25 和 PyGhidra",
+	},
+	"disassembler.backend::ida": { label: "IDA Pro 分析", description: "通过 idalib 分析；未检测到安装时禁用分析" },
+	"disassembler.backend::none": { label: "关闭分析", description: "只读取可执行文件元数据" },
+	"todo.midRunNudges::off": { label: "关闭", description: "运行中不提醒" },
+	"todo.midRunNudges::capped": {
+		label: "限制次数",
+		description: "每 12 次编辑或命令提醒一次。更新待办或收到用户消息前最多提醒两次",
+	},
+	"todo.midRunNudges::backoff": {
+		label: "递增间隔",
+		description: "提醒间隔依次为 12、24、48、96 次编辑或命令，之后每 192 次提醒一次",
+	},
+	"mnemopi.recallRelevance::auto": { label: "自动", description: "运行时有本地裁判后端才筛选，否则注入全部召回记忆" },
+	"mnemopi.recallRelevance::on": {
+		label: "开启",
+		description: "用裁判角色选定的模型筛选。本地裁判可能只能及时判断部分记忆",
+	},
+	"mnemopi.recallRelevance::off": { label: "关闭", description: "注入全部召回记忆" },
+	...Object.fromEntries(
+		Object.entries(ZH_PHONON_VOICE_LABELS).flatMap(([voice, label]) => [
+			[`tts.localVoice::${voice}`, { label }],
+			[`speech.voice::${voice}`, { label }],
+		]),
+	),
 	"task.autoParallel::off": { label: "关闭", description: "从不拆分提示" },
 	"task.autoParallel::suggest": {
 		label: "建议",
@@ -4458,6 +4554,11 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "移除",
 		description: "删除干净的工作树；存在未提交改动或新提交时先询问。被 gitignore 的文件（如 `.env`）也会一并删除",
 	},
+	"worktree.onExit::force": {
+		label: "强制移除",
+		description:
+			"不经询问移除所有工作树，包括有未提交改动的工作树。未提交内容、被 gitignore 的文件（如 `.env`）和仅存在于分离 HEAD 的提交都会丢失；分支上的新提交会保留。",
+	},
 	"task.isolation.mode::none": {
 		label: "无",
 		description: "无隔离",
@@ -4630,31 +4731,31 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "开启",
 		description: "接受 task 条目上的 `model`，以及 eval 的 agent()/workpool()",
 	},
-	"ida.maxOpen::2": {
+	"disassembler.maxOpen::2": {
 		label: "2",
 	},
-	"ida.maxOpen::4": {
+	"disassembler.maxOpen::4": {
 		label: "4",
 	},
-	"ida.maxOpen::8": {
+	"disassembler.maxOpen::8": {
 		label: "8",
 	},
-	"ida.maxOpen::16": {
+	"disassembler.maxOpen::16": {
 		label: "16",
 	},
-	"ida.idleCloseSec::0": {
+	"disassembler.idleCloseSec::0": {
 		label: "从不",
 	},
-	"ida.idleCloseSec::300": {
+	"disassembler.idleCloseSec::300": {
 		label: "5 分钟",
 	},
-	"ida.idleCloseSec::900": {
+	"disassembler.idleCloseSec::900": {
 		label: "15 分钟",
 	},
-	"ida.idleCloseSec::1800": {
+	"disassembler.idleCloseSec::1800": {
 		label: "30 分钟",
 	},
-	"ida.idleCloseSec::3600": {
+	"disassembler.idleCloseSec::3600": {
 		label: "1 小时",
 	},
 	"tasks.todoClearDelay::0": {
@@ -4995,105 +5096,29 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		description: "需要 DEEPINFRA_API_KEY；MP3 或 WAV",
 	},
 	"providers.tts::auto": {
-		label: "Auto",
+		label: "自动",
 		description: "优先使用本地设备端 TTS；存在凭据时将 .mp3 输出路由到 xAI",
 	},
 	"providers.tts::local": {
 		label: "本地",
-		description: "设备端神经 TTS（Kokoro-82M）；输出为 WAV/PCM16",
+		description: "设备端神经 TTS（Phonon 31M），输出为 WAV/PCM16",
 	},
 	"providers.tts::xai": {
 		label: "xAI Grok Voice",
 		description: "需要 xAI Grok OAuth 或 XAI_API_KEY；MP3 或 WAV",
 	},
-	"tts.localModel::kokoro": {
-		label: "Kokoro-82M",
-		description: "Kokoro-82M 神经 TTS——设备端最优质、多音色、完全本地",
-	},
-	"tts.localSpeed::0.5": {
-		label: "0.5×",
-	},
-	"tts.localSpeed::0.75": {
-		label: "0.75×",
-	},
-	"tts.localSpeed::1": {
-		label: "1×（正常）",
-	},
-	"tts.localSpeed::1.25": {
-		label: "1.25×",
-	},
-	"tts.localSpeed::1.5": {
-		label: "1.5×",
-	},
-	"tts.localSpeed::1.75": {
-		label: "1.75×",
-	},
-	"tts.localSpeed::2": {
-		label: "2×",
-	},
-	"tts.localSpeed::2.5": {
-		label: "2.5×",
-	},
-	"tts.localVoice::af_heart": {
-		label: "Heart（美式女声）",
-	},
-	"tts.localVoice::af_bella": {
-		label: "Bella（美式女声）",
-	},
-	"tts.localVoice::af_nicole": {
-		label: "Nicole（美式女声）",
-	},
-	"tts.localVoice::af_aoede": {
-		label: "Aoede（美式女声）",
-	},
-	"tts.localVoice::af_kore": {
-		label: "Kore（美式女声）",
-	},
-	"tts.localVoice::af_sarah": {
-		label: "Sarah（美式女声）",
-	},
-	"tts.localVoice::am_michael": {
-		label: "Michael（美式男声）",
-	},
-	"tts.localVoice::am_fenrir": {
-		label: "Fenrir（美式男声）",
-	},
-	"tts.localVoice::am_puck": {
-		label: "Puck（美式男声）",
-	},
-	"tts.localVoice::bf_emma": {
-		label: "Emma（英式女声）",
-	},
-	"tts.localVoice::bm_george": {
-		label: "George（英式男声）",
-	},
-	"tts.localVoice::bm_fable": {
-		label: "Fable（英式男声）",
-	},
-	"speech.speed::0.5": {
-		label: "0.5×",
-	},
-	"speech.speed::0.75": {
-		label: "0.75×",
-	},
-	"speech.speed::1": {
-		label: "1×（正常）",
-	},
-	"speech.speed::1.25": {
-		label: "1.25×",
-	},
-	"speech.speed::1.5": {
-		label: "1.5×",
-	},
-	"speech.speed::1.75": {
-		label: "1.75×",
-	},
-	"speech.speed::2": {
-		label: "2×",
-	},
-	"speech.speed::2.5": {
-		label: "2.5×",
-	},
+	"tts.localSpeed::0.8": { label: "0.8×" },
+	"tts.localSpeed::0.9": { label: "0.9×" },
+	"tts.localSpeed::1": { label: "1×（正常）" },
+	"tts.localSpeed::1.1": { label: "1.1×" },
+	"tts.localSpeed::1.2": { label: "1.2×" },
+	"tts.localSpeed::1.3": { label: "1.3×" },
+	"speech.speed::0.8": { label: "0.8×" },
+	"speech.speed::0.9": { label: "0.9×" },
+	"speech.speed::1": { label: "1×（正常）" },
+	"speech.speed::1.1": { label: "1.1×" },
+	"speech.speed::1.2": { label: "1.2×" },
+	"speech.speed::1.3": { label: "1.3×" },
 	"speech.mode::all": {
 		label: "全部（消息 + 思考）",
 	},
@@ -5102,42 +5127,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"speech.mode::yield": {
 		label: "仅最终消息",
-	},
-	"speech.voice::af_heart": {
-		label: "Heart（美式女声）",
-	},
-	"speech.voice::af_bella": {
-		label: "Bella（美式女声）",
-	},
-	"speech.voice::af_nicole": {
-		label: "Nicole（美式女声）",
-	},
-	"speech.voice::af_aoede": {
-		label: "Aoede（美式女声）",
-	},
-	"speech.voice::af_kore": {
-		label: "Kore（美式女声）",
-	},
-	"speech.voice::af_sarah": {
-		label: "Sarah（美式女声）",
-	},
-	"speech.voice::am_michael": {
-		label: "Michael（美式男声）",
-	},
-	"speech.voice::am_fenrir": {
-		label: "Fenrir（美式男声）",
-	},
-	"speech.voice::am_puck": {
-		label: "Puck（美式男声）",
-	},
-	"speech.voice::bf_emma": {
-		label: "Emma（英式女声）",
-	},
-	"speech.voice::bm_george": {
-		label: "George（英式男声）",
-	},
-	"speech.voice::bm_fable": {
-		label: "Fable（英式男声）",
 	},
 	"providers.judgmentProvider::auto": {
 		label: "自动",

@@ -53,8 +53,8 @@ the reason.
 | Open in editor / reveal file | show | hidden | hidden | hidden | pass-through |
 | IM channels (status, QR, default workspace) | pass-through | pass-through | pass-through | hidden | pass-through |
 | IM credentials | pass-through | pass-through | pass-through | hidden | pass-through |
-| Paired devices (list / revoke) | show | pass-through | pass-through | list only⁶ | unavailable³ |
-| TOTP | show | pass-through | read-only⁴ | read-only⁶ | status only³ |
+| Paired devices (list / revoke) | show | pass-through | pass-through | list only⁶ | nested local page³ |
+| TOTP | show | pass-through | read-only⁴ | read-only⁶ | nested local page³ |
 | Remote pairing QR | show | pass-through | pass-through | show⁶ | pass-through |
 | Remote token rotate / revoke | show | pass-through | pass-through | hidden | pass-through |
 | SSH execution targets | show⁵ | unavailable⁵ | unavailable⁵ | hidden | pass-through |
@@ -63,8 +63,10 @@ the reason.
    `force`); restart `zetacode serve` or the desktop app.
 2. Opening the host's log folder or a native save dialog needs the desktop
    preload; a browser can still copy the diagnostics report.
-3. The TUI exposes read-only `/2fa status`; the CLI has `zetacode 2fa status`
-   (`--json` optional). Device management and TOTP enrollment/reset use Work Studio.
+3. The TUI's **Settings → Runtime → Identity & devices** (also `/2fa`) uses the
+   registered local serve for devices, temporary QR, TOTP enrollment, verification,
+   recovery and policy. `/2fa status` and `zetacode 2fa status` retain redacted
+   output. See [TUI settings](./im-runtime-ui.md) for input and validation limits.
 4. First TOTP enrollment is local-only on the server. A remote browser shows
    status and names that reason instead of rendering an enrollment button that
    would 403.

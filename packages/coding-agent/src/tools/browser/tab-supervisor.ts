@@ -8,6 +8,8 @@ import {
 	withTimeout,
 	workerHostEntry,
 } from "@linxiraos/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { resolveImageMaxEdge, resolveImageTokenization } from "@linxiraos/pi-catalog/compat/image-tokenization";
 import type { CDPSession, Page, Target } from "puppeteer-core";
 import { callSessionTool } from "../../eval/js/tool-bridge";
 import { TOOL_TIMEOUTS } from "../tool-timeouts";
@@ -38,6 +40,7 @@ import {
 	holdBrowser,
 	type PuppeteerBrowserHandle,
 	releaseBrowser,
+	sharedTargetScopeOf,
 } from "./registry";
 import {
 	isMissingPageGlobal,
@@ -46,6 +49,7 @@ import {
 	type ReadyInfo,
 	type RunErrorPayload,
 	type RunResultOk,
+	type ScreenshotLimits,
 	type SessionSnapshot,
 	type Transferable,
 	type Transport,
@@ -268,7 +272,7 @@ const killedTabs = new Map<string, string>();
 const DEFAULT_TAB_CLOSE_TIMEOUT_MS = 5_000;
 // What every worker replacement resets, for results that report one.
 const WORKER_RESETS =
-	"Tab state set since it was opened was reset (tab.route routes, emulation and user agent, init scripts, element ids, the request log, HAR recording, run globals)";
+	"Tab state set since it was opened was reset (tab.route routes, emulation and user agent, init scripts, element ids, the mapping of positions on a scaled screenshot, the request log, HAR recording, run globals)";
 // What a worker recycle (`recycleTimedOutWorkerTab`) resets, for results that report one.
 const RECYCLE_RESETS = `${WORKER_RESETS}, any open dialog was dismissed, and any page still loading was stopped.`;
 // How to give a call that ran out of time a longer budget; nothing once it had the browser tool's maximum.
@@ -653,7 +657,7 @@ async function acquireTabImpl(
 	sweepClosedTabUploads();
 	// Durably record ownership so another live zeta process can reap this page if
 	// this process dies abnormally before its own teardown closes the tab.
-	const scope = sharedScopeOf(browser);
+	const scope = sharedTargetScopeOf(browser);
 	if (scope) void recordSharedTarget(scope, info.targetId);
 	const note = opts.url ? await navigateOpenedTab(name, opts.url, opts, startedAt, tab) : undefined;
 	return { tab, created: true, note };
@@ -815,6 +819,7 @@ async function acquireCmuxTab(
 }
 
 export async function runInTab(name: string, opts: RunInTabOptions): Promise<RunResultOk> {
+	const model = opts.session.getActiveModel?.();
 	const result = await runInTabWithSnapshot(
 		name,
 		{
@@ -828,7 +833,8 @@ export async function runInTab(name: string, opts: RunInTabOptions): Promise<Run
 		{
 			cwd: opts.session.cwd,
 			browserScreenshotDir: expandBrowserScreenshotDir(opts.session),
-			excludeWebP: webpExclusionForModel(opts.session.getActiveModel?.()),
+			excludeWebP: webpExclusionForModel(model),
+			screenshotLimits: model && screenshotLimits(model),
 		},
 	).catch(error => {
 		// A worker's run reports this through its payload; an in-process run throws the original.
@@ -879,12 +885,26 @@ async function runInTabWithSnapshot(
 		);
 	}
 	if (tab.pending.size > 0) {
-		const waitingForDownload = [...tab.pending.values()].some(run => run.waitsForDownload);
-		throw new ToolError(
-			waitingForDownload
-				? `Tab ${JSON.stringify(name)} is busy: tab.waitForDownload() holds the tab until a download finishes, so the step that starts the download cannot run beside it. Start the wait and that step in one run: await tab.run("const download = tab.waitForDownload(); await tab.click('#export'); return await download;")`
-				: `Tab ${JSON.stringify(name)} is busy: another call on this tab is still running. Await each call before starting the next instead of running them together (Promise.all, asyncio.gather), or group the steps in one tab.run(...)`,
-		);
+		const runs = [...tab.pending.values()];
+		const caller = opts.session?.getEvalKernelOwnerId?.() ?? undefined;
+		// Tabs are shared by name across agents: a subagent's sequential calls collide with its parent's.
+		const otherAgent =
+			caller !== undefined &&
+			runs.some(run => {
+				const owner = run.session.getEvalKernelOwnerId?.() ?? undefined;
+				return owner !== undefined && owner !== caller;
+			});
+		let reason: string;
+		if (runs.some(run => run.waitsForDownload)) {
+			reason = `tab.waitForDownload() holds the tab until a download finishes, so the step that starts the download cannot run beside it. Start the wait and that step in one run: await tab.run("const download = tab.waitForDownload(); await tab.click('#export'); return await download;")`;
+		} else if (otherAgent) {
+			reason =
+				"another agent is driving it and its call is still running. Tabs are shared by name: wait for that agent to finish, or open a tab of your own under another name.";
+		} else {
+			reason =
+				"another call on this tab is still running. Await each call before starting the next instead of running them together (Promise.all, asyncio.gather), or group the steps in one tab.run(...)";
+		}
+		throw new ToolError(`Tab ${JSON.stringify(name)} is busy: ${reason}`);
 	}
 	if (!opts.webmcp || opts.webmcp.action === "invoke") assertBrowserTabAgentControl(tab);
 	if (opts.webmcp && tab.backend !== "worker") throw new ToolError("Native WebMCP requires a Chromium browser");
@@ -1397,7 +1417,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 		cleanupError ??= error;
 	} finally {
 		tabs.delete(name);
-		const scope = sharedScopeOf(tab.browser);
+		const scope = sharedTargetScopeOf(tab.browser);
 		if (scope) {
 			if (targetCloseFailed) {
 				// The target outlived its close, so it is still open in the
@@ -2204,7 +2224,7 @@ async function forceKillTabTeardown(tab: WorkerTabSession): Promise<void> {
 	}
 	await releaseBrowser(tab.browser, { kill: false });
 	tabs.delete(tab.name);
-	const scope = sharedScopeOf(tab.browser);
+	const scope = sharedTargetScopeOf(tab.browser);
 	if (scope) {
 		if (targetClosed) void forgetSharedTarget(scope, tab.targetId);
 		else recheckSharedBrowser(scope);
@@ -2213,7 +2233,7 @@ async function forceKillTabTeardown(tab: WorkerTabSession): Promise<void> {
 
 /**
  * Best-effort close of a specific page target in the browser. Close through
- * the browser CDP session rather than `page.close()`: a page whose navigation
+ * the root CDP connection rather than `page.close()`: a page whose navigation
  * wedged during initialization can make Puppeteer's page close wait for the
  * protocol timeout, retaining the cleanup hold for tens of seconds.
  */
@@ -2224,17 +2244,6 @@ async function closeTargetById(
 ): Promise<boolean> {
 	if (browser.kind.kind === "relay") return await closeRelayTarget(browserConnection(browser.browser), targetId);
 	return await closeCdpTarget(browser.browser, targetId, confirmTimeoutMs);
-}
-
-/**
- * Durable-ownership scope for a browser handle, or undefined when the handle is
- * not the project-shared broker-owned Chromium (the only browser whose targets
- * outlive their creating process and thus need cross-process orphan reaping).
- */
-function sharedScopeOf(browser: BrowserHandle): SharedTargetScope | undefined {
-	if (!("browser" in browser)) return undefined;
-	if (browser.kind.kind !== "headless" || !browser.sharedDaemon) return undefined;
-	return { projectDir: browser.sharedDaemon.projectDir, daemonName: browser.sharedDaemon.name };
 }
 
 /**
@@ -2301,6 +2310,19 @@ async function waitForClosed(tab: WorkerTabSession): Promise<void> {
 	} finally {
 		unsubscribe();
 	}
+}
+
+/** What rescales an image on its way to `model`, for sizing screenshots that reach it untouched. */
+function screenshotLimits(model: Model): ScreenshotLimits {
+	const compat = model.compat;
+	return {
+		tokenization: resolveImageTokenization(model),
+		maxEdge: resolveImageMaxEdge(model),
+		detail:
+			compat && "supportsImageDetailOriginal" in compat && compat.supportsImageDetailOriginal
+				? "original"
+				: undefined,
+	};
 }
 
 function expandBrowserScreenshotDir(session: ToolSession): string | undefined {

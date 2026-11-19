@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import test from "node:test";
@@ -7,7 +7,9 @@ import { MemoryCredentialStore } from "../dist/memory-credentials.js";
 import { registerMemoryCredentialIpc } from "../dist/memory-credentials-ipc.js";
 
 async function fixture() {
-  const directory = await mkdtemp(resolve(import.meta.dirname, "../../temp/memory-credentials-"));
+  const scratch = resolve(import.meta.dirname, "../../temp");
+  await mkdir(scratch, { recursive: true });
+  const directory = await mkdtemp(join(scratch, "memory-credentials-"));
   const key = randomBytes(32);
   let available = true;
   const store = new MemoryCredentialStore(join(directory, "credentials.enc"), {

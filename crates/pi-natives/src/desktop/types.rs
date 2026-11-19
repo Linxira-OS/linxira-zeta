@@ -295,6 +295,10 @@ pub struct DesktopObservationNode {
 	pub name:     String,
 	pub enabled:  bool,
 	pub bounds:   Option<CaptureRegion>,
+	#[expect(
+		clippy::use_self,
+		reason = "NAPI type generation needs the concrete recursive type name"
+	)]
 	pub children: Vec<DesktopObservationNode>,
 }
 

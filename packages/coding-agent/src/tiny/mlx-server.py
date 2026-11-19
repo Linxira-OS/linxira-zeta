@@ -1,7 +1,7 @@
 # MLX tiny-model worker: one process per local model, owning that model's
 # socket and speaking the same JSON-lines protocol as the ONNX worker
 # (`title-protocol.ts`). Started by `title-client.ts` from the mlx-lm venv;
-# serves every omp process on the machine; exits on its own once idle.
+# serves every Zeta process on the machine; exits on its own once idle.
 #
 # Requests (one object per line):
 #   {"type": "ping", "id"}                        -> pong (with the launch tag)
@@ -49,7 +49,7 @@ DOWNLOAD_PATTERNS = (
     "*.safetensors.index.json",
     "*.tiktoken",
 )
-COMPLETE_MARKER = ".omp-complete.json"
+COMPLETE_MARKER = ".zeta-complete.json"
 PROGRESS_INTERVAL_S = 0.1
 CHUNK_BYTES = 1 << 20
 IDLE_POLL_S = 5.0

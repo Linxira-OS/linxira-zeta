@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -77,18 +79,22 @@ describe("AgentSession.switchSession previous-context build", () => {
 	}
 
 	/** Wrap `sessionManager.buildSessionContext` so each call's caller-visible
-	 *  state (the manager's currently-loaded session file) is recorded in
-	 *  invocation order. The constructor itself calls `buildSessionContext`
-	 *  once; spying *after* construction means only switchSession-driven calls
-	 *  are observed. */
+	 * state includes whether the target transcript has been loaded. The constructor
+	 * itself builds a context; spying after construction isolates switchSession. */
 	function instrumentBuildSessionContext(sessionManager: SessionManager): {
-		calls: Array<{ sessionFile: string | undefined; transcript: boolean | undefined }>;
+		calls: Array<{ sessionFile: string | undefined; targetLoaded: boolean }>;
 		restore: () => void;
 	} {
-		const calls: Array<{ sessionFile: string | undefined; transcript: boolean | undefined }> = [];
+		const calls: Array<{ sessionFile: string | undefined; targetLoaded: boolean }> = [];
+		const setSessionFile = sessionManager.setSessionFile.bind(sessionManager);
+		let targetLoaded = false;
+		sessionManager.setSessionFile = async file => {
+			await setSessionFile(file);
+			targetLoaded = true;
+		};
 		const original = sessionManager.buildSessionContext.bind(sessionManager);
 		const patched = (options?: BuildSessionContextOptions): SessionContext => {
-			calls.push({ sessionFile: sessionManager.getSessionFile(), transcript: options?.transcript });
+			calls.push({ sessionFile: sessionManager.getSessionFile(), targetLoaded });
 			return original(options);
 		};
 		sessionManager.buildSessionContext = patched as SessionManager["buildSessionContext"];
@@ -96,6 +102,7 @@ describe("AgentSession.switchSession previous-context build", () => {
 			calls,
 			restore: () => {
 				sessionManager.buildSessionContext = original;
+				sessionManager.setSessionFile = setSessionFile;
 			},
 		};
 	}
@@ -127,9 +134,10 @@ describe("AgentSession.switchSession previous-context build", () => {
 			restore();
 		}
 
-		// The previous session's display context MUST NOT be materialized. Only
-		// the new target context (post-`setSessionFile`) should be built.
-		expect(calls).toEqual([{ sessionFile: targetSessionFile!, transcript: undefined }]);
+		// Every build is for the adopted target. The previous session's display
+		// context must never materialize on a successful different-file switch.
+		expect(calls[0]).toEqual({ sessionFile: targetSessionFile!, targetLoaded: true });
+		expect(calls.every(call => call.targetLoaded && call.sessionFile === targetSessionFile)).toBe(true);
 	});
 
 	it("builds the previous display context for same-session reloads", async () => {
@@ -153,10 +161,8 @@ describe("AgentSession.switchSession previous-context build", () => {
 
 		// Same-session reload must snapshot the pre-reload context so
 		// `#didSessionMessagesChange` can detect rollback edits.
-		expect(calls).toEqual([
-			{ sessionFile: sessionFile!, transcript: undefined },
-			{ sessionFile: sessionFile!, transcript: undefined },
-		]);
+		expect(calls.filter(call => !call.targetLoaded)).toEqual([{ sessionFile, targetLoaded: false }]);
+		expect(calls.find(call => call.targetLoaded)).toEqual({ sessionFile, targetLoaded: true });
 	});
 
 	it("restores the previous session when cwd adoption is rejected", async () => {
@@ -184,6 +190,34 @@ describe("AgentSession.switchSession previous-context build", () => {
 		expect(onCwdChange).toHaveBeenCalledWith(targetDir.path(), sourceDir.path());
 		expect(sessionManager.getSessionFile()).toBe(previousSessionFile);
 		expect(sessionManager.getCwd()).toBe(sourceDir.path());
+	});
+	it("resumes a target whose recorded directory is gone in the current cwd", async () => {
+		const sourceDir = TempDir.createSync("@pi-switch-gone-source-");
+		const targetDir = TempDir.createSync("@pi-switch-gone-target-");
+		tempDirs.push(sourceDir, targetDir);
+
+		const { session, sessionManager } = buildSession(sourceDir);
+		sessionManager.appendMessage({ role: "user", content: "source", timestamp: 1 });
+		await sessionManager.flush();
+		const goneProject = path.join(targetDir.path(), "project");
+		await fs.mkdir(goneProject);
+		const targetManager = SessionManager.create(goneProject, targetDir.path());
+		targetManager.appendMessage({ role: "user", content: "target", timestamp: 2 });
+		await targetManager.ensureOnDisk();
+		await targetManager.flush();
+		const targetSessionFile = targetManager.getSessionFile();
+		await targetManager.close();
+		await fs.rm(goneProject, { recursive: true });
+
+		const onCwdChange = vi.fn(async () => true);
+		const switched = await session.switchSession(targetSessionFile!, { onCwdChange });
+
+		// The manager keeps the current cwd; callers detect the fallback via recorded ≠ runtime cwd.
+		expect(switched).toBe(true);
+		expect(onCwdChange).not.toHaveBeenCalled();
+		expect(sessionManager.getSessionFile()).toBe(targetSessionFile);
+		expect(sessionManager.getCwd()).toBe(sourceDir.path());
+		expect(sessionManager.getRecordedCwd()).toBe(goneProject);
 	});
 	it("rejects callback-free switches across project directories", async () => {
 		const sourceDir = TempDir.createSync("@pi-switch-no-callback-source-");

@@ -163,6 +163,30 @@ describe("merge test/fixture audit", () => {
 		expect(report?.violations).toEqual([]);
 	}, 120_000);
 
+	test("maps exact workspace package names without hiding a missing assertion", () => {
+		const dir = repo("workspace-names");
+		const file = "packages/demo/test/base.test.ts";
+		const scope = "@oh" + "-my-pi/";
+		const imports = `import { type } from "${scope}omptype";\nimport compact from "${scope}snapcompact";\n`;
+		write(dir, file, imports + BASE_TEST);
+		const base = commit(dir, "pre-merge");
+		sh(dir, ["git", "checkout", "-q", "-b", "upstream"]);
+		write(dir, file, imports + UPSTREAM_TEST);
+		commit(dir, "upstream assertion");
+		sh(dir, ["git", "tag", "v99.0.0"]);
+		sh(dir, ["git", "checkout", "-q", "-b", "merge", base]);
+		const renamed = imports
+			.replace(`${scope}omptype`, "@linxiraos/zeta-schema")
+			.replace(`${scope}snapcompact`, "@linxiraos/zeta-compact");
+		write(dir, file, renamed + UPSTREAM_TEST);
+		expect(runAudit(dir, ["--base", base, "--tag", "v99.0.0", "--json"]).exitCode).toBe(0);
+		write(dir, file, renamed + BASE_TEST + "\n// local addition\n");
+		const missing = runAudit(dir, ["--base", base, "--tag", "v99.0.0", "--json"]);
+		expect(parsed(missing)?.violations).toEqual([
+			expect.objectContaining({ path: file, kind: "modified-upstream-missing" }),
+		]);
+	}, 120_000);
+
 	test("keeps the retired share test allowlisted", () => {
 		const dir = repo("allowlist");
 		write(dir, "packages/coding-agent/test/share.test.ts", BASE_TEST);

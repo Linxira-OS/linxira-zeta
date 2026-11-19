@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+
+- Public npm consumers pick up the compaction changes previously recorded in the 1.5.2 asset-review entry, including the split planning phases for long histories. No further package-specific behavior changes.
+
 ## [1.5.2] - 2026-11-13
 
 ### Changed

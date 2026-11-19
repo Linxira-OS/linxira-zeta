@@ -117,13 +117,25 @@ describe("REQ-079 default IM delivery", () => {
 	test("an ordinary repo agent is reachable only through an explicit binding", async () => {
 		const { router, config, repoDir } = await setup();
 		expect(await router.resolveChatTarget("telegram", "unbound")).toMatchObject({ kind: "bot" });
-		expect(await router.resolveChatTarget("telegram", "explicit")).toMatchObject({ kind: "bot" });
+		const initial = await router.resolveChatTarget("telegram", "explicit");
+		if (initial.kind !== "bot") throw new Error("expected a default bot before binding");
+		const original = config.getBotSession(initial.id);
+		expect(original?.target).toEqual({ kind: "workspace", workspace: "main" });
 
 		expect(await router.bindChat("telegram", "explicit", "repo")).toEqual({ ok: true, alias: "repo" });
-		const bound = await router.resolveChatTarget("telegram", "explicit");
-		expect(bound).toMatchObject({ kind: "bot" });
-		if (bound.kind !== "bot") throw new Error("expected bound repo session");
-		expect(config.getBotSession(bound.id)?.cwd).toBe(repoDir);
-		expect(config.getBotSession(bound.id)?.target).toEqual({ kind: "workspace", workspace: "repo" });
+		expect(await router.resolveChatTarget("telegram", "explicit")).toEqual({ kind: "workspace", alias: "repo" });
+		const binding = config.findImBinding("telegram", "explicit");
+		expect(binding?.target).toEqual({ kind: "workspace", workspace: "repo" });
+		expect(binding?.sessionId).not.toBe(initial.id);
+		expect(config.getBotSession(initial.id)).toEqual(original);
+		expect(router.list()).toContainEqual({ alias: "repo", path: repoDir });
+
+		// Explicitly selecting the target's own bot still uses that conversation.
+		if (!binding) throw new Error("missing workspace binding");
+		const selected = await router.ensureImBindingSession(binding);
+		if (!selected.ok) throw new Error(selected.error);
+		expect(await router.resolveChatTarget("telegram", "explicit")).toEqual({ kind: "bot", id: selected.id });
+		expect(config.getBotSession(selected.id)?.cwd).toBe(repoDir);
+		expect(config.getBotSession(selected.id)?.target).toEqual({ kind: "workspace", workspace: "repo" });
 	});
 });

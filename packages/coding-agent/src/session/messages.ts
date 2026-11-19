@@ -49,6 +49,7 @@ export {
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
 } from "@linxiraos/pi-tui/chat/messages";
+import { calculateContextTokens } from "@linxiraos/pi-agent-core/compaction";
 import {
 	invalidateMessageCache,
 	registerMessageCacheInvalidator,
@@ -60,6 +61,7 @@ import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
+import { type ImUserMessageMetadata, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
 
 export {
 	type BranchSummaryMessage,
@@ -71,6 +73,17 @@ export {
 
 import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { titleTextFromSkillPrompt } from "@linxiraos/pi-tui/chat/skill-title-input";
+
+/** The immutable source of an IM user input carried by an IRC wake. */
+export function imUserWakeSource(message: CustomMessage): ImUserMessageMetadata | undefined {
+	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return undefined;
+	const metadata = normalizeImMessageMetadata(message.details.metadata);
+	return metadata !== undefined && isImUserMessageMetadata(metadata) ? metadata : undefined;
+}
+
+export function isImUserWake(message: CustomMessage): boolean {
+	return imUserWakeSource(message) !== undefined;
+}
 
 /**
  * Logs provider-error turns so their actual cause is available outside the
@@ -674,6 +687,42 @@ export function assistantTurnDelivered(message: Pick<AssistantMessage, "content"
 	return message.content.some(isDeliverableContent);
 }
 
+/**
+ * Occupied context tokens carried by a usage record, using the same accounting
+ * as session compaction ({@link calculateContextTokens}): a provider-reported
+ * `contextTokens` wins; otherwise the billable `totalTokens` (or the bucket
+ * sum when no total is reported) minus provider-side orchestration tokens.
+ * Live `message.usage` payloads and persisted transcript records are loosely
+ * typed, so numeric fields are validated here. Returns 0 when the record
+ * carries no usage signal.
+ */
+export function usageContextTokens(raw: unknown): number {
+	if (!isRecord(raw)) return 0;
+	const field = (record: Record<string, unknown>, key: string): number => {
+		const value = record[key];
+		return typeof value === "number" && Number.isFinite(value) ? value : 0;
+	};
+	const contextTokens = raw.contextTokens;
+	const orchestration = isRecord(raw.orchestration) ? raw.orchestration : undefined;
+	return calculateContextTokens({
+		input: field(raw, "input"),
+		output: field(raw, "output"),
+		cacheRead: field(raw, "cacheRead"),
+		cacheWrite: field(raw, "cacheWrite"),
+		totalTokens: field(raw, "totalTokens"),
+		...(typeof contextTokens === "number" && Number.isFinite(contextTokens) ? { contextTokens } : {}),
+		...(orchestration
+			? {
+					orchestration: {
+						input: field(orchestration, "input"),
+						cacheRead: field(orchestration, "cacheRead"),
+						output: field(orchestration, "output"),
+					},
+				}
+			: {}),
+	});
+}
+
 /** Extract the optional `__queueChipText` field from a CustomMessage's
  *  `details` blob. Safe over `unknown`; returns undefined when the field is
  *  absent or non-string. */
@@ -1186,12 +1235,14 @@ function convertOne(m: AgentMessage, interruptedNext: boolean): Message[] {
 			// A user-invoked skill is the user's own turn. An agent message is a user turn
 			// authored by that agent: never tool output, never developer or system authority.
 			const ircIncoming = m.customType === "irc:incoming";
+			const imUserWake = ircIncoming && isImUserWake(m);
+			if (imUserWake && m.content === "") return []; // Historical correlation-only record.
 			if (ircIncoming || isUserInvokedSkillPrompt(m)) {
 				return [
 					{
 						role: "user",
 						content: customMessageContentToLlmContent(m.content),
-						attribution: ircIncoming ? "agent" : "user",
+						attribution: ircIncoming && !imUserWake ? "agent" : "user",
 						timestamp: m.timestamp,
 					},
 				];

@@ -35,8 +35,7 @@ import { createHash } from "node:crypto";
 import * as path from "node:path";
 import { isRecord, stringProperty } from "@linxiraos/pi-utils";
 import { STATS_DASHBOARD_HEADER, STATS_DASHBOARD_SECURITY_VERSION } from "@linxiraos/pi-stats/port-conflict";
-import { buildBootstrap } from "../bootstrap.js";
-import { StudioOperations } from "../registry.js";
+import { studioHostFacts } from "../bootstrap.js";
 import type { StudioFamily, StudioHostContext } from "../registry.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
 import {
@@ -340,22 +339,9 @@ async function listHistory(input: {
 // `home.get`
 // ---------------------------------------------------------------------------
 
-/**
- * Authority and runtime blocks exactly as `/api/v1/bootstrap` serves them.
- * `buildBootstrap` also builds a capability manifest, which the home model does
- * not use; the operations set is constructed here rather than at module load so
- * this module never evaluates the registry's family list while it is still
- * being imported. The pair is stable for the life of the process, so it is
- * built once.
- */
-let cachedHostFacts: Pick<HomeReadModel, "authority" | "runtime"> | undefined;
-
+/** Use the same serve identity as the Bootstrap route. */
 function hostFacts(): Pick<HomeReadModel, "authority" | "runtime"> {
-	cachedHostFacts ??= (() => {
-		const bootstrap = buildBootstrap(new StudioOperations());
-		return { authority: bootstrap.authority, runtime: bootstrap.runtime };
-	})();
-	return cachedHostFacts;
+	return studioHostFacts();
 }
 
 /** The live runtime snapshot, from the session family's own gateway mapper. */

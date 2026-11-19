@@ -10,7 +10,8 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { acquireIdaDatabase, listIdaDatabases, resolveIdaRuntime } from "../../../ida";
+import { acquireDatabase, cfgDisassembler, listDatabases } from "../../../disasm";
+import { resolveIdaRuntime } from "../../../ida/runtime";
 import type { ToolSession } from "../../../tools";
 import { invalid, unavailable } from "../errors";
 import type { IdaEdit, IdaOperation, IdaRow } from "../protocol/contracts/ida.js";
@@ -63,6 +64,8 @@ function nativePort(session: StudioIdaSession): StudioIdaPort {
 	const tool = () => {
 		const toolSession = session.getEvalToolSession();
 		if (!toolSession) throw unavailable("Native IDA context is unavailable in this Runtime");
+		const backend = cfgDisassembler.get(toolSession.settings);
+		if (backend !== "auto" && backend !== "ida") throw unavailable("The selected disassembler backend is not IDA");
 		return toolSession;
 	};
 	return {
@@ -71,7 +74,7 @@ function nativePort(session: StudioIdaSession): StudioIdaPort {
 		},
 		list: async () =>
 			Promise.all(
-				(await listIdaDatabases(tool())).map(async db => {
+				(await listDatabases(tool(), "ida")).map(async db => {
 					await db.refresh();
 					return {
 						id: db.id,
@@ -85,7 +88,7 @@ function nativePort(session: StudioIdaSession): StudioIdaPort {
 				}),
 			),
 		open: async (file, signal) => {
-			await acquireIdaDatabase(tool(), file, { signal });
+			await acquireDatabase(tool(), "ida", file, { signal });
 		},
 	};
 }

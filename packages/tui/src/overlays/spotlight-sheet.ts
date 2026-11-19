@@ -402,8 +402,8 @@ function windowCode(sheet: SheetText, section: Section): NativeNode {
 }
 
 /**
- * A window of several (role `omp.spotlight.window`): its head (role `omp.spotlight.head`: the file it shows, how much
- * of it the view cap left (role `omp.spotlight.clip`), and its ranking's budget and cutoff, when it has any) over its
+ * A window of several (role `zeta.spotlight.window`): its head (role `zeta.spotlight.head`: the file it shows, how much
+ * of it the view cap left (role `zeta.spotlight.clip`), and its ranking's budget and cutoff, when it has any) over its
  * code, absent when the cap left none of it.
  */
 function windowSection(sheet: SheetText, section: Section): NativeNode {
@@ -420,13 +420,13 @@ function windowSection(sheet: SheetText, section: Section): NativeNode {
 		row(
 			compact([
 				path !== undefined && text([span(path, "mono")]),
-				clip !== undefined && text([span(clip, "muted")], { role: "omp.spotlight.clip" }),
+				clip !== undefined && text([span(clip, "muted")], { role: "zeta.spotlight.clip" }),
 				node("spacer", { grow: 1 }),
-				rank && text([span(rankFacts(rank), "muted")], { role: "omp.spotlight.budget" }),
+				rank && text([span(rankFacts(rank), "muted")], { role: "zeta.spotlight.budget" }),
 			]),
-			{ gap: "md", align: "baseline", role: "omp.spotlight.head" },
+			{ gap: "md", align: "baseline", role: "zeta.spotlight.head" },
 		);
-	return col(compact([head, shown > 0 && windowCode(sheet, section)]), { gap: "xs", role: "omp.spotlight.window" });
+	return col(compact([head, shown > 0 && windowCode(sheet, section)]), { gap: "xs", role: "zeta.spotlight.window" });
 }
 
 /**

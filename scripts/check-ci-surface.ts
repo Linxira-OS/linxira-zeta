@@ -16,6 +16,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { isScalar, isSeq, parseDocument } from "yaml";
 import { CI_SURFACE, MIN_CI_JOBS, type WorkflowSurface } from "./brand/ci-surface-registry";
 
 const ROOT = path.resolve(import.meta.dir, "..");
@@ -45,12 +46,14 @@ interface ParsedWorkflow {
 
 /** Top-level job keys sit at 2-4 space indent under `jobs:` (this repo uses 3). */
 const JOB_KEY = /^ {2,4}([A-Za-z_][A-Za-z_0-9-]*):\s*$/;
-const NEEDS_ARRAY = /^\s*needs:\s*\[(.*?)\]/;
-const NEEDS_BLOCK = /^\s*needs:\s*$/;
+const NEEDS_KEY = /^\s*needs:/;
 
 function parseWorkflow(lines: string[]): ParsedWorkflow | null {
 	const jobsLineIdx = lines.findIndex(line => /^jobs:\s*$/.test(line));
 	if (jobsLineIdx === -1) return null;
+
+	const document = parseDocument(lines.join("\n"));
+	if (document.errors.length > 0) return null;
 
 	// First pass: collect job-key lines until the next indent-0 top-level key.
 	const starts: Array<{ name: string; line: number }> = [];
@@ -64,25 +67,22 @@ function parseWorkflow(lines: string[]): ParsedWorkflow | null {
 	const jobs = new Map<string, JobEntry>();
 	starts.forEach((start, index) => {
 		const endLine = index + 1 < starts.length ? starts[index + 1].line - 1 : lines.length;
-		let needsLine = 0;
-		let needs: string[] | null = null;
-		for (let i = start.line; i <= endLine; i++) {
-			const arrayMatch = NEEDS_ARRAY.exec(lines[i]);
-			if (arrayMatch) {
-				needsLine = i + 1;
-				needs = arrayMatch[1]
-					.split(",")
-					.map(entry => entry.trim())
-					.filter(Boolean);
-				break;
-			}
-			if (NEEDS_BLOCK.test(lines[i])) {
-				// Block-form needs (`needs:\n  - a`): unparseable → fail loud below.
-				needsLine = i + 1;
-				break;
-			}
-		}
-		jobs.set(start.name, { keyLine: start.line, endLine, needsLine, needs });
+		const needsIndex = lines.findIndex((line, i) => i >= start.line && i < endLine && NEEDS_KEY.test(line));
+		const sequence = document.getIn(["jobs", start.name, "needs"], true);
+		const needs = isSeq(sequence)
+			? sequence.items.flatMap(item =>
+					isScalar(item) && typeof item.value === "string" && /^[A-Za-z_][A-Za-z_0-9-]*$/.test(item.value)
+						? [item.value]
+						: [],
+				)
+			: null;
+		const needsLine = needsIndex + 1;
+		jobs.set(start.name, {
+			keyLine: start.line,
+			endLine,
+			needsLine,
+			needs: isSeq(sequence) && needs?.length === sequence.items.length ? needs : null,
+		});
 	});
 
 	return { jobsLine: jobsLineIdx + 1, jobs };
@@ -184,7 +184,7 @@ function checkSurface(surface: WorkflowSurface): { violations: Violation[]; jobC
 			file: surface.file,
 			line: 1,
 			rule: "unparseable-jobs",
-			text: "no `jobs:` section found",
+			text: "invalid YAML or no `jobs:` section found",
 			why: "fail loud: an unparseable workflow must block the gate, never pass silently",
 		});
 		return { violations, jobCount: 0 };

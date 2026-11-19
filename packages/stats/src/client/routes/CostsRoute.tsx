@@ -4,7 +4,7 @@ import { getCostDashboardStats } from "../api";
 import { t } from "../i18n";
 import { Chart, type ChartSeries, Legend, ShareBar, useHiddenSeries } from "../charts";
 import { buildModelColorLookup, modelKey, OTHER_COLOR, SERIES_COLORS } from "../data/colors";
-import { formatCost, formatEstimatedCost, formatInteger, formatPercent, formatUtcDay } from "../data/formatters";
+import { formatCost, formatEstimatedCost, formatInteger, formatPercent, formatLocalDay } from "../data/formatters";
 import { useQuery } from "../data/query";
 import { bucketAxis, rangeMeta } from "../data/range";
 import { densify, pivotSeries } from "../data/series";
@@ -46,7 +46,7 @@ function splitOptions() {
 /** Models stacked individually in the daily chart; the rest fold into "Other". */
 const MODEL_LIMIT = 6;
 
-/** The cost series is bucketed by UTC day on the server. */
+/** The cost series is bucketed by local calendar day on the server. */
 const DAY_MS = 86_400_000;
 
 function components(): readonly { key: keyof CostComponents; label: string; color: string }[] {
@@ -106,8 +106,8 @@ export function CostsRoute({ active, range }: CostsRouteProps) {
 								<div className="stack" style={{ gap: 12 }}>
 									<Chart
 										slots={view.buckets.length}
-										tickLabel={i => formatUtcDay(view.buckets[i])}
-										tooltipTitle={i => formatUtcDay(view.buckets[i], true)}
+										tickLabel={i => formatLocalDay(view.buckets[i])}
+										tooltipTitle={i => formatLocalDay(view.buckets[i], true)}
 										series={series}
 										hidden={hidden}
 										height={280}

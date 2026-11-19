@@ -148,6 +148,17 @@ describe("taste injection", () => {
 		expect(block).toContain("Confidence: 0.7");
 	});
 
+	it("suppresses a broader preference when a narrower entry for its topic is conflicted", async () => {
+		const { agentDir, cwd, settings } = harness({ "taste.scoping": "per-project-tagged" });
+		const agentId = "Main";
+		const [agent, project] = resolveTasteScopes({ cwd, agentId }, settings);
+		const preference = entry({ confidence: 0.9 });
+		await seed(agentDir, project, [preference]);
+		expect(await buildTasteInstructions({ agentDir, cwd, settings, agentId })).toContain(preference.statement);
+		await seed(agentDir, agent, [{ ...preference, conflict: "unresolved", conflictSince: today() }]);
+		expect(await buildTasteInstructions({ agentDir, cwd, settings, agentId })).toBeUndefined();
+	});
+
 	it("respects the token budget", async () => {
 		const { agentDir, cwd, settings } = harness({ "taste.injectionTokenLimit": 60 });
 		const scope = resolveTasteScopes({ cwd }, settings)[0]!;

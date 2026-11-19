@@ -56,13 +56,41 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	// modifies this test; Zeta must not bring the file back.
 	"packages/coding-agent/test/share.test.ts":
 		"retired /share upload surface; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/acp-agent.test.ts":
+		"ACP v18.22.0 TTS capabilities, usage, forms and MCP assertions retained; Zeta config path and serialized toolkit fixtures adapted",
+	"packages/coding-agent/test/extensibility/custom-commands/annotate.test.ts":
+		"both classic and TSP picker restore assertions retained; import formatting differs",
+	"packages/coding-agent/test/internal-urls/history-protocol.test.ts":
+		"adopts removal of the three Seance-specific cases in db5d932058e; remaining history assertions unchanged",
+	"packages/coding-agent/test/memory-recall-resume.test.ts":
+		"all automatic recall, opt-in, cancellation and resume assertions retained; import formatting differs",
+	"packages/coding-agent/test/subagent-advisor.test.ts":
+		"includes task.agentPrewalkAuto boolean migration assertions from 22e4e534bec; import formatting differs",
+	"packages/coding-agent/test/task/structured-subagent.test.ts":
+		"upstream routing pinning test retained with both selectors asserting Zeta's explicit effort suffix; Seance cases removed upstream",
 	// These five upstream tests only differ by Zeta's mechanical scope/CLI/temp
 	// token sweep (and oxfmt import reflow); their assertions are unchanged.
 	"packages/coding-agent/test/tools/browser-relay-bridge.test.ts": "scope/import reflow only",
 	"packages/coding-agent/test/tools/browser-relay-tab-isolation.test.ts": "scope/import reflow only",
 	"packages/coding-agent/test/tools/gh.test.ts": "scope/import reflow only",
+	"packages/coding-agent/test/tools/browser-screenshot-plus.test.ts":
+		"upstream screenshot and attachment assertions retained; remove the retired browser.tern setting from both fixtures",
 	"packages/coding-agent/test/tools/lsp-regressions.test.ts": "scope/temp-prefix sweep only",
 	"packages/coding-agent/test/write-read-projection.test.ts": "scope/import reflow only",
+	"packages/coding-agent/test/discovery/at-imports.test.ts":
+		"scope/import reflow only; repeated-include and shared-budget assertions retained",
+	"packages/stats/test/spotlight.test.ts":
+		"localized local-calendar-day formatLocalDay replaces formatUtcDay; upstream timing/count assertions retained",
+	"packages/coding-agent/test/agent-session-async-delivery.test.ts":
+		"ADR-0039 source-bound jobs complete into their original transcript after switch; upstream wakeSources and waitForRunEnd migration retained",
+	"packages/coding-agent/test/extensibility/custom-commands/loader.test.ts":
+		"Zeta template/agent metadata and module-reload regressions retained alongside both upstream symlink cases; import/order overlap only",
+	"packages/coding-agent/test/interactive-mode-todo-clear.test.ts":
+		"Zeta AgentRegistry import retained; upstream wrapped-stage/task and theme-switch assertions included",
+	"packages/coding-agent/test/utils/clipboard.test.ts":
+		"namespace import reflow only; upstream empty Wayland clipboard and X11 fallback assertions included",
+	"packages/coding-agent/test/session-exit-diagnostics.test.ts":
+		"scope/import reflow only; live-owner read-only exit regression and every upstream assertion retained",
 	"packages/agent/test/compaction-short-summary.test.ts": "scope/import reflow only; upstream assertions unchanged",
 	"packages/coding-agent/test/advisor-tool-call-loop-guard.test.ts":
 		"scope/import reflow only; upstream assertions unchanged",
@@ -75,6 +103,8 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	"packages/coding-agent/test/collab/controller.test.ts":
 		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
 	"packages/coding-agent/test/collab/guest-ui-request.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/guest-extension-turn-guard.test.ts":
 		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
 	"packages/coding-agent/test/collab/helpers/in-memory-relay.ts":
 		"collab live-session helpers are retired; see scripts/check-removed-upstream-files.ts",
@@ -107,6 +137,8 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	"packages/coding-agent/test/discovery/pi-config-dir.test.ts": "Zeta config root is .zeta, not upstream .pi",
 	"packages/coding-agent/test/modes/controllers/extension-ui-controller.test.ts":
 		"Zeta removed program-status UI; scope/feature removal only",
+	"packages/coding-agent/test/modes/controllers/fork-command.test.ts":
+		"retired Tern-only describe removed; current terminal fork and abort-before-fork assertions retained",
 	"packages/coding-agent/test/tools/browser-implicit-roles.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-interactions.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-queries.test.ts": "WebKit/Tern browser surfaces are retired",
@@ -116,12 +148,16 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	"packages/coding-agent/test/tools/browser-tern-adopt.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-tern-dom.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-tern-kind.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-tern-tab.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-webkit-host.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-webkit-install.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-webkit-kind.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-webkit-observation.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-webkit-open.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/tools/browser-worker-exit.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-dialogs.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-read-timeouts.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-session-cookie.test.ts": "WebKit/Tern browser surfaces are retired",
 	"packages/coding-agent/test/update-cli.test.ts":
 		"Zeta update channel keeps its fixed-registry path; upstream binary-patch assertions do not apply",
 	"packages/collab-web/test/client.test.ts":
@@ -190,11 +226,11 @@ function git(argv: string[], allowFailure = false): string {
 	}
 }
 
-function requireRef(ref: string): void {
+function requireRef(ref: string): string {
 	if (ref.startsWith("-")) fail(`refusing a ref that looks like an option: ${ref}`);
-	if (git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], true) === "") {
-		fail(`${ref} does not resolve to a commit here — refusing to report a clean audit`);
-	}
+	const commit = git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], true);
+	if (commit === "") fail(`${ref} does not resolve to a commit here — refusing to report a clean audit`);
+	return commit;
 }
 
 function parseNameStatus(output: string): ChangedPath[] {
@@ -217,33 +253,37 @@ function parseNameStatus(output: string): ChangedPath[] {
 	return changed;
 }
 
-function gitSucceeds(argv: string[]): boolean {
-	try {
-		execFileSync("git", argv, { stdio: "ignore" });
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-function targetHas(pathname: string): boolean {
-	if (AGAINST) return gitSucceeds(["cat-file", "-e", `${AGAINST}:${pathname}`]);
-	return fs.existsSync(path.join(process.cwd(), pathname));
-}
-
-function gitShow(ref: string, pathname: string): string {
-	try {
-		return execFileSync("git", ["show", `${ref}:${pathname}`], {
-			encoding: "utf8",
-			maxBuffer: 1 << 30,
+/** Read pinned blobs in batches. Keep the exact bytes for the three-way comparison. */
+function readGitBlobs(queries: readonly string[]): Map<string, string> {
+	const blobs = new Map<string, string>();
+	for (let first = 0; first < queries.length; first += 128) {
+		const batch = queries.slice(first, first + 128);
+		const result = Bun.spawnSync(["git", "cat-file", "-Z", "--batch"], {
+			stdin: Buffer.from(`${batch.join("\0")}\0`),
+			stdout: "pipe",
+			stderr: "pipe",
+			windowsHide: true,
 		});
-	} catch (error) {
-		const stderr =
-			typeof error === "object" && error !== null && "stderr" in error
-				? String((error as { stderr: unknown }).stderr).trim()
-				: String(error);
-		fail(`git show ${ref}:${pathname} failed${stderr === "" ? "" : `: ${stderr}`}`);
+		if (result.exitCode !== 0) {
+			fail(`git cat-file batch starting at ${batch[0]} failed: ${result.stderr.toString().trim()}`);
+		}
+		const output = result.stdout;
+		let offset = 0;
+		for (const query of batch) {
+			const headerEnd = output.indexOf(0, offset);
+			if (headerEnd === -1) fail(`missing git cat-file response for ${query}`);
+			const header = output.toString("utf8", offset, headerEnd);
+			const match = /^[0-9a-f]+ blob (\d+)$/.exec(header);
+			if (!match) fail(`cannot read git blob ${query}: ${header}`);
+			const start = headerEnd + 1;
+			const end = start + Number(match[1]);
+			if (end >= output.length || output[end] !== 0) fail(`truncated git blob for ${query}`);
+			blobs.set(query, output.toString("utf8", start, end));
+			offset = end + 1;
+		}
+		if (offset !== output.length) fail("unexpected trailing git cat-file data");
 	}
+	return blobs;
 }
 
 /**
@@ -260,8 +300,9 @@ function normalizeForUpstreamComparison(text: string): string {
 	const zetaDir = "." + "zeta";
 	const codingAgentDir = "CODING_AGENT_DIR";
 	return text
-		.replaceAll("@linxiraos/zeta", `${upstreamScope}pi-coding-agent`)
 		.replaceAll("@linxiraos/zeta-compact", `${upstreamScope}snapcompact`)
+		.replaceAll("@linxiraos/zeta-schema", `${upstreamScope}omptype`)
+		.replaceAll("@linxiraos/zeta", `${upstreamScope}pi-coding-agent`)
 		.replaceAll("@linxiraos/", upstreamScope)
 		.replaceAll(`ZETA_${codingAgentDir}`, `PI_${codingAgentDir}`)
 		.replaceAll("zetacode", "omp")
@@ -271,8 +312,7 @@ function normalizeForUpstreamComparison(text: string): string {
 		.replaceAll("zeta", "omp");
 }
 
-function targetContent(pathname: string): string | null {
-	if (AGAINST) return gitShow(AGAINST, pathname);
+function worktreeContent(pathname: string): string | null {
 	try {
 		return fs.readFileSync(path.join(process.cwd(), pathname), "utf8");
 	} catch {
@@ -291,14 +331,12 @@ function targetContent(pathname: string): string | null {
  * result means the merge still owes that hunk (or needs an explicit allowlist
  * entry for an intentional divergence).
  */
-function upstreamChangeApplied(previous: string, pathname: string): boolean {
-	const base = gitShow(previous, pathname);
-	const tag = gitShow(TAG!, pathname);
-	const rawTarget = targetContent(pathname);
-	if (rawTarget === null) return false;
+function upstreamChangeApplied(pathname: string, rawBase: string, rawTag: string, rawTarget: string): boolean {
+	const base = normalizeForUpstreamComparison(rawBase);
+	const tag = normalizeForUpstreamComparison(rawTag);
 	const target = normalizeForUpstreamComparison(rawTarget);
-	if (target === normalizeForUpstreamComparison(base)) return false;
-	if (target === normalizeForUpstreamComparison(tag)) return true;
+	if (target === base) return false;
+	if (target === tag) return true;
 	if (base.includes("\0") || tag.includes("\0") || target.includes("\0")) {
 		// Binary fixtures cannot be three-way merged as text; the pre-merge
 		// comparison is all this audit can prove.
@@ -332,18 +370,33 @@ function upstreamChangeApplied(previous: string, pathname: string): boolean {
 
 function audit(): AuditResult {
 	if (!TAG) fail("--tag <upstream-tag> is required");
-	requireRef(BASE);
-	requireRef(TAG);
-	const upstreamBase = git(["merge-base", BASE, TAG]);
+	const baseCommit = requireRef(BASE);
+	const tagCommit = requireRef(TAG);
+	const upstreamBase = git(["merge-base", baseCommit, tagCommit]);
 	requireRef(upstreamBase);
-	const tagCommit = git(["rev-parse", `${TAG}^{commit}`]);
 	if (upstreamBase === tagCommit) {
 		fail(`--tag ${TAG} is already in ${BASE}'s history; pass the tag whose increment the merge applied`);
 	}
-	if (AGAINST) requireRef(AGAINST);
+	const againstCommit = AGAINST ? requireRef(AGAINST) : undefined;
+	const targetPaths = againstCommit
+		? new Set(git(["ls-tree", "-r", "--name-only", "-z", againstCommit]).split("\0"))
+		: undefined;
+	const targetHas = (pathname: string): boolean =>
+		targetPaths ? targetPaths.has(pathname) : fs.existsSync(path.join(process.cwd(), pathname));
 
-	const changed = parseNameStatus(git(["diff", "--name-status", "--find-renames", upstreamBase, TAG, "--"]));
+	const changed = parseNameStatus(git(["diff", "--name-status", "--find-renames", upstreamBase, tagCommit, "--"]));
 	const tests = changed.filter(entry => TEST_OR_FIXTURE.test(entry.path));
+	const queries: string[] = [];
+	for (const { status, path: pathname } of tests) {
+		if (status !== "M" || MERGE_TEST_ALLOWLIST[pathname] !== undefined || !targetHas(pathname)) continue;
+		queries.push(`${upstreamBase}:${pathname}`, `${tagCommit}:${pathname}`);
+		if (againstCommit) queries.push(`${againstCommit}:${pathname}`);
+	}
+	const blobs = readGitBlobs(queries);
+	const blob = (commit: string, pathname: string): string => {
+		const query = `${commit}:${pathname}`;
+		return blobs.get(query) ?? fail(`git blob ${query} was not loaded`);
+	};
 	const result: AuditResult = {
 		base: BASE,
 		tag: TAG,
@@ -375,7 +428,13 @@ function audit(): AuditResult {
 			continue;
 		}
 		if (entry.status === "M") {
-			if (!targetHas(entry.path)) {
+			const target =
+				againstCommit && !targetHas(entry.path)
+					? null
+					: againstCommit
+						? blob(againstCommit, entry.path)
+						: worktreeContent(entry.path);
+			if (target === null) {
 				result.violations.push({
 					kind: "missing-added",
 					path: entry.path,
@@ -383,13 +442,13 @@ function audit(): AuditResult {
 				});
 				continue;
 			}
-			if (!upstreamChangeApplied(upstreamBase, entry.path)) {
-				const target = targetContent(entry.path);
+			const base = blob(upstreamBase, entry.path);
+			if (!upstreamChangeApplied(entry.path, base, blob(tagCommit, entry.path), target)) {
 				result.violations.push({
-					kind: target === gitShow(upstreamBase, entry.path) ? "unchanged-modified" : "modified-upstream-missing",
+					kind: target === base ? "unchanged-modified" : "modified-upstream-missing",
 					path: entry.path,
 					detail:
-						target === gitShow(upstreamBase, entry.path)
+						target === base
 							? `upstream changed this test/fixture in ${upstreamBase}..${TAG}, but the target is identical to ${upstreamBase}`
 							: `upstream changed this test/fixture in ${upstreamBase}..${TAG}, but the target does not contain that change (three-way merge differs)`,
 				});

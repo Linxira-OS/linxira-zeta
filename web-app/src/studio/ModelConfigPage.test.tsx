@@ -217,6 +217,23 @@ it("keeps an unavailable role model editable and saves its replacement through t
   await waitFor(() => expect(client.command).toHaveBeenCalledWith("models.roles.set", { roleId: "default", selector: "gateway/kept" }));
 });
 
+it("shows 写法先进 while saving model assignments under taste", async () => {
+  window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
+  const client = fakeClient(PROBE_OK, {
+    ...readModel(),
+    roles: [{ id: "taste", alias: "@taste", name: "Taste", desc: "", builtin: true, primary: "", scope: "global" }],
+    availableModels: [{ provider: "gateway", id: "kept", selector: "gateway/kept", name: "Kept", reasoning: false }],
+  });
+  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  fireEvent.click(document.getElementById("mcTabRoles")!);
+  const row = (await screen.findByRole("button", { name: "编辑 写法先进" })).closest(".role-row");
+  if (!(row instanceof HTMLElement)) throw new Error("Missing taste role row");
+  expect(within(row).getByText("@taste")).toBeTruthy();
+  fireEvent.click(within(row).getByRole("button", { name: "主模型" }));
+  fireEvent.click(await screen.findByRole("option", { name: /Kept/ }));
+  await waitFor(() => expect(client.command).toHaveBeenCalledWith("models.roles.set", { roleId: "taste", selector: "gateway/kept" }));
+});
+
 it("clears an explicit role assignment to native auto-selection", async () => {
   window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
   const config: ModelConfigReadModel = {

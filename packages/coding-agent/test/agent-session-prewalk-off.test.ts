@@ -1,7 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
+import {
+	Agent,
+	AGENT_MESSAGE_IDENTITY,
+	type AgentMessage,
+	type AgentTool,
+	type IdentifiedAgentMessage,
+} from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Message, type Model } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -199,7 +205,11 @@ describe("AgentSession /prewalk off", () => {
 		await fixture.session.prompt("first task");
 		const delivered = fixture.agent.state.messages.filter(isContinuation);
 		expect(delivered).toHaveLength(1);
-		expect(fixture.sessionManager.buildSessionContext().messages.filter(isContinuation)).toEqual(delivered);
+		// The transcript keeps every custom message field but not its live identity symbol.
+		const persisted = delivered.map(
+			({ [AGENT_MESSAGE_IDENTITY]: _identity, ...message }: IdentifiedAgentMessage) => message,
+		);
+		expect(fixture.sessionManager.buildSessionContext().messages.filter(isContinuation)).toEqual(persisted);
 		expect(fixture.session.model?.id).toBe(fixture.target.id);
 
 		fixture.settings.setModelRole("smol", `${fixture.primary.provider}/${fixture.primary.id}:medium`);
@@ -240,7 +250,7 @@ describe("AgentSession /prewalk off", () => {
 			),
 		).toBe(false);
 		const rebuilt = fixture.sessionManager.buildSessionContext().messages;
-		expect(rebuilt.filter(isContinuation)).toEqual(delivered);
+		expect(rebuilt.filter(isContinuation)).toEqual(persisted);
 		expect(convertToLlm(fixture.agent.state.messages)).toEqual(convertToLlm(rebuilt));
 		expect(rebuilt).not.toContainEqual(pendingContinuation);
 		expect(fixture.session.model).toEqual(activeModel);
@@ -264,7 +274,7 @@ describe("AgentSession /prewalk off", () => {
 		);
 		expect(fixture.session.model).toEqual(activeModel);
 		expect(fixture.session.thinkingLevel).toBe(thinkingLevel);
-		expect(fixture.sessionManager.buildSessionContext().messages.filter(isContinuation)).toEqual(delivered);
+		expect(fixture.sessionManager.buildSessionContext().messages.filter(isContinuation)).toEqual(persisted);
 	});
 
 	it("cancels an existing arm even when @smol no longer resolves", async () => {

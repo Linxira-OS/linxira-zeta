@@ -17,7 +17,7 @@ import { formatModelRoleAlias } from "../config/model-roles";
 import type { Settings } from "../config/settings";
 import { MCPManager } from "../mcp/manager";
 import { initializeExtensions } from "../modes/runtime-init";
-import type { AsyncJobManagerApi } from "../async";
+import type { AsyncJobManagerApi, AsyncJobOrigin } from "../async";
 import type { PreparedExtension } from "../extensibility/extensions/types";
 import type { PersistedSubagentReviverFactory } from "../registry/agent-lifecycle";
 import { type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
@@ -43,6 +43,7 @@ import {
 	createSubagentSettings,
 	followMCPTools,
 	replayRevivedAgentStart,
+	resolveParentJobOrigin,
 	softRequestBudgetFor,
 	subagentRetryFallbackRole,
 } from "./executor";
@@ -56,8 +57,6 @@ import {
 	type PerCallModelGrants,
 } from "./model-approval";
 import { cfgTaskAgentAccountPools, cfgTaskMaxEffort } from "./settings";
-import { type RestoredSeanceSession, restoreSeanceSession } from "./seance";
-import { seanceIsolationOptions } from "./seance-policy";
 import type { AgentDefinition } from "./types";
 
 /**
@@ -95,15 +94,13 @@ export interface PersistedReviveSpec {
 	readonly sessionFile: string;
 	/** Depth derived from the persisted parent chain (drives capability gating). */
 	readonly taskDepth: number;
-	/** The consulted source of a persisted seance session. */
-	readonly restoredSeance: RestoredSeanceSession | undefined;
 	/** The live top-level session revived agents join (cwd, extension roots, parent grants). */
 	readonly root: AgentSessionHandle;
 	/** Registry id of {@link root}. */
 	readonly rootAgentId: string;
 	readonly costGate: CostGateApi;
 	readonly asyncJobManager: AsyncJobManagerApi | undefined;
-	/** The root's artifact manager at revive time; a revived non-seance agent adopts it. */
+	/** The root's artifact manager at revive time; a revived agent adopts it. */
 	readonly artifactManager: ArtifactManagerApi | undefined;
 	readonly preparedExtensions: readonly PreparedExtension[] | undefined;
 	readonly authStorage: AuthStorage;
@@ -147,19 +144,6 @@ export function persistedAgentDefinition(displayName: string, init: PersistedSes
 }
 
 /**
- * Transcript that spawned a persisted child: the parent file its header
- * recorded at creation, else the directory beside its own session file (a
- * seance fork records its source session id there, not the spawner's path).
- * Never the root's live session, which may have been resumed elsewhere since
- * the spawn; wake completions belong to the transcript that asked for them.
- */
-function persistedSpawnParentSessionFile(session: SessionManager, childSessionFile: string): string {
-	const recorded = session.getHeader()?.parentSession;
-	if (recorded?.endsWith(".jsonl") && path.isAbsolute(recorded)) return path.resolve(recorded);
-	return `${path.dirname(childSessionFile)}.jsonl`;
-}
-
-/**
  * Build the factory the {@link AgentLifecycleManager} uses to cold-revive a
  * `parked` subagent ref restored from disk (Agent Hub scan, collab mirror, or a
  * resumed process). Such a ref carries a sessionFile but no in-memory adoption —
@@ -187,23 +171,6 @@ export function createPersistedSubagentReviverFactory(
 		// is gone (isolated/merged worktree, moved dir): leave it transcript-only
 		// (history://) rather than resurrect a wrong or broken session.
 		if (!peek?.init) return undefined;
-		let restoredSeance: RestoredSeanceSession | undefined;
-		if (peek.seanceSource !== undefined) {
-			try {
-				restoredSeance = await restoreSeanceSession({
-					init: peek.init,
-					cwd: peek.cwd,
-					modelRegistry: ctx.modelRegistry,
-				});
-			} catch (error) {
-				logger.warn("Unable to restore persisted seance session", {
-					sessionFile,
-					error: error instanceof Error ? error.message : String(error),
-				});
-				return undefined;
-			}
-			if (!restoredSeance) return undefined;
-		}
 		// Isolated runs are never resumable: their worktree is merged + cleaned,
 		// and the parent was told messaging is impossible. A retained workspace
 		// (capture/persist failure) still exists on disk and would pass the cwd
@@ -212,7 +179,7 @@ export function createPersistedSubagentReviverFactory(
 		// parent cwd, contradicting the delivery notice.
 		if (peek.init.isolated) return undefined;
 		try {
-			await fs.stat(restoredSeance?.cwd ?? peek.cwd);
+			await fs.stat(peek.cwd);
 		} catch {
 			return undefined;
 		}
@@ -235,7 +202,6 @@ export function createPersistedSubagentReviverFactory(
 				parentId: ref.parentId,
 				sessionFile,
 				taskDepth,
-				restoredSeance,
 				root: ctx.session,
 				rootAgentId: ctx.session.getAgentId?.() ?? MAIN_AGENT_ID,
 				costGate: ctx.session.costGate,
@@ -264,8 +230,7 @@ export function createPersistedSubagentReviverFactory(
  */
 export async function revivePersistedSubagent(spec: PersistedReviveSpec, expectedRef: AgentRef): Promise<AgentSession> {
 	const ref = { id: spec.id, displayName: spec.displayName, parentId: spec.parentId };
-	const { sessionFile, taskDepth, restoredSeance } = spec;
-	const seanceOptions = restoredSeance ? seanceIsolationOptions(restoredSeance.cwd) : {};
+	const { sessionFile, taskDepth } = spec;
 	const registry = AgentRegistry.global();
 	// Re-open fresh on every revive: park closes the writer, so this takes
 	// the single-writer lock cleanly and restores the full message history.
@@ -286,6 +251,16 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 		throw new Error(
 			`Cannot revive subagent "${ref.id}": session file "${sessionFile}" has no message history (truncated to header/session_init). The agent was not revived.`,
 		);
+	}
+	// Only the persisted header declares the spawner. A directory beside a
+	// standalone or legacy transcript does not establish source ownership.
+	let parentOrigin: AsyncJobOrigin | null;
+	try {
+		const recorded = reopened.getHeader()?.parentSession;
+		parentOrigin = recorded === undefined ? null : resolveParentJobOrigin(recorded);
+	} catch (error) {
+		await reopened.close();
+		throw error;
 	}
 	const resolveParentSession = () =>
 		ref.parentId === spec.rootAgentId ? spec.root : registry.get(ref.parentId ?? "")?.session;
@@ -409,15 +384,13 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 	const agentAccountPools = validateAgentAccountPools(cfgTaskAgentAccountPools.get(spec.settings));
 	const oauthAccountPools =
 		init.agent && Object.hasOwn(agentAccountPools, init.agent) ? agentAccountPools[init.agent] : undefined;
-	const spawnModelPattern = restoredSeance
-		? restoredSeance.modelPattern
-		: init.modelRole && init.modelRole !== "default"
+	const spawnModelPattern =
+		init.modelRole && init.modelRole !== "default"
 			? [formatModelRoleAlias(init.modelRole), ...(init.resolvedModel ? [init.resolvedModel] : [])]
 			: init.resolvedModel;
 	// A session-local switch since spawn (a prewalk handoff) is the model the agent
-	// was working on; the spawn selection only backs it up when it is unavailable. A
-	// seance fork's selections belong to its source run, never to the consult.
-	const sessionLocalModel = restoredSeance ? undefined : reopened.getSessionLocalModelChange()?.model;
+	// was working on; the spawn selection only backs it up when it is unavailable.
+	const sessionLocalModel = reopened.getSessionLocalModelChange()?.model;
 	// A per-call worker revives only onto its exact saved model: no role alias, no auth fallback.
 	const persistedModelPattern = init.perCallModel
 		? undefined
@@ -427,16 +400,13 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 	// Older session files persisted the synthetic xd:// write transport in the
 	// enabled set. A read-only agent definition could never grant full write,
 	// so remove that transport name before replaying tools as explicit grants.
-	const revivedToolNames = restoredSeance
-		? restoredSeance.toolNames
-		: init.readOnly === true && init.tools.includes("write")
-			? init.tools.filter(name => name !== "write")
-			: init.tools;
+	const revivedToolNames =
+		init.readOnly === true && init.tools.includes("write") ? init.tools.filter(name => name !== "write") : init.tools;
 	const artifactManager = spec.artifactManager;
-	if (artifactManager && !restoredSeance) reopened.adoptArtifactManager(artifactManager);
+	if (artifactManager) reopened.adoptArtifactManager(artifactManager);
 	// A restricted persisted contract must not consult process-global MCP
 	// state: same-name MCP tools are untrusted capability sources.
-	const restrictToolNames = restoredSeance !== undefined || init.restrictToolNames === true;
+	const restrictToolNames = init.restrictToolNames === true;
 	// The spawn's result contract: a session persisted without `yield` returned its final message.
 	const structured = revivedToolNames.includes("yield");
 	const mcpManager = restrictToolNames ? undefined : MCPManager.instance();
@@ -448,7 +418,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 	let session: AgentSession;
 	try {
 		({ session } = await createAgentSession({
-			cwd: restoredSeance?.cwd ?? spec.root.sessionManager.getCwd(),
+			cwd: spec.root.sessionManager.getCwd(),
 			costGate: spec.costGate,
 			authStorage: spec.authStorage,
 			// Revived agents join the root session tree, so their observability
@@ -457,7 +427,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 			modelRegistry: spec.modelRegistry,
 			...(perCallModel ? { model: perCallModel, thinkingLevel: init.perCallThinkingLevel ?? undefined } : {}),
 			...(persistedModelPattern ? { modelPattern: persistedModelPattern } : {}),
-			modelPatternAuthFallback: restoredSeance || init.perCallModel ? undefined : init.resolvedModel,
+			modelPatternAuthFallback: init.perCallModel ? undefined : init.resolvedModel,
 			settings: subagentSettings,
 			sessionManager: reopened,
 			agentId: ref.id,
@@ -486,7 +456,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 			toolNames: revivedToolNames,
 			// `revivedToolNames` is the enabled set, devices included: keep those devices,
 			// or they come back as top-level tools and change the replayed tool list.
-			mountedToolNames: restoredSeance ? undefined : init.mountedTools,
+			mountedToolNames: init.mountedTools,
 			outputSchema: init.outputSchema,
 			outputSchemaMode: init.outputSchemaMode,
 			restrictToolNames: restrictToolNames || undefined,
@@ -513,7 +483,6 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 						mcpTools: mcpProxyTools.length > 0 ? mcpProxyTools : undefined,
 						mcpToolScope: mcpFollower?.scope,
 					}),
-			...seanceOptions,
 		}));
 	} catch (error) {
 		mcpFollower?.dispose();
@@ -541,9 +510,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 	// Clamp the active set to the persisted list: createAgentSession's
 	// `alwaysInclude` can re-add non-defaultInactive extension/custom tools
 	// the original run didn't carry. Unknown/missing names are ignored.
-	await session.setActiveToolsByName(
-		restoredSeance ? revivedToolNames : [...revivedToolNames, ...session.getMountedXdevToolNames()],
-	);
+	await session.setActiveToolsByName([...revivedToolNames, ...session.getMountedXdevToolNames()]);
 	// The yield tool's schema carries the last batch's items; the replayed prefix must match it.
 	if (init.workPoolYieldItems) await session.setWorkPoolYieldItems(init.workPoolYieldItems);
 	// Wire the extension runtime exactly as the live executor does. Without
@@ -571,7 +538,7 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 		eventBus: spec.eventBus,
 		subagentEventBus: spec.subagentEventBus,
 		sessionFile,
-		parentSessionFile: persistedSpawnParentSessionFile(reopened, sessionFile),
+		parentOrigin,
 		structured,
 		outputSchema: init.outputSchema,
 		outputSchemaMode: init.outputSchemaMode,

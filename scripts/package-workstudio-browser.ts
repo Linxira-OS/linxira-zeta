@@ -75,6 +75,10 @@ const staging = path.join(args.out, `.${archiveBase}`);
 fs.rmSync(staging, { recursive: true, force: true });
 fs.mkdirSync(staging, { recursive: true });
 fs.cpSync(args.runtime, path.join(staging, "zeta"), { recursive: true });
+const repoRoot = path.resolve(import.meta.dir, "..");
+for (const file of ["LICENSE", "NOTICE", "THIRD-PARTY-NOTICES.txt"]) {
+	fs.copyFileSync(path.join(repoRoot, file), path.join(staging, file));
+}
 
 if (args.platform === "win32") {
 	const launcher = `@echo off\r

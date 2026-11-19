@@ -22,7 +22,7 @@ built. There is no Rust desktop UI: the desktop editions host the same browser
 workbench.
 
 Zeta is a downstream fork of [OMP](https://github.com/can1357/oh-my-pi),
-licensed MIT. The integrated runtime source is OMP **v18.20.0**. Z Work Studio
+licensed MIT. The integrated runtime source is OMP **v18.22.0**. Z Work Studio
 is a maintained fork of
 [OMP Studio](https://github.com/the-snowpear/omp-studio); its **v0.2.1** source
 ancestry is integrated while full acceptance and CI are still pending.
@@ -118,7 +118,7 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 
 | Project | Integrated source | What Zeta takes from it |
 | --- | --- | --- |
-| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.20.0` | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
+| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.22.0` | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
 | [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.1` source ancestry (acceptance and CI pending) | the web UI: renderer, client, and the host contract it speaks |
 | [TermIDE](https://github.com/termide/termide), MIT | `0.49.0` | `zetaide` and the built-in editor pane |
 

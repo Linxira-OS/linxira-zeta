@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import * as loopCondition from "@linxiraos/zeta/modes/loop-condition";
@@ -50,7 +50,7 @@ describe("InteractiveMode loop auto-submit", () => {
 	});
 
 	beforeEach(() => {
-		cfgLoopMode.set(settings, "prompt");
+		cfgLoopMode.set(session.settings, "prompt");
 		vi.spyOn(mode, "addMessageToChat").mockReturnValue([]);
 		vi.spyOn(mode, "ensureLoadingAnimation").mockImplementation(() => {});
 	});
@@ -105,7 +105,7 @@ describe("InteractiveMode loop auto-submit", () => {
 
 	it("does not recompact when a compact loop turn starts another prompt before resubmitting", async () => {
 		vi.useFakeTimers();
-		cfgLoopMode.set(settings, "compact");
+		cfgLoopMode.set(session.settings, "compact");
 		let streaming = false;
 		Object.defineProperty(session, "isCompacting", { configurable: true, get: () => false });
 		Object.defineProperty(session, "isStreaming", { configurable: true, get: () => streaming });
@@ -163,7 +163,7 @@ describe("InteractiveMode loop auto-submit", () => {
 
 	it("disables reset loops when vibe blocks the session transition", async () => {
 		vi.useFakeTimers();
-		cfgLoopMode.set(settings, "reset");
+		cfgLoopMode.set(session.settings, "reset");
 		mode.vibeModeEnabled = true;
 		mode.loopModeEnabled = true;
 		mode.loopPrompt = "do not resubmit";
@@ -371,7 +371,7 @@ describe("InteractiveMode loop auto-submit", () => {
 		// exercised instead of assigned directly.
 		it("disables a reset loop when vibe is enabled while the condition is in flight", async () => {
 			vi.useFakeTimers();
-			cfgLoopMode.set(settings, "reset");
+			cfgLoopMode.set(session.settings, "reset");
 			idleSession();
 			const pending = Promise.withResolvers<LoopConditionVerdict>();
 			vi.spyOn(loopCondition, "evaluateLoopCondition").mockImplementation(async () => await pending.promise);
@@ -402,7 +402,7 @@ describe("InteractiveMode loop auto-submit", () => {
 		// entering transition, not just the settled flag.
 		it("disables a reset loop when the condition resolves during vibe activation", async () => {
 			vi.useFakeTimers();
-			cfgLoopMode.set(settings, "reset");
+			cfgLoopMode.set(session.settings, "reset");
 			idleSession();
 			const pending = Promise.withResolvers<LoopConditionVerdict>();
 			vi.spyOn(loopCondition, "evaluateLoopCondition").mockImplementation(async () => await pending.promise);

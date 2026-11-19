@@ -243,22 +243,6 @@ function extractRelativePath(url: InternalUrl): string {
 	return decoded;
 }
 
-function assertLocalWriteNamespace(
-	relativePath: string,
-	options: LocalProtocolOptions,
-	url: InternalUrl,
-	create: boolean,
-): void {
-	if (!options.agentId || !options.callerAgentId || options.callerAgentId === options.agentId) return;
-	if (relativePath === "shared" || relativePath.startsWith("shared/")) {
-		if (create && !options.canWriteShared) throw new Error("Only the Team owner may write local://shared/ files.");
-		return;
-	}
-	if (relativePath === "agents" || relativePath.startsWith("agents/")) {
-		throw new Error(`Worker local:// access cannot cross agent namespaces: ${url.href}`);
-	}
-}
-
 /** Resolve the session-scoped local:// root, shortening long Windows artifact paths before writes hit MAX_PATH. */
 export function resolveLocalRoot(options: LocalProtocolOptions, platform: NodeJS.Platform = process.platform): string {
 	const artifactsDir = options.getArtifactsDir?.();
@@ -290,12 +274,20 @@ export async function removeLocalAgentScratch(options: LocalProtocolOptions): Pr
 	}
 }
 
-function localScopedPath(relativePath: string, options: LocalProtocolOptions, url: InternalUrl): string {
+function localScopedPath(
+	relativePath: string,
+	options: LocalProtocolOptions,
+	url: InternalUrl,
+	create: boolean,
+): string {
 	if (!options.agentId || !options.callerAgentId || options.callerAgentId === options.agentId) return relativePath;
 	if (relativePath === "agents" || relativePath.startsWith("agents/")) {
 		throw new Error(`Worker local:// access cannot cross agent namespaces: ${url.href}`);
 	}
-	if (relativePath === "shared" || relativePath.startsWith("shared/")) return relativePath;
+	if (relativePath === "shared" || relativePath.startsWith("shared/")) {
+		if (create && !options.canWriteShared) throw new Error("Only the Team owner may write local://shared/ files.");
+		return relativePath;
+	}
 	const safeCaller = options.callerAgentId.replace(/[^a-zA-Z0-9_.-]/g, "_");
 	if (!safeCaller || safeCaller === "." || safeCaller === "..") throw new Error("Invalid local:// agent identity");
 	return path.join("agents", safeCaller, relativePath);
@@ -392,8 +384,7 @@ export function resolveLocalUrlToPath(
 ): string {
 	const url = typeof input === "string" ? parseInternalUrl(input) : input;
 	const localRoot = path.resolve(resolveLocalRoot(options, platform));
-	const relativePath = localScopedPath(extractRelativePath(url), options, url);
-	assertLocalWriteNamespace(relativePath, options, url, true);
+	const relativePath = localScopedPath(extractRelativePath(url), options, url, true);
 	if (!relativePath) return localRoot;
 	const resolved = path.resolve(localRoot, relativePath);
 	ensureWithinRoot(resolved, localRoot, "local", url.href);
@@ -449,8 +440,7 @@ async function resolveLocalTarget(url: InternalUrl, opts: LocalProtocolOptions):
 		throw error;
 	}
 
-	const relativePath = localScopedPath(extractRelativePath(url), opts, url);
-	assertLocalWriteNamespace(relativePath, opts, url, false);
+	const relativePath = localScopedPath(extractRelativePath(url), opts, url, false);
 	const targetPath = relativePath ? path.resolve(resolvedRoot, relativePath) : resolvedRoot;
 
 	if (targetPath === resolvedRoot) {
@@ -486,8 +476,7 @@ async function locateLocalTarget(
 	create: boolean,
 ): Promise<string | null> {
 	const localRoot = path.resolve(resolveLocalRoot(opts));
-	const relativePath = localScopedPath(extractRelativePath(url), opts, url);
-	assertLocalWriteNamespace(relativePath, opts, url, create);
+	const relativePath = localScopedPath(extractRelativePath(url), opts, url, create);
 	const targetPath = relativePath ? path.resolve(localRoot, relativePath) : localRoot;
 
 	let realRoot: string;

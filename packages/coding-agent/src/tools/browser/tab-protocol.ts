@@ -1,4 +1,5 @@
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import type { ImageTokenization } from "@linxiraos/pi-catalog/compat/image-tokenization";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { WebMcpListOptions, WebMcpInvokeOptions, WebMcpEventsOptions } from "./webmcp";
 
@@ -37,11 +38,29 @@ export interface ScreenshotResult {
 	height: number;
 }
 
+/**
+ * What rescales an image between the tool and the session's model: the vendor's own resize and the edge the
+ * host passes. A screenshot is sized to pass both untouched, so positions on it stay positions on the page.
+ */
+export interface ScreenshotLimits {
+	/** The model's resize rule; unset when the catalog names none. */
+	tokenization?: ImageTokenization;
+	/** Longest edge the host passes to the model; unset when it keeps the image's size. */
+	maxEdge?: number;
+	/**
+	 * Set where the model's wire sends a screenshot's `detail: "original"` tag as it is. Elsewhere the wire
+	 * drops it and the provider's default level sizes the image.
+	 */
+	detail?: "original";
+}
+
 export interface SessionSnapshot {
 	cwd: string;
 	browserScreenshotDir?: string;
 	/** Force non-WebP screenshot encoding (e.g. for Ollama). Unset honors `ZETA_NO_WEBP`. */
 	excludeWebP?: boolean;
+	/** Image limits of the session's active model; unset without one. */
+	screenshotLimits?: ScreenshotLimits;
 }
 
 /**

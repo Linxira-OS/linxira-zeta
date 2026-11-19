@@ -145,15 +145,10 @@ on:
             description: "Publish the paused @linxiraos/main workbench packages on release (zetawork is suspended since 2026-11-05)"
             type: boolean
             default: false
-         # Owner-approved release override (ADR 0006). Empty by default: every
-         # asset upload / npm publish is denied, and 1.5.x tags stay code-only.
-         # Both values are required together, must name the exact release tag
-         # version, and 1.6.0 is the first version they can unlock. The same
-         # values may be set as repository variables
-         # RELEASE_FREEZE_OVERRIDE_VERSION / RELEASE_FREEZE_OVERRIDE_REASON so a
-         # tag push (which carries no inputs) can release an approved version.
+         # Historical override for the 1.5.2 assets-only review. Normal
+         # stable releases do not use these inputs.
          release_override_version:
-            description: "Owner-approved version to unfreeze for assets/npm publish (must equal the tag version; 1.6.0+ only)"
+            description: "Legacy 1.5.2 GitHub-assets review override"
             type: string
             default: ""
          release_override_reason:
@@ -244,9 +239,7 @@ jobs:
          # Canary tags publish to npm's canary dist-tag (derived script-side), mark
          # the GitHub release prerelease, and skip the stable-only brew tap.
          channel: ${{ steps.detect.outputs.channel }}
-         # Release freeze (ADR 0006, scripts/release-policy.ts). Every publish /
-         # asset job branches on these; `false` is the default for every 1.5.x
-         # tag and for any tag without an explicit owner override.
+         # Stable release eligibility and historical tag handling (ADR 0072).
          release-version: ${{ steps.detect.outputs.release-version }}
          tag-allowed: ${{ steps.policy.outputs.tag-allowed }}
          publish-allowed: ${{ steps.policy.outputs.publish-allowed }}
@@ -292,11 +285,9 @@ jobs:
                 echo "release-version=${release_tag#v}"
                 echo "channel=$channel"
               } >> "$GITHUB_OUTPUT"
-         # Release freeze decision (ADR 0006). `decide` always exits 0 and
-         # publishes its verdict as job outputs — a frozen version must still
-         # build/package/test; only the asset-upload/npm-publish jobs are held.
+         # Eligibility is emitted as data so ordinary source runs still build and test.
          - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Evaluate release freeze policy
+         - name: Evaluate release policy
            id: policy
            env:
               ZETA_RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
@@ -568,10 +559,7 @@ jobs:
          # unit tests rather than a native-artifact bucket.
          - name: Unit-test the release chain
            run: bun test scripts/release-chain.test.ts
-         # The release freeze (ADR 0006): the policy unit tests plus a static
-         # parse of ci.yml / the standalone publish workflows. Fails if a
-         # 1.5.x tag can upload assets or publish npm by default.
-         - name: Unit-test the release freeze policy
+         - name: Unit-test stable release eligibility
            run: bun test scripts/release-freeze.test.ts
          - name: Test built artifact provenance and soak verdicts
            run: bun test scripts/check-release-artifact.test.ts scripts/memory-soak.test.ts
@@ -1164,6 +1152,8 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
+         - name: Create repository test scratch directory
+           run: mkdir -p temp
          - name: Test coding-agent native/unit bucket
            # 2, not 4: this bucket still carries timing-sensitive tests
            # (broker-endpoint-loss, mcp stdio grandchild), and four chunks on a
@@ -1364,6 +1354,11 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       steps:
          - uses: actions/checkout@v4
+         # Exercise Vite's Node loader during prepack, with the same Node major
+         # used by the package publisher.
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
            with:
@@ -1388,7 +1383,16 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          !contains(needs.*.result, 'failure') &&
          !contains(needs.*.result, 'cancelled') }}
-      needs: [release_metadata, check, bazel_lock, native_addons, native_addons_cross, install_methods, test_coding_agent_browser]
+      needs:
+         [
+            release_metadata,
+            check,
+            bazel_lock,
+            native_addons,
+            native_addons_cross,
+            install_methods,
+            test_coding_agent_browser,
+         ]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -1962,10 +1966,18 @@ jobs:
          - name: Preflight release assets
            run: |
               missing=0
+              version=$(bun -p 'require("./desktop/package.json").version')
               for asset in \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 LICENSE \
-                THIRD-PARTY-NOTICES.txt; do
+                THIRD-PARTY-NOTICES.txt \
+                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.exe" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.zip" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-amd64.deb" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x64.tar.gz" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x86_64.AppImage" \
+                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-linux-x64.tar.gz" \
+                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-windows-x64.zip"; do
                 if [ ! -f "$asset" ]; then
                   echo "::error::Missing release asset: $asset"
                   missing=1
@@ -1982,16 +1994,6 @@ jobs:
               if [ "$product_count" -lt 2 ]; then
                 # Product matrix: zetaide linux+win only (release_product_binaries).
                 echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
-                missing=1
-              fi
-              desktop_count=$(ls packages/coding-agent/binaries/zeta-desktop-* 2>/dev/null | wc -l)
-              if [ "$desktop_count" -lt 4 ]; then
-                echo "::error::Expected the Electron desktop installers/archives, found $desktop_count"
-                missing=1
-              fi
-              lite_count=$(ls packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* 2>/dev/null | wc -l)
-              if [ "$lite_count" -lt 2 ]; then
-                echo "::error::Expected the browser-edition archives (win + linux), found $lite_count"
                 missing=1
               fi
               plugin_zips=$(ls plugins/dist/zeta-plugin-example-*.zip 2>/dev/null | wc -l)
@@ -2383,16 +2385,9 @@ jobs:
          - name: Dispatch editor-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              # Forward the owner-approved override to the dispatched workflow:
-              # a dispatch input does not cross a `gh workflow run` boundary, and
-              # the callee re-evaluates the freeze policy itself (ADR 0006).
-              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
-              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run editor-publish.yml --ref "${GITHUB_REF_NAME}" \
-                -f override_version="$RELEASE_OVERRIDE_VERSION" \
-                -f override_reason="$RELEASE_OVERRIDE_REASON"
+              gh workflow run editor-publish.yml --ref "${GITHUB_REF_NAME}"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10
@@ -2442,16 +2437,9 @@ jobs:
          - name: Dispatch ide-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              # Forward the owner-approved override to the dispatched workflow:
-              # a dispatch input does not cross a `gh workflow run` boundary, and
-              # the callee re-evaluates the freeze policy itself (ADR 0006).
-              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
-              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run ide-publish.yml --ref "${GITHUB_REF_NAME}" \
-                -f override_version="$RELEASE_OVERRIDE_VERSION" \
-                -f override_reason="$RELEASE_OVERRIDE_REASON"
+              gh workflow run ide-publish.yml --ref "${GITHUB_REF_NAME}"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10
@@ -2602,16 +2590,9 @@ jobs:
          - name: Dispatch main-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              # Forward the owner-approved override to the dispatched workflow:
-              # a dispatch input does not cross a `gh workflow run` boundary, and
-              # the callee re-evaluates the freeze policy itself (ADR 0006).
-              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
-              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}" \
-                -f override_version="$RELEASE_OVERRIDE_VERSION" \
-                -f override_reason="$RELEASE_OVERRIDE_REASON"
+              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10

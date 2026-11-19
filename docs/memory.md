@@ -218,6 +218,8 @@ sharpshooter:
 
 The taste layer learns durable *preferences* — how you want code written — separately from project facts. It is off by default, needs a memory backend, and is the only memory layer that stores its data in Command Code's `taste.md` format, so an existing `.commandcode/taste/taste.md` is imported on first use and a store this layer writes stays readable by that tool.
 
+In Simplified Chinese settings, this feature is called **写法先进**. Existing `taste.*` settings and `taste.md` stores continue to work.
+
 ```yaml
 memory:
    backend: mnemopi

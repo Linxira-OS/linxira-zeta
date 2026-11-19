@@ -45,7 +45,7 @@ import { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
 import { extensionLinkClicksAvailable } from "@linxiraos/pi-tui/render/extension-links";
 import { HookSelectorComponent, type HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
 import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";
-import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
+import type { ComposerOwner, InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
 import { normalizeCustomMessagePayload, USER_INTERRUPT_LABEL } from "../../session/messages";
 import { sanitizeCarriageReturns } from "@linxiraos/pi-tui/render/render-utils";
 import { setExtensionTerminalTitle, setSessionTerminalTitle } from "../../utils/title-generator";
@@ -714,9 +714,11 @@ export class ExtensionUiController {
 				editor.focused = true;
 				// Its submissions steer this (main) session, even from a focused agent's view.
 				this.ctx.approvalOwnsComposer = true;
+				const releaseComposerOwner = this.#claimComposerOwner(dialog, () => true);
 				this.ctx.ui.requestRender();
 				return () => {
 					this.ctx.approvalOwnsComposer = false;
+					releaseComposerOwner();
 					dialog.dispose();
 					this.ctx.editorContainer.clear();
 					this.ctx.editorContainer.addChild(editor);
@@ -755,16 +757,28 @@ export class ExtensionUiController {
 	 * typing never answers by accident; up/down hand input to the dialog and the
 	 * draft stays parked beneath it until the dialog closes.
 	 */
-	#draftInputGuard(): AskDialogInputGuard | undefined {
+	#draftInputGuard(): { guard: AskDialogInputGuard; owns(): boolean } | undefined {
 		const draftEditor = this.ctx.editor;
 		if (draftEditor.getText().length === 0) return undefined;
-		return {
+		let reportedBlocked = false;
+		const guard: AskDialogInputGuard = {
 			isBlocked: () => draftEditor.getText().length > 0,
 			handleInput: (keyData: string) => draftEditor.handleDraftEdit(keyData),
 			hint: "typing edits your prompt",
 			syncPresentation: (blocked: boolean) => {
+				reportedBlocked = blocked;
 				draftEditor.focused = blocked;
 			},
+		};
+		return { guard, owns: () => reportedBlocked && guard.isBlocked() };
+	}
+
+	/** Registers `component` as the composer's owner; the returned release clears it only if it is still registered. */
+	#claimComposerOwner(component: Component, owns: () => boolean): () => void {
+		const owner: ComposerOwner = { component, owns };
+		this.ctx.composerOwner = owner;
+		return () => {
+			if (this.ctx.composerOwner === owner) this.ctx.composerOwner = undefined;
 		};
 	}
 
@@ -773,7 +787,7 @@ export class ExtensionUiController {
 		dialogOptions: ExtensionUIDialogOptions | undefined,
 	): Promise<ExtensionFormDialogResult | undefined> {
 		return this.#presentDialog<ExtensionFormDialogResult>(dialogOptions?.signal, settle => {
-			const inputGuard = this.#draftInputGuard();
+			const draft = this.#draftInputGuard();
 			const dialog = new HtmlFormDialog(form, {
 				tui: this.ctx.ui,
 				cwd: this.ctx.sessionManager.getCwd(),
@@ -784,16 +798,21 @@ export class ExtensionUiController {
 				},
 				onSubmit: data => settle({ data }),
 				onCancel: () => settle(undefined),
-				inputGuard,
+				inputGuard: draft?.guard,
+				acceptImages: dialogOptions?.acceptImages === true,
+				onPasteImage: () => this.ctx.handleImagePaste(),
+				onPasteImagePath: path => this.ctx.handleImagePathPaste(path),
 			});
+			const releaseComposerOwner = draft && this.#claimComposerOwner(dialog, draft.owns);
 			this.ctx.closeLinkBrowser();
 			this.ctx.editorContainer.clear();
 			this.ctx.editorContainer.addChild(dialog);
 			// The guarded draft stays visible beneath the form while typing edits it.
-			if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
+			if (draft) this.ctx.editorContainer.addChild(this.ctx.editor);
 			this.ctx.ui.setFocus(dialog);
 			this.ctx.ui.requestRender();
 			return () => {
+				releaseComposerOwner?.();
 				dialog.dispose();
 				this.ctx.editorContainer.clear();
 				this.ctx.editorContainer.addChild(this.ctx.editor);
@@ -811,23 +830,8 @@ export class ExtensionUiController {
 			let promptEditor: HookEditorComponent | undefined;
 			let promptResolve: ((value: AskDialogPromptValue | AskDialogPromptDraft | undefined) => void) | undefined;
 			let closed = false;
-			const draftEditor = this.ctx.editor;
-			// A draft in progress when the ask lands keeps the keyboard, so in-flight
-			// typing never answers by accident; up/down hand input to the ask and the
-			// draft stays parked beneath it until the ask closes.
-			const inputGuard =
-				draftEditor.getText().length > 0
-					? {
-							isBlocked: () => draftEditor.getText().length > 0,
-							handleInput: (keyData: string) => draftEditor.handleDraftEdit(keyData),
-							hint: "typing edits your prompt",
-							// Show the draft's insertion cursor while it owns input; drop it
-							// once the ask controls take over.
-							syncPresentation: (blocked: boolean) => {
-								draftEditor.focused = blocked;
-							},
-						}
-					: undefined;
+			const draft = this.#draftInputGuard();
+			const inputGuard = draft?.guard;
 
 			const restoreAskDialog = (): void => {
 				if (closed || !askDialog) return;
@@ -921,6 +925,7 @@ export class ExtensionUiController {
 					inputGuard,
 				},
 			);
+			const releaseComposerOwner = draft && this.#claimComposerOwner(askDialog, draft.owns);
 			this.ctx.closeLinkBrowser();
 			this.ctx.editorContainer.clear();
 			this.ctx.editorContainer.addChild(askDialog);
@@ -930,6 +935,7 @@ export class ExtensionUiController {
 
 			return () => {
 				closed = true;
+				releaseComposerOwner?.();
 				askDialog?.dispose();
 				promptEditor?.dispose();
 				promptResolve?.(undefined);

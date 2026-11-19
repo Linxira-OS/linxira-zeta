@@ -11,6 +11,7 @@ const ACTIONS = ["init", "bootstrap", "pm", "repo", "engineer", "worktree", "roo
 
 export default class Team extends Command {
 	static description = commandHelp.description;
+	static hidden = commandHelp.hidden;
 
 	static args = {
 		action: Args.string({

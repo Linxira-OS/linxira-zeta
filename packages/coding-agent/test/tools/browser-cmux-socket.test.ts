@@ -195,7 +195,7 @@ describe("CmuxSocketClient", () => {
 					);
 					const socket = await received.promise;
 					vi.advanceTimersByTime(35_000);
-					socket.write(`${JSON.stringify({ ok: true, result: { value: { __ompOk: 42 } } })}\n`);
+					socket.write(`${JSON.stringify({ ok: true, result: { value: { __zetaOk: 42 } } })}\n`);
 					expect(await outcome).toEqual({ value: 42 });
 				} finally {
 					tab.clearRunContext();

@@ -28,12 +28,12 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	// -- Session layer: mode API (web-gateway/ACP external clients) ------------
 	{
 		file: "packages/coding-agent/src/session/agent-session.ts",
-		symbol: 'export type ModeId = "plan" | "goal" | "lead" | "vibe";',
+		symbol: 'export type ModeId = "plan" | "goal" | "lead" | "vibe" | "team";',
 		why: "shared ModeController API for external clients (CLI mode + gateway)",
 	},
 	{
 		file: "packages/coding-agent/src/session/agent-session.ts",
-		symbol: "getModeState(mode: ModeId)",
+		symbol: "getModeState(",
 		why: "external-state contract: current snapshot for a mode",
 	},
 	{
@@ -504,11 +504,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "packages/coding-agent/src/task/model-switch.ts",
 		symbol: "has not completed a model response yet",
 		why: "the refusal text for the passive switch gate — the same surface the tests assert on",
-	},
-	{
-		file: "packages/coding-agent/src/task/seance.ts",
-		symbol: "is only accepted for the",
-		why: "dispatch must reject a `model` rather than choose one: the wire shape has no such field, so reaching validation means an internal or stale-transcript caller. Since v18.11.3 the seance validator owns the rule (a non-seance spawn's `model` is refused here); the per-spawn field is gone from `TaskParams`.",
 	},
 	// -- bash: elevated commands + credential policy -------------------------------
 	{

@@ -133,7 +133,10 @@ async function main(): Promise<void> {
 	} else {
 		await run(["npm", "ci"], webAppDir);
 	}
-	await run(["npm", "run", "build"], webAppDir);
+	// When Bun runs the lifecycle's Node shebangs, Vite's bundled config loader
+	// cannot resolve its synthetic import.meta.resolve specifiers. Both Bun and
+	// the publisher's Node 24 can load this TypeScript config directly.
+	await run(["npm", "run", "build", "--", "--configLoader", "native"], webAppDir);
 
 	const compression = await precompressAssets(webAppBuild);
 	console.log(

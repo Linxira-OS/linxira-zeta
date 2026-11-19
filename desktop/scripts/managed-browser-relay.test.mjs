@@ -10,8 +10,17 @@ import { ManagedBrowserRelay } from "../dist/managed-browser-relay.js";
 
 class ProducerSocket extends EventTarget {
   static OPEN = 1; static CLOSING = 2; static CLOSED = 3; static sockets = [];
+  static created = Promise.withResolvers();
+  static reset() { this.sockets = []; this.created = Promise.withResolvers(); }
   readyState = 0; sent = [];
-  constructor(url) { super(); this.url = url; ProducerSocket.sockets.push(this); queueMicrotask(() => { this.readyState = ProducerSocket.OPEN; this.dispatchEvent(new Event("open")); }); }
+  constructor(url) {
+    super(); this.url = url; ProducerSocket.sockets.push(this);
+    queueMicrotask(() => {
+      this.readyState = ProducerSocket.OPEN;
+      this.dispatchEvent(new Event("open"));
+      ProducerSocket.created.resolve(this);
+    });
+  }
   send(value) { this.sent.push(JSON.parse(value)); }
   response(value) { this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(value) })); }
   close() { if (this.readyState >= ProducerSocket.CLOSING) return; this.readyState = ProducerSocket.CLOSED; this.dispatchEvent(new Event("close")); }
@@ -36,17 +45,24 @@ async function fixture() {
 }
 const turn = () => new Promise(resolve => setImmediate(resolve));
 
+async function waitForAttachSignal(pending, signal) {
+  const timeout = AbortSignal.timeout(5000);
+  const expired = new Promise((_, reject) => {
+    timeout.addEventListener("abort", () => reject(timeout.reason), { once: true });
+  });
+  return Promise.race([signal, pending.then(() => { throw new Error("Attach finished before its handshake"); }), expired]);
+}
+
 test("managed relay reads only the prepared basename, waits for control handshake and retains upstream CDP behavior", async () => {
   const originalSocket = globalThis.WebSocket, originalFetch = globalThis.fetch;
-  globalThis.WebSocket = ProducerSocket; ProducerSocket.sockets = [];
+  globalThis.WebSocket = ProducerSocket; ProducerSocket.reset();
   const fetches = []; globalThis.fetch = async (url, init) => { fetches.push({ url, init }); return Response.json([]); };
   const f = await fixture();
   try {
     assert.equal(ProducerSocket.sockets.length, 0, "no directory-wide discovery");
     let attached = false;
     const pending = f.relay.attach(1, f.input).then(() => { attached = true; });
-    for (let n = 0; n < 100 && !ProducerSocket.sockets.length; n++) await turn();
-    const socket = ProducerSocket.sockets[0]; assert.ok(socket);
+    const socket = await waitForAttachSignal(pending, ProducerSocket.created.promise);
     const hello = socket.sent.find(value => value.t === "hello"), control = socket.sent.find(value => value.t === "studioControl");
     assert.equal(hello.tabs[0].studioPageId, "page-a"); assert.equal(control.control, "agent"); assert.equal(attached, false);
     socket.response({ t: "studioControlResult", id: control.id, ok: true }); await pending;
@@ -67,15 +83,14 @@ test("managed relay reads only the prepared basename, waits for control handshak
 
 test("managed relay carries the page document identity across hello and tab updates", async () => {
   const originalSocket = globalThis.WebSocket, originalFetch = globalThis.fetch;
-  globalThis.WebSocket = ProducerSocket; ProducerSocket.sockets = [];
+  globalThis.WebSocket = ProducerSocket; ProducerSocket.reset();
   globalThis.fetch = async () => Response.json([]);
   const chrome = Object.getOwnPropertyDescriptor(process.versions, "chrome");
   Object.defineProperty(process.versions, "chrome", { value: "156.0.8078.96", configurable: true });
   const f = await fixture();
   try {
     const pending = f.relay.attach(1, f.input);
-    for (let n = 0; n < 100 && !ProducerSocket.sockets.length; n++) await turn();
-    const socket = ProducerSocket.sockets[0]; assert.ok(socket);
+    const socket = await waitForAttachSignal(pending, ProducerSocket.created.promise);
     const hello = socket.sent.find(value => value.t === "hello");
     assert.equal(hello.browserVersion, "Chrome/156.0.8078.96");
     assert.equal(hello.tabs[0].studioDocumentId, "doc-a");
@@ -95,7 +110,7 @@ test("managed relay carries the page document identity across hello and tab upda
 
 test("managed descriptors reject unrelated live PIDs, path injection, credentials, queries and hashes before fetching", async () => {
   const originalSocket = globalThis.WebSocket, originalFetch = globalThis.fetch;
-  globalThis.WebSocket = ProducerSocket; ProducerSocket.sockets = [];
+  globalThis.WebSocket = ProducerSocket; ProducerSocket.reset();
   let fetches = 0; globalThis.fetch = async () => { fetches++; return Response.json([]); };
   const f = await fixture();
   try {
@@ -110,25 +125,25 @@ test("managed descriptors reject unrelated live PIDs, path injection, credential
 
 test("owner release during discovery prevents a late managed connection", async () => {
   const originalFetch = globalThis.fetch, f = await fixture();
-  let finish;
-  globalThis.fetch = () => new Promise(resolve => { finish = () => resolve(Response.json([])); });
+  const fetching = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  globalThis.fetch = () => { fetching.resolve(); return response.promise; };
   try {
     const pending = f.relay.attach(1, f.input), rejected = assert.rejects(pending, /owner changed/);
-    for (let n = 0; n < 1000 && !finish; n++) await turn();
-    assert.ok(finish); f.relay.release(1, f.sessionId); finish(); await rejected;
+    await waitForAttachSignal(pending, fetching.promise);
+    f.relay.release(1, f.sessionId); response.resolve(Response.json([])); await rejected;
     assert.equal(f.relay.owns(1, f.sessionId), false);
   } finally { await f.close(); globalThis.fetch = originalFetch; }
 });
 
 test("a live registration PID change closes the old managed producer and native presentation", async () => {
   const originalSocket = globalThis.WebSocket, originalFetch = globalThis.fetch;
-  globalThis.WebSocket = ProducerSocket; ProducerSocket.sockets = [];
+  globalThis.WebSocket = ProducerSocket; ProducerSocket.reset();
   globalThis.fetch = async () => Response.json([]);
   const f = await fixture();
   try {
     const pending = f.relay.attach(1, f.input);
-    for (let n = 0; n < 100 && !ProducerSocket.sockets.length; n++) await turn();
-    const socket = ProducerSocket.sockets[0]; assert.ok(socket);
+    const socket = await waitForAttachSignal(pending, ProducerSocket.created.promise);
     const request = socket.sent.find(value => value.t === "studioControl");
     socket.response({ t: "studioControlResult", id: request.id, ok: true }); await pending;
     f.setAuthority({ ...f.authority, pid: process.pid + 1 });

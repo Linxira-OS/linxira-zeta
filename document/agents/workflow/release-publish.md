@@ -5,23 +5,14 @@
 > 硬约束：仓库里不存在 npm token，一律 OIDC trusted publishing。
 > 发布链 job 清单与 tag 流程：`document/release.md`。
 
-## 发布冻结（ADR 0006，2026-11-11）
+## 常规发布（ADR 0072）
 
-- **1.5 是内部高速迭代线，仅一个资产例外。** 1.5.1 是 npm 当前公开版本；
-  普通 1.5.2–1.5.10 允许打**注解 code-only tag**。仅精确 `1.5.2` 在匹配
-  owner-review override 时可上传 GitHub full assets，npm 仍保持 1.5.1。
-  默认/错误版本/空原因/release 仍 fail-closed。<br>CI 仍可构建/打包/测试。
+- **常规发布已恢复**（[ADR-0072](../../adr/0072-restore-normal-public-releases.md)）。`1.5.10` 起的稳定版本不需要 freeze override。原有的 CI、范围、工件与 OIDC 门禁继续生效。
 - **默认 fail-closed。** `release_metadata` 输出 `publish-allowed` /
   `assets-allowed`；npm 发布 job 与独立 workflow 等 `publish-allowed == 'true'`，
   `release_github` 等 `assets-allowed == 'true'`。1.5.2 的匹配 override 只把
   `assetsAllowed` 置 true，不打开 npm。
-- **1.6.0 是完整公开版本**，且需要所有者显式批准；1.5.2 的资产例外不降低其
-  人工全功能验收、真机/SSH 等 gate。
-  `release_override_version` / `release_override_reason`，或仓库变量
-  `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`
-  （本地脚本读 `ZETA_RELEASE_OVERRIDE_VERSION` / `..._REASON`）。
-  版本必须精确匹配、原因必填，且只对 1.6.0+ 生效——override 永远不能解锁
-  1.5.x 发布。未批准前不发布 1.6.0 资产。
+- `1.5.10` 保留项目看板与日历工具；页面、页面编辑和 Outlook 导入不纳入本版。
 - 策略单一来源：`scripts/release-policy.ts`；回归门禁：
   `scripts/release-freeze.test.ts`（CI `check` job + Gitea `local-ci` 镜像）。
 
@@ -34,8 +25,10 @@
 - **trusted publisher 是逐包的两步握手。** 在 npm 后台新增条目后状态是
   `Pending validation` 并带截止时间，必须在窗口内成功发布一次才会生效；逾期
   变 `Expired`。发布失败表现为 `404 Not Found - PUT ...`（v1.3.0 的
-  `@linxiraos/pi-messenger` 即此）。条目里的仓库与 workflow 文件名必须精确匹配
-  （`.github/workflows/ci.yml`）。
+  `@linxiraos/pi-messenger` 即此）。仓库与实际执行 `npm publish` 的 workflow 必须精确匹配。
+  工作区、原生叶包和官方插件使用 `ci.yml`。Editor、TermIDE 和暂停的 zetawork 分别使用
+  `editor-publish.yml`、`ide-publish.yml`、`main-publish.yml`。用
+  `bun scripts/setup-npm-trust.ts --dry-run` 查看逐包配置。
 - **新包的引导顺序固定**：先由维护者**手动**发第一个版本（npm 后台 + 2FA），
   再在 npm 后台为该包配置 repository + workflow，之后才允许 CI 自动发布。
   缺任一步，CI 侧只会得到 404。

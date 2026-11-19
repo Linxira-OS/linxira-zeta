@@ -26,6 +26,12 @@ import {
 } from "../extensibility/skills";
 import { type LocalProtocolOptions } from "../internal-urls";
 import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
+import { createAnalysisMcpApprovalAdapter } from "../mcp/analysis-precedence-approval";
+import {
+	createAnalysisMcpPrecedenceHook,
+	type AnalysisMcpPrecedenceHook,
+	type AnalysisMcpRefreshInput,
+} from "../mcp/analysis-precedence-hook";
 import { deduplicateMCPToolsByName, resolveMCPToolAlias } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
@@ -51,6 +57,7 @@ import { wrapToolWithMetaNotice } from "../tools/output-meta";
 import { isFilesystemSourcePath } from "../tools/path-utils";
 import { supportsExternalThinking } from "../tools/think";
 import { ToolAbortError } from "../tools/tool-errors";
+import { isToolDisabledBySettings } from "../tools/tool-policy";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	isMountableUnderXdev,
@@ -101,6 +108,13 @@ export interface SessionToolsHost {
 	agent: Agent;
 	sessionManager: SessionManager;
 	settings: Settings;
+	/** Live Profile/settings filter, reevaluated when a queued refresh applies. */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	buildMcpRefreshAnalysis?: (
+		tools: CustomTool[],
+		names: readonly string[],
+		cwd: string,
+	) => Promise<AnalysisMcpRefreshInput>;
 	/** Session-local extension roots (explicit + mode + configured) for post-startup reloads. */
 	effectiveExtensionRoots(): EffectiveExtensionRoots;
 	modelRegistry: ModelRegistry;
@@ -431,6 +445,9 @@ export class SessionTools {
 	#rpcHostToolNames = new Set<string>();
 	#mcpManagerToolNames = new Set<string>();
 	#extensionMcpTools = new Map<string, AgentTool>();
+	#analysisMcpShadowReasons: Readonly<Record<string, string>> = {};
+	#analysisSuppressedNativeTools = new Set<string>();
+	#analysisSelectedNativeTools = new Set<string>();
 	#xdev: XdevState | undefined;
 	#pendingToolRosterDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingToolRosterDeltaAfterBase: { added: Set<string>; removed: Set<string> } | undefined;
@@ -1510,7 +1527,7 @@ export class SessionTools {
 
 	async #applyActiveToolsByName(toolNames: string[], forcePromptRefresh = false, signal?: AbortSignal): Promise<void> {
 		signal?.throwIfAborted();
-		toolNames = normalizeToolNames(toolNames);
+		toolNames = normalizeToolNames(toolNames).filter(name => !this.#analysisSuppressedNativeTools.has(name));
 		let builtInWriteAvailable = this.#builtInToolNames.has("write");
 		const fullWriteSelected =
 			toolNames.includes("write") &&
@@ -2483,6 +2500,10 @@ export class SessionTools {
 			((this.#host.planModeEnabled() && (!writeSelected || deviceOnlyWriteActive)) ||
 				(writeSelected && deviceOnlyWriteActive && (retainedMountedDevice || retainedDeferrableTool)));
 		const previousRuntimeSelectedToolNames = this.#runtimeSelectedToolNames;
+		const previousAnalysisSelection = this.#analysisSelectedNativeTools;
+		this.#analysisSelectedNativeTools = new Set(
+			[...this.#analysisSuppressedNativeTools].filter(name => normalized.includes(name)),
+		);
 		this.#runtimeSelectedToolNames = new Set(
 			normalized.filter(name => !mounted.has(name) && !(name === "write" && transportWriteActive)),
 		);
@@ -2490,6 +2511,7 @@ export class SessionTools {
 			await this.#applyActiveToolsByName(normalized, forcePromptRefresh, signal);
 		} catch (error) {
 			this.#runtimeSelectedToolNames = previousRuntimeSelectedToolNames;
+			this.#analysisSelectedNativeTools = previousAnalysisSelection;
 			throw error;
 		}
 	}
@@ -2923,7 +2945,7 @@ export class SessionTools {
 
 	/** Analysis-MCP shadow reasons recorded by the Zeta precedence hook. */
 	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
-		return {};
+		return this.#analysisMcpShadowReasons;
 	}
 
 	/** Remove runtime-registered tools by name (Zeta plugin runtime). */
@@ -2931,37 +2953,94 @@ export class SessionTools {
 		for (const name of names) this.#toolRegistry.delete(name);
 	}
 
-	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
+	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
 		const snapshot = [...mcpTools];
-		return this.runToolRegistryMutation(() =>
-			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot),
-		);
+		return this.runToolRegistryMutation(async () => {
+			if (this.#host.isDisposed()) return;
+			analysis ??= await this.#host.buildMcpRefreshAnalysis?.(
+				snapshot,
+				[...new Set([...this.getEnabledToolNames(), ...this.#analysisSelectedNativeTools])],
+				this.#host.sessionManager.getCwd(),
+			);
+			if (this.#host.isDisposed()) return;
+			const hook = analysis
+				? createAnalysisMcpPrecedenceHook({
+						...analysis,
+						activeNativeTools: [
+							...new Set(
+								[...analysis.activeNativeTools, ...this.#analysisSelectedNativeTools].filter(
+									name => !isToolDisabledBySettings(name, this.#host.settings),
+								),
+							),
+						],
+					})
+				: undefined;
+			if (hook && hook.approvalRequests.length > 0) {
+				const runner = this.#host.extensionRunner();
+				const approve =
+					analysis?.approve ??
+					createAnalysisMcpApprovalAdapter(runner?.hasUI() ? runner.getUIContext() : undefined);
+				if (!approve) {
+					await this.#applyMCPToolRefresh(snapshot, hook);
+					return;
+				}
+				for (const request of hook.approvalRequests) {
+					try {
+						if (await this.#host.waitForUser(() => approve(request))) hook.approve(request.serverName);
+					} catch (error) {
+						logger.warn("Analysis MCP precedence approval failed", {
+							server: request.serverName,
+							error: String(error),
+						});
+					}
+					if (this.#host.isDisposed()) return;
+				}
+			}
+			await this.#applyMCPToolRefresh(snapshot, hook);
+		});
 	}
 
-	async #applyMCPToolRefresh(mcpTools: CustomTool[]): Promise<void> {
+	async #applyMCPToolRefresh(mcpTools: CustomTool[], analysis?: AnalysisMcpPrecedenceHook): Promise<void> {
 		const previousMcpTools = new Map<string, AgentTool>();
 		for (const [name, tool] of this.#toolRegistry) {
 			if (isMCPToolName(name)) previousMcpTools.set(name, tool);
 		}
 		const previousMcpManagerToolNames = new Set(this.#mcpManagerToolNames);
 		const previousActiveMcpToolNames = new Set(this.getEnabledToolNames().filter(isMCPToolName));
+		const previousShadowReasons = this.#analysisMcpShadowReasons;
+		const previousSuppressedNativeTools = this.#analysisSuppressedNativeTools;
+		const previousAnalysisSelection = this.#analysisSelectedNativeTools;
 		const restorePreviousMcpTools = () => {
 			for (const name of this.#toolRegistry.keys()) {
 				if (isMCPToolName(name)) this.#toolRegistry.delete(name);
 			}
 			for (const [name, tool] of previousMcpTools) this.#toolRegistry.set(name, tool);
 			this.#mcpManagerToolNames = previousMcpManagerToolNames;
+			this.#analysisMcpShadowReasons = previousShadowReasons;
+			this.#analysisSuppressedNativeTools = previousSuppressedNativeTools;
+			this.#analysisSelectedNativeTools = previousAnalysisSelection;
 		};
 
 		const extensionRunner = this.#host.extensionRunner();
-		const managerTools = deduplicateMCPToolsByName(mcpTools).map(customTool => {
+		const profileTools = this.#host.mcpToolFilter ? mcpTools.filter(this.#host.mcpToolFilter) : mcpTools;
+		const admittedTools = analysis ? analysis.filterTools(profileTools) : profileTools;
+		const managerTools = deduplicateMCPToolsByName(admittedTools).map(customTool => {
 			const wrapped = wrapToolWithMetaNotice(
 				CustomToolAdapter.wrap(customTool, this.#getCustomToolContext) as AgentTool,
 			);
 			return (extensionRunner ? new ExtensionToolWrapper(wrapped, extensionRunner) : wrapped) as AgentTool;
 		});
 		const managerToolSet = new Set(managerTools);
-		const reconciledTools = deduplicateMCPToolsByName([...this.#extensionMcpTools.values(), ...managerTools]);
+		const candidates = [...this.#extensionMcpTools.values(), ...managerTools];
+		const reconciledTools = deduplicateMCPToolsByName(analysis ? analysis.filterTools(candidates) : candidates);
+		this.#analysisMcpShadowReasons = analysis?.shadowReasons ?? {};
+		this.#analysisSuppressedNativeTools = new Set(analysis?.nativeToolsToSuppress ?? []);
+		const enabled = new Set(this.getEnabledToolNames());
+		this.#analysisSelectedNativeTools = new Set(
+			[...this.#analysisSuppressedNativeTools].filter(
+				name => enabled.has(name) || previousAnalysisSelection.has(name),
+			),
+		);
 
 		for (const name of this.#toolRegistry.keys()) {
 			if (isMCPToolName(name)) this.#toolRegistry.delete(name);
@@ -2976,7 +3055,12 @@ export class SessionTools {
 		// the new registry in order so catalog reordering still updates the prompt.
 		// Names previously supplied by extensions keep their selection if ownership changes.
 		const vibeActive = this.#installedVibeToolNames.size > 0;
-		const nextActive = this.#getActiveNonMCPToolNames();
+		const nextActive = [
+			...new Set([
+				...this.#getActiveNonMCPToolNames(),
+				...[...previousAnalysisSelection].filter(name => !isToolDisabledBySettings(name, this.#host.settings)),
+			]),
+		];
 		for (const name of this.#toolRegistry.keys()) {
 			if (
 				isMCPToolName(name) &&

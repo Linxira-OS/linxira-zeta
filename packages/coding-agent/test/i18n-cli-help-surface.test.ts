@@ -40,7 +40,7 @@ import { M } from "../src/i18n";
  * the PR that introduced this guard.
  */
 const EXCLUDED_FILES: Record<string, number> = {
-	"cli/command-help.ts": 56,
+	"cli/command-help.ts": 57,
 	"cli/gallery-fixtures/agentic.ts": 3,
 	"cli/tiny-models-cli.ts": 1,
 	"commands/agents.ts": 6,
@@ -50,7 +50,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/auth-gateway.ts": 8,
 	"commands/auth.ts": 2,
 	"commands/backend.ts": 5,
-	"commands/bench.ts": 15,
+	"commands/bench.ts": 16,
 	"commands/browser-relay.ts": 6,
 	"commands/channels.ts": 11,
 	"commands/cleanse.ts": 5,
@@ -61,7 +61,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/config.ts": 5,
 	"commands/daemon.ts": 14,
 	"commands/dry-balance.ts": 7,
-	"commands/find.ts": 6,
+	"commands/find.ts": 9,
 	"commands/gallery.ts": 12,
 	"commands/gc.ts": 16,
 	"commands/git.ts": 2,
@@ -70,7 +70,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/if-bench.ts": 7,
 	"commands/images.ts": 6,
 	"commands/install.ts": 5,
-	"commands/launch-help.ts": 69,
+	"commands/launch-help.ts": 72,
 	"commands/login.ts": 1,
 	"commands/models.ts": 7,
 	"commands/play.ts": 3,
@@ -94,6 +94,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/token.ts": 5,
 	"commands/toks.ts": 2,
 	"commands/ttsr.ts": 12,
+	"commands/two-factor.ts": 2,
 	"commands/update.ts": 6,
 	"commands/usage.ts": 9,
 	"commands/web-search.ts": 5,

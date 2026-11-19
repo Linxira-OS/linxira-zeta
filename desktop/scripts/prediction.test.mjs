@@ -13,7 +13,9 @@ async function until(predicate) {
   assert.ok(predicate());
 }
 async function fixture() {
-  const root = await mkdtemp(join(import.meta.dirname, "../../temp/prediction-ipc-")), channelId = randomUUID(), token = randomBytes(32).toString("hex");
+  const scratch = join(import.meta.dirname, "../../temp");
+  await mkdir(scratch, { recursive: true });
+  const root = await mkdtemp(join(scratch, "prediction-ipc-")), channelId = randomUUID(), token = randomBytes(32).toString("hex");
   const endpoint = process.platform === "win32" ? "\\\\.\\pipe\\zeta-studio-predict-" + channelId : join(root, "p-" + createHash("sha256").update(channelId).digest("hex").slice(0, 16) + ".sock");
   const paths = { schema: 1, mediaDirectory: root, socketDirectory: root }, inputs = [], events = [], peers = new Set();
   let peer, visible = true, activePaths = paths;

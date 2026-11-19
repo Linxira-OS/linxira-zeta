@@ -34,8 +34,10 @@ each command's `--help`.
 enrollment, required policy, pending enrollment and recovery-code count. Add
 `--json` for secret-free structured output. A damaged store reports unavailable
 and exits unsuccessfully; it never reports protection as disabled. `/2fa status`
-opens the same read-only status in the interactive TUI. Enrollment/reset uses
-local Work Studio settings; see [serve authentication](./zeta-serve-web.md).
+retains read-only status in the interactive TUI. `/2fa`, or **Settings → Runtime
+→ Identity & devices**, opens enrollment, temporary QR, verification, recovery
+and device controls through the registered local serve of the same version.
+See [serve authentication](./zeta-serve-web.md) and [IM runtime](./im-runtime-ui.md).
 
 ## Launch (the default command)
 
@@ -244,9 +246,10 @@ the session, which cancels background jobs the run started (`bash` or `task`
 calls the model ran asynchronously). With `--wait-async` (or
 `async.printWake: true`) it instead waits for them; each job's result is
 delivered to the same session as it is in the TUI, starting another turn, and a
-turn may start further jobs. The run exits once no owned job or undelivered
-result remains, and text mode prints the answer of the last turn. Bound
-unattended runs with `--max-time`.
+turn may start further jobs (or child agents that message back). The process
+exits once the run ends — nothing streaming and nothing left that could resume
+it — and text mode prints the answer of the last turn. Bound unattended runs
+with `--max-time`.
 
 ```sh
 # Start a long build in the background, then react to its result in the same session

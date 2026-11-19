@@ -1652,6 +1652,8 @@ export const en: LocaleDictionary = {
 		roleDescSubtask: "General subtasks",
 		roleDescAdvisor: "Second model review",
 		roleDescWidget: "Live background-job widgets (falls back to Fast)",
+		roleDescTaste: "Coding preference classification and calibration",
+		roleNameTaste: "Taste",
 		newProvider: "New Provider",
 		editProviderNamed: "Edit · {name}",
 		presetTemplateNamed: "Preset: {name}",

@@ -14,7 +14,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { logger, stringifyYamlConfig } from "@linxiraos/pi-utils";
-import { type ConfigError, ConfigFile } from "./config-file";
+import { type ConfigError, ConfigFile, type LoadResult } from "./config-file";
 import { ModelsConfigFile } from "./models-config";
 import type { ModelsConfig } from "./models-config-schema";
 import { getModelsConfigSchema } from "./models-config-schema-bundle";
@@ -45,6 +45,10 @@ export interface LoadedModelsLayers {
 	userError: ConfigError | undefined;
 	/** Set when the panel layer exists but is invalid; the layer is ignored. */
 	webError: ConfigError | undefined;
+	/** Raw cached user-layer load, so warning publication sees its findings. */
+	userResult: LoadResult<ModelsConfig>;
+	/** Raw panel-layer load when the user path is YAML; undefined otherwise. */
+	webResult?: LoadResult<ModelsConfig>;
 }
 
 /** Read both layers for `modelsPath`. Never throws; reports per-layer errors. */
@@ -57,12 +61,14 @@ export function loadModelsLayers(modelsPath: string): LoadedModelsLayers {
 		web: undefined,
 		userError: userResult.status === "error" ? userResult.error : undefined,
 		webError: undefined,
+		userResult,
 	};
 	if (!modelsPath.endsWith(".yml") && !modelsPath.endsWith(".yaml")) return layers;
 
 	const webPath = modelsWebConfigPath(modelsPath);
 	layers.webPath = webPath;
 	const webResult = modelsWebConfigFile.relocate(webPath).tryLoad();
+	layers.webResult = webResult;
 	if (webResult.status === "error") {
 		layers.webError = webResult.error;
 		logger.warn("Ignoring invalid models web layer", { path: webPath, error: webResult.error });

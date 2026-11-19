@@ -18,6 +18,7 @@ import { Settings } from "../../src/config/settings";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { AgentLifecycleManager } from "../../src/registry/agent-lifecycle";
 import { AgentRegistry } from "../../src/registry/agent-registry";
+import { SessionManager } from "../../src/session/session-manager";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { localSession } from "../helpers/local-session";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
@@ -331,6 +332,10 @@ describe("PM-owned Secretary", () => {
 		fs.mkdirSync(sessionDir, { recursive: true });
 		const parentFile = path.join(sessionDir, "main.jsonl");
 		await createRoom({ name: "core", pm: "core", teamRoot, dbPath });
+		const parent = await SessionManager.open(parentFile, undefined, undefined, {
+			initialCwd: pmRoot,
+			suppressBreadcrumb: true,
+		});
 		const session: ToolSession = {
 			cwd: pmRoot,
 			hasUI: false,
@@ -347,6 +352,7 @@ describe("PM-owned Secretary", () => {
 			authStorage,
 			modelRegistry,
 			getSessionFile: () => parentFile,
+			sessionManager: parent,
 			getArtifactsDir: () => sessionDir,
 			getSessionSpawns: () => "*",
 			getSessionAgents: () => [],
@@ -384,6 +390,7 @@ describe("PM-owned Secretary", () => {
 			expect(sent.output).toContain("Standing by.");
 			expect(AgentRegistry.global().get(spawned.record.id)?.status).toBe("idle");
 		} finally {
+			await parent.close();
 			await AgentLifecycleManager.global().dispose();
 			AgentLifecycleManager.resetGlobalForTests();
 			authStorage.close();

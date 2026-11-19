@@ -635,7 +635,7 @@ pub(super) fn spawn(shared: &Arc<Shared>, spec: SpawnSpec<'_>) -> io::Result<Box
 			return Err(invalid(format!("extra fd {fd} overlaps stdio")));
 		}
 		if matches!(s, StdioSpec::Closed) {
-			// Not passed: the child has no such descriptor.
+			closed.push(fd);
 			continue;
 		}
 		fds.push((fd, child_fd(shared, s, Dir::Probe, &mut pumps, &mut feeds)?));

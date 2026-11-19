@@ -696,6 +696,8 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	#lastFilterQuery = "";
 	/** Bumped whenever the visible session set may have changed (native memo key). */
 	#itemsVersion = 0;
+	/** Window start index retained across renders for edge-triggered scrolling. Unset until first render to seed centered. */
+	#scrollStartIndex: number | undefined = undefined;
 	/** Per-row line heights of the visible list for the ANSI window, reused until the set changes. */
 	#rowHeights:
 		| { items: readonly PickerRow<T>[]; length: number; version: number; heights: readonly number[] }
@@ -831,6 +833,7 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		this.#showCwd = showCwd;
 		if (pinnedIds !== undefined) this.#pinnedIds = pinnedIds;
 		this.#menu.setSelectedIndex(0);
+		this.#scrollStartIndex = undefined;
 		this.#filterSessions(this.#searchInput.getValue());
 		this.#selectCurrentSession();
 	}
@@ -898,6 +901,7 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		const queryChanged = query !== this.#lastFilterQuery;
 		this.#hadFilterQuery = tokens.length > 0;
 		this.#lastFilterQuery = query;
+		if (queryChanged) this.#scrollStartIndex = undefined;
 		if (tokens.length === 0) {
 			const rows = this.#rowsFor(this.#pinnedFirst(this.#allSessions));
 			this.#retainSelection(rows, this.#menu.selectedKey);
@@ -1564,12 +1568,17 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		// worst-case count-based window would leave (then padded by fill-height).
 		const filtered = this.#menu.visibleItems;
 		const budget = this.#lineBudget();
+		const alignment = this.#scrollStartIndex === undefined ? "center" : "nearest";
 		const {
 			startIndex,
 			endIndex,
 			rowOffset: offsetRows,
 			totalRows: rawTotalRows,
-		} = getMenuWindow(this.#visibleRowHeights(filtered), this.#menu.selectedIndex, budget);
+		} = getMenuWindow(this.#visibleRowHeights(filtered), this.#menu.selectedIndex, budget, {
+			alignment,
+			currentStartIndex: this.#scrollStartIndex,
+		});
+		this.#scrollStartIndex = startIndex;
 
 		// Each row block is built into sessionLines, then wrapped by ScrollView
 		// so the right-edge scrollbar is proportional at the physical-line level.
@@ -1828,7 +1837,7 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 	deleteMode?: "trash" | "permanent";
 	/** Picker heading; defaults to "Resume Session". */
 	title?: string;
-	/** Primary action label; defaults to "Resume" (ANSI footer defaults to "select"). */
+	/** Primary action label when used as an existing-session picker. */
 	actionLabel?: string;
 	/** Fixed scope label, or false to omit the scope suffix. */
 	scopeLabel?: string | false;

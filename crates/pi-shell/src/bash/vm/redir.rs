@@ -348,7 +348,9 @@ fn zsh_target(
 fn set_fd(vp: &mut Vproc, fd: i32, h: Option<FdRef>) {
 	let prev = vp.fds.get(fd).cloned();
 	io(vp).saved.push(Saved { fd, prev });
-	vp.fds.set(fd, h);
+	// Keep an explicit close distinct from an unused slot. The host can
+	// have an inheritable descriptor at the same number as the virtual fd.
+	vp.fds.set(fd, Some(h.unwrap_or_else(FdRef::closed)));
 }
 
 /// The fd a redirection targets; `{var}` allocates one ≥ 10 and stores it

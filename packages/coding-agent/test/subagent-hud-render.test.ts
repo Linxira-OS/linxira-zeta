@@ -1081,7 +1081,7 @@ describe("InteractiveMode subagent observer UI sync", () => {
 	});
 
 	it("repaints the transcript todo card after the sticky HUD auto-clears", async () => {
-		cfgDisplayPinnedAgents.override(Settings.instance, "off");
+		cfgDisplayPinnedAgents.override(session.settings, "off");
 		cfgTasksTodoClearDelay.override(session.settings, 0);
 		await mode.init({ suppressWelcomeIntro: true });
 		vi.useFakeTimers();
@@ -1158,7 +1158,7 @@ describe("InteractiveMode subagent observer UI sync", () => {
 	});
 
 	it("advances a quiet call's elapsed marker by repainting the same HUD in place", async () => {
-		cfgDisplaySubagentLivePreview.override(Settings.instance, true);
+		cfgDisplaySubagentLivePreview.override(session.settings, true);
 		await mode.init({ suppressWelcomeIntro: true });
 		vi.spyOn(mode.ui, "requestRender").mockImplementation(() => {});
 		vi.useFakeTimers();
@@ -1183,7 +1183,7 @@ describe("InteractiveMode subagent observer UI sync", () => {
 	});
 
 	it("repaints an identical new call after the elapsed timer painted the previous call", async () => {
-		cfgDisplaySubagentLivePreview.override(Settings.instance, true);
+		cfgDisplaySubagentLivePreview.override(session.settings, true);
 		await mode.init({ suppressWelcomeIntro: true });
 		let painted = "";
 		vi.spyOn(mode.ui, "requestRender").mockImplementation(() => {

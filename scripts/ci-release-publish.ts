@@ -664,6 +664,30 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
 	return runPublishJobs([publishTargetJob(target, createKeyedMutex())], 1);
 }
 
+const LINUX_STANDALONE_PAYLOADS: Readonly<Record<string, string>> = {
+	"@linxiraos/editor-linux-x64": "bin/termide-editor-linux-x64",
+	"@linxiraos/ide-linux-x64": "bin/termide-linux-x64",
+};
+
+/** Stage legal files and retain them in an existing package allowlist. */
+export async function prepareStandalonePackage(pkgDir: string, write: boolean): Promise<PackageManifest> {
+	const manifestPath = path.join(pkgDir, "package.json");
+	const manifest = (await Bun.file(manifestPath).json()) as PackageManifest;
+	const legalFiles = await stageLegalPayloads(pkgDir, manifest.license ?? "MIT", write);
+	const files = manifest.files;
+	if (Array.isArray(files) && legalFiles.some(file => !files.includes(file))) {
+		manifest.files = [...new Set([...files, ...legalFiles])];
+		if (write) await Bun.write(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
+	}
+	// These Linux payloads are spawned directly. Set the archive mode even
+	// when the artifact was committed from a filesystem without Unix modes.
+	const executable = LINUX_STANDALONE_PAYLOADS[manifest.name ?? ""];
+	if (write && process.platform === "linux" && executable) {
+		await fs.chmod(path.join(pkgDir, executable), 0o755);
+	}
+	return manifest;
+}
+
 /**
  * Publish directories whose manifests are already publish-ready, packed
  * as-authored (platform leaves first, then the launcher package that pins them
@@ -691,11 +715,11 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
 async function publishAsIsNpmDirs(dirs: readonly string[]): Promise<string[]> {
 	const targets: PublishTarget[] = [];
 	for (const dir of dirs) {
-		const manifest = (await Bun.file(path.join(repoRoot, dir, "package.json")).json()) as PackageManifest;
+		const pkgDir = path.join(repoRoot, dir);
+		const manifest = await prepareStandalonePackage(pkgDir, !isDryRun);
 		if (typeof manifest.version !== "string") throw new Error(`Missing version in ${dir}/package.json`);
-		await stageLegalPayloads(path.join(repoRoot, dir), manifest.license ?? "MIT", !isDryRun);
 		targets.push({
-			dir: path.join(repoRoot, dir),
+			dir: pkgDir,
 			name: manifest.name ?? path.basename(dir),
 			version: manifest.version,
 		});
@@ -908,9 +932,7 @@ async function publishWorkspacePackages(): Promise<string[]> {
 }
 
 if (import.meta.main) {
-	// Release freeze (ADR 0006, scripts/release-policy.ts): every entry point —
-	// including the standalone `*-publish.yml` workflows — fails closed before
-	// npm is touched. A `--dry-run` rehearsal never publishes, so it is exempt.
+	// Require a publishable version for every entry point. Dry runs never publish.
 	if (!isDryRun) {
 		const manifestDir = publishEditor
 			? "editor/npm/editor"
@@ -927,7 +949,7 @@ if (import.meta.main) {
 								: "packages/coding-agent";
 		const manifest = (await Bun.file(path.join(repoRoot, manifestDir, "package.json")).json()) as PackageManifest;
 		if (typeof manifest.version !== "string") {
-			console.error(`Release freeze guard: no version in ${manifestDir}/package.json; refusing to publish.`);
+			console.error(`No version in ${manifestDir}/package.json. Refusing to publish.`);
 			process.exit(1);
 		}
 		try {

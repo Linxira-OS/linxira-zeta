@@ -48,6 +48,7 @@ import {
 	resolveOllamaModelCacheProviderId,
 } from "@linxiraos/pi-catalog/provider-models";
 import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
+import { withThinkingCapability } from "@linxiraos/pi-catalog/thinking-capability";
 import { apiServesKind, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
 import { isOfficialCodexApiUrl } from "@linxiraos/pi-catalog/wire/codex";
 import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
@@ -56,7 +57,7 @@ import { generateCodexAttestation } from "../live/attestation";
 import { redactUrlForLog } from "../mcp/json-rpc";
 import type { AuthStorage } from "../session/auth-storage";
 import { type ApiKeyResolverModel, type ApiKeyResolverOptions, createApiKeyResolver } from "./api-key-resolver";
-import type { ConfigError, ConfigFile } from "./config-file";
+import type { ConfigError, ConfigFile, LoadResult } from "./config-file";
 import {
 	buildCustomModelOverlay,
 	type CustomModelDefinitionLike,
@@ -139,7 +140,12 @@ import {
 	type ProviderValidationModel,
 	validateProviderConfiguration,
 } from "./models-config";
-import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
+import {
+	loadModelsLayers,
+	type LoadedModelsLayers,
+	mergeModelsConfigs,
+	modelsWebConfigPath,
+} from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { type Settings, settings } from "./settings";
 
@@ -157,6 +163,8 @@ setCodexAttestationProvider(generateCodexAttestation);
 
 /** One built-in discovery pass rewriting more payload rows than this is debug-logged. */
 const MODEL_CACHE_REWRITE_LOG_THRESHOLD = 5;
+/** Minimum spacing of {@link ModelRegistry.retryUnavailableDiscovery} passes. */
+const DISCOVERY_RETRY_INTERVAL_MS = 60_000;
 /** `scheme://user:pass@` in free text (e.g. a fetch error echoing the request URL). */
 const URL_USERINFO_RE = /([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
 const BUILT_IN_MODEL_MANAGER_PROVIDER_IDS: Readonly<Record<string, true>> = Object.freeze(
@@ -381,6 +389,10 @@ export class ModelRegistry {
 	#configError: ConfigError | undefined = undefined;
 	#warnedCompatKeys = new Set<string>();
 	#configWarnings: string[] = [];
+	/** Findings copied from the current models-file layers, replaced when they change. */
+	#publishedModelsFileWarnings: string[] = [];
+	/** Joined findings last published, so an unchanged load is not republished. */
+	#publishedModelsWarningsKey?: string;
 	#modelsConfigFile: ConfigFile<ModelsConfig>;
 	#lastStaticLoadMtime: number | null = null;
 	#lastWebConfigMtime: number | null = null;
@@ -389,6 +401,8 @@ export class ModelRegistry {
 	#cacheDbPath?: string;
 	#suppressedSelectors: Map<string, number> = new Map();
 	#backgroundRefresh?: Promise<void>;
+	#discoveryRetry?: Promise<void>;
+	#lastDiscoveryRetryAt = Number.NEGATIVE_INFINITY;
 	/** Whether the first background discovery has settled; latches once so a late-armed waiter still resolves. */
 	#initialRefreshSettled = false;
 	/** Waiter armed before the initial background refresh starts (CLI kicks it off after the session is built, #10048). */
@@ -473,9 +487,18 @@ export class ModelRegistry {
 		if (fresh.length > 0) this.#catalogMetricRows = [...this.#catalogMetricRows, ...fresh];
 	}
 
-	/** Final pass over every published model list: catalog metrics, then implicit local providers last. */
+	/** Final pass: learned thinking capabilities, catalog metrics, then implicit local providers last. */
 	#finalizeModels(models: Model<Api>[]): Model<Api>[] {
-		return this.#orderImplicitProvidersLast(applyCatalogMetrics(models, this.#catalogMetrics));
+		let learned = models;
+		for (let index = 0; index < models.length; index++) {
+			const model = models[index];
+			if (!model.thinking?.unverified) continue;
+			const projected = withThinkingCapability(model, this.#cacheDbPath);
+			if (projected === model) continue;
+			if (learned === models) learned = models.slice();
+			learned[index] = projected;
+		}
+		return this.#orderImplicitProvidersLast(applyCatalogMetrics(learned, this.#catalogMetrics));
 	}
 
 	/**
@@ -664,6 +687,11 @@ export class ModelRegistry {
 	 */
 	mirrorInputs(): ModelRegistryMirrorInputs {
 		return this.#mirrorInputs;
+	}
+
+	/** Database shared by model discovery and request-time thinking capability probes. */
+	get modelsDbPath(): string | undefined {
+		return this.#cacheDbPath;
 	}
 
 	/**
@@ -1064,10 +1092,10 @@ export class ModelRegistry {
 	}
 
 	/**
-	 * Refresh only named discovery providers (configured `models.yml` providers or
-	 * extension `fetchDynamicModels` managers). Unlike {@link refreshProvider},
-	 * this avoids a static reload and leaves unrelated runtime discovery alone.
-	 * Unknown ids have no effect.
+	 * Refresh only named discovery providers (built-in managers, configured
+	 * `models.yml` providers, or extension `fetchDynamicModels` managers). Unlike
+	 * {@link refreshProvider}, this avoids a static reload and leaves unrelated
+	 * runtime discovery alone. Unknown ids have no effect.
 	 */
 	async refreshDiscoverableProviders(
 		providerIds: Iterable<string>,
@@ -1077,6 +1105,45 @@ export class ModelRegistry {
 		const filter = new Set(providerIds);
 		if (filter.size === 0) return;
 		await this.#refreshRuntimeDiscoveries(strategy, filter);
+	}
+
+	/**
+	 * Re-run discovery for providers whose last attempt left them `unavailable`,
+	 * so a long-lived session recovers discovered models (Codex rosters, local
+	 * servers) after a startup failure instead of serving the bundled catalog
+	 * until restart. Views that list models (`^` mentions) call this as they
+	 * read the catalog. Single-flight and spaced by
+	 * {@link DISCOVERY_RETRY_INTERVAL_MS}; while the initial background refresh
+	 * runs it stands in for the retry.
+	 *
+	 * Returns the pass to wait for before re-reading the catalog, or `undefined`
+	 * when none is due. The pass never rejects.
+	 */
+	retryUnavailableDiscovery(): Promise<void> | undefined {
+		if (this.#discoveryRetry) return this.#discoveryRetry;
+		const now = Date.now();
+		if (now - this.#lastDiscoveryRetryAt < DISCOVERY_RETRY_INTERVAL_MS) return undefined;
+		const providers: string[] = [];
+		for (const state of this.#providerDiscoveryStates.values()) {
+			if (state.status === "unavailable") providers.push(state.provider);
+		}
+		if (providers.length === 0) return undefined;
+		this.#lastDiscoveryRetryAt = now;
+		const pass = this.isBackgroundRefreshPending()
+			? this.awaitBackgroundRefresh()
+			: this.refreshDiscoverableProviders(providers);
+		const retry = pass
+			.catch(error => {
+				logger.debug("model discovery retry failed", {
+					providers,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			})
+			.finally(() => {
+				this.#discoveryRetry = undefined;
+			});
+		this.#discoveryRetry = retry;
+		return retry;
 	}
 
 	/**
@@ -1326,6 +1393,31 @@ export class ModelRegistry {
 		const warnings = this.#configWarnings;
 		this.#configWarnings = [];
 		return warnings;
+	}
+
+	#publishModelsLayerWarnings(layers: LoadedModelsLayers): void {
+		// Both layers are cached loads every registry in the process reads. Publish
+		// their findings together, and replace the findings copied from the previous
+		// state: `models refresh` force-reparses before anything drains
+		// #configWarnings, and a second registry must still see the warning the
+		// first one already published.
+		const messages: string[] = [];
+		if (layers.userResult.status === "ok") {
+			for (const warning of layers.userResult.warnings) messages.push(`${layers.userPath}: ${warning}`);
+		}
+		if (layers.webResult?.status === "ok" && layers.webPath) {
+			for (const warning of layers.webResult.warnings) messages.push(`${layers.webPath}: ${warning}`);
+		}
+		const key = messages.join("\n");
+		if (key === this.#publishedModelsWarningsKey) return;
+		this.#publishedModelsWarningsKey = key;
+		if (this.#publishedModelsFileWarnings.length > 0) {
+			const published = new Set(this.#publishedModelsFileWarnings);
+			this.#configWarnings = this.#configWarnings.filter(warning => !published.has(warning));
+			this.#publishedModelsFileWarnings = [];
+		}
+		this.#publishedModelsFileWarnings = messages;
+		this.#configWarnings.push(...messages);
 	}
 
 	#loadModels() {
@@ -2102,6 +2194,7 @@ export class ModelRegistry {
 			};
 		}
 		const layers = loadModelsLayers(this.#modelsConfigFile.path());
+		this.#publishModelsLayerWarnings(layers);
 
 		if (layers.userError) {
 			return {
@@ -3548,7 +3641,7 @@ export class ModelRegistry {
 	/**
 	 * Check whether auth is configured for a model's provider.
 	 *
-	 * Mirrors the upstream `@mariozechner/pi-coding-agent` API surface so that
+	 * Mirrors the upstream `@linxiraos/zeta` API surface so that
 	 * external plugins/extensions and downstream wrappers (e.g. subagent launch
 	 * paths that pre-flight auth before model resolution) can probe a model
 	 * without resolving an API key. Returns true for keyless providers as well
@@ -4457,7 +4550,8 @@ export interface ProviderConfigInput {
 		api?: Api;
 		kind?: ModelKind;
 		baseUrl?: string;
-		reasoning: boolean;
+		/** Reviewed capability; omitted when request-time discovery should determine support. */
+		reasoning?: boolean;
 		thinking?: ThinkingConfig;
 		input: ("text" | "image")[];
 		supportsTools?: boolean;

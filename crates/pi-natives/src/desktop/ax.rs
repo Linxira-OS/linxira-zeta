@@ -1158,8 +1158,7 @@ pub fn snapshot_observed(
 		let mut next = 0;
 		root
 			.as_ref()
-			.map(|root| vec![observed(root, &mut next)])
-			.unwrap_or_default()
+			.map_or_default(|root| vec![observed(root, &mut next)])
 	});
 	let mut text = String::new();
 	let mut node_count = 0;

@@ -180,6 +180,7 @@ fn compositor_pid() -> Option<u32> {
 }
 
 impl WaylandBackend {
+	#[cfg(test)]
 	pub fn new(display: DisplaySelector) -> Self {
 		Self::new_observed(display, false)
 	}

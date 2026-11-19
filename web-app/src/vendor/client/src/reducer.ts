@@ -349,7 +349,6 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "mcp.auth.reauth": true,
   "mcp.auth.unauth": true,
   "mcp.auth.reconnect": true,
-  "seance.ask": true,
   "artifacts.delete": true,
   "artifacts.saveText": true,
   "core.prompt": true,

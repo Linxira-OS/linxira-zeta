@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 import * as utils from "@linxiraos/pi-utils";
 import { CLI_BIN_NAME, VERSION } from "@linxiraos/pi-utils/dirs";
@@ -185,4 +186,25 @@ describe("executable fallback on unlinked binary", () => {
 
 		expect(resolveExecutablePath()).toBe(missingPath);
 	});
+
+	it.skipIf(process.platform !== "linux")(
+		"spawns a sameBuild worker from the running build, not the one renamed over the binary",
+		() => {
+			using dir = utils.TempDir.createSync("@omp-worker-running-build-");
+			const omp = path.join(dir.path(), "omp");
+			const upgrade = path.join(dir.path(), "zeta.new");
+			// A private copy of this runtime stands in for the running compiled omp.
+			fs.copyFileSync(process.execPath, omp);
+			fs.writeFileSync(upgrade, "#!/bin/sh\necho installed build\n", { mode: 0o755 });
+			const probe = `import { resolveWorkerSpawnCmd } from ${JSON.stringify(path.join(import.meta.dir, "../src/subprocess/worker-client"))};
+const [intact] = resolveWorkerSpawnCmd("__zeta_worker_probe", { sameBuild: true }).cmd;
+console.log("intact:" + (intact === process.execPath));
+require("node:fs").renameSync(${JSON.stringify(upgrade)}, ${JSON.stringify(omp)});
+const [exe] = resolveWorkerSpawnCmd("__zeta_worker_probe", { sameBuild: true }).cmd;
+process.stdout.write(Bun.spawnSync([exe, "-e", "console.log('running build')"]).stdout);`;
+			const result = Bun.spawnSync([omp, "-e", probe], { env: { ...Bun.env, PI_COMPILED: "1" } });
+			expect(result.stdout.toString().trim().split("\n")).toEqual(["intact:true", "running build"]);
+		},
+		30_000,
+	);
 });

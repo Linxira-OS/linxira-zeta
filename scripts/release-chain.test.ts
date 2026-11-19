@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { parse } from "yaml";
 import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages";
 import { SHIPPED_CLI_ASSETS, shippedCliAssetName } from "../packages/utils/src/release-assets";
-import { buildNativeOptionalDependencies } from "./ci-release-publish";
+import { buildNativeOptionalDependencies, prepareStandalonePackage } from "./ci-release-publish";
 import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { leafStampProblem, STAMP_SUFFIX, type LeafStamp, WORKBENCH_LEAVES } from "./workbench-leaves";
 
@@ -136,6 +136,66 @@ describe("CLI asset / updater shipped matrix", () => {
 	});
 });
 
+describe("standalone npm package payload", () => {
+	it("packs notices alongside the allowlisted payload", async () => {
+		const scratch = path.join(ROOT, "temp");
+		fs.mkdirSync(scratch, { recursive: true });
+		const fixture = fs.mkdtempSync(path.join(scratch, "release-package-"));
+		try {
+			fs.writeFileSync(
+				path.join(fixture, "package.json"),
+				JSON.stringify({ name: "release-payload-fixture", version: "1.0.0", license: "MIT", files: ["bin"] }),
+			);
+			fs.mkdirSync(path.join(fixture, "bin"));
+			fs.writeFileSync(path.join(fixture, "bin", "fixture"), "payload");
+			await prepareStandalonePackage(fixture, true);
+			const pack = Bun.spawnSync([process.execPath, "pm", "pack", "--quiet"], { cwd: fixture });
+			expect(pack.exitCode, pack.stderr.toString()).toBe(0);
+			const archive = path.join(fixture, "release-payload-fixture-1.0.0.tgz");
+			for (const filename of ["LICENSE", "THIRD-PARTY-NOTICES.txt"]) {
+				const entry = Bun.spawnSync(["tar", "-xOzf", archive, `package/${filename}`]);
+				expect(entry.exitCode, entry.stderr.toString()).toBe(0);
+				expect(entry.stdout.equals(fs.readFileSync(path.join(ROOT, filename)))).toBe(true);
+			}
+			const payload = Bun.spawnSync(["tar", "-xOzf", archive, "package/bin/fixture"]);
+			expect(payload.stdout.toString()).toBe("payload");
+		} finally {
+			fs.rmSync(fixture, { recursive: true, force: true });
+		}
+	});
+
+	it.skipIf(process.platform !== "linux")("packs both Linux payloads as executables", async () => {
+		const scratch = path.join(ROOT, "temp");
+		fs.mkdirSync(scratch, { recursive: true });
+		for (const [name, filename] of [
+			["ide", "termide-linux-x64"],
+			["editor", "termide-editor-linux-x64"],
+		]) {
+			const fixture = fs.mkdtempSync(path.join(scratch, "release-package-mode-"));
+			try {
+				const pkg = `@linxiraos/${name}-linux-x64`;
+				fs.writeFileSync(
+					path.join(fixture, "package.json"),
+					JSON.stringify({ name: pkg, version: "1.0.0", files: ["bin"] }),
+				);
+				fs.mkdirSync(path.join(fixture, "bin"));
+				fs.writeFileSync(path.join(fixture, "bin", filename), "#!/bin/sh\nprintf 'ready\\n'\n", { mode: 0o644 });
+				await prepareStandalonePackage(fixture, true);
+				const pack = Bun.spawnSync([process.execPath, "pm", "pack", "--quiet"], { cwd: fixture });
+				expect(pack.exitCode, pack.stderr.toString()).toBe(0);
+				const archive = path.join(fixture, `linxiraos-${name}-linux-x64-1.0.0.tgz`);
+				const extract = Bun.spawnSync(["tar", "-xzf", archive], { cwd: fixture });
+				expect(extract.exitCode, extract.stderr.toString()).toBe(0);
+				const launched = Bun.spawnSync([path.join(fixture, "package", "bin", filename)]);
+				expect(launched.exitCode).toBe(0);
+				expect(launched.stdout.toString()).toBe("ready\n");
+			} finally {
+				fs.rmSync(fixture, { recursive: true, force: true });
+			}
+		}
+	});
+});
+
 describe("release asset surfaces", () => {
 	const upload = String(
 		workflow.jobs?.release_github?.steps?.find(step => step.name === "Create GitHub Release")?.with?.files ?? "",
@@ -171,9 +231,10 @@ describe("release asset surfaces", () => {
 			expect(upload).not.toContain(family);
 			expect(checksums).not.toContain(family);
 		}
-		for (const suffix of ["-setup-x64.exe", "-windows-x64.zip", ".AppImage", ".pkg.tar.zst"]) {
-			expect(preflight).not.toContain(suffix);
-		}
+		expect(preflight).not.toMatch(/\/zeta-work-/u);
+		expect(preflight).not.toMatch(
+			/\/linxira-zeta-(?:\$\{?version\}?|\*)(?:-setup-x64\.exe|-windows-x64\.zip|\.AppImage|\.pkg\.tar\.zst)(?=["'\s]|$)/u,
+		);
 		expect(preflight).toContain("plugins/dist/zeta-plugin-example-*.zip");
 		expect(preflight).toContain("packages/browser-relay/dist/zeta-browser-relay-extension.zip");
 	});

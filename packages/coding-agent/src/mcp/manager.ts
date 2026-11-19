@@ -315,6 +315,10 @@ export interface MCPManagerApi {
 	addNotificationListener(listener: (serverName: string, method: string, params: unknown) => void): () => void;
 	/** Names of currently connected servers. */
 	getConnectedServers(): string[];
+	/** Read the server configuration used by session-local analysis precedence. */
+	getServerConfig(name: string): MCPServerConfig | undefined;
+	/** Include configured servers whose tool list has not arrived yet. */
+	getAllServerNames(): string[];
 	/** Cached resources/templates of one server. */
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined;
 	/** Wait until one server's resource catalog is loaded. */
@@ -486,6 +490,15 @@ export class MCPManager implements MCPManagerApi {
 		private loadConfigs: MCPConfigLoader = loadAllMCPConfigs,
 		private reconnectPolicy: MCPReconnectPolicy = DEFAULT_RECONNECT_POLICY,
 	) {}
+
+	/**
+	 * Re-point project config discovery and the advertised `roots/list` at `cwd`
+	 * after the owning session moved. Connected servers keep the roots they were
+	 * given (roots are advertised without `listChanged`), so callers reconnect.
+	 */
+	setCwd(cwd: string): void {
+		this.cwd = cwd;
+	}
 
 	/**
 	 * Register a listener for MCP connection lifecycle events

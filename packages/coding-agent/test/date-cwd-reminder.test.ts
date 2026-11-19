@@ -1660,8 +1660,13 @@ describe("date-cwd reminder on the provider wire", () => {
 				if (!body) throw new Error("wire body was not captured");
 				bodies.push(body);
 			}
-			const withoutBreakpoints = (message: MessageCreateParams["messages"][number]) =>
-				JSON.stringify(message, (key, value) => (key === "cache_control" ? undefined : value));
+			// A plain string is shorthand for one text block. Adding a cache
+			// breakpoint expands that shorthand without changing the prompt.
+			const withoutBreakpoints = ({ content, ...message }: MessageCreateParams["messages"][number]) =>
+				JSON.stringify(
+					{ ...message, content: typeof content === "string" ? [{ type: "text", text: content }] : content },
+					(key, value) => (key === "cache_control" ? undefined : value),
+				);
 			for (let request = 1; request < bodies.length; request++) {
 				const previous = bodies[request - 1]!.messages;
 				const next = bodies[request]!.messages;
@@ -1683,10 +1688,9 @@ describe("date-cwd reminder on the provider wire", () => {
 					message => Array.isArray(message.content) && message.content.some(block => block.type === "tool_result"),
 				);
 				// The next request reads the earlier request's cache at least through its newest tool result.
-				expect({ request, readsThroughNewestToolResult: reusable >= newestToolResult }).toEqual({
-					request,
-					readsThroughNewestToolResult: true,
-				});
+				expect(reusable, `request ${request}: first differing message at ${repeated}`).toBeGreaterThanOrEqual(
+					newestToolResult,
+				);
 			}
 
 			// What each request sends as conversation history: everything but the hook's per-call messages.

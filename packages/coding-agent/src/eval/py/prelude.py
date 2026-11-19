@@ -521,7 +521,7 @@ if "__zeta_prelude_loaded__" not in globals():
         surfaced["images"] = f"({shown} image{suffix} displayed)"
         return surfaced
 
-    async def _omp_prelude(name: str, parameters):
+    async def _zeta_prelude(name: str, parameters):
         """Invoke one enabled eval prelude capability through the host bridge."""
         value = await asyncio.to_thread(
             _bridge_call,
@@ -846,6 +846,11 @@ if "__zeta_prelude_loaded__" not in globals():
 
     def wait(handles, timeout=None, *, raise_errors=True):
         """Wait for agent/completion handles in input order."""
+        if isinstance(handles, (int, float)):
+            raise TypeError(
+                "wait() takes agent or completion handles; it is not a sleep. "
+                "Wait for page state with tab.waitFor*(…), or pause with await asyncio.sleep(seconds)."
+            )
         items = [handles] if isinstance(handles, _Handle) else list(handles)
         for handle in items:
             if not isinstance(handle, _Handle):

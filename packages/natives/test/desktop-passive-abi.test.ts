@@ -1,9 +1,8 @@
-import { afterEach, expect, test, vi } from "bun:test";
-import * as loaderState from "../native/loader-state.js";
+import { expect, mock, test } from "bun:test";
+import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 
-afterEach(() => vi.restoreAllMocks());
-
-test("passive observation refuses a stale addon before initializing its input-enabled constructor", async () => {
+async function probe(): Promise<void> {
 	let constructed = 0;
 	class StaleSession {
 		constructor() {
@@ -38,13 +37,29 @@ test("passive observation refuses a stale addon before initializing its input-en
 			return 0;
 		},
 	});
-	vi.spyOn(loaderState, "loadNative").mockReturnValue({ DesktopSession: StaleSession });
-	// Exercise a fresh loader cache after substituting the native binding; a static import would reuse another test's constructor.
-	const module = await import(new URL("../native/desktop.js?passive-abi-test", import.meta.url).href);
-	expect(() => module.createDesktopSession({ display: "all", observationOnly: true })).toThrow(
-		"missing observationOnly or settle",
+	const loaderPath = fileURLToPath(new URL("../native/loader-state.js", import.meta.url));
+	const loader = await import(loaderPath);
+	mock.module(loaderPath, () => ({ ...loader, loadNative: () => ({ DesktopSession: StaleSession }) }));
+	const { createDesktopSession } = await import("../native/desktop.js");
+	assert.throws(
+		() => createDesktopSession({ display: "all", observationOnly: true }),
+		/missing observationOnly or settle/,
 	);
-	expect(constructed).toBe(0);
-	module.createDesktopSession({ display: "all" });
-	expect(constructed).toBe(1);
-});
+	assert.equal(constructed, 0);
+	createDesktopSession({ display: "all" });
+	assert.equal(constructed, 1);
+}
+
+if (process.argv[2] === "--probe-desktop-abi") {
+	await probe();
+} else {
+	test("passive observation refuses a stale addon before initializing its input-enabled constructor", async () => {
+		// A fresh process isolates the lazy constructor cache and the module mock.
+		const child = Bun.spawn([process.execPath, import.meta.path, "--probe-desktop-abi"], {
+			stdout: "ignore",
+			stderr: "pipe",
+		});
+		const [exitCode, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+		expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: "" });
+	});
+}

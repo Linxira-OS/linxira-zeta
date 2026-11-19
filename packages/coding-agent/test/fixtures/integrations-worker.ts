@@ -6,6 +6,7 @@ import { bindPreparedExtensions } from "../../src/extensibility/extensions/loade
 import type { PreparedExtension } from "../../src/extensibility/extensions/types";
 import { type LocalProtocolOptions, resolveLocalRoot } from "../../src/internal-urls/local-protocol";
 import { MCPManager } from "../../src/mcp/manager";
+import type { MCPServerConfig } from "../../src/mcp/types";
 import { SessionManager } from "../../src/session/session-manager";
 import { createMCPProxyTools, type ExecutorOptions } from "../../src/task/executor";
 import { setCurrentThreadId } from "../../src/thread/identity";
@@ -28,6 +29,8 @@ export interface ToolCallOutcome {
 export interface IntegrationsProbe {
 	/** What the worker's `MCPManager` statics report. */
 	mcpGlobal(): Promise<{ available: boolean; remote: boolean; servers: string[]; tools: string[] }>;
+	/** Recognition metadata available to a borrowed manager; transport secrets stay on main. */
+	mcpConfig(name: string): Promise<MCPServerConfig | undefined>;
 	/** Each scope's MCP tool names as this worker reads them, in order, through one `RemoteMCPManager`. */
 	mcpViews(scopes: string[]): Promise<string[][]>;
 	/** Call an MCP tool through `createMCPProxyTools(MCPManager.instance())`, as a child session would. */
@@ -51,7 +54,6 @@ export interface IntegrationsProbe {
 	/** Read bridged executor options synchronously, as the child does. */
 	readOptions(options: ExecutorOptions): Promise<{
 		roots: unknown;
-		suffix: string | undefined;
 		localRoot: string;
 		approvalTargets: readonly string[] | undefined;
 	}>;
@@ -125,6 +127,7 @@ function buildProbe(): IntegrationsProbe {
 				tools: manager?.getTools().map(tool => tool.name) ?? [],
 			};
 		},
+		mcpConfig: async name => MCPManager.instance()?.getServerConfig(name),
 		mcpViews: async scopes => {
 			const manager = MCPManager.instance();
 			if (!manager) throw new Error("no MCP manager in worker");
@@ -187,7 +190,6 @@ function buildProbe(): IntegrationsProbe {
 		},
 		readOptions: async options => ({
 			roots: options.extensionRoots?.(),
-			suffix: options.preparedSession?.promptSuffix("model-x"),
 			localRoot: options.localProtocolOptions ? resolveLocalRoot(options.localProtocolOptions) : "",
 			approvalTargets: options.customTools?.[0]?.approvalCacheTargets?.({ path: "a.txt" }),
 		}),

@@ -169,7 +169,7 @@ export class LoopContinuationController {
 
 	/** Feed session events before settle/quiescence observers see them. */
 	observe(event: AgentSessionEvent): void {
-		if (event.type !== "agent_end" || event.isTerminal === false) return;
+		if (event.type !== "agent_end") return;
 		if (!this.#enabled || this.#paused || this.#session.isDisposed) return;
 		this.#schedule();
 	}

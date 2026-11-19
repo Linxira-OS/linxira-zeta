@@ -22,6 +22,8 @@ export * from "./loader";
 export * from "./manager";
 // OAuth Discovery
 export * from "./oauth-discovery";
+// Reconnect
+export * from "./reload";
 // Tool bridge
 export * from "./tool-bridge";
 // Tool cache

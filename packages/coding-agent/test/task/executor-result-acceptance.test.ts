@@ -22,7 +22,12 @@ import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
-import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@linxiraos/zeta/task/executor";
+import {
+	attachIrcWakeTurnMonitor,
+	resolveParentJobOrigin,
+	runSubagentFollowUpTurn,
+	runSubprocess,
+} from "@linxiraos/zeta/task/executor";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -160,9 +165,7 @@ function createHarness(options?: { hangPrompt?: boolean; asyncJobManager?: Async
 		prepareForHeadlessAdvisorDrain: () => {},
 		waitForAdvisorCatchup: async () => true,
 		getLastAssistantMessage: () => messages[messages.length - 1],
-		hasPendingAsyncWork: () => false,
 		getAsyncJobSnapshot: () => ({ running: [], recent: [] }),
-		settleAsyncWork: async () => {},
 		abort: async () => {},
 		dispose: async () => {},
 		setIrcWakeTurnObserver: (
@@ -689,7 +692,11 @@ describe("runSubprocess result acceptance", () => {
 			status: "idle",
 		});
 		try {
-			attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, parentSessionFile: sourceFile });
+			attachIrcWakeTurnMonitor(harness.session, {
+				id: AGENT_ID,
+				agent: baseAgent,
+				parentOrigin: resolveParentJobOrigin(sourceFile),
+			});
 			const observer = harness.wakeObserver();
 			if (!observer) throw new Error("wake-turn observer was not registered");
 			// Navigation and new jobs happen after the monitor's source capture.
@@ -724,17 +731,21 @@ describe("runSubprocess result acceptance", () => {
 		}
 	});
 
-	it("an unavailable declared source cannot fall back to the current conversation", () => {
+	it("an unavailable declared source rejects the spawn before creating a worker", async () => {
 		using temp = TempDir.createSync("@wake-missing-source-");
-		const harness = createHarness();
-		expect(() =>
-			attachIrcWakeTurnMonitor(harness.session, {
+		const create = vi.spyOn(sdkModule, "createAgentSession");
+		await expect(
+			runSubprocess({
+				cwd: temp.path(),
 				id: AGENT_ID,
+				index: 0,
 				agent: baseAgent,
-				parentSessionFile: path.join(temp.path(), "missing.jsonl"),
+				task: "do work",
+				sessionFile: path.join(temp.path(), "missing.jsonl"),
 			}),
-		).toThrow("Cannot resolve the source transcript");
-		expect(harness.wakeObserver()).toBeUndefined();
+		).rejects.toThrow("Cannot resolve the source transcript");
+		expect(create).not.toHaveBeenCalled();
+		expect(AgentRegistry.global().get(AGENT_ID)).toBeUndefined();
 	});
 
 	it.each([true, false])(

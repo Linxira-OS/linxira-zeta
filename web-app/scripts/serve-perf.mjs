@@ -13,9 +13,10 @@ import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../dist-perf/", import.meta.url));
+const entry = "perf-harness.html";
 
-if (!existsSync(join(root, "index.html"))) {
-  console.error(`dist-perf/index.html is missing — run \`npx vite build --config vite.perf.config.ts\` first.\n  expected: ${root}`);
+if (!existsSync(join(root, entry))) {
+  console.error(`dist-perf/${entry} is missing — run \`npx vite build --config vite.perf.config.ts\` first.\n  expected: ${root}`);
   process.exit(1);
 }
 
@@ -27,7 +28,7 @@ const server = Bun.serve({
   async fetch(request) {
     const url = new URL(request.url);
     const pathname = decodeURIComponent(url.pathname);
-    const relative = pathname === "/" || pathname.endsWith("/") ? `${pathname}index.html` : pathname;
+    const relative = pathname === "/" ? entry : pathname;
     const file = Bun.file(`${prefix}${relative.replace(/^\/+/u, "")}`);
     const resolved = file.name;
     if (!resolved.startsWith(prefix)) return new Response("Forbidden", { status: 403 });

@@ -48,6 +48,7 @@ duplicating (or inventing) rows for them.
 | v18.1.10 | `packages/coding-agent/src/cli/update-cli.ts` | kept Zeta constants (`REPO`/`HOMEBREW_FORMULA`/`MISE_TOOL`) | upstream GH release + brew tap are the shared distribution infrastructure; renaming breaks the update chain (plan decision B6) |
 | v18.1.10 | `.github/workflows/ci.yml` | kept Zeta CI (GitHub-hosted runners, Zeta job graph) | upstream `runs-on: omp-kata` never resolves in this repo; artifact names follow `zeta-cli-*` |
 | v18.1.10 | `desktop/` | restored Zeta desktop CI references | merge-commit 50c5414846 dropped 4 desktop_linux references; desktop CI must survive every merge |
+| v18.22.0 | 273 paths in `local://omp-v18.22.0-conflict-decisions-20261118.json` | each initial conflict has a path-specific disposition | exact-path accounting, adaptation receipts and gate results are linked in [`upstream-sync.md`](./upstream-sync.md#v18220-source-integration-2026-11-18) |
 
 ## Guard matrix
 

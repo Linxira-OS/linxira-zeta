@@ -702,7 +702,7 @@ describe("spotlight notice", () => {
 		const overlay = h.find(node => node.k === "overlay");
 
 		// Two code elements, each numbered from its window's start, grammar from its path.
-		const codes = within(overlay, "code").filter(node => prop(node, "role") === "omp.spotlight.code");
+		const codes = within(overlay, "code").filter(node => prop(node, "role") === "zeta.spotlight.code");
 		expect(codes).toHaveLength(2);
 		const [py, txt] = codes;
 		expect(py?.p).toMatchObject({ text: "def f():\n    x = 1\n    return x", path: "a.py", start: 10 });
@@ -735,14 +735,14 @@ describe("spotlight notice", () => {
 		expect(words(cut?.hovercard?.c?.[3])).toBe("cut by the budget: line 3 (0.80) took the last 5 chars");
 
 		// Each window is headed by its path and its own budget and cutoff; the summary carries neither.
-		const heads = within(overlay, "row").filter(node => prop(node, "role") === "omp.spotlight.head");
+		const heads = within(overlay, "row").filter(node => prop(node, "role") === "zeta.spotlight.head");
 		expect(heads.map(head => within(head, "text").map(words))).toEqual([
 			["a.py", "cutoff 0.40"],
 			["budget 9 of 10 chars · cutoff 0.85"],
 		]);
-		const summary = h.find(node => node.p?.role === "omp.spotlight.summary");
-		expect(within(summary, "text").some(node => prop(node, "role") === "omp.spotlight.budget")).toBe(false);
-		const notes = h.find(node => node.p?.role === "omp.spotlight.notes");
+		const summary = h.find(node => node.p?.role === "zeta.spotlight.summary");
+		expect(within(summary, "text").some(node => prop(node, "role") === "zeta.spotlight.budget")).toBe(false);
+		const notes = h.find(node => node.p?.role === "zeta.spotlight.notes");
 		expect(within(notes, "text").map(words)).toEqual(["notes the model saw", "[a.py: 2 of 3 lines kept]"]);
 		expect(h.errors).toEqual([]);
 	});
@@ -769,11 +769,11 @@ describe("spotlight notice", () => {
 		await openSheet(multi, original, original);
 		const h = harness!;
 		const overlay = h.find(node => node.k === "overlay");
-		const sections = within(overlay, "col").filter(node => prop(node, "role") === "omp.spotlight.window");
+		const sections = within(overlay, "col").filter(node => prop(node, "role") === "zeta.spotlight.window");
 		expect(sections).toHaveLength(3);
 		const heads = sections.map(section =>
 			within(section, "row")
-				.filter(node => prop(node, "role") === "omp.spotlight.head")
+				.filter(node => prop(node, "role") === "zeta.spotlight.head")
 				.flatMap(head => within(head, "text").map(words)),
 		);
 		expect(heads).toEqual([

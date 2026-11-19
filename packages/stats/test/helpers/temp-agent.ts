@@ -17,7 +17,8 @@
  * `getStatsDbPath()` stays on the developer's real `~/.zeta/stats.db` and
  * every test in the process shares it.
  */
-import { afterEach, beforeEach } from "bun:test";
+import { afterEach, beforeEach, vi } from "bun:test";
+import * as os from "node:os";
 import * as path from "node:path";
 import { closeDb } from "@linxiraos/pi-stats/db";
 import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
@@ -53,6 +54,7 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 		// dir name.
 		process.env.HOME = tempDir.path();
 		process.env.USERPROFILE = tempDir.path();
+		vi.spyOn(os, "homedir").mockReturnValue(tempDir.path());
 		const configDir = ".zeta";
 		process.env.PI_CONFIG_DIR = configDir;
 		// `getStatsDbPath()` resolves from the config root, which `dirs.ts` reads
@@ -81,6 +83,7 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 		else process.env.HOME = originalHome;
 		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = originalUserProfile;
+		vi.restoreAllMocks();
 		for (const key of XDG_KEYS) {
 			const prior = originalXdg[key];
 			if (prior === undefined) delete process.env[key];

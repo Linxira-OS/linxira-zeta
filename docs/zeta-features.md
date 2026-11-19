@@ -52,10 +52,10 @@ backend.
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
   `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
   backend's providers. `/restart` targets the backend by default
-  (`/restart client` re-execs the TUI); `/omfg`, `/cleanse`, `/tan` and
-  `/seance` run through backend headless handlers. `/setup` and `/providers`
-  are retired in favor of `/login`; live-session collaboration (`/collab`,
-  `/join`, `/leave`) is fully retired. `/live` is disabled
+  (`/restart client` re-execs the TUI). `/omfg`, `/cleanse` and `/tan` run
+  through backend headless handlers. `/setup` and `/providers` are retired in
+  favor of `/login`. `/seance` and live-session collaboration (`/collab`,
+  `/join`, `/leave`) are retired. `/live` is disabled
   product-wide until its Codex-only realtime transport is replaced. `/loop` is
   backend-executed: repetitions, its
   `--while`/`--until` shell condition, and `loop.mode` compact/reset actions

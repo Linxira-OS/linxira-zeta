@@ -1,5 +1,4 @@
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Message } from "@linxiraos/pi-ai";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
@@ -7,8 +6,8 @@ import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type:
 import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { escapeHarnessTags } from "./harness-tags";
-import { normalizeImMessageMetadata } from "./session-im";
-import type { CustomMessage } from "./messages";
+import { formatImUserInput, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
+import { type CustomMessage, isImUserWake } from "./messages";
 import type { SessionManager } from "./session-manager";
 
 /** Capabilities the IRC bridge borrows from its owning session. */
@@ -66,6 +65,15 @@ export class IrcBridge {
 	/** Whether an aside is ready for step-boundary injection (not a parked wake). */
 	hasAsides(): boolean {
 		return this.#asides.length > 0;
+	}
+
+	/**
+	 * Whether a queued record wakes a turn once the session idles. Parked deferred wakes do
+	 * not: they wait for a turn of their own after the driven run or pooled contract that
+	 * parked them.
+	 */
+	hasWakeable(): boolean {
+		return this.#interrupts.length > 0 || this.#asides.length > 0;
 	}
 
 	/** Whether any undelivered IRC record remains queued. */
@@ -164,6 +172,14 @@ export class IrcBridge {
 		this.#asides.push(...records);
 	}
 
+	/** IM replies need their own observed wake after an unrelated active turn. */
+	queueBehindActiveTurn(records: AgentMessage[]): void {
+		for (const record of records) {
+			if (record.role === "custom" && isImUserWake(record)) this.#deferredWakes.push(record);
+			else this.#asides.push(record);
+		}
+	}
+
 	/** Parks wake-intended records while a pooled contract owns the worker. Unlike
 	 *  asides, these are invisible to turn injection (`flushPending`, the loop
 	 *  aside poll) and resume into a monitored wake once the contract clears. */
@@ -224,26 +240,14 @@ export class IrcBridge {
 		// harness envelope it is rendered into or open a forged one, e.g. a parent
 		// steer. `details.message` keeps the raw body for the transcript card and inbox.
 		const envelopeBody = escapeHarnessTags(msg.body);
-		// IM ingress is a real user turn with entry-level provenance. The custom
-		// record remains the wake/correlation carrier, but carries no duplicate
-		// prompt text once the user entry exists.
+		// Queued IM stays out of the model and transcript until the session consumes it.
 		const imMetadata = normalizeImMessageMetadata(msg.metadata);
-		const isImUserTurn = imMetadata !== undefined && !("replyToMessageId" in imMetadata);
-		if (isImUserTurn) {
-			this.#host.sessionManager.appendMessage(
-				{
-					role: "user",
-					content: [{ type: "text", text: msg.body }],
-					timestamp: msg.ts,
-				} as Message,
-				imMetadata,
-			);
-		}
+		const isImUserTurn = imMetadata !== undefined && isImUserMessageMetadata(imMetadata);
 		const record: CustomMessage = {
 			role: "custom",
 			customType: "irc:incoming",
 			content: isImUserTurn
-				? ""
+				? formatImUserInput(msg.body, imMetadata)
 				: prompt.render(ircIncomingTemplate, {
 						from: msg.from,
 						message: envelopeBody,
@@ -254,7 +258,7 @@ export class IrcBridge {
 					}),
 			// The parent steer becomes the transcript card when consumed; keep this
 			// observation available to listeners without also painting a live card.
-			display: !(streaming && fromParent && !peerMessage),
+			display: isImUserTurn || !(streaming && fromParent && !peerMessage),
 			details: {
 				id: msg.id,
 				from: msg.from,
@@ -264,14 +268,22 @@ export class IrcBridge {
 				...(msg.broadcast ? { broadcast: true } : {}),
 				...(msg.progress ? { progress: true } : {}),
 				...(fromParent ? { fromParent: true } : {}),
-				...(msg.metadata ? { metadata: msg.metadata } : {}),
+				...(imMetadata ? { metadata: imMetadata } : msg.metadata ? { metadata: msg.metadata } : {}),
 			},
 			attribution: "agent",
 			timestamp: msg.ts,
 		};
 		if (peerMessage) this.#peerMessages.add(record);
-		void this.#host.emitSessionEvent({ type: "irc_message", message: record });
+		// Render the IM turn when it starts, in the same order as journal replay.
+		void this.#host.emitSessionEvent({
+			type: "irc_message",
+			message: isImUserTurn ? { ...record, display: false } : record,
+		});
 		if (streaming) {
+			if (isImUserTurn) {
+				this.queueBehindActiveTurn([record]);
+				return "injected";
+			}
 			if (fromParent && !peerMessage) {
 				const steer: AgentMessage = {
 					role: "user",
@@ -290,14 +302,19 @@ export class IrcBridge {
 			return "injected";
 		}
 		if (this.#host.planModeEnabled()) {
-			this.#host.agent.appendMessage(record);
-			this.#host.sessionManager.appendCustomMessageEntry(
-				record.customType,
-				record.content,
-				record.display,
-				record.details,
-				record.attribution ?? "agent",
-			);
+			if (isImUserTurn) {
+				this.#host.agent.emitExternalEvent({ type: "message_start", message: record });
+				this.#host.agent.emitExternalEvent({ type: "message_end", message: record });
+			} else {
+				this.#host.agent.appendMessage(record);
+				this.#host.sessionManager.appendCustomMessageEntry(
+					record.customType,
+					record.content,
+					record.display,
+					record.details,
+					record.attribution ?? "agent",
+				);
+			}
 			return "injected";
 		}
 		this.#host.wakeForIrc([record]);

@@ -1251,6 +1251,7 @@ export class AskDialogComponent implements Component {
 	/** Up/down hand the keyboard to the dialog for good; the draft stays untouched beneath it. */
 	#releaseGuard(): void {
 		this.#guardReleased = true;
+		this.options.inputGuard?.syncPresentation?.(false);
 		this.#native = undefined;
 		this.#hidden = false;
 		this.#requestRender();
@@ -1259,6 +1260,7 @@ export class AskDialogComponent implements Component {
 	#releaseGuardForPointer(): void {
 		if (!this.#guardBlocks()) return;
 		this.#guardReleased = true;
+		this.options.inputGuard?.syncPresentation?.(false);
 		this.#native = undefined;
 	}
 

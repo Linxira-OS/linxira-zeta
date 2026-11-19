@@ -20,6 +20,7 @@ import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 setDefaultTimeout(30_000);
 
 async function fixture() {
+	await mkdir(fileURLToPath(new URL("../../../temp/", import.meta.url)), { recursive: true });
 	const root = await mkdtemp(fileURLToPath(new URL("../../../temp/zeta-time-travel-runtime-", import.meta.url)));
 	const workspace = join(root, "workspace");
 	await mkdir(workspace);

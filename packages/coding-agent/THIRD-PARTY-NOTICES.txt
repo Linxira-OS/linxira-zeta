@@ -1,16 +1,49 @@
-OMP CLI THIRD-PARTY NOTICES
-===========================
+ZETA CLI THIRD-PARTY NOTICES
+============================
 
-Third-party code, data, and packages shipped in the omp CLI:
-@linxiraos/zeta and the @oh-my-pi TypeScript packages it is built
-from, the npm CLI bundle (dist/cli.js), and the JavaScript layer of the omp
-executable. Each license below governs only the material it names.
+These notices accompany @linxiraos/zeta, including its CLI, npm bundle
+(dist/cli.js), and bundled Work Studio renderer. Each license below governs
+the material it names.
+
+Zeta's runtime derives from oh-my-pi (OMP) v18.22.0
+(https://github.com/can1357/oh-my-pi). The Work Studio renderer derives from
+OMP Studio v0.2.1 (https://github.com/the-snowpear/omp-studio). Zeta's separate
+IDE and Editor packages derive from TermIDE 0.49.0
+(https://github.com/termide/termide). See the repository NOTICE and aggregate
+THIRD-PARTY-NOTICES.txt for the full attribution and integration history.
 
 The native addon has its own notices in @linxiraos/pi-natives
-(packages/natives/THIRD-PARTY-NOTICES.txt). `omp --license` prints both.
+(packages/natives/THIRD-PARTY-NOTICES.txt). `zetacode --license` prints the
+aggregate and native notices.
 
 VENDORED SOURCE AND DATA
 ========================
+
+-------------------------------------------------------------------------------
+OMP Studio v0.2.1 (https://github.com/the-snowpear/omp-studio)
+Vendored renderer and client contracts bundled in dist/web-app.
+
+MIT License
+
+Copyright (c) 2026 snowpear and OMP Studio contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 -------------------------------------------------------------------------------
 HTML export viewer dependencies hosted at stencil.so/assets/omp

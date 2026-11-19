@@ -98,7 +98,8 @@ export function validateStudioIdaOperation(value: unknown): asserts value is Stu
 	if (typeof kind !== "string" || !isIdaOperationKind(kind)) throw invalid("Invalid IDA operation");
 	idaText(row.sessionId, 512);
 	if (kind === "ida.configure") {
-		if (typeof row.enabled !== "boolean") throw invalid("Invalid IDA boolean");
+		if (!["auto", "ghidra", "ida", "none"].includes(String(row.backend)))
+			throw invalid("Invalid disassembler backend");
 		idaText(row.installDir, 4096, true);
 		idaText(row.python, 4096, true);
 	} else if (kind === "ida.open") idaText(row.path);

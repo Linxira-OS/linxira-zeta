@@ -4,6 +4,7 @@ import { completeSimple, Effort, type Model, retryTransientCompletion } from "@l
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
 import { getSegmenter } from "@linxiraos/pi-tui";
 import { logger, prompt } from "@linxiraos/pi-utils";
+import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue, resolveRoleSelection } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
@@ -168,10 +169,16 @@ export function buildSharpshooterEnvelope(
 export async function resolveSharpshooterModel(
 	settings: Settings,
 	modelRegistry: ModelRegistry,
+	provider?: string,
 ): Promise<Model | undefined> {
+	const offline = cfgOffline.get(settings);
+	if (offline && !provider) return undefined;
+	const models = offline
+		? modelRegistry.getAll().filter(model => model.provider === provider)
+		: modelRegistry.getAll();
 	const selector = cfgSharpshooterModel.get(settings);
 	if (selector) {
-		const resolved = resolveModelRoleValue(selector, modelRegistry.getAll(), {
+		const resolved = resolveModelRoleValue(selector, models, {
 			settings,
 			matchPreferences: getModelMatchPreferences(settings),
 		});
@@ -179,7 +186,12 @@ export async function resolveSharpshooterModel(
 		logger.debug("Sharpshooter extraction model selector did not resolve", { selector });
 	}
 
-	const fallback = resolveRoleSelection(["smol"], settings, modelRegistry.getAvailable())?.model;
+	const available = modelRegistry.getAvailable();
+	const fallback = resolveRoleSelection(
+		["smol"],
+		settings,
+		offline ? available.filter(model => model.provider === provider) : available,
+	)?.model;
 	if (!fallback) logger.debug("Sharpshooter extraction skipped: no model available");
 	return fallback;
 }
@@ -264,16 +276,19 @@ async function runSharpshooterExtraction(
 	delivery?: { cwd: string; sourceId: string; userEvidence: string[] },
 ): Promise<void> {
 	const { session, settings, modelRegistry, agentDir } = options;
-	const model = await resolveSharpshooterModel(settings, modelRegistry);
-	if (!model || session.isDisposed) {
+	const model = await resolveSharpshooterModel(settings, modelRegistry, session.model?.provider);
+	if (!model || session.isDisposed || (cfgOffline.get(settings) && session.model?.provider !== model.provider)) {
 		if (delivery) throw new Error("Sharpshooter window extraction is unavailable: no model or session disposed.");
 		return;
 	}
 
 	const input = prompt.render(extractInputTemplate, { ...envelope });
 	const response = await retryTransientCompletion(
-		() =>
-			completeSimple(
+		() => {
+			if (cfgOffline.get(settings) && session.model?.provider !== model.provider) {
+				throw new Error("Sharpshooter model provider differs from the active session provider");
+			}
+			return completeSimple(
 				model,
 				{
 					systemPrompt: [prompt.render(extractSystemTemplate)],
@@ -287,7 +302,8 @@ async function runSharpshooterExtraction(
 					reasoning: clampThinkingLevelForModel(model, Effort.Low),
 					toolChoice: "required",
 				},
-			),
+			);
+		},
 		{ provider: model.provider },
 	);
 	if (response.stopReason === "error") {

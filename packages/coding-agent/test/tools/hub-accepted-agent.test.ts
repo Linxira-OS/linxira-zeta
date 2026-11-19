@@ -33,10 +33,10 @@ describe("hub accepted-agent watchdog", () => {
 	}
 
 	function registerLeakedAcceptedRun(): void {
-		let streaming = true;
+		let runActive = true;
 		const session = {
-			get isStreaming(): boolean {
-				return streaming;
+			get runStartedAt(): number | undefined {
+				return runActive ? 1 : undefined;
 			},
 		} as never;
 		const ref = registry.register({
@@ -51,7 +51,7 @@ describe("hub accepted-agent watchdog", () => {
 		// terminalized yet; the turn then ends without the mirror delivering
 		// `idle` — the leak the roster must report.
 		registry.markResultAccepted("PolicyCommand", ref, ref.createdAt);
-		streaming = false;
+		runActive = false;
 	}
 
 	it("surfaces an accepted-but-running agent with its acceptance age and a cancel hint", () => {

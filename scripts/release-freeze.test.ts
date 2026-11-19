@@ -5,10 +5,9 @@ import {
 	assertTagAllowed,
 	classifyReleaseVersion,
 	evaluatePublishPolicy,
-	RELEASE_FREEZE,
 } from "./release-policy";
 
-describe("release freeze policy (ADR 0006)", () => {
+describe("stable release policy (ADR 0072)", () => {
 	it("keeps the public version 1.5.1 untagged and unpublished", () => {
 		for (const version of ["1.5.0", "1.5.1"]) {
 			const decision = classifyReleaseVersion(version);
@@ -19,8 +18,8 @@ describe("release freeze policy (ADR 0006)", () => {
 		}
 	});
 
-	it("allows code-only 1.5.3–1.5.10 tags and never publishes them", () => {
-		for (const version of ["1.5.3", "1.5.9", "1.5.10"]) {
+	it("allows code-only 1.5.3–1.5.9 tags and never publishes them", () => {
+		for (const version of ["1.5.3", "1.5.9"]) {
 			const decision = classifyReleaseVersion(version);
 			expect(decision.tagAllowed).toBe(true);
 			expect(decision.publishAllowed).toBe(false);
@@ -79,44 +78,25 @@ describe("release freeze policy (ADR 0006)", () => {
 		expect(assetsOnly.overrideApplied).toBe(true);
 	});
 
-	it("refuses versions past the internal ceiling and retired lines", () => {
-		for (const version of ["1.5.11", "1.5.99", "1.4.13", "1.0.0"]) {
+	it("does not reopen retired versions", () => {
+		for (const version of ["1.4.13", "1.0.0"]) {
 			const decision = classifyReleaseVersion(version);
 			expect(decision.tagAllowed).toBe(false);
 			expect(decision.publishAllowed).toBe(false);
 		}
 	});
 
-	it("requires an exact, reasoned owner override for 1.6.0+", () => {
-		const denied = classifyReleaseVersion(RELEASE_FREEZE.nextPublicVersion);
-		expect(denied.channel).toBe("public");
-		expect(denied.tagAllowed).toBe(false);
-		expect(denied.publishAllowed).toBe(false);
-		expect(denied.assetsAllowed).toBe(false);
-
-		const noReason = evaluatePublishPolicy({
-			version: "1.6.0",
-			overrideVersion: "1.6.0",
-			overrideReason: "  ",
-		});
-		expect(noReason.publishAllowed).toBe(false);
-
-		const mismatch = evaluatePublishPolicy({
-			version: "1.6.0",
-			overrideVersion: "1.6.1",
-			overrideReason: "approved",
-		});
-		expect(mismatch.publishAllowed).toBe(false);
-
-		const approved = evaluatePublishPolicy({
-			version: "v1.6.0",
-			overrideVersion: "1.6.0",
-			overrideReason: "owner approved the public release",
-		});
-		expect(approved.tagAllowed).toBe(true);
-		expect(approved.publishAllowed).toBe(true);
-		expect(approved.assetsAllowed).toBe(true);
-		expect(approved.overrideApplied).toBe(true);
+	it("releases stable versions starting at 1.5.10 without an override", () => {
+		for (const version of ["v1.5.10", "1.5.11", "1.6.0"]) {
+			expect(evaluatePublishPolicy({ version })).toMatchObject({
+				channel: "public",
+				tagAllowed: true,
+				publishAllowed: true,
+				assetsAllowed: true,
+				requiresOverride: false,
+				overrideApplied: false,
+			});
+		}
 	});
 
 	it("rejects prereleases and malformed versions", () => {
@@ -128,15 +108,9 @@ describe("release freeze policy (ADR 0006)", () => {
 		}
 	});
 
-	it("throws from the assert helpers when the freeze denies the action", () => {
-		expect(() => assertTagAllowed("1.5.11", {})).toThrow(/release freeze/);
+	it("refuses invalid and historical publish requests", () => {
+		expect(() => assertTagAllowed("1.5.10-rc.1", {})).toThrow(/release freeze/);
 		expect(() => assertPublishAllowed("1.5.2", {})).toThrow(/release freeze/);
-		expect(() => assertAssetsAllowed("1.6.0", {})).toThrow(/release freeze/);
-		expect(() =>
-			assertPublishAllowed("1.6.0", {
-				ZETA_RELEASE_OVERRIDE_VERSION: "1.6.0",
-				ZETA_RELEASE_OVERRIDE_REASON: "approved",
-			}),
-		).not.toThrow();
+		expect(() => assertAssetsAllowed("1.4.13", {})).toThrow(/release freeze/);
 	});
 });

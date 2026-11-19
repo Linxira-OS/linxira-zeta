@@ -592,6 +592,13 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
   同批61项通过、1项失败。沿用CI-001环境类别，不skip、不删断言，不声称已通过。
 - 上述失败不阻断用户要求的源码整合；发布仍需完整CI与当前工件证据。
 
+## 2026-11-17 main push CI observation
+
+- One authorized push moved remote main from `e37c23c144d` to `13accf0fc1849852b9814b1f072a5e45a2f1d928` and started [CI 44041010183](https://github.com/Linxira-OS/linxira-zeta/actions/runs/44041010183) at 2026-11-17T07:44:24Z. The run was still in progress at inspection; no final green or all-job verdict is claimed. No second push, dispatch, tag or release was performed.
+- **CI-040 — Bazel lock input freshness:** completed job `133895326044` failed `Check crate_universe entry`. Recorded/current Cargo.toml hashes are `53413b4df80985bbba16a2dcd8c2fff497647e2d304581698d7aa47b848f3dd0` / `80e8a3a7b0e54427c78cf987cd4a722fcd3e4b21b27e663690becabaef023b18`; Cargo.lock hashes are `c604ba518aba6dd91886ed782d3b7aca7ec704e67954186623cfba0ac986db77` / `ae8f1135da9d9842aea8db6745beafce49a52c3f941dacef6167a8c05307967a`. The seven crate-coverage tests passed; they do not establish input freshness. Reuse the CI-generated regeneration artifact if it matches final inputs, otherwise regenerate the real lock on Linux; do not replace only hashes or weaken the check.
+- **CI-031 recurrence:** completed job `133895622040` again rejected the two legal source credits at `rep-docs/product.md:20` and `rep-docs/product.zh-CN.md:16` (2 hits, 0 missing assertions). Preserve attribution; repair the guard's existing legal-attribution classification and verify product-brand rejection remains effective.
+- At the same observation, main-workspace, TermIDE and release-metadata jobs succeeded; native and Rust jobs were still running. Paused/manual publication skips are not release success. Original logs and job snapshot: `local://main-ci-push-20261117.json`, `artifact://54760`, `artifact://54758`.
+
 ---
 
 ## 附：1.4.8 发布链路时间线（供后续复盘）

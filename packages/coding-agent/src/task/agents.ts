@@ -12,7 +12,6 @@ import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import scoutMd from "../prompts/agents/scout.md" with { type: "text" };
 import secretaryMd from "../prompts/agents/secretary.md" with { type: "text" };
 import securityReviewerMd from "../prompts/agents/security-reviewer.md" with { type: "text" };
-import seanceMd from "../prompts/agents/seance.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
 import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
 
@@ -48,7 +47,6 @@ const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "reviewer.md", template: reviewerMd },
 	{ fileName: "secretary.md", template: secretaryMd },
 	{ fileName: "security-reviewer.md", template: securityReviewerMd },
-	{ fileName: "seance.md", template: seanceMd },
 	{
 		fileName: "task.md",
 		frontmatter: {

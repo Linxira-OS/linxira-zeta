@@ -19,7 +19,7 @@ Forked application trees:
 
 | Path | Upstream | Snapshot | License | What Zeta changed |
 |---|---|---|---|---|
-| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.20.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
+| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.22.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
 | `web-ui/` | OMP Web, https://github.com/17380936778/omp-web | frozen snapshot, **abandoned 2026-11-05** (`document/upstream-sync.md`) | see upstream files | third-party UI, not maintained by Zeta: frozen as received, no builds, no fixes; the product renderer is `web-app/` (`Differences from Upstream` in README) |
 | `web-app/` (`src/studio`, `src/vendor/*`) | OMP Studio, https://github.com/the-snowpear/omp-studio | official `v0.2.1` (`6d0b764bb9eac88c1671c0380229823c5630cc74`) integrated 2026-11-16; `web-ui/` is a separate frozen OMP Web snapshot | MIT | maintained by Zeta now: the host contract is reimplemented in `studio-host` (pair/CSRF/query/command/events), the renderer was rebranded (`zeta-studio` wire name, Zeta links/fixtures), and Zeta adds windowed transcripts, precompressed static serving, the plugin registry, and the usage dashboard |
 | `termide/` | TermIDE, https://github.com/termide/termide | tag `0.49.0` = `057eb55e0a7c4ee969982fab62dc83bde028e052` | MIT | deviations listed in `termide/VENDOR.md` |

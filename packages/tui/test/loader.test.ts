@@ -53,22 +53,20 @@ describe("Loader component", () => {
 		loader.stop();
 	});
 
-	it("holds painted frames while the post-input decorative pause is active", () => {
+	it("repaints a single-glyph loader with an animated message on every spinner period without synchronized output", () => {
+		// The working row: one glyph (the interrupt key) beside a shimmering intent. Without DEC 2026
+		// its spinner-period repaints are the only ones it gets, so they cannot wait for a new glyph.
 		vi.useFakeTimers({ now: 0 });
-		let pauseMs = 100;
-		const ui = { requestComponentRender: vi.fn(), decorativePauseRemainingMs: () => pauseMs };
-		const colorMessage = ((text: string) => text) as LoaderMessageColorFn & { animated: true };
+		const ui = { requestComponentRender: vi.fn() };
+		const colorMessage = ((text: string) => `${text}@${Date.now()}`) as LoaderMessageColorFn & { animated: true };
 		colorMessage.animated = true;
-		const loader = new Loader(ui as unknown as TUI, text => text, colorMessage, "Checking", ["0", "1", "2", "3"]);
+		const loader = new Loader(ui as unknown as TUI, text => text, colorMessage, "Working", [" esc"]);
 
-		expect(ui.requestComponentRender).toHaveBeenCalledTimes(1); // the first frame
-		vi.advanceTimersByTime(40);
-		expect(ui.requestComponentRender).toHaveBeenCalledTimes(1); // held under the pause
+		vi.advanceTimersByTime(79);
+		expect(ui.requestComponentRender).toHaveBeenCalledTimes(1);
 
-		pauseMs = 0;
-		vi.advanceTimersByTime(140);
-		expect(ui.requestComponentRender.mock.calls.length).toBeGreaterThan(1);
-
+		vi.advanceTimersByTime(91);
+		expect(ui.requestComponentRender).toHaveBeenCalledTimes(3);
 		loader.stop();
 	});
 
@@ -340,8 +338,7 @@ describe("Loader component", () => {
 	});
 
 	it("holds animated message-only frames when synchronized output is unavailable", () => {
-		vi.useFakeTimers({ now: 0 });
-		setSystemTime(new Date(1_000));
+		vi.useFakeTimers({ now: 1_000 });
 		const ui = { synchronizedOutput: false, requestComponentRender: vi.fn() };
 		const colorMessage = ((text: string) => `${text}-${Date.now()}`) as LoaderMessageColorFn & { animated: true };
 		colorMessage.animated = true;

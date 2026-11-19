@@ -1678,12 +1678,14 @@ export class SessionRouter {
 			const opened = await this.open(dir);
 			if (!opened.ok) return opened;
 		}
-		// One merge keeps a chat's language and drops any bot-session pointer: a
-		// workspace binding supersedes both. `mode: direct` is the explicit
-		// project selection that outranks the channel default.
+		// A direct workspace route belongs to this entrance. Replace its bot
+		// pointer atomically without moving or rewriting the old conversation.
 		await this.#webConfig.patchImBinding(channelId, peer, {
 			target: { kind: "workspace", workspace: alias },
+			sessionId: randomUUID().slice(0, 8),
 		});
+		this.#runtimeBindings.delete(`${channelId}:${peer}`);
+		this.#agentBindings.delete(`${channelId}:${peer}`);
 		return { ok: true, alias };
 	}
 

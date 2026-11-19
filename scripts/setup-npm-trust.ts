@@ -28,7 +28,7 @@
  *   bun scripts/setup-npm-trust.ts --force         Replace any existing config (revoke + recreate)
  *   bun scripts/setup-npm-trust.ts --only a,b      Limit to specific package names
  *   bun scripts/setup-npm-trust.ts --repo o/r      Override the GitHub repo (default: from package.json)
- *   bun scripts/setup-npm-trust.ts --workflow f    Override the workflow file (default: ci.yml)
+ *   bun scripts/setup-npm-trust.ts --workflow f    Override the workflow for all selected packages
  */
 
 import * as fs from "node:fs/promises";
@@ -38,6 +38,7 @@ import { $ } from "bun";
 import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages.ts";
 import { compareVersions } from "../packages/utils/src/version.ts";
 import { packages } from "./ci-release-publish.ts";
+import { distributionManifests, NPM_DISTRIBUTIONS } from "./npm-distributions.ts";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const MIN_NPM = "11.16.0";
@@ -76,12 +77,12 @@ interface Options {
 	dryRun: boolean;
 	force: boolean;
 	repo?: string;
-	workflow: string;
+	workflow?: string;
 	only?: Set<string>;
 }
 
 function parseArgs(argv: readonly string[]): Options {
-	const opts: Options = { list: false, dryRun: false, force: false, workflow: DEFAULT_WORKFLOW };
+	const opts: Options = { list: false, dryRun: false, force: false };
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		switch (arg) {
@@ -131,7 +132,7 @@ function printUsageAndExit(code = 0): never {
 			"  --force           Replace an existing config (revoke + recreate)",
 			"  --only a,b,c      Limit to the named packages",
 			"  --repo owner/repo Override the GitHub repo (default: from package.json)",
-			"  --workflow file   Override the workflow filename (default: ci.yml)",
+			"  --workflow file   Override the workflow for all selected packages (default: their publishing workflow)",
 			"  -h, --help        Show this help",
 		].join("\n"),
 	);
@@ -146,59 +147,35 @@ function parseRepo(repository: { url?: string } | string | undefined): string | 
 	return match ? `${match[1]}/${match[2]}` : null;
 }
 
-async function collectTargets(): Promise<{ names: string[]; repoFromManifest: string | null }> {
-	const seen = new Set<string>();
-	const names: string[] = [];
+async function collectTargets(): Promise<{ workflows: Map<string, string>; repoFromManifest: string | null }> {
+	const workflows = new Map<string, string>();
 	let repoFromManifest: string | null = null;
 	for (const pkg of packages) {
 		const manifest = (await Bun.file(path.join(repoRoot, pkg.dir, "package.json")).json()) as ManifestShape;
 		if (manifest.private) continue;
 		repoFromManifest ??= parseRepo(manifest.repository);
-		if (typeof manifest.name === "string" && !seen.has(manifest.name)) {
-			seen.add(manifest.name);
-			names.push(manifest.name);
-		}
+		if (typeof manifest.name === "string") workflows.set(manifest.name, DEFAULT_WORKFLOW);
 		// Native leaves are generated per platform at release time; each shipped
 		// one is its own published package and needs its own trusted-publisher
 		// link (a leaf the release does not publish needs none).
 		if (pkg.kind === "native") {
 			for (const target of LEAF_TARGETS.filter(candidate => SHIPPED_LEAF_TAGS.includes(candidate.tag))) {
 				const leaf = `@linxiraos/pi-natives-${target.tag}`;
-				if (!seen.has(leaf)) {
-					seen.add(leaf);
-					names.push(leaf);
-				}
+				workflows.set(leaf, DEFAULT_WORKFLOW);
 			}
 		}
 	}
-	// Not in ci-release-publish's workspace `packages` table, each published by
-	// its own ci.yml job instead: web-ui (`release_web_ui_packages` → `--web-ui`
-	// as-is pack, which builds its `.next` first), the official plugin
-	// pi-messenger (`release_plugin_packages` → `--plugin`, packed from
-	// plugins/official/pi-messenger as-authored), and the vendored
-	// editor/ide/main distributions (`--editor`/`--ide`/`--main`). They still
-	// need trusted-publisher links so CI can publish them with OIDC; the
-	// workflow they must name stays `.github/workflows/ci.yml` for all of them.
-	const extras = [
-		"@linxiraos/zeta-web",
-		"@linxiraos/pi-messenger",
-		"@linxiraos/editor",
-		"@linxiraos/editor-windows-x64",
-		"@linxiraos/editor-linux-x64",
-		"@linxiraos/ide",
-		"@linxiraos/ide-windows-x64",
-		"@linxiraos/ide-linux-x64",
-		"@linxiraos/main",
-		"@linxiraos/main-windows-x64",
-		"@linxiraos/main-linux-x64",
-	];
-	for (const extra of extras) {
-		if (!seen.has(extra)) {
-			seen.add(extra);
-			names.push(extra);
+	workflows.set("@linxiraos/zeta-web", DEFAULT_WORKFLOW);
+	workflows.set("@linxiraos/pi-messenger", DEFAULT_WORKFLOW);
+	// npm checks the dispatched workflow that executes `npm publish`.
+	for (const distribution of NPM_DISTRIBUTIONS) {
+		const workflow = `${path.basename(distribution.dir)}-publish.yml`;
+		for (const manifestPath of distributionManifests(distribution)) {
+			const manifest = (await Bun.file(path.join(repoRoot, manifestPath)).json()) as ManifestShape;
+			if (!manifest.private && typeof manifest.name === "string") workflows.set(manifest.name, workflow);
 		}
 	}
-	return { names, repoFromManifest };
+	return { workflows, repoFromManifest };
 }
 
 /** Run npm with the terminal attached so the web 2FA flow stays interactive. */
@@ -338,13 +315,11 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	const { names, repoFromManifest } = await collectTargets();
-	let targets = names;
+	const { workflows, repoFromManifest } = await collectTargets();
+	const targets = [...workflows].filter(([name]) => !opts.only || opts.only.has(name));
 	if (opts.only) {
-		const only = opts.only;
-		const unmatched = [...only].filter(n => !names.includes(n));
+		const unmatched = [...opts.only].filter(name => !workflows.has(name));
 		if (unmatched.length > 0) console.warn(`--only names not in the publish set: ${unmatched.join(", ")}`);
-		targets = names.filter(n => only.has(n));
 	}
 	if (targets.length === 0) {
 		console.error("No packages to process.");
@@ -352,20 +327,20 @@ async function main(): Promise<void> {
 	}
 
 	const repo = opts.repo ?? repoFromManifest ?? FALLBACK_REPO;
-	const workflow = opts.workflow;
-
-	if (!(await Bun.file(path.join(repoRoot, ".github", "workflows", workflow)).exists())) {
+	if (opts.workflow && !(await Bun.file(path.join(repoRoot, ".github", "workflows", opts.workflow)).exists())) {
 		console.warn(
-			`Warning: .github/workflows/${workflow} not found; npm will still accept it, but OIDC won't match a non-existent workflow.`,
+			`Warning: .github/workflows/${opts.workflow} not found. npm OIDC will not accept claims from a missing workflow.`,
 		);
 	}
 
 	if (opts.dryRun) {
-		console.log(`Would configure trust for ${targets.length} package(s) → repo ${repo}, workflow ${workflow}:\n`);
-		for (const name of targets) {
+		console.log(`Would configure trust for ${targets.length} package(s) in ${repo}:\n`);
+		for (const [name, workflow] of targets) {
 			const target = nativeLeafTargetForPackage(name);
 			if (target) console.log(`  if missing: npm publish ${name}@${PLACEHOLDER_VERSION} placeholder`);
-			console.log(`  npm trust github ${name} --repo ${repo} --file ${workflow} --allow-publish --yes`);
+			console.log(
+				`  npm trust github ${name} --repo ${repo} --file ${opts.workflow ?? workflow} --allow-publish --yes`,
+			);
 		}
 		return;
 	}
@@ -375,10 +350,10 @@ async function main(): Promise<void> {
 		console.error("Not logged in to npm. Run `npm login` (with a 2FA-enabled account) first.");
 		process.exit(1);
 	}
-	console.log(`Logged in as ${whoami.stdout.toString().trim()} → repo ${repo}, workflow ${workflow}\n`);
+	console.log(`Logged in as ${whoami.stdout.toString().trim()} → repo ${repo}\n`);
 
 	if (opts.list) {
-		for (const name of targets) {
+		for (const [name] of targets) {
 			if (!(await packageExists(name))) {
 				console.log(`- ${name}: not published yet`);
 				continue;
@@ -397,7 +372,7 @@ async function main(): Promise<void> {
 	const outcomes = new Map<string, Outcome>();
 	let bootstrapped = 0;
 	let first = true;
-	for (const name of targets) {
+	for (const [name, workflow] of targets) {
 		if (!(await packageExists(name))) {
 			const target = nativeLeafTargetForPackage(name);
 			if (!target) {
@@ -457,7 +432,7 @@ async function main(): Promise<void> {
 			"--repo",
 			repo,
 			"--file",
-			workflow,
+			opts.workflow ?? workflow,
 			"--allow-publish",
 			"--yes",
 		]);

@@ -53,6 +53,9 @@ pub fn html_to_markdown(
 				remove_forms:      true,
 			},
 			tier_strategy: html_to_markdown_rs::TierStrategy::Tier2,
+			// Keep the previous traversal budget when the converter's defaults
+			// change.
+			max_depth: Some(64),
 			..Default::default()
 		};
 

@@ -8,8 +8,8 @@ modified and unmodified portions of that upstream work.
 - Project: OMP
 - Repository: https://github.com/can1357/oh-my-pi
 - Upstream site: https://omp.sh/
-- Source integrated by Zeta: release tag `v18.20.0`
-  (`c308970263ae13744ea15ab67302e3dac840e266`)
+- Source integrated by Zeta: release tag `v18.22.0`
+  (`3e8cff3b7ce19a805c11a26a6dd1703066435851`)
 - Later upstream release tags are tracked in
   [`document/upstream-sync.md`](./document/upstream-sync.md); Zeta integrates
   only named official tags, never an upstream branch.

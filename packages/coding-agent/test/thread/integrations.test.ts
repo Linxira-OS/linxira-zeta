@@ -118,6 +118,29 @@ describe("integrations thread service", () => {
 		expect(echoed.text).toBe("from worker");
 	}, 20_000);
 
+	it("exposes recognition metadata without forwarding transport credentials to a worker", async () => {
+		manager.updateServerConfig("progress", {
+			type: "stdio",
+			command: "npx",
+			args: ["@example/analysis"],
+			env: { API_KEY: "main-only-env" },
+			auth: { type: "apikey", clientSecret: "main-only-auth" },
+		});
+		manager.updateServerConfig("remote", {
+			type: "http",
+			url: "https://example.invalid/mcp",
+			headers: { Authorization: "Bearer main-only-header" },
+			oauth: { clientSecret: "main-only-oauth" },
+		});
+		expect(await probe.mcpConfig("progress")).toEqual({
+			type: "stdio",
+			command: "npx",
+			args: ["@example/analysis"],
+		});
+		expect(await probe.mcpConfig("remote")).toEqual({ type: "http", url: "https://example.invalid/mcp" });
+		expect(await probe.mcpConfig("missing")).toBeUndefined();
+	}, 20_000);
+
 	it("aborts a worker's MCP call on main's connection", async () => {
 		const controller = new AbortController();
 		const call = probe.mcpCall(registry, toolNamed("hang"), { text: "x" }, controller.signal);
@@ -197,7 +220,6 @@ describe("integrations thread service", () => {
 			index: 0,
 			id: "probe-0",
 			extensionRoots: () => roots,
-			preparedSession: { fork: { sourceFile: "source.jsonl" }, promptSuffix: model => `suffix:${model}` },
 			localProtocolOptions: local,
 			customTools: [
 				{
@@ -213,7 +235,6 @@ describe("integrations thread service", () => {
 		const read = await probe.readOptions(bridgeIntegrationOptions(options));
 		expect(read).toEqual({
 			roots,
-			suffix: "suffix:model-x",
 			localRoot: resolveLocalRoot(local),
 			approvalTargets: ["a.txt"],
 		});

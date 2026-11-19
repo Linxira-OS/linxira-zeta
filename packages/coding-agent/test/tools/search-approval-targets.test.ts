@@ -18,6 +18,7 @@ import { approvalTargetKey, approvalTreeSearchKey } from "@linxiraos/zeta/tools/
 import { AstGrepTool } from "@linxiraos/zeta/tools/ast-grep";
 import { GlobTool } from "@linxiraos/zeta/tools/glob";
 import { GrepTool } from "@linxiraos/zeta/tools/grep";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import type { ToolSession } from "@linxiraos/zeta/sdk";
 import { TempDir } from "@linxiraos/pi-utils";
 
@@ -131,6 +132,24 @@ describe("search tool approval cache targets", () => {
 			"local://notes/a.md",
 		]);
 		expect(glob.approvalCacheTargets?.({ path: "local://notes" })).toEqual(["local://notes"]);
+	});
+
+	it("gates a private host written as an absolute name like its relative form", () => {
+		const read = new ReadTool(createToolSession(cwd));
+		const grep = new GrepTool(createToolSession(cwd));
+		const glob = new GlobTool(createToolSession(cwd));
+
+		// DNS resolves `intranet.` and `localhost.` to the same hosts as `intranet` and `localhost`,
+		// so the trailing dot must not turn a private target into an ungated public one.
+		for (const url of ["http://intranet./a.txt", "http://localhost.:8080/a.txt", "http://db.corp.internal./a.txt"]) {
+			expect(read.approvalCacheTargets({ path: url })).toEqual([url]);
+			expect(grep.approvalCacheTargets?.({ pattern: "hello", path: url })).toEqual([url]);
+			expect(resolveApproval(read, { path: url }, "always-ask-cached", {}, readTierGrants()).policy).toBe("prompt");
+		}
+		const globArgs = { path: "http://intranet./*.txt" };
+		expect(resolveApproval(glob, globArgs, "always-ask-cached", {}, readTierGrants()).policy).toBe("prompt");
+		// A public host stays public when written as an absolute name.
+		expect(read.approvalCacheTargets({ path: "https://example.com./a.txt" })).toBeUndefined();
 	});
 
 	it("prompts until the reported key is granted, under always-ask-cached", () => {

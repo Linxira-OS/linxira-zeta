@@ -1,4 +1,6 @@
-import { isRecord } from "@linxiraos/pi-utils";
+import { isRecord, prompt } from "@linxiraos/pi-utils";
+import imIncoming from "../prompts/steering/im-incoming.md" with { type: "text" };
+import { escapeHarnessTags } from "./harness-tags";
 
 /**
  * Canonical IM provenance carried by one durable transcript entry.
@@ -58,6 +60,13 @@ export interface ImUserMessageMetadata extends ImMessageIdentity {
 	readonly attachments?: readonly ImAttachmentRef[];
 	/** Route the message was actually delivered to; immutable after append. */
 	readonly route: ImRouteSnapshot;
+}
+
+/** The model sees the sender label as user content, never as harness authority. */
+export function formatImUserInput(body: string, source: ImUserMessageMetadata): string {
+	const sender = escapeHarnessTags(JSON.stringify(source.senderName ?? source.senderId ?? "Unknown sender"));
+	const platform = escapeHarnessTags(JSON.stringify(source.platform));
+	return prompt.render(imIncoming, { sender, platform, body: escapeHarnessTags(body) });
 }
 
 /** Metadata on an assistant entry that answers an IM message. */

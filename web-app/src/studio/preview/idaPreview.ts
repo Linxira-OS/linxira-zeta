@@ -1,7 +1,7 @@
 import type { StudioIdaResultMap, StudioIdaStatus } from "@linxiraos/studio-protocol";
 
 export const PREVIEW_IDA: StudioIdaStatus = {
-  enabled: true, available: true, installDir: "", python: "",
+  backend: "auto", available: true, installDir: "", python: "",
   databases: [
     { id: "demo-db", name: "zeta.ida", ref: "sample.exe", path: "sample.i64", state: "open", module: "sample.exe", format: "PE", arch: "x86", bitness: 64, busy: false, dirty: false },
     { id: "demo-library", name: "parser", ref: "parser.dll", path: "parser.i64", state: "open", module: "parser.dll", format: "PE", arch: "x86", bitness: 64, busy: false, dirty: true },

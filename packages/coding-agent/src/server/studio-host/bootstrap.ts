@@ -51,17 +51,22 @@ export function commandManifestHash(): string {
 	return buildOperatorCommandManifest().hash;
 }
 
+/** Authority and runtime facts shared by bootstrap and the home model. */
+export function studioHostFacts(): Pick<ClientBootstrap, "authority" | "runtime"> {
+	const { version, startedAt } = serveIdentity();
+	return {
+		authority: { authorityId: authorityId(version, startedAt), authorityEpoch: AUTHORITY_EPOCH },
+		runtime: runtimeConnection(version),
+	};
+}
+
 /** Build the bootstrap the Renderer mounts with. */
 export function buildBootstrap(operations: StudioOperations): ClientBootstrap {
-	const identity = serveIdentity();
-	const runtime = runtimeConnection(identity.version);
-	const capabilityManifest: CapabilityManifest = manifest(operations);
 	return {
 		contractVersion: 2,
-		authority: { authorityId: authorityId(identity.version, identity.startedAt), authorityEpoch: AUTHORITY_EPOCH },
-		runtime,
+		...studioHostFacts(),
 		surface: { terminalAttach: true, fileReveal: true, previewInput: false, openExternal: true },
-		capabilityManifest,
+		capabilityManifest: manifest(operations),
 		commandManifestHash: commandManifestHash(),
 		selected: {},
 	};

@@ -1,10 +1,11 @@
 # IM channels in Work Studio
 
-> **Status (2026-11-12).** The shipped surface is **Settings → IM 运行时**
+> **Status (2026-11-17).** Work Studio uses **Settings → IM 运行时**
 > (`web-app/src/studio/settings/ImRuntimePage.tsx`), served by `zetacode serve`.
-> It is the only advertised IM settings page: instances, credentials, bindings,
-> profiles and bot commands all use the instance editor. The desktop tray's
-> legacy **IM 渠道** item (`app.settings:channels`) is aliased to this group.
+> TUI uses **Settings → Runtime → IM runtime**, or `/channels`, with the same
+> native gateway and config authority. See [IM runtime](./im-runtime-ui.md) for
+> the nested TUI editor, temporary credentials and validation limits.
+> The desktop tray's legacy **IM 渠道** item (`app.settings:channels`) is aliased to this group.
 > `ImChannelsPane.tsx` remains only as a legacy component and is not mounted;
 > QQ/Discord credentials are configured on the runtime instance, not through
 > the removed legacy credential section. Neither the paused Rust GUI
@@ -23,9 +24,9 @@ The pane is a front-end over `/api/channels/instances` and `/api/im/*`. Device,
 pairing, remote-token and TOTP actions live next door in **Settings → 身份与设备**
 (`SecuritySettingsPane.tsx`); the surface matrix shared by both pages is
 documented in [Work Studio surfaces](./studio-surfaces.md). It keeps no state store of its own: `~/.zeta/agent/web.yml` and
-the live `serve` channel runtime remain the only truth, shared with
-`zetacode channels …` in a terminal. Opening the pane reads the gateway, a
-write re-reads it, and nothing renders a value the gateway did not send.
+the live `serve` channel runtime remain the only truth, shared with the TUI
+runtime settings and `zetacode channels …`. Opening the pane reads the gateway,
+a write re-reads it, and nothing renders a value the gateway did not send.
 
 ## Routes used
 

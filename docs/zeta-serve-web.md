@@ -117,13 +117,16 @@ and one-time recovery codes. Concurrent challenged requests share verification,
 then each request replays at most once. Cancel or closing the prompt sends no
 verification or replay.
 
-In the terminal, `/2fa status` opens the TUI status page. `zetacode 2fa status`
-prints the same profile's enrollment, required policy, pending enrollment and
-remaining recovery-code count; add `--json` for secret-free machine-readable
-state. The terminal does not claim a remote device's in-memory verification
-grant. Manage enrollment/reset in local Work Studio → Settings → Identity and
-devices. These are TOTP/recovery flows; external-device push confirmation is
-not implemented. SSH port forwarding retains the existing local-trust boundary.
+In the terminal, `/settings` → **Runtime** → **Identity & devices**, or `/2fa`,
+opens nested enrollment, temporary QR, code/recovery verification, policy and
+device controls through the registered local `zetacode serve` of the same version.
+Mouse actions and configured selection/confirm/cancel keys share the same pages;
+Back, close and expiry clear temporary QR, secret and recovery-code content.
+`/2fa status` and `zetacode 2fa status` retain secret-free status output; the CLI
+also accepts `--json`. Neither claims a remote device's in-memory verification
+grant. See [IM runtime and TUI settings](./im-runtime-ui.md) for navigation and
+validation limits. External-device push confirmation is not implemented. SSH
+port forwarding retains the existing local-trust boundary.
 
 `zetacode serve` prints the single-use pairing code (60 s TTL) and Settings
 shows the same code beside its QR (`#zeta-pair=<code>`); set

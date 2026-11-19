@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import * as compatAuth from "@linxiraos/pi-catalog/compat/auth";
 import * as fs from "node:fs";
 import type { Model, ProviderSessionState, SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { buildRequest as buildGeminiRequest } from "@linxiraos/pi-ai/providers/google-gemini-cli";
@@ -186,6 +187,10 @@ describe("task sibling prompt-cache routing", () => {
 		async (_name, provider, modelId, parentCacheKey, parentTaskKey, expected) => {
 			using directory = TempDir.createSync("@omp-task-cache-");
 			vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network is disabled in this test"));
+			// Antigravity is paused in its auth rules; its transport stays for when it is turned back on.
+			if (provider === "google-antigravity") {
+				vi.spyOn(compatAuth, "providerDisabledReason").mockReturnValue(undefined);
+			}
 			const authStorage = await AuthStorage.create(directory.join("auth.db"));
 			const parentOverride = unoptedParentLanes[_name];
 			const [parentProvider, parentModelId] = parentOverride ?? [provider, modelId];
@@ -1033,63 +1038,47 @@ describe("task sibling prompt-cache routing", () => {
 	it("does not leak the stashed family key across a switch to a different session", async () => {
 		using directory = TempDir.createSync("@omp-task-cache-switch-");
 		const h = await createUnoptedTaskFixture(directory);
-		const {
-			authStorage,
-			modelRegistry,
-			settings,
-			initialModel,
-			optedModel,
-			requests,
-			createParent,
-			runTask,
-			childFor,
-		} = h;
+		const { authStorage, initialModel, optedModel, requests, createParent, runTask, childFor } = h;
 		try {
 			const parent = await createParent("parent-lineage", initialModel);
 			await runTask(parent.getToolByName("task") as TaskTool, "SiblingA");
 			const child = childFor(requests[0]?.sessionId);
 			const childFile = child.sessionManager.getSessionFile();
 			if (!childFile) throw new Error("Expected a persisted Task child");
+			expect(child.sessionManager.getTaskSiblingCandidate()).toBe("parent-lineage:task");
+			expect(child.isDisposed).toBe(false);
 
 			// Target: a different session at a different cwd with no task key of
 			// its own, so the onCwdChange hook can drive both the rejected and
 			// the committed switch below.
 			const altCwd = directory.join("alt");
 			fs.mkdirSync(altCwd, { recursive: true });
-			const { session: alt } = await sdk.createAgentSession({
-				cwd: altCwd,
-				agentDir: directory.path(),
-				authStorage,
-				modelRegistry,
-				model: optedModel,
-				sessionManager: SessionManager.create(altCwd, altCwd),
-				settings,
-				disableExtensionDiscovery: true,
-				skills: [],
-				contextFiles: [],
-				promptTemplates: [],
-				rules: [],
-				enableMCP: false,
-				enableLsp: false,
-			});
-			await alt.prompt("Warm the alternate session.");
-			const altFile = alt.sessionManager.getSessionFile();
+			// Seed the target transcript without starting another SDK main. Disposing
+			// that main would shut down the global lifecycle and park this test's child.
+			const alt = SessionManager.create(altCwd, altCwd);
+			alt.appendMessage({ role: "user", content: "Warm the alternate session.", timestamp: Date.now() });
+			await alt.ensureOnDisk();
+			const altFile = alt.getSessionFile();
+			await alt.close();
 			if (!altFile) throw new Error("Expected a persisted alternate session");
-			// The file must not stay owned by a live manager: the switched child
-			// becomes its next claimant.
-			await alt.dispose();
 
 			// A rejected switch rolls back after the target header was already
 			// loaded: the stash must survive it.
 			expect(await child.switchSession(altFile, { onCwdChange: async () => false })).toBe(false);
 			expect(child.sessionManager.getSessionFile()).toBe(childFile);
+			expect(child.sessionManager.getTaskSiblingCandidate()).toBe("parent-lineage:task");
+			expect(child.isDisposed).toBe(false);
 
 			// A same-file reload keeps the stash, and the first eligible request
 			// still finds it — the child's header copy was never seeded, so this
 			// guard reads the stash itself.
 			expect(await child.switchSession(childFile)).toBe(true);
+			expect(child.sessionManager.getTaskSiblingCandidate()).toBe("parent-lineage:task");
+			expect(child.isDisposed).toBe(false);
 			child.agent.setModel(optedModel);
-			await child.prompt("Continue after the reload.");
+			const requestCount = requests.length;
+			await child.prompt("Continue after the reload.", { throwOnDrop: true });
+			expect(requests).toHaveLength(requestCount + 1);
 			expect(requests.at(-1)?.cacheKey).toBe("parent-lineage:task");
 			expect(requests.at(-1)?.wireKey).toBe("parent-lineage:task");
 
@@ -1100,7 +1089,9 @@ describe("task sibling prompt-cache routing", () => {
 			expect(child.sessionManager.getSessionFile()).toBe(altFile);
 			child.agent.setModel(optedModel);
 			expect(child.agent.state.model?.id).toBe("gpt-6-luna");
-			await child.prompt("Review the alternate session.");
+			const switchedRequestCount = requests.length;
+			await child.prompt("Review the alternate session.", { throwOnDrop: true });
+			expect(requests).toHaveLength(switchedRequestCount + 1);
 			expect(requests.at(-1)?.cacheKey).toBeUndefined();
 			expect(requests.at(-1)?.wireKey).toBe(requests.at(-1)?.sessionId);
 		} finally {

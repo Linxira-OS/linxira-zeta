@@ -3,6 +3,7 @@ import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
 import { BUILTIN_TWO_FACTOR_SLASH_COMMAND } from "./builtin-two-factor";
 import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { clearSubmittedText } from "./helpers/draft";
+import { BUILTIN_COMMIT_SLASH_COMMANDS } from "./builtin-commit";
 import {
 	buildArgumentCompletions,
 	buildDirectoryArgumentCompletions,
@@ -51,6 +52,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MODE_SLASH_COMMANDS,
 	...BUILTIN_OUTPUT_SLASH_COMMANDS,
 	...BUILTIN_SESSION_SLASH_COMMANDS,
+	...BUILTIN_COMMIT_SLASH_COMMANDS,
 	...BUILTIN_LIFECYCLE_SLASH_COMMANDS,
 	...BUILTIN_MARKETPLACE_SLASH_COMMANDS,
 	...BUILTIN_SKILLS_SLASH_COMMANDS,

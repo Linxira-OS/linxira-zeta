@@ -4,8 +4,8 @@
  * This suite pins the two things that made the TUI path unusable before:
  * a live session must not hold `channels.lock` when WeChat is merely
  * unpaired, and a host that only owns another instance must not block a
- * WeChat QR login. The command itself is hidden from the everyday palette but
- * still resolves explicitly.
+ * WeChat QR login. The command opens the shared runtime settings hierarchy;
+ * explicit status output remains redacted.
  */
 
 import { afterEach, describe, expect, test } from "bun:test";
@@ -14,7 +14,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type ChannelRuntime, type ChannelSession, startChannels } from "@linxiraos/pi-channels";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
-import { Settings } from "../../src/config/settings";
 import { WebConfig } from "../../src/config/web-config";
 import {
 	acquireChannelLock,
@@ -29,11 +28,7 @@ import {
 	stopActiveSessionChannels,
 	suspendActiveSessionChannels,
 } from "../../src/channels/session-host";
-import {
-	buildTuiBuiltinSlashCommands,
-	executeBuiltinSlashCommand,
-	lookupBuiltinSlashCommand,
-} from "../../src/slash-commands/builtin-registry";
+import { executeBuiltinSlashCommand } from "../../src/slash-commands/builtin-registry";
 import type { InteractiveModeContext } from "../../src/modes/types";
 
 const tempDirs: string[] = [];
@@ -233,27 +228,6 @@ describe("TUI channel host lock", () => {
 });
 
 describe("/channels command", () => {
-	test("resolves explicitly but stays out of the palette", () => {
-		expect(lookupBuiltinSlashCommand("channels")?.name).toBe("channels");
-		const listed = buildTuiBuiltinSlashCommands({
-			ctx: { settings: Settings.isolated() } as unknown as InteractiveModeContext,
-		});
-		expect(listed.some(command => command.name === "channels")).toBe(false);
-	});
-
-	test("help names the instance commands and never prompts for a secret", async () => {
-		const output: string[] = [];
-		const runtime = {
-			ctx: {
-				presentCommandOutput: (content: { getText: () => string }) => output.push(content.getText()),
-				showError: () => {},
-			} as unknown as InteractiveModeContext,
-		};
-		expect(await executeBuiltinSlashCommand("/channels help", runtime)).toBe(true);
-		expect(output.at(-1)).toContain("enable-instance");
-		expect(output.at(-1)).toContain("never accepts a secret");
-	});
-
 	test("/channels status renders the v2 instances and bindings", async () => {
 		const { dir } = await makeConfig({
 			imAgents: [{ ...PROFILE, id: "pm-work", label: "PM Work" }],

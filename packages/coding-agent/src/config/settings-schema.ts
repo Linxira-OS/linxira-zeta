@@ -43,14 +43,7 @@ import {
 	TINY_MODEL_DTYPE_SETTING_VALUES,
 } from "../tiny/dtype";
 import { DEFAULT_STT_MODEL_KEY, STT_MODEL_OPTIONS, STT_MODEL_VALUES } from "../stt/models";
-import {
-	DEFAULT_TTS_LOCAL_MODEL_KEY,
-	DEFAULT_TTS_VOICE,
-	TTS_LOCAL_MODEL_OPTIONS,
-	TTS_LOCAL_MODEL_VALUES,
-	TTS_LOCAL_VOICE_OPTIONS,
-	TTS_LOCAL_VOICE_VALUES,
-} from "../tts/models";
+import { DEFAULT_TTS_VOICE, TTS_LOCAL_VOICE_OPTIONS, TTS_LOCAL_VOICE_VALUES } from "../tts/models";
 import {
 	AUTO_THINKING_MODEL_OPTIONS,
 	AUTO_THINKING_MODEL_VALUES,
@@ -4442,7 +4435,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "Available Tools",
 			label: "Speech Generation",
-			description: "Enable the tts tool for on-device (Kokoro) or xAI Grok Voice speech-file synthesis",
+			description: "Enable the tts tool for on-device (Phonon) or xAI Grok Voice speech-file synthesis",
 		},
 	},
 	"generate_image.enabled": {
@@ -5718,7 +5711,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "providers",
 			group: "Services",
 			label: "Speech Vocalization Voice",
-			description: "Kokoro voice used when speaking the assistant's output aloud",
+			description: "Phonon voice used when speaking the assistant's output aloud",
 			options: TTS_LOCAL_VOICE_OPTIONS,
 		},
 	},
@@ -6412,15 +6405,14 @@ export const SETTINGS_SCHEMA = {
 			tab: "providers",
 			group: "Services",
 			label: "Text-to-Speech Provider",
-			description:
-				"Backend for the tts tool: local on-device neural TTS (Kokoro-82M), xAI Grok Voice, or DeepInfra speech",
+			description: "Backend for the tts tool: local Phonon 31M, xAI Grok Voice, or DeepInfra speech",
 			options: [
 				{
 					value: "auto",
 					label: "Auto",
 					description: "Prefer local on-device TTS; route .mp3 output to xAI when credentials exist",
 				},
-				{ value: "local", label: "Local", description: "On-device neural TTS (Kokoro-82M); output is WAV/PCM16" },
+				{ value: "local", label: "Local", description: "On-device neural TTS (Phonon 31M). Output is WAV/PCM16" },
 				{
 					value: "xai",
 					label: "xAI Grok Voice",

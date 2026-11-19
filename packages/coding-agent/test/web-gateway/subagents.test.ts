@@ -52,7 +52,14 @@ function subagentSessionFile(id: string): string {
 /** A wrapper standing in for a live gateway session; the sink is wired the same way. */
 function makeSession(sessionId: string): { wrapper: AgentSessionWrapper; bus: EventBus; sink: SubagentSink } {
 	const wrapper = new AgentSessionWrapper(
-		{ sessionManager: {}, subscribe: () => () => {}, settings: undefined } as never,
+		{
+			sessionManager: {},
+			subscribe: () => () => {},
+			setBeforeNextUserTurn: () => {},
+			setAfterUserTurn: () => {},
+			registerSessionChangeCallback: () => () => {},
+			addDisposer: () => {},
+		} as never,
 		sessionId,
 		rootSessionFile,
 	);

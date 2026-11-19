@@ -21,7 +21,7 @@
         "src/vendor/client/src/index.ts"
       ],
       "@linxiraos/studio-transport-web": [
-        "src/vendor/transport-web/src/index.ts"
+        "src/vendor/transport-web/src/browser-client.ts"
       ],
       "@linxiraos/studio-platform": [
         "src/vendor/platform/src/index.ts"

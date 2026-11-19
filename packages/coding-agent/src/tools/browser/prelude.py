@@ -35,7 +35,7 @@ def _make_browser():
         return values
 
     async def _invoke(action, options):
-        response = await _omp_prelude(
+        response = await _zeta_prelude(
             "browser",
             {
                 **{

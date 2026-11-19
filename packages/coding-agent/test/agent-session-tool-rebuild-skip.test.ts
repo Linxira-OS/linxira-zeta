@@ -9,6 +9,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import type { AnalysisMcpRefreshInput } from "@linxiraos/zeta/mcp/analysis-precedence-hook";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { type CustomMessage, convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance";
@@ -124,6 +125,11 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		skills?: Skill[];
 		/** Model binds signed thinking to its prompt prefix, so implicit rebuilds freeze once a reply exists. */
 		prefixBound?: boolean;
+		buildMcpRefreshAnalysis?: (
+			tools: CustomTool[],
+			names: readonly string[],
+			cwd: string,
+		) => Promise<AnalysisMcpRefreshInput>;
 	}
 
 	function newSession(
@@ -187,6 +193,7 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 			modelRegistry: { getApiKey: async () => "test-key" } as never,
 			toolRegistry,
 			createVibeTools: options.createVibeTools,
+			buildMcpRefreshAnalysis: options.buildMcpRefreshAnalysis,
 			builtInToolNames: options.xdev && !options.lazyWrite ? ["read", "write"] : ["read"],
 			ensureWriteRegistered: async () => {
 				if (!options.xdev) return false;
@@ -272,6 +279,107 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		await session.refreshMCPTools([search, fetch, lookup]);
 		expect(session.getEnabledToolNames()).toEqual(expect.arrayContaining(["read", fetch.name, lookup.name]));
 		expect(session.getEnabledToolNames()).not.toContain(search.name);
+	});
+
+	function analysisSnapshot(precedence: "native" | "mcp" | "ask"): AnalysisMcpRefreshInput {
+		return {
+			configs: { nucleus: { type: "stdio", command: "nucleus" } },
+			serverTools: { nucleus: ["search"] },
+			precedence,
+			activeNativeTools: ["read"],
+			manifests: [
+				{
+					id: "nucleus",
+					label: "Nucleus",
+					serverNames: ["nucleus"],
+					packageNames: [],
+					markerPaths: [],
+					nativeTools: ["read"],
+					tools: ["search"],
+				},
+			],
+		};
+	}
+
+	it("replaces native/MCP winners and removes a denied server on reconnect", async () => {
+		const { session } = newSession(async names => `tools:${names.join(",")}`);
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		await session.refreshMCPTools([search], analysisSnapshot("native"));
+		expect(session.getEnabledToolNames()).toEqual(["read"]);
+		expect(session.getAnalysisMcpShadowReasons().nucleus).toContain("native read");
+		await session.refreshMCPTools([search], analysisSnapshot("mcp"));
+		expect(session.getEnabledToolNames()).toEqual([search.name]);
+		await session.setActiveToolsByName(["read", search.name]);
+		expect(session.getEnabledToolNames()).toEqual([search.name]);
+		await session.refreshMCPTools([search], { ...analysisSnapshot("mcp"), deniedServers: ["nucleus"] });
+		expect(session.getEnabledToolNames()).toEqual(["read"]);
+		expect(session.getToolByName(search.name)).toBeUndefined();
+		expect(session.getAnalysisMcpShadowReasons().nucleus).toContain("disabled by the user denylist");
+	});
+
+	it("leaves unanswered asks unmounted and grants only the current refresh", async () => {
+		const { session } = newSession(async names => `tools:${names.join(",")}`);
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		await session.refreshMCPTools([search], analysisSnapshot("ask"));
+		expect(session.getEnabledToolNames()).toEqual(["read"]);
+		expect(session.getAnalysisMcpShadowReasons().nucleus).toContain("approval required");
+		await session.refreshMCPTools([search], { ...analysisSnapshot("ask"), approve: async () => true });
+		expect(session.getEnabledToolNames()).toEqual([search.name]);
+		await session.refreshMCPTools([search], analysisSnapshot("ask"));
+		expect(session.getEnabledToolNames()).toEqual(["read"]);
+		expect(session.getToolByName(search.name)).toBeUndefined();
+	});
+
+	it("rolls back precedence and the registry when its prompt rebuild fails", async () => {
+		let rejectMcp = false;
+		const { session } = newSession(async names => {
+			if (rejectMcp && names.includes("mcp__nucleus_search")) throw new Error("catalog render failed");
+			return `tools:${names.join(",")}`;
+		});
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		await session.refreshMCPTools([search], analysisSnapshot("native"));
+		rejectMcp = true;
+		await expect(session.refreshMCPTools([search], analysisSnapshot("mcp"))).rejects.toThrow("catalog render failed");
+		expect(session.getEnabledToolNames()).toEqual(["read"]);
+		expect(session.getToolByName(search.name)).toBeUndefined();
+		expect(session.getAnalysisMcpShadowReasons().nucleus).toContain("native read");
+	});
+
+	it("does not restore a native tool deselected while an MCP winner suppressed it", async () => {
+		const { session } = newSession(async names => `tools:${names.join(",")}`);
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		await session.refreshMCPTools([search], analysisSnapshot("mcp"));
+		await session.setActiveToolsByName([search.name]);
+		await session.refreshMCPTools([search], {
+			...analysisSnapshot("mcp"),
+			activeNativeTools: [],
+			deniedServers: ["nucleus"],
+		});
+		expect(session.getEnabledToolNames()).toEqual([]);
+		expect(session.getToolByName(search.name)).toBeUndefined();
+	});
+
+	it("reads policy after preceding registry mutations and restores only selected native tools", async () => {
+		const { session } = newSession(async names => `tools:${names.join(",")}`, {
+			buildMcpRefreshAnalysis: async (_tools, names) => ({
+				...analysisSnapshot("native"),
+				activeNativeTools: names.filter(name => name === "read"),
+			}),
+		});
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		const gate = Promise.withResolvers<void>();
+		const started = Promise.withResolvers<void>();
+		const mutation = session.runToolRegistryMutation(async () => {
+			started.resolve();
+			await gate.promise;
+		});
+		await started.promise;
+		const selection = session.setActiveToolsByName([search.name]);
+		const refresh = session.refreshMCPTools([search]);
+		gate.resolve();
+		await Promise.all([mutation, selection, refresh]);
+		expect(session.getEnabledToolNames()).toEqual([search.name]);
+		expect(session.getAnalysisMcpShadowReasons()).toEqual({});
 	});
 
 	for (const exit of ["restore snapshot", "preserve active"] as const) {

@@ -19,7 +19,7 @@ Zeta 是一套 agent 工作区套件：**Z Work Studio**（由 CLI `zetacode ser
 不构建 macOS。不存在 Rust 桌面 UI：桌面版承载的是同一个浏览器工作台。
 
 Zeta 是 [OMP](https://github.com/can1357/oh-my-pi) 的下游分支，采用 MIT 许可。
-集成的运行时源码为 OMP **v18.20.0**。Z Work Studio 是
+集成的运行时源码为 OMP **v18.22.0**。Z Work Studio 是
 [OMP Studio](https://github.com/the-snowpear/omp-studio) 的受维护分支，其
 **v0.2.1** 源码谱系已集成，完整验收与 CI 仍待完成。`zetaide` vendored 了
 [TermIDE](https://github.com/termide/termide) **0.49.0**。上游版权声明与许可
@@ -105,7 +105,7 @@ bun run dev
 
 | 项目 | 集成来源 | Zeta 取自它的部分 |
 | --- | --- | --- |
-| [OMP](https://github.com/can1357/oh-my-pi)（oh-my-pi），MIT | `v18.20.0` | 运行时树：agent、工具、TUI、模型 catalog、wire 协议 |
+| [OMP](https://github.com/can1357/oh-my-pi)（oh-my-pi），MIT | `v18.22.0` | 运行时树：agent、工具、TUI、模型 catalog、wire 协议 |
 | [OMP Studio](https://github.com/the-snowpear/omp-studio)，MIT | `v0.2.1` 源码谱系（验收与 CI 待完成） | Web UI：renderer、client 及其 host 契约 |
 | [TermIDE](https://github.com/termide/termide)，MIT | `0.49.0` | `zetaide` 与内置编辑器面板 |
 

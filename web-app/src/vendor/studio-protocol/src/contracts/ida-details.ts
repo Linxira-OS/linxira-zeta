@@ -4,12 +4,12 @@ export interface StudioIdaDatabase {
   current?: { method: string; startedAt: number };
 }
 export interface StudioIdaStatus {
-  enabled: boolean; installDir: string; python: string; detectedInstall?: string; detectedPython?: string;
+  backend: "auto" | "ghidra" | "ida" | "none"; installDir: string; python: string; detectedInstall?: string; detectedPython?: string;
   available: boolean; reason?: string; databases: StudioIdaDatabase[];
 }
 export type StudioIdaOperation =
   | { kind: "ida.status.details"; sessionId: string }
-  | { kind: "ida.configure"; sessionId: string; enabled: boolean; installDir: string; python: string }
+  | { kind: "ida.configure"; sessionId: string; backend: StudioIdaStatus["backend"]; installDir: string; python: string }
   | { kind: "ida.open"; sessionId: string; path: string }
   | { kind: "ida.save"; sessionId: string; id: string }
   | { kind: "ida.close"; sessionId: string; id: string }

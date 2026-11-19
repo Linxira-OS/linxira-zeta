@@ -49,8 +49,13 @@ Filtering behavior:
   package/marker-only capabilities are suggestions, and same-capability
   collisions follow `mcp.precedence` (`native`/`mcp`/`ask`). A disabled native
   tool cannot shadow an allowed MCP server.
-- `tools/list_changed` and reconnect call the same resolver again; shadowing,
-  profile filtering, and ask decisions are never cached across a refresh.
+- `tools/list_changed` and reconnect call the same resolver again inside the
+  session's serialized registry mutation, using its current cwd, settings and
+  selected native tools. Shadowing, profile filtering and ask grants are never
+  cached across a refresh. An unanswered/headless ask leaves MCP unmounted.
+- A native tool hidden by an MCP winner returns when that winner disappears
+  only if it remains selected. Explicitly deselecting it prevents refresh from
+  re-enabling it. Shadowed analysis servers contribute no prompt instructions.
 - `/mcp list` reads the session's last resolver snapshot and prints
   `[shadowed: reason]` beside the affected server, plus a line explaining that
   shadowed servers are excluded from the prompt and the mounted set follows
@@ -174,18 +179,22 @@ Both preserve MCP content and metadata; `structuredContent` is retained in `deta
 
 ### Interactive reload and live-change paths
 
-`/mcp reload` (`src/modes/controllers/mcp-command-controller.ts`) does:
+`/mcp reload` (`src/modes/controllers/mcp-command-controller.ts`) runs `reconnectMCPServers` (`src/mcp/reload.ts`), which:
 
 1. `mcpManager.disconnectAll()`,
 2. clears stale MCP prompt commands,
 3. calls `mcpManager.discoverAndConnect()` with the same project/Exa/browser filters as startup,
 4. calls `session.refreshMCPTools(mcpManager.getTools())`.
 
-`session.refreshMCPTools()` delegates to `src/session/session-tools.ts`, which serializes registry mutations, reconciles manager and extension-owned MCP tools, re-wraps the latest tools, and reapplies availability/presentation without restarting. Connected manager tools become enabled; extension-owned MCP tools preserve their previous selection. A failed refresh restores the previous MCP registry. The owning SDK session also installs `setOnToolsChanged`, so late initial connections, server `tools/list_changed` notifications, reconnects, and disconnects can trigger the same rebinding. Explicit `/mcp reconnect <name>` performs one final refresh after the manager reconnect completes.
+A working-directory change (`/move`, resuming a session from another project) re-scopes the session-owned manager: `session.refreshProjectScope()` calls `mcpManager.setCwd(newCwd)`, which re-points project config discovery and the advertised `roots/list`, and then runs the same reconnect for every server, since roots are advertised without `listChanged`. The reconnect runs in the background, and the next turn waits for it, bounded, as it does for startup discovery. Reloads are serialized, and the first one waits for startup-deferred discovery to finish.
+
+`session.refreshMCPTools()` delegates to `src/session/session-tools.ts`, which serializes registry mutations, applies live settings/Profile admission and analysis precedence, reconciles manager and extension-owned MCP tools, re-wraps the latest tools, and reapplies availability/presentation without restarting. Connected manager tools become enabled; existing MCP selections are preserved. A failed refresh restores the previous MCP registry, precedence diagnostics and native suppression. The owning SDK session also installs `setOnToolsChanged`, so late initial connections, server `tools/list_changed` notifications, reconnects, and disconnects trigger the same rebinding. Explicit `/mcp reconnect <name>` performs one final refresh after the manager reconnect completes.
 
 ### Live settings reconciliation
 
 The owning SDK session listens for `mcp.enableProjectConfig` changes: it disconnects affected project entries, restores user definitions they shadowed, or loads newly allowed project entries without `/mcp reload`. Browser-MCP reconciliation is serialized and follows whether the built-in browser prelude is actually callable. Borrowed managers keep the parent's single-slot tools/prompts/resources callbacks; each session still installs its own notification listener.
+
+Borrowed managers supply read-only configuration metadata for the child's own precedence decisions. Startup and refresh bind only that child's scoped proxy catalog; they do not replace the parent's callbacks, take transport ownership, or expose tools granted only to another session.
 
 ## Server-initiated notifications
 
