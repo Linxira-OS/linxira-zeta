@@ -35,6 +35,7 @@ import {
 	type SessionEntry,
 	type SessionMessageEntry,
 } from "./session-entries";
+import { formatImUserInput, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
 
 // #4470 crash artifacts had legacy frames (no shape metadata) with 17 frames,
 // ~306k archive chars, and ~1.5M truncated chars. Current snapcompact frames
@@ -482,6 +483,22 @@ export function buildSessionContext(
 				(entry.message.retryRecovery || isEmptyErrorTurn(entry.message))
 			) {
 				return;
+			}
+			if (!options?.transcript && entry.message.role === "user") {
+				const metadata = normalizeImMessageMetadata(entry.metadata);
+				if (metadata && isImUserMessageMetadata(metadata)) {
+					const { content } = entry.message;
+					const text =
+						typeof content === "string" ? content : content[0]?.type === "text" ? content[0].text : undefined;
+					if (text !== undefined) {
+						const framed = { type: "text" as const, text: formatImUserInput(text, metadata) };
+						pushMessage({
+							...entry.message,
+							content: typeof content === "string" ? [framed] : [framed, ...content.slice(1)],
+						});
+						return;
+					}
+				}
 			}
 			pushMessage(entry.message);
 		} else if (entry.type === "custom_message") {

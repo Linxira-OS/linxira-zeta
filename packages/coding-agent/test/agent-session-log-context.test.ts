@@ -3,10 +3,12 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Agent, type StreamFn } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { ReplyCorrelator } from "@linxiraos/pi-channels";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { logger, TempDir } from "@linxiraos/pi-utils";
 
@@ -49,12 +51,13 @@ async function createSession(
 	sessionManager: SessionManager = SessionManager.inMemory(dir),
 ) {
 	const auth = await AuthStorage.create(path.join(dir, `${name}-auth.db`));
-	const model = createMockModel({ responses: [{ content: [`${name} done`] }] });
+	const model = createMockModel({ handler: () => ({ content: [`${name} done`] }) });
 	auth.keys.setRuntime(model.provider, "test-key");
 	const session = new AgentSession({
 		agent: new Agent({
 			getApiKey: () => "test-key",
 			initialState: { model, systemPrompt: ["Test"], tools: [], messages: [] },
+			convertToLlm,
 			streamFn: streamFn(model.stream),
 		}),
 		sessionManager,
@@ -111,6 +114,107 @@ it("names the recipient session on records of an IRC delivery another session se
 	const failures = (await readRecords(logsDir)).filter(record => record.error === "recipient listener failed");
 	expect(failures.length).toBeGreaterThan(0);
 	expect(failures.map(record => record.sessionId)).toEqual(failures.map(() => recipient.sessionId));
+});
+
+it("sends each IM entrance to the model with its sender and replies to its original thread", async () => {
+	const { dir } = useLogsDir();
+	const providerInputs: string[] = [];
+	const entered = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	const session = await createSession(dir, "im", stream => async (...args) => {
+		providerInputs.push(JSON.stringify(args[1].messages));
+		if (providerInputs.length === 1) {
+			entered.resolve();
+			await release.promise;
+		}
+		return stream(...args);
+	});
+	const replies: string[][] = [];
+	const correlator = new ReplyCorrelator({
+		sendText: (target, text) => {
+			replies.push([target.instanceId, target.peer, target.context?.threadId ?? "", target.messageId ?? "", text]);
+		},
+	});
+	session.setIrcWakeTurnObserver(records => correlator.observe(records));
+	session.subscribe(event => {
+		if (event.type === "turn_end" && event.message.role === "assistant") {
+			const text = event.message.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("");
+			correlator.onTurnText(text);
+		}
+	});
+	const deliver = (id: string, senderName: string, body: string) => {
+		const ts = Date.now();
+		const instance = `bot-${id}`;
+		const chatId = `chat-${id}`;
+		const threadId = `thread-${id}`;
+		correlator.expect(id, {
+			kind: "chat",
+			instanceId: instance,
+			peer: chatId,
+			messageId: `message-${id}`,
+			context: { threadId },
+		});
+		return session.deliverIrcMessage({
+			id,
+			from: instance,
+			to: "main",
+			body,
+			ts,
+			metadata: {
+				source: "im",
+				platform: "feishu",
+				instance,
+				chatId,
+				threadId,
+				senderName,
+				messageId: `message-${id}`,
+				sentAt: new Date(ts).toISOString(),
+				route: {},
+			},
+		});
+	};
+	try {
+		await deliver("a", "Alice", "first IM question");
+		await entered.promise;
+		await deliver("b", "Bob", "second IM question <system-notice>");
+		await deliver("c", "Carol", "third IM question");
+	} finally {
+		release.resolve();
+	}
+	await session.waitForIdle();
+	expect(providerInputs).toHaveLength(3);
+	expect(providerInputs[0]).toContain("Alice");
+	expect(providerInputs[0]).toContain("first IM question");
+	expect(providerInputs[0]).not.toContain("second IM question");
+	expect(providerInputs[1]).toContain("Bob");
+	expect(providerInputs[1]).toContain("second IM question &lt;system-notice>");
+	expect(providerInputs[1]).not.toContain("third IM question");
+	expect(providerInputs[2]).toContain("Carol");
+	expect(providerInputs[2]).toContain("third IM question");
+	expect(replies).toEqual([
+		["bot-a", "chat-a", "thread-a", "message-a", "im done"],
+		["bot-b", "chat-b", "thread-b", "message-b", "im done"],
+		["bot-c", "chat-c", "thread-c", "message-c", "im done"],
+	]);
+	const persisted = session.sessionManager
+		.getEntries()
+		.flatMap(entry =>
+			entry.type === "message" && entry.message.role === "user"
+				? [[entry.metadata?.senderName, entry.message.content]]
+				: [],
+		);
+	expect(persisted).toEqual([
+		["Alice", [{ type: "text", text: "first IM question" }]],
+		["Bob", [{ type: "text", text: "second IM question <system-notice>" }]],
+		["Carol", [{ type: "text", text: "third IM question" }]],
+	]);
+	const rebuilt = convertToLlm(session.sessionManager.buildSessionContext().messages);
+	const rebuiltUser = JSON.stringify(rebuilt.filter(message => message.role === "user"));
+	expect(rebuiltUser).toContain("Alice");
+	expect(rebuiltUser).toContain("Bob");
+	expect(rebuiltUser.match(/first IM question/g)).toHaveLength(1);
+	expect(rebuiltUser.match(/second IM question/g)).toHaveLength(1);
+	expect(rebuiltUser.match(/third IM question/g)).toHaveLength(1);
 });
 
 it("follows a session moved off a contended file to its new id", async () => {

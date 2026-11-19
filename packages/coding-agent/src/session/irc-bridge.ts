@@ -7,8 +7,8 @@ import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type:
 import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { escapeHarnessTags } from "./harness-tags";
-import { normalizeImMessageMetadata } from "./session-im";
-import type { CustomMessage } from "./messages";
+import { formatImUserInput, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
+import { type CustomMessage, isImUserWake } from "./messages";
 import type { SessionManager } from "./session-manager";
 
 /** Capabilities the IRC bridge borrows from its owning session. */
@@ -173,6 +173,14 @@ export class IrcBridge {
 		this.#asides.push(...records);
 	}
 
+	/** IM replies need their own observed wake after an unrelated active turn. */
+	queueBehindActiveTurn(records: AgentMessage[]): void {
+		for (const record of records) {
+			if (record.role === "custom" && isImUserWake(record)) this.#deferredWakes.push(record);
+			else this.#asides.push(record);
+		}
+	}
+
 	/** Parks wake-intended records while a pooled contract owns the worker. Unlike
 	 *  asides, these are invisible to turn injection (`flushPending`, the loop
 	 *  aside poll) and resume into a monitored wake once the contract clears. */
@@ -233,11 +241,10 @@ export class IrcBridge {
 		// harness envelope it is rendered into or open a forged one, e.g. a parent
 		// steer. `details.message` keeps the raw body for the transcript card and inbox.
 		const envelopeBody = escapeHarnessTags(msg.body);
-		// IM ingress is a real user turn with entry-level provenance. The custom
-		// record remains the wake/correlation carrier, but carries no duplicate
-		// prompt text once the user entry exists.
+		// Keep the raw user entry and its immutable source in the transcript. The live
+		// wake carries the corresponding user input and the existing correlation id.
 		const imMetadata = normalizeImMessageMetadata(msg.metadata);
-		const isImUserTurn = imMetadata !== undefined && !("replyToMessageId" in imMetadata);
+		const isImUserTurn = imMetadata !== undefined && isImUserMessageMetadata(imMetadata);
 		if (isImUserTurn) {
 			this.#host.sessionManager.appendMessage(
 				{
@@ -252,7 +259,7 @@ export class IrcBridge {
 			role: "custom",
 			customType: "irc:incoming",
 			content: isImUserTurn
-				? ""
+				? formatImUserInput(msg.body, imMetadata)
 				: prompt.render(ircIncomingTemplate, {
 						from: msg.from,
 						message: envelopeBody,
@@ -263,7 +270,7 @@ export class IrcBridge {
 					}),
 			// The parent steer becomes the transcript card when consumed; keep this
 			// observation available to listeners without also painting a live card.
-			display: !(streaming && fromParent && !peerMessage),
+			display: !isImUserTurn && !(streaming && fromParent && !peerMessage),
 			details: {
 				id: msg.id,
 				from: msg.from,
@@ -281,6 +288,10 @@ export class IrcBridge {
 		if (peerMessage) this.#peerMessages.add(record);
 		void this.#host.emitSessionEvent({ type: "irc_message", message: record });
 		if (streaming) {
+			if (isImUserTurn) {
+				this.queueBehindActiveTurn([record]);
+				return "injected";
+			}
 			if (fromParent && !peerMessage) {
 				const steer: AgentMessage = {
 					role: "user",
@@ -300,13 +311,15 @@ export class IrcBridge {
 		}
 		if (this.#host.planModeEnabled()) {
 			this.#host.agent.appendMessage(record);
-			this.#host.sessionManager.appendCustomMessageEntry(
-				record.customType,
-				record.content,
-				record.display,
-				record.details,
-				record.attribution ?? "agent",
-			);
+			if (!isImUserTurn) {
+				this.#host.sessionManager.appendCustomMessageEntry(
+					record.customType,
+					record.content,
+					record.display,
+					record.details,
+					record.attribution ?? "agent",
+				);
+			}
 			return "injected";
 		}
 		this.#host.wakeForIrc([record]);

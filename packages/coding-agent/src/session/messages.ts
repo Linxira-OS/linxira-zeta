@@ -61,6 +61,7 @@ import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
+import { isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
 
 export {
 	type BranchSummaryMessage,
@@ -72,6 +73,13 @@ export {
 
 import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { titleTextFromSkillPrompt } from "@linxiraos/pi-tui/chat/skill-title-input";
+
+/** True for the live IRC wake associated with a separately journaled IM user turn. */
+export function isImUserWake(message: CustomMessage): boolean {
+	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return false;
+	const metadata = normalizeImMessageMetadata(message.details.metadata);
+	return metadata !== undefined && isImUserMessageMetadata(metadata);
+}
 
 /**
  * Logs provider-error turns so their actual cause is available outside the
@@ -1223,12 +1231,14 @@ function convertOne(m: AgentMessage, interruptedNext: boolean): Message[] {
 			// A user-invoked skill is the user's own turn. An agent message is a user turn
 			// authored by that agent: never tool output, never developer or system authority.
 			const ircIncoming = m.customType === "irc:incoming";
+			const imUserWake = ircIncoming && isImUserWake(m);
+			if (imUserWake && m.content === "") return []; // Historical correlation-only record.
 			if (ircIncoming || isUserInvokedSkillPrompt(m)) {
 				return [
 					{
 						role: "user",
 						content: customMessageContentToLlmContent(m.content),
-						attribution: ircIncoming ? "agent" : "user",
+						attribution: ircIncoming && !imUserWake ? "agent" : "user",
 						timestamp: m.timestamp,
 					},
 				];

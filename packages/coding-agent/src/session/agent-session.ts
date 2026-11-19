@@ -551,6 +551,7 @@ import {
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	type InterruptedThinkingDetails,
 	isEmptyErrorTurn,
+	isImUserWake,
 	titleContextWordCount,
 	isUserAuthoredMessage,
 	isUserInterruptAbort,
@@ -2125,6 +2126,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 *  because #canAutoContinueForFollowUp suppresses follow-up auto-resume while a user interrupt is
 	 *  in effect, even though the wake left a provider-valid tail. */
 	#wakeForIrc(wakeRecords: AgentMessage[]): void {
+		// One generated reply must never be broadcast to unrelated IM entrances
+		// just because their messages accumulated behind the same running turn.
+		if (wakeRecords.length > 1) {
+			const firstIm = wakeRecords.findIndex(record => record.role === "custom" && isImUserWake(record));
+			if (firstIm >= 0) {
+				const stop = firstIm === 0 ? 1 : firstIm;
+				this.#irc.queueDeferredWake(wakeRecords.slice(stop));
+				wakeRecords = wakeRecords.slice(0, stop);
+			}
+		}
 		if (this.#modeExitDrainSuppressionDepth > 0) {
 			this.#irc.queueAside(wakeRecords);
 			return;
@@ -2164,7 +2175,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					if (this.hasAdmittedSubmission) {
 						// Input admitted during the compaction goes first. Prompt setup folds pending IRC
 						// into its turn; whatever is still pending once it settles wakes as usual.
-						this.#irc.queueAside(wakeRecords);
+						this.#irc.queueBehindActiveTurn(wakeRecords);
 						await this.waitForAdmittedSubmissions();
 						this.#resumeStrandedIrcAsides();
 						return;
@@ -2246,7 +2257,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					return;
 				}
 				if (this.agent.state.isStreaming) {
-					this.#irc.queueAside(records);
+					this.#irc.queueBehindActiveTurn(records);
 					logger.debug("IRC wake turn deferred behind the running turn");
 					return;
 				}
@@ -2262,7 +2273,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 						this.#irc.queueDeferredWake(records);
 						logger.debug("IRC wake turn parked while pooled");
 					} else {
-						this.#irc.queueAside(records);
+						this.#irc.queueBehindActiveTurn(records);
 						logger.debug("IRC wake turn deferred behind the running turn");
 					}
 					return;
@@ -6144,6 +6155,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return;
 		}
 		if (message.role === "hookMessage" || message.role === "custom") {
+			// The IRC bridge already journaled this input as a user entry with source metadata.
+			if (message.role === "custom" && isImUserWake(message)) return;
 			// One-run instructions must not return from persisted history: prewalk
 			// nudges are consumed once, and Vibe context is rebuilt only while active.
 			if (
