@@ -1,6 +1,6 @@
 # 0060. Two-factor storage failures deny remote writes and factor changes revoke grants
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-16
 - **Deciders:** Zeta maintainers
 - **Links:** [REQ-102](../requirements-ledger.md), [serve authentication](../../docs/zeta-serve-web.md)

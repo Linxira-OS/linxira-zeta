@@ -1,6 +1,6 @@
 # 0068. Align Zeta consumers to the OMP 18.22 runtime contracts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-17
 - **Deciders:** Owner selected official OMP v18.22.0 for a complete release merge before preparing Zeta 1.6.0. Contract adoption follows ADR 0036; release acceptance remains separate.
 - **Links:** [REQ-125](../requirements-ledger.md), [ADR 0036](0036-upstream-interface-alignment.md), [ADR 0039](0039-background-work-source-binding.md), [ADR 0058](0058-studio-ida-worker-reviews.md), [sync ledger](../upstream-sync.md)

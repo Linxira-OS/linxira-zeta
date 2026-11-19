@@ -33,7 +33,6 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
-| `sync/omp-release/v18.22.0` | sync | 用户指定 OMP v18.22.0 完整真合并；基线 main `90117b00b65b32f38282027e4d3c97d45720c830`；隔离 `temp/sync-omp-v18.22.0` | main | 2026-11-17 | 完成合并与本地门禁后由用户审查；不推送，删前登记最终 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/saved-build-fixes` | fix | 2026-11-17 保存的 Nix/browser/release-scope 窄修复恢复；tip `9e0f70904c0284bd9bbbdf97a86ec97f4bfdfe0c`，补丁已适配主线 | SavedBuildFixes / main | 2026-11-17 | 本轮清除 worktree；分支保留作恢复引用，后续由 main 开发 |
@@ -231,6 +230,7 @@
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `sync/omp-release/v18.22.0` | `526f9a28e74` | 2026-11-19 | OMP `v18.22.0` 真 merge 已合入 `main`（merge `f0446a56f09`，PR #324）；main push CI 44486728118 全绿；远端与本地分支已删除；worktree 注册已移除，残留目录待清理 |
 | `chore/electron-latest-stable` | `625e1d1538ddab34033227e7c87103ffd076c896` | 2026-11-11 | PR #318 已合并；cache-cleanup 确认 `temp/electron-latest` worktree/registration 与本地分支均已删除；不删除远端分支 |
 | `feat/compat-cleanup` | `b2aa276c8962bd1bf44924f0cc161de688e6e467` | 2026-11-11 | 已在 `5a2ef25974a` 登记后由 cache-cleanup 删除 `temp/compat-cleanup` worktree 与本地分支；最终 links=0；`.zeta` 工具源码与 `serve.out.log` / `serve.err.log` 保存在 `~/.zeta/parked-evidence/2026-11-11/compat-cleanup/`；不删除远端分支 |
 | `feat/release-114` | `07db32f217d783a43c6f2b988075014df0466398` | 2026-11-11 | 已在 `5a2ef25974a` 登记后由 cache-cleanup 删除 `temp/release-114` worktree 与本地分支；最终 links=0；`.zeta` 工具源码与 `prbody.md` 保存在 `~/.zeta/parked-evidence/2026-11-11/release-114/`；不删除远端分支 |

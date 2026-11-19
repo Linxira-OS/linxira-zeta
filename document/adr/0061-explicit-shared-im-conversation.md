@@ -1,6 +1,6 @@
 # 0061. Multiple IM entrances may explicitly share one Agent conversation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-16
 - **Deciders:** User requirement (via Main); IM runtime line (channels, gateway, Studio settings)
 - **Links:** [IM runtime UI](../../docs/im-runtime-ui.md), [GUI IM channels](../../docs/gui-im-channels.md), [channels](../../docs/channels.md), [session router](../../packages/coding-agent/src/channels/session-router.ts), [IM gateway](../../packages/coding-agent/src/server/web-gateway/im-instances.ts), [web config](../../packages/coding-agent/src/config/web-config.ts), REQ-110, ADR-IM-0007

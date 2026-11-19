@@ -1,6 +1,6 @@
 # 0067. TUI runtime settings reuse the existing serve authority
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-17
 - **Deciders:** Owner requested nested, clickable TUI settings; implementation and release acceptance remain separate.
 - **Links:** [REQ-124](../requirements-ledger.md), [IM runtime](../../docs/im-runtime-ui.md), [ADR 0030](0030-im-secret-storage.md), [ADR 0061](0061-explicit-shared-im-conversation.md)
