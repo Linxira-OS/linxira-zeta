@@ -664,6 +664,11 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
 	return runPublishJobs([publishTargetJob(target, createKeyedMutex())], 1);
 }
 
+const LINUX_STANDALONE_PAYLOADS: Readonly<Record<string, string>> = {
+	"@linxiraos/editor-linux-x64": "bin/termide-editor-linux-x64",
+	"@linxiraos/ide-linux-x64": "bin/termide-linux-x64",
+};
+
 /** Stage legal files and retain them in an existing package allowlist. */
 export async function prepareStandalonePackage(pkgDir: string, write: boolean): Promise<PackageManifest> {
 	const manifestPath = path.join(pkgDir, "package.json");
@@ -673,6 +678,12 @@ export async function prepareStandalonePackage(pkgDir: string, write: boolean): 
 	if (Array.isArray(files) && legalFiles.some(file => !files.includes(file))) {
 		manifest.files = [...new Set([...files, ...legalFiles])];
 		if (write) await Bun.write(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
+	}
+	// These Linux payloads are spawned directly. Set the archive mode even
+	// when the artifact was committed from a filesystem without Unix modes.
+	const executable = LINUX_STANDALONE_PAYLOADS[manifest.name ?? ""];
+	if (write && process.platform === "linux" && executable) {
+		await fs.chmod(path.join(pkgDir, executable), 0o755);
 	}
 	return manifest;
 }

@@ -163,6 +163,37 @@ describe("standalone npm package payload", () => {
 			fs.rmSync(fixture, { recursive: true, force: true });
 		}
 	});
+
+	it.skipIf(process.platform !== "linux")("packs both Linux payloads as executables", async () => {
+		const scratch = path.join(ROOT, "temp");
+		fs.mkdirSync(scratch, { recursive: true });
+		for (const [name, filename] of [
+			["ide", "termide-linux-x64"],
+			["editor", "termide-editor-linux-x64"],
+		]) {
+			const fixture = fs.mkdtempSync(path.join(scratch, "release-package-mode-"));
+			try {
+				const pkg = `@linxiraos/${name}-linux-x64`;
+				fs.writeFileSync(
+					path.join(fixture, "package.json"),
+					JSON.stringify({ name: pkg, version: "1.0.0", files: ["bin"] }),
+				);
+				fs.mkdirSync(path.join(fixture, "bin"));
+				fs.writeFileSync(path.join(fixture, "bin", filename), "#!/bin/sh\nprintf 'ready\\n'\n", { mode: 0o644 });
+				await prepareStandalonePackage(fixture, true);
+				const pack = Bun.spawnSync([process.execPath, "pm", "pack", "--quiet"], { cwd: fixture });
+				expect(pack.exitCode, pack.stderr.toString()).toBe(0);
+				const archive = path.join(fixture, `linxiraos-${name}-linux-x64-1.0.0.tgz`);
+				const extract = Bun.spawnSync(["tar", "-xzf", archive], { cwd: fixture });
+				expect(extract.exitCode, extract.stderr.toString()).toBe(0);
+				const launched = Bun.spawnSync([path.join(fixture, "package", "bin", filename)]);
+				expect(launched.exitCode).toBe(0);
+				expect(launched.stdout.toString()).toBe("ready\n");
+			} finally {
+				fs.rmSync(fixture, { recursive: true, force: true });
+			}
+		}
+	});
 });
 
 describe("release asset surfaces", () => {
