@@ -15,10 +15,7 @@
 		"configRoot": "~/.zeta"
 	},
 	"upstreamIdentity": {
-		"sourceOfTruth": [
-			"desktop/package.json",
-			"desktop/electron-builder.yml"
-		],
+		"sourceOfTruth": ["desktop/package.json", "desktop/electron-builder.yml"],
 		"tagPattern": "v{version}",
 		"artifactNamePattern": "zeta-desktop-{version}-{platform}-{arch}.{ext}",
 		"platformSuffixes": {
@@ -111,9 +108,7 @@
 			"ecosystem": "npm",
 			"name": "@linxiraos/zeta",
 			"version": "1.5.0",
-			"bins": [
-				"zetacode"
-			],
+			"bins": ["zetacode"],
 			"status": "current",
 			"role": "coding-agent CLI (the kernel the desktop shell spawns)"
 		},
@@ -121,9 +116,7 @@
 			"ecosystem": "npm",
 			"name": "@linxiraos/ide",
 			"version": "1.5.0",
-			"bins": [
-				"zetaide"
-			],
+			"bins": ["zetaide"],
 			"status": "current",
 			"role": "terminal IDE"
 		},
@@ -131,10 +124,7 @@
 			"ecosystem": "npm",
 			"name": "@linxiraos/main",
 			"version": "1.4.10",
-			"bins": [
-				"zetawork",
-				"zeta"
-			],
+			"bins": ["zetawork", "zeta"],
 			"status": "paused",
 			"role": "legacy Rust workbench npm launcher; publication only via the manual publish_zetawork gate. Frozen at 1.4.10; it is NOT the desktop product and does not receive 1.5.x."
 		},
@@ -163,12 +153,8 @@
 			"sha256": "a64fba61bf9ce60a495ddb84414ef42a4b2bae76f134ca90a92a74c52a2308d7",
 			"sourceAsset": "zeta-desktop-1.5.0-linux-x64.tar.gz",
 			"provides": [],
-			"replaces": [
-				"linxira-zetawork"
-			],
-			"conflicts": [
-				"linxira-zetawork"
-			],
+			"replaces": ["linxira-zetawork"],
+			"conflicts": ["linxira-zetawork"],
 			"installs": [
 				"opt/linxira-zeta/",
 				"usr/bin/zeta-desktop",
@@ -183,12 +169,8 @@
 			"repository": "binary-packages",
 			"section": "linxira-zeta",
 			"version": "1.5.0-2",
-			"provides": [
-				"zetacode"
-			],
-			"conflicts": [
-				"zetacode-bin"
-			],
+			"provides": ["zetacode"],
+			"conflicts": ["zetacode-bin"],
 			"status": "current"
 		},
 		{
@@ -197,9 +179,7 @@
 			"repository": "binary-packages",
 			"section": "linxira-zeta",
 			"version": "1.5.0-2",
-			"provides": [
-				"zetaide"
-			],
+			"provides": ["zetaide"],
 			"status": "current"
 		},
 		{
@@ -210,10 +190,7 @@
 			"version": "1.4.10-1",
 			"status": "legacy",
 			"role": "zetawork-era desktop (TUI + GUI) under the same package name; replaced in place by 1.5.x",
-			"provides": [
-				"zetawork",
-				"linxira-zeta"
-			],
+			"provides": ["zetawork", "linxira-zeta"],
 			"installs": [
 				"usr/bin/zetawork",
 				"usr/bin/zetacode",
@@ -281,30 +258,11 @@
 					"filename": "linxira-zeta-1.5.1-1-x86_64.pkg.tar.zst",
 					"csize": 354210921,
 					"sha256": "d173cda517ce05c34e77a03675c2c994c4775268059f8855e0a07cc859161bc0",
-					"replaces": [
-						"linxira-zetawork"
-					],
-					"conflicts": [
-						"linxira-zetawork"
-					]
+					"replaces": ["linxira-zetawork"],
+					"conflicts": ["linxira-zetawork"]
 				},
-				{
-					"name": "linxira-zeta-c-bin",
-					"version": "1.5.1-1",
-					"provides": [
-						"zetacode"
-					],
-					"conflicts": [
-						"zetacode-bin"
-					]
-				},
-				{
-					"name": "linxira-zeta-ide",
-					"version": "1.5.1-1",
-					"provides": [
-						"zetaide"
-					]
-				}
+				{ "name": "linxira-zeta-c-bin", "version": "1.5.1-1", "provides": ["zetacode"], "conflicts": ["zetacode-bin"] },
+				{ "name": "linxira-zeta-ide", "version": "1.5.1-1", "provides": ["zetaide"] }
 			],
 			"note": "The rolling repository replaced the 1.5.0 assets with 1.5.1; a 1.5.0-1 package is no longer published, so the 1.5.0->1.5.1 transaction uses a package rebuilt from the published upstream 1.5.0 archive."
 		}
@@ -315,10 +273,7 @@
 			"zetawork": {
 				"description": "Rust TUI + GUI workbench packaged as linxira-zeta (<= 1.4.10) and as linxira-zetawork (<= 1.4.1)",
 				"npm": "@linxiraos/main",
-				"bins": [
-					"zetawork",
-					"zeta"
-				],
+				"bins": ["zetawork", "zeta"],
 				"configRoot": "~/.zeta"
 			}
 		},
@@ -344,14 +299,8 @@
 		"rows": [
 			{
 				"platform": "linux-pacman",
-				"from": {
-					"package": "linxira-zeta",
-					"versions": "<= 1.4.10-1 (zetawork era)"
-				},
-				"to": {
-					"package": "linxira-zeta",
-					"versions": ">= 1.5.0-1"
-				},
+				"from": { "package": "linxira-zeta", "versions": "<= 1.4.10-1 (zetawork era)" },
+				"to": { "package": "linxira-zeta", "versions": ">= 1.5.0-1" },
 				"samePackageName": true,
 				"mechanism": "in-place",
 				"requiresUninstall": false,
@@ -362,38 +311,22 @@
 			},
 			{
 				"platform": "linux-pacman",
-				"from": {
-					"package": "linxira-zetawork",
-					"versions": "<= 1.4.1-1"
-				},
-				"to": {
-					"package": "linxira-zeta",
-					"versions": ">= 1.5.0-1"
-				},
+				"from": { "package": "linxira-zetawork", "versions": "<= 1.4.1-1" },
+				"to": { "package": "linxira-zeta", "versions": ">= 1.5.0-1" },
 				"samePackageName": false,
 				"mechanism": "replace",
 				"requiresUninstall": false,
 				"requiresReplace": true,
-				"replaces": [
-					"linxira-zetawork"
-				],
-				"conflicts": [
-					"linxira-zetawork"
-				],
+				"replaces": ["linxira-zetawork"],
+				"conflicts": ["linxira-zetawork"],
 				"procedure": "pacman -Syu; pacman honours the target package's Replaces/Conflicts. A bare pacman -U of linxira-zeta does not apply Replaces, so remove linxira-zetawork first in that path.",
 				"verified": true,
 				"verificationNote": "2026-11-10: a synthetic linxira-zetawork 1.4.1-1 package was installed, then pacman -Su from a file:// repository holding the published 1.5.0-1 package removed it and installed linxira-zeta through the published Replaces/Conflicts (stub /usr/bin/zetawork removed). The package identity is synthetic because the retired package is no longer published; the target package and its fields are the real published artifact."
 			},
 			{
 				"platform": "linux-deb",
-				"from": {
-					"package": "zeta-desktop",
-					"versions": "<= 1.4.13"
-				},
-				"to": {
-					"package": "zeta-desktop",
-					"versions": ">= 1.5.0"
-				},
+				"from": { "package": "zeta-desktop", "versions": "<= 1.4.13" },
+				"to": { "package": "zeta-desktop", "versions": ">= 1.5.0" },
 				"samePackageName": true,
 				"mechanism": "in-place",
 				"requiresUninstall": false,
@@ -403,12 +336,8 @@
 			},
 			{
 				"platform": "linux-appimage",
-				"from": {
-					"asset": "linxira-zeta-<version>-x86_64.AppImage or zeta-desktop-<version>-linux-x86_64.AppImage"
-				},
-				"to": {
-					"asset": "zeta-desktop-<version>-linux-x86_64.AppImage"
-				},
+				"from": { "asset": "linxira-zeta-<version>-x86_64.AppImage or zeta-desktop-<version>-linux-x86_64.AppImage" },
+				"to": { "asset": "zeta-desktop-<version>-linux-x86_64.AppImage" },
 				"mechanism": "replace-file",
 				"requiresUninstall": false,
 				"procedure": "replace the AppImage file; no package manager state exists",
@@ -436,14 +365,8 @@
 			},
 			{
 				"platform": "npm",
-				"from": {
-					"package": "@linxiraos/main",
-					"versions": "<= 1.4.10 (paused)"
-				},
-				"to": {
-					"package": null,
-					"note": "the workbench npm surface is not renamed into zeta-desktop; the CLI remains @linxiraos/zeta (bin zetacode)"
-				},
+				"from": { "package": "@linxiraos/main", "versions": "<= 1.4.10 (paused)" },
+				"to": { "package": null, "note": "the workbench npm surface is not renamed into zeta-desktop; the CLI remains @linxiraos/zeta (bin zetacode)" },
 				"mechanism": "none",
 				"requiresUninstall": false,
 				"procedure": "npm uninstall -g @linxiraos/main; install the desktop package or @linxiraos/zeta. Do not expect @linxiraos/main to publish 1.5.x.",
@@ -454,15 +377,9 @@
 		"packageManagerFields": {
 			"pacman": {
 				"samePackageNameUpgrade": "linxira-zeta -> linxira-zeta",
-				"replaces": [
-					"linxira-zetawork"
-				],
-				"conflicts": [
-					"linxira-zetawork"
-				],
-				"providesDropped": [
-					"zetawork"
-				],
+				"replaces": ["linxira-zetawork"],
+				"conflicts": ["linxira-zetawork"],
+				"providesDropped": ["zetawork"],
 				"note": "The 1.5.x package no longer Provides zetawork. Nothing in the repositories depends on that virtual; a third-party package that does will need updating."
 			},
 			"deb": {
@@ -504,10 +421,7 @@
 			{
 				"channel": "npm",
 				"kind": "npm registry",
-				"packages": [
-					"@linxiraos/zeta",
-					"@linxiraos/ide"
-				],
+				"packages": ["@linxiraos/zeta", "@linxiraos/ide"],
 				"note": "desktop shell is private and not on npm"
 			}
 		],

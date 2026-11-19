@@ -672,6 +672,23 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		await Bun.write(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 	}
 
+	// Step 3a: the package-linkage manifest records the desktop shell version
+	// external repositories map onto; check-package-linkage.ts fails the release
+	// when it lags `desktop/package.json`. Replace the one npm zeta-desktop row
+	// textually so the manifest's hand-formatted layout survives the bump.
+	console.log("Updating package-linkage desktop version...");
+	const linkagePath = "packaging/package-linkage.json";
+	const linkageText = await Bun.file(linkagePath).text();
+	const bumpedLinkage = linkageText.replace(
+		/("ecosystem": "npm",\s*\n\s*"name": "zeta-desktop",\s*\n\s*"version": ")[^"]+/,
+		`$1${version}`,
+	);
+	if (bumpedLinkage === linkageText) {
+		console.error("Error: packaging/package-linkage.json has no npm zeta-desktop version row to bump.");
+		process.exit(1);
+	}
+	await Bun.write(linkagePath, bumpedLinkage);
+
 	// Step 4: root catalog explicit mapping (workspace deps resolve to the
 	// release version — without this, catalog stays on the old version and
 	// `bun install` fails resolving `@linxiraos/*@catalog:` against npm).
