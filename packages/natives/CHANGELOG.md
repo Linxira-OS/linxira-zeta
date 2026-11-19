@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- Fixed Bazel host builds of the Linux addon with GNU linkers. Shipping Zig builds keep the single N-API export.
 - On Unix, external commands now honor explicit nonstandard descriptor closures even when the host has an inheritable descriptor at the same number.
 - Fixed stalled terminal writers continuing to emit output or leaking file descriptors after shutdown.
 - Fixed terminal output preserving Unicode across chunk boundaries and safely replacing malformed surrogate sequences.

@@ -111,6 +111,7 @@
 
 ### Fixed
 
+- Fixed Work Studio packaging when Vite runs under Bun during npm tarball preparation.
 - Account/device 2FA fails closed when its store is damaged, keeps verification grants tied to the active factor and clears them after factor/policy changes. Recovery codes work from the global prompt and Settings; concurrent requests share one verification and cancellation settles late challenges. `/2fa status` and `zetacode 2fa status` expose secret-free terminal status (ADR-0060).
 - **Z Work Studio identity** — sidebar, About, empty conversations, BTW labels, logs, session import/resume and bilingual previews use Z Work Studio / Zeta. Browser preferences consistently use `zeta.*`; the existing startup migration preserves earlier `omp.*` preferences. Existing IndexedDB databases and old recording files remain readable.
 - Studio command terminals retain their selected workspace and launch a dedicated script process instead of dropping the command; the Host rejects conflicting profile/program inputs and retains device-binding ownership (ADR-0045).

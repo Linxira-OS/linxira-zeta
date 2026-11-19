@@ -125,6 +125,14 @@ rust_binary(
     target_compatible_with = ["@platforms//os:macos"],
 )
 
+config_setting(
+    name = "linux_system_linker",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@zig_sdk//libc:unconstrained",
+    ],
+)
+
 # The Linux addon's only export: the N-API entry point. Linked in place of
 # rustc's version script, which lists every #[no_mangle] function in the crate
 # graph (wasmtime's C API for tree-sitter, src/bundled_libc.rs). Generated
@@ -198,14 +206,18 @@ rust_shared_library(
         # -adhoc_codesign: linkers sign arm64 ad hoc by default but not
         # x86_64; every shipped darwin addon carries a signature.
         # -install_name: otherwise the addon's id is its sandbox output path.
-        # --version-script (linux): export only the N-API entry point. zig cc
-        # keeps the last version script it is given, so :exports_map replaces
-        # the one rustc writes; every other symbol (src/bundled_libc.rs, the
-        # wasm C API) becomes local and binds within the addon.
+        # The shipping Zig toolchain keeps the last version script. System
+        # GNU linkers see both scripts and reject the duplicate anonymous tag;
+        # use rustc's exports and bind internal references like Cargo does.
         "@platforms//os:macos": [
             "-Clink-arg=-Wl,-undefined,dynamic_lookup",
             "-Clink-arg=-Wl,-adhoc_codesign",
             "-Clink-arg=-Wl,-install_name,@rpath/libpi_natives.dylib",
+        ],
+        ":linux_system_linker": [
+            "-Clink-arg=-fuse-ld=bfd",
+            "-Clink-arg=-Wl,-z,nodelete",
+            "-Clink-arg=-Wl,-Bsymbolic",
         ],
         "@platforms//os:linux": [
             "-Clink-arg=-Wl,-z,nodelete",

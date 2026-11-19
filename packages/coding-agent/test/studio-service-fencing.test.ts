@@ -9,7 +9,9 @@ import { projectService } from "../src/server/studio-host/services/project-servi
 
 describe("Studio service instance fencing", () => {
 	it("serializes a restart and stale stop without stopping the new process", async () => {
-		using temp = TempDir.createSync(path.resolve(import.meta.dir, "../../../temp/zeta-studio-fence-"));
+		const scratch = path.resolve(import.meta.dir, "../../../temp");
+		await fs.mkdir(scratch, { recursive: true });
+		using temp = TempDir.createSync(path.join(scratch, "zeta-studio-fence-"));
 		const projectDir = path.join(temp.path(), "project");
 		const runtimeDir = path.join(temp.path(), "runtime");
 		await fs.mkdir(projectDir);

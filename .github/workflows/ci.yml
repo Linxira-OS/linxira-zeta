@@ -1352,6 +1352,11 @@ jobs:
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       steps:
          - uses: actions/checkout@v4
+         # Exercise Vite's Node loader during prepack, with the same Node major
+         # used by the package publisher.
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
            with:
