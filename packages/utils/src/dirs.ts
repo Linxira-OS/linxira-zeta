@@ -1,12 +1,12 @@
 /**
- * Centralized path helpers for omp config directories.
+ * Centralized path helpers for zetacode config directories.
  *
- * Uses PI_CONFIG_DIR (default ".omp") for the config root and
- * PI_CODING_AGENT_DIR to override the agent directory.
+ * Uses ZETA_CONFIG_DIR (default ".zeta") for the config root and
+ * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
  * variables are set, paths are redirected to XDG-compliant locations under
- * $XDG_*_HOME/omp/. This requires running `omp config migrate` first to
+ * $XDG_*_HOME/omp/. This requires running `zetacode config migrate` first to
  * move data to the new locations. No filesystem existence checks are performed
  * — if the env var is set, omp trusts that the migration has been done.
  */
@@ -103,7 +103,7 @@ export function normalizeProfileName(profile: string | undefined): string | unde
  * than silently inheriting `PI_PROFILE`. Delegates validation/normalization to
  * {@link normalizeProfileName} (which throws on a syntactically invalid value).
  */
-export function resolveProfileEnv(omp: string | undefined, pi: string | undefined): string | undefined {
+export function resolveProfileEnv(omp: string | undefined, pi?: string): string | undefined {
 	return normalizeProfileName(omp !== undefined ? omp : pi);
 }
 
@@ -127,7 +127,7 @@ function readProfileFromEnvSafe(): string | undefined {
 	}
 }
 
-/** Profile-independent config root (~/.omp), shared by every omp profile. */
+/** Profile-independent config root (~/.zeta), shared by every omp profile. */
 export function getBaseConfigRoot(): string {
 	return path.join(os.homedir(), getConfigDirName());
 }
@@ -343,9 +343,9 @@ export function getSafeProjectCwd(): string {
 	return os.homedir();
 }
 
-/** Get the config directory name relative to home (e.g. ".omp" or PI_CONFIG_DIR override). */
+/** Get the config directory name relative to home (e.g. ".zeta" or ZETA_CONFIG_DIR override). */
 export function getConfigDirName(): string {
-	return process.env.PI_CONFIG_DIR || CONFIG_DIR_NAME;
+	return process.env.ZETA_CONFIG_DIR || CONFIG_DIR_NAME;
 }
 
 /** Get the config agent directory name relative to home (e.g. ".zeta/agent" or ZETA_CONFIG_DIR + "/agent"). */
@@ -390,12 +390,12 @@ class DirResolver {
 		const isDefault = this.agentDir === defaultAgent;
 
 		// XDG is a Linux convention. On supported platforms, default profile state
-		// resolves under $XDG_*_HOME/omp once `omp config init-xdg` has migrated
+		// resolves under $XDG_*_HOME/omp once `zetacode config init-xdg` has migrated
 		// the user's data. Named profiles follow a stricter rule: the XDG choice
 		// is keyed on the profile-specific XDG path, never the base app root.
 		//
 		// Why: if we consulted the base app root for named profiles too, the same
-		// profile could resolve to `~/.omp/profiles/<name>` on first activation
+		// profile could resolve to `~/.zeta/profiles/<name>` on first activation
 		// (when no $XDG_*_HOME/omp exists yet) and then silently move to
 		// `$XDG_*_HOME/omp/profiles/<name>` the moment the base appeared, orphaning
 		// the earlier state. Pinning on the profile path means a profile's location
@@ -446,7 +446,7 @@ class DirResolver {
 			state: xdgState ?? this.configRoot,
 			cache: xdgCache ?? this.configRoot,
 		};
-		// XDG flattens the agent/ prefix: ~/.omp/agent/sessions → $XDG_DATA_HOME/omp/sessions
+		// XDG flattens the agent/ prefix: ~/.zeta/agent/sessions → $XDG_DATA_HOME/zeta/sessions
 		this.#agentDirs = {
 			data: xdgData ?? this.agentDir,
 			state: xdgState ?? this.agentDir,
@@ -490,14 +490,14 @@ class DirResolver {
 }
 
 /**
- * Decide which `PI_CODING_AGENT_DIR` value to capture as the pre-profile
+ * Decide which `ZETA_CODING_AGENT_DIR` value to capture as the pre-profile
  * baseline. A value equal to a profile's derived agent dir is profile-derived
  * (propagated by a parent's `setProfile`), so it must NOT be snapshotted as the
  * default-mode baseline — otherwise default mode would resolve to the profile's
  * agent dir. The profile source can be the active profile or a lower-priority
  * `PI_PROFILE` that was bypassed because `OMP_PROFILE` explicitly selected the
  * default profile. Returns `undefined` in those cases so reset falls back to the
- * standard `~/.omp/agent`.
+ * standard `~/.zeta/agent`.
  */
 function resolvePreProfileAgentDir(
 	profile: string | undefined,
@@ -512,14 +512,14 @@ let activeProfile = readProfileFromEnvSafe();
 /**
  * Resolve the agent-dir override for the current `activeProfile` from the live
  * environment. A named profile derives its own agent dir (no override); default
- * mode honors a non-profile `PI_CODING_AGENT_DIR` (see
+ * mode honors a non-profile `ZETA_CODING_AGENT_DIR` (see
  * {@link resolvePreProfileAgentDir}). Shared by the module-load resolver and
  * {@link refreshDirsFromEnv} so both apply identical logic.
  */
 function resolveActiveAgentDirOverride(): string | undefined {
 	return activeProfile
 		? undefined
-		: resolvePreProfileAgentDir(undefined, process.env.PI_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
+		: resolvePreProfileAgentDir(undefined, process.env.ZETA_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
 }
 
 let dirs = new DirResolver({
@@ -527,19 +527,19 @@ let dirs = new DirResolver({
 	profile: activeProfile,
 });
 /**
- * Snapshot of `PI_CODING_AGENT_DIR` from before the first named-profile
+ * Snapshot of `ZETA_CODING_AGENT_DIR` from before the first named-profile
  * activation. Reset paths restore this value (or its absence) instead of
  * unconditionally deleting the env var. Without the snapshot, a process started
- * with `PI_CODING_AGENT_DIR=/custom` then `setProfile("work")` then
+ * with `ZETA_CODING_AGENT_DIR=/custom` then `setProfile("work")` then
  * `setProfile(undefined)` would silently lose `/custom` and fall back to
- * `~/.omp/agent`. Captured at module load — ignoring a profile-derived value
+ * `~/.zeta/agent`. Captured at module load — ignoring a profile-derived value
  * inherited from a parent's `setProfile` (see {@link resolvePreProfileAgentDir})
  * — and refreshed on `setAgentDir`, since that call is the user explicitly
  * redefining the baseline.
  */
 let preProfileAgentDirEnv: string | undefined = resolvePreProfileAgentDir(
 	activeProfile,
-	process.env.PI_CODING_AGENT_DIR,
+	process.env.ZETA_CODING_AGENT_DIR,
 	activeProfile ?? readPiProfileFromEnvSafe(),
 );
 // Anchor home for the resolver. Captured at module load to stay stable across
@@ -551,7 +551,7 @@ const RESOLVER_HOME = os.homedir();
 /**
  * Rebuild the dirs resolver from the current environment, reusing the profile
  * resolved at module load. Directory-affecting keys (XDG_*_HOME and, in default
- * mode, `PI_CODING_AGENT_DIR`) loaded from a profile/agent `.env` only reach
+ * mode, `ZETA_CODING_AGENT_DIR`) loaded from a profile/agent `.env` only reach
  * `process.env` *after* this module froze the resolver at import time, so
  * `env.ts` calls this once after applying its `.env` files. The agent `.env`
  * location derives from the profile name + home before this runs, so the
@@ -569,7 +569,7 @@ export function refreshDirsFromEnv(): void {
 // Root directories
 // =============================================================================
 
-/** Get the config root directory (~/.omp). */
+/** Get the config root directory (~/.zeta). */
 export function getConfigRootDir(): string {
 	return dirs.configRoot;
 }
@@ -578,7 +578,7 @@ export function getConfigRootDir(): string {
 export function setAgentDir(dir: string): void {
 	activeProfile = undefined;
 	dirs = new DirResolver({ agentDirOverride: dir });
-	process.env.PI_CODING_AGENT_DIR = dir;
+	process.env.ZETA_CODING_AGENT_DIR = dir;
 	preProfileAgentDirEnv = dir;
 	for (const key of PROFILE_ENV_KEYS) {
 		delete process.env[key];
@@ -586,7 +586,7 @@ export function setAgentDir(dir: string): void {
 }
 
 /**
- * Test-only: reset the pre-profile `PI_CODING_AGENT_DIR` snapshot to whatever
+ * Test-only: reset the pre-profile `ZETA_CODING_AGENT_DIR` snapshot to whatever
  * the current environment looks like. Cross-suite test pollution can otherwise
  * leak a stale snapshot through `setAgentDir` and corrupt `setProfile(undefined)`
  * restore semantics. Production code MUST NOT call this — the snapshot's
@@ -596,7 +596,7 @@ export function setAgentDir(dir: string): void {
 export function __resetProfileSnapshotForTests(): void {
 	preProfileAgentDirEnv = resolvePreProfileAgentDir(
 		activeProfile,
-		process.env.PI_CODING_AGENT_DIR,
+		process.env.ZETA_CODING_AGENT_DIR,
 		activeProfile ?? readPiProfileFromEnvSafe(),
 	);
 }
@@ -618,13 +618,13 @@ export function setProfile(profile: string | undefined): void {
 	const next = normalizeProfileName(profile);
 	if (next && !activeProfile) {
 		// First activation of a named profile in this process: snapshot the
-		// current PI_CODING_AGENT_DIR so a later reset can restore the user's
+		// current ZETA_CODING_AGENT_DIR so a later reset can restore the user's
 		// explicit override. Subsequent profile switches keep the original
 		// snapshot — the "pre-profile" baseline is the state before profiles
 		// entered the picture, not the state between two activations.
 		preProfileAgentDirEnv = resolvePreProfileAgentDir(
 			undefined,
-			process.env.PI_CODING_AGENT_DIR,
+			process.env.ZETA_CODING_AGENT_DIR,
 			readPiProfileFromEnvSafe(),
 		);
 	}
@@ -633,15 +633,15 @@ export function setProfile(profile: string | undefined): void {
 		dirs = new DirResolver({ profile: activeProfile });
 		process.env.OMP_PROFILE = activeProfile;
 		process.env.PI_PROFILE = activeProfile;
-		process.env.PI_CODING_AGENT_DIR = dirs.agentDir;
+		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
 		for (const key of PROFILE_ENV_KEYS) {
 			delete process.env[key];
 		}
 		if (preProfileAgentDirEnv === undefined) {
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		} else {
-			process.env.PI_CODING_AGENT_DIR = preProfileAgentDirEnv;
+			process.env.ZETA_CODING_AGENT_DIR = preProfileAgentDirEnv;
 		}
 		dirs = new DirResolver({ agentDirOverride: preProfileAgentDirEnv });
 	}
@@ -656,29 +656,29 @@ export function getActiveProfile(): string | undefined {
 export function getProfileRootDir(profile: string | undefined): string {
 	return getProfileConfigRoot(normalizeProfileName(profile));
 }
-/** Get the agent config directory (~/.omp/agent). */
+/** Get the agent config directory (~/.zeta/agent). */
 export function getAgentDir(): string {
 	return dirs.agentDir;
 }
 
-/** Get the project-local config directory (.omp). */
+/** Get the project-local config directory (.zeta). */
 export function getProjectAgentDir(cwd: string = getProjectDir()): string {
 	return path.join(cwd, CONFIG_DIR_NAME);
 }
 
 // =============================================================================
-// Config-root subdirectories (~/.omp/*)
+// Config-root subdirectories (~/.zeta/*)
 // =============================================================================
 
-/** Get the reports directory (~/.omp/reports). */
+/** Get the reports directory (~/.zeta/reports). */
 export function getReportsDir(): string {
 	return dirs.rootSubdir("reports", "state");
 }
 
 /**
- * Get the self-update state directory (~/.omp/update): the background
+ * Get the self-update state directory (~/.zeta/update): the background
  * auto-update's status file and worker log, and the lock that keeps two
- * installs (`omp update`, auto-update) from running at once.
+ * installs (`zetacode update`, auto-update) from running at once.
  */
 export function getUpdateStateDir(): string {
 	return dirs.rootSubdir("update", "state");
@@ -694,7 +694,7 @@ export function getTestTempDir(prefix: string): string {
 }
 
 /**
- * Get the logs directory (~/.omp/logs). `bun test` processes get
+ * Get the logs directory (~/.zeta/logs). `bun test` processes get
  * `<tmpdir>/omp-test-logs-<uid>` instead, so suites never write into the
  * developer's real logs; the uid suffix (as for the test session-owners dir)
  * keeps users of a shared `/tmp` from owning each other's directory.
@@ -718,13 +718,13 @@ export function localDay(date: Date): string {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-/** Get this process's dated log path (~/.omp/logs/omp.YYYY-MM-DD.PID.log, local-day named like the rotating sink). */
+/** Get this process's dated log path (~/.zeta/logs/omp.YYYY-MM-DD.PID.log, local-day named like the rotating sink). */
 export function getLogPath(date = new Date(), pid = process.pid): string {
 	return path.join(getLogsDir(), `${APP_NAME}.${localDay(date)}.${pid}.log`);
 }
 
 /**
- * Get the plugins directory (~/.omp/plugins or its XDG equivalent).
+ * Get the plugins directory (~/.zeta/plugins or its XDG equivalent).
  *
  * No-arg form (production callers) goes through the XDG-aware DirResolver so
  * reads and writes always agree. The optional `home` parameter is for test
@@ -740,12 +740,35 @@ export function getPluginsDir(home?: string): string {
 	return dirs.rootSubdir("plugins", "data");
 }
 
-/** Where npm installs packages (~/.omp/plugins/node_modules). */
+/** Where npm installs packages (~/.zeta/plugins/node_modules). */
 export function getPluginsNodeModules(home?: string): string {
 	return path.join(getPluginsDir(home), "node_modules");
 }
 
+/** Normalize a plugin id into a safe single path segment: lowercase, illegal chars to dashes. */
+export function normalizePluginId(pluginId: string): string {
+	const normalized = pluginId.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+	if (normalized.length === 0 || normalized === "." || normalized === "..") {
+		throw new TypeError(`Invalid plugin id: "${pluginId}"`);
+	}
+	return normalized;
+}
+
+/** One-shot legacy migration with a marker file; a later call is a no-op. */
+export function adoptLegacyFileOnce(legacyPath: string, targetPath: string, markerPath: string): boolean {
+	try {
+		if (fs.existsSync(markerPath)) return false;
+		const adopted = adoptLegacyFile(legacyPath, targetPath);
+		fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+		fs.writeFileSync(markerPath, `${JSON.stringify({ migratedAt: new Date().toISOString() })}\n`);
+		return adopted;
+	} catch {
+		return false;
+	}
+}
+
 function getPluginTierDir(tier: "data" | "cache" | "state", pluginId: string, home?: string): string {
+	return path.join(getPluginsDir(home), tier, normalizePluginId(pluginId));
 	return path.join(getPluginsDir(home), tier, pluginId);
 }
 
@@ -764,12 +787,12 @@ export function getPluginStateDir(pluginId: string, home?: string): string {
 	return getPluginTierDir("state", pluginId, home);
 }
 
-/** Plugin manifest (~/.omp/plugins/package.json). */
+/** Plugin manifest (~/.zeta/plugins/package.json). */
 export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
 }
 
-/** Plugin lock file (~/.omp/plugins/omp-plugins.lock.json). */
+/** Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json). */
 /**
  * Zeta plugin lockfile name. Every lockfile name in the tree comes from this
  * constant — a writer on one spelling and a reader on the other is what once
@@ -781,7 +804,7 @@ export function getPluginsLockfile(home?: string): string {
 	return path.join(getPluginsDir(home), PLUGINS_LOCKFILE_CANONICAL);
 }
 
-/** Get the remote mount directory (~/.omp/remote). */
+/** Get the remote mount directory (~/.zeta/remote). */
 export function getRemoteDir(): string {
 	return dirs.rootSubdir("remote", "data");
 }
@@ -792,9 +815,9 @@ export function getRemoteDir(): string {
  *
  * Worktree bases and the natives directory are process-global: a worktree base
  * is consumed by both creation (PR checkout, task isolation) and cleanup
- * (`omp worktree`), and every launch extracts or loads the native addon from
+ * (`zetacode worktree`), and every launch extracts or loads the native addon from
  * the same natives directory. A relative value would resolve against whatever
- * cwd happened to launch `omp`, so those readers could disagree — we refuse it
+ * cwd happened to launch `zetacode`, so those readers could disagree — we refuse it
  * rather than silently bind it to cwd.
  */
 function resolveAbsoluteDir(value: string | undefined): string | undefined {
@@ -810,9 +833,9 @@ let worktreesDirOverride: string | undefined;
 
 /**
  * Relocate the base directory for agent-managed worktrees (PR checkouts, task
- * isolation, and `omp worktree` cleanup all read the same base). Driven by the
+ * isolation, and `zetacode worktree` cleanup all read the same base). Driven by the
  * `worktree.base` setting in coding-agent; pass `undefined`/empty to clear and
- * fall back to `OMP_WORKTREE_DIR` or the `~/.omp/wt` default.
+ * fall back to `OMP_WORKTREE_DIR` or the `~/.zeta/wt` default.
  *
  * `~` is expanded and a relative path is rejected (see {@link resolveAbsoluteDir}).
  * Returns the absolute path that took effect, or `undefined` if the input was
@@ -827,7 +850,7 @@ export function setWorktreesDir(dir: string | undefined): string | undefined {
 /**
  * Get the agent-managed worktrees directory. Resolution order: the
  * `OMP_WORKTREE_DIR` env var, then the {@link setWorktreesDir} override (the
- * `worktree.base` setting), then the `~/.omp/wt` default. The env var and the
+ * `worktree.base` setting), then the `~/.zeta/wt` default. The env var and the
  * override are both `~`-expanded and must be absolute; a relative value is
  * ignored and resolution falls through.
  */
@@ -835,37 +858,37 @@ export function getWorktreesDir(): string {
 	return resolveAbsoluteDir(process.env.OMP_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
 }
 
-/** Get the SSH control socket directory (~/.omp/ssh-control). */
+/** Get the SSH control socket directory (~/.zeta/ssh-control). */
 export function getSshControlDir(): string {
 	return dirs.rootSubdir("ssh-control", "state");
 }
 
-/** Get the remote host info directory (~/.omp/remote-host). */
+/** Get the remote host info directory (~/.zeta/remote-host). */
 export function getRemoteHostDir(): string {
 	return dirs.rootSubdir("remote-host", "data");
 }
 
-/** Get the managed Python venv directory (~/.omp/python-env). */
+/** Get the managed Python venv directory (~/.zeta/python-env). */
 export function getPythonEnvDir(): string {
 	return dirs.rootSubdir("python-env", "data");
 }
 
-/** Get managed Ghidra installs, JDK, PyGhidra venv and Gradle cache (~/.omp/ghidra). */
+/** Get managed Ghidra installs, JDK, PyGhidra venv and Gradle cache (~/.zeta/ghidra). */
 export function getGhidraDir(): string {
 	return dirs.rootSubdir("ghidra", "data");
 }
 
-/** Get the shared Python gateway state directory (~/.omp/agent/python-gateway; XDG default: $XDG_STATE_HOME/omp/python-gateway). */
+/** Get the shared Python gateway state directory (~/.zeta/agent/python-gateway; XDG default: $XDG_STATE_HOME/zeta/python-gateway). */
 export function getPythonGatewayDir(): string {
 	return dirs.agentSubdir(undefined, "python-gateway", "state");
 }
 
-/** Get the managed Antigravity CLI directory (~/.omp/antigravity-cli): the `agy` binary and its isolated state. */
+/** Get the managed Antigravity CLI directory (~/.zeta/antigravity-cli): the `agy` binary and its isolated state. */
 export function getAntigravityCliDir(): string {
 	return dirs.rootSubdir("antigravity-cli", "data");
 }
 
-/** Get the puppeteer sandbox directory (~/.omp/puppeteer). */
+/** Get the puppeteer sandbox directory (~/.zeta/puppeteer). */
 export function getPuppeteerDir(): string {
 	return dirs.rootSubdir("puppeteer", "cache");
 }
@@ -879,12 +902,12 @@ export function getWebKitHostPath(platform: NodeJS.Platform = process.platform):
 	return path.join(os.homedir(), ".o2", "lib", "abkit", platform === "win32" ? "ABHost.exe" : "ABHost");
 }
 
-/** Get the browser relay extension install directory (~/.omp/browser-relay). */
+/** Get the browser relay extension install directory (~/.zeta/browser-relay). */
 export function getBrowserRelayDir(): string {
 	return dirs.rootSubdir("browser-relay", "data");
 }
 
-/** Get the profile root for Chromium browsers the browser tool spawns via `app.path` (~/.omp/browser-profiles). */
+/** Get the profile root for Chromium browsers the browser tool spawns via `app.path` (~/.zeta/browser-profiles). */
 export function getBrowserProfilesDir(): string {
 	return dirs.rootSubdir("browser-profiles", "state");
 }
@@ -894,7 +917,7 @@ export function getDocsRsCacheDir(): string {
 	return dirs.rootSubdir("webcache", "cache");
 }
 
-/** Get the auto-QA grievances SQLite database path (~/.omp/autoqa.db; XDG: $XDG_DATA_HOME/omp/autoqa.db). */
+/** Get the auto-QA grievances SQLite database path (~/.zeta/autoqa.db; XDG: $XDG_DATA_HOME/zeta/autoqa.db). */
 export function getAutoQaDbPath(): string {
 	return dirs.rootSubdir("autoqa.db", "data");
 }
@@ -902,7 +925,7 @@ export function getAutoQaDbPath(): string {
  * Stable 7-character hex digest of an absolute filesystem path.
  *
  * Used to pack the project identity into a single short fs-safe segment
- * (e.g. PR-checkout and task-isolation worktree dirs under `~/.omp/wt/`).
+ * (e.g. PR-checkout and task-isolation worktree dirs under `~/.zeta/wt/`).
  * Bun.hash is non-cryptographic — collision space is ~2^28, which is fine
  * for naming a handful of repos on a single machine. Same input on the
  * same Bun runtime yields the same output.
@@ -911,13 +934,13 @@ export function hashPath(absPath: string): string {
 	return Bun.hash(path.resolve(absPath)).toString(16).padStart(16, "0").slice(-7);
 }
 
-/** Get the path to a single worktree directory (~/.omp/wt/<segment>). */
+/** Get the path to a single worktree directory (~/.zeta/wt/<segment>). */
 export function getWorktreeDir(segment: string): string {
 	return path.join(getWorktreesDir(), segment);
 }
 
 /**
- * Get the GitHub view cache database path (~/.omp/cache/github-cache.db).
+ * Get the GitHub view cache database path (~/.zeta/cache/github-cache.db).
  * Honors the `OMP_GITHUB_CACHE_DB` env var when set so tests can isolate the
  * cache file without touching the rest of the config root.
  */
@@ -927,7 +950,7 @@ export function getGithubCacheDbPath(): string {
 	return dirs.rootSubdir(path.join("cache", "github-cache.db"), "cache");
 }
 /**
- * Get the conventional commit inference cache database path (~/.omp/cache/commit-inference.db).
+ * Get the conventional commit inference cache database path (~/.zeta/cache/commit-inference.db).
  * Honors `OMP_COMMIT_CACHE_DB` so tests and operators can isolate the cache.
  */
 export function getCommitCacheDbPath(): string {
@@ -937,7 +960,7 @@ export function getCommitCacheDbPath(): string {
 }
 
 /**
- * Get the judgment answer cache database path (~/.omp/cache/judgment-cache.db).
+ * Get the judgment answer cache database path (~/.zeta/cache/judgment-cache.db).
  * Honors `OMP_JUDGMENT_CACHE_DB` so tests and operators can isolate the cache.
  */
 export function getJudgmentCacheDbPath(): string {
@@ -952,7 +975,7 @@ export function getLegacyPiExtensionCacheDbPath(): string {
 }
 
 /**
- * Get the encrypted auth-broker snapshot cache path (~/.omp/cache/auth-broker-snapshot.enc).
+ * Get the encrypted auth-broker snapshot cache path (~/.zeta/cache/auth-broker-snapshot.enc).
  * Honors the `OMP_AUTH_BROKER_SNAPSHOT_CACHE` env var when set so tests and
  * operators can isolate or relocate the cache file.
  */
@@ -962,24 +985,24 @@ export function getAuthBrokerSnapshotCachePath(): string {
 	return dirs.rootSubdir(path.join("cache", "auth-broker-snapshot.enc"), "cache");
 }
 
-/** Get the commit-author avatar cache directory (~/.omp/cache/avatars). */
+/** Get the commit-author avatar cache directory (~/.zeta/cache/avatars). */
 export function getAvatarCacheDir(): string {
 	return dirs.rootSubdir(path.join("cache", "avatars"), "cache");
 }
 
-/** Get the local FastEmbed model cache directory (~/.omp/cache/fastembed). */
+/** Get the local FastEmbed model cache directory (~/.zeta/cache/fastembed). */
 export function getFastembedCacheDir(): string {
 	return dirs.rootSubdir(path.join("cache", "fastembed"), "cache");
 }
 
-/** Get the on-demand fastembed runtime install root (~/.omp/cache/fastembed-runtime). */
+/** Get the on-demand fastembed runtime install root (~/.zeta/cache/fastembed-runtime). */
 export function getFastembedRuntimeDir(): string {
 	return dirs.rootSubdir(path.join("cache", "fastembed-runtime"), "cache");
 }
 
 /**
  * Get the directory the native addon loads downloaded tree-sitter wasm grammars
- * from (`<natives dir>/grammars`, ~/.omp/natives/grammars). The natives loader
+ * from (`<natives dir>/grammars`, ~/.zeta/natives/grammars). The natives loader
  * configures the addon with the same path.
  */
 export function getNativeGrammarsDir(): string {
@@ -991,7 +1014,7 @@ export function getNativesDir(): string {
 	return resolveAbsoluteDir(process.env.PI_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");
 }
 
-/** Get the stats database path (~/.omp/stats.db). */
+/** Get the stats database path (~/.zeta/stats.db). */
 export function getStatsDbPath(): string {
 	return dirs.rootSubdir("stats.db", "data");
 }
@@ -1000,38 +1023,38 @@ export function getZetaDbPath(): string {
 	return dirs.rootSubdir(path.join("data", "zeta.db"), "data");
 }
 
-/** Get the autoresearch state directory (~/.omp/autoresearch). */
+/** Get the autoresearch state directory (~/.zeta/autoresearch). */
 export function getAutoresearchDir(): string {
 	return dirs.rootSubdir("autoresearch", "state");
 }
 
-/** Get the per-project autoresearch state directory (~/.omp/autoresearch/<encoded-project>). */
+/** Get the per-project autoresearch state directory (~/.zeta/autoresearch/<encoded-project>). */
 export function getAutoresearchProjectDir(encodedProject: string): string {
 	return path.join(getAutoresearchDir(), encodedProject);
 }
 
-/** Get the per-project autoresearch SQLite database path (~/.omp/autoresearch/<encoded-project>.db). */
+/** Get the per-project autoresearch SQLite database path (~/.zeta/autoresearch/<encoded-project>.db). */
 export function getAutoresearchDbPath(encodedProject: string): string {
 	return path.join(getAutoresearchDir(), `${encodedProject}.db`);
 }
 
-/** Get the per-run artifact directory (~/.omp/autoresearch/<encoded-project>/runs/<runId>). */
+/** Get the per-run artifact directory (~/.zeta/autoresearch/<encoded-project>/runs/<runId>). */
 export function getAutoresearchRunDir(encodedProject: string, runId: number): string {
 	return path.join(getAutoresearchProjectDir(encodedProject), "runs", String(runId).padStart(4, "0"));
 }
 
-/** Get the security-analysis state directory (~/.omp/security). */
+/** Get the security-analysis state directory (~/.zeta/security). */
 export function getSecurityDir(): string {
 	return dirs.rootSubdir("security", "state");
 }
 
-/** Get one project's security-analysis state directory (~/.omp/security/<project-key>). */
+/** Get one project's security-analysis state directory (~/.zeta/security/<project-key>). */
 export function getSecurityProjectDir(projectKey: string): string {
 	return path.join(getSecurityDir(), projectKey);
 }
 
 // =============================================================================
-// Agent subdirectories (~/.omp/agent/*)
+// Agent subdirectories (~/.zeta/agent/*)
 // =============================================================================
 
 /** Get the path to agent.db (SQLite database for settings and auth storage). */
@@ -1039,7 +1062,7 @@ export function getAgentDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "agent.db", "data");
 }
 
-/** Get the last-seen-changelog-version marker file (~/.omp/agent/last-changelog-version). */
+/** Get the last-seen-changelog-version marker file (~/.zeta/agent/last-changelog-version). */
 export function getLastChangelogVersionPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "last-changelog-version", "state");
 }
@@ -1054,24 +1077,24 @@ export function getModelDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "models.db", "data");
 }
 
-/** Get the tiny title model cache directory (~/.omp/agent/cache/tiny-models). */
+/** Get the tiny title model cache directory (~/.zeta/agent/cache/tiny-models). */
 export function getTinyModelsCacheDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "tiny-models"), "cache");
 }
 
-/** Get the document conversion cache directory (~/.omp/agent/cache/document-conversions; XDG default: $XDG_CACHE_HOME/omp/cache/document-conversions). */
+/** Get the document conversion cache directory (~/.zeta/agent/cache/document-conversions; XDG default: $XDG_CACHE_HOME/zeta/cache/document-conversions). */
 export function getDocumentConversionCacheDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "document-conversions"), "cache");
 }
-/** Get the composer speculative cache database (~/.omp/agent/cache/composer.db; XDG default: $XDG_CACHE_HOME/omp/cache/composer.db). */
+/** Get the composer speculative cache database (~/.zeta/agent/cache/composer.db; XDG default: $XDG_CACHE_HOME/zeta/cache/composer.db). */
 export function getComposerCacheDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "composer.db"), "cache");
 }
-/** Get the skill descriptions database (~/.omp/agent/skill-descriptions.db; XDG default: $XDG_DATA_HOME/omp/skill-descriptions.db). */
+/** Get the skill descriptions database (~/.zeta/agent/skill-descriptions.db; XDG default: $XDG_DATA_HOME/zeta/skill-descriptions.db). */
 export function getSkillDescriptionsDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "skill-descriptions.db", "data");
 }
-/** Get the text-predict engine state directory (~/.omp/agent/predict/<method>; XDG default: $XDG_DATA_HOME/omp/predict/<method>). Adopts legacy engine state on first XDG resolution. */
+/** Get the text-predict engine state directory (~/.zeta/agent/predict/<method>; XDG default: $XDG_DATA_HOME/zeta/predict/<method>). Adopts legacy engine state on first XDG resolution. */
 export function getPredictStateDir(agentDir: string | undefined, method: string): string {
 	const subdir = path.join("predict", method);
 	const stateDir = dirs.agentSubdir(agentDir, subdir, "data");
@@ -1079,54 +1102,54 @@ export function getPredictStateDir(agentDir: string | undefined, method: string)
 	return stateDir;
 }
 
-/** Get the sessions directory (~/.omp/agent/sessions). */
+/** Get the sessions directory (~/.zeta/agent/sessions). */
 export function getSessionsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "sessions", "data");
 }
 
-/** Get the content-addressed blob store directory (~/.omp/agent/blobs). */
+/** Get the content-addressed blob store directory (~/.zeta/agent/blobs). */
 export function getBlobsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "blobs", "data");
 }
 
-/** Get the custom themes directory (~/.omp/agent/themes). */
+/** Get the custom themes directory (~/.zeta/agent/themes). */
 export function getCustomThemesDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "themes");
 }
 
-/** Get the tools directory (~/.omp/agent/tools). */
+/** Get the tools directory (~/.zeta/agent/tools). */
 export function getToolsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "tools");
 }
 
-/** Get the slash commands directory (~/.omp/agent/commands). */
+/** Get the slash commands directory (~/.zeta/agent/commands). */
 export function getCommandsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "commands");
 }
 
-/** Get the prompts directory (~/.omp/agent/prompts). */
+/** Get the prompts directory (~/.zeta/agent/prompts). */
 export function getPromptsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "prompts");
 }
 
-/** Get the user-level Python modules directory (~/.omp/agent/modules). */
+/** Get the user-level Python modules directory (~/.zeta/agent/modules). */
 export function getAgentModulesDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "modules");
 }
 
-/** Get the memories directory (~/.omp/agent/memories). */
+/** Get the memories directory (~/.zeta/agent/memories). */
 export function getMemoriesDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "memories", "state");
 }
 
-/** Get the terminal sessions directory (~/.omp/agent/terminal-sessions). */
+/** Get the terminal sessions directory (~/.zeta/agent/terminal-sessions). */
 export function getTerminalSessionsDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "terminal-sessions", "state");
 }
 
 /**
  * Get the persistent registry of custom session files
- * (~/.omp/agent/custom-session-files). Each `--session-dir`/`--session`
+ * (~/.zeta/agent/custom-session-files). Each `--session-dir`/`--session`
  * transcript is recorded here as one marker file so storage GC can scan its
  * exact path after its terminal breadcrumb is overwritten by a later session.
  */
@@ -1134,12 +1157,12 @@ export function getCustomSessionFilesDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "custom-session-files", "state");
 }
 
-/** Get the crash log path (~/.omp/agent/omp-crash.log). */
+/** Get the crash log path (~/.zeta/agent/omp-crash.log). */
 export function getCrashLogPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "omp-crash.log", "state");
 }
 
-/** Get the debug log path (~/.omp/agent/omp-debug.log). */
+/** Get the debug log path (~/.zeta/agent/omp-debug.log). */
 export function getDebugLogPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, `${APP_NAME}-debug.log`, "state");
 }
@@ -1151,15 +1174,17 @@ export function getDebugLogPath(agentDir?: string): string {
  * persisted transcripts). The legacy file is left in place for older omp
  * versions sharing the profile.
  */
-function adoptLegacyFile(legacyPath: string, targetPath: string): void {
-	if (targetPath === legacyPath) return;
+export function adoptLegacyFile(legacyPath: string, targetPath: string): boolean {
+	if (targetPath === legacyPath) return false;
 	try {
-		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return;
+		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return false;
 		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 		fs.copyFileSync(legacyPath, targetPath, fs.constants.COPYFILE_EXCL);
+		return true;
 	} catch {
 		// Opportunistic: a copy race or unwritable XDG dir falls back to a fresh
 		// file at the new path — the pre-adoption behavior.
+		return false;
 	}
 }
 
@@ -1186,14 +1211,14 @@ function adoptLegacyDir(legacyPath: string, targetPath: string): void {
 	}
 }
 
-/** Get the secret placeholder key path (~/.omp/agent/secret-placeholder.key; XDG default: $XDG_STATE_HOME/omp/secret-placeholder.key). Adopts a legacy key on first XDG resolution. */
+/** Get the secret placeholder key path (~/.zeta/agent/secret-placeholder.key; XDG default: $XDG_STATE_HOME/zeta/secret-placeholder.key). Adopts a legacy key on first XDG resolution. */
 export function getSecretPlaceholderKeyPath(): string {
 	const keyPath = dirs.agentSubdir(undefined, "secret-placeholder.key", "state");
 	adoptLegacyFile(path.join(dirs.agentDir, "secret-placeholder.key"), keyPath);
 	return keyPath;
 }
 
-/** Runtime directory of the single per-user omp daemon (~/.omp/run/daemon; XDG default: $XDG_STATE_HOME/omp/run/daemon). Shared across profiles; holds its socket, token, sqlite store and unit logs. */
+/** Runtime directory of the single per-user omp daemon (~/.zeta/run/daemon; XDG default: $XDG_STATE_HOME/zeta/run/daemon). Shared across profiles; holds its socket, token, sqlite store and unit logs. */
 /** Root directory containing every per-project daemon runtime scope (~/.zeta/run/daemons). */
 export function getDaemonRuntimeRoot(): string {
 	return dirs.rootSubdir(path.join("run", "daemons"), "state");
@@ -1216,27 +1241,27 @@ export function getDaemonDir(): string {
 	return dirs.baseRootSubdir(path.join("run", "daemon"), "state");
 }
 
-/** Get the per-project runtime directory (~/.omp/run/daemons/<hash>; XDG default: $XDG_STATE_HOME/omp/run/daemons/<hash>). */
+/** Get the per-project runtime directory (~/.zeta/run/daemons/<hash>; XDG default: $XDG_STATE_HOME/zeta/run/daemons/<hash>). */
 export function getDaemonRuntimeDir(projectDir: string): string {
 	const key = Bun.hash.wyhash(path.resolve(projectDir)).toString(16).padStart(16, "0");
 	return path.join(dirs.rootSubdir(path.join("run", "daemons"), "state"), key);
 }
 
 /**
- * Directory naming session ownership leases (~/.omp/run/session-owners; XDG
- * default: $XDG_STATE_HOME/omp/run/session-owners). Shared across profiles:
+ * Directory naming session ownership leases (~/.zeta/run/session-owners; XDG
+ * default: $XDG_STATE_HOME/zeta/run/session-owners). Shared across profiles:
  * every omp process that opens a session must meet the same lease.
  */
 export function getSessionOwnersDir(): string {
 	return dirs.baseRootSubdir(path.join("run", "session-owners"), "state");
 }
 
-/** Get the provider in-flight root directory (~/.omp/run/provider-inflight; XDG default: $XDG_STATE_HOME/omp/run/provider-inflight). */
+/** Get the provider in-flight root directory (~/.zeta/run/provider-inflight; XDG default: $XDG_STATE_HOME/zeta/run/provider-inflight). */
 export function getProviderInFlightRoot(): string {
 	return dirs.rootSubdir(path.join("run", "provider-inflight"), "state");
 }
 
-/** Get the marketplaces registry path (~/.omp/marketplaces.json; XDG default: $XDG_DATA_HOME/omp/marketplaces.json). Adopts a legacy registry on first XDG resolution. */
+/** Get the marketplaces registry path (~/.zeta/marketplaces.json; XDG default: $XDG_DATA_HOME/zeta/marketplaces.json). Adopts a legacy registry on first XDG resolution. */
 export function getMarketplacesRegistryPath(): string {
 	const registryPath = dirs.rootSubdir("marketplaces.json", "data");
 	adoptLegacyFile(path.join(dirs.configRoot, "marketplaces.json"), registryPath);
@@ -1244,7 +1269,7 @@ export function getMarketplacesRegistryPath(): string {
 }
 
 // =============================================================================
-// Project subdirectories (.omp/*)
+// Project subdirectories (.zeta/*)
 // =============================================================================
 
 /** Get the project-level Python modules directory (.zeta/modules). */
@@ -1267,7 +1292,7 @@ export function getProjectPromptsDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "prompts");
 }
 
-/** Get the project-level plugin overrides path (.omp/plugin-overrides.json). */
+/** Get the project-level plugin overrides path (.zeta/plugin-overrides.json). */
 export function getProjectPluginOverridesPath(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "plugin-overrides.json");
 }
@@ -1314,15 +1339,15 @@ export function getAppName(): string {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Persistent per-install UUID stored at `~/.omp/install-id`.
+ * Persistent per-install UUID stored at `~/.zeta/install-id`.
  *
  * Generated lazily on first call and persisted with `O_CREAT|O_EXCL` so
  * concurrent first-call races don't clobber each other (loser re-reads the
  * winner's id). Survives independently of agent state: deleting
- * `~/.omp/agent/` does not regenerate it. Server-side dedup for grievance
+ * `~/.zeta/agent/` does not regenerate it. Server-side dedup for grievance
  * pushes (and similar telemetry) keys on this id.
  *
- * Anchored to the base config root (`~/.omp/install-id`) regardless of the
+ * Anchored to the base config root (`~/.zeta/install-id`) regardless of the
  * active profile: install identity is per-install, not per-profile, so every
  * profile shares one id and the global cache stays correct no matter the
  * profile / `getInstallId` call order.

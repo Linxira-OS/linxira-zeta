@@ -675,7 +675,7 @@ export function startSttWorker(transport: SttTransport): void {
 	});
 }
 
-/** Process entry of `__omp_worker_stt`: serve the daemon `speech` module over stdio frames. */
+/** Process entry of `__zeta_worker_stt`: serve the daemon `speech` module over stdio frames. */
 export function runSttWorker(): Promise<void> {
 	return runFramedStdioWorker<SttWorkerInbound, SttWorkerOutbound>(startSttWorker);
 }

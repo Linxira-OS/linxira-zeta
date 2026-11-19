@@ -33,7 +33,7 @@ rust-version = "1.101"
 license = "MIT"
 authors = ["Stencil Labs, Inc."]
 homepage = "https://omp.sh/"
-repository = "https://github.com/can1357/oh-my-pi"
+repository = "https://github.com/Linxira-OS/linxira-zeta"
 
 [patch.crates-io]
 # portable-pty 0.9.0 pins nix 0.28, whose cfg_aliases 0.1.1 expansion emits

@@ -146,7 +146,7 @@ const watchedPids = new Set<number>();
 
 beforeEach(async () => {
 	restoreDaemon = await isolateDaemonForSmokeTest();
-	workspace = TempDir.createSync("@omp-lsp-module-");
+	workspace = TempDir.createSync("@zeta-lsp-module-");
 	cwd = await fs.realpath(workspace.path());
 });
 

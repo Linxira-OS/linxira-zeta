@@ -66,8 +66,8 @@ const ASK_PLACEHOLDER = "Answer above, or type here to skip the questions";
 export interface ComposerNativeState {
 	/**
 	 * The draft runs as a shell command (`!`, `!!`), Python (`$`, `$$`) or a `/btw` side question (`?`);
-	 * `excluded` keeps it from the model. Role `omp.editor.<kind>`, except btw's `omp.editor.btw-ask`
-	 * (`omp.editor.btw` is the focused note's).
+	 * `excluded` keeps it from the model. Role `zeta.editor.<kind>`, except btw's `zeta.editor.btw-ask`
+	 * (`zeta.editor.btw` is the focused note's).
 	 */
 	readonly shell?: { readonly kind: "bash" | "python" | "btw"; readonly excluded: boolean };
 	/** Thinking effort word (`high`, `off`, `auto`); undefined when the model has no thinking. */
@@ -82,7 +82,7 @@ export interface ComposerNativeState {
 	readonly dictation?: "idle" | "starting" | "recording" | "transcribing";
 	/** The viewed subagent's lineage, outermost first and the viewed agent last; undefined on the main session. */
 	readonly viewing?: readonly string[];
-	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `omp.editor.btw`, a `btw` chip. */
+	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `zeta.editor.btw`, a `btw` chip. */
 	readonly btw?: boolean;
 	/**
 	 * An ask waits inline above the composer (Tern). `pending`: the placeholder says typing here skips it, and
@@ -1196,7 +1196,7 @@ export class CustomEditor extends Editor {
 		| undefined;
 
 	/**
-	 * The TSP composer: role `omp.editor[.bash|.python|.btw-ask|.btw]` (tone `pending` while
+	 * The TSP composer: role `zeta.editor[.bash|.python|.btw-ask|.btw]` (tone `pending` while
 	 * a turn runs) over the context hairline, the viewing header while a
 	 * subagent is focused, the attachment chips, a `line` row of the
 	 * shell-mode (or `btw`) chip and the input, and the `bar`: model chip, effort chip
@@ -1261,7 +1261,7 @@ export class CustomEditor extends Editor {
 								rate !== undefined &&
 									node(
 										"rate",
-										{ value: rate, unit: "tok/s", role: "omp.composer.rate", title: "Generation rate" },
+										{ value: rate, unit: "tok/s", role: "zeta.composer.rate", title: "Generation rate" },
 										undefined,
 										"rate",
 									),
@@ -1271,20 +1271,20 @@ export class CustomEditor extends Editor {
 								controls.dictation,
 								controls.submit,
 							]),
-							{ role: "omp.composer.bar", gap: "sm", align: "center" },
+							{ role: "zeta.composer.bar", gap: "sm", align: "center" },
 						),
 						"bar",
 					);
 		const line = keyed(
-			row(compact([controls.mode, input]), { role: "omp.composer.line", align: "start", gap: "sm" }),
+			row(compact([controls.mode, input]), { role: "zeta.composer.line", align: "start", gap: "sm" }),
 			"line",
 		);
 		const layout: NativeEditorLayout = {
 			role: shell
-				? `omp.editor.${shell.kind === "btw" ? "btw-ask" : shell.kind}`
+				? `zeta.editor.${shell.kind === "btw" ? "btw-ask" : shell.kind}`
 				: state.btw
-					? "omp.editor.btw"
-					: "omp.editor",
+					? "zeta.editor.btw"
+					: "zeta.editor",
 			tone: state.running ? "pending" : undefined,
 			...(folded ? { folded: true } : {}),
 			children: compact([facts?.context, controls.focus, chips, line, bar]),
@@ -1295,10 +1295,10 @@ export class CustomEditor extends Editor {
 	};
 
 	/**
-	 * The viewing header (`omp.composer.focus`) while a subagent is focused:
-	 * an eye, the agent's ancestors as `omp.composer.crumb` links, the agent
-	 * itself (`omp.composer.agent`), then the way back to the main session
-	 * (`omp.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
+	 * The viewing header (`zeta.composer.focus`) while a subagent is focused:
+	 * an eye, the agent's ancestors as `zeta.composer.crumb` links, the agent
+	 * itself (`zeta.composer.agent`), then the way back to the main session
+	 * (`zeta.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
 	 */
 	#describeViewing(viewing: readonly string[], interruptKey: KeyId): NativeNode | undefined {
 		const agent = viewing.at(-1);
@@ -1308,7 +1308,7 @@ export class CustomEditor extends Editor {
 			node(
 				"text",
 				{
-					role: "omp.composer.crumb",
+					role: "zeta.composer.crumb",
 					text: id,
 					wrap: "none",
 					title: `View ${id}`,
@@ -1324,11 +1324,11 @@ export class CustomEditor extends Editor {
 					node("icon", { name: "eye" }, undefined, "icon"),
 					node("text", { text: "Viewing", wrap: "none" }, undefined, "label"),
 					...crumbs,
-					node("text", { role: "omp.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
+					node("text", { role: "zeta.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
 					node(
 						"row",
 						{
-							role: "omp.composer.exit",
+							role: "zeta.composer.exit",
 							gap: "xs",
 							align: "center",
 							title: `Back to the main session  ${back}`,
@@ -1342,7 +1342,7 @@ export class CustomEditor extends Editor {
 					),
 				],
 				{
-					role: "omp.composer.focus",
+					role: "zeta.composer.focus",
 					gap: "xs",
 					align: "center",
 					title: `Viewing subagent ${agent}: what you send goes to it`,
@@ -1359,7 +1359,7 @@ export class CustomEditor extends Editor {
 	#describeBtwChip(interruptKey: KeyId): NativeNode {
 		return keyed(
 			row([node("text", { spans: [span("btw", "accent")], wrap: "none" }, undefined, "label")], {
-				role: "omp.composer.mode",
+				role: "zeta.composer.mode",
 				gap: "xs",
 				align: "center",
 				title: `Asking the side question · back to the chat  ${formatTooltipKey(interruptKey)}`,
@@ -1389,7 +1389,7 @@ export class CustomEditor extends Editor {
 						"effort",
 						{
 							level: thinking,
-							role: "omp.composer.model.effort",
+							role: "zeta.composer.model.effort",
 							title: `Thinking effort: ${thinking}${thinkingHint}`,
 							actions: { click: "thinking.cycle" },
 						},
@@ -1402,7 +1402,7 @@ export class CustomEditor extends Editor {
 			node(
 				"row",
 				{
-					role: "omp.composer.model",
+					role: "zeta.composer.model",
 					gap: "xs",
 					align: "center",
 					tone: facts.model.tone,
@@ -1422,7 +1422,7 @@ export class CustomEditor extends Editor {
 				? node(
 						"row",
 						{
-							role: "omp.composer.effort",
+							role: "zeta.composer.effort",
 							gap: "xs",
 							align: "center",
 							title: `Thinking effort${thinkingHint}`,
@@ -1451,7 +1451,7 @@ export class CustomEditor extends Editor {
 				: node(
 						"row",
 						{
-							role: "omp.composer.dictation",
+							role: "zeta.composer.dictation",
 							gap: "xs",
 							align: "center",
 							tone: recording ? "error" : starting || transcribing ? "pending" : undefined,
@@ -1479,7 +1479,7 @@ export class CustomEditor extends Editor {
 				? node(
 						"text",
 						{
-							role: "omp.composer.skip",
+							role: "zeta.composer.skip",
 							text: "Skip & send",
 							tone: "warning",
 							title: `Send this message instead of answering the questions  ${formatTooltipKey("enter")}`,
@@ -1492,7 +1492,7 @@ export class CustomEditor extends Editor {
 					? node(
 							"text",
 							{
-								role: "omp.composer.stop",
+								role: "zeta.composer.stop",
 								text: "Stop",
 								tone: "error",
 								title: `Stop  ${formatTooltipKey(interruptKey)}`,
@@ -1504,7 +1504,7 @@ export class CustomEditor extends Editor {
 					: node(
 							"kbd",
 							{
-								role: "omp.composer.send",
+								role: "zeta.composer.send",
 								keys: ["enter"],
 								title: dictating ? "Finish dictation before sending" : `Send  ${formatTooltipKey("enter")}`,
 								tone: dictating ? "muted" : undefined,
@@ -1519,7 +1519,7 @@ export class CustomEditor extends Editor {
 				: state.ask === "skip"
 					? keyed(
 							row([node("text", { spans: [span("skips ask", "warning")], wrap: "none" }, undefined, "label")], {
-								role: "omp.composer.mode",
+								role: "zeta.composer.mode",
 								tone: "warning",
 								gap: "xs",
 								align: "center",
@@ -1544,7 +1544,7 @@ export class CustomEditor extends Editor {
 					node("text", { spans: [span(shell.kind, `${shell.kind}Mode`)], wrap: "none" }, undefined, "label"),
 				]),
 				{
-					role: "omp.composer.mode",
+					role: "zeta.composer.mode",
 					gap: "xs",
 					align: "center",
 					title: shell.excluded ? `${runs} · not sent to the model` : runs,

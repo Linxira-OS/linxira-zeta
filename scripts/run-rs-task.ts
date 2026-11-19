@@ -78,7 +78,7 @@ const TASK_COMMANDS = {
 		// nextest cannot run doctests (no stable libtest-json interface for
 		// them), so they need their own libtest pass. It runs every runnable
 		// doctest in the workspace's lib crates; today that is tree-sitter-go's
-		// one example, since omp-natives is a `cdylib`, which rustdoc refuses to
+		// one example, since zeta-natives is a `cdylib`, which rustdoc refuses to
 		// collect doctests from, and omp-builtins' 16 examples are `ignore`d
 		// vendored uutils docs. `--doc` overrides a crate's own
 		// `doctest = false`, so a vendored crate whose examples do not compile

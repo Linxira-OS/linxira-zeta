@@ -793,7 +793,7 @@ export class AskDialogComponent implements Component {
 	}
 
 	/**
-	 * Inline in the transcript, as an ask card (`omp.ask.card`): every question stacked in one
+	 * Inline in the transcript, as an ask card (`zeta.ask.card`): every question stacked in one
 	 * column, the focused one open (its header, the question, its answers as radio/check rows and the
 	 * highlighted option's preview), the rest folded to their question over their answer or option
 	 * pills, then the action bar (the countdown, Note, Cancel and the primary Submit).
@@ -859,16 +859,16 @@ export class AskDialogComponent implements Component {
 		state.cursorIndex = clamp(state.cursorIndex, 0, Math.max(0, rows.length - 1));
 		const children: NativeChild[] = [];
 		const header = question.header?.trim();
-		if (header) children.push(text([span(replaceTabs(header), "muted")], { role: "omp.ask.header" }));
+		if (header) children.push(text([span(replaceTabs(header), "muted")], { role: "zeta.ask.header" }));
 		children.push(
 			node(
 				"md",
-				{ text: replaceTabs(sanitizeCarriageReturns(question.question)), role: "omp.ask.question" },
+				{ text: replaceTabs(sanitizeCarriageReturns(question.question)), role: "zeta.ask.question" },
 				undefined,
 				"question",
 			),
 		);
-		// Radios (`omp.ask.option`, `omp.ask.other`) or checks (`omp.ask.check`, `omp.ask.other.check`); a chosen
+		// Radios (`zeta.ask.option`, `zeta.ask.other`) or checks (`zeta.ask.check`, `zeta.ask.other.check`); a chosen
 		// row is `accent`-toned (a check also carries the check glyph), apart from the highlighted row (`selected`).
 		const items = rows.map(rowItem => {
 			const option = rowItem.kind === "option" ? question.options[rowItem.optionIndex ?? -1] : undefined;
@@ -883,11 +883,11 @@ export class AskDialogComponent implements Component {
 			const role =
 				rowItem.kind === "other"
 					? question.multi
-						? "omp.ask.other.check"
-						: "omp.ask.other"
+						? "zeta.ask.other.check"
+						: "zeta.ask.other"
 					: question.multi
-						? "omp.ask.check"
-						: "omp.ask.option";
+						? "zeta.ask.check"
+						: "zeta.ask.option";
 			return node(
 				"item",
 				{
@@ -909,13 +909,13 @@ export class AskDialogComponent implements Component {
 		});
 		// Keyed per question: a click aimed at one question's list never lands on the next after it advances.
 		children.push(
-			node("list", { selected: rows[state.cursorIndex]?.key ?? null, role: "omp.ask.options" }, items, `q${index}`),
+			node("list", { selected: rows[state.cursorIndex]?.key ?? null, role: "zeta.ask.options" }, items, `q${index}`),
 		);
 		const highlighted = rows[state.cursorIndex];
 		const option = highlighted?.kind === "option" ? question.options[highlighted.optionIndex ?? -1] : undefined;
 		if (option?.preview?.trim()) {
 			children.push(
-				node("md", { text: replaceTabs(option.preview), role: "omp.ask.preview" }, undefined, "preview"),
+				node("md", { text: replaceTabs(option.preview), role: "zeta.ask.preview" }, undefined, "preview"),
 			);
 		}
 		return openQuestion(`q${index}`, children, this.#reveal);

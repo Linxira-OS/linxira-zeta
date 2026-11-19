@@ -59,7 +59,7 @@ bun scripts/brand/brand-check.ts
 - **`client-id "omp"`**（最容易被误改的一项）：注册在 `auth.stencil.so` 的
   OAuth **public client id**。改成 `zeta` → OIDC 换 token 失败 → 登录直接坏。
   可用环境变量 `STENCIL_CLIENT_ID` 覆盖，将来要换不必改代码。同理
-  `stencil.kdl` 里其它 `omp*` 字段名（OIDC issuer 路径、scope 名）是协议契约。
+  `stencil.kdl` 里其它 `zetacode*` 字段名（OIDC issuer 路径、scope 名）是协议契约。
   与「模型 API 认不认 agent」无关：模型侧走 `STENCIL_API_KEY`，两条路。
 - **Tern 适配**：保留全部客户端适配文件。上游仓库**没有** Tern 服务端代码，
   只有客户端；「多端同步 + web 页面」是开源的 `collab/`（150 文件）+
@@ -114,7 +114,7 @@ bun scripts/brand/brand-check.ts
 | **`@stencil-hq/vibemon`** | `packages/metaharness/package.json`、`src/tb/{cli,vmon}.ts` | metaharness（开发工具，不随产品发布）依赖上游 scope 的 npm 包 | **保留（开发面）**：URL 守卫覆盖不到 npm scope，以本行为准 |
 | **Homebrew tap 文案** | `docs/macos-signing-notarization.md`（称「本仓库维护 Homebrew tap」） | macOS 发布面已于 2026-10-01 裁掉（README 写明 "no macOS build"），该文档整体是上游遗留 | **P2 待删**：删除或改写为「Zeta 不发布 macOS 构建」 |
 | **`stencil` OAuth 回调端口 54547** | 仅测试 `packages/ai/test/stencil-oauth-callback.test.ts` | 测试 fixture，无生产落点 | 记录在案，无动作 |
-| **18.13.x 拒绝进树的上游商业面** | `cli/build-service.ts`、`scripts/ci-build-upload.ts`、`telemetry-settings.ts`、`.omp/{commands,skills,tests,tools}`、`bun-cache-warm.yml` | 见 `document/upstream-sync.md` 的 v18.13.1/v18.13.2 条目 | 保持不进树；`check-ci-surface` 已挡 `build.stencil.so` |
+| **18.13.x 拒绝进树的上游商业面** | `cli/build-service.ts`、`scripts/ci-build-upload.ts`、`telemetry-settings.ts`、`.zeta/{commands,skills,tests,tools}`、`bun-cache-warm.yml` | 见 `document/upstream-sync.md` 的 v18.13.1/v18.13.2 条目 | 保持不进树；`check-ci-surface` 已挡 `build.stencil.so` |
 
 ### 3c. 已完成的替代（留档，便于下次核对）
 

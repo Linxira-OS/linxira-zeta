@@ -292,6 +292,11 @@ export class ModelControls {
 		return resolveRoleModelFull(this.#host.settings, role, this.#host.modelRegistry.getAvailable(), this.#model);
 	}
 
+	/** Per-model temporary thinking level the picker applies to a model switch. */
+	resolveTemporaryModelThinkingLevel(_model: Model): ConfiguredThinkingLevel | undefined {
+		return this.configuredThinkingLevel();
+	}
+
 	async setModel(
 		model: Model,
 		role: string = "default",

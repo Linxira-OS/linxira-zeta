@@ -209,7 +209,7 @@ function unreachableError(lastError: Error | undefined): Error {
 	return new Error(
 		`The omp daemon did not answer at ${where} within ${START_TIMEOUT_MS / 1000}s: ` +
 			`${lastError?.message ?? "endpoint unavailable"}. Runtime dir: ${daemonDir()}. ` +
-			"Run `omp --smoke-test` to verify daemon startup, or `omp ps` to inspect it.",
+			"Run `zetacode --smoke-test` to verify daemon startup, or `zetacode ps` to inspect it.",
 	);
 }
 

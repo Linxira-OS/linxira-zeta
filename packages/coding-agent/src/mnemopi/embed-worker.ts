@@ -1,6 +1,6 @@
 /**
  * Mnemopi local-embeddings worker: a child of the omp daemon's `infer` module,
- * re-entered through the agent CLI's hidden `__omp_worker_mnemopi_embed`
+ * re-entered through the agent CLI's hidden `__zeta_worker_mnemopi_embed`
  * selector, speaking LF-delimited JSON over stdin/stdout. The whole point of
  * this module is that `loadFastembed()` — and therefore `onnxruntime-node`'s
  * NAPI constructor + finalizer — only ever runs in this child address space.

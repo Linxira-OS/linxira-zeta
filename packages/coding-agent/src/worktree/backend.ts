@@ -37,7 +37,7 @@ export interface WorktreeInspection {
 	missingBranchRepoMeansMoved: boolean;
 }
 
-/** An entry managed by `omp worktree list|clear`. */
+/** An entry managed by `zetacode worktree list|clear`. */
 export interface ManagedWorktree {
 	path: string;
 	kind: "pr-checkout" | "task-isolation" | "empty" | "stray" | "ovnfs";

@@ -2532,6 +2532,8 @@ export const zh = {
 	grepTruncated: "已截断",
 	grepItemOne: "1 项",
 	grepItemManyFmt: "%d 项",
+	moreItemsFmt: "… 还有 %s 项",
+	todoBlockedSuffix: "（已阻塞）",
 	grepMatchOne: "1 个匹配",
 	grepMatchManyFmt: "%d 个匹配",
 	grepFileOne: "1 个文件",

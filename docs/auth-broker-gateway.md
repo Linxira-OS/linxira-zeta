@@ -376,7 +376,7 @@ That ranking picks the account for a **new** session. A running session remember
 | `<config-dir>/auth-broker.token`  | `zetacode auth-broker token` or `serve`                                     | `0600`; new parent directory `0700` |
 | `<config-dir>/auth-gateway.token` | `zetacode auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
 
-`<config-dir>` is `getConfigRootDir()`: `~/.zeta/` by default, respecting `PI_CONFIG_DIR` and the active profile (`~/.zeta/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.
+`<config-dir>` is `getConfigRootDir()`: `~/.zeta/` by default, respecting `ZETA_CONFIG_DIR` and the active profile (`~/.zeta/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.
 
 ## Interaction with the local API-key resolution order
 

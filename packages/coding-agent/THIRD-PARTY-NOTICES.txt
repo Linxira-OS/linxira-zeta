@@ -5,8 +5,8 @@ These notices accompany @linxiraos/zeta, including its CLI, npm bundle
 (dist/cli.js), and bundled Work Studio renderer. Each license below governs
 the material it names.
 
-Zeta's runtime derives from oh-my-pi (OMP) v18.22.0
-(https://github.com/can1357/oh-my-pi). The Work Studio renderer derives from
+Zeta's runtime derives from zeta (OMP) v18.22.0
+(https://github.com/Linxira-OS/linxira-zeta). The Work Studio renderer derives from
 OMP Studio v0.2.1 (https://github.com/the-snowpear/omp-studio). Zeta's separate
 IDE and Editor packages derive from TermIDE 0.49.0
 (https://github.com/termide/termide). See the repository NOTICE and aggregate

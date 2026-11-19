@@ -38,5 +38,5 @@ Examples:
 `✓ lint (1m02s)` / `✗ test-linux (4m11s)` / `* build-macos`:
 {"title":"CI · 6 jobs","rules":[{"from":"*","match":"^(?P<mark>[✓✗*-])\\s+(?P<name>\\S+)","key":"name","text":"mark"}],"blocks":[{"kind":"grid","field":"mark","label":"jobs","tones":{"✓":"success","✗":"error","*":"pending","-":"muted"}}]}
 
-nextest, `        PASS [   0.012s] omp-natives line_match::tests::named_groups`:
-{"title":"nextest · omp-natives","rules":[{"from":"*","match":"^\\s*PASS \\[","count":"pass"},{"from":"*","match":"^\\s*FAIL \\[\\s*[\\d.]+s\\] (?P<fail>.+)$","text":"fail"},{"from":"*","match":"^\\s*(?:PASS|FAIL) \\[\\s*[\\d.]+s\\] (?P<current>.+)$","text":"current"}],"blocks":[{"kind":"stat","items":[{"field":"pass","agg":"count","label":"passed"},{"field":"fail","agg":"count","label":"failed"}]},{"kind":"text","field":"fail"}],"stage":"current"}
+nextest, `        PASS [   0.012s] zeta-natives line_match::tests::named_groups`:
+{"title":"nextest · zeta-natives","rules":[{"from":"*","match":"^\\s*PASS \\[","count":"pass"},{"from":"*","match":"^\\s*FAIL \\[\\s*[\\d.]+s\\] (?P<fail>.+)$","text":"fail"},{"from":"*","match":"^\\s*(?:PASS|FAIL) \\[\\s*[\\d.]+s\\] (?P<current>.+)$","text":"current"}],"blocks":[{"kind":"stat","items":[{"field":"pass","agg":"count","label":"passed"},{"field":"fail","agg":"count","label":"failed"}]},{"kind":"text","field":"fail"}],"stage":"current"}

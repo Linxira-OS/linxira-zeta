@@ -329,7 +329,17 @@ async function toolDetails(result: DaemonRpcResult, params: LaunchParams): Promi
 		case "mode":
 			return { op: "mode", daemon: result.daemon };
 		case "describe":
-			return { op: "describe", daemon: result.daemon, spec: result.spec };
+			return {
+				op: "describe",
+				daemon: result.daemon,
+				spec: {
+					...result.spec,
+					env: result.spec.env ?? {},
+					restart: result.spec.restart ?? "no",
+					persist: result.spec.persist ?? false,
+					detached: result.spec.detached ?? false,
+				},
+			};
 		case "ping":
 		case "shutdown":
 		// The broker's cancel response is equally internal: no launch-tool call

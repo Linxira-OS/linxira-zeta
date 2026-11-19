@@ -14,7 +14,7 @@
 **来源：`AGENTS.md`（Zeta Direction / Brand Surface Registry）、本批次 spec §13、
 `roadmap.md`（Deferred Queue TUI 套件条）。**
 
-Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运行时树、
+Zeta 是 OMP（zeta，github.com/Linxira-OS/linxira-zeta）的下游发行版：运行时树、
 包布局、Bun workflow、内部 `@linxiraos/*` 命名**刻意**跟随 OMP，唯一目标是
 上游 release tag 永远可合并。分叉的自由度只留给品牌面与产品面。
 
@@ -91,7 +91,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   刻意保留的兼容目录是 `.omp-plugin`（OMP/Claude 插件清单兼容面，勿扫）。
   为什么：配置根是数据主权的锚点，双根必然漂移，兼容别名只会让两边都坏。
 - **`zeta://` scheme 唯一**：内部文档/资源 scheme（`zeta://docs` 根别名保留）；
-  出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture），
+  出现 `zeta://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture），
   v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制。
   为什么：scheme 出现在提示词与语料里，残留等于把上游身份喂给模型。
 - **npm scope `@linxiraos/*`**：上游 `@linxiraos/*` 全量改写；唯一例外是
@@ -117,7 +117,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
 - **刻意不品牌化**：中继/分享 URL `my.omp.sh` 已随协作功能于 2026-11-07 完全退役，不再随包发布；native
   Tokio 安装导出 `__ompInstallTokioRuntime`
   （crate/index.js/loader 三方一致协议，sweep 会让 Tokio 静默不装）、上游
-  进程间协议符号（`__omp_with_call_site__` 等负断言 marker）。
+  进程间协议符号（`__zeta_with_call_site__` 等负断言 marker）。
   为什么：守卫的对面是「不该扫的别扫」——v18.0.10 与 v18.1.21 的反向损伤
   全部来自过度 sweep。
 - **安装提示指向我们自己的站**（2026-10-13 起）：更新器的恢复提示用
@@ -143,7 +143,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   为什么：观测面一旦变成数据外流通道或反向类型耦合，数据主权与包边界
   同时失守。
 - **跨面 token 只扫一面 = 事故**：同一 token 存在于 producer/consumer 两侧
-  ——worker argv 协议（源 `__omp_worker_*` ↔ cli.ts 派发侧）、env 契约
+  ——worker argv 协议（源 `__zeta_worker_*` ↔ cli.ts 派发侧）、env 契约
   （测试设 `ZETA_CODING_AGENT_DIR` ↔ 源只读 `ZETA_*`）、UA 正则、CLI 提示串、
   XDG 目录名、测试夹具写死的版本坐标。只扫一面的症状是 `check:ts` 全绿但
   运行时/CI 才炸（v18.4.3 首轮六红同根）。规则：清扫必须 producer+consumer

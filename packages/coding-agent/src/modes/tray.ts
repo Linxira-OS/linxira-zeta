@@ -1006,7 +1006,7 @@ function describeJobGlance(view: JobWidgetView): NativeNode | undefined {
 				node(
 					"text",
 					{
-						role: "omp.hud.glance",
+						role: "zeta.hud.glance",
 						spans: jobWidgetGlanceSpans({ text: glance.text, ...(glance.trend ? { trend: glance.trend } : {}) }),
 						wrap: "none",
 					},

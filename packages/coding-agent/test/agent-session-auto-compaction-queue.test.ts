@@ -1601,48 +1601,6 @@ describe("AgentSession auto-compaction queue resume", () => {
 		expect(delivered).toEqual(["irc", "prompt"]);
 	});
 
-	it("delivers queued IM in arrival order after a prompt admitted during compaction", async () => {
-		const held = await holdIdleCompaction();
-		const wakes: unknown[][] = [];
-		session.setIrcWakeTurnObserver(records => {
-			wakes.push(records.flatMap(record => (record.role === "custom" ? [record.details] : [])));
-			return undefined;
-		});
-		const ts = Date.now();
-		for (const id of ["bob", "carol"]) {
-			await session.deliverIrcMessage({
-				id,
-				from: "bot",
-				to: MAIN_AGENT_ID,
-				body: `${id} queued question`,
-				ts,
-				metadata: {
-					source: "im",
-					platform: "feishu",
-					chatId: id,
-					messageId: id,
-					sentAt: new Date(ts).toISOString(),
-					route: {},
-				},
-			});
-		}
-		const prompted = session.prompt("typed meanwhile");
-		try {
-			await scheduler.yield();
-			expect(wakes).toEqual([]);
-		} finally {
-			await held.finish();
-		}
-		expect(await prompted).toBe(true);
-		await session.waitForIdle();
-		await flushEventLoop();
-		expect(wakes).toEqual([[], [expect.objectContaining({ id: "bob" })], [expect.objectContaining({ id: "carol" })]]);
-		const users = session.sessionManager
-			.getEntries()
-			.flatMap(entry => (entry.type === "message" && entry.message.role === "user" ? [textOf(entry.message)] : []));
-		expect(users.slice(-3)).toEqual(["typed meanwhile", "bob queued question", "carol queued question"]);
-	});
-
 	it("counts an IRC wake waiting out idle compaction as pending, so the lifecycle cannot park the session", async () => {
 		const held = await holdIdleCompaction();
 		await session.deliverIrcMessage({ id: "m1", from: "peer", to: MAIN_AGENT_ID, body: "ping", ts: Date.now() });

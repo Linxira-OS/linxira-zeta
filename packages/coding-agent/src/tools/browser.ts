@@ -27,7 +27,6 @@ import { resolveTernKind } from "./browser/tern/kind";
 import { isTernUnavailable } from "./browser/tern/wire";
 import { ownsTerminal } from "./browser/terminal-owner";
 import { WebKitUnavailableError } from "./browser/webkit/host";
-import { installWebKitEngine, webKitEngineToInstall } from "./browser/webkit/install";
 import { resolveWebKitKind, VIEWER_PLATFORMS } from "./browser/webkit/kind";
 import type { AriaSnapshotOptions } from "./browser/aria/aria-snapshot";
 import type { ScreenshotResult } from "./browser/tab-protocol";
@@ -249,7 +248,7 @@ export function resolveBrowserKind(
 		return { kind: "connected", cdpUrl: configuredCdpUrl.replace(/\/+$/, "") };
 	}
 	// Tern and cmux show the tab beside the omp drawn in that terminal. An omp started from that
-	// session's commands (`omp -p` from its bash tool, a script an eval cell runs) inherited the
+	// session's commands (`zetacode -p` from its bash tool, a script an eval cell runs) inherited the
 	// pane env, and its tabs would float over the other session's work. A subagent has no pane of
 	// its own either: its tabs would pile up over the parent's, so it skips both even when
 	// PI_BROWSER_TERN=1 or PI_BROWSER_CMUX=1 forces them for the parent.
@@ -518,7 +517,6 @@ async function openBrowser(
 	timeoutMs: number,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<unknown>> {
-	const webkitDownloadFailure = await installWebKitForOpen(session, params, signal);
 	const resolved = resolveBrowserKind(params, session);
 	const autoTern = resolved.kind === "tern" && params.app !== "tern" && params.target === undefined;
 	const autoWebKit = params.app !== "webkit";
@@ -544,8 +542,7 @@ async function openBrowser(
 	}
 	const startedAt = performance.now();
 	/** Why each browser tried before `kind` could not take the open. */
-	const failures: Array<{ backend: "tern" | "webkit" | "cmux"; reason: string }> =
-		webkitDownloadFailure === undefined ? [] : [{ backend: "webkit", reason: webkitDownloadFailure }];
+	const failures: Array<{ backend: "tern" | "webkit" | "cmux"; reason: string }> = [];
 	// The WebKit engine always checks HTTPS certificates and has no mobile or touch emulation: such an open needs Chromium.
 	const chromiumOnly = params.insecure
 		? "it cannot ignore invalid HTTPS certificates (insecure)"
@@ -566,7 +563,7 @@ async function openBrowser(
 				? `Tern cannot show a browser here (${failure.reason}); opened ${opened} instead. Pass app: "own" to skip Tern, or app: "tern" to require it.`
 				: failure.backend === "cmux"
 					? `cmux could not open a browser surface here (${failure.reason}); opened ${opened} instead. Pass app: "own" to skip cmux.`
-					: `omp's WebKit browser could not take this open (${failure.reason}); opened Chromium instead. Pass app: "chromium" to skip it, or app: "webkit" to require it.`,
+					: `zetacode's WebKit browser could not take this open (${failure.reason}); opened Chromium instead. Pass app: "chromium" to skip it, or app: "webkit" to require it.`,
 		);
 		const remainingMs = Math.max(1, timeoutMs - (performance.now() - startedAt));
 		try {
@@ -602,7 +599,6 @@ async function openBrowser(
 }
 
 /** Engine directories whose update failed in this process: their installed engine runs without another attempt. */
-const failedWebKitUpdates = new Set<string>();
 
 /**
  * Download omp's WebKit engine into its default location
@@ -619,51 +615,6 @@ const failedWebKitUpdates = new Set<string>();
  * saying so; for `app: "webkit"` a failed download throws. A failed update is
  * logged, and the open runs the engine already installed.
  */
-async function installWebKitForOpen(
-	session: ToolSession,
-	params: BrowserParams,
-	signal?: AbortSignal,
-): Promise<string | undefined> {
-	const explicit = params.app === "webkit";
-	const pending = await webKitEngineToInstall({
-		settingEnabled: explicit || cfgBrowserWebKit.get(session.settings),
-		settingPath: cfgBrowserWebKitPath.get(session.settings),
-	});
-	if (pending === null) return undefined;
-	const { engineDir } = pending;
-	if (pending.installed) {
-		if (failedWebKitUpdates.has(engineDir)) return undefined;
-		if (!explicit && resolveBrowserKind(params, session).kind !== "webkit") return undefined;
-		try {
-			await untilAborted(signal, () => installWebKitEngine(engineDir));
-		} catch (error) {
-			if (signal?.aborted) throw error;
-			failedWebKitUpdates.add(engineDir);
-			logger.warn("Could not update omp's WebKit engine; running the installed one", {
-				engineDir,
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-		return undefined;
-	}
-	if (!explicit) {
-		const kind = resolveBrowserKind(params, session);
-		if (kind.kind !== "headless" || params.app === "chromium") return undefined;
-		if (!kind.headless && !VIEWER_PLATFORMS.includes(process.platform)) return undefined;
-		if (!(await chromiumNeedsDownload())) return undefined;
-	}
-	try {
-		await untilAborted(signal, () => installWebKitEngine(engineDir));
-		return undefined;
-	} catch (error) {
-		if (signal?.aborted) throw error;
-		const cause = error instanceof Error ? error.message : String(error);
-		if (explicit)
-			throw new ToolError(`app: "webkit" requires omp's WebKit engine, which could not be downloaded: ${cause}`);
-		return `its engine could not be downloaded: ${cause}`;
-	}
-}
-
 async function openOnKind(
 	session: ToolSession,
 	name: string,
@@ -1002,8 +953,8 @@ function describeBrowser(tab: TabSession): string {
 	switch (handle.kind.kind) {
 		case "headless":
 			return handle.kind.headless
-				? `omp's headless Chromium${handle.sharedDaemon ? " (shared)" : ""}`
-				: `omp's Chromium (in a window${handle.sharedDaemon ? ", shared" : ""})`;
+				? `zetacode's headless Chromium${handle.sharedDaemon ? " (shared)" : ""}`
+				: `zetacode's Chromium (in a window${handle.sharedDaemon ? ", shared" : ""})`;
 		case "spawned":
 			return `spawned ${handle.kind.path} (pid ${handle.pid ?? "?"})`;
 		case "connected":

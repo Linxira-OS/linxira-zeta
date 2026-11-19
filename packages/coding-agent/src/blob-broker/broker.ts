@@ -76,7 +76,7 @@ const SERVE_KINDS: Readonly<Partial<Record<BlobDestinationId, true>>> = {
 	"named-cloudflared": true,
 };
 
-/** `url` without userinfo (`user:password@`), for logs and the `omp ps` label. */
+/** `url` without userinfo (`user:password@`), for logs and the `zetacode ps` label. */
 export function redactUrl(url: string): string {
 	try {
 		const parsed = new URL(url);

@@ -70,12 +70,12 @@ describe("web_search native view", () => {
 		const hits = nodes(nodes(view?.body)[0]?.c);
 		expect(hits).toHaveLength(2);
 		const [row, excerpt] = nodes(hits[0]!.c);
-		expect(row?.p).toMatchObject({ role: "omp.tool.source", href: sources[0]!.url });
+		expect(row?.p).toMatchObject({ role: "zeta.tool.source", href: sources[0]!.url });
 		expect(excerpt?.p).toMatchObject({
 			spans: [{ t: "valid-expect\nRequire expect to get a value\nexpect ( x )" }],
 			lines: 3,
 		});
-		expect(nodes(hits[1]!.c).map(n => n.p?.role)).toEqual(["omp.tool.source"]);
+		expect(nodes(hits[1]!.c).map(n => n.p?.role)).toEqual(["zeta.tool.source"]);
 		for (const { url } of sources) expect(body.split(`"href":"${url}"`).length - 1).toBe(2);
 	});
 });

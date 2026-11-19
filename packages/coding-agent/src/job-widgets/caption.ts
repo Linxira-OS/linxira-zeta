@@ -8,6 +8,8 @@ import { shortenEmbeddedPaths } from "@linxiraos/pi-tui/render/render-utils";
 import { prompt, sanitizeText, truncate } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import systemPrompt from "../prompts/system/job-caption-system.md" with { type: "text" };
+import zhSystemPrompt from "../prompts/system/job-caption-system.zh.md" with { type: "text" };
+import { cfgLanguage } from "../zeta-settings";
 import userPrompt from "../prompts/system/job-caption-user.md" with { type: "text" };
 import { completeWidgetRequest, type ModelJobWidgetAuthorOptions, redactWidgetSample } from "./author";
 import type { JobWidgetBrief } from "./types";
@@ -68,7 +70,7 @@ export function createModelJobCaptionWriter(options: ModelJobWidgetAuthorOptions
 		const response = await completeWidgetRequest(
 			options,
 			{
-				systemPrompt,
+				systemPrompt: cfgLanguage.get(options.settings) === "zh" ? zhSystemPrompt : systemPrompt,
 				prompt: prompt.render(userPrompt, {
 					intent: intent ? truncate(redact(intent), MAX_INTENT_CHARS) : undefined,
 					command: truncate(redact(command.trim()), MAX_COMMAND_CHARS),

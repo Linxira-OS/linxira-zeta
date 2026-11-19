@@ -9,7 +9,7 @@
  * commands. Product/UI name: Z Work Studio. Runtime identity: Zeta. CLI: zetacode.
  *
  * Frozen contracts and technical identifiers that never render (storage keys,
- * CSS class names, `omp://` internal links, event names, DB names, legacy
+ * CSS class names, `zeta://` internal links, event names, DB names, legacy
  * recording formats, the `OMP.*` relay namespace) are allowed by the narrow
  * patterns below. This guard deliberately scans string literals and JSX text,
  * not comments or identifiers; a comment may name the upstream.
@@ -45,12 +45,12 @@ const TECHNICAL = [
 	/^@?omp[-/]/, // upstream npm scope / repo path
 	/^omp$/, // bare protocol id
 	/^ompcast$/, // legacy recording format key
-	/^\.omp/, // upstream path suffix in a technical literal
+	/^\.zeta/, // upstream path suffix in a technical literal
 	/^OMP\./, // relay/CDP method namespace
 	/^OMP-SESSION-TRACE$/, // exported-HTML custom element (DOM uppercases tagName)
 	/^x-omp-/, // blob broker header
 	/^(?:data|id)=?[-.]?omp-/, // DOM markers (data-omp-, id=omp-)
-	/^__omp_/,
+	/^__zeta_/,
 	/^omp\//, // package-specifier path fragment
 ];
 
@@ -97,7 +97,7 @@ function checkText(text: string): string | undefined {
 	if (INTEROP_COPY.some(pattern => pattern.test(value))) return undefined;
 	if (/\bOMP\b/.test(value)) return "user-visible OMP";
 	if (/\bomp\b/.test(value)) return "user-visible omp";
-	if (/oh-my-pi/i.test(value)) return "user-visible oh-my-pi";
+	if (/zeta/i.test(value)) return "user-visible zeta";
 	if (BAD_COMMAND.test(value)) return "upstream command (the CLI is zetacode)";
 	if (/(?<!Work )(?<!LM )\bStudio\b/.test(value) && !STUDIO_ALLOW.test(value)) {
 		return "bare Studio as product name";

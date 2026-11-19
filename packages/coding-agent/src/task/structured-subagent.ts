@@ -136,7 +136,7 @@ export interface StructuredSubagentRequest {
 	steps?: string[];
 	agent?: string;
 	/**
-	 * Model chosen by host code (SDK callers, `omp cleanse --model`).
+	 * Model chosen by host code (SDK callers, `zetacode cleanse --model`).
 	 * Not gated by `task.perCallModel`.
 	 */
 	model?: string | string[];

@@ -42,7 +42,7 @@ describe("native image blob lifetime", () => {
 				await using root = await TempDir.create("@omp-native-blobs-");
 				const env: NodeJS.ProcessEnv = {
 					...process.env,
-					PI_CONFIG_DIR: path.relative(os.homedir(), root.join("config")),
+					ZETA_CONFIG_DIR: path.relative(os.homedir(), root.join("config")),
 					ZETA_CODING_AGENT_DIR: root.join("agent"),
 					PI_TEST_SESSION_OWNERS_DIR: root.join("session-owners"),
 					XDG_CONFIG_HOME: root.join("xdg-config"),

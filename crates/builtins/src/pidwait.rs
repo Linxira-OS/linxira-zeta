@@ -63,7 +63,7 @@ mod tests {
 	}
 
 	/// A waiting `pidwait` must not hold a blocking-pool thread: hosts cap that
-	/// pool (eight threads in omp-natives on Windows) and run every utility
+	/// pool (eight threads in zeta-natives on Windows) and run every utility
 	/// builtin on it, so a few long waits would stall unrelated commands.
 	#[test]
 	fn waiting_holds_no_blocking_pool_thread() -> anyhow::Result<()> {

@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # Shared git metadata under /data/workspaces/_pool is intentionally group
-# writable by the `omp` group so interrupted work can resume on a different
+# writable by the `zetacode` group so interrupted work can resume on a different
 # slot user. Keep new files and directories compatible with that model.
 umask 0002
 

@@ -419,7 +419,7 @@ fn remove_own_registration(
 fn legacy_recovery_path(context: &Context) -> PathBuf {
 	let config_directory = context
 		.env
-		.get("PI_CONFIG_DIR")
+		.get("ZETA_CONFIG_DIR")
 		.map(|value| value.trim())
 		.filter(|value| !value.is_empty())
 		.unwrap_or(".zeta");

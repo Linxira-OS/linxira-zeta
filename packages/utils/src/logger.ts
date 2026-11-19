@@ -1,7 +1,7 @@
 /**
  * Centralized logger for omp.
  *
- * Default: rotating `~/.omp/logs/omp.<DATE>.<PID>.log`, no console output (writing
+ * Default: rotating `~/.zeta/logs/omp.<DATE>.<PID>.log`, no console output (writing
  * to stdout/stderr would corrupt the TUI). Long-running headless services
  * (the auth broker, etc.) call {@link setTransports} to swap in a console
  * transport so a process supervisor (pm2, journald, k8s) captures the logs.
@@ -174,7 +174,7 @@ function dispatchToSinks(event: LogEvent): void {
 
 const PROCESS_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
 /** Per-process audit files written by earlier releases; current sinks track rotations in memory. */
-const PROCESS_AUDIT_PATTERN = /^\.omp\.(\d+)-audit\.json$/;
+const PROCESS_AUDIT_PATTERN = /^\.zeta\.(\d+)-audit\.json$/;
 /** Shared daily logs (plain, size-rolled, or gzipped) written by the winston-era logger. */
 const LEGACY_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.log(?:\.\d+)?(?:\.gz)?$/;
 /** Hash-named audit files written by winston-daily-rotate-file. */
@@ -442,7 +442,7 @@ function makeFileTransport(dir?: string): RotatingFileSink {
 	// The sink opens (and creates) its file on the first batch written.
 	return new RotatingFileSink({
 		directory: logsDir,
-		filenamePrefix: "omp",
+		filenamePrefix: "zeta",
 		filenameSuffix: String(process.pid),
 		maxBytes: 10 * 1024 * 1024,
 		maxFiles: 5,

@@ -23,7 +23,7 @@ Default-profile config paths, in precedence order:
 - `~/.zeta/agent/models.yaml`
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
-`~/.zeta/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
+`~/.zeta/profiles/<name>/agent/`; `ZETA_CONFIG_DIR` changes the config-root directory name, and
 `ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
@@ -327,7 +327,7 @@ After image filtering, the same native-only tail policy used for text judgments 
 
 Native image judgments for Jev are experimental. Direct TypeSafe Jev supports `jev-latest`, `jev-preview`, `jev-1.13.0`, and `jev-1.14.0` (the default `judge` role uses `typesafe/jev-1.14.0`; `jev-latest` is TypeSafe's stable alias and has served `jev-1.14.0` since 2026-10-22). OpenRouter supports `typesafe/jev-1.13`, `typesafe/jev-1.14`, and `~typesafe/jev-latest`.
 
-Images join `state` without replacing it: an object root keeps its fields and gains them under a collision-safe `__omp_judgment_images` key (with a numeric suffix if the key is taken), an array root gains them at the end, and a string root becomes `[original, ...images]`. Direct TypeSafe requests add each image as a referenced `assets` entry and put its reference in `state`, setting `TypeSafe-Danger-Zone-Images: true` only when images are attached; caller-supplied assets (auth gateway) must each be referenced in `state`, `instructions`, or `criteria`, and each split request carries only the assets it references. OpenRouter encodes each image as an `image_url` data URL part and uses neither the TypeSafe header nor a top-level `images` field.
+Images join `state` without replacing it: an object root keeps its fields and gains them under a collision-safe `__zeta_judgment_images` key (with a numeric suffix if the key is taken), an array root gains them at the end, and a string root becomes `[original, ...images]`. Direct TypeSafe requests add each image as a referenced `assets` entry and put its reference in `state`, setting `TypeSafe-Danger-Zone-Images: true` only when images are attached; caller-supplied assets (auth gateway) must each be referenced in `state`, `instructions`, or `criteria`, and each split request carries only the assets it references. OpenRouter encodes each image as an `image_url` data URL part and uses neither the TypeSafe header nor a top-level `images` field.
 
 Text-only requests retain their original request shape and bytes. Image support is limited to the listed TypeSafe Jev and OpenRouter Jev models; it does not imply support for other System One-compatible servers or OpenRouter Decisions models.
 

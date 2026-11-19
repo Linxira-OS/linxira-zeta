@@ -783,7 +783,7 @@ protocols and auth flows.
   `/usr/local/bin/zeta` 更名 `zetacode`(`ENTRYPOINT` 同步),robomp 三处取值
   (`src/config.py:101` 默认、`docker-compose.yml:81`、`.env.example:186`)对齐
   `zetacode`,`python/robomp/AGENTS.md`/`README.md` 的幽灵 `/usr/local/bin/omp`
-  垫片叙述与 `omp --mode rpc` 调用叙述一并改写;机器守卫
+  垫片叙述与 `zetacode --mode rpc` 调用叙述一并改写;机器守卫
   `scripts/check-robomp-cli-contract.ts`(CI `check` job + 本地 `local-ci.yml`
   `check` job)从 Dockerfile 垫片名与 robomp 取值两侧推导,任一侧漂移即红。
   **仍排队(逐项已取证,勿与上条混谈)**:
@@ -793,15 +793,15 @@ protocols and auth flows.
     XDG 生效条件,故今日容器内 XDG 重定向**从未生效**,产品状态根回落 `~/.zeta`
     (=`/srv/agent-home/.zeta`,root:root 0755,见 `entrypoint.sh:68-69`)。改名即把
     产品 data/state/cache 切到各工作区 XDG 树,并使 `entrypoint.sh:77-84` 与
-    `worker.py:199-221` 那套 group `omp` 共享 `~/.zeta/run` 方案失效——**必须先有
+    `worker.py:199-221` 那套 group `zetacode` 共享 `~/.zeta/run` 方案失效——**必须先有
     容器内验证**(本机无 docker daemon),故本轮只出结论不动手。
   - ②`PI_ROOT`/`OMP_*` 环境变量族改名:AGENTS.md 品牌表 2026-10-10 裁决暂缓,
     robomp 的 `ROBOMP_OMP_COMMAND` 属同族,本轮只改取值不改名。
   - ③镜像 tag/stage 名:`package.json:138,139,147` 的 `PI_IMAGE` 默认
-    `oh-my-pi/pi:dev` 与 `Dockerfile.robomp:19`/`docker-compose.yml:23` 的
+    `zeta/pi:dev` 与 `Dockerfile.robomp:19`/`docker-compose.yml:23` 的
     `zeta/pi:dev` 不同名(compose 显式传参掩盖),`pi-base`/`pi-runtime` 段名同属
     镜像命名面——不在本轮范围。
-  - ④容器内 unix 组 `omp`(`entrypoint.sh:25-38`、`worker.py:674` `extra_groups`):
+  - ④容器内 unix 组 `zetacode`(`entrypoint.sh:25-38`、`worker.py:674` `extra_groups`):
     跨槽位权限模型的一部分,刻意保留。
   - ⑤Python SDK 默认命令名:`sdk/python/zeta-rpc/src/zeta_rpc/client.py:458`
     `executable: str = "omp"`(手写 transport 默认值,robomp 恒显式传参故不影响

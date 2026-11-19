@@ -47,7 +47,7 @@ async function cleanProbeEnv(): Promise<Record<string, string | undefined>> {
 		OMP_PROFILE: undefined,
 		PI_PROFILE: undefined,
 		ZETA_CODING_AGENT_DIR: undefined,
-		PI_CONFIG_DIR: undefined,
+		ZETA_CONFIG_DIR: undefined,
 		XDG_DATA_HOME: undefined,
 		XDG_STATE_HOME: undefined,
 		XDG_CACHE_HOME: undefined,

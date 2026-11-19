@@ -106,7 +106,7 @@ class WorkerPool:
         # Periodic natives-cache GC, if enabled. Sleep-first so a freshly
         # restarted orchestrator doesn't burn CPU on a cold cache.
         if self.sandbox.natives_cache is not None and self.settings.natives_cache_gc_interval_seconds > 0:
-            self._workers.append(asyncio.create_task(self._natives_cache_gc_loop(), name="robomp-natives-gc"))
+            self._workers.append(asyncio.create_task(self._natives_cache_gc_loop(), name="robzeta-natives-gc"))
 
     async def stop(self, *, drain_timeout: float = 25.0, kill_timeout: float = 5.0) -> None:
         """Halt the dispatcher, then drain (or kill) in-flight `_run_event` tasks.

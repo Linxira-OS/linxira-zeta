@@ -1,15 +1,15 @@
 /**
- * `omp zsh|bash|sh [args...]`: the shell engine as a process shell, run
+ * `zetacode zsh|bash|sh [args...]`: the shell engine as a process shell, run
  * in this process through the native `runShellMain`.
  *
- * The argv after `omp` reaches the shell untouched (`omp zsh --help`, `-c`,
+ * The argv after `zetacode` reaches the shell untouched (`zetacode zsh --help`, `-c`,
  * `-i`, `-l`, `--emulate`, scripts), its first word becoming the shell's
  * `argv[0]` (which picks the dialect). `cli.ts` dispatches here before the
  * command framework loads; the registered `zsh`/`bash`/`sh` commands exist
- * for `omp --help` and the generated completions.
+ * for `zetacode --help` and the generated completions.
  */
 
-/** The shells `omp` runs natively, by command word. */
+/** The shells `zetacode` runs natively, by command word. */
 export const NATIVE_SHELLS: Readonly<Record<string, true>> = { zsh: true, bash: true, sh: true };
 
 /** Whether `word` (the first argv word) names a native shell. */

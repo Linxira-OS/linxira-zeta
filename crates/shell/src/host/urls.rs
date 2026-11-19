@@ -10,8 +10,8 @@
 //! an identifier or as part of a message (`bm read memory://notes/x`,
 //! `log.sh 'agent://A; agent://B'`) as it is handed a path. Only a program
 //! or working directory the provider rejects fails the spawn, since nothing
-//! could run there. `omp` resolves the URLs it is given itself (with their
-//! selectors: `omp read skill://x:1-20`), so its arguments and environment
+//! could run there. `zetacode` resolves the URLs it is given itself (with their
+//! selectors: `zetacode read skill://x:1-20`), so its arguments and environment
 //! are never rewritten.
 //!
 //! A spawn that names a URL is taken apart ([`split`]) into the [`Names`] to
@@ -108,7 +108,7 @@ pub(super) fn names_url(spec: &SpawnSpec<'_>) -> bool {
 				|| spec.env.iter().any(|(name, value)| env_url(name, value))))
 }
 
-/// Whether `argv` runs `omp`: as the program, or as the command a wrapper
+/// Whether `argv` runs `zetacode`: as the program, or as the command a wrapper
 /// (`nice omp …`, `npx omp …`) is given ahead of any URL.
 fn runs_omp(argv: &[BString]) -> bool {
 	argv
@@ -117,7 +117,7 @@ fn runs_omp(argv: &[BString]) -> bool {
 		.any(|arg| is_omp(arg))
 }
 
-/// Whether `word` names the `omp` program, by any path.
+/// Whether `word` names the `zetacode` program, by any path.
 fn is_omp(word: &[u8]) -> bool {
 	let name = word
 		.rsplit(|&b| b == b'/' || (cfg!(windows) && b == b'\\'))

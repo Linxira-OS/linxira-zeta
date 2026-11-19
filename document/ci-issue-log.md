@@ -69,11 +69,11 @@
 ## CI-003 新守卫的名字被品牌规则判红
 
 - **现象**：`check-removed-upstream-files.ts`（记录“合并不许复活的删除项”）被
-  `brand-check` 判 3 处：文件必须写出 `.omp/...` 和 `sdk/go/omp-rpc/...` 才能检查它们是否复活。
+  `brand-check` 判 3 处：文件必须写出 `.zeta/...` 和 `sdk/go/zeta-rpc/...` 才能检查它们是否复活。
 - **触发点**：`4b03d257ad8`（新增守卫）、合并提交 `15183edda34`。
 - **根因**：品牌规则按字面 token 扫；守卫的职责就是命名被禁路径。
 - **当时的处理**：在 `scripts/brand/brand-rules.ts` 给该守卫加两条按文件豁免
-  （`.omp` 路径规则、`omp-rpc` 规则），并注明理由。
+  （`.omp` 路径规则、`zeta-rpc` 规则），并注明理由。
 - **建议方案 / 门禁**：把这条固化成约定——**任何“必须命名禁用 token 才能工作”的守卫，
   在引入它的同一个提交里登记品牌豁免**，否则合并必红。
 
@@ -413,7 +413,7 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
      编译结果（`originator: omp`、旧默认模型）；
    - `packages/catalog/test/deepinfra-provider.test.ts`：实现发 `sort_by=zeta`，
      测试仍断言 `sort_by=omp`；
-   - browser relay 测试断言 `omp` 文案/端口 9224，源码已是 `zeta`/43153。
+   - browser relay 测试断言 `zetacode` 文案/端口 9224，源码已是 `zeta`/43153。
 - **触发点**：`dc0d77f037c` 的品牌 sweep 只改了部分面。
 - **根因**：品牌替换跨越「输入 fixture / golden / 实现常量 / 测试断言」四个面；
   sweep 改了 URL 没重算 QR，改了实现没更新断言，改了端口没改测试。
@@ -428,9 +428,9 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **现象**：修复提交后本地 `merge-gate` 的 `upstream test/fixture import` 报
   `browser-relay-detach.test.ts` 的 `modified-upstream-missing`，但该文件实际包含
   上游新增的 iframe/detach 用例。
-- **触发点**：`ceca124008f` 把测试断言里的 `omp` 改成 `zeta` 后。
+- **触发点**：`ceca124008f` 把测试断言里的 `zetacode` 改成 `zeta` 后。
 - **根因**：审计的 `normalizeForUpstreamComparison` 只归一化了 scope、`.zeta`、
-  `zetacode` 等路径/包名，没有把 prose 里的 `zeta` 映射回 `omp`；三方合并因此把
+  `zetacode` 等路径/包名，没有把 prose 里的 `zeta` 映射回 `zetacode`；三方合并因此把
   合法品牌改动当成漏掉的上游 hunk。
 - **修复**：归一化链末尾增加 `zeta → omp`（只用于审计比较，不改产品）。
 - **门禁**：该审计本来就在 `audit-tests`；`scripts/audit-merge-tests.test.ts`

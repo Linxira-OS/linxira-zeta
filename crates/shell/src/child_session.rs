@@ -4,7 +4,7 @@
 //! and process group (`crate::host::PiHost`): pi never runs a child that can
 //! reach its controlling terminal. [`child_session_action`] states the policy
 //! for a shell that does own a terminal (interactive job control), which
-//! omp-natives' terminal code follows.
+//! zeta-natives' terminal code follows.
 
 /// What to do with the child's controlling-tty/session ownership immediately
 /// before spawn.

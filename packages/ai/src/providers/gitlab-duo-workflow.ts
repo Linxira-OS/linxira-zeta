@@ -837,7 +837,7 @@ function mapGitLabDuoWorkflowMcpToolCall(args: Record<string, unknown>): {
 	arguments: Record<string, unknown>;
 } {
 	const rawName = stringField(args, "toolName") ?? stringField(args, "tool_name") ?? stringField(args, "name") ?? "";
-	const toolName = rawName.startsWith("mcp__omp__") ? rawName.slice("mcp__omp__".length) : rawName;
+	const toolName = rawName.startsWith("mcp__zeta__") ? rawName.slice("mcp__zeta__".length) : rawName;
 	const parsedArgs = parseGitLabDuoWorkflowMcpArguments(args.args ?? args.arguments);
 	if (toolName === "edit" && typeof parsedArgs.input === "string") {
 		return { name: "edit", arguments: { input: parsedArgs.input } };

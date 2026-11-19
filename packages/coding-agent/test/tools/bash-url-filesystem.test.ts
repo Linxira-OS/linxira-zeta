@@ -148,7 +148,9 @@ describe("bash internal URLs through the shell filesystem", () => {
 			mode: 0o755,
 		});
 
-		const { text, isError } = await run(`PATH="$PWD:$PATH" omp read local://data.txt:1-1 --from=local://data.txt`);
+		const { text, isError } = await run(
+			`PATH="$PWD:$PATH" zetacode read local://data.txt:1-1 --from=local://data.txt`,
+		);
 
 		expect(isError).toBeUndefined();
 		expect(text).toContain("read\nlocal://data.txt:1-1\n--from=local://data.txt\n");

@@ -1,6 +1,6 @@
 /**
  * Pages omp opens in Tern for the user to look at, not for the agent to drive
- * (the `/stats` and `omp stats` dashboards). Tern's browser op `open` with
+ * (the `/stats` and `zetacode stats` dashboards). Tern's browser op `open` with
  * `how` docks a browser block by the pane omp runs in (a split beside or below
  * it, or in its place until the page closes), then `release` hands the block
  * to the user: no agent card in other tabs, no page kept live out of sight.

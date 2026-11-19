@@ -379,6 +379,10 @@ import { extractFileMentions, generateFileMentionMessages } from "../utils/file-
 import { normalizeModelContextImages } from "../utils/image-loading";
 import { parseCardReply, formatCardTitle, keepTitleCard } from "../utils/title-card";
 import { TokenRateMeter } from "../utils/token-rate";
+import { hasLiveOwnedService } from "../launch/services";
+import { ASYNC_NOTIFY_MESSAGE_TYPE } from "@linxiraos/pi-tui/chat/messages";
+import type { AsyncNotifyEntry, AsyncNotifySource } from "./async-notify";
+import type { NotifyBatch } from "../async/notify";
 import { resumeCommand } from "../utils/resume-command";
 import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
 import { generateSessionTitle, generatedNameLanguage, nerdGlyphsActive } from "../utils/title-generator";
@@ -535,6 +539,7 @@ import {
 	LAUNCH_COMPLETION_MESSAGE_TYPE,
 	type LaunchCompletionEntry,
 } from "./launch-completion";
+import type { DaemonCompletionEvent } from "../daemon/protocol";
 import {
 	type BashExecutionMessage,
 	buildReplanTitleContext,
@@ -3390,7 +3395,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
 			settings: this.settings,
-			model: () => this.model,
+			model: () => this.model!,
 			configuredThinkingLevel: () => this.configuredThinkingLevel(),
 			restoreThinkingLevel: level => this.#models.restoreThinkingLevel(level),
 			resolveDefaultPrewalk: () => this.#resolveDefaultPrewalk(),
@@ -3435,7 +3440,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
 			settings: this.settings,
-			model: () => this.model,
+			model: () => this.model!,
 			agentKind: () => this.#agentKind,
 			emitSessionEvent: event => this.#emitSessionEvent(event),
 			scheduleAgentContinue: options => this.#scheduleAgentContinue(options),
@@ -3480,7 +3485,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			modelRegistry: this.#modelRegistry,
 			sessionManager: this.sessionManager,
 			providerSessionState: this.#providerSessionState,
-			model: () => this.model,
+			model: () => this.model!,
 			sessionId: () => this.sessionId,
 			promptGeneration: () => this.#promptGeneration,
 			resolveActiveEditMode: () => this.#tools.resolveActiveEditMode(),
@@ -3531,7 +3536,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			settings: this.settings,
 			modelRegistry: this.#modelRegistry,
 			configWarnings: this.configWarnings,
-			model: () => this.model,
+			model: () => this.model!,
 			contextFitsModel: (model, excludedMessage) => this.#maintenance.contextFitsModel(model, excludedMessage),
 			textOutputCommitted: () => this.#textOutputCommitted,
 			thinkingLevel: () => this.thinkingLevel,
@@ -3602,7 +3607,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			agent: this.agent,
 			sessionManager: this.sessionManager,
 			modelRegistry: this.#modelRegistry,
-			model: () => this.model,
+			model: () => this.model!,
 			sessionId: () => this.sessionId,
 		};
 		this.#stats = new SessionStatsTracker(statsHost);
@@ -3821,7 +3826,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			steeringArrivalRelease: seq => this.#steeringArrivalRelease(seq),
 			queuedMessageCount: () => this.queuedMessageCount,
 			planModeEnabled: () => this.#planModeState?.enabled === true,
-			model: () => this.model,
+			model: () => this.model!,
 			memoryBackendSession: () => this,
 			clearInheritedProviderPromptCacheKey: () => this.#clearInheritedProviderPromptCacheKey(),
 			clearMemoryPromotionSnapshot: () => this.#memory.clearPromotionSnapshot(),
@@ -3891,7 +3896,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			sessionManager: this.sessionManager,
 			settings: this.settings,
 			modelRegistry: this.#modelRegistry,
-			model: () => this.model,
+			model: () => this.model!,
 			sessionId: () => this.sessionId,
 			costGate: () => this.#costGate,
 			localProtocolOptions: () => this.#localProtocolOptions(),
@@ -3908,7 +3913,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			agent: this.agent,
 			settings: this.settings,
 			sessionManager: this.sessionManager,
-			model: () => this.model,
+			model: () => this.model!,
 			isDisposed: () => this.#isDisposed,
 			promptGeneration: () => this.#promptGeneration,
 			promptSequence: () => this.#promptSequence,
@@ -4109,7 +4114,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			sideStreamFn: this.#sideStreamFn,
 			providerSessionState: this.#providerSessionState,
 			preferWebsockets: model => resolveWebsocketPreference(this.settings, model),
-			model: () => this.model,
+			model: () => this.model!,
 			thinkingLevel: () => this.thinkingLevel,
 			isDisposed: () => this.#isDisposed,
 			modelFallbackDisabled: () => this.#disableModelFallback,
@@ -4218,8 +4223,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			getContextUsage: options => this.getContextUsage(options),
 			shake: (mode, options) => this.shake(mode, options),
 			dropImages: () => this.dropImages(),
-			generateHandoffDocument: (customInstructions, options) =>
-				this.#handoff.generateDocument(customInstructions, options),
+			generateHandoffDocument: async (customInstructions, options) => {
+				if (!options) return undefined;
+				const document = await this.#handoff.generateDocument(customInstructions, options);
+				return document === undefined ? undefined : { document };
+			},
 			removeAssistantMessageFromActiveContext: message =>
 				this.#recovery.removeAssistantMessageFromActiveContext(message),
 			dropPersistedAssistantTurn: message => this.#recovery.dropPersistedAssistantTurn(message),
@@ -4264,7 +4272,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			modelRegistry: this.#modelRegistry,
 			sideStreamFn: this.#sideStreamFn,
 			obfuscator: () => this.#obfuscator,
-			model: () => this.model,
+			model: () => this.model!,
 			thinkingLevel: () => this.thinkingLevel,
 			sessionId: () => this.sessionId,
 			getPromptCacheKeyForModel: model => this.getPromptCacheKeyForModel(model),
@@ -4887,6 +4895,69 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * awaits them; the stop-time passes (todo reminder, `session_stop` hooks, idle
 	 * compaction) defer to the run's end.
 	 */
+	/** Whether the agent acts again without anyone messaging it. */
+	get hasPendingWake(): boolean {
+		return this.isStreaming || this.#postPromptTasks.size > 0 || this.hasWakeAfterTurn();
+	}
+
+	/** Whether something besides the current turn starts this agent's next one. */
+	hasWakeAfterTurn(): boolean {
+		if (this.agent.hasQueuedMessages() || this.#irc.hasPending()) return true;
+		if (this.#evalToolSession && hasLiveOwnedService(this.#evalToolSession)) return true;
+		const sources = this.#wakeSources();
+		if (!sources) return false;
+		if (sources.queued || sources.agents.length > 0) return true;
+		const manager = this.#asyncJobManager;
+		const registry = this.#agentRegistry;
+		const agentId = this.#agentId;
+		return sources.jobs.some(id => {
+			const jobAgent = manager?.getJob(id)?.agentId;
+			return !jobAgent || !registry || !agentId || !registry.awaits.blocksOn(jobAgent, agentId, 0);
+		});
+	}
+
+	#evalPreludeCalls = new Set<string>();
+
+	/** Record an eval prelude call for the tools advertised to the model. */
+	noteEvalPreludeCall(name: string): void {
+		this.#evalPreludeCalls.add(name);
+	}
+
+	/** Enabled MCP tools presented as eval namespace methods. */
+	getEvalBoundToolNames(): string[] {
+		return this.getEvalBridgeToolNames();
+	}
+
+	/** Whether this model drops demoted reasoning blocks from replay. */
+	omitsDemotedReasoning(_model: Model): boolean {
+		return false;
+	}
+
+	/** Cache-bridge compaction estimate; unavailable in the base runtime. */
+	bridgeCompactionEstimate(_promptTokens: number): undefined {
+		return undefined;
+	}
+
+	/** Cache-bridge compaction; unavailable in the base runtime. */
+	async startBridgeCompaction(): Promise<never> {
+		throw new Error("Cache-bridge compaction is unavailable in this runtime");
+	}
+
+	/** Async notify channel for a running job. */
+	openAsyncNotify(job: AsyncNotifySource): (batch: NotifyBatch) => void {
+		const epoch = this.#asyncDeliveryEpoch;
+		return batch => {
+			if (this.#isDisposed || epoch !== this.#asyncDeliveryEpoch) return;
+			this.yieldQueue.enqueue<AsyncNotifyEntry>(ASYNC_NOTIFY_MESSAGE_TYPE, { ...job, ...batch });
+		};
+	}
+
+	/** Queue a service notify batch for this session. */
+	queueServiceNotify(entry: AsyncNotifyEntry): void {
+		if (this.#isDisposed) return;
+		this.yieldQueue.enqueue<AsyncNotifyEntry>(ASYNC_NOTIFY_MESSAGE_TYPE, entry);
+	}
+
 	get wakeSources(): WakeSources | undefined {
 		return this.#wakeSources();
 	}
@@ -5559,7 +5630,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return `${headTail}\nFull output: artifact://${rawArtifactId}`;
 		}
 		try {
-			const { path: artifactPath, id: artifactId } = await this.sessionManager.allocateArtifactPath("async");
+			const { path: artifactPath, id: artifactId } = await this.sessionManager.allocateArtifactPath();
 			if (artifactPath && artifactId) {
 				await writeArtifact(artifactPath, result);
 				return `${preview}\nFull output: artifact://${artifactId}`;
@@ -6679,7 +6750,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				this.#ttsr.onAssistantMessageEnd(assistantMsg);
 				if (this.#handoff.isGeneratingHandoff) {
 					this.#maintenance.skipPostTurnMaintenanceAssistantTimestamp = assistantMsg.timestamp;
-					this.#skippedPostTurnSpeculationCompletion = this.#maintenance.speculationCompletion;
+					this.#skippedPostTurnSpeculationCompletion = this.#maintenance.speculationCompletion("handoff");
 				}
 				await this.#recovery.onAssistantSettledSuccessfully(assistantMsg);
 				// Broker deployments: report this request's burn so the broker can
@@ -7957,6 +8028,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * (just before its `agent_end`) or a transition abandons it. A paused run stays
 	 * `running`. The registry mirrors these into the agent's ref status.
 	 */
+	/** Subscribe to pending-wake changes (run state + queued work). */
+	subscribeWakeState(listener: () => void): () => void {
+		return this.subscribeRunState(() => listener());
+	}
+
 	subscribeRunState(listener: (state: "running" | "idle") => void): () => void {
 		this.#runStateListeners.add(listener);
 		return () => this.#runStateListeners.delete(listener);
@@ -9891,6 +9967,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Whether compaction or manual handoff is active, for prompt admission and UI queuing. */
 	get isCompacting(): boolean {
 		return this.#maintenance.isCompacting;
+	}
+
+	/** Whether a manual compaction is preparing or waiting to apply without blocking turns. */
+	get isBackgroundCompacting(): boolean {
+		return this.#maintenance.isBackgroundCompacting;
 	}
 
 	/** Background speculative-compaction state, for UI indicators. */
@@ -13092,7 +13173,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#queueHiddenNextTurnMessage(message, true);
 	}
 
-	queueLaunchCompletion(notification: DaemonCompletionNotification): Promise<void> {
+	queueLaunchCompletion(notification: DaemonCompletionEvent | DaemonCompletionNotification): Promise<void> {
 		if (this.#isDisposed) return Promise.reject(new Error("Session disposed before launch completion delivery"));
 		const delivered = this.yieldQueue.enqueueWithReceipt<LaunchCompletionEntry>(
 			LAUNCH_COMPLETION_MESSAGE_TYPE,
@@ -14239,6 +14320,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Start skill-description compression held by `deferSkillDescriptionCompression` (see `createAgentSession`). */
+	/** Start skill and MCP namespace hint compression held by `deferHintCompression`. */
+	startHintCompression(): void {
+		this.startSkillDescriptionCompression();
+	}
+
 	startSkillDescriptionCompression(): void {
 		this.#skillDescriptions.startCompression();
 	}
@@ -14750,7 +14836,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					costGate.record(message.usage.cost.total);
 					this.#reportTitleUsage(usageOwner, message);
 				},
-				language,
 			),
 		);
 		if (await this.#sessionGenerationChanged(sessionGeneration)) return null;

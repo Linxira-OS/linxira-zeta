@@ -1,7 +1,7 @@
 /**
  * Stats activity worker thread. Spawned by `activity-client.ts` as a Bun
  * `Worker` (re-entered through the agent CLI's hidden
- * `__omp_worker_stats_activity` selector, or loaded directly outside a CLI
+ * `__zeta_worker_stats_activity` selector, or loaded directly outside a CLI
  * host). Owns the stats DB handle for the `/usage` heatmap load so the
  * synchronous SQLite work never runs on the TUI thread; the parent terminates
  * the worker once `done` arrives.

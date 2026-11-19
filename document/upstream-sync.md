@@ -11,7 +11,7 @@ their observation time; current integrated and observed-only tags are indexed in
 
 ## v18.22.0 source integration (2026-11-18)
 
-- Source: [official release](https://github.com/can1357/oh-my-pi/releases/tag/v18.22.0) at `3e8cff3b7ce19a805c11a26a6dd1703066435851`. The remote tag was rechecked unchanged after merge start. Full `--no-filter` fetch. Starting parent `7cf22ecbedc037ca035f5e57715ac902635fa204`. Previous tag and merge base `v18.20.0@c308970263ae13744ea15ab67302e3dac840e266`. Delta 789 commits, 1,147 files, +63,281/−17,638.
+- Source: [official release](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v18.22.0) at `3e8cff3b7ce19a805c11a26a6dd1703066435851`. The remote tag was rechecked unchanged after merge start. Full `--no-filter` fetch. Starting parent `7cf22ecbedc037ca035f5e57715ac902635fa204`. Previous tag and merge base `v18.20.0@c308970263ae13744ea15ab67302e3dac840e266`. Delta 789 commits, 1,147 files, +63,281/−17,638.
 - Worktree: `temp/sync-omp-v18.22.0` on `sync/omp-release/v18.22.0`. Preserved pre-sync work at `90117b00b65b32f38282027e4d3c97d45720c830`. The checkpoint, archive receipt, and execution plan are recorded in `local://omp-v18.22.0-pre-sync-20261117.json` and `local://omp-v18.22.0-sync-plan-20261117.md`.
 - Review: 273 initial conflicts (34 deletion conflicts), all accounted for in `local://omp-v18.22.0-conflict-decisions-20261118.json`. Of 535 silent paths, 470 matched `AUTO_MERGE` and 65 diverged at the initial review. See `local://omp-v18.22.0-silent-review-initial-20261118.json` and `local://omp-v18.22.0-silent-adaptations-20261118.tsv` for path-level evidence.
 - Contracts: adopt upstream run/wake lifecycle and DSM, keep exact transcript ownership for detached results and IM bindings, serialize MCP registration, keep runtime and authentication in `zetacode serve`. Preserve Zeta source admission, retired capabilities, and existing Studio, desktop and TermIDE boundaries. Development version remains `1.5.2`.
@@ -63,7 +63,7 @@ their observation time; current integrated and observed-only tags are indexed in
 - **Conflicts**: 218 paths at first pass — 168 content conflicts, 38
   delete/modify (Zeta-retired collab/Tern/build-service paths kept deleted),
   12 modify/delete (upstream deletions accepted). Resolution used the merge
-  driver for the 13 package manifests, scope rewrite of `@oh-my-pi/*` →
+  driver for the 13 package manifests, scope rewrite of `@linxiraos/*` →
   Zeta names, brand overlay, removal of revived Tern/WebKit/collab paths,
   and Zeta-owned restoration for mode/update/browser/agent-session surfaces.
 - **Key decisions**: Zeta keeps its release-asset self-update
@@ -88,7 +88,7 @@ their observation time; current integrated and observed-only tags are indexed in
   cargo fmt, lineage. Red: Bazel lock input hashes (fixed after the run by
   `--inputs-only`), merge member loss (68 Zeta-only members across 16 files),
   upstream test/fixture import (Zeta-deleted WebKit/Tern tests), brand regression
-  scan (190 upstream `omp`/`.omp` additions in the merge diff), guard regression
+  scan (190 upstream `zetacode`/`.omp` additions in the merge diff), guard regression
   tests, TS behaviour suites, stats orphan suite (29 failures), pi-messenger
   orphan suite (88 failures), Rust nextest (not installed; shallow-clone
   `test:rs` refusal). The stats/pi-messenger/nextest reds are host/tooling
@@ -137,7 +137,7 @@ merge.
   newer release. The in-flight merge is therefore against current upstream,
   not a stale tag.
 - **Upstream `main`**: 48 commits ahead of `v18.16.0`, 210 files, per
-  `repos/can1357/oh-my-pi/compare/v18.16.0...main`. Hotspots are the extension
+  `repos/Linxira-OS/linxira-zeta/compare/v18.16.0...main`. Hotspots are the extension
   link browser/transcript links (`packages/coding-agent`, `packages/tui`,
   `packages/agent`), sloppy-edit parser tests, provider-session state, and
   docs. No `BREAKING` marker and no termide/editor/workbench tree (those are
@@ -224,7 +224,7 @@ merge.
     upstream did **not** change `python/robomp` in this window (the 18-file
     diff is Zeta's adaptation against the tag). Preserve the Zeta CLI/host
     adaptation and the `check-robomp-cli-contract` guard; do not take upstream's
-    `omp` invocation text wholesale. Study is in
+    `zetacode` invocation text wholesale. Study is in
     `document/agents/workflow/robomp.md`; activation is separate.
 - **Preconditions before starting**:
   1. User names the exact tag (`v18.16.0` candidate above).
@@ -243,7 +243,7 @@ merge.
   finds 462 present and changed; the other 5 are deliberate Zeta decisions:
   - `packages/coding-agent/src/export/share.ts` and
     `packages/coding-agent/test/share.test.ts` — retired `/share` upload surface;
-  - `sdk/{go,python,rust}/omp-rpc/**` — renamed distribution trees
+  - `sdk/{go,python,rust}/zeta-rpc/**` — renamed distribution trees
     (`sdk/*/zeta-rpc`); wire payloads are unchanged.
   No upstream path was silently left at its v18.15.0 content. The 140
   conflicts were resolved per path against this tag-to-tag delta; the final
@@ -324,7 +324,7 @@ merge.
 - **Test contracts**: taken from upstream wholesale (20 files), then the
   `.omp` config-dir paths were re-adapted to `.zeta` in
   `test/tools/lsp-regressions.test.ts` and the `@zeta-lsp-` temp prefixes were
-  restored to `@zeta-lsp-` (125 fixtures). `__omp_prelude__`/`__omp_log__` in
+  restored to `@zeta-lsp-` (125 fixtures). `__zeta_prelude__`/`__zeta_log__` in
   `tools/browser-schema.test.ts` were renamed to the `__zeta_*` names the
   sources actually inject.
 - **Structural repair** (`54d6a69fad4`): the eight package CHANGELOGs restored
@@ -375,8 +375,8 @@ merge.
   `@linxiraos/zeta-compact → @linxiraos/zeta-compact`,
   `@linxiraos/* → @linxiraos/*`. Upstream-added tests were taken as contract,
   then replayed (`ZETA_CODING_AGENT_DIR → ZETA_CODING_AGENT_DIR`,
-  `omp-rpc → zeta-rpc`, `` `zetacode session lease` → `zetacode session lease` ``,
-  `omp.jobs.output → zeta.jobs.output`, `omp-file-lock-probe-* →
+  `zeta-rpc → zeta-rpc`, `` `zetacode session lease` → `zetacode session lease` ``,
+  `zeta.jobs.output → zeta.jobs.output`, `omp-file-lock-probe-* →
   zeta-file-lock-probe-*`).
 - **Root manifests**: `Cargo.toml` keeps Zeta `1.4.7`; `Cargo.lock` is
   unchanged because upstream's 24-line diff is workspace version bumps only;
@@ -510,12 +510,12 @@ two-parent tag merge.
   taking upstream's `redactUserIdentity`, and TUI semantics (skill card,
   approval grants, eval MCP progress, jobs widget row) taken from upstream.
 - **Owned surfaces restored**: `AGENTS.md`, root `README.md`,
-  `.github/workflows/ci.yml` (upstream's `.omp/tools` path filters and step were
+  `.github/workflows/ci.yml` (upstream's `.zeta/tools` path filters and step were
   dropped), `scripts/ci-test-ts.ts` (kept Zeta jobs; added `.zeta/tests`),
   `scripts/ci-update-brew-formula*` (ours; upstream's build-service mirror does
   not apply), `Cargo.toml` version 1.4.0, package CHANGELOGs ours.
-- **`.omp` surface**: upstream's `.omp/*` stayed deleted; its new
-  `.omp/tests/tui.test.ts` was carried as `.zeta/tests/tui.test.ts` (scope and
+- **`.omp` surface**: upstream's `.zeta/*` stayed deleted; its new
+  `.zeta/tests/tui.test.ts` was carried as `.zeta/tests/tui.test.ts` (scope and
   temp-prefix rewrites) and wired into the CI TS runner.
 - **Generated data**: `packages/catalog/src/compat/rules.json` regenerated from
   the merged KDL (`bun run gen:compat`, 1091 rules). Only two deltas against
@@ -544,7 +544,7 @@ two-parent tag merge.
   - `39953085121` — one job red: the PTY launcher's data callback still
     referenced bare `pending`/`onData`; the merge had produced a hybrid of
     upstream's native `PtySession` path and Zeta's older `Bun.spawn` launcher.
-    Replaced `.zeta/tools/tui.ts` with `v18.12.6:.omp/tools/tui.ts` wholesale
+    Replaced `.zeta/tools/tui.ts` with `v18.12.6:.zeta/tools/tui.ts` wholesale
     (brand + `zeta-tui-` temp-prefix rewrites only), matching the carried
     `.zeta/tests/tui.test.ts` contract.
   - `39960952760` (tip `657b9c7a1e7`) — **green: 32 jobs, 0 failed**, release
@@ -840,7 +840,7 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
     236 files`). Diffed against upstream's own compile it differs in exactly two values, both
     intentional: `providers/baseten/defaultModel` is Zeta's `moonshotai/Kimi-K3` (a Zeta-only data change
     upstream never took) and `auth/providers[0]/login/authorizeParams/originator` is `zeta` where
-    upstream says `omp`.
+    upstream says `zetacode`.
   The six classes reconcile with the decision table (`temp/analysis-v18112/decision-table.txt`):
   18+4+4+1+36+16 = 79 files and 20+27+7+0+37+16 = 107 blocks; `[G]` has no markers (see its bullet)
   but git still listed the path as `UU`.
@@ -856,7 +856,7 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
   eval-status roles, the `zeta_session_files` table prefix, and the `codex.ts` `runSearch` body that now
   goes through the candidate loop). The renamed-path leg was verified separately —
   `docs/{adding-a-provider,tui-core-renderer}.md` -> `document/…` (1/1, 6/6 lines) and
-  `sdk/{go,python,rust}/omp-rpc` -> `sdk/*/zeta-rpc` (5/5, 3/3, 5/5) — **0 added lines missing**.
+  `sdk/{go,python,rust}/zeta-rpc` -> `sdk/*/zeta-rpc` (5/5, 3/3, 5/5) — **0 added lines missing**.
 - **Member-loss audit (backward)**: `bun scripts/audit-merge-members.ts --base d98033c2694 --tag v18.11.2`
   → `0 member(s) dropped across 0 file(s)` with `23 member(s) across 15 file(s) explained as upstream's
   own removal in this window (v18.11.2)` (58,594 members compared in 2,746 files of the baseline against
@@ -959,9 +959,9 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
      `__zeta_call_tool__` (the file is a `.txt`, so the scope sweep's `*.ts` glob skipped it); three
      `test/eval/prelude-agent.test.ts` read()-delegation cases threw
      `TypeError: globalThis.__zeta_call_tool__ is not a function`. The single line was renamed, and the
-     playbook's own all-text-type sweep (`git grep -nE '@linxiraos/|__omp_|ZETA_CODING_AGENT_DIR|PI_LOGO'
+     playbook's own all-text-type sweep (`git grep -nE '@linxiraos/|__zeta_|ZETA_CODING_AGENT_DIR|PI_LOGO'
      -- .`, step 7, which names `prelude.txt` as a repeat offender) was then re-run over the whole tree:
-     its only upstream-side hits are the deliberate protocol names (`__omp_judgment_images`, `mcp__omp__`
+     its only upstream-side hits are the deliberate protocol names (`__zeta_judgment_images`, `mcp__zeta__`
      — upstream wire keys, kept on both sides per conclusion 10) and pre-existing documentation.
   The remaining two reds are **not** merge damage: `packages/utils/test/json-lexer-string-scan.test.ts`
   ("keeps escape-dense strings linear", wall-clock ratio `3.162` against a `< 3` bound) and Rust's
@@ -1069,10 +1069,10 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
   `v18.11.1` is present in the merged tree — 573 files, **24,186 added lines**, 23,742 exact + 347 after
   the documented brand rewrites, 85 explained exceptions: 12 upstream `## [18.11.x]` CHANGELOG headers
   (removed by the fold), 13 `"version": "18.11.1"` manifest lines (Zeta `1.2.1` wins),
-  `"dist/*.json-*.zst"` (present; whitespace differs), `bun-cli.ts`'s `` standalone `omp` `` → `zetacode`,
+  `"dist/*.json-*.zst"` (present; whitespace differs), `bun-cli.ts`'s `` standalone `zetacode` `` → `zetacode`,
   4 i18n literals (text moved into `i18n/en.ts`), 3 `ZETA_CODING_AGENT_DIR` occurrences (env contract),
   `omp-changelog-pty-` → `zeta-changelog-pty-`, and the `ast-grep.ts` literal (i18n wrapper). The
-  renamed-path leg was verified separately: `sdk/{go,python,rust}/omp-rpc/*` → `sdk/*/zeta-rpc/*`,
+  renamed-path leg was verified separately: `sdk/{go,python,rust}/zeta-rpc/*` → `sdk/*/zeta-rpc/*`,
   **12 added lines, 12 exact, 0 missing**.
 - **Member-loss audit (backward)**: `bun scripts/audit-merge-members.ts --base e5b1667537b --tag v18.11.1`
   → `0 member(s) dropped across 0 file(s)` with `24 member(s) across 21 file(s) explained as upstream's
@@ -1096,7 +1096,7 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
   upstream's new command text folded into the i18n catalogue (`cmdPluginsEnable`/`cmdPluginsDisable`,
   `cmdSessionPin`, `agrpLimitNarrowPath`) with their zh counterparts, `__zeta_call_tool__` →
   `__zeta_call_tool__` in the judgment bridge fixture, and the env contract kept
-  (`ZETA_CODING_AGENT_DIR` + `PI_CONFIG_DIR`, never `ZETA_CODING_AGENT_DIR`).
+  (`ZETA_CODING_AGENT_DIR` + `ZETA_CONFIG_DIR`, never `ZETA_CODING_AGENT_DIR`).
   `bun scripts/brand/brand-check.ts` → `0 hit(s), 0 missing assertion(s)`.
 - **CHANGELOGs**: upstream's fresh sections (`## [18.11.1]`, `## [18.11.0]`, plus the `## [18.10.4]`
   block the merge re-added) folded into `[Unreleased]` for the 8 packages that carry upstream history —
@@ -1165,9 +1165,9 @@ follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetaw
   were deleted with their zh counterparts.
 - **Brand/i18n follow-up commit**: the TUI roles upstream shipped in this window are emitted and asserted
   as `zeta.*` (`zeta.overlay.approval`, `zeta.approval.title`, `zeta.approval.details`,
-  `zeta.editor.ask.approval`, `zeta.btw.copied`, `zeta.btn`, `zeta.tool.*`), `zetacode` replaces `omp` in
+  `zeta.editor.ask.approval`, `zeta.btw.copied`, `zeta.btn`, `zeta.tool.*`), `zetacode` replaces `zetacode` in
   the new `gc --compress`/shared-browser comments, `brand-rules.ts`'s TUI-role alternation grew the
-  `approval` namespace (v18.10.4 shipped `omp.approval.title`/`.details` while the alternation did not
+  `approval` namespace (v18.10.4 shipped `zeta.approval.title`/`.details` while the alternation did not
   know it — the rung-2 lesson repeated shape-for-shape), and the new `gc` help literals bumped the pinned
   `commands/gc.ts` count in `test/i18n-cli-help-surface.test.ts` 12 → 14.
 - **Audit note — member loss**: `bun scripts/audit-merge-members.ts --base 08a79203681…` reports 35
@@ -1242,8 +1242,8 @@ removed the file and our side of it was scope/brand-only; `regen` = generated ar
 | 41 | `packages/tui/test/terminal-capabilities.test.ts` | mech | adds the `withFakeTmux` helper import | scope map | upstream + scope map |
 
 (`packages/tui/test/dialogs-native.test.ts` and `packages/tui/test/native-panels-misc.test.ts` are the
-merge's *silent* half of row 39/41's role work: they auto-merged with upstream's new `omp.btn` /
-`omp.approval.*` assertions, which the role sweep re-spelled.)
+merge's *silent* half of row 39/41's role work: they auto-merged with upstream's new `zeta.btn` /
+`zeta.approval.*` assertions, which the role sweep re-spelled.)
 
 ### Checks
 
@@ -1419,14 +1419,14 @@ because upstream's rewrite removed the only use of the symbol.
   auto-merged the rest, so the residue lives outside the conflict list (merge-playbook 「结论 2」). The
   residue was 22 files of upstream tests/sources carrying `@linxiraos/*` imports plus
   `packages/tui/{src/apps/git/git-tui.ts,test/apps-native.test.ts,test/wait-render.test.ts}` carrying
-  `omp.app.git.*` / `omp.wait.job`. **Neither `app` nor `wait` was in the brand-rules role
+  `zeta.app.git.*` / `zeta.wait.job`. **Neither `app` nor `wait` was in the brand-rules role
   alternation, so brand-check stayed green while the residue shipped** — the alternation now lists
   every namespace the TUI emits (`role: "zeta.<ns>"` over `packages/`), which is the only form that
   cannot go stale again.
 - **`bun scripts/brand/brand-overlay.ts`** (idempotent mechanical pass): 3 tokens in 2 files — the
-  `--restore`/`--export` examples' `~/.omp/agent` → `~/.zeta/agent`, and a `.omp` fixture path in the
+  `--restore`/`--export` examples' `~/.zeta/agent` → `~/.zeta/agent`, and a `.omp` fixture path in the
   imported `restore-revive` test.
-- **`omp --restore` copy** (8 source/doc-comment/test-label sites) → `zetacode --restore`: the
+- **`zetacode --restore` copy** (8 source/doc-comment/test-label sites) → `zetacode --restore`: the
   backticked form sits outside the brand rule's lookbehind, so the gate cannot see it; the CLI is
   `zetacode` everywhere else in the product. CHANGELOG prose keeps upstream's spelling (the rule
   exempts it, and released entries are history).
@@ -1439,7 +1439,7 @@ because upstream's rewrite removed the only use of the symbol.
   entire `## [18.x]` section history, and the version gate rejects any `^## [1[5-8]\.` header. The new
   upstream sections (`18.10.2`, `18.10.3`, plus upstream's `[Unreleased]`) were folded into
   `[Unreleased]` for all 8 packages — 68 bullets, verified against `refs/heads/main` for exact and
-  near duplicates (none), with `omp.run.time`/`omp.wait.job` re-spelled to `zeta.*`. Nothing else of
+  near duplicates (none), with `zeta.run.time`/`zeta.wait.job` re-spelled to `zeta.*`. Nothing else of
   upstream's CHANGELOG history is carried (the fork dropped those sections in the squash-sync era).
   One pre-existing `[Unreleased]` bullet's `@linxiraos/pi-tui/native/*` spelling was restored to main's
   text rather than swept, because that file is allow-listed for exactly that mention.
@@ -1513,29 +1513,29 @@ because upstream's rewrite removed the only use of the symbol.
 | 2 | `Cargo.toml` | `[workspace.package] version = "18.10.1"` | `version = "1.2.1"`, `authors = ["Linxira-OS"]` | **ours** |
 | 3 | `bun.lock` | 24 workspace `version` lines | our `1.2.1` + Zeta workspace set | **ours** (verified: a later `bun install` leaves the file unchanged) |
 | 4 | `MODULE.bazel.lock` | `Cargo.lock`/`Cargo.toml` FILE hashes + `pi-shell-18.10.1` alias | ours' `pi-shell-1.2.1` + hashes of our Cargo files | **ours** (generated artifact; consistent only because both Cargo files stay ours) |
-| 5 | `packages/coding-agent/src/modes/interactive-mode.ts` | pills → segments: `RunningSegment`, `#agentsSegment`/`#jobsSegment`, `omp.hud.seg`, one merged counter | `zeta.hud.*`, **and the Zeta-only idle tok/s HUD** (`#idleStatusNative` + `#describeIdleStatusHud` + its `slot` in `describeStatusHud`) | **combined**: upstream's segment shape + `zeta.*`; the idle HUD kept (fields `#agentsSegment`/`#jobsSegment` *and* `#idleStatusNative`; `#describeIdleStatusHud` kept under upstream's new doc comment) |
+| 5 | `packages/coding-agent/src/modes/interactive-mode.ts` | pills → segments: `RunningSegment`, `#agentsSegment`/`#jobsSegment`, `zeta.hud.seg`, one merged counter | `zeta.hud.*`, **and the Zeta-only idle tok/s HUD** (`#idleStatusNative` + `#describeIdleStatusHud` + its `slot` in `describeStatusHud`) | **combined**: upstream's segment shape + `zeta.*`; the idle HUD kept (fields `#agentsSegment`/`#jobsSegment` *and* `#idleStatusNative`; `#describeIdleStatusHud` kept under upstream's new doc comment) |
 | 6 | `packages/coding-agent/test/hook-editor.test.ts` | new `describe()` shape (`k:"text"` head + `md` part) | `role: "zeta.ask.question"` | upstream test (its impl changed in the same window) + `zeta.ask.question` |
-| 7 | `packages/coding-agent/test/modes/components/pause-screen.test.ts` | imports `NativeChild`/`NativeNode`, asserts `omp.btn`/`omp.overlay.pause` | `@linxiraos/*` imports, `zeta.*` roles | upstream test + scope map + `zeta.*` |
-| 8 | `packages/tui/src/apps/autoresearch-dashboard.ts` | `fmtNum`, `TspScrollBy`, `scroll`, `describeSheetHead`, `omp.autoresearch.*` roles | `zeta.*` roles, `@linxiraos/pi-wire` | upstream + role/scope map |
-| 9 | `packages/tui/src/chat/assistant-message.ts` | shared `line` in the turn-usage row; `#handleErrorAction` → `#handleAction`; `omp.turn.*` | `zeta.turn.usage` | upstream + roles |
+| 7 | `packages/coding-agent/test/modes/components/pause-screen.test.ts` | imports `NativeChild`/`NativeNode`, asserts `zeta.btn`/`zeta.overlay.pause` | `@linxiraos/*` imports, `zeta.*` roles | upstream test + scope map + `zeta.*` |
+| 8 | `packages/tui/src/apps/autoresearch-dashboard.ts` | `fmtNum`, `TspScrollBy`, `scroll`, `describeSheetHead`, `zeta.autoresearch.*` roles | `zeta.*` roles, `@linxiraos/pi-wire` | upstream + role/scope map |
+| 9 | `packages/tui/src/chat/assistant-message.ts` | shared `line` in the turn-usage row; `#handleErrorAction` → `#handleAction`; `zeta.turn.*` | `zeta.turn.usage` | upstream + roles |
 | 10 | `packages/tui/src/chat/user-message.ts` | toolbar becomes an icon row (Copy/Rewind icons, `align:"center"`) | text buttons carrying `zeta.user.tool` | upstream (icon footer) + `zeta.user.tool`/`zeta.user.tools` |
 | 11 | `packages/tui/src/overlays/advisor-config.ts` | picker editors hoist into `#editorSheet` | `zeta.prefs.editor` | upstream + role |
-| 12 | `packages/tui/src/overlays/annotation-overlay.ts` | `#describeRail`, `omp.review.*`, `max:{lines}`, `editing` guard; drops ours' `selectList` sidebar + `overlayCard` | `zeta.overlay.codeReview*` / `zeta.overlay.annotateText*` | upstream + roles |
-| 13 | `packages/tui/src/overlays/ask-dialog.ts` | `ring` param, `omp.editor.ask(.hidden)`, checked tabs, `omp.ask.summary/preview/notice/answers/other.check`, `optionLabelSpans` | `zeta.editor`, `zeta.ask.*` | upstream + roles |
+| 12 | `packages/tui/src/overlays/annotation-overlay.ts` | `#describeRail`, `zeta.review.*`, `max:{lines}`, `editing` guard; drops ours' `selectList` sidebar + `overlayCard` | `zeta.overlay.codeReview*` / `zeta.overlay.annotateText*` | upstream + roles |
+| 13 | `packages/tui/src/overlays/ask-dialog.ts` | `ring` param, `zeta.editor.ask(.hidden)`, checked tabs, `zeta.ask.summary/preview/notice/answers/other.check`, `optionLabelSpans` | `zeta.editor`, `zeta.ask.*` | upstream + roles |
 | 14 | `packages/tui/src/overlays/btw-history-panel.ts` | `nativeOverlay` becomes a getter over `SHEET`/`EMPTY_SHEET`; mail-reader anatomy | `zeta.overlay.btwHistory` | upstream + role |
 | 15 | `packages/tui/src/overlays/hook-editor.ts` | role literal → `ROLE` constant | `"zeta.overlay.hook-editor"` | upstream (constant), with `ROLE` verified `zeta.overlay.hook-editor` |
-| 16 | `packages/tui/src/overlays/jobs-panel.ts` | master–detail split (`omp.jobs.split/master/detail`, status pill, `elapsed` node, `omp.jobs.*`) | `zeta.jobs.row/detail/output` | upstream + roles |
-| 17 | `packages/tui/src/overlays/login-dialog.ts` | `#describeCode/Link/Open/Live/Done`, `omp.login.*`, `omp.btn` | `zeta.login.*` | upstream + roles |
+| 16 | `packages/tui/src/overlays/jobs-panel.ts` | master–detail split (`zeta.jobs.split/master/detail`, status pill, `elapsed` node, `zeta.jobs.*`) | `zeta.jobs.row/detail/output` | upstream + roles |
+| 17 | `packages/tui/src/overlays/login-dialog.ts` | `#describeCode/Link/Open/Live/Done`, `zeta.login.*`, `zeta.btn` | `zeta.login.*` | upstream + roles |
 | 18 | `packages/tui/src/overlays/mcp-add-wizard.ts` | adds `node:path` import | `@linxiraos/pi-utils` | upstream + scope map |
 | 19 | `packages/tui/src/overlays/plugin-selector.ts` | badges (`badgesByValue`) for version/installed/scope | **Zeta i18n** (`tuiText("pluginSelectorInstalled"/"mcpScopeWordUser"/"mcpScopeWordProject")`) | **combined**: our localized `status`/`scopeTag` + upstream's `badgesByValue.set(...)` |
-| 20 | `packages/tui/src/overlays/session-info-overlay.ts` | `identityField`, `#describeStats`, `omp.info.*` | `zeta.info.copy/kv/file/*` | upstream + roles |
-| 21 | `packages/tui/src/overlays/usage-dashboard.ts` | `#describeStats`/`#describeActivity`/`#quotaMeta`, `leftSpans`, `omp.usage.*` | `zeta.usage.*` | upstream + roles |
-| 22 | `packages/tui/src/status-line/context-usage.ts` | stacked `bar` + `shares` rows + snapcompact rows (`omp.context.*`) | `zeta.context.*` | upstream + roles |
+| 20 | `packages/tui/src/overlays/session-info-overlay.ts` | `identityField`, `#describeStats`, `zeta.info.*` | `zeta.info.copy/kv/file/*` | upstream + roles |
+| 21 | `packages/tui/src/overlays/usage-dashboard.ts` | `#describeStats`/`#describeActivity`/`#quotaMeta`, `leftSpans`, `zeta.usage.*` | `zeta.usage.*` | upstream + roles |
+| 22 | `packages/tui/src/status-line/context-usage.ts` | stacked `bar` + `shares` rows + snapcompact rows (`zeta.context.*`) | `zeta.context.*` | upstream + roles |
 | 23 | `packages/tui/test/annotation-overlay.test.ts` | adds a `NativeUiEvent` import | `@linxiraos/pi-tui/...` | upstream + scope map |
-| 24 | `packages/tui/test/dialogs-native.test.ts` | asserts the `omp.editor.ask` root and submit-button tone | `zeta.*` roles | upstream test + roles |
+| 24 | `packages/tui/test/dialogs-native.test.ts` | asserts the `zeta.editor.ask` root and submit-button tone | `zeta.*` roles | upstream test + roles |
 | 25 | `packages/tui/test/hook-input-timeout.test.ts` | harness helpers (`nodes`/`spans`) + imports | `@linxiraos/*` | upstream + scope map |
 | 26 | `packages/tui/test/native/transcript-redesign-native.test.ts` | icon-based toolbar query (`prop(node,"name") === icon`) | `zeta.user.tool` | upstream test + role |
-| 27 | `packages/tui/test/usage-native-describe.test.ts` | `plain()` helper, tightest-quota headline, `omp.info.copy` copies | `zeta.info.copy` | upstream test + role |
+| 27 | `packages/tui/test/usage-native-describe.test.ts` | `plain()` helper, tightest-quota headline, `zeta.info.copy` copies | `zeta.info.copy` | upstream test + role |
 
 ### Post-merge Zeta adaptation (commit `dcc8e8a84ef`)
 
@@ -1551,7 +1551,7 @@ because upstream's rewrite removed the only use of the symbol.
   (turn/user/context/jobs/login/info/review/mcpAdd/btw/pause/report/prefs/autoresearch/overlay/hook/
   tool/usage/hud/actions) so a later merge cannot ship them silently.
 - `scripts/brand/brand-overlay.ts`: excluded `config/omp-compat` + `config/model-registry` (they probe
-  the real upstream OMP root `~/.omp/agent`, decision `92f06c8b240`) and CHANGELOG prose from the
+  the real upstream OMP root `~/.zeta/agent`, decision `92f06c8b240`) and CHANGELOG prose from the
   path-rewrite rules. Before this the overlay wanted to rewrite 9 tokens in those 4 files — i.e. it
   would have reverted that decision; after it the overlay reports `0 file(s), 0 token(s)`.
 
@@ -1666,7 +1666,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   mnemopi embedding server, and `napi-rs` 3.14.2. Resolution rule: adopt upstream's shape,
   then re-apply the Zeta surface — scope **map** (`@linxiraos/zeta`→`@linxiraos/zeta`,
   `omptype`→`pi-omptype`, `omp-stats`→`pi-stats`, `snapcompact`→`pi-snapcompact`),
-  `__omp_worker_*`→`__zeta_worker_*`, `zetacode` for the CLI name, `.omp`→`.zeta` paths.
+  `__zeta_worker_*`→`__zeta_worker_*`, `zetacode` for the CLI name, `.omp`→`.zeta` paths.
   Judgment calls: kept Zeta's `IDA_HOST_WORKER_ARG`/`setProcessName` spellings; kept
   Zeta's `CLI_SESSION` 4th argument while adopting upstream's new `forkIfMovedAway` wrapper
   (`main.ts`); kept Zeta's `#spawnBroker` stderr-tee in `launch/client.ts`; dropped Zeta's
@@ -1683,9 +1683,9 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   scripts `check:nix-bun`, `check:relay-assets`, `ci:release:publish-web-ui`,
   `ci:release:publish-plugin`, `gen:relay-assets`, `gen:brand-art` dropped;
   `devDependencies.figlet` dropped; `test:py`/`robomp:install` rewritten to the
-  **non-existent** `sdk/python/omp-rpc`; the five exact catalog pins →
+  **non-existent** `sdk/python/zeta-rpc`; the five exact catalog pins →
   upstream carets; all 12 `packages/*/package.json` `check:types` `tsc` → `tsgo`;
-  `packages/mnemopi/package.json` description "Zeta agents" → "omp agents". All were
+  `packages/mnemopi/package.json` description "Zeta agents" → "zetacode agents". All were
   resolved by hand to **Zeta main + the genuine upstream delta** (this window's entire
   upstream manifest delta is catalog version bumps + `bench:ipc` in `packages/natives`).
   This also explains the #189 finding that `packageManager` reverts to `bun@>=1.4` every
@@ -1718,7 +1718,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   13 catalog keys + Cargo + natives stamp + README badge + Cargo.lock members;
   `check:ts` 0 errors; `brand-check` 0 hits / 0 missing assertions (one rule retargeted:
   the tiny-worker banner *reader* moved from `tiny/title-client.ts` to
-  `subprocess/shared-worker.ts` in this window and came back spelled `omp`);
+  `subprocess/shared-worker.ts` in this window and came back spelled `zetacode`);
   `check-zeta-sentinels` 104/104; `check-scope-imports` 18762 specifiers resolve;
   `check-ci-surface` 32 jobs; `check-local-ci-parity` OK; `cargo fmt --all --check` clean;
   `audit-merge-members` 0 dropped across 0 files; `check-i18n-consistency` 3219/3219/3219;
@@ -1754,7 +1754,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
     went green the moment the addon was source-matched, confirming the environmental diagnosis. The
     ninth exposed a **real defect**: upstream's new ask-hide test
     (`packages/tui/test/dialogs-native.test.ts`) asserts **upstream's** TUI role names
-    (`omp.btn` / `omp.ask.options`) while `packages/tui/src` emits `zeta.*`, so `press("hide")` threw
+    (`zeta.btn` / `zeta.ask.options`) while `packages/tui/src` emits `zeta.*`, so `press("hide")` threw
     `no hide button`; `check:ts` cannot connect a role string in a test to the role a node is built with.
     Fixed in `65a13e09fb4` (literals → `zeta.*`), and the guard that should have caught it was extended:
     `brand-rules.ts`'s TUI-role alternation now includes `ask|btn` — it knew
@@ -1786,7 +1786,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
 - **Conflicts**: 38 (36 UU, 1 UD, 1 DU) — a third of v18.9.1's, because the 18.8.x–18.9.1
   brand sweeps had converged. Resolution: source and tests take upstream, then the Zeta
   surface is re-applied (scope mapping including the leaf renames, brand tokens, `.zeta`
-  paths, backticked CLI references, `__omp_*` prelude globals). Judgment calls:
+  paths, backticked CLI references, `__zeta_*` prelude globals). Judgment calls:
   - `README.md` (product front door) stays ours; `Dockerfile.robomp` keeps our base image
     and takes upstream's bun version (the container's bun is not the CI runtime pin).
   - upstream deleted `ai/judgment/typesafe.ts` (the judgment client is now `native.ts`) —
@@ -1863,10 +1863,10 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   wholesale-taken tests (`@linxiraos/pi-catalog/...`), and `@linxiraos/zeta-schema` →
   `@linxiraos/zeta-schema` (the class-3 rename that is *not* a plain scope swap);
   the cross-face env contract `ZETA_CODING_AGENT_DIR` → `ZETA_CODING_AGENT_DIR`
-  (class 11 — `dirs.ts` reads only `ZETA_*`); `omp` CLI references in
+  (class 11 — `dirs.ts` reads only `ZETA_*`); `zetacode` CLI references in
   help/test/prose → `zetacode`; `.omp` fixtures → `.zeta`; relay daemon
   `omp.browser.relay.<port>` → `zeta.browser.relay.<port>`; TUI role
-  `omp.run.status` → `zeta.run.status`; the macOS display-awake reason string.
+  `zeta.run.status` → `zeta.run.status`; the macOS display-awake reason string.
 - **Silent auto-merge mixes (this round's lesson)**: two files came out of
   conflict-free auto-merges with *semantically* mixed sides, and only `check:ts`
   saw them: (a) `slash-commands/builtin-completions.ts` kept upstream's raw
@@ -1915,8 +1915,8 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   five families, each an upstream contract imported without its Zeta counterpart
   (fixed in `92b3476e27a`):
   1. **TUI roles** — upstream's `composer-native`/`transcript-committed-release`
-     tests assert `omp.composer.*`/`omp.editor.*`/`omp.working.*`/`omp.queue.*`/
-     `omp.status`/`omp.note` while the sources emit `zeta.*` (main's copies are
+     tests assert `zeta.composer.*`/`zeta.editor.*`/`zeta.working.*`/`zeta.queue.*`/
+     `zeta.status`/`zeta.note` while the sources emit `zeta.*` (main's copies are
      branded); `notifications.test.ts` asserted the OSC 99 probe id `i=omp-probe-`
      and app field `f=b21w` against a source emitting `zeta-probe-`/`emV0YQ==`.
      Swept both to the Zeta shapes and widened the brand rules from the
@@ -1949,16 +1949,16 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   class of half-swept contract:
   1. **Runtime globals** — the merge swept the producer side but left fixtures (and
      one consumer) on the upstream spelling: `computer.test.ts` still passed
-     `__omp_prelude__`/`__omp_display__` (5+5) and its facade case asserted
-     `__omp_fn`/`__omp_re` against sources emitting `__zeta_*`; `prelude-agent`
-     still installed `__omp_helpers__` in its artifact helper while the prelude
+     `__zeta_prelude__`/`__zeta_display__` (5+5) and its facade case asserted
+     `__zeta_fn`/`__zeta_re` against sources emitting `__zeta_*`; `prelude-agent`
+     still installed `__zeta_helpers__` in its artifact helper while the prelude
      reads `__zeta_helpers__`. Worse, `runner.py` injected the run-id getter as
-     `__omp_current_run_id__` while `prelude.py` looks up
+     `__zeta_current_run_id__` while `prelude.py` looks up
      `__zeta_current_run_id__` — a **silent** degrade the fallback to
      `__zeta_run_id__` masked. All aligned to the `__zeta_*` names the sources
      define; `brand-rules` now pins that list (and explicitly keeps the internal
-     protocol markers `__omp_with_call_site__`/`__omp_tool_bridge__`/
-     `__omp_final_expr__`/`mcp__omp__*` upstream-shaped).
+     protocol markers `__zeta_with_call_site__`/`__zeta_tool_bridge__`/
+     `__zeta_final_expr__`/`mcp__zeta__*` upstream-shaped).
   2. **settings zh, again** — `composer.predictions` and `contextFiles.extra` had
      no zh label; the assertion stops at the first, so a throwaway audit over
      `createSettingsHost()` (429 entries) was used to enumerate all of them
@@ -2015,7 +2015,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
      closed still fails.
   5. **The CLI's own name swept to the workbench's (half-sweep)** — once item 3's
      guard stopped masking failures, the only red left was two cases in
-     `test/executable-fallback.test.ts`. Upstream's fixture wrote `omp` for the CLI it
+     `test/executable-fallback.test.ts`. Upstream's fixture wrote `zetacode` for the CLI it
      resolves on PATH; our sweep wrote bare `zeta`, matching `worker-client.ts`'s
      pre-existing `$which("zeta")`. In Zeta a bare `zeta` is the suite-index bin
      (`@linxiraos/main`, which prints the help rather than opening the workbench), so
@@ -2125,13 +2125,13 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   explicit utf8, or take them straight from the git object store — a shell
   redirect is enough to corrupt a source file mid-merge.
 - **Brand overlay**: scope rewritten across 36 files (+226 imports), then 47
-  `omp` identity hits re-applied by category. Beyond the usual command/prose/path
+  `zetacode` identity hits re-applied by category. Beyond the usual command/prose/path
   split, this round turned up a `".omp": true` entry in
   `session-anonymizer.ts`'s bundle-exclusion list — our config directory had
   silently stopped being excluded from anonymized shares, so `.zeta` replaced it.
 - **TUI role identifiers are a cross-face contract with no user-visible spelling.**
   Upstream's v18.8.8 rewrite of \	ui/src/tools/native-view.ts\ brought its own
-  \omp.tool.file\ / \omp.tool.error\ role names back in the source while the
+  \zeta.tool.file\ / \zeta.tool.error\ role names back in the source while the
   tests kept asserting \zeta.tool.*\. Three views rendered zero nodes and the
   assertions reported a bare length mismatch with nothing pointing at the cause.
   Neither overlay layer can see this: the scope overlay keys on imports, the
@@ -2201,11 +2201,11 @@ recurs on every sync.
 
 - **Class 1 — brand surface reverted (195 sites), overlay rules too narrow.**
   `docs/context-files.md` + `docs/environment-variables.md` reverted wholesale to
-  `.omp` / `~/.omp` / `ZETA_CODING_AGENT_DIR`; `agentInfo.name/title = "omp"`;
-  `` `${CLI_BIN_NAME} update` `` → `"omp update"`; TUI role ids `omp.composer.chip`
-  and `omp.run.status` (the class with no user-visible spelling that no overlay layer
+  `.omp` / `~/.zeta` / `ZETA_CODING_AGENT_DIR`; `agentInfo.name/title = "omp"`;
+  `` `${CLI_BIN_NAME} update` `` → `"zetacode update"`; TUI role ids `zeta.composer.chip`
+  and `zeta.run.status` (the class with no user-visible spelling that no overlay layer
   keys on); `omp.browser.relay`; `.omp-tmp.`; `zeta-plugins` provider comments;
-  `__omp_funcs` in `shell-snapshot-fn-env.sh` piped into the still-`__zeta_*` helper
+  `__zeta_funcs` in `shell-snapshot-fn-env.sh` piped into the still-`__zeta_*` helper
   (broken, not cosmetic). Repair: restore the pre-merge spelling per file, then 21
   `MUST_NOT_CONTAIN` + 6 `MUST_CONTAIN` rules in `scripts/brand/brand-rules.ts`.
   Detector added: `scripts/scan-brand-regressions.ts --base <pre-merge-ref>`.
@@ -2228,7 +2228,7 @@ recurs on every sync.
   the real event stream and is what `agent-session-title-fork.test.ts` exercises.
 
 - **Class 3 — generated files taken from upstream.** `bun.lock` was upstream's
-  (workspace named `omp`, dependency versions downgraded below the pinned ones) and
+  (workspace named `zetacode`, dependency versions downgraded below the pinned ones) and
   `MODULE.bazel.lock` was stale after the `Cargo.lock` re-pin. Both are ours:
   `bun.lock` restored to the pre-merge bytes, `MODULE.bazel.lock` re-taken from the CI
   freshness job's uploaded artifact.
@@ -2300,7 +2300,7 @@ gates could not see, and each is now fixed:
   Chinese without a language guard in `/tracking` output, IM channel replies,
   `PLAN_APPROVAL_INSTRUCTIONS` and two gateway error strings; `docs/` remains a
   brand-check blind spot (`SKIP_PREFIXES` skips the packaged corpus, so product
-  prose such as `docs/stream.md` "your omp sessions" survives), which needs a
+  prose such as `docs/stream.md` "your zetacode sessions" survives), which needs a
   scoped docs rule rather than the whole-tree one; tracking has lock-free
   read-modify-write of `status.json` and the global index, an unbounded
   `actions.jsonl`, and a `summaries/` family that no panel tab renders.
@@ -2401,7 +2401,7 @@ gates could not see, and each is now fixed:
   imports) via an explicit upstream→published map (`omptype`→`pi-omptype`,
   `pi-coding-agent`→`zeta`, `snapcompact`→`pi-snapcompact`,
   `typescript-edit-benchmark` keeps its leaf); unmapped ids are reported, not
-  guessed. Then 73 `omp` identity hits re-applied by category — command→
+  guessed. Then 73 `zetacode` identity hits re-applied by category — command→
   `zetacode`, usage/help/verification→`${CLI_BIN_NAME}`, config path→`.zeta`,
   `ZETA_CODING_AGENT_DIR`→`ZETA_CODING_AGENT_DIR` (cross-face token, class 11),
   prose→`zeta`. `tips.txt` lost upstream's `clanker` and `PI_DIALECT` lines
@@ -2450,11 +2450,11 @@ gates could not see, and each is now fixed:
 - **Baseline**: v18.7.0 (peeled `e0fc1cf4ea35`, merge-base gate passed exactly) 鈫?Zeta start `ca4cef1b00f` (main @ local CI tooling). **Source tags**: `v18.8.1`鈫抦erge `4f5cd0598f3`, `v18.8.2`鈫抈67dacf9d123`, `v18.8.3`鈫抈187a2084275`, `v18.8.4`鈫抈3151cc088ae`, then the follow-up window `v18.8.5`鈫抈77c3e5b2bf1` (peeled `4bf0d9d3e9f9`) and `v18.8.6`鈫抈082bb1ac490` (peeled `f068751e2f1d`) 鈥?all true two-parent `git merge <tag>` commits; ancestry verified (`git merge-base --is-ancestor v18.8.6 HEAD` passes). PR #76 landed on main as `dab5fa80ac4`.
 - **Scale**: v18.7.0鈫抳18.8.6 = 524 upstream commits; the v18.8.4鈫抳18.8.6 window alone = **292 commits / 244 files / +10555 / 鈭?660**. Conflicts: **28 UU** (v18.8.5 window) + **32 UU** (v18.8.6 window), all resolved in-merge.
 - **Method**: per-file stage-3 (upstream shape) + Zeta surface re-application; three-way `git merge-file` re-merges for the files whose Zeta-only surface was larger than the upstream delta (`model-registry.ts`, `session-tools.ts`, `welcome.ts`, `sdk.ts`, `interactive-mode.ts`). A first sweep script had a real bug (the capture group held the package tail, so the rewrite emitted `@linxiraos//auth-storage`) 鈥?fixed by rewriting from `git show v18.8.5:<file>` with the tail-preserving map, then a tree-wide `git grep`-driven scope sweep (`@linxiraos/<pkg>` 鈫?`@linxiraos/<zeta-pkg>`, `omptype`鈫抈pi-omptype`, `pi-coding-agent`鈫抈zeta`, `pi-agent`鈫抈pi-agent-core`, `stats`鈫抈pi-stats`, `snapcompact`鈫抈pi-snapcompact`).
-- **Brand surface**: welcome/splash keeps the Zeta hero 鈥?`builtin: "zeta"` mark + `ZETA_LOGO` char-art + `zeta.welcome.*` roles; upstream's `PI_LOGO` 蟺 art and wordmark lockup dropped, `scripts/brand/brand-rules.ts` needle re-pinned to the two-column hero (`builtin: "zeta"` + `alt: APP_NAME`); `tips.txt` de-OMP'd (`zetacode cleanse`); the Tern promo tip (`[NO-TERN] … [tern](https://scl.so/tern)`) was kept in this v18.8.5 merge but **superseded 2026-10-14**: removed by user ruling (reason: upstream product promo + upstream short-link, and the brand surface belongs to Zeta) together with its `[NO-TERN]` visibility-marker mechanism (`welcome.ts`) and its `tip33` catalogue copy (`i18n/{en,zh}.ts`); a `MUST_NOT_CONTAIN /scl\.so/` guard now blocks its return (bare `stencil.so` is deliberately not banned — `catalog.stencil.so` is shared model-catalogue infrastructure); product prose `omp can/has/鈥? 鈫?`zeta` in input-controller/predict/tern. **SUPERSEDED 2026-10-13**: the welcome is now upstream's lockup structure (upstream `1fb10d29bc1`, first shipped in v18.9.2) branded to Zeta 鈥?`ZETA_LOGO` block-grid 味 mark beside the half-block `Zeta` wordmark with `v<version>` under it and the tip below; the two-column card, `LspServerInfo`/`RecentSession` and the model/provider rows are gone. A future sync must NOT re-apply the "drop the wordmark lockup" rule: `scripts/brand/brand-rules.ts` (MUST_CONTAIN) and `scripts/brand/zeta-sentinels.ts` pin the new art rows, and `packages/tui/test/welcome.test.ts` asserts the lockup.
+- **Brand surface**: welcome/splash keeps the Zeta hero 鈥?`builtin: "zeta"` mark + `ZETA_LOGO` char-art + `zeta.welcome.*` roles; upstream's `PI_LOGO` 蟺 art and wordmark lockup dropped, `scripts/brand/brand-rules.ts` needle re-pinned to the two-column hero (`builtin: "zeta"` + `alt: APP_NAME`); `tips.txt` de-OMP'd (`zetacode cleanse`); the Tern promo tip (`[NO-TERN] … [tern](https://scl.so/tern)`) was kept in this v18.8.5 merge but **superseded 2026-10-14**: removed by user ruling (reason: upstream product promo + upstream short-link, and the brand surface belongs to Zeta) together with its `[NO-TERN]` visibility-marker mechanism (`welcome.ts`) and its `tip33` catalogue copy (`i18n/{en,zh}.ts`); a `MUST_NOT_CONTAIN /scl\.so/` guard now blocks its return (bare `stencil.so` is deliberately not banned — `catalog.stencil.so` is shared model-catalogue infrastructure); product prose `zetacode can/has/鈥? 鈫?`zeta` in input-controller/predict/tern. **SUPERSEDED 2026-10-13**: the welcome is now upstream's lockup structure (upstream `1fb10d29bc1`, first shipped in v18.9.2) branded to Zeta 鈥?`ZETA_LOGO` block-grid 味 mark beside the half-block `Zeta` wordmark with `v<version>` under it and the tip below; the two-column card, `LspServerInfo`/`RecentSession` and the model/provider rows are gone. A future sync must NOT re-apply the "drop the wordmark lockup" rule: `scripts/brand/brand-rules.ts` (MUST_CONTAIN) and `scripts/brand/zeta-sentinels.ts` pin the new art rows, and `packages/tui/test/welcome.test.ts` asserts the lockup.
 - **Zeta-only surfaces re-applied** (sentinel + check:ts driven): `sdk.ts` `channelSend`/`workspaceRun`/`imControl` sinks; `model-registry` `getOmpOriginProviders`/`getOmpConfigProviders`/`getOmpCompatConfig`/`forceStatic`; `session-tools` `setThinkToolEnabled`; web-search `provider` pin (`SearchQueryParams.provider`) + `setSearchProviderOrder`/`setExcludedSearchProviders`/`isSearchProviderId` re-exports; `setImageProviderOrder`; welcome `LspServerInfo`/`RecentSession` (**removed again 2026-10-13 with the lockup port** — upstream dropped both in `1fb10d29bc1`; neither may be re-applied); `profile-alias` re-branded (`zetacode` command, `zeta-profiles.fish`, `zeta profile alias` markers, reserved name `zeta`).
-- **Config-dir + env sweeps**: `.omp` 鈫?`.zeta` across 24 files (docs/tests/`python/robomp`), `.omp-plugin` deliberately preserved; shell-snapshot scratch-variable contract unified back to `__zeta_*` (upstream renamed the producer side to `__omp_funcs`/`__omp_emit_referenced_exports` while our owned `shell-snapshot-fn-env.sh` helper still defined `__zeta_*` 鈥?the mismatch silently disabled env re-export of snapshotted functions) and the snapshot header branded `generated by zeta agent`.
+- **Config-dir + env sweeps**: `.omp` 鈫?`.zeta` across 24 files (docs/tests/`python/robomp`), `.omp-plugin` deliberately preserved; shell-snapshot scratch-variable contract unified back to `__zeta_*` (upstream renamed the producer side to `__zeta_funcs`/`__zeta_emit_referenced_exports` while our owned `shell-snapshot-fn-env.sh` helper still defined `__zeta_*` 鈥?the mismatch silently disabled env re-export of snapshotted functions) and the snapshot header branded `generated by zeta agent`.
 - **Structural**: `Cargo.toml` workspace version kept at the Zeta line; `Cargo.lock` re-pinned to 1.1.27 via WSL `cargo metadata` (upstream's lock carried `18.8.6`); **MODULE.bazel.lock refreshed from CI run `37898883237`'s uploaded artifact** (crate_universe hashes the Cargo inputs 鈥?the freshness check was never disabled); `bun.lock` regenerated by `bun install`; `packages/catalog/src/compat/rules.json` re-generated with `bun run gen:compat` (970 rules); all upstream `## [18.x]` CHANGELOG sections absorbed into the Zeta line; zh settings texts added for `worktree.onStart`/`worktree.onExit`.
-- **CI-driven repairs after the first green-merge push**: web-search `provider` pin silently swallowed by an over-wide slice (class-4 damage, restored); `update` banner `omp update` 鈫?`` `${CLI_BIN_NAME} update` ``; `update-cli` refusal message follows `CLI_BIN_NAME`; welcome/legacy-bundle test roles `omp.welcome.*`/`omp-legacy-pi-bundled:` 鈫?Zeta shapes; rules.json staleness; `Cargo.lock --locked` failure.
+- **CI-driven repairs after the first green-merge push**: web-search `provider` pin silently swallowed by an over-wide slice (class-4 damage, restored); `update` banner `zetacode update` 鈫?`` `${CLI_BIN_NAME} update` ``; `update-cli` refusal message follows `CLI_BIN_NAME`; welcome/legacy-bundle test roles `zeta.welcome.*`/`omp-legacy-pi-bundled:` 鈫?Zeta shapes; rules.json staleness; `Cargo.lock --locked` failure.
 - **Gates at handoff**: `check:ts` 鉁?(17 packages, 0 errors) 路 `brand-check` 鉁?0 hits 路 `check-zeta-sentinels` 鉁?47/47 路 `check-version-consistency` 鉁?路 `oxfmt --check` 鉁?路 `cargo fmt --all --check` 鉁?(WSL) 路 conflict markers 0. CI run `37901651110` green on main (39-min native addon build, cross-target leg, Validate Rust workspace 15 min, desktop smoke, editor/termide, Web UI build, release jobs skipped in push mode); two first-attempt reds re-ran green 鈥?the read-archive identity cache (`ino+mtime+ctime+size`) under same-tick rewrites, and the 600 s chunk watchdog on `scripts/ci-test-ts.test.ts scripts/release.test.ts` 鈥?both timing/filesystem-sensitive, not merge damage.
 - **Same window, separate branch**: Zetawork workspace-state persistence + topbar launchers (`desktop/src/workspace-state.ts`, `desktop/src/tool-resolution.ts`, `pi:spawn-tool`, web-ui topbar buttons; PR #77 鈫?`89bcffb60eb`), 38 desktop tests + web-ui `tsc` green.
 
@@ -2466,13 +2466,13 @@ gates could not see, and each is now fixed:
 ## v18.6.2鈫抳18.6.3 direct merge (Zeta 鈥?branch `sync/omp-release/v18.6.3`, worktree zeta-sync1863)
 
 - **Baseline**: v18.6.2 (peeled `1c0993c3d12e`, merge-base gate passed exactly) 鈫?Zeta start `29cd43b1da4` (main @ PR #68 涓夎繛纭+鍥炴敹绔欏悎骞?. **Source tag**: `v18.6.3` (peeled `093275112f7a`, remote verified). Merge commit `1059e51f11f` (true two-parent, second parent = `093275112f7a`); ancestry verified. **557 commits / 586 files / +45408 / 鈭?5312**; merge-tree dry run predicted 112 conflicts, actual 112 UU 鈥?閫愪釜鐩哥.
-- **涓婃父绾緥澶囨敞**: v18.6.3 鏄?*琛ヤ竵鍙疯浇鐗规€х骇鍐呭**鐨勭浜屼釜杩炵画杩濊 tag锛坴18.5.1 涔嬪悗锛?57 commits/45k 琛屸€斺€攄irenv cache PR #14310銆佹満鍣ㄥ彲璇?RPC wire schema銆乥rowser tool 澶ф敼銆乻napcompact 甯ц璐?#14277/#14291銆乶atives perf audit 鍗佽繛 PR銆乨esktop automation 3f000c524cf锛夈€倂18.6.2 鐨?GitHub Release **宸蹭簬 10-06 琛ュ彂**鈥斺€斾笂杞处鏈€寁18.6.2 浠呮湁 tag銆佹棤姝ｅ紡 Release銆嶇殑琛ㄨ堪灏辨浣滃簾锛泇18.6.3 Release 浜︿簬 10-06 13:17 鍙戝竷銆倀ag 涓嶅彲鍙樼孩绾挎湭鍙楀奖鍝嶏紙涓よ疆 ls-remote 涓庢湰鍦颁竴鑷达級銆?- **Conflicts**: 112 UU 鈥?4 lockfile/缁撴瀯锛圕argo.lock/Cargo.toml/MODULE.bazel.lock/bun.lock锛? rules.json锛坓en:compat 閲嶇敓鎴?959 rules锛? sdk wire 涓変欢锛坓en:rpc 閲嶇敓鎴愶紱Zeta `StateVersionChangedEvent` 鎵╁睍鍦?`wire/events.ts:159` 瀛樻椿锛屾満鍣ㄥ彲璇?schema 杞師鐢熷吋瀹癸級+ 106 source/test銆傛柟娉曪細鎵归噺 stage-3 鐩村啓锛?04锛夆啋 brand-check `--json` 鏂囦欢娓呭崟 scope sweep锛?07 鏂囦欢锛宍@linxiraos/<tail>` 鈫?RENAME_BY_TAIL 鏄犲皠锛夆啋 brand-overlay锛? 鏂囦欢/18 token锛夆啋 鎸?zeta-sentinels/check:ts 鎶ュ憡閫愭枃浠朵笁鏂归噸搴旂敤锛堥厤鏂癸細ours=s2 blob銆乥ase=s1銆乼heirs=宸?sweep 宸ヤ綔鏍戯級銆?- **Zeta surfaces re-applied**: agent-session 浼氳瘽灞?mode API 鍏ㄥ锛?8 鍝ㄥ叺鎭㈠锛涢噸澶?import 鍘婚噸鈥斺€斾笂娓告妸 model-resolver 浠?model-registry 鎷嗗嚭锛?interactive-mode `#describeIdleStatusHud` tok/s 妲藉苟鍏ヤ笂娓?todo-activity HUD锛坄describeStatusHud` 鍚堝苟褰?= 涓婃父 todo 缁撴瀯 + ours idle slot,`zeta.hud.*` role锛?cli.ts `ZETA_PROFILE` env 琛?+ `CLI_BIN_NAME` process title,**鍐呰仈 parent watchdog 寮冪敤**鈥斺€斾笂娓?#14350 `startParentWatchdog` 妯″潡涓哄姛鑳芥紨鍖栵紙瀹瑰櫒 ppid=1/seccomp pidfd 璇箟涓婃父鏇村叏锛?modes/types `InteractiveModeContext` Zeta 鎴愬憳锛坧lan-ultra/sidebar/mode API锛?eval `__zeta_*` 娉ㄥ叆瀵癸紙runtime `_zeta_display` 涓?prelude 娑堣垂渚ф垚瀵逛繚鐣?涓婃父 `__omp_display__`/`x-omp-image` API 寮冿級;session TrackingRecorder/stringifyJson銆乻ettings-ui zh overlay銆乺ead.ts `readTargetsPlan`;oauth_callback context.rs 閲嶆柊鍘?`#[cfg(any(unix,test))]` 闂紙11 澶勶級;worker argv `__zeta_worker_*` 鍏ㄥ鏃忥紙涓婃父鏂板 tiny_inference/stats_sync/tab/js_eval 绯伙級;macos capture 鏂版枃浠?helper 鍚?`zeta-capture-helper`/`zeta-capture`锛坆uild.rs 渚у悓姝ワ級銆?- **Post-merge sweeps**: 闈炲啿绐佽嚜鍔ㄥ悎骞跺甫鍏ョ殑 `omp.*` native-dock role锛坙oader `zeta.working.label/sep`锛?涓婃父瑙︾娴嬭瘯 fixture 瀛楅潰閲忎笓椤癸紙`omp.hud.*`/`omp.composer.*`/`omp.editor.*`/`omp.thinking(.live)`/`omp.user.time`/`omp.queue.count` 鈫?zeta 褰?6 鏂囦欢锛?ENV_KEYS 鐨?`OMP_PROFILE/PI_PROFILE` 淇濈暀锛坢ain 鏃㈡湁 canonical 褰?scrub-list 璇箟锛夈€?- **Structural**: 鐗堟湰绾?1.1.26 set-version 骞傜瓑 鉁?catalog 13 閿?@1.1.26 鉁?Cargo.lock 鍙?theirs + 鐗堟湰绾夸慨澶嶁€斺€?*涓婃父缁?pi-builtins sort 鏂板 icu_collator/decimal/locale_core/provider 鍥?crate**;bun.lock 绾増鏈嚎 delta 鈫?ours 淇濈暀,`bun install` no-op,nix/bun.nix 鏈噸鐢?**MODULE.bazel.lock 闇€棣栬疆 CI 宸ヤ欢鍙栧洖**锛圕argo 杈撳叆鍙樹簡,涓婅疆"鏃犻渶鍙栧洖"鏉′欢涓嶆垚绔嬶級;changelog锛歠ix-changelogs 鏀舵暃 + 鎵嬪伐琛?promotion锛坅gent 9 鏉?catalog 3/browser-relay 1/snapcompact 3锛夊悗鍏ㄦ爲鍓櫎 `## [1[5-8].x]` 娈碉紙594 涓爣棰?9 鍖咃級銆?- **娴佺▼鏁欒锛堟湰杞柊澧?宸插綍 playbook 鍊欓€夛級**: 鈶?merge 鏀跺彛涓鐢?`git cat-file :1:/鈥?2:` 鎻愬彇 stage 浼氭嬁鍒?*宸叉姌鍙犵殑 :0:**锛堟鍓?git add 宸叉秷璐?stage锛夆€斺€斿繀椤荤敤 merge 寮€濮嬫椂棰勬彁鍙栫殑 blob锛坄../mrg/s1/s2/s3`锛?鈶?涓夋柟 scratch 鐩綍鑻ユ墎骞虫斁缃?**鍚屽悕 basename 鏂囦欢浜掕俯**锛坅nthropic.ts脳2銆乼ypes.ts脳2 涓よ捣,鍧囦负"瑁呴敊鍐呭"鍨嬮潤榛樻崯浼?TS2307 鐩稿璺緞閿欏寘鎵嶆毚闇诧級鈥斺€攕cratch 蹇呴』闀滃儚璺緞;鈶?merge-file 瀵?delete/modify 闈欓粯鍙栦慨鏀逛晶鈥斺€擿setProfile(resolveProfileEnv(...))` 琛屽洜姝よ涓婃父褰㈣鐩?闈?check:ts 鍏冩暟閿欒鏆撮湶銆?- **Gates at handoff**: check-version-consistency 鉁?1.1.26 路 check:ts 鉁?exit 0锛? error锛壜?brand-check 鉁?0 路 zeta-sentinels 鉁?47 路 check-ci-surface 鉁?32 job 路 `cargo +nightly-2026-06-30 fmt --all --check` 鉁?路 include_str!/include_bytes! 鍏ㄦ爲瀹¤ 95/95 鍦ㄦ爲锛坋nv! 鍨嬬粡 build.rs 浜х墿鐨勬簮鏂囦欢 helper.m/bridge.swift 鍧囧湪鏍戯級路 conflict markers 0銆?- **Local buckets**: snapcompact-frames 4鉁擄紙#14277 甯у舰鐘惰璐光€斺€斾笂杞处鏈敞璁扮殑瀛楀舰鍑犱綍鍦ㄩ€旈棶棰橀殢鏈疆闂悎锛壜?agent image-tokens+anthropic-compaction + ai openai-responses-history-payload 81鉁?路 coding-agent activity-line/btw-controller/worker-selector 36鉁?skip 路 rpc-wire + catalog 鍏ㄦ《 1240鉁撱€傚叏閲?`bun test`/`test:rs` 濮旀墭 CI锛堝悎骞朵笉鍙戝寘锛夈€?
+- **涓婃父绾緥澶囨敞**: v18.6.3 鏄?*琛ヤ竵鍙疯浇鐗规€х骇鍐呭**鐨勭浜屼釜杩炵画杩濊 tag锛坴18.5.1 涔嬪悗锛?57 commits/45k 琛屸€斺€攄irenv cache PR #14310銆佹満鍣ㄥ彲璇?RPC wire schema銆乥rowser tool 澶ф敼銆乻napcompact 甯ц璐?#14277/#14291銆乶atives perf audit 鍗佽繛 PR銆乨esktop automation 3f000c524cf锛夈€倂18.6.2 鐨?GitHub Release **宸蹭簬 10-06 琛ュ彂**鈥斺€斾笂杞处鏈€寁18.6.2 浠呮湁 tag銆佹棤姝ｅ紡 Release銆嶇殑琛ㄨ堪灏辨浣滃簾锛泇18.6.3 Release 浜︿簬 10-06 13:17 鍙戝竷銆倀ag 涓嶅彲鍙樼孩绾挎湭鍙楀奖鍝嶏紙涓よ疆 ls-remote 涓庢湰鍦颁竴鑷达級銆?- **Conflicts**: 112 UU 鈥?4 lockfile/缁撴瀯锛圕argo.lock/Cargo.toml/MODULE.bazel.lock/bun.lock锛? rules.json锛坓en:compat 閲嶇敓鎴?959 rules锛? sdk wire 涓変欢锛坓en:rpc 閲嶇敓鎴愶紱Zeta `StateVersionChangedEvent` 鎵╁睍鍦?`wire/events.ts:159` 瀛樻椿锛屾満鍣ㄥ彲璇?schema 杞師鐢熷吋瀹癸級+ 106 source/test銆傛柟娉曪細鎵归噺 stage-3 鐩村啓锛?04锛夆啋 brand-check `--json` 鏂囦欢娓呭崟 scope sweep锛?07 鏂囦欢锛宍@linxiraos/<tail>` 鈫?RENAME_BY_TAIL 鏄犲皠锛夆啋 brand-overlay锛? 鏂囦欢/18 token锛夆啋 鎸?zeta-sentinels/check:ts 鎶ュ憡閫愭枃浠朵笁鏂归噸搴旂敤锛堥厤鏂癸細ours=s2 blob銆乥ase=s1銆乼heirs=宸?sweep 宸ヤ綔鏍戯級銆?- **Zeta surfaces re-applied**: agent-session 浼氳瘽灞?mode API 鍏ㄥ锛?8 鍝ㄥ叺鎭㈠锛涢噸澶?import 鍘婚噸鈥斺€斾笂娓告妸 model-resolver 浠?model-registry 鎷嗗嚭锛?interactive-mode `#describeIdleStatusHud` tok/s 妲藉苟鍏ヤ笂娓?todo-activity HUD锛坄describeStatusHud` 鍚堝苟褰?= 涓婃父 todo 缁撴瀯 + ours idle slot,`zeta.hud.*` role锛?cli.ts `ZETA_PROFILE` env 琛?+ `CLI_BIN_NAME` process title,**鍐呰仈 parent watchdog 寮冪敤**鈥斺€斾笂娓?#14350 `startParentWatchdog` 妯″潡涓哄姛鑳芥紨鍖栵紙瀹瑰櫒 ppid=1/seccomp pidfd 璇箟涓婃父鏇村叏锛?modes/types `InteractiveModeContext` Zeta 鎴愬憳锛坧lan-ultra/sidebar/mode API锛?eval `__zeta_*` 娉ㄥ叆瀵癸紙runtime `_zeta_display` 涓?prelude 娑堣垂渚ф垚瀵逛繚鐣?涓婃父 `__zeta_display__`/`x-omp-image` API 寮冿級;session TrackingRecorder/stringifyJson銆乻ettings-ui zh overlay銆乺ead.ts `readTargetsPlan`;oauth_callback context.rs 閲嶆柊鍘?`#[cfg(any(unix,test))]` 闂紙11 澶勶級;worker argv `__zeta_worker_*` 鍏ㄥ鏃忥紙涓婃父鏂板 tiny_inference/stats_sync/tab/js_eval 绯伙級;macos capture 鏂版枃浠?helper 鍚?`zeta-capture-helper`/`zeta-capture`锛坆uild.rs 渚у悓姝ワ級銆?- **Post-merge sweeps**: 闈炲啿绐佽嚜鍔ㄥ悎骞跺甫鍏ョ殑 `omp.*` native-dock role锛坙oader `zeta.working.label/sep`锛?涓婃父瑙︾娴嬭瘯 fixture 瀛楅潰閲忎笓椤癸紙`zeta.hud.*`/`zeta.composer.*`/`zeta.editor.*`/`zeta.thinking(.live)`/`zeta.user.time`/`zeta.queue.count` 鈫?zeta 褰?6 鏂囦欢锛?ENV_KEYS 鐨?`OMP_PROFILE/PI_PROFILE` 淇濈暀锛坢ain 鏃㈡湁 canonical 褰?scrub-list 璇箟锛夈€?- **Structural**: 鐗堟湰绾?1.1.26 set-version 骞傜瓑 鉁?catalog 13 閿?@1.1.26 鉁?Cargo.lock 鍙?theirs + 鐗堟湰绾夸慨澶嶁€斺€?*涓婃父缁?pi-builtins sort 鏂板 icu_collator/decimal/locale_core/provider 鍥?crate**;bun.lock 绾増鏈嚎 delta 鈫?ours 淇濈暀,`bun install` no-op,nix/bun.nix 鏈噸鐢?**MODULE.bazel.lock 闇€棣栬疆 CI 宸ヤ欢鍙栧洖**锛圕argo 杈撳叆鍙樹簡,涓婅疆"鏃犻渶鍙栧洖"鏉′欢涓嶆垚绔嬶級;changelog锛歠ix-changelogs 鏀舵暃 + 鎵嬪伐琛?promotion锛坅gent 9 鏉?catalog 3/browser-relay 1/snapcompact 3锛夊悗鍏ㄦ爲鍓櫎 `## [1[5-8].x]` 娈碉紙594 涓爣棰?9 鍖咃級銆?- **娴佺▼鏁欒锛堟湰杞柊澧?宸插綍 playbook 鍊欓€夛級**: 鈶?merge 鏀跺彛涓鐢?`git cat-file :1:/鈥?2:` 鎻愬彇 stage 浼氭嬁鍒?*宸叉姌鍙犵殑 :0:**锛堟鍓?git add 宸叉秷璐?stage锛夆€斺€斿繀椤荤敤 merge 寮€濮嬫椂棰勬彁鍙栫殑 blob锛坄../mrg/s1/s2/s3`锛?鈶?涓夋柟 scratch 鐩綍鑻ユ墎骞虫斁缃?**鍚屽悕 basename 鏂囦欢浜掕俯**锛坅nthropic.ts脳2銆乼ypes.ts脳2 涓よ捣,鍧囦负"瑁呴敊鍐呭"鍨嬮潤榛樻崯浼?TS2307 鐩稿璺緞閿欏寘鎵嶆毚闇诧級鈥斺€攕cratch 蹇呴』闀滃儚璺緞;鈶?merge-file 瀵?delete/modify 闈欓粯鍙栦慨鏀逛晶鈥斺€擿setProfile(resolveProfileEnv(...))` 琛屽洜姝よ涓婃父褰㈣鐩?闈?check:ts 鍏冩暟閿欒鏆撮湶銆?- **Gates at handoff**: check-version-consistency 鉁?1.1.26 路 check:ts 鉁?exit 0锛? error锛壜?brand-check 鉁?0 路 zeta-sentinels 鉁?47 路 check-ci-surface 鉁?32 job 路 `cargo +nightly-2026-06-30 fmt --all --check` 鉁?路 include_str!/include_bytes! 鍏ㄦ爲瀹¤ 95/95 鍦ㄦ爲锛坋nv! 鍨嬬粡 build.rs 浜х墿鐨勬簮鏂囦欢 helper.m/bridge.swift 鍧囧湪鏍戯級路 conflict markers 0銆?- **Local buckets**: snapcompact-frames 4鉁擄紙#14277 甯у舰鐘惰璐光€斺€斾笂杞处鏈敞璁扮殑瀛楀舰鍑犱綍鍦ㄩ€旈棶棰橀殢鏈疆闂悎锛壜?agent image-tokens+anthropic-compaction + ai openai-responses-history-payload 81鉁?路 coding-agent activity-line/btw-controller/worker-selector 36鉁?skip 路 rpc-wire + catalog 鍏ㄦ《 1240鉁撱€傚叏閲?`bun test`/`test:rs` 濮旀墭 CI锛堝悎骞朵笉鍙戝寘锛夈€?
 ## v18.6.0鈫抳18.6.2 double-tag direct merge (Zeta 鈥?branch `sync/omp-release/v18.6.2`, worktree zeta-sync1862)
 
 - **Baseline**: v18.6.0 (peeled `89d2610993af`, merge-base gate passed exactly) 鈫?Zeta start `1b31e327309` (main @ nightly-rustfmt alignment + PR #53 repairs). **Source tags**: `v18.6.1` (peeled `2a2c6dcbbb55`) + `v18.6.2` (peeled `1c0993c3d12e`), merged in ONE window (`git merge v18.6.2`, true two-parent `9248b345d10`); ancestry verified (`v18.6.2` is ancestor of HEAD). 54 upstream commits, 92 files / +4075 / 鈭?845.
 - **娉ㄨ锛堝悎骞跺悗鍕橀獙 2026-10-04锛?*锛氫笂娓?`v18.6.2` 褰撴椂**浠呮湁 tag銆佹棤姝ｅ紡 GitHub Release**锛堟渶鏂?Release 涓?v18.6.1锛泇18.6.2 杩?draft 閮芥湭寤猴級銆傛寜鐢ㄦ埛鎸囦护銆岃拷涓婃父鍚堝苟鏈€鏂?tag銆嶆墽琛岋紝绗﹀悎澧為噺瑙勭▼锛坱ag 涓嶅彲鍙樸€乵erge-base gate 绮剧‘锛夛紱鍙戣鐗堝寘閾撅紙auto-bump 杩?Zeta 姝ｅ紡 Release锛変笉鍙楀奖鍝嶃€傝嫢涓婃父鍚庣画绉诲姩/鍒犻櫎璇?tag锛屼笅涓€杞?merge-base gate 灏嗙孩鐗屽苟鎸夈€宼ag 涓嶅彲鍙樸€嶇孩绾垮缃€?- **Conflicts**: 20 UU 鈥?7 source, 8 test, 5 structural (Cargo.lock/Cargo.toml/MODULE.bazel.lock/bun.lock/rules.json). Method: per-file stage2-vs-stage3 diff after upstream鈫抁eta scope normalization; pure upstream-delta files took theirs + scope rewrite; only encode.ts (doc-comment brand + `app: "zeta"` kept), git-tui-stream.test.ts, collab/controller.test.ts, btw-controller.test.ts needed Zeta-surface re-application.
 - **Zeta surfaces re-applied**: `ZETA_CODING_AGENT_DIR` env pair (collab controller test), `zeta-*` tmpdir prefixes (btw-controller 脳3, git-tui-stream), `HAS_DIFF_STREAM` release-addon guard + `test.skipIf` on 7 staged-content tests (upstream added 2 new `GitModel.applyPatch` tests 鈥?those go through git CLI, correctly unguarded), `app: "zeta"` TSP hello + zeta doc-comment (encode.ts, upstream switched its doc pointer to Tern SDK `protocol/input.md`), `resolveCommandDescription` wrapper restored in builtin-completions (Zeta `AutocompleteItem.description` is still `string`; upstream widened theirs), relay probe test title rebranded while `ompRelayVersion`/`ompRelayDiscardedTabsProtocol` wire keys stay upstream-shaped (allow-interop mirror layer).
-- **Post-merge sweeps (un-owned auto-merged files)**: upstream ADDED files carried raw `@linxiraos/*` imports (image-tokens.ts + its test, relay bridge/probe/server `VERSION` import) 鈥?5-file scope sweep; brand-overlay itself reported 0 (scope map lives in the merge driver, not REWRITES). promoted CHANGELOG copy carried `omp -r`/`when omp starts` 鈫?swept to zeta; stray upstream archive footer line dropped.
+- **Post-merge sweeps (un-owned auto-merged files)**: upstream ADDED files carried raw `@linxiraos/*` imports (image-tokens.ts + its test, relay bridge/probe/server `VERSION` import) 鈥?5-file scope sweep; brand-overlay itself reported 0 (scope map lives in the merge driver, not REWRITES). promoted CHANGELOG copy carried `zetacode -r`/`when omp starts` 鈫?swept to zeta; stray upstream archive footer line dropped.
 - **Structural**: version line 1.1.26 untouched by set-version (idempotent 鉁?; catalog 13 keys @1.1.26 鉁? upstream root/per-package manifest + bun.lock + Cargo.lock deltas were version-line-only 鈫?ours kept, `bun install` no-op, nix/bun.nix not regenerated; rules/ KDL changed (google-antigravity roster +3, openai-codex +1) 鈫?`gen:compat` re-ran (940 rules; needs natives addon 鈥?copied baseline .node from main checkout, class-5 workaround); MODULE.bazel.lock kept ours (Cargo inputs unchanged 鈫?no CI artifact pickup needed); fix-changelogs promoted upstream bullets into `[Unreleased]` (merge-only, no release per user decision) then `## [18.6.x]` sections pruned across 7 packages.
 - **Gates at handoff**: check-version-consistency 鉁?1.1.26 路 check:ts 鉁?exit 0 路 brand-check 鉁?0 路 zeta-sentinels 鉁?47 路 oxfmt --check 鉁?(in check:ts) 路 `cargo +nightly-2026-06-30 fmt --all --check` 鉁?路 conflict markers 0 路 fixture-literal grep on merge-touched test dirs 0 new hits.
 - **Local buckets**: catalog compat-collapse 70鉁?路 agent image-tokens+compaction 58鉁?路 ai openai-responses-history-payload 47鉁?路 coding-agent resolved-file bucket (see PR notes) 鈥?full `bun test`/`test:rs` delegated to CI per 鐢ㄦ埛瑁佸喅 (鍚堝苟涓嶅彂鍖?.
@@ -2481,8 +2481,8 @@ gates could not see, and each is now fixed:
 
 - **Baseline**: v18.4.4 (peeled `8ac1309bd8ad`, merge-base gate passed exactly) 鈫?Zeta start `528b0f759a0` (v18.4.4 merge + test fixes). **Source tag**: `v18.4.11` (peeled `855879c9ab0`). Merge commit `7fa18c6d9eb` (two-parent, `--no-verify` used for local hooks), ancestry verified.
 - **Scale**: 939 files / +62.7k / -10.8k (682 upstream commits); 213 unmerged paths (211 UU + 1 DU + 1 UD), 0 pure scope-noise files.
-- **Method**: staged pipeline 鈥?3-way `merge-file(ours, base=v18.4.4, sweep(theirs))` per UU file with a Zeta-surface sweep applied to the theirs side first (scope map incl. RENAME_BY_TAIL, `.zeta` root, `ZETA_CODING_AGENT_DIR`, `zeta://`, `__omp_worker_鈫抇_zeta_worker_`, command-context `omp`鈫抈zetacode`, product `omp`鈫抈zeta`); then binding-level import merges (babel-verified) + subset/ws-collapse hunk rules; residual hunks hand-resolved (59 files). Key decisions: dirs.ts rebuilt on swept-theirs + Zeta identity block (APP_NAME/CLI_BIN_NAME=zetacode/APP_URL/USER_AGENT/ZETA_PROFILE single-env, no PI_PROFILE fallback); welcome.ts kept 味 ZETA_LOGO + SVG machinery over upstream's new 蟺-block art (logoNode adopted); ci.yml = ours (upstream's only delta was the darwin-arm64 AppleFM verify step 鈥?darwin removed from Zeta release surface); BUILD.bazel = upstream dylib rework + ours fuse-ld=bfd + 1.1.23; README = ours (front door). UD `skill-descriptions.test.ts` followed upstream deletion (replaced by `skill-descriptions-xdg.test.ts`, adapted to ZETA_* envs).
-- **Post-merge full-tree sweep (playbook 缁撹 2)**: 225 files re-swept 鈥?upstream ADDED files (factory-droid provider family, ratchet) carried raw `@linxiraos/*` imports the per-conflict pipeline never saw. Overreach repairs: `discovery/omp-extension-roots` specifier + file restored (interop keep), `import("omp-legacy-pi-modules")` restored (virtual module protocol), `theme.icon.omp` key restored in segments.ts (internal key; symbols.ts untouched), ratchet/prelude.js `__omp_prelude__/__omp_display__` 鈫?`__zeta_*` (provider-side pair in runtime.ts; damage class 11).
+- **Method**: staged pipeline 鈥?3-way `merge-file(ours, base=v18.4.4, sweep(theirs))` per UU file with a Zeta-surface sweep applied to the theirs side first (scope map incl. RENAME_BY_TAIL, `.zeta` root, `ZETA_CODING_AGENT_DIR`, `zeta://`, `__zeta_worker_鈫抇_zeta_worker_`, command-context `zetacode`鈫抈zetacode`, product `zetacode`鈫抈zeta`); then binding-level import merges (babel-verified) + subset/ws-collapse hunk rules; residual hunks hand-resolved (59 files). Key decisions: dirs.ts rebuilt on swept-theirs + Zeta identity block (APP_NAME/CLI_BIN_NAME=zetacode/APP_URL/USER_AGENT/ZETA_PROFILE single-env, no PI_PROFILE fallback); welcome.ts kept 味 ZETA_LOGO + SVG machinery over upstream's new 蟺-block art (logoNode adopted); ci.yml = ours (upstream's only delta was the darwin-arm64 AppleFM verify step 鈥?darwin removed from Zeta release surface); BUILD.bazel = upstream dylib rework + ours fuse-ld=bfd + 1.1.23; README = ours (front door). UD `skill-descriptions.test.ts` followed upstream deletion (replaced by `skill-descriptions-xdg.test.ts`, adapted to ZETA_* envs).
+- **Post-merge full-tree sweep (playbook 缁撹 2)**: 225 files re-swept 鈥?upstream ADDED files (factory-droid provider family, ratchet) carried raw `@linxiraos/*` imports the per-conflict pipeline never saw. Overreach repairs: `discovery/omp-extension-roots` specifier + file restored (interop keep), `import("omp-legacy-pi-modules")` restored (virtual module protocol), `theme.icon.omp` key restored in segments.ts (internal key; symbols.ts untouched), ratchet/prelude.js `__zeta_prelude__/__zeta_display__` 鈫?`__zeta_*` (provider-side pair in runtime.ts; damage class 11).
 - **Test contracts updated to implementation (upstream shipped)**: logger batching/audit-in-memory (logger.ts + contract/multiprocess tests, `ZETA_LOG_LEVEL` env pair), dirs-cache (`getComposerCacheDbPath`), stderr-guard probe (no auditFile), xai test (applyXaiCatalogPricing removed upstream), tui markdown test, auth-gateway command rebuilt from upstream (trust-proxy-headers flag).
 - **Zeta-only preserved**: mode API + goals coexistence (upstream's RPC goal command builds on shared GoalRuntime), sdk sinks, IRC auto-reply, tracking helpers (restored into rebuilt dirs.ts), stats brand surface, `__zeta_*` injection pairs, `__ompInstallTokioRuntime` untouched, ZETA_CODING_AGENT_DIR.
 - **Gates at handoff**: check-version-consistency 鉁?1.1.23 路 check:ts 鉁?exit 0 路 brand-check 鉁?0 路 zeta-sentinels 鉁?46 路 check-ci-surface 鉁?(28 ci.yml jobs + editor/ide/main-publish) 路 cargo metadata --locked 鉁?路 cargo fmt --all --check 鉁?路 conflict markers 0. bun.lock regenerated (bun install; zero external dep changes upstream 鈥?nix/bun.nix verified byte-identical after regen); Cargo.lock realigned to 1.1.23 (`cargo metadata` rewrite); rules/ unchanged 鈫?gen:compat not needed; CHANGELOG upstream `[18.x]` sections pruned (Zeta sections untouched); **MODULE.bazel.lock NOT refreshed** (Cargo.lock changed 鈫?owner must re-run the WSL refresh).
@@ -2491,7 +2491,7 @@ gates could not see, and each is now fixed:
 
 - **Baseline**: v18.2.3 chain (sync branch carried 1de9977e28 -> cbf0cc5158 -> 509f6b45cb, full two-parent merges, gates green)
 - **v18.2.4**: tag 1c0303b1f2ec515cbf4b44a9a49d68a029531aac (verified vs remote), merged as 509f6b45cb (6 upstream commits, 79 files, 13 conflicts 鈥?all upstream-rewrite takes + scope map)
-- **History reset**: maintainer authorized squash-sync (AGENTS.md 搂瓒呭ぇ閲忎笂娓稿悓姝?: new main = backup/omp/main (856d9375e0, origin anchor) + 2 squashed commits 鈥?(1) v18.1.16..v18.2.3 content [skip ci], (2) v18.2.4 + policy docs. Old main preserved remotely as main-old-20260917. Upstream commit-level detail lives at github.com/can1357/oh-my-pi (fork provenance).
+- **History reset**: maintainer authorized squash-sync (AGENTS.md 搂瓒呭ぇ閲忎笂娓稿悓姝?: new main = backup/omp/main (856d9375e0, origin anchor) + 2 squashed commits 鈥?(1) v18.1.16..v18.2.3 content [skip ci], (2) v18.2.4 + policy docs. Old main preserved remotely as main-old-20260917. Upstream commit-level detail lives at github.com/Linxira-OS/linxira-zeta (fork provenance).
 - **Deviation note**: this overrides the standing non-squash/ancestor-check rule for this window (transfer-layer constraint: multi-hundred-MB pack vs proxy/direct-link instability, evidence: remote unpack failed: index-pack failed on every full-pack attempt; 593/721 hops uploaded fine).
 - **backup/omp/main**: retained on origin + local, fast-forwarded to v18.2.4 as the standing fast-sync anchor.
 - **Gates**: re-run green on the squash tree (identical content to the verified merge tree).
@@ -2506,7 +2506,7 @@ gates could not see, and each is now fixed:
 - **Key decisions**:
    - Version line kept Zeta: root Cargo workspace 1.1.15, catalog 13 keys @1.1.15, `__piNativesV1_1_15`, `__ompInstallTokioRuntime` untouched.
    - zeta-package driver union leaked upstream `@linxiraos/*` catalog keys 鈥?dropped 12; per-package manifests re-mapped to `catalog:`.
-   - Tree-wide sweeps post-merge (auto-merged files have no owner): 114+14 files `@linxiraos/*`鈫抈@linxiraos/*` (omptype鈫抪i-omptype, omp-stats鈫抪i-stats, snapcompact鈫抪i-snapcompact, pi-coding-agent鈫抸eta); `.zeta` fixture paths鈫抈.zeta` except interop surfaces (`.omp-plugin`, `.omp-sessions`, `.zeta/plugins` discovery, `omp.extensions`, `ompprurl`, `@omp-print-signal-`, `_omp_call`, `my.omp.sh`, `omp.sh/install`); `__omp_worker_*` selectors renamed to `__zeta_worker_*` to match the merged `worker-host.ts` validator (protocol constants follow the checker).
+   - Tree-wide sweeps post-merge (auto-merged files have no owner): 114+14 files `@linxiraos/*`鈫抈@linxiraos/*` (omptype鈫抪i-omptype, omp-stats鈫抪i-stats, snapcompact鈫抪i-snapcompact, pi-coding-agent鈫抸eta); `.zeta` fixture paths鈫抈.zeta` except interop surfaces (`.omp-plugin`, `.omp-sessions`, `.zeta/plugins` discovery, `omp.extensions`, `ompprurl`, `@omp-print-signal-`, `_omp_call`, `my.omp.sh`, `omp.sh/install`); `__zeta_worker_*` selectors renamed to `__zeta_worker_*` to match the merged `worker-host.ts` validator (protocol constants follow the checker).
    - Zeta-only preserved: AgentSession/InteractiveMode mode API + `state_version_changed`, sdk sinks (channelSend/workspaceRun/imControl), IRC auto-reply, dirs tracking helpers, `/language` `/tracking` registry, web-gateway git/archive/temp endpoints, TUI sidebar (gutter engine ported onto upstream PreparedLines renderer; `setMainWidth` compose/physical width split with `#previousPhysicalWidth` for resize replay).
    - Upstream restructures accepted: profiler heap-snapshot removal (MemoryStats), browsers.ts refactor (Browser enum + resolveBuildId dropped; browser-launch.test adapted with pinned CfT buildId), model-config-values.ts 鈫?resolve-config-value.ts, model-mention registry split, advisor emission-guard rewrite (impl+test pairs kept together).
    - Sentinel registry updated: `snapshotForReplication` signature follows upstream's copier param (path itself intact).
@@ -2532,8 +2532,8 @@ gates could not see, and each is now fixed:
    - InteractiveMode `#teardown` carried a duplicated pre-dispose block (early `#btwController.dispose()` etc. before `showStatus`), failing the still-closing progress test 鈫?reduced to upstream 90b6315a28 shape with `M.imClosingSession`.
 - **Checks (local, pre-PR)**: `check-version-consistency` OK (1.1.14), `check:ts` OK, brand-check 0 hits, zeta-sentinels 46 OK, `cargo fmt --all --check` OK; bucket suites green: catalog 951+ (2 Windows-only `issue-8867` quarantine flakes identical on main), agent 583/583, ai = main baseline (12 Windows-env failures, zero branch-unique after manifest dedupe), coding-agent failure set = main's 134 baseline 卤3 timing-flaky (re-runs flip); web-gateway 30/30 incl. archive. Local native addon for tests copied from the main checkout (class-5 workaround; win32 MSVC link blocked by Git's GNU `link.exe` shadowing PATH 鈥?GNU toolchain works; msvc needs VS Build Tools).
 - **Merge into feature branch**: `ac09144ec9` (`sync/omp-release/v18.1.21` 鈫?`feat/web-ui-next`, non-squash; v21 + release branch both ancestors). Post-merge gates re-run green.
-   - **Post-PR CI repairs (rounds 1鈥?, `4d2c42825b` + `a121243641`)**: (a) `bun.lock` carried 641 `registry.npmmirror.com` URLs from the local `~/.npmrc` leak during A5's `bun install` 鈥?normalized to npmjs.org (standing rule); (b) `logger-contract.test.ts` taken from upstream while source writes `zeta.*` prefixes 鈥?restored zeta naming + added a `filenamePrefix: "zeta"` MUST_CONTAIN brand rule (brand-check's `.zeta` rule exempts `/test/` paths, which is why A4 missed it); (c) **torn paste/ask contracts (damage class 9 family, tests-are-contract)**: v21's `beginPaste` paste-reservation (`PasteTarget.beginPaste` + `finishPaste` flow in `handleImagePaste`) and hook-editor ordered-paste were dropped while taking v21's `extension-ui-controller.test.ts` wholesale 鈥?restored v21 source for `input-controller.ts` (paste parts), `hook-editor.ts` (wholesale, imports rekeyed), `ask-dialog.ts` single-multi-question submit jump, plus v21's `ask-dialog.test.ts`; (d) `__omp_*` runtime-global sweep lost in 8 eval/core test files (`__zeta_import__`/`__zeta_helpers__`/`__zeta_session__`/`__zeta_run_id__`/`__zeta_tools__`), while upstream-internal protocol symbols (`__omp_with_call_site__`, `__omp_tool_bridge__`, `__omp_final_expr__` marker) stay upstream-named per source provider 鈥?recorded as damage class #9 in AGENTS.md.
-   - **Post-PR CI repairs (rounds 3鈥?, `49044fae3e` / `56787c2709` / `0908cb7556`; CI green run `35050684923`)**: (a) `nix/bun.nix` was the **pre-merge** stale file (still `@linxiraos/*` workspaces, no `name` attrs) 鈥?regenerated with the canonical CI invocation `bun2nix -l bun.lock -c ../ -o nix/bun.nix`; the intermediate regen WITHOUT `-c ../` emitted `./packages/*` copy paths that don't exist relative to `nix/` (Nix eval `Path does not exist in Git repository`) 鈥?the `-c ../` prefix is load-bearing, not cosmetic; (b) A3's CHANGELOG `## [18.` prune had **over-truncated Zeta's own 1.1.10-and-older sections** (class 4; HEAD was a strict subset of main) 鈥?restored from main; (c) v21 reordered `DEFAULT_COMPACTION_METHOD_ORDER` (shake before soft): merge kept main's `compaction-methods.ts` + v21's `settings-manager.test.ts`, then main's `agent-session-handoff.test.ts` pinned the old order 鈥?took v21 for both test files (handoff import mapped to `@linxiraos/zeta-compact`, class-3 mapping); (d) `claude-plugins.test.ts` registry literal `.zeta` 鈫?`.zeta` (source resolves via `getConfigDirName()`); (e) inline python stubs `__omp_display = lambda` in bridge/prelude tests 鈫?`__zeta_display` (prelude.py calls the zeta name); (f) real-browser `pickElectronTarget` trio self-skips under `ZETA_SKIP_REAL_BROWSER=1` (native bucket job only): GH-hosted ubuntu-22.04 resolves system Chrome but CDP never comes up 鈥?**upstream's own ubuntu-22.04 PR run fails identically** (verified run 35045230929); upstream passes only on self-hosted `omp-kata`, which Zeta must not use (class 7).
+   - **Post-PR CI repairs (rounds 1鈥?, `4d2c42825b` + `a121243641`)**: (a) `bun.lock` carried 641 `registry.npmmirror.com` URLs from the local `~/.npmrc` leak during A5's `bun install` 鈥?normalized to npmjs.org (standing rule); (b) `logger-contract.test.ts` taken from upstream while source writes `zeta.*` prefixes 鈥?restored zeta naming + added a `filenamePrefix: "zeta"` MUST_CONTAIN brand rule (brand-check's `.zeta` rule exempts `/test/` paths, which is why A4 missed it); (c) **torn paste/ask contracts (damage class 9 family, tests-are-contract)**: v21's `beginPaste` paste-reservation (`PasteTarget.beginPaste` + `finishPaste` flow in `handleImagePaste`) and hook-editor ordered-paste were dropped while taking v21's `extension-ui-controller.test.ts` wholesale 鈥?restored v21 source for `input-controller.ts` (paste parts), `hook-editor.ts` (wholesale, imports rekeyed), `ask-dialog.ts` single-multi-question submit jump, plus v21's `ask-dialog.test.ts`; (d) `__zeta_*` runtime-global sweep lost in 8 eval/core test files (`__zeta_import__`/`__zeta_helpers__`/`__zeta_session__`/`__zeta_run_id__`/`__zeta_tools__`), while upstream-internal protocol symbols (`__zeta_with_call_site__`, `__zeta_tool_bridge__`, `__zeta_final_expr__` marker) stay upstream-named per source provider 鈥?recorded as damage class #9 in AGENTS.md.
+   - **Post-PR CI repairs (rounds 3鈥?, `49044fae3e` / `56787c2709` / `0908cb7556`; CI green run `35050684923`)**: (a) `nix/bun.nix` was the **pre-merge** stale file (still `@linxiraos/*` workspaces, no `name` attrs) 鈥?regenerated with the canonical CI invocation `bun2nix -l bun.lock -c ../ -o nix/bun.nix`; the intermediate regen WITHOUT `-c ../` emitted `./packages/*` copy paths that don't exist relative to `nix/` (Nix eval `Path does not exist in Git repository`) 鈥?the `-c ../` prefix is load-bearing, not cosmetic; (b) A3's CHANGELOG `## [18.` prune had **over-truncated Zeta's own 1.1.10-and-older sections** (class 4; HEAD was a strict subset of main) 鈥?restored from main; (c) v21 reordered `DEFAULT_COMPACTION_METHOD_ORDER` (shake before soft): merge kept main's `compaction-methods.ts` + v21's `settings-manager.test.ts`, then main's `agent-session-handoff.test.ts` pinned the old order 鈥?took v21 for both test files (handoff import mapped to `@linxiraos/zeta-compact`, class-3 mapping); (d) `claude-plugins.test.ts` registry literal `.zeta` 鈫?`.zeta` (source resolves via `getConfigDirName()`); (e) inline python stubs `__zeta_display = lambda` in bridge/prelude tests 鈫?`__zeta_display` (prelude.py calls the zeta name); (f) real-browser `pickElectronTarget` trio self-skips under `ZETA_SKIP_REAL_BROWSER=1` (native bucket job only): GH-hosted ubuntu-22.04 resolves system Chrome but CDP never comes up 鈥?**upstream's own ubuntu-22.04 PR run fails identically** (verified run 35045230929); upstream passes only on self-hosted `omp-kata`, which Zeta must not use (class 7).
 
 ## v18.1.10 (Zeta 鈥?merged, released as 1.1.9)
 
@@ -2555,7 +2555,7 @@ gates could not see, and each is now fixed:
 - **Release-run repairs (first GH-hosted execution of the Rust gate)**:
    - `14db3db79a` utok fixtures: dropped 5 stale Zeta-snapshot entries whose reference counts went stale with the v18.1.10 tokenizer update; pi-shell kill-test timeouts 5s鈫?0s (superseded by the root-cause fix below).
    - brush-core stop detection: `ChildProcess::wait` relied on a tokio SIGCHLD stream that misses signals arriving before registration 鈥?a pipeline stage that SIGSTOPs during later-stage spawning stalled `run_string` forever on loaded GH-hosted runners (fast local/upstream machines always win the race, so the upstream test never showed it). Fix in the vendored fork: `waitid` scoped to the caller's pid (`Id::Pid`, no cross-child event consumption) + one entry probe for already-pending stops (`processes.rs`, `sys/unix/signal.rs` incl. macOS shim, `sys/stubs/signal.rs`), regression test `wait_observes_a_stop_that_precedes_the_wait` verified red (5s timeout) without the entry probe and green with it. Upstream test files untouched. Run 3 confirmed on CI: Rust tests + all three clippy scopes green for the first time post-merge.
-   - rustfmt collapse flip (damage class #8): the brand replacement shortened `"oh-my-pi"`鈫抈"zeta"`, pulling `pi-vcs/git/mutate.rs`'s `SignatureRef` literal back under `max_width`, so the final `Rustfmt` step (never reached by runs 1鈥?, skipped on PRs entirely) failed `pi-vcs.rustfmt.ok`. Fixed by `cargo fmt --all`; workspace-wide check reports zero further offenders.
+   - rustfmt collapse flip (damage class #8): the brand replacement shortened `"zeta"`鈫抈"zeta"`, pulling `pi-vcs/git/mutate.rs`'s `SignatureRef` literal back under `max_width`, so the final `Rustfmt` step (never reached by runs 1鈥?, skipped on PRs entirely) failed `pi-vcs.rustfmt.ok`. Fixed by `cargo fmt --all`; workspace-wide check reports zero further offenders.
 
 ## v18.1.16 (Zeta 鈥?offline backup-branch validation merge, release pending)
 
@@ -2607,7 +2607,7 @@ gates could not see, and each is now fixed:
   read-tool-group import 鏂ご銆乧ontext-usage.ts 鍑芥暟浣撳弻瀹炵幇鑺辨枒(鏁翠綋鍙?  theirs span 閲嶅啓鐗?鈥斺€旀暀璁?union 鍚堝苟鍣ㄥ彧鍙敤浜?import 鍧椾笌娉ㄥ唽琛?
   鍑芥暟浣撶鐢ㄣ€?- **CHANGELOG**:356 涓笂娓?15.x鈥?8.x 娈典粠 packages/*/CHANGELOG.md 鍓ョ
   (妫€娴嬭鍒?`^## \[1[5-8]\.`);Zeta 娈典笌 [Unreleased] 淇濈暀銆?- **鐗堟湰绾?*:set-version 1.1.23 鏁寸嚎瀵归綈(Cargo/main workspace/natives
-  sentinel/desktop/badge/BUILD.bazel);bun.lock 閲嶇敓鎴?catalog 13 閿叏楠岃瘉銆?- **worker argv 鍗忚**(绫?11):涓婃父鏂?worker `__omp_worker_text_predict` 鈫?  `__zeta_worker_text_predict`,stt/tab/tts 涓夊瀵归綈 cli.ts 娲惧彂琛?
+  sentinel/desktop/badge/BUILD.bazel);bun.lock 閲嶇敓鎴?catalog 13 閿叏楠岃瘉銆?- **worker argv 鍗忚**(绫?11):涓婃父鏂?worker `__zeta_worker_text_predict` 鈫?  `__zeta_worker_text_predict`,stt/tab/tts 涓夊瀵归綈 cli.ts 娲惧彂琛?
   娴嬭瘯 env `ZETA_CODING_AGENT_DIR`鈫抈ZETA_CODING_AGENT_DIR` 涓ゅ銆?- **闂ㄧ**:check:ts / oxfmt / cargo fmt / version-consistency / brand-check
   (0 hit)/ zeta-sentinels(46)/ ci-surface 鍏ㄧ豢;tui 鏈湴娴嬭瘯鐩稿
   main 鍩虹嚎闆舵柊澧炲け璐?15 涓袱渚т竴鑷寸殑 Windows 鐜鍥虹孩)銆?
@@ -2643,7 +2643,7 @@ PREFERENCES`/`isSearchProviderId/Preference`)鏀逛粠 TUI `SEARCH_PROVIDER_LABE
      0 璋冪敤鏂?orderedProvIds 鏃犺鑰?,缁存寔鍩虹嚎褰㈡€佷笉鍔犳垙;**image 渚?     `providers.imageOrder` 杩愯鏃舵秷璐归殢鏃?candidate 寰幆琚笂娓稿垹闄よ€屽け娲?*
      鈥斺€擿setImageProviderOrder` 淇濈暀涓虹姸鎬佺瀛?settings 闈?zh 缈昏瘧/legacy 杩佺Щ/
      provider-globals 娴嬭瘯濂戠害瀹屾暣),鎸?role chain 鐨勯噸闆嗘垚鍒椾负鍚庣画宸ヤ綔銆?- **鍝佺墝**:logger 鏃ュ織鏂囦欢鍚嶅洖 `zeta.*`(涓婃父 v18.1.17+ omp.* + 鏂?stderr-guard
-  `onRotate` 鏈哄埗淇濈暀);dirs.ts `expandWindowsLongPath` import scope 褰?  `@linxiraos/pi-natives/path`;jfind `omp://`鈫抈zeta://` 鍏ㄩ噺娓呮壂(鍚?  `complete("zeta")` scheme 鍓嶇紑鈥斺€旇８ `"omp"` 瀛楃涓?sed 鎵笉鍒?闈犳祴璇曟毚闇?;
+  `onRotate` 鏈哄埗淇濈暀);dirs.ts `expandWindowsLongPath` import scope 褰?  `@linxiraos/pi-natives/path`;jfind `zeta://`鈫抈zeta://` 鍏ㄩ噺娓呮壂(鍚?  `complete("zeta")` scheme 鍓嶇紑鈥斺€旇８ `"omp"` 瀛楃涓?sed 鎵笉鍒?闈犳祴璇曟毚闇?;
   stats README銆乧omposer-cache 娉ㄩ噴銆乬it-utils 娴嬭瘯 fixture 鍥?linxira-zeta;
   `Symbol.for("omp.expectedCleanupError")` 淇濈暀(postmortem.ts 婧愮爜鍗虫鍚?
   杩涚▼闂村崗璁鍙?;娴嬭瘯鏂囦欢鍚嶅鍚屾(logger-contract/stderr-guard/rotation
@@ -2679,8 +2679,8 @@ modern.node`)銆侰I bazel 鐜板満鏋勫缓涓嶅彈褰卞搷銆?
 
 - **绫?7 鍥炴疆**:鍚堝苟鎶婁笂娓?ci.yml 鐨?12 澶?omp-kata runner 甯﹀洖(10 澶?  `pull_request && ubuntu || omp-kata` 鏉′欢 + 2 澶勮８ omp-kata;dispatch 浜嬩欢
   浼氭墦鍒颁笉瀛樺湪鐨?runner 鎺掗槦姝?銆傚叏閮ㄦ仮澶?ubuntu-22.04;needs 鍥炬牎楠屾棤鎮寕銆?- **changelog 娓呮壂杩囧垏(鑷激)**:鍓斾笂娓告鏃舵妸 6 涓寘鐨?*宸插彂甯冩**鍐呭涓€骞?  娓呯┖(coding-agent 1.1.10 鍗佹潯銆乧ollab-web 1.0.0銆乵nemopi 1.1.19銆?  natives 1.1.11銆乻tats 1.1.19銆乽tils 1.1.18 鍚勪竴鏉?,杩濆弽"Released 娈?  涓嶅彲鍙?;changelog-summary 濂戠害娴嬭瘯閫綇,宸叉寜鍩虹嚎鍥炴,49 椤瑰绾﹀叏缁裤€?  鏁欒:changelog 娓呮壂鍙厑璁稿姩 omp 閿(濡?`1.1.21-omp15.11.1` 涓庝笂娓?  archive 閾炬帴琛?,宸插彂甯?1.1.x 娈甸€愬瓧涓嶅姩銆?- **绫?9 鏀跺熬**:worker-core.test 鍚岃娣锋壂(`__zeta_worker_core_gate` +
-  `__omp_session__`)缁熶竴涓烘簮鐮佹敞鍏ョ殑 `__zeta_session__`;browser-recording
-  鐨?`__omp_recording_cursor__` 涓庢簮鐮佷竴鑷翠繚鐣欍€?- **閬楃暀(dev鈫抦ain 鍚堝苟鏃跺喅绛?**:release 鐭╅樀涓?bazel-cache-warm 鐨?  `xcode-27`(涓婃父鑷湁 ARM macOS runner)鈥斺€攖ag/main 浜嬩欢鎵嶄細瑙﹀彂,灞婃椂
+  `__zeta_session__`)缁熶竴涓烘簮鐮佹敞鍏ョ殑 `__zeta_session__`;browser-recording
+  鐨?`__zeta_recording_cursor__` 涓庢簮鐮佷竴鑷翠繚鐣欍€?- **閬楃暀(dev鈫抦ain 鍚堝苟鏃跺喅绛?**:release 鐭╅樀涓?bazel-cache-warm 鐨?  `xcode-27`(涓婃父鑷湁 ARM macOS runner)鈥斺€攖ag/main 浜嬩欢鎵嶄細瑙﹀彂,灞婃椂
   鏄犲皠涓烘墭绠℃爣绛炬垨鎸?v18.3.3 瑁佸壀鍐崇瓥澶勭悊;`ubuntu-24.04-arm`/`windows-11-arm`
   涓?GitHub 鎵樼鏍囩,淇濈暀銆?
 **CI 棣栬疆(36598768135)澶辫触澶嶇洏涓?姣忚疆鍚岀被閿欒"鏍瑰洜(鐢ㄦ埛鍛介,2026-09-30)**:
@@ -2693,7 +2693,7 @@ modern.node`)銆侰I bazel 鐜板満鏋勫缓涓嶅彈褰卞搷銆?
 | xAI UA | 娴嬭瘯姝ｅ垯 `/^omp\/\d/` 鏈壂(USER_AGENT 婧愭槸 zeta/) | 娓呮壂 + 瀹堝崼 |
 | baseten 榛樿妯″瀷 | 涓婃父 models.json 鎹㈡帀 Kimi-K2.7-Code,Zeta 鎻忚堪绗﹂粯璁ゅ€兼紓绉?| KDL 榛樿鈫扠3 + gen:compat |
 | agent-storage | 娴嬭瘯 env 鍧楁槸涓婃父濂戠害 `ZETA_CODING_AGENT_DIR`,婧愮爜鍙 ZETA_* | env 鍧楀洖鍩虹嚎 + 瀹堝崼 |
-| js-executor/js-pkg-env/eval-timeout/install-smoke | **`JS_EVAL_PROCESS_ARG="__omp_worker_js_eval_process"`(婧?vs cli.ts 鍙淳鍙?`__zeta_worker_*`**鈥斺€斿瓙杩涚▼褰撴櫘閫?CLI 鍏ㄩ噺鍚姩鍚庢姤閿欓€€鍑?worker init 10-15s 瓒呮椂绾ц仈("JS context disposed"/"No models available" 鍧囧叾杩為攣) | 鍗忚鍚嶅榻?鎵ц 10.9s鈫?.3s=鍩虹嚎姘村钩,WSL 鍏ㄧ豢) |
+| js-executor/js-pkg-env/eval-timeout/install-smoke | **`JS_EVAL_PROCESS_ARG="__zeta_worker_js_eval_process"`(婧?vs cli.ts 鍙淳鍙?`__zeta_worker_*`**鈥斺€斿瓙杩涚▼褰撴櫘閫?CLI 鍏ㄩ噺鍚姩鍚庢姤閿欓€€鍑?worker init 10-15s 瓒呮椂绾ц仈("JS context disposed"/"No models available" 鍧囧叾杩為攣) | 鍗忚鍚嶅榻?鎵ц 10.9s鈫?.3s=鍩虹嚎姘村钩,WSL 鍏ㄧ豢) |
 | windows-staging | 澶瑰叿鍐欐 15.10.x(鐩稿涓婃父 18.x 鏄?鏃х増"),鎴戜滑 1.x 鐗堟湰绾垮垽瀹氱炕杞?| 澶瑰叿闅?currentMajor 鎺ㄥ |
 | composer XDG | 娴嬭瘯鏈熸湜 `$XDG_CACHE_HOME/omp/鈥,婧愮爜鏄?zeta/ | 娓呮壂(Linux 楠岃瘉) |
 | MODULE.bazel.lock | **Cargo.lock 12 琛岀増鏈嚎淇(18.4.3鈫?.1.21)鍦ㄩ攣鐢熸垚涔嬪悗**,crate_universe 鍝堝笇澶辨柊 | 鍙?CI 鍒锋柊宸ヤ欢鍥炴彁(5 琛屽搱甯? |
@@ -2704,7 +2704,7 @@ modern.node`)銆侰I bazel 鐜板満鏋勫缓涓嶅彈褰卞搷銆?
    token 寰€寰€瀛樺湪浜?*鐢熶骇鑰呬笌娑堣垂鑰呬袱渚?*(婧愮爜 vs 娴嬭瘯銆丣S vs Rust銆?   spawn 鍙傛暟 vs 娲惧彂琛?銆備汉宸?sed 鎸夋枃浠?鎸夋ā寮忔壂,姘歌繙鎵笉榻?鑰?   `check:ts` 瀵瑰瓧绗︿覆/姝ｅ垯/env 鍚?*瀹屽叏澶辨槑**鈥斺€旈敊閰嶇紪璇戝叏缁?鍙湪
    杩愯鏃?CI 鐐搞€傝繖鏄渶澶х殑鏃堕棿榛戞礊銆?2. **瀹堝崼琛ㄥ彧璁?鍝佺墝闈?,涓嶈"濂戠害闈?**銆俠rand-rules 鍘熸湁瑙勫垯鐩?   蟺/PI_LOGO/scope/URL scheme,浣?worker 鍗忚鍙傛暟銆乪nv 鍚嶃€乁A 姝ｅ垯銆?   CLI 鎻愮ず涓茶繖浜?璺ㄩ潰濂戠害 token"涓嶅湪琛ㄩ噷鈥斺€旀瘡杞潬 CI 璇曢敊鍙戠幇銆?3. **涓婃父娴嬭瘯澶瑰叿鎼哄甫涓婃父鍧愭爣**(鐗堟湰鍙?15.10.x銆乺unner 鏍囩 omp-kata銆?   鍚戝姝ラ)鈥斺€旇繖浜涗笉鏄搧鐗?鏄?涓婃父涓栫晫鍋囪",鍚堝苟鍘熸牱甯﹀叆鍗抽敊銆?4. **鐢熸垚鐗╅『搴忚€﹀悎**:Cargo.lock鈫扢ODULE.bazel.lock 鐨勫搱甯岄摼,鐗堟湰绾?   淇蹇呴』鍦ㄥ叾涓婃父涓€鍒?Cargo 鍙樻洿涔嬪悗閲嶅埛,鍚﹀垯 freshness 闂ㄧ绾€?5. changelog 娓呮壂鏃犳钀芥劅鐭?鏈疆鑷激宸茶堪)銆?
 **瀵圭瓥(宸茶惤瀹?**:`brand-rules.ts` MUST_NOT_CONTAIN 鏂板"璺ㄩ潰 token 瀵?
-缁?`__omp_worker_*`(argv 鍗忚)銆乣ZETA_CODING_AGENT_DIR`(env 濂戠害)銆?`USER_AGENT` omp/ 妯℃澘涓?`/^omp\/\d` 娴嬭瘯姝ｅ垯銆乣` Run `omp `` CLI 鎻愮ず鈥斺€?鍛戒腑鍗崇孩,producer/consumer 涓や晶鍚屽彈绾︽潫;瀹堝崼棣栬窇鍗抽€綇 Rust 渚?crash_handler 璇绘棫 env 鍚嶇殑**鍩虹嚎閬楃暀鍚岀被鐥呯伓**(椤烘墜娌绘剤:ZETA_* + fmt 缁?銆?涓婅〃鍚勪慨澶嶉殢 `bun scripts/brand/brand-check.ts` 甯搁┗ CI check job銆?
+缁?`__zeta_worker_*`(argv 鍗忚)銆乣ZETA_CODING_AGENT_DIR`(env 濂戠害)銆?`USER_AGENT` omp/ 妯℃澘涓?`/^omp\/\d` 娴嬭瘯姝ｅ垯銆乣` Run `zetacode `` CLI 鎻愮ず鈥斺€?鍛戒腑鍗崇孩,producer/consumer 涓や晶鍚屽彈绾︽潫;瀹堝崼棣栬窇鍗抽€綇 Rust 渚?crash_handler 璇绘棫 env 鍚嶇殑**鍩虹嚎閬楃暀鍚岀被鐥呯伓**(椤烘墜娌绘剤:ZETA_* + fmt 缁?銆?涓婅〃鍚勪慨澶嶉殢 `bun scripts/brand/brand-check.ts` 甯搁┗ CI check job銆?
 **CI 绗簩杞?36658419425)鍞竴绾⑩啋鎹熶激绫?4 鍥炲綊**:singleton bucket
 official-skills 3 澶辫触(provider 鏈敞鍐?docx-pptx 鏈彂鐜?embed seeding 澶辫触)銆?鏍瑰洜:鍚堝苟鍐茬獊瑙ｅ喅鎶?`discovery/builtin.ts` 閲?Zeta-only 鐨?**zeta-official
 provider 娉ㄥ唽鍧楁暣娈?~80 琛?鍚?embed seeding)闈欓粯涓㈠純**;`check:ts` 鍏ㄧ洸
@@ -2830,7 +2830,7 @@ next merge can replay these three files instead of re-triaging them.
 
 - `packages/coding-agent/test/tools/browser-relay-detach.test.ts` — **upstream-new suite** (added by this
   window). Flake: `"does not rerun a call detached before its code started once the re-adoption spent its
-  budget"` answered with `omp could not reattach to the tab, so it was released: …` instead of the
+  budget"` answered with `zetacode could not reattach to the tab, so it was released: …` instead of the
   spent-budget report. Cause: the test held the re-adoption for the call's whole budget, while the
   re-adoption's own init budget is `budgetMs + GRACE_MS` **measured from the re-adoption's start** — so
   the hold left its init phases only the 750 ms `GRACE_MS` tail, and under load the worker-init ready
@@ -2922,15 +2922,15 @@ observation points moved onto the state each assertion actually depends on.
   `snapcompact`→`pi-snapcompact`, `omptype`→`pi-omptype`,
   `pi-coding-agent`→`@linxiraos/zeta`, …).
 - **Brand fixes**: LSP fixtures `@zeta-lsp-`→`@zeta-lsp-`; runtime globals
-  `__omp_prelude__`/`__zeta_call_tool__`→`__zeta_*`; `ZETA_CODING_AGENT_DIR`→`ZETA_CODING_AGENT_DIR`
+  `__zeta_prelude__`/`__zeta_call_tool__`→`__zeta_*`; `ZETA_CODING_AGENT_DIR`→`ZETA_CODING_AGENT_DIR`
   in fixtures; TUI roles `omp.*`→`zeta.*`; relay wire keys `ompVersion`/`ompRelayVersion`/
-  `OMP_INSTALL_VERSION`→`zeta*` on both relay and extension with the generated assets refreshed;
+  `ZETA_INSTALL_VERSION`→`zeta*` on both relay and extension with the generated assets refreshed;
   the new `/local` description i18n'd as `cmdOpenSessionLocalFileInEditor`. `brand-check`: 0 hits.
 - **Rejected upstream surfaces**: the Stencil build service (`cli/build-service.ts`,
   `scripts/ci-build-upload.ts` — already retired here, `release_build` in `ci.yml`), Homebrew tap
   steps, `telemetry-settings.ts` (export stays hard-off), `export/custom-share.ts` (Zeta's
-  `/share` is the gist flow), `bun-cache-warm.yml`, upstream `.omp/tools/*`,
-  `prompts/internal-urls/omp.md`, and `sdk/go/omp-rpc` — each superseded by a Zeta-owned file or a
+  `/share` is the gist flow), `bun-cache-warm.yml`, upstream `.zeta/tools/*`,
+  `prompts/internal-urls/omp.md`, and `sdk/go/zeta-rpc` — each superseded by a Zeta-owned file or a
   renamed directory.
 - **Kept but unused**: `packages/coding-agent/src/lsp/defaults.json` (upstream's catalogue; Zeta's
   canonical registry is `lsp/servers.json` → `servers.generated.ts` + termide).
@@ -2994,7 +2994,7 @@ observation points moved onto the state each assertion actually depends on.
   gateway RPC-WS host returns through `onClosed`) instead of upstream's `Promise<never>`.
 - **Brand/scope**: 110 files swept to `@linxiraos/*`, relocated TUI roles
   (`zeta.context.*`, `zeta.overlay.*`, `zeta.hud.seg`), `ZETA_CODING_AGENT_DIR` →
-  `ZETA_CODING_AGENT_DIR` in fixtures, `.omp` fixture roots → `.zeta`, `omp gc/plugin`
+  `ZETA_CODING_AGENT_DIR` in fixtures, `.omp` fixture roots → `.zeta`, `zetacode gc/plugin`
   command text → `zetacode`, and `gen:rpc` regenerated (brand token only; the
   `state_version_changed` attach event survives in every SDK).
 - **Changelogs**: the merge inserted upstream `[18.13.2]` sections into eight package
@@ -3057,8 +3057,8 @@ observation points moved onto the state each assertion actually depends on.
   re-armed the guard in `packages/ai`.
 - **Brand/scope sweep**: 22 files, 99 replacements (`@linxiraos/zeta` →
   `@linxiraos/zeta`, `omptype` → `pi-omptype`, `snapcompact` → `pi-snapcompact`,
-  `omp-stats` → `pi-stats`, other `@linxiraos/*` → `@linxiraos/*`, `~/.omp` →
-  `~/.zeta`, `__omp_helpers__` → `__zeta_helpers__`, backticked `omp ` →
+  `omp-stats` → `pi-stats`, other `@linxiraos/*` → `@linxiraos/*`, `~/.zeta` →
+  `~/.zeta`, `__zeta_helpers__` → `__zeta_helpers__`, backticked `zetacode ` →
   `zetacode `). The new overlay helpers emit `zeta.btn` / `zeta.app.ibtn[.set]` /
   `zeta.app.qbtn` (upstream shipped `omp.*`), and `buttons-native.test.ts`
   asserts the Zeta roles.
@@ -3127,7 +3127,7 @@ observation points moved onto the state each assertion actually depends on.
   `"continue" | "restored"` contract and `enterMode`,
   `refreshScopedModelsAfterLogin`, scoped-model rebuild, plugin
   discovery/lockfile naming and the Zeta print-mode branch were restored.
-- **Repairs**: scope map `@oh-my-pi/* → @linxiraos/*` (138 files),
+- **Repairs**: scope map `@linxiraos/* → @linxiraos/*` (138 files),
   brand overlay (`scripts/brand/brand-overlay.ts`), relay extension assets
   (`gen:relay-assets`), system-prompt identity line, `PACKAGE_MODULE_PROVIDER`
   `zeta-plugins`, telemetry hard-off, and lockstep version `1.4.13`

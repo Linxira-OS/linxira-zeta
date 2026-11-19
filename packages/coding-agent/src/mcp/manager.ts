@@ -316,6 +316,8 @@ export interface MCPManagerApi {
 	addNotificationListener(listener: (serverName: string, method: string, params: unknown) => void): () => void;
 	/** Names of currently connected servers. */
 	getConnectedServers(): string[];
+	/** Configuration of one server by name, connected or merely configured. */
+	getServerConfig(name: string): MCPServerConfig | undefined;
 	/** Cached resources/templates of one server. */
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined;
 	/** Wait until one server's resource catalog is loaded. */
@@ -373,7 +375,7 @@ export class MCPManager implements MCPManagerApi {
 
 	/**
 	 * Install or clear a loader that creates the process-global instance on first {@link load}, so a
-	 * one-shot host (`omp read`) starts MCP servers only when a request actually reaches them.
+	 * one-shot host (`zetacode read`) starts MCP servers only when a request actually reaches them.
 	 */
 	static setDeferredInstance(load: (() => Promise<MCPManager>) | undefined): void {
 		MCPManager.#deferred = load;
@@ -1576,7 +1578,7 @@ export class MCPManager implements MCPManagerApi {
 	/**
 	 * Wait for every in-flight connect, tool load, and reconnect to settle.
 	 *
-	 * One-shot callers (e.g. `omp read <mcp-resource>`) discover servers and read
+	 * One-shot callers (e.g. `zetacode read <mcp-resource>`) discover servers and read
 	 * immediately; a server whose handshake outlasts the {@link connectServers}
 	 * startup race is still tracked in {@link #pendingConnections} /
 	 * {@link #pendingToolLoads} and therefore invisible to

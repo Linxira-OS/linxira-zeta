@@ -18,7 +18,7 @@
  * ({@link callOvnfs}).
  *
  * Each workspace keeps a record of its checkout ({@link OVNFS_CHECKOUT_FILE}) in the
- * run's task-isolation dir, beside the owner marker, so `omp worktree clear`
+ * run's task-isolation dir, beside the owner marker, so `zetacode worktree clear`
  * removes the checkouts of runs that crashed ({@link releaseOvnfsCheckout}).
  * The record stays until removal is confirmed: a failed removal keeps it, and
  * reusing the slot moves it aside instead of deleting it.
@@ -62,13 +62,13 @@ function checkoutName(agentId: string): string {
 /**
  * Remove every checkout `dir` records (`checkout` when it records none), then
  * delete `dir`. A removal that cannot be confirmed keeps `dir` and the checkout
- * record in it, so `omp worktree clear` can retry.
+ * record in it, so `zetacode worktree clear` can retry.
  */
 async function releaseCheckoutRecord(dir: string, command: string, checkout: string): Promise<void> {
 	try {
 		if (!(await releaseOvnfsCheckout(dir))) await removeCheckout(command, checkout);
 	} catch (err) {
-		logger.warn("ovnfs checkout removal failed; `omp worktree clear` retries it", {
+		logger.warn("ovnfs checkout removal failed; `zetacode worktree clear` retries it", {
 			dir,
 			checkout,
 			error: err instanceof Error ? err.message : String(err),
@@ -139,7 +139,7 @@ class OvnfsWorkspace implements IsolationWorkspace {
 				await removeCheckout(this.command, start);
 				await Bun.write(recordPath, JSON.stringify(record));
 			} catch (err) {
-				logger.warn("ovnfs start checkout removal failed; `omp worktree clear` retries it", {
+				logger.warn("ovnfs start checkout removal failed; `zetacode worktree clear` retries it", {
 					checkout: start,
 					error: err instanceof Error ? err.message : String(err),
 				});
@@ -153,7 +153,7 @@ class OvnfsWorkspace implements IsolationWorkspace {
 		return { dir: this.dir, sidecarOk: true };
 	}
 
-	/** Remove the checkouts, then their record; a checkout that cannot be removed keeps the record for `omp worktree clear`. */
+	/** Remove the checkouts, then their record; a checkout that cannot be removed keeps the record for `zetacode worktree clear`. */
 	async cleanup(): Promise<void> {
 		await releaseCheckoutRecord(this.baseDir, this.command, this.checkout);
 	}
@@ -220,7 +220,7 @@ export function ovnfsWorkspace(command: string): OpenWorkspace {
 						error: message,
 					});
 					throw new Error(
-						`ovnfs isolation failed: could not release the previous checkout (${message}); its record was kept for \`omp worktree clear\` (set isolation.backend to a native backend to bypass ovnfs)`,
+						`ovnfs isolation failed: could not release the previous checkout (${message}); its record was kept for \`zetacode worktree clear\` (set isolation.backend to a native backend to bypass ovnfs)`,
 					);
 				}
 				logger.warn("moved a stale ovnfs checkout record aside after removal failed", {

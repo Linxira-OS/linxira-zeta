@@ -490,6 +490,9 @@ export interface Terminal {
 		options?: TerminalStartOptions,
 	): void;
 
+	/** Reassert input modes after a full-screen child changed them. */
+	reassertInputModes?(): void;
+
 	/**
 	 * Take ownership of stdin after a `deferInput` start: enable raw mode,
 	 * attach input handlers, and run the capability probes start() skipped.
@@ -1198,6 +1201,13 @@ export class ProcessTerminal implements Terminal {
 	 * module loading blocks the event loop, then adopt the kernel-buffered
 	 * keystrokes here once the app can process them.
 	 */
+	/** Reassert input modes after a full-screen child left the terminal in cooked mode. */
+	reassertInputModes(): void {
+		if (this.#headless || this.#dead || !this.#active) return;
+		this.#safeWrite("\x1b[?2004h");
+		this.#enableWindowsVTInput();
+	}
+
 	#attachInput(): void {
 		// A multiplexer or SSH disconnect can leave isTTY true after its pty has
 		// been revoked. Raw mode is then impossible, so take the normal terminal

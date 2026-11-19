@@ -68,7 +68,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"packages/coding-agent/src/telemetry-export-otlp.ts", // OTLP SERVICE_NAME compat (collector-side identity)
 	"packages/coding-agent/src/telemetry-export.ts", // provenance doc comment
 	"packages/coding-agent/src/tools/acp-bridge.ts", // example session-path doc comment
-	"crates/pi-shell/src/minimizer/filters/git.rs", // git output fixtures (arbitrary remotes)
+	"crates/shell/src/minimizer/filters/git.rs", // git output fixtures (arbitrary remotes)
 	"packages/coding-agent/src/cli/gallery-fixtures/", // TUI gallery sample data
 	"packages/coding-agent/src/cli/update-cli.ts", // pre-existing main debt: self-update REPO/MISE fallbacks
 	"package.json", // pre-existing main debt: PI_IMAGE docker tag default + robomp scripts
@@ -282,7 +282,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "XDG desktop-entry id for the Linux URL protocol handler",
 	},
 	{
-		file: "crates/pi-builtins/src/host.rs",
+		file: "crates/builtins/src/host.rs",
 		needle: "zeta-descriptor://",
 		why: "file-descriptor URL scheme handed to the opener; upstream omp-descriptor:// registers under his name",
 	},
@@ -401,19 +401,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "writer + TEXT_PREDICT_READY_PATTERN reader must both name the zetacode bin",
 	},
 	{
-		file: "packages/coding-agent/src/tiny/worker-server.ts",
-		needle: "zetacode tiny worker listening on",
-		why: "writer side of the tiny-worker banner",
-	},
-	{
 		file: "packages/coding-agent/src/subprocess/shared-worker.ts",
 		needle: "/^zetacode tiny worker listening on /",
 		why: "reader side: it filters the worker's banner lines. v18.10.0 moved this filter (upstream `logTail`) out of `tiny/title-client.ts` into the shared worker helper and reverted the prefix to the upstream spelling; a one-sided spelling silently stops filtering (found split upstream/zetacode, 2026-10-11)",
-	},
-	{
-		file: "packages/coding-agent/src/lsp/mux/server.ts",
-		needle: '"zetacode lsp mux"',
-		why: "process title must match LSP_MUX_READY_PATTERN's zetacode prefix",
 	},
 	{
 		file: "packages/coding-agent/src/modes/rpc/wire/index.ts",

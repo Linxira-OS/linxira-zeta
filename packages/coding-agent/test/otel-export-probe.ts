@@ -38,7 +38,7 @@ const server = Bun.serve({
 
 process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = `http://localhost:${server.port}/v1/traces`;
 process.env.OTEL_TRACES_EXPORTER = "OTLP";
-process.env.OTEL_SERVICE_NAME = "oh-my-pi-export-probe";
+process.env.OTEL_SERVICE_NAME = "zeta-export-probe";
 // Per the OTLP env contract, header values are percent-decoded and the
 // signal-specific list is merged over the common one.
 process.env.OTEL_EXPORTER_OTLP_HEADERS = "x-tenant=acme,authorization=Bearer%20common";

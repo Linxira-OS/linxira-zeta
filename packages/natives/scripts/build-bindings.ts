@@ -148,7 +148,7 @@ async function installGeneratedBindings(outputDir: string): Promise<void> {
 const canonicalAddonFilename = localAddon.filename;
 const canonicalAddonPath = path.join(nativeDir, canonicalAddonFilename);
 
-console.log(`Building omp-natives bindings for ${process.platform}-${process.arch}${variantSuffix} (local)…`);
+console.log(`Building zeta-natives bindings for ${process.platform}-${process.arch}${variantSuffix} (local)…`);
 
 await fs.mkdir(nativeDir, { recursive: true });
 await cleanupStaleTemps(nativeDir);

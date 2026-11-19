@@ -286,7 +286,7 @@ export function startTtsWorker(transport: TtsTransport): void {
 	});
 }
 
-/** Process entry of `__omp_worker_tts`: serve the daemon `speech` module over stdio frames. */
+/** Process entry of `__zeta_worker_tts`: serve the daemon `speech` module over stdio frames. */
 export function runTtsWorker(): Promise<void> {
 	return runFramedStdioWorker<TtsWorkerInbound, TtsWorkerOutbound>(startTtsWorker);
 }

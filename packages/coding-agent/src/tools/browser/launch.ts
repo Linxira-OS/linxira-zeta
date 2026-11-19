@@ -763,7 +763,7 @@ export async function launchHeadlessBrowser(opts: LaunchHeadlessOptions): Promis
 /**
  * Close a browser {@link launchHeadlessBrowser} started.
  *
- * With an omp-owned `userDataDir` (deleted next) a graceful shutdown saves
+ * With an zeta-owned `userDataDir` (deleted next) a graceful shutdown saves
  * nothing that survives, so the process tree is killed outright. That also
  * spares builds whose graceful shutdown never finishes (observed: Chrome for
  * Testing 150 on macOS 27 outlives both `Browser.close` and SIGTERM) the close

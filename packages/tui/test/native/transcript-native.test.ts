@@ -293,7 +293,7 @@ describe("native transcript", () => {
 		await h.render();
 		expect(h.find(node => node.k === "md")?.p).toMatchObject({ text: source, stream: true });
 
-		const wt = "file:///C:/Users/me/.omp/wt/cr2-43939c6";
+		const wt = "file:///C:/Users/me/.zeta/wt/cr2-43939c6";
 		component.updateContent(assistant([{ type: "text", text: source }]));
 		component.setLinkTargets(
 			new Map([
@@ -335,12 +335,12 @@ describe("native transcript", () => {
 			},
 		});
 		const h = await startWith(h => h.tui.addChild(component));
-		const card = h.find(node => node.p?.role === "omp.skill");
+		const card = h.find(node => node.p?.role === "zeta.skill");
 		expect(card?.p).not.toHaveProperty("collapsible");
 		expect(card?.c?.find(child => child.k === "md")?.p).toMatchObject({
 			text: "Organize the project foundation",
 		});
-		const prompt = h.find(node => node.p?.role === "omp.skill.prompt");
+		const prompt = h.find(node => node.p?.role === "zeta.skill.prompt");
 		expect(prompt?.p).toMatchObject({ collapsible: true, collapsed: true });
 		expect(prompt?.c).toBeUndefined();
 
@@ -375,19 +375,19 @@ describe("native transcript", () => {
 				tool.attachLateDiagnostics([{ path: "src/a.ts", summary: "1 error", errored: true, messages: ["bad"] }]),
 			).toBe(true);
 			await h.render();
-			expect(h.find(node => node.p?.role === "omp.diagnostics.late")).toBeUndefined();
+			expect(h.find(node => node.p?.role === "zeta.diagnostics.late")).toBeUndefined();
 
 			setTranscriptPresenters([block => (block.type === "toolCall" ? "hidden" : undefined)]);
 			tool.refreshTranscriptPresentation();
 			await h.render();
-			const late = h.find(node => node.p?.role === "omp.diagnostics.late");
+			const late = h.find(node => node.p?.role === "zeta.diagnostics.late");
 			expect(late).toBeDefined();
 			expect(late?.p).not.toMatchObject({ hidden: true });
 
 			// `display.hideToolActivity` hides them like the card they came from.
 			transcript.setToolActivityVisible(false);
 			await h.render();
-			const hiddenLate = h.find(node => node.p?.role === "omp.diagnostics.late");
+			const hiddenLate = h.find(node => node.p?.role === "zeta.diagnostics.late");
 			expect(hiddenLate === undefined || hiddenLate.p?.hidden === true).toBe(true);
 		} finally {
 			setTranscriptPresenters([]);
@@ -409,7 +409,7 @@ describe("native transcript", () => {
 				builder.append(toolTranscript());
 				h.tui.addChild(builder.container);
 			});
-			const card = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
+			const card = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
 			expect(card).toBeDefined();
 			expect(card?.p).not.toMatchObject({ hidden: true });
 		} finally {
@@ -536,11 +536,11 @@ describe("native transcript", () => {
 			h.tui.addChild(builder.container);
 		});
 		// The wire name never keys the card; the canonical registry name does.
-		expect(h.find(node => node.k === "tool" && node.p?.role === "omp.tool.shell")).toBeUndefined();
-		const card = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.bash");
+		expect(h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.shell")).toBeUndefined();
+		const card = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.bash");
 		expect(card?.p).toMatchObject({ name: "bash", status: "done" });
 		// The canonical bash renderer described the call as an interpreted shell input; the generic fallback would not.
-		const input = h.find(node => node.k === "shell" && node.p?.role === "omp.tool.bash.command");
+		const input = h.find(node => node.k === "shell" && node.p?.role === "zeta.tool.bash.command");
 		const rows = input?.k === "shell" ? input.p?.presentation.rows : undefined;
 		expect(rows?.map(row => row.segments.map(segment => segment.text).join(""))).toEqual(["ls -la"]);
 		expect(h.errors).toEqual([]);
@@ -597,7 +597,7 @@ describe("native transcript", () => {
 		// The result resolved to canonical `read`, so the group materializes and
 		// settles (one file renders as the group's inline read row); a wire-name
 		// check would discard the result with no read node at all.
-		const group = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.read");
+		const group = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.read");
 		expect(group?.p).toMatchObject({ status: "done", collapsible: false });
 		expect(h.errors).toEqual([]);
 	});
@@ -609,7 +609,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
 		expect(cardNode?.p).toMatchObject({ status: "done", collapsible: true, collapsed: true });
 
 		h.event({ ev: "toggle", sf: h.terminal.surface!, id: cardNode!.id, collapsed: false });
@@ -849,7 +849,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
 		expect(opsSince(h, 0)).toContainEqual(["settle", cardNode!.id]);
 
 		const before = h.frames.length;
@@ -970,21 +970,21 @@ describe("native transcript", () => {
 		const roles = h.findAll(node => typeof node.p?.role === "string").map(node => node.p!.role);
 		expect(roles).toEqual(
 			expect.arrayContaining([
-				"omp.tool.lookup_thing",
-				"omp.user",
-				"omp.user.synthetic",
-				"omp.assistant",
-				"omp.thinking",
-				"omp.bash",
-				"omp.eval",
-				"omp.compaction",
-				"omp.custom",
-				"omp.notice.ttsr",
-				"omp.notice.todo",
-				"omp.diagnostics.late",
-				"omp.marker.cache-miss",
+				"zeta.tool.lookup_thing",
+				"zeta.user",
+				"zeta.user.synthetic",
+				"zeta.assistant",
+				"zeta.thinking",
+				"zeta.bash",
+				"zeta.eval",
+				"zeta.compaction",
+				"zeta.custom",
+				"zeta.notice.ttsr",
+				"zeta.notice.todo",
+				"zeta.diagnostics.late",
+				"zeta.marker.cache-miss",
 				"omp.status-block",
-				"omp.advisor",
+				"zeta.advisor",
 			]),
 		);
 		expect(h.errors).toEqual([]);

@@ -96,7 +96,7 @@ describe("InteractiveMode HUD pills", () => {
 	});
 
 	const jobsSegment = (): NativeNode | undefined =>
-		nodes(mode.describeHudPills()).find(node => node.key === "jobs" && prop(node, "role") === "omp.hud.seg");
+		nodes(mode.describeHudPills()).find(node => node.key === "jobs" && prop(node, "role") === "zeta.hud.seg");
 
 	it("shows the freshest headline and a mini spark, lists every widget in the title and stacks them in a hover card", () => {
 		let entries: JobWidgetEntry[] = [
@@ -107,7 +107,7 @@ describe("InteractiveMode HUD pills", () => {
 		spyOn(session, "getRunningJobWidgets").mockImplementation(() => entries);
 
 		const segment = jobsSegment()!;
-		const glance = nodes(segment).find(node => prop(node, "role") === "omp.hud.glance");
+		const glance = nodes(segment).find(node => prop(node, "role") === "zeta.hud.glance");
 		expect(prop(glance, "spans")).toEqual([
 			{ t: "186 tok/s", s: "num strong" },
 			{ t: " ▲ 15%", s: "success" },
@@ -119,7 +119,7 @@ describe("InteractiveMode HUD pills", () => {
 			"2 jobs running  /jobs\nbg_1  eval · per model — trials 7/9 trials\nbg_2  loadtest · decode — decode 186 tok/s ▲ 15%",
 		);
 		const card = prop(segment, "hovercard") as TspPropNode;
-		expect(card).toMatchObject({ k: "col", p: { role: "omp.jobs.hovercard" } });
+		expect(card).toMatchObject({ k: "col", p: { role: "zeta.jobs.hovercard" } });
 		expect(card.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tiles"]);
 		expect(card.c?.[0]?.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tile", "omp.job.tile"]);
 
@@ -148,7 +148,7 @@ describe("InteractiveMode HUD pills", () => {
 
 		const next = jobsSegment()!;
 		expect(next).not.toBe(segment);
-		const glance = nodes(next).find(node => prop(node, "role") === "omp.hud.glance");
+		const glance = nodes(next).find(node => prop(node, "role") === "zeta.hud.glance");
 		expect(prop(glance, "spans")).toEqual([{ t: "171 tok/s", s: "num strong" }]);
 		expect(prop(next, "title")).toBe("1 job running  /jobs\nbg_1  loadtest · decode — 171 tok/s");
 	});
@@ -191,7 +191,7 @@ describe("InteractiveMode HUD pills", () => {
 		const agentsSegment = (): NativeNode | undefined => {
 			mode.syncRunningSubagentBadge({ requestRender: false });
 			return nodes(mode.describeHudPills()).find(
-				node => node.key === "agents" && prop(node, "role") === "omp.hud.seg",
+				node => node.key === "agents" && prop(node, "role") === "zeta.hud.seg",
 			);
 		};
 		try {

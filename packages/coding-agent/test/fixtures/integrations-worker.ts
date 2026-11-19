@@ -27,10 +27,10 @@ export interface ToolCallOutcome {
 
 /** Worker-side operations the test drives; each crosses to main as an async function. */
 export interface IntegrationsProbe {
+	/** One server's config as this worker reads it. */
+	mcpConfig(name: string): Promise<MCPServerConfig | undefined>;
 	/** What the worker's `MCPManager` statics report. */
 	mcpGlobal(): Promise<{ available: boolean; remote: boolean; servers: string[]; tools: string[] }>;
-	/** Recognition metadata available to a borrowed manager; transport secrets stay on main. */
-	mcpConfig(name: string): Promise<MCPServerConfig | undefined>;
 	/** Each scope's MCP tool names as this worker reads them, in order, through one `RemoteMCPManager`. */
 	mcpViews(scopes: string[]): Promise<string[][]>;
 	/** Call an MCP tool through `createMCPProxyTools(MCPManager.instance())`, as a child session would. */
@@ -118,6 +118,7 @@ function workerContext(registry: ModelRegistry, onAbort: () => void): CustomTool
 function buildProbe(): IntegrationsProbe {
 	let unwatch: (() => void) | undefined;
 	return {
+		mcpConfig: async name => MCPManager.instance()?.getServerConfig(name),
 		mcpGlobal: async () => {
 			const manager = MCPManager.instance();
 			return {
@@ -127,7 +128,6 @@ function buildProbe(): IntegrationsProbe {
 				tools: manager?.getTools().map(tool => tool.name) ?? [],
 			};
 		},
-		mcpConfig: async name => MCPManager.instance()?.getServerConfig(name),
 		mcpViews: async scopes => {
 			const manager = MCPManager.instance();
 			if (!manager) throw new Error("no MCP manager in worker");

@@ -63,6 +63,8 @@ export interface UnansweredSend {
 	sentAt: number;
 	promised: boolean;
 	ask?: string;
+	/** Opening text of the progress note that promised the reply. */
+	promise?: string;
 }
 
 /** When a send went out: wall-clock `ts`, and `seq` to order sends within one millisecond. */

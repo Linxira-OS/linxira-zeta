@@ -6,7 +6,7 @@
  * {@link LSP_ACQUIRE_METHOD} to pick an instance key (the first instance of
  * its server identity with no attached session), `open`s that unit, and
  * `attach`es with the returned token as channel. The tunnel then carries
- * plain Content-Length-framed LSP JSON-RPC plus the private `omp/mux*`
+ * plain Content-Length-framed LSP JSON-RPC plus the private `zetacode/mux*`
  * methods below.
  */
 import type { UnitScope } from "@linxiraos/pi-tui/tools/daemon";

@@ -15,8 +15,8 @@ function facade() {
 	};
 	const calls: unknown[] = [];
 	const context = createContext({
-		__omp_log__: () => {},
-		__omp_prelude__: async (_name: string, parameters: unknown) => {
+		__zeta_log__: () => {},
+		__zeta_prelude__: async (_name: string, parameters: unknown) => {
 			calls.push(parameters);
 			return { text: "summary", details: { id: "d1", remaining: { id: "d2" } } };
 		},

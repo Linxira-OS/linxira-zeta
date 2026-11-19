@@ -146,7 +146,7 @@ const lostSessions = new Map<string, Set<string>>();
 // SIGILL/SIGSEGV. Callers that pass a larger per-cell budget still dominate.
 const WORKER_INIT_TIMEOUT_MS = 15_000;
 const WORKER_CLOSE_TIMEOUT_MS = 1_000;
-const JS_EVAL_PROCESS_ARG = "__omp_worker_js_eval_process";
+const JS_EVAL_PROCESS_ARG = "__zeta_worker_js_eval_process";
 const productionWorkerFactories: JsEvalWorkerFactories = {
 	spawnProcess: spawnJsProcess,
 	spawnWorker: spawnBunWorker,
@@ -489,7 +489,7 @@ export async function disposeVmContextsByOwner(ownerId: string, options?: Dispos
  * fallback). Catches silent process-load and init-message regressions
  * that otherwise strand every cell on the init timeout in a distribution build —
  * the failure mode that motivated `installWorkerInbox`. Wired into
- * `omp --smoke-test` so binary / source / tarball installs all exercise it.
+ * `zetacode --smoke-test` so binary / source / tarball installs all exercise it.
  */
 export async function smokeTestJsEvalWorker(): Promise<void> {
 	const worker = spawnJsWorker();
@@ -1047,7 +1047,7 @@ function spawnBunWorker(): JsEvalWorkerHandle {
 	try {
 		const hostEntry = workerHostEntry() ?? bundledHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_js_eval"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_js_eval"] })
 			: new Worker(SOURCE_WORKER_ENTRY.href, { type: "module" });
 		const channel = new MessageChannel();
 		const outbox: WorkerOutboxMessage = { type: "outbox", port: channel.port2 };

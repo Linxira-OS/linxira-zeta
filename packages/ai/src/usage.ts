@@ -77,7 +77,7 @@ export interface UsageLimit {
  * Populated when the provider's listing endpoint returns individual credit
  * metadata (e.g. OpenAI Codex credits or Claude Cedar grants). Callers that
  * only need the count can ignore this; display layers use `expiresAt` to show
- * when banked resets expire ([#3339](https://github.com/can1357/oh-my-pi/issues/3339)).
+ * when banked resets expire ([#3339](https://github.com/Linxira-OS/linxira-zeta/issues/3339)).
  */
 export interface UsageResetCreditDetail {
 	/** Opaque provider credit/grant identifier. */

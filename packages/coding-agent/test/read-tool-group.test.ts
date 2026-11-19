@@ -461,7 +461,7 @@ describe("readArgsCollapseIntoGroup", () => {
 		["skill://my-skill/file.md"],
 		["zeta://docs/tools/read.md"],
 		["issue://123"],
-		["pr://can1357/oh-my-pi/456"],
+		["pr://Linxira-OS/linxira-zeta/456"],
 		["agent://abc"],
 		["memory://root"],
 		["rule://name"],

@@ -23,7 +23,7 @@ import type { AuthStorage } from "../src/session/auth-storage";
 import { CostCapError, type CostGateApi } from "../src/session/cost-gate";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-const ENV_KEYS = ["PI_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["ZETA_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -47,7 +47,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			xdgData = path.join(tempRoot, "data");
 			await fs.promises.mkdir(path.join(xdgData, "zeta"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.PI_CONFIG_DIR = ".zeta";
+			process.env.ZETA_CONFIG_DIR = ".zeta";
 			delete process.env.ZETA_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});

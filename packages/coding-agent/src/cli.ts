@@ -193,14 +193,14 @@ async function runSmokeTest(): Promise<void> {
 	process.stdout.write("smoke-test: ok\n");
 }
 
-const TINY_WORKER_ARG = "__omp_worker_tiny_inference";
-const STATS_SYNC_WORKER_ARG = "__omp_worker_stats_sync";
-const STATS_SPOTLIGHT_WORKER_ARG = "__omp_worker_stats_spotlight";
-const TAB_WORKER_ARG = "__omp_worker_tab";
-const JS_EVAL_WORKER_ARG = "__omp_worker_js_eval";
-const JS_EVAL_PROCESS_ARG = "__omp_worker_js_eval_process";
-const STT_WORKER_ARG = "__omp_worker_stt";
-const TTS_WORKER_ARG = "__omp_worker_tts";
+const TINY_WORKER_ARG = "__zeta_worker_tiny_inference";
+const STATS_SYNC_WORKER_ARG = "__zeta_worker_stats_sync";
+const STATS_SPOTLIGHT_WORKER_ARG = "__zeta_worker_stats_spotlight";
+const TAB_WORKER_ARG = "__zeta_worker_tab";
+const JS_EVAL_WORKER_ARG = "__zeta_worker_js_eval";
+const JS_EVAL_PROCESS_ARG = "__zeta_worker_js_eval_process";
+const STT_WORKER_ARG = "__zeta_worker_stt";
+const TTS_WORKER_ARG = "__zeta_worker_tts";
 
 async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 	if (arg === TINY_WORKER_ARG) {
@@ -436,7 +436,7 @@ let runningCommand: string | undefined;
 
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
-	// `omp zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
+	// `zetacode zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
 	// `--profile`, `-c` included), so it dispatches before profile bootstrap,
 	// prepaint, network setup and the command table.
 	if (isNativeShell(argv[0])) {
@@ -462,7 +462,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
 			// OMP_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `OMP_PROFILE=.. omp --version` into a clean error;
+			// validation here turns `OMP_PROFILE=.. zetacode --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
 			setProfile(resolveProfileEnv(process.env.OMP_PROFILE, process.env.PI_PROFILE));
@@ -603,7 +603,7 @@ export async function runCli(argv: string[]): Promise<void> {
 if (isProcessEntry || !Bun.isMainThread) {
 	const postmortem: typeof Postmortem = require("@linxiraos/pi-utils/postmortem.js");
 	postmortem.installProcessHandlers();
-	// A one-shot CLI run (`omp --help | head`, `omp --version | true`, `omp <sub> | grep -m1`)
+	// A one-shot CLI run (`zetacode --help | head`, `zetacode --version | true`, `zetacode <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
 	// an unhandled rejection. Treat a vanished stdout peer as an ordinary Unix disconnect
 	// (graceful exit) rather than the fatal path. Interactive launches register their own

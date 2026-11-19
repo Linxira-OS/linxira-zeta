@@ -127,7 +127,7 @@ describe("native composer", () => {
 		expect(nodes(away).find(n => n.k === "editor")?.p).toMatchObject({
 			placeholder: "Answer above, or type here to skip the questions",
 		});
-		expect(byRole(away, "omp.composer.stop")).toBeDefined();
+		expect(byRole(away, "zeta.composer.stop")).toBeDefined();
 
 		editor.focused = true;
 		expect(editor.describe(cx).p).not.toHaveProperty("folded");
@@ -135,9 +135,9 @@ describe("native composer", () => {
 		ask = "skip";
 		editor.setText("drop them instead");
 		const skipping = editor.describe(cx);
-		expect(nodes(byRole(skipping, "omp.composer.mode")!).some(n => n.k === "text")).toBe(true);
-		expect(byRole(skipping, "omp.composer.stop")).toBeUndefined();
-		expect(byRole(skipping, "omp.composer.skip")?.p).toMatchObject({ actions: { click: "submit" } });
+		expect(nodes(byRole(skipping, "zeta.composer.mode")!).some(n => n.k === "text")).toBe(true);
+		expect(byRole(skipping, "zeta.composer.stop")).toBeUndefined();
+		expect(byRole(skipping, "zeta.composer.skip")?.p).toMatchObject({ actions: { click: "submit" } });
 		editor.handleNativeEvent({ type: "action", key: "bar/skip", act: "submit", mods: [] });
 		expect(editor.onSubmit).toHaveBeenCalledWith("drop them instead");
 	});

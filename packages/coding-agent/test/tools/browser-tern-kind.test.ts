@@ -81,7 +81,7 @@ describe("resolveBrowserKind with Tern", () => {
 });
 
 describe("resolveBrowserKind in a terminal another omp owns", () => {
-	// An `omp -p` that an interactive omp's bash tool or eval cell started inherits its pane env and its claim.
+	// An `zetacode -p` that an interactive omp's bash tool or eval cell started inherits its pane env and its claim.
 	const paneEnv = { ...TERN_ENV, CMUX_SOCKET_PATH: "/tmp/cmux.sock" };
 	const otherOwner = { [TERMINAL_OWNER_ENV]: String(process.pid + 1) };
 

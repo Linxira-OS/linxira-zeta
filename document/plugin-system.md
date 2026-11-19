@@ -350,7 +350,7 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
   messenger 设置——全部走 manifest v2 `pages` + gateway `/api/plugin-assets` iframe
   动态插入。
 - i18n（**机制已落地，文案抽取仍暂缓**）：插件在 `package.json` 的
-  `zeta`/`omp`/`pi` 清单里声明 `locales: { zh, en }`（相对插件根的 JSON 路径；
+  `zeta`/`zetacode`/`pi` 清单里声明 `locales: { zh, en }`（相对插件根的 JSON 路径；
   未声明时回落到 `locales/{zh,en}.json`），宿主把 `ctx.t(key, fallback?)` 注入给
   该插件扩展的 handler / tool / command / shortcut，按「当前语言 → en →
   fallback → key」查找，语言实时读取、`/language` 切换无需重载插件。细节见

@@ -1,4 +1,4 @@
-//! Test-only helpers shared across `omp-natives` unit tests.
+//! Test-only helpers shared across `zeta-natives` unit tests.
 //!
 //! Any state exposed here MUST be gated on `#[cfg(test)]` — it does not ship
 //! in release builds.

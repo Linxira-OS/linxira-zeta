@@ -211,14 +211,14 @@ describe("InternalUrlFilesystem read selectors", () => {
 		await fs.mkdir(localRoot, { recursive: true });
 		await fs.writeFile(path.join(localRoot, "rows.jsonl"), "a\nb\nc\n");
 		const filesystem = shellFs();
-		const listing = await filesystem.handle({ op: ShellFsOp.ReadDir, path: "omp://" });
+		const listing = await filesystem.handle({ op: ShellFsOp.ReadDir, path: "zeta://" });
 		const entry = listing.entries?.find(item => item.fileType === ShellFsFileType.File);
-		if (!entry) throw new Error("omp:// listed no documents");
-		const whole = await readUrl(`omp://${entry.name}`);
+		if (!entry) throw new Error("zeta:// listed no documents");
+		const whole = await readUrl(`zeta://${entry.name}`);
 
 		expect(await readUrl("local://rows.jsonl:raw:2")).toBe("b\n");
 		expect(await readUrl("local://rows.jsonl:-1")).toBe("c\n");
-		expect(await readUrl(`omp://${entry.name}:1`)).toBe(whole.slice(0, whole.indexOf("\n") + 1));
+		expect(await readUrl(`zeta://${entry.name}:1`)).toBe(whole.slice(0, whole.indexOf("\n") + 1));
 	});
 });
 

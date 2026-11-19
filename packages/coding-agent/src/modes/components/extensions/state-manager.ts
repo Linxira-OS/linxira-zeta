@@ -29,6 +29,7 @@ import {
 import { createSourceMeta, getExtensionNameFromPath } from "../../../discovery/helpers";
 import { isExtensionFile, listPackageExtensionModules } from "../../../extensibility/extensions/loader";
 import { readDisabledServers, readEnabledServers } from "../../../mcp/config-writer";
+import type { MCPDroppedServer } from "../../../mcp/transforms";
 import { commandPreview } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import { inferMcpTransport } from "@linxiraos/pi-tui/overlays/extensions/mcp-runtime";
 import {
@@ -128,6 +129,7 @@ export async function loadAllExtensions(
 	cwd?: string,
 	disabledIds?: string[],
 	extensionRoots?: EffectiveExtensionRoots,
+	builtinDrops?: ReadonlyMap<string, MCPDroppedServer>,
 ): Promise<Extension[]> {
 	const extensions: Extension[] = [];
 	const effectiveDisabledIds = disabledIds ?? [];
@@ -253,7 +255,11 @@ export async function loadAllExtensions(
 			const id = makeExtensionId("mcp", server.name);
 			const forced = mcpForcedEnabled.has(server.name);
 			const sourceSaysDisabled = server.enabled === false && !forced;
-			const isDisabled = mcpDisabledNames.has(server.name) || disabledExtensions.has(id) || sourceSaysDisabled;
+			const isDisabled =
+				mcpDisabledNames.has(server.name) ||
+				disabledExtensions.has(id) ||
+				sourceSaysDisabled ||
+				builtinDrops?.has(server.name) === true;
 			const { state, disabledReason } = resolveState(
 				server._source,
 				isDisabled,

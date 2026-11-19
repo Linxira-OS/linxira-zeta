@@ -1,6 +1,6 @@
 /**
  * Default tab width (display / tab expansion) and per-file width from `.editorconfig`.
- * Mirrors former `omp-natives` `indent` + `text` default-tab-width behavior (no N-API).
+ * Mirrors former `zeta-natives` `indent` + `text` default-tab-width behavior (no N-API).
  */
 import * as fs from "node:fs";
 import * as path from "node:path";

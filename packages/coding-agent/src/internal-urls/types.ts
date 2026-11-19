@@ -122,6 +122,8 @@ export interface SchemeSpec {
 	 * session storage (`local://N.log` spills) that selectors re-read, so a spill would only copy it.
 	 */
 	unspilledPages?: true;
+	/** Resources are session artifact storage (artifact://); located read pages skip the artifact spill. */
+	artifactStore?: true;
 	/** Approval tier for reading/searching this scheme. Default `read`; ssh:// is `exec`. */
 	readTier?: ToolTier;
 	/** Read output bypasses result truncation limits (skill:// instructions). */
@@ -327,7 +329,7 @@ export interface ResolveContext {
 	 * Required for correctness in multi-session hosts (cmux/ACP, embedded SDK
 	 * consumers) where multiple sessions are registered as `main` and the
 	 * "first one wins" lookup picks the wrong artifacts directory — see
-	 * [#1608](https://github.com/can1357/oh-my-pi/issues/1608).
+	 * [#1608](https://github.com/Linxira-OS/linxira-zeta/issues/1608).
 	 */
 	localProtocolOptions?: LocalProtocolOptions;
 	/** Calling session's loaded skills. Prefer this over process-global skill state. */

@@ -103,7 +103,7 @@ Extension packages can also bundle sibling capability directories. When a packag
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `omp` field to `package.json`:
+To package an extension as an installable plugin, add an `zetacode` field to `package.json`:
 
 ```json
 {

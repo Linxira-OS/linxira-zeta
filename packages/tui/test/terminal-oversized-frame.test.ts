@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
 import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
-// Regression for https://github.com/can1357/oh-my-pi/issues/10430
+// Regression for https://github.com/Linxira-OS/linxira-zeta/issues/10430
 //
 // A `--resume` transcript repaint of many inline screenshots is a single
 // >64 MiB frame. The old backlog guard tripped #markTerminalDisconnected

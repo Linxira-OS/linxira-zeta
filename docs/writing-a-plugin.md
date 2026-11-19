@@ -44,7 +44,7 @@ my-plugin/
 }
 ```
 
-Declare `zeta` (or the upstream spellings `omp` / `pi`, which are still read).
+Declare `zeta` (or the upstream spellings `zetacode` / `pi`, which are still read).
 Relative paths are resolved from the plugin root. A plugin without `zeta` is not
 a plugin package — it will be listed only if it is an extension package.
 

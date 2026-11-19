@@ -351,8 +351,8 @@ function assertNotShorterReadProjection(
 	}
 	throw new ToolError(
 		columnCut
-			? `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an omp read column-cap notice, so its cut lines would replace the full ones. Re-read the cut lines in raw mode and write the complete file, or use edit for a partial change.`
-			: `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an omp read truncation notice and covers less than the current source, so it would discard unseen content. Re-read the omitted ranges and write the complete file, or use edit for a partial change.`,
+			? `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an zetacode read column-cap notice, so its cut lines would replace the full ones. Re-read the cut lines in raw mode and write the complete file, or use edit for a partial change.`
+			: `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an zetacode read truncation notice and covers less than the current source, so it would discard unseen content. Re-read the omitted ranges and write the complete file, or use edit for a partial change.`,
 	);
 }
 

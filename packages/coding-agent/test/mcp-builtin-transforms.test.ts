@@ -17,7 +17,7 @@ import { resolveMCPTransformContext } from "@linxiraos/zeta/mcp/transforms";
 import { getConfigRootDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/discovery";
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 /** Codex Desktop's entries as it writes them on macOS and Windows, plus a server that only shares the name. */
@@ -74,7 +74,7 @@ describe("built-in MCP transforms", () => {
 			setAgentDir(originalAgentDirEnv);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
@@ -101,9 +101,9 @@ describe("built-in MCP transforms", () => {
 
 	test("an explicit enable outranks the drop", async () => {
 		// `/mcp enable` on another tool's server lands in the user allowlist; on
-		// an omp-owned entry it writes `enabled: true`.
+		// an zeta-owned entry it writes `enabled: true`.
 		await writeJson(path.join(userAgentDir, "mcp.json"), { mcpServers: {}, enabledServers: ["codex_js"] });
-		await writeJson(path.join(projectDir, ".omp", "mcp.json"), {
+		await writeJson(path.join(projectDir, ".zeta", "mcp.json"), {
 			mcpServers: {
 				kept_repl: { command: "/opt/a/node_repl", enabled: true },
 				bare_repl: { command: "/opt/b/node_repl" },
@@ -117,9 +117,9 @@ describe("built-in MCP transforms", () => {
 	});
 
 	test("does not report a match under a name a higher-priority server owns", async () => {
-		// The omp-owned `codex_js` is the one that connects; Codex's same-named
+		// The zeta-owned `codex_js` is the one that connects; Codex's same-named
 		// entry was shadowed already, so listing it as replaced would be wrong.
-		await writeJson(path.join(projectDir, ".omp", "mcp.json"), { mcpServers: { codex_js: { command: "mine" } } });
+		await writeJson(path.join(projectDir, ".zeta", "mcp.json"), { mcpServers: { codex_js: { command: "mine" } } });
 
 		const { dropped, result } = await load(true);
 

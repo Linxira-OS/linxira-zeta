@@ -100,7 +100,7 @@ Rust `#[napi]` functions, classes, objects, and enums generate the declaration s
 ## Ownership boundaries
 
 - **Package/scripts** own binary selection, CPU variants, optional leaf resolution, embedded extraction, Windows staging, desktop ABI adaptation, declarations, and explicit ESM exports.
-- **`omp-natives` and supporting crates** own algorithms, native resources, platform behavior, cancellation, and N-API conversion.
+- **`zeta-natives` and supporting crates** own algorithms, native resources, platform behavior, cancellation, and N-API conversion.
 - **Consumers** own higher-level tool policy, rendering, artifacts, and user-facing fallbacks not encoded in a primitive.
 
 For the supporting-crate map, see [`native-crates.md`](./native-crates.md). For the loader runtime and diagnostics, see [`natives-architecture.md`](./natives-architecture.md#loader-runtime-details) (merged from the former loader doc).

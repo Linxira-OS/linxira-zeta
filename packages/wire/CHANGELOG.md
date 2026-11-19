@@ -1,21 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-## [19.0.0] - 2026-11-18
-
-### Added
-
-- Added tray state and interaction properties, including focus, peek, quiet, main status, item references, card status and actions, and event state.
-- Added layout transition properties to nodes for coordinating layout animations.
-- Added support for folding a dock composer into its compact row.
-
-## [18.22.0] - 2026-11-16
-
-### Added
-
-- Added optional picker icons for tooltips and accessible names, plus an option to control the placement of the search interface.
-- Added buttons, menu, and document component kinds, including menu-row action state changes and document text editing, commenting, and uncommenting events.
-
 ## [1.5.2] - 2026-11-13
 
 ### Changed

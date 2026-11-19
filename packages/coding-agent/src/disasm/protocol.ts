@@ -2,7 +2,7 @@
  * Contract between omp processes and the daemon's `disasm` module (`daemon/modules/disasm.ts`).
  *
  * Each open database is one global-scope `disasm` unit keyed {@link disasmUnitKey} in the omp
- * daemon (so it shows up in `omp ps`). The unit owns the database lock and one Python worker;
+ * daemon (so it shows up in `zetacode ps`). The unit owns the database lock and one Python worker;
  * omp processes speak NDJSON {@link HostRequest}s to it over an attached daemon tunnel.
  */
 import { type } from "@linxiraos/zeta-schema";
@@ -11,6 +11,9 @@ import type { DisasmBackendId } from "./backend";
 
 /** Daemon unit kind and module name. */
 export const DISASM_UNIT_KIND = "disasm";
+
+/** Broker daemon names shown in `zetacode ps` use the Zeta namespace. */
+export const DISASM_DAEMON_PREFIXES = ["zeta.ida.", "zeta.ghidra."];
 
 /** Unit key of the database registered under `id` (a `locateDatabase` id). */
 export function disasmUnitKey(backend: DisasmBackendId, id: string): string {

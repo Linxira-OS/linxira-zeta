@@ -6,15 +6,15 @@
  * evaluation is unnecessary in an ordinary interactive process.
  */
 /** Background self-update selector shared by the CLI dispatcher and `cli/auto-update.ts`. */
-export const AUTO_UPDATE_WORKER_ARG = "__omp_worker_auto_update";
+export const AUTO_UPDATE_WORKER_ARG = "__zeta_worker_auto_update";
 /** Computer-worker selector shared by the CLI dispatcher and worker launcher. */
-export const COMPUTER_WORKER_ARG = "__omp_worker_computer";
+export const COMPUTER_WORKER_ARG = "__zeta_worker_computer";
 /** Parent-death watchdog thread selector shared by the CLI dispatcher and `startParentWatchdog`. */
-export const PARENT_WATCHDOG_WORKER_ARG = "__omp_worker_parent_watchdog";
+export const PARENT_WATCHDOG_WORKER_ARG = "__zeta_worker_parent_watchdog";
 /** Subagent host worker selector shared by the CLI dispatcher and `SubagentWorker`. */
-export const SUBAGENT_WORKER_ARG = "__omp_worker_subagent";
+export const SUBAGENT_WORKER_ARG = "__zeta_worker_subagent";
 /** Activity-worker selector shared by the CLI dispatcher and worker launcher. */
-export const STATS_ACTIVITY_WORKER_ARG = "__omp_worker_stats_activity";
+export const STATS_ACTIVITY_WORKER_ARG = "__zeta_worker_stats_activity";
 /** Daemon broker worker selector shared by the launch client and CLI dispatcher. */
 export const DAEMON_BROKER_WORKER_ARG = "__zeta_worker_daemon_broker";
 /** Terminal-output worker selector shared by the CLI dispatcher and the launch client. */

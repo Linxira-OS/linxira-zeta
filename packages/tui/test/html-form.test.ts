@@ -1229,14 +1229,14 @@ describe("html form", () => {
 		it("natively: stacks every question; the focused one opens, the rest fold to their answer", () => {
 			const { form } = dialog(DB_FORM);
 			const root = form.describe(CX);
-			expect(root.p).toMatchObject({ role: "omp.ask.card" });
+			expect(root.p).toMatchObject({ role: "zeta.ask.card" });
 			expect(allNodes(root).some(node => node.k === "tabs")).toBe(false);
-			expect(labelsOf(byRole(root, "omp.ask.card.progress"))).toEqual(["4 of 5 answered"]);
+			expect(labelsOf(byRole(root, "zeta.ask.card.progress"))).toEqual(["4 of 5 answered"]);
 			// Database holds focus: its radios are rows. Extras folds field by field.
 			expect(findPath(root, node => node.k === "list" && node.key === "f0")).toBeDefined();
 			expect(findPath(root, node => node.k === "list" && node.key === "f1")).toBeUndefined();
-			const folds = byRole(root, "omp.ask.fold");
-			expect(folds.map(fold => labelsOf(byRole(fold, "omp.ask.fold.question"))[0])).toEqual([
+			const folds = byRole(root, "zeta.ask.fold");
+			expect(folds.map(fold => labelsOf(byRole(fold, "zeta.ask.fold.question"))[0])).toEqual([
 				"Extras",
 				"Region",
 				"Workers",
@@ -1244,11 +1244,11 @@ describe("html form", () => {
 			]);
 			// A choice keeps its options in view, the chosen one marked; a text answer shows its value; an empty
 			// one its placeholder.
-			expect(labelsOf(byRole(folds[0]!, "omp.ask.pill"))).toEqual(["✓ CI", "Docker"]);
-			expect(labelsOf(byRole(folds[1]!, "omp.ask.pill"))).toEqual(["✓ US", "EU", "AP"]);
-			expect(labelsOf(byRole(folds[2]!, "omp.ask.fold.answer"))).toEqual(["4"]);
-			expect(labelsOf(byRole(folds[3]!, "omp.ask.fold.well"))).toEqual(["anything else"]);
-			expect(byRole(root, "omp.ask.skip")).toEqual([]);
+			expect(labelsOf(byRole(folds[0]!, "zeta.ask.pill"))).toEqual(["✓ CI", "Docker"]);
+			expect(labelsOf(byRole(folds[1]!, "zeta.ask.pill"))).toEqual(["✓ US", "EU", "AP"]);
+			expect(labelsOf(byRole(folds[2]!, "zeta.ask.fold.answer"))).toEqual(["4"]);
+			expect(labelsOf(byRole(folds[3]!, "zeta.ask.fold.well"))).toEqual(["anything else"]);
+			expect(byRole(root, "zeta.ask.skip")).toEqual([]);
 		});
 
 		it("natively: an unanswered fold shows its first four options, cut to twenty cells, then +N", () => {
@@ -1263,11 +1263,11 @@ describe("html form", () => {
 				.map((label, index) => `<label><input type="radio" name="when" value="v${index}"> ${label}</label>`)
 				.join("");
 			const { form } = dialog(`<form><label>Owner <input name="owner"></label><p>Rollout?</p>${radios}</form>`);
-			const [fold] = byRole(form.describe(CX), "omp.ask.fold");
-			const pills = byRole(fold!, "omp.ask.pill");
+			const [fold] = byRole(form.describe(CX), "zeta.ask.fold");
+			const pills = byRole(fold!, "zeta.ask.pill");
 			expect(labelsOf(pills)).toEqual(["Behind a feature fl…", "Default on", "Next minor", "After a soak"]);
 			expect(pills[0]!.p).toMatchObject({ title: "Behind a feature flag for a week" });
-			expect(labelsOf(byRole(fold!, "omp.ask.pill.more"))).toEqual(["+2"]);
+			expect(labelsOf(byRole(fold!, "zeta.ask.pill.more"))).toEqual(["+2"]);
 		});
 
 		it("natively: a pill on a folded question picks it without moving focus", () => {
@@ -1284,7 +1284,7 @@ describe("html form", () => {
 
 		it("natively: ↓ past a question's last row opens the next; PgDn past the last folds all for Submit", () => {
 			const { form, onSubmit } = dialog(DB_FORM);
-			const open = () => byRole(form.describe(CX), "omp.ask.open")[0];
+			const open = () => byRole(form.describe(CX), "zeta.ask.open")[0];
 			const first = open()!.reveal;
 			setNativeRendering(true);
 			try {
@@ -1317,7 +1317,7 @@ describe("html form", () => {
 			expect(onSubmit).not.toHaveBeenCalled();
 			expect(form.debugState().focus).toBe("workers");
 			const root = form.describe(CX);
-			expect(byRole(root, "omp.ask.open").flatMap(node => byRole(node, "omp.ask.error"))).toHaveLength(1);
+			expect(byRole(root, "zeta.ask.open").flatMap(node => byRole(node, "zeta.ask.error"))).toHaveLength(1);
 		});
 
 		it("natively: each question keeps the context before it, shown only while it is open", () => {
@@ -1329,7 +1329,7 @@ describe("html form", () => {
 			</form>`);
 			const open = (field: number) => {
 				form.handleNativeEvent({ type: "action", key: "x", act: `open:${field}`, mods: [] });
-				return byRole(form.describe(CX), "omp.ask.open").flatMap(textsOrLabels);
+				return byRole(form.describe(CX), "zeta.ask.open").flatMap(textsOrLabels);
 			};
 			expect(open(1)).not.toContain("How urgent is it?");
 			expect(open(2)).toContain("How urgent is it?");
@@ -1349,11 +1349,11 @@ describe("html form", () => {
 		it("natively: the skip notice warns under the questions and dims them", () => {
 			let notice: string | undefined = undefined;
 			const { form } = dialog(DB_FORM, { skipNotice: () => notice });
-			expect(byRole(form.describe(CX), "omp.ask.skip")).toEqual([]);
+			expect(byRole(form.describe(CX), "zeta.ask.skip")).toEqual([]);
 			notice = "Sending your message skips these questions";
 			const root = form.describe(CX);
-			expect(labelsOf(byRole(root, "omp.ask.skip"))).toEqual(["⚠ Sending your message skips these questions"]);
-			expect(byRole(root, "omp.ask.card.body")[0]!.p).toMatchObject({ mark: "drop" });
+			expect(labelsOf(byRole(root, "zeta.ask.skip"))).toEqual(["⚠ Sending your message skips these questions"]);
+			expect(byRole(root, "zeta.ask.card.body")[0]!.p).toMatchObject({ mark: "drop" });
 		});
 
 		it("hides to one row and back by key in rows; natively the key leaves the card alone", () => {
@@ -1367,7 +1367,7 @@ describe("html form", () => {
 			setNativeRendering(true);
 			try {
 				form.handleInput("\x1bh");
-				expect(form.describe(CX).p).toMatchObject({ role: "omp.ask.card" });
+				expect(form.describe(CX).p).toMatchObject({ role: "zeta.ask.card" });
 				form.handleInput(DOWN);
 				expect(form.debugState().focus).toBe("db=pg");
 			} finally {
@@ -1393,7 +1393,7 @@ describe("html form", () => {
 			});
 			try {
 				expect(harness.errors).toEqual([]);
-				expect(harness.findAll(node => node.p?.role === "omp.ask.card")).toHaveLength(1);
+				expect(harness.findAll(node => node.p?.role === "zeta.ask.card")).toHaveLength(1);
 				// Focus is on a radio: no editor node, so the terminal keeps sending keys to the form.
 				expect(harness.findAll(node => node.k === "input" || node.k === "editor")).toEqual([]);
 				// Opening Workers (field 3) makes it the one live input.

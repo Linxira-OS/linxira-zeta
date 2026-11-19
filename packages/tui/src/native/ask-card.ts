@@ -5,12 +5,12 @@
  * typed one, or up to {@link PILL_LIMIT} option pills, the chosen ones marked. The card is a layout-transition container,
  * so a question opening or folding glides instead of jumping.
  *
- * Roles Tern's stylesheets key on: `omp.ask.card` holds `omp.ask.card.head` (`omp.ask.card.tag`,
- * `omp.ask.card.progress`), `omp.ask.card.body` (its questions, `omp.ask.open` or `omp.ask.fold`;
- * `mark: "drop"` while a composer draft would skip the ask), `omp.ask.skip` saying so, and the
- * `omp.actions` bar. A fold is `omp.ask.fold.head` (`omp.ask.fold.mark`, `omp.ask.fold.question`)
- * over `omp.ask.pills` (`omp.ask.pill` buttons, pressed when chosen, `omp.ask.pill.more`, `omp.ask.fold.note`),
- * `omp.ask.fold.answer` or `omp.ask.fold.well`, then its `omp.ask.error`.
+ * Roles Tern's stylesheets key on: `zeta.ask.card` holds `zeta.ask.card.head` (`zeta.ask.card.tag`,
+ * `zeta.ask.card.progress`), `zeta.ask.card.body` (its questions, `zeta.ask.open` or `zeta.ask.fold`;
+ * `mark: "drop"` while a composer draft would skip the ask), `zeta.ask.skip` saying so, and the
+ * `zeta.actions` bar. A fold is `zeta.ask.fold.head` (`zeta.ask.fold.mark`, `zeta.ask.fold.question`)
+ * over `zeta.ask.pills` (`zeta.ask.pill` buttons, pressed when chosen, `zeta.ask.pill.more`, `zeta.ask.fold.note`),
+ * `zeta.ask.fold.answer` or `zeta.ask.fold.well`, then its `zeta.ask.error`.
  *
  * @example
  * askCard({
@@ -77,26 +77,26 @@ export function askCard(parts: {
 }): NativeNode {
 	const head = row(
 		[
-			text([span("ask", "accent")], { role: "omp.ask.card.tag" }),
-			...(parts.progress ? [text([span(parts.progress, "muted")], { role: "omp.ask.card.progress" })] : []),
+			text([span("ask", "accent")], { role: "zeta.ask.card.tag" }),
+			...(parts.progress ? [text([span(parts.progress, "muted")], { role: "zeta.ask.card.progress" })] : []),
 		],
-		{ role: "omp.ask.card.head", gap: "sm", align: "baseline", justify: "between" },
+		{ role: "zeta.ask.card.head", gap: "sm", align: "baseline", justify: "between" },
 	);
 	const children: NativeChild[] = [
 		withMotion(head, "head"),
 		withMotion(
-			col(parts.body, { role: "omp.ask.card.body", gap: "lg", ...(parts.skip ? { mark: "drop" } : {}) }),
+			col(parts.body, { role: "zeta.ask.card.body", gap: "lg", ...(parts.skip ? { mark: "drop" } : {}) }),
 			"body",
 		),
 	];
 	if (parts.skip) {
 		children.push(
-			withMotion(text([span(`⚠ ${parts.skip}`, "warning")], { role: "omp.ask.skip", wrap: "word" }), "skip"),
+			withMotion(text([span(`⚠ ${parts.skip}`, "warning")], { role: "zeta.ask.skip", wrap: "word" }), "skip"),
 		);
 	}
 	children.push(withMotion(parts.actions, "actions"));
 	// Revealed at its top when it lands, so the first question shows whatever the transcript was scrolled to.
-	return { ...col(children, { role: "omp.ask.card", gap: "md", transition: "layout" }), reveal: "start" };
+	return { ...col(children, { role: "zeta.ask.card", gap: "md", transition: "layout" }), reveal: "start" };
 }
 
 /**
@@ -106,7 +106,7 @@ export function askCard(parts: {
  */
 export function openQuestion(key: string, children: readonly NativeChild[], reveal: number): NativeNode {
 	return {
-		...withMotion(col(children, { role: "omp.ask.open", gap: "sm" }), key),
+		...withMotion(col(children, { role: "zeta.ask.open", gap: "sm" }), key),
 		reveal: { at: "start", n: reveal },
 	};
 }
@@ -117,17 +117,17 @@ export function foldQuestion(question: FoldedQuestion): NativeNode {
 	const children: NativeChild[] = [
 		row(
 			[
-				text([mark], { role: "omp.ask.fold.mark" }),
-				text([...question.question], { role: "omp.ask.fold.question", wrap: "word" }),
+				text([mark], { role: "zeta.ask.fold.mark" }),
+				text([...question.question], { role: "zeta.ask.fold.question", wrap: "word" }),
 			],
-			{ role: "omp.ask.fold.head", gap: "sm", align: "baseline" },
+			{ role: "zeta.ask.fold.head", gap: "sm", align: "baseline" },
 		),
 		withMotion(foldSummary(question.summary), `${question.key}.summary`),
 	];
-	if (question.error) children.push(text([span(question.error, "error")], { role: "omp.ask.error" }));
+	if (question.error) children.push(text([span(question.error, "error")], { role: "zeta.ask.error" }));
 	return withMotion(
 		col(children, {
-			role: "omp.ask.fold",
+			role: "zeta.ask.fold",
 			gap: "xs",
 			title: "Answer this question",
 			actions: { click: question.open },
@@ -139,14 +139,18 @@ export function foldQuestion(question: FoldedQuestion): NativeNode {
 function foldSummary(summary: FoldSummary): NativeNode {
 	switch (summary.kind) {
 		case "answer": {
-			const answer = text([span(summary.text, "muted")], { role: "omp.ask.fold.answer", truncate: "end", lines: 1 });
+			const answer = text([span(summary.text, "muted")], {
+				role: "zeta.ask.fold.answer",
+				truncate: "end",
+				lines: 1,
+			});
 			return summary.note
-				? row([answer, foldNote(summary.note)], { role: "omp.ask.pills", gap: "xs", align: "center" })
+				? row([answer, foldNote(summary.note)], { role: "zeta.ask.pills", gap: "xs", align: "center" })
 				: answer;
 		}
 		case "well":
 			return text([span(summary.placeholder || " ", "dim")], {
-				role: "omp.ask.fold.well",
+				role: "zeta.ask.fold.well",
 				truncate: "end",
 				lines: 1,
 			});
@@ -186,7 +190,7 @@ function pillRow(summary: Extract<FoldSummary, { kind: "pills" }>): NativeNode {
 		node(
 			"button",
 			{
-				role: "omp.ask.pill",
+				role: "zeta.ask.pill",
 				text: pill.cut,
 				size: "sm",
 				actions: { click: pill.act },
@@ -202,7 +206,7 @@ function pillRow(summary: Extract<FoldSummary, { kind: "pills" }>): NativeNode {
 			node(
 				"button",
 				{
-					role: "omp.ask.pill.more",
+					role: "zeta.ask.pill.more",
 					text: `+${hidden}`,
 					size: "sm",
 					title: "Show every option",
@@ -214,10 +218,10 @@ function pillRow(summary: Extract<FoldSummary, { kind: "pills" }>): NativeNode {
 		);
 	}
 	if (shown.some(pill => pill.chosen) && summary.note) children.push(foldNote(summary.note));
-	return row(children, { role: "omp.ask.pills", gap: "xs", align: "center", wrap: true });
+	return row(children, { role: "zeta.ask.pills", gap: "xs", align: "center", wrap: true });
 }
 
 /** The note on a folded question's answer. */
 function foldNote(note: string): NativeNode {
-	return text([span("✎ ", "dim"), span(note, "em")], { role: "omp.ask.fold.note", truncate: "end", lines: 1 });
+	return text([span("✎ ", "dim"), span(note, "em")], { role: "zeta.ask.fold.note", truncate: "end", lines: 1 });
 }

@@ -32,7 +32,7 @@ function bulletList(items: number): string {
 		lines.push(
 			`- \`packages/tui/src/components/markdown_component_${i}.ts\` handles the ` +
 				`stable_prefix_freeze_path_${i} and re-lexes only the unfrozen tail, see ` +
-				`https://github.com/can1357/oh-my-pi/issues/${1000 + i} for details on token_${i}.`,
+				`https://github.com/Linxira-OS/linxira-zeta/issues/${1000 + i} for details on token_${i}.`,
 		);
 	}
 	return `${lines.join("\n")}\n\n`;
@@ -68,7 +68,7 @@ if (process.argv.includes("--production-theme")) {
 	await initTheme();
 	theme = process.argv.includes("--resolved-links")
 		? getMarkdownThemeWithLinkTargets(
-				new Map([["https://github.com/can1357/oh-my-pi/issues/1000", "https://example.com/resolved"]]),
+				new Map([["https://github.com/Linxira-OS/linxira-zeta/issues/1000", "https://example.com/resolved"]]),
 			)
 		: getMarkdownTheme();
 }

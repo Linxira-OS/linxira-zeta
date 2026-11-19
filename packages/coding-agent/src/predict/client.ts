@@ -221,7 +221,7 @@ export function textPredictionBackend(method: WordCompletionEngine): WordPredict
 }
 
 /**
- * One completion with its confidence, for diagnostics such as `omp predict`.
+ * One completion with its confidence, for diagnostics such as `zetacode predict`.
  * Unlike the editor backend, failures reject instead of degrading to no ghost text.
  */
 export function requestTextPrediction(
@@ -235,7 +235,7 @@ export function requestTextPrediction(
 
 /**
  * Release this process's lease on the unit (it keeps running for its idle
- * window). For short-lived commands such as `omp predict`; the composer keeps
+ * window). For short-lived commands such as `zetacode predict`; the composer keeps
  * its lease for the process lifetime.
  */
 export function closeTextPrediction(): void {

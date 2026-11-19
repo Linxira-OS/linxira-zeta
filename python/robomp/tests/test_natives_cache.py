@@ -60,9 +60,9 @@ def _seed_repo(root: Path, *, with_all_inputs: bool = True) -> Path:
     if with_all_inputs:
         (root / "Cargo.toml").write_text("[workspace]\nmembers = ['crates/*']\n")
         (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.85.0"\n')
-        crates = root / "crates" / "omp-natives"
+        crates = root / "crates" / "zeta-natives"
         crates.mkdir(parents=True)
-        (crates / "Cargo.toml").write_text('[package]\nname = "omp-natives"\n')
+        (crates / "Cargo.toml").write_text('[package]\nname = "zeta-natives"\n')
         (crates / "src.rs").write_text("// source\n")
         natives = root / "packages" / "natives"
         natives.mkdir(parents=True)
@@ -143,7 +143,7 @@ def test_compute_key_handles_missing_inputs(tmp_path: Path) -> None:
     # Lock-only repo: should compute without error, and adding a tracked
     # crates/ subtree shifts the key.
     key_before = compute_key(repo, target="linux-arm64")
-    crates = repo / "crates" / "omp-natives"
+    crates = repo / "crates" / "zeta-natives"
     crates.mkdir(parents=True)
     (crates / "lib.rs").write_text("// new\n")
     _git(["-C", str(repo), "add", "."], cwd=repo.parent)

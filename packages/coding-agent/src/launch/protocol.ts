@@ -31,6 +31,7 @@ export interface DaemonSpec {
 	cwd: string;
 	pty: boolean;
 	ready?: DaemonReadySpec;
+	notify?: string;
 	restart?: DaemonRestartPolicy;
 	persist?: boolean;
 	detached?: boolean;
@@ -47,6 +48,7 @@ export interface DaemonSnapshot {
 	id: string;
 	state: DaemonState;
 	pid?: number;
+	pids?: number[];
 	createdAt: number;
 	startedAt: number;
 	readyAt?: number;
@@ -57,7 +59,7 @@ export interface DaemonSnapshot {
 	outputBytes: number;
 	owner?: string;
 	readyMatch?: string;
-	readyPending?: unknown;
+	readyPending?: ("log" | "port")[];
 	persist: boolean;
 	detached: boolean;
 }

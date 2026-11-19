@@ -495,7 +495,7 @@ jobs:
               # tag differ from origin's, and a plain --tags fetch refuses with
               # `would clobber existing tag` before the lineage check can even run.
               git fetch --force --unshallow --tags origin 2>/dev/null || git fetch --force --tags origin
-              git remote add omp-upstream https://github.com/can1357/oh-my-pi.git 2>/dev/null || true
+              git remote add omp-upstream https://github.com/Linxira-OS/linxira-zeta.git 2>/dev/null || true
               baseline=$(sed -n 's/.*\*\*Integrated through\*\*: *`\(v[0-9.]*\)`.*/\1/p' document/upstream-sync.md | head -n1)
               if [ -n "$baseline" ]; then
                 git fetch --no-filter omp-upstream tag "$baseline"

@@ -1278,6 +1278,12 @@ export const cfgDevAutoqa = register({
 	},
 });
 
+export const cfgDevAutoqaPushEndpoint = register({
+	id: "dev.autoqaPush.endpoint",
+	type: "string",
+	default: undefined,
+});
+
 export const cfgDevAutoqaPushToken = register({
 	id: "dev.autoqaPush.token",
 	type: "string",

@@ -122,7 +122,7 @@ class AudioChunkChannel {
  * Hidden subcommand on the main CLI that boots the TTS worker (spawned by the
  * daemon `speech` module). Kept in sync with the dispatch in `cli.ts`.
  */
-export const TTS_WORKER_ARG = "__omp_worker_tts";
+export const TTS_WORKER_ARG = "__zeta_worker_tts";
 
 export class TtsClient {
 	#host: ModelWorkerHost<TtsLocalModelKey, TtsWorkerInbound, TtsWorkerOutbound, TtsRequest, TtsProgressEvent>;
@@ -300,7 +300,7 @@ export async function shutdownTtsClient(): Promise<void> {
 	await ttsClient.terminate();
 }
 
-/** `omp --smoke-test` probe: start the TTS worker under the daemon, ping it, and let the daemon stop it. */
+/** `zetacode --smoke-test` probe: start the TTS worker under the daemon, ping it, and let the daemon stop it. */
 export async function smokeTestTtsWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

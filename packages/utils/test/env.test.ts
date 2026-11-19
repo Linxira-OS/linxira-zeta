@@ -23,7 +23,7 @@ const tempDirs: string[] = [];
 const DIR_RESOLUTION_ENV_RESET = {
 	OMP_PROFILE: undefined,
 	PI_PROFILE: undefined,
-	PI_CONFIG_DIR: undefined,
+	ZETA_CONFIG_DIR: undefined,
 	XDG_DATA_HOME: undefined,
 	XDG_STATE_HOME: undefined,
 	XDG_CACHE_HOME: undefined,

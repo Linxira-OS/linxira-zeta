@@ -3,7 +3,7 @@
  *
  * The MV3 extension can only dial OUT (service workers cannot listen on
  * sockets), so a native process must own the relay port. Instead of making
- * the user run `omp browser-relay` by hand, the relay kind lazily starts one
+ * the user run `zetacode browser-relay` by hand, the relay kind lazily starts one
  * as a global `proc` unit of the omp daemon. Every relay consumer holds a
  * lease on it, so one project exiting cannot tear down the fixed-port
  * singleton while another project still uses it; it runs detached from the
@@ -24,7 +24,7 @@ import { probeCdpResponse, probeCdpStatus } from "../attach";
 import { describeUnit, isLiveUnit, type UnitIdentity, UnitLease } from "../unit-lease";
 import { DEFAULT_RELAY_URL } from "./kind";
 import { relayCdpClientsOf, relayVersionOf } from "./probe";
-import { isOlderOmpVersion } from "./protocol";
+import { isOlderZetaVersion } from "./protocol";
 
 const DEFAULT_RELAY_PORT = new URL(DEFAULT_RELAY_URL).port;
 
@@ -33,7 +33,7 @@ function relayUnitIdentity(port: string): UnitIdentity {
 	return {
 		kind: "proc",
 		scope: GLOBAL_SCOPE,
-		key: port === DEFAULT_RELAY_PORT ? "omp.browser.relay" : `omp.browser.relay.${port}`,
+		key: port === DEFAULT_RELAY_PORT ? "zeta.browser.relay" : `zeta.browser.relay.${port}`,
 	};
 }
 
@@ -45,7 +45,7 @@ function relayPort(cdpUrl: string): string | null {
 	}
 }
 
-/** Matches the serve banner (`omp browser relay listening on http://…`). */
+/** Matches the serve banner (`zetacode browser relay listening on http://…`). */
 const READY_LOG_PATTERN = String.raw`browser relay listening on http://\S+`;
 const READY_TIMEOUT_MS = 15_000;
 const PROBE_TIMEOUT_MS = 1_500;
@@ -205,7 +205,7 @@ export async function restartRelayDaemon(opts: {
 	}
 	// A newer omp running alongside this one owns a newer relay; replacing it
 	// would only make the two versions take turns killing each other's relay.
-	if (status !== null && !isOlderOmpVersion(status.version, VERSION)) return kept;
+	if (status !== null && !isOlderZetaVersion(status.version, VERSION)) return kept;
 	// The last read before the stop: a client that connected since the caller's
 	// probe keeps the relay. One connecting during the stop request itself loses
 	// its connection, as on any relay restart.

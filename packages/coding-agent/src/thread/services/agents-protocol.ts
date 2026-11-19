@@ -32,6 +32,9 @@ export const AGENT_SESSION_HOST_KIND = "agent-session-host";
 /** `AgentRegistryApi` (with its `awaits`) over the link. */
 export type AgentRegistryProtocol = {
 	register: RpcMethod<[input: RegisterInput], AgentRef>;
+	registerRoot: RpcMethod<[input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }], AgentRef>;
+	workspaceMain: RpcMethod<[workspaceId: string | undefined], AgentRef | undefined>;
+	resolveMainAlias: RpcMethod<[requested: string, callerId: string], string | undefined>;
 	registerIfAvailable: RpcMethod<[input: RegisterInput, expected: AgentRef | null], AgentRef | undefined>;
 	reopen: RpcMethod<[id: string, expected: AgentRef], AgentRef | undefined>;
 	setHistory: RpcMethod<[id: string, history: AgentHistorySummary, expectedSessionFile?: string], boolean>;
@@ -88,6 +91,7 @@ export type IrcBusProtocol = {
 		IrcMessage | null
 	>;
 	take: RpcMethod<[agentId: string, from?: string], IrcMessage | undefined>;
+	inbox: RpcMethod<[agentId: string, opts?: { peek?: boolean }], IrcMessage[]>;
 	park: RpcMethod<[msg: Omit<IrcMessage, "id" | "ts">], IrcMessage>;
 	unreadCount: RpcMethod<[agentId: string], number>;
 	recordReply: RpcMethod<[from: string, to: string], void>;

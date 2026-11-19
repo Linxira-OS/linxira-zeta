@@ -1,5 +1,5 @@
 /**
- * `omp predict`: type a prompt and watch every word-completion engine's ghost
+ * `zetacode predict`: type a prompt and watch every word-completion engine's ghost
  * text side by side.
  *
  * Each lane runs the composer's own {@link WordCompletionProvider} (prose
@@ -240,7 +240,7 @@ class PredictCompareComponent implements Component, Focusable {
 							actionButton("Quit", "quit", { keys: "escape" }),
 						]),
 					],
-					{ role: "omp.app.predict", gap: "md", grow: 1 },
+					{ role: "zeta.app.predict", gap: "md", grow: 1 },
 				),
 		);
 	}
@@ -252,12 +252,12 @@ class PredictCompareComponent implements Component, Focusable {
 				[
 					row(
 						[
-							text("omp predict", { role: "omp.app.title" }),
+							text("zetacode predict", { role: "zeta.app.title" }),
 							text([span(`${this.#lanes.length} engines · comparison typing never teaches them`, "muted")], {
 								truncate: "end",
 							}),
 						],
-						{ gap: "sm", align: "center", role: "omp.app.where" },
+						{ gap: "sm", align: "center", role: "zeta.app.where" },
 					),
 					row(
 						compact([
@@ -265,14 +265,14 @@ class PredictCompareComponent implements Component, Focusable {
 								row([node("spinner", { style: "dots" }), text([span("predicting", "dim")])], {
 									gap: "xs",
 									align: "center",
-									role: "omp.app.fresh",
+									role: "zeta.app.fresh",
 								}),
 							iconButton("x", "quit", "Quit  esc", { aria: "Quit" }),
 						]),
-						{ gap: "md", align: "center", role: "omp.app.tools" },
+						{ gap: "md", align: "center", role: "zeta.app.tools" },
 					),
 				],
-				{ justify: "between", align: "center", role: "omp.app.head" },
+				{ justify: "between", align: "center", role: "zeta.app.head" },
 			),
 			"head",
 		);
@@ -306,7 +306,7 @@ class PredictCompareComponent implements Component, Focusable {
 
 	render(width: number): readonly string[] {
 		const value = this.#input.getValue();
-		const header = `${chalk.bold("omp predict")} ${chalk.dim(
+		const header = `${chalk.bold("zetacode predict")} ${chalk.dim(
 			`· type to compare engines · ${formatKeyHint("tab")} accepts ${ENGINES[0]} · ${formatKeyHint("enter")} clears · ${formatKeyHint("escape")} quits`,
 		)}`;
 		const textWidth = Math.max(8, width - LABEL_WIDTH - STATS_WIDTH - 2);

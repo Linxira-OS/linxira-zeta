@@ -286,7 +286,7 @@ export class DaemonStore {
 	}
 }
 
-/** Read the persisted units without opening the store for writing (offline `omp ps`). Empty when absent. */
+/** Read the persisted units without opening the store for writing (offline `zetacode ps`). Empty when absent. */
 export function readStoredUnits(dbPath: string): StoredUnit[] {
 	if (!fs.existsSync(dbPath)) return [];
 	const db = new Database(dbPath, { readonly: true });

@@ -2056,7 +2056,7 @@ export class HtmlFormDialog implements Component, Focusable {
 		const open = this.#groupOfStop(this.#focus);
 		const body: NativeChild[] = [];
 		if (this.#intro.length > 0) {
-			body.push(withMotion(col(this.#describeParts(this.#intro), { gap: "md", role: "omp.ask.intro" }), "intro"));
+			body.push(withMotion(col(this.#describeParts(this.#intro), { gap: "md", role: "zeta.ask.intro" }), "intro"));
 		}
 		this.#groups.forEach((group, index) => {
 			const key = `g${index}`;
@@ -2066,7 +2066,7 @@ export class HtmlFormDialog implements Component, Focusable {
 				body.push(this.#foldField(group.fields[0]!, key));
 			} else {
 				const folds = group.fields.map(field => this.#foldField(field, `q${this.#fieldIndex.get(field)}`));
-				body.push(withMotion(col(folds, { gap: "md", role: "omp.ask.group" }), key));
+				body.push(withMotion(col(folds, { gap: "md", role: "zeta.ask.group" }), key));
 			}
 		});
 		return askCard({
@@ -2090,7 +2090,7 @@ export class HtmlFormDialog implements Component, Focusable {
 				return [block.kind === "field" ? described : withMotion(described, `c${index}.${at}`)];
 			});
 			if (start === 0 && section.title.length > 0) {
-				const legend = text(nativeSpans(section.title), { wrap: "word", role: "omp.ask.legend" });
+				const legend = text(nativeSpans(section.title), { wrap: "word", role: "zeta.ask.legend" });
 				children.unshift(withMotion(legend, `l${index}`));
 			}
 			return children;
@@ -2178,7 +2178,7 @@ export class HtmlFormDialog implements Component, Focusable {
 	#describeActions(): NativeNode {
 		if (this.#noteEditor) {
 			return actionBar([
-				text(this.#noteEditHint(), { role: "omp.ask.note" }),
+				text(this.#noteEditHint(), { role: "zeta.ask.note" }),
 				actionButton("Keep", "cancel", { keys: "escape" }),
 				actionButton("Save", "save-note", { keys: "enter" }),
 			]);
@@ -2187,7 +2187,7 @@ export class HtmlFormDialog implements Component, Focusable {
 		const stop = this.#stops[this.#focus]!;
 		const [noteKey] = this.#noteKeys(stop.kind === "select");
 		return actionBar([
-			lead ? text([span(lead, "muted")], { truncate: "end", role: "omp.ask.summary" }) : null,
+			lead ? text([span(lead, "muted")], { truncate: "end", role: "zeta.ask.summary" }) : null,
 			...(lead ? [null] : []),
 			actionButton("Cancel", "cancel"),
 			...(stop.kind === "option" || stop.kind === "select"
@@ -2211,25 +2211,25 @@ export class HtmlFormDialog implements Component, Focusable {
 			case "text":
 				return text(nativeSpans(block.spans), {
 					wrap: "word",
-					role: block.heading ? "omp.ask.heading" : "omp.ask.text",
+					role: block.heading ? "zeta.ask.heading" : "zeta.ask.text",
 				});
 			case "list":
 				return col(
 					block.items.map((entry, index) =>
 						text([span(block.ordered ? `${index + 1}.` : "•", "muted"), span(" "), ...nativeSpans(entry)], {
 							wrap: "word",
-							role: "omp.ask.text",
+							role: "zeta.ask.text",
 						}),
 					),
-					{ gap: "xs", role: "omp.ask.bullets" },
+					{ gap: "xs", role: "zeta.ask.bullets" },
 				);
 			case "pre":
-				return code(sanitize(block.text), { role: "omp.ask.pre" });
+				return code(sanitize(block.text), { role: "zeta.ask.pre" });
 			case "image":
 			case "svg": {
 				const slot = this.#media.get(block)!;
 				if (slot.state === "ready") return slot.native;
-				return text([span(this.#mediaNote(block, slot), "muted")], { role: "omp.ask.text", truncate: "end" });
+				return text([span(this.#mediaNote(block, slot), "muted")], { role: "zeta.ask.text", truncate: "end" });
 			}
 			case "table": {
 				const count = Math.max(0, ...block.rows.map(row => row.length));
@@ -2242,7 +2242,7 @@ export class HtmlFormDialog implements Component, Focusable {
 					id: `r${index}`,
 					cells: Object.fromEntries(cols.map((column, cell) => [column.id, nativeSpans(row[cell] ?? [])])),
 				}));
-				return node("table", { cols, rows, role: "omp.ask.table" });
+				return node("table", { cols, rows, role: "zeta.ask.table" });
 			}
 			case "field": {
 				const key = `q${this.#fieldIndex.get(block.field)}`;
@@ -2265,7 +2265,7 @@ export class HtmlFormDialog implements Component, Focusable {
 		const children: NativeChild[] = [];
 		if (field.label.length > 0) {
 			const required = field.required ? [span(" *", "error")] : [];
-			children.push(text([...nativeSpans(field.label), ...required], { wrap: "word", role: "omp.ask.label" }));
+			children.push(text([...nativeSpans(field.label), ...required], { wrap: "word", role: "zeta.ask.label" }));
 		}
 		if (field.kind === "text") {
 			children.push(field.multiline ? this.#editors.get(field)! : this.#inputs.get(field)!);
@@ -2280,7 +2280,7 @@ export class HtmlFormDialog implements Component, Focusable {
 							? OTHER_ITEM
 							: null;
 			const checked = this.#checked.get(field)!;
-			const role = field.multi ? "omp.ask.check" : "omp.ask.option";
+			const role = field.multi ? "zeta.ask.check" : "zeta.ask.option";
 			const items = field.options.map((option, optionIndex) => {
 				const isChecked = checked.has(optionIndex);
 				const note = this.#notes.get(field)?.get(optionIndex)?.text;
@@ -2308,11 +2308,11 @@ export class HtmlFormDialog implements Component, Focusable {
 					}),
 				);
 			}
-			children.push(list(items, { selected: focusedOption, role: "omp.ask.options" }, `f${index}`));
+			children.push(list(items, { selected: focusedOption, role: "zeta.ask.options" }, `f${index}`));
 			if (this.#noteEditor?.field === field) {
 				children.push(
 					text(`Note for ${optionText(field.options[this.#noteEditor.option]!)}`, {
-						role: "omp.ask.note",
+						role: "zeta.ask.note",
 						wrap: "word",
 					}),
 					this.#noteEditor.editor,
@@ -2321,7 +2321,7 @@ export class HtmlFormDialog implements Component, Focusable {
 			// Typing the Other answer: its input is the form's one live editor, so the terminal focuses it.
 			if (focusedOption === OTHER_ITEM) children.push(this.#others.get(field)!);
 		}
-		if (error) children.push(text([span(error, "error")], { role: "omp.ask.error" }));
-		return col(children, { gap: "xs", role: "omp.ask.field" });
+		if (error) children.push(text([span(error, "error")], { role: "zeta.ask.error" }));
+		return col(children, { gap: "xs", role: "zeta.ask.field" });
 	}
 }

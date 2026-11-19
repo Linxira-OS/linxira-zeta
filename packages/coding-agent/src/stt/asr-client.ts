@@ -215,7 +215,7 @@ export async function shutdownSttClient(): Promise<void> {
 	await sttClient.terminate();
 }
 
-/** `omp --smoke-test` probe: start the STT worker under the daemon, ping it, and let the daemon stop it. */
+/** `zetacode --smoke-test` probe: start the STT worker under the daemon, ping it, and let the daemon stop it. */
 export async function smokeTestSttWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

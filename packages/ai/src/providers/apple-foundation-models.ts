@@ -1,6 +1,6 @@
 /**
  * Apple Foundation Models: Apple's on-device system language model (macOS 27+,
- * Apple silicon), driven in-process through the omp-natives Swift bridge
+ * Apple silicon), driven in-process through the zeta-natives Swift bridge
  * (`crates/natives/src/applefm/bridge.swift`).
  *
  * Every request lowers the full conversation into a Foundation Models

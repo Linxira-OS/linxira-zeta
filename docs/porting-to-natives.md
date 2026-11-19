@@ -1,6 +1,6 @@
-# Porting Hot Paths to `omp-natives`
+# Porting Hot Paths to `zeta-natives`
 
-This is the contributor path for moving a measured JS/TS hot path into `crates/natives` and exposing it through `@oh-my-pi/pi-natives`.
+This is the contributor path for moving a measured JS/TS hot path into `crates/natives` and exposing it through `@linxiraos/pi-natives`.
 
 ## Decide whether to port
 
@@ -15,8 +15,8 @@ The package has no `packages/natives/src/<module>` wrapper layer. Its entrypoint
 - eager root: `native/index.js` with generated `native/index.d.ts`;
 - lazy desktop wrapper: `native/desktop.js` / `desktop.d.ts`;
 - lazy clipboard wrapper: `native/clipboard.js` / `clipboard.d.ts`;
-- lazy Windows-path wrapper: `native/path.js` / `path.d.ts` (`@oh-my-pi/pi-natives/path`); other platforms return the input unchanged without loading;
-- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@oh-my-pi/pi-natives/vcs`).
+- lazy Windows-path wrapper: `native/path.js` / `path.d.ts` (`@linxiraos/pi-natives/path`); other platforms return the input unchanged without loading;
+- lazy vcs wrapper: `native/vcs.js` / `vcs.d.ts` (`@linxiraos/pi-natives/vcs`).
 
 The VCS subpath exposes discovery and Git/Jujutsu operations through `git`,
 `repo`, `repoForDisplay`, `require`, `requireGit`, and `jj`, plus metadata,
@@ -85,7 +85,7 @@ Do not add a wrapper merely to rename a generated root export.
 
 ### 4. Migrate consumers cleanly
 
-- Import the generated root symbol or intentional lazy subpath from `@oh-my-pi/pi-natives`.
+- Import the generated root symbol or intentional lazy subpath from `@linxiraos/pi-natives`.
 - Compare results and errors against the JS baseline on boundary cases.
 - Switch every intended caller and remove the obsolete implementation in the same change.
 - Keep user-facing policy and rendering in the consumer when the native primitive does not own it.
@@ -125,7 +125,7 @@ Confirm the export is present and `__piNativesBuildVersion()` reports the packag
 
 ### Stale variant or cache wins
 
-x64 candidate order is modern → baseline → unsuffixed for a modern host, and baseline → unsuffixed for a baseline host. Compiled and staged Windows loads can also win from `<getNativesDir()>/<version>` before package paths. The root honors `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` exists, otherwise `~/.omp/natives`.
+x64 candidate order is modern → baseline → unsuffixed for a modern host, and baseline → unsuffixed for a baseline host. Compiled and staged Windows loads can also win from `<getNativesDir()>/<version>` before package paths. The root honors `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` exists, otherwise `~/.zeta/natives`.
 
 Remove only the stale local artifacts/cache identified by loader diagnostics, then rebuild. The loader best-effort deletes older `major.minor.patch` cache directories after a successful load only when their mtime is at least ten minutes old; it preserves the current-version directory.
 

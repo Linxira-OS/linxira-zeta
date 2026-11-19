@@ -115,6 +115,18 @@ export class RemoteAgentRegistry implements AgentRegistryApi {
 		return this.#remote.callSync("register", input);
 	}
 
+	registerRoot(input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }): AgentRef {
+		return this.#remote.callSync("registerRoot", input);
+	}
+
+	workspaceMain(workspaceId: string | undefined): AgentRef | undefined {
+		return this.#remote.callSync("workspaceMain", workspaceId);
+	}
+
+	resolveMainAlias(requested: string, callerId: string): string | undefined {
+		return this.#remote.callSync("resolveMainAlias", requested, callerId);
+	}
+
 	registerIfAvailable(input: RegisterInput, expected: AgentRef | null): AgentRef | undefined {
 		return this.#remote.callSync("registerIfAvailable", input, expected);
 	}
@@ -274,6 +286,10 @@ export class RemoteIrcBus implements IrcBusApi {
 
 	take(agentId: string, from?: string): IrcMessage | undefined {
 		return this.#remote.callSync("take", agentId, from);
+	}
+
+	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
+		return this.#remote.callSync("inbox", agentId, opts);
 	}
 
 	park(msg: Omit<IrcMessage, "id" | "ts">): IrcMessage {

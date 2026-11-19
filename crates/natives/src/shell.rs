@@ -616,8 +616,8 @@ impl Shell {
 	}
 }
 
-/// Run the shell engine as a process shell in this process (`omp zsh`,
-/// `omp bash`, `omp sh`).
+/// Run the shell engine as a process shell in this process (`zetacode zsh`,
+/// `zetacode bash`, `zetacode sh`).
 ///
 /// `argv` is the shell's whole command line,
 /// `argv[0]` naming it (`zsh`, `bash` or `sh` pick the dialect), as a real

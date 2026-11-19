@@ -1,5 +1,5 @@
 /**
- * Interactive alt-screen monitor for `omp ps` (btop idiom): a live process
+ * Interactive alt-screen monitor for `zetacode ps` (btop idiom): a live process
  * table over the daemon's units, grouped by scope, with in-place actions.
  *
  * Keys — table: `↑/↓`/`j/k` select, `enter`/`i` info, `l` logs, `s` stop,
@@ -413,12 +413,12 @@ export class PsTopComponent implements Component {
 						statusVisible &&
 							this.#statusText !== "" &&
 							keyed(
-								text([span(this.#statusText, this.#statusTone)], { wrap: "word", role: "omp.app.status" }),
+								text([span(this.#statusText, this.#statusTone)], { wrap: "word", role: "zeta.app.status" }),
 								"status",
 							),
 						this.#describeActions(),
 					]),
-					{ role: "omp.app.ps", gap: "md" },
+					{ role: "zeta.app.ps", gap: "md" },
 				);
 			},
 		);
@@ -431,7 +431,7 @@ export class PsTopComponent implements Component {
 			const running = this.#flat.filter(flat => !TERMINAL_STATES[flat.unit.state]).length;
 			const stopped = this.#flat.length - running;
 			left.push(
-				text("Processes", { role: "omp.app.title" }),
+				text("Processes", { role: "zeta.app.title" }),
 				text(
 					[
 						span(`${running} running`, running > 0 ? "success" : "muted"),
@@ -454,7 +454,7 @@ export class PsTopComponent implements Component {
 							? unitName(entry.unit)
 							: "?",
 					{
-						role: "omp.app.title",
+						role: "zeta.app.title",
 						truncate: "end",
 					},
 				),
@@ -476,7 +476,7 @@ export class PsTopComponent implements Component {
 							{ id: "all", label: "All scopes" },
 						],
 						active: this.#all ? "all" : "current",
-						role: "omp.app.seg",
+						role: "zeta.app.seg",
 					},
 					"scope",
 				),
@@ -489,23 +489,23 @@ export class PsTopComponent implements Component {
 						{
 							gap: "xs",
 							align: "center",
-							role: "omp.app.fresh",
+							role: "zeta.app.fresh",
 						},
 					)
 				: row([node("spinner", { style: "dots" }), text([span("updating", "dim")])], {
 						gap: "xs",
 						align: "center",
-						role: "omp.app.fresh",
+						role: "zeta.app.fresh",
 					}),
 			iconButton("x", "quit", "Quit  q", { aria: "Quit" }),
 		);
 		return keyed(
 			row(
 				[
-					row(left, { gap: "sm", align: "center", role: "omp.app.where" }),
-					row(right, { gap: "md", align: "center", role: "omp.app.tools" }),
+					row(left, { gap: "sm", align: "center", role: "zeta.app.where" }),
+					row(right, { gap: "md", align: "center", role: "zeta.app.tools" }),
 				],
-				{ justify: "between", align: "center", role: "omp.app.head" },
+				{ justify: "between", align: "center", role: "zeta.app.head" },
 			),
 			"head",
 		);
@@ -534,7 +534,7 @@ export class PsTopComponent implements Component {
 						actionButton("Cancel", "kill-cancel"),
 						actionButton("Kill", "kill-confirm", { tone: "error" }),
 					],
-					{ gap: "sm", align: "center", role: "omp.app.confirm", tone: "error" },
+					{ gap: "sm", align: "center", role: "zeta.app.confirm", tone: "error" },
 				),
 				"actions",
 			);
@@ -562,7 +562,7 @@ export class PsTopComponent implements Component {
 			return keyed(
 				col(
 					[
-						text("No units", { role: "omp.app.empty-title" }),
+						text("No units", { role: "zeta.app.empty-title" }),
 						text([
 							span(
 								this.#board?.daemon ? "The omp daemon runs nothing here. " : "The omp daemon is not running. ",
@@ -572,7 +572,7 @@ export class PsTopComponent implements Component {
 							...(this.#all ? [] : [span("a", "key"), span(".", "muted")]),
 						]),
 					],
-					{ gap: "xs", align: "center", role: "omp.app.empty" },
+					{ gap: "xs", align: "center", role: "zeta.app.empty" },
 				),
 				"empty",
 			);
@@ -581,7 +581,7 @@ export class PsTopComponent implements Component {
 		const sections = this.#reports.map(report =>
 			node(
 				"section",
-				{ head: scopeSpans(report.scope), role: "omp.app.ps.scope" },
+				{ head: scopeSpans(report.scope), role: "zeta.app.ps.scope" },
 				[
 					node(
 						"list",
@@ -591,7 +591,7 @@ export class PsTopComponent implements Component {
 									? stableKey(flatKey(selected))
 									: null,
 							empty: "No units",
-							role: "omp.ps.processes",
+							role: "zeta.ps.processes",
 						},
 						report.units.map(unit => describeUnit(report.scope, unit)),
 					),
@@ -599,7 +599,7 @@ export class PsTopComponent implements Component {
 				stableKey(scopeId(report.scope)),
 			),
 		);
-		return keyed(col(sections, { gap: "lg", grow: 1, role: "omp.app.ps.scopes" }), "scopes");
+		return keyed(col(sections, { gap: "lg", grow: 1, role: "zeta.app.ps.scopes" }), "scopes");
 	}
 
 	#describeInfo(): NativeNode {
@@ -634,21 +634,21 @@ export class PsTopComponent implements Component {
 			body.push(
 				row([text([span("Up for", "muted")]), elapsed(Date.now() - unit.startedAt)], {
 					gap: "xs",
-					role: "omp.app.fresh",
+					role: "zeta.app.fresh",
 				}),
 			);
 		}
 		body.push(node("kv", { items, layout: "grid" }));
-		return keyed(col(body, { role: "omp.ps.info", gap: "md" }), "info");
+		return keyed(col(body, { role: "zeta.ps.info", gap: "md" }), "info");
 	}
 
 	#describeLogs(): NativeNode {
 		if (this.#logsError) {
-			return keyed(text([span(this.#logsError, "error mono")], { wrap: "word", role: "omp.ps.logs" }), "logs");
+			return keyed(text([span(this.#logsError, "error mono")], { wrap: "word", role: "zeta.ps.logs" }), "logs");
 		}
 		return node(
 			"ansi",
-			{ text: this.#logsLines.join("\n"), follow: true, role: "omp.ps.logs", grow: 1 },
+			{ text: this.#logsLines.join("\n"), follow: true, role: "zeta.ps.logs", grow: 1 },
 			undefined,
 			"logs",
 		);
@@ -670,7 +670,7 @@ export class PsTopComponent implements Component {
 
 	#header(width: number, title: string): string {
 		const age = this.#lastRefresh ? `updated ${formatDuration(Date.now() - this.#lastRefresh)} ago` : "updating…";
-		const left = ` ${chalk.bold("omp ps")} ${chalk.dim("·")} ${title}`;
+		const left = ` ${chalk.bold("zetacode ps")} ${chalk.dim("·")} ${title}`;
 		const right = chalk.dim(age);
 		const pad = Math.max(1, width - Bun.stringWidth(left) - Bun.stringWidth(right) - 1);
 		return truncateToWidth(`${left}${" ".repeat(pad)}${right}`, width);

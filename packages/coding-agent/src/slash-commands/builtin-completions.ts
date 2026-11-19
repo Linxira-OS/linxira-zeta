@@ -52,8 +52,8 @@ export function buildArgumentCompletions(
 			.map(s => ({
 				value: `${s.name} `,
 				label: s.name,
-				description: s.description,
-				hint: subcommandRemainderHint(s, lower),
+				description: typeof s.description === "function" ? s.description() : s.description,
+				...(subcommandRemainderHint(s, lower) === undefined ? {} : { hint: subcommandRemainderHint(s, lower) }),
 			}));
 		return matches.length > 0 ? matches : null;
 	};

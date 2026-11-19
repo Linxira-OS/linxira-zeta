@@ -173,7 +173,7 @@ export function resolveCliEntryCmd(): string[] {
  * re-execing `process.execPath` would bring the open session back on the old
  * version (issue #19454). Re-exec the launcher this process was started
  * through when it now points at a different executable: `argv0` itself when
- * it is a full path, else its PATH lookup. Never a different `omp` on PATH: a
+ * it is a full path, else its PATH lookup. Never a different `zetacode` on PATH: a
  * build started by path restarts as itself. On Windows a bare `argv0` names no
  * launcher: `cmd.exe` runs a copy in the current directory before PATH and
  * still passes the bare name, while PowerShell passes the full path. Keep the

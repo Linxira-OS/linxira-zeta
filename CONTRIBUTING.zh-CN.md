@@ -15,7 +15,7 @@ Zeta 是 Linxira 维护的下游运行时发行版。欢迎 pull request；请�
 
 | 领域 | 报告到哪里 |
 | --- | --- |
-| OMP 运行时、工具、模型或 TUI；上游 bot 更新 | <https://github.com/can1357/oh-my-pi/issues> |
+| OMP 运行时、工具、模型或 TUI；上游 bot 更新 | <https://github.com/Linxira-OS/linxira-zeta/issues> |
 | 不带 Zeta 分支也能复现的 OMP Studio renderer 或 host-contract 缺陷 | <https://github.com/the-snowpear/omp-studio/issues>（Zeta 独有的缺陷按 [`document/maintenance-ownership.md`](document/maintenance-ownership.md) 的归属路由处理） |
 | TermIDE 终端/编辑器/LSP/DAP | <https://github.com/termide/termide/issues> |
 | Zeta 自有行为：Z Work Studio、server/Studio host、桌面版、IM、CLI/TUI 产品行为、`zetaide` 差异、`android/`、插件、文档 | 本仓库 issue tracker |

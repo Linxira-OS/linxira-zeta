@@ -9,7 +9,7 @@
 //! descriptors by [`NativeHost`].
 //!
 //! Two callers: the `obash` binary (a standalone process; it adds its test
-//! modes on top of the pieces here) and `omp zsh|bash|sh`, which runs the
+//! modes on top of the pieces here) and `zetacode zsh|bash|sh`, which runs the
 //! shell inside Bun through pi-natives' `runShellMain`
 //! ([`ProcessOptions::embedded`]). Embedded, the shell shares its process
 //! with a runtime that owns signal handlers and descriptors: see
@@ -50,7 +50,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ProcessOptions {
 	/// The shell runs inside another runtime's process (Bun, for
-	/// `omp zsh`), which keeps running or exits after [`main`] returns:
+	/// `zetacode zsh`), which keeps running or exits after [`main`] returns:
 	///
 	/// - signals: of HUP, INT, QUIT, TERM, PIPE, ALRM, TSTP, TTIN, TTOU, CHLD,
 	///   WINCH and CONT, those the runtime caught with a handler (and `SIGPIPE`,
@@ -530,7 +530,7 @@ fn run(args: &ShellArgs, env: Vec<(BString, BString)>, input: Input, opts: Proce
 	// Before the process opens any fd of its own.
 	let inherited = inherited_fds(opts.embedded);
 	let mut host = NativeHost::new(None, false, inherited, ignored_on_entry(), 0, opts.embedded);
-	// `omp zsh` on Windows: pi's utilities stand in for the Unix tools it
+	// `zetacode zsh` on Windows: pi's utilities stand in for the Unix tools it
 	// lacks. Elsewhere, and in obash, a missing command stays not found.
 	if opts.embedded && cfg!(windows) {
 		host.offer_extras(&env);

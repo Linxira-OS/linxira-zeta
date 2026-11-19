@@ -70,7 +70,8 @@ export function isImUserWake(message: CustomMessage): boolean {
 import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@linxiraos/pi-ai";
 import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
 import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
+/** Custom message type for a collaboration prompt restore (retired surface; kept for transcript compatibility). */
+export const COLLAB_PROMPT_MESSAGE_TYPE = "collab-prompt";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";

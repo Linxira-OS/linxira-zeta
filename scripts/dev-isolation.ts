@@ -54,7 +54,7 @@ export const PRODUCTION_PORTS = {
  * root or let a named profile inherit the production root:
  *
  * - `PI_PROFILE`: legacy profile selector; the dev launcher pins `ZETA_PROFILE`
- * - `PI_CONFIG_DIR`: documented legacy config-root name; the resolver reads
+ * - `ZETA_CONFIG_DIR`: documented legacy config-root name; the resolver reads
  *   `ZETA_CONFIG_DIR`, so clearing this removes two-sources-of-truth confusion
  * - `PI_CODING_AGENT_SESSION_DIR`: would point fresh sessions at another store
  * - `PI_NATIVES_DIR`: would share the native addon/grammar staging root
@@ -75,7 +75,7 @@ export const PRODUCTION_PORTS = {
  */
 export const CLEARED_ENV_KEYS = [
 	"PI_PROFILE",
-	"PI_CONFIG_DIR",
+	"ZETA_CONFIG_DIR",
 	"PI_CODING_AGENT_SESSION_DIR",
 	"PI_NATIVES_DIR",
 	"ZETA_AUTORESEARCH_DB_DIR",

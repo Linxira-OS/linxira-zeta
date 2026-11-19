@@ -20,10 +20,10 @@
 //! - Backtraces are captured via [`Backtrace::force_capture`], so they work
 //!   regardless of `RUST_BACKTRACE`.
 //! - The crash log path mirrors the JS side (`packages/utils/src/dirs.ts`):
-//!   `$XDG_STATE_HOME/omp/logs/` on Linux / macOS when the user has migrated to
-//!   XDG (i.e. that directory already exists and `PI_CODING_AGENT_DIR` isn't
-//!   pointed somewhere custom), otherwise `<home>/<PI_CONFIG_DIR>/logs/`
-//!   (defaulting to `~/.omp/logs/`).
+//!   `$XDG_STATE_HOME/zeta/logs/` on Linux / macOS when the user has migrated to
+//!   XDG (i.e. that directory already exists and `ZETA_CODING_AGENT_DIR` isn't
+//!   pointed somewhere custom), otherwise `<home>/<ZETA_CONFIG_DIR>/logs/`
+//!   (defaulting to `~/.zeta/logs/`).
 //! - This crate's own unit-test build writes to a per-user temp dir instead
 //!   (see `test_logs_dir`). The release addon a `bun test` process loads is not
 //!   a test build, so its crash reports still go to the path above while that
@@ -49,10 +49,10 @@ use std::{
 };
 
 /// Default directory name for OMP's per-user state (overridable via
-/// `PI_CONFIG_DIR`, matching `packages/utils/src/dirs.ts`).
-const DEFAULT_CONFIG_DIR: &str = ".omp";
+/// `ZETA_CONFIG_DIR`, matching `packages/utils/src/dirs.ts`).
+const DEFAULT_CONFIG_DIR: &str = ".zeta";
 
-/// App name used as the XDG-root subdirectory (`$XDG_STATE_HOME/omp/`),
+/// App name used as the XDG-root subdirectory (`$XDG_STATE_HOME/zeta/`),
 /// matching `APP_NAME` in `packages/utils/src/dirs.ts`.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 const APP_NAME: &str = "omp";
@@ -275,7 +275,7 @@ fn build_crash_log_path(dir: &Path, kind: CrashKind, pid: u32, now_ms: u128) -> 
 
 fn logs_dir() -> Option<PathBuf> {
 	let home = home_dir()?;
-	let config_override = std::env::var_os("PI_CONFIG_DIR");
+	let config_override = std::env::var_os("ZETA_CONFIG_DIR");
 	let xdg_logs = xdg_state_logs_from_env(&home, config_override.as_deref());
 	Some(resolve_logs_dir(&home, config_override.as_deref(), xdg_logs))
 }
@@ -285,7 +285,7 @@ fn resolve_logs_dir(
 	config_dir_override: Option<&OsStr>,
 	xdg_state_logs: Option<PathBuf>,
 ) -> PathBuf {
-	// XDG takes precedence so users who migrated to `$XDG_STATE_HOME/omp/logs/`
+	// XDG takes precedence so users who migrated to `$XDG_STATE_HOME/zeta/logs/`
 	// see native crash reports in the same directory the JS logger rotates.
 	if let Some(p) = xdg_state_logs {
 		return p;
@@ -300,11 +300,11 @@ fn resolve_logs_dir(
 /// Compute the XDG-state logs dir if the runtime environment matches the
 /// JS-side eligibility rules in `packages/utils/src/dirs.ts`: linux/macos,
 /// `$XDG_STATE_HOME` set, `$XDG_STATE_HOME/omp` exists on disk, and
-/// `PI_CODING_AGENT_DIR` is unset or pointing at the default agent dir.
+/// `ZETA_CODING_AGENT_DIR` is unset or pointing at the default agent dir.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn xdg_state_logs_from_env(home: &Path, config_dir_override: Option<&OsStr>) -> Option<PathBuf> {
 	let default_agent_dir = default_agent_dir(home, config_dir_override);
-	let agent_override = std::env::var_os("PI_CODING_AGENT_DIR");
+	let agent_override = std::env::var_os("ZETA_CODING_AGENT_DIR");
 	let xdg_state_home = std::env::var_os("XDG_STATE_HOME");
 	xdg_state_logs(
 		xdg_state_home.as_deref(),
@@ -458,7 +458,7 @@ mod tests {
 	#[test]
 	fn resolve_logs_dir_defaults_under_dot_omp() {
 		let dir = resolve_logs_dir(Path::new("/tmp/pi-natives-test-home"), None, None);
-		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.omp/logs"));
+		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.zeta/logs"));
 	}
 
 	#[test]
@@ -474,7 +474,7 @@ mod tests {
 	#[test]
 	fn resolve_logs_dir_reroots_absolute_pi_config_dir_under_home() {
 		// JS resolves the config root via `path.join(os.homedir(),
-		// getConfigDirName())`, which never honors an absolute PI_CONFIG_DIR — it
+		// getConfigDirName())`, which never honors an absolute ZETA_CONFIG_DIR — it
 		// is always re-rooted under `$HOME` (and `..` components are normalized
 		// away).
 		let dir = resolve_logs_dir(
@@ -498,12 +498,12 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_ignores_empty_agent_dir_override() {
-		// An empty PI_CODING_AGENT_DIR is "unset", not a divergent override; it
+		// An empty ZETA_CODING_AGENT_DIR is "unset", not a divergent override; it
 		// must not disable XDG resolution.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			Some(OsStr::new("")),
-			Path::new("/tmp/pi-natives-test-home/.omp/agent"),
+			Path::new("/tmp/pi-natives-test-home/.zeta/agent"),
 			|_p| true,
 		);
 		assert_eq!(dir, Some(PathBuf::from("/xdg/state/omp/logs")));
@@ -513,7 +513,7 @@ mod tests {
 	fn resolve_logs_dir_ignores_empty_pi_config_dir() {
 		let dir =
 			resolve_logs_dir(Path::new("/tmp/pi-natives-test-home"), Some(OsStr::new("")), None);
-		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.omp/logs"));
+		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.zeta/logs"));
 	}
 
 	#[test]
@@ -532,7 +532,7 @@ mod tests {
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			None,
-			Path::new("/tmp/pi-natives-test-home/.omp/agent"),
+			Path::new("/tmp/pi-natives-test-home/.zeta/agent"),
 			|_p| true,
 		);
 		assert_eq!(dir, Some(PathBuf::from("/xdg/state/omp/logs")));
@@ -544,7 +544,7 @@ mod tests {
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			None,
-			Path::new("/tmp/pi-natives-test-home/.omp/agent"),
+			Path::new("/tmp/pi-natives-test-home/.zeta/agent"),
 			|_p| false,
 		);
 		assert_eq!(dir, None);
@@ -553,7 +553,7 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_skipped_when_xdg_state_home_unset_or_empty() {
-		let default_agent = Path::new("/tmp/pi-natives-test-home/.omp/agent");
+		let default_agent = Path::new("/tmp/pi-natives-test-home/.zeta/agent");
 		assert_eq!(xdg_state_logs(None, None, default_agent, |_p| true), None);
 		assert_eq!(xdg_state_logs(Some(OsStr::new("")), None, default_agent, |_p| true), None);
 	}
@@ -561,12 +561,12 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_skipped_when_agent_dir_overridden() {
-		// `PI_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
+		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
 		// false` branch in `packages/utils/src/dirs.ts` and must disable XDG.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			Some(OsStr::new("/some/custom/agent")),
-			Path::new("/tmp/pi-natives-test-home/.omp/agent"),
+			Path::new("/tmp/pi-natives-test-home/.zeta/agent"),
 			|_p| true,
 		);
 		assert_eq!(dir, None);
@@ -575,10 +575,10 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_honored_when_agent_override_matches_default() {
-		let default_agent = std::path::absolute(Path::new("./.omp/agent")).unwrap();
+		let default_agent = std::path::absolute(Path::new("./.zeta/agent")).unwrap();
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
-			Some(OsStr::new("./.omp/agent")),
+			Some(OsStr::new("./.zeta/agent")),
 			&default_agent,
 			|_p| true,
 		);
@@ -589,7 +589,7 @@ mod tests {
 	#[test]
 	fn default_agent_dir_uses_dot_omp_by_default() {
 		let dir = default_agent_dir(Path::new("/tmp/pi-natives-test-home"), None);
-		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.omp/agent"));
+		assert_eq!(dir, PathBuf::from("/tmp/pi-natives-test-home/.zeta/agent"));
 	}
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
@@ -601,16 +601,16 @@ mod tests {
 
 	#[test]
 	fn build_crash_log_path_tags_kind_and_pid() {
-		let dir = Path::new("/tmp/pi-natives-test-home/.omp/logs");
+		let dir = Path::new("/tmp/pi-natives-test-home/.zeta/logs");
 		let panic_log = build_crash_log_path(dir, CrashKind::Panic, 4242, 1_700_000_000_000);
 		assert_eq!(
 			panic_log,
-			PathBuf::from("/tmp/pi-natives-test-home/.omp/logs/native-panic-4242-1700000000000.log")
+			PathBuf::from("/tmp/pi-natives-test-home/.zeta/logs/native-panic-4242-1700000000000.log")
 		);
 		let alloc_log = build_crash_log_path(dir, CrashKind::Alloc, 99, 1);
 		assert_eq!(
 			alloc_log,
-			PathBuf::from("/tmp/pi-natives-test-home/.omp/logs/native-alloc-99-1.log")
+			PathBuf::from("/tmp/pi-natives-test-home/.zeta/logs/native-alloc-99-1.log")
 		);
 	}
 

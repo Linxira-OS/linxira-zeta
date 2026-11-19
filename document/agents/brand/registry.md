@@ -20,15 +20,15 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | Surface | Canonical | Guard |
 |---|---|---|
 | CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
-| CLI welcome/splash/outro 字符画（**2026-10-18 用户定稿，永久冻结**） | 标准工具生成（2026-10-14 规格，`scripts/brand/logo-art.ts`）：mark = FIGlet `ANSI Shadow` 的 `Z`（`Ζ` 的 ASCII 形，即 `ZETA_LOGO`）+ 主行 `Zeta`（`ANSI Shadow`，`ZETA_WORDMARK`）+ 次行 `Linxira-Zeta`（`mini`，`ZETA_SUBLINE`），版本 `v<version>` 在字标下；native/splash 面的字标文本为 `Zeta` / `Linxira-Zeta` | 不接受上游 `PI_LOGO`/`omp` wordmark/π art；`bun scripts/brand/generate-logo-art.ts` 生成、`brand-check.ts` 校验三个常量与生成脚本输出逐字一致（手改一个字符即红）；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
+| CLI welcome/splash/outro 字符画（**2026-10-18 用户定稿，永久冻结**） | 标准工具生成（2026-10-14 规格，`scripts/brand/logo-art.ts`）：mark = FIGlet `ANSI Shadow` 的 `Z`（`Ζ` 的 ASCII 形，即 `ZETA_LOGO`）+ 主行 `Zeta`（`ANSI Shadow`，`ZETA_WORDMARK`）+ 次行 `Linxira-Zeta`（`mini`，`ZETA_SUBLINE`），版本 `v<version>` 在字标下；native/splash 面的字标文本为 `Zeta` / `Linxira-Zeta` | 不接受上游 `PI_LOGO`/`zetacode` wordmark/π art；`bun scripts/brand/generate-logo-art.ts` 生成、`brand-check.ts` 校验三个常量与生成脚本输出逐字一致（手改一个字符即红）；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
 | `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
-| 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名；上游 `~/.omp` 状态默认不读——只有 `compat.importLegacyOmp`（env `ZETA_OMP_COMPAT`，默认 false，env 优先）打开时只读导入 models/credentials/dotenv（`packages/coding-agent/src/config/omp-compat.ts`） |
+| 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名；上游 `~/.zeta` 状态默认不读——只有 `compat.importLegacyOmp`（env `ZETA_OMP_COMPAT`，默认 false，env 优先）打开时只读导入 models/credentials/dotenv（`packages/coding-agent/src/config/omp-compat.ts`） |
 | CLI bin 命名(**2026-10-15 定稿：一个包一个 bin**) | `@linxiraos/zeta` 的 bin = `zetacode`（**无别名**）；用户可见文案与 `CLI_BIN_NAME` 一律用 `zetacode`；`zeta://`、`.zeta`、`ZETA_*`、包名、`zeta-cli-*` release 资产名、npm 包名均不变 | **连字符兼容名全删**：`zeta-c`/`zeta-cli` 不再是 bin，也不再出现在文案/垫片/安装文件面（安装脚本装的名字就是 `zetacode`）；裸 `zeta` 名属 `@linxiraos/main` 工作台且**只打印 help**（列出 zetawork/zetacode/zetaide）；`APP_NAME`("zeta") 仍是产品身份(配置根/日志名/归因头/splash)——勿把配置/线值扫成 `zetacode`；sweep 正则须排除 `[\w.-]` 后缀（`zeta-cli-*` 资产名、`zeta-capture-*` 之类文件面不动）；**容器内 CLI 垫片**：`Dockerfile`(pi-base 段)只装 `/usr/local/bin/zetacode` 一个垫片，robomp 按名 spawn 该名字(`ROBOMP_OMP_COMMAND` 的取值/默认，现 `zetacode`)——两侧配对由 `scripts/check-robomp-cli-contract.ts` 钉死(CI `check` job) |
 | 伴侣产品 bin(**2026-10-15 定稿：只留三个标准名**) | `zetawork`(`@linxiraos/main`；其 npm bin 为 `zetawork`+裸 `zeta`，裸 `zeta` = 打印 help)、`zetacode`(`@linxiraos/zeta`)、`zetaide`(`@linxiraos/ide`) | **对外只有这三个命令**；连字符兼容名（`zeta-c`/`zeta-cli`/`zeta-work`/`zeta-ide`/`zeta-i`）与旧 editor 名（`zeta-editor`/`zeta-e`/`zetaeditor`）**全部删除**：`@linxiraos/editor` 已无 bin（载荷是 zetawork 内置编辑器的编辑器专用入口 `termide-editor`，按路径被 spawn；TUI 的编辑器走 `zetaide`）；`zeta code` 这类带空格写法不是 bin，任何文案不得出现；**新增** `zetawork web`（本机起 localhost，浏览器里跑**完整** web ui；复用 `zetacode serve` 机器，`zetawork server` 同义） |
 | 工作台与 IDE 包 | `@linxiraos/main`(bin `zetawork`/`zeta`，main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zetaide`，termide npm 面)、`@linxiraos/editor`(**无 bin**，只发平台叶二进制；载荷 = vendored termide 的**编辑器专用入口** `termide-editor`，2026-10-17 接手该包名（npm 1.2.1 仍为 TTT：旧的连字符编辑器 bin + `ttt.exe`；下一次发布切换为 `termide-editor[.exe]`、bin 消失——该包破坏性变更，见其 README）) | 发布链已全接线：ci.yml 发布链经 workflow_call 派发 main/ide/editor-publish.yml（2026-09-30 起，1.1.24 起实际发版）。**平台叶包内嵌的二进制是入库产物**——发版前必须重编并提交（main/npm/*/bin、editor/termide npm 同理），否则原样带出陈旧二进制（v1.1.25 事故：发的是 1.1.23 的 zeta.exe，v1.1.26 补丁修复）；editor 叶包的载荷是 `termide-editor[.exe]`（`cargo build --release --locked -p termide --bin termide-editor`，Windows 侧加 `--target x86_64-pc-windows-gnu`，拷进 leaf `bin/`，见 termide/VENDOR.md），`scripts/ci-release-publish.ts --editor` 在叶包缺载荷时**拒绝发布**而不是发包空壳；release 资产名（`zeta-work-*`/`zeta-ide-*`/`zeta-editor-*`/`zeta-cli-*`）属文件面，保持原样；**zetawork 面暂停（2026-11-05）**：`@linxiraos/main` 只在 `publish_zetawork` dispatch 输入时发布，包名保留给未来 main/super-agent 面；`@linxiraos/ide` 与 `@linxiraos/editor` 不受影响 |
-| 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
+| 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `zeta://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
 | **Release 资产名（更新器 ↔ 发布链）** | `zeta-cli-<os>-<arch>[.exe]`（musl: `zeta-cli-linux-musl-*`） | 真源 `packages/utils/src/release-assets.ts`；守卫 `bun scripts/check-release-asset-names.ts`（CI check job）。**资产名不跟 `CLI_BIN_NAME`**——`zetacode` 是命令面，资产保留文件面 `zeta-cli-*`：v1.1.27 更新器按 bin 名拼 `zetacode-<os>-<arch>`，二进制回退下载对每个用户 404（旧版 1.1.27 硬编码 `zeta-cli-*` 反而是对的） |
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta；2026-11-05：`pi-omptype`→`zeta-schema`、`pi-snapcompact`→`zeta-compact`，目录名 `packages/omptype`、`packages/snapcompact` 不变） | 上游 `@linxiraos/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@linxiraos/` 字面量，MUST_CONTAIN 守护） |
 | Native 版本机制 | `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳 | v18.3.3 起取代逐版本哨兵名；`check-version-consistency.ts` 钉机制符号而非版本派生名 |
@@ -39,7 +39,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | **本地服务默认端口（2026-10-24 用户裁定）** | Web UI（`web-app` 渲染器）`43141`、Web Gateway `43143`、Stats `43147`（`packages/utils/src/ports.ts` 为唯一真源） | OMP 与本机常用端口（30141/30142/3847、3000/8080/8787…）必须避开；三者互差 ≥2。守卫 `bun scripts/check-service-ports.ts`（CI check job），desktop 独立壳的 `WEB_UI_URL`/`STATS_URL` 字面量必须同步。合并不得把上游端口默认值带回来 |
 | 安装提示 URL | `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows） | **我们自己的站**（与 `scripts/install.sh`/`install.ps1` 同源，从 GitHub Releases 拉 `zeta-cli-*`）；上游 `omp.sh/install` 不再出现在任何用户可见提示里（2026-10-13 起，`installerHint()` 两侧成对改，见 `cli/update-cli.ts`） |
 | **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
-| OTLP `service.name` 兜底 | `zeta` | 合并会带回 `oh-my-pi`；用户在自建 OTLP 里看到的身份面 |
+| OTLP `service.name` 兜底 | `zeta` | 合并会带回 `zeta`；用户在自建 OTLP 里看到的身份面 |
 | **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
 | **Work Studio 身份与归属（2026-11-06）** | 产品名 Zeta；`web-app/` 是 **Zeta 维护的 OMP Studio 分支**（MIT），仓库/更新/启动提示链接指向 `Linxira-OS/linxira-zeta`；Studio 线协议名 `zeta-studio` | MIT 上游正文与 `Copyright (c) 2026 snowpear and OMP Studio contributors` **必须保留**，其后追加 `Copyright (c) 2026 Linxira-OS and Zeta contributors`；`THIRD-PARTY-NOTICES.txt` 不得再把 Studio 写成 "unmodified"；`brand-check` 拦 `OMP Studio`/`omp-studio`（仅豁免 README 跟随 MIT 归属与两个本地 IndexedDB 键） |
 | 品牌残留守卫 | `bun scripts/brand/brand-check.ts`（已进 CI check job） | 机械规则进 `scripts/brand/brand-rules.ts`，散文只留判断 |
@@ -90,30 +90,30 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 **启动字符画不在本表范围内**：`ZETA_LOGO` / `ZETA_WORDMARK` / `ZETA_SUBLINE` 仍按上节永久冻结，
 本次改标不动它们，`brand-check` 的逐字校验继续强制。
 
-## 待扫清单：`omp` 形状的内部记号（2026-11-02 实测）
+## 待扫清单：`zetacode` 形状的内部记号（2026-11-02 实测）
 
 裁定：**内部标识一律 `__zeta*`，代价是每次同步多解冲突，接受**；对面契约不动。
 下表是测量值，不是估计（`git grep`，排除 `dist/` 与编译产物）。
 
 | 族 | 数量 | 现状 | 落点 |
 |---|---|---|---|
-| `__omp_with_call_site__` | 9 | **待改** | `eval/js/shared/{rewrite-imports,runtime}.ts`、`eval/py/{prelude,runner}.py`、4 个测试 |
-| `__omp_tool_bridge__` | 2 | **待改** | `eval/py/{prelude,runner}.py`、测试 |
-| `__omp_assignment_{value,global}__` | 2 | **待改** | `eval/js/shared/rewrite-imports.ts` |
-| 注入页面的 global：`__ompReact` / `__ompConsoleCapture` / `__ompCmuxResponses` / `__ompBrowserVitals` / `__ompMousePoint` / `__ompA11y*` / `__omp_recording_cursor__` / `__ompRecordingCursorCleanup` | 约 90 | **待改** | `tools/browser/{react,cmux,recording,console-capture}.ts` + 测试 |
+| `__zeta_with_call_site__` | 9 | **待改** | `eval/js/shared/{rewrite-imports,runtime}.ts`、`eval/py/{prelude,runner}.py`、4 个测试 |
+| `__zeta_tool_bridge__` | 2 | **待改** | `eval/py/{prelude,runner}.py`、测试 |
+| `__zeta_assignment_{value,global}__` | 2 | **待改** | `eval/js/shared/rewrite-imports.ts` |
+| 注入页面的 global：`__ompReact` / `__ompConsoleCapture` / `__ompCmuxResponses` / `__ompBrowserVitals` / `__ompMousePoint` / `__ompA11y*` / `__zeta_recording_cursor__` / `__ompRecordingCursorCleanup` | 约 90 | **待改** | `tools/browser/{react,cmux,recording,console-capture}.ts` + 测试 |
 | Tern 页面工具包 `__ompTernKit` | 13 | **待改** | `tools/browser/tern/{page-kit,tern-tab}.ts` + 3 个测试 |
-| 测试内铸的 gate 名 `__ompManualCompactGate/Cancel`、`__ompAgentStartGate`、`__ompParkGate`、`__omp_roots_{gate,probe}`、`__omp_runtime`、`__ompMemoryStatus` | 约 80 | **待改** | 仅测试夹具（`agent-session-auto-compaction-queue`、`worker-core`、`browser-open-options`、`extensions-runner`） |
+| 测试内铸的 gate 名 `__ompManualCompactGate/Cancel`、`__ompAgentStartGate`、`__ompParkGate`、`__zeta_roots_{gate,probe}`、`__zeta_runtime`、`__ompMemoryStatus` | 约 80 | **待改** | 仅测试夹具（`agent-session-auto-compaction-queue`、`worker-core`、`browser-open-options`、`extensions-runner`） |
 | 垫片标记 `__ompLegacyBuiltinTool` / `__ompLegacyPiLoader` / `__ompLegacyPiRequireGraphModule` | 11 | **待改** | `sdk.ts`、`extensibility/legacy-pi-coding-agent-shim.ts`、`extensibility/plugins/legacy-pi-compat.ts` |
 | `__ompInstallTokioRuntime` / `__ompSetGrammarDir` | 14 | **阻塞**：导出写进已编译的 `packages/natives/native/*.node`，改名必须重建 natives（本机无 MSVC 链接器）。改前先确认 native 构建链 | `packages/natives/native/{index.js,loader-state.js,index.d.ts}` |
-| `__omp_judgment_images[_N]` | 13 | **冻结**：judgment 上行 payload 的 state key，对面读它 | `packages/ai/src/judgment/systemone.ts` |
-| `mcp__omp__*` | 21 | **保留旧名 + 增补 `mcp__zeta__`**：外部 CLI（GitLab Duo 等）传来的工具名，只能多接受一个前缀，不能改喂进来的 | `providers/gitlab-duo-workflow.ts` |
+| `__zeta_judgment_images[_N]` | 13 | **冻结**：judgment 上行 payload 的 state key，对面读它 | `packages/ai/src/judgment/systemone.ts` |
+| `mcp__zeta__*` | 21 | **保留旧名 + 增补 `mcp__zeta__`**：外部 CLI（GitLab Duo 等）传来的工具名，只能多接受一个前缀，不能改喂进来的 | `providers/gitlab-duo-workflow.ts` |
 | `OMP_*` 环境变量 | **145 个名字 / 703 处**（文档 25 个） | **过渡期**：读旧写新，需要统一 alias 助手，不能逐处扫 | `packages/**`、`main/crates/**` |
 | `.omp-plugin` / `zeta-plugins.lock.json` | 8 个文件 | **过渡期**：双读（`.omp-plugin` + `.zeta-plugin`），写新 | 插件发现/锁文件 |
 
-已全量扫成 `__zeta*`（勿回退）：`__zeta_call_tool__`→`__zeta_call_tool__`（38）、`__omp_log__`→`__zeta_log__`（22）、
-`__omp_import__`/`__omp_import_from__`（19）、`__omp_helpers__`（13）、`__omp_tools__`（13）、
-`__omp_prelude__`/`__omp_session__`/`__omp_shell__`/`__omp_magic*` 等，合计 227 处。
-上游 v18.15.0 仍是 `__omp_*`——**每次同步这批行必然冲突**，属已知成本。
+已全量扫成 `__zeta*`（勿回退）：`__zeta_call_tool__`→`__zeta_call_tool__`（38）、`__zeta_log__`→`__zeta_log__`（22）、
+`__zeta_import__`/`__zeta_import_from__`（19）、`__zeta_helpers__`（13）、`__zeta_tools__`（13）、
+`__zeta_prelude__`/`__zeta_session__`/`__zeta_shell__`/`__zeta_magic*` 等，合计 227 处。
+上游 v18.15.0 仍是 `__zeta_*`——**每次同步这批行必然冲突**，属已知成本。
 ## 合并不许复活的删除项（2026-11-02）
 
 同步合并会**静默复活** Zeta 主动删除的文件：文件在上游未改动时，正确的三方合并本应
@@ -132,8 +132,8 @@ commit** 里删掉对应条目并写明理由。
 | `packages/coding-agent/src/prompts/internal-urls/omp.md` | 上游品牌内部 URL 文档 |
 | `scripts/install.test.ts` | 测的是上游 `omp.sh/install` 提示，已换自家安装器 |
 | `.github/workflows/bun-cache-warm.yml` | 上游缓存预热 workflow；CI 由 `ci.yml` 覆盖 |
-| `.omp/tools/package.json`、`.omp/tools/bun.lock` | 上游 `.omp/` 工具树不随包 |
+| `.zeta/tools/package.json`、`.zeta/tools/bun.lock` | 上游 `.zeta/` 工具树不随包 |
 | `README.zh-CN.md` | 产品前门是 Zeta 自己的 README |
-| `sdk/go/omp-rpc/go.mod` | 上游命名 Go SDK；Zeta 发 `sdk/go/zeta-rpc` |
+| `sdk/go/zeta-rpc/go.mod` | 上游命名 Go SDK；Zeta 发 `sdk/go/zeta-rpc` |
 | `packages/coding-agent/src/commands/share.ts`、`src/export/share.ts`、`test/share.test.ts` | 分享上传面 2026-11-02 退役：`/share` 只把脱敏后的转录稿交给 agent，不再上传；上游仍发这三个文件，合并会把上传路径带回来 |
 | `packages/coding-agent/src/collab/**`、`cli/collab-cli.ts`、`commands/collab.ts`、`commands/join.ts`、`slash-commands/builtin-collaboration.ts`、`test/collab/**`、`packages/tui/src/chat/collab-prompt-message.ts`、`packages/tui/src/chrome/collab-qrcode.ts`、`packages/collab-web/**`、`docs/collab.md` | 协作 live-session（`/collab`、`/join`、浏览器 guest、中继）于 2026-11-07 完全退役；上游仍发整套功能。共享文件里的 `COLLAB_PROTO`、`COLLAB_PROMPT_MESSAGE_TYPE`、`collab.*` 设置也由同一守卫的符号检查拦住 |

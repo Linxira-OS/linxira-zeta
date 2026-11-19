@@ -1,5 +1,5 @@
 /**
- * Data layer shared by the `omp ps` renderers (plain CLI and interactive TUI):
+ * Data layer shared by the `zetacode ps` renderers (plain CLI and interactive TUI):
  * the single daemon's board.
  *
  * Listing never spawns the daemon: a running one is asked for its units over
@@ -82,7 +82,7 @@ export async function resolveUnit(client: DaemonClient, name: string, target: Ps
 	if (byId) return byId;
 	const matches = units.filter(unit => unit.key === name || unitName(unit) === name);
 	if (matches.length === 1) return matches[0];
-	if (matches.length === 0) throw new Error(`No unit named ${name}. Run \`omp ps --all\` to list units.`);
+	if (matches.length === 0) throw new Error(`No unit named ${name}. Run \`zetacode ps --all\` to list units.`);
 	const projectDir = await targetProjectDir(target);
 	const preferred = matches.filter(unit => inView(unit, false, projectDir));
 	if (preferred.length === 1) return preferred[0];

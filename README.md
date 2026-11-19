@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/can1357/oh-my-pi/blob/main/assets/hero.png?raw=true" alt="omp">
+  <img src="https://github.com/Linxira-OS/linxira-zeta/blob/main/assets/hero.png?raw=true" alt="omp">
 </p>
 
 <p align="center">
@@ -12,10 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@oh-my-pi/pi-coding-agent"><img src="https://img.shields.io/npm/v/@oh-my-pi/pi-coding-agent?style=flat&colorA=222222&colorB=CB3837" alt="npm version"></a>
-  <a href="https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222" alt="Changelog"></a>
-  <a href="https://github.com/can1357/oh-my-pi/actions"><img src="https://img.shields.io/github/actions/workflow/status/can1357/oh-my-pi/ci.yml?style=flat&colorA=222222&colorB=3FB950" alt="CI"></a>
-  <a href="https://github.com/can1357/oh-my-pi/blob/main/LICENSE"><img src="https://img.shields.io/github/license/can1357/oh-my-pi?style=flat&colorA=222222&colorB=58A6FF" alt="License"></a>
+  <a href="https://www.npmjs.com/package/@linxiraos/pi-coding-agent"><img src="https://img.shields.io/npm/v/@linxiraos/pi-coding-agent?style=flat&colorA=222222&colorB=CB3837" alt="npm version"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.5.10-2ea44f" alt="zeta version"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222" alt="Changelog"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/actions"><img src="https://img.shields.io/github/actions/workflow/status/Linxira-OS/linxira-zeta/ci.yml?style=flat&colorA=222222&colorB=3FB950" alt="CI"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Linxira-OS/linxira-zeta?style=flat&colorA=222222&colorB=58A6FF" alt="License"></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat&colorA=222222&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-DEA584?style=flat&colorA=222222&logo=rust&logoColor=white" alt="Rust"></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/runtime-Bun-f472b6?style=flat&colorA=222222" alt="Bun"></a>
@@ -57,24 +58,24 @@ brew install can1357/tap/omp
 **Bun (recommended)**
 
 ```sh
-bun install -g @oh-my-pi/pi-coding-agent
+bun install -g @linxiraos/pi-coding-agent
 ```
 
 **Nix**
 
 ```sh
 # Run without installing
-nix run github:can1357/oh-my-pi
+nix run github:Linxira-OS/linxira-zeta
 
 # Or install into the active profile (Nix < 2.30: `nix profile install`)
-nix profile add github:can1357/oh-my-pi
+nix profile add github:Linxira-OS/linxira-zeta
 ```
 
-Flake consumers can use `packages.<system>.omp`, `overlays.default`, `nixosModules.default`, or `homeManagerModules.default`. A Home Manager configuration can install OMP and own its settings declaratively:
+Flake consumers can use `packages.<system>.zeta`, `overlays.default`, `nixosModules.default`, or `homeManagerModules.default`. A Home Manager configuration can install OMP and own its settings declaratively:
 
 ```nix
 {
-  inputs.omp.url = "github:can1357/oh-my-pi";
+  inputs.omp.url = "github:Linxira-OS/linxira-zeta";
 
   # In your Home Manager module:
   imports = [ inputs.omp.homeManagerModules.default ];
@@ -94,24 +95,24 @@ irm https://omp.sh/install.ps1 | iex
 **Pinned versions (mise)**
 
 ```sh
-mise use -g github:can1357/oh-my-pi
+mise use -g github:Linxira-OS/linxira-zeta
 ```
 
 macOS · Linux · Windows · bun ≥ 1.4.4
 
 ### Shell completions
 
-`omp` generates its own completion scripts for **bash**, **zsh**, and **fish** from the live command/flag metadata, so they never drift from the actual CLI. Subcommands, flags, and enum values complete statically; model names (`--model`, `--smol`, `--slow`, `--plan`) resolve against the bundled model catalog and `--resume` against your on-disk sessions.
+`zetacode` generates its own completion scripts for **bash**, **zsh**, and **fish** from the live command/flag metadata, so they never drift from the actual CLI. Subcommands, flags, and enum values complete statically; model names (`--model`, `--smol`, `--slow`, `--plan`) resolve against the bundled model catalog and `--resume` against your on-disk sessions.
 
 ```sh
 # zsh — add to ~/.zshrc (or write the output into a file on your $fpath)
-eval "$(omp completions zsh)"
+eval "$(zetacode completions zsh)"
 
 # bash — add to ~/.bashrc
-eval "$(omp completions bash)"
+eval "$(zetacode completions bash)"
 
 # fish
-omp completions fish > ~/.config/fish/completions/omp.fish
+zetacode completions fish > ~/.config/fish/completions/omp.fish
 ```
 
 ## Every tool, _benchmaxxed_.
@@ -186,9 +187,9 @@ _[Watch the capture ↗](https://omp.sh/clips/advisor.mp4)_
 
 ### 07 · Hand someone the link, they're in.
 
-/collab puts your live session on a relay and hands back a link — and a QR. A teammate joins from another terminal with omp join, or just opens it in a browser. Share read-write to pair on the same agent, or /collab view for a read-only link anyone can watch but no one can steer. Frames are sealed client-side; the relay never sees your keys.
+/collab puts your live session on a relay and hands back a link — and a QR. A teammate joins from another terminal with zetacode join, or just opens it in a browser. Share read-write to pair on the same agent, or /collab view for a read-only link anyone can watch but no one can steer. Frames are sealed client-side; the relay never sees your keys.
 
-![omp TUI: /collab view prints 'Collab session started!' with an omp join command, a my.omp.sh browser link, the note 'Anyone with this link can watch the session but cannot prompt the agent', and a large scannable QR code.](https://omp.sh/clips/collab-poster.webp)
+![omp TUI: /collab view prints 'Collab session started!' with an zetacode join command, a my.omp.sh browser link, the note 'Anyone with this link can watch the session but cannot prompt the agent', and a large scannable QR code.](https://omp.sh/clips/collab-poster.webp)
 
 _[Watch the capture ↗](https://omp.sh/clips/collab.mp4)_
 
@@ -230,7 +231,7 @@ Run omp inside Zed and you get the same agent you drive from the terminal — re
 
 Every other agent ships an importer and expects you to convert. omp reads the eight formats already on disk in their native shape — Cursor MDC, Cline .clinerules, Codex AGENTS.md, Copilot applyTo, and the rest. No migration script, no YAML-to-TOML port, no "supported subset" footnotes. The config your team wrote last quarter still works tonight.
 
-### 16 · omp commit: atomic splits, validated messages
+### 16 · zetacode commit: atomic splits, validated messages
 
 omp reads the working tree through git_overview, git_file_diff, and git_hunk, then splits unrelated changes into atomic commits ordered by their dependencies. Cycles are rejected before anything is written. Source files score above tests, docs, and configs, so the headline commit is the one that matters. Lock files are excluded from analysis entirely.
 
@@ -362,7 +363,7 @@ Ollama `local` · Ollama Cloud · LM Studio `local` · llama.cpp `local` · vLLM
 
 ### Custom OpenAI-compatible providers
 
-Define custom providers in `~/.omp/agent/models.yml`:
+Define custom providers in `~/.zeta/agent/models.yml`:
 
 ```yaml
 providers:
@@ -377,9 +378,9 @@ providers:
            maxTokens: 32000
 ```
 
-Run `omp models spark` to verify discovery. Then run `omp setup` and choose the model in the default-model step, or open `/model` in a session and assign it to the `default` role.
+Run `zetacode models spark` to verify discovery. Then run `zetacode setup` and choose the model in the default-model step, or open `/model` in a session and assign it to the `default` role.
 
-To preconfigure the default without the picker, add the selector to `~/.omp/agent/config.yml`:
+To preconfigure the default without the picker, add the selector to `~/.zeta/agent/config.yml`:
 
 ```yaml
 modelRoles:
@@ -388,7 +389,7 @@ modelRoles:
 
 ### Four knobs that make routing useful
 
-- **Custom providers** — Declare anything that speaks `openai-completions`, `openai-responses`, `openai-codex-responses`, `azure-openai-responses`, `anthropic-messages`, `bedrock-converse-stream`, `google-generative-ai`, `google-gemini-cli`, `google-vertex`, `typesafe`, `openrouter-decisions`, `openai-decisions`, or `workers-ai-systemone` (the judge APIs) in `~/.omp/agent/models.yml`.
+- **Custom providers** — Declare anything that speaks `openai-completions`, `openai-responses`, `openai-codex-responses`, `azure-openai-responses`, `anthropic-messages`, `bedrock-converse-stream`, `google-generative-ai`, `google-gemini-cli`, `google-vertex`, `typesafe`, `openrouter-decisions`, `openai-decisions`, or `workers-ai-systemone` (the judge APIs) in `~/.zeta/agent/models.yml`.
 - **Fallback chains** — Per-role or per-model chains under `retry.fallbackChains`. When the primary throws 429s or hits a quota wall, the next entry takes the rest of the turn — restored on cooldown.
 - **Path-scoped models** — Scope `enabledModels` and `disabledProviders` entries to a `path:` prefix to pin a different model set on one repo without touching the global config. Scoped entries cover the path and everything under it.
 - **Round-robin credentials** — Stack API keys per provider and the runtime rotates with session affinity and per-credential backoff. Useful when one key would burn its quota by lunch.
@@ -460,7 +461,7 @@ Vuln lookups answer with vendor data, not blog summaries.
 
 Six crates, one platform-tagged N-API addon. Search, shell, AST, highlight, PTY, desktop control, image decode, BPE counting — all in-process on the libuv pool. No fork/exec on the hot path. The shell is our own bash 5.3 engine, and 58 command-line utilities — coreutils, findutils, sed, jq, ripgrep-backed grep, fd, diff, moreutils — are ported into the builtins crate and compiled straight into the shell.
 
-- Crates: `omp-natives`, `omp-shell`, `omp-ast`, `omp-iso`, `omp-voice`, `omp-xfs`
+- Crates: `zeta-natives`, `omp-shell`, `omp-ast`, `omp-iso`, `omp-voice`, `omp-xfs`
 - Platforms: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `win32-x64`, `win32-arm64` — x64 ships dual AVX2 and baseline binaries
 
 Per crate, code lines only:
@@ -468,13 +469,13 @@ Per crate, code lines only:
 | Crate      | What it does                                                                           |   ~LoC |
 | ---------- | -------------------------------------------------------------------------------------- | -----: |
 | omp-shell   | Embedded bash engine · persistent sessions · in-process coreutils dispatch · minimizer | 38,000 |
-| omp-natives | The N-API surface — every module in the table below                                    | 25,000 |
+| zeta-natives | The N-API surface — every module in the table below                                    | 25,000 |
 | omp-xfs  | Parallel walker · listing cache · glob · regex search for natives and shell rg/grep/fd | 11,400 |
 | omp-iso     | Workspace isolation · apfs · btrfs · zfs · reflink · overlayfs · projfs · rcopy        |  3,300 |
 | omp-ast     | tree-sitter + ast-grep matching, block resolution, structural summaries                |  2,900 |
 | omp-voice   | Audio capture/playback · Opus · live WebRTC                                            |  1,000 |
 
-Inside `omp-natives`, the per-module breakdown (glue and tests omitted):
+Inside `zeta-natives`, the per-module breakdown (glue and tests omitted):
 
 | Module        | What it does                                                                      | Powered by                                |   ~LoC |
 | ------------- | --------------------------------------------------------------------------------- | ----------------------------------------- | -----: |
@@ -504,7 +505,7 @@ Inside `omp-natives`, the per-module breakdown (glue and tests omitted):
 
 ## Four entry points: _interactive_, _one-shot_, RPC, and ACP.
 
-Same engine, four wrappers. `omp` runs the TUI. `omp -p` answers a single prompt and exits. The Node SDK embeds the session in your process. `omp --mode rpc` and `omp acp` hand the wheel to another program over stdio.
+Same engine, four wrappers. `zetacode` runs the TUI. `zetacode -p` answers a single prompt and exits. The Node SDK embeds the session in your process. `zetacode --mode rpc` and `zetacode acp` hand the wheel to another program over stdio.
 
 ### Interactive — when in doubt, the agent asks
 
@@ -516,12 +517,12 @@ The same forms surface over ACP as elicitations, so editors get them without wri
 
 ### SDK — embed in Node
 
-`@oh-my-pi/pi-coding-agent`
+`@linxiraos/pi-coding-agent`
 
 Node and TypeScript hosts pull the engine in directly. The package exposes `ModelRegistry`, `SessionManager`, `createAgentSession`, and `discoverAuthStorage`; the session emits typed events you subscribe to.
 
 ```ts
-import { ModelRegistry, SessionManager, createAgentSession, discoverAuthStorage } from "@oh-my-pi/pi-coding-agent";
+import { ModelRegistry, SessionManager, createAgentSession, discoverAuthStorage } from "@linxiraos/pi-coding-agent";
 
 const auth = await discoverAuthStorage();
 const models = new ModelRegistry(auth);
@@ -537,12 +538,12 @@ await session.prompt("list .ts files");
 
 ### RPC — drive over stdio
 
-`omp --mode rpc`
+`zetacode --mode rpc`
 
 For non-Node embedders, or when you want process isolation. NDJSON commands in, response and event frames out; each prompt ends with its own `prompt_result`. `--mode rpc-ui` adds tool cards, selectors, and dialogs as `extension_ui_request` frames the host must answer; `--no-ui` keeps even extension dialogs off the wire for hosts with no UI.
 
 ```
-$ omp --mode rpc --no-session
+$ zetacode --mode rpc --no-session
 > {"id":"r1","type":"prompt","message":"list .ts files"}
 < {"id":"r1","type":"response", ...}
 > {"id":"r2","type":"set_model","provider":"anthropic","modelId":"sonnet-4.5"}
@@ -551,7 +552,7 @@ $ omp --mode rpc --no-session
 
 ### ACP — speak to editors
 
-`omp acp`
+`zetacode acp`
 
 The [Agent Client Protocol](https://github.com/zed-industries/agent-client-protocol) over JSON-RPC. When the editor advertises capabilities, tool I/O routes through it and writes are gated by `session/request_permission`.
 
@@ -568,7 +569,7 @@ Full reference: [omp.sh/docs/sdk](https://omp.sh/docs/sdk).
 
 Pick it up at **[omp.sh](https://omp.sh)**.
 
-omp is a fork of [Pi](https://github.com/badlogic/pi-mono) by [Mario Zechner](https://github.com/mariozechner), rewritten as a coding-first surface: sessions, subagents, slash commands, extensions — all TypeScript, all MIT, all on [GitHub](https://github.com/can1357/oh-my-pi). Shape it from config, hook it from outside, or read the source when you need to.
+omp is a fork of [Pi](https://github.com/badlogic/pi-mono) by [Mario Zechner](https://github.com/mariozechner), rewritten as a coding-first surface: sessions, subagents, slash commands, extensions — all TypeScript, all MIT, all on [GitHub](https://github.com/Linxira-OS/linxira-zeta). Shape it from config, hook it from outside, or read the source when you need to.
 
 ### Primitives
 
@@ -616,7 +617,7 @@ bun setup
 bun dev
 ```
 
-`bun setup` installs Bun workspaces and builds `@oh-my-pi/pi-natives`. Re-run `bun run build:native` after changing Rust crates or `packages/natives`.
+`bun setup` installs Bun workspaces and builds `@linxiraos/pi-natives`. Re-run `bun run build:native` after changing Rust crates or `packages/natives`.
 
 Nix users get the pinned Bun and Rust toolchains plus all native build dependencies:
 
@@ -626,7 +627,7 @@ bun setup
 bun dev
 ```
 
-Build and smoke-test the distributable Nix package with `nix build .#omp`. Wayland screencast support is off by default (putting libpipewire on the addon's library path adds ~750 MB of runtime closure); enable it with `omp.override { withWaylandScreencast = true; }`. Release builds link `omp-natives` with fat LTO; `omp.override { withFatLto = false; }` uses thin LTO for much faster local rebuilds. Rust dependencies and the native addon build in separate derivations, so Rust edits reuse compiled dependencies and TypeScript edits reuse the addon. `nix/bun.nix` is generated only when `bun.lock` changes; releases regenerate it automatically. For dependency changes, run:
+Build and smoke-test the distributable Nix package with `nix build .#omp`. Wayland screencast support is off by default (putting libpipewire on the addon's library path adds ~750 MB of runtime closure); enable it with `omp.override { withWaylandScreencast = true; }`. Release builds link `zeta-natives` with fat LTO; `omp.override { withFatLto = false; }` uses thin LTO for much faster local rebuilds. Rust dependencies and the native addon build in separate derivations, so Rust edits reuse compiled dependencies and TypeScript edits reuse the addon. `nix/bun.nix` is generated only when `bun.lock` changes; releases regenerate it automatically. For dependency changes, run:
 
 ```sh
 bun run gen:nix
@@ -661,28 +662,28 @@ For architecture and contribution guidelines, see [packages/coding-agent/DEVELOP
 
 | Package                                                                       | Description                                                                 |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **[@oh-my-pi/collab-web](packages/collab-web)**                               | Browser guest client, mock host, and local relay for collab live sessions   |
-| **[@oh-my-pi/pi-ai](packages/ai)**                                            | Multi-provider LLM client with streaming and model/provider integration     |
-| **[@oh-my-pi/pi-catalog](packages/catalog)**                                  | Model catalog: bundled model database, provider descriptors, and identity   |
-| **[@oh-my-pi/pi-agent-core](packages/agent)**                                 | Agent runtime with tool calling and state management                        |
-| **[@oh-my-pi/pi-coding-agent](packages/coding-agent)**                        | Interactive coding agent CLI and SDK                                        |
-| **[@oh-my-pi/pi-tui](packages/tui)**                                          | Terminal UI library with differential rendering                             |
-| **[@oh-my-pi/pi-natives](packages/natives)**                                  | N-API bindings for grep, shell, image, text, syntax highlighting, and more  |
-| **[@oh-my-pi/omp-stats](packages/stats)**                                     | Local observability dashboard for AI usage statistics                       |
-| **[@oh-my-pi/omptype](packages/omptype)**                                     | ArkType-compatible schema validation with lazy JIT compilation              |
-| **[@oh-my-pi/pi-utils](packages/utils)**                                      | Shared utilities (logging, streams, dirs/env/process helpers)               |
-| **[@oh-my-pi/pi-wire](packages/wire)**                                        | Shared collab live-session protocol types and relay constants               |
-| **[@oh-my-pi/pi-mnemopi](packages/mnemopi)**                                  | Local SQLite memory engine for omp agents                                   |
-| **[@oh-my-pi/snapcompact](packages/snapcompact)**                             | Bitmap-frame context compression package and SQuAD eval suite               |
-| **[@oh-my-pi/browser-relay](packages/browser-relay)**                         | Chrome extension that lets the Eval browser API drive your existing tabs    |
-| **[@oh-my-pi/pi-metaharness](packages/metaharness)**                          | Unified benchmark runners, Harbor run storage, REST/SSE API, live dashboard |
-| **[@oh-my-pi/typescript-edit-benchmark](packages/typescript-edit-benchmark)** | Edit benchmark suite built on TypeScript source mutations                   |
+| **[@linxiraos/collab-web](packages/collab-web)**                               | Browser guest client, mock host, and local relay for collab live sessions   |
+| **[@linxiraos/pi-ai](packages/ai)**                                            | Multi-provider LLM client with streaming and model/provider integration     |
+| **[@linxiraos/pi-catalog](packages/catalog)**                                  | Model catalog: bundled model database, provider descriptors, and identity   |
+| **[@linxiraos/pi-agent-core](packages/agent)**                                 | Agent runtime with tool calling and state management                        |
+| **[@linxiraos/pi-coding-agent](packages/coding-agent)**                        | Interactive coding agent CLI and SDK                                        |
+| **[@linxiraos/pi-tui](packages/tui)**                                          | Terminal UI library with differential rendering                             |
+| **[@linxiraos/pi-natives](packages/natives)**                                  | N-API bindings for grep, shell, image, text, syntax highlighting, and more  |
+| **[@linxiraos/omp-stats](packages/stats)**                                     | Local observability dashboard for AI usage statistics                       |
+| **[@linxiraos/omptype](packages/omptype)**                                     | ArkType-compatible schema validation with lazy JIT compilation              |
+| **[@linxiraos/pi-utils](packages/utils)**                                      | Shared utilities (logging, streams, dirs/env/process helpers)               |
+| **[@linxiraos/pi-wire](packages/wire)**                                        | Shared collab live-session protocol types and relay constants               |
+| **[@linxiraos/pi-mnemopi](packages/mnemopi)**                                  | Local SQLite memory engine for zetacode agents                                   |
+| **[@linxiraos/snapcompact](packages/snapcompact)**                             | Bitmap-frame context compression package and SQuAD eval suite               |
+| **[@linxiraos/browser-relay](packages/browser-relay)**                         | Chrome extension that lets the Eval browser API drive your existing tabs    |
+| **[@linxiraos/pi-metaharness](packages/metaharness)**                          | Unified benchmark runners, Harbor run storage, REST/SSE API, live dashboard |
+| **[@linxiraos/typescript-edit-benchmark](packages/typescript-edit-benchmark)** | Edit benchmark suite built on TypeScript source mutations                   |
 
 ### Rust Crates
 
 | Crate                                      | Description                                                                                              |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| **[omp-natives](crates/natives)**        | Core Rust native addon (N-API `cdylib`) used by `@oh-my-pi/pi-natives`; aggregates the crates below      |
+| **[zeta-natives](crates/natives)**        | Core Rust native addon (N-API `cdylib`) used by `@linxiraos/pi-natives`; aggregates the crates below      |
 | **[omp-shell](crates/shell)**            | Embedded bash 5.3 engine (parser, VM, process spawning, sessions), PTY, and process management           |
 | **[omp-ast](crates/ast)**                | tree-sitter-based code summarizer and AST utilities (50+ language grammars)                              |
 | **[omp-iso](crates/iso)**                | Task isolation backend resolver: APFS clones, btrfs/zfs reflinks, overlayfs, projfs, rcopy               |
@@ -708,7 +709,7 @@ Third-party and vendored code, including the third-party portions identified
 in `crates/builtins/LICENSE`, remains under its respective upstream license.
 Each shipped component carries its own `THIRD-PARTY-NOTICES.txt`: the CLI
 (`packages/coding-agent`), the native addon (`packages/natives`), and robomp
-(`python/robomp`). `omp --license` prints the CLI's and the addon's.
+(`python/robomp`). `zetacode --license` prints the CLI's and the addon's.
 
 © 2025 Mario Zechner  
 © 2025-2026 Can Bölük  
@@ -718,8 +719,8 @@ _made for terminals that stay open_
 
 - [omp.sh](https://omp.sh)
 - [Stencil Labs](https://stencil.so)
-- [GitHub](https://github.com/can1357/oh-my-pi)
-- [Changelog](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/CHANGELOG.md)
-- [npm](https://www.npmjs.com/package/@oh-my-pi/pi-coding-agent)
+- [GitHub](https://github.com/Linxira-OS/linxira-zeta)
+- [Changelog](https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md)
+- [npm](https://www.npmjs.com/package/@linxiraos/pi-coding-agent)
 - [Discord](https://discord.gg/4NMW9cdXZa)
-- [MIT](https://github.com/can1357/oh-my-pi/blob/main/LICENSE)
+- [MIT](https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE)

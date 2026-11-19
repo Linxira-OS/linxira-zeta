@@ -372,7 +372,7 @@ export async function fetchDevinModels(
  * image was attached, while SWE-1.7, SWE-1.7 Lightning, and every proxied
  * frontier model (Claude/Gemini/GPT/Kimi) read the same field correctly.
  * Declaring text-only lets clients use their image fallback path instead of
- * silently losing attachments ([#6072](https://github.com/can1357/oh-my-pi/issues/6072)).
+ * silently losing attachments ([#6072](https://github.com/Linxira-OS/linxira-zeta/issues/6072)).
  * Remove entries if Devin ever wires SWE-1.6 vision up. SWE-1.6 Fast is gone
  * from Devin's own catalog but stays here for a Cascade host that still lists it.
  */

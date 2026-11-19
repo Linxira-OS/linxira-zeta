@@ -12,7 +12,7 @@ Zeta 是一套 agent 工作区套件：**Z Work Studio**（由 CLI `zetacode ser
 的编辑器载荷。它是 **Agent 开发环境（ADE）**，不是“IDE 加聊天框”：会话是工作
 单元，每个面板都是 agent 可以使用的工作面。
 
-本套件是 [OMP](https://github.com/can1357/oh-my-pi) 的下游发行版，包含受维护的
+本套件是 [OMP](https://github.com/Linxira-OS/linxira-zeta) 的下游发行版，包含受维护的
 [OMP Studio](https://github.com/the-snowpear/omp-studio) renderer 分支与 vendored
 [TermIDE](https://github.com/termide/termide) 树。归属、集成 tag 与逐组件差异记录在
 [维护与归属](ownership.zh-CN.md)和 [`NOTICE`](../NOTICE)。

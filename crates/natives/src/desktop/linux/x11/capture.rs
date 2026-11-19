@@ -1443,7 +1443,7 @@ impl Drop for ServerGrab<'_> {
 #[cfg(test)]
 mod tests {
 	//! The Xvfb tests start their own server and play its window manager:
-	//! `cargo test -p omp-natives desktop::linux::x11::capture --
+	//! `cargo test -p zeta-natives desktop::linux::x11::capture --
 	//! --include-ignored`
 
 	use std::{

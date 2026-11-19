@@ -1,7 +1,7 @@
 /**
  * omp-side access to disassembler databases hosted by the omp daemon's `disasm` module.
  *
- * Every open database is one global-scope `disasm` unit keyed `<backend>:<id>`, so `omp ps`
+ * Every open database is one global-scope `disasm` unit keyed `<backend>:<id>`, so `zetacode ps`
  * lists, stops, and tails it, and every omp process shares it. This module opens units on demand
  * (the daemon closes the least recently used idle one beyond `disassembler.maxOpen`), attaches a
  * tunnel to each, and forwards NDJSON requests over it.
@@ -116,7 +116,7 @@ class HostConnection {
 	}
 
 	#goneError(): HostGoneError {
-		return new HostGoneError(`${unitLabel(this.#key)} ${this.#key} closed; see \`omp ps logs ${this.#unitId}\``);
+		return new HostGoneError(`${unitLabel(this.#key)} ${this.#key} closed; see \`zetacode ps logs ${this.#unitId}\``);
 	}
 
 	#onLine(line: string): void {
@@ -149,7 +149,7 @@ class HostConnection {
 export class DisasmDatabase {
 	/** Unit key `<backend>:<id>`. */
 	readonly name: string;
-	/** Daemon unit id (`omp ps` row, `omp ps logs <id>`). */
+	/** Daemon unit id (`zetacode ps` row, `zetacode ps logs <id>`). */
 	readonly unitId: string;
 	readonly #conn: HostConnection;
 	#status: HostStatus;
@@ -347,7 +347,7 @@ async function openDatabase(
 		const db = await attachOpen();
 		if (db) return db;
 	}
-	throw new ToolError(`${unitLabel(key)} ${key} exited right after starting; see \`omp ps\``);
+	throw new ToolError(`${unitLabel(key)} ${key} exited right after starting; see \`zetacode ps\``);
 }
 
 /** Options for {@link acquireDatabase}. */
@@ -401,7 +401,7 @@ export async function acquireDatabase(
 		const unit = await openingUnit(key);
 		const age = unit ? ` for ${Math.round((Date.now() - unit.startedAt) / 60_000)}m` : "";
 		const where = unit ? ` in unit \`${unit.id}\`` : "";
-		const stop = unit ? `, or stop it with \`omp ps stop ${unit.id}\`` : "";
+		const stop = unit ? `, or stop it with \`zetacode ps stop ${unit.id}\`` : "";
 		throw new ToolError(
 			`${label} is still analyzing ${databaseRef(loc)} (opening${age}); the analysis continues${where}. Retry later${stop}`,
 		);

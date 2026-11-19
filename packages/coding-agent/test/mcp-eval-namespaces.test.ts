@@ -129,7 +129,7 @@ describe("MCPEvalNamespaceCatalog", () => {
 		const [prelude] = new MCPEvalNamespaceCatalog().preludes([mcpTool("github", "search_issues")], new Set());
 		const calls: Array<[string, unknown]> = [];
 		const context = vm.createContext({
-			__omp_call_tool__: async (name: string, args: unknown) => {
+			__zeta_call_tool__: async (name: string, args: unknown) => {
 				calls.push([name, args]);
 				return "ok";
 			},

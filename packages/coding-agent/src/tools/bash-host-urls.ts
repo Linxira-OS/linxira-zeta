@@ -58,7 +58,7 @@ function urlStart(text: string): number | undefined {
 	return URL_ROOT.test(text.slice(at)) ? at : undefined;
 }
 
-/** Whether `word` names the `omp` program, by any path. */
+/** Whether `word` names the `zetacode` program, by any path. */
 function isOmp(word: string): boolean {
 	const name = word.slice(Math.max(word.lastIndexOf("/"), word.lastIndexOf("\\")) + 1).toLowerCase();
 	return name === "omp" || name === "omp.exe";
@@ -142,7 +142,7 @@ class HostUrls {
 	async #code(text: string): Promise<string> {
 		if (!text.includes("://")) return text;
 		let out = "";
-		// `omp` resolves the URLs it is given itself (`omp read skill://x:1-20`): once a command
+		// `zetacode` resolves the URLs it is given itself (`zetacode read skill://x:1-20`): once a command
 		// names it ahead of any URL, the rest of that command is its own.
 		let omp = false;
 		let sawUrl = false;
@@ -226,7 +226,7 @@ class HostUrls {
 /**
  * `command` as `shell` should run it: every word naming a URL that `backing` resolves is rewritten
  * to the host file, attached options, redirections, variable assignments and `$(…)` included.
- * `omp` commands, here-document bodies, message text, and URLs nothing backs stay as written.
+ * `zetacode` commands, here-document bodies, message text, and URLs nothing backs stay as written.
  */
 export function hostCommandUrls(command: string, backing: UrlBacking, shell?: string): Promise<string> {
 	return new HostUrls(backing, shell !== undefined && isCmdShell(shell)).command(command);

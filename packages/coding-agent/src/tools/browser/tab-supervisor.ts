@@ -1605,7 +1605,7 @@ async function dispatchRun(
 				);
 				result.displays.unshift({
 					type: "text",
-					text: `omp had lost its connection to this tab's page since the last call; it reattached to the same page on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
+					text: `zetacode had lost its connection to this tab's page since the last call; it reattached to the same page on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
 				});
 				return result;
 			}
@@ -3049,7 +3049,7 @@ async function spawnTabWorker(): Promise<WorkerHandle> {
 	try {
 		const hostEntry = workerHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_tab"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_tab"] })
 			: new Worker(new URL("./tab-worker-entry.ts", import.meta.url).href, { type: "module" });
 		return wrapBunWorker(worker);
 	} catch (err) {

@@ -82,7 +82,7 @@ party's registry carries the string.
 | AWS STS `RoleSessionName` | `zeta-<pid>` | — | Cosmetic label in CloudTrail |
 | User-Agent / relay creator | `zeta-web`, `zeta-browser` | — | Ours |
 | TUI semantic roles | `zeta.*` | — | Internal style keys |
-| CLI invocation in prose/help | `zetacode <cmd>` | MUST_NOT_CONTAIN | There is no `omp` binary in this product |
+| CLI invocation in prose/help | `zetacode <cmd>` | MUST_NOT_CONTAIN | There is no `zetacode` binary in this product |
 | SDK paths & package names | `sdk/*/zeta-rpc`, `zeta_rpc`, `zetarpc` | — | Never published; 0.1.0 pre-1.0 |
 | dev wrapper + linker | `scripts/zetacode`, `scripts/link-zetacode.sh` | — | Dev-only |
 
@@ -94,13 +94,13 @@ party's registry carries the string.
 | Reading upstream plugin packages (`pkg.zeta \|\| pkg.omp \|\| pkg.pi`) | Consuming the upstream ecosystem | `plugins/manager.ts` |
 | `my.omp.sh`（中继/分享） | **已随协作功能于 2026-11-07 完全退役**：不再有 wire 常量、客户端或默认端点 | AGENTS registry + `document/upstream-commercial-assets.md` |
 | `live.omp.sh`, `skills.omp.sh`, `catalog.stencil.so`, `omp.sh/docs/...` … | Ledger-tracked upstream services (keep / replace per entry) | 台账 + `scripts/check-shared-infra.ts`（`replace-*`）。**品牌 sweep 不再豁免主机名**（2026-10-14 收窄）；`qa.omp.sh`、`scl.so`、`build.stencil.so`、`omp.sh/install` 已替换/移除，复活即红 |
-| `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
-| `omp/muxConnect`-style handshakes | Single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |
+| `__zeta_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
+| `zetacode/muxConnect`-style handshakes | Single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |
 | `OMP_NUM_THREADS`, `OMP_THREAD_LIMIT`, `OMP_PCRE2_JIT`, `OMP_MINIMIZER_LEGACY_FILTERS` | GNU toolchain contract — external tools read them | `pi-builtins/nproc.rs`, `grep.rs` |
-| `omp` as the Stencil OAuth client id | Registered client id at a third-party issuer; changing it breaks auth | `catalog/.../stencil.kdl` |
+| `zetacode` as the Stencil OAuth client id | Registered client id at a third-party issuer; changing it breaks auth | `catalog/.../stencil.kdl` |
 | `OMP_*` (remaining product envs) | Documented user configuration in `docs/environment-variables.md`; the compat/upstream families are Zeta-named now (see AGENTS.md) | AGENTS registry |
 | `python/robomp` | OMP-native upstream bot | `SKIP_PREFIXES` |
-| `omp_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
+| `zeta_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
 | Studio IndexedDB `omp-studio-ui` / `omp-studio-backgrounds` | Existing cached user-message thumbnails and uploaded background blobs; renaming a database without copying its data orphans them | `web-app/src/studio/{conversation/userMessageThumbs,background/backgroundLibrary}.ts` |
 
 ### DUAL — read both, write Zeta only
@@ -144,7 +144,7 @@ If a future change needs a third addition, it needs a row here first.
 
 These are SUBSTITUTE, but they change what a user finds on disk or in a store:
 
-- Redis session key prefix `omp:sessions:` -> `zeta:sessions:`
+- Redis session key prefix `zetacode:sessions:` -> `zeta:sessions:`
 - SQL session table `omp_session_files` -> `zeta_session_files`
 Both are configurable defaults. A user who pinned the old value keeps working; a
 user on the default must rename their existing keys/table.

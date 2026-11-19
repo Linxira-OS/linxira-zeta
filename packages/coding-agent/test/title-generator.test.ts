@@ -1097,7 +1097,7 @@ describe("terminal title runtime", () => {
 
 	it("reclaims the Windows console title after another process replaces it", () => {
 		// Issue #16842: a child omp (worker, `browser-relay`) attached to the
-		// pane's console retitled it to `omp`; under a TSP terminal every later
+		// pane's console retitled it to `zetacode`; under a TSP terminal every later
 		// emit composes the same title, so the dedupe cache must not swallow it.
 		const originalPlatform = process.platform;
 		const native = windowsTitleMock;

@@ -151,7 +151,7 @@ beforeEach(() => {
 		},
 	});
 	cdpUrl = `http://127.0.0.1:${server.port}`;
-	unitKey = `omp.browser.relay.${server.port}`;
+	unitKey = `zeta.browser.relay.${server.port}`;
 	stub = new StubDaemon();
 	// The daemon-run relay is this build's; stopping it unbinds the port.
 	stub.onStart = () => {

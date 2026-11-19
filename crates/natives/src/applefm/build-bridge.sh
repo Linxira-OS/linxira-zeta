@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the Apple Foundation Models bridge dylib that omp-natives embeds.
+# Builds the Apple Foundation Models bridge dylib that zeta-natives embeds.
 # Shared by build.rs and the Bazel `applefm_bridge` genrule/repository rule.
 #
 #   build-bridge.sh detect

@@ -263,7 +263,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		};
 	}
 	if (kind.kind === "headless") {
-		// Every real omp process (session, subagent, worker — anything with a CLI
+		// Every real zeta process (session, subagent, worker — anything with a CLI
 		// worker host) MUST go through the project-shared daemon-supervised Chromium:
 		// per-process launches are what produced launch storms and orphaned
 		// process trees. The process-local launch survives only for hosts that
@@ -334,17 +334,17 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 			}
 			if (outcome === "unreachable") {
 				throw new ToolError(
-					`omp browser relay is not reachable at ${cdpUrl}. Start it with \`omp browser-relay\` (or check the endpoint), and make sure the OMP Browser Relay extension is loaded in Chrome.`,
+					`zetacode browser relay is not reachable at ${cdpUrl}. Start it with \`zetacode browser-relay\` (or check the endpoint), and make sure the OMP Browser Relay extension is loaded in Chrome.`,
 				);
 			}
 			if (outcome === "no-extension") {
 				throw new ToolError(
-					`omp browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`omp browser-relay install\` and check the toolbar badge shows "on".`,
+					`zetacode browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`zetacode browser-relay install\` and check the toolbar badge shows "on".`,
 				);
 			}
 			if (outcome === "extension-gone") {
 				throw new ToolError(
-					`omp browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
+					`zetacode browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
 				);
 			}
 			if (outcome === "outdated-relay") {
@@ -556,7 +556,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by omp processes that died without teardown — bounds
+		// left behind by zeta processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });

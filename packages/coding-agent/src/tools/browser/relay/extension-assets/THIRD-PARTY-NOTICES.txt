@@ -8,7 +8,7 @@ no rights in third-party code, fonts, data, or marks identified below.
 ZETA IS A FORK AND REDISTRIBUTION
 =================================
 
-Zeta is a downstream distribution of oh-my-pi (OMP), and it also contains forks
+Zeta is a downstream distribution of zeta (OMP), and it also contains forks
 of OMP Web, OMP Studio and TermIDE. Upstream copyright notices stay with their
 files and are not restated here. This section states, for every forked or
 vendored application tree, where it came from, what Zeta changed, and why.
@@ -19,7 +19,7 @@ Forked application trees:
 
 | Path | Upstream | Snapshot | License | What Zeta changed |
 |---|---|---|---|---|
-| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.22.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
+| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | zeta (OMP), https://github.com/Linxira-OS/linxira-zeta | integrated through tag `v18.22.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
 | `web-ui/` | OMP Web, https://github.com/17380936778/omp-web | frozen snapshot, **abandoned 2026-11-05** (`document/upstream-sync.md`) | see upstream files | third-party UI, not maintained by Zeta: frozen as received, no builds, no fixes; the product renderer is `web-app/` (`Differences from Upstream` in README) |
 | `web-app/` (`src/studio`, `src/vendor/*`) | OMP Studio, https://github.com/the-snowpear/omp-studio | official `v0.2.1` (`6d0b764bb9eac88c1671c0380229823c5630cc74`) integrated 2026-11-16; `web-ui/` is a separate frozen OMP Web snapshot | MIT | maintained by Zeta now: the host contract is reimplemented in `studio-host` (pair/CSRF/query/command/events), the renderer was rebranded (`zeta-studio` wire name, Zeta links/fixtures), and Zeta adds windowed transcripts, precompressed static serving, the plugin registry, and the usage dashboard |
 | `termide/` | TermIDE, https://github.com/termide/termide | tag `0.49.0` = `057eb55e0a7c4ee969982fab62dc83bde028e052` | MIT | deviations listed in `termide/VENDOR.md` |
@@ -43,7 +43,7 @@ Brand and assets:
 Frozen counterpart constants (interoperability, not branding):
 
 * Stencil OIDC `client-id "omp"`, its issuer and scopes; `catalog.stencil.so`;
-  `docs.stencil.so/tern/protocol/`; the `__omp_judgment_images` upload key.
+  `docs.stencil.so/tern/protocol/`; the `__zeta_judgment_images` upload key.
   These are wire-compatible identifiers Zeta must keep, listed here so that a
   brand sweep does not break them.
 

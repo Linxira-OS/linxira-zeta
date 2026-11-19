@@ -8,6 +8,13 @@
 import * as path from "node:path";
 import type { PredictedWord } from "@linxiraos/pi-natives";
 
+/** Legacy readiness banner retained so process titles match the reader-side pattern. */
+export const TEXT_PREDICT_READY_PATTERN = "zetacode text-predict listening on";
+
+/** Agent-directory profile the predict unit serves. */
+export const TEXT_PREDICT_PROFILE_ENV = "ZETA_TEXT_PREDICT_PROFILE";
+export type TextPredictProfile = "default" | "studio";
+
 /** Daemon module kind and `call` module name. */
 export const TEXT_PREDICT_KIND = "predict";
 

@@ -30,7 +30,7 @@ async function storedRefreshToken(dbPath: string): Promise<string | undefined> {
 	}
 }
 
-describe("omp auth-broker serve shutdown", () => {
+describe("zetacode auth-broker serve shutdown", () => {
 	// The broker's background refresher exchanges the expiring row at startup; the provider
 	// answers only after the broker began stopping, as when a restart lands mid-refresh.
 	// POSIX signals: on Windows `kill("SIGTERM")` terminates the child outright. The budget
@@ -41,7 +41,7 @@ describe("omp auth-broker serve shutdown", () => {
 			using tempDir = TempDir.createSync("@omp-auth-broker-shutdown-");
 			const home = tempDir.join("home");
 			fs.mkdirSync(home);
-			const dbPath = path.join(home, ".omp", "agent", "agent.db");
+			const dbPath = path.join(home, ".zeta", "agent", "agent.db");
 			fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 			const tokenRequested = Promise.withResolvers<void>();
@@ -77,8 +77,8 @@ describe("omp auth-broker serve shutdown", () => {
 				NO_COLOR: "1",
 			};
 			for (const key of [
-				"PI_CODING_AGENT_DIR",
-				"PI_CONFIG_DIR",
+				"ZETA_CODING_AGENT_DIR",
+				"ZETA_CONFIG_DIR",
 				"OMP_PROFILE",
 				"PI_PROFILE",
 				"XDG_CACHE_HOME",

@@ -1,4 +1,4 @@
-# Native Rust task execution and cancellation (`omp-natives`)
+# Native Rust task execution and cancellation (`zeta-natives`)
 
 This document describes how `crates/natives` schedules native work and how cancellation flows from JS options (`timeoutMs`, `AbortSignal`) into Rust execution.
 

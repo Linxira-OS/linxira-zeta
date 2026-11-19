@@ -65,7 +65,7 @@ describe("CLI RPC MCP discovery", () => {
 				HOME: home,
 				USERPROFILE: home,
 				XDG_CONFIG_HOME: path.join(home, ".config"),
-				PI_CONFIG_DIR: ".zeta",
+				ZETA_CONFIG_DIR: ".zeta",
 				ZETA_CODING_AGENT_DIR: agentDir,
 				PI_NO_TITLE: "1",
 			};

@@ -19,7 +19,7 @@ For packaged user-facing extension CLIs/features, see [`user-facing-packages.md`
 An extension is a TS/JS module exporting a default factory. Factories may initialize synchronously or return a promise:
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
 	// register handlers/tools/commands/renderers
@@ -35,7 +35,7 @@ Extensions can combine all of the following in one module:
 - custom message rendering
 - session/message injection APIs (`sendMessage`, `sendUserMessage`, `appendEntry`)
 
-Import host values from the package root, `@oh-my-pi/pi-coding-agent`. Deeper paths such as `@oh-my-pi/pi-tui/native/spans` also resolve inside the omp binary, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. Besides the extension types and the theme (`theme`, `getSettingsListTheme`), the root exports these helpers:
+Import host values from the package root, `@linxiraos/pi-coding-agent`. Deeper paths such as `@linxiraos/pi-tui/native/spans` also resolve inside the omp binary, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. Besides the extension types and the theme (`theme`, `getSettingsListTheme`), the root exports these helpers:
 
 - `formTheme`, `editorKey`, `editorKeys` and `formatKeyHint` for settings dialogs and key hints
 - `styledSpans` and `compactText` to turn ANSI-styled text into `TspText`, such as a transcript presenter's `{ compact: { label, rows } }`, and `rowsText` to wrap pre-rendered rows in one native text node; `styleSpans`, `plainText`, `plainLine`, `spansLine` and `styledBackground` cover the other conversions between ANSI text and spans
@@ -77,7 +77,7 @@ Important constraint from `loader.ts`:
 ## Quick start
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;
@@ -184,7 +184,7 @@ pi.registerProvider("my-gateway", {
 ```
 
 `pi.registerProvider(name, config)` can include an optional `usage` field containing a
-`UsageProvider` imported from `@oh-my-pi/pi-ai`. Its `fetchUsage` implementation receives the
+`UsageProvider` imported from `@linxiraos/pi-ai`. Its `fetchUsage` implementation receives the
 normalized credential and returns a normalized `UsageReport`; the result is then handled
 by the host's AuthStorage cache, history, and usage displays just like built-in provider
 usage.
@@ -257,8 +257,8 @@ names are reserved), and `streamSimple` returns the canonical
 `AssistantMessageEventStream`; it does not need to be an HTTP endpoint:
 
 ```ts
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai";
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerProvider("local-command", {
@@ -314,11 +314,11 @@ Also exposed:
 
 ### Runtime setting overrides
 
-Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@oh-my-pi/pi-coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
+Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@linxiraos/pi-coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { lookup } from "@oh-my-pi/pi-coding-agent/config/registry";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
+import { lookup } from "@linxiraos/pi-coding-agent/config/registry";
 
 export default function (pi: ExtensionAPI) {
 	const recap = lookup("recap.enabled");
@@ -860,7 +860,7 @@ with a permission error (`EPERM`/`EACCES`/`EROFS` — every other error, such as
 via `pi.registerFileWriteFallback` before giving up:
 
 ```ts
-import type { FileWriteFallbackHandler } from "@oh-my-pi/pi-coding-agent";
+import type { FileWriteFallbackHandler } from "@linxiraos/pi-coding-agent";
 
 const writeThroughBroker: FileWriteFallbackHandler = async (req, ctx) => {
 	// req: { dst: string; content: string; cause: unknown; sessionId: string | undefined }
@@ -1032,7 +1032,7 @@ Herdr, CMUX, and Orca are supported; screen and wmux remain recognized by the
 multiplexer taxonomy but are currently unsupported.
 
 Provider-specific session detection is centralized in
-`@oh-my-pi/pi-tui/terminal-multiplexer`, which registers one module per multiplexer.
+`@linxiraos/pi-tui/terminal-multiplexer`, which registers one module per multiplexer.
 `hasTerminalMultiplexerSession(provider, env)` checks explicit session markers, while
 `classifyTerminalMultiplexer(env)` names the multiplexer hosting the process: session
 markers first, then a `tmux`/`screen` `TERM` fallback, then outer applications such as
@@ -1289,8 +1289,8 @@ for (const entry of ctx.sessionManager.getBranch()) {
 `registerComposerShape` adds an extension-owned input-editor layout to **Appearance → Composer Shape**. Register it from the extension factory; the renderer is used by the live editor and its settings preview.
 
 ```ts
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import type { ComposerStyle } from "@oh-my-pi/pi-tui";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
+import type { ComposerStyle } from "@linxiraos/pi-tui";
 
 const dockStyle: ComposerStyle = {
 	id: "acme-dock",
@@ -1371,10 +1371,10 @@ Used by interactive rendering when custom messages are displayed.
 
 ### Compact rows
 
-A renderer's component may implement `isTranscriptBlockCompact(): boolean` (the `CompactTranscriptBlock` interface in `@oh-my-pi/pi-tui/chrome/transcript-container`). While it returns `true`, the message packs against neighboring compact blocks. The terminal draws no blank row between them, and Tern shows the run as one block without gaps. Empty or hidden blocks between two compact ones keep the run going.
+A renderer's component may implement `isTranscriptBlockCompact(): boolean` (the `CompactTranscriptBlock` interface in `@linxiraos/pi-tui/chrome/transcript-container`). While it returns `true`, the message packs against neighboring compact blocks. The terminal draws no blank row between them, and Tern shows the run as one block without gaps. Empty or hidden blocks between two compact ones keep the run going.
 
 ```ts
-import { type Component, truncateToWidth } from "@oh-my-pi/pi-tui";
+import { type Component, truncateToWidth } from "@linxiraos/pi-tui";
 
 class StatusRow implements Component {
 	constructor(readonly label: string) {}
@@ -1394,7 +1394,7 @@ The transcript asks again on every frame, so the answer can follow state such as
 ## Assistant thinking renderer
 
 ```ts
-import { Container, Text } from "@oh-my-pi/pi-tui";
+import { Container, Text } from "@linxiraos/pi-tui";
 
 pi.registerAssistantThinkingRenderer((context, theme) => {
 	const container = new Container();

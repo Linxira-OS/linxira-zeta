@@ -69,7 +69,7 @@ export const EXTENSION_RELOAD_PROTOCOL_VERSION = 1;
 /** Chrome's refusal of a debugger request while another extension's frame (a password manager's menu) is in the tab. */
 export const FOREIGN_FRAME_REFUSAL = /chrome-extension:\/\/ URL of different extension/i;
 
-/** Another extension's frame the relay extension emptied and hid in a tab omp drives, so Chrome lets omp attach. */
+/** Another extension's frame the relay extension emptied and hid in a tab omp drives, so Chrome lets zetacode attach. */
 export interface HiddenFrame {
 	/** The id in the frame's `chrome-extension://<id>/` URL. */
 	extensionId: string;

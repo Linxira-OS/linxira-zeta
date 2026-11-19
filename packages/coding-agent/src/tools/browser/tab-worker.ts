@@ -1316,7 +1316,7 @@ class PageSessionLostError extends ToolError {
 		readonly when: "during" | "before",
 	) {
 		super(
-			`omp lost its connection to this tab's page (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
+			`zetacode lost its connection to this tab's page (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
 		);
 	}
 }

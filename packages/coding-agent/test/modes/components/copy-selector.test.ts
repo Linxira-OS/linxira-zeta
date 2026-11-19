@@ -23,7 +23,7 @@ const ENTER = "\r";
 const ESC = "\x1b";
 
 const CODE = "const answer = 42;\nconsole.log(answer);";
-const LINK = "https://github.com/can1357/oh-my-pi/pull/10503";
+const LINK = "https://github.com/Linxira-OS/linxira-zeta/pull/10503";
 const ASSISTANT_TEXT = `Here is the fix:\n\`\`\`ts\n${CODE}\n\`\`\`\nDone. See [the PR](${LINK}).`;
 
 function entry(id: string, parentId: string | null, message: AgentMessage): SessionMessageEntry {

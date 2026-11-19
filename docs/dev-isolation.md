@@ -76,7 +76,7 @@ directory exists — which is the installed root. Clearing them pins those roots
 to `~/.zeta-dev`.
 
 It also clears inherited relocations that would point the child at production
-state: `PI_PROFILE`, `PI_CONFIG_DIR`, `PI_CODING_AGENT_SESSION_DIR`,
+state: `PI_PROFILE`, `ZETA_CONFIG_DIR`, `PI_CODING_AGENT_SESSION_DIR`,
 `PI_NATIVES_DIR`, `ZETA_AUTORESEARCH_DB_DIR`, `ZETA_AUTH_BROKER_SNAPSHOT_CACHE`,
 `ZETA_GITHUB_CACHE_DB`, `ZETA_COMMIT_CACHE_DB`, `ZETA_JUDGMENT_CACHE_DB`,
 `ZETA_WORKTREE_DIR`, `ZETA_DAEMON_PROJECT_DIR`, `ZETA_DAEMON_RUNTIME_DIR`,

@@ -29,7 +29,12 @@ export type StudioPredictionResult = PredictionResult;
 export class StudioPredictionEngine {
 	readonly directory: string;
 	readonly client: Pick<TextPredictionClient, "complete" | "sync" | "close"> &
-		Partial<{ stop(): void | Promise<void>; backend: unknown }>;
+		Partial<{
+			stop(): void | Promise<void>;
+			backend: (method: WordCompletionEngine) => {
+				feedback(before: string, prefix: string, suggestion: string, accepted: boolean): void;
+			};
+		}>;
 	#download: PredictionControlState["download"] = { state: "idle", loaded: 0, total: SMOLLM_TOTAL_BYTES };
 	#downloadAbort: AbortController | undefined;
 	get running(): boolean {

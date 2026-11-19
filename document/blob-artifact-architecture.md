@@ -167,7 +167,7 @@ Failure behavior:
 - with no session available: throws `No session - local:// unavailable`,
 - a missing spill reads like any missing `local://` file: `Local file not found: local://<id>.log`.
 
-Old sessions' `artifact://N` links are not migrated and no longer resolve. `omp stats` still recognizes `artifact://N` reads recorded in old sessions.
+Old sessions' `artifact://N` links are not migrated and no longer resolve. `zetacode stats` still recognizes `artifact://N` reads recorded in old sessions.
 
 ### `agent://<id>`
 

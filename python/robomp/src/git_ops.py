@@ -573,7 +573,7 @@ def _backfill_tip_blobs(
 
     A checkout of ``rev`` then never needs a lazy promisor fetch, which in
     proxy-transport deployments runs in the orchestrator without a PAT and
-    dies (oh-my-pi#1818). Only the tip tree is materialized, not ``rev``'s
+    dies (zeta#1818). Only the tip tree is materialized, not ``rev``'s
     history, so the transfer is the files changed since the pool last saw
     them. Returns the fetch result, or ``None`` when nothing was missing.
 
@@ -704,7 +704,7 @@ def fetch_pr_head(
     Immediately followed by ``git worktree add --detach FETCH_HEAD`` for PR
     review checkouts, so the head's tree blobs are backfilled the same way as
     :func:`fetch_ref`; without them the worktree-add triggers a promisor lazy
-    fetch that fails under proxy-transport deployments (oh-my-pi#1818).
+    fetch that fails under proxy-transport deployments (zeta#1818).
 
     Raises ``GitCommandError`` when fetching, SHA verification, or backfill fails.
     """

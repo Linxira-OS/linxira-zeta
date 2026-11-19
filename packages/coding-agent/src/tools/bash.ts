@@ -534,6 +534,8 @@ export interface BashToolInput {
 	 */
 	notify?: string;
 	pty?: boolean;
+	/** Agent-declared HTTP(S) preview URL for a web development server. */
+	previewUrl?: string;
 }
 
 const PTY_BOARD_COMMAND_MAX = 60;
@@ -1591,6 +1593,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			ready: rawReady,
 			async: rawAsync,
 			notify: rawNotify,
+			previewUrl,
 			pty,
 		}: BashToolInput,
 		ran: { cwd?: string; cdSeparator?: ";" },
@@ -1702,7 +1705,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			const rewritten = rewriteGitWorktreeAdd(command, resolveCliEntryCmd());
 			if (rewritten !== command) {
 				pendingNotices.push(
-					"Ran `git worktree add` as `omp worktree add`: a copy-on-write clone of the checkout without .git, other worktrees, or untracked .env files. Set worktree.clone=false for plain git.",
+					"Ran `git worktree add` as `zetacode worktree add`: a copy-on-write clone of the checkout without .git, other worktrees, or untracked .env files. Set worktree.clone=false for plain git.",
 				);
 				command = rewritten;
 			}
@@ -1770,6 +1773,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					pty: pty ?? true,
 					ready,
 					notify: notifySource,
+					previewUrl,
 					env: { ...seed.env, ...sessionEnv },
 					seed: (await shellMounts(sessionResolveContext(this.session), approvalTier)) + seed.script,
 				},
@@ -1777,7 +1781,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				ready === undefined ? undefined : ctx?.toolCall?.steeringSignal,
 			);
 			const daemon = service.daemon;
-			const pid = daemon.pids[0];
+			const pid = daemon.pids?.[0];
 			const notifyLine = service.notifyArmed ? notifyNotice : undefined;
 			if (service.readyInterrupted) {
 				// A queued message arrived mid-wait: return so it injects promptly.

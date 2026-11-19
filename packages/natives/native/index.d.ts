@@ -1928,6 +1928,8 @@ export interface DesktopScreenState {
 
 export interface DesktopSessionOptions {
   display?: string
+  /** Open in passive observation mode (no input injection). */
+  observationOnly?: boolean
   /**
    * Sessions created with the same key share one physical-Escape stop
    * count, which `desktopEscapeStops` reads after they close.
@@ -3801,8 +3803,8 @@ export declare function renderMermaidAscii(text: string, options?: MermaidRender
 export declare function renderSnapcompactPng(text: string, options: SnapcompactRenderOptions): Promise<string>
 
 /**
- * Run the shell engine as a process shell in this process (`omp zsh`,
- * `omp bash`, `omp sh`).
+ * Run the shell engine as a process shell in this process (`zetacode zsh`,
+ * `zetacode bash`, `zetacode sh`).
  *
  * `argv` is the shell's whole command line,
  * `argv[0]` naming it (`zsh`, `bash` or `sh` pick the dialect), as a real

@@ -477,7 +477,7 @@ function blockHead(block: WrappedTranscriptBlock): BlockHead {
 			const lines = reports.reduce((sum, report) => sum + report.lines.length + report.omitted, 0);
 			const target = `${reports.map(report => report.id).join(", ")} · ${countOf(lines, "line")}`;
 			return {
-				...plainHead("job", "omp.activity", "Background output", target),
+				...plainHead("job", "zeta.activity", "Background output", target),
 				glyph: theme.fg("accent", theme.status.info),
 			};
 		}

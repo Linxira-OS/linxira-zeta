@@ -2534,6 +2534,8 @@ export interface Messages {
 	grepTruncated: string; // "truncated"
 	grepItemOne: string; // "1 item"
 	grepItemManyFmt: string; // "%d items"
+	moreItemsFmt: string; // "… %s more %s"
+	todoBlockedSuffix: string; // "(blocked)"
 	grepMatchOne: string; // "1 match"
 	grepMatchManyFmt: string; // "%d matches"
 	grepFileOne: string; // "1 file"

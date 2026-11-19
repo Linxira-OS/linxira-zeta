@@ -262,7 +262,7 @@ export async function startTinyWorkerFromEnvironment(): Promise<void> {
 	if (!isTinyLocalModelKey(modelKey)) throw new Error(`Unknown tiny local model: ${modelKey}`);
 	const spec = getTinyLocalModelSpec(modelKey);
 	if (!spec) throw new Error(`Unknown tiny local model: ${modelKey}`);
-	setProcessName(`omp tiny ${modelKey}`);
+	setProcessName(`zetacode tiny ${modelKey}`);
 	const model = new OnnxModel(modelKey, spec, resolveTinyModelDevicePreference(), resolveTinyModelDtypeOverride());
 	const handle = async (request: Extract<TinyWorkerRequest, { type: "load" | "chat" }>): Promise<void> => {
 		try {

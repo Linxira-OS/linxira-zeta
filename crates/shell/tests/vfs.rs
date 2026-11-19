@@ -567,7 +567,7 @@ async fn commands_run_through_a_wrapper_receive_host_paths_for_url_arguments() {
 	assert_eq!(run.stdout.lines().collect::<Vec<_>>(), expected);
 }
 
-/// `omp` resolves the URLs it is given itself, selectors included, so its
+/// `zetacode` resolves the URLs it is given itself, selectors included, so its
 /// arguments and environment reach it as written: run by name, by path, or
 /// through a program that execs it.
 #[cfg(unix)]
@@ -584,8 +584,8 @@ async fn omp_receives_its_url_arguments_as_written() {
 	fs::write(&omp, b"#!/bin/sh\nprintf '%s\\n' \"$@\" \"ref=$REF\"\n").expect("stand-in omp");
 	fs::set_permissions(&omp, fs::Permissions::from_mode(0o755)).expect("executable stand-in");
 	let script = format!(
-		"PATH='{bin}':$PATH; REF=virtual://docs/a.txt omp read virtual://docs/a.txt:1-2 \
-		 --from=virtual://docs/a.txt; nice omp read virtual://docs; '{omp}' read \
+		"PATH='{bin}':$PATH; REF=virtual://docs/a.txt zetacode read virtual://docs/a.txt:1-2 \
+		 --from=virtual://docs/a.txt; nice zetacode read virtual://docs; '{omp}' read \
 		 @virtual://docs/a.txt",
 		bin = bin.path().display(),
 		omp = omp.display(),

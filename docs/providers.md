@@ -10,11 +10,11 @@ This page covers how providers become available, how credentials are resolved, t
 
 `antigravity-cli` runs Google's `agy acp` locally. It is separate from the paused direct-OAuth `google-antigravity` provider.
 
-1. Run `/login antigravity-cli` or `omp login antigravity-cli`.
+1. Run `/login antigravity-cli` or `zetacode login antigravity-cli`.
 2. Complete agy's Google sign-in and paste the authorization code or callback URL.
 3. Select, for example, `antigravity-cli/gemini-4-carbon` or `antigravity-cli/claude-sonnet-5-5`.
 
-omp downloads agy from Google's release manifests, checks SHA-512, and keeps versioned executables under its data directory (normally `~/.omp/antigravity-cli/bin`). It checks for updates at most daily without changing your shell profiles. `PI_AGY_PATH` selects an existing executable instead. The CLI's IDE-tool transport requires `nc` (netcat) on `PATH`.
+omp downloads agy from Google's release manifests, checks SHA-512, and keeps versioned executables under its data directory (normally `~/.zeta/antigravity-cli/bin`). It checks for updates at most daily without changing your shell profiles. `PI_AGY_PATH` selects an existing executable instead. The CLI's IDE-tool transport requires `nc` (netcat) on `PATH`.
 
 Login exports the resulting OAuth grant into omp's credential store so normal refresh and broker distribution can manage it. The ACP child uses a private, account-scoped native credential file rather than modifying your ordinary agy login. A child-only headless-auth environment selects agy's file storage. Do not copy access tokens into `--api-key`: the transport expects the structured OAuth credential produced by login.
 

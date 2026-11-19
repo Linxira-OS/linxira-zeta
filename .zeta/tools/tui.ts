@@ -999,7 +999,7 @@ function ptyDimensions(cols: number, rows: number): PtyDimensions {
  * Runtime for `file` entries. In the compiled binary `process.execPath` is omp,
  * which would take the entry path as its first prompt, so run the `bun` on PATH
  * (the one `bun install --cwd .zeta/tools` needs). Not `BUN_BE_BUN=1`: the child
- * would pass it to every command it runs, turning an `omp` there into Bun.
+ * would pass it to every command it runs, turning an `zetacode` there into Bun.
  */
 function bunRuntime(): string {
 	if (!isCompiledBinary()) return process.execPath;

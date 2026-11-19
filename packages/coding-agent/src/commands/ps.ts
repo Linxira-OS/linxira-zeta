@@ -41,15 +41,15 @@ export default class Ps extends Command {
 	};
 
 	static examples = [
-		"omp ps",
-		"omp ps --all",
-		"omp ps logs web --follow",
-		"omp ps stop web",
-		"omp ps kill web",
-		"omp ps send web 'rs\\n'",
-		"omp ps send web --signal SIGINT",
-		"omp ps mode web persist",
-		"omp ps info web",
+		"zetacode ps",
+		"zetacode ps --all",
+		"zetacode ps logs web --follow",
+		"zetacode ps stop web",
+		"zetacode ps kill web",
+		"zetacode ps send web 'rs\\n'",
+		"zetacode ps send web --signal SIGINT",
+		"zetacode ps mode web persist",
+		"zetacode ps info web",
 	];
 
 	async run(): Promise<void> {

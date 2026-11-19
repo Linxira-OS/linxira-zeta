@@ -14,7 +14,7 @@
  *       → Agent loop dispatches a tool call
  *         → BashTool.execute
  *           → executeBash
- *             → omp-natives `Shell.run` (real native binding)
+ *             → zeta-natives `Shell.run` (real native binding)
  *               → omp-shell host spawn (`Sessions::Detach`)
  *                 → spawned child reports getsid()/getpid()
  *

@@ -86,7 +86,7 @@ describe("ps-top native", () => {
 			component.handleNativeEvent({ type: "activate", key: "", item: web.key ?? "" });
 			await rendered.promise;
 			expect(described).toEqual(["web"]);
-			expect(nodes([component.describe()]).some(n => n.p?.role === "omp.ps.info")).toBe(true);
+			expect(nodes([component.describe()]).some(n => n.p?.role === "zeta.ps.info")).toBe(true);
 		} finally {
 			component.dispose();
 		}
@@ -140,7 +140,7 @@ describe("git native", () => {
 			await settle();
 			const sf = h.terminal.surface ?? "";
 			const diff = () => h.find(n => n.k === "diff");
-			const path = () => h.find(n => (n.p as { role?: string } | undefined)?.role === "omp.app.git.path");
+			const path = () => h.find(n => (n.p as { role?: string } | undefined)?.role === "zeta.app.git.path");
 			expect(diff()?.p).toMatchObject({ mode: "split", path: "src/a.ts" });
 
 			// The Wrap lines tool reaches the drawn diff (off, as in the terminal, until toggled).
@@ -284,7 +284,7 @@ describe("git native", () => {
 		});
 		try {
 			const role = (n: { p?: unknown }) => (n.p as { role?: string } | undefined)?.role;
-			const shown = () => h.find(n => role(n) === "omp.app.git.compare" || n.k === "kv");
+			const shown = () => h.find(n => role(n) === "zeta.app.git.compare" || n.k === "kv");
 			for (let i = 0; i < 10 && !shown(); i++) {
 				await Promise.resolve();
 				h.tui.requestRender();
@@ -297,8 +297,8 @@ describe("git native", () => {
 						const { path, rev, link } = n.p as { path: string; rev?: string; link?: string };
 						return { path, rev, link };
 					}),
-				heads: h.findAll(n => role(n) === "omp.app.git.media-head").map(n => JSON.stringify(n.p)),
-				notes: h.findAll(n => role(n) === "omp.app.git.media-none").map(n => JSON.stringify(n.p)),
+				heads: h.findAll(n => role(n) === "zeta.app.git.media-head").map(n => JSON.stringify(n.p)),
+				notes: h.findAll(n => role(n) === "zeta.app.git.media-none").map(n => JSON.stringify(n.p)),
 				kv: h.find(n => n.k === "kv")?.p,
 			};
 		} finally {
@@ -392,7 +392,7 @@ describe("cleanse board native", () => {
 		expect(next).not.toBe(first);
 		const progress = nodes(next ? [next] : []).find(n => n.k === "progress");
 		expect(progress?.p).toMatchObject({ value: 0.5 });
-		expect(model.lastSettled?.p).toMatchObject({ role: "omp.cleanse.outcome" });
+		expect(model.lastSettled?.p).toMatchObject({ role: "zeta.cleanse.outcome" });
 	});
 
 	it("draws running lanes as agent rows under a meter when the terminal has those kinds", () => {

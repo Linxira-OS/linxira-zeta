@@ -74,7 +74,8 @@ export interface SessionSnapshot {
 export type AttachPage = { kind: "create"; nearTargetId?: string } | { kind: "owned" | "borrowed"; targetId: string };
 
 /** omp created the payload's page: closing the tab closes the page. */
-export function ownsPage(payload: WorkerInitPayload): boolean {
+export function ownsPage(payload: WorkerInitPayload & { studioManaged?: boolean }): boolean {
+	if (payload.studioManaged) return false;
 	return payload.mode === "headless" || payload.page.kind !== "borrowed";
 }
 

@@ -132,7 +132,7 @@ Layout, per Git repository root (or the working directory when there is no repos
 | `<dir>/<project-key>.db` | The SQLite database: sessions and runs. |
 | `<dir>/<project-key>/runs/NNNN/benchmark.log` | Captured output of run `NNNN`, zero-padded to four digits. |
 
-`<dir>` is `OMP_AUTORESEARCH_DB_DIR` when set, otherwise the `autoresearch` subdirectory of omp's state root — `~/.omp/autoresearch` by default, but a named profile or an existing XDG state root moves it (`getAutoresearchDbPath`, `getAutoresearchProjectDir` in `packages/utils/src/dirs.ts`). The encoding is not collision-free for pathological roots (`/a/b` and `/a-b` collide) and is fixed by compatibility with existing state.
+`<dir>` is `OMP_AUTORESEARCH_DB_DIR` when set, otherwise the `autoresearch` subdirectory of omp's state root — `~/.zeta/autoresearch` by default, but a named profile or an existing XDG state root moves it (`getAutoresearchDbPath`, `getAutoresearchProjectDir` in `packages/utils/src/dirs.ts`). The encoding is not collision-free for pathological roots (`/a/b` and `/a-b` collide) and is fixed by compatibility with existing state.
 
 Other properties of the store a caller should know:
 

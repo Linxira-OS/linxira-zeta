@@ -272,11 +272,11 @@ describe("InteractiveMode tray", () => {
 		const cx = context(true);
 		const described = dock(cx);
 		const roles = described.map(entry => role(entry.node ?? undefined));
-		const activity = roles.indexOf("omp.hud.activity");
+		const activity = roles.indexOf("zeta.hud.activity");
 		expect(activity).toBeGreaterThanOrEqual(0);
 		expect(roles[activity + 1]).toBe("omp.tray");
 		// The pill gives way to the tray.
-		const pill = described.find(entry => role(entry.node ?? undefined) === "omp.hud");
+		const pill = described.find(entry => role(entry.node ?? undefined) === "zeta.hud");
 		expect(pill?.node?.p?.hidden).toBe(true);
 		// Idle main agent: the caption stands in for the status rows.
 		const caption = children(described[activity]!.node!).find(node => role(node) === "omp.tray.caption");
@@ -337,8 +337,8 @@ describe("InteractiveMode tray", () => {
 			"omp.tray.time",
 		]);
 		expect(children(children(widgetJob)[1]).map(node => role(node) ?? node.k)).toEqual([
-			"omp.hud.glance",
-			"omp.hud.spark",
+			"zeta.hud.glance",
+			"zeta.hud.spark",
 			"omp.tray.stage",
 		]);
 
@@ -452,7 +452,7 @@ describe("InteractiveMode tray", () => {
 		const described = dock(cx);
 		const all = described.flatMap(entry => (entry.node ? nodes(entry.node) : []));
 		expect(all.some(node => String(role(node)).startsWith("omp.tray"))).toBe(false);
-		const pill = described.find(entry => role(entry.node ?? undefined) === "omp.hud");
+		const pill = described.find(entry => role(entry.node ?? undefined) === "zeta.hud");
 		expect(pill?.node).toBe(mode.describeHudPills());
 	});
 
@@ -519,9 +519,9 @@ describe("InteractiveMode tray", () => {
 			// The same agent keeps its card's key across the regrouping.
 			expect(cards[0]!.key).toBe(scanKey);
 			// The idle status row stays, empty (no caption over a quiet tray): the host's seat for the tray.
-			expect(dock(cx).find(entry => role(entry.node ?? undefined) === "omp.hud.activity")?.node).toEqual({
+			expect(dock(cx).find(entry => role(entry.node ?? undefined) === "zeta.hud.activity")?.node).toEqual({
 				k: "row",
-				p: { role: "omp.hud.activity", align: "center", gap: "sm" },
+				p: { role: "zeta.hud.activity", align: "center", gap: "sm" },
 				c: [],
 			});
 
@@ -652,9 +652,9 @@ describe("InteractiveMode tray", () => {
 		];
 		// One row throughout (same kind and role, so the host keeps it); idle over a quiet tray it is empty.
 		expect(rows.map(node => [node.k, node.p && Reflect.get(node.p, "role")])).toEqual([
-			["row", "omp.hud.activity"],
-			["row", "omp.hud.activity"],
-			["row", "omp.hud.activity"],
+			["row", "zeta.hud.activity"],
+			["row", "zeta.hud.activity"],
+			["row", "zeta.hud.activity"],
 		]);
 		expect(rows[1]!.c).toEqual([]);
 	});

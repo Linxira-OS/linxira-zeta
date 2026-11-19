@@ -70,8 +70,8 @@ describe("hostCommandUrls", () => {
 
 	it("leaves omp's own URLs, message text, and what nothing backs as written", async () => {
 		for (const command of [
-			"omp read 'skill://tdd:1-14' local://x.md",
-			"sudo /usr/local/bin/omp read local://x.md",
+			"zetacode read 'skill://tdd:1-14' local://x.md",
+			"sudo /usr/local/bin/zetacode read local://x.md",
 			"curl https://example.com/a.txt -H 'Referer: https://example.com/?next=local://x'",
 			"log.sh 'local://handover.md is ready for review'",
 			"bm read memory://notes/startup local://nope/missing.md",
@@ -80,9 +80,9 @@ describe("hostCommandUrls", () => {
 		]) {
 			expect(await host(command)).toBe(command);
 		}
-		// The next command after `omp` is no longer its own.
-		expect(await host("omp read local://x.md && cat local://x.md | omp -p local://y")).toBe(
-			"omp read local://x.md && cat /host/x.md | omp -p local://y",
+		// The next command after `zetacode` is no longer its own.
+		expect(await host("zetacode read local://x.md && cat local://x.md | omp -p local://y")).toBe(
+			"zetacode read local://x.md && cat /host/x.md | omp -p local://y",
 		);
 	});
 
@@ -206,14 +206,14 @@ describe("bash internal URLs outside the embedded shell", () => {
 		vi.spyOn(daemonClients, "daemonClient").mockResolvedValue(client);
 
 		await new BashTool(session).execute("start-web", {
-			command: `SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; omp read local://data.txt:1-2`,
+			command: `SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; zetacode read local://data.txt:1-2`,
 			name: "web",
 		});
 
 		// The engine in that process resolves the URLs itself, to the files this session backs them with.
 		const args = started?.args ?? [];
 		expect(args.at(-1)).toBe(
-			`SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; omp read local://data.txt:1-2`,
+			`SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; zetacode read local://data.txt:1-2`,
 		);
 		expect(args.at(-2)).toBe("--");
 		expect(args).toContain(SHELL_PROCESS_SELECTOR);

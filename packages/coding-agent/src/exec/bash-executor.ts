@@ -937,7 +937,7 @@ export async function executeBash(command: string, options?: BashExecutorOptions
 				timeoutTimer = setTimeout(onDeadline, remainingMs);
 				return;
 			}
-			// Explicit timeouts are enforced inside omp-natives via `timeoutMs`.
+			// Explicit timeouts are enforced inside zeta-natives via `timeoutMs`.
 			// Give native cancellation time to flush pipeline output and drain the
 			// N-API bridge before this result-only watchdog gives up on the run.
 			if (!nativeOwnsTimeout) {

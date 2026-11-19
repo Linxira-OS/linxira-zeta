@@ -27,7 +27,7 @@ const ENCODINGS = [
 	Encoding.Jev,
 ];
 
-console.log("omp-natives countTokens (JS string → UTF-16 → native)");
+console.log("zeta-natives countTokens (JS string → UTF-16 → native)");
 for (const encoding of ENCODINGS) {
 	for (const name in CASES) {
 		const text = CASES[name];

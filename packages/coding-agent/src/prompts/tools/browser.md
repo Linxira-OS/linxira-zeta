@@ -95,13 +95,13 @@ Browser choice:
   - `"own"` (omp's own browser: WebKit when installed, else Chromium; skips the relay, `browser.cdpUrl`, Tern and cmux)
   - `"auto"` (the choice above without the relay)
   - a CDP endpoint URL (`http://127.0.0.1:9222`) to attach to
-  - or an executable path to launch (Chromium-family browsers use an omp-owned profile unless `argv` supplies `--user-data-dir`)
+  - or an executable path to launch (Chromium-family browsers use an zeta-owned profile unless `argv` supplies `--user-data-dir`)
 - `headed`: visible or hidden tab per open.
   - A WebKit tab gets its own window where the engine ships a viewer (macOS), and an open of a live WebKit tab shows or hides it at once.
   - Elsewhere a visible browser is Chromium.
 - `file:` pages can always read other local files. `insecure` applies per tab.
 
-WebKit (open result: `omp's headless WebKit browser`, or `omp's WebKit browser (in a window)` when shown):
+WebKit (open result: `zetacode's headless WebKit browser`, or `zetacode's WebKit browser (in a window)` when shown):
 
 - Off screen unless shown (there the user can click and type too); the page always sees a visible, focused window and no automation flag.
 - `target` names nothing there. Engine cannot start → Chromium.

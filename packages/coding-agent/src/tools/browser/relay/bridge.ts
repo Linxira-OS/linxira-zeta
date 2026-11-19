@@ -793,8 +793,8 @@ export class RelayBridge {
 	// ---- extension self-update ------------------------------------------------
 
 	/**
-	 * The older omp version this extension runs, when the relay may replace it: the extension reloads on request,
-	 * its script carries an omp version older than this relay's, its socket named its Chrome id, and the relay has
+	 * The older zetacode version this extension runs, when the relay may replace it: the extension reloads on request,
+	 * its script carries an zetacode version older than this relay's, its socket named its Chrome id, and the relay has
 	 * not already reloaded it from that version (a reload that brings the same version back must not loop).
 	 */
 	#outdatedReloadable(inst: ExtInstance): string | null {
@@ -2283,7 +2283,7 @@ export class RelayBridge {
 			this.#replyError(
 				conn,
 				msg,
-				"the omp relay extension in this browser predates download tracking; run `omp browser-relay install` and reload the extension in chrome://extensions",
+				"the omp relay extension in this browser predates download tracking; run `zetacode browser-relay install` and reload the extension in chrome://extensions",
 			);
 			return false;
 		}

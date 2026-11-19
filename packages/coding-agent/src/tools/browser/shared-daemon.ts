@@ -59,7 +59,7 @@ const SHARED_BROWSER_POLICY: Partial<UnitPolicy> = {
  */
 const PROFILE_CLAIM_WAIT_MS = READY_TIMEOUT_MS + 15_000;
 const PROFILE_CLAIM_RETRY_MS = 100;
-/** Grace given to Chrome to exit before the daemon kills it; matches `omp ps stop`. */
+/** Grace given to Chrome to exit before the daemon kills it; matches `zetacode ps stop`. */
 const STOP_TIMEOUT_MS = 5_000;
 /**
  * Hard bound on one post-cleanup reachability check, covering both probes and
@@ -198,7 +198,7 @@ export async function ensureSharedBrowser(opts: {
 		// start restores the stale session; the claim holder starts Chrome instead.
 		if (!claim) {
 			throw new ToolError(
-				`Shared browser daemon unavailable: ${reason ? `${reason}, and ` : ""}another omp process held the shared browser profile while starting Chrome. \`omp ps\` lists the ${name} unit.`,
+				`Shared browser daemon unavailable: ${reason ? `${reason}, and ` : ""}another omp process held the shared browser profile while starting Chrome. \`zetacode ps\` lists the ${name} unit.`,
 			);
 		}
 		await seedOwnedProfilePreferences(userDataDir);
@@ -213,7 +213,7 @@ export async function ensureSharedBrowser(opts: {
 		);
 		if (typeof started !== "string") return started;
 		throw new ToolError(
-			`Shared browser daemon unavailable: ${reason ? `${reason}; its replacement failed: ` : ""}${started}. \`omp ps\` lists the ${name} unit.`,
+			`Shared browser daemon unavailable: ${reason ? `${reason}; its replacement failed: ` : ""}${started}. \`zetacode ps\` lists the ${name} unit.`,
 		);
 	} finally {
 		claim?.release();
@@ -300,7 +300,7 @@ async function stopUnit(
 }
 
 /**
- * Restart a project-shared browser for `omp ps`. The daemon's own restart
+ * Restart a project-shared browser for `zetacode ps`. The daemon's own restart
  * relaunches the retained spec on the same profile, where Chromium would
  * reopen every page the stopped process had open. This holds the profile
  * claim throughout, so no other client starts Chrome in between, stops the

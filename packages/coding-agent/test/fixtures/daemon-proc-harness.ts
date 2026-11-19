@@ -2,7 +2,7 @@
  * A real omp daemon isolated in a private temp dir, plus a raw protocol
  * connection to it, for tests of `proc` units, leases and the store.
  *
- * Nothing here touches `process.env` or `~/.omp`: the daemon runs as a child
+ * Nothing here touches `process.env` or `~/.zeta`: the daemon runs as a child
  * process whose env names the temp dir (`OMP_DAEMON_DIR`), and connections dial
  * its endpoint and read its token directly. {@link TestDaemon.dispose} stops
  * every unit it saw (detached ones outlive the daemon), shuts the daemon down,
@@ -258,7 +258,7 @@ export class TestDaemon {
 		delete env[DAEMON_RESUME_ENV];
 		env[DAEMON_DIR_ENV] = this.dir;
 		env.PI_TEST_RUNTIME = "1";
-		env.PI_CODING_AGENT_DIR = path.join(this.root, "agent");
+		env.ZETA_CODING_AGENT_DIR = path.join(this.root, "agent");
 		Object.assign(env, this.#env);
 		this.#spawns++;
 		const proc = Bun.spawn([process.execPath, CLI_ENTRY, DAEMON_WORKER_ARG], {

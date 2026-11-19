@@ -13,7 +13,7 @@
  * Hidden subcommand on the main CLI that boots the onnxruntime embeddings
  * worker. Kept in sync with the dispatch in `cli.ts`.
  */
-export const MNEMOPI_EMBED_WORKER_ARG = "__omp_worker_mnemopi_embed";
+export const MNEMOPI_EMBED_WORKER_ARG = "__zeta_worker_mnemopi_embed";
 /** Env var overriding the unit's idle grace (milliseconds); for tests. */
 export const MNEMOPI_EMBED_IDLE_MS_ENV = "OMP_MNEMOPI_EMBED_IDLE_MS";
 

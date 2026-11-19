@@ -2,7 +2,7 @@
 //!
 //! The per-platform backends in [`crate::device`] own device access, format
 //! conversion, channel mixing, and resampling. The engine exposes one stable
-//! mono `f32` contract: the N-API classes in omp-natives adapt it to
+//! mono `f32` contract: the N-API classes in zeta-natives adapt it to
 //! TypeScript, and [`crate::live`] shares [`PlaybackStream`] for remote-audio
 //! rendering.
 

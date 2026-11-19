@@ -312,6 +312,7 @@ describe("proc:// background jobs", () => {
 				securityEnabled: false,
 				settingsApproval: false,
 				outReplies: false,
+				canvasEnabled: false,
 				subagent: false,
 			})
 			.find(line => line.startsWith("proc://"));

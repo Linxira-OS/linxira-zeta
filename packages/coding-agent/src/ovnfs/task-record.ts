@@ -17,7 +17,7 @@ export interface CheckoutRecord {
 /**
  * Remove the ovnfs checkouts a task-isolation dir records and report whether it
  * recorded one. Throws when a checkout cannot be removed (the record then stays
- * for a later retry); `omp worktree clear` calls this before deleting the dir.
+ * for a later retry); `zetacode worktree clear` calls this before deleting the dir.
  */
 export async function releaseOvnfsCheckout(dir: string): Promise<boolean> {
 	let record: unknown;

@@ -90,6 +90,7 @@ import {
 	type TitleChangeEntry,
 	type TtsrInjectionEntry,
 	type UsageStatistics,
+	type SessionRunInitEntry,
 } from "./session-entries";
 import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
 import {
@@ -137,7 +138,7 @@ import {
 } from "./session-storage";
 import { resolveTeamSessionOrigin } from "../team/session-origin";
 import { sameSessionOrigin, type SessionOrigin } from "./session-origin";
-import type { ImSwitchControlMetadata } from "./session-im";
+import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 import type { ImControlEntry } from "./session-entries";
 import { type SessionTitleUpdate, serializeTitleSlot } from "./session-title-slot";
 import {
@@ -1175,7 +1176,7 @@ export class SessionManager {
 	/**
 	 * Hold this process's ownership claim on `#sessionId`, moving it off a
 	 * previous session. Only write paths claim, so the first process to write a
-	 * session owns it and inspection (`omp share`, `--export`, `render`) never
+	 * session owns it and inspection (`zetacode share`, `--export`, `render`) never
 	 * does. A failed claim is retried on the next write, so a writer takes over
 	 * once the owner closed the session or exited.
 	 */
@@ -3903,6 +3904,17 @@ export class SessionManager {
 		return entry.id;
 	}
 
+	/** Record the client that started this run; header/client provenance survives /new and forks. */
+	appendRunInit(client?: SessionClient): string {
+		const entry: SessionRunInitEntry = {
+			type: "run_init",
+			...this.#freshEntryFields(),
+			...(client === undefined ? {} : { client }),
+		};
+		this.#recordEntry(entry);
+		return entry.id;
+	}
+
 	appendCompaction<T = unknown>(
 		summary: string,
 		shortSummary: string | undefined,
@@ -4256,6 +4268,13 @@ export class SessionManager {
 	}
 
 	/** Reset the leaf to null so the next append creates a new root entry. */
+	/** Select a leaf and persist the branch choice durably. */
+	async selectLeafDurably(id: string | null): Promise<void> {
+		this.#setLeaf(id);
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
+	}
+
 	resetLeaf(): void {
 		this.#setLeaf(null);
 	}
@@ -4271,7 +4290,7 @@ export class SessionManager {
 	 * rewrite the journal, making the selected path durable.
 	 *
 	 * A removed assistant turn was still billed, so its usage is re-journaled as
-	 * an off-branch `model_usage` entry; session totals and `omp stats` keep
+	 * an off-branch `model_usage` entry; session totals and `zetacode stats` keep
 	 * counting it. A subtree preserved off-branch keeps its own usage.
 	 */
 	async discardEntryDurably(entryId: string): Promise<void> {
@@ -4490,6 +4509,7 @@ export class SessionManager {
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
 		options?: {
+			client?: SessionClient;
 			copyArtifacts?: boolean;
 			suppressBreadcrumb?: boolean;
 			sessionFile?: string;
@@ -4519,6 +4539,7 @@ export class SessionManager {
 		if (options?.resetInheritedCost) SessionManager.#resetInheritedUsageCost(history);
 		manager.#resetToNewSession(
 			{
+				client: options?.client,
 				parentSession: sourceHeader?.id,
 				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
 				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,
@@ -4643,6 +4664,7 @@ export class SessionManager {
 				? SessionManager.getDefaultSessionDir(cwd, undefined, storage)
 				: path.dirname(path.resolve(filePath)));
 		const manager = new SessionManager(cwd, dir, true, storage);
+		if (options?.client) manager.appendRunInit(options.client);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
 		manager.#client = options?.client;
 		// Freshness gate for fail-closed callers (revive): the cwd probe above

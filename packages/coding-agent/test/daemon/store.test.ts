@@ -1,5 +1,5 @@
 /**
- * The daemon store as its consumers see it: the offline reader (`omp ps`
+ * The daemon store as its consumers see it: the offline reader (`zetacode ps`
  * without a daemon), env deduplication, and what a daemon restarted after a
  * crash makes of the units the dead one persisted.
  */

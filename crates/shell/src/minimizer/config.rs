@@ -149,7 +149,7 @@ impl MinimizerConfig {
 					let actual_hex = format!("{actual:016x}");
 					if !actual_hex.eq_ignore_ascii_case(expected) {
 						eprintln!(
-							"[omp-natives minimizer] settings_hash mismatch for {} (expected {}, got \
+							"[zeta-natives minimizer] settings_hash mismatch for {} (expected {}, got \
 							 {}); ignoring file",
 							expanded.display(),
 							expected,
@@ -177,7 +177,7 @@ impl MinimizerConfig {
 						}
 					},
 					Err(err) => {
-						eprintln!("[omp-natives minimizer] user filters: {err}");
+						eprintln!("[zeta-natives minimizer] user filters: {err}");
 					},
 				}
 			}
@@ -234,7 +234,7 @@ impl SettingsFile {
 			&& v != SUPPORTED_SCHEMA_VERSION
 		{
 			eprintln!(
-				"[omp-natives minimizer] unsupported schema_version {v} in settings file (expected \
+				"[zeta-natives minimizer] unsupported schema_version {v} in settings file (expected \
 				 {SUPPORTED_SCHEMA_VERSION})"
 			);
 			return;

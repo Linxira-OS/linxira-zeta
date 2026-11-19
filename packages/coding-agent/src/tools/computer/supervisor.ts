@@ -56,7 +56,7 @@ export interface ComputerController {
 		signal?: AbortSignal,
 		context?: AgentToolContext,
 	): Promise<ComputerRunResult>;
-	revokeControl?(): Promise<void>;
+	revokeControl?(strict?: boolean): Promise<void>;
 	/** The owner's agent turn `turn` ended: let the display sleep now, keeping control, refs and the worker. */
 	releaseDisplay?(turn: number): void;
 	/**

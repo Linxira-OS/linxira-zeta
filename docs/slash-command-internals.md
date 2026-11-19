@@ -81,7 +81,7 @@ Search roots come from `.zeta` directories:
 - user: active profile agent directory `commands/*.md` (`~/.zeta/agent/commands/*.md` for the default profile; `~/.zeta/profiles/<name>/agent/commands/*.md` for a named profile)
 
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
-The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `ZETA_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
+The default paths above can be relocated by `ZETA_CONFIG_DIR`, the default-profile `ZETA_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
 
 ## `zeta-plugins` provider (`zeta-plugins.ts`)
 

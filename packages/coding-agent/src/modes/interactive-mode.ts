@@ -5217,7 +5217,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			case "abandoned":
 				return theme.fg("error", `${prefix}${checkbox.unchecked} ${chalk.strikethrough(todo.content)}`) + marker;
 			case "blocked":
-				return theme.fg("warning", `${prefix}${checkbox.unchecked} ${todo.content} (blocked)`) + marker;
+				return (
+					theme.fg("warning", `${prefix}${checkbox.unchecked} ${todo.content} ${M.todoBlockedSuffix}`) + marker
+				);
 			default:
 				if (matched) return theme.fg("accent", `${prefix}${checkbox.unchecked} ${todo.content}`) + marker;
 				return theme.fg("dim", `${prefix}${checkbox.unchecked} ${todo.content}`) + marker;
@@ -5525,7 +5527,9 @@ export class InteractiveMode implements InteractiveModeContext {
 							: todo.status === "in_progress" || isMatched(todo)
 								? "accent"
 								: "dim";
-			const label: TspSpan[] = [span(todo.status === "blocked" ? `${todo.content} (blocked)` : todo.content, token)];
+			const label: TspSpan[] = [
+				span(todo.status === "blocked" ? `${todo.content} ${M.todoBlockedSuffix}` : todo.content, token),
+			];
 			const notes = todo.notes?.length ?? 0;
 			if (notes > 0) label.push(span(` +${notes}`, "dim em"));
 			return { id, label, icon: done ? "check" : "circle" };

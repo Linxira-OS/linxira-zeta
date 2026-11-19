@@ -505,7 +505,7 @@ function buildAdditionalUsageLimit(args: {
 			accountId: args.accountId,
 			tier: args.slug,
 			// The meter is per model even when the payload names only its feature
-			// codename; `omp usage` keeps rows with a `modelId` out of the account-wide state.
+			// codename; `zetacode usage` keeps rows with a `modelId` out of the account-wide state.
 			modelId: args.limitName ?? args.meteredFeature,
 			windowId: usageWindow.id,
 			shared: true,

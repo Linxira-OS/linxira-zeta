@@ -308,12 +308,16 @@ const MIGRATED: Record<string, Record<string, string>> = {
 	},
 	"packages/coding-agent/src/sdk.ts": {
 		sameMcpManagerTools: "refreshMCPTools serializes reconciliation against the live registry in SessionTools",
+		identity: "upstream SDK refactor carries identity on the request context",
+		resolvedAgentId: "agent id is resolved at call time in the SDK facade",
+		tool: "local tool closure, no exported surface",
 	},
 	"packages/coding-agent/src/slash-commands/builtin-two-factor.ts": {
 		currentLanguage: "description and usage from the live bilingual message catalog; status still formats by locale",
 	},
 	"packages/utils/src/dirs.ts": {
 		readPiProfileFromEnvSafe: "readProfileFromEnvSafe reads the existing ZETA_PROFILE contract",
+		adoptLegacyFileViaStaging: "adoptLegacyFile copies directly with COPYFILE_EXCL; no staging variant remains",
 	},
 	"packages/coding-agent/src/tts/models.ts": {
 		"export DEFAULT_TTS_LOCAL_MODEL_KEY": "TTS_LOCAL_MODELS[0].key and getTtsLocalModelSpec",
@@ -361,6 +365,7 @@ const MIGRATED: Record<string, Record<string, string>> = {
 		"#isPlanRead": "upstream plan-file helper boundary",
 		readTargetsPlan: "upstream plan-file helper boundary",
 		readTargetsPlanArtifact: "upstream plan-file helper boundary",
+		planTargetedRead: "upstream readTargetsPlan covers plan-targeted reads",
 	},
 	"packages/tui/src/chrome/transcript-container.ts": {
 		"#imageFlushState": "upstream refactor accepted; no remaining call site",
@@ -409,6 +414,104 @@ const MIGRATED: Record<string, Record<string, string>> = {
 		setTheme: "upstream settings commands/controller",
 		setTuiTight: "upstream settings commands/controller",
 		switch: "parser artifact/local variable",
+	},
+
+	"packages/coding-agent/src/disasm/supervisor.ts": {
+		method: "upstream DisasmWorker refactor keeps the running request name on local records, not a class field",
+	},
+	"packages/coding-agent/src/eval/js/shared/helpers.ts": {
+		op: "upstream eval helper refactor carries the op locally; no remaining call site",
+	},
+	"packages/coding-agent/src/lsp/config.ts": {
+		candidates: "upstream resolveCommand reads candidates locally",
+		"export SelectedServerCommand": "server selection is folded into resolveCommand/typescriptSpeaksLsp",
+		"export ServerCommandSelection": "server selection is folded into resolveCommand/typescriptSpeaksLsp",
+		"export selectServerCommand": "server selection is folded into resolveCommand/typescriptSpeaksLsp",
+	},
+	"packages/coding-agent/src/main.ts": {
+		rememberSessionChannelContext: "channels/session-host.ts rememberSessionChannelContext",
+		setScopedModelsRefresher: "AgentSession.setScopedModelsRefresher is wired by the main session",
+		startupCwd: "upstream startup refactor keeps cwd local to applyStartupCwd",
+		transport: "upstream startup refactor carries transport locally",
+		wireTuiTexts: "i18n/wire-tui.ts wireTuiTexts",
+	},
+	"packages/coding-agent/src/mnemopi/backend.ts": {
+		learnWindow: "memory backend refactor carries the learning window on the per-backend config",
+	},
+	"packages/coding-agent/src/predict/client.ts": {
+		"#closed": "upstream predict client tracks tunnel closure through InferConnection",
+		row: "local row record, no public surface",
+		stop: "upstream predict client cancellation is abort-based",
+	},
+	"packages/coding-agent/src/predict/daemon.ts": {
+		seedForeign: "standalone predict daemon retired with the v19 predict unit; foreign seeding is not bootstrapped",
+	},
+	"packages/coding-agent/src/slash-commands/builtin-completions.ts": {
+		addAbsolute: "directory picker source owns pin/root absolute listing",
+		"export DirectoryArgumentCompletionOptions": "directory picker source owns pin/root options",
+		roots: "directory picker source owns roots",
+	},
+	"packages/coding-agent/src/slash-commands/builtin-lifecycle.ts": {
+		exists: "local existence probe folded into the lifecycle branch",
+		parentExists: "local parent probe folded into the lifecycle branch",
+	},
+	"packages/coding-agent/src/task/executor.ts": {
+		classifiedFailure: "task failure classification is local to the result mapper",
+		"export resolveParentJobOrigin": "AsyncJobOrigin is resolved at spawn and carried on the task record",
+		prefix: "local output prefix, no public surface",
+	},
+	"packages/coding-agent/src/task/persisted-revive.ts": {
+		parentOrigin: "parent origin is carried by the persisted task header",
+	},
+	"packages/coding-agent/src/task/structured-subagent.ts": {
+		annotateAgentDrivenModelUse: "agent-driven model use is annotated in the spawned task record",
+	},
+	"packages/coding-agent/src/thread/services/agents-remote.ts": {
+		drainPending: "remote agent drain is handled by the shared queue flush",
+	},
+	"packages/coding-agent/src/tools/browser.ts": {
+		assertBrowserTabAgentControl: "tools/browser/studio-control.ts assertBrowserTabAgentControl",
+		releaseManaged: "managed tab release is owned by the tab lifecycle helper",
+	},
+	"packages/coding-agent/src/tools/browser/tab-supervisor.ts": {
+		assertBrowserTabAgentControl: "tools/browser/studio-control.ts assertBrowserTabAgentControl",
+	},
+	"packages/coding-agent/src/tools/browser/tab-worker.ts": {
+		"#trackMainFrameNavigation": "upstream tab worker refactor tracks frame navigation in the relay page",
+		options: "upstream tab worker refactor passes options explicitly",
+	},
+	"packages/coding-agent/src/tools/computer/supervisor.ts": {
+		"#trackRequest": "request tracking moved to lifecycle/run identity",
+		emitComputerLifecycle: "tools/computer/lifecycle.ts emitComputerLifecycle",
+		"export computerActivityForOwner": "tools/computer/lifecycle.ts computerActivityForOwner",
+		phase: "run phase is local to lifecycle emission",
+		running: "run state is local to lifecycle emission",
+		signal: "signal is local to the run promise",
+	},
+	"packages/coding-agent/src/tools/computer/worker.ts": {
+		emit: "worker event emission is local to the protocol frame",
+		foreground: "foreground mode is carried on the run request",
+		notify: "notification mode is carried on the run request",
+	},
+	"packages/coding-agent/src/tools/report-tool-issue.ts": {
+		composed: "issue body composition is local to the report builder",
+		manualUrl: "manual URL is derived in grievances/client.ts",
+	},
+	"packages/coding-agent/src/utils/title-generator.ts": {
+		generatedNameLanguage: "same exported function remains in this file (audit extraction collision)",
+	},
+	"packages/coding-agent/src/web/search/index.ts": {
+		forcedProvider: "forced provider is resolved in web/search/provider.ts",
+	},
+	"packages/coding-agent/src/web/search/providers/codex.ts": {
+		baseUrl: "upstream provider refactor folds base URL into request options",
+		constructor: "upstream provider class refactor",
+		"export CodexSearchParams": "provider params are typed by SearchParams in providers/base.ts",
+		lastError: "upstream provider refactor carries the last error locally",
+		super: "upstream provider class refactor",
+	},
+	"packages/tui/src/tools/web-search.ts": {
+		sourceCount: "source count is derived at render time from the search response",
 	},
 };
 

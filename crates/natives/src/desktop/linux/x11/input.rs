@@ -1603,7 +1603,7 @@ mod tests {
 		assert_eq!(isolated(Ok(()), disturbed()).unwrap_err().message, "focus moved");
 	}
 
-	/// Starts its own `Xvfb`: `cargo test -p omp-natives -- --ignored
+	/// Starts its own `Xvfb`: `cargo test -p zeta-natives -- --ignored
 	/// typing_user`.
 	#[test]
 	#[ignore = "starts Xvfb"]
@@ -1843,7 +1843,7 @@ mod tests {
 	/// A press outside the open popups of the window's process is refused,
 	/// in the background and in takeover; inside one of them, with no popup,
 	/// or a plain move, it goes on. Starts its own `Xvfb`: `cargo test -p
-	/// omp-natives -- --ignored open_popup`.
+	/// zeta-natives -- --ignored open_popup`.
 	#[test]
 	#[ignore = "starts Xvfb"]
 	fn a_press_outside_an_open_popup_is_refused() {
@@ -1983,7 +1983,7 @@ mod tests {
 	/// `XTest` text reaches the focused window with Caps Lock, a locked
 	/// Control and the second layout group cleared, and the user's locks and
 	/// group are back afterwards. Starts its own `Xvfb` and runs `setxkbmap`:
-	/// `cargo test -p omp-natives -- --ignored neutral_keyboard`.
+	/// `cargo test -p zeta-natives -- --ignored neutral_keyboard`.
 	#[test]
 	#[ignore = "starts Xvfb"]
 	fn xtest_text_types_through_a_neutral_keyboard_state() {
@@ -2157,7 +2157,7 @@ mod tests {
 	/// keyboard, which then gets none of them; they go to a grabbing popup of
 	/// the target's own process, as desktop keys go to any grab, and to the
 	/// focused window once the grab ends. Starts its own `Xvfb`: `cargo test
-	/// -p omp-natives -- --ignored keyboard_grab`.
+	/// -p zeta-natives -- --ignored keyboard_grab`.
 	#[test]
 	#[ignore = "starts Xvfb"]
 	fn xtest_keys_refuse_another_clients_keyboard_grab() {

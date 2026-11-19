@@ -39,6 +39,7 @@ import type { EvalPreludeDefinition } from "../eval/preludes";
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
+import type { HandoffGenerationOptions } from "./session-handoff";
 import type { ExtensionRunner, PreparedExtension } from "../extensibility/extensions";
 import type { MCPLoadResult } from "../mcp";
 import type { CacheWarmer } from "./cache-warmer";
@@ -79,7 +80,7 @@ export interface AgentSessionDisposeOptions {
 	 * under the turn (`EXIT`, also a subagent cut off by its owner's shutdown;
 	 * `SIGTERM`/`SIGHUP` from the host, such as a terminal restarting; a fatal
 	 * error) additionally records a turn still in flight as interrupted, so
-	 * `omp --restore` goes on with it. `SIGINT` and `MANUAL` stop it, as a quit does.
+	 * `zetacode --restore` goes on with it. `SIGINT` and `MANUAL` stop it, as a quit does.
 	 */
 	reason?: postmortem.Reason;
 }
@@ -189,7 +190,7 @@ export interface AgentSessionConfig {
 	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
 	/** Snapshot current MCP precedence for reconnects and command-driven refreshes. */
 	buildMcpRefreshAnalysis?: (
-		tools: import("../tools").CustomTool[],
+		tools: CustomTool[],
 		activeToolNames: readonly string[],
 		cwd: string,
 	) => Promise<import("../mcp/analysis-precedence-hook").AnalysisMcpRefreshInput>;
@@ -560,6 +561,8 @@ export interface FollowUpOptions {
 	synthetic?: boolean;
 	/** Actual ingress client for this follow-up; captured before queueing. */
 	client?: SessionClient;
+	/** Language for names generated from this turn. */
+	language?: ZetaLanguage;
 	/** Whether to expand file-based prompt templates (default: true). */
 	expandPromptTemplates?: boolean;
 	/** Explicit billing/initiator attribution. */
@@ -572,6 +575,8 @@ export interface FollowUpOptions {
 export interface SteerOptions {
 	/** Actual ingress client for this steer; captured before queueing. */
 	client?: SessionClient;
+	/** Language for names generated from this turn. */
+	language?: ZetaLanguage;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the steering queue. See {@link PromptOptions.onPromptQueued}. */

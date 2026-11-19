@@ -150,6 +150,8 @@ export interface SessionQueuedEntry {
 /** View-only data of a worker-homed session, published while main watches it (see the module doc). */
 export interface SessionViewState {
 	/** Provider-facing session id (`AgentSession.sessionId`). */
+	/** Link schemes the home worker session claims. */
+	studioLinkSchemes: string[];
 	providerSessionId: string;
 	sessionName: string | undefined;
 	leafId: string | null;
@@ -274,6 +276,7 @@ export type SessionHostProtocol = {
 	exportToHtml: RpcMethod<[outputPath?: string, useUserThemes?: boolean], string>;
 	enableIdleMaintenance: RpcMethod<[options: IdleMaintenanceOptions], void>;
 	refreshIdleMaintenance: RpcMethod<[], void>;
+	activateStudioLink: RpcMethod<[url: string], boolean>;
 };
 
 /**

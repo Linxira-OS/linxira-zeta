@@ -268,7 +268,7 @@ const OSC66_PREFIX = "\x1b]66;";
 // virtual-placement prefix on Unicode-placeholder image lines, or the TUI's
 // BEL-terminated cursor marker. `Bun.stringWidth` strips CSI/OSC but counts APC
 // payloads as printable text, so they are removed before measuring (they occupy
-// zero cells — matching the native width engine in omp-natives/text.rs).
+// zero cells — matching the native width engine in zeta-natives/text.rs).
 const APC_SPAN_REGEX = /\x1b_[\s\S]*?(?:\x07|\x1b\\)/g;
 const APC_PREFIX = "\x1b_";
 const PRINTABLE_ASCII_REGEX = /^[\u0020-\u007e]*$/;

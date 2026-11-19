@@ -27,7 +27,7 @@ use unix as platform;
 use windows as platform;
 
 #[cfg(not(any(unix, target_os = "windows")))]
-compile_error!("omp-natives file locks require Unix or Windows");
+compile_error!("zeta-natives file locks require Unix or Windows");
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 fn memory_lock_name(path: &str) -> String {

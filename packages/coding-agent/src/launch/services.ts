@@ -22,6 +22,10 @@ export interface ServiceReady {
 }
 export interface ServiceStart {
 	name: string;
+	/** Output pattern that arms service notify delivery. */
+	notify?: string;
+	/** Launcher seed script prepended to the command. */
+	seed?: string;
 	command: string;
 	/** Agent-declared HTTP(S) preview URL for a web development server. */
 	previewUrl?: string;
@@ -246,6 +250,7 @@ export async function startService(
 	daemon: DaemonSnapshot;
 	readyTimedOut: boolean;
 	readyInterrupted: boolean;
+	notifyArmed: boolean;
 }> {
 	if (!cfgLaunchEnabled.get(session.settings)) throw new ToolError("Service launch is disabled in this session.");
 	if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/.test(params.name))
@@ -312,7 +317,12 @@ export async function startService(
 		launched.readyAt !== undefined ||
 		TERMINAL_STATES[launched.state]
 	)
-		return { daemon: launched, readyTimedOut: result.readyTimedOut, readyInterrupted: false };
+		return {
+			daemon: launched,
+			readyTimedOut: result.readyTimedOut,
+			readyInterrupted: false,
+			notifyArmed: !!spec.notify,
+		};
 	const timeoutMs = Math.max(0, spec.ready.timeoutMs - (Date.now() - launched.startedAt));
 	try {
 		const waited = await requestService(
@@ -327,10 +337,11 @@ export async function startService(
 			daemon: waited.daemon,
 			readyTimedOut: waited.timedOut && !TERMINAL_STATES[waited.daemon.state],
 			readyInterrupted: false,
+			notifyArmed: !!spec.notify,
 		};
 	} catch (error) {
 		if (readyInterrupt.aborted && !signal?.aborted)
-			return { daemon: launched, readyTimedOut: false, readyInterrupted: true };
+			return { daemon: launched, readyTimedOut: false, readyInterrupted: true, notifyArmed: !!spec.notify };
 		throw error;
 	}
 }

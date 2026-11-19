@@ -28,9 +28,9 @@ export function createGallerySegmentContext(sessionOptions?: GallerySessionOptio
 		hostname: "gallery-host",
 		sessionAccent: false,
 		activeRepo: {
-			cwd: "/workspace/oh-my-pi",
-			repoRoot: "/workspace/oh-my-pi",
-			relativeRepoRoot: "oh-my-pi",
+			cwd: "/workspace/zeta",
+			repoRoot: "/workspace/zeta",
+			relativeRepoRoot: "zeta",
 			source: "single-direct-child-repo",
 		},
 		width: 100,
@@ -75,7 +75,7 @@ export function createGallerySegmentContext(sessionOptions?: GallerySessionOptio
 		git: {
 			branch: "gallery/reference",
 			status: { staged: 2, unstaged: 3, untracked: 1 },
-			pr: { number: 1842, url: "https://github.com/can1357/oh-my-pi/pull/1842" },
+			pr: { number: 1842, url: "https://github.com/Linxira-OS/linxira-zeta/pull/1842" },
 		},
 		worktree: null,
 		usage: {
@@ -161,7 +161,7 @@ function variantsFor(id: StatusLineSegmentId): readonly SegmentVariantSpec[] {
 					label: "linked worktree",
 					context: {
 						options: { path: { stripWorkPrefix: true } },
-						worktree: { projectName: "oh-my-pi", worktreeName: "gallery-reference" },
+						worktree: { projectName: "zeta", worktreeName: "gallery-reference" },
 						git: { branch: "gallery-reference", status: null, pr: null },
 					},
 				},

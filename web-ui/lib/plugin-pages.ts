@@ -117,7 +117,7 @@ function readJsonObject(file: string): Record<string, unknown> | null {
 
 /**
  * A directory is a plugin package when it carries `package.json` with a
- * `zeta`/`omp`/`pi` manifest block (the loader's own rule) or a `plugin.json`.
+ * `zeta`/`zetacode`/`pi` manifest block (the loader's own rule) or a `plugin.json`.
  * Keep this in sync with `readPluginManifest()` in
  * `packages/coding-agent/src/extensibility/plugins/types.ts`.
  */

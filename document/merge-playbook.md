@@ -119,9 +119,9 @@ bun scripts/brand/brand-overlay.ts         # apply：直接改写工作树
 ```
 
 - apply 模式基于 `git ls-files` 扫描受跟踪产品源码，把 brand-rules.ts 里
-  **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`omp/\${VERSION}\``
+  **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`zetacode/\${VERSION}\``
   → `zeta/`、`PREVIEW_TITLE`/`APP_NAME`/profile alias 的 `"omp"` → `"ζ"`/`"zeta"`、
-  `name: "oh-my-pi"` → `"zeta"`、`.omp` 路径 fixture → `.zeta`（skills/agent/
+  `name: "zeta"` → `"zeta"`、`.omp` 路径 fixture → `.zeta`（skills/agent/
   plugins/cache 等参数面）、mcp/theme schema URL 指向 Zeta 仓库 raw 地址、
   doc-comment 与 `$XDG_*/omp/` 文档路径、`.omp\` Windows 路径等。
 - **幂等且刻意窄**：只改无歧义 token。语义面（测试契约、上游互操作面）留给
@@ -148,9 +148,9 @@ scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 
 | 级别 | 含义 | 落在哪个表 | 动作 |
 |---|---|---|---|
-| **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
+| **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `zetacode/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
 | **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/zeta-plugins、`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表）。**主机名不在豁免面**：`omp.sh` 等上游 URL 由台账 + `scripts/check-shared-infra.ts` 管（2026-10-14 收窄，详见下文「共享基础设施台账」） |
-| **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
+| **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/Linxira-OS/linxira-zeta`、`zeta#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
 | **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
 | **test-contract** | 测试 fixture/断言编码的上游兼容契约 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训） | 阶段 4 人工逐文件 resolve |
 
@@ -182,19 +182,19 @@ brand-rules.ts 规则表并注释理由，再让脚本吃掉它——不要靠�
 
 ### 预存 main 欠账清单
 
-以下 `oh-my-pi` 残留**在 main 上即已存在**（与合并无关，`OMP_REPO` env 可覆盖
+以下 `zeta` 残留**在 main 上即已存在**（与合并无关，`OMP_REPO` env 可覆盖
 部分行为），已在 `brand-rules.ts` allow-list 注释里登记为 "Pre-existing main
 debt"，留给后续 sweep，不属 merge-residue 修复范围：
 
 - `packages/coding-agent/src/cli/update-cli.ts` — self-update 的 REPO/MISE 回退
   （update-cli REPO 回退）
 - `scripts/fix-changelogs.ts`（+ 其测试）— `ARCHIVE_REPO` 默认
-  `can1357/oh-my-pi`
+  `Linxira-OS/linxira-zeta`
 - `scripts/ci-macos-upload-secrets.sh`
-- `package.json` — `PI_IMAGE` docker tag 默认 `oh-my-pi/pi:dev` + robomp scripts
-- `CONTRIBUTING.md` — 标题仍是 "Contributing to oh-my-pi"（upstream-facing 文档）
+- `package.json` — `PI_IMAGE` docker tag 默认 `zeta/pi:dev` + robomp scripts
+- `CONTRIBUTING.md` — 标题仍是 "Contributing to zeta"（upstream-facing 文档）
 - `scripts/rewrite-changelog.ts` — db path doc comment（`OMP_PATH_ALLOW` 注释）
-- `scripts/install.sh` — 如有：当前无 `oh-my-pi`/`.zeta` 命中、也无 allow-list
+- `scripts/install.sh` — 如有：当前无 `zeta`/`.zeta` 命中、也无 allow-list
   条目；合并若引入残留，先扩 allow-list 注释登记，再排期 sweep
 - 其余 allow-list 条目为 fixture 级（gh/update-cli/git-hosting/oauth/otel
   probe/gallery-fixtures/telemetry 等测试与注释），同为欠账，见
@@ -235,8 +235,8 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 ### 共享测试契约的 role 字面量：TUI 角色命名空间
 
 `packages/tui/src/**` 发出的语义 role 是 `zeta.*`，而上游测试断言 `omp.*`——两边
-没有任何类型联系，`check:ts` 也不会报。v18.9.1 的 `omp.composer.*`、v18.10.0 的
-`omp.btn`/`omp.ask.options` 是同一类损伤。合并后对上游**新增/改动**的测试文件跑一次
+没有任何类型联系，`check:ts` 也不会报。v18.9.1 的 `zeta.composer.*`、v18.10.0 的
+`zeta.btn`/`zeta.ask.options` 是同一类损伤。合并后对上游**新增/改动**的测试文件跑一次
 role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间），并把新命名空间补进
 `brand-rules.ts` 那条 role 规则的 alternation——否则 brand-check 会静默放行。
 
@@ -303,7 +303,7 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
      Zeta-only 脚本、`devDependencies.figlet`、五个精确 catalog pin、
      `@typescript/native-preview`（`chore(toolchain)` 删掉的）被复活、
      `packageManager` 回退 `bun@>=1.4`、`test:py`/`robomp:install` 指向不存在的
-     `sdk/python/omp-rpc`，外加每个包的 `tsgo`→`tsc` 被回退；合并本身报
+     `sdk/python/zeta-rpc`，外加每个包的 `tsgo`→`tsc` 被回退；合并本身报
      "Merge made by the 'ort' strategy" 零冲突。driver 重写后：合并输出只剩
      上游真改动，`.gitattributes` 绑定的 manifest 与 `main` 完全不漂移。
    - **判据**：合并后 `git diff $(git merge-base <被并入侧> HEAD^1) HEAD -- package.json`
@@ -356,7 +356,7 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
    rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
 7. **收口扫描（无扩展名白名单）**：
    - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
-   - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|ZETA_CODING_AGENT_DIR|PI_LOGO" -- .`
+   - 上游符号/品牌：`git grep -nE "@linxiraos/|__zeta_|ZETA_CODING_AGENT_DIR|PI_LOGO" -- .`
      （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
    - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
      扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
@@ -534,17 +534,17 @@ native / web build）跑完后才扇出 10+ 个测试桶。只看前置阶段的
 
 **结论 10（注入类全局必须两侧一起 sweep）**：类别 9 的 sweep 不能只做一半。
 v18.2.8–.11 把 `eval/js/shared/runtime.ts` 的 `__zeta_import__` 改成
-`__omp_import__`、`eval/py/runner.py` 的 8 个 `__zeta_*` 改成 `__omp_*`，而
+`__zeta_import__`、`eval/py/runner.py` 的 8 个 `__zeta_*` 改成 `__zeta_*`，而
 消费侧 `rewrite-imports.ts` / `prelude.py` 仍发/调 `__zeta_*` —— 两半对不上，
 每个含 import 的 JS cell 和 Python completion/judge_batch 桥直接
 ReferenceError。判定方法固定：merge 后对每个注入符号在 **provider 与 consumer
-两侧**各 grep 一次，两边名字必须一致；`__omp_tool_bridge__` /
-`__omp_with_call_site__` 这类进程间协议名则两侧都保持上游名。
+两侧**各 grep 一次，两边名字必须一致；`__zeta_tool_bridge__` /
+`__zeta_with_call_site__` 这类进程间协议名则两侧都保持上游名。
 
 **结论 11（协议/设置面被上游体覆盖时，优先恢复我们的实现再逐项补上游增量）**：
 两处同一形态——merge 用上游文件体覆盖了 Zeta 面：
 `tui/prompt/magic-keywords.ts`（内置高亮器表 → 空 registry）与
-`internal-urls/zeta-protocol.ts`（`zeta://` scheme → `omp://`）。两者在
+`internal-urls/zeta-protocol.ts`（`zeta://` scheme → `zeta://`）。两者在
 main 上都有测试守着，症状是"本包全量跑红、单跑绿"（前者还会因
 `setMagicKeywords([])` 污染同进程后续套件）。这类不要顺着上游测试改我们的
 契约，而是恢复我们的实现，再把上游新增能力逐项并进来（`zeta-protocol` 的
@@ -673,10 +673,10 @@ merge commit `5390f63e490`（tag `7853b4e4999`，merge-base 验证通过）。�
 见 commit 历史；此处只录**可复用的结构性教训**。
 
 **结论 24（内部 URL scheme 是品牌面，alias 不是长期方案）**：v18.3.2 把上游
-`omp://` 文档协议带进树后，一度注册 OmpDocsAliasHandler 兼容上游测试字面量；
+`zeta://` 文档协议带进树后，一度注册 OmpDocsAliasHandler 兼容上游测试字面量；
 结论是 alias 只是把死面留着——正确形态是**全树 sweep 到 `zeta://` 并删 alias**
 （src 代码、prompts 提示文档、docs/ 语料、crates 测试 fixture、tmp 前缀），
-`brand-check` MUST_NOT_CONTAIN 禁 `omp://`，上游测试字面量随每次 merge sweep。
+`brand-check` MUST_NOT_CONTAIN 禁 `zeta://`，上游测试字面量随每次 merge sweep。
 注册表加行「内部文档 URL scheme = zeta://」。
 
 **结论 25（品牌 sweep 会自伤"必须点名上游"的代码，MUST_CONTAIN 是解药）**：
@@ -690,7 +690,7 @@ sweep 同化后对打坏免疫，只剩 2 个红测试是信号。修复：常�
 
 **结论 26（worker 哨兵是"前缀门 + 常量"两侧结构，partial sweep 断家族）**：
 `isWorkerHostSelector`（pi-utils）按 `__zeta_worker_` 前缀门禁，v18.3.x sweep
-改了门和多数常量，却漏了 `__omp_worker_daemon_broker`/`__omp_worker_ida_host`
+改了门和多数常量，却漏了 `__zeta_worker_daemon_broker`/`__zeta_worker_ida_host`
 两个——daemon broker 子进程 argv 不过门、落回普通 CLI 命令图、socket 永不
 绑定，**runtime/session 的 stale/cold-lease、CLI smoke、browser-relay 全家
 同根因**，而 stderr 被 `ignore` 吞掉只剩泛化 ENOENT。修复：哨兵/环境变量
@@ -705,7 +705,7 @@ broker spawn 把子进程 stderr tee 进 `<runtime>/broker.err.log`，失败错�
 web-search-codex 测试报"无凭证"。判定与修法同结论 11：**测试即契约**，
 按上游语义改实现（`params.model.baseUrl` 优先、provider/registry 回退），
 22/22 绿。另一处同形态：ACP `agentInfo` 被上游测试适配断言 `name: "zeta"`，
-代码侧仍是 oh-my-pi 且挂在 brand-check allow list 上——allow list 条目与
+代码侧仍是 zeta 且挂在 brand-check allow list 上——allow list 条目与
 测试契约冲突时，以测试为准并删条目。
 
 **附带机械面**：测试树 tmpdir 前缀 `omp-*` → `zeta-*`（551 行）、
@@ -744,11 +744,11 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 
 ### 全局符号 sweep 不能按扩展名白名单（v18.2.4 教训之二）
 
-- `__omp_*` → `__zeta_*` 的 sweep 用 `--include="*.ts"` 执行，漏掉了
+- `__zeta_*` → `__zeta_*` 的 sweep 用 `--include="*.ts"` 执行，漏掉了
   `src/eval/js/shared/prelude.txt`（16 处桥调用改了 15 处，judge() 的
   `__zeta_call_tool__` 残留，本地绿、CI 红——vm 注入的字符串源码 ts 扫描
   天生看不见）与 `src/eval/py/prelude.py` 的符号对。
-- 规则：全局符号改名的收口扫描一律 `git grep -n "__omp_<name>" -- .`
+- 规则：全局符号改名的收口扫描一律 `git grep -n "__zeta_<name>" -- .`
   （无后缀过滤），资源文件（.txt/.py/.js/.json/.kdl）逐命中判定。
 
 ### bun 1.4.0 bytecode 与上游 bun@>=1.4 的分歧（v18.2.4 教训之三）

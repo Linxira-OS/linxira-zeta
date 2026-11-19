@@ -206,7 +206,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE || process.platform !== "darwin")("native no
 					name: "notice",
 					code:
 						outcome === "timeout"
-							? 'await page.setRequestInterception(true); await __omp_call_tool__("timeout", {});'
+							? 'await page.setRequestInterception(true); await __zeta_call_tool__("timeout", {});'
 							: outcome === "success"
 								? 'process.stdout.write("progress");'
 								: 'throw new Error("page failed");',

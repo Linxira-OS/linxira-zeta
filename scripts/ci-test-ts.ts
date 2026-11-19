@@ -115,9 +115,9 @@ const nativeAndIntegrationPackages = [
 ];
 
 const projectToolTestCommand: TestCommand = {
-	label: ".omp/tests (project-local TUI debug tool)",
+	label: ".zeta/tests (project-local TUI debug tool)",
 	cwd: ".",
-	command: ["bun", "test", ...onlyFailuresArgs, "./.omp/tests/tui.test.ts"],
+	command: ["bun", "test", ...onlyFailuresArgs, "./.zeta/tests/tui.test.ts"],
 	parallel: 1,
 };
 

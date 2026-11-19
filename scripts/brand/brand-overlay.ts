@@ -35,7 +35,7 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 	},
 	{
 		name: "zai-key-name",
-		from: /name: "oh-my-pi"/g,
+		from: /name: "zeta"/g,
 		to: 'name: "zeta"',
 		exclude: /legacy-pi-compat|uploaders-legacy|oauth-flow|harmony-leak/,
 	},
@@ -49,12 +49,12 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 	},
 	{
 		name: "mcp-schema-url",
-		from: /https:\/\/raw\.githubusercontent\.com\/can1357\/oh-my-pi\/main\/packages\/coding-agent\/src\/config\/mcp-schema\.json/g,
+		from: /https:\/\/raw\.githubusercontent\.com\/can1357\/zeta\/main\/packages\/coding-agent\/src\/config\/mcp-schema\.json/g,
 		to: "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	},
 	{
 		name: "theme-schema-url",
-		from: /https:\/\/raw\.githubusercontent\.com\/can1357\/oh-my-pi\/main\/packages\/coding-agent\/theme-schema\.json/g,
+		from: /https:\/\/raw\.githubusercontent\.com\/can1357\/zeta\/main\/packages\/coding-agent\/theme-schema\.json/g,
 		to: "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta/main/packages/coding-agent/src/modes/theme/theme-schema.json",
 	},
 	{
@@ -100,6 +100,7 @@ for (const line of out.stdout.toString().split("\n")) {
 	if (SKIP_PREFIXES.some(prefix => file.startsWith(prefix))) continue;
 	const abs = path.resolve(ROOT, file);
 	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard for index paths
+	if (!fs.existsSync(abs)) continue; // deleted by a merge cutover; git ls-files still lists it
 	const text = fs.readFileSync(abs, "utf8");
 	let next = text;
 	let fileHits = 0;

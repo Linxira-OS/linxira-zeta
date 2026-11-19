@@ -448,7 +448,7 @@ function shellFootParts(details: BashToolDetails | undefined, artifactId: string
 }
 
 /** The command line as a run's input: wrapped shell source. */
-const SHELL_INPUT = { role: "omp.tool.bash.command", lang: "bash", wrap: true } as const;
+const SHELL_INPUT = { role: "zeta.tool.bash.command", lang: "bash", wrap: true } as const;
 
 /** Box tint per run state: failed runs read as errors, timed-out ones as warnings. */
 const RUN_BOX_TONE: Partial<Record<RunState, TspTone>> = { failed: "error", "timed-out": "warning" };
@@ -853,7 +853,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 								"input",
 							)
 						: runInput(command, SHELL_INPUT),
-					shownOutput.trim().length > 0 && runOutput(shownOutput, { role: "omp.tool.bash.output", previewLines }),
+					shownOutput.trim().length > 0 && runOutput(shownOutput, { role: "zeta.tool.bash.output", previewLines }),
 					runFoot({
 						state,
 						exitCode: details?.exitCode,

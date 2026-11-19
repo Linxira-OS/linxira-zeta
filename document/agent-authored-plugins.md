@@ -68,7 +68,7 @@
 
 | 能力      | 现状                                                                        | 缺口                                                         |
 | --------- | --------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 插件包    | `package.json` 的 `zeta`/`omp`/`pi` 块；`plugin.json` panels；`.html` pages | agent 没有“开发目录”概念                                     |
+| 插件包    | `package.json` 的 `zeta`/`zetacode`/`pi` 块；`plugin.json` panels；`.html` pages | agent 没有“开发目录”概念                                     |
 | 工具/命令 | extension 模块 `registerTool` / `registerCommand`                           | 注册发生在加载时；无热重载                                   |
 | Hooks     | extension hooks / capability hooks                                          | 无逐文件批准与哈希                                           |
 | UI        | 声明式 `list/form/chart`（数据来自一次 tool call）；HTML iframe             | HTML 页面没有版本化宿主桥                                    |

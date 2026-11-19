@@ -98,8 +98,8 @@ function recorderDefinition(session: ToolSession, calls: unknown[]): EvalPrelude
 function recordingFacade() {
 	const calls: unknown[] = [];
 	const context = createContext({
-		__omp_log__: () => {},
-		__omp_prelude__: async (_name: string, parameters: unknown) => {
+		__zeta_log__: () => {},
+		__zeta_prelude__: async (_name: string, parameters: unknown) => {
 			calls.push(parameters);
 			return responseFor(parameters);
 		},
@@ -119,8 +119,8 @@ describe("browser JavaScript facade", () => {
 		const session = makeSession();
 		const prelude = createBrowserPrelude(session);
 		const context = createContext({
-			__omp_log__: (_level: string, value: unknown) => displays.push(value),
-			__omp_prelude__: async (name: string, parameters: unknown) => {
+			__zeta_log__: (_level: string, value: unknown) => displays.push(value),
+			__zeta_prelude__: async (name: string, parameters: unknown) => {
 				expect(name).toBe("browser");
 				calls.push(parameters);
 				return responseFor(parameters);
@@ -182,7 +182,7 @@ describe("browser JavaScript facade", () => {
 				chain: [
 					{
 						method: "evaluate",
-						args: [{ __omp_fn: "value => value.length" }, "save", { __omp_re: { source: "save", flags: "i" } }],
+						args: [{ __zeta_fn: "value => value.length" }, "save", { __zeta_re: { source: "save", flags: "i" } }],
 					},
 				],
 			},
@@ -322,7 +322,7 @@ describe("browser facade in real Eval runtimes", () => {
 			chain: [
 				{
 					method: "evaluate",
-					args: [{ __omp_fn: "value => value.length" }, "abc", { __omp_re: { source: "a", flags: "i" } }],
+					args: [{ __zeta_fn: "value => value.length" }, "abc", { __zeta_re: { source: "a", flags: "i" } }],
 				},
 			],
 		});
@@ -543,7 +543,7 @@ describe("browser facade in real Eval runtimes", () => {
 			chain: [
 				{
 					method: "evaluate",
-					args: ["abc", { matcher: { __omp_re: { source: "a", flags: "i" } } }],
+					args: ["abc", { matcher: { __zeta_re: { source: "a", flags: "i" } } }],
 				},
 			],
 		});
@@ -646,8 +646,8 @@ describe("browser facade Chromium helper E2E", () => {
 			const context = createContext({
 				__name__: name,
 				__url__: `data:text/html,${encodeURIComponent(html)}`,
-				__omp_log__: (_level: string, value: unknown) => displayed.push(value),
-				__omp_prelude__: async (preludeName: string, parameters: unknown) => {
+				__zeta_log__: (_level: string, value: unknown) => displayed.push(value),
+				__zeta_prelude__: async (preludeName: string, parameters: unknown) => {
 					expect(preludeName).toBe("browser");
 					const result = await prelude.invoke(parameters, {
 						session,

@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-11-19
 - **Deciders:** Zeta owner (pending)
-- **Links:** [OMP v19.0.0](https://github.com/can1357/oh-my-pi/tree/v19.0.0), [merge playbook](../merge-playbook.md), [upstream ledger](../upstream-sync.md), [damage classes](../agents/merge/damage-classes.md)
+- **Links:** [OMP v19.0.0](https://github.com/Linxira-OS/linxira-zeta/tree/v19.0.0), [merge playbook](../merge-playbook.md), [upstream ledger](../upstream-sync.md), [damage classes](../agents/merge/damage-classes.md)
 
 ## Context
 

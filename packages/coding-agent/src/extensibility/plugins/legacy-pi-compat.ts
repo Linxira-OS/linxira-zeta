@@ -813,7 +813,7 @@ const CANONICAL_PI_SCOPE = "@linxiraos";
 // packages. `@linxiraos` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "zeta", "mariozechner", "earendil-works"] as const;
 
 // Internal host package basenames bundled inside the zeta binary. The legacy
 // `pi-coding-agent` basename stays listed: plugins still declare it under the

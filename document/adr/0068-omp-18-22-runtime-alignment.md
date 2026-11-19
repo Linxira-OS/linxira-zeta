@@ -45,7 +45,7 @@ The integration stays on the existing 1.5.2 development version until the later 
 
 ## Links
 
-- [Upstream release](https://github.com/can1357/oh-my-pi/releases/tag/v18.22.0)
-- [Pinned run event contract](https://github.com/can1357/oh-my-pi/blob/v18.22.0/packages/coding-agent/src/session/agent-session-events.ts)
-- [Pinned wire boundary](https://github.com/can1357/oh-my-pi/blob/v18.22.0/packages/coding-agent/src/session/loop-end-wire.ts)
-- [Pinned disassembler API](https://github.com/can1357/oh-my-pi/blob/v18.22.0/packages/coding-agent/src/disasm/client.ts)
+- [Upstream release](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v18.22.0)
+- [Pinned run event contract](https://github.com/Linxira-OS/linxira-zeta/blob/v18.22.0/packages/coding-agent/src/session/agent-session-events.ts)
+- [Pinned wire boundary](https://github.com/Linxira-OS/linxira-zeta/blob/v18.22.0/packages/coding-agent/src/session/loop-end-wire.ts)
+- [Pinned disassembler API](https://github.com/Linxira-OS/linxira-zeta/blob/v18.22.0/packages/coding-agent/src/disasm/client.ts)

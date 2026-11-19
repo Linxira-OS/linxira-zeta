@@ -40,7 +40,7 @@ use windows as platform;
 use self::conn::{FrameCallback, Framing, Shared, Stream};
 
 #[cfg(not(any(unix, windows)))]
-compile_error!("omp-natives IPC requires Unix or Windows");
+compile_error!("zeta-natives IPC requires Unix or Windows");
 
 /// Default `maxFrameBytes` for `lines` framing.
 const DEFAULT_MAX_FRAME_BYTES: u32 = 64 * 1024 * 1024;

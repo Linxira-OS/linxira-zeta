@@ -36,7 +36,7 @@ function throwIfHandoffAborted(signal: AbortSignal): void {
 /** Request snapshot and cancellation owned by the compaction pass. */
 export interface HandoffGenerationOptions {
 	model: Model;
-	signal: AbortSignal;
+	signal?: AbortSignal;
 	messages?: readonly AgentMessage[];
 	autoTriggered?: boolean;
 	/** Sees every provider attempt's response, billed or failed, beside the spend journal. */
@@ -46,6 +46,9 @@ export interface HandoffGenerationOptions {
 /** Capabilities borrowed from the owning AgentSession. */
 export interface SessionHandoffHost {
 	agent: Agent;
+	model(): Model;
+	/** Skip post-turn maintenance for the turn that produced `timestamp`. */
+	setSkipPostTurnMaintenance?(timestamp: number | undefined): void;
 	sessionManager: SessionManager;
 	settings: Settings;
 	modelRegistry: ModelRegistry;
@@ -65,6 +68,17 @@ export interface SessionHandoffHost {
 /** Generates handoff documents with a cache-friendly oneshot LLM call. */
 export class SessionHandoff {
 	readonly #host: SessionHandoffHost;
+	#handoffAbortController: AbortController | undefined;
+
+	/** Cancel in-progress handoff generation, preserving a harness-provided reason. */
+	abortHandoff(reason?: Error): void {
+		this.#handoffAbortController?.abort(reason);
+	}
+
+	/** Whether handoff generation is in progress. */
+	get isGeneratingHandoff(): boolean {
+		return this.#handoffAbortController !== undefined;
+	}
 
 	constructor(host: SessionHandoffHost) {
 		this.#host = host;
@@ -83,6 +97,9 @@ export class SessionHandoff {
 		customInstructions: string | undefined,
 		{ model, signal, messages, autoTriggered, onAttempt }: HandoffGenerationOptions,
 	): Promise<string | undefined> {
+		const controller = new AbortController();
+		this.#handoffAbortController = controller;
+		signal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
 		try {
 			throwIfHandoffAborted(signal);
 
