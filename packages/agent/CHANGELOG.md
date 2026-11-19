@@ -1,19 +1,10 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Fixed
 
 - Corrected context cost estimates for requests that omit reasoning history, so billing estimates now include thinking text only when it is sent or reconstructed for a tool call.
-
-## [1.5.2] - 2026-11-13
-
-### Changed
-
-- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
-
-### Changed
-
-- `prepareCompaction()` runs as the `compaction.prepare` loop phase, so a `ui.loop-blocked` stall from a cold token walk over a long branch names compaction instead of "unknown" ([#15027](https://github.com/can1357/oh-my-pi/issues/15027), [#18867](https://github.com/can1357/oh-my-pi/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
-
 
 ## [9.2.2] - 2026-01-31
 
@@ -140,6 +131,13 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.2] - 2026-11-13
+
+### Changed
+
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+- `prepareCompaction()` runs as the `compaction.prepare` loop phase, so a `ui.loop-blocked` stall from a cold token walk over a long branch names compaction instead of "unknown" ([#15027](https://github.com/can1357/oh-my-pi/issues/15027), [#18867](https://github.com/can1357/oh-my-pi/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
 
 ## [1.5.0] - 2026-11-09
 

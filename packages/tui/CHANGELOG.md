@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Breaking Changes
 
 - Terminals that support output backpressure must now implement onOutputDrain(callback), which returns an unsubscribe function; terminals without backpressure can omit both pendingOutputBytes and onOutputDrain.
@@ -16,6 +18,12 @@
 - Added distinct theming for Markdown links using registered extension schemes, with a muted fallback for themes that do not define the new color.
 - Improved compound Bash command approval dialogs by distinguishing allowed and approval-required segments and opening at the first segment requiring approval.
 - Added an optional Branch action to chat, including the `b` shortcut in the BTW history sheet.
+- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
+- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
+- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
+- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
+- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
+- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
 
 ### Changed
 
@@ -38,24 +46,7 @@
 - Improved working-row animation while waiting for tools or models on terminals without synchronized output, including tmux 3.6.
 - Fixed expanded IRC tool cards to show complete soft-wrapped output and added an expand hint to collapsed cards containing hidden text.
 - Fixed premature scrolling in the `/resume` session picker when navigating near the middle of the list.
-
-## [1.5.2] - 2026-11-13
-
-### Changed
-
-- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
-
-### Added
-
-- The Spotlight sheet of a `;`/`,` path `read` shows each part as its own section, numbered from its file's lines with its own ranking ([#18713](https://github.com/can1357/oh-my-pi/pull/18713) by [@eggpeat](https://github.com/eggpeat))
-
-### Fixed
-
 - The `/models` model action strip now offers **remove fallback** for a model already in the default retry chain. Each activation removes one matching entry while preserving other entries, effort variants, providers and order; role, provider and exact-model rules remain editable in Roles.
-- Fixed `grep` tool results in ANSI and native Tern views to show a `binary matches` warning on both zero-match and matching searches ([#18988](https://github.com/can1357/oh-my-pi/pull/18988) by [@alphastorm](https://github.com/alphastorm))
-- The `/resume` picker deletes sessions through the `app.session.delete` action (default Backspace or Delete) and shows its keys in the hints, so `keybindings.yml` can replace the shortcut, for example with Ctrl+D, or disable it with `[]`; a bound key that also deletes backward, such as Backspace or Ctrl+W, still edits a typed search query ([#17938](https://github.com/can1357/oh-my-pi/issues/17938), [#18961](https://github.com/can1357/oh-my-pi/pull/18961) by [@wolfiesch](https://github.com/wolfiesch))
-- Typing `/job` lists the `jobs` command first again instead of jumping whole-hyphen-segment skill matches like `skill:…-job-…` above it: inner-segment skill hits now tie (rather than outrank) command-prefix matches, so the tie keeps the popup command-first ([#18891](https://github.com/can1357/oh-my-pi/issues/18891), [#18916](https://github.com/can1357/oh-my-pi/pull/18916) by [@yuzu-octopus](https://github.com/yuzu-octopus))
-
 
 ## [8.4.1] - 2026-01-25
 
@@ -149,12 +140,27 @@
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
+## [1.5.2] - 2026-11-13
+
+### Changed
+
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+
+### Added
+
+- The Spotlight sheet of a `;`/`,` path `read` shows each part as its own section, numbered from its file's lines with its own ranking ([#18713](https://github.com/can1357/oh-my-pi/pull/18713) by [@eggpeat](https://github.com/eggpeat))
+
+### Fixed
+
+- Fixed `grep` tool results in ANSI and native Tern views to show a `binary matches` warning on both zero-match and matching searches ([#18988](https://github.com/can1357/oh-my-pi/pull/18988) by [@alphastorm](https://github.com/alphastorm))
+- The `/resume` picker deletes sessions through the `app.session.delete` action (default Backspace or Delete) and shows its keys in the hints, so `keybindings.yml` can replace the shortcut, for example with Ctrl+D, or disable it with `[]`; a bound key that also deletes backward, such as Backspace or Ctrl+W, still edits a typed search query ([#17938](https://github.com/can1357/oh-my-pi/issues/17938), [#18961](https://github.com/can1357/oh-my-pi/pull/18961) by [@wolfiesch](https://github.com/wolfiesch))
+- Typing `/job` lists the `jobs` command first again instead of jumping whole-hyphen-segment skill matches like `skill:…-job-…` above it: inner-segment skill hits now tie (rather than outrank) command-prefix matches, so the tie keeps the popup command-first ([#18891](https://github.com/can1357/oh-my-pi/issues/18891), [#18916](https://github.com/can1357/oh-my-pi/pull/18916) by [@yuzu-octopus](https://github.com/yuzu-octopus))
+
 ## [1.5.1] - 2026-11-10
 
 ### Added
 
 - `/channels` opens the IM operator surface in the TUI: list configured channels and their live health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`), run `login`/`status`/`logout`/`unbind`, and take a per-channel pairing lock so two processes cannot pair the same account at once. The command is refused on a backend-attached client, where the owning process owns pairing.
-- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
 
 ### Changed
 
@@ -170,11 +176,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added the Team Hub overlay: a database-backed roster of rooms, PMs and engineers with room events, real-member posting, filtering and keyboard navigation.
-- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
-- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
-- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
-- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
-- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
 
 ### Changed
 

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Added
 
 - Added configurable embedding query prefixes and input types for instruction-tuned and asymmetric embedding models, including Qwen3-Embedding, E5, and NVIDIA NIM.
@@ -11,14 +13,12 @@
 
 ## [1.5.2] - 2026-11-13
 
-### Changed
-
 ### Fixed
 
 - Fixed fact extraction storing decimals, prices, and IP-address fragments as `version` facts and leaving symbols such as `→` in `metric` fact keys ([#18886](https://github.com/can1357/oh-my-pi/issues/18886))
 
-
 ## [1.5.1] - 2026-11-10
+
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
 ## [1.5.0] - 2026-11-09

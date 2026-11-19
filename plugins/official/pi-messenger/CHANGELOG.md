@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Changed
 
 - The official plugin ships at the matching Zeta workspace version. No plugin-specific behavior changes.

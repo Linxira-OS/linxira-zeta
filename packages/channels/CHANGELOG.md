@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Changed
 
 - Public npm consumers pick up bounded Feishu/Lark image and file downloads, including attribution for attachment-only messages and unavailable downloads.

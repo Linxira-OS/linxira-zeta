@@ -1,11 +1,16 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Fixed
 
 - Fixed Traces tab timing so background jobs show their actual completion times, including accurate idle periods and turn durations.
 - Fixed per-model message counts on the Frustration page to include all answered messages.
 - Improved dashboard responsiveness by keeping other pages and Live status available while Spotlight rebuilds.
 - Fixed daily usage charts to group activity by the user's local calendar day instead of UTC.
+- Dashboard language now follows the host CLI/desktop setting (including `/stats` and trace links); the browser preference is only a fallback.
+- Compact units (`K`, `M`, `B`) and the `Token` term stay English in the Chinese dashboard, and chart dates use the dashboard locale instead of the browser's.
+- Fixed `/stats` and `zetacode stats` failing when another dashboard was syncing sessions or the configured port was already in use; busy dashboards are now reused, and a free port is selected when necessary.
 
 ## [1.5.2] - 2026-11-13
 
@@ -17,7 +22,6 @@
 
 - Spotlight stats count a `;`/`,` path `read` once with all its parts, and count a later read of any of its files as a re-read or a needed line ([#18713](https://github.com/can1357/oh-my-pi/pull/18713) by [@eggpeat](https://github.com/eggpeat))
 
-
 ## [1.5.1] - 2026-11-10
 
 - Released as part of Zeta 1.5.1; no package-specific user-visible changes.
@@ -27,9 +31,6 @@
 ### Fixed
 
 - Stats dashboard language switch: option lists, table headers, token-mix and agent labels built at module load no longer keep the boot language. Switching to English now leaves no Chinese labels behind.
-- Dashboard language now follows the host CLI/desktop setting (including `/stats` and trace links); the browser preference is only a fallback.
-- Compact units (`K`, `M`, `B`) and the `Token` term stay English in the Chinese dashboard, and chart dates use the dashboard locale instead of the browser's.
-- Fixed `/stats` and `zetacode stats` failing when another dashboard was syncing sessions or the configured port was already in use; busy dashboards are now reused, and a free port is selected when necessary.
 
 ## [1.4.13] - 2026-11-08
 

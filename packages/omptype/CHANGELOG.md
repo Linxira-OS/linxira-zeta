@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.10] - 2026-11-19
+
 ### Changed
 
 - The schema package ships at the matching Zeta workspace version. No schema API changes.
