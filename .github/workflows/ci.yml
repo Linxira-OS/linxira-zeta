@@ -1964,10 +1964,18 @@ jobs:
          - name: Preflight release assets
            run: |
               missing=0
+              version=$(bun -p 'require("./desktop/package.json").version')
               for asset in \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 LICENSE \
-                THIRD-PARTY-NOTICES.txt; do
+                THIRD-PARTY-NOTICES.txt \
+                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.exe" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-win-x64.zip" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-amd64.deb" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x64.tar.gz" \
+                "packages/coding-agent/binaries/zeta-desktop-$version-linux-x86_64.AppImage" \
+                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-linux-x64.tar.gz" \
+                "packages/coding-agent/binaries/linxira-zeta-$version-workstudio-browser-windows-x64.zip"; do
                 if [ ! -f "$asset" ]; then
                   echo "::error::Missing release asset: $asset"
                   missing=1
@@ -1984,16 +1992,6 @@ jobs:
               if [ "$product_count" -lt 2 ]; then
                 # Product matrix: zetaide linux+win only (release_product_binaries).
                 echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
-                missing=1
-              fi
-              desktop_count=$(ls packages/coding-agent/binaries/zeta-desktop-* 2>/dev/null | wc -l)
-              if [ "$desktop_count" -lt 4 ]; then
-                echo "::error::Expected the Electron desktop installers/archives, found $desktop_count"
-                missing=1
-              fi
-              lite_count=$(ls packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* 2>/dev/null | wc -l)
-              if [ "$lite_count" -lt 2 ]; then
-                echo "::error::Expected the browser-edition archives (win + linux), found $lite_count"
                 missing=1
               fi
               plugin_zips=$(ls plugins/dist/zeta-plugin-example-*.zip 2>/dev/null | wc -l)
