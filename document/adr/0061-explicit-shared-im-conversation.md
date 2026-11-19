@@ -229,3 +229,5 @@ keep separate conversations even when all other fields match.
   `packages/coding-agent/test/config/web-config-routing.test.ts`,
   `web-app/src/studio/settings/imRuntimeApi.test.ts`,
   `web-app/src/studio/settings/ImRuntimePage.test.tsx`
+- [Integration PR #324](https://github.com/Linxira-OS/linxira-zeta/pull/324)
+- [Real-session input and reply regression](../../packages/coding-agent/test/agent-session-log-context.test.ts)
