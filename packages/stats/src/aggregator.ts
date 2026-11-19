@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDbPath, getStatsDbPath, workerHostEntry } from "@linxiraos/pi-utils";
-import { withFileLock } from "@linxiraos/pi-utils/file-lock";
+import { getAgentDbPath, getStatsDbPath, isRecord, workerHostEntry } from "@oh-my-pi/pi-utils";
+import { withFileLock } from "@oh-my-pi/pi-utils/file-lock";
 import {
 	applySessionParseResults,
 	completeSessionSync,
@@ -15,7 +15,6 @@ import {
 	markSessionBackfillsComplete,
 	type ParsedSession,
 	prepareSessionSync,
-	pruneOrphanSessions,
 } from "./db";
 import {
 	getSessionEntry,
@@ -32,8 +31,6 @@ import {
 	getOverallStats,
 	getProviderHourlyBurn,
 	getProviderTimeSeries,
-	getProjectFolders,
-	getStatsByAgentType,
 	getStatsByFolder,
 	getStatsByModel,
 	getStatsByProvider,
@@ -41,6 +38,7 @@ import {
 	getToolStats,
 	getToolStatsByModel,
 	getToolTimeSeries,
+	getUsageAttribution,
 	type RangeWindow,
 } from "./rollup";
 import { spotlightRowCount } from "./spotlight-ingest";
@@ -56,6 +54,8 @@ import type {
 	ProviderDashboardStats,
 	ProviderWindowStats,
 	RequestDetails,
+	SessionEntry,
+	SessionModelUsageEntry,
 	ToolDashboardStats,
 } from "./types";
 import { computeUsageWindowStats, fetchUsageData, type UsageDataSnapshot } from "./usage-windows";
@@ -117,7 +117,7 @@ export interface SyncOptions {
 
 function defaultWorkerCount(): number {
 	// Bun 1.3.x can abort the macOS process when stats sync workers re-enter
-	// the compiled `zetacode` binary. Keep macOS on the documented serial path.
+	// the compiled `omp` binary. Keep macOS on the documented serial path.
 	if (process.platform === "darwin") return 1;
 	// `navigator.hardwareConcurrency` is the portable answer in Bun; fall
 	// back to a small fixed pool if it's somehow unavailable.
@@ -140,12 +140,12 @@ interface WorkerHandle {
  * self-dispatching CLI entry (omp in source, npm-bundle, or compiled form),
  * re-enter that entry with a worker argv selector; otherwise (standalone
  * omp-stats, bun test, SDK embedding) load the worker module directly, so this
- * package keeps zero runtime dependency on `@linxiraos/zeta`.
+ * package keeps zero runtime dependency on `@oh-my-pi/pi-coding-agent`.
  */
 function createSyncWorker(): Worker {
 	const hostEntry = workerHostEntry();
 	if (hostEntry) {
-		return new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_stats_sync"] });
+		return new Worker(hostEntry, { type: "module", argv: ["__omp_worker_stats_sync"] });
 	}
 	return new Worker(new URL("./sync-worker.ts", import.meta.url).href, { type: "module" });
 }
@@ -194,7 +194,7 @@ function dispatch(handle: WorkerHandle, request: SyncWorkerRequest): Promise<Par
 
 /**
  * Smoke test: spawns one sync worker, pings it, asserts the pong response,
- * then terminates. Used by `zetacode --smoke-test` so the install-method CI jobs
+ * then terminates. Used by `omp --smoke-test` so the install-method CI jobs
  * catch the silent worker-load failure that hit compiled binaries in #1011
  * and #1027 — neither `--version` nor `stats --summary` exercises the worker
  * spawn path on a fresh install (no session files = early return), so a
@@ -291,16 +291,7 @@ async function orderForIngest(files: string[]): Promise<string[]> {
 			});
 		}
 	}
-	ranked.sort(
-		(a, b) =>
-			a.tier - b.tier ||
-			a.born - b.born ||
-			// A filesystem that cannot rank birth times (or gives them the same
-			// coarse stamp) must not fall back to readdir's arbitrary order: the
-			// session file name carries its creation order, and first writer wins.
-			(a.file < b.file ? -1 : a.file > b.file ? 1 : 0) ||
-			a.index - b.index,
-	);
+	ranked.sort((a, b) => a.tier - b.tier || a.born - b.born || a.index - b.index);
 	return ranked.map(entry => entry.file);
 }
 
@@ -311,11 +302,6 @@ async function syncAllSessionsLocked(
 	const replay = prepareSessionSync();
 
 	const files = opts?.files ?? (await orderForIngest(await listAllSessionFiles()));
-	// A full sync knows every live transcript, so rows for deleted files are
-	// stale: prune them before parsing, otherwise an orphaned row keeps
-	// inflating aggregates (and a re-created transcript doubles the usage).
-	// A targeted sync only knows its own files and must never prune the rest.
-	if (!opts?.files) pruneOrphanSessions(files);
 	let totalProcessed = 0;
 	let totalChanges = 0;
 	let filesProcessed = 0;
@@ -432,10 +418,10 @@ async function syncAllSessionsLocked(
 		pendingRows +=
 			result.stats.length +
 			result.userStats.length +
-			result.assistantTexts.length +
 			result.userLinks.length +
 			result.toolCalls.length +
 			result.toolResults.length +
+			result.snapcompactCompactions.length +
 			spotlightRowCount(result.spotlight);
 		if (pending.length >= SYNC_BATCH_FILES || pendingRows >= SYNC_BATCH_ROWS) flush();
 	};
@@ -543,7 +529,7 @@ export async function getDashboardStats(range?: string | null): Promise<Dashboar
 		overall: getOverallStats(window.cutoff),
 		byModel: getStatsByModel(window.cutoff),
 		byFolder: getStatsByFolder(window.cutoff, FOLDER_LIMIT),
-		byAgentType: getStatsByAgentType(window.cutoff),
+		...getUsageAttribution(window.cutoff),
 		timeSeries: getTimeSeries(window),
 		modelSeries: getModelTimeSeries(window),
 		modelPerformanceSeries: getModelPerformanceSeries(window),
@@ -553,12 +539,12 @@ export async function getDashboardStats(range?: string | null): Promise<Dashboar
 
 export async function getOverviewStats(
 	range?: string | null,
-): Promise<Pick<DashboardStats, "overall" | "byAgentType" | "timeSeries">> {
+): Promise<Pick<DashboardStats, "overall" | "byAgentType" | "bySideChannel" | "timeSeries">> {
 	await initDb();
 	const window = getTimeRangeConfig(range);
 	return {
 		overall: getOverallStats(window.cutoff),
-		byAgentType: getStatsByAgentType(window.cutoff),
+		...getUsageAttribution(window.cutoff),
 		timeSeries: getTimeSeries(window),
 	};
 }
@@ -585,15 +571,6 @@ export async function getFolderStats(range?: string | null): Promise<FolderStats
 	return getStatsByFolder(getTimeRangeConfig(range).cutoff, FOLDER_LIMIT);
 }
 
-/**
- * Project folders known to the stats registry. Tracking reads are scoped to
- * this exact set: a caller cannot point the dashboard at an arbitrary path.
- */
-export async function getKnownProjectFolders(): Promise<string[]> {
-	await initDb();
-	return getProjectFolders();
-}
-
 export async function getRecentRequests(limit?: number): Promise<MessageStats[]> {
 	await initDb();
 	return dbGetRecentRequests(limit);
@@ -604,15 +581,27 @@ export async function getRecentErrors(range?: string | null, limit?: number): Pr
 	return dbGetRecentErrors(limit, getTimeRangeConfig(range).cutoff);
 }
 
+/**
+ * What a `model_usage` entry journaled of its response: the reply of a text
+ * completion, else the answers of a native judgment, else nothing. The entry is
+ * read back from a transcript, so the shapes are checked, not assumed.
+ */
+function modelUsageOutput(entry: SessionEntry): unknown {
+	const { completion, judgment } = entry as Partial<SessionModelUsageEntry>;
+	if (isRecord(completion) && typeof completion.reply === "string") return completion.reply;
+	if (isRecord(judgment) && isRecord(judgment.answers)) return judgment.answers;
+	return null;
+}
+
 export async function getRequestDetails(id: number): Promise<RequestDetails | null> {
 	await initDb();
 	const msg = getMessageById(id);
 	if (!msg) return null;
 
 	const entry = await getSessionEntry(msg.sessionFile, msg.entryId);
-	// Role-model attempts (judge, auto-thinking, …) journal only a `model_usage`
-	// record: usage and outcome, no request or response payload.
-	if (entry?.type === "model_usage") return { ...msg, messages: [entry], output: null };
+	// Off-transcript model calls (judge, auto-thinking, title, …) journal only a
+	// `model_usage` record: usage, outcome, and for some the reply or answers.
+	if (entry?.type === "model_usage") return { ...msg, messages: [entry], output: modelUsageOutput(entry) };
 	if (entry?.type !== "message" || !("message" in entry)) return null;
 
 	return {

@@ -1,5 +1,5 @@
 /**
- * `zetacode auth-broker` command handlers.
+ * `omp auth-broker` command handlers.
  *
  * Sub-verbs:
  *   - `serve [--bind=…] [--trust-proxy-headers]` — boots the broker against the local SQLite store.
@@ -30,13 +30,13 @@ import {
 	type OAuthProvider,
 	PROVIDER_REGISTRY,
 	SqliteAuthCredentialStore,
-} from "@linxiraos/pi-ai";
-import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
-import { refreshOAuthToken } from "@linxiraos/pi-ai/oauth";
-import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
-import { $which, APP_NAME, CLI_BIN_NAME, getAgentDbPath, getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
-import { setTransports as setLoggerTransports } from "@linxiraos/pi-utils/logger";
+} from "@oh-my-pi/pi-ai";
+import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
+import { refreshOAuthToken } from "@oh-my-pi/pi-ai/oauth";
+import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
+import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, logger, postmortem, VERSION } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import { setTransports as setLoggerTransports } from "@oh-my-pi/pi-utils/logger";
 import { $ } from "bun";
 import { refreshManagedMcpOAuthCredential } from "../mcp/oauth-credentials";
 import { isManagedMCPOAuthCredentialId, mcpOAuthServerUrlFromCredentialId } from "../mcp/oauth-flow";
@@ -104,7 +104,7 @@ async function ensureToken(): Promise<string> {
 }
 
 /**
- * OAuth refresh handler for `zetacode auth-broker serve`'s {@link AuthStorage}.
+ * OAuth refresh handler for `omp auth-broker serve`'s {@link AuthStorage}.
  *
  * The vault holds provider OAuth rows AND OMP-managed `mcp_oauth:*` rows.
  * Provider rows refresh through the per-provider registry. MCP rows are
@@ -131,7 +131,7 @@ export function refreshBrokerOAuthCredential(
 	return refreshOAuthToken(provider as OAuthProvider, credential, signal);
 }
 
-/** The `zetacode auth-broker serve` vault: tokens refresh in this process through {@link refreshBrokerOAuthCredential}. */
+/** The `omp auth-broker serve` vault: tokens refresh in this process through {@link refreshBrokerOAuthCredential}. */
 export function createBrokerAuthStorage(store: SqliteAuthCredentialStore): AuthStorage {
 	return new AuthStorage(store, {
 		refreshOAuthCredential: (provider, _credentialId, credential, signal) =>
@@ -143,8 +143,11 @@ export function createBrokerAuthStorage(store: SqliteAuthCredentialStore): AuthS
 async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	// The broker is a long-running headless service: route structured logs to
 	// stdout so a process supervisor (pm2, journald, k8s) captures them, and
-	// skip the rotating ~/.zeta/logs/ file the TUI default would have used.
+	// skip the rotating ~/.omp/logs/ file the TUI default would have used.
 	setLoggerTransports({ console: true, file: false });
+	// SIGTERM/SIGINT are a supervisor's stop or restart, not a failure: exit 0 once
+	// the cleanup pass (which saves an in-flight token refresh) finishes.
+	postmortem.exitCleanlyOnStopSignals();
 
 	const bind = flags.bind ?? DEFAULT_AUTH_BROKER_BIND;
 	const token = await ensureToken();
@@ -163,17 +166,28 @@ async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	logger.info("auth-broker listening", { url: handle.url });
 	logger.info("auth-broker bearer token loaded", { path: getTokenFilePath(), mode: "0600" });
 
-	const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+	// Stopping returns from `serve` and leaves the exit to the process signal handler, which first
+	// waits for a refresh still saving a token the provider already rotated. Exiting here would
+	// drop that save and leave the store with a spent refresh token.
+	const stopped = Promise.withResolvers<void>();
+	const shutdown = (signal: NodeJS.Signals): void => {
 		logger.info("auth-broker shutting down", { signal });
-		await handle.close();
-		storage.close();
-		process.exit(0);
+		void handle
+			.close()
+			.finally(() => storage.close())
+			.then(stopped.resolve, stopped.reject);
 	};
-	process.once("SIGINT", () => void shutdown("SIGINT"));
-	process.once("SIGTERM", () => void shutdown("SIGTERM"));
+	const onSigint = (): void => shutdown("SIGINT");
+	const onSigterm = (): void => shutdown("SIGTERM");
+	process.once("SIGINT", onSigint);
+	process.once("SIGTERM", onSigterm);
 
-	// Block forever; lifecycle is signal-driven.
-	await new Promise<never>(() => {});
+	try {
+		await stopped.promise;
+	} finally {
+		process.off("SIGINT", onSigint);
+		process.off("SIGTERM", onSigterm);
+	}
 }
 
 async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
@@ -197,9 +211,7 @@ async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 
 async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	if (flags.via && !flags.provider) {
-		throw new Error(
-			"Usage: zetacode auth-broker login <provider> --via=user@host (provider required for remote login)",
-		);
+		throw new Error("Usage: omp auth-broker login <provider> --via=user@host (provider required for remote login)");
 	}
 	applyUnpausedProviders(await resolveEffectiveSettings());
 	const providers = getOAuthProviders();
@@ -254,7 +266,7 @@ async function runRemoteLogin(provider: string, via: string, dryRun: boolean): P
 		"-o",
 		"ExitOnForwardFailure=yes",
 		via,
-		`${CLI_BIN_NAME} auth-broker login ${provider}`,
+		`${APP_NAME} auth-broker login ${provider}`,
 	];
 	if (dryRun) {
 		process.stdout.write(`ssh ${sshArgs.map(a => (a.includes(" ") ? `'${a}'` : a)).join(" ")}\n`);
@@ -412,7 +424,7 @@ async function loadImportPlan(
 		if (!provider) {
 			skipped.push({
 				file,
-				reason: `cannot determine the zetacode provider from type=${json.type ?? "?"} (pass --provider to override)`,
+				reason: `cannot determine omp provider from type=${json.type ?? "?"} (pass --provider to override)`,
 			});
 			continue;
 		}
@@ -458,9 +470,7 @@ function describeImportEntry(entry: ImportPlanEntry): string {
 async function runImport(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const target = flags.source;
 	if (!target) {
-		throw new Error(
-			"Usage: zetacode auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]",
-		);
+		throw new Error("Usage: omp auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]");
 	}
 	const resolvedTarget = path.resolve(target.startsWith("~") ? target.replace(/^~/, os.homedir()) : target);
 	const { entries, skipped } = await loadImportPlan(resolvedTarget, flags.provider, flags.includeDisabled === true);
@@ -586,12 +596,12 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"ZETA_AUTH_BROKER_URL must be set (or `auth.broker.url` in config.yml). `migrate` uploads local credentials to a configured broker.",
+			"OMP_AUTH_BROKER_URL must be set (or `auth.broker.url` in config.yml). `migrate` uploads local credentials to a configured broker.",
 		);
 	}
 	if (flags.fromLocal !== true) {
 		throw new Error(
-			"`zetacode auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
+			"`omp auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
 		);
 	}
 
@@ -739,7 +749,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 async function runStatus(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const cfg = await resolveAuthBrokerConfig();
 	if (!cfg) {
-		const message = "No auth-broker configured (set ZETA_AUTH_BROKER_URL to enable).";
+		const message = "No auth-broker configured (set OMP_AUTH_BROKER_URL to enable).";
 		if (flags.json) process.stdout.write(`${JSON.stringify({ ok: false, reason: "not_configured" })}\n`);
 		else process.stdout.write(`${chalk.yellow(message)}\n`);
 		return;

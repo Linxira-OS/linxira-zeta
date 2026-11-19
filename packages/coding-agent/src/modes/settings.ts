@@ -1185,7 +1185,7 @@ export const cfgSpellingAutocomplete = register({
 export const cfgComposerPredictions = register({
 	id: "composer.predictions",
 	type: "boolean",
-	default: false,
+	default: true,
 	ui: {
 		tab: "interaction",
 		group: "Input",

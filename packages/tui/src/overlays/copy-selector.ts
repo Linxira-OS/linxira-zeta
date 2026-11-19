@@ -14,8 +14,9 @@
  * A URL that wrapped across terminal rows therefore needs neither a careful
  * mouse selection nor cmd-click.
  */
-import type { AgentTool } from "@linxiraos/pi-agent-core";
-import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@linxiraos/pi-wire";
+import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@oh-my-pi/pi-wire";
+import { isRecord } from "@oh-my-pi/pi-utils";
 import {
 	type Component,
 	matchesKey,
@@ -42,6 +43,7 @@ import { highlightCode, type ThemeColor, theme } from "../theme/theme";
 import { commandFromToolCall, extractBlocks, extractLinks } from "./copy-targets";
 import { matchesAppToolsExpand, matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { ChatTranscriptBuilder } from "../chat/chat-transcript-builder";
+import { isReplyWrite, toolResultReplies } from "../chat/reply-write";
 import { TranscriptBrowser, type TranscriptBrowserFrame } from "../chat/transcript-browser";
 import {
 	appendOutlineEntries,
@@ -73,39 +75,35 @@ function firstLine(source: string): string {
 }
 
 /** Plain one-line label and styling role for the turn a target opens. */
-function turnSummary(entry: TranscriptEntry): { label: string; role: string } {
+function turnSummary(target: OutlineTarget): { label: string; role: string } {
+	const entry = target.entries[0]!;
 	const message = transcriptEntryMessage(entry);
 	switch (message?.role) {
 		case "user":
-			return { label: userMessageLabel(message.content), role: "zeta.user" };
+			return { label: userMessageLabel(message.content), role: "omp.user" };
 		case "assistant": {
-			let prose = "";
-			const tools: string[] = [];
-			for (const content of message.content) {
-				if (content.type === "text") prose += content.text;
-				else if (content.type === "toolCall") tools.push(content.name);
-			}
-			const label = firstLine(prose) || tools.join(", ") || "thinking";
-			return { label, role: "zeta.assistant" };
+			const tools = message.content.filter(content => content.type === "toolCall").map(content => content.name);
+			const label = firstLine(turnProse(target)) || tools.join(", ") || "thinking";
+			return { label, role: "omp.assistant" };
 		}
 		case "toolResult":
-			return { label: `${message.toolName} result`, role: `zeta.tool.${message.toolName}` };
+			return { label: `${message.toolName} result`, role: `omp.tool.${message.toolName}` };
 		case "bashExecution":
-			return { label: `$ ${firstLine(message.command)}`, role: "zeta.tool.bash" };
+			return { label: `$ ${firstLine(message.command)}`, role: "omp.tool.bash" };
 		case "pythonExecution":
-			return { label: firstLine(message.code), role: "zeta.tool.eval" };
+			return { label: firstLine(message.code), role: "omp.tool.eval" };
 		case "compactionSummary":
-			return { label: "Compaction summary", role: "zeta.summary" };
+			return { label: "Compaction summary", role: "omp.summary" };
 		case "branchSummary":
-			return { label: "Branch summary", role: "zeta.summary" };
+			return { label: "Branch summary", role: "omp.summary" };
 		case "custom":
 		case "hookMessage": {
 			const draft = userTurnDraft(entry);
-			if (draft !== undefined) return { label: firstLine(draft), role: "zeta.user" };
-			return { label: firstLine(textContent(message.content, " ")) || message.customType, role: "zeta.custom" };
+			if (draft !== undefined) return { label: firstLine(draft), role: "omp.user" };
+			return { label: firstLine(textContent(message.content, " ")) || message.customType, role: "omp.custom" };
 		}
 		default:
-			return { label: entry.id, role: "zeta.message" };
+			return { label: entry.id, role: "omp.message" };
 	}
 }
 
@@ -122,7 +120,7 @@ function entryTime(entry: TranscriptEntry): string {
  */
 function turnItem(target: OutlineTarget, detail?: TspText): NativeNode {
 	const entry = target.entries[0]!;
-	const { label, role } = turnSummary(entry);
+	const { label, role } = turnSummary(target);
 	const time = entryTime(entry);
 	return node(
 		"item",
@@ -145,9 +143,7 @@ export function turnPreview(target: OutlineTarget, content: string): NativeNode 
 	switch (message?.role) {
 		case "assistant":
 			// A pure tool turn previews its joined commands/results, not prose.
-			return message.content.some(part => part.type === "text" && part.text.trim())
-				? md(content)
-				: code(content, { wrap: true });
+			return turnProse(target) ? md(content) : code(content, { wrap: true });
 		case "user":
 		case "custom":
 		case "hookMessage":
@@ -182,7 +178,7 @@ const TIMELINE_COLUMNS: readonly TspPickerColumn[] = [{ id: "at", format: "dim",
 function timelineItem(target: OutlineTarget): TspPickerItem {
 	const entry = target.entries[0]!;
 	const id = target.turnId;
-	const summary = turnSummary(entry);
+	const summary = turnSummary(target);
 	const label = summary.label || "(empty)";
 	if (target.isUserTurn) {
 		const at = entryTime(entry);
@@ -191,14 +187,14 @@ function timelineItem(target: OutlineTarget): TspPickerItem {
 	const message = transcriptEntryMessage(entry);
 	switch (message?.role) {
 		case "assistant": {
-			const prose = message.content.some(part => part.type === "text" && part.text.trim());
+			const prose = turnProse(target) !== "";
 			const calls = message.content.filter(part => part.type === "toolCall");
 			if (prose || calls.length === 0) return { id, label, node: "assistant" };
 			return {
 				id,
 				label: calls.map(call => toolCallLabel(call.name, call.arguments)).join(" · "),
 				node: "tool",
-				role: `zeta.tool.${calls[0]!.name}`,
+				role: `omp.tool.${calls[0]!.name}`,
 			};
 		}
 		case "toolResult":
@@ -220,7 +216,7 @@ class TimelineItems {
 	}
 }
 
-/** Lines of a copy block shown in the native preview; longer blocks copy through zeta. */
+/** Lines of a copy block shown in the native preview; longer blocks copy through omp. */
 const PREVIEW_BLOCK_LINES = 400;
 
 /** A block's preview caption: `rust · 12 lines`, `quote`, `link · docs`. */
@@ -246,9 +242,9 @@ function blockBody(block: CopyBlock): NativeNode {
 
 /**
  * One borderless preview section of the copy picker. A click copies it in the
- * terminal (`copy`) when the preview holds the whole text, else asks zeta to
+ * terminal (`copy`) when the preview holds the whole text, else asks omp to
  * (`pick`); link sections also offer `open`. The focused block's section takes
- * the `zeta.picker.block.focused` role and the accent tone.
+ * the `omp.picker.block.focused` role and the accent tone.
  */
 function previewSection(
 	key: string,
@@ -263,7 +259,7 @@ function previewSection(
 		"section",
 		{
 			head: caption,
-			role: focused ? "zeta.picker.block.focused" : "zeta.picker.block",
+			role: focused ? "omp.picker.block.focused" : "omp.picker.block",
 			...(focused ? { tone: "accent" as const } : {}),
 			...(href ? { href } : {}),
 			actions: { click: whole ? "copy" : "pick", ...(href ? { menu: ["copy", "open"] } : {}) },
@@ -621,7 +617,7 @@ export class CopySelectorComponent implements Component {
 			return;
 		}
 		if (event.type === "action" && event.act === "pick") {
-			// A preview section too long to copy in the terminal: zeta copies the full text.
+			// A preview section too long to copy in the terminal: omp copies the full text.
 			this.#pickSection(event.key);
 			return;
 		}
@@ -709,7 +705,7 @@ export class CopySelectorComponent implements Component {
 	 * The `timeline` picker: the turns as rows, the selected turn's blocks as
 	 * preview sections (the whole message first), each copied by a click. In
 	 * the block view the focused block's section takes the
-	 * `zeta.picker.block.focused` role and the preview owns the focus.
+	 * `omp.picker.block.focused` role and the preview owns the focus.
 	 */
 	#describePicker(): NativeNode {
 		const memo = `${this.#selected}|${this.#blockSelected}|${this.#truncated}`;
@@ -845,7 +841,7 @@ export class CopySelectorComponent implements Component {
 			span("Copy", "strong"),
 			span(`${theme.sep.dot}pick what to put on the clipboard`, "dim"),
 		];
-		const root = overlayCard("zeta.overlay.copy", head, children);
+		const root = overlayCard("omp.overlay.copy", head, children);
 		this.#native = { memo, targets: this.#targets, blocks: this.#blocks, node: root };
 		return root;
 	}
@@ -1048,13 +1044,59 @@ function rawUserText(message: Extract<SessionMessageEntry["message"], { role: "u
 		.join("\n");
 }
 
-/** Concatenated visible text blocks of an assistant message. */
-function assistantVisibleText(message: Extract<SessionMessageEntry["message"], { role: "assistant" }>): string {
-	let text = "";
+/** Markdown a `write` call sends to the user as a reply (`out://`), else undefined. */
+function replyWriteText(name: string, args: unknown): string | undefined {
+	if (isReplyWrite(name, args) !== true || !isRecord(args)) return undefined;
+	const text = args.content;
+	return typeof text === "string" && text.trim() ? text : undefined;
+}
+
+/** One prose piece of a turn: message text, or a reply the transcript draws as prose of its own. */
+interface ProsePiece {
+	readonly text: string;
+	/** `out://` reply: it starts its own paragraph rather than continuing the text. */
+	readonly reply: boolean;
+}
+
+/** Prose pieces of an assistant message, in document order. */
+function assistantProsePieces(message: Extract<SessionMessageEntry["message"], { role: "assistant" }>): ProsePiece[] {
+	const pieces: ProsePiece[] = [];
 	for (const content of message.content) {
-		if (content.type === "text") text += content.text;
+		if (content.type === "text") pieces.push({ text: content.text, reply: false });
+		else if (content.type === "toolCall") {
+			const reply = replyWriteText(content.name, content.arguments);
+			if (reply !== undefined) pieces.push({ text: reply, reply: true });
+		}
+	}
+	return pieces;
+}
+
+/** Joins prose pieces: text blocks concatenate verbatim, a reply forms its own paragraph. */
+function joinProse(pieces: readonly ProsePiece[]): string {
+	let text = "";
+	let afterReply = false;
+	for (const piece of pieces) {
+		if (!piece.text) continue;
+		if ((piece.reply || afterReply) && text !== "" && !text.endsWith("\n")) text += "\n\n";
+		text += piece.text;
+		afterReply = piece.reply;
 	}
 	return text.trim();
+}
+
+/**
+ * Prose a turn shows, in transcript order: the assistant message's text and `out://` replies, then the
+ * replies its tool results carry (`bash > out://`, an eval cell's bridged write).
+ */
+function turnProse(target: OutlineTarget): string {
+	const message = transcriptEntryMessage(target.entries[0]!);
+	const pieces = message?.role === "assistant" ? assistantProsePieces(message) : [];
+	for (const entry of target.entries) {
+		const result = transcriptEntryMessage(entry);
+		if (result?.role !== "toolResult") continue;
+		for (const reply of toolResultReplies(result.details)) pieces.push({ text: reply, reply: true });
+	}
+	return joinProse(pieces);
 }
 
 /** Joined text content of a tool result. */
@@ -1095,6 +1137,8 @@ function pushMarkdownBlocks(blocks: CopyBlock[], text: string, entry: Transcript
 /** Inner blocks of one turn: markdown code/quotes, commands, and tool output. */
 export function collectBlocks(entries: readonly TranscriptEntry[]): CopyBlock[] {
 	const blocks: CopyBlock[] = [];
+	/** Reply writes: their text came from the calls, their results hold a placeholder. */
+	const replyCallIds = new Set<string>();
 	for (const entry of entries) {
 		const message = transcriptEntryMessage(entry);
 		if (!message) continue;
@@ -1103,9 +1147,13 @@ export function collectBlocks(entries: readonly TranscriptEntry[]): CopyBlock[] 
 				pushMarkdownBlocks(blocks, rawUserText(message), entry);
 				break;
 			case "assistant": {
-				pushMarkdownBlocks(blocks, assistantVisibleText(message), entry);
+				pushMarkdownBlocks(blocks, joinProse(assistantProsePieces(message)), entry);
 				for (const content of message.content) {
 					if (content.type !== "toolCall") continue;
+					if (isReplyWrite(content.name, content.arguments) === true) {
+						replyCallIds.add(content.id);
+						continue;
+					}
 					const command = commandFromToolCall(content);
 					if (command) {
 						blocks.push({
@@ -1120,6 +1168,8 @@ export function collectBlocks(entries: readonly TranscriptEntry[]): CopyBlock[] 
 				break;
 			}
 			case "toolResult": {
+				if (message.isError !== true && replyCallIds.has(message.toolCallId)) break;
+				for (const reply of toolResultReplies(message.details)) pushMarkdownBlocks(blocks, reply, entry);
 				const text = toolResultText(message);
 				if (text) blocks.push({ label: `${message.toolName} result`, content: text, entry });
 				break;
@@ -1147,13 +1197,15 @@ export function targetCopy(target: OutlineTarget, blocks: readonly CopyBlock[]):
 		case "user":
 			return { content: rawUserText(message), label: "user message" };
 		case "assistant": {
-			const text = assistantVisibleText(message);
+			const text = turnProse(target);
 			if (text) return { content: text, label: "assistant message" };
 			break;
 		}
 		case "toolResult": {
-			const text = toolResultText(message);
-			if (text) return { content: text, label: `${message.toolName} result` };
+			const content = [...toolResultReplies(message.details), toolResultText(message)]
+				.filter(part => part.trim())
+				.join("\n\n");
+			if (content) return { content, label: `${message.toolName} result` };
 			break;
 		}
 		case "bashExecution":

@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import * as imageResize from "@linxiraos/zeta/utils/image-resize";
-import * as toolsManager from "@linxiraos/zeta/utils/tools-manager";
-import * as scrapers from "@linxiraos/zeta/web/scrapers/types";
-import * as scraperUtils from "@linxiraos/zeta/web/scrapers/utils";
-import * as natives from "@linxiraos/pi-natives";
-import { ptree, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import * as imageResize from "@oh-my-pi/pi-coding-agent/utils/image-resize";
+import * as toolsManager from "@oh-my-pi/pi-coding-agent/utils/tools-manager";
+import * as scrapers from "@oh-my-pi/pi-coding-agent/web/scrapers/types";
+import * as scraperUtils from "@oh-my-pi/pi-coding-agent/web/scrapers/utils";
+import * as natives from "@oh-my-pi/pi-natives";
+import { ptree, removeSyncWithRetries, Snowflake, spillIdOfFileName } from "@oh-my-pi/pi-utils";
 import { asGlobalFetch } from "../helpers/fetch-mock";
 
 const withMissingSystemPython = () => {
@@ -46,11 +46,11 @@ describe("read tool URL handling", () => {
 			getSessionFile: () => sessionFile,
 			getArtifactsDir: () => artifactsDir,
 			getSessionSpawns: () => null,
-			allocateOutputArtifact: async toolType => {
+			allocateOutputArtifact: async () => {
 				const id = String(nextArtifactId++);
 				return {
 					id,
-					path: path.join(artifactsDir, `${id}.${toolType}.log`),
+					path: path.join(artifactsDir, `${id}.log`),
 				};
 			},
 			settings: Settings.isolated({
@@ -618,6 +618,8 @@ describe("read tool URL handling", () => {
 		// URL selectors address response body lines, like grep's URL matches.
 		expect(pagedText?.text).toContain("Line 2");
 		expect(pagedText?.text).toContain("Line 3");
-		expect(fs.readdirSync(path.join(testDir, "session")).some(file => file.endsWith(".read.log"))).toBe(true);
+		expect(fs.readdirSync(path.join(testDir, "session")).some(file => spillIdOfFileName(file) !== undefined)).toBe(
+			true,
+		);
 	});
 });

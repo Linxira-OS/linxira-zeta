@@ -579,7 +579,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
-		file: "crates/pi-natives/src/lib.rs",
+		file: "crates/natives/src/lib.rs",
 		symbol: "pub fn pi_natives_build_version() -> Option<String> {",
 		why: "natives build-version mechanism (v18.3.3: stamped `__piNativesBuildVersion()` replaces the per-release `__piNativesVX_Y_Z` name; checked by version-consistency)",
 	},

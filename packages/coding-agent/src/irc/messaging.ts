@@ -1,9 +1,8 @@
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { CoordinationDetails } from "@oh-my-pi/pi-tui/tools/wait";
 import type { Settings } from "../config/settings";
-import { isWorkspaceAddress } from "../mesh/envelope";
 import { IrcBus } from "./bus";
-import { MAIN_AGENT_ID, type AgentRegistryApi } from "../registry/agent-registry";
+import type { AgentRegistryApi } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { canSpawnAtDepth } from "../task/types";
 
@@ -23,13 +22,10 @@ export function isIrcEnabled(settings: Settings, taskDepth: number): boolean {
 /** Send a direct message or, from a top-level agent only, a broadcast; delivery never waits for a reply. */
 export async function executeSend(
 	deps: { registry: AgentRegistryApi; senderId: string; sessionFileHint?: string | null },
-	params: { to: string; message: string; progress?: boolean },
+	params: { to: string; message: string; progress?: boolean; remote?: boolean },
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId, sessionFileHint } = deps;
-	const requestedTo = params.to.trim();
-	// `main` (any case) means the caller's own workspace main. Normalize before
-	// the self check and the await filter so `await` matches the reply's `from`.
-	const to = registry.resolveMainAlias(requestedTo, senderId) ?? requestedTo;
+	const to = params.to.trim();
 	const message = params.message;
 	if (!to) return coordinationErrorResult("A recipient is required.", { op: "send", from: senderId });
 	if (!message.trim())
@@ -37,40 +33,31 @@ export async function executeSend(
 	if (to === senderId)
 		return coordinationErrorResult("Cannot send a message to yourself.", { op: "send", from: senderId, to });
 	const isBroadcast = to === "all";
-	if (isBroadcast) {
-		const sender = registry.get(senderId);
-		if (sender?.kind === "sub" && sender.parentId !== undefined) {
-			return coordinationErrorResult(
-				"Subagents may only message the main agent that spawned them; broadcast is not available.",
-				{ op: "send", from: senderId, to },
-			);
-		}
-	}
-	// Restore parked recipients only when needed; never delay delivery to a live
-	// peer. A cross-process address is not in this process's roster at all.
-	if (!isBroadcast && sessionFileHint && !isWorkspaceAddress(to)) {
+	// A subagent's broadcast wakes every live peer for news that is almost never
+	// theirs; it messages the one agent that can answer instead.
+	if (isBroadcast && registry.get(senderId)?.kind !== "main")
+		return coordinationErrorResult(
+			"Only the main agent can broadcast. Message the one agent that can answer via `agent://<id>`.",
+			{ op: "send", from: senderId, to },
+		);
+	// Restore parked recipients only when needed; never delay delivery to a live peer.
+	if (!isBroadcast && sessionFileHint && !params.remote) {
 		const recipient = registry.get(to);
 		if (!recipient || recipient.status === "parked") await ensurePersistedRoster(registry, sessionFileHint);
 	}
 
 	const targets = isBroadcast ? registry.listVisibleTo(senderId).map(ref => ref.id) : [to];
-	// A broadcast that also reaches the main agent delivers the body to it
-	// directly (its own incoming card); relaying the sibling legs to the main UI
-	// would then show the same body once per other recipient.
-	const suppressRelay = isBroadcast && targets.includes(MAIN_AGENT_ID);
 	const bus = IrcBus.global();
 	const receipts = await Promise.all(
 		targets.map(target =>
-			bus.send(
-				{
-					from: senderId,
-					to: target,
-					body: message,
-					...(isBroadcast ? { broadcast: true } : {}),
-					...(params.progress ? { progress: true } : {}),
-				},
-				{ suppressRelay: suppressRelay || undefined },
-			),
+			bus.send({
+				from: senderId,
+				to: target,
+				body: message,
+				localOnly: !params.remote,
+				...(isBroadcast ? { broadcast: true } : {}),
+				...(params.progress ? { progress: true } : {}),
+			}),
 		),
 	);
 	const delivered = receipts.filter(receipt => receipt.outcome !== "failed");
@@ -96,11 +83,9 @@ export async function executeSend(
 		text =
 			receipt.outcome === "failed"
 				? `Failed: ${to} ${unavailable ? "is not running" : "could not receive the message"}. ${receipt.error ?? ""}`.trimEnd()
-				: receipt.outcome === "queued"
-					? `Queued for ${to} — that workspace is offline; the message will be delivered when its process starts.`
-					: receipt.outcome === "revived"
-						? `Queued for ${to} (was parked; revived).`
-						: `Delivered to ${to}.`;
+				: receipt.outcome === "revived"
+					? `Queued for ${to} (was parked; revived).`
+					: `Delivered to ${to}.`;
 	}
 	return {
 		content: [{ type: "text", text }],

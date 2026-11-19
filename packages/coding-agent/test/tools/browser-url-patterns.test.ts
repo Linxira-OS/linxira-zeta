@@ -3,8 +3,8 @@
  * backend: a string with `*` is a glob (as `tab.route()` takes), any other string a substring.
  */
 import { describe, expect, it } from "bun:test";
-import { parseUrlPattern } from "@linxiraos/zeta/tools/browser/navigation";
-import { matchesRequest, urlMatcher } from "@linxiraos/zeta/tools/browser/network";
+import { parseUrlPattern } from "@oh-my-pi/pi-coding-agent/tools/browser/navigation";
+import { matchesRequest, toPublicRecord, urlMatcher } from "@oh-my-pi/pi-coding-agent/tools/browser/network";
 
 const PAGE_URL = "https://www.stardoll.com/en/starplaza.php";
 
@@ -15,7 +15,13 @@ describe("browser URL patterns", () => {
 		expect(matches(PAGE_URL)).toBe(true);
 		expect(matches("https://www.stardoll.com/en/starplaza.php?tab=sale")).toBe(false);
 		expect(urlMatcher("https://*.stardoll.com/en/*")(PAGE_URL)).toBe(true);
-		expect(urlMatcher("https://*.stardoll.com/*")(PAGE_URL)).toBe(false);
+		expect(urlMatcher("https://*.stardoll.com/*/x")(PAGE_URL)).toBe(false);
+	});
+
+	it("lets a * at either end span path segments", () => {
+		expect(urlMatcher(parseUrlPattern("*sort=X*"))("http://h/p?sort=X&page=1")).toBe(true);
+		expect(urlMatcher("https://*.stardoll.com/*")(PAGE_URL)).toBe(true);
+		expect(urlMatcher(parseUrlPattern("*sort=Y*"))("http://h/p?sort=X&page=1")).toBe(false);
 	});
 
 	it("keeps a string without * a substring and a RegExp a RegExp", () => {
@@ -45,5 +51,24 @@ describe("browser URL patterns", () => {
 		expect(matchesRequest(record, { filter: "**/photoContest.php" })).toBe(true);
 		expect(matchesRequest(record, { filter: "photoContest" })).toBe(true);
 		expect(matchesRequest(record, { filter: "**/buyItems.php" })).toBe(false);
+	});
+
+	it("redacts credential headers in the request listing only", () => {
+		const record = {
+			id: "1",
+			seq: 1,
+			ts: 0,
+			method: "GET",
+			url: "https://h/",
+			resourceType: "xhr",
+			requestHeaders: { Cookie: "sid=1", accept: "*/*" },
+			responseHeaders: { "set-cookie": "sid=2" },
+			sizes: {},
+		};
+		expect(toPublicRecord(record, true)).toMatchObject({
+			requestHeaders: { Cookie: "[redacted]", accept: "*/*" },
+			responseHeaders: { "set-cookie": "[redacted]" },
+		});
+		expect(toPublicRecord(record).requestHeaders.Cookie).toBe("sid=1");
 	});
 });

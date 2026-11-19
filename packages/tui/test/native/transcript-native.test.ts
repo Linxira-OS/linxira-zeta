@@ -1,38 +1,42 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { createCompactionSummaryMessage, createCustomMessage } from "@linxiraos/pi-agent-core/compaction/messages";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
-import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
-import { ChatTranscriptBuilder } from "@linxiraos/pi-tui/chat/chat-transcript-builder";
-import { CompactionSummaryMessageComponent } from "@linxiraos/pi-tui/chat/compaction-summary-message";
-import { CustomMessageComponent } from "@linxiraos/pi-tui/chat/custom-message";
-import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
-import { LateDiagnosticsMessageComponent } from "@linxiraos/pi-tui/chat/late-diagnostics-message";
-import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
-import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
-import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
-import { setInternalUrlSchemeHost } from "@linxiraos/pi-tui/tools/url-scheme-host";
-import type { TranscriptEntryLike } from "@linxiraos/pi-tui/chat/transcript-entry";
-import { buildAsyncResultBlock, buildFileMentionBlock } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
-import { TodoReminderComponent } from "@linxiraos/pi-tui/chat/todo-reminder";
-import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
-import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
-import { card, node, text } from "@linxiraos/pi-tui/native/describe";
-import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import { createCompactionSummaryMessage, createCustomMessage } from "@oh-my-pi/pi-agent-core/compaction/messages";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { createAdvisorMessageCard } from "@oh-my-pi/pi-tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
+import { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
+import { ChatTranscriptBuilder } from "@oh-my-pi/pi-tui/chat/chat-transcript-builder";
+import { CompactionSummaryMessageComponent } from "@oh-my-pi/pi-tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@oh-my-pi/pi-tui/chat/custom-message";
+import { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
+import { LateDiagnosticsMessageComponent } from "@oh-my-pi/pi-tui/chat/late-diagnostics-message";
+import { SkillMessageComponent } from "@oh-my-pi/pi-tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@oh-my-pi/pi-tui/chat/stripped-tool-calls-placeholder";
+import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
+import { setInternalUrlSchemeHost } from "@oh-my-pi/pi-tui/tools/url-scheme-host";
+import type { TranscriptEntryLike } from "@oh-my-pi/pi-tui/chat/transcript-entry";
+import {
+	buildAsyncNotifyBlock,
+	buildAsyncResultBlock,
+	buildFileMentionBlock,
+} from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
+import { TodoReminderComponent } from "@oh-my-pi/pi-tui/chat/todo-reminder";
+import { TtsrNotificationComponent } from "@oh-my-pi/pi-tui/chat/ttsr-notification";
+import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
+import { card, node, text } from "@oh-my-pi/pi-tui/native/describe";
+import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
 import {
 	messageBlock,
 	onTranscriptPresentationRedrawn,
 	PresentedBlock,
 	presentNative,
 	setTranscriptPresenters,
-} from "@linxiraos/pi-tui/chat/transcript-presentation";
-import { initTheme, theme } from "@linxiraos/pi-tui/theme";
-import type { TspNode, TspOp } from "@linxiraos/pi-wire";
+} from "@oh-my-pi/pi-tui/chat/transcript-presentation";
+import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
+import type { TspNode, TspOp } from "@oh-my-pi/pi-wire";
 import { TspHarness } from "./tsp-harness";
-import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import { Container } from "@linxiraos/pi-tui/tui";
+import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
+import { Container } from "@oh-my-pi/pi-tui/tui";
 
 beforeAll(async () => {
 	await initTheme(false);
@@ -289,7 +293,7 @@ describe("native transcript", () => {
 		await h.render();
 		expect(h.find(node => node.k === "md")?.p).toMatchObject({ text: source, stream: true });
 
-		const wt = "file:///C:/Users/me/.zeta/wt/cr2-43939c6";
+		const wt = "file:///C:/Users/me/.omp/wt/cr2-43939c6";
 		component.updateContent(assistant([{ type: "text", text: source }]));
 		component.setLinkTargets(
 			new Map([
@@ -331,12 +335,12 @@ describe("native transcript", () => {
 			},
 		});
 		const h = await startWith(h => h.tui.addChild(component));
-		const card = h.find(node => node.p?.role === "zeta.skill");
+		const card = h.find(node => node.p?.role === "omp.skill");
 		expect(card?.p).not.toHaveProperty("collapsible");
 		expect(card?.c?.find(child => child.k === "md")?.p).toMatchObject({
 			text: "Organize the project foundation",
 		});
-		const prompt = h.find(node => node.p?.role === "zeta.skill.prompt");
+		const prompt = h.find(node => node.p?.role === "omp.skill.prompt");
 		expect(prompt?.p).toMatchObject({ collapsible: true, collapsed: true });
 		expect(prompt?.c).toBeUndefined();
 
@@ -371,19 +375,19 @@ describe("native transcript", () => {
 				tool.attachLateDiagnostics([{ path: "src/a.ts", summary: "1 error", errored: true, messages: ["bad"] }]),
 			).toBe(true);
 			await h.render();
-			expect(h.find(node => node.p?.role === "zeta.diagnostics.late")).toBeUndefined();
+			expect(h.find(node => node.p?.role === "omp.diagnostics.late")).toBeUndefined();
 
 			setTranscriptPresenters([block => (block.type === "toolCall" ? "hidden" : undefined)]);
 			tool.refreshTranscriptPresentation();
 			await h.render();
-			const late = h.find(node => node.p?.role === "zeta.diagnostics.late");
+			const late = h.find(node => node.p?.role === "omp.diagnostics.late");
 			expect(late).toBeDefined();
 			expect(late?.p).not.toMatchObject({ hidden: true });
 
 			// `display.hideToolActivity` hides them like the card they came from.
 			transcript.setToolActivityVisible(false);
 			await h.render();
-			const hiddenLate = h.find(node => node.p?.role === "zeta.diagnostics.late");
+			const hiddenLate = h.find(node => node.p?.role === "omp.diagnostics.late");
 			expect(hiddenLate === undefined || hiddenLate.p?.hidden === true).toBe(true);
 		} finally {
 			setTranscriptPresenters([]);
@@ -405,7 +409,7 @@ describe("native transcript", () => {
 				builder.append(toolTranscript());
 				h.tui.addChild(builder.container);
 			});
-			const card = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
+			const card = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
 			expect(card).toBeDefined();
 			expect(card?.p).not.toMatchObject({ hidden: true });
 		} finally {
@@ -532,11 +536,11 @@ describe("native transcript", () => {
 			h.tui.addChild(builder.container);
 		});
 		// The wire name never keys the card; the canonical registry name does.
-		expect(h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.shell")).toBeUndefined();
-		const card = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.bash");
+		expect(h.find(node => node.k === "tool" && node.p?.role === "omp.tool.shell")).toBeUndefined();
+		const card = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.bash");
 		expect(card?.p).toMatchObject({ name: "bash", status: "done" });
 		// The canonical bash renderer described the call as an interpreted shell input; the generic fallback would not.
-		const input = h.find(node => node.k === "shell" && node.p?.role === "zeta.tool.bash.command");
+		const input = h.find(node => node.k === "shell" && node.p?.role === "omp.tool.bash.command");
 		const rows = input?.k === "shell" ? input.p?.presentation.rows : undefined;
 		expect(rows?.map(row => row.segments.map(segment => segment.text).join(""))).toEqual(["ls -la"]);
 		expect(h.errors).toEqual([]);
@@ -593,7 +597,7 @@ describe("native transcript", () => {
 		// The result resolved to canonical `read`, so the group materializes and
 		// settles (one file renders as the group's inline read row); a wire-name
 		// check would discard the result with no read node at all.
-		const group = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.read");
+		const group = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.read");
 		expect(group?.p).toMatchObject({ status: "done", collapsible: false });
 		expect(h.errors).toEqual([]);
 	});
@@ -605,7 +609,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
 		expect(cardNode?.p).toMatchObject({ status: "done", collapsible: true, collapsed: true });
 
 		h.event({ ev: "toggle", sf: h.terminal.surface!, id: cardNode!.id, collapsed: false });
@@ -845,7 +849,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
 		expect(opsSince(h, 0)).toContainEqual(["settle", cardNode!.id]);
 
 		const before = h.frames.length;
@@ -966,24 +970,49 @@ describe("native transcript", () => {
 		const roles = h.findAll(node => typeof node.p?.role === "string").map(node => node.p!.role);
 		expect(roles).toEqual(
 			expect.arrayContaining([
-				"zeta.tool.lookup_thing",
-				"zeta.user",
-				"zeta.user.synthetic",
-				"zeta.assistant",
-				"zeta.thinking",
-				"zeta.bash",
-				"zeta.eval",
-				"zeta.compaction",
-				"zeta.custom",
-				"zeta.notice.ttsr",
-				"zeta.notice.todo",
-				"zeta.diagnostics.late",
-				"zeta.marker.cache-miss",
-				"zeta.status-block",
-				"zeta.advisor",
+				"omp.tool.lookup_thing",
+				"omp.user",
+				"omp.user.synthetic",
+				"omp.assistant",
+				"omp.thinking",
+				"omp.bash",
+				"omp.eval",
+				"omp.compaction",
+				"omp.custom",
+				"omp.notice.ttsr",
+				"omp.notice.todo",
+				"omp.diagnostics.late",
+				"omp.marker.cache-miss",
+				"omp.status-block",
+				"omp.advisor",
 			]),
 		);
 		expect(h.errors).toEqual([]);
+	});
+});
+
+describe("background job output notice", () => {
+	it("draws one icon row natively with the full output lines beneath it", async () => {
+		const long = `02 INTERP: NOT RECORDED, omp quit resuming it (its screen, with --keep: ${"x".repeat(120)})`;
+		const report = { id: "bg_5", type: "bash", pattern: "^\\d\\d ", lines: [long, "03 shell: 43 KB"] };
+		const block = buildAsyncNotifyBlock(
+			createCustomMessage(
+				"async-notify",
+				"notice",
+				true,
+				{ reports: [{ ...report, omitted: 0, running: true, stopped: false }] },
+				"2026",
+			),
+		);
+		const h = await startWith(h => h.tui.addChild(block));
+		const texts = h
+			.findAll(n => n.k === "text")
+			.flatMap(n => (n.k === "text" ? [(n.p?.spans ?? []).map(part => part.t).join("")] : []));
+
+		expect(h.findAll(n => n.k === "icon")).toHaveLength(1);
+		expect(texts).toEqual(["Background job output · bg_5 · 2 lines", long, "03 shell: 43 KB"]);
+		// The text terminal still cuts the overlong line to keep its row.
+		expect(Bun.stripANSI(block.render(200).join("\n"))).not.toContain(long);
 	});
 });
 

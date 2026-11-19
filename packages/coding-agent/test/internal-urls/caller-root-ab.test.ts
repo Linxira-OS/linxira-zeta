@@ -19,16 +19,17 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
-import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
-import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
-import { ensurePersistedRoster } from "@linxiraos/zeta/registry/persisted-agents";
-import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { GrepTool } from "@linxiraos/zeta/tools/grep";
-import { ShellFsOp } from "@linxiraos/pi-natives";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
+import { InternalUrlFilesystem } from "@oh-my-pi/pi-coding-agent/internal-urls/url-filesystem";
+import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { ensurePersistedRoster } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
+import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { GrepTool } from "@oh-my-pi/pi-coding-agent/tools/grep";
+import { ShellFsOp } from "@oh-my-pi/pi-natives";
+import { resourceText } from "../helpers/resource-text";
 
 function sessionHeader(id: string): string {
 	return JSON.stringify({
@@ -269,7 +270,7 @@ describe("internal URL tools resolve against the caller root (A/B same ids)", ()
 
 		const router = InternalUrlRouter.instance();
 		const resource = await router.resolve("agent://Worker/count", { sessionFile: rootA });
-		expect(JSON.parse(resource.content)).toBe(1);
+		expect(JSON.parse(resourceText(resource))).toBe(1);
 		expect(resource.sourcePath?.endsWith(path.join("a", "main", "Worker.md"))).toBe(true);
 	});
 });

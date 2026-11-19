@@ -160,6 +160,7 @@ export class OmfgController {
 			});
 			const { replyText } = await this.ctx.session.runEphemeralTurn({
 				promptText,
+				purpose: "omfg",
 				dedupeReply: false,
 				onTextDelta: delta => {
 					if (this.#isActiveRequest(request)) {

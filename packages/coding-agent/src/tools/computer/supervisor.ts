@@ -1,11 +1,11 @@
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
-import { postmortem, untilAborted } from "@linxiraos/pi-utils";
-import type { DesktopCapabilities } from "@linxiraos/pi-natives";
-import { closeDesktopEventTaps, desktopEscapeStops, forgetDesktopEscapeStops } from "@linxiraos/pi-natives/desktop";
-import { withTimeout } from "@linxiraos/pi-utils/async";
-import * as logger from "@linxiraos/pi-utils/logger";
-import { Snowflake } from "@linxiraos/pi-utils/snowflake";
-import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { postmortem, untilAborted } from "@oh-my-pi/pi-utils";
+import type { DesktopCapabilities } from "@oh-my-pi/pi-natives";
+import { closeDesktopEventTaps, desktopEscapeStops, forgetDesktopEscapeStops } from "@oh-my-pi/pi-natives/desktop";
+import { withTimeout } from "@oh-my-pi/pi-utils/async";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
+import { workerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
 import {
 	type ApprovalContextSource,
 	type ApprovalPolicy,
@@ -14,11 +14,11 @@ import {
 } from "../approval";
 import type { ToolSession } from "../index";
 import { ToolAbortError, toWorkerErrorPayload } from "../tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import {
 	COMPUTER_WORKER_ARG,
 	type ComputerEscapeScope,
-	type ComputerRunOk,
+	type ComputerRunResult,
 	type ComputerSessionSnapshot,
 	type ComputerWorkerInbound,
 	type ComputerWorkerOutbound,
@@ -28,8 +28,6 @@ import {
 	ESCAPE_STOPPED_MESSAGE,
 	type RunErrorPayload,
 } from "./protocol";
-
-import { computerRunPermits, emitComputerLifecycle, type ComputerRunIdentity } from "./lifecycle";
 
 const START_TIMEOUT_MS = 10_000;
 const CLOSE_TIMEOUT_MS = 1_500;
@@ -51,15 +49,14 @@ function controlPolicy(context: ApprovalContextSource): ApprovalPolicy {
 
 /** Runs desktop scripts and owns their persistent worker session. */
 export interface ComputerController {
-	readonly running?: number;
 	run(
 		code: string,
 		timeoutMs: number,
 		snapshot: ComputerSessionSnapshot,
 		signal?: AbortSignal,
 		context?: AgentToolContext,
-	): Promise<ComputerRunOk>;
-	revokeControl?(strict?: boolean): Promise<void>;
+	): Promise<ComputerRunResult>;
+	revokeControl?(): Promise<void>;
 	/** The owner's agent turn `turn` ended: let the display sleep now, keeping control, refs and the worker. */
 	releaseDisplay?(turn: number): void;
 	/**
@@ -117,7 +114,7 @@ const NATIVE_ESCAPE_STOPS: ComputerEscapeStops = { read: desktopEscapeStops, for
 export type ComputerWorkerFactory = () => ComputerWorkerHandle;
 
 interface PendingRun {
-	resolve(value: ComputerRunOk): void;
+	resolve(value: ComputerRunResult): void;
 	reject(error: unknown): void;
 	signal?: AbortSignal;
 	toolCalls: Map<string, AbortController>;
@@ -191,9 +188,6 @@ function errorFromPayload(payload: RunErrorPayload): Error {
 
 /** Supervises one lazy, crash-isolated computer worker per agent session. */
 export class ComputerSupervisor implements ComputerController {
-	get running(): number {
-		return this.#pending.size;
-	}
 	readonly #session: ToolSession;
 	readonly #createWorker: ComputerWorkerFactory;
 	readonly #callSessionTool: ComputerSessionToolCaller;
@@ -204,8 +198,7 @@ export class ComputerSupervisor implements ComputerController {
 	#startResolve?: () => void;
 	#pendingCapabilities = new Map<string, PendingCapabilities>();
 	#pending = new Map<string, PendingRun>();
-	#revocations = new Map<string, PromiseWithResolvers<void>>();
-	readonly #requests = new Set<Promise<void>>();
+	#revocations = new Map<string, () => void>();
 	/**
 	 * Snapshots of runs waiting for the worker to start: a resume the worker gets before their `run` would find
 	 * nothing to hold, so it moves them to the turn that went on here.
@@ -213,7 +206,6 @@ export class ComputerSupervisor implements ComputerController {
 	readonly #startingRuns = new Set<ComputerSessionSnapshot>();
 	#nextId = 0;
 	#controlEpoch = 0;
-	#lastIdentity?: ComputerRunIdentity;
 	readonly #escapeStops: ComputerEscapeStops;
 	/** Key the worker's native sessions count the user's Escape stops under. */
 	readonly #escapeKey = `computer-${Snowflake.next()}`;
@@ -288,18 +280,10 @@ export class ComputerSupervisor implements ComputerController {
 		snapshot: ComputerSessionSnapshot,
 		signal?: AbortSignal,
 		context?: AgentToolContext,
-	): Promise<ComputerRunOk> {
+	): Promise<ComputerRunResult> {
 		if (this.#closed) throw new ToolError("Computer session is closed");
 		if (this.#escapeStopped()) throw new ToolError(ESCAPE_REFUSED_MESSAGE);
 		if (signal?.aborted) throw new ToolAbortError();
-		const instanceKey = this.#session.getSessionInstanceKey?.();
-		const permits = await computerRunPermits(
-			snapshot.sessionId,
-			this.#session.getEvalKernelOwnerId?.() ?? undefined,
-			instanceKey,
-		);
-		if (permits.length)
-			signal = AbortSignal.any([...permits.map(permit => permit.signal), ...(signal ? [signal] : [])]);
 		const epoch = this.#controlEpoch;
 		const session = { ...snapshot };
 		this.#startingRuns.add(session);
@@ -309,23 +293,11 @@ export class ComputerSupervisor implements ComputerController {
 			this.#startingRuns.delete(session);
 		}
 		if (signal?.aborted || epoch !== this.#controlEpoch) throw new ToolAbortError();
-		if (
-			(this.#session.getComputerSessionId?.() ??
-				this.#session.getSessionId?.() ??
-				this.#session.getEvalSessionId?.() ??
-				"computer") !== snapshot.sessionId ||
-			this.#session.getSessionInstanceKey?.() !== instanceKey
-		)
-			throw new ToolAbortError();
 
 		const id = `computer-${++this.#nextId}`;
-		const { promise, resolve, reject } = Promise.withResolvers<ComputerRunOk>();
+		const { promise, resolve, reject } = Promise.withResolvers<ComputerRunResult>();
 		const pending: PendingRun = { resolve, reject, signal, context, toolCalls: new Map() };
 		this.#pending.set(id, pending);
-		const identity: ComputerRunIdentity | undefined = session.activity;
-		if (identity) this.#lastIdentity = identity;
-		let phase: "completed" | "failed" | "cancelled" = "failed";
-		if (identity) emitComputerLifecycle({ kind: "run", identity, phase: "running", at: Date.now() });
 		const abort = (): void => {
 			this.#safeSend({ type: "abort", id });
 			for (const controller of pending.toolCalls.values()) controller.abort(signal?.reason);
@@ -335,7 +307,7 @@ export class ComputerSupervisor implements ComputerController {
 
 		try {
 			this.#worker?.send({ type: "run", id, code, timeoutMs, session, escape: this.#escapeScope() });
-			let result: ComputerRunOk;
+			let result: ComputerRunResult;
 			try {
 				result = await this.#raceWithGrace(promise, timeoutMs);
 			} catch (error) {
@@ -348,22 +320,31 @@ export class ComputerSupervisor implements ComputerController {
 				const own = error instanceof Error && !(error instanceof ToolAbortError) ? error.message : undefined;
 				throw new ToolError(own ? `${own}\n\n${ESCAPE_STOPPED_MESSAGE}` : ESCAPE_STOPPED_MESSAGE);
 			}
-			phase = "completed";
 			// The stop landed after the script finished, its input out: keep what it did, led by the user's stop.
 			if (this.#escapeStopped()) {
+				if (result.error) {
+					const reported =
+						result.error.message.includes(ESCAPE_STOPPED_MESSAGE) ||
+						result.error.message.includes(ESCAPE_AFTER_CALL_MESSAGE);
+					if (!reported && result.error.isAbort) {
+						return {
+							...result,
+							error: { name: "ToolError", message: ESCAPE_STOPPED_MESSAGE, isToolError: true, isAbort: false },
+						};
+					}
+					return reported
+						? result
+						: {
+								...result,
+								error: { ...result.error, message: `${result.error.message}\n\n${ESCAPE_STOPPED_MESSAGE}` },
+							};
+				}
 				return { ...result, displays: [{ type: "text", text: ESCAPE_AFTER_CALL_MESSAGE }, ...result.displays] };
 			}
 			return result;
 		} finally {
 			signal?.removeEventListener("abort", abort);
 			this.#pending.delete(id);
-			if (identity)
-				emitComputerLifecycle({
-					kind: "run",
-					identity,
-					phase: signal?.aborted || epoch !== this.#controlEpoch ? "cancelled" : phase,
-					at: Date.now(),
-				});
 		}
 	}
 
@@ -402,14 +383,8 @@ export class ComputerSupervisor implements ComputerController {
 			this.#startReject = undefined;
 			return;
 		}
-		if (message.type === "activity") {
-			emitComputerLifecycle(message.event);
-			return;
-		}
 		if (message.type === "control-revoked") {
-			const pending = this.#revocations.get(message.id);
-			if (message.error) pending?.reject(errorFromPayload(message.error));
-			else pending?.resolve();
+			this.#revocations.get(message.id)?.();
 			this.#revocations.delete(message.id);
 			return;
 		}
@@ -420,7 +395,9 @@ export class ComputerSupervisor implements ComputerController {
 				controller.abort(new ToolAbortError("Computer run ended"));
 			this.#pending.delete(message.id);
 			if (message.ok) pending.resolve(message.payload);
-			else pending.reject(errorFromPayload(message.error));
+			else if (message.output && (message.output.displays.length > 0 || message.output.screenshots.length > 0)) {
+				pending.resolve({ ...message.output, error: message.error });
+			} else pending.reject(errorFromPayload(message.error));
 			return;
 		}
 		if (message.type === "capabilities") {
@@ -432,11 +409,11 @@ export class ComputerSupervisor implements ComputerController {
 			return;
 		}
 		if (message.type === "control-request") {
-			this.#trackRequest(this.#confirmControl(message));
+			void this.#confirmControl(message);
 			return;
 		}
 		if (message.type === "tool-call") {
-			this.#trackRequest(this.#dispatchToolCall(message));
+			void this.#dispatchToolCall(message);
 		}
 	}
 
@@ -497,12 +474,7 @@ export class ComputerSupervisor implements ComputerController {
 		}
 	}
 
-	#trackRequest(request: Promise<void>): void {
-		this.#requests.add(request);
-		void request.finally(() => this.#requests.delete(request));
-	}
-
-	async revokeControl(strict = false): Promise<void> {
+	async revokeControl(): Promise<void> {
 		this.#controlEpoch += 1;
 		for (const pending of this.#pending.values()) {
 			for (const controller of pending.toolCalls.values()) controller.abort(new ToolAbortError());
@@ -510,24 +482,12 @@ export class ComputerSupervisor implements ComputerController {
 		if (!this.#worker) return;
 		const id = `computer-revoke-${++this.#nextId}`;
 		const acknowledged = Promise.withResolvers<void>();
-		this.#revocations.set(id, acknowledged);
+		this.#revocations.set(id, acknowledged.resolve);
 		this.#safeSend({ type: "revoke-control", id });
 		try {
-			await withTimeout(
-				Promise.all([acknowledged.promise, ...this.#requests]),
-				CLOSE_TIMEOUT_MS,
-				"Timed out revoking computer control",
-			);
-			if (this.#lastIdentity)
-				emitComputerLifecycle({
-					kind: "control",
-					identity: this.#lastIdentity,
-					foreground: "none",
-					at: Date.now(),
-				});
+			await withTimeout(acknowledged.promise, CLOSE_TIMEOUT_MS, "Timed out revoking computer control");
 		} catch (error) {
 			await this.#terminate(error);
-			if (strict) throw error;
 		} finally {
 			this.#revocations.delete(id);
 		}
@@ -599,7 +559,7 @@ export class ComputerSupervisor implements ComputerController {
 		}
 	}
 
-	async #raceWithGrace(promise: Promise<ComputerRunOk>, timeoutMs: number): Promise<ComputerRunOk> {
+	async #raceWithGrace(promise: Promise<ComputerRunResult>, timeoutMs: number): Promise<ComputerRunResult> {
 		const timeoutSignal = AbortSignal.timeout(timeoutMs + GRACE_MS);
 		const timeout = Promise.withResolvers<never>();
 		const onTimeout = (): void => timeout.reject(new ToolError(RESTART_MESSAGE));
@@ -637,9 +597,9 @@ export class ComputerSupervisor implements ComputerController {
 		this.#pending.clear();
 		for (const pending of this.#pendingCapabilities.values()) pending.reject(reason);
 		this.#pendingCapabilities.clear();
-		for (const pending of this.#revocations.values()) pending.reject(reason);
+		for (const resolve of this.#revocations.values()) resolve();
 		this.#revocations.clear();
-		await worker?.terminate();
+		await worker?.terminate().catch(() => undefined);
 	}
 
 	async reset(): Promise<void> {
@@ -684,17 +644,6 @@ export class ComputerSupervisor implements ComputerController {
 const ownedSupervisors = new Map<string, Set<ComputerController>>();
 /** Per owner with agent turns: the turn in flight, or between turns the one that ended last, counted from 1. */
 const ownerTurns = new Map<string, { turn: number; inFlight: boolean }>();
-/** Native activity count for a specific session owner; never starts a worker. */
-export function computerActivityForOwner(ownerId: string | undefined): number {
-	return ownerId
-		? [...(ownedSupervisors.get(ownerId) ?? [])].reduce((total, controller) => total + (controller.running ?? 0), 0)
-		: 0;
-}
-
-/** The prelude was installed, even when disabled; this never starts a worker. */
-export function computerPreludeAvailableForOwner(ownerId: string | undefined): boolean {
-	return !!ownerId && (ownedSupervisors.get(ownerId)?.size ?? 0) > 0;
-}
 
 /** Registers a controller for owner-scoped session cleanup. */
 export function registerComputerController(ownerId: string | undefined, controller: ComputerController): () => void {
@@ -709,13 +658,11 @@ export function registerComputerController(ownerId: string | undefined, controll
 }
 
 /** Revoke task-scoped foreground ownership without resetting frames or the worker. */
-export async function revokeComputerControlForOwner(ownerId: string | undefined, strict = false): Promise<void> {
+export async function revokeComputerControlForOwner(ownerId: string | undefined): Promise<void> {
 	if (!ownerId) return;
-	const revocations = Array.from(ownedSupervisors.get(ownerId) ?? [], controller =>
-		controller.revokeControl?.(strict),
+	await Promise.allSettled(
+		Array.from(ownedSupervisors.get(ownerId) ?? [], controller => controller.revokeControl?.()),
 	);
-	if (strict) await Promise.all(revocations);
-	else await Promise.allSettled(revocations);
 }
 
 /**

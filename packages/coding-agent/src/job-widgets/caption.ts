@@ -4,10 +4,8 @@
  * model writes it once per job, from the command and the intent it was
  * started with; it never sees the job's output.
  */
-import type { UserMessage } from "@linxiraos/pi-ai";
-import { markPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
-import { shortenEmbeddedPaths } from "@linxiraos/pi-tui/render/render-utils";
-import { prompt, sanitizeText, truncate } from "@linxiraos/pi-utils";
+import { shortenEmbeddedPaths } from "@oh-my-pi/pi-tui/render/render-utils";
+import { prompt, sanitizeText, truncate } from "@oh-my-pi/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import systemPrompt from "../prompts/system/job-caption-system.md" with { type: "text" };
 import userPrompt from "../prompts/system/job-caption-user.md" with { type: "text" };
@@ -67,26 +65,15 @@ export function createModelJobCaptionWriter(options: ModelJobWidgetAuthorOptions
 	return async ({ command, intent, timeoutSec }, signal) => {
 		const obfuscate = options.obfuscate?.();
 		const redact = (text: string): string => redactWidgetSample(text, obfuscate);
-		const message: UserMessage = {
-			role: "user",
-			content: [
-				{
-					type: "text",
-					text: prompt.render(userPrompt, {
-						intent: intent ? truncate(redact(intent), MAX_INTENT_CHARS) : undefined,
-						command: truncate(redact(command.trim()), MAX_COMMAND_CHARS),
-						timeoutSec,
-					}),
-				},
-			],
-			timestamp: Date.now(),
-		};
-		// The system prompt is the reusable prefix; the command never repeats.
-		markPerCallContextMessage(message);
 		const response = await completeWidgetRequest(
 			options,
 			{
-				context: { systemPrompt: [systemPrompt], messages: [message] },
+				systemPrompt,
+				prompt: prompt.render(userPrompt, {
+					intent: intent ? truncate(redact(intent), MAX_INTENT_CHARS) : undefined,
+					command: truncate(redact(command.trim()), MAX_COMMAND_CHARS),
+					timeoutSec,
+				}),
 				maxTokens: MAX_CAPTION_TOKENS,
 				oneshotKind: "job_caption",
 			},

@@ -6,41 +6,41 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { ImageContent } from "@linxiraos/pi-ai";
-import { createMockModel, type MockModel } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { AsyncJobManager } from "@linxiraos/zeta/async";
-import type { AsyncJob } from "@linxiraos/zeta/async/job-manager";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import type { ExtensionAPI } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { DaemonCompletionNotification } from "@linxiraos/zeta/launch/protocol";
-import { AcpAgent } from "@linxiraos/zeta/modes/acp/acp-agent";
-import { buildAsyncResultBlock } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
+import type { AsyncJob } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { DaemonCompletionEvent } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { AcpAgent } from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
+import { buildAsyncResultBlock } from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { ArtifactManager } from "@oh-my-pi/pi-coding-agent/session/artifacts";
 import {
 	buildAsyncResultBatchMessage,
 	type AsyncResultDetails,
 	type AsyncResultEntry,
-} from "@linxiraos/zeta/session/async-job-delivery";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm, type CustomMessage } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { formatTaskResultSummary, INLINE_OUTPUT_CHARS } from "@linxiraos/zeta/task/result-summary";
+} from "@oh-my-pi/pi-coding-agent/session/async-job-delivery";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm, type CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { formatTaskResultSummary, INLINE_OUTPUT_CHARS } from "@oh-my-pi/pi-coding-agent/task/result-summary";
 
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { BashTool } from "@linxiraos/zeta/tools/bash";
-import { type OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
-import type { AgentSideConnection, SessionNotification } from "@linxiraos/pi-utils/acp";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
+import { type OutputMeta } from "@oh-my-pi/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@oh-my-pi/pi-tui/tools/output-meta";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentSideConnection, SessionNotification } from "@oh-my-pi/pi-utils/acp";
 /**
  * Wait out the session's owned jobs, their deliveries, and the run their results start.
  * These jobs are registered outside any run, so no open run waits for them on its own.
@@ -411,7 +411,7 @@ describe("AgentSession owner-routed async delivery", () => {
 				)
 				.find(text => text.includes("preview-only"));
 			expect(delivered?.match(/not saved completely/g)).toHaveLength(1);
-			expect(delivered).not.toContain("Full output: artifact://");
+			expect(delivered).not.toContain("Full output: local://");
 			expect(allocate).not.toHaveBeenCalled();
 			const custom = agent.state.messages.find(
 				message => message.role === "custom" && message.customType === "async-result",
@@ -447,7 +447,9 @@ describe("AgentSession owner-routed async delivery", () => {
 		const manager = new AsyncJobManager({});
 		AsyncJobManager.setInstance(manager);
 		const store = SessionManager.inMemory(temp.path());
-		store.adoptArtifactManager(new ArtifactManager(path.join(temp.path(), "artifacts")));
+		store.adoptArtifactManager(
+			new ArtifactManager(path.join(temp.path(), "artifacts", "local"), path.join(temp.path(), "artifacts")),
+		);
 		const settings = Settings.isolated();
 		session = new AgentSession({
 			agent,
@@ -490,7 +492,7 @@ describe("AgentSession owner-routed async delivery", () => {
 			expect(manager.isJobResultConsumed(failedId)).toBe(true);
 			expect(manager.isJobResultConsumed(completeId)).toBe(true);
 			expect(manager.getJob(failedId)?.status).toBe("completed");
-			const artifactUrl = text.match(/artifact:\/\/\d+/)?.[0];
+			const artifactUrl = text.match(/local:\/\/\d+\.log/)?.[0];
 			if (!artifactUrl) throw new Error("Expected complete job recovery artifact");
 			const readSession: ToolSession = {
 				cwd: temp.path(),
@@ -531,7 +533,9 @@ describe("AgentSession owner-routed async delivery", () => {
 		const manager = new AsyncJobManager({});
 		AsyncJobManager.setInstance(manager);
 		const store = SessionManager.inMemory(temp.path());
-		store.adoptArtifactManager(new ArtifactManager(path.join(temp.path(), "artifacts")));
+		store.adoptArtifactManager(
+			new ArtifactManager(path.join(temp.path(), "artifacts", "local"), path.join(temp.path(), "artifacts")),
+		);
 		const settings = Settings.isolated({
 			"async.enabled": true,
 			"bashInterceptor.enabled": false,
@@ -551,7 +555,7 @@ describe("AgentSession owner-routed async delivery", () => {
 			getSessionFile: () => null,
 			getSessionSpawns: () => null,
 			getAgentId: () => "RawCaptureOwner",
-			allocateOutputArtifact: toolType => store.allocateArtifactPath(toolType),
+			allocateOutputArtifact: () => store.allocateArtifactPath(),
 			asyncJobManager: manager,
 			settings,
 		};
@@ -578,7 +582,7 @@ describe("AgentSession owner-routed async delivery", () => {
 						: message.content.map(block => (block.type === "text" ? block.text : "")).join("\n"),
 				)
 				.join("\n");
-			expect(followUp).toContain(`Full output: artifact://${rawArtifactId}`);
+			expect(followUp).toContain(`Full output: local://${rawArtifactId}.log`);
 			// The raw capture holds only the stream; the exit notice the tool appended
 			// after it must survive in the preview's tail.
 			expect(followUp).toContain("Command exited with code 3");
@@ -1027,13 +1031,18 @@ describe("AgentSession owner-routed async delivery", () => {
 			modelRegistry: new ModelRegistry(authStorage),
 		});
 		const completion = {
-			event: "daemon-completed",
+			ev: "completed",
 			completionId: "advisor-completion",
 			owner,
-			daemon: {
-				name: "advisor-worker",
-				id: "daemon-id",
+			unit: {
+				id: "unit-id",
+				kind: "proc",
+				scope: { kind: "session", id: sessionManager.getSessionId() },
+				key: "advisor-worker",
+				label: "advisor-worker",
+				generation: "generation-1",
 				state: "exited",
+				pids: [],
 				createdAt: 1,
 				startedAt: 1,
 				exitedAt: 2,
@@ -1041,10 +1050,11 @@ describe("AgentSession owner-routed async delivery", () => {
 				restartCount: 0,
 				outputBytes: 0,
 				owner,
-				persist: false,
-				detached: false,
+				leases: 0,
+				policy: { hold: "leases", idleMs: 0, onIdle: "stop", restart: "no", survive: "exec" },
+				supervised: true,
 			},
-		} satisfies DaemonCompletionNotification;
+		} satisfies DaemonCompletionEvent;
 
 		await session.queueLaunchCompletion(completion);
 		await session.waitForIdle();
@@ -1233,8 +1243,6 @@ describe("AgentSession owner-routed async delivery", () => {
 		manager: AsyncJobManager;
 		mock: MockModel;
 		targetSessionFile: string;
-		sourceSessionFile: string;
-		sourceSessionId: string;
 	}> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 		const mock = createMockModel({ handler: () => ({ content: ["Done"] }) });
@@ -1252,9 +1260,7 @@ describe("AgentSession owner-routed async delivery", () => {
 
 		const sessionManager = SessionManager.create(tempDir.path(), tempDir.path());
 		sessionManager.appendMessage({ role: "user", content: "outgoing session", timestamp: 1 });
-		await sessionManager.ensureOnDisk();
-		const sourceSessionFile = sessionManager.getSessionFile()!;
-		const sourceSessionId = sessionManager.getSessionId();
+		await sessionManager.flush();
 		const target = SessionManager.create(tempDir.path(), tempDir.path());
 		target.appendMessage({ role: "user", content: "resumed session", timestamp: 2 });
 		await target.flush();
@@ -1284,17 +1290,18 @@ describe("AgentSession owner-routed async delivery", () => {
 			ownedAsyncJobManager: manager,
 			extensionRunner,
 		});
-		return { manager, mock, targetSessionFile, sourceSessionFile, sourceSessionId };
+		return { manager, mock, targetSessionFile };
 	}
 
-	it("keeps the outgoing session's background job running and persists its result into that transcript", async () => {
+	it("cancels the outgoing session's background jobs when resuming another session", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-async-jobs-");
-		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
+		const { manager, mock, targetSessionFile } = await startResumableSession(tempDir);
 		const gate = Promise.withResolvers<void>();
 		manager.register(
 			"bash",
 			"outgoing session job",
-			async () => {
+			async ({ signal }) => {
+				signal.addEventListener("abort", () => gate.resolve(), { once: true });
 				await gate.promise;
 				return "PRIOR SESSION RESULT";
 			},
@@ -1303,27 +1310,18 @@ describe("AgentSession owner-routed async delivery", () => {
 		expect(session.wakeSources).toBeDefined();
 
 		expect(await session.switchSession(targetSessionFile)).toBe(true);
-		expect(manager.getJob("outgoing-job")?.status).toBe("running");
 		gate.resolve();
 		await manager.waitForAll();
 		await manager.drainDeliveries({ timeoutMs: 1_000, filter: { ownerId: "Main" } });
 		await settleOwnedJobs(session, manager);
 
-		expect(manager.getJob("outgoing-job")?.status).toBe("completed");
+		expect(manager.getJob("outgoing-job")?.status).toBe("cancelled");
 		expect(session.wakeSources).toBeUndefined();
-		// The completion never entered the resumed conversation and never started
-		// a turn there.
 		expect(mock.calls).toHaveLength(0);
-		expect(
-			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT")),
-		).toBe(false);
-		// It was persisted into the transcript that owned the job.
-		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
-		try {
-			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"))).toBe(true);
-		} finally {
-			await source.close();
-		}
+		const leaked = session.sessionManager
+			.getEntries()
+			.some(entry => JSON.stringify(entry).includes("PRIOR SESSION RESULT"));
+		expect(leaked).toBe(false);
 	});
 
 	it("keeps background jobs running across a same-session reload", async () => {
@@ -1346,9 +1344,9 @@ describe("AgentSession owner-routed async delivery", () => {
 		await manager.waitForAll();
 	});
 
-	it("persists an outgoing job that finishes while the resumed session loads without starting a turn there", async () => {
+	it("does not start a turn for an outgoing job that finishes while the resumed session loads", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-mid-switch-");
-		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
+		const { manager, mock, targetSessionFile } = await startResumableSession(tempDir);
 		const gate = Promise.withResolvers<void>();
 		manager.register(
 			"bash",
@@ -1370,26 +1368,20 @@ describe("AgentSession owner-routed async delivery", () => {
 		try {
 			expect(await session.switchSession(targetSessionFile)).toBe(true);
 			await session.waitForIdle();
-			await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
 		} finally {
 			spy.mockRestore();
 		}
 
 		expect(mock.calls).toHaveLength(0);
-		expect(
-			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT")),
-		).toBe(false);
-		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
-		try {
-			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT"))).toBe(true);
-		} finally {
-			await source.close();
-		}
+		const leaked = session.sessionManager
+			.getEntries()
+			.some(entry => JSON.stringify(entry).includes("MID-SWITCH RESULT"));
+		expect(leaked).toBe(false);
 	});
 
-	it("keeps background jobs and still delivers their result when the resumed session's cwd is rejected", async () => {
+	it("keeps background jobs when the resumed session's cwd is rejected", async () => {
 		using tempDir = TempDir.createSync("@pi-resume-cwd-reject-");
-		const { manager, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
+		const { manager, targetSessionFile } = await startResumableSession(tempDir);
 		const target = await SessionManager.open(targetSessionFile);
 		target.setCwdWithoutRelocation(tempDir.join("other-project"));
 		await target.flush();
@@ -1400,7 +1392,7 @@ describe("AgentSession owner-routed async delivery", () => {
 			"outgoing session job",
 			async () => {
 				await gate.promise;
-				return "CWD ROLLBACK RESULT";
+				return "done";
 			},
 			{ id: "cwd-reject-job", ownerId: "Main" },
 		);
@@ -1411,132 +1403,6 @@ describe("AgentSession owner-routed async delivery", () => {
 		expect(manager.getJob("cwd-reject-job")?.status).toBe("running");
 		gate.resolve();
 		await manager.waitForAll();
-		await session.waitForRunEnd();
-
-		expect(manager.getJob("cwd-reject-job")?.status).toBe("completed");
-		// The rolled-back switch restored the source as the live destination, so
-		// the result is still delivered into the transcript the user is back on.
-		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
-		try {
-			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("CWD ROLLBACK RESULT"))).toBe(true);
-		} finally {
-			await source.close();
-		}
-	});
-
-	it("shows the source completion when returning to that session after the job settled there", async () => {
-		using tempDir = TempDir.createSync("@pi-resume-return-source-");
-		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
-		const gate = Promise.withResolvers<void>();
-		manager.register(
-			"bash",
-			"return-to-source job",
-			async () => {
-				await gate.promise;
-				return "RETURNED SOURCE RESULT";
-			},
-			{ id: "return-source-job", ownerId: "Main" },
-		);
-
-		expect(await session.switchSession(targetSessionFile)).toBe(true);
-		const callsWhileAway = mock.calls.length;
-		gate.resolve();
-		await manager.waitForAll();
-		await manager.drainDeliveries({ timeoutMs: 1_000, filter: { ownerId: "Main" } });
-
-		expect(await session.switchSession(sourceSessionFile)).toBe(true);
-		expect(mock.calls).toHaveLength(callsWhileAway);
-		// Returning loads the persisted follow-up into the live transcript.
-		expect(
-			session.agent.state.messages.some(
-				message => message.role === "custom" && JSON.stringify(message.content).includes("RETURNED SOURCE RESULT"),
-			),
-		).toBe(true);
-	});
-
-	it("persists a job registered while the source is inactive when it states its origin", async () => {
-		using tempDir = TempDir.createSync("@pi-resume-explicit-origin-");
-		const { manager, mock, targetSessionFile, sourceSessionFile, sourceSessionId } =
-			await startResumableSession(tempDir);
-
-		expect(await session.switchSession(targetSessionFile)).toBe(true);
-		const gate = Promise.withResolvers<void>();
-		// This is the shape of a Vibe queued follow-up turn: the job starts after
-		// the parent navigated away and carries the pinned transcript's origin.
-		manager.register(
-			"task",
-			"follow-up from source",
-			async () => {
-				await gate.promise;
-				return "EXPLICIT ORIGIN RESULT";
-			},
-			{
-				id: "explicit-origin-job",
-				ownerId: "Main",
-				origin: { sessionId: sourceSessionId, sessionFile: sourceSessionFile },
-			},
-		);
-		const callsWhileAway = mock.calls.length;
-		gate.resolve();
-		await manager.waitForAll();
-		await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
-
-		expect(mock.calls).toHaveLength(callsWhileAway);
-		expect(
-			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("EXPLICIT ORIGIN RESULT")),
-		).toBe(false);
-		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
-		try {
-			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("EXPLICIT ORIGIN RESULT"))).toBe(true);
-		} finally {
-			await source.close();
-		}
-	});
-
-	it("re-delivers a receipt queued before the switch into the source transcript", async () => {
-		using tempDir = TempDir.createSync("@pi-resume-queued-receipt-");
-		const { manager, mock, targetSessionFile, sourceSessionFile } = await startResumableSession(tempDir);
-		const receiptQueued = Promise.withResolvers<void>();
-		const releaseReceipt = Promise.withResolvers<void>();
-		const enqueue = session.yieldQueue.enqueueWithReceipt.bind(session.yieldQueue);
-		const enqueueSpy = vi.spyOn(session.yieldQueue, "enqueueWithReceipt").mockImplementation(async (kind, entry) => {
-			if (kind === "async-result") {
-				receiptQueued.resolve();
-				await releaseReceipt.promise;
-			}
-			return enqueue(kind, entry);
-		});
-		const gate = Promise.withResolvers<void>();
-		manager.register(
-			"bash",
-			"receipt job",
-			async () => {
-				await gate.promise;
-				return "QUEUED RECEIPT RESULT";
-			},
-			{ id: "queued-receipt-job", ownerId: "Main" },
-		);
-		gate.resolve();
-		await manager.waitForOwnerJobs("Main");
-		await receiptQueued.promise;
-		try {
-			expect(await session.switchSession(targetSessionFile)).toBe(true);
-			releaseReceipt.resolve();
-			await manager.drainDeliveries({ timeoutMs: 2_000, filter: { ownerId: "Main" } });
-		} finally {
-			enqueueSpy.mockRestore();
-		}
-
-		expect(mock.calls).toHaveLength(0);
-		expect(
-			session.sessionManager.getEntries().some(entry => JSON.stringify(entry).includes("QUEUED RECEIPT RESULT")),
-		).toBe(false);
-		const source = await SessionManager.open(sourceSessionFile, undefined, undefined, { throwIfMissing: true });
-		try {
-			expect(source.getEntries().some(entry => JSON.stringify(entry).includes("QUEUED RECEIPT RESULT"))).toBe(true);
-		} finally {
-			await source.close();
-		}
 	});
 
 	it("keeps a job that a session_switch hook starts for the resumed session", async () => {

@@ -1,21 +1,21 @@
-import type { AstEditToolDetails } from "@linxiraos/pi-tui/tools/ast-edit";
-import { type } from "@linxiraos/zeta-schema";
+import type { AstEditToolDetails } from "@oh-my-pi/pi-tui/tools/ast-edit";
+import { type } from "@oh-my-pi/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@linxiraos/pi-agent-core";
-import type { ToolExample } from "@linxiraos/pi-ai";
-import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@linxiraos/pi-natives";
+} from "@oh-my-pi/pi-agent-core";
+import type { ToolExample } from "@oh-my-pi/pi-ai";
+import { type AstReplaceChange, type AstReplaceFileChange, astEdit, type ShellFilesystem } from "@oh-my-pi/pi-natives";
 
-import { $envpos, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
+import { $envpos, isRecord, prompt, untilAborted } from "@oh-my-pi/pi-utils";
 import { getEditStore } from "../edit/store";
 import { normalizeToLF } from "../edit/normalize";
 import { InternalUrlRouter, sessionResolveContext } from "../internal-urls";
 import { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
-import { formatHashlineHeader } from "@linxiraos/pi-tui/tools/hashline-format";
+import { formatHashlineHeader } from "@oh-my-pi/pi-tui/tools/hashline-format";
 
 import astEditDescription from "../prompts/tools/ast-edit.md" with { type: "text" };
 
@@ -25,8 +25,8 @@ import type { ToolSession } from ".";
 import { resolveToolTier, strictestApproval, truncateForPrompt } from "./approval";
 import { parseReadUrlTarget } from "./fetch";
 import { type FileSnapshot, readSnapshot } from "../commit/selective/journal";
-import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { formatGroupedFiles } from "@linxiraos/pi-tui/tools/grouped-file-output";
+import { createFileRecorder, formatResultPath, resultSnapshotPath, targetResultBase } from "./file-recorder";
+import { formatGroupedFiles } from "@oh-my-pi/pi-tui/tools/grouped-file-output";
 
 import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope } from "./path-utils";
 import {
@@ -34,9 +34,9 @@ import {
 	formatCodeFrameLine,
 	formatCount,
 	formatParseErrors,
-} from "@linxiraos/pi-tui/render/render-utils";
+} from "@oh-my-pi/pi-tui/render/render-utils";
 import { PREVIEW_PENDING_NOTICE, queueResolveHandler } from "./resolve";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 const astEditOpSchema = type({
@@ -87,6 +87,22 @@ async function runAstEditTargets(
 	let filesSearched = 0;
 	let limitReached = false;
 	let applied = !options.dryRun;
+	// Stage every target before writing any: a target whose rewrite fails
+	// (an ambiguous overlap) must not leave the targets before it written.
+	if (!options.dryRun && targets.length > 1) {
+		for (const target of targets) {
+			await astEdit({
+				rewrites: options.rewrites,
+				path: target.basePath,
+				glob: target.glob,
+				dryRun: true,
+				maxFiles: options.maxFiles,
+				failOnParseError: options.failOnParseError,
+				signal: options.signal,
+				filesystem: options.filesystem,
+			});
+		}
+	}
 	for (const target of targets) {
 		const targetResult = await astEdit({
 			rewrites: options.rewrites,
@@ -104,12 +120,13 @@ async function runAstEditTargets(
 		applied = applied && targetResult.applied;
 		if (targetResult.parseErrors) parseErrors.push(...targetResult.parseErrors);
 		for (const language of targetResult.missingGrammars ?? []) missingGrammars.add(language);
+		const resultBase = await targetResultBase(target.basePath);
 		for (const change of targetResult.changes) {
-			const absolute = resolveSearchResultPath(target.basePath, change.path);
+			const absolute = resolveSearchResultPath(resultBase, change.path);
 			aggregatedChanges.push({ ...change, path: relativeSearchResultPath(commonBasePath, absolute) });
 		}
 		for (const fileChange of targetResult.fileChanges) {
-			const absolute = resolveSearchResultPath(target.basePath, fileChange.path);
+			const absolute = resolveSearchResultPath(resultBase, fileChange.path);
 			const rebased = relativeSearchResultPath(commonBasePath, absolute);
 			fileCounts.set(rebased, (fileCounts.get(rebased) ?? 0) + fileChange.count);
 		}

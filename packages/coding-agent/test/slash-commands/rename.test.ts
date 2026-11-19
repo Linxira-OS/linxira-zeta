@@ -1,20 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
-import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
-import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
-import { DEFAULT_TINY_TITLE_LOCAL_MODEL_KEY } from "@linxiraos/zeta/tiny/models";
-import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
-import { cfgTitleIcons } from "@linxiraos/zeta/utils/title-settings";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { executeAcpBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/acp-builtins";
+import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+import type { SlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
+import { DEFAULT_TINY_TITLE_LOCAL_MODEL_KEY } from "@oh-my-pi/pi-coding-agent/tiny/models";
+import { tinyTitleClient } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
+import { cfgTitleIcons } from "@oh-my-pi/pi-coding-agent/utils/title-settings";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { createInteractiveModeContext } from "../helpers/interactive-mode-context";
 
@@ -90,6 +91,22 @@ function deferTitle() {
 		return response.promise;
 	});
 	return { started, response, generate };
+}
+
+/**
+ * A discarded title still ran on the local title model, so the request is journaled as its
+ * session's `model_usage`; nothing else is written, so the stale title never renames the session.
+ */
+function expectOnlyTitleUsageJournaled(sessionManager: SessionManager, before: SessionEntry[], reply: string) {
+	const after = sessionManager.getEntries();
+	expect(after.slice(0, before.length)).toEqual(before);
+	expect(after.slice(before.length)).toEqual([
+		expect.objectContaining({
+			type: "model_usage",
+			purpose: "title",
+			completion: expect.objectContaining({ reply }),
+		}),
+	]);
 }
 
 afterEach(async () => {
@@ -344,7 +361,7 @@ for (const mode of ["TUI", "headless"] as const) {
 				response.resolve("Stale title from before switching");
 				await pending;
 				expect(session.sessionName).toBeUndefined();
-				expect(sessionManager.getEntries()).toEqual(entries);
+				expectOnlyTitleUsageJournaled(sessionManager, entries, "Stale title from before switching");
 				expect(output).not.toHaveBeenCalled();
 			} finally {
 				response.resolve(null);
@@ -367,7 +384,7 @@ for (const mode of ["TUI", "headless"] as const) {
 				await pending;
 
 				expect(session.sessionName).toBe("My chosen title");
-				expect(sessionManager.getEntries()).toEqual(entries);
+				expectOnlyTitleUsageJournaled(sessionManager, entries, "Stale generated title");
 			} finally {
 				response.resolve(null);
 				await pending;
@@ -421,7 +438,7 @@ it("releases the RPC command while title inference runs in the background and pr
 		await backgroundTask;
 
 		expect(session.sessionName).toBe("My newer RPC title");
-		expect(sessionManager.getEntries()).toEqual(entries);
+		expectOnlyTitleUsageJournaled(sessionManager, entries, "Stale generated title");
 	} finally {
 		response.resolve(null);
 		await dispatched;

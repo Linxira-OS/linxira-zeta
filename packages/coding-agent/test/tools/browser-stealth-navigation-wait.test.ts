@@ -42,7 +42,7 @@ test.skipIf(!CHROMIUM_AVAILABLE)(
 					await context.close();
 				}
 			} finally {
-				await closeLaunchedBrowser(browser);
+				await closeLaunchedBrowser({ browser, userDataDir });
 			}
 		} finally {
 			if (userDataDir) await removeUserDataDir(userDataDir);

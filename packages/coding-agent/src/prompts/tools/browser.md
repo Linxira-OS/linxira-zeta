@@ -1,4 +1,4 @@
-Drive real browser tabs.
+Drive real browser tabs; start with `const tab = await browser.open({ name, url })`.
 
 <instruction>
 - Static content? Use `read`. Use `browser` for JavaScript execution, authenticated sessions, and interactive actions.
@@ -17,7 +17,7 @@ BrowserTab, every helper awaited:
 navigation: url title goto back forward reload pushState
 inspection: observe({selector?, compact?, viewportOnly?, includeAll?}) ariaSnapshot(selector?, {interactive?, compact?, urls?, diff?}) a11y extract(format?, {selector?, outline?, filter?}) text html value attr count box styles isVisible isEnabled isChecked
 capture: screenshot({selector?, fullPage?, silent?, annotate?, format?, quality?, ifChanged?, threshold?}) diffScreenshot(baselinePath, {threshold?, output?}) pdf({path?, format?, landscape?, scale?, printBackground?, margin?, pageRanges?})
-interaction: click(selector, {button?, count?}) dblclick hover focus check uncheck type fill press keyDown keyUp mouseMove(x, y, {steps?, css?}) mouseDown mouseUp clickAt(x, y, {button?, count?, css?}) wheel scroll drag highlight scrollIntoView select uploadFile
+interaction: click(selector, {button?, count?}) dblclick hover focus check uncheck type(selector, text) fill(selector, text) press(key, {selector?}) keyDown keyUp mouseMove(x, y, {steps?, css?}) mouseDown mouseUp clickAt(x, y, {button?, count?, css?}) wheel scroll(dx, dy) drag(from, to) highlight scrollIntoView select(selector, …values) uploadFile(selector, …paths)
 waiting: waitFor waitForSelector waitForUrl(urlPattern, {timeout?}) waitForText
 frames: frames() → frame tree; frame(selectorOrNameOrUrl) → handle with click fill type press text html value attr count isVisible ariaSnapshot evaluate waitFor waitForSelector screenshot
 dialogs: dialog handleDialog setDialogs
@@ -31,7 +31,7 @@ recording: recordStart(path, options?) recordStop recordRestart(path, options?) 
 vitals, React: vitals reactEnable reactTree reactInspect reactRenders reactSuspense
 network: route(urlGlob, {abort?, status?, headers?, contentType?, body?, delay?, resourceType?}) unroute routes requests({filter?, type?, method?, status?, since?, limit?}) → metadata request(id) → with bodies clearRequests harStart harStop allowedDomains
 WebMCP (experimental, Chromium only): webmcpList webmcpInvoke webmcpEvents
-execution: evaluate run(fnOrCode, {args?, timeout?})
+execution: evaluate(fnOrExpression) run(fnOrCode, {args?, timeout?})
 elements: id(n) ref("e5") → BrowserElement with click dblclick check uncheck highlight type fill press hover focus select uploadFile scrollIntoView boundingBox isVisible isHidden text html value attr styles isEnabled isChecked evaluate
 close()
 
@@ -41,10 +41,12 @@ selectors: CSS, or Puppeteer aria/… text/… xpath/… pierce/… label/… pl
   - `console({level?, since?, limit?, clear?})` and `errors({since?, limit?, clear?})` return `{entries, nextSeq, dropped}`, not a list: read its `entries` field (`r.entries` in JavaScript, `r["entries"]` in Python), and pass `nextSeq` as `since` to read only later entries.
 
 - `targets` resolves the browser like `open` (pass the same `app`, e.g. `"relay"`) and lists pages `target` can adopt:
+  - a Tern window's browser blocks (`tab`: the omp tab holding one), or
   - the relay's Chrome pages (`shown`: the active tab).
   - Pass an entry's `target`; never guess.
 - `viewportOnly`: on-screen elements only (ignored on cmux). `includeAll`: non-interactive nodes too. `text()` and `html()` without a selector read `<body>`.
-- `click`: `button` presses another mouse button (`"right"` opens a context menu); `count` clicks more than once. `<select>` elements: `select`, not `fill`.
+- `click`: `button` presses another mouse button (`"right"` opens a context menu); `count` clicks more than once.
+- `<select>` elements: `select(selector, …choices)` or `handle.select(…choices)`, not `fill`. Choices mix strings (exact value, then label), `{label: "full text"}`, `{value: "exact value"}`, or `{index: 0}`; labels match exactly or full option text with whitespace collapsed and trimmed.
 - `clickAt`, `mouseMove`, `drag` `{x, y}` points: the position as read off the tab's latest screenshot.
   - That is viewport CSS pixels, unless the screenshot's line says it is scaled.
   - After a scaled screenshot, pass values measured on the page (`box`, `evaluate`) with `css: true` instead of scaling them: `clickAt(x, y, {css: true})`, `{x, y, css: true}`.
@@ -82,49 +84,91 @@ Browser choice:
 - No `app` → the first that applies:
   1. the user's Chrome through the relay (`browser.relay` setting; `PI_BROWSER_RELAY=1`/`=0` overrides it)
   2. `browser.cdpUrl`
-  3. cmux
-  4. Zeta's managed Chromium (installs on first use)
+  3. Tern inside a Tern pane
+  4. cmux
+  5. omp's own browser: headless WebKit when installed, downloaded first when no browser is (off with the `browser.webkit` setting or `PI_BROWSER_WEBKIT=0`),
+     else managed Chromium (installs on first use)
+- A subagent skips the relay, Tern and cmux: pass `app: "relay"` or `app: "tern"` when the task needs the user's browser or pane.
 - The open result names the browser and any fallback it took.
 - `app` is one string:
-  - `"relay"` (the user's Chrome), `"chromium"` (managed)
-  - `"own"` (managed Chromium; skips the relay, `browser.cdpUrl` and cmux)
+  - `"relay"` (the user's Chrome), `"tern"`, `"webkit"`, `"chromium"` (managed)
+  - `"own"` (omp's own browser: WebKit when installed, else Chromium; skips the relay, `browser.cdpUrl`, Tern and cmux)
   - `"auto"` (the choice above without the relay)
   - a CDP endpoint URL (`http://127.0.0.1:9222`) to attach to
-  - or an executable path to launch (Chromium-family browsers use an Zeta-owned profile unless `argv` supplies `--user-data-dir`)
-- `headed`: visible or hidden Chromium per open.
+  - or an executable path to launch (Chromium-family browsers use an omp-owned profile unless `argv` supplies `--user-data-dir`)
+- `headed`: visible or hidden tab per open.
+  - A WebKit tab gets its own window where the engine ships a viewer (macOS), and an open of a live WebKit tab shows or hides it at once.
+  - Elsewhere a visible browser is Chromium.
 - `file:` pages can always read other local files. `insecure` applies per tab.
 
+WebKit (open result: `omp's headless WebKit browser`, or `omp's WebKit browser (in a window)` when shown):
 
-Relay (`app: "relay"`: the user's Chrome through the zeta relay):
+- Off screen unless shown (there the user can click and type too); the page always sees a visible, focused window and no automation flag.
+- `target` names nothing there. Engine cannot start → Chromium.
+- `app: "chromium"`: managed Chromium for this open.
+- `app: "webkit"`: require WebKit, downloading a missing engine; fails when that download fails and, with `headed: true`, where it ships no viewer.
+- Has WebGL, WebGPU, silent video and audio playback (no sound leaves the machine), Web Audio, WebRTC; camera and microphone requests are denied.
+- A page misbehaves (DRM-protected video, speech synthesis)? Reopen it with `app: "chromium"`.
+- The page cannot tell it is driven:
+  `observe`, selectors, input, `console`, `errors`, `requests`, HAR and network-idle waits come from the engine, not from script in the page.
+- These do put detectable code in the page's world; AVOID them on a site that fingerprints:
+  - `route` (wraps `fetch`/`XMLHttpRequest`/`console`; gone from new documents after the last `unroute`)
+  - `emulate` with `geolocation`, `locale` or `offline` (until cleared)
+  - `vitals` and `reactEnable` (for the tab's life)
+  - `init_scripts`
+  - a recording's cursor overlay
+  - whatever `evaluate` code leaves behind
 
-- No `target`: a new name opens zeta's own background tab, leaving the user's tab alone (an outdated relay extension selects it instead).
+Relay (`app: "relay"`: the user's Chrome through the omp relay):
+
+- No `target`: a new name opens omp's own background tab, leaving the user's tab alone (an outdated relay extension selects it instead).
   - `url` navigates that tab.
 - `target` borrows an existing tab by URL/title substring. Reopening an open name keeps its tab.
 - `app: "auto"` skips the relay however it is enabled; the next default applies.
 - It is the user's real logged-in browser: sites attribute actions to the user. NEVER navigate a borrowed tab without authorization.
-{{#if linux}}
-- On Linux under X11, Chrome 150 and later raises its window, taking the user's next keystrokes,
-  when a mouse or touch press lands in a tab its window shows (`shown` in the relay's `browser.targets()`) while another window is in front.
-  - Presses: `click`, `dblclick`, `tap`, `drag`, `mouseDown`, `clickAt`,
-    `check`/`uncheck` unless already in the requested state (a refused change still presses; unchecking a native radio does not),
-    `uploadFile` on anything but an `<input type=file>`.
-  - A control that opens a new tab or popup may raise Chrome however it is activated.
-  - Not presses: keys (`type`, `fill`, `press`), `focus`, `select`, `hover`, scrolling, screenshots.
-  - A tab its window is not showing never comes forward.
-  - When the user must keep their app in front, on a shown tab use
-    `focus()` then `press("Enter")` for a button, `press("Space")` for a checkbox, `uploadFile` on the file input itself.
-{{/if}}
+{{{x11Guidance}}}
 
+Tern:
+
+- Inside a Tern pane a tab opens as a browser picture-in-picture (PiP; native WKWebView, not Chromium) over your own pane,
+  a passive corner card while the user looks at another Tern tab; it never takes focus or input.
+- When the open result says it is not on screen (the user hid PiPs), tell the user where it is.
+- An explicit `app`, the relay, and a configured CDP URL win over Tern.
+- `target` adopts a browser block the user already has open (block id, or URL/title substring; no match lists the window's blocks).
+  - It is the user's page and signed-in session: `url` navigates it, so pass one only when asked.
+  - Closing releases it without closing it.
+- `app: "own"` skips Tern, the user's Chrome, `browser.cdpUrl` and cmux (e.g. parallel scraping by subagents, where PiPs would pile up over one pane).
+- `app: "auto"` skips only the relay.
+- `app: "tern"` requires Tern; `headed` never chooses between Tern and Chromium.
+- No Tern window can host a PiP → omp's own browser.
+
+Tern and WebKit tab limits:
+
+- Input is trusted native mouse/keyboard events at element centres; `evaluate` runs in the page world.
+- Frames inside CSS-scaled/rotated elements cannot be driven.
+- `console`, `requests`, HAR:
+  - Tern: the page's `fetch`/XHR plus navigation responses only (no images/scripts/styles); request bodies only for the current document.
+  - WebKit: every resource load (XHR reads as `fetch`, no timings), but no response bodies
+    (`request(id)` returns no `body`, `response.text()` throws): read a body in the page with `evaluate`.
+- `route` accepts only `resourceType` `fetch`/`xhr`.
+- `emulate`:
+  - supports viewport/device, userAgent, colorScheme, credentials, geolocation, locale, offline (JS-visible);
+  - timezone, headers, any reducedMotion, CPU and network throttling throw;
+  - `emulate({ colorScheme })` applies to every WebKit tab at once, the last call winning.
+- `pdf` supports only `path` and throws on WebKit; `a11y` covers the main frame.
+- `loadState` restores storage for the current origin only; `webmcp*` throw.
+- `traceStart`/`traceStop`/`profileStart`/`profileStop` are unsupported; clipboard helpers use the system clipboard.
+- Raw `page`/`browser` in `tab.run` are a Puppeteer-like subset: goto, evaluate, content, $, $$, locator, waits, screenshot, keyboard, mouse, cookies; no event listeners (`page.on`): read `tab.requests()` or wait with `tab.waitForResponse`.
 
 Lifetime:
 
-- Closing releases the managed tab and closes tabs Zeta opened in the relay, never borrowed relay tabs or CDP-attached pages.
+- Closing releases the managed tab and closes pages omp opened, never borrowed pages or adopted Tern blocks.
 - `browser.close({ all: true })` releases the tabs you opened, not other agents'.
 - `kill: true` terminates only applications spawned by this process, never reused browser processes.
 - Idle tabs auto-freeze at turn settle, unfreeze on next use, and close past the idle-close timeout.
   - `persist: true` on `open` keeps one live across turns (e.g. multi-step login).
 - Relay tabs are never frozen or idle-closed.
-  - Those zeta opened close when the session ends, unless `persist: true`,
+  - Those omp opened close when the session ends, unless `persist: true`,
     which leaves the tab in the user's Chrome: pass it there only for a page you leave for the user.
 </instruction>
 

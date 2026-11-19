@@ -11,11 +11,11 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Tokenizer } from "@linxiraos/pi-agent-core";
-import { countNewlines } from "@linxiraos/pi-utils";
-import { reasonShows, type SpotlightReason } from "@linxiraos/pi-tui/chat/spotlight";
-import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { countNewlines, spillUrl } from "@oh-my-pi/pi-utils";
+import { reasonShows, type SpotlightReason } from "@oh-my-pi/pi-tui/chat/spotlight";
+import { isMarkdownPath } from "@oh-my-pi/pi-tui/lang-from-path";
+import { splitPathAndSel } from "@oh-my-pi/pi-tui/tools/read";
 import shapeProbe from "../../prompts/spotlight/shape-probe.md" with { type: "text" };
 import shapeRule from "../../prompts/spotlight/shape-rule.md" with { type: "text" };
 import { parseSel } from "../../tools/read-selector";
@@ -265,8 +265,8 @@ function cutTarget(run: Run, view: View): { url: string; spans: Span[] | null } 
 
 /** Stands in the shaped text for the saved copy's URL until the copy is written; no tool output holds it. */
 const PENDING_COPY = "\u0000spotlight-copy\u0000";
-/** What the savings gate counts {@link PENDING_COPY} as: a session artifact's URL, the size it ships with. */
-const COUNTED_COPY = "artifact://100";
+/** What the savings gate counts {@link PENDING_COPY} as: a session spill's URL, the size it ships with. */
+const COUNTED_COPY = spillUrl(100);
 
 /**
  * Lines of no file (notes of earlier shaping) can't be named by file lines, so a file-addressed cut keeps them, as
@@ -449,7 +449,7 @@ function viewOrigin(run: Run, view: View): Origin | undefined {
 /**
  * The base layers, then the valve: already-seen runs collapse, lines over 400 characters keep 280, and a result over
  * 3.9k (the agent's own program output past 7.8k) is cut to ~3k, except outlines, source reads, sub-agent reports
- * (`task`, `wait`, `zetacode -p`), edit results and `pr://` / `issue://` threads up to 12k, and pictures. Output repeating
+ * (`task`, `wait`, `omp -p`), edit results and `pr://` / `issue://` threads up to 12k, and pictures. Output repeating
  * one line shape is cut to the lines that differ, its ends, and a line naming the shape.
  * Re-asks (results up to 12k bringing back lines a cut hid) and reads of folded code come back whole.
  */

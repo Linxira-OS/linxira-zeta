@@ -10,18 +10,17 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { withTimeout } from "@linxiraos/pi-utils";
-import { daemonRuntimeDir } from "@linxiraos/zeta/launch/paths";
-import * as launch from "@linxiraos/zeta/tools/browser/launch";
+import { getDaemonRuntimeDir, withTimeout } from "@oh-my-pi/pi-utils";
+import * as launch from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
 import {
 	forgetSharedTarget,
 	recordSharedTarget,
 	resetOrphanRegistryForTest,
 	type SharedTargetScope,
-} from "@linxiraos/zeta/tools/browser/orphan-registry";
-import * as registry from "@linxiraos/zeta/tools/browser/registry";
-import type { PuppeteerBrowserHandle } from "@linxiraos/zeta/tools/browser/registry";
-import { browserFetch } from "@linxiraos/zeta/web/search/providers/browser-page";
+} from "@oh-my-pi/pi-coding-agent/tools/browser/orphan-registry";
+import * as registry from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import type { PuppeteerBrowserHandle } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import { browserFetch } from "@oh-my-pi/pi-coding-agent/web/search/providers/browser-page";
 import type { Page } from "puppeteer-core";
 
 const DAEMON_NAME = "omp.browser.headless";
@@ -51,7 +50,7 @@ async function ownedTargets(scope: SharedTargetScope): Promise<string[]> {
 	await recordSharedTarget(scope, probe);
 	await forgetSharedTarget(scope, probe);
 	const file = Bun.file(
-		path.join(daemonRuntimeDir(scope.projectDir), `${scope.daemonName}.targets`, `${process.pid}.json`),
+		path.join(getDaemonRuntimeDir(scope.projectDir), `${scope.daemonName}.targets`, `${process.pid}.json`),
 	);
 	if (!(await file.exists())) return [];
 	return ((await file.json()) as { targets: string[] }).targets;
@@ -216,7 +215,7 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	resetOrphanRegistryForTest();
 	for (const scope of scopes.splice(0)) {
-		await fs.rm(daemonRuntimeDir(scope.projectDir), { recursive: true, force: true }).catch(() => undefined);
+		await fs.rm(getDaemonRuntimeDir(scope.projectDir), { recursive: true, force: true }).catch(() => undefined);
 	}
 });
 

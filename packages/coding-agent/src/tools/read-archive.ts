@@ -1,20 +1,21 @@
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import type { TextContent } from "@linxiraos/pi-ai";
-import { TempDir } from "@linxiraos/pi-utils";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { TextContent } from "@oh-my-pi/pi-ai";
+import { type ImageMetadata, parseImageMetadata, TempDir } from "@oh-my-pi/pi-utils";
 import {
 	type ArchiveFormat,
 	type ArchiveReader,
+	archiveFormatFromPath,
 	formatArchiveEntryLines,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@linxiraos/pi-utils/ar";
-import { LRUCache } from "@linxiraos/pi-utils/lru";
+	sniffArchiveFormat,
+} from "@oh-my-pi/pi-utils/ar";
+import { LRUCache } from "@oh-my-pi/pi-utils/lru";
 import type { ToolSession } from "../sdk";
 import { convertBufferWithMarkit } from "../utils/markit";
-import { truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
-import { applyListLimit } from "@linxiraos/pi-tui/tools/list-limit";
+import { truncateHead } from "@oh-my-pi/pi-tui/tools/streaming-output";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import type { ReadToolDetails } from "@oh-my-pi/pi-tui/tools/read";
 import {
 	buildInMemorySelectorResult,
 	decodeUtf8Text,
@@ -31,9 +32,9 @@ import {
 import { isMultiRange, type ParsedSelector, parseSel, resolveTailSelector, selToOffsetLimit } from "./read-selector";
 import { type PdfImageReadTarget, type PdfPageReadOptions, splitPdfImageReadPath } from "./read-pdf";
 import { cfgReadRenderMarkdown } from "./settings";
-import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
+import { formatBytes } from "@oh-my-pi/pi-tui/render/render-utils";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { RACY_STAMP_WINDOW_MS } from "./racy-stamp";
 import { parseJsonSelector, readJson, splitJsonQueryTarget } from "./read-json";
@@ -42,6 +43,64 @@ interface ResolvedArchiveReadPath {
 	absolutePath: string;
 	archiveSubPath: string;
 	suffixResolution?: { from: string; to: string };
+	/** Container format, when the file's extension does not name it (`report.docx:word/document.xml`). */
+	format?: ArchiveFormat;
+}
+
+/** An image member, materialized for the read tool's image loader. */
+export interface ArchiveImageReadOptions {
+	readPath: string;
+	absolutePath: string;
+	mimeType: string;
+	imageMetadata: ImageMetadata;
+	fileSize: number;
+	signal?: AbortSignal;
+}
+
+/**
+ * ZIP-container documents. A bare read converts them to text; `doc.docx:word/document.xml` reads a member.
+ * The lookahead requires the `:member` part.
+ */
+const ZIP_DOCUMENT_MEMBER_RE = /\.(?:docx|docm|dotx|xlsx|xlsm|pptx|pptm|odt|ods|odp|epub)(?=:)/gi;
+
+const isZipHeader = (bytes: Uint8Array): boolean => sniffArchiveFormat(bytes) === "zip";
+const isUnixArHeader = (bytes: Uint8Array): boolean => sniffArchiveFormat(bytes) === "ar";
+
+/** Whether the file's first `length` bytes pass `sniff`; an unreadable file does not. */
+async function hasMagic(absolutePath: string, sniff: (bytes: Uint8Array) => boolean, length: number): Promise<boolean> {
+	try {
+		return sniff(await Bun.file(absolutePath).slice(0, length).bytes());
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Whether the file is the archive its extension names. `.lib` also names text (SPICE models), so an `ar`
+ * extension needs the `!<arch>` header; other extensions are trusted, and a mismatch fails when opened.
+ */
+async function claimsArchiveFormat(archivePath: string, absolutePath: string): Promise<boolean> {
+	return archiveFormatFromPath(archivePath) !== "ar" || hasMagic(absolutePath, isUnixArHeader, 8);
+}
+
+/** `doc.docx:<member>` candidates: an existing ZIP file whose member part is no line selector. */
+async function resolveZipDocumentMember(
+	session: ToolSession,
+	readPath: string,
+): Promise<ResolvedArchiveReadPath | null> {
+	const normalized = readPath.replace(/\\/g, "/");
+	for (const match of normalized.matchAll(ZIP_DOCUMENT_MEMBER_RE)) {
+		const end = (match.index ?? 0) + match[0].length;
+		const subPath = normalized.slice(end + 1);
+		if (subPath.length === 0 || parseSel(subPath).kind !== "none") continue;
+		const absolutePath = resolveReadPath(readPath.slice(0, end), session.cwd);
+		const stat = await Bun.file(absolutePath)
+			.stat()
+			.catch(() => null);
+		if (!stat?.isFile() || !(await hasMagic(absolutePath, isZipHeader, 4))) continue;
+		return { absolutePath, archiveSubPath: subPath, format: "zip" };
+	}
+	return null;
 }
 
 /**
@@ -58,45 +117,14 @@ interface CachedArchiveReader {
 	/** Change time: moves on every write and permission change and cannot be set back, unlike mtime. */
 	ctimeMs: number;
 	size: number;
-	/** Content probe; see {@link fingerprintArchive} for why timestamps alone are not an identity. */
-	fingerprint: number;
 	entryCount: number;
-}
-
-/** Bytes of each end of the archive that go into {@link fingerprintArchive}. */
-const FINGERPRINT_WINDOW = 32 * 1024;
-
-/**
- * Fingerprint the head and tail of an archive on disk.
- *
- * Timestamps alone are not a sound identity. A rewrite that keeps the file size
- * and puts the mtime back is only visible through ctime, and ctime advances in
- * filesystem-timestamp steps: when the gap between the two writes is smaller
- * than one step, the inode reports the *same* ctime and the rewrite is
- * invisible. Measured: re-indexing an archive between the two writes advances
- * ctime by ~1 ms, which collides on filesystems whose clock is coarser than
- * that (reproduced with same-size rewrites on NTFS; coarse clocks are also
- * available on tmpfs/overlay/network mounts). Reading the ends catches exactly
- * that case — zip keeps its central directory at the end, asar its header at
- * the front — and every extra byte of identity can only turn a stale hit into a
- * correct miss.
- */
-async function fingerprintArchive(absolutePath: string, size: number): Promise<number> {
-	const file = Bun.file(absolutePath);
-	const head = new Uint8Array(await file.slice(0, Math.min(size, FINGERPRINT_WINDOW)).arrayBuffer());
-	const tailStart = Math.max(0, size - FINGERPRINT_WINDOW);
-	const tail = tailStart > 0 ? new Uint8Array(await file.slice(tailStart, size).arrayBuffer()) : new Uint8Array(0);
-	// Mixed with the window boundaries so two probes over different regions
-	// cannot cancel out.
-	return Number(Bun.hash(head, tailStart)) ^ Number(Bun.hash(tail, size));
 }
 
 /**
  * Recently opened archives, so paging through members does not re-read and
  * re-index the archive per read. Bounded by count and by total indexed entries;
- * an entry is reused only while the file's identity (inode, mtime, ctime, size,
- * content fingerprint) holds, so a rewrite or a permission change reopens the
- * archive.
+ * an entry is reused only while the file's identity (inode, mtime, ctime, size)
+ * holds, so a rewrite or a permission change reopens the archive.
  */
 const archiveReaderCache = new LRUCache<string, CachedArchiveReader>({
 	max: 4,
@@ -104,26 +132,26 @@ const archiveReaderCache = new LRUCache<string, CachedArchiveReader>({
 	sizeCalculation: cached => Math.max(1, cached.entryCount),
 });
 
-async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
+async function openArchiveCached(absolutePath: string, format?: ArchiveFormat): Promise<ArchiveReader> {
+	const source = format ? { path: absolutePath, format } : absolutePath;
 	// The clock is read before the stat, so a change landing between the two counts as recent.
 	const checkedAtMs = Date.now();
 	// A vanished or unreadable archive is reported by the opener, as it always has been.
 	const stat = await Bun.file(absolutePath)
 		.stat()
 		.catch(() => null);
-	if (!stat) return openArchive(absolutePath);
+	if (!stat) return openArchive(source);
 	const cached = archiveReaderCache.get(absolutePath);
 	if (
 		cached &&
 		cached.ino === stat.ino &&
 		cached.mtimeMs === stat.mtimeMs &&
 		cached.ctimeMs === stat.ctimeMs &&
-		cached.size === stat.size &&
-		cached.fingerprint === (await fingerprintArchive(absolutePath, stat.size))
+		cached.size === stat.size
 	) {
 		return cached.reader;
 	}
-	const reader = await openArchive(absolutePath);
+	const reader = await openArchive(source);
 	if (!CACHEABLE_ARCHIVE_FORMATS[reader.format] || checkedAtMs - stat.ctimeMs < RACY_STAMP_WINDOW_MS) {
 		archiveReaderCache.delete(absolutePath);
 		return reader;
@@ -136,7 +164,6 @@ async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
 		mtimeMs: stat.mtimeMs,
 		ctimeMs: stat.ctimeMs,
 		size: stat.size,
-		fingerprint: await fingerprintArchive(absolutePath, stat.size),
 		entryCount,
 	});
 	return reader;
@@ -155,6 +182,7 @@ export async function resolveArchiveReadPath(
 		try {
 			const stat = await Bun.file(absolutePath).stat();
 			if (stat.isDirectory()) continue;
+			if (!(await claimsArchiveFormat(candidate.archivePath, absolutePath))) continue;
 			return {
 				absolutePath,
 				archiveSubPath: candidate.archivePath === readPath ? "" : candidate.subPath,
@@ -169,6 +197,7 @@ export async function resolveArchiveReadPath(
 			try {
 				const retryStat = await Bun.file(suffixMatch.absolutePath).stat();
 				if (retryStat.isDirectory()) continue;
+				if (!(await claimsArchiveFormat(candidate.archivePath, suffixMatch.absolutePath))) continue;
 
 				absolutePath = suffixMatch.absolutePath;
 				suffixResolution = { from: candidate.archivePath, to: suffixMatch.displayPath };
@@ -185,7 +214,7 @@ export async function resolveArchiveReadPath(
 		}
 	}
 
-	return null;
+	return resolveZipDocumentMember(session, readPath);
 }
 async function readArchiveDirectory(
 	archive: ArchiveReader,
@@ -197,27 +226,27 @@ async function readArchiveDirectory(
 ): Promise<AgentToolResult<ReadToolDetails>> {
 	const DEFAULT_LIMIT = 500;
 	const allEntries = archive.listDirectory(subPath);
-	// Selectors address entries with line semantics: `a.zip:dir:50` starts the
+	// Selectors address entries with line semantics: `a.zip:dir:50-` starts the
 	// listing at the 50th entry, `a.zip:dir:-20` lists the last 20.
 	const { offset, limit } = selToOffsetLimit(resolveTailSelector(sel, allEntries.length));
 	const effectiveLimit = limit ?? DEFAULT_LIMIT;
 	const entries = offset !== undefined && offset > 1 ? allEntries.slice(offset - 1) : allEntries;
 
-	const listLimit = applyListLimit(entries, { limit: effectiveLimit });
-	const limitedEntries = listLimit.items;
-	const limitMeta = listLimit.meta;
-
-	for (let index = 0; index < limitedEntries.length; index++) {
-		throwIfAborted(signal);
-	}
+	const limitedEntries = entries.slice(0, effectiveLimit);
+	throwIfAborted(signal);
 	const results = formatArchiveEntryLines(limitedEntries);
 
-	const output = results.length > 0 ? results.join("\n") : "(empty archive directory)";
+	let output = results.length > 0 ? results.join("\n") : "(empty archive directory)";
+	const remaining = limit === undefined ? entries.length - limitedEntries.length : 0;
+	if (remaining > 0) {
+		const next = (offset ?? 1) + limitedEntries.length;
+		output += `\n\n[${remaining} more entries in listing. Use :${next}- to continue]`;
+	}
 	const text = prependSuffixResolutionNotice(output, details.suffixResolution);
 	const truncation = truncateHead(text, { maxLines: Number.MAX_SAFE_INTEGER });
 	const directoryDetails: ReadToolDetails = { ...details, isDirectory: true };
 	const resultBuilder = toolResult<ReadToolDetails>(directoryDetails).text(truncation.content);
-	resultBuilder.sourcePath(archivePath).limits({ resultLimit: limitMeta.resultLimit?.reached });
+	resultBuilder.sourcePath(archivePath);
 	if (truncation.truncated) {
 		directoryDetails.truncation = toReadTruncationStats(truncation);
 		resultBuilder.truncation(truncation, { direction: "head" });
@@ -231,10 +260,11 @@ export async function readArchive(
 	lineSelector: string | undefined,
 	resolvedArchivePath: ResolvedArchiveReadPath,
 	readPdfPage: (options: PdfPageReadOptions) => Promise<AgentToolResult<ReadToolDetails>>,
+	readImage: (options: ArchiveImageReadOptions) => Promise<AgentToolResult<ReadToolDetails>>,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<ReadToolDetails>> {
 	throwIfAborted(signal);
-	const archive = await openArchiveCached(resolvedArchivePath.absolutePath);
+	const archive = await openArchiveCached(resolvedArchivePath.absolutePath, resolvedArchivePath.format);
 	throwIfAborted(signal);
 
 	const details: ReadToolDetails = markMarkdownContentType(
@@ -348,6 +378,26 @@ export async function readArchive(
 	if (text === null) {
 		if (jsonSelector) {
 			throw new ToolError("JSON selectors require a text archive member, not a binary entry.");
+		}
+		const imageMetadata = sel.kind === "none" ? parseImageMetadata(entry.bytes) : null;
+		if (imageMetadata?.mimeType) {
+			// The image loader reads files: the selected member gets an owned name, never its archive path.
+			await using scratch = await TempDir.create("@omp-read-archive-image-");
+			const imagePath = scratch.join("member");
+			await Bun.write(imagePath, entry.bytes);
+			const result = await readImage({
+				readPath,
+				absolutePath: imagePath,
+				mimeType: imageMetadata.mimeType,
+				imageMetadata,
+				fileSize: entry.size,
+				signal,
+			});
+			const memberPath = `${resolvedArchivePath.absolutePath}:${entry.path}`;
+			return toolResult<ReadToolDetails>({ ...result.details, ...details, resolvedPath: memberPath })
+				.content(result.content)
+				.sourcePath(memberPath)
+				.done();
 		}
 		return toolResult<ReadToolDetails>(details)
 			.text(

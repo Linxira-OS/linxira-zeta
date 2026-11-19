@@ -17,8 +17,8 @@
 		return source;
 	};
 	const encodeArg = (label, value) => {
-		if (typeof value === "function") return { __zeta_fn: serializeFunction(label, value) };
-		if (value instanceof RegExp) return { __zeta_re: { source: value.source, flags: value.flags } };
+		if (typeof value === "function") return { __omp_fn: serializeFunction(label, value) };
+		if (value instanceof RegExp) return { __omp_re: { source: value.source, flags: value.flags } };
 		return value;
 	};
 	const encodeArgs = (label, args) => {
@@ -27,9 +27,17 @@
 		return trimmed.map(value => encodeArg(label, value));
 	};
 	const invoke = async (action, options) => {
-		const response = await globalThis.__zeta_prelude__("computer", { ...options, action });
-		if (response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__zeta_log__("log", response.text);
+		const response = await globalThis.__omp_prelude__("computer", { ...options, action });
+		const failure = response?.hasError ? response.details?.error : undefined;
+		let text = typeof response?.text === "string" ? response.text : "";
+		// The result ends with the failure's `name: message` line for direct calls; the error thrown below carries it here.
+		const failureLine = failure ? `${failure.name}: ${failure.message}` : undefined;
+		if (failureLine && text.endsWith(failureLine)) text = text.slice(0, -failureLine.length);
+		if (text.length > 0) globalThis.__omp_log__("log", text);
+		if (response?.hasError) {
+			const error = new Error(response.details?.error?.message ?? response.text);
+			error.name = response.details?.error?.name ?? "Error";
+			throw error;
 		}
 		return response && typeof response.details === "object" && response.details !== null ? response.details : {};
 	};
@@ -176,9 +184,8 @@
 		// A non-silent observe() already printed its tree; `ax` stays readable but is left out
 		// of printing, spread and serialization, so a trailing `await win.observe()` shows it once.
 		defineMethod(win, "observe", async options => {
-			const request = options === undefined ? undefined : { ...validateOptions("observe", options) };
-			const silent = Boolean(request?.silent);
-			const observation = await callValue(via(step("observe", [request])));
+			const silent = Boolean(options?.silent);
+			const observation = await callValue(via(step("observe", [options])));
 			if (!silent && typeof observation?.ax === "string") {
 				Object.defineProperty(observation, "ax", { enumerable: false });
 			}

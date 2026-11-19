@@ -35,16 +35,17 @@ import {
 	type AgentToolUpdateCallback,
 	type ToolLoadMode,
 	validateAgentToolArguments,
-} from "@linxiraos/pi-agent-core";
-import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-agent-core";
+import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@oh-my-pi/pi-ai";
+import { isEvalBridgeToolCall, isEvalBridgeToolCallable } from "../eval/tool-bridge-policy";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { resolveToolWireName } from "../utils/tool-wire-name";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
-import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@oh-my-pi/pi-tui/tools/xd-url";
+import { truncateHeadBytes } from "@oh-my-pi/pi-tui/tools/streaming-output";
 import { resolveToolTier, type ToolTier } from "./approval";
 import type { Tool, ToolSession } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 
 /**
  * Discoverable built-ins that must stay top-level even when xdev mounting is
@@ -54,18 +55,13 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
  * (which have no notion of the `xd://` protocol) so hiding it behind dispatch
  * makes it unreachable in practice (issue #5973). `yield` terminates structured
  * subagent runs and must stay directly callable — each loses its harness
- * integration or usability if hidden behind dispatch. `tracking_update` is the
- * same class: the todo phase nudge and the approved-plan prompt both read the
- * *active* set and instruct the model to call it by name, so mounting it under
- * `xd://` silently closes both gates (the tool is enabled but the nudge never
- * fires and the prompt never carries the instruction).
+ * integration or usability if hidden behind dispatch.
  */
 export const XDEV_KEEP_TOP_LEVEL: Record<string, true> = {
 	todo: true,
 	yield: true,
 	ask: true,
 	grep: true,
-	tracking_update: true,
 	web_search: true,
 };
 
@@ -286,7 +282,7 @@ export function resolveMountedXdevTool(state: XdevState, name: string): Tool | u
  * Resolve a mounted tool with its execution-only permission decorator.
  *
  * Mounted-only, matching {@link resolveMountedXdevTool}, and a published export
- * under `@linxiraos/zeta/tools/xdev`, so its semantics must not
+ * under `@oh-my-pi/pi-coding-agent/tools/xdev`, so its semantics must not
  * drift. `sdk.ts` composes this with the calling agent's advertised tools to
  * recover a Claude Code-spelled MCP name: the union has to be resolved in one
  * pass for the ambiguity rule to hold, so that composition lives with the
@@ -463,6 +459,12 @@ export async function dispatchXdevTool(
 				result: { content: [{ type: "text", text: renderDocs(canonical) }] },
 				xdev: { tool: name, mode: "help" },
 			};
+		}
+
+		if (isEvalBridgeToolCall(state) && !isEvalBridgeToolCallable(canonical)) {
+			throw new ToolError(
+				`\`${canonical.name}\` cannot run through the eval bridge; call the direct \`${canonical.name}\` tool.`,
+			);
 		}
 
 		const validated = parseDeviceArgs(canonical, content, toolCallId, () => renderDocs(canonical));

@@ -6,10 +6,11 @@
  */
 import * as fsSync from "node:fs";
 import * as os from "node:os";
-import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
-import type { ImageContent, Model } from "@linxiraos/pi-ai";
-import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
-import { CLI_BIN_NAME, ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
+import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
+import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
+import { getModelPricingStatus } from "@oh-my-pi/pi-catalog/models";
+import { ensureSqliteLockShim, isEnoent, isEnotdir } from "@oh-my-pi/pi-utils";
+import { bindAgentMesh } from "./irc/mesh";
 import {
 	APP_NAME,
 	directoryIsMissing,
@@ -19,14 +20,13 @@ import {
 	normalizePathForComparison,
 	setProjectDir,
 	VERSION,
-} from "@linxiraos/pi-utils/dirs";
-import { $env, isBunTestRuntime, setInteractiveHost } from "@linxiraos/pi-utils/env";
-import * as logger from "@linxiraos/pi-utils/logger";
-import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
-import chalk from "@linxiraos/pi-utils/chalk";
+} from "@oh-my-pi/pi-utils/dirs";
+import { $env, isBunTestRuntime, isCompiledBinary, setInteractiveHost } from "@oh-my-pi/pi-utils/env";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
+import { fuzzyFilter } from "@oh-my-pi/pi-tui/fuzzy";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
-import { loadMainAgentProfile } from "./agent-profile";
 import {
 	type Args,
 	reportInvalidFlagValues,
@@ -39,34 +39,18 @@ import {
 } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
-import {
-	BackendAttachError,
-	resolveStartupTransport,
-	type ResolvedBackendTarget,
-	type StartupTransport,
-} from "./backend/attach-intent";
-import { readBackendEnabledSetting } from "./backend/setting";
 import { buildInitialMessage } from "./cli/initial-message";
-import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
+import { formatKeyHint, KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
+import type { SessionPickerOptions } from "@oh-my-pi/pi-tui/apps/session-picker";
+import { fetchBuild } from "./cli/build-service";
 import { applyStartupCwd } from "./cli/startup-cwd";
-import { M } from "./i18n";
 import { runAutoUpdate } from "./cli/auto-update";
 import { managedInstallName } from "./cli/managed-install";
 import { getLatestRelease, isSourceCheckout } from "./cli/update-cli";
-import { resolveChannelHosting } from "./channels/channel-status";
-import {
-	activeSessionChannelHost,
-	rememberSessionChannelContext,
-	sendFromSessionChannel,
-	startSessionChannels,
-	stopActiveSessionChannels,
-} from "./channels/session-host";
-import { SessionRouter } from "./channels/session-router";
-import { discoverAppendSystemPromptPath, findConfigFile } from "./config";
+import { findConfigFile } from "./config";
 import { cfgNoJudge, cfgNoSpotlight, cfgOffline } from "./config/auxiliary-model-policy";
 import { ModelRegistry } from "./config/model-registry";
-import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@oh-my-pi/pi-tui/overlays/model-selector";
 import {
 	disabledProviderIds,
 	expandRoleAlias,
@@ -81,7 +65,6 @@ import { ModelsConfigFile } from "./config/models-config";
 import { serviceTierSettingToTier } from "./config/service-tier";
 import { all, combine, type ProtocolHost } from "./config/registry";
 import { Settings, settings } from "./config/settings";
-import { WebConfig } from "./config/web-config";
 import { initializeWithSettings } from "./discovery";
 import {
 	clearPluginRootsAndCaches,
@@ -89,7 +72,7 @@ import {
 	preloadPluginRoots,
 	resolveActiveProjectRegistryPath,
 } from "./discovery/helpers";
-import { injectZetaExtensionCliRoots } from "./discovery/zeta-extension-roots";
+import { injectOmpExtensionCliRoots } from "./discovery/omp-extension-roots";
 import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
 import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
@@ -98,17 +81,15 @@ import {
 	scheduleMarketplaceAutoUpdate,
 	type MarketplaceAutoUpdateOptions,
 } from "./extensibility/plugins/marketplace-auto-update";
-import { wireTuiTexts } from "./i18n/wire-tui";
-import { registerDaemonProjectPresence } from "./launch/presence";
 import type { MCPManager } from "./mcp";
 import type { InteractiveMode } from "./modes/interactive-mode";
 import { formatSessionContinuationNotice } from "./modes/persistence-failure";
 import type { PrintModeOptions } from "./modes/print-mode";
 import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
-import { CURRENT_SETUP_VERSION } from "@linxiraos/pi-tui/setup/setup-version";
+import { CURRENT_SETUP_VERSION } from "@oh-my-pi/pi-tui/setup/setup-version";
 import type * as SetupWizardModule from "./modes/setup";
-import type { SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
+import type { SetupScene } from "@oh-my-pi/pi-tui/setup/scenes/types";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
 import {
 	applyStartupComposerPreferences,
@@ -116,7 +97,7 @@ import {
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "./modes/startup-composer";
-import { ensureTheme, initTheme, stopThemeWatcher } from "@linxiraos/pi-tui/theme";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@oh-my-pi/pi-tui/theme";
 import type { SubmittedUserInput } from "./modes/types";
 import { createWarpEventBridgeExtension } from "./modes/warp-events";
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
@@ -142,6 +123,7 @@ import {
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
 import {
 	findSessionContinuation,
+	type PickerListing,
 	readSessionInfo,
 	resolveResumeTarget,
 	resolveResumableSession,
@@ -151,8 +133,6 @@ import {
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
 import { forkIfMovedAway } from "./session/session-transfer";
 import { shouldShowStartupSplash } from "./startup-splash";
-import { AgentRegistry } from "./registry/agent-registry";
-import { deliverPendingRoomEvents } from "./team/room-delivery";
 import {
 	discoverSystemPromptOverride,
 	discoverTitleSystemPromptFile,
@@ -162,14 +142,11 @@ import {
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
+import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import {
-	automaticThinkingLevel,
-	concreteThinkingLevel,
-	parseConfiguredThinkingLevel,
-} from "@linxiraos/pi-tui/thinking";
+import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
-import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
+import { sanitizeDisplayWarnings } from "@oh-my-pi/pi-tui/render/render-utils";
 import { getChangelogPath, readLastChangelogVersion, resolveStartupChangelogForDisplay } from "./utils/changelog";
 import { EventBus } from "./utils/event-bus";
 import { resolveFirstLaunchPythonEvalWarning } from "./eval/startup-warning";
@@ -230,7 +207,7 @@ import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
 
 type RunAcpMode = (createSession: AcpSessionFactory) => Promise<never>;
 type RunPrintMode = (session: AgentSession, options: PrintModeOptions) => Promise<number>;
-type RunRpcMode = (session: AgentSession, options?: RpcModeOptions) => Promise<void>;
+type RunRpcMode = (session: AgentSession, options?: RpcModeOptions) => Promise<never>;
 
 /** Interactive-only graph boundary; login dialogs and overlays load on first real use. */
 async function loadInteractiveModeConstructor() {
@@ -244,19 +221,13 @@ type SessionPicker = (
 
 /** Resume/import-only graph boundary; ordinary launches never construct a picker. */
 async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionPicker> {
-	const [
-		{ selectSession },
-		{ HistoryStorage },
-		{ loadPinnedSessionIds, setSessionPinned },
-		{ FileSessionStorage },
-		{ deleteSessionFiles },
-	] = await Promise.all([
-		import("@linxiraos/pi-tui/apps/session-picker"),
-		import("./session/history-storage"),
-		import("./session/session-pins"),
-		import("./session/session-storage"),
-		import("./session/session-delete"),
-	]);
+	const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds, setSessionPinned }, { FileSessionStorage }] =
+		await Promise.all([
+			import("@oh-my-pi/pi-tui/apps/session-picker"),
+			import("./session/history-storage"),
+			import("./session/session-pins"),
+			import("./session/session-storage"),
+		]);
 	return (sessions, options) => {
 		const storage = new FileSessionStorage();
 		// The picker runs before interactive mode loads the user's keymap, and its pin keys are remappable.
@@ -268,9 +239,7 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 				return query => history.matchingSessionIds(query);
 			},
 			deleteSession: async session => {
-				// The standalone `--resume` picker deletes permanently; the
-				// in-session picker below shares the trash path with Work Studio.
-				await deleteSessionFiles(session.path, { mode: "permanent", storage });
+				await storage.deleteSessionWithArtifacts(session.path);
 				return true;
 			},
 			// Foreign import pickers list source-owned sessions, so rename and
@@ -282,23 +251,14 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 							SessionManager.renameSessionTitle(session.path, title, { cwd: session.cwd }),
 						setSessionPinned: (session: SessionInfo, pinned: boolean) => setSessionPinned(session.id, pinned),
 					}),
-			loadAllSessions: async () => (await SessionManager.listAllForPicker(storage)).complete,
-			loadResumeSource: async (deleteMode, workspacePath) => {
-				const { LiveResumePickerSource, loadResumePickerState } = await import("./modes/resume-picker-source");
-				const initialState = await loadResumePickerState();
-				return new LiveResumePickerSource({
-					initialScope: initialState.scope,
-					initialState,
-					workspacePath,
-					deleteMode,
-					deleteConversation: async conversation => {
-						await deleteSessionFiles(conversation.session.path, { mode: deleteMode, storage });
-						return true;
-					},
-				});
-			},
+			loadAllSessions: () => SessionManager.listAllForPicker(storage),
 		});
 	};
+}
+
+/** Join-only graph boundary; the full built-in slash-command registry is otherwise unnecessary at startup. */
+async function loadBuiltinSlashCommandExecutor() {
+	return (await import("./slash-commands/builtin-registry")).executeBuiltinSlashCommand;
 }
 
 /** Missing-session-directory prompt boundary; ordinary launches do not need node:readline. */
@@ -320,19 +280,22 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 		return;
 	}
 	try {
-		// Checkouts update through git, and a manager (Tern) updates its own CLI:
-		// "run `zetacode update`" would be wrong advice for both.
+		// Checkouts update through git and a manager (Tern) updates its omp itself:
+		// "run omp update" would be wrong advice for both.
 		if (isSourceCheckout() || (await managedInstallName(process.execPath))) return;
 		const channel = cfgUpdateChannel.get(settings);
-		// We update from our own release channel, never from upstream's build service.
-		const { version } = await getLatestRelease({ timeoutMs: 5_000, channel });
+		// A compiled binary updates from the build service; naming the running
+		// version lets the service prepare the patch `omp update` will then use.
+		const { version } = isCompiledBinary()
+			? await fetchBuild({ channel }, { timeoutMs: 5_000, fromVersion: currentVersion })
+			: await getLatestRelease({ timeoutMs: 5_000, channel });
 		return Bun.semver.order(version, currentVersion) > 0 ? version : undefined;
 	} catch {
 		return undefined;
 	}
 }
 
-// Protocol hosts inherit ZETA's neutral defaults for settings declaring `protocolDefault`
+// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
 // configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
 // `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
@@ -354,7 +317,7 @@ function rejectNoUiWithoutRpc(args: Pick<Args, "noUi" | "mode">): void {
 function exitWithoutTerminal(): never {
 	process.stderr.write(
 		`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
-			`Pass a prompt (\`${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
+			`Pass a prompt (\`${APP_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
 	);
 	process.exit(2);
 }
@@ -391,21 +354,6 @@ export async function readPipedInput(): Promise<string | undefined> {
 // zero-output indefinite hangs (stuck discovery read, network wait, stdin
 // pipe) into self-diagnosing reports instead of "it just hangs" (see the
 // PI_DEBUG_STARTUP markers for the synchronous-hang counterpart).
-
-/**
- * Zeta policy: OTLP telemetry export is hard-off.
- *
- * We operate no telemetry collector, so there is nowhere for events to be
- * processed. This is a hard gate, not a default: there is deliberately no
- * settings key, env var, or CLI flag that can turn export on. Setting an
- * `OTEL_EXPORTER_OTLP*` endpoint changes nothing. Revisit only when we run our
- * own backend — then add the opt-in back here, deliberately.
- *
- * Merge-protected by `scripts/brand/brand-rules.ts` (MUST_CONTAIN): an
- * upstream merge that re-adds the setting, or flips this constant, fails
- * `brand-check` in CI.
- */
-const TELEMETRY_EXPORT_ENABLED = false;
 
 const STARTUP_WATCHDOG_INTERVAL_MS = 10_000;
 let startupWatchdogTimer: NodeJS.Timeout | undefined;
@@ -624,6 +572,13 @@ async function loadTrustedSessionExtensions(
  * `.mcp.json` discovery path — otherwise host MCP tools land in the session's
  * tool registry and shadow the client-supplied servers (issue #1234).
  */
+/**
+ * Provenance seed for every session this process creates: the terminal CLI, and
+ * ACP sessions hosted by an editor — both are CLI-mode sessions. `zeta serve`
+ * stamps its own (desktop or automation).
+ */
+const CLI_SESSION = { client: "cli" } as const;
+
 export function createAcpSessionFactory(args: AcpSessionFactoryOptions): AcpSessionFactory {
 	return async (cwd, factoryOptions) => {
 		const nextSettings = await args.settings.cloneForCwd(cwd);
@@ -715,25 +670,12 @@ async function runInteractiveMode(
 	subagentEventBus?: EventBus,
 	initialMessage?: string,
 	initialImages?: ImageContent[],
+	joinLink?: string,
 	startDeferredStartupWork?: (mode: InteractiveMode) => void,
 	startupLease?: ComposerLease,
 	startupGoal?: string,
 	startupRestore?: () => Promise<RestoreOutcome>,
-	refreshScopedModelsAfterLogin?: () => Promise<void>,
-	backendTarget?: ResolvedBackendTarget,
 ): Promise<void> {
-	// Install the host text source for @linxiraos/pi-tui before the first
-	// interactive render: every `tuiText` lookup (welcome box and tips, setup
-	// wizard, panels) resolves against the live Messages catalogue instead of
-	// its inline English fallback. `M` is a live proxy, so a later `/language`
-	// switch re-resolves on the next render. This is the single wiring point for
-	// the whole TUI; headless modes never register a source.
-	wireTuiTexts();
-	// The prepaint frame was painted before settings/theme/catalogue settled, so
-	// the welcome (when its intro was suppressed) may still hold English fallback
-	// lines in its width cache. Drop the frame so the next render re-resolves
-	// through the freshly installed source.
-	startupLease?.composer.welcome?.invalidate();
 	const InteractiveModeConstructor = await loadInteractiveModeConstructor();
 	let mode: InteractiveMode;
 	try {
@@ -788,36 +730,23 @@ async function runInteractiveMode(
 			await setupWizard.markSetupWizardComplete(settings);
 		}
 		playStartupSplash = showStartupSplash && setupScenes.length === 0;
-		const offersStartupWorktree = !resuming;
+		const offersStartupWorktree = !resuming && joinLink === undefined;
 
 		await logger.time("InteractiveMode.init", () =>
 			mode.init({
 				suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
 				clearInitialTerminalHistory: true,
+				autoStartCollab: joinLink === undefined,
+				// Setup scenes and the startup worktree question wait on the user before any
+				// prompt runs, so they keep the boot `idle`. The worktree check runs before its
+				// async git check, so a folder where the question never shows also keeps `idle`.
+				startupRun:
+					setupScenes.length === 0 &&
+					!(offersStartupWorktree && mode.mayAskForStartupWorktree()) &&
+					(startupGoal !== undefined || initialMessage !== undefined || initialMessages.length > 0),
 			}),
 		);
 		startDeferredStartupWork?.(mode);
-
-		if (backendTarget) {
-			const { BackendAttachLink } = await import("./backend/attach-link");
-			const link = new BackendAttachLink(mode, backendTarget);
-			try {
-				await link.join();
-			} catch (error) {
-				logger.warn("backend attach join failed", {
-					error: error instanceof Error ? (error.stack ?? error.message) : String(error),
-				});
-				await link.detach().catch(() => undefined);
-				// Attach is a contract: falling back to a local session here would
-				// fork the operator's work into a second store while the backend
-				// keeps running. Close the client and report the failure instead.
-				mode.showError(
-					`Could not attach to the backend: ${error instanceof Error ? error.message : String(error)}`,
-				);
-				await mode.shutdown().catch(() => undefined);
-				process.exit(1);
-			}
-		}
 
 		if (setupWizard && playStartupSplash) {
 			await setupWizard.runStartupSplash(mode);
@@ -872,11 +801,32 @@ async function runInteractiveMode(
 			}
 		}
 
-		if (!resuming) {
+		if (offersStartupWorktree) {
 			await mode.maybeAutoCreateWorktree();
 		}
+
+		// `omp join <link>`: dispatch through the same builtin path as a typed
+		// `/join` so collab guards and error rendering stay in one place.
+		if (joinLink !== undefined) {
+			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
+			await executeBuiltinSlashCommand(`/join ${joinLink}`, { ctx: mode });
+			// Join failure returns to the local session; success still needs the
+			// controller observing its eventual restoration without hosting replicas.
+			mode.collabController.autoStart();
+		}
+		// Keep guest mutations gated through setup dialogs and transcript replay,
+		// not just init. Only a successful outer startup opens the room for input.
+		mode.collabController.startupComplete();
 	} catch (error) {
-		mode.stop();
+		// Init publishes before startup dialogs, so any later startup failure
+		// must withdraw the room before restoring the terminal.
+		try {
+			await mode.collabController.shutdown("startup failed");
+		} catch (cleanupError) {
+			logger.warn("Failed to stop collaboration after startup failure", { error: String(cleanupError) });
+		} finally {
+			mode.stop();
+		}
 		throw error;
 	}
 
@@ -912,11 +862,7 @@ async function runInteractiveMode(
 			// before this dispatch runs (the composer accepts input as soon as the
 			// first turn starts): the CLI message queues into that turn instead of
 			// dying with AgentBusyError.
-			if (mode.backendAttach) {
-				mode.backendAttach.sendPrompt(initialMessage, initialImages);
-			} else {
-				await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
-			}
+			await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -925,8 +871,7 @@ async function runInteractiveMode(
 
 	for (const message of initialMessages) {
 		try {
-			if (mode.backendAttach) mode.backendAttach.sendPrompt(message);
-			else await session.prompt(message, { streamingBehavior: "steer" });
+			await session.prompt(message, { streamingBehavior: "steer" });
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -1051,7 +996,7 @@ async function openRelocatedSession(
 		// Its directory is gone, so it cannot be resumed in place either.
 		throw new SessionResolutionError(
 			err.message,
-			"Close the session in the other Zeta process, then resume it again.",
+			"Close the session in the other omp process, then resume it again.",
 		);
 	}
 }
@@ -1132,14 +1077,6 @@ function notifyResumeCwdFallback(
 }
 
 /**
- * How long the first prompt waits for an online discovery pass when a project has
- * no cache yet. Discovery is per-provider and serial, so an unreachable local
- * engine can hold it for 10s each; past this budget the prompt appears and the
- * background pass is adopted later by {@link rebuildScopedModelsAfterDiscovery}.
- */
-const FIRST_PROMPT_DISCOVERY_BUDGET_MS = 2_500;
-
-/**
  * Resolve the effective model allow-list from an explicit `--models` scope or,
  * failing that, the active project's `enabledModels`. A totally collapsed scope
  * gets one cache-aware discovery pass before session construction: otherwise an
@@ -1166,11 +1103,7 @@ export async function resolveScopedModels(
 	if (scopedModels.length > 0 || modelRegistry.getDiscoverableProviders().length === 0) {
 		return scopedModels;
 	}
-	// First run in a project has no discovery cache, and the online pass can take tens of
-	// seconds when a configured local engine is unreachable (10s per provider, serially).
-	// Budget it instead of blocking the prompt: whatever the pass finds later lands through
-	// `rebuildScopedModelsAfterDiscovery`, which adopts the fuller scope when it arrives.
-	await Promise.race([modelRegistry.refresh("online-if-uncached"), Bun.sleep(FIRST_PROMPT_DISCOVERY_BUDGET_MS)]);
+	await modelRegistry.refresh("online-if-uncached");
 	return await resolveModelScope(modelPatterns, modelRegistry, preferences, activeSettings);
 }
 
@@ -1208,7 +1141,6 @@ export interface ScopedModelSink {
 	readonly isDisposed: boolean;
 	readonly scopedModels: ReadonlyArray<{ model: Model; thinkingLevel?: ThinkingLevel }>;
 	setScopedModels(scopedModels: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>): void;
-	setScopedModelsRefresher(refresher: (() => Promise<void>) | undefined): void;
 }
 
 /**
@@ -1218,7 +1150,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `zetacode models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -1325,14 +1257,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.messages.splice(messageIndex, 1);
 }
 const SESSION_NOT_FOUND_HINT =
-	"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.";
-
-/**
- * Provenance seed for every session this process creates: the terminal CLI, and
- * ACP sessions hosted by an editor — both are CLI-mode sessions. `zeta serve`
- * stamps its own (desktop or automation).
- */
-const CLI_SESSION = { client: "cli" } as const;
+	"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -1485,6 +1410,19 @@ export async function createSessionManager(
 	return undefined;
 }
 
+/** Discover APPEND_SYSTEM.md file if no CLI append system prompt was provided */
+function discoverAppendSystemPromptFile(): string | undefined {
+	const projectPath = findConfigFile("APPEND_SYSTEM.md", { user: false });
+	if (projectPath) {
+		return projectPath;
+	}
+	const globalPath = findConfigFile("APPEND_SYSTEM.md", { user: true });
+	if (globalPath) {
+		return globalPath;
+	}
+	return undefined;
+}
+
 /** Apply resolved CLI/discovered prompt files without bypassing system prompt templates. */
 export function applyResolvedSystemPromptInputs(
 	options: CreateAgentSessionOptions,
@@ -1533,37 +1471,32 @@ export async function buildSessionOptions(
 		throw new Error("--system-prompt and --system-prompt-template cannot be combined");
 	}
 	const cwd = options.cwd;
-	// Explicit prompt inputs win over discovered SYSTEM_TEMPLATE.md/SYSTEM.md.
-	// A discovered literal (SYSTEM.md) stays on buildSystemPrompt's discovery
-	// path so it is re-read on every prompt rebuild; a discovered template is
-	// frozen here because buildSystemPrompt cannot distinguish it from an
-	// explicit one.
-	const discoveredPromptOverride =
+	const discoveredOverride =
 		parsed.systemPrompt === undefined && parsed.systemPromptTemplate === undefined
 			? await discoverSystemPromptOverride(cwd)
 			: undefined;
-	const explicitTemplatePath = parsed.systemPromptTemplate;
-	const discoveredAppendSource =
-		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
+	const systemPromptSource =
+		parsed.systemPrompt ?? (discoveredOverride?.kind === "text" ? discoveredOverride.path : undefined);
+	const templatePath =
+		parsed.systemPromptTemplate ?? (discoveredOverride?.kind === "template" ? discoveredOverride.path : undefined);
+	const appendPromptSource = parsed.appendSystemPrompt ?? discoverAppendSystemPromptFile();
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
-			parsed.systemPrompt === undefined
-				? Promise.resolve(undefined)
-				: resolvePromptInput(parsed.systemPrompt, "system prompt"),
-			parsed.appendSystemPrompt === undefined
-				? Promise.resolve(undefined)
-				: resolvePromptInput(parsed.appendSystemPrompt, "append system prompt"),
+			discoveredOverride?.kind === "text"
+				? Promise.resolve(discoveredOverride.content)
+				: resolvePromptInput(systemPromptSource, "system prompt"),
+			resolvePromptInput(appendPromptSource, "append system prompt"),
 			resolvePromptInput(titleSystemPromptSource, "title system prompt"),
-			explicitTemplatePath !== undefined
-				? loadSystemPromptTemplateFile(explicitTemplatePath)
-				: discoveredPromptOverride?.kind === "template"
-					? Promise.resolve(discoveredPromptOverride.content)
-					: Promise.resolve(undefined),
+			// Discovered templates arrive pre-loaded from the capability; only
+			// explicit CLI paths hit the strict file loader here.
+			discoveredOverride?.kind === "template" && parsed.systemPromptTemplate === undefined
+				? Promise.resolve(discoveredOverride.content)
+				: templatePath === undefined
+					? Promise.resolve(undefined)
+					: loadSystemPromptTemplateFile(templatePath),
 		]);
-	if (discoveredAppendSource !== undefined) {
-		options.appendSystemPromptSource = discoveredAppendSource;
-	}
+
 	if (sessionManager) {
 		options.sessionManager = sessionManager;
 	}
@@ -1835,12 +1768,6 @@ export async function buildSessionOptions(
 	} else if (parsed.tools) {
 		options.toolNames = parsed.tools;
 	}
-	if (parsed.agentProfile) {
-		options.agentProfile = await loadMainAgentProfile(parsed.agentProfile, {
-			cwd: options.cwd ?? getProjectDir(),
-			agentDir: getAgentDir(),
-		});
-	}
 
 	if (parsed.noLsp) {
 		options.enableLsp = false;
@@ -1931,9 +1858,8 @@ export async function runRootCommand(
 		await logger.time("initTheme:initial", ensureTheme);
 
 		const parsedArgs = parsed;
-		let startupCwd: Awaited<ReturnType<typeof applyStartupCwd>> = {};
 		try {
-			startupCwd = await logger.time("applyStartupCwd", applyStartupCwd, parsedArgs);
+			await logger.time("applyStartupCwd", applyStartupCwd, parsedArgs);
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : String(error);
 			process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
@@ -1941,14 +1867,6 @@ export async function runRootCommand(
 		}
 
 		const notifs: (InteractiveModeNotify | null)[] = [];
-		// A home-directory launch is moved off home (never run there, never write
-		// there); say so once instead of leaving the temp workspace unexplained.
-		if (startupCwd.autoChdir) {
-			notifs.push({
-				kind: "info",
-				message: M.startupHomeTempNotice.replace("%s", startupCwd.autoChdir.to),
-			});
-		}
 
 		if (parsedArgs.version) {
 			writeStartupNotice(parsedArgs, `${VERSION}\n`);
@@ -2003,12 +1921,12 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
 			const cliExtensions = [...(parsedArgs.extensions ?? []), ...(parsedArgs.hooks ?? [])];
-			injectZetaExtensionCliRoots(cliExtensions, home, getProjectDir(), {
+			injectOmpExtensionCliRoots(cliExtensions, home, getProjectDir(), {
 				mode: parsedArgs.noExtensions ? "explicit-only" : "merge",
 				replace: true,
 			});
@@ -2029,68 +1947,8 @@ export async function runRootCommand(
 		const autoPrint =
 			(pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
 		const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
-		const backendEnabled = await readBackendEnabledSetting();
-		const standalone = parsedArgs.standalone === true;
-		const explicitBackend =
-			parsedArgs.backend === true ||
-			parsedArgs.backendUrl !== undefined ||
-			parsedArgs.attach === true ||
-			parsedArgs.attachSession !== undefined ||
-			parsedArgs.attachNew === true;
-		if (standalone && explicitBackend) {
-			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
-			process.exit(1);
-		}
-		// Transport is decided before any local session exists. A bare launch is
-		// local unless backend mode is enabled; explicit --attach/--backend must
-		// reach a backend or startup fails, so a client never silently forks a
-		// second session.
-		let transport: StartupTransport;
-		try {
-			transport = await resolveStartupTransport(parsedArgs, rawArgs, {
-				interactive: isInteractive,
-				backendEnabled: backendEnabled && !standalone,
-				cwd,
-			});
-		} catch (error) {
-			if (!(error instanceof BackendAttachError)) throw error;
-			process.stderr.write(`${chalk.red(error.message)}\n`);
-			process.exit(1);
-		}
-		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
-		const forcedBackend = explicitBackend || (backendEnabled && !standalone && !isInteractive && !isProtocolMode);
-		if (forcedBackend && !isProtocolMode && !isInteractive) {
-			const fileResult = await logger.time("processFileArguments", () =>
-				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
-			);
-			const initial = buildInitialMessage({
-				parsed: parsedArgs,
-				fileText: fileResult.text.length > 0 ? fileResult.text : undefined,
-				fileImages: fileResult.images.length > 0 ? fileResult.images : undefined,
-				stdinContent: pipedInput,
-			});
-			const prompts = [initial.initialMessage, ...parsedArgs.messages].filter(
-				(message): message is string => message !== undefined,
-			);
-			const { runBackendPrintMode } = await import("./backend/print");
-			const attachExisting = parsedArgs.attach === true || parsedArgs.attachSession !== undefined;
-			const exitCode = await runBackendPrintMode({
-				intent: {
-					sessionId: parsedArgs.attachSession,
-					newSession: parsedArgs.attachNew === true || (parsedArgs.backend === true && !attachExisting),
-					url: parsedArgs.backendUrl,
-					explicit: explicitBackend,
-				},
-				cwd,
-				messages: prompts,
-				images: initial.initialImages,
-				mode: mode === "json" ? "json" : "text",
-				printThoughts: parsedArgs.printThoughts,
-				onNotice: line => process.stderr.write(`${line}\n`),
-			});
-			process.exit(exitCode);
-		}
-		// Upstream guard: claim the terminal before browser tabs are opened for this session.
+		// The TUI owns the Tern pane or cmux workspace it draws in; an omp its commands start sees the claim and
+		// keeps its browser tabs out of this session's pane.
 		if (isInteractive) claimTerminal();
 		// Before session resolution: resume, fork, and import act on these same
 		// startup-parse flags, so rejecting later would leave forked or imported
@@ -2420,7 +2278,7 @@ export async function runRootCommand(
 		// and the deferred persistence check below (after extension flag ownership is
 		// resolved) rejects a native --resume, so the picker must not run first.
 		if (parsedArgs.resume === true && !parsedArgs.fork && !parsedArgs.noSession) {
-			const folderListing = await logger.time(
+			const folder = await logger.time(
 				"SessionManager.listForPicker",
 				SessionManager.listForPicker,
 				cwd,
@@ -2428,18 +2286,20 @@ export async function runRootCommand(
 				undefined,
 				cfgSessionWorktreeScope.get(settingsInstance),
 			);
-			const folderSessions = await folderListing.complete;
-			let preloadedAllSessions: SessionInfo[] | undefined;
-			if (folderSessions.length === 0) {
+			let preloadedAllSessions: PickerListing | undefined;
+			// Preliminary rows are never empty while the full scan has sessions:
+			// with nothing indexed, the listing waits for the scan.
+			if (folder.sessions.length === 0) {
 				// Probe globally so we can exit fast when the user has no sessions at
 				// all, but never auto-switch the picker into all-projects scope — that
 				// silently surfaced other projects' history when the cwd was empty
 				// (issue #3099). The preloaded list also makes the user's Tab switch
 				// instant on the way in.
-				preloadedAllSessions = await (
-					await logger.time("SessionManager.listAllForPicker", SessionManager.listAllForPicker)
-				).complete;
-				if (preloadedAllSessions.length === 0) {
+				preloadedAllSessions = await logger.time(
+					"SessionManager.listAllForPicker",
+					SessionManager.listAllForPicker,
+				);
+				if (preloadedAllSessions.sessions.length === 0) {
 					writeStartupNotice(parsedArgs, `${chalk.dim("No sessions found")}\n`);
 					stopStartupWatchdog();
 					process.exit(0);
@@ -2447,9 +2307,9 @@ export async function runRootCommand(
 			}
 			pauseStartupWatchdog();
 			const selectSessionImpl = deps.selectSession ?? (await loadSessionPicker());
-			const picked = await logger.time("selectSession", selectSessionImpl, folderSessions, {
+			const picked = await logger.time("selectSession", selectSessionImpl, folder.sessions, {
+				completeSessions: folder.complete,
 				allSessions: preloadedAllSessions,
-				resume: { deleteMode: "permanent", workspacePath: cwd },
 			});
 			resumeStartupWatchdog();
 			if (!picked) {
@@ -2518,22 +2378,6 @@ export async function runRootCommand(
 			}
 		}
 		await pluginPreloadPromise;
-		// Pure file I/O: overlap it with session-option building, but land it before
-		// extensions load or the session can start project daemons.
-		const daemonPresencePromise =
-			deps === DEFAULT_RUN_ROOT_DEPENDENCIES
-				? logger.time("registerDaemonProjectPresence", registerDaemonProjectPresence, cwd)
-				: undefined;
-		daemonPresencePromise?.catch(() => {});
-
-		// IM channels are hosted by this session when web.yml enables one or
-		// `--channels` is passed. The config is loaded once here so the
-		// `channel_send` sink exists before the session's tool registry is built;
-		// it is the process-wide instance every mutator re-reads under the lock.
-		const sessionChannelsWebConfig = isProtocolMode ? null : await logger.time("loadWebConfig", WebConfig.shared);
-		const sessionChannelsPlan = sessionChannelsWebConfig
-			? resolveChannelHosting(sessionChannelsWebConfig, parsedArgs.channels === true)
-			: { shouldStart: false, source: "none" as const, enabled: [] };
 
 		let startupTelemetry: CreateAgentSessionOptions["telemetry"];
 		let startupTopLevelExtensions: CreateAgentSessionOptions["topLevelExtensions"];
@@ -2548,7 +2392,7 @@ export async function runRootCommand(
 		// read of a live store elsewhere in this process can corrupt it (issue #15586).
 		if (process.platform === "linux" && !ensureSqliteLockShim()) {
 			startupWarning(
-				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside omp (e.g. `grep -r ~/.zeta`, `cp ~/.zeta/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
+				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside omp (e.g. `grep -r ~/.omp`, `cp ~/.omp/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
 			);
 		}
 		const buildStartupSessionOptions = async (manager: SessionManager | undefined) => {
@@ -2571,13 +2415,10 @@ export async function runRootCommand(
 			options.autoTitle = isInteractive;
 			// Provenance: every session this process creates is a CLI-mode session.
 			options.client = CLI_SESSION.client;
-			options.deferSkillDescriptionCompression = isInteractive;
+			options.deferHintCompression = isInteractive;
 			options.settings = settingsInstance;
 			options.telemetry = startupTelemetry;
 			options.topLevelExtensions = startupTopLevelExtensions;
-			if (sessionChannelsPlan.shouldStart) {
-				options.channelSend = opts => sendFromSessionChannel(opts);
-			}
 			options.onPrewalkWarning = startupWarning;
 			return options;
 		};
@@ -2588,13 +2429,16 @@ export async function runRootCommand(
 			clearPluginRootsCache: clearPluginRootsAndCaches,
 		};
 
-		// OTEL: gated by TELEMETRY_EXPORT_ENABLED, which is hard-off (see its
-		// doc comment). When that gate is ever opened, an endpoint configured via
-		// env registers global OTLP exporters and switches on the agent loop's
-		// telemetry hooks so traces, run-level metrics, and structured logs have
-		// source events to export. Content capture remains governed by
+		// OTEL: unless `telemetry.otlpExportEnabled` is off, register global OTLP
+		// exporters when an endpoint is configured via env, then switch on the agent
+		// loop's telemetry hooks so traces, run-level metrics, and structured logs
+		// have source events to export. Content capture remains governed by
 		// OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
-		await logger.time("initTelemetryExport", initTelemetryExport, TELEMETRY_EXPORT_ENABLED);
+		await logger.time(
+			"initTelemetryExport",
+			initTelemetryExport,
+			cfgTelemetryOtlpExportEnabled.get(settingsInstance),
+		);
 		if (isTelemetryExportEnabled()) {
 			// Chat telemetry reports each request's provider-computed cost. A model
 			// without a known rate card reports an unavailable reason instead of $0.
@@ -2604,7 +2448,6 @@ export async function runRootCommand(
 			});
 			startupTelemetry = sessionOptions.telemetry;
 		}
-		await daemonPresencePromise;
 
 		// Handle CLI --api-key as runtime override (not persisted)
 		if (parsedArgs.apiKey) {
@@ -2622,17 +2465,6 @@ export async function runRootCommand(
 		const createAgentSessionImpl = deps.createAgentSession ?? createAgentSession;
 		const createSession = async (options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> => {
 			const result = await logger.time("createAgentSession", createAgentSessionImpl, options);
-			const teamRef = AgentRegistry.global()
-				.list()
-				.find(ref => ref.session === result.session && ref.status !== "aborted");
-			if (teamRef) {
-				void deliverPendingRoomEvents({ agentId: teamRef.id, cwd: options.cwd ?? process.cwd() }).catch(error => {
-					logger.debug("team: pending room delivery failed", {
-						agentId: teamRef.id,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				});
-			}
 			// Kick off background model discovery only after createAgentSession finishes its parallel
 			// discovery arms; running these concurrently contends for the event loop and stretches
 			// every parallel arm by ~30ms. Interactive startup defers it further, behind the first
@@ -2733,7 +2565,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `zetacode --list-models`) and invalid
+			// Fail fast on stale/typo flags (e.g. `omp --list-models`) and invalid
 			// built-in enum values now that we know the real extension flag set —
 			// an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
 			// neither can be judged by the pre-extension parse. Without this check
@@ -2851,6 +2683,7 @@ export async function runRootCommand(
 				mcpManager,
 				startBackgroundModelDiscovery,
 			} = createdSession;
+			if (isInteractive) session.addDisposer(bindAgentMesh(sessionOptions.cwd ?? getProjectDir(), settingsInstance));
 			if (!isInteractive) session.validateRetryFallbackChains();
 
 			const sessionToolNames = session.getAllToolNames();
@@ -2929,7 +2762,7 @@ export async function runRootCommand(
 						.catch(error => logger.warn("Startup changelog failed", { error: String(error) }));
 				}
 				void session.loadDeferredExtensions();
-				session.startSkillDescriptionCompression();
+				session.startHintCompression();
 				modelRegistry.refreshInBackground();
 				session.validateRetryFallbackChains();
 				if (configuredScope.length > 0) {
@@ -2945,10 +2778,9 @@ export async function runRootCommand(
 					);
 				}
 			};
-			const refreshScopedModelsAfterLogin = async () => {
+			session.setScopedModelsRefresher(async () => {
 				await rebuildScopedModels(session, parsedArgs, modelRegistry, settingsInstance);
-			};
-			session.setScopedModelsRefresher(refreshScopedModelsAfterLogin);
+			});
 			watchScopedModelSettings(session, parsedArgs, modelRegistry, settingsInstance);
 
 			if (modelFallbackMessage) {
@@ -3004,7 +2836,7 @@ export async function runRootCommand(
 						for (const selector of suggestions) process.stderr.write(`  ${selector}\n`);
 					}
 					process.stderr.write(
-						`\nRun \`${CLI_BIN_NAME} models find <pattern>\` to search, or \`${CLI_BIN_NAME} models\` to list all.\n`,
+						`\nRun \`${APP_NAME} models find <pattern>\` to search, or \`${APP_NAME} models\` to list all.\n`,
 					);
 					process.exit(1);
 				}
@@ -3022,149 +2854,95 @@ export async function runRootCommand(
 				postmortem.register("settings-file-watcher", () => settingsInstance.stopWatching(), { exitOnly: true });
 			}
 
-			// Start the runtime against this live session (interactive and
-			// headless/print alike). `startChannels` needs only the ChannelSession
-			// contract; the lock prevents a second session/serve from double-binding.
-			// Remember the request even when nothing is enabled yet: `/channels
-			// enable|login` starts the host from this same session after a write.
-			const sessionChannelRouter = sessionChannelsWebConfig
-				? new SessionRouter({
-						coordinator: session,
-						webConfig: sessionChannelsWebConfig,
-						getLastInbound: () => activeSessionChannelHost()?.lastInbound ?? null,
-						sendText: async (instanceId, to, text, options) => {
-							const host = activeSessionChannelHost();
-							if (!host) throw new Error("IM channels are not started in this session");
-							await host.runtime.sendText(instanceId, to, text, options);
-						},
-						defaultCwd: session.sessionManager.getCwd(),
-					})
-				: undefined;
-			if (sessionChannelsWebConfig) {
-				rememberSessionChannelContext({
-					session,
-					webConfig: sessionChannelsWebConfig,
-					flag: parsedArgs.channels === true,
-					sessionId: session.sessionManager.getSessionId(),
-					...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
+			if (mode === "rpc" || mode === "rpc-ui") {
+				// Branch-only protocol runner: keep RPC host code out of normal interactive startup.
+				const runRpcMode: RunRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
+				stopStartupWatchdog();
+				logger.endTiming();
+				await runRpcMode(session, {
+					setToolUIContext: mode === "rpc-ui" ? setToolUIContext : undefined,
+					headless: parsedArgs.noUi === true,
+					subagentEventBus,
+					mcpManager,
+					input: rpcInput,
 				});
-			}
-			const sessionChannels =
-				sessionChannelsWebConfig && sessionChannelsPlan.shouldStart
-					? await startSessionChannels({
-							session,
-							webConfig: sessionChannelsWebConfig,
-							flag: parsedArgs.channels === true,
-							sessionId: session.sessionManager.getSessionId(),
-							...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
-						}).catch(error => ({
-							started: false as const,
-							reason: "start-failed" as const,
-							message: error instanceof Error ? error.message : String(error),
-							channels: sessionChannelsPlan.enabled,
-						}))
-					: null;
-			if (sessionChannels && !sessionChannels.started) {
-				process.stderr.write(`${chalk.yellow(`Warning: IM channels not started: ${sessionChannels.message}\n`)}`);
-			}
+			} else if (isInteractive) {
+				const versionCheckPromise = checkForNewVersion(VERSION).catch(() => undefined);
 
-			try {
-				if (mode === "rpc" || mode === "rpc-ui") {
-					// Branch-only protocol runner: keep RPC host code out of normal interactive startup.
-					const runRpcMode: RunRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
+				const modelScopeNotification = buildModelScopeNotification(
+					scopedModels,
+					cfgStartupQuiet.get(settingsInstance),
+				);
+				if (modelScopeNotification) {
+					// Routed through the TUI (not stdout): the startup capture owns the
+					// terminal in raw mode here, and the TUI's first clearScrollback paint
+					// would wipe a pre-TUI line anyway.
+					notifs.push(modelScopeNotification);
+				}
+
+				const pythonEvalWarning = await pythonEvalWarningPromise;
+				if (pythonEvalWarning) {
+					notifs.push({ kind: "warn", message: pythonEvalWarning });
+				}
+
+				if ($env.PI_TIMING) {
+					logger.printTimings();
+					if (logger.shouldExitAfterTimings()) {
+						process.exit(0);
+					}
+				}
+				const startupLease = takeStartupComposerLease();
+				try {
 					stopStartupWatchdog();
 					logger.endTiming();
-					await runRpcMode(session, {
-						setToolUIContext: mode === "rpc-ui" ? setToolUIContext : undefined,
-						headless: parsedArgs.noUi === true,
-						subagentEventBus,
+					await runInteractiveMode(
+						session,
+						VERSION,
+						notifs,
+						versionCheckPromise,
+						initialArgs.messages,
+						setToolUIContext,
+						lspServers,
 						mcpManager,
-						input: rpcInput,
-					});
-				} else if (isInteractive) {
-					const versionCheckPromise = checkForNewVersion(VERSION).catch(() => undefined);
-
-					const modelScopeNotification = buildModelScopeNotification(
-						scopedModels,
-						cfgStartupQuiet.get(settingsInstance),
-					);
-					if (modelScopeNotification) {
-						// Routed through the TUI (not stdout): the startup capture owns the
-						// terminal in raw mode here, and the TUI's first clearScrollback paint
-						// would wipe a pre-TUI line anyway.
-						notifs.push(modelScopeNotification);
-					}
-
-					const pythonEvalWarning = await pythonEvalWarningPromise;
-					if (pythonEvalWarning) {
-						notifs.push({ kind: "warn", message: pythonEvalWarning });
-					}
-
-					if ($env.PI_TIMING) {
-						logger.printTimings();
-						if (logger.shouldExitAfterTimings()) {
-							process.exit(0);
-						}
-					}
-					const startupLease = takeStartupComposerLease();
-					try {
-						stopStartupWatchdog();
-						logger.endTiming();
-						await runInteractiveMode(
-							session,
-							VERSION,
-							notifs,
-							versionCheckPromise,
-							initialArgs.messages,
-							setToolUIContext,
-							lspServers,
-							mcpManager,
-							Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource),
-							deps.forceSetupWizard === true,
-							showStartupSplash,
-							eventBus,
-							subagentEventBus,
-							initialMessage,
-							initialImages,
-							startDeferredStartupWork,
-							startupLease,
-							initialArgs.goal,
-							parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
-							refreshScopedModelsAfterLogin,
-							backendAttachTarget,
-						);
-					} finally {
-						startupLease?.dispose();
-					}
-				} else {
-					// Branch-only single-shot runner: keep print-mode code out of normal interactive startup.
-					stopStartupWatchdog();
-					// PI_TIMING prints the tree after the run; otherwise stop recording now so a
-					// long `-p` run's subagents do not keep growing it.
-					if (!$env.PI_TIMING) logger.endTiming();
-					const runPrintMode: RunPrintMode = (await import("./modes/print-mode")).runPrintMode;
-					const exitCode = await runPrintMode(session, {
-						mode,
-						messages: initialArgs.messages,
+						Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource),
+						deps.forceSetupWizard === true,
+						showStartupSplash,
+						eventBus,
+						subagentEventBus,
 						initialMessage,
 						initialImages,
-						printThoughts: initialArgs.printThoughts,
-						planYolo: parsedArgs.planYolo,
-						mcpManager,
-						deadline: sessionOptions.deadline,
-					});
-					if ($env.PI_TIMING) {
-						logger.printTimings();
-					}
-					// Print mode exits through postmortem.quit (process.exit), so the
-					// surrounding finally would never run; stop channels first.
-					await stopActiveSessionChannels().catch(() => {});
-					await disposeSessionQuietly(session);
-					stopThemeWatcher();
-					await postmortem.quit(exitCode);
+						parsedArgs.join,
+						startDeferredStartupWork,
+						startupLease,
+						initialArgs.goal,
+						parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
+					);
+				} finally {
+					startupLease?.dispose();
 				}
-			} finally {
-				await stopActiveSessionChannels().catch(() => {});
+			} else {
+				// Branch-only single-shot runner: keep print-mode code out of normal interactive startup.
+				stopStartupWatchdog();
+				// PI_TIMING prints the tree after the run; otherwise stop recording now so a
+				// long `-p` run's subagents do not keep growing it.
+				if (!$env.PI_TIMING) logger.endTiming();
+				const runPrintMode: RunPrintMode = (await import("./modes/print-mode")).runPrintMode;
+				const exitCode = await runPrintMode(session, {
+					mode,
+					messages: initialArgs.messages,
+					initialMessage,
+					initialImages,
+					printThoughts: initialArgs.printThoughts,
+					planYolo: parsedArgs.planYolo,
+					mcpManager,
+					deadline: sessionOptions.deadline,
+				});
+				if ($env.PI_TIMING) {
+					logger.printTimings();
+				}
+				await disposeSessionQuietly(session);
+				stopThemeWatcher();
+				await postmortem.quit(exitCode);
 			}
 		}
 	} catch (error) {

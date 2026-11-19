@@ -11,7 +11,7 @@ import {
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	ThinkingLevel,
 	type ToolCallContext,
-} from "@linxiraos/pi-agent-core";
+} from "@oh-my-pi/pi-agent-core";
 import {
 	canReplayRemoteCompaction,
 	type CompactionResult,
@@ -26,7 +26,7 @@ import {
 	type SessionMessageEntry,
 	shouldCompact,
 	shouldUseProviderNativeCompaction,
-} from "@linxiraos/pi-agent-core/compaction";
+} from "@oh-my-pi/pi-agent-core/compaction";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -36,13 +36,13 @@ import type {
 	ProviderSessionState,
 	ServiceTier,
 	SimpleStreamOptions,
-} from "@linxiraos/pi-ai";
-import { isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
-import * as AIError from "@linxiraos/pi-ai/error";
-import { extractProviderRetryHint } from "@linxiraos/pi-ai/utils/retry-after";
-import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { extractHttpStatusFromError, logger, prompt } from "@linxiraos/pi-utils";
-import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
+} from "@oh-my-pi/pi-ai";
+import { completeSimple, isUsageLimitOutcome, resolveModelServiceTier, streamSimple } from "@oh-my-pi/pi-ai";
+import * as AIError from "@oh-my-pi/pi-ai/error";
+import { extractProviderRetryHint } from "@oh-my-pi/pi-ai/utils/retry-after";
+import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
+import { extractHttpStatusFromError, logger, prompt } from "@oh-my-pi/pi-utils";
+import type { AdvisorConfig } from "@oh-my-pi/pi-tui/overlays/advisor-config";
 import {
 	ADVISOR_DEFAULT_BUDGET_PER_UPDATE,
 	ADVISOR_DEFAULT_TOOL_NAMES,
@@ -88,7 +88,7 @@ import { serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/s
 import type { Settings } from "../config/settings";
 import { CursorExecHandlers, type CursorMcpResourceAdapter } from "../cursor";
 import { bridgeToolMap } from "../cursor-bridge-tools";
-import { estimateContextToolSchemaTokens } from "@linxiraos/pi-tui/status-line/context-usage";
+import { estimateContextToolSchemaTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
 import type { PlanModeState } from "../plan-mode/state";
 import advisorBoundaryGuidance from "../prompts/advisor/boundary-guidance.md" with { type: "text" };
 import advisorSystemPrompt from "../prompts/advisor/system.md" with { type: "text" };
@@ -100,11 +100,12 @@ import {
 	shouldDisableReasoning,
 	toReasoningEffort,
 	automaticThinkingLevel,
-} from "@linxiraos/pi-tui/thinking";
+} from "@oh-my-pi/pi-tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ClientBridge } from "./client-bridge";
 import { resolveCompactionMethodOrder, resolveMethodSettings } from "./compaction-methods";
 import { type CustomMessage, type CustomMessagePayload, isUserAuthoredMessage, isUserTurnInitiator } from "./messages";
+import { journalCompletion } from "./model-usage-journal";
 import { isAdvisorCard, isTerminalTextAssistantAnswer } from "./queued-messages";
 import {
 	calculateRetryBackoffDelayMs,
@@ -2192,7 +2193,7 @@ export class SessionAdvisors {
 			if (rotation.switched && this.#spendCredentialSwitch(advisor, currentModel.provider)) return true;
 		}
 
-		const retryAfterMs = extractProviderRetryHint(currentModel.provider, message);
+		const retryAfterMs = extractProviderRetryHint(currentModel.provider, message, currentModel.baseUrl);
 		const usageLimit =
 			AIError.is(errorId, AIError.Flag.UsageLimit) ||
 			isUsageLimitOutcome(extractHttpStatusFromError(error), message);
@@ -2613,6 +2614,11 @@ export class SessionAdvisors {
 		// Instrument the advisor's overflow-compaction one-shot like the primary
 		// compaction path so the advisor model's maintenance call also emits spans.
 		const telemetry = resolveTelemetry(agent.telemetry, advisorProviderSessionId);
+		// Billed to the primary session; the summary stays in the advisor's own history.
+		const journal = journalCompletion(this.#host.sessionManager, {
+			purpose: "compaction:advisor",
+			usageOnly: true,
+		});
 
 		const codexCompaction = this.#host.createCodexCompactionContext({
 			trigger: "auto",
@@ -2669,6 +2675,13 @@ export class SessionAdvisors {
 						preferWebsockets: this.#host.preferWebsockets(candidate),
 						codexAccessPrograms: cfgProvidersOpenaiCodexDaybreak.get(this.#host.settings),
 						codexCompaction,
+						// The default transport, wrapped so every provider attempt is journaled.
+						completeImpl: async (requestModel, requestContext, requestOptions) => {
+							const message = await completeSimple(requestModel, requestContext, requestOptions);
+							journal?.(message);
+							return message;
+						},
+						onRemoteUsage: journal,
 					},
 				);
 				break;

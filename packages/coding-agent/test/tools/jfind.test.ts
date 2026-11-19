@@ -2,25 +2,34 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@linxiraos/pi-ai";
-import { tokenUsage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
-import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
-import { ChainJudge } from "@linxiraos/zeta/judgment";
-import { FIND_TIMEOUT_MS, FindTool } from "@linxiraos/zeta/tools/jfind";
-import { type SpotlightClient, SpotlightError, type SpotlightRequest } from "@linxiraos/zeta/spotlight/client";
-import { type CascadeSpotlight, runCascade } from "@linxiraos/zeta/tools/jfind/cascade";
-import { keywordsFromQuery } from "@linxiraos/zeta/tools/jfind/keywords";
-import { grepIndex } from "@linxiraos/zeta/tools/jfind/lexical";
-import { mergeHeat, type Passage, selectWindows, sketch, windows } from "@linxiraos/zeta/tools/jfind/passages";
-import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
-import { eligibleFile, renderTree, resolveSearchRoot } from "@linxiraos/zeta/tools/jfind/tree";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { resolveSearchResultPath } from "@linxiraos/zeta/tools/path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@oh-my-pi/pi-ai";
+import { tokenUsage } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
+import { InternalUrlFilesystem } from "@oh-my-pi/pi-coding-agent/internal-urls/url-filesystem";
+import { ChainJudge } from "@oh-my-pi/pi-coding-agent/judgment";
+import { FIND_TIMEOUT_MS, FindTool } from "@oh-my-pi/pi-coding-agent/tools/jfind";
+import {
+	type SpotlightClient,
+	SpotlightError,
+	type SpotlightRequest,
+} from "@oh-my-pi/pi-coding-agent/spotlight/client";
+import { type CascadeSpotlight, runCascade } from "@oh-my-pi/pi-coding-agent/tools/jfind/cascade";
+import { keywordsFromQuery } from "@oh-my-pi/pi-coding-agent/tools/jfind/keywords";
+import { grepIndex } from "@oh-my-pi/pi-coding-agent/tools/jfind/lexical";
+import {
+	mergeHeat,
+	type Passage,
+	selectWindows,
+	sketch,
+	windows,
+} from "@oh-my-pi/pi-coding-agent/tools/jfind/passages";
+import { readText, ReadTextError } from "@oh-my-pi/pi-coding-agent/tools/jfind/text";
+import { eligibleFile, renderTree, resolveSearchRoot } from "@oh-my-pi/pi-coding-agent/tools/jfind/tree";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { resolveSearchResultPath } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { rejectionOf } from "../helpers/rejection";
 
@@ -540,25 +549,31 @@ describe("jfind cascade", () => {
 
 	it("resolves URL scopes in place and rejects unknown docs and range selectors before judging", async () => {
 		const filesystem = urlFs(process.cwd());
-		expect(await resolveSearchRoot(filesystem, "zeta://", process.cwd())).toEqual({
-			path: "zeta://",
+		expect(await resolveSearchRoot(filesystem, "omp://", process.cwd())).toEqual({
+			path: "omp://",
 			type: "directory",
 		});
-		expect(await resolveSearchRoot(filesystem, "zeta://tools/read.md", process.cwd())).toMatchObject({
-			path: "zeta://tools/read.md",
+		expect(await resolveSearchRoot(filesystem, "omp://tools/read.md", process.cwd())).toMatchObject({
+			path: "omp://tools/read.md",
 			type: "file",
 		});
-		await expect(resolveSearchRoot(filesystem, "zeta://nope.md", process.cwd())).rejects.toThrow(
-			"Path not found: zeta://nope.md",
+		await expect(resolveSearchRoot(filesystem, "omp://nope.md", process.cwd())).rejects.toThrow(
+			"Path not found: omp://nope.md",
 		);
-		await expect(resolveSearchRoot(filesystem, "zeta://tools/read.md:1-10", process.cwd())).rejects.toThrow(
+		await expect(resolveSearchRoot(filesystem, "omp://tools/read.md:1-10", process.cwd())).rejects.toThrow(
 			"line-range selectors are not supported",
+		);
+		await expect(resolveSearchRoot(filesystem, "https://github.com/a/b", process.cwd())).rejects.toThrow(
+			"not http(s) URLs: https://github.com/a/b",
+		);
+		await expect(resolveSearchRoot(filesystem, "src;test", process.cwd())).rejects.toThrow(
+			"find takes one path, not a `;` list: src;test",
 		);
 	});
 
 	it("searches a single omp doc in place and reports hits as its URL", async () => {
 		const filesystem = urlFs(process.cwd());
-		const root = await resolveSearchRoot(filesystem, "zeta://tools/read.md", process.cwd());
+		const root = await resolveSearchRoot(filesystem, "omp://tools/read.md", process.cwd());
 		const result = await runCascade({
 			root,
 			filesystem,
@@ -568,14 +583,14 @@ describe("jfind cascade", () => {
 			includeHidden: false,
 		});
 		expect(result.stats.listed).toBe(1);
-		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["zeta://tools/read.md"]);
+		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["omp://tools/read.md"]);
 	});
 
 	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
-		const completions = (await InternalUrlRouter.instance().complete("zeta", "")) ?? [];
+		const completions = (await InternalUrlRouter.instance().complete("omp", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());
-		const root = await resolveSearchRoot(filesystem, "zeta://", process.cwd());
+		const root = await resolveSearchRoot(filesystem, "omp://", process.cwd());
 		const judge = new FakeJudge((request, key) => {
 			const state = stateOf(request);
 			if ("tree" in state) return String(state.tree).includes(`${key} read.md`) ? 0.9 : 0.1;
@@ -594,7 +609,7 @@ describe("jfind cascade", () => {
 			includeHidden: false,
 		});
 		expect(result.stats.listed).toBe(docs.size);
-		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["zeta://tools/read.md"]);
+		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["omp://tools/read.md"]);
 	});
 
 	it("rejects a missing scope path or a line selector before spending any judgment", async () => {
@@ -612,7 +627,7 @@ describe("jfind cascade", () => {
 				"Path not found: nope",
 			);
 			await expect(
-				tool.execute("x", { query: "anything", grep_keywords: [], path: "zeta://tools/read.md:1-10" }),
+				tool.execute("x", { query: "anything", grep_keywords: [], path: "omp://tools/read.md:1-10" }),
 			).rejects.toThrow("line-range selectors are not supported");
 		} finally {
 			await removeWithRetries(dir);
@@ -711,7 +726,7 @@ describe("jfind cascade", () => {
 		}
 	});
 
-	it("names the interrupted phase when find's deadline fires before anything is verified", async () => {
+	it("names the interrupted phase and returns literal matches when find's deadline fires before anything is verified", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "jfind-deadline-early-"));
 		try {
 			await Bun.write(path.join(dir, "a.ts"), "export function refreshToken() { return 1; }\n");
@@ -720,10 +735,14 @@ describe("jfind cascade", () => {
 				deadline.abort();
 				throw new Error("request aborted");
 			});
-			const error = await rejectionOf(findTool(dir).execute("x", { query: "token refresh", grep_keywords: [] }));
-			if (!(error instanceof ToolError)) throw error;
-			expect(error.message).toContain('at "filename ranking 0/1"');
-			expect(error.message).toContain("Narrow `path`");
+			const result = await findTool(dir).execute("x", { query: "token refresh", grep_keywords: [] });
+			expect(result.details?.timeout).toEqual({ verified: 0, passages: 0 });
+			expect(result.details?.lexicalFallback).toEqual([
+				{ rel: "a.ts", line: 1, snippet: "export function refreshToken() { return 1; }" },
+			]);
+			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+			expect(text).toContain('at "filename ranking 0/1", before any passage was verified');
+			expect(text).toContain("unranked literal keyword matches (not semantically judged):");
 		} finally {
 			await removeWithRetries(dir);
 		}

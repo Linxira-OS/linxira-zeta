@@ -2,25 +2,29 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent, PromptOptions } from "@linxiraos/zeta/session/agent-session";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { TaskParams } from "@linxiraos/pi-tui/tools/task";
-import type { IsolationHandle, WorktreeBaseline } from "@linxiraos/zeta/task/worktree";
-import * as worktreeModule from "@linxiraos/zeta/task/worktree";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import "@linxiraos/zeta/tools/yield";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import {
+	cfgLspDiagnosticsOnEdit,
+	cfgLspDiagnosticsOnWrite,
+	cfgLspFormatOnWrite,
+} from "@oh-my-pi/pi-coding-agent/lsp/settings";
+import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent, PromptOptions } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { TaskParams } from "@oh-my-pi/pi-tui/tools/task";
+import type { IsolationHandle, WorktreeBaseline } from "@oh-my-pi/pi-coding-agent/task/worktree";
+import * as worktreeModule from "@oh-my-pi/pi-coding-agent/task/worktree";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import "@oh-my-pi/pi-coding-agent/tools/yield";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 const TEST_TASK: TaskParams = { agent: "task", name: "CheckLsp", task: "Inspect LSP tools." };
@@ -174,37 +178,44 @@ describe("subagent LSP availability", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("disables LSP for subagents by default", async () => {
+	it("gives subagents the lsp tool but no LSP checks on their edits by default", async () => {
 		mockAgents({
 			name: "task",
 			description: "Task agent",
 			systemPrompt: "Use LSP when useful.",
 			source: "bundled",
-			tools: ["lsp"],
+			tools: ["lsp", "edit", "write"],
 		});
 		const { getOptions } = mockCreateAgentSession();
 
 		const tool = await TaskTool.create(createSession());
 		await tool.execute("tool-call", TEST_TASK);
 
-		expect(getOptions()?.enableLsp).toBe(false);
+		const options = getOptions();
+		expect(options?.enableLsp).toBe(true);
+		expect(options?.toolNames).toContain("lsp");
+		const settings = options!.settings!;
+		expect(cfgLspDiagnosticsOnWrite.get(settings)).toBe(false);
+		expect(cfgLspFormatOnWrite.get(settings)).toBe(false);
+		expect(cfgLspDiagnosticsOnEdit.get(settings)).toBe(false);
 	});
 
-	it("enables subagent LSP when task.enableLsp is set", async () => {
+	it("runs LSP checks on subagent edits when task.enableLsp is set", async () => {
 		mockAgents({
 			name: "task",
 			description: "Task agent",
 			systemPrompt: "Use normal tools.",
 			source: "bundled",
-			tools: ["lsp"],
+			tools: ["lsp", "write"],
 		});
 		const { getOptions } = mockCreateAgentSession();
 
 		const tool = await TaskTool.create(createSession({ taskEnableLsp: true }));
 		await tool.execute("tool-call", TEST_TASK);
 
-		expect(getOptions()?.enableLsp).toBe(true);
-		expect(getOptions()?.toolNames).toContain("lsp");
+		const options = getOptions();
+		expect(options?.enableLsp).toBe(true);
+		expect(cfgLspDiagnosticsOnWrite.get(options!.settings!)).toBe(true);
 	});
 
 	it("keeps subagent LSP disabled when the parent session disables LSP", async () => {
@@ -223,7 +234,7 @@ describe("subagent LSP availability", () => {
 		expect(getOptions()?.enableLsp).toBe(false);
 	});
 
-	it("disables LSP for isolated subagents by default", async () => {
+	it("gives isolated subagents the lsp tool by default", async () => {
 		mockAgents({
 			name: "task",
 			description: "Task agent",
@@ -238,7 +249,7 @@ describe("subagent LSP availability", () => {
 		await tool.execute("tool-call", { ...TEST_TASK, isolated: true });
 
 		expect(getOptions()?.cwd).toBe("/tmp/isolated-subagent");
-		expect(getOptions()?.enableLsp).toBe(false);
+		expect(getOptions()?.enableLsp).toBe(true);
 	});
 
 	it("opens isolated persisted subagent sessions with the worktree cwd", async () => {
@@ -251,15 +262,9 @@ describe("subagent LSP availability", () => {
 		});
 		mockIsolation();
 		const { getOptions } = mockCreateAgentSession();
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolated-session-cwd-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolated-session-cwd-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
-			const parent = await SessionManager.open(parentSessionFile, undefined, undefined, {
-				initialCwd: tempDir,
-				suppressBreadcrumb: true,
-			});
-			await parent.ensureOnDisk();
-			await parent.close();
 			const tool = await TaskTool.create(createSession({ isolationEnabled: true, sessionFile: parentSessionFile }));
 			await tool.execute("tool-call", { ...TEST_TASK, isolated: true });
 

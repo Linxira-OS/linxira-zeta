@@ -1,5 +1,5 @@
 import type { Component } from "../tui";
-import { getProjectDir, jsonContainerEnd, sanitizeText } from "@linxiraos/pi-utils";
+import { getProjectDir, jsonContainerEnd, sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
 import { highlightCode, type Theme } from "../theme/theme";
 import { renderStatusLine } from "../render/status-line";
 import { framedToolCard, type ToolCardSnapshot } from "../render/tool-card";
@@ -27,7 +27,7 @@ import type {
 	RenderResultOptions,
 	ToolRenderer,
 } from "./renderer";
-import { INTENT_FIELD, type ShellTrace, type ShellVizPresentation, type TspTone } from "@linxiraos/pi-wire";
+import { INTENT_FIELD, type ShellTrace, type ShellVizPresentation, type TspTone } from "@oh-my-pi/pi-wire";
 import type { SpotlightDetails } from "../chat/spotlight";
 import { plainText } from "../native/spans";
 import {
@@ -84,7 +84,7 @@ export interface BashToolDetails {
 	/** Text the command wrote to `out://`, oldest first; transcripts draw each as a reply after the call. */
 	replies?: string[];
 	/**
-	 * The embedded shell's live trace of the command (pi-shell `RunTrace`): every frame carries the
+	 * The embedded shell's live trace of the command (omp-shell `RunTrace`): every frame carries the
 	 * latest snapshot and the final result the last one. Absent on the PTY and user-shell paths.
 	 */
 	trace?: ShellTrace;
@@ -387,7 +387,7 @@ function bashStatsParts(
 		);
 	}
 	if (artifactId) {
-		statsParts.push(`Artifact: ${artifactId}`);
+		statsParts.push(`Full output: ${spillUrl(artifactId)}`);
 	}
 	const minimized = details?.meta?.minimized;
 	if (minimized) {
@@ -448,7 +448,7 @@ function shellFootParts(details: BashToolDetails | undefined, artifactId: string
 }
 
 /** The command line as a run's input: wrapped shell source. */
-const SHELL_INPUT = { role: "zeta.tool.bash.command", lang: "bash", wrap: true } as const;
+const SHELL_INPUT = { role: "omp.tool.bash.command", lang: "bash", wrap: true } as const;
 
 /** Box tint per run state: failed runs read as errors, timed-out ones as warnings. */
 const RUN_BOX_TONE: Partial<Record<RunState, TspTone>> = { failed: "error", "timed-out": "warning" };
@@ -853,7 +853,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 								"input",
 							)
 						: runInput(command, SHELL_INPUT),
-					shownOutput.trim().length > 0 && runOutput(shownOutput, { role: "zeta.tool.bash.output", previewLines }),
+					shownOutput.trim().length > 0 && runOutput(shownOutput, { role: "omp.tool.bash.output", previewLines }),
 					runFoot({
 						state,
 						exitCode: details?.exitCode,

@@ -2,15 +2,15 @@
  * Resolve auth-broker connection configuration for the local omp client.
  *
  * This is a thin coding-agent wrapper around the shared resolver in
- * `@linxiraos/pi-ai/auth-broker/discover` that preserves the process-lifetime
+ * `@oh-my-pi/pi-ai/auth-broker/discover` that preserves the process-lifetime
  * memoization expected by the CLI and injects the full `resolveConfigValue`
  * (including `!command` config indirection) from coding-agent's config layer.
  *
  * Precedence (highest first):
- *   1. `ZETA_AUTH_BROKER_URL` / `ZETA_AUTH_BROKER_TOKEN` env vars.
- *   2. `auth.broker.url` / `auth.broker.token` in `~/.zeta/agent/config.yml`
+ *   1. `OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN` env vars.
+ *   2. `auth.broker.url` / `auth.broker.token` in `~/.omp/agent/config.yml`
  *      (hidden from the settings UI; `!command` resolution supported).
- *   3. Token file `~/.zeta/auth-broker.token` (paired with URL from env or config).
+ *   3. Token file `~/.omp/auth-broker.token` (paired with URL from env or config).
  *
  * Returns null when no broker URL is configured — caller falls back to the
  * local SQLite store.
@@ -24,18 +24,19 @@ import {
 	type AuthAccountPolicyConfig,
 	AuthBrokerError,
 	loadAuthAccountPolicyConfig,
-} from "@linxiraos/pi-ai/auth-broker";
+} from "@oh-my-pi/pi-ai/auth-broker";
 import {
 	type AuthBrokerClientConfig,
+	type AuthBrokerStartupRetry,
 	type DiscoverAuthStorageOptions,
 	discoverAuthStorage as discoverAuthStorageShared,
 	getAuthBrokerTokenFilePath,
 	openAuthCredentialStore,
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
-} from "@linxiraos/pi-ai/auth-broker/discover";
-import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
-import { setUnpausedProviders } from "@linxiraos/pi-ai/oauth";
-import { getAgentDir, logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai/auth-broker/discover";
+import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
+import { setUnpausedProviders } from "@oh-my-pi/pi-ai/oauth";
+import { getAgentDir, isInteractiveHost, logger } from "@oh-my-pi/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { combine, effectsSettings, type ScopeLike } from "../config/registry";
 import { resolveConfigValue } from "../config/resolve-config-value";
@@ -96,7 +97,7 @@ export async function loadEffectiveAuthAccountPolicyConfig(
 /**
  * Process-lifetime memo for {@link resolveAuthBrokerConfig}. Keyed on the env
  * inputs (plus agent dir, which decides which config.yml is read) so tests
- * that flip `ZETA_AUTH_BROKER_*` between cases still observe the change, while
+ * that flip `OMP_AUTH_BROKER_*` between cases still observe the change, while
  * repeated resolution within one CLI invocation (startup, subagent sessions)
  * skips the config.yml read and any `!command` token resolution.
  */
@@ -114,7 +115,7 @@ let cachedConfigPromise: Promise<AuthBrokerClientConfig | null> | null = null;
  * retried. Concurrent callers share one in-flight resolution.
  */
 export function resolveAuthBrokerConfig(): Promise<AuthBrokerClientConfig | null> {
-	const key = `${process.env.ZETA_AUTH_BROKER_URL ?? ""}\u0000${process.env.ZETA_AUTH_BROKER_TOKEN ?? ""}\u0000${getAgentDir()}`;
+	const key = `${process.env.OMP_AUTH_BROKER_URL ?? ""}\u0000${process.env.OMP_AUTH_BROKER_TOKEN ?? ""}\u0000${getAgentDir()}`;
 	if (cachedConfigPromise && cachedConfigKey === key) return cachedConfigPromise;
 	const promise = resolveAuthBrokerConfigShared({
 		agentDir: getAgentDir(),
@@ -251,17 +252,34 @@ export function createAuthStorageSettingsSync(
  * pi-ai so the CLI, subagents, and the catalog generator all see the same
  * credentials.
  *
- * Default `agentDir` is the current configured agent directory.
+ * Default `agentDir` is the current configured agent directory. Interactive omp
+ * fails at once when the broker is unreachable rather than hold the user for the
+ * startup retry window; every other host retries and says so once on stderr.
  */
 export function discoverAuthStorage(
 	agentDir: string = getAgentDir(),
 	options?: Omit<DiscoverAuthStorageOptions, "agentDir" | "configValueResolver">,
 ): Promise<AuthStorage> {
+	const interactive = isInteractiveHost();
 	return discoverAuthStorageShared({
+		retryUnreachableBroker: !interactive,
+		onBrokerRetry: interactive ? undefined : authBrokerWaitNotice(),
 		...options,
 		agentDir,
 		configValueResolver: resolveConfigValue,
 	});
+}
+
+/** Print the first retry of one startup to stderr; the retry is otherwise only in the log file. */
+function authBrokerWaitNotice(): (retry: AuthBrokerStartupRetry) => void {
+	let shown = false;
+	return ({ url, error, budgetMs }) => {
+		if (shown) return;
+		shown = true;
+		process.stderr.write(
+			`Waiting for auth broker at ${url} (${error.message}); retrying for up to ${budgetMs / 1000}s...\n`,
+		);
+	};
 }
 
 /**
@@ -293,9 +311,9 @@ export async function describeAuthBrokerStartupError(error: unknown): Promise<st
 	const target = url ? ` at ${url}` : "";
 	return (
 		`Auth broker${target} is unreachable (${error.message}). ` +
-		"zetacode is configured to use this broker for credentials and will not fall back to local credentials automatically.\n" +
-		"Start the broker with `zetacode auth-broker serve`, or disable it with " +
-		"`zetacode config reset auth.broker.url` and `zetacode config reset auth.broker.token` " +
-		"(or unset ZETA_AUTH_BROKER_URL / ZETA_AUTH_BROKER_TOKEN)."
+		"omp is configured to use this broker for credentials and will not fall back to local credentials automatically.\n" +
+		"Start the broker with `omp auth-broker serve`, or disable it with " +
+		"`omp config reset auth.broker.url` and `omp config reset auth.broker.token` " +
+		"(or unset OMP_AUTH_BROKER_URL / OMP_AUTH_BROKER_TOKEN)."
 	);
 }

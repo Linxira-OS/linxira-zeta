@@ -93,14 +93,70 @@ function sweep(tabId) {
   }
   return pending;
 }
+var reportHidden = () => {};
+function onForeignFramesHidden(report) {
+  reportHidden = report;
+}
+var MAX_PATH_LENGTH = 100;
+var MAX_TITLE_LENGTH = 60;
+var PROBE_TIMEOUT_MS = 500;
+var PROBE_MAX_BYTES = 64 * 1024;
+async function reportEmptied(tabId, srcsByFrame) {
+  const probes = await Promise.allSettled(Array.from(srcsByFrame, ([frameId, srcs]) => chrome.scripting.executeScript({
+    target: { tabId, frameIds: [frameId] },
+    world: "ISOLATED",
+    injectImmediately: true,
+    args: [srcs, PROBE_TIMEOUT_MS, PROBE_MAX_BYTES],
+    func: async (urls, timeoutMs, maxBytes) => await Promise.all(urls.map(async (url) => {
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+        if (!response.ok)
+          return null;
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder;
+        let head = "";
+        for (let read = 0;reader && read < maxBytes && !/<\/title>/i.test(head); ) {
+          const chunk = await reader.read();
+          if (chunk.done)
+            break;
+          read += chunk.value.byteLength;
+          head += decoder.decode(chunk.value, { stream: true });
+        }
+        reader?.cancel().catch(() => {});
+        const title = /<title[^>]*>([^<]*)<\/title>/i.exec(head.slice(0, maxBytes))?.[1]?.trim();
+        return { url: response.url, title };
+      } catch {
+        return null;
+      }
+    }))
+  })));
+  const frames = new Map;
+  for (const probe of probes) {
+    if (probe.status === "rejected")
+      continue;
+    for (const loaded of probe.value.flatMap(({ result }) => result ?? [])) {
+      if (!loaded?.url.startsWith("chrome-extension://"))
+        continue;
+      const { host: extensionId, pathname } = new URL(loaded.url);
+      if (!/^[a-p]{32}$/.test(extensionId) || extensionId === chrome.runtime.id)
+        continue;
+      const path = pathname.slice(1, 1 + MAX_PATH_LENGTH);
+      const title = loaded.title?.slice(0, MAX_TITLE_LENGTH);
+      frames.set(`${extensionId}/${path}`, { extensionId, path, ...title ? { title } : {} });
+    }
+  }
+  if (frames.size > 0)
+    reportHidden(tabId, [...frames.values()]);
+}
 async function neutralizeForeignFrames(tabId) {
+  let results;
   try {
-    const results = await chrome.scripting.executeScript({
+    results = await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
       injectImmediately: true,
       args: [chrome.runtime.id],
       func: (self) => {
-        let found = 0;
+        const swept = { found: 0, emptied: [] };
         const visit = (root) => {
           const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
           for (let element = walker.nextNode();element; element = walker.nextNode()) {
@@ -108,12 +164,15 @@ async function neutralizeForeignFrames(tabId) {
             if (tag === "IFRAME" || tag === "FRAME") {
               const src = element.getAttribute("src") ?? "";
               if (src.startsWith("chrome-extension://") && !src.startsWith(`chrome-extension://${self}/`)) {
-                if (tag === "FRAME")
+                if (tag === "FRAME") {
                   element.setAttribute("src", "about:blank");
-                else if (element.getAttribute("srcdoc") === null)
+                  swept.emptied.push(src);
+                } else if (element.getAttribute("srcdoc") === null) {
                   element.setAttribute("srcdoc", "");
+                  swept.emptied.push(src);
+                }
                 element.style.setProperty("display", "none", "important");
-                found++;
+                swept.found++;
               }
             }
             const shadow = chrome.dom.openOrClosedShadowRoot(element);
@@ -122,17 +181,26 @@ async function neutralizeForeignFrames(tabId) {
           }
         };
         visit(document);
-        return found;
+        return swept;
       }
     });
-    return results.reduce((total, frame) => total + (frame.result ?? 0), 0);
   } catch {
     return 0;
   }
+  let found = 0;
+  const srcsByFrame = new Map;
+  for (const { frameId, result } of results) {
+    found += result?.found ?? 0;
+    if (result && result.emptied.length > 0)
+      srcsByFrame.set(frameId, result.emptied);
+  }
+  if (srcsByFrame.size > 0)
+    reportEmptied(tabId, srcsByFrame).catch(() => {});
+  return found;
 }
 
 // extension/background.ts
-var DEFAULT_PORT = 43153;
+var DEFAULT_PORT = 9224;
 var PING_INTERVAL_MS = 20000;
 var RECONNECT_MIN_MS = 1000;
 var RECONNECT_MAX_MS = 1e4;
@@ -189,7 +257,7 @@ function snapshot(tab) {
     groupId: tab.groupId
   };
 }
-var zetaGroupTitle = null;
+var ompGroupTitle = null;
 var groupOps = Promise.resolve();
 function enqueueGroupOp(fn) {
   const result = groupOps.then(fn, fn);
@@ -197,8 +265,8 @@ function enqueueGroupOp(fn) {
   return result;
 }
 async function groupTabs(tabIds, title, color) {
-  zetaGroupTitle = title;
-  chrome.storage.session.set({ zetaGroupTitle: title });
+  ompGroupTitle = title;
+  chrome.storage.session.set({ ompGroupTitle: title });
   const byWindow = new Map;
   for (const tabId of tabIds) {
     try {
@@ -233,13 +301,13 @@ async function groupTabs(tabIds, title, color) {
   return { grouped };
 }
 async function restoreGroups() {
-  if (!zetaGroupTitle) {
-    const stored = await chrome.storage.session.get({ zetaGroupTitle: "" }).catch(() => ({ zetaGroupTitle: "" }));
-    zetaGroupTitle = typeof stored.zetaGroupTitle === "string" && stored.zetaGroupTitle ? stored.zetaGroupTitle : null;
+  if (!ompGroupTitle) {
+    const stored = await chrome.storage.session.get({ ompGroupTitle: "" }).catch(() => ({ ompGroupTitle: "" }));
+    ompGroupTitle = typeof stored.ompGroupTitle === "string" && stored.ompGroupTitle ? stored.ompGroupTitle : null;
   }
-  if (!zetaGroupTitle)
+  if (!ompGroupTitle)
     return;
-  const groups = await chrome.tabGroups.query({ title: zetaGroupTitle }).catch(() => []);
+  const groups = await chrome.tabGroups.query({ title: ompGroupTitle }).catch(() => []);
   for (const group of groups) {
     const tabs = await chrome.tabs.query({ groupId: group.id }).catch(() => []);
     const ids = tabs.map((tab) => tab.id).filter((id) => id !== undefined);
@@ -290,7 +358,7 @@ async function buildHello() {
     userAgent: navigator.userAgent,
     browserVersion: versionMatch?.[0] ?? "Chrome/unknown",
     discardedTabsProtocol: 1,
-    zetaVersion: typeof ZETA_INSTALL_VERSION === "string" ? ZETA_INSTALL_VERSION : undefined,
+    ompVersion: typeof OMP_INSTALL_VERSION === "string" ? OMP_INSTALL_VERSION : undefined,
     reloadProtocol: EXTENSION_RELOAD_PROTOCOL_VERSION,
     downloadsProtocol: DOWNLOADS_PROTOCOL_VERSION,
     tabs: snapshots,
@@ -431,6 +499,7 @@ chrome.debugger.onDetach.addListener((source, reason) => {
   const relayInitiated = relayInitiatedDetachTabs.delete(source.tabId);
   post({ t: "detached", tabId: source.tabId, reason, relayInitiated });
 });
+onForeignFramesHidden((tabId, frames) => post({ t: "framesHidden", tabId, frames }));
 chrome.tabs.onCreated.addListener((tab) => {
   const snap = snapshot(tab);
   if (snap)
@@ -451,9 +520,9 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   post({ t: "tabRemoved", tabId });
 });
-chrome.alarms.create("zeta-relay-keepalive", { periodInMinutes: 0.5 });
+chrome.alarms.create("omp-relay-keepalive", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "zeta-relay-keepalive")
+  if (alarm.name === "omp-relay-keepalive")
     connect();
 });
 chrome.storage.onChanged.addListener((_changes, areaName) => {

@@ -1,9 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import { invalidateMessageCache } from "@linxiraos/pi-agent-core/compaction/message-cache";
-import { type AgentMessage, filterProviderReplayMessages } from "@linxiraos/pi-agent-core";
-import type { ImageContent, Message, TextContent } from "@linxiraos/pi-ai";
-import { inferCopilotInitiator } from "@linxiraos/pi-ai/providers/github-copilot-headers";
-import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
+import { invalidateMessageCache } from "@oh-my-pi/pi-agent-core/compaction/message-cache";
+import {
+	type AgentMessage,
+	filterProviderReplayMessages,
+	PROVIDER_ERROR_NOT_EXECUTED_TEXT,
+} from "@oh-my-pi/pi-agent-core";
+import type { ImageContent, Message, TextContent } from "@oh-my-pi/pi-ai";
+import { inferCopilotInitiator } from "@oh-my-pi/pi-ai/providers/github-copilot-headers";
+import {
+	convertToLlm,
+	SKILL_PROMPT_MESSAGE_TYPE,
+	wrapSteeringForModel,
+} from "@oh-my-pi/pi-coding-agent/session/messages";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
 
 function expectAttribution(message: Message | undefined, expected: "user" | "agent" | undefined): void {
 	expect(message).toBeDefined();
@@ -90,6 +99,48 @@ describe("assistant refusal replay policy", () => {
 		const replayed = filterProviderReplayMessages(converted);
 		expect(replayed.map(message => message.role)).toEqual(["user", "user"]);
 		expect(JSON.stringify(replayed)).not.toContain("Refusal (bio)");
+	});
+
+	it("replays a refused turn's tool placeholders without the provider's refusal text", () => {
+		const refusal =
+			"Refusal (reasoning_extraction): This request was blocked as it seems to violate Anthropic's Terms of Service";
+		const messages: AgentMessage[] = [
+			{ role: "user", content: [{ type: "text", text: "go" }], timestamp: 1 },
+			{
+				role: "toolResult",
+				toolCallId: "toolu_refused",
+				toolName: "bash",
+				content: [
+					{
+						type: "text",
+						text: `Tool call was not executed because the provider stream ended with an error before the tool could run: ${refusal}`,
+					},
+				],
+				details: { __synthetic: true, source: "assistant_stop_error", executed: false, upstreamError: refusal },
+				isError: true,
+				timestamp: 2,
+			},
+			{
+				role: "toolResult",
+				toolCallId: "toolu_ran",
+				toolName: "bash",
+				content: [{ type: "text", text: `grep output quoting ${refusal}` }],
+				isError: false,
+				timestamp: 3,
+			},
+		];
+
+		const converted = convertToLlm(messages);
+		expect(JSON.stringify(converted[1])).toContain("reasoning_extraction");
+
+		const replayed = filterProviderReplayMessages(converted);
+		expect(replayed[1]).toMatchObject({
+			role: "toolResult",
+			toolCallId: "toolu_refused",
+			isError: true,
+			content: [{ type: "text", text: PROVIDER_ERROR_NOT_EXECUTED_TEXT }],
+		});
+		expect(replayed[2]).toBe(converted[2]);
 	});
 });
 
@@ -373,6 +424,36 @@ describe("wrapSteeringForModel", () => {
 		expect(rewrapped).not.toBe(wrapped);
 		expect(getUserText(rewrapped)).toContain("edited in place");
 		expect(getUserText(rewrapped)).not.toContain("first draft");
+	});
+
+	it("presents user-attributed collab prompts as wrapped user turns on every conversion path", () => {
+		const message: AgentMessage = {
+			role: "custom",
+			customType: COLLAB_PROMPT_MESSAGE_TYPE,
+			content: "Reply with exactly PONG",
+			display: true,
+			details: { from: "guest" },
+			attribution: "user",
+			timestamp: 1,
+		};
+
+		const directlyConverted = convertToLlm([message]);
+		const wrapped = wrapSteeringForModel([message]);
+		const primaryProviderMessages = convertToLlm(wrapped);
+
+		expect(directlyConverted).toHaveLength(1);
+		expect(directlyConverted[0]?.role).toBe("user");
+		expect(getUserText(directlyConverted[0])).toContain("<system-notice>");
+		expect(getUserText(directlyConverted[0])).toContain("Reply with exactly PONG");
+		expect(wrapped[0]?.role).toBe("user");
+		expect(getUserText(wrapped[0])).toContain("<system-notice>");
+		expect(getUserText(wrapped[0])).toContain("Reply with exactly PONG");
+		expect(primaryProviderMessages).toHaveLength(1);
+		expect(primaryProviderMessages[0]?.role).toBe("user");
+		expect(message).toMatchObject({
+			role: "custom",
+			details: { from: "guest" },
+		});
 	});
 
 	it("wraps buried steering messages too so wire bytes stay stable across turns", () => {

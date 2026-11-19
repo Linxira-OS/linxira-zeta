@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { untilAborted } from "@linxiraos/pi-utils";
+import { untilAborted } from "@oh-my-pi/pi-utils";
 import type { HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 
 /** Maximum number of request records retained per tab; the oldest are evicted first. */
 export const REQUEST_LOG_LIMIT = 200;
@@ -11,7 +11,9 @@ export const REQUEST_LOG_LIMIT = 200;
 export const RESPONSE_BODY_LIMIT_BYTES = 1024 * 1024;
 const ROUTE_INTERCEPT_PRIORITY = 10;
 const PASS_THROUGH_INTERCEPT_PRIORITY = 0;
-const REQUEST_RECORD = Symbol("zeta.browser.requestRecord");
+const REQUEST_RECORD = Symbol("omp.browser.requestRecord");
+/** Request types a look waits for after an action; long-lived streams and subresources are excluded. */
+const SETTLE_RESOURCE_TYPES: Record<string, true> = { document: true, fetch: true, xhr: true };
 
 /** URL pattern accepted by persistent tab routes and request filters. */
 export type NetworkPattern = string | RegExp;
@@ -44,7 +46,7 @@ export interface NetworkRouteDescription {
 
 /** Byte counts associated with one browser request. */
 export interface NetworkRequestSizes {
-	/** Request body bytes (0 for none), omitted when unavailable. */
+	/** Request body bytes (0 for none); left out where the backend cannot see request bodies (omp's WebKit host). */
 	requestBody?: number;
 	/**
 	 * The response body's declared `Content-Length` (its size on the wire); without one, the size of the body once
@@ -65,7 +67,10 @@ export interface NetworkRequestRecord {
 	method: string;
 	/** Requested URL. */
 	url: string;
-	/** Browser resource type, such as `fetch` or `document`. */
+	/**
+	 * Puppeteer resource type. omp's WebKit host names none and omp derives it from the request: there `fetch` stands
+	 * for `xhr` too, and `document`/`subdocument` only for a frame's navigation.
+	 */
 	resourceType: string;
 	/** HTTP response status, when a response arrived. */
 	status?: number;
@@ -164,6 +169,8 @@ export class BrowserNetworkManager {
 	readonly #routes: StoredRoute[] = [];
 	readonly #records: StoredRequest[] = [];
 	readonly #recordsById = new Map<string, StoredRequest>();
+	/** In-flight settle work is independent of readable log clearing and eviction. */
+	readonly #pendingRequests = new Map<HTTPRequest, number>();
 	#nextSeq = 1;
 	#interceptionEnabled = false;
 	#started = false;
@@ -173,6 +180,12 @@ export class BrowserNetworkManager {
 
 	readonly #onRequest = async (request: HTTPRequest): Promise<void> => {
 		const record = this.#rememberRequest(request);
+		if (
+			SETTLE_RESOURCE_TYPES[record.resourceType] === true &&
+			(record.resourceType !== "document" || request.frame() === this.#page.mainFrame())
+		) {
+			this.#pendingRequests.set(request, record.seq);
+		}
 		if (request.isNavigationRequest() && request.frame() === this.#page.mainFrame()) {
 			this.#pendingNavigations.add(request);
 		}
@@ -225,6 +238,7 @@ export class BrowserNetworkManager {
 
 	readonly #onRequestFinished = (request: HTTPRequest): void => {
 		this.#pendingNavigations.delete(request);
+		this.#pendingRequests.delete(request);
 		const record = (request as RequestWithRecord)[REQUEST_RECORD];
 		if (!record) return;
 		record.durationMs = Math.max(0, Date.now() - record.ts);
@@ -232,6 +246,7 @@ export class BrowserNetworkManager {
 
 	readonly #onRequestFailed = (request: HTTPRequest): void => {
 		this.#pendingNavigations.delete(request);
+		this.#pendingRequests.delete(request);
 		const record = (request as RequestWithRecord)[REQUEST_RECORD];
 		if (!record) return;
 		record.failureText ??= request.failure()?.errorText ?? "request failed";
@@ -263,6 +278,7 @@ export class BrowserNetworkManager {
 		this.#page.off("requestfinished", this.#onRequestFinished);
 		this.#page.off("requestfailed", this.#onRequestFailed);
 		this.#pendingNavigations.clear();
+		this.#pendingRequests.clear();
 		if (this.#interceptionEnabled && !this.#page.isClosed()) {
 			await this.#page.setRequestInterception(false).catch(() => undefined);
 		}
@@ -332,7 +348,7 @@ export class BrowserNetworkManager {
 		const limit = normalizeLimit(options.limit);
 		let records = this.#records.filter(record => matchesRequest(record, options));
 		if (limit !== undefined) records = records.slice(-limit);
-		const result = records.map(toPublicRecord);
+		const result = records.map(record => toPublicRecord(record, true));
 		if (options.clear) this.clearRequests();
 		return result;
 	}
@@ -355,6 +371,19 @@ export class BrowserNetworkManager {
 	clearRequests(): void {
 		this.#records.length = 0;
 		this.#recordsById.clear();
+	}
+
+	/** Sequence assigned to the next request, for an action's request boundary. */
+	get nextRequestSeq(): number {
+		return this.#nextSeq;
+	}
+
+	/** Whether a main-frame document, fetch, or XHR request at or after `since` is still in flight. */
+	hasPendingRequests(since: number): boolean {
+		for (const seq of this.#pendingRequests.values()) {
+			if (seq >= since) return true;
+		}
+		return false;
 	}
 
 	/** Begin collecting subsequent request-log entries for a HAR file. */
@@ -516,7 +545,7 @@ export function buildHarLog(entries: Record<string, unknown>[]): object {
 	return {
 		log: {
 			version: "1.2",
-			creator: { name: "zeta-browser", version: "1" },
+			creator: { name: "omp-browser", version: "1" },
 			pages: [],
 			entries,
 		},
@@ -553,6 +582,7 @@ function domainMatches(hostname: string, pattern: string): boolean {
 }
 
 const ROUTE_OPTION_KEYS = "{ abort?, status?, headers?, contentType?, body?, delay?, resourceType? }";
+const ROUTE_OPTION_NAMES = new Set(["abort", "status", "headers", "contentType", "body", "delay", "resourceType"]);
 
 /** Validate `tab.route()` options and return a normalised copy (resource types stringified, headers copied). */
 export function normalizeRouteOptions(options: NetworkRouteOptions): NetworkRouteOptions {
@@ -563,6 +593,12 @@ export function normalizeRouteOptions(options: NetworkRouteOptions): NetworkRout
 	}
 	if (!options || typeof options !== "object" || Array.isArray(options)) {
 		throw new ToolError(`tab.route(pattern, options): options must be an object ${ROUTE_OPTION_KEYS}`);
+	}
+	// An unread key (`{action: "abort"}`, `method`) would register a route that lets every request through.
+	for (const key in options) {
+		if (!ROUTE_OPTION_NAMES.has(key)) {
+			throw new ToolError(`tab.route() has no ${JSON.stringify(key)} option; it takes ${ROUTE_OPTION_KEYS}`);
+		}
 	}
 	if (options.delay !== undefined && (!Number.isFinite(options.delay) || options.delay < 0)) {
 		throw new ToolError("tab.route() delay must be a non-negative number");
@@ -661,10 +697,12 @@ export function globToRegExp(glob: string): RegExp {
 
 /**
  * A URL string pattern as URL waits and the request-log filter read it: with a `*` it is a glob, as `tab.route()`
- * takes ({@link globToRegExp}); without one, a substring of the URL. A RegExp passes through.
+ * takes ({@link globToRegExp}); without one, a substring of the URL. A single `*` at either end spans `/` like `**`,
+ * so `*title=Redis*` matches anywhere in a full URL the way it reads. A RegExp passes through.
  */
 export function urlPattern(pattern: NetworkPattern): NetworkPattern {
-	return typeof pattern === "string" && pattern.includes("*") ? globToRegExp(pattern) : pattern;
+	if (typeof pattern !== "string" || !pattern.includes("*")) return pattern;
+	return globToRegExp(pattern.replace(/^\*(?!\*)/, "**").replace(/(?<!\*)\*$/, "**"));
 }
 
 /** A test of URLs against `pattern` as {@link urlPattern} reads it, compiled once. */
@@ -713,8 +751,23 @@ export function normalizeLimit(limit: number | undefined): number | undefined {
 	return limit;
 }
 
-/** A detached copy of the public fields of `record` (backend bookkeeping dropped). */
-export function toPublicRecord(record: NetworkRequestRecord): NetworkRequestRecord {
+/** Headers whose values are credentials: `tab.requests()` lists them as `[redacted]`; `tab.request(id)` has them. */
+const CREDENTIAL_HEADERS = new Set(["cookie", "set-cookie", "authorization", "proxy-authorization"]);
+
+function redactCredentialHeaders(headers: Record<string, string>): Record<string, string> {
+	const redacted: Record<string, string> = {};
+	for (const name in headers) {
+		redacted[name] = CREDENTIAL_HEADERS.has(name.toLowerCase()) ? "[redacted]" : headers[name]!;
+	}
+	return redacted;
+}
+
+/**
+ * A detached copy of the public fields of `record` (backend bookkeeping dropped). `redact` replaces credential
+ * header values, for the metadata listing.
+ */
+export function toPublicRecord(record: NetworkRequestRecord, redact = false): NetworkRequestRecord {
+	const copyHeaders = redact ? redactCredentialHeaders : (headers: Record<string, string>) => ({ ...headers });
 	return {
 		id: record.id,
 		seq: record.seq,
@@ -726,8 +779,8 @@ export function toPublicRecord(record: NetworkRequestRecord): NetworkRequestReco
 		ok: record.ok,
 		failureText: record.failureText,
 		durationMs: record.durationMs,
-		requestHeaders: { ...record.requestHeaders },
-		responseHeaders: record.responseHeaders ? { ...record.responseHeaders } : undefined,
+		requestHeaders: copyHeaders(record.requestHeaders),
+		responseHeaders: record.responseHeaders ? copyHeaders(record.responseHeaders) : undefined,
 		sizes: { ...record.sizes },
 	};
 }

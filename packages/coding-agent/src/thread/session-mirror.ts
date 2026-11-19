@@ -19,18 +19,11 @@
  * model registry, async job manager, settings), which travel back to main as
  * references to the originals.
  */
-import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type {
-	Effort,
-	ImageContent,
-	Model,
-	ServiceTierByFamily,
-	ToolResultMessage,
-	UsageReport,
-} from "@linxiraos/pi-ai";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import type { AgentMessage, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Effort, ImageContent, Model, ServiceTierByFamily, ToolResultMessage, UsageReport } from "@oh-my-pi/pi-ai";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import type { IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
+import type { TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
 import type { AsyncJobManagerApi } from "../async";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
@@ -61,7 +54,7 @@ import type {
 import type { IdleMaintenanceOptions } from "../session/idle-maintenance";
 import type { CustomMessage } from "../session/messages";
 import type { ServingModel } from "../session/retry-fallback-chains";
-import type { ModelUsageEntry, SessionEntry, UsageStatistics } from "../session/session-entries";
+import type { ModelUsageRecord, SessionEntry, UsageStatistics } from "../session/session-entries";
 import type { AgentDefinition } from "../task/types";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { RemoteObject, RpcMethod } from "./rpc";
@@ -71,6 +64,7 @@ export interface SessionMirrorState {
 	isStreaming: boolean;
 	runStartedAt: number | undefined;
 	ircWakesPending: boolean;
+	hasPendingWake: boolean;
 	/** Senders with a message still queued for a turn of its own (backs `hasQueuedIrcFrom`). */
 	ircQueuedFrom: string[];
 	isPaused: boolean;
@@ -148,8 +142,6 @@ export interface SessionQueuedEntry {
 
 /** View-only data of a worker-homed session, published while main watches it (see the module doc). */
 export interface SessionViewState {
-	/** Link schemes the home session's own extension runner claims. */
-	studioLinkSchemes: string[];
 	/** Provider-facing session id (`AgentSession.sessionId`). */
 	providerSessionId: string;
 	sessionName: string | undefined;
@@ -175,7 +167,6 @@ export interface SessionViewState {
 	compactionSpeculation: "idle" | "running" | "armed";
 	contextUsageRevision: number;
 	contextUsage: ContextUsage | undefined;
-	isGeneratingHandoff: boolean;
 	isRetrying: boolean;
 	retryAttempt: number;
 	isTtsrAbortPending: boolean;
@@ -234,8 +225,6 @@ export interface SessionAbortOptions {
  * event-stream watch toggle.
  */
 export type SessionHostProtocol = {
-	/** Deliver a link click to the home session's own extension runner. */
-	activateStudioLink: RpcMethod<[url: string], boolean>;
 	prompt: RpcMethod<[text: string, options?: PromptOptions], boolean>;
 	steer: RpcMethod<[text: string, images?: ImageContent[], options?: SteerOptions], void>;
 	abort: RpcMethod<[options?: SessionAbortOptions], void>;
@@ -256,25 +245,14 @@ export type SessionHostProtocol = {
 	popQueuedMessage: RpcMethod<[id: string], void>;
 	setTodoPhases: RpcMethod<[phases: TodoPhase[]], void>;
 	appendCustomEntry: RpcMethod<[customType: string, data: unknown], void>;
-	appendModelUsage: RpcMethod<
-		[
-			usage: Pick<
-				ModelUsageEntry,
-				"purpose" | "role" | "api" | "provider" | "model" | "usage" | "stopReason" | "errorMessage"
-			>,
-			owner: { sessionId: string; parentId: string | null },
-		],
-		void
-	>;
+	appendModelUsage: RpcMethod<[usage: ModelUsageRecord, owner: { sessionId: string; parentId: string | null }], void>;
 	flushSession: RpcMethod<[], void>;
 	ensureOnDisk: RpcMethod<[], void>;
 	getArtifactPath: RpcMethod<[id: string], string | null>;
-	getArtifactContent: RpcMethod<[id: string], string | null>;
-	resume: RpcMethod<[], "restored" | "continue">;
+	resume: RpcMethod<[], void>;
 	retry: RpcMethod<[], boolean>;
 	abortRetry: RpcMethod<[], void>;
 	abortCompaction: RpcMethod<[reason?: unknown], void>;
-	abortHandoff: RpcMethod<[], void>;
 	setModelTemporary: RpcMethod<
 		[model: Model, thinkingLevel?: ConfiguredThinkingLevel, options?: { ephemeral?: boolean }],
 		void
@@ -344,6 +322,7 @@ export const SESSION_STATE_READERS: {
 	isStreaming: session => session.isStreaming,
 	runStartedAt: session => session.runStartedAt,
 	ircWakesPending: session => session.ircWakesPending,
+	hasPendingWake: session => session.hasPendingWake,
 	isPaused: session => session.agent.isPaused,
 	streamMessage: session => toWireData(session.agent.state.streamMessage),
 	pendingToolCalls: session => [...session.agent.state.pendingToolCalls],

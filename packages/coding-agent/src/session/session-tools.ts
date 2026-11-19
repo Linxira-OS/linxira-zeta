@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
-import type { Model } from "@linxiraos/pi-ai";
-import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
-import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
+import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import type { Model } from "@oh-my-pi/pi-ai";
+import { resolveDelegationBias } from "@oh-my-pi/pi-catalog/compat/delegation";
+import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@oh-my-pi/pi-utils";
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
@@ -25,21 +25,17 @@ import {
 	setActiveSkills,
 } from "../extensibility/skills";
 import { type LocalProtocolOptions } from "../internal-urls";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
-import { createAnalysisMcpApprovalAdapter } from "../mcp/analysis-precedence-approval";
-import {
-	createAnalysisMcpPrecedenceHook,
-	type AnalysisMcpPrecedenceHook,
-	type AnalysisMcpRefreshInput,
-} from "../mcp/analysis-precedence-hook";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@oh-my-pi/pi-tui/tools/xd-url";
+import { isEvalNamespaceTool } from "../mcp/eval-namespaces";
 import { deduplicateMCPToolsByName, resolveMCPToolAlias } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
-import { invalidateToolSchemaMetadata, type SystemPromptSources } from "@linxiraos/pi-tui/status-line/context-usage";
+import { invalidateToolSchemaMetadata, type SystemPromptSources } from "@oh-my-pi/pi-tui/status-line/context-usage";
 import type { MemoryBackendStartOptions, MemoryPromptPreparation } from "../memory-backend/types";
 import { getPerCallModelAdvertisement, type PerCallModelAdvertisement } from "../task/model-approval";
 import type { AgentDefinition } from "../task/types";
 import evalPreludeNoticePrompt from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
+import evalPreludeGuidePrompt from "../prompts/tools/eval-prelude-first-call.md" with { type: "text" };
 import sessionAgentNoticePrompt from "../prompts/system/session-agent-notice.md" with { type: "text" };
 import skillNoticePrompt from "../prompts/system/skill-notice.md" with { type: "text" };
 import toolRosterNoticePrompt from "../prompts/system/tool-roster-notice.md" with { type: "text" };
@@ -57,8 +53,7 @@ import { wrapToolWithMetaNotice } from "../tools/output-meta";
 import { isFilesystemSourcePath } from "../tools/path-utils";
 import { supportsExternalThinking } from "../tools/think";
 import { ToolAbortError } from "../tools/tool-errors";
-import { isToolDisabledBySettings } from "../tools/tool-policy";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import {
 	isMountableUnderXdev,
 	listXdevTools,
@@ -108,13 +103,6 @@ export interface SessionToolsHost {
 	agent: Agent;
 	sessionManager: SessionManager;
 	settings: Settings;
-	/** Live Profile/settings filter, reevaluated when a queued refresh applies. */
-	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
-	buildMcpRefreshAnalysis?: (
-		tools: CustomTool[],
-		names: readonly string[],
-		cwd: string,
-	) => Promise<AnalysisMcpRefreshInput>;
 	/** Session-local extension roots (explicit + mode + configured) for post-startup reloads. */
 	effectiveExtensionRoots(): EffectiveExtensionRoots;
 	modelRegistry: ModelRegistry;
@@ -193,13 +181,9 @@ export type SystemPromptRebuilder = (
 ) => Promise<BuildSystemPromptResult>;
 
 interface SessionToolsOptions {
-	/** Zeta lead-mode tool factory. */
-	createLeadTools?: () => AgentTool[];
 	autoApprove?: boolean;
 	toolRegistry?: Map<string, AgentTool>;
 	createVibeTools?: () => AgentTool[];
-	/** Team-mode worker and coordination tool factory. */
-	createTeamTools?: () => AgentTool[];
 	/** Creates the private `think` scratchpad tool for runtime setting changes. */
 	createThinkTool?: () => Promise<AgentTool | null>;
 	builtInToolNames?: Iterable<string>;
@@ -219,6 +203,13 @@ interface SessionToolsOptions {
 	reconcileSettingsGatedTools?: (isBuiltIn: (name: string) => boolean) => Promise<SettingsGatedToolDelta>;
 	rebuildSystemPrompt?: SystemPromptRebuilder;
 	getMcpServerInstructions?: () => Map<string, string> | undefined;
+	/**
+	 * Whether enabled MCP tools present as eval namespaces (`mcp.evalNamespaces`)
+	 * while `eval` is top-level; read at every apply.
+	 */
+	bindsMcpToEval?: () => boolean;
+	/** Eval-bound names of the construction slate ({@link SessionTools.getEvalBoundToolNames}). */
+	evalBoundToolNames?: Iterable<string>;
 	xdev?: XdevState;
 	setActiveToolNames?: (names: Iterable<string>) => void;
 	baseSystemPrompt: string[];
@@ -313,6 +304,7 @@ export function projectMountedMCPXdevGuidance(routes: Iterable<MountedMCPToolRou
 const TOOL_ROSTER_NOTICE_MESSAGE_TYPE = "tool-roster-notice";
 const XDEV_MOUNT_NOTICE_MESSAGE_TYPE = "xdev-mount-notice";
 const EVAL_PRELUDE_NOTICE_MESSAGE_TYPE = "eval-prelude-notice";
+const EVAL_PRELUDE_GUIDE_MESSAGE_TYPE = "eval-prelude-guide";
 const SKILL_NOTICE_MESSAGE_TYPE = "skill-notice";
 
 /** Custom entry holding the digest of the base prompt the branch's primary model calls are built from. */
@@ -364,6 +356,11 @@ interface XdevMountNoticeDetails {
 interface EvalPreludeNoticeDetails {
 	added: string[];
 	removed: string[];
+}
+
+/** Preludes whose first-call guide one hidden {@link EVAL_PRELUDE_GUIDE_MESSAGE_TYPE} message carries. */
+interface EvalPreludeGuideDetails {
+	names: string[];
 }
 
 /** Skills one hidden {@link SKILL_NOTICE_MESSAGE_TYPE} message announced or withdrew. */
@@ -432,11 +429,7 @@ export class SessionTools {
 	readonly #host: SessionToolsHost;
 	#autoApprove: boolean;
 	#toolRegistry: Map<string, AgentTool>;
-	#createLeadTools: (() => AgentTool[]) | undefined;
-	#installedLeadToolNames = new Set<string>();
 	#createVibeTools: (() => AgentTool[]) | undefined;
-	#createTeamTools: (() => AgentTool[]) | undefined;
-	#installedTeamToolNames = new Set<string>();
 	#createThinkTool: SessionToolsOptions["createThinkTool"];
 	#installedVibeToolNames = new Set<string>();
 	/** An MCP refresh landed while vibe narrowed the active set; vibe exit activates its manager tools. */
@@ -445,9 +438,6 @@ export class SessionTools {
 	#rpcHostToolNames = new Set<string>();
 	#mcpManagerToolNames = new Set<string>();
 	#extensionMcpTools = new Map<string, AgentTool>();
-	#analysisMcpShadowReasons: Readonly<Record<string, string>> = {};
-	#analysisSuppressedNativeTools = new Set<string>();
-	#analysisSelectedNativeTools = new Set<string>();
 	#xdev: XdevState | undefined;
 	#pendingToolRosterDelta: { added: Set<string>; removed: Set<string> } | undefined;
 	#pendingToolRosterDeltaAfterBase: { added: Set<string>; removed: Set<string> } | undefined;
@@ -508,6 +498,9 @@ export class SessionTools {
 	#promptRosterHeld = false;
 	/** Full enabled set, including tools demoted from the model-visible surface. */
 	#enabledToolNames = new Set<string>();
+	/** Enabled MCP tools presented only as eval namespace methods: neither top-level nor `xd://`. */
+	#evalBoundNames = new Set<string>();
+	#bindsMcpToEval: SessionToolsOptions["bindsMcpToEval"];
 	/**
 	 * `xd://` device names the current base system prompt renders in its catalog
 	 * (the last rebuild's {@link BuildSystemPromptResult.xdevCatalogNames}). Consulted
@@ -593,9 +586,7 @@ export class SessionTools {
 		this.#host = host;
 		this.#autoApprove = options.autoApprove === true;
 		this.#toolRegistry = options.toolRegistry ?? new Map();
-		this.#createLeadTools = options.createLeadTools;
 		this.#createVibeTools = options.createVibeTools;
-		this.#createTeamTools = options.createTeamTools;
 		this.#createThinkTool = options.createThinkTool;
 		this.#builtInToolNames = new Set(options.builtInToolNames ?? []);
 		this.#mcpManagerToolNames = new Set(options.mcpManagerToolNames ?? []);
@@ -619,6 +610,7 @@ export class SessionTools {
 		this.#reconcileSettingsGatedTools = options.reconcileSettingsGatedTools;
 		this.#rebuildSystemPrompt = options.rebuildSystemPrompt;
 		this.#getMcpServerInstructions = options.getMcpServerInstructions;
+		this.#bindsMcpToEval = options.bindsMcpToEval;
 		this.#xdev = options.xdev;
 		if (this.#xdev && this.#xdev.tools !== this.#toolRegistry) {
 			throw new Error("xd:// state must reference the canonical session tool map");
@@ -646,6 +638,10 @@ export class SessionTools {
 		// no tools and the prompt rebuild without `read` empties the skill list.
 		for (const tool of host.agent.state.tools) this.#enabledToolNames.add(tool.name);
 		for (const name of this.#xdev?.mountedNames ?? []) this.#enabledToolNames.add(name);
+		for (const name of options.evalBoundToolNames ?? []) {
+			this.#evalBoundNames.add(name);
+			this.#enabledToolNames.add(name);
+		}
 		this.#promptSurface = this.#derivePromptSurface();
 		this.#basePromptRoutedXdevNames = this.#routedSummaryXdevNames();
 		this.#promptModelKey = this.#currentPromptModelKey();
@@ -862,7 +858,8 @@ export class SessionTools {
 			skillHintVisible: cfgSkillful.get(this.#host.settings) === true && this.#promptSkills.length > 0,
 			evalPreludes: this.#host.evalPreludes(),
 			sessionAgents: this.#host.sessionAgents(),
-			evalToolNames: this.getEvalBridgeToolNames(),
+			// Eval-bound tools stay callable by name; their namespaces advertise them.
+			evalToolNames: this.getEvalBridgeToolNames().filter(name => !this.#evalBoundNames.has(name)),
 			perCallModelAdvertisement: getPerCallModelAdvertisement(
 				this.#host.settings,
 				this.#host.model(),
@@ -906,6 +903,11 @@ export class SessionTools {
 	/** Names currently presented as `xd://` devices. */
 	getMountedXdevToolNames(): string[] {
 		return [...(this.#xdev?.mountedNames ?? [])];
+	}
+
+	/** Enabled MCP tools presented as eval namespace methods (`mcp.evalNamespaces`); the SDK builds their preludes. */
+	getEvalBoundToolNames(): string[] {
+		return [...this.#evalBoundNames];
 	}
 
 	/** Whether the edit tool is registered. */
@@ -1109,49 +1111,6 @@ export class SessionTools {
 
 			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...vibeToolNames])]);
 		});
-	}
-
-	/** Installs and activates the ephemeral Team tool set. */
-	activateTeamTools(baseToolNames: string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const createTeamTools = this.#createTeamTools;
-			if (!createTeamTools) throw new Error("Team tools are unavailable in this session.");
-			const tools = createTeamTools();
-			const names = tools.map(tool => tool.name);
-			if (new Set(names).size !== names.length) throw new Error("Team tool names must be unique.");
-			for (const tool of tools) {
-				if (this.#toolRegistry.has(tool.name)) continue;
-				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
-				this.#builtInToolNames.add(tool.name);
-				this.#installedTeamToolNames.add(tool.name);
-			}
-			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...names])]);
-		});
-	}
-
-	/** Uninstalls Team-only tools and restores the supplied active tool set. */
-	deactivateTeamTools(nextToolNames: string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			this.#uninstallTeamTools();
-			await this.#applyActiveToolsByName(nextToolNames);
-		});
-	}
-
-	/** Removes Team tools without applying a source-session toolset snapshot. */
-	removeTeamToolsPreservingActive(): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const removed = new Set(this.#installedTeamToolNames);
-			this.#uninstallTeamTools();
-			await this.#applyActiveToolsByName(this.getEnabledToolNames().filter(name => !removed.has(name)));
-		});
-	}
-
-	#uninstallTeamTools(): void {
-		for (const name of this.#installedTeamToolNames) {
-			this.#toolRegistry.delete(name);
-			this.#builtInToolNames.delete(name);
-		}
-		this.#installedTeamToolNames.clear();
 	}
 
 	/** Uninstalls vibe tools and activates the replacement set. */
@@ -1527,7 +1486,7 @@ export class SessionTools {
 
 	async #applyActiveToolsByName(toolNames: string[], forcePromptRefresh = false, signal?: AbortSignal): Promise<void> {
 		signal?.throwIfAborted();
-		toolNames = normalizeToolNames(toolNames).filter(name => !this.#analysisSuppressedNativeTools.has(name));
+		toolNames = normalizeToolNames(toolNames);
 		let builtInWriteAvailable = this.#builtInToolNames.has("write");
 		const fullWriteSelected =
 			toolNames.includes("write") &&
@@ -1564,11 +1523,19 @@ export class SessionTools {
 			(selectedTools.some(({ name }) => name === "write") || this.#deviceOnlyWriteTransportAvailable);
 		const isPresentationPinned = (name: string): boolean =>
 			this.#presentationPinnedToolNames?.has(name) === true || this.#runtimeSelectedToolNames?.has(name) === true;
+		// The setting, not a pin, decides MCP presentation: eval namespaces replace
+		// both surfaces whenever `eval` (essential, so never mounted) is selected.
+		const evalBound = new Set(
+			this.#bindsMcpToEval?.() === true && selectedTools.some(({ name }) => name === "eval")
+				? selectedTools.filter(({ tool }) => isEvalNamespaceTool(tool)).map(({ name }) => name)
+				: [],
+		);
 		const mountCandidates = selectedTools.filter(
 			({ name, tool }) =>
 				this.#xdev !== undefined &&
 				xdevReadAvailable &&
 				xdevWriteAvailable &&
+				!evalBound.has(name) &&
 				!isPresentationPinned(name) &&
 				isMountableUnderXdev(tool),
 		);
@@ -1576,7 +1543,7 @@ export class SessionTools {
 		const tools: AgentTool[] = [];
 		const validToolNames: string[] = [];
 		for (const { name, tool } of selectedTools) {
-			if (mountNames.has(name)) continue;
+			if (mountNames.has(name) || evalBound.has(name)) continue;
 			tools.push(this.#wrapToolForAcpPermission(tool));
 			validToolNames.push(name);
 		}
@@ -1625,7 +1592,9 @@ export class SessionTools {
 		const previousMounted = new Set(this.#xdev?.mountedNames ?? []);
 		const previousActiveToolNames = this.getActiveToolNames();
 		const previousEnabledToolNames = this.#enabledToolNames;
-		this.#enabledToolNames = new Set([...validToolNames, ...mountNames]);
+		const previousEvalBoundNames = this.#evalBoundNames;
+		this.#enabledToolNames = new Set([...validToolNames, ...mountNames, ...evalBound]);
+		this.#evalBoundNames = evalBound;
 		this.#setMountedNames(mountNames);
 		this.#setActiveToolNames?.(validToolNames);
 
@@ -1697,6 +1666,7 @@ export class SessionTools {
 			this.#setMountedNames(previousMounted);
 			this.#setActiveToolNames?.(previousActiveToolNames);
 			this.#enabledToolNames = previousEnabledToolNames;
+			this.#evalBoundNames = previousEvalBoundNames;
 			throw error;
 		}
 
@@ -1706,6 +1676,7 @@ export class SessionTools {
 			this.#setMountedNames(previousMounted);
 			this.#setActiveToolNames?.(previousActiveToolNames);
 			this.#enabledToolNames = previousEnabledToolNames;
+			this.#evalBoundNames = previousEvalBoundNames;
 			return;
 		}
 
@@ -2124,27 +2095,38 @@ export class SessionTools {
 	 * the live set), compaction (which drops old notices), and resume.
 	 */
 	takeEvalPreludeNotice(): CustomMessage<EvalPreludeNoticeDetails> | undefined {
-		const known = new Set(this.#promptSurface.evalPreludes.map(definition => definition.name));
+		const base = this.#baseSystemPrompt.join("\n\n");
+		const known = new Map(this.#promptSurface.evalPreludes.map(definition => [definition.name, base]));
 		for (const message of this.#host.agent.state.messages) {
 			if (message.role !== "custom" || message.customType !== EVAL_PRELUDE_NOTICE_MESSAGE_TYPE) continue;
 			const details = message.details;
 			if (!isRecord(details) || !Array.isArray(details.added) || !Array.isArray(details.removed)) continue;
-			for (const name of details.added) if (typeof name === "string") known.add(name);
+			for (const name of details.added) if (typeof name === "string") known.set(name, String(message.content));
 			for (const name of details.removed) if (typeof name === "string") known.delete(name);
 		}
 		const live = this.#host.evalPreludes();
 		const liveNames = new Set(live.map(definition => definition.name));
-		const added = live.filter(definition => !known.has(definition.name));
-		const removed = [...known].filter(name => !liveNames.has(name));
+		const added = live.filter(
+			definition =>
+				!known.has(definition.name) ||
+				(Boolean(definition.guidance) && !known.get(definition.name)?.includes(definition.guidance!.trim())),
+		);
+		const removed = [...known.keys()].filter(name => !liveNames.has(name));
 		if (added.length === 0 && removed.length === 0) return undefined;
 		// Topic docs are served through `read`; sessions without it get them inline,
 		// matching the eval description's `inlineTopics` fallback.
 		const canRead = this.getActiveToolNames().includes("read");
+		const entries = added.map(definition => ({
+			name: definition.name,
+			summary: evalPreludeSummary(definition),
+			firstCall: canRead && Boolean(definition.firstCallDocumentation?.trim()),
+		}));
 		return {
 			role: "custom",
 			customType: EVAL_PRELUDE_NOTICE_MESSAGE_TYPE,
 			content: prompt.render(evalPreludeNoticePrompt, {
-				added: added.map(definition => ({ name: definition.name, summary: evalPreludeSummary(definition) })),
+				added: entries,
+				anyFirstCall: entries.some(entry => entry.firstCall),
 				removed,
 				canRead,
 				sections: added.flatMap(definition => [
@@ -2153,6 +2135,83 @@ export class SessionTools {
 				]),
 			}),
 			details: { added: added.map(definition => definition.name), removed },
+			attribution: "agent",
+			display: false,
+			timestamp: Date.now(),
+		};
+	}
+
+	/** Preludes with a first-call guide that this conversation has called; cleared when the conversation changes. */
+	#evalPreludesCalled = new Set<string>();
+	#evalPreludeGuideHits = new Map<string, { index: number; message: CustomMessage; content: string; guide: string }>();
+
+	noteEvalPreludeCall(name: string): void {
+		this.#evalPreludesCalled.add(name);
+	}
+
+	clearEvalPreludeCalls(): void {
+		this.#evalPreludesCalled.clear();
+		this.#evalPreludeGuideHits.clear();
+	}
+
+	/**
+	 * Builds the hidden message carrying the first-call guide of each prelude
+	 * this conversation has called, unless a guide message still in context
+	 * holds that guide whole. Like {@link takeEvalPreludeNotice}, what was sent
+	 * is read from the transcript's own typed messages, never from tool output
+	 * or a delivery flag: a message the loop discarded, or a compaction, rewind
+	 * or shake that dropped or shortened a guide, sends it again at the next
+	 * delivery point, and a resumed session does not repeat it.
+	 */
+	takeEvalPreludeGuide(): CustomMessage<EvalPreludeGuideDetails> | undefined {
+		const called = this.#evalPreludesCalled;
+		if (called.size === 0 || !this.getActiveToolNames().includes("read")) return undefined;
+		const messages = this.#host.agent.state.messages;
+		const definitions = this.#host.evalPreludes();
+		const guides: Array<{ name: string; guide: string }> = [];
+		for (const definition of definitions) {
+			const guide = called.has(definition.name) ? definition.firstCallDocumentation?.trim() : undefined;
+			if (!guide) continue;
+			const hit = this.#evalPreludeGuideHits.get(definition.name);
+			if (
+				hit &&
+				messages[hit.index] === hit.message &&
+				hit.message.customType === EVAL_PRELUDE_GUIDE_MESSAGE_TYPE &&
+				hit.message.content === hit.content &&
+				hit.guide === guide
+			) {
+				continue;
+			}
+			let found = false;
+			for (let index = messages.length - 1; index >= 0; index--) {
+				const message = messages[index];
+				if (message.role !== "custom" || message.customType !== EVAL_PRELUDE_GUIDE_MESSAGE_TYPE) continue;
+				const details = message.details;
+				if (!isRecord(details) || !Array.isArray(details.names) || !details.names.includes(definition.name))
+					continue;
+				const expected = details.names.flatMap(name => {
+					const prelude = definitions.find(candidate => candidate.name === name);
+					const text = prelude?.firstCallDocumentation?.trim();
+					return prelude && text ? [{ name: prelude.name, guide: text }] : [];
+				});
+				if (expected.length !== details.names.length) continue;
+				const content = prompt.render(evalPreludeGuidePrompt, { guides: expected });
+				if (message.content !== content) continue;
+				this.#evalPreludeGuideHits.set(definition.name, { index, message, content, guide });
+				found = true;
+				break;
+			}
+			if (!found) {
+				this.#evalPreludeGuideHits.delete(definition.name);
+				guides.push({ name: definition.name, guide });
+			}
+		}
+		if (guides.length === 0) return undefined;
+		return {
+			role: "custom",
+			customType: EVAL_PRELUDE_GUIDE_MESSAGE_TYPE,
+			content: prompt.render(evalPreludeGuidePrompt, { guides }),
+			details: { names: guides.map(guide => guide.name) },
 			attribution: "agent",
 			display: false,
 			timestamp: Date.now(),
@@ -2500,10 +2559,6 @@ export class SessionTools {
 			((this.#host.planModeEnabled() && (!writeSelected || deviceOnlyWriteActive)) ||
 				(writeSelected && deviceOnlyWriteActive && (retainedMountedDevice || retainedDeferrableTool)));
 		const previousRuntimeSelectedToolNames = this.#runtimeSelectedToolNames;
-		const previousAnalysisSelection = this.#analysisSelectedNativeTools;
-		this.#analysisSelectedNativeTools = new Set(
-			[...this.#analysisSuppressedNativeTools].filter(name => normalized.includes(name)),
-		);
 		this.#runtimeSelectedToolNames = new Set(
 			normalized.filter(name => !mounted.has(name) && !(name === "write" && transportWriteActive)),
 		);
@@ -2511,7 +2566,6 @@ export class SessionTools {
 			await this.#applyActiveToolsByName(normalized, forcePromptRefresh, signal);
 		} catch (error) {
 			this.#runtimeSelectedToolNames = previousRuntimeSelectedToolNames;
-			this.#analysisSelectedNativeTools = previousAnalysisSelection;
 			throw error;
 		}
 	}
@@ -2889,158 +2943,37 @@ export class SessionTools {
 	 * so an older asynchronous prompt rebuild cannot commit after a newer catalog
 	 * snapshot. During vibe mode, new tools wait for vibe exit.
 	 */
-	/** Install the Lead/PM tool set (Zeta lead mode). */
-	async activateLeadTools(baseToolNames: string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const createLeadTools = this.#createLeadTools;
-			if (!createLeadTools) throw new Error("Lead tools are unavailable in this session.");
-
-			const tools = createLeadTools();
-			const leadToolNames = tools.map(tool => tool.name);
-			if (new Set(leadToolNames).size !== leadToolNames.length) {
-				throw new Error("Lead tool names must be unique.");
-			}
-
-			for (const tool of tools) {
-				if (this.#toolRegistry.has(tool.name)) continue;
-				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
-				this.#builtInToolNames.add(tool.name);
-				this.#installedLeadToolNames.add(tool.name);
-			}
-
-			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...leadToolNames])]);
-		});
-	}
-
-	/** Remove the Lead/PM tool set and restore the replacement set. */
-	async deactivateLeadTools(nextToolNames: string[]): Promise<void> {
-		await this.runToolRegistryMutation(async () => {
-			this.#uninstallLeadTools();
-			await this.#applyActiveToolsByName([...nextToolNames]);
-		});
-	}
-
-	/** Remove Lead tools but keep the active tool slate (Zeta lead mode). */
-	async removeLeadToolsPreservingActive(): Promise<void> {
-		await this.runToolRegistryMutation(async () => {
-			const removed = new Set(this.#installedLeadToolNames);
-			this.#uninstallLeadTools();
-			await this.#applyActiveToolsByName(this.getEnabledToolNames().filter(name => !removed.has(name)));
-		});
-	}
-
-	#uninstallLeadTools(): void {
-		for (const name of this.#installedLeadToolNames) {
-			this.#toolRegistry.delete(name);
-			this.#builtInToolNames.delete(name);
-		}
-		this.#installedLeadToolNames.clear();
-	}
-
-	/** Toggle the private think tool (Zeta). */
-	async setThinkToolEnabled(enabled: boolean): Promise<boolean> {
-		if (!enabled) return false;
-		return true;
-	}
-
-	/** Analysis-MCP shadow reasons recorded by the Zeta precedence hook. */
-	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
-		return this.#analysisMcpShadowReasons;
-	}
-
-	/** Remove runtime-registered tools by name (Zeta plugin runtime). */
-	removeRuntimeTools(names: Iterable<string>): void {
-		for (const name of names) this.#toolRegistry.delete(name);
-	}
-
-	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
+	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
 		const snapshot = [...mcpTools];
-		return this.runToolRegistryMutation(async () => {
-			if (this.#host.isDisposed()) return;
-			analysis ??= await this.#host.buildMcpRefreshAnalysis?.(
-				snapshot,
-				[...new Set([...this.getEnabledToolNames(), ...this.#analysisSelectedNativeTools])],
-				this.#host.sessionManager.getCwd(),
-			);
-			if (this.#host.isDisposed()) return;
-			const hook = analysis
-				? createAnalysisMcpPrecedenceHook({
-						...analysis,
-						activeNativeTools: [
-							...new Set(
-								[...analysis.activeNativeTools, ...this.#analysisSelectedNativeTools].filter(
-									name => !isToolDisabledBySettings(name, this.#host.settings),
-								),
-							),
-						],
-					})
-				: undefined;
-			if (hook && hook.approvalRequests.length > 0) {
-				const runner = this.#host.extensionRunner();
-				const approve =
-					analysis?.approve ??
-					createAnalysisMcpApprovalAdapter(runner?.hasUI() ? runner.getUIContext() : undefined);
-				if (!approve) {
-					await this.#applyMCPToolRefresh(snapshot, hook);
-					return;
-				}
-				for (const request of hook.approvalRequests) {
-					try {
-						if (await this.#host.waitForUser(() => approve(request))) hook.approve(request.serverName);
-					} catch (error) {
-						logger.warn("Analysis MCP precedence approval failed", {
-							server: request.serverName,
-							error: String(error),
-						});
-					}
-					if (this.#host.isDisposed()) return;
-				}
-			}
-			await this.#applyMCPToolRefresh(snapshot, hook);
-		});
+		return this.runToolRegistryMutation(() =>
+			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot),
+		);
 	}
 
-	async #applyMCPToolRefresh(mcpTools: CustomTool[], analysis?: AnalysisMcpPrecedenceHook): Promise<void> {
+	async #applyMCPToolRefresh(mcpTools: CustomTool[]): Promise<void> {
 		const previousMcpTools = new Map<string, AgentTool>();
 		for (const [name, tool] of this.#toolRegistry) {
 			if (isMCPToolName(name)) previousMcpTools.set(name, tool);
 		}
 		const previousMcpManagerToolNames = new Set(this.#mcpManagerToolNames);
 		const previousActiveMcpToolNames = new Set(this.getEnabledToolNames().filter(isMCPToolName));
-		const previousShadowReasons = this.#analysisMcpShadowReasons;
-		const previousSuppressedNativeTools = this.#analysisSuppressedNativeTools;
-		const previousAnalysisSelection = this.#analysisSelectedNativeTools;
 		const restorePreviousMcpTools = () => {
 			for (const name of this.#toolRegistry.keys()) {
 				if (isMCPToolName(name)) this.#toolRegistry.delete(name);
 			}
 			for (const [name, tool] of previousMcpTools) this.#toolRegistry.set(name, tool);
 			this.#mcpManagerToolNames = previousMcpManagerToolNames;
-			this.#analysisMcpShadowReasons = previousShadowReasons;
-			this.#analysisSuppressedNativeTools = previousSuppressedNativeTools;
-			this.#analysisSelectedNativeTools = previousAnalysisSelection;
 		};
 
 		const extensionRunner = this.#host.extensionRunner();
-		const profileTools = this.#host.mcpToolFilter ? mcpTools.filter(this.#host.mcpToolFilter) : mcpTools;
-		const admittedTools = analysis ? analysis.filterTools(profileTools) : profileTools;
-		const managerTools = deduplicateMCPToolsByName(admittedTools).map(customTool => {
+		const managerTools = deduplicateMCPToolsByName(mcpTools).map(customTool => {
 			const wrapped = wrapToolWithMetaNotice(
 				CustomToolAdapter.wrap(customTool, this.#getCustomToolContext) as AgentTool,
 			);
 			return (extensionRunner ? new ExtensionToolWrapper(wrapped, extensionRunner) : wrapped) as AgentTool;
 		});
 		const managerToolSet = new Set(managerTools);
-		const candidates = [...this.#extensionMcpTools.values(), ...managerTools];
-		const reconciledTools = deduplicateMCPToolsByName(analysis ? analysis.filterTools(candidates) : candidates);
-		this.#analysisMcpShadowReasons = analysis?.shadowReasons ?? {};
-		this.#analysisSuppressedNativeTools = new Set(analysis?.nativeToolsToSuppress ?? []);
-		const enabled = new Set(this.getEnabledToolNames());
-		this.#analysisSelectedNativeTools = new Set(
-			[...this.#analysisSuppressedNativeTools].filter(
-				name => enabled.has(name) || previousAnalysisSelection.has(name),
-			),
-		);
+		const reconciledTools = deduplicateMCPToolsByName([...this.#extensionMcpTools.values(), ...managerTools]);
 
 		for (const name of this.#toolRegistry.keys()) {
 			if (isMCPToolName(name)) this.#toolRegistry.delete(name);
@@ -3055,12 +2988,7 @@ export class SessionTools {
 		// the new registry in order so catalog reordering still updates the prompt.
 		// Names previously supplied by extensions keep their selection if ownership changes.
 		const vibeActive = this.#installedVibeToolNames.size > 0;
-		const nextActive = [
-			...new Set([
-				...this.#getActiveNonMCPToolNames(),
-				...[...previousAnalysisSelection].filter(name => !isToolDisabledBySettings(name, this.#host.settings)),
-			]),
-		];
+		const nextActive = this.#getActiveNonMCPToolNames();
 		for (const name of this.#toolRegistry.keys()) {
 			if (
 				isMCPToolName(name) &&

@@ -2,19 +2,19 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, type Context } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { MCPManager } from "@linxiraos/zeta/mcp/manager";
-import { createAgentSession } from "@linxiraos/zeta/sdk";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { AuthStorage, type Context } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
+import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 
-import { cfgBrowserEnabled } from "@linxiraos/zeta/tools/browser/settings";
-import { cfgComputerEnabled } from "@linxiraos/zeta/tools/settings";
+import { cfgBrowserEnabled, cfgBrowserRelay } from "@oh-my-pi/pi-coding-agent/tools/browser/settings";
+import { cfgComputerEnabled } from "@oh-my-pi/pi-coding-agent/tools/settings";
 
 // Guards the SDK/session boundary: browser and computer stay outside the tool
 // registry while their eval preludes follow live, session-local settings.
@@ -85,9 +85,37 @@ describe("AgentSession eval preludes", () => {
 		await session.runToolRegistryMutation(async () => undefined);
 		expect(session.agent.state.systemPrompt.join("\n\n")).not.toContain("# Computer Use");
 
+		const browserReconciled = Promise.withResolvers<void>();
+		const refresh = session.refreshBaseSystemPrompt.bind(session);
+		const refreshSpy = vi.spyOn(session, "refreshBaseSystemPrompt").mockImplementation(async (...args) => {
+			await refresh(...args);
+			browserReconciled.resolve();
+		});
 		cfgBrowserEnabled.override(session.settings, true);
 		expect(session.getEvalPreludes().map(definition => definition.name)).toEqual(["browser"]);
 		expect(session.getAllToolNames()).not.toContain("browser");
+		// The prefix assertion below depends on browser.enabled finishing its asynchronous MCP-filter reconcile.
+		await browserReconciled.promise;
+		refreshSpy.mockRestore();
+
+		const mock = createMockModel({ handler: { content: ["ok"] } });
+		session.agent.streamFn = mock.stream;
+		await session.prompt("first browser turn");
+		const prefix = session.agent.state.systemPrompt.join("\n\n");
+		expect(prefix).not.toContain("# Browser Relay");
+		cfgBrowserRelay.override(settings, true);
+		await session.prompt("relay browser turn");
+		expect(session.agent.state.systemPrompt.join("\n\n")).toBe(prefix);
+		const notices = session.agent.state.messages.filter(
+			message => message.role === "custom" && message.customType === "eval-prelude-notice",
+		);
+		expect(JSON.stringify(notices)).toContain("# Browser Relay");
+		await session.prompt("unchanged relay turn");
+		expect(
+			session.agent.state.messages.filter(
+				message => message.role === "custom" && message.customType === "eval-prelude-notice",
+			),
+		).toHaveLength(notices.length);
 
 		const gemini = getBundledModel("google", "gemini-2.5-flash");
 		if (!gemini) throw new Error("Expected bundled Google Gemini model to exist");

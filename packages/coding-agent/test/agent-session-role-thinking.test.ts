@@ -1,22 +1,24 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { Effort } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import * as autoThinkingClassifier from "@linxiraos/zeta/auto-thinking/classifier";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { AUTO_THINKING, clampAutoThinkingEffort, resolveProvisionalAutoLevel } from "@linxiraos/pi-tui/thinking";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import * as autoThinkingClassifier from "@oh-my-pi/pi-coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { thinkingLevelWord } from "@oh-my-pi/pi-tui/status-line/segments";
+import { AUTO_THINKING, clampAutoThinkingEffort, resolveProvisionalAutoLevel } from "@oh-my-pi/pi-tui/thinking";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
-import { cfgDefaultThinkingLevel } from "@linxiraos/zeta/session/settings";
+import { cfgDefaultThinkingLevel } from "@oh-my-pi/pi-coding-agent/session/settings";
 
 describe("AgentSession role model thinking behavior", () => {
 	let tempDir: TempDir;
@@ -741,6 +743,40 @@ describe("AgentSession role model thinking behavior", () => {
 		expect(session.autoResolvedThinkingLevel()).toBeUndefined();
 	});
 
+	it("settles auto on the running level when a run starts without a user turn", async () => {
+		const model = getAnthropicModelOrThrow("claude-sonnet-4-5");
+		const mock = createMockModel({ provider: "anthropic", handler: async () => ({ content: ["ack"] }) });
+		const agent = new Agent({
+			getApiKey: () => "test-key",
+			initialState: { model, systemPrompt: ["Test"], tools: [], messages: [] },
+			streamFn: mock.stream,
+		});
+		sessionSettings = Settings.isolated({ "compaction.enabled": false });
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings: sessionSettings,
+			modelRegistry,
+			thinkingLevel: AUTO_THINKING,
+		});
+		const classifierSpy = vi.spyOn(autoThinkingClassifier, "classifyDifficulty").mockResolvedValue(Effort.Low);
+		expect(thinkingLevelWord(session)).toBe(AUTO_THINKING);
+
+		// An IRC wake runs the agent without a user turn to classify. The composer
+		// must show the level it runs at, not auto as pending.
+		await session.sendCustomMessage(
+			{ customType: "irc:incoming", content: "ping", display: false },
+			{ triggerTurn: true },
+		);
+		await session.waitForIdle();
+
+		const provisional = resolveProvisionalAutoLevel(model);
+		expect(classifierSpy).not.toHaveBeenCalled();
+		expect(session.agent.state.thinkingLevel).toBe(provisional);
+		expect(thinkingLevelWord(session)).toBe(provisional);
+		expect(session.configuredThinkingLevel()).toBe(AUTO_THINKING);
+	});
+
 	it("maps ultrathink prompts to the model's highest supported level, clamped below max", async () => {
 		const model = getAnthropicModelOrThrow("claude-sonnet-4-5");
 		await createSession({
@@ -815,34 +851,6 @@ describe("AgentSession role model thinking behavior", () => {
 		expect(session.thinkingLevel).toBeUndefined();
 		expect(session.agent.state.thinkingLevel).toBeUndefined();
 		expect(session.autoResolvedThinkingLevel()).toBeUndefined();
-	});
-
-	it("applies matching role thinking to temporary model picks", async () => {
-		const defaultModel = getAnthropicModelOrThrow("claude-sonnet-4-5");
-		const temporaryModel = getBundledModel("google", "gemini-3.8-flash");
-		if (!temporaryModel) throw new Error("Expected google model gemini-3.8-flash to exist");
-
-		await createSession({
-			initialModelId: defaultModel.id,
-			initialThinkingLevel: Effort.Low,
-			modelRoles: {
-				smol: `${temporaryModel.provider}/${temporaryModel.id}:high`,
-			},
-			runtimeApiKeys: {
-				[temporaryModel.provider]: "test-key",
-			},
-		});
-
-		const roleResolved = session.resolveRoleModelWithThinking("smol");
-		expect(roleResolved.model?.id).toBe(temporaryModel.id);
-		expect(roleResolved.thinkingLevel).toBe(Effort.High);
-
-		const roleThinkingLevel = session.resolveTemporaryModelThinkingLevel(temporaryModel);
-		await session.setModelTemporary(temporaryModel, roleThinkingLevel);
-
-		expect(session.model?.provider).toBe(temporaryModel.provider);
-		expect(session.model?.id).toBe(temporaryModel.id);
-		expect(session.thinkingLevel).toBe(Effort.High);
 	});
 
 	it("ignores a stale recorded role and cycles from the active model", async () => {

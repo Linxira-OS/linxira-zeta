@@ -4,7 +4,7 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-import { type AgentMessage, isProviderRefusalMessage } from "@linxiraos/pi-agent-core";
+import { type AgentMessage, toProviderReplayMessage } from "@oh-my-pi/pi-agent-core";
 import {
 	isUserInterruptAbort,
 	isCustomMessageContent,
@@ -15,16 +15,13 @@ import {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@linxiraos/pi-tui/chat/messages";
-/** Custom message type for the transient Team mode directive (coding-agent owned). */
-export const TEAM_MODE_CONTEXT_MESSAGE_TYPE = "team-mode-context";
+} from "@oh-my-pi/pi-tui/chat/messages";
 export {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	PREWALK_PLAN_MESSAGE_TYPE,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
-	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
 	DEFAULT_CUSTOM_MESSAGE_TYPE,
 	LIVE_DELEGATION_MESSAGE_TYPE,
 	type CustomMessageContent,
@@ -48,20 +45,20 @@ export {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@linxiraos/pi-tui/chat/messages";
-import { calculateContextTokens } from "@linxiraos/pi-agent-core/compaction";
+} from "@oh-my-pi/pi-tui/chat/messages";
+import { calculateContextTokens } from "@oh-my-pi/pi-agent-core/compaction";
 import {
 	invalidateMessageCache,
 	registerMessageCacheInvalidator,
-} from "@linxiraos/pi-agent-core/compaction/message-cache";
-import { convertMessageToLlm } from "@linxiraos/pi-agent-core/compaction/messages";
-import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@linxiraos/pi-ai";
-import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
-import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-agent-core/compaction/message-cache";
+import { convertMessageToLlm } from "@oh-my-pi/pi-agent-core/compaction/messages";
+import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@oh-my-pi/pi-ai";
+import { copyPerCallContextMessage } from "@oh-my-pi/pi-ai/utils/block-symbols";
+import { isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
-import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
-import { type ImUserMessageMetadata, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
+import { stripXdUrlPrefix } from "@oh-my-pi/pi-tui/tools/xd-url";
 
 export {
 	type BranchSummaryMessage,
@@ -69,21 +66,10 @@ export {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@linxiraos/pi-agent-core/compaction/messages";
+} from "@oh-my-pi/pi-agent-core/compaction/messages";
 
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { titleTextFromSkillPrompt } from "@linxiraos/pi-tui/chat/skill-title-input";
-
-/** The immutable source of an IM user input carried by an IRC wake. */
-export function imUserWakeSource(message: CustomMessage): ImUserMessageMetadata | undefined {
-	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return undefined;
-	const metadata = normalizeImMessageMetadata(message.details.metadata);
-	return metadata !== undefined && isImUserMessageMetadata(metadata) ? metadata : undefined;
-}
-
-export function isImUserWake(message: CustomMessage): boolean {
-	return imUserWakeSource(message) !== undefined;
-}
+import { formatOutputNotice } from "@oh-my-pi/pi-tui/tools/output-meta";
+import { titleTextFromSkillPrompt } from "@oh-my-pi/pi-tui/chat/skill-title-input";
 
 /**
  * Logs provider-error turns so their actual cause is available outside the
@@ -439,6 +425,7 @@ function normalizeSessionMessageForProviderReplay(message: AgentMessage): unknow
 				role: message.role,
 				customType: message.customType,
 				content: normalizeProviderReplayValue(message.content),
+				excludeFromContext: message.role === "custom" ? message.excludeFromContext : undefined,
 			};
 		case "branchSummary":
 			return { role: message.role, summary: message.summary };
@@ -761,10 +748,18 @@ export function stripInternalDetailsFields<T>(details: T | undefined): T | undef
 	return cleaned as T;
 }
 
-type SteeringUserMessage = UserMessage & { steering: true };
+type SteeringUserMessage =
+	| (UserMessage & { steering: true })
+	| (CustomMessage & {
+			customType: typeof COLLAB_PROMPT_MESSAGE_TYPE;
+			attribution: "user";
+	  });
 
 function isSteeringUserMessage(message: AgentMessage | undefined): message is SteeringUserMessage {
-	return message?.role === "user" && message.steering === true;
+	if (message?.role === "user") return message.steering === true;
+	return (
+		message?.role === "custom" && message.customType === COLLAB_PROMPT_MESSAGE_TYPE && message.attribution === "user"
+	);
 }
 
 function userMessageWithoutSteering(message: UserMessage): UserMessage {
@@ -1000,7 +995,6 @@ export function replaceLlmImagesWithText(messages: Message[], placeholder: strin
 }
 
 /**
-
  * Convert a BashExecutionMessage to user message text for LLM context.
  */
 export function bashExecutionToText(msg: BashExecutionMessage): string {
@@ -1227,7 +1221,7 @@ function convertOne(m: AgentMessage, interruptedNext: boolean): Message[] {
 			return out;
 		}
 		case "custom": {
-			if (!isCustomMessageContent(m.content)) return [];
+			if (m.excludeFromContext || !isCustomMessageContent(m.content)) return [];
 			if (isSteeringUserMessage(m)) {
 				const converted = convertMessageToLlm(wrapSteeringUserMessage(m));
 				return converted ? [converted] : [];
@@ -1235,14 +1229,12 @@ function convertOne(m: AgentMessage, interruptedNext: boolean): Message[] {
 			// A user-invoked skill is the user's own turn. An agent message is a user turn
 			// authored by that agent: never tool output, never developer or system authority.
 			const ircIncoming = m.customType === "irc:incoming";
-			const imUserWake = ircIncoming && isImUserWake(m);
-			if (imUserWake && m.content === "") return []; // Historical correlation-only record.
 			if (ircIncoming || isUserInvokedSkillPrompt(m)) {
 				return [
 					{
 						role: "user",
 						content: customMessageContentToLlmContent(m.content),
-						attribution: ircIncoming && !imUserWake ? "agent" : "user",
+						attribution: ircIncoming ? "agent" : "user",
 						timestamp: m.timestamp,
 					},
 				];
@@ -1324,9 +1316,9 @@ export interface ContextViewMessage {
  * and array conversion caches. Steering messages show the envelope
  * {@link wrapSteeringForModel} sends (sharing its wrapper cache); it maps
  * one-to-one, so source indices hold. Mirrors the {@link convertToLlm} loop
- * through {@link convertMessageAt}, then drops API-level provider refusals
- * like the send path's `filterProviderReplayMessages`, since they are never
- * replayed.
+ * through {@link convertMessageAt}, then applies the send path's replay policy
+ * (`toProviderReplayMessage`): provider refusals are dropped and provider-error
+ * tool placeholders lose the provider's error text.
  *
  * Kept separate from `convertToLlm` because the viewer needs source indices:
  * reporting them from `convertToLlm` would add a per-message callback and
@@ -1338,8 +1330,8 @@ export function convertMessagesForContextView(messages: AgentMessage[]): Context
 	const result: ContextViewMessage[] = [];
 	for (let sourceIndex = 0; sourceIndex < modelMessages.length; sourceIndex++) {
 		for (const message of convertMessageAt(modelMessages, sourceIndex, convertOne)) {
-			if (message.role === "assistant" && isProviderRefusalMessage(message)) continue;
-			result.push({ message, sourceIndex, convertedIndex: result.length });
+			const replay = toProviderReplayMessage(message);
+			if (replay) result.push({ message: replay, sourceIndex, convertedIndex: result.length });
 		}
 	}
 	return result;

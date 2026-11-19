@@ -2,6 +2,9 @@ import { parseFlag } from "@linxiraos/pi-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { Observation, ObservationEntry } from "../tab-protocol";
 
+/** cmux could not host a browser here: its socket refused the connection, or it opened no browser split. */
+export class CmuxUnavailableError extends ToolError {}
+
 export interface CmuxKind {
 	kind: "cmux";
 	socketPath: string;

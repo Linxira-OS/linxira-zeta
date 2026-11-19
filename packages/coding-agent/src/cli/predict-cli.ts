@@ -1,5 +1,5 @@
 /**
- * `zetacode predict`: type a prompt and watch every word-completion engine's ghost
+ * `omp predict`: type a prompt and watch every word-completion engine's ghost
  * text side by side.
  *
  * Each lane runs the composer's own {@link WordCompletionProvider} (prose
@@ -17,20 +17,20 @@ import {
 	replaceTabs,
 	truncateToWidth,
 	TUI,
-} from "@linxiraos/pi-tui";
-import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
-import { col, compact, keyed, node, row, span, text } from "@linxiraos/pi-tui/native/describe";
-import { Memo } from "@linxiraos/pi-tui/native/memo";
-import type { NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
-import { actionBar, actionButton, iconButton } from "@linxiraos/pi-tui/native/overlay";
+} from "@oh-my-pi/pi-tui";
+import { formatKeyHint } from "@oh-my-pi/pi-tui/app-keybindings";
+import { col, compact, keyed, node, row, span, text } from "@oh-my-pi/pi-tui/native/describe";
+import { Memo } from "@oh-my-pi/pi-tui/native/memo";
+import type { NativeNode, NativeUiEvent } from "@oh-my-pi/pi-tui/native/node";
+import { actionBar, actionButton, iconButton } from "@oh-my-pi/pi-tui/native/overlay";
 import {
 	type WordCompletionEngine,
 	WordCompletionProvider,
 	type WordPredictionBackend,
-} from "@linxiraos/pi-tui/prompt/word-completion";
-import chalk from "@linxiraos/pi-utils/chalk";
-import type { TspSpan } from "@linxiraos/pi-wire";
-import { closeDaemonClients } from "../launch/client";
+} from "@oh-my-pi/pi-tui/prompt/word-completion";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { closeDaemonClient } from "../daemon/client";
 import type { TextPredictMethod } from "../predict/protocol";
 import { closeTextPrediction, requestTextPrediction } from "../predict/client";
 
@@ -240,7 +240,7 @@ class PredictCompareComponent implements Component, Focusable {
 							actionButton("Quit", "quit", { keys: "escape" }),
 						]),
 					],
-					{ role: "zeta.app.predict", gap: "md", grow: 1 },
+					{ role: "omp.app.predict", gap: "md", grow: 1 },
 				),
 		);
 	}
@@ -252,12 +252,12 @@ class PredictCompareComponent implements Component, Focusable {
 				[
 					row(
 						[
-							text("zetacode predict", { role: "zeta.app.title" }),
+							text("omp predict", { role: "omp.app.title" }),
 							text([span(`${this.#lanes.length} engines · comparison typing never teaches them`, "muted")], {
 								truncate: "end",
 							}),
 						],
-						{ gap: "sm", align: "center", role: "zeta.app.where" },
+						{ gap: "sm", align: "center", role: "omp.app.where" },
 					),
 					row(
 						compact([
@@ -265,14 +265,14 @@ class PredictCompareComponent implements Component, Focusable {
 								row([node("spinner", { style: "dots" }), text([span("predicting", "dim")])], {
 									gap: "xs",
 									align: "center",
-									role: "zeta.app.fresh",
+									role: "omp.app.fresh",
 								}),
 							iconButton("x", "quit", "Quit  esc", { aria: "Quit" }),
 						]),
-						{ gap: "md", align: "center", role: "zeta.app.tools" },
+						{ gap: "md", align: "center", role: "omp.app.tools" },
 					),
 				],
-				{ justify: "between", align: "center", role: "zeta.app.head" },
+				{ justify: "between", align: "center", role: "omp.app.head" },
 			),
 			"head",
 		);
@@ -306,7 +306,7 @@ class PredictCompareComponent implements Component, Focusable {
 
 	render(width: number): readonly string[] {
 		const value = this.#input.getValue();
-		const header = `${chalk.bold("zetacode predict")} ${chalk.dim(
+		const header = `${chalk.bold("omp predict")} ${chalk.dim(
 			`· type to compare engines · ${formatKeyHint("tab")} accepts ${ENGINES[0]} · ${formatKeyHint("enter")} clears · ${formatKeyHint("escape")} quits`,
 		)}`;
 		const textWidth = Math.max(8, width - LABEL_WIDTH - STATS_WIDTH - 2);
@@ -348,6 +348,6 @@ export async function runPredictCompare(): Promise<void> {
 		ui.stop();
 		// The daemon socket and the global broker lease would keep the process alive.
 		closeTextPrediction();
-		await closeDaemonClients();
+		await closeDaemonClient();
 	}
 }

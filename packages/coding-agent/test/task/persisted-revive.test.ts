@@ -1399,7 +1399,7 @@ describe("persisted subagent revival", () => {
 		await reviver(ref);
 
 		expect(capturedOptions?.modelPattern).toEqual(["@review-fast", "anthropic/claude-sonnet-4-5"]);
-		expect(capturedOptions?.modelPatternAuthFallback).toBe("anthropic/claude-sonnet-4-5");
+		expect(capturedOptions?.modelPatternParentFallback).toBe("anthropic/claude-sonnet-4-5");
 	});
 
 	it("restores compaction threshold behavior after parent settings change", async () => {
@@ -1447,7 +1447,7 @@ describe("persisted subagent revival", () => {
 		await reviver(ref);
 
 		expect(capturedOptions?.modelPattern).toBe("anthropic/claude-sonnet-4-5");
-		expect(capturedOptions?.modelPatternAuthFallback).toBe("anthropic/claude-sonnet-4-5");
+		expect(capturedOptions?.modelPatternParentFallback).toBe("anthropic/claude-sonnet-4-5");
 	});
 
 	it("reinstalls the spawn's subagent fallback chain so it still routes at a changed effort (#13789)", async () => {

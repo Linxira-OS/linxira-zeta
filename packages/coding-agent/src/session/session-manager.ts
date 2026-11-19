@@ -1,6 +1,6 @@
+import type { Settings } from "../config/settings";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { agentMessageIdentity, identifyAgentMessage } from "@linxiraos/pi-agent-core";
 import type {
 	ImageContent,
 	Message,
@@ -8,7 +8,7 @@ import type {
 	ServiceTierByFamily,
 	TextContent,
 	Usage,
-} from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-ai";
 import {
 	directoryIsEnterable,
 	directoryIsMissing,
@@ -22,17 +22,17 @@ import {
 	isFsError,
 	logger,
 	pathIsWithin,
+	spillIdOfFileName,
 	stringifyJson,
 	toError,
 	withLoopPhase,
-} from "@linxiraos/pi-utils";
-import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { splitCardTitle } from "../utils/title-card";
-import * as snapcompact from "@linxiraos/zeta-compact";
+} from "@oh-my-pi/pi-utils";
+import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@oh-my-pi/pi-tui/tools/task";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import * as snapcompact from "@oh-my-pi/snapcompact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
-import { moveSessionToTrash } from "./session-trash";
 import { hasAnnotationDraftsSync } from "../extensibility/custom-commands/bundled/annotate/draft-store";
+import { resolveLocalRoot } from "../internal-urls/local-root";
 import { ArtifactManager, type ArtifactManagerApi } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore, lazyImageDataSync } from "./blob-store";
 import type { CompactionMethod } from "./compaction-methods";
@@ -64,22 +64,23 @@ import {
 	type CustomMessageEntry,
 	EPHEMERAL_MODEL_CHANGE_ROLE,
 	PREWALK_MODEL_CHANGE_ROLE,
+	TEMPORARY_MODEL_CHANGE_ROLE,
 	type FileEntry,
 	type LabelEntry,
 	type ModeChangeEntry,
 	type ModelChangeEntry,
 	type ModelUsageEntry,
+	type ModelUsageRecord,
 	lastSelfSelectedLeafId,
 	type NewSessionOptions,
-	type SessionClient,
 	type ResetBoundaryEntry,
 	type ServiceTierChangeEntry,
 	sessionEntryLeafId,
 	type SessionEntry,
 	type SessionHeader,
 	type SessionInitEntry,
-	type SessionRunInitEntry,
 	type SessionMessageEntry,
+	type SessionClient,
 	type SessionTitleSource,
 	type SessionTreeNode,
 	type ThinkingLevelChangeEntry,
@@ -88,7 +89,6 @@ import {
 	type TtsrInjectionEntry,
 	type UsageStatistics,
 } from "./session-entries";
-import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
 import {
 	findMostRecentNonEmptySession,
@@ -101,12 +101,9 @@ import {
 	listSessionsForPicker,
 	movesConversation,
 	type PickerListing,
-	type PickerListingOptions,
 	type SessionContinuation,
 	type SessionInfo,
 } from "./session-listing";
-import { resolveTeamSessionOrigin } from "../team/session-origin";
-import { sameSessionOrigin, type SessionOrigin } from "./session-origin";
 import {
 	loadEntriesFromFile,
 	loadSessionFile,
@@ -162,7 +159,7 @@ export function mintSessionId(): string {
 }
 
 /**
- * `moveTo` refused before anything moved: another live zeta process writes the
+ * `moveTo` refused before anything moved: another live omp process writes the
  * session, or the session file at the destination.
  */
 export class SessionMoveRefusedError extends Error {
@@ -225,9 +222,11 @@ export async function copySessionArtifacts(sourceSessionFile: string, destinatio
 	}
 }
 
-/** The numeric id an artifact file name (`<id>.<tool>.log`) carries, if any. */
-function artifactIdOf(name: string): string | undefined {
-	return /^(\d+)\./.exec(name)?.[1];
+/** The spill id a file `prefix + name` of a session directory carries (`local/<id>.log`), if any. */
+function artifactIdOf(name: string, prefix: string): string | undefined {
+	if (prefix !== "local/") return undefined;
+	const id = spillIdOfFileName(name);
+	return id === undefined ? undefined : String(id);
 }
 
 /**
@@ -256,15 +255,16 @@ async function moveEntryWithoutReplacing(from: string, to: string, isDirectory: 
 	}
 }
 
-/** What `destination` currently holds: entries by name, and the artifact ids (`<id>.<tool>.log`) already in use. */
+/** What `destination` currently holds: entries by name, and the spill ids (`local/<id>.log`) already in use. */
 async function destinationOccupancy(
 	destination: string,
+	prefix: string,
 ): Promise<{ occupants: Map<string, fs.Dirent>; takenIds: Set<string> }> {
 	const present = await fs.promises.readdir(destination, { withFileTypes: true });
 	const occupants = new Map(present.map(entry => [entry.name, entry]));
 	const takenIds = new Set<string>();
 	for (const entry of present) {
-		const id = artifactIdOf(entry.name);
+		const id = artifactIdOf(entry.name, prefix);
 		if (id !== undefined) takenIds.add(id);
 	}
 	return { occupants, takenIds };
@@ -273,8 +273,8 @@ async function destinationOccupancy(
 /**
  * Move `source`'s entries into `destination`, recursing into directories that
  * exist on both sides, then remove `source` once it is empty. Nothing at the
- * destination is ever replaced: an entry whose name — or, for `<id>.<tool>.log`
- * artifact files, whose id — is already taken stays at the source, as does one
+ * destination is ever replaced: an entry whose name — or, for `local/<id>.log`
+ * spill files, whose id — is already taken stays at the source, as does one
  * whose move fails. Once moving has begun this never throws, so the caller is
  * never left with a session file rolled back away from artifacts that already
  * moved. Returns the entries left at the source, each with its reason.
@@ -285,20 +285,20 @@ async function mergeDirectoryInto(
 	stranded: string[] = [],
 	prefix = "",
 ): Promise<string[]> {
-	let { occupants, takenIds } = await destinationOccupancy(destination);
+	let { occupants, takenIds } = await destinationOccupancy(destination, prefix);
 	const strandedBefore = stranded.length;
 	for (const entry of await fs.promises.readdir(source, { withFileTypes: true })) {
 		const from = path.join(source, entry.name);
 		const to = path.join(destination, entry.name);
 		const label = prefix + entry.name;
-		const id = artifactIdOf(entry.name);
+		const id = artifactIdOf(entry.name, prefix);
 		try {
 			// A writer can publish another `<id>.*` file while earlier entries move,
 			// and a different file name slips past link(2)'s EEXIST; list again right
 			// before an id-bearing move so the check is one syscall old, not the
 			// whole merge. Inside the boundary: a failed listing strands this entry
 			// like a failed move would, instead of aborting a merge already under way.
-			if (id !== undefined) ({ occupants, takenIds } = await destinationOccupancy(destination));
+			if (id !== undefined) ({ occupants, takenIds } = await destinationOccupancy(destination, prefix));
 			const occupant = occupants.get(entry.name);
 			if (occupant === undefined && (id === undefined || !takenIds.has(id))) {
 				if (entry.isDirectory()) {
@@ -345,13 +345,13 @@ async function mergeDirectoryInto(
  * (ENOTEMPTY, EEXIST, EPERM on Windows), so the fallback is decided by what is
  * there, not by the code: an existing directory is merged into.
  *
- * A name or artifact id taken on both sides is left at the source rather than
- * resolved: artifact ids resolve by `<id>.` prefix against one directory, so
+ * A name or spill id taken on both sides is left at the source rather than
+ * resolved: `local://<id>.log` names one file of one directory, so
  * overwriting the destination copy or parking a renamed duplicate beside it
  * would each destroy or misdirect a referenced artifact. The copy already at
  * the destination keeps the id; the session's own copy stays at the source,
  * retained on disk under the path the header's `previousSessionFiles` records
- * but not reachable through `artifact://` — two writers that shared one id
+ * but not reachable as a spill — two writers that shared one id
  * space cannot both be.
  */
 async function relocateArtifactsDirectory(source: string, destination: string): Promise<"renamed" | "merged"> {
@@ -524,7 +524,6 @@ function isDraftOnlyMetadataEntry(entry: SessionEntry): boolean {
 		case "service_tier_change":
 		case "mode_change":
 		case "credential_pin":
-		case "run_init":
 			return true;
 		default:
 			return false;
@@ -821,13 +820,6 @@ interface SessionManagerStateSnapshot {
 	entries: SessionEntry[];
 }
 
-/** Card index parsed from a card-form title, or recovered from a legacy title entry. */
-export interface SessionTitleCard {
-	code: string;
-	emoji?: string;
-	nf?: string;
-}
-
 interface DiskQueueOptions {
 	ignorePriorError?: boolean;
 	ignoreEpoch?: boolean;
@@ -904,7 +896,7 @@ export class SessionPersistenceIndeterminateError extends AggregateError {
  */
 export interface SessionPersistenceNotice {
 	/**
-	 * `"open-elsewhere"`: another live zeta process wrote `from` first and still
+	 * `"open-elsewhere"`: another live omp process wrote `from` first and still
 	 * has it open, so this process saves its entries elsewhere instead of mixing
 	 * them into that file. `"replaced"`: `from` changed on disk and no longer
 	 * reads as this session's journal, so it is left untouched. `"contested"`:
@@ -965,6 +957,8 @@ export class SessionManager {
 	readonly #blobs: BlobStore;
 
 	#sessionId = "";
+	/** Client that created this session; inherited by `/new`, branch and fork. */
+	#client: SessionClient | undefined;
 	/**
 	 * Parent-derived sibling family candidate stashed by the Task executor once
 	 * the child session exists. Session-scoped and non-persisted: the header
@@ -978,13 +972,10 @@ export class SessionManager {
 	#bodyRevision = 0;
 	#sessionFile: string | undefined;
 	#header!: SessionHeader;
-	/** Client of the process/run holding this manager; header.client stays the creator. */
-	#client: SessionClient | undefined;
 	#titleUpdatedAt = "";
 	#hasTitleSlot = true;
 	#entries: SessionEntry[] = [];
 	#index = new SessionEntryIndex();
-	#messageEntryIds = new WeakMap<object, { sessionId: string; id: string }>();
 
 	/** File reflects all current entries; appends can go incrementally. */
 	#fileIsCurrent = false;
@@ -1059,10 +1050,8 @@ export class SessionManager {
 	#atomicEntryBatch: AtomicEntryBatch | undefined;
 
 	#artifactManager: ArtifactManager | null = null;
-	#artifactManagerSessionFile: string | null = null;
+	#artifactManagerLocalRoot: string | null = null;
 	#adoptedArtifactManager: ArtifactManagerApi | null = null;
-	#inMemoryArtifacts: Map<string, string> | null = null;
-	#inMemoryArtifactCounter = 0;
 
 	#suppressBreadcrumb = false;
 	/**
@@ -1171,7 +1160,7 @@ export class SessionManager {
 	/**
 	 * Hold this process's ownership claim on `#sessionId`, moving it off a
 	 * previous session. Only write paths claim, so the first process to write a
-	 * session owns it and inspection (`zetacode share`, `--export`, `render`) never
+	 * session owns it and inspection (`omp share`, `--export`, `render`) never
 	 * does. A failed claim is retried on the next write, so a writer takes over
 	 * once the owner closed the session or exited.
 	 */
@@ -1189,7 +1178,7 @@ export class SessionManager {
 	}
 
 	/**
-	 * Whether another live zeta process owns this session, claiming it first
+	 * Whether another live omp process owns this session, claiming it first
 	 * when it is free. A non-owner never writes the session's file: its next
 	 * write moves this session to a sibling with a new id instead, so two
 	 * processes never mix their entries in one journal and the owner's full
@@ -1264,7 +1253,7 @@ export class SessionManager {
 
 	/**
 	 * A synchronous full rewrite of `#sessionFile` met bytes this manager did
-	 * not write: usually a writer without the ownership lease (an older zeta,
+	 * not write: usually a writer without the ownership lease (an older omp,
 	 * an external tool) appending to the file this process owns. Overwriting
 	 * would erase those entries and retrying blindly can never succeed, so read
 	 * the file back, keep its new entries, and retry against the size just read.
@@ -1334,7 +1323,7 @@ export class SessionManager {
 	 *
 	 * The artifact copy runs in the background so a move never blocks the turn
 	 * loop on a large artifacts directory; the sibling's artifact manager waits
-	 * for it before scanning ids or resolving `artifact://`, and flush/close
+	 * for it before scanning ids or resolving spills, and flush/close
 	 * await it. Returns the sibling.
 	 */
 	#moveOffSessionFile(reason: SessionPersistenceNotice["reason"]): string {
@@ -1369,7 +1358,7 @@ export class SessionManager {
 		this.#fileIsCurrent = false;
 		this.#rewriteRequired = true;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#pendingArtifactCopy = { sessionFile: to, done: copySessionArtifacts(from, to) };
 		this.#rememberBreadcrumb(this.#cwd, to);
 		this.#claimSession();
@@ -2112,11 +2101,6 @@ export class SessionManager {
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
 			client: options?.client ?? this.#client ?? this.#header?.client,
-			// An IM/bot or Team conversation keeps its stamp across `/new`; a new
-			// session created inside a resolved Team location is stamped from that
-			// location. A personal session outside a team never acquires one.
-			origin: options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd),
-			memoryNamespace: options?.memoryNamespace ?? this.#header?.memoryNamespace,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 			taskPromptCacheKey: options?.taskPromptCacheKey,
@@ -2143,10 +2127,8 @@ export class SessionManager {
 		this.#turnOutputBaseline = 0;
 		this.#turnEvalOutput = 0;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#adoptedArtifactManager = null;
-		this.#inMemoryArtifacts = null;
-		this.#inMemoryArtifactCounter = 0;
 
 		if (this.#persist) {
 			this.#sessionFile =
@@ -2172,14 +2154,9 @@ export class SessionManager {
 		this.#index.rebuild(entries);
 	}
 
-	#freshEntryFields(id?: string): {
-		id: string;
-		parentId: string | null;
-		timestamp: string;
-		runtime: RuntimeIdentity;
-	} {
+	#freshEntryFields(): { id: string; parentId: string | null; timestamp: string; runtime: RuntimeIdentity } {
 		return {
-			id: id ?? generateId(this.#index),
+			id: generateId(this.#index),
 			parentId: this.#index.leafId(),
 			timestamp: nowIso(),
 			runtime: currentRuntimeIdentity(),
@@ -2271,24 +2248,26 @@ export class SessionManager {
 		}
 	}
 
-	#artifactManagerForSession(): ArtifactManagerApi | null {
+	/**
+	 * The spill manager: the adopted parent's, else one over this session's
+	 * `local://` root — `<session>/local`, or `$TMPDIR/omp-local/<sessionId>`
+	 * without a session file. Rebuilt when that root moves.
+	 */
+	#artifactManagerForSession(): ArtifactManagerApi {
 		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager;
 
 		const sessionFile = this.#sessionFile;
-		if (!sessionFile) {
-			this.#artifactManager = null;
-			this.#artifactManagerSessionFile = null;
-			return null;
-		}
-
-		if (this.#artifactManager && this.#artifactManagerSessionFile === sessionFile) return this.#artifactManager;
+		const sessionDir = artifactsDirectoryFor(sessionFile);
+		const localRoot = resolveLocalRoot({ getArtifactsDir: () => sessionDir, getSessionId: () => this.#sessionId });
+		if (this.#artifactManager && this.#artifactManagerLocalRoot === localRoot) return this.#artifactManager;
 
 		const pendingCopy = this.#pendingArtifactCopy;
 		this.#artifactManager = new ArtifactManager(
-			sessionFile.slice(0, -JSONL_SUFFIX_LENGTH),
-			pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
+			localRoot,
+			sessionDir,
+			sessionFile && pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
 		);
-		this.#artifactManagerSessionFile = sessionFile;
+		this.#artifactManagerLocalRoot = localRoot;
 		return this.#artifactManager;
 	}
 
@@ -2389,7 +2368,7 @@ export class SessionManager {
 		this.#titleUpdatedAt = snapshot.titleUpdatedAt;
 		this.#hasTitleSlot = snapshot.hasTitleSlot;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#adoptedArtifactManager = null;
 
 		if (this.#sessionFile) this.#rememberBreadcrumb(this.#cwd, this.#sessionFile);
@@ -2523,7 +2502,7 @@ export class SessionManager {
 		this.#loadedMalformedRecords = loaded.malformedRecords;
 		this.#forceFileCreation = true;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 
 		if (this.sanitizeLoadedOpenAIResponsesReplayMetadata()) this.#rewriteRequired = true;
 	}
@@ -2552,11 +2531,7 @@ export class SessionManager {
 	async dropSession(sessionPath: string): Promise<void> {
 		await this.#drainAndCloseWriter();
 		try {
-			// The trash is a filesystem move: it cannot reach a transcript that
-			// lives in an indexed backend (Redis/SQL), and its `unlink` is the
-			// primitive that clears both the content key and the index entry.
-			if (this.#storage instanceof FileSessionStorage) await moveSessionToTrash(sessionPath);
-			else await this.#storage.deleteSessionWithArtifacts(sessionPath);
+			await this.#storage.deleteSessionWithArtifacts(sessionPath);
 		} catch (err) {
 			if (!isEnoent(err)) throw err;
 		}
@@ -2589,9 +2564,6 @@ export class SessionManager {
 			timestamp,
 			cwd: this.#cwd,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
-			client: this.#client ?? this.#header.client,
-			origin: this.#header.origin,
-			memoryNamespace: this.#header.memoryNamespace,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
@@ -2605,7 +2577,7 @@ export class SessionManager {
 		this.#forceFileCreation = true;
 		this.#draftOnlySessionCleanupArmed = false;
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#rememberBreadcrumb(this.#cwd, this.#sessionFile);
 
 		await this.#rewriteAtomically();
@@ -2635,7 +2607,7 @@ export class SessionManager {
 		}
 
 		// A move writes both paths: it must neither move a session another live
-		// zeta process writes nor replace a destination one writes. Checked before
+		// omp process writes nor replace a destination one writes. Checked before
 		// relocation starts (appends still go to the source) and before any
 		// directory is created, so a refusal touches nothing.
 		let destination: { id: string; release: () => void } | undefined;
@@ -2648,7 +2620,7 @@ export class SessionManager {
 			const release = this.#storage.claimSession?.(id, file);
 			if (release === null) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session to "${file}": another live zeta process writes the session there. Nothing was moved.`,
+					`Cannot move session to "${file}": another live omp process writes the session there. Nothing was moved.`,
 				);
 			}
 			destination?.release();
@@ -2672,7 +2644,7 @@ export class SessionManager {
 			this.#claimSession();
 			if (this.#sessionClaim?.release === undefined) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session "${this.#sessionFile}": another live zeta process writes it. Nothing was moved.`,
+					`Cannot move session "${this.#sessionFile}": another live omp process writes it. Nothing was moved.`,
 				);
 			}
 			if (expectedSessionFile && path.resolve(this.#sessionFile) !== path.resolve(expectedSessionFile)) {
@@ -2784,7 +2756,7 @@ export class SessionManager {
 				// publish against an absent file rather than a stale size.
 				if (sessionPathChanged && !sessionMoved) this.#expectedDiskSize = null;
 				this.#artifactManager = null;
-				this.#artifactManagerSessionFile = null;
+				this.#artifactManagerLocalRoot = null;
 				// Path is repointed; hot-path appends may use `#sessionFile` again.
 				this.#sessionFileRelocating = null;
 			}
@@ -2846,10 +2818,7 @@ export class SessionManager {
 		const sessionDir = options?.sessionDir ?? SessionManager.getDefaultSessionDir(this.#cwd, undefined, storage);
 		const manager = new SessionManager(this.#cwd, sessionDir, true, storage);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
-		manager.#resetToNewSession({
-			client: this.#client ?? this.#header.client,
-			taskPromptCacheKey: this.#header.taskPromptCacheKey,
-		});
+		manager.#resetToNewSession({ taskPromptCacheKey: this.#header.taskPromptCacheKey });
 		manager.#sessionName = this.#sessionName;
 		manager.#titleSource = this.#titleSource;
 		manager.#titleUpdatedAt = this.#titleUpdatedAt;
@@ -3133,7 +3102,6 @@ export class SessionManager {
 		this.seal();
 		this.#entries = [];
 		this.#index.clear();
-		this.#inMemoryArtifacts = null;
 		this.#closeWriterEventually();
 		this.#entriesReleased = true;
 	}
@@ -3348,7 +3316,7 @@ export class SessionManager {
 	}
 
 	getArtifactsDir(): string | null {
-		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager.dir;
+		if (this.#adoptedArtifactManager) return this.#adoptedArtifactManager.sessionDir;
 		return artifactsDirectoryFor(this.#sessionFile);
 	}
 
@@ -3356,38 +3324,24 @@ export class SessionManager {
 		this.#adoptedArtifactManager = manager;
 	}
 
-	getArtifactManager(): ArtifactManagerApi | null {
+	getArtifactManager(): ArtifactManagerApi {
 		return this.#artifactManagerForSession();
 	}
 
-	async allocateArtifactPath(toolType: string): Promise<{ id?: string; path?: string }> {
+	/** Claim a spill id and file (`local://<id>.log`) without writing it. */
+	async allocateArtifactPath(): Promise<{ id?: string; path?: string }> {
 		if (this.#released) return {};
-		return (await this.#artifactManagerForSession()?.allocatePath(toolType)) ?? {};
+		return this.#artifactManagerForSession().allocatePath();
 	}
 
-	async saveArtifact(content: string, toolType: string): Promise<string | undefined> {
+	/** Save `content` as a spill read back at `spillUrl(id)`; undefined once released. */
+	async saveArtifact(content: string): Promise<string | undefined> {
 		if (this.#released) return undefined;
-		const manager = this.#artifactManagerForSession();
-		if (manager) return manager.save(content, toolType);
-
-		// Non-persistent session: keep an in-memory copy so spill truncation works.
-		this.#inMemoryArtifacts ??= new Map();
-		const id = String(this.#inMemoryArtifactCounter++);
-		this.#inMemoryArtifacts.set(id, content);
-		return id;
+		return this.#artifactManagerForSession().save(content);
 	}
 
 	async getArtifactPath(id: string): Promise<string | null> {
-		return (await this.#artifactManagerForSession()?.getPath(id)) ?? null;
-	}
-
-	/**
-	 * Content of a spill artifact kept in memory by a non-persistent session.
-	 * Null for unknown ids and for file-backed sessions, whose artifacts resolve
-	 * through {@link getArtifactPath}.
-	 */
-	getArtifactContent(id: string): string | null {
-		return this.#inMemoryArtifacts?.get(id) ?? null;
+		return this.#artifactManagerForSession().getPath(id);
 	}
 
 	async saveDraft(text: string): Promise<void> {
@@ -3467,72 +3421,6 @@ export class SessionManager {
 
 	getSessionName(): string | undefined {
 		return this.#sessionName;
-	}
-
-	/**
-	 * The card index of the current title, if it has one. Read from the latest
-	 * title change rather than stored beside the title (header, title slot,
-	 * listings): a rename that passes no card drops it, and a resumed session
-	 * gets it back from its own entries.
-	 */
-	getSessionTitleCard(): SessionTitleCard | undefined {
-		return SessionManager.#cardForTitle(this.#sessionName, this.#entries);
-	}
-
-	static #cardForTitle(title: string | undefined, entries: readonly FileEntry[]): SessionTitleCard | undefined {
-		if (!title) return undefined;
-		const parsed = splitCardTitle(title);
-		if (parsed) return { code: parsed.code, emoji: parsed.icon };
-		// Legacy Studio sessions kept the card beside the title.
-		for (let i = entries.length - 1; i >= 0; i--) {
-			const entry = entries[i]!;
-			if (entry.type !== TITLE_CHANGE_ENTRY_TYPE) continue;
-			const record = entry as unknown as Record<string, unknown>;
-			if (record.title !== title) return undefined;
-			const value = record.card;
-			if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-			const card = value as Record<string, unknown>;
-			if (typeof card.code !== "string") return undefined;
-			return {
-				code: card.code,
-				...(typeof card.emoji === "string" ? { emoji: card.emoji } : {}),
-				...(typeof card.nf === "string" ? { nf: card.nf } : {}),
-			};
-		}
-		return undefined;
-	}
-
-	/** Read only title metadata without acquiring session ownership or writing migrations. */
-	static async peekSessionTitle(
-		filePath: string,
-		storage: SessionStorage = new FileSessionStorage(),
-	): Promise<{ sessionId: string; title?: string; source?: SessionTitleSource; card?: SessionTitleCard }> {
-		const [prefix, suffix] = await storage.readTextSlices(filePath, 64 * 1024, 64 * 1024);
-		const loaded = parseSessionContent(prefix);
-		const header = loaded.entries[0];
-		if (loaded.invalidHeader || !header || header.type !== "session")
-			throw new Error("The saved session is incomplete or damaged; title inspection cannot continue");
-		let card = SessionManager.#cardForTitle(header.title, []);
-		if (header.title && !card) {
-			const tail = parseSessionContent(suffix.slice(suffix.indexOf("\n") + 1)).entries;
-			let latest = tail.findLast(entry => entry.type === TITLE_CHANGE_ENTRY_TYPE);
-			if (!latest) {
-				await visitEntriesFromFile(
-					filePath,
-					entry => {
-						if (entry.type === TITLE_CHANGE_ENTRY_TYPE) latest = entry;
-					},
-					storage,
-				);
-			}
-			if (latest) card = SessionManager.#cardForTitle(header.title, [latest]);
-		}
-		return {
-			sessionId: header.id,
-			...(header.title ? { title: header.title } : {}),
-			...(header.titleSource ? { source: header.titleSource } : {}),
-			...(card ? { card } : {}),
-		};
 	}
 
 	onSessionNameChanged(cb: () => void): () => void {
@@ -3703,17 +3591,6 @@ export class SessionManager {
 		return { header: this.#header, entries: this.#entries };
 	}
 
-	/** Reserve the final JSONL entry ID without appending an unfinished message. */
-	reserveMessageEntryId(message: object): string {
-		const identity = agentMessageIdentity(message) ?? identifyAgentMessage(message);
-		const previous = this.#messageEntryIds.get(identity);
-		if (previous?.sessionId === this.#sessionId) return previous.id;
-		// Full UUIDs cannot collide with the normal eight-character entry IDs.
-		const id = crypto.randomUUID();
-		this.#messageEntryIds.set(identity, { sessionId: this.#sessionId, id });
-		return id;
-	}
-
 	/**
 	 * Append a message as a child of the current leaf, then advance the leaf.
 	 * CompactionSummaryMessage / BranchSummaryMessage are rejected here — they are
@@ -3727,31 +3604,8 @@ export class SessionManager {
 			| BashExecutionMessage
 			| PythonExecutionMessage
 			| FileMentionMessage,
-		metadata?: ImMessageMetadata,
-		client?: SessionClient,
 	): string {
-		const entry: SessionMessageEntry = {
-			type: "message",
-			...this.#freshEntryFields(
-				agentMessageIdentity(message) === undefined ? undefined : this.reserveMessageEntryId(message),
-			),
-			message,
-			...(metadata ? { metadata } : {}),
-			...(message.role === "user" && message.attribution !== "agent" && (client ?? this.#client)
-				? { client: client ?? this.#client }
-				: {}),
-		};
-		this.#recordEntry(entry);
-		return entry.id;
-	}
-
-	/** Append an IM control handshake entry; context builders must skip it. */
-	appendImControl(metadata: ImSwitchControlMetadata): string {
-		const entry: import("./session-entries").ImControlEntry = {
-			type: "im_control",
-			...this.#freshEntryFields(),
-			metadata,
-		};
+		const entry: SessionMessageEntry = { type: "message", ...this.#freshEntryFields(), message };
 		this.#recordEntry(entry);
 		return entry.id;
 	}
@@ -3785,9 +3639,6 @@ export class SessionManager {
 			timestamp: nowIso(),
 			runtime: currentRuntimeIdentity(),
 			message,
-			...(message.role === "user" && message.attribution !== "agent" && this.#client
-				? { client: this.#client }
-				: {}),
 			...(options?.preserveActiveLeaf === false ? {} : { activeLeafId }),
 		};
 		// The entry never joins the active branch; keep it out of any branch view
@@ -3800,10 +3651,7 @@ export class SessionManager {
 
 	/** Record usage on its initiating branch without moving a successor branch or session. */
 	appendModelUsage(
-		usage: Pick<
-			ModelUsageEntry,
-			"purpose" | "role" | "api" | "provider" | "model" | "usage" | "stopReason" | "errorMessage" | "cacheRefresh"
-		>,
+		usage: ModelUsageRecord,
 		owner: { sessionId: string; parentId: string | null },
 	): string | undefined {
 		if (this.#sessionId !== owner.sessionId || (owner.parentId !== null && !this.#index.has(owner.parentId))) {
@@ -3889,24 +3737,8 @@ export class SessionManager {
 		compactionThreshold?: { thresholdPercent: number; thresholdTokens: number };
 		isolated?: boolean;
 		workPoolYieldItems?: WorkPoolYieldItem[];
-		/** Client that initiated this subagent run; absent means unknown. */
-		client?: SessionClient;
 	}): string {
 		const entry: SessionInitEntry = { type: "session_init", ...this.#freshEntryFields(), ...init };
-		this.#recordEntry(entry);
-		return entry.id;
-	}
-
-	/**
-	 * Append durable provenance for one run without touching the creator header.
-	 * Readers take the newest valid `run_init.client` as the current run.
-	 */
-	appendRunInit(client?: SessionClient): string {
-		const entry: SessionRunInitEntry = {
-			type: "run_init",
-			...this.#freshEntryFields(),
-			...(client === undefined ? {} : { client }),
-		};
 		this.#recordEntry(entry);
 		return entry.id;
 	}
@@ -3972,12 +3804,14 @@ export class SessionManager {
 	}
 
 	/**
-	 * Append a custom message entry (for extensions) that participates in LLM context.
+	 * Append a custom message entry (for extensions) that participates in LLM context unless `excludeFromContext`.
 	 * @param customType Hook identifier for filtering on reload
 	 * @param content Message content (string or TextContent/ImageContent array)
 	 * @param display Whether to show in TUI (true = styled display, false = hidden)
 	 * @param details Optional extension-specific metadata (not sent to LLM)
 	 * @param attribution Who initiated this message for billing/attribution semantics
+	 * @param timestamp The message's own timestamp; defaults to now
+	 * @param excludeFromContext Render and save the message but never send it to the model
 	 */
 	appendCustomMessageEntry<T = unknown>(
 		customType: string | undefined,
@@ -3986,8 +3820,16 @@ export class SessionManager {
 		details?: T,
 		attribution: MessageAttribution | undefined = "agent",
 		timestamp?: number,
+		excludeFromContext?: boolean,
 	): string {
-		const normalized = normalizeCustomMessagePayload<T>({ customType, content, display, details, attribution });
+		const normalized = normalizeCustomMessagePayload<T>({
+			customType,
+			content,
+			display,
+			details,
+			attribution,
+			excludeFromContext,
+		});
 		const fresh = this.#freshEntryFields();
 		const entry: CustomMessageEntry<T> = {
 			type: "custom_message",
@@ -3997,6 +3839,7 @@ export class SessionManager {
 			// Drop AgentSession-internal transient fields before disk persistence.
 			details: stripInternalDetailsFields(normalized.details),
 			attribution: normalized.attribution,
+			excludeFromContext: normalized.excludeFromContext,
 			...fresh,
 			// Prefer the initiating message's own timestamp: without it the entry
 			// records the emission time, which on rebuild excludes provider
@@ -4091,7 +3934,9 @@ export class SessionManager {
 		for (let index = branch.length - 1; index >= 0; index--) {
 			const entry = branch[index];
 			if (entry.type !== "model_change") continue;
-			return entry.role === "temporary" || entry.role === PREWALK_MODEL_CHANGE_ROLE ? entry : undefined;
+			return entry.role === TEMPORARY_MODEL_CHANGE_ROLE || entry.role === PREWALK_MODEL_CHANGE_ROLE
+				? entry
+				: undefined;
 		}
 		return undefined;
 	}
@@ -4203,46 +4048,6 @@ export class SessionManager {
 	}
 
 	/**
-	 * Stamp (or clear) the conversation's origin. IM/bot sessions are created
-	 * with the stamp already on the header; this lets a caller tag an existing
-	 * transcript opened from the registry, so a conversation created before the
-	 * stamp existed is recognised without rewriting history.
-	 */
-	async setOrigin(origin: SessionOrigin | undefined): Promise<void> {
-		const current = this.#header.origin;
-		if (sameSessionOrigin(current, origin)) return;
-		if (origin === undefined) delete this.#header.origin;
-		else this.#header.origin = { ...origin };
-		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
-		this.#rewriteRequired = true;
-		await this.#rewriteAtomically();
-	}
-
-	/** The origin stamp on the header, or `undefined` for a personal session. */
-	getOrigin(): SessionOrigin | undefined {
-		return this.#header.origin;
-	}
-
-	/** This conversation's per-agent memory namespace, or `undefined` for project scope. */
-	getMemoryNamespace(): string | undefined {
-		return this.#header.memoryNamespace;
-	}
-
-	/**
-	 * Pin the per-agent memory namespace on the header. The SDK calls this once
-	 * at session creation (and on profile resume) so every memory backend and
-	 * restart resolves the same scope.
-	 */
-	async setMemoryNamespace(namespace: string | undefined): Promise<void> {
-		if (this.#header.memoryNamespace === namespace) return;
-		if (namespace === undefined) delete this.#header.memoryNamespace;
-		else this.#header.memoryNamespace = namespace;
-		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
-		this.#rewriteRequired = true;
-		await this.#rewriteAtomically();
-	}
-
-	/**
 	 * Stash the parent-derived sibling family candidate without touching the
 	 * header. Unlike {@link setTaskPromptCacheKey} this is neither persisted nor
 	 * carried into forks, moves, or new-session resets, so a fresh identity
@@ -4295,22 +4100,6 @@ export class SessionManager {
 		this.#setLeaf(null);
 	}
 
-	/** Persist exact leaf selection without deleting later branches or adding model context. */
-	async selectLeafDurably(leafId: string | null): Promise<void> {
-		if (leafId !== null && !this.#index.has(leafId)) throw new Error(`Entry ${leafId} not found`);
-		await this.appendEntriesAtomically(() => {
-			const entry: CustomEntry = {
-				type: "custom",
-				customType: "zeta-active-leaf",
-				data: { leafId },
-				...this.#freshEntryFields(),
-				parentId: null,
-				activeLeafId: leafId,
-			};
-			this.#recordEntry(entry);
-		});
-	}
-
 	/**
 	 * Durably move the active branch past a discarded entry.
 	 *
@@ -4322,7 +4111,7 @@ export class SessionManager {
 	 * rewrite the journal, making the selected path durable.
 	 *
 	 * A removed assistant turn was still billed, so its usage is re-journaled as
-	 * an off-branch `model_usage` entry; session totals and `zetacode stats` keep
+	 * an off-branch `model_usage` entry; session totals and `omp stats` keep
 	 * counting it. A subtree preserved off-branch keeps its own usage.
 	 */
 	async discardEntryDurably(entryId: string): Promise<void> {
@@ -4389,8 +4178,8 @@ export class SessionManager {
 	/**
 	 * Create a new session file containing only the path from root to `leafId`.
 	 * With `copyArtifacts`, the source artifact directory is copied in the background;
-	 * the new artifact manager waits for it before allocating ids or resolving
-	 * `artifact://`, so kept references stay valid and new ids cannot collide.
+	 * the new spill manager waits for it before allocating ids or resolving
+	 * spills, so kept references stay valid and new ids cannot collide.
 	 * Returns the new file path, or undefined when not persisting.
 	 */
 	createBranchedSession(leafId: string, options?: { copyArtifacts?: boolean }): string | undefined {
@@ -4424,9 +4213,6 @@ export class SessionManager {
 			cwd: this.#cwd,
 			title: this.#sessionName,
 			titleSource: this.#titleSource,
-			client: this.#client ?? this.#header.client,
-			origin: this.#header.origin,
-			memoryNamespace: this.#header.memoryNamespace,
 			parentSession: this.#persist ? sourceSessionFile : undefined,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
 		};
@@ -4457,7 +4243,7 @@ export class SessionManager {
 		this.#hasTitleSlot = true;
 		this.#index.rebuild(this.#entries);
 		this.#artifactManager = null;
-		this.#artifactManagerSessionFile = null;
+		this.#artifactManagerLocalRoot = null;
 		this.#forceFileCreation = this.#persist;
 
 		if (!this.#persist) {
@@ -4517,14 +4303,12 @@ export class SessionManager {
 		const sessionDir = SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const id = mintSessionId();
 		const timestamp = nowIso();
-		const origin = resolveTeamSessionOrigin(cwd);
 		const header: SessionHeader = {
 			type: "session",
 			version: CURRENT_SESSION_VERSION,
 			id,
 			timestamp,
 			cwd: path.resolve(cwd),
-			...(origin === undefined ? {} : { origin }),
 		};
 		const file = path.join(sessionDir, `${fileSafeTimestamp(timestamp)}_${id}.jsonl`);
 		storage.writeTextSync(file, `${serializeTitleSlot({ updatedAt: timestamp })}${JSON.stringify(header)}\n`);
@@ -4551,8 +4335,6 @@ export class SessionManager {
 			sessionFile?: string;
 			resetInheritedCost?: boolean;
 			repairInterruptedTail?: boolean;
-			/** Client that initiated the fork; source creator is only the fallback. */
-			client?: SessionClient;
 		},
 	): Promise<SessionManager> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
@@ -4577,9 +4359,7 @@ export class SessionManager {
 		if (options?.resetInheritedCost) SessionManager.#resetInheritedUsageCost(history);
 		manager.#resetToNewSession(
 			{
-				client: options?.client ?? sourceHeader?.client,
 				parentSession: sourceHeader?.id,
-				memoryNamespace: sourceHeader?.memoryNamespace,
 				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
 				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,
 			},
@@ -4677,16 +4457,7 @@ export class SessionManager {
 		filePath: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
-		options?: {
-			initialCwd?: string;
-			parentSession?: string;
-			suppressBreadcrumb?: boolean;
-			throwIfMissing?: boolean;
-			/** Stamp an existing transcript that predates the origin header field. */
-			origin?: SessionOrigin;
-			/** Client that initiated this run; appends `run_init`, never rewrites the header. */
-			client?: SessionClient;
-		},
+		options?: { initialCwd?: string; parentSession?: string; suppressBreadcrumb?: boolean; throwIfMissing?: boolean },
 	): Promise<SessionManager> {
 		const probed = await loadSessionFile(filePath, storage, { throwIfMissing: options?.throwIfMissing });
 		const header = probed.entries.find(entry => entry.type === "session") as SessionHeader | undefined;
@@ -4716,13 +4487,8 @@ export class SessionManager {
 			: probed;
 		await manager.#setSessionFile(filePath, loaded, {
 			throwIfMissing: options?.throwIfMissing,
-			newSession: { parentSession: options?.parentSession, origin: options?.origin, client: options?.client },
+			newSession: { parentSession: options?.parentSession },
 		});
-		manager.#client = options?.client;
-		if (options?.client && probed.entries.length > 0) manager.appendRunInit(options.client);
-		// An existing transcript written before the origin field is stamped here,
-		// so the IM/relay listing can recognise it without a migration pass.
-		if (options?.origin && manager.getOrigin() === undefined) await manager.setOrigin(options.origin);
 		return manager;
 	}
 
@@ -4739,19 +4505,22 @@ export class SessionManager {
 		session: Pick<SessionInfo, "path" | "cwd">,
 		cwd: string,
 		sessionDir?: string,
+		settings?: Settings,
 	): Promise<boolean> {
 		if (!session.cwd || !(await directoryIsMissing(session.cwd))) return false;
 		const dir = path.resolve(sessionDir ?? SessionManager.getDefaultSessionDir(cwd));
 		const home = path.resolve(path.dirname(session.path));
 		if (home === dir) return resolveManagedSessionRoot(dir, cwd) !== undefined;
-		return (await worktreeSessionDirs(cwd, dir)).some(sibling => path.resolve(sibling) === home);
+		return (await worktreeSessionDirs(cwd, dir, { settings, stranded: true })).some(
+			sibling => path.resolve(sibling) === home,
+		);
 	}
 
 	/**
 	 * Open a session whose recorded directory `recordedCwd` is gone and move it,
 	 * artifacts included, into `cwd` so it resumes from there.
 	 * @param sessionDir Target session directory; defaults to `cwd`'s.
-	 * @throws {SessionMoveRefusedError} when another live zeta process writes the session.
+	 * @throws {SessionMoveRefusedError} when another live omp process writes the session.
 	 */
 	static async openRelocated(
 		sessionPath: string,
@@ -4834,23 +4603,24 @@ export class SessionManager {
 		const breadcrumb = await readTerminalBreadcrumbEntry();
 		let chosenSession: string | null | undefined;
 
-		if (breadcrumb) {
+		if (breadcrumb?.fresh && !breadcrumb.exists) {
 			// A lazy fresh-session boundary whose JSONL was never materialized
 			// (for example, initial creation followed by exit before any assistant
-			// output). Honor the boundary rather than falling back to
-			// findMostRecentSession(), which would resurrect an older transcript.
+			// output). In its own cwd, honor the boundary rather than falling back to
+			// findMostRecentNonEmptySession(), which would resurrect an older
+			// transcript. From another cwd it names no transcript to resume or
+			// relocate, so this cwd's newest session wins.
 			// Explicit newSession() boundaries are materialized before it returns so
 			// this remains correct even when the relaunch has a different terminal id.
 			if (
-				breadcrumb.fresh &&
-				!breadcrumb.exists &&
+				path.resolve(breadcrumb.cwd) === resolvedCwd &&
 				(!sessionDir || pathIsWithin(dir, path.dirname(breadcrumb.sessionFile)))
 			) {
 				const manager = new SessionManager(cwd, dir, true, storage);
 				manager.#resetToNewSession();
 				return manager;
 			}
-
+		} else if (breadcrumb) {
 			// Recover stale crumbs: a subagent open (pre-fix) may have pointed this
 			// terminal's breadcrumb at an artifact child; resume the parent instead.
 			breadcrumb.sessionFile = resolveBreadcrumbToInteractiveRoot(breadcrumb.sessionFile);
@@ -4914,10 +4684,10 @@ export class SessionManager {
 						return manager;
 					} catch (err) {
 						if (!(err instanceof SessionMoveRefusedError)) throw err;
-						// Another live zeta process still writes the session (the
+						// Another live omp process still writes the session (the
 						// project was renamed under it): leave it there and continue
 						// as if no move were possible.
-						logger.warn("Not re-rooting moved session: it is open in another zeta process", {
+						logger.warn("Not re-rooting moved session: it is open in another omp process", {
 							from: breadcrumbCwd,
 							to: resolvedCwd,
 						});
@@ -4987,34 +4757,28 @@ export class SessionManager {
 	 * untitled empties dropped. Titled empties stay — a title is user intent worth resuming.
 	 * Arrives in two passes: rows for history.db-indexed titles first, the full
 	 * scan in `complete` (see {@link listSessionsForPicker}).
-	 * By default includes the same folder in the repository's other git worktrees,
+	 * By default includes the same folder in the repository's Git and ovnfs worktrees,
 	 * so a session `/wt` moved stays reachable from the checkout it left.
 	 * The directory scope limits the picker to its own session bucket.
-	 * IM/bot and Team conversations are left out of the personal list unless
-	 * `options.includeIm` / `options.includeTeam` ask for them.
 	 */
 	static async listForPicker(
 		cwd: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
 		worktreeScope: "directory" | "repo" = "repo",
-		options?: PickerListingOptions,
+		settings?: Settings,
 	): Promise<PickerListing> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const [pinned, siblingDirs] = await Promise.all([
 			loadPinnedSessionIds(),
-			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir) : [],
+			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir, { settings }) : [],
 		]);
-		return listSessionsForPicker(dir, storage, pinned, siblingDirs, options);
+		return listSessionsForPicker(dir, storage, pinned, siblingDirs);
 	}
 
 	/** Picker-facing cross-project listing, same rules and passes as {@link listForPicker}. */
-	static async listAllForPicker(
-		storage: SessionStorage = new FileSessionStorage(),
-		sessionsRoot?: string,
-		options?: PickerListingOptions,
-	): Promise<PickerListing> {
-		return listAllSessionsForPicker(storage, await loadPinnedSessionIds(), sessionsRoot, options);
+	static async listAllForPicker(storage: SessionStorage = new FileSessionStorage()): Promise<PickerListing> {
+		return listAllSessionsForPicker(storage, await loadPinnedSessionIds());
 	}
 }
 

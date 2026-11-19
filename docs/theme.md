@@ -10,14 +10,15 @@ The theme system drives:
 - markdown styling adapters (`getMarkdownTheme()`)
 - selector/editor/settings list adapters (`getSelectListTheme()`, `getEditorTheme()`, `getSettingsListTheme()`)
 - symbol preset + symbol overrides (`unicode`, `nerd`, `ascii`)
-- syntax highlighting colors used by native highlighter (`@linxiraos/pi-natives`)
+- syntax highlighting colors used by native highlighter (`@oh-my-pi/pi-natives`)
 - status line segment colors
+- agent name colors in the agent hub, agent tree and Task tool rows
 
 Primary implementation: `packages/tui/src/theme/theme.ts`.
 
 ## Theme JSON shape
 
-Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@linxiraos/zeta-schema`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
+Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@oh-my-pi/omptype`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
 
 Top-level fields:
 
@@ -38,7 +39,7 @@ Color values accept:
 
 ## Required and optional color tokens
 
-All tokens below are required in `colors` except `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset/empty keeps the terminal default foreground) and `mdExtensionLink` (unset derives a muted `mdLink`).
+All tokens below are required in `colors` except `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset/empty keeps the terminal default foreground), `mdExtensionLink` (unset derives a muted `mdLink`) and `subagent1`–`subagent6` (unset lets omp pick agent colors from the theme).
 
 ### Core text and borders (11)
 
@@ -67,13 +68,19 @@ With the `tui.colorfulMarkdown` setting on (the default), headings, `**strong**`
 `toolDiffAdded`, `toolDiffRemoved`, `toolDiffContext`,
 `syntaxComment`, `syntaxKeyword`, `syntaxFunction`, `syntaxVariable`, `syntaxString`, `syntaxNumber`, `syntaxType`, `syntaxOperator`, `syntaxPunctuation`
 
-### Mode/thinking borders (8 required, 1 optional)
+### Mode/thinking borders (9 required, 1 optional)
 
-`thinkingOff`, `thinkingMinimal`, `thinkingLow`, `thinkingMedium`, `thinkingHigh`, `thinkingXhigh`, optional `thinkingMax`, `bashMode`, `pythonMode`
+`thinkingOff`, `thinkingMinimal`, `thinkingLow`, `thinkingMedium`, `thinkingHigh`, `thinkingXhigh`, optional `thinkingMax`, `bashMode`, `pythonMode`, `btwMode`
 
 ### Status line segment colors (13)
 
 `statusLineSep`, `statusLineModel`, `statusLinePath`, `statusLineGitClean`, `statusLineGitDirty`, `statusLineContext`, `statusLineSpend`, `statusLineStaged`, `statusLineDirty`, `statusLineUntracked`, `statusLineOutput`, `statusLineCost`, `statusLineSubagents`
+
+### Agent name colors (6 optional)
+
+`subagent1`, `subagent2`, `subagent3`, `subagent4`, `subagent5`, `subagent6`
+
+The main agent's name takes `accent`. Subagents take a color in the order they arrive in the session: the first gets the first subagent color, the seventh reuses it, and an agent keeps its color for the rest of the session. A declared `subagentN` is used as written. Slots the theme leaves unset are filled, in order, with colors that are at least 3:1 against every surface names are drawn on (`terminal.background`, else `statusLineBg`, and the Task card tints `toolPendingBg`, `toolSuccessBg`, `toolErrorBg`) and at least 0.10 apart in OKLab from `accent`, `error` and each other: first the theme's own `terminal.ansi` hues (blue, green, yellow, magenta, cyan, then their bright slots; red is left to errors), then hues derived from `accent` the way the session color is (each also offered one and two lightness steps further from the background), then a fixed fallback set.
 
 ## Optional tokens
 
@@ -89,7 +96,7 @@ If omitted, export code derives defaults from resolved theme colors.
 
 ### `terminal` section (optional)
 
-Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); Zeta never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors.
+Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); omp never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors. Agent name colors draw on `terminal.ansi` first and check contrast against `terminal.background`.
 
 ### `symbols` section (optional)
 
@@ -126,9 +133,9 @@ Theme lookup order (`loadThemeJson`):
 
 Custom themes directory comes from `getCustomThemesDir()`:
 
-- default: `~/.zeta/agent/themes`
-- default-profile override: `ZETA_CODING_AGENT_DIR` (`$ZETA_CODING_AGENT_DIR/themes`)
-- named profile: `~/.zeta/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
+- default: `~/.omp/agent/themes`
+- default-profile override: `PI_CODING_AGENT_DIR` (`$PI_CODING_AGENT_DIR/themes`)
+- named profile: `~/.omp/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
 
 `getAvailableThemes()` returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision.
 
@@ -172,7 +179,7 @@ Conversion behavior:
 The `theme` export is a live binding, including in bundled extensions. Read it inside rendering callbacks rather than retaining a theme instance across switches. Extension renderer callbacks may also use their supplied theme argument.
 
 ```ts
-import { theme } from "@linxiraos/zeta";
+import { theme } from "@oh-my-pi/pi-coding-agent";
 
 const renderStatus = () => theme.fg("accent", "Ready");
 ```
@@ -238,15 +245,15 @@ Auto mode also reevaluates dark/light slot mapping from terminal appearance chan
 - `toolDiffAdded` is HSV-adjusted (green shifted toward blue)
 - adjustment is applied only when resolved value is a hex string
 
-Other tokens are unchanged.
+Other tokens are unchanged. Agent name colors derived from `accent` steer clear of the theme's hues, `toolDiffAdded` among them, so the shifted token can move one of those derived colors.
 
 ## Where theme settings are persisted
 
 Theme-related settings are persisted by `Settings` to global config YAML:
 
 - path: `<agentDir>/config.yml`
-- default agent dir: `~/.zeta/agent`
-- effective default file: `~/.zeta/agent/config.yml`
+- default agent dir: `~/.omp/agent`
+- effective default file: `~/.omp/agent/config.yml`
 
 Persisted keys:
 
@@ -259,7 +266,7 @@ Legacy migration exists: a flat custom `theme: "name"` is migrated to nested `th
 
 ## Creating a custom theme (practical)
 
-1. Create file in custom themes dir, e.g. `~/.zeta/agent/themes/my-theme.json`.
+1. Create file in custom themes dir, e.g. `~/.omp/agent/themes/my-theme.json`.
 2. Include `name`, optional `vars`, and **all required** `colors` tokens.
 3. Optionally include `symbols` and `export`.
 4. Select the theme in Settings (`Appearance -> Dark Theme` or `Appearance -> Light Theme`) depending on which auto slot you want.
@@ -333,6 +340,7 @@ Minimal skeleton:
 
 		"bashMode": "#2ac3de",
 		"pythonMode": "#bb9af7",
+		"btwMode": "#7aa2f7",
 
 		"statusLineBg": "#16161e",
 		"statusLineSep": 240,
@@ -370,8 +378,8 @@ Use this workflow:
 
 ## Real constraints and caveats
 
-- All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset keeps the terminal default foreground) and `mdExtensionLink` (unset blends `mdLink` with `text`).
+- All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset keeps the terminal default foreground), `mdExtensionLink` (unset blends `mdLink` with `text`) and `subagent1`–`subagent6` (unset lets omp pick agent colors from the theme).
 - `export` and `symbols` are optional.
-- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@linxiraos/zeta-schema` in `packages/tui/src/theme/schema-validation.ts`.
+- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@oh-my-pi/omptype` in `packages/tui/src/theme/schema-validation.ts`.
 - `setTheme` failure falls back to `dark`; `previewTheme` failure does not replace current theme.
 - File watcher reload errors or temporary missing files keep the current loaded theme until a successful reload or explicit theme switch.

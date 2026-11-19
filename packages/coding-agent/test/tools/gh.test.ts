@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ToolCall } from "@linxiraos/pi-ai";
-import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import type { ToolCall } from "@oh-my-pi/pi-ai";
+import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import {
 	buildSearchDateQualifier,
 	GithubTool,
@@ -13,16 +13,27 @@ import {
 	parsePrUnifiedDiff,
 	parseSearchDateBound,
 	resolveDefaultRepoMemoized,
-} from "@linxiraos/zeta/tools/gh";
-import { parseIssueUrl, parsePullRequestUrl, tryResolveCurrentRepoFresh } from "@linxiraos/zeta/tools/gh-common";
-import { sanitizeRemoteName } from "@linxiraos/zeta/tools/gh-pr-checkout";
-import { github } from "@linxiraos/zeta/utils/github";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import type { GhToolDetails } from "@linxiraos/pi-tui/tools/github";
-import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
-import type { VcsGitRepo } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/tools/gh";
+import {
+	parseIssueUrl,
+	parsePullRequestUrl,
+	tryResolveCurrentRepoFresh,
+} from "@oh-my-pi/pi-coding-agent/tools/gh-common";
+import { sanitizeRemoteName } from "@oh-my-pi/pi-coding-agent/tools/gh-pr-checkout";
+import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import type { GhToolDetails } from "@oh-my-pi/pi-tui/tools/github";
+import { withRepoLock } from "@oh-my-pi/pi-coding-agent/utils/repo-lock";
+import type { VcsGitRepo } from "@oh-my-pi/pi-natives";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import {
+	getAgentDir,
+	hashPath,
+	normalizePathForComparison,
+	removeWithRetries,
+	setAgentDir,
+	spillFileName,
+} from "@oh-my-pi/pi-utils";
 import { mockSchedulerWaitWithClock } from "../helpers/mock-scheduler-clock";
 
 const TINY_PNG_BASE64 =
@@ -62,11 +73,11 @@ function createSession(
 		getSessionFile: () => null,
 		getArtifactsDir: () => artifactsDir ?? null,
 		allocateOutputArtifact: artifactsDir
-			? async toolType => {
+			? async () => {
 					const artifactId = String(nextArtifactId++);
 					return {
 						id: artifactId,
-						path: path.join(artifactsDir, `${artifactId}-${toolType}.md`),
+						path: path.join(artifactsDir, spillFileName(artifactId)),
 					};
 				}
 			: undefined,
@@ -189,7 +200,7 @@ async function createPrFixture(): Promise<PrFixture> {
 /**
  * Stub `os.homedir()` AND rebuild the cached `dirs` resolver in pi-utils so
  * `getWorktreesDir()` resolves under an isolated temp home instead of the
- * user's real `~/.zeta/wt`. Returns the temp home and a cleanup hook.
+ * user's real `~/.omp/wt`. Returns the temp home and a cleanup hook.
  */
 interface TempHome {
 	home: string;
@@ -200,7 +211,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	const home = await fs.mkdtemp(path.join(os.tmpdir(), "gh-pr-tool-home-"));
 	vi.spyOn(os, "homedir").mockReturnValue(home);
 	// Clear XDG_*_HOME so the rebuilt resolver routes `dirs.rootSubdir("wt", "data")`
-	// through the spied homedir instead of `$XDG_DATA_HOME/zeta/wt` (CI sets these).
+	// through the spied homedir instead of `$XDG_DATA_HOME/omp/wt` (CI sets these).
 	const xdgKeys = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 	const xdgPrevious: Partial<Record<(typeof xdgKeys)[number], string | undefined>> = {};
 	for (const key of xdgKeys) {
@@ -211,7 +222,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	// we must rebuild the resolver after the spy + env scrub are in place.
 	// `setAgentDir` recreates it; we point it at the temp home's default agent dir.
 	const originalAgentDir = getAgentDir();
-	setAgentDir(path.join(home, ".zeta", "agent"));
+	setAgentDir(path.join(home, ".omp", "agent"));
 	return {
 		home,
 		cleanup: async () => {
@@ -235,7 +246,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 async function expectedWorktreePath(home: string, primaryRoot: string, localBranch: string): Promise<string> {
 	const prNumber = localBranch.replace(/^pr-/, "");
 	const segment = `${prNumber}-${hashPath(primaryRoot)}`;
-	return fs.realpath(path.join(home, ".zeta", "wt", segment));
+	return fs.realpath(path.join(home, ".omp", "wt", segment));
 }
 
 describe("sanitizeRemoteName", () => {
@@ -1387,6 +1398,12 @@ echo ok
 					originMainBefore,
 				);
 			});
+
+			it("pushes the branch pr_checkout made for the named PR, not the current branch", async () => {
+				const tool = new GithubTool(createSession(fixture.repoRoot));
+				const result = await tool.execute("pr-push-named", { op: "pr_push", pr: "100" });
+				expect(result.details).toMatchObject({ branch: "pr-100", remoteBranch: fixture.headRefName });
+			});
 		});
 	});
 
@@ -1453,14 +1470,14 @@ echo ok
 			expect(text).toContain("zeta");
 			expect(text).not.toContain("alpha");
 			expect(text).toContain("Run failed.");
-			expect(text).toContain("Full failed-job logs: artifact://0");
+			expect(text).toContain("Full failed-job logs: local://0.log");
 			expect(result.details?.artifactId).toBe("0");
 			expect(result.details?.watch?.mode).toBe("run");
 			expect(result.details?.watch?.state).toBe("completed");
 			expect(result.details?.watch?.failedLogs?.[0]?.jobName).toBe("test");
 			expect(result.details?.watch?.failedLogs?.[0]?.tail).toContain("zeta");
 
-			const artifactText = await Bun.file(path.join(artifactsDir, "0-github.md")).text();
+			const artifactText = await Bun.file(path.join(artifactsDir, spillFileName(0))).text();
 			expect(artifactText).toContain("# GitHub Actions Run #77");
 			expect(artifactText).toContain("Full log:");
 			expect(artifactText).toContain("alpha");

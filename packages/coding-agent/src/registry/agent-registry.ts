@@ -7,21 +7,15 @@
  * registered explicitly at creation; finished agents stay registered as
  * `idle` (live) or `parked` (session disposed, ref + sessionFile retained for
  * revival) and are only removed on explicit release/teardown.
- *
- * Ids are unique in this registry. A root (top-level) session must therefore
- * not reuse `MAIN_AGENT_ID` once another root is live: {@link registerRoot}
- * keeps `MAIN_AGENT_ID` for the process's lone/first root and mints the
- * session id for every later one. Subagents keep their parent-scoped ids.
- * {@link register} refuses a duplicate instead of silently replacing the
- * previous owner, which used to hand one id to whichever session started last.
  */
 
-import { logger } from "@linxiraos/pi-utils";
+import { logger } from "@oh-my-pi/pi-utils";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
 import { AgentAwaits, type AgentAwaitsApi } from "./agent-awaits";
-import { oneLineLabel } from "@linxiraos/pi-tui/tools/task";
+import { oneLineLabel } from "@oh-my-pi/pi-tui/tools/task";
 
-import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
+import { noteAgentArrival } from "@oh-my-pi/pi-tui/overlays/agent-identity";
 export { MAIN_AGENT_ID };
 export type { AgentStatus, AgentMetricsSummary };
 
@@ -32,22 +26,6 @@ export type { AgentStatus, AgentMetricsSummary };
  *   agent-facing rosters (`proc://`, `history://`) and not messageable/revivable.
  */
 export type AgentKind = "main" | "sub" | "advisor";
-
-/**
- * Run lifecycle milestones, stamped as they happen and scoped to the CURRENT
- * run: they are cleared when the ref re-enters `running` for a follow-up or
- * wake turn. Launch is the ref's `createdAt`; these are the post-launch
- * boundaries the parent needs to tell a genuinely working agent from one whose
- * accepted result never terminalized.
- */
-export interface AgentRunLifecycle {
-	/** When the run produced its final response (an accepted terminal `yield`). */
-	responseAt?: number;
-	/** When the run's final result was accepted by its driver. */
-	acceptedAt?: number;
-	/** When the ref last left `running` for a terminal status. */
-	terminalAt?: number;
-}
 
 /**
  * Run lifecycle milestones, stamped as they happen and scoped to the CURRENT
@@ -94,13 +72,6 @@ export interface AgentRef {
 	kind: AgentKind;
 	parentId?: string;
 	status: AgentStatus;
-	/**
-	 * Workspace (mesh workspace id) the agent's root session belongs to. Set on
-	 * root refs and inherited by their subagents; undefined for refs restored
-	 * without a workspace. Used to resolve the `main` alias to the caller's own
-	 * workspace main instead of whichever root registered first.
-	 */
-	workspaceId?: string;
 	/** Null exactly when parked/aborted. */
 	session: AgentSessionHandle | null;
 	sessionFile: string | null;
@@ -142,30 +113,11 @@ export type RegistryEvent =
 /** Listener for {@link AgentRegistryApi.onChange}. */
 export type RegistryListener = (event: RegistryEvent) => void;
 
-/**
- * A top-level agent: the driving session of a workspace or an explicitly
- * pinned root. Subagents always carry a parent; advisors are observability-only.
- */
-export function isRootAgentRef(ref: Pick<AgentRef, "kind" | "parentId">): boolean {
-	return ref.kind === "main" && ref.parentId === undefined;
-}
-
-/**
- * `agent://main` (any case) and the bare constant both name the workspace
- * main. Matching is case-insensitive so the URL form documented for users
- * resolves to the canonical `MAIN_AGENT_ID` ref without a second registry key.
- */
-export function isMainAgentAlias(id: string): boolean {
-	return id === MAIN_AGENT_ID || id.toLowerCase() === MAIN_AGENT_ID.toLowerCase();
-}
-
 export interface RegisterInput {
 	id: string;
 	displayName: string;
 	kind: AgentKind;
 	parentId?: string;
-	/** Workspace of the agent's root session; inherited by subagents. */
-	workspaceId?: string;
 	session: AgentSessionHandle | null;
 	sessionFile?: string | null;
 	status?: AgentStatus;
@@ -187,12 +139,6 @@ export interface AgentRegistryApi {
 	readonly awaits: AgentAwaitsApi;
 	/** Register (or replace) the ref for `input.id`; always mints a new generation. */
 	register(input: RegisterInput): AgentRef;
-	/** Register a root ref under a stable id, minting a new generation. */
-	registerRoot(input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }): AgentRef;
-	/** Canonical root for `workspaceId`: the agent `agent://main` names for a caller in that workspace. */
-	workspaceMain(workspaceId: string | undefined): AgentRef | undefined;
-	/** Resolve the `main` alias for a caller's own workspace, else undefined. */
-	resolveMainAlias(requested: string, callerId: string): string | undefined;
 	/** Register an absent id, or reuse the exact detached `parked` ref `expected`. */
 	registerIfAvailable(input: RegisterInput, expected: AgentRef | null): AgentRef | undefined;
 	/** Start a fresh `parked` generation for the killed ref `expected`. */
@@ -270,19 +216,6 @@ export class AgentRegistry implements AgentRegistryApi {
 	}
 
 	register(input: RegisterInput): AgentRef {
-		// An id names one live owner. Silently replacing it (the old behavior)
-		// handed `main` to whichever top-level session started last: the previous
-		// session stayed alive but unreachable, and its self-id no longer matched
-		// the ref. Callers that legitimately reuse an id unregister first or go
-		// through registerIfAvailable with the ref they were authorized to revive.
-		if (this.#refs.has(input.id)) {
-			const owner = this.#refs.get(input.id)!;
-			const parent = owner.parentId ? `, parent ${owner.parentId}` : "";
-			throw new Error(
-				`Agent id "${input.id}" is already registered (kind ${owner.kind}${parent}, status ${owner.status}); ` +
-					"an agent id is never silently replaced.",
-			);
-		}
 		const now = Date.now();
 		const ref: AgentRef = {
 			id: input.id,
@@ -290,7 +223,6 @@ export class AgentRegistry implements AgentRegistryApi {
 			displayName: input.displayName,
 			kind: input.kind,
 			parentId: input.parentId,
-			workspaceId: input.workspaceId,
 			status: input.status ?? "running",
 			session: input.session,
 			sessionFile: input.sessionFile ?? null,
@@ -302,62 +234,10 @@ export class AgentRegistry implements AgentRegistryApi {
 		};
 		Object.defineProperty(ref, kMintedRef, { value: true });
 		this.#refs.set(ref.id, ref);
+		// Name colours follow arrival order; a re-registered or restored ref keeps its original `createdAt`.
+		if (ref.kind === "sub") noteAgentArrival(ref.id, ref.createdAt);
 		this.#emit({ type: "registered", ref });
 		return ref;
-	}
-
-	/**
-	 * Register a top-level session under a process-unique id.
-	 *
-	 * `MAIN_AGENT_ID` stays the in-process default for a lone/first root, so
-	 * single-session behaviour (CLI, print mode, one serve coordinator) is
-	 * unchanged. Once another root is live — or `MAIN_AGENT_ID` is still held by
-	 * a parked ref — a new root registers under its session id instead. That id
-	 * is stable for the transcript (reopening it keeps the id), bare (mesh
-	 * addressable without a second workspace prefix), and unique per root.
-	 *
-	 * An explicit `id` is honored as-is: callers that pin an id (tests, revived
-	 * generations) still get the duplicate check.
-	 */
-	registerRoot(input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }): AgentRef {
-		if (input.id !== undefined) return this.register({ ...input, id: input.id });
-		const lone = !this.#refs.has(MAIN_AGENT_ID) && !this.list().some(isRootAgentRef);
-		const id = lone ? MAIN_AGENT_ID : input.sessionId;
-		return this.register({ ...input, id });
-	}
-
-	/**
-	 * Canonical root for `workspaceId`: the agent `agent://main` names for a
-	 * caller in that workspace. Prefers `MAIN_AGENT_ID`, else the oldest live
-	 * root of the workspace. An undefined workspace only matches refs restored
-	 * without one; a legacy `MAIN_AGENT_ID` ref without a workspace still acts
-	 * as the fallback main for any workspace that has no root of its own.
-	 */
-	workspaceMain(workspaceId: string | undefined): AgentRef | undefined {
-		const roots = this.list().filter(isRootAgentRef);
-		const live = roots.filter(ref => ref.status === "running" || ref.status === "idle");
-		// An unqualified caller (a mesh envelope from another process, a legacy
-		// session) has no workspace scope: `main` is the process's primary root.
-		if (workspaceId === undefined) {
-			return live.find(ref => ref.id === MAIN_AGENT_ID) ?? live.find(ref => ref.workspaceId === undefined);
-		}
-		const matching = live.filter(ref => ref.workspaceId === workspaceId);
-		const preferred = matching.find(ref => ref.id === MAIN_AGENT_ID) ?? matching[0];
-		if (preferred) return preferred;
-		// Legacy refs registered before workspace scoping still act as the main
-		// fallback for a workspace that has no root of its own.
-		return live.find(ref => ref.id === MAIN_AGENT_ID && ref.workspaceId === undefined);
-	}
-
-	/**
-	 * Resolve the `main` alias for a caller: the caller's own workspace main
-	 * when it is local, else undefined (the caller must resolve it through the
-	 * mesh). Non-alias ids are returned untouched by the callers.
-	 */
-	resolveMainAlias(requested: string, callerId: string): string | undefined {
-		if (!isMainAgentAlias(requested)) return undefined;
-		const caller = this.#refs.get(callerId);
-		return this.workspaceMain(caller?.workspaceId)?.id;
 	}
 
 	/**
@@ -382,10 +262,6 @@ export class AgentRegistry implements AgentRegistryApi {
 	reopen(id: string, expected: AgentRef): AgentRef | undefined {
 		const current = this.#refs.get(id);
 		if (current !== expected || current.status !== "aborted" || current.session) return undefined;
-		// This is the one authorized replacement: the caller presented the exact
-		// aborted tombstone it is reviving. Retire it first so the id invariant
-		// (never silently replace a live owner) still holds for every other path.
-		this.#refs.delete(id);
 		return this.register({
 			id,
 			displayName: current.displayName,
@@ -616,10 +492,4 @@ export class AgentRegistry implements AgentRegistryApi {
 			}
 		}
 	}
-}
-
-const AGENT_TOMBSTONE_SUFFIX = ".tombstone";
-
-export function getAgentTombstonePath(sessionFile: string): string {
-	return `${sessionFile}${AGENT_TOMBSTONE_SUFFIX}`;
 }

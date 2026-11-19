@@ -1,12 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import * as path from "node:path";
-import { ipcEndpoint } from "@linxiraos/pi-natives";
-import { sharedWorkerLogPath } from "@linxiraos/zeta/subprocess/shared-worker";
-import { nativeLibraryPathOverlay, workerEnvFromParent } from "@linxiraos/zeta/subprocess/worker-client";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { cfgProvidersTinyModelDevice } from "@linxiraos/zeta/session/settings";
-import { tinyWorkerEnvOverlay } from "@linxiraos/zeta/tiny/title-client";
-import { tinyWorkerName } from "@linxiraos/zeta/tiny/title-protocol";
+import { nativeLibraryPathOverlay, workerEnvFromParent } from "@oh-my-pi/pi-coding-agent/subprocess/worker-client";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { cfgProvidersTinyModelDevice } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { tinyWorkerEnvOverlay } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
 
 describe("workerEnvFromParent", () => {
 	it("drops inherited git repo-location overrides but keeps an explicit overlay", () => {
@@ -62,7 +58,7 @@ describe("nativeLibraryPathOverlay", () => {
 	it("appends the advertised dirs after an inherited LD_LIBRARY_PATH", () => {
 		expect(
 			nativeLibraryPathOverlay(
-				{ LD_LIBRARY_PATH: "/inherited", ZETA_NATIVE_LIBRARY_PATH: "/store/gcc/lib" },
+				{ LD_LIBRARY_PATH: "/inherited", OMP_NATIVE_LIBRARY_PATH: "/store/gcc/lib" },
 				"linux",
 			),
 		).toEqual({ LD_LIBRARY_PATH: "/inherited:/store/gcc/lib" });
@@ -70,41 +66,18 @@ describe("nativeLibraryPathOverlay", () => {
 
 	it("uses the advertised dirs alone when nothing is inherited", () => {
 		expect(
-			nativeLibraryPathOverlay({ ZETA_NATIVE_LIBRARY_PATH: "/store/gcc/lib:/store/libgcc/lib" }, "linux"),
+			nativeLibraryPathOverlay({ OMP_NATIVE_LIBRARY_PATH: "/store/gcc/lib:/store/libgcc/lib" }, "linux"),
 		).toEqual({ LD_LIBRARY_PATH: "/store/gcc/lib:/store/libgcc/lib" });
 	});
 
 	it("stays out of the env on non-Linux platforms", () => {
-		const env = { ZETA_NATIVE_LIBRARY_PATH: "/store/gcc/lib" };
+		const env = { OMP_NATIVE_LIBRARY_PATH: "/store/gcc/lib" };
 		expect(nativeLibraryPathOverlay(env, "darwin")).toEqual({});
 		expect(nativeLibraryPathOverlay(env, "win32")).toEqual({});
 	});
 
 	it("stays out of the env on Linux when no dirs are advertised", () => {
 		expect(nativeLibraryPathOverlay({ LD_LIBRARY_PATH: "/inherited" }, "linux")).toEqual({});
-		expect(nativeLibraryPathOverlay({ ZETA_NATIVE_LIBRARY_PATH: "" }, "linux")).toEqual({});
-	});
-});
-
-describe("sharedWorkerLogPath", () => {
-	// Regression: the log used to be `${endpoint}.log`, which on Windows turns
-	// the named-pipe endpoint (`\\.\pipe\omp-tiny-…`) into an unopenable file
-	// path and crashed `--smoke-test` with ENOENT.
-	it("stays under the runtime directory instead of deriving from the endpoint", () => {
-		const runtimeDir = "/runtime";
-		const name = tinyWorkerName("lfm2.5-230m", "onnx");
-		const logPath = sharedWorkerLogPath(runtimeDir, name);
-		// `path.join` is platform-native, so assert containment through
-		// `path.relative` rather than assuming the host's separator: on Windows
-		// the same call yields `\runtime\<name>.log`.
-		const relativeToRuntime = path.relative(runtimeDir, logPath);
-		expect(path.isAbsolute(relativeToRuntime)).toBe(false);
-		expect(relativeToRuntime.startsWith("..")).toBe(false);
-		expect(logPath.endsWith(".log")).toBe(true);
-		expect(logPath.includes(".sock")).toBe(false);
-		if (process.platform === "win32") {
-			expect(ipcEndpoint(runtimeDir, name).startsWith("\\\\.\\pipe\\")).toBe(true);
-			expect(logPath.startsWith("\\\\.\\pipe\\")).toBe(false);
-		}
+		expect(nativeLibraryPathOverlay({ OMP_NATIVE_LIBRARY_PATH: "" }, "linux")).toEqual({});
 	});
 });

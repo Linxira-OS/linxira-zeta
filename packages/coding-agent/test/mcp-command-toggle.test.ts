@@ -2,10 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { SourceMeta } from "@linxiraos/zeta/capability/types";
-import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
-import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
+import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { readMCPConfigFile } from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
+import type { MCPDroppedServer } from "@oh-my-pi/pi-coding-agent/mcp/transforms";
+import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -13,26 +15,26 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { createInteractiveModeContext, createMcpManagerStub } from "./helpers/interactive-mode-context";
 
 const originalProjectDir = getProjectDir();
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreAgentDir(): void {
 	if (originalAgentDir) {
 		setAgentDir(originalAgentDir);
-		process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
-		Bun.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
+		process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+		Bun.env.PI_CODING_AGENT_DIR = originalAgentDir;
 		return;
 	}
 	setAgentDir(fallbackAgentDir);
-	delete process.env.ZETA_CODING_AGENT_DIR;
-	delete Bun.env.ZETA_CODING_AGENT_DIR;
+	delete process.env.PI_CODING_AGENT_DIR;
+	delete Bun.env.PI_CODING_AGENT_DIR;
 }
 
-function createController() {
+function createController(builtinDrops = new Map<string, MCPDroppedServer>()) {
 	const refreshMCPTools = vi.fn(async () => {});
 	const connectServers = vi.fn(
 		async (_configs: Record<string, MCPServerConfig>, _sources: Record<string, SourceMeta>) => ({
@@ -42,7 +44,7 @@ function createController() {
 			exaApiKeys: [],
 		}),
 	);
-	const mcpManager = createMcpManagerStub({ connectServers });
+	const mcpManager = createMcpManagerStub({ connectServers, getBuiltinDrops: () => builtinDrops });
 	const ctx = createInteractiveModeContext({
 		session: { refreshMCPTools },
 		mcpManager,
@@ -74,8 +76,8 @@ describe("/mcp enable and disable", () => {
 	});
 
 	beforeEach(async () => {
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-toggle-project-"));
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-toggle-agent-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-toggle-project-"));
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-toggle-agent-"));
 		setProjectDir(projectDir);
 		setAgentDir(agentDir);
 	});
@@ -119,5 +121,30 @@ describe("/mcp enable and disable", () => {
 		const [configs] = connectServers.mock.calls[0]!;
 		expect(Object.keys(configs)).toEqual(["mcp1"]);
 		expect(configs.mcp1).toEqual({ type: "stdio", command: "mcp-one", enabled: true });
+	});
+
+	test("enabling a server a built-in transform dropped records the enable and connects it", async () => {
+		// Codex's config is another tool's file: the enable can only live in the
+		// user allowlist, and that entry is what keeps the next discovery from
+		// dropping the server again.
+		const codexConfig = path.join(projectDir, ".codex", "config.toml");
+		await Bun.write(codexConfig, '[mcp_servers.codex_js]\ncommand = "/opt/codex/cua_node/bin/node_repl"\n');
+		const source: SourceMeta = {
+			provider: "codex",
+			providerName: "OpenAI Codex",
+			path: codexConfig,
+			level: "project",
+		};
+		const { controller, connectServers } = createController(
+			new Map([["codex_js", { reason: "eval already runs JavaScript", source }]]),
+		);
+
+		await controller.handle("/mcp enable codex_js");
+
+		const userConfig = await readMCPConfigFile(getMCPConfigPath("user", projectDir));
+		expect(userConfig.enabledServers).toEqual(["codex_js"]);
+		expect(connectServers).toHaveBeenCalledTimes(1);
+		const [configs] = connectServers.mock.calls[0]!;
+		expect(configs.codex_js).toMatchObject({ type: "stdio", command: "/opt/codex/cua_node/bin/node_repl" });
 	});
 });

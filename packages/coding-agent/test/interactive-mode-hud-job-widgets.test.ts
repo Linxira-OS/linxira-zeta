@@ -1,18 +1,19 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { TspPropNode } from "@linxiraos/pi-wire";
-import type { NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { JobWidgetEntry, JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { AsyncJobSnapshot } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
+import type { TspPropNode } from "@oh-my-pi/pi-wire";
+import type { NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import type { JobWidgetEntry, JobWidgetView } from "@oh-my-pi/pi-tui/tools/job-widget";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 function nodes(root: NativeNode): NativeNode[] {
 	const out: NativeNode[] = [root];
@@ -22,6 +23,15 @@ function nodes(root: NativeNode): NativeNode[] {
 
 function prop(node: NativeNode | TspPropNode | NativeChild | undefined, name: string): unknown {
 	return node && "p" in node && node.p ? Reflect.get(node.p, name) : undefined;
+}
+
+/** A job snapshot running background jobs `ids`. */
+function running(...ids: string[]): AsyncJobSnapshot {
+	return snapshot(ids.map((id, index) => ({ id, type: "bash", status: "running", label: id, startTime: index })));
+}
+
+function snapshot(items: AsyncJobSnapshot["running"]): AsyncJobSnapshot {
+	return { running: items, recent: [], delivery: { queued: 0, delivering: false, pendingJobIds: [] } };
 }
 
 const decode: JobWidgetView = {
@@ -86,18 +96,18 @@ describe("InteractiveMode HUD pills", () => {
 	});
 
 	const jobsSegment = (): NativeNode | undefined =>
-		nodes(mode.describeHudPills()).find(node => node.key === "jobs" && prop(node, "role") === "zeta.hud.seg");
+		nodes(mode.describeHudPills()).find(node => node.key === "jobs" && prop(node, "role") === "omp.hud.seg");
 
 	it("shows the freshest headline and a mini spark, lists every widget in the title and stacks them in a hover card", () => {
 		let entries: JobWidgetEntry[] = [
 			{ id: "bg_1", type: "bash", view: evalRun },
 			{ id: "bg_2", type: "bash", view: decode },
 		];
-		spyOn(mode.statusLine, "runningBackgroundJobCount").mockReturnValue(2);
+		spyOn(session, "getAsyncJobSnapshot").mockReturnValue(running("bg_1", "bg_2"));
 		spyOn(session, "getRunningJobWidgets").mockImplementation(() => entries);
 
 		const segment = jobsSegment()!;
-		const glance = nodes(segment).find(node => prop(node, "role") === "zeta.hud.glance");
+		const glance = nodes(segment).find(node => prop(node, "role") === "omp.hud.glance");
 		expect(prop(glance, "spans")).toEqual([
 			{ t: "186 tok/s", s: "num strong" },
 			{ t: " ▲ 15%", s: "success" },
@@ -109,9 +119,9 @@ describe("InteractiveMode HUD pills", () => {
 			"2 jobs running  /jobs\nbg_1  eval · per model — trials 7/9 trials\nbg_2  loadtest · decode — decode 186 tok/s ▲ 15%",
 		);
 		const card = prop(segment, "hovercard") as TspPropNode;
-		expect(card).toMatchObject({ k: "col", p: { role: "zeta.jobs.hovercard" } });
-		expect(card.c?.map(child => prop(child, "role"))).toEqual(["zeta.job.tiles"]);
-		expect(card.c?.[0]?.c?.map(child => prop(child, "role"))).toEqual(["zeta.job.tile", "zeta.job.tile"]);
+		expect(card).toMatchObject({ k: "col", p: { role: "omp.jobs.hovercard" } });
+		expect(card.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tiles"]);
+		expect(card.c?.[0]?.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tile", "omp.job.tile"]);
 
 		// Unchanged widget data keeps the described node; moved data re-describes it.
 		expect(jobsSegment()).toBe(segment);
@@ -128,7 +138,7 @@ describe("InteractiveMode HUD pills", () => {
 	// updatedAt and state stand still while the view object is swapped for a fresh one.
 	it("re-describes the segment when a refresh swaps the view object without moving updatedAt or state", () => {
 		let entries: JobWidgetEntry[] = [{ id: "bg_1", type: "bash", view: decode }];
-		spyOn(mode.statusLine, "runningBackgroundJobCount").mockReturnValue(1);
+		spyOn(session, "getAsyncJobSnapshot").mockReturnValue(running("bg_1"));
 		spyOn(session, "getRunningJobWidgets").mockImplementation(() => entries);
 
 		const segment = jobsSegment()!;
@@ -138,17 +148,41 @@ describe("InteractiveMode HUD pills", () => {
 
 		const next = jobsSegment()!;
 		expect(next).not.toBe(segment);
-		const glance = nodes(next).find(node => prop(node, "role") === "zeta.hud.glance");
+		const glance = nodes(next).find(node => prop(node, "role") === "omp.hud.glance");
 		expect(prop(glance, "spans")).toEqual([{ t: "171 tok/s", s: "num strong" }]);
 		expect(prop(next, "title")).toBe("1 job running  /jobs\nbg_1  loadtest · decode — 171 tok/s");
 	});
 
 	it("keeps the bare count segment while no running job draws a widget", () => {
-		spyOn(mode.statusLine, "runningBackgroundJobCount").mockReturnValue(1);
+		spyOn(session, "getAsyncJobSnapshot").mockReturnValue(running("bg_1"));
 		spyOn(session, "getRunningJobWidgets").mockReturnValue([]);
 		const segment = jobsSegment()!;
 		expect(prop(segment, "hovercard")).toBeUndefined();
 		expect(prop(segment, "title")).toBe("1 job running  /jobs");
+	});
+
+	// An agent's task job draws a widget too; it belongs to the agents segment, so it neither makes nor grows the jobs segment.
+	it("counts and lists background jobs only, never a job that runs an agent", () => {
+		spyOn(session, "getAsyncJobSnapshot").mockReturnValue(
+			snapshot([
+				{ id: "bg_1", type: "bash", status: "running", label: "loadtest", startTime: 1 },
+				{ id: "Scout", type: "task", status: "running", label: "scout", startTime: 2, agentId: "Scout" },
+			]),
+		);
+		spyOn(session, "getRunningJobWidgets").mockReturnValue([
+			{ id: "bg_1", type: "bash", view: decode },
+			{ id: "Scout", type: "task", view: evalRun },
+		]);
+		const segment = jobsSegment()!;
+		expect(prop(segment, "title")).toBe("1 job running  /jobs\nbg_1  loadtest · decode — decode 186 tok/s ▲ 15%");
+		const card = prop(segment, "hovercard") as TspPropNode;
+		expect(card.c?.[0]?.c).toHaveLength(1);
+
+		spyOn(session, "getAsyncJobSnapshot").mockReturnValue(
+			snapshot([{ id: "Scout", type: "task", status: "running", label: "scout", startTime: 2, agentId: "Scout" }]),
+		);
+		spyOn(session, "getRunningJobWidgets").mockReturnValue([{ id: "Scout", type: "task", view: evalRun }]);
+		expect(jobsSegment()).toBeUndefined();
 	});
 
 	it("keeps a clickable idle agents segment after the last subagent finishes, and drops it once none remain", () => {
@@ -157,7 +191,7 @@ describe("InteractiveMode HUD pills", () => {
 		const agentsSegment = (): NativeNode | undefined => {
 			mode.syncRunningSubagentBadge({ requestRender: false });
 			return nodes(mode.describeHudPills()).find(
-				node => node.key === "agents" && prop(node, "role") === "zeta.hud.seg",
+				node => node.key === "agents" && prop(node, "role") === "omp.hud.seg",
 			);
 		};
 		try {

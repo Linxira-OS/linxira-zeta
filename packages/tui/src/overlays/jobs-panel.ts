@@ -5,8 +5,8 @@
  * {@link buildJobTree}) beside the selected one's status, command, facts
  * (cwd, live pids, exit code, artifact) and live output.
  */
-import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
-import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
+import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import { formatDuration, sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
 import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";
@@ -124,7 +124,7 @@ const FALLBACK_TAIL_LINES = 8;
  */
 export class JobsSheet implements Component {
 	readonly nativeOverlay = {
-		role: "zeta.overlay.jobs",
+		role: "omp.overlay.jobs",
 		size: "lg",
 		anchor: "center",
 		head: "Background jobs",
@@ -141,8 +141,10 @@ export class JobsSheet implements Component {
 	 */
 	#held: { job: JobsPanelJob; detail: JobsPanelDetail | undefined; agents: readonly JobTreeAgent[] } | undefined;
 
-	constructor(source: JobsSheetSource) {
+	/** `selected`: the job to open on, when it is listed; else the first, as always. */
+	constructor(source: JobsSheetSource, options: { selected?: string } = {}) {
 		this.#source = source;
+		this.#selectedId = options.selected;
 	}
 
 	describe(_cx: DescribeContext): NativeNode {
@@ -174,9 +176,9 @@ export class JobsSheet implements Component {
 			? col([
 					node(
 						"row",
-						{ role: "zeta.jobs.split" },
+						{ role: "omp.jobs.split" },
 						[
-							node("col", { role: "zeta.jobs.master" }, [describeJobList(rows, selected, now)], "master"),
+							node("col", { role: "omp.jobs.master" }, [describeJobList(rows, selected, now)], "master"),
 							describeDetail(selected, detail, now, cancellable),
 						],
 						"split",
@@ -234,7 +236,7 @@ export class JobsSheet implements Component {
 				detail.cwd && `cwd ${detail.cwd}`,
 				detail.pids.length > 0 && `pid ${detail.pids.join(", ")}`,
 				detail.exitCode !== undefined && `exit ${detail.exitCode}`,
-				detail.artifactId && `artifact://${detail.artifactId}`,
+				detail.artifactId && spillUrl(detail.artifactId),
 			]);
 			if (facts.length > 0) lines.push(truncateToWidth(`   ${facts.join(" · ")}`, width));
 			if (detail.widget && widgetHasData(detail.widget)) {
@@ -375,7 +377,7 @@ function describeJobList(rows: readonly JobTreeRow<JobsPanelJob>[], selected: Jo
 		return node(
 			"text",
 			{
-				role: "zeta.jobs.group",
+				role: "omp.jobs.group",
 				spans: compact([guide !== "" && span(guide, "mono dim"), span(entry.agent.id)]),
 				wrap: "none",
 			},
@@ -420,19 +422,19 @@ function describeSummary(jobs: readonly JobsPanelJob[]): NativeNode {
 		running > 0 && `${running} running`,
 		jobs.length > running && `${jobs.length - running} recent`,
 	]);
-	return node("text", { role: "zeta.jobs.summary", text: parts.join(" · "), wrap: "none" }, undefined, "summary");
+	return node("text", { role: "omp.jobs.summary", text: parts.join(" · "), wrap: "none" }, undefined, "summary");
 }
 
 /** No jobs: what the sheet is for, in place of the split. */
 function describeEmpty(): NativeNode {
 	return node(
 		"col",
-		{ role: "zeta.jobs.empty", align: "center" },
+		{ role: "omp.jobs.empty", align: "center" },
 		[
 			node("icon", { name: "jobs" }),
-			text("No background jobs", { role: "zeta.jobs.empty.title" }),
+			text("No background jobs", { role: "omp.jobs.empty.title" }),
 			text("Commands and subagent tasks started in the background show up here while they run.", {
-				role: "zeta.jobs.empty.note",
+				role: "omp.jobs.empty.note",
 				wrap: "word",
 			}),
 		],
@@ -463,13 +465,13 @@ function describeDetail(
 		detail?.cwd ? { k: "Directory", v: [span(detail.cwd, "path")] } : undefined,
 		pids.length > 0 && { k: pids.length > 1 ? "PIDs" : "PID", v: [span(pids.join(", "), "num")] },
 		exit !== undefined && { k: "Exit code", v: [span(String(exit), exit === 0 ? "success" : "error")] },
-		detail?.artifactId ? { k: "Full output", v: [span(`artifact://${detail.artifactId}`, "mono")] } : undefined,
+		detail?.artifactId ? { k: "Full output", v: [span(spillUrl(detail.artifactId), "mono")] } : undefined,
 	]);
 	const children = compact<NativeChild>([
 		row(
 			compact<NativeChild>([
 				text([STATUS_GLYPH[job.status], span(` ${STATUS_LABEL[job.status]}`)], {
-					role: "zeta.jobs.state",
+					role: "omp.jobs.state",
 					tone: STATUS_TONE[job.status],
 					wrap: "none",
 				}),
@@ -477,35 +479,35 @@ function describeDetail(
 					age,
 					...(settled ? { stopped: age } : {}),
 					format: "short",
-					role: "zeta.jobs.age",
+					role: "omp.jobs.age",
 					title: settled ? "Ran for" : "Running for",
 				}),
-				text([span(`${job.type} · ${job.id}`, "mono")], { role: "zeta.jobs.id", wrap: "none", truncate: "end" }),
+				text([span(`${job.type} · ${job.id}`, "mono")], { role: "omp.jobs.id", wrap: "none", truncate: "end" }),
 				node("spacer", { grow: 1 }),
 				cancellable && !settled && actionButton("Cancel job", "cancel", { keys: "x", tone: "error" }),
 			]),
-			{ role: "zeta.jobs.status", gap: "sm", align: "center" },
+			{ role: "omp.jobs.status", gap: "sm", align: "center" },
 		),
-		title ? text(title, { role: "zeta.jobs.title", wrap: "word" }) : undefined,
-		job.caption ? text([span(job.caption, "muted")], { role: "zeta.jobs.caption", wrap: "word" }) : undefined,
+		title ? text(title, { role: "omp.jobs.title", wrap: "word" }) : undefined,
+		job.caption ? text([span(job.caption, "muted")], { role: "omp.jobs.caption", wrap: "word" }) : undefined,
 		command
-			? code(command, { lang: "bash", wrap: true, preview: { lines: 4 }, role: "zeta.jobs.command" })
-			: text(job.label, { role: "zeta.jobs.title", wrap: "word" }),
-		facts.length > 0 && node("kv", { items: facts, role: "zeta.jobs.facts" }),
+			? code(command, { lang: "bash", wrap: true, preview: { lines: 4 }, role: "omp.jobs.command" })
+			: undefined,
+		facts.length > 0 && node("kv", { items: facts, role: "omp.jobs.facts" }),
 		detail?.widget &&
 			widgetHasData(detail.widget) &&
-			node("col", { role: "zeta.jobs.widget" }, [describeJobWidget(detail.widget)], "widget"),
+			node("col", { role: "omp.jobs.widget" }, [describeJobWidget(detail.widget)], "widget"),
 		node(
 			"col",
-			{ role: "zeta.jobs.out", gap: "sm" },
+			{ role: "omp.jobs.out", gap: "sm" },
 			[
-				text("Output", { role: "zeta.jobs.label" }),
+				text("Output", { role: "omp.jobs.label" }),
 				detail?.output
-					? ansi(detail.output, { follow: !settled, role: "zeta.jobs.output", max: { h: "16lines" } })
-					: text(settled ? "No output" : "No output yet", { role: "zeta.jobs.nooutput" }),
+					? ansi(detail.output, { follow: !settled, role: "omp.jobs.output", max: { h: "16lines" } })
+					: text(settled ? "No output" : "No output yet", { role: "omp.jobs.nooutput" }),
 			],
 			"out",
 		),
 	]);
-	return node("col", { role: "zeta.jobs.detail" }, children, stableKey(job.id));
+	return node("col", { role: "omp.jobs.detail" }, children, stableKey(job.id));
 }

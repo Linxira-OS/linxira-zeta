@@ -1,12 +1,12 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as fs from "node:fs";
-import { TtyWriter } from "@linxiraos/pi-natives";
-import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@linxiraos/pi-utils/env";
-import * as logger from "@linxiraos/pi-utils/logger";
-import { popLoopPhase, pushLoopPhase } from "@linxiraos/pi-utils/loop-phase";
-import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import { restoreTerminalStderr, suppressTerminalStderr } from "@linxiraos/pi-utils/stderr-guard";
-import { TSP_VERSION } from "@linxiraos/pi-wire";
+import { isolateThreadStartsFromConsole, TtyWriter } from "@oh-my-pi/pi-natives";
+import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@oh-my-pi/pi-utils/env";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import { popLoopPhase, pushLoopPhase } from "@oh-my-pi/pi-utils/loop-phase";
+import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
+import { restoreTerminalStderr, suppressTerminalStderr } from "@oh-my-pi/pi-utils/stderr-guard";
+import { TSP_VERSION } from "@oh-my-pi/pi-wire";
 import { getActiveTerminal, registerStdoutErrorHandler, setActiveTerminal } from "./active-terminal";
 import {
 	encodeBundledGlyphRegistrations,
@@ -66,12 +66,6 @@ const INBAND_TERMINATOR_GRACE_MS = 300;
  * of the event loop longer than 75 ms fires the timer before the queued tail is read.
  */
 const WIN32_RELAYED_STRING_TIMEOUT_MS = 5000;
-/** Focus reporting: lets the app re-assert input modes after the window regains focus. */
-const FOCUS_REPORTING_ON = "\x1b[?1004h";
-const FOCUS_REPORTING_OFF = "\x1b[?1004l";
-/** Win32-input-mode (ConPTY keyboard records): always reset on entry, enable only for the fallback. */
-const WIN32_INPUT_MODE_ON = "\x1b[?9001h";
-const WIN32_INPUT_MODE_OFF = "\x1b[?9001l";
 
 /** How long a TSP hello waits for its reply inside tmux, which answers DA1 itself. */
 const TSP_TMUX_HELLO_TIMEOUT_MS = 1000;
@@ -395,79 +389,7 @@ export function setAltScreenActive(active: boolean): void {
 
 const STD_INPUT_HANDLE = -10;
 const ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200;
-/** UTF-8 codepage id for SetConsoleCP/SetConsoleOutputCP. */
-const CP_UTF8 = 65001;
 
-/**
- * Lazily-initialized closure re-asserting the UTF-8 console codepage, or
- * `null` when unavailable (non-win32, FFI failure, console detached).
- */
-let consoleCodepageGuard: (() => void) | null | undefined;
-
-/**
- * Re-assert the UTF-8 console codepage before writing (win32 only).
- *
- * Bun sets both console codepages to UTF-8 (65001) at startup, and
- * `process.stdout.write(string)` hands UTF-8 bytes to `WriteFile`, which
- * conhost translates using the *current* console output codepage. Child
- * processes spawned by tools (bash commands, MCP/LSP servers, eval kernels)
- * share this console, and some flip the codepage behind our back: PHP >=7.1
- * CLI issues the equivalent of `chcp` whenever `internal_encoding` mismatches
- * the console codepage (php.net request #73716) and skips the restore when
- * killed — and two PHP processes in a pipeline race their restores. Once the
- * codepage falls back to an OEM page (437/850), every non-ASCII glyph the TUI
- * paints is mis-translated: box-drawing borders degrade into `Γöé`/`ΓöÇ`
- * mojibake on the next full repaint (most visibly ctrl+o expand, which
- * rewrites every row).
- *
- * `GetConsoleOutputCP` is one cheap console call per `#safeWrite`; the setter
- * only runs after a foreign flip. A reading of 0 means "no console" — leave
- * that alone. Guarding the write chokepoint (rather than per-spawn cleanup)
- * covers every console-sharing child and long-running processes that flip
- * the codepage mid-session.
- */
-function ensureWindowsConsoleUtf8(): void {
-	if (consoleCodepageGuard === undefined) consoleCodepageGuard = createConsoleCodepageGuard();
-	consoleCodepageGuard?.();
-}
-
-let lastWarnedCodepage = 0;
-
-function createConsoleCodepageGuard(): (() => void) | null {
-	if (process.platform !== "win32") return null;
-	try {
-		const kernel32 = dlopen("kernel32.dll", {
-			GetConsoleOutputCP: { args: [], returns: FFIType.u32 },
-			SetConsoleOutputCP: { args: [FFIType.u32], returns: FFIType.bool },
-			GetConsoleCP: { args: [], returns: FFIType.u32 },
-			SetConsoleCP: { args: [FFIType.u32], returns: FFIType.bool },
-		});
-		return () => {
-			try {
-				const outCp = kernel32.symbols.GetConsoleOutputCP();
-				if (outCp !== 0 && outCp !== CP_UTF8) {
-					kernel32.symbols.SetConsoleOutputCP(CP_UTF8);
-					if (outCp !== lastWarnedCodepage) {
-						lastWarnedCodepage = outCp;
-						logger.warn("console output codepage changed by a child process; restoring UTF-8", {
-							codepage: outCp,
-						});
-					}
-				}
-				const inCp = kernel32.symbols.GetConsoleCP();
-				if (inCp !== 0 && inCp !== CP_UTF8) {
-					kernel32.symbols.SetConsoleCP(CP_UTF8);
-				}
-			} catch {
-				// Console APIs failed (console detached mid-session); disable the guard.
-				consoleCodepageGuard = null;
-			}
-		};
-	} catch {
-		// bun:ffi unavailable; rendering proceeds without the guard.
-		return null;
-	}
-}
 /**
  * Emergency terminal restore - call this from signal/crash handlers
  * Resets terminal state without requiring access to the ProcessTerminal instance
@@ -480,7 +402,7 @@ export function emergencyTerminalRestore(): void {
 		const terminal = getActiveTerminal();
 		if (terminal) {
 			// Keyboard enhancement state is screen-local: pop the alt-screen
-			// frame before leaving it, then let stop() pop zeta's main-screen frame.
+			// frame before leaving it, then let stop() pop omp's main-screen frame.
 			if (altScreenActive) {
 				const keyboardExit =
 					terminal.keyboardEnhancementExitSequence ?? (terminal.kittyEnableSequence ? "\x1b[<u" : "");
@@ -555,8 +477,6 @@ export const CURSOR_SHAPE_CODES: Record<CursorShape, number> = {
 	bar: 6,
 };
 export interface Terminal {
-	/** Re-assert raw/console input modes after focus loss (Zeta Windows focus recovery). */
-	reassertInputModes?(): void;
 	/**
 	 * Start the terminal with input, resize, and host-disconnect handlers.
 	 * Unless input is deferred, this sends capability probes; a terminal that
@@ -580,13 +500,6 @@ export interface Terminal {
 	 * pi-tui versions keep working.
 	 */
 	enableInput?(): void;
-
-	/**
-	 * Re-apply input state a focus transition may have dropped (raw mode,
-	 * console VT-input flags, bracketed paste, focus reporting, an active
-	 * win32-input-mode). Optional so custom Terminals need not implement it.
-	 */
-	reassertInputModes?(): void;
 
 	// Stop the terminal and restore state
 	stop(): void;
@@ -881,7 +794,7 @@ export class ProcessTerminal implements Terminal {
 	#isLoopStalled?: () => boolean;
 	#stdoutResizeListener?: () => void;
 	#kittyProtocolActive = false;
-	// Kitty flags zeta pushed on its own stack frame; meaningful only while kitty is active.
+	// Kitty flags omp pushed on its own stack frame; meaningful only while kitty is active.
 	#kittyFlags = 0;
 	#modifyOtherKeysActive = false;
 	#modifyOtherKeysTimeout?: Timer;
@@ -889,10 +802,6 @@ export class ProcessTerminal implements Terminal {
 	// win32-input-mode sequences and are decoded before reaching the handler.
 	#win32InputDecoder?: Win32InputModeDecoder;
 	#win32PasteNormalizer?: Win32PasteMarkerNormalizer;
-	// Whether this process asked the console host for win32-input-mode. The
-	// decoder itself stays installed for pass-through and for records left in
-	// the input queue by a previous process (see #ensureWin32Decoding).
-	#win32ModeActive = false;
 	// Releases a relayed lone ESC the decoder held for a sequence tail that never came.
 	#win32PendingFlushTimer?: Timer;
 	#stdinBuffer?: StdinBuffer;
@@ -942,11 +851,13 @@ export class ProcessTerminal implements Terminal {
 	// to drain. See StdoutStallWatchdog, #6854, and #10430.
 	#stdoutStall = new StdoutStallWatchdog();
 	#stdoutStallTimer?: Timer;
-	// Off-thread output pump (unix TTYs): Bun's `process.stdout.write` blocks
-	// the event loop until the terminal drains, so a slow/occluded emulator
-	// froze the whole TUI for the duration of a multi-MB repaint. The pump
-	// enqueues frames and performs the blocking write(2) on its own thread;
-	// `pendingOutputBytes` exposes the backlog for render-side frame skipping.
+	// Off-thread output pump (unix TTYs, Windows consoles): Bun's
+	// `process.stdout.write` blocks the event loop until the terminal drains, so
+	// a slow/occluded emulator froze the whole TUI for the duration of a multi-MB
+	// repaint. The pump enqueues frames and performs the blocking write on its
+	// own thread, in ConPTY-sized chunks with the UTF-8 code page re-asserted on
+	// Windows; `pendingOutputBytes` exposes the backlog for render-side frame
+	// skipping.
 	#outputPump?: TtyWriter;
 	// Upper bound on the pump's backlog: the count its last enqueue or read
 	// reported. Only #safeWrite enqueues and the pump thread only drains, so
@@ -1057,7 +968,7 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	get keyboardEnhancementRestoreSequence(): string | null {
-		// `CSI = flags ; 1 u` replaces the main-screen stack top, which is zeta's own
+		// `CSI = flags ; 1 u` replaces the main-screen stack top, which is omp's own
 		// frame, so it is a no-op wherever per-screen stacks work. Windows Terminal
 		// 1.25–1.27 restore the pre-push flags on `?1049l` (microsoft/terminal#20763),
 		// dropping to legacy keys: Shift+Enter arrives as `\r`, Ctrl+Enter as `\n`.
@@ -1219,10 +1130,16 @@ export class ProcessTerminal implements Terminal {
 			if (terminal.#dead || pending > STDOUT_BACKLOG_CLEAR_BYTES) return;
 			for (const listener of terminal.#outputDrainListeners) listener();
 		};
-		// Own write(2) on a dedicated pump thread (unix TTYs only).
+		// A console whose terminal stops reading blocks every thread start, and
+		// JSC waits for the GC/JIT helper threads it starts lazily, which froze
+		// the TUI at its next collection.
+		if (process.platform === "win32" && process.stdout.isTTY && !isolateThreadStartsFromConsole()) {
+			logger.debug("thread starts still wait on the console: unexpected KernelBase loader entry");
+		}
+		// Own terminal writes on a dedicated pump thread.
 		// Test suites spy on `process.stdout.write` with a faked isTTY, so the
 		// pump stays off under `bun test` — same philosophy as isTerminalHeadless.
-		if (process.platform !== "win32" && process.stdout.isTTY && !isBunTestRuntime() && !this.#outputPump) {
+		if (process.stdout.isTTY && !isBunTestRuntime() && !this.#outputPump) {
 			try {
 				this.#outputPump = new TtyWriter(1, STDOUT_BACKLOG_CLEAR_BYTES, this.#outputDrainCallback);
 				this.#pumpBacklogBound = 0;
@@ -1301,27 +1218,14 @@ export class ProcessTerminal implements Terminal {
 		process.stdin.on("error", this.#stdinErrorHandler);
 		process.stdin.resume();
 
-		// A crashed or killed prior process can leave the console host in
-		// win32-input-mode (DECSET 9001). Its key records are not VT keys, so an
-		// app without a decoder ignores every keystroke — including IME commits —
-		// while the cursor still blinks. Reset the mode before any probe, and
-		// keep a pass-through decoder installed so a record already queued by
-		// the previous process still decodes.
-		this.#ensureWin32Decoding();
-		this.#win32ModeActive = false;
-		this.#safeWrite(WIN32_INPUT_MODE_OFF);
-
 		// Enable bracketed paste mode - terminal will wrap pastes in \x1b[200~ ... \x1b[201~
 		this.#safeWrite("\x1b[?2004h");
-		// Focus reporting lets a focus-in re-assert raw/VT input; a lost focus
-		// can leave conhost's input mode (and the IME composition state) wedged.
-		this.#safeWrite(FOCUS_REPORTING_ON);
 		this.#rearmBracketedPaste =
 			terminalMultiplexerSessions($env).some(multiplexer => multiplexer.gatesBracketedPaste) ||
 			classifyTerminalMultiplexerModule($env)?.gatesBracketedPaste === true;
 
 		// Force normal cursor-key (DECCKM) and numeric-keypad mode (terminfo
-		// `rmkx` = "\x1b[?1l\x1b>"). zeta decodes both CSI ("\x1b[A") and SS3
+		// `rmkx` = "\x1b[?1l\x1b>"). omp decodes both CSI ("\x1b[A") and SS3
 		// ("\x1bOA") arrow encodings, so it never enables application mode
 		// itself — but a prior program that left the TTY in application-cursor-
 		// keys mode makes arrows arrive as SS3. Normalizing on entry keeps input
@@ -1385,7 +1289,7 @@ export class ProcessTerminal implements Terminal {
 		// gates the renderer's begin/end markers; 2048 (in-band resize) is enabled
 		// only after the terminal confirms support; 2031 (appearance change
 		// notifications) drives mid-session theme tracking. Xterm ?1010/?1011
-		// are disabled while Zeta owns the TTY so typing in the editor does not
+		// are disabled while OMP owns the TTY so typing in the editor does not
 		// force a reader scrolled into native history back to the tail. Each probe
 		// rides the shared DA1 sentinel, so terminals that ignore DECRQM resolve as
 		// unsupported when the DA1 reply arrives.
@@ -1522,7 +1426,12 @@ export class ProcessTerminal implements Terminal {
 				this.#tspReplyBuffer = "";
 				for (const key of win32Keys) this.#stdinSequenceHandler?.(key);
 				if (decoder.hasPendingSequence) {
-					this.#armWin32PendingFlush(
+					this.#win32PendingFlushTimer = setTimeout(
+						() => {
+							// An overdue timer runs before poll delivers relayed tail records.
+							// Give stdin one poll pass before releasing a held ESC or string.
+							this.#win32PendingFlushTimer = setTimeout(() => this.#releaseWin32PendingSequence());
+						},
 						decoder.hasPendingString ? WIN32_RELAYED_STRING_TIMEOUT_MS : WIN32_RELAYED_ESCAPE_TIMEOUT_MS,
 					);
 				}
@@ -2117,7 +2026,7 @@ export class ProcessTerminal implements Terminal {
 		this.#osc99ResponseBuffer = "";
 		if (this.#dead || !this.#shouldQueryOsc99Support()) return;
 
-		const id = `zeta-probe-${nextOsc99ProbeId++}`;
+		const id = `omp-probe-${nextOsc99ProbeId++}`;
 		this.#osc99PendingId = id;
 		this.#da1SentinelOwners.push({ kind: "osc99Probe", id });
 		// The probe never runs under a multiplexer (see #shouldQueryOsc99Support),
@@ -2350,52 +2259,8 @@ export class ProcessTerminal implements Terminal {
 		}
 	}
 
-	/**
-	 * Install the pass-through win32-input-mode decoder for ConPTY hosts.
-	 *
-	 * It is deliberately independent of requesting DECSET 9001: a previous
-	 * process can leave the console host in that mode, so records may arrive
-	 * before (or without) this process ever requesting it. `decode()` returns
-	 * undefined for ordinary VT, leaving the normal input path untouched.
-	 */
-	#ensureWin32Decoding(): void {
-		if (!this.#conpty && process.platform !== "win32") return;
-		this.#win32InputDecoder ??= new Win32InputModeDecoder();
-		if (this.#win32PasteNormalizer) return;
-		// The normalizer restores paste delimiters the console host encoded as
-		// key records before StdinBuffer looks for them. Its expiry defers one
-		// poll pass so a tail queued by a stalled loop still completes.
-		this.#win32PasteNormalizer = new Win32PasteMarkerNormalizer(
-			data => this.#stdinBuffer?.process(data),
-			() => {
-				if (!this.#win32InputDecoder?.hasPendingString) this.#releaseWin32PendingSequence();
-			},
-		);
-	}
-
-	/**
-	 * Re-apply the state that a terminal/focus transition can drop: raw mode,
-	 * console VT-input flags, bracketed paste, focus reporting, and an active
-	 * win32-input-mode. Called on focus-in by the TUI.
-	 */
-	reassertInputModes(): void {
-		if (this.#headless || this.#dead || !this.#active) return;
-		if (process.platform === "win32") {
-			try {
-				process.stdin.setRawMode?.(true);
-			} catch {
-				// A revoked console fails below; keep the app alive.
-			}
-			this.#enableWindowsVTInput();
-			this.#ensureWin32Decoding();
-			this.#safeWrite(this.#win32ModeActive ? WIN32_INPUT_MODE_ON : WIN32_INPUT_MODE_OFF);
-		}
-		this.#safeWrite("\x1b[?2004h");
-		this.#safeWrite(FOCUS_REPORTING_ON);
-	}
-
 	#enableModifyOtherKeysFallback(): void {
-		if (this.#kittyProtocolActive || this.#modifyOtherKeysActive) return;
+		if (this.#kittyProtocolActive || this.#modifyOtherKeysActive || this.#win32InputDecoder) return;
 		const ssh = isSshSession();
 		if (this.#conpty && !ssh) {
 			// The Windows console host ignores modifyOtherKeys and folds Shift+Enter
@@ -2404,11 +2269,17 @@ export class ProcessTerminal implements Terminal {
 			// terminal, and under WSL through the `wsl.exe` relay's console host too.
 			// Under sshd the console host is fed the remote terminal's VT stream,
 			// and the mode splits arrow keys into Escape plus literal text (#14034).
-			this.#ensureWin32Decoding();
-			if (!this.#win32ModeActive) {
-				this.#safeWrite(WIN32_INPUT_MODE_ON);
-				this.#win32ModeActive = true;
-			}
+			this.#safeWrite("\x1b[?9001h");
+			this.#win32InputDecoder = new Win32InputModeDecoder();
+			// The normalizer's expiry already spent the ESC wait; release the decoder's hold
+			// at once instead of starting a second window. A held string keeps its own
+			// longer timer: releasing it here would type the rest of it as text.
+			this.#win32PasteNormalizer = new Win32PasteMarkerNormalizer(
+				data => this.#stdinBuffer?.process(data),
+				() => {
+					if (!this.#win32InputDecoder?.hasPendingString) this.#releaseWin32PendingSequence();
+				},
+			);
 			// A WSL pty is not always relayed by a console host (tmux, VS Code
 			// Remote-WSL, WSLg terminals). Those ignore 9001 and keep sending plain
 			// VT, which the decoder passes through, so also ask for modifyOtherKeys.
@@ -2420,20 +2291,6 @@ export class ProcessTerminal implements Terminal {
 		this.#modifyOtherKeysActive = true;
 	}
 
-	/**
-	 * Release a held win32 sequence after `delayMs`, then after one extra poll
-	 * pass. An overdue timer runs before stdin's poll phase, so a tail the
-	 * stalled loop queued after the deadline would otherwise be delivered after
-	 * the hold was released — a lone ESC aborts the turn and the tail types as
-	 * text. The nested zero-delay timer gives poll one pass to deliver it.
-	 */
-	#armWin32PendingFlush(delayMs: number): void {
-		clearTimeout(this.#win32PendingFlushTimer);
-		this.#win32PendingFlushTimer = setTimeout(() => {
-			this.#win32PendingFlushTimer = setTimeout(() => this.#releaseWin32PendingSequence(), 0);
-		}, delayMs);
-	}
-
 	/** Deliver relayed VT text the decoder is holding (a lone ESC becomes Escape). */
 	#releaseWin32PendingSequence(): void {
 		clearTimeout(this.#win32PendingFlushTimer);
@@ -2443,16 +2300,13 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	#disableWin32InputMode(): void {
-		// Clearing the mode is idempotent and must also clear one leaked by an
-		// earlier process even when this process never requested it. The decoder
-		// stays installed as a pass-through for records already queued.
-		const canSpeakWin32 = this.#conpty || process.platform === "win32";
-		if (!canSpeakWin32) return;
+		if (!this.#win32InputDecoder) return;
 		this.#win32PasteNormalizer?.flush();
+		this.#win32PasteNormalizer = undefined;
 		// Held input still belongs to the user (e.g. Escape before a late kitty reply).
 		this.#releaseWin32PendingSequence();
-		this.#safeWrite(WIN32_INPUT_MODE_OFF);
-		this.#win32ModeActive = false;
+		this.#safeWrite("\x1b[?9001l");
+		this.#win32InputDecoder = undefined;
 	}
 
 	/**
@@ -2742,7 +2596,7 @@ export class ProcessTerminal implements Terminal {
 		// `rmkx`). Symmetric with the normalize in start(): a TTY-sharing child
 		// can leave the terminal in application-cursor-keys mode, and without
 		// this reset the parent shell inherits SS3 arrows so Up/Down history
-		// navigation stays broken after zeta exits (#6374).
+		// navigation stays broken after omp exits (#6374).
 		this.#safeWrite("\x1b[?1l\x1b>");
 
 		// Disable bracketed paste mode
@@ -2837,7 +2691,6 @@ export class ProcessTerminal implements Terminal {
 			this.#modifyOtherKeysActive = false;
 		}
 		this.#disableWin32InputMode();
-		this.#safeWrite(FOCUS_REPORTING_OFF);
 
 		this.#restoreWindowsVTInput();
 		// Clean up StdinBuffer
@@ -2982,14 +2835,10 @@ export class ProcessTerminal implements Terminal {
 			this.#trackStdoutBacklog(pending);
 			return;
 		}
-		// Without the pump, writes (and the codepage guard's console calls) block
-		// the event loop until the terminal drains; label them for the watchdog.
+		// Without the pump, writes block the event loop until the terminal
+		// drains; label them for the watchdog.
 		pushLoopPhase("ui.terminal-write");
 		try {
-			// A console-sharing child process may have flipped the console codepage
-			// away from UTF-8; repair it before any bytes hit WriteFile so no frame
-			// is ever translated through an OEM codepage. See ensureWindowsConsoleUtf8.
-			if (process.platform === "win32") ensureWindowsConsoleUtf8();
 			// Windows ConPTY drops viewport tracking when a single write exceeds
 			// ~32-64 KB: the host UI's scroll position stays parked at wherever
 			// the write began, even though every byte landed in scrollback. Split

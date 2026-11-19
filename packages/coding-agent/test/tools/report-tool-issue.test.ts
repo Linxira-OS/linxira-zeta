@@ -1,12 +1,11 @@
 import { Database } from "bun:sqlite";
 import * as os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import * as piUtils from "@linxiraos/pi-utils";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { DEFAULT_ISSUE_REPO, GITHUB_API_BASE } from "@linxiraos/zeta/grievances/client";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { cfgDevAutoqa } from "@linxiraos/zeta/tools/settings";
-import * as reportIssue from "@linxiraos/zeta/tools/report-tool-issue";
+import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { cfgDevAutoqa } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import * as reportIssue from "@oh-my-pi/pi-coding-agent/tools/report-tool-issue";
 import {
 	__awaitAutoQaRecordPipelineForTests,
 	__resetAutoQaConsentForTests,
@@ -15,10 +14,9 @@ import {
 	flushGrievances,
 	isAutoQaEnabled,
 	reportIssueDeviceUsage,
-} from "@linxiraos/zeta/tools/report-tool-issue";
+} from "@oh-my-pi/pi-coding-agent/tools/report-tool-issue";
+import * as piUtils from "@oh-my-pi/pi-utils";
 import { mockFetch } from "../helpers/fetch-mock";
-
-const ISSUE_URL = `${GITHUB_API_BASE}/repos/${DEFAULT_ISSUE_REPO}/issues`;
 
 function openTempDb(): Database {
 	const db = new Database(":memory:");
@@ -31,13 +29,14 @@ function openTempDb(): Database {
 			report TEXT NOT NULL,
 			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			pushed INTEGER NOT NULL DEFAULT 0,
-			push_error TEXT
+			push_error TEXT,
+			source TEXT
 		);
 	`);
 	return db;
 }
 
-/** Rows GitHub permanently refused — parked, never retried. */
+/** Rows the collector permanently refused — parked, never retried. */
 function selectRejected(db: Database): Array<{ id: number; push_error: string }> {
 	return db.prepare("SELECT id, push_error FROM grievances WHERE pushed = -1 ORDER BY id ASC").all() as Array<{
 		id: number;
@@ -64,53 +63,32 @@ function selectUnpushedIds(db: Database): number[] {
 	);
 }
 
-/** Just pushed rows — what's already been filed. */
+/** Just pushed rows — what's already been shipped. */
 function selectPushedIds(db: Database): number[] {
 	return (db.prepare("SELECT id FROM grievances WHERE pushed = 1 ORDER BY id ASC").all() as Array<{ id: number }>).map(
 		r => r.id,
 	);
 }
 
-/** A GitHub success response carrying a created issue. */
-function createdIssue(number: number): Response {
-	return new Response(
-		JSON.stringify({ html_url: `https://github.com/${DEFAULT_ISSUE_REPO}/issues/${number}`, number }),
-		{ status: 201 },
-	);
-}
-
-/**
- * Auto QA on, consent granted, a GitHub token supplied — so the flush path is
- * fully configured. Env token vars are cleared per test; the settings token
- * keeps the `gh auth token` probe out of the picture.
- */
 function pushSettings(overrides: Record<string, unknown> = {}): Settings {
 	return Settings.isolated({
 		"dev.autoqa": true,
+		// Consent is the push opt-in; `granted` is what `resolvePushConfig`
+		// gates on (or `PI_AUTO_QA_PUSH=1` for headless overrides).
 		"dev.autoqaConsent": "granted",
-		"dev.autoqaPush.token": "settings-token",
+		"dev.autoqaPush.endpoint": "https://qa.example.com/grievances",
 		...overrides,
 	});
 }
 
-const ENV_KEYS = ["PI_AUTO_QA", "GITHUB_TOKEN", "GH_TOKEN", "ZETA_ISSUE_REPO"] as const;
-let savedEnv: Record<string, string | undefined> = {};
+let originalPiAutoQa: string | undefined;
 
-function saveAndClearEnv(): void {
-	savedEnv = {};
-	for (const key of ENV_KEYS) {
-		savedEnv[key] = Bun.env[key];
-		delete Bun.env[key];
+function restoreAutoQaEnv(): void {
+	if (originalPiAutoQa === undefined) {
+		delete Bun.env.PI_AUTO_QA;
+		return;
 	}
-	// Pin the destination so assertions are independent of the developer's env.
-	Bun.env.ZETA_ISSUE_REPO = DEFAULT_ISSUE_REPO;
-}
-
-function restoreEnv(): void {
-	for (const key of ENV_KEYS) {
-		if (savedEnv[key] === undefined) delete Bun.env[key];
-		else Bun.env[key] = savedEnv[key];
-	}
+	Bun.env.PI_AUTO_QA = originalPiAutoQa;
 }
 
 /** Pin the home directory and login name the redaction reads. */
@@ -124,14 +102,15 @@ describe("flushGrievances", () => {
 
 	beforeEach(() => {
 		__resetAutoQaFlushStateForTests();
-		saveAndClearEnv();
+		originalPiAutoQa = Bun.env.PI_AUTO_QA;
+		delete Bun.env.PI_AUTO_QA;
 		db = openTempDb();
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 		__resetAutoQaFlushStateForTests();
-		restoreEnv();
+		restoreAutoQaEnv();
 		db.close();
 	});
 
@@ -181,11 +160,11 @@ describe("flushGrievances", () => {
 		expect(selectIds(db)).toEqual([1]);
 	});
 
-	it("skips network when Auto-QA is disabled", async () => {
+	it("skips network when endpoint is missing", async () => {
 		insertGrievance(db, "glob", "weird ordering");
 		const fetchSpy = vi.fn(async () => new Response("unexpected", { status: 200 }));
 
-		const result = await flushGrievances(db, pushSettings({ "dev.autoqa": false }), {
+		const result = await flushGrievances(db, pushSettings({ "dev.autoqaPush.endpoint": "" }), {
 			fetch: mockFetch(fetchSpy),
 		});
 
@@ -203,92 +182,75 @@ describe("flushGrievances", () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
-	it("files one GitHub issue per pending row and marks them pushed=1", async () => {
+	it("posts pending rows with bearer header and marks them pushed=1 on 200", async () => {
 		vi.spyOn(piUtils, "getInstallId").mockReturnValue("11111111-2222-3333-4444-555555555555");
 		insertGrievance(db, "glob", "weird ordering");
 		insertGrievance(db, "read", "selector ignored");
 
-		const captured: Array<{ url: string; init: RequestInit | undefined }> = [];
+		let capturedInput: string | URL | Request | undefined;
+		let capturedInit: RequestInit | undefined;
 		const fetchSpy = vi.fn(async (input: string | URL | Request, init: RequestInit | undefined) => {
-			captured.push({ url: String(input), init });
-			return createdIssue(captured.length);
+			capturedInput = input;
+			capturedInit = init;
+			return new Response("", { status: 200 });
 		});
 
-		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
-
-		expect(fetchSpy).toHaveBeenCalledTimes(2);
-		expect(result).toMatchObject({
-			pushed: 2,
-			ok: true,
-			urls: [
-				`https://github.com/${DEFAULT_ISSUE_REPO}/issues/1`,
-				`https://github.com/${DEFAULT_ISSUE_REPO}/issues/2`,
-			],
+		const result = await flushGrievances(db, pushSettings({ "dev.autoqaPush.token": "secret-token" }), {
+			fetch: mockFetch(fetchSpy),
 		});
 
-		for (const { url, init } of captured) {
-			expect(url).toBe(ISSUE_URL);
-			expect(init?.method).toBe("POST");
-			const headers = init?.headers as Record<string, string>;
-			expect(headers.authorization).toBe("Bearer settings-token");
-			expect(headers["content-type"]).toBe("application/json");
-		}
-		const firstBody = JSON.parse(String(captured[0]?.init?.body)) as {
-			title: string;
-			body: string;
-			labels: string[];
-		};
-		expect(firstBody.title).toBe("[auto-qa] glob: weird ordering");
-		expect(firstBody.labels).toEqual(["bug"]);
-		expect(firstBody.body).toContain("- install: 11111111-2222-3333-4444-555555555555");
+		expect(result).toEqual({ pushed: 2, ok: true });
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(String(capturedInput)).toBe("https://qa.example.com/grievances");
+		expect(capturedInit?.method).toBe("POST");
+
+		const headers = capturedInit?.headers as Record<string, string> | undefined;
+		expect(headers?.["content-type"]).toBe("application/json");
+		expect(headers?.authorization).toBe("Bearer secret-token");
+
+		const body = JSON.parse(String(capturedInit?.body));
+		expect(body.agent?.name).toBe("omp");
+		expect(typeof body.agent?.version).toBe("string");
+		expect(body.host).toBeUndefined();
+		expect(typeof body.platform).toBe("string");
+		expect(typeof body.arch).toBe("string");
+		expect(body.installId).toBe("11111111-2222-3333-4444-555555555555");
+		expect(body.entries).toEqual([
+			{ id: 1, model: "test-model", version: "test-version", tool: "glob", report: "weird ordering" },
+			{ id: 2, model: "test-model", version: "test-version", tool: "read", report: "selector ignored" },
+		]);
 
 		// Rows are retained for inspection — `pushed=1` flips, but the data
-		// stays so users can browse what they've filed via `zetacode grievances`.
+		// stays so users can browse what they've shipped via `omp grievances`.
 		expect(selectIds(db)).toEqual([1, 2]);
 		expect(selectPushedIds(db)).toEqual([1, 2]);
 		expect(selectUnpushedIds(db)).toEqual([]);
 	});
 
-	it("labels the manual grievances path feedback", async () => {
-		insertGrievance(db, "glob", "weird ordering");
-		let body: { labels: string[] } | undefined;
+	it("omits the Authorization header when no token is configured", async () => {
+		insertGrievance(db, "glob", "no token here");
+		let capturedInit: RequestInit | undefined;
 		const fetchSpy = vi.fn(async (_input: string | URL | Request, init: RequestInit | undefined) => {
-			body = JSON.parse(String(init?.body)) as { labels: string[] };
-			return createdIssue(1);
+			capturedInit = init;
+			return new Response("", { status: 204 });
 		});
 
-		await flushGrievances(db, pushSettings(), { kind: "feedback", fetch: mockFetch(fetchSpy) });
+		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(body?.labels).toEqual(["feedback"]);
+		expect(result).toEqual({ pushed: 1, ok: true });
+		const headers = capturedInit?.headers as Record<string, string> | undefined;
+		expect(headers?.authorization).toBeUndefined();
+		expect(selectUnpushedIds(db)).toEqual([]);
+		expect(selectPushedIds(db)).toEqual([1]);
 	});
 
-	it("returns the composed issue with a prefilled URL and sends nothing without a token", async () => {
-		insertGrievance(db, "glob", "no token here");
-		const fetchSpy = vi.fn(async () => createdIssue(1));
-
-		const settings = pushSettings({ "dev.autoqaPush.token": undefined });
-		const result = await flushGrievances(db, settings, { fetch: mockFetch(fetchSpy), ghPath: null });
-
-		expect(fetchSpy).not.toHaveBeenCalled();
-		expect(result.ok).toBe(false);
-		expect(result.unauthenticated).toBe(true);
-		expect(result.pushed).toBe(0);
-		expect(result.manualUrl).toContain("https://github.com/");
-		expect(result.manualUrl).toContain("/issues/new?");
-		expect(result.composed?.title).toBe("[auto-qa] glob: no token here");
-		// Nothing was shipped — the row stays queued for a later attempt.
-		expect(selectUnpushedIds(db)).toEqual([1]);
-		expect(selectPushedIds(db)).toEqual([]);
-	});
-
-	it("leaves rows unpushed on 5xx and surfaces the error", async () => {
+	it("leaves rows unpushed on 5xx and surfaces the server error", async () => {
 		insertGrievance(db, "glob", "boom");
 		const fetchSpy = vi.fn(async () => new Response("nope", { status: 500 }));
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 0, ok: false });
-		expect(result.error).toContain("500");
+		expect(result).toEqual({ pushed: 0, ok: false, error: "HTTP 500: nope" });
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		expect(selectUnpushedIds(db)).toEqual([1]);
 		expect(selectPushedIds(db)).toEqual([]);
@@ -302,36 +264,40 @@ describe("flushGrievances", () => {
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 0, ok: false });
-		expect(result.error).toContain("401");
+		expect(result).toEqual({ pushed: 0, ok: false, error: "HTTP 401: bad token" });
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		expect(selectUnpushedIds(db)).toEqual([1]);
 		expect(selectRejected(db)).toEqual([]);
 	});
 
-	it("clamps an over-long legacy tool name at send time and keeps the full line in the report", async () => {
+	it("clamps an over-long tool name at send time and keeps the full line in the report", async () => {
 		// Recorded by an older build that stored a whole sentence as the tool
-		// name (the retired collector rejected entries above 128 UTF-8 bytes).
+		// name; the collector rejects the batch above 128 UTF-8 bytes.
 		const prose =
 			"eval içindeki tool.glob exact ve var olmayan yolu çağırınca beklenmedik şekilde RuntimeError fırlatıyor, sessizce boş dönmüyor";
 		insertGrievance(db, prose, "glob threw instead of returning empty");
 
-		let body: { title: string; body: string } | undefined;
+		interface SentEntry {
+			tool: string;
+			report: string;
+		}
+		let entries: SentEntry[] = [];
 		const fetchSpy = vi.fn(async (_input: string | URL | Request, init: RequestInit | undefined) => {
-			body = JSON.parse(String(init?.body)) as { title: string; body: string };
-			return createdIssue(1);
+			const payload: { entries: SentEntry[] } = JSON.parse(String(init?.body));
+			entries = payload.entries;
+			const oversized = entries.some(e => Buffer.byteLength(e.tool, "utf8") > 128);
+			return new Response(oversized ? "tool exceeds 128 bytes" : "", { status: oversized ? 400 : 200 });
 		});
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 1, ok: true });
-		const clampedTool = body?.title.replace("[auto-qa] ", "").split(": ")[0] ?? "";
-		expect(Buffer.byteLength(clampedTool, "utf8")).toBeLessThanOrEqual(128);
-		expect(prose.startsWith(clampedTool)).toBe(true);
+		expect(result).toEqual({ pushed: 1, ok: true });
+		expect(Buffer.byteLength(entries[0]?.tool ?? "", "utf8")).toBeLessThanOrEqual(128);
+		expect(prose.startsWith(entries[0]?.tool ?? "")).toBe(true);
 		// Truncation happens on a code-point boundary, never mid-character.
-		expect(clampedTool).not.toContain("\ufffd");
-		// The full original line survives in the body, not the clamped prefix.
-		expect(body?.body).toContain(`${prose}\nglob threw instead of returning empty`);
+		expect(entries[0]?.tool ?? "").not.toContain("\ufffd");
+		// The clamped prefix isn't the report — the full original line is.
+		expect(entries[0]?.report).toBe(`${prose}\nglob threw instead of returning empty`);
 		expect(selectPushedIds(db)).toEqual([1]);
 	});
 
@@ -341,20 +307,24 @@ describe("flushGrievances", () => {
 		for (let i = 0; i < 6; i++) insertGrievance(db, i === 0 ? "poison" : "read", `report-${i}`);
 
 		const fetchSpy = vi.fn(async (_input: string | URL | Request, init: RequestInit | undefined) => {
-			const payload = JSON.parse(String(init?.body)) as { title: string };
-			const poisoned = payload.title.includes("poison");
-			return poisoned ? new Response('{"message":"tool rejected"}', { status: 422 }) : createdIssue(1);
+			const payload: { entries: Array<{ tool: string }> } = JSON.parse(String(init?.body));
+			const bad = payload.entries.findIndex(e => e.tool === "poison");
+			return bad >= 0
+				? new Response(`{"error":"entries[${bad}].tool rejected"}`, { status: 400 })
+				: new Response("", { status: 200 });
 		});
 
 		const settings = pushSettings();
 		const result = await flushGrievances(db, settings, { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 5, ok: true, rejected: 1 });
-		expect(result.error).toContain("422");
+		expect(result).toEqual({
+			pushed: 5,
+			ok: true,
+			rejected: 1,
+			error: 'HTTP 400: {"error":"entries[0].tool rejected"}',
+		});
 		expect(selectPushedIds(db)).toEqual([2, 3, 4, 5, 6]);
-		expect(selectRejected(db)).toHaveLength(1);
-		expect(selectRejected(db)[0]?.id).toBe(1);
-		expect(selectRejected(db)[0]?.push_error).toContain("422");
+		expect(selectRejected(db)).toEqual([{ id: 1, push_error: 'HTTP 400: {"error":"entries[0].tool rejected"}' }]);
 		expect(selectUnpushedIds(db)).toEqual([]);
 
 		// A later session finds nothing to send — the parked row is not retried.
@@ -365,7 +335,7 @@ describe("flushGrievances", () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
-	it("drains mid-flight inserts in a follow-up iteration within the same loop", async () => {
+	it("drains mid-flight inserts in a follow-up batch within the same loop", async () => {
 		insertGrievance(db, "glob", "first");
 
 		const fetchEntered = Promise.withResolvers<void>();
@@ -377,22 +347,23 @@ describe("flushGrievances", () => {
 				fetchEntered.resolve();
 				return releaseFirstFetch.promise;
 			}
-			return Promise.resolve(createdIssue(fetchCount));
+			// Subsequent loop iterations resolve immediately so the worker
+			// finishes draining without manual coordination per batch.
+			return Promise.resolve(new Response("", { status: 200 }));
 		});
 
 		const flushPromise = flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 		await fetchEntered.promise;
 
-		// New grievance written by a concurrent tool call while the first issue
-		// is still in flight.
+		// New grievance written by a concurrent tool call while the push is in flight.
 		insertGrievance(db, "read", "second");
 
-		releaseFirstFetch.resolve(createdIssue(1));
+		releaseFirstFetch.resolve(new Response("", { status: 200 }));
 		const result = await flushPromise;
 
-		// Both rows filed — the worker looped, the next query picked up the row
-		// that landed mid-flight.
-		expect(result).toMatchObject({ pushed: 2, ok: true });
+		// Both rows shipped — the worker looped, the second batch picked up
+		// the row that landed mid-flight.
+		expect(result).toEqual({ pushed: 2, ok: true });
 		expect(fetchSpy).toHaveBeenCalledTimes(2);
 		expect(selectUnpushedIds(db)).toEqual([]);
 		expect(selectPushedIds(db)).toEqual([1, 2]);
@@ -408,11 +379,11 @@ describe("flushGrievances", () => {
 		const first = flushGrievances(db, settings, { fetch: mockFetch(fetchSpy) });
 		const second = flushGrievances(db, settings, { fetch: mockFetch(fetchSpy) });
 
-		releaseFetch.resolve(createdIssue(1));
+		releaseFetch.resolve(new Response("", { status: 200 }));
 		const [a, b] = await Promise.all([first, second]);
 
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
-		expect(a).toMatchObject({ pushed: 1, ok: true });
+		expect(a).toEqual({ pushed: 1, ok: true });
 		expect(b).toBe(a);
 		expect(selectUnpushedIds(db)).toEqual([]);
 		expect(selectPushedIds(db)).toEqual([1]);
@@ -426,42 +397,57 @@ describe("flushGrievances", () => {
 		const firstResult = await flushGrievances(db, settings, { fetch: mockFetch(fetchSpy) });
 		const secondResult = await flushGrievances(db, settings, { fetch: mockFetch(fetchSpy) });
 
-		expect(firstResult).toMatchObject({ pushed: 0, ok: false });
-		expect(firstResult.error).toContain("500");
+		expect(firstResult).toEqual({ pushed: 0, ok: false, error: "HTTP 500: nope" });
 		expect(secondResult).toEqual({ pushed: 0, ok: false, skipped: true });
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		expect(selectUnpushedIds(db)).toEqual([1]);
 	});
 
-	it("files a backlog as one issue per row across the whole loop", async () => {
-		const total = 7;
+	it("drains a backlog larger than the batch size in multiple POSTs", async () => {
+		// Seed >1 batch worth (FLUSH_BATCH_SIZE = 50) so the worker has to loop.
+		// 127 chosen to land on a non-multiple boundary (2 full batches + a
+		// partial final one), exercising both the LIMIT semantics and the
+		// "remainder smaller than batch" tail.
+		const total = 127;
 		for (let i = 0; i < total; i++) insertGrievance(db, "glob", `report-${i}`);
 
-		const fetchSpy = vi.fn(async () => createdIssue(1));
-		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
-
-		expect(result).toMatchObject({ pushed: total, ok: true });
-		expect(fetchSpy).toHaveBeenCalledTimes(total);
-		expect(selectUnpushedIds(db)).toEqual([]);
-		expect(selectPushedIds(db).length).toBe(total);
-	});
-
-	it("stops the loop on a mid-backlog failure and preserves unpushed rows", async () => {
-		for (let i = 0; i < 3; i++) insertGrievance(db, "glob", `r-${i}`);
-
-		let call = 0;
-		const fetchSpy = vi.fn(() => {
-			call += 1;
-			return Promise.resolve(call === 1 ? createdIssue(1) : new Response("nope", { status: 500 }));
+		const seenBatchSizes: number[] = [];
+		const fetchSpy = vi.fn(async (_input: string | URL | Request, init: RequestInit | undefined) => {
+			const body = JSON.parse(String(init?.body)) as { entries: unknown[] };
+			seenBatchSizes.push(body.entries.length);
+			return new Response("", { status: 200 });
 		});
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 1, ok: false });
-		expect(result.error).toContain("500");
+		expect(result).toEqual({ pushed: total, ok: true });
+		// Three batches: 50 + 50 + 27.
+		expect(seenBatchSizes).toEqual([50, 50, 27]);
+		expect(fetchSpy).toHaveBeenCalledTimes(3);
+		expect(selectUnpushedIds(db)).toEqual([]);
+		expect(selectPushedIds(db).length).toBe(total);
+	});
+
+	it("stops the loop on a mid-batch failure and preserves unpushed rows", async () => {
+		// Two batches' worth — first batch ships, second batch errors. The
+		// pushed-so-far count surfaces in the result and only the unsent
+		// rows stay flagged unpushed.
+		const firstBatch = 50;
+		const secondBatch = 10;
+		for (let i = 0; i < firstBatch + secondBatch; i++) insertGrievance(db, "glob", `r-${i}`);
+
+		let call = 0;
+		const fetchSpy = vi.fn(() => {
+			call += 1;
+			return new Response("", { status: call === 1 ? 200 : 500 });
+		});
+
+		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
+
+		expect(result).toEqual({ pushed: firstBatch, ok: false, error: "HTTP 500" });
 		expect(fetchSpy).toHaveBeenCalledTimes(2);
-		expect(selectPushedIds(db)).toEqual([1]);
-		expect(selectUnpushedIds(db)).toEqual([2, 3]);
+		expect(selectPushedIds(db).length).toBe(firstBatch);
+		expect(selectUnpushedIds(db).length).toBe(secondBatch);
 	});
 
 	it("redacts the home directory from rows recorded before record-time redaction", async () => {
@@ -476,27 +462,22 @@ describe("flushGrievances", () => {
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toMatchObject({ pushed: 1, ok: true });
-		expect(result.urls).toHaveLength(1);
+		expect(result).toEqual({ pushed: 1, ok: true });
 		expect(sentBody).toMatchObject({
-			title: "[auto-qa] read ~/notes.md: selector dropped ~/notes.md:4",
+			entries: [{ tool: "read ~/notes.md", report: "selector dropped ~/notes.md:4" }],
 		});
-		expect(JSON.stringify(sentBody)).not.toContain("/Users/jdoe");
 	});
 });
 
 describe("dispatchReportIssueDevice", () => {
 	beforeEach(() => {
-		saveAndClearEnv();
-		// The device path is fire-and-forget; keep the happy path off the network.
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(createdIssue(1));
+		// Fixture words (`read`, `glob`, …) must not depend on the host's login name.
+		stubIdentity("/home/omp-test-user", "omp-test-user");
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 		__resetAutoQaConsentForTests();
-		vi.restoreAllMocks();
-		restoreEnv();
 	});
 
 	/** Drain the fire-and-forget consent → insert → flush pipeline. */
@@ -504,12 +485,12 @@ describe("dispatchReportIssueDevice", () => {
 		await __awaitAutoQaRecordPipelineForTests();
 	}
 
-	/** Auto QA on, consent already granted, a token available. */
+	/** Auto QA on, consent already granted, push disabled (empty endpoint). */
 	function consentedSettings(): Settings {
 		return Settings.isolated({
 			"dev.autoqa": true,
 			"dev.autoqaConsent": "granted",
-			"dev.autoqaPush.token": "settings-token",
+			"dev.autoqaPush.endpoint": "",
 		});
 	}
 
@@ -553,7 +534,44 @@ describe("dispatchReportIssueDevice", () => {
 		}
 	});
 
-	it("clamps a prose first line so the stored tool stays within the historical limit", async () => {
+	it.each([
+		[
+			"xd://tui: start fails because kitty-vt-wasm is missing",
+			"xd://tui",
+			"start fails because kitty-vt-wasm is missing",
+		],
+		["write xd://tui: start fails before executing bun", "write xd://tui", "start fails before executing bun"],
+		[
+			'write conflict://*: per-id content "2:\ttext" was read as a hashline prefix',
+			"write conflict://*",
+			'per-id content "2:\ttext" was read as a hashline prefix',
+		],
+	])("keeps the URI in the tool name of %p", async (text, tool, report) => {
+		Bun.env.PI_AUTO_QA = "1";
+		const db = openTempDb();
+		const openSpy = vi.spyOn(reportIssue, "openAutoQaDb").mockReturnValue(db);
+		try {
+			const session = { settings: consentedSettings() } as ToolSession;
+			await dispatchReportIssueDevice(session, text);
+			await settlePipeline();
+			const row = db.prepare("SELECT tool, report FROM grievances").get() as { tool: string; report: string };
+			expect(row).toEqual({ tool, report });
+		} finally {
+			openSpy.mockRestore();
+			db.close();
+		}
+	});
+
+	it.each([
+		"read agent://ReviewLifecycleLever returned an empty response",
+		"browser.open({name:'jio-terms',url:'https://www.jio.com/'}) navigated the attached relay tab",
+	])("rejects %p, which has no `: ` separator, instead of splitting inside it", async text => {
+		Bun.env.PI_AUTO_QA = "1";
+		const session = { settings: Settings.isolated({ "dev.autoqa": true }) } as ToolSession;
+		await expect(dispatchReportIssueDevice(session, text)).rejects.toThrow("Invalid report format");
+	});
+
+	it("clamps a prose first line so the stored tool stays within the collector limit", async () => {
 		Bun.env.PI_AUTO_QA = "1";
 		const db = openTempDb();
 		const openSpy = vi.spyOn(reportIssue, "openAutoQaDb").mockReturnValue(db);
@@ -648,6 +666,53 @@ describe("dispatchReportIssueDevice", () => {
 		} finally {
 			if (originalPush === undefined) delete Bun.env.PI_AUTO_QA_PUSH;
 			else Bun.env.PI_AUTO_QA_PUSH = originalPush;
+			openSpy.mockRestore();
+			db.close();
+		}
+	});
+
+	it.each([
+		[
+			'{"tool": "read", "description": "numbered lines had no snapshot hash"}',
+			"read",
+			"numbered lines had no snapshot hash",
+		],
+		['{\n  "tool": "grep",\n  "issue": "missed a match"\n}', "grep", "missed a match"],
+	])("records a JSON body %p", async (text, tool, report) => {
+		Bun.env.PI_AUTO_QA = "1";
+		const db = openTempDb();
+		const openSpy = vi.spyOn(reportIssue, "openAutoQaDb").mockReturnValue(db);
+		try {
+			const session = { settings: consentedSettings() } as ToolSession;
+			await dispatchReportIssueDevice(session, text);
+			await settlePipeline();
+			const row = db.prepare("SELECT tool, report, source FROM grievances").get();
+			expect(row).toEqual({ tool, report, source: "builtin" });
+		} finally {
+			openSpy.mockRestore();
+			db.close();
+		}
+	});
+
+	it("rejects a JSON body without a tool and a description", async () => {
+		const session = { settings: Settings.isolated({ "dev.autoqa": true }) } as ToolSession;
+		await expect(dispatchReportIssueDevice(session, '{"note": "no issue"}')).rejects.toThrow("Invalid report format");
+	});
+
+	it("tags MCP tools with their server", async () => {
+		Bun.env.PI_AUTO_QA = "1";
+		const db = openTempDb();
+		const openSpy = vi.spyOn(reportIssue, "openAutoQaDb").mockReturnValue(db);
+		try {
+			const session = {
+				settings: consentedSettings(),
+				getToolByName: (name: string) =>
+					name === "mcp__linear__search" ? ({ name, mcpServerName: "linear" } as unknown as AgentTool) : undefined,
+			} as ToolSession;
+			await dispatchReportIssueDevice(session, "mcp__linear__search: returned stale issues");
+			await settlePipeline();
+			expect(db.prepare("SELECT source FROM grievances").get()).toEqual({ source: "mcp:linear" });
+		} finally {
 			openSpy.mockRestore();
 			db.close();
 		}

@@ -3,17 +3,17 @@
  *
  * Built-in providers only discover fixed names and keep one file per scope.
  * These names are additive: AGENTS.local.md loads beside AGENTS.md instead of
- * taking its slot. A linked worktree also reads each name from the primary
+ * taking its slot. A Git or ovnfs worktree also reads each name from the primary
  * checkout, which the normal walk never reaches.
  */
 import * as path from "node:path";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getAgentDir } from "@linxiraos/pi-utils";
+import { getAgentDir } from "@oh-my-pi/pi-utils";
 import { boundSettings, registerProvider } from "../capability";
 import { type ContextFile, contextFileCapability } from "../capability/context-file";
 import { readFile } from "../capability/fs";
 import type { LoadContext, LoadResult } from "../capability/types";
 import { cfgContextFilesExtra } from "../session/context-settings";
+import { worktreeOrigin } from "../worktree/worktrees";
 import { calculateDepth, createSourceMeta, loadStandaloneContextFiles } from "./helpers";
 
 const PROVIDER_ID = "custom-context";
@@ -24,7 +24,7 @@ interface ConfiguredNames {
 	/**
 	 * Whether names may be read from the user agent directory. Not when a project
 	 * config supplied the list: a repository must not pull files such as
-	 * `config.yml` from `~/.zeta/agent` into the prompt.
+	 * `config.yml` from `~/.omp/agent` into the prompt.
 	 */
 	includeAgentDir: boolean;
 }
@@ -71,8 +71,8 @@ export async function loadCustomContextFiles(ctx: LoadContext): Promise<LoadResu
 		for (const item of loaded.items) pushFile(items, seen, item);
 	}
 
-	const linked = vcs.git(ctx.cwd)?.linkedWorktree();
-	const primary = linked ? path.resolve(linked.primaryRoot) : undefined;
+	const origin = await worktreeOrigin(ctx.cwd, boundSettings());
+	const primary = origin ? path.resolve(origin) : undefined;
 	const walkRoot = ctx.repoRoot ? path.resolve(ctx.repoRoot) : undefined;
 	if (primary !== undefined && primary !== walkRoot) {
 		const depth = primaryDepth(ctx, primary);

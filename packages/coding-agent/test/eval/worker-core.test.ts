@@ -3,15 +3,15 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { shadowSnapshotDigest } from "@linxiraos/zeta/eval/js/shared/runtime";
-import { WorkerCore } from "@linxiraos/zeta/eval/js/worker-core";
+import { shadowSnapshotDigest } from "@oh-my-pi/pi-coding-agent/eval/js/shared/runtime";
+import { WorkerCore } from "@oh-my-pi/pi-coding-agent/eval/js/worker-core";
 import type {
 	SessionSnapshot,
 	Transport,
 	WorkerInbound,
 	WorkerOutbound,
-} from "@linxiraos/zeta/eval/js/worker-protocol";
-import { postmortem } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/eval/js/worker-protocol";
+import { postmortem } from "@oh-my-pi/pi-utils";
 
 interface WorkerHarness {
 	send(message: WorkerInbound): void;
@@ -147,7 +147,7 @@ for (const pending of calls.slice(0, 12)) await rejectCall(pending);
 const gateCall = waitFor(message => message.type === "tool-call" && message.runId === "second");
 const second = waitFor(message => message.type === "result" && message.runId === "second");
 send({ type: "run", runId: "second", filename: "[second].js", snapshot,
-	code: 'await __zeta_call_tool__("read", {}); print(kept);' });
+	code: 'await __omp_call_tool__("read", {}); print(kept);' });
 const gate = await gateCall;
 await rejectCall(calls[12]);
 send({ type: "tool-reply", id: gate.id, reply: { ok: true, value: null } });
@@ -248,7 +248,7 @@ console.log(JSON.stringify(messages));
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -258,7 +258,7 @@ console.log(JSON.stringify(messages));
 			first.send({
 				type: "run",
 				runId: "hold-for-reinit",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait;",
 				filename: "[reinit-first].js",
 				snapshot: { cwd, sessionId: "reinit-first", localRoots: {} },
 			});
@@ -297,8 +297,8 @@ console.log(JSON.stringify(messages));
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 		}
@@ -315,7 +315,7 @@ console.log(JSON.stringify(messages));
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -325,7 +325,7 @@ console.log(JSON.stringify(messages));
 			first.send({
 				type: "run",
 				runId: "hold-for-multi-init",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait;",
 				filename: "[init-live-first].js",
 				snapshot: { cwd, sessionId: "init-live-first", localRoots: {} },
 			});
@@ -384,8 +384,8 @@ console.log(JSON.stringify(messages));
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 			third.send({ type: "close" });
@@ -400,7 +400,7 @@ console.log(JSON.stringify(messages));
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
+		(globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_core_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -418,7 +418,7 @@ console.log(JSON.stringify(messages));
 			first.send({
 				type: "run",
 				runId: "hold-for-first-init",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait; __zeta_session__.sessionId;",
+				code: "globalThis.__omp_worker_core_gate.entered(); await globalThis.__omp_worker_core_gate.wait; __omp_session__.sessionId;",
 				filename: "[first-init-live-first].js",
 				snapshot: { cwd, sessionId: "first-init-live-first", localRoots: {} },
 			});
@@ -452,8 +452,8 @@ console.log(JSON.stringify(messages));
 		} finally {
 			uninstall();
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
+			delete (globalThis as { __omp_worker_core_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_core_gate;
 			first.send({ type: "close" });
 			second.send({ type: "close" });
 		}
@@ -492,7 +492,7 @@ console.log(JSON.stringify(messages));
 
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_cwd_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_cwd_gate = {
+		(globalThis as { __omp_worker_cwd_gate?: { entered(): void; wait: Promise<void> } }).__omp_worker_cwd_gate = {
 			entered: () => entered.resolve(),
 			wait: gate.promise,
 		};
@@ -507,7 +507,7 @@ console.log(JSON.stringify(messages));
 			harness.send({
 				type: "run",
 				runId: "cwd-hold",
-				code: "globalThis.__zeta_worker_cwd_gate.entered(); await globalThis.__zeta_worker_cwd_gate.wait;",
+				code: "globalThis.__omp_worker_cwd_gate.entered(); await globalThis.__omp_worker_cwd_gate.wait;",
 				filename: "[cwd-race-hold].js",
 				snapshot: { cwd: dirA, sessionId: "cwd-race", localRoots: {} },
 			});
@@ -553,54 +553,54 @@ console.log(JSON.stringify(messages));
 			expect(chdirs.at(-1)).toBe(dirB);
 		} finally {
 			gate.resolve();
-			delete (globalThis as { __zeta_worker_cwd_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_cwd_gate;
+			delete (globalThis as { __omp_worker_cwd_gate?: { entered(): void; wait: Promise<void> } })
+				.__omp_worker_cwd_gate;
 			harness.send({ type: "close" });
 			await fs.rm(dirA, { recursive: true, force: true });
 			await fs.rm(dirB, { recursive: true, force: true });
 		}
 	});
 
-	it("reads artifact:// from the artifacts dir of the run's snapshot, not the first one", async () => {
-		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-a-"));
-		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-b-"));
-		await Bun.write(path.join(dirA, "5.eval.log"), "from A");
-		await Bun.write(path.join(dirB, "5.eval.log"), "from B");
+	it("reads local:// spills from the local root of the run's snapshot, not the first one", async () => {
+		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "omp-local-a-"));
+		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "omp-local-b-"));
+		await Bun.write(path.join(dirA, "5.log"), "from A");
+		await Bun.write(path.join(dirB, "5.log"), "from B");
 		const harness = createWorkerHarness();
-		const probe = globalThis as { __omp_artifact_probe?: unknown };
-		const run = async (runId: string, artifacts: string) => {
+		const probe = globalThis as { __omp_spill_probe?: unknown };
+		const run = async (runId: string, root: string) => {
 			const result = waitForMessage(harness, message => message.type === "result" && message.runId === runId);
 			harness.send({
 				type: "run",
 				runId,
-				code: `globalThis.__omp_artifact_probe = await read("artifact://5");`,
+				code: `globalThis.__omp_spill_probe = await read("local://5.log");`,
 				filename: `[${runId}].js`,
-				snapshot: { cwd: process.cwd(), sessionId: "artifact-roots", localRoots: { artifact: artifacts } },
+				snapshot: { cwd: process.cwd(), sessionId: "spill-roots", localRoots: { local: root } },
 			});
 			expect(await result).toMatchObject({ type: "result", runId, ok: true });
-			return probe.__omp_artifact_probe;
+			return probe.__omp_spill_probe;
 		};
 		try {
 			await initializeWorker(harness, {
 				cwd: process.cwd(),
-				sessionId: "artifact-roots",
-				localRoots: { artifact: dirA },
+				sessionId: "spill-roots",
+				localRoots: { local: dirA },
 			});
-			expect(await run("artifact-a", dirA)).toBe("from A");
-			expect(await run("artifact-b", dirB)).toBe("from B");
+			expect(await run("spill-a", dirA)).toBe("from A");
+			expect(await run("spill-b", dirB)).toBe("from B");
 		} finally {
-			delete probe.__omp_artifact_probe;
+			delete probe.__omp_spill_probe;
 			harness.send({ type: "close" });
 			await fs.rm(dirA, { recursive: true, force: true });
 			await fs.rm(dirB, { recursive: true, force: true });
 		}
 	});
 
-	it("keeps a suspended run on its own artifact root while an overlapping run uses another", async () => {
-		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-a-"));
-		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-b-"));
-		await Bun.write(path.join(dirA, "5.eval.log"), "from A");
-		await Bun.write(path.join(dirB, "5.eval.log"), "from B");
+	it("keeps a suspended run on its own local:// root while an overlapping run uses another", async () => {
+		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "omp-local-a-"));
+		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "omp-local-b-"));
+		await Bun.write(path.join(dirA, "5.log"), "from A");
+		await Bun.write(path.join(dirB, "5.log"), "from B");
 		const harness = createWorkerHarness();
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
@@ -610,10 +610,10 @@ console.log(JSON.stringify(messages));
 		};
 		probe.__omp_roots_gate = { entered: () => entered.resolve(), wait: gate.promise };
 		probe.__omp_roots_probe = {};
-		const snapshot = (artifacts: string): SessionSnapshot => ({
+		const snapshot = (root: string): SessionSnapshot => ({
 			cwd: process.cwd(),
-			sessionId: "artifact-roots-overlap",
-			localRoots: { artifact: artifacts },
+			sessionId: "spill-roots-overlap",
+			localRoots: { local: root },
 		});
 		try {
 			await initializeWorker(harness, snapshot(dirA));
@@ -621,7 +621,7 @@ console.log(JSON.stringify(messages));
 			harness.send({
 				type: "run",
 				runId: "hold",
-				code: `globalThis.__omp_roots_gate.entered(); await globalThis.__omp_roots_gate.wait; globalThis.__omp_roots_probe.hold = await read("artifact://5");`,
+				code: `globalThis.__omp_roots_gate.entered(); await globalThis.__omp_roots_gate.wait; globalThis.__omp_roots_probe.hold = await read("local://5.log");`,
 				filename: "[roots-hold].js",
 				snapshot: snapshot(dirA),
 			});
@@ -634,7 +634,7 @@ console.log(JSON.stringify(messages));
 			harness.send({
 				type: "run",
 				runId: "overlap",
-				code: `globalThis.__omp_roots_probe.overlap = await read("artifact://5");`,
+				code: `globalThis.__omp_roots_probe.overlap = await read("local://5.log");`,
 				filename: "[roots-overlap].js",
 				snapshot: snapshot(dirB),
 			});

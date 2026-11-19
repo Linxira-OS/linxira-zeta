@@ -1,15 +1,15 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import { TUI } from "@linxiraos/pi-tui";
+import { TUI } from "@oh-my-pi/pi-tui";
 import { CleanseBoardModel } from "../src/apps/cleanse-board";
 import { showGitOverlay } from "../src/apps/git/git-tui";
 import type { AssetFileContents, ChangedFile, GitTuiModel } from "../src/apps/git/state";
 import { initTheme } from "../src/theme/theme";
 import { TspHarness } from "./native/tsp-harness";
-import type { PsScope, PsScopeReport } from "../src/apps/ps-data";
+import type { PsBoard } from "../src/apps/ps-data";
 import { type PsTopHost, PsTopComponent } from "../src/apps/ps-top";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
-import { TSP_KINDS, type TspKind } from "@linxiraos/pi-wire";
-import type { DaemonSnapshot, DaemonSpec } from "../src/tools/daemon";
+import { TSP_KINDS, type TspKind } from "@oh-my-pi/pi-wire";
+import type { ProcSpec, UnitScope, UnitSnapshot } from "../src/tools/daemon";
 import { VirtualTerminal } from "./virtual-terminal";
 
 function nodes(children: readonly NativeChild[] | undefined): NativeNode[] {
@@ -20,49 +20,45 @@ function nodes(children: readonly NativeChild[] | undefined): NativeNode[] {
 	return out;
 }
 
-const scope: PsScope = { kind: "project", runtimeDir: "/tmp/omp/run", projectDir: "/work/app", brokerPid: 42 };
+const scope: UnitScope = { kind: "project", dir: "/work/app" };
 
-function snapshot(name: string): DaemonSnapshot {
+function unit(key: string): UnitSnapshot {
 	return {
-		name,
-		id: name,
+		id: `u-${key}`,
+		kind: "proc",
+		scope,
+		key,
+		label: key,
+		generation: "g1",
 		state: "running",
-		pid: 100,
+		pids: [100],
 		createdAt: 0,
 		startedAt: Date.now(),
 		restartCount: 0,
 		outputBytes: 0,
-		persist: false,
-		detached: false,
+		leases: 1,
+		policy: { hold: "leases", idleMs: 0, onIdle: "stop", restart: "no", survive: "exec" },
+		command: `run ${key}`,
+		cwd: "/work/app",
+		supervised: true,
 	};
 }
 
 function fakeHost(described: string[]): PsTopHost {
-	const reports: PsScopeReport[] = [
-		{
-			scope,
-			daemons: ["api", "web"].map(name => ({ snapshot: snapshot(name), command: `run ${name}`, supervised: true })),
-		},
-	];
+	const board: PsBoard = {
+		daemon: { pid: 42, build: "test", startedAt: 0 },
+		reports: [{ scope, units: ["api", "web"].map(unit) }],
+	};
 	return {
-		collectReports: async () => reports,
-		act: async (_scope, name) => snapshot(name),
-		describe: async (_scope, name) => {
-			described.push(name);
-			const spec: DaemonSpec = {
-				name,
-				application: "run",
-				args: [name],
-				env: {},
-				cwd: "/work/app",
-				pty: false,
-				restart: "no",
-				persist: false,
-				detached: false,
-			};
-			return { daemon: snapshot(name), spec };
+		collectBoard: async () => board,
+		watch: () => () => {},
+		act: async current => current,
+		describe: async current => {
+			described.push(current.key);
+			const proc: ProcSpec = { application: "run", args: [current.key], env: {}, cwd: "/work/app", pty: false };
+			return { unit: current, proc };
 		},
-		logs: async () => ({ text: "", state: "running" }),
+		logs: async () => ({ text: "", terminalOutput: "", state: "running" }),
 		close: () => {},
 	};
 }
@@ -90,7 +86,7 @@ describe("ps-top native", () => {
 			component.handleNativeEvent({ type: "activate", key: "", item: web.key ?? "" });
 			await rendered.promise;
 			expect(described).toEqual(["web"]);
-			expect(nodes([component.describe()]).some(n => n.p?.role === "zeta.ps.info")).toBe(true);
+			expect(nodes([component.describe()]).some(n => n.p?.role === "omp.ps.info")).toBe(true);
 		} finally {
 			component.dispose();
 		}
@@ -144,8 +140,15 @@ describe("git native", () => {
 			await settle();
 			const sf = h.terminal.surface ?? "";
 			const diff = () => h.find(n => n.k === "diff");
-			const path = () => h.find(n => (n.p as { role?: string } | undefined)?.role === "zeta.app.git.path");
+			const path = () => h.find(n => (n.p as { role?: string } | undefined)?.role === "omp.app.git.path");
 			expect(diff()?.p).toMatchObject({ mode: "split", path: "src/a.ts" });
+
+			// The Wrap lines tool reaches the drawn diff (off, as in the terminal, until toggled).
+			expect(diff()?.p).toMatchObject({ wrap: false });
+			const wrap = h.find(n => n.id.endsWith("/wrap"));
+			h.event({ ev: "action", sf, id: wrap?.id ?? "", act: "wrap" });
+			await settle();
+			expect(diff()?.p).toMatchObject({ wrap: true });
 
 			const views = h.find(n => n.k === "tabs" && (n.p as { active?: string }).active === "split");
 			h.event({ ev: "select", sf, id: views?.id ?? "", item: "inline" });
@@ -281,7 +284,7 @@ describe("git native", () => {
 		});
 		try {
 			const role = (n: { p?: unknown }) => (n.p as { role?: string } | undefined)?.role;
-			const shown = () => h.find(n => role(n) === "zeta.app.git.compare" || n.k === "kv");
+			const shown = () => h.find(n => role(n) === "omp.app.git.compare" || n.k === "kv");
 			for (let i = 0; i < 10 && !shown(); i++) {
 				await Promise.resolve();
 				h.tui.requestRender();
@@ -294,8 +297,8 @@ describe("git native", () => {
 						const { path, rev, link } = n.p as { path: string; rev?: string; link?: string };
 						return { path, rev, link };
 					}),
-				heads: h.findAll(n => role(n) === "zeta.app.git.media-head").map(n => JSON.stringify(n.p)),
-				notes: h.findAll(n => role(n) === "zeta.app.git.media-none").map(n => JSON.stringify(n.p)),
+				heads: h.findAll(n => role(n) === "omp.app.git.media-head").map(n => JSON.stringify(n.p)),
+				notes: h.findAll(n => role(n) === "omp.app.git.media-none").map(n => JSON.stringify(n.p)),
 				kv: h.find(n => n.k === "kv")?.p,
 			};
 		} finally {
@@ -389,7 +392,7 @@ describe("cleanse board native", () => {
 		expect(next).not.toBe(first);
 		const progress = nodes(next ? [next] : []).find(n => n.k === "progress");
 		expect(progress?.p).toMatchObject({ value: 0.5 });
-		expect(model.lastSettled?.p).toMatchObject({ role: "zeta.cleanse.outcome" });
+		expect(model.lastSettled?.p).toMatchObject({ role: "omp.cleanse.outcome" });
 	});
 
 	it("draws running lanes as agent rows under a meter when the terminal has those kinds", () => {

@@ -39,7 +39,7 @@ Does not cover `/tree` UI rendering behavior beyond semantics that affect sessio
 Default file-session location:
 
 ```text
-~/.zeta/agent/sessions/<encoded-cwd>/<timestamp>_<sessionId>.jsonl
+~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<sessionId>.jsonl
 ```
 
 `<encoded-cwd>` is derived from the canonicalized cwd (so symlink aliases share a bucket): `-<relative>` for directories under home, `-tmp-<relative>` for directories under the temp root, and `--<encoded-absolute>--` for anything else, with path separators replaced by `-`.
@@ -49,13 +49,13 @@ On access, buckets written by the short-lived hashed scheme (`<scope>-<project-b
 Blob store location:
 
 ```text
-~/.zeta/agent/blobs/<sha256>
+~/.omp/agent/blobs/<sha256>
 ```
 
 Terminal breadcrumb files are written under:
 
 ```text
-~/.zeta/agent/terminal-sessions/<terminal-id>
+~/.omp/agent/terminal-sessions/<terminal-id>
 ```
 
 Breadcrumb content begins with cwd and session file path. Optional extra lines are `fresh` and `cwdstat <device> <inode>`. A fresh breadcrumb preserves an initially created, lazy session whose JSONL file does not exist yet, preventing `continueRecent()` from reopening the previous session. Explicit `newSession()` boundaries materialize their header before returning, except the lazy successor created by `drop` (`/delete`). The directory identity permits automatic re-rooting after a same-filesystem project rename; a missing cwd alone is not move evidence. Writes are synchronous, ordered, and best-effort.
@@ -79,23 +79,10 @@ Session files are JSONL: one JSON object per line. Current files physically begi
 	"cwd": "/work/pi",
 	"title": "optional session title",
 	"titleSource": "auto",
-	"client": "web",
 	"additionalDirectories": ["/work/shared"],
 	"previousSessionFiles": ["/old/location/session.jsonl"],
 	"providerPromptCacheKey": "optional inherited cache identity",
 	"taskPromptCacheKey": "optional local-only Task sibling family key",
-	"origin": {
-		"kind": "im",
-		"channel": "wechat",
-		"chatId": "chat-7",
-		"botSessionId": "relay",
-		"workspaceAlias": "main",
-		"agentId": "optional main-agent id",
-		"bindingId": "optional channel/chat binding id"
-	},
-	// or { "kind": "team", "teamId": "acme", "pmId": "acme:core",
-	//      "engineerId": "acme:core:alice", "repoId": "acme:api",
-	//      "workspaceAlias": "core / alice / api" }
 	"parentSession": "optional lineage marker"
 }
 ```
@@ -114,21 +101,6 @@ Notes:
 - `parentSession` is an opaque lineage string. Current code writes either a session id or a session path depending on flow (`fork`, `forkFrom`, `createBranchedSession`, or explicit `newSession({ parentSession })`). Treat it as metadata, not a typed foreign key.
 
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
-- `client` is the closed client kind that **created** the session: `cli`, `web`, `desktop`, or `automation`. It is metadata, never an authorization signal. An absent field is a legacy transcript and reads as **unknown**; readers must not infer it from `cwd`, a URL, or the process shape, and must not default it to `cli`.
-- A later **run** of the same session never rewrites this creator stamp. It appends a `run_init` entry (below) whose `client` is the client that actually initiated that run, so a session created in the CLI and resumed in Studio keeps `client: "cli"` on the header while its latest `run_init.client` is `"web"`. A fork writes the fork initiator's `client` on the new header and keeps the source in `parentSession`.
-- Transports may declare the client they actually are with the `x-zeta-client` header (`cli`/`web`/`desktop`/`automation`). Unknown or missing values stay unknown for run metadata; the web gateway's own default is `web`, and a serve process uses `desktop` (`ZETA_DESKTOP=1`) or `automation`. The SDK leaves `client` absent unless its caller passes one explicitly; that is an explicit unknown, not a guessed CLI.
-- `origin` marks a conversation that belongs to an IM/bot/relay channel or to a Team checkout rather than a personal coding session. It is optional and additive: an absent or malformed field reads as personal, and an IM transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent. A `kind: "team"` stamp carries `teamId` and the optional deterministic row ids `pmId` / `engineerId` / `repoId` / `roomId` plus a name-only `workspaceAlias`; created inside a resolved Team location, it is hidden from the default current-folder/all-projects scopes and from `history.list` unless `includeTeam` is set, and grouped as Team → PM → engineer → repo → conversation. `--resume <id>` bypasses that filter. Team transcripts stay in the same per-cwd JSONL buckets; nothing is moved.
-
-### Visibility and deletion
-
-Hiding and deleting are different user intents and different storage operations:
-
-- **Hide / unhide a conversation** writes metadata only (`<agentDir>/session-visibility.json`, keyed by session id). The JSONL, artifacts and checkout are untouched. The TUI resume picker and Work Studio read the same file; hide is reversible from either surface.
-- **Hide folder** writes `hidden: true` for that folder path in `<agentDir>/resume-projects.json` (the same registry the TUI and gateway already share). The folder disappears from Work Studio's default project list and from the TUI directory's default view; its sessions and checkout stay on disk. The TUI reveals hidden folders/conversations with the **Show hidden** action (`v`), and both surfaces can unhide (TUI menu/`h`, or a future Work Studio reveal control).
-- **Remove path/project** is the registry removal (`PUT /api/projects { registered: false }`, TUI `unregisterProject`): it drops the registry/pin/group entry only. Transcripts remain and can still be found through history. The default workspace project is never removable.
-- **Delete conversation** is destructive and shared: the TUI picker and `DELETE /api/sessions/:id` both call the same `session-delete.ts` helper. The default mode moves the transcript, artifacts and stale backups to `~/.zeta/trash/sessions/<timestamp>_<id>/`, so `/trash` + `/restore` can recover it until retention expires; `--resume`'s standalone picker uses the permanent mode. Either mode removes the conversation's hidden flag and pin so deleted state cannot leak back.
-
-Surface policy: the TUI resume picker shows all conversations by default and reveals shared-hidden rows with **Show hidden** (the directory is never rescanned for this toggle). Work Studio's sidebar/history hide shared-hidden sessions and folders by default and expose no dead "coming soon" items. A row menu is contextual: conversation rows offer **Fork** and **Delete conversation**, folder rows offer **Hide folder** only. Both delete paths confirm before the destructive call; Fork uses the existing `session.fork` continuation path.
 
 ### Entry Base (`SessionEntryBase`)
 
@@ -246,6 +218,73 @@ optional model `role`, `api`, `provider`, `model`, `usage`, `stopReason`, and
 optional `errorMessage`. These records contribute usage accounting, not model
 messages or transcript turns. `appendModelUsage()` attaches the record to the
 initiating session/branch and rejects stale session ownership.
+
+Optional fields describe the call without copying the static prompt, which is
+identified by `purpose`.
+
+- `duration` / `ttft`: request wall time and time to first token, in ms.
+- `judgment`: a native judge query (TypeSafe jev and other judgment APIs).
+  `state` is the `sha256` of the canonical state, which is `states.id` in the
+  judgment answer cache (`~/.omp/cache/judgment-cache.db`): that database holds
+  the state text once and, under `oracle(state, model, name)`, each question's
+  rendered instructions, criteria, and full answer. `answers` keeps the headline
+  of each answer the request produced, by question id: a noul's probability of
+  yes, `[label, confidence]` for a choice, `[score, confidence]` for a score,
+  `[top, bottom, left, right, confidence]` for a box. `cached` counts questions
+  the cache answered instead (not billed, not in `answers`). A judgment answered
+  wholly from the cache writes no entry; a failed request has empty `answers`.
+- `completion`: a text side channel (title generation, recaps, commit
+  messages, memory extraction, …). `prompt` is the dynamic user-turn text the
+  model was sent; it is absent when the request read the conversation at the
+  entry's `parentId` (`title-fork`, `recap`, `btw`). `reply` is the raw reply
+  before parsing, or the tool arguments as JSON when the call answered through
+  a forced tool call. Either side is left out, never truncated, when it exceeds
+  4,000 characters (a diff, a transcript). Calls whose result the session
+  already stores (`compaction:<method>`, `branch-summary`, `web-search`,
+  `image-gen`, `image-describe`) journal usage and timing only. Compaction
+  purposes name the method that made the request: `compaction:remote`
+  (provider-native compaction, including OpenAI `/responses/compact` and V2
+  streaming), `compaction:soft` (local summary requests), `compaction:handoff`
+  (the handoff document); an advisor compacting its own history journals
+  `compaction:advisor`.
+
+An on-device model call that produced output is journaled with zero usage, so
+its count and `duration` are still visible.
+
+```json
+{
+	"type": "model_usage",
+	"id": "4e1e5bcf",
+	"parentId": "40ec204f",
+	"timestamp": "2026-11-18T10:16:19.964Z",
+	"purpose": "find",
+	"role": "typesafe",
+	"api": "typesafe",
+	"provider": "typesafe",
+	"model": "jev-1.14.0",
+	"usage": { "input": 824, "output": 87, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 911, "cost": { "input": 0.0000346, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0.0000346 } },
+	"stopReason": "stop",
+	"duration": 212,
+	"judgment": {
+		"state": "9f2c1a7b3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8",
+		"answers": { "p00": 0.46, "p01": 0.02, "kind": ["helper", 0.41] },
+		"cached": 1
+	}
+}
+```
+
+```json
+{
+	"type": "model_usage",
+	"purpose": "title",
+	"duration": 640,
+	"ttft": 410,
+	"completion": {
+		"prompt": "<user>\nfix the share bar\n</user>",
+		"reply": "<title>Fix stats share bar</title>"
+	}
+}
+```
 
 ### `model_change`
 
@@ -370,7 +409,7 @@ The strings in the table are reserved for their core consumers. Extensions MUST 
 
 ### `custom_message`
 
-Extension-provided message that does participate in LLM context. `content` can be a string or text/image content blocks, and `attribution` records whether the user or agent initiated it.
+Extension-provided message that participates in LLM context unless `excludeFromContext` is `true` (then it is only drawn and saved, like a `!!` bash row). `content` can be a string or text/image content blocks, and `attribution` records whether the user or agent initiated it.
 
 ```json
 {
@@ -405,7 +444,7 @@ Extension-provided message that does participate in LLM context. `content` can b
 
 Append-only audit entry for a session rename. It records `title`, `source` (`auto` or `user`), and optionally `previousTitle` and `trigger`. The current title is also updated in the fixed-width title slot so listing does not require a full-file rewrite.
 
-`/rename <title>` sets an explicit title. `/rename` without a title generates one from recent conversation using the title-generation candidates (`tiny`, `commit`, `smol`, then eligible current-model fallbacks), keeping the current title's card (`<icon> <CODE>: `) if it has one. A title still without a card, typed or generated, gets one from the same candidates (`src/prompts/system/title-card.md`) unless `title.icons` is `boring`; a failed card leaves the title plain, and an interrupt drops only the card from a typed title. Both are user-requested renames (`source: "user"`), so later automatic titling cannot replace them. An explicitly typed title is used exactly as typed in every language; only a generated title follows the selected `zh`/`en` policy. Empty conversation or failed generation leaves the current title unchanged. A session switch or newer rename while generation runs discards the stale result. Local tiny-model failures never fall back to an online provider.
+`/rename <title>` sets an explicit title. `/rename` without a title generates one from recent conversation using the title-generation candidates (`tiny`, `commit`, `smol`, then eligible current-model fallbacks), keeping the current title's card (`<icon> <CODE>: `) if it has one. A title still without a card, typed or generated, gets one from the same candidates (`src/prompts/system/title-card.md`) unless `title.icons` is `boring`; a failed card leaves the title plain, and an interrupt drops only the card from a typed title. Both are user-requested renames (`source: "user"`), so later automatic titling cannot replace them. Empty conversation or failed generation leaves the current title unchanged. A session switch or newer rename while generation runs discards the stale result. Local tiny-model failures never fall back to an online provider.
 
 ### `ttsr_injection`
 
@@ -422,81 +461,6 @@ Append-only audit entry for a session rename. It records `title`, `source` (`aut
 ### `credential_pin`
 
 Records the provider and a pseudonymous SHA-256 account/scope hash used to re-pin resumed OAuth traffic to the serving account and preserve account-scoped prompt-cache reuse. It does not store the raw account identity; exported hashes remain linkable and are not anonymous.
-
-### IM message provenance
-
-An IM inbound message is persisted as the real `role: "user"` entry (never re-written as an assistant/system summary). The entry carries `metadata` with the canonical set:
-
-```jsonc
-{
-	"source": "im",
-	"platform": "wechat",
-	"instance": "optional bot instance",
-	"chatId": "chat-1",
-	"threadId": "optional thread",
-	"senderId": "platform user id",
-	"senderName": "display name",
-	"messageId": "platform message id",
-	"sentAt": "2026-07-01T09:00:00.000Z",
-	"attachments": [{ "id": "...", "name": "...", "mimeType": "image/jpeg", "size": 42 }],
-	"route": { "workspaceAlias": "alpha", "agentId": "agent-a", "sessionId": "...", "botSessionId": "...", "bindingId": "..." }
-}
-```
-
-- `route` is a snapshot of the workspace/agent/session that actually received the message. It is immutable: a later `!workspace` switch must not rewrite an earlier row. The assistant entry that answers it carries `replyToMessageId` plus the same sender/chat/instance identity.
-- Metadata lives on the entry, not inside the provider payload, so it never changes the LLM prompt and needs no second transcript store. The Team IM chat page reads these entries through the normal session/context routes.
-- `!workspace` handshakes are `type: "im_control"` entries with `metadata.action` = `switch_request` | `switch_confirm` | `switch_cancel`, `requestId`, and `from`/`to` route snapshots. They are not user prompts and must be skipped by LLM context builders; a transcript viewer may render them. Pending request state and its per-chat key isolation belong to the IM channel layer, not the transcript.
-- Visibility: an IM-bound session (origin `kind: "im"`) is hidden from ordinary home/recent/history lists by default and exposed through the explicit IM/Bot filter. Ordinary Agent sessions, including a Team-origin session, are unaffected. Looking at the transcript never rewrites it.
-
-### Task summary projection
-
-A session row may carry `taskSummary` from the same bounded window the listing already reads (4 KB prefix + 32 KB tail); it is never a full-file scan and never an LLM call:
-
-```jsonc
-{
-	"status": "completed",           // completed | incomplete | unknown
-	"intent": "latest task user intent, single-line plain excerpt",
-	"result": "last assistant result of that completed turn",
-	"at": "2026-07-01T09:01:30.000Z",
-	"source": "completed_turn"       // completed_turn | open_turn | none
-}
-```
-
-- `completed_turn` requires the bounded window's final turn to be cleanly finished; `intent`/`result` are short single-line excerpts.
-- An open/interrupted/aborted/errored turn is `incomplete` with `intent` only (`open_turn`); it never borrows a previous turn's result and never presents `firstMessage`, a branch summary, or the latest IM inbound as a completed summary.
-- No reliable window/messages means the field is absent (or `status: "unknown"`); viewers show “no summary” rather than a fake one. Rows written before this projection existed have no field.
-- The projection lives in the existing scan cache, which invalidates on the file's mtime/size, so a normal session append updates it; no second store or authority.
-- Display name stays `sessionDisplayName(info)`: explicit title, else the short first-prompt rule, else `Untitled · <time>`; the raw session id is never used.
-
-Source APIs: `listSessions`/`listAllSessions` (`SessionInfo.taskSummary`), `GET /api/sessions`, `history.list` (`SessionHistoryEntry.taskSummary`), and `sessionDisplayName` for the name.
-
-### Read-model field names (Team IM / selector)
-
-- `SessionInfo` (and the gateway `SessionInfo` DTO): `client`, `runClient`, `taskSummary`, `origin`, plus the existing `title`/`firstMessage`/`status`.
-- `SessionHistoryEntry` (`history.list`): the same `client`, `runClient`, `taskSummary`, `origin`.
-- `SessionContext` (session/context and conversation reads): `messageMetadata` is parallel to `messages` (`null` for a row without IM metadata) and `controlEvents` is `Array<{ entryId, metadata }>` in transcript order. Control events are never in `messages`.
-- `sessionDisplayName(info)` is the only name rule: explicit title, else the short first-prompt fallback, else `Untitled · <time>`; raw ids are never a fallback.
-
-These fields are projections over the one durable transcript; the Team UI/selector must not create a second store or a parallel authority.
-
-### `run_init`
-
-Durable provenance of one run of an existing session (resume/attach), appended by the process that starts that run. It carries the same `client` field name as the header, so there is no parallel `initiatedBy` authority; the header keeps the creator and the newest `run_init` names the current run.
-
-```json
-{
-	"type": "run_init",
-	"id": "8-char-id",
-	"parentId": "active-leaf-id",
-	"timestamp": "2026-02-16T10:21:00.000Z",
-	"runtime": { "version": "1.4.13" },
-	"client": "web"
-}
-```
-
-- Absent on legacy transcripts and on writers that could not name themselves. Readers report the latest run's client as unknown rather than guessing.
-- Writing one must not modify the header, the title, or any earlier entry, so a read-only cross-client view never rewrites the original transcript.
-- `session_init.client` (below) records the initiator of a subagent run; top-level runs use `run_init`.
 
 ### `session_init`
 
@@ -608,7 +572,7 @@ The underlying model is append-only tree + mutable leaf pointer:
 
 `getEntries()` returns all non-header entries in insertion order. There is no separate persisted leaf field: loading rebuilds the leaf from the last physical entry. Pointer-only `branch()`/`resetLeaf()` changes therefore need a subsequent append to survive reload. `discardEntryDurably()` appends a metadata branch marker and rewrites the journal to make a discarded path durable.
 
-`createBranchedSession(leafId, { copyArtifacts? })` creates a new identity containing only the selected root-to-leaf path. It drops old label records and recreates the resolved labels for retained entries. Unlike a full fork, it does not inherit the provider prompt-cache key. With `copyArtifacts` (used by `AgentSession.fork(entryId)`), the artifacts directory is copied in the background and the new artifact manager waits for the copy before allocating ids or resolving `artifact://`, as for a move to a sibling file.
+`createBranchedSession(leafId, { copyArtifacts? })` creates a new identity containing only the selected root-to-leaf path. It drops old label records and recreates the resolved labels for retained entries. Unlike a full fork, it does not inherit the provider prompt-cache key. With `copyArtifacts` (used by `AgentSession.fork(entryId)`), the artifacts directory is copied in the background and the new artifact manager waits for the copy before allocating ids or resolving spills (`local://N.log`), as for a move to a sibling file.
 
 ## Context Reconstruction (`buildSessionContext`)
 
@@ -658,12 +622,12 @@ Ordinary completed appends update memory and local file storage synchronously on
 - `flush()` drains async disk/storage queues and the open writer (no `fsync`); `flushSync()` drains synchronously supported work or rewrites a non-current file. It cannot confirm queued remote publication; those backends still require awaited `flush()`/drain.
 - Atomic full rewrites use storage `writeTextAtomic` with a commit guard and expected byte-size precondition; file storage stages then renames over the target, including an EPERM-safe move-aside fallback.
 - Local appends and publication share a cross-process publish lock. A changed byte size raises `SessionWriteConflictError`; lock contention raises `SessionLockError` without publishing the staged rewrite. This is not a content-hash comparison and cannot protect against non-cooperating external writers.
-- `FileSessionStorage` holds a process-owned OS lease on each session a process writes, keyed by the session id rather than the file's path, so every process that reaches one journal (through a symlink, a hard link, or after a move) meets the same lease. The lease is `pi-utils` `tryAcquireFileLock` on `<session-owners>/<session-id>`, where `<session-owners>` is `~/.zeta/run/session-owners` (XDG: `$XDG_STATE_HOME/zeta/run/session-owners`), shared across profiles: on Linux an abstract socket and on Windows a named mutex, neither of which creates a file; on macOS and other non-Linux Unix a `flock` on a sidecar in that directory. Only write paths claim it, so the first process to write a session owns it; opening a session to inspect it (`zetacode share`, `--export`, `render`) never does. Managers in one process share the lease; it is released on close or a session switch, and the kernel drops it when its process exits. Processes with different home or state directories do not meet in this lease. A plain copy of a session file keeps its id, so a process writing the copy while the original's writer is live moves to a sibling.
-- A process never writes a session whose lease another live process holds: its first write moves the session to a fresh sibling `<timestamp>_<new-session-id>.jsonl` in the same directory, publishes the whole in-memory transcript there once, and continues appending incrementally. The owner's file is left untouched. Like `fork`, the sibling gets a new session id with `parentSession` pointing at the old one and keeps the provider prompt-cache key, so resume-by-id, the title index, and the picker never see two files for one id. The artifacts directory is copied in the background without overwriting files the moved session has already written; its artifact manager waits for the copy before allocating ids or resolving `artifact://`, and `flush()`/`close()` await it. `local://` and `agent://` reads that bypass the artifact manager can miss pre-move files until the copy finishes.
+- `FileSessionStorage` holds a process-owned OS lease on each session a process writes, keyed by the session id rather than the file's path, so every process that reaches one journal (through a symlink, a hard link, or after a move) meets the same lease. The lease is `pi-utils` `tryAcquireFileLock` on `<session-owners>/<session-id>`, where `<session-owners>` is `~/.omp/run/session-owners` (XDG: `$XDG_STATE_HOME/omp/run/session-owners`), shared across profiles: on Linux an abstract socket and on Windows a named mutex, neither of which creates a file; on macOS and other non-Linux Unix a `flock` on a sidecar in that directory. Only write paths claim it, so the first process to write a session owns it; opening a session to inspect it (`omp share`, `--export`, `render`) never does. Managers in one process share the lease; it is released on close or a session switch, and the kernel drops it when its process exits. Processes with different home or state directories do not meet in this lease. A plain copy of a session file keeps its id, so a process writing the copy while the original's writer is live moves to a sibling; a collab guest's replica takes its own id (`parentSession` is the host's) so it never contends with the host.
+- A process never writes a session whose lease another live process holds: its first write moves the session to a fresh sibling `<timestamp>_<new-session-id>.jsonl` in the same directory, publishes the whole in-memory transcript there once, and continues appending incrementally. The owner's file is left untouched. Like `fork`, the sibling gets a new session id with `parentSession` pointing at the old one and keeps the provider prompt-cache key, so resume-by-id, the title index, and the picker never see two files for one id. The artifacts directory is copied in the background without overwriting files the moved session has already written; its artifact manager waits for the copy before allocating ids or resolving spills, and `flush()`/`close()` await it. `local://` and `agent://` reads that bypass the artifact manager can miss pre-move files until the copy finishes.
 - `moveTo()` refuses, before anything moves or any directory is created, to move a session another live process writes or to replace a destination file whose session (by its header id) another live process writes.
-- Another program can check ownership without claiming: `isSessionLeaseHeld(sessionId)`, `zetacode session lease --json -- <id>...` (`{"held": [...], "unknown": [...]}`), and RPC `get_session_lease` observe the lease without taking or opening it (a connect probe on Linux, `F_GETLK` on other Unix, a `\BaseNamedObjects` directory listing on Windows), so they never make a concurrent claim fork the session.
-- Under `bun test`, the lease directory is `<os temp>/zeta-test-session-owners-<uid>` instead of the real state directory. It is exported as `PI_TEST_SESSION_OWNERS_DIR` when `session-storage` loads; a test that spawns a Zeta process which writes sessions must pass `env: process.env` (Bun's default is the launch environment), or run under `ci-test-ts`, whose children inherit `PI_TEST_RUNTIME=1` and derive the same directory.
-- On the file and memory backends, a `SessionWriteConflictError` on durable bytes during a full rewrite means a writer without the lease (an older Zeta, an external tool) changed the file. The manager reads it back, keeps the entries it lacks as a side branch (the active leaf stays its own), and retries against the size it read, up to three times per rewrite. If that writer changes the file inside every retry, the session leaves the file to it and moves to a sibling (`reason: "contested"`) rather than re-serializing the transcript on every later write. A deleted file is recreated; a file that no longer reads as this session is left untouched and the session moves to a sibling. Indexed backends keep reporting the conflict, since there it can be the manager racing its own unconfirmed publish.
+- Another program can check ownership without claiming: `isSessionLeaseHeld(sessionId)`, `omp session lease --json -- <id>...` (`{"held": [...], "unknown": [...]}`), and RPC `get_session_lease` observe the lease without taking or opening it (a connect probe on Linux, `F_GETLK` on other Unix, a `\BaseNamedObjects` directory listing on Windows), so they never make a concurrent claim fork the session.
+- Under `bun test`, the lease directory is `<os temp>/omp-test-session-owners-<uid>` instead of the real state directory. It is exported as `PI_TEST_SESSION_OWNERS_DIR` when `session-storage` loads; a test that spawns an omp process which writes sessions must pass `env: process.env` (Bun's default is the launch environment), or run under `ci-test-ts`, whose children inherit `PI_TEST_RUNTIME=1` and derive the same directory.
+- On the file and memory backends, a `SessionWriteConflictError` on durable bytes during a full rewrite means a writer without the lease (an older omp, an external tool) changed the file. The manager reads it back, keeps the entries it lacks as a side branch (the active leaf stays its own), and retries against the size it read, up to three times per rewrite. If that writer changes the file inside every retry, the session leaves the file to it and moves to a sibling (`reason: "contested"`) rather than re-serializing the transcript on every later write. A deleted file is recreated; a file that no longer reads as this session is left untouched and the session moves to a sibling. Indexed backends keep reporting the conflict, since there it can be the manager racing its own unconfirmed publish.
 - `appendEntriesAtomically()` groups a synchronous callback's appends into one atomic publication. Failure rolls back staged entries and repairs retained concurrent work.
 - Rewrites serve renames, entry rewrites, migrations/sanitization, move/fork, and recovery. Session-title changes normally update the fixed-width title slot and append a `title_change` audit entry instead of rewriting the body.
 
@@ -701,15 +665,15 @@ Implementations and adapters:
 
 ### Manual storage maintenance
 
-`zetacode gc` previews maintenance by default; `--apply` is required to sweep unreferenced blobs, archive eligible cold sessions, checkpoint database WALs, or prune stale state. Storage maintenance is separate from model-context compaction.
+`omp gc` previews maintenance by default; `--apply` is required to sweep unreferenced blobs, archive eligible cold sessions, checkpoint database WALs, or prune stale state. Storage maintenance is separate from model-context compaction.
 
 The sessions phase also removes transcript rewrite temps (`.<name>.jsonl.<snowflake>.tmp`, and the same pattern beside registered `--session` files) once they are past the 5-minute write grace. A live rewrite renames its temp into place within milliseconds, so an older one was left by a killed or crashed writer.
 
-The stale-state phase is opt-in: it runs only with `--stale` or when `gc.stale` is enabled (default off), so an unqualified `zetacode gc --apply` never deletes reports or replicas. It removes `custom-session-files` markers and terminal breadcrumbs whose session file no longer exists once they are a day old (a lazy session's marker names a transcript that is written only on its first turn). A breadcrumb recorded as a fresh `/new` boundary is always kept: `--continue` honors it before its transcript exists, and it is rewritten when the session materializes or replaced by the terminal's next session. For the default agent dir — or a custom agent dir named `agent`, whose parent is treated as the config root — it also expires debug report bundles (`reports/*.tar.gz`) that are both outside the newest `gc.staleRetainNewest` (default 20) and older than `gc.staleRetainDays` (default 30). Stale state is pruned before the blob sweep, so blobs referenced only by an expired replica are swept in the same run.
+The stale-state phase is opt-in: it runs only with `--stale` or when `gc.stale` is enabled (default off), so an unqualified `omp gc --apply` never deletes reports or replicas. It removes `custom-session-files` markers and terminal breadcrumbs whose session file no longer exists once they are a day old (a lazy session's marker names a transcript that is written only on its first turn). A breadcrumb recorded as a fresh `/new` boundary is always kept: `--continue` honors it before its transcript exists, and it is rewritten when the session materializes or replaced by the terminal's next session. For the default agent dir — or a custom agent dir named `agent`, whose parent is treated as the config root — it also expires debug report bundles (`reports/*.tar.gz`) and collab guest replicas (`collab/*.jsonl` plus their artifact directories and custom-session marker) that are both outside the newest `gc.staleRetainNewest` (default 20) and older than `gc.staleRetainDays` (default 30). A replica that a terminal breadcrumb points at, or that a running guest holds open, is kept. Stale state is pruned before the blob sweep, so blobs referenced only by an expired replica are swept in the same run.
 
 The compress phase is opt-in as well: `--compress` or `gc.compress` (default off). It stores every file of a session (the transcript and its artifact tree) with the filesystem's transparent compression once the transcript has been idle for `gc.compressAfterDays` (default 7, `--compress-after-days`); files written more recently are skipped. Session ownership leases are taken only for sessions with files left to compress: a session is skipped while a running process holds the lease of its transcript or of any transcript nested in its artifact tree (subagent sessions, recognized by their session header whatever their file name), and those leases are held while its files are rewritten. Unlike archiving, a session with an interrupted last turn qualifies, since it stays resumable. Paths, bytes, and mtimes are unchanged and no history or stats rows are deleted, so compressed sessions stay listed, resumable, and searchable. A regular file with a single link that spans more than one filesystem block qualifies; already-compressed formats (`.gz`, `.zst`, images) are skipped. The volume holding the sessions root decides the method:
 
-- **APFS (macOS):** detected by matching the directory's device against `apfs` entries in the mount table. `ditto --hfsCompression` writes compressed copies, with the original mtime to the nanosecond, into a fresh `.zeta-gc-compress-XXXXXX` scratch directory beside the originals that holds an owner marker. A copy replaces its original only when its size and SHA-256 match and it allocates less space; immediately before the rename, the original's inode, size, and mtime must still match their values at selection and it must still have a single link, and a transcript's check and rename run under the session publish lock that serializes appends. A scratch directory left by a killed run is removed by the next `--compress --apply` run, under the sessions root and the archive root; a directory with that name and no owner marker is removed only when empty. Stats sync and the dashboard watcher skip `.zeta-gc-compress-*` directories, so they never ingest a scratch copy. The replaced file is a new inode, so the next stats sync re-reads each compressed transcript once from the start; it replaces the session's rows rather than duplicating them. Appending to a compressed file stores it uncompressed again, which a later run picks up.
+- **APFS (macOS):** detected by matching the directory's device against `apfs` entries in the mount table. `ditto --hfsCompression` writes compressed copies, with the original mtime to the nanosecond, into a fresh `.omp-gc-compress-XXXXXX` scratch directory beside the originals that holds an owner marker. A copy replaces its original only when its size and SHA-256 match and it allocates less space; immediately before the rename, the original's inode, size, and mtime must still match their values at selection and it must still have a single link, and a transcript's check and rename run under the session publish lock that serializes appends. A scratch directory left by a killed run is removed by the next `--compress --apply` run, under the sessions root and the archive root; a directory with that name and no owner marker is removed only when empty. Stats sync and the dashboard watcher skip `.omp-gc-compress-*` directories, so they never ingest a scratch copy. The replaced file is a new inode, so the next stats sync re-reads each compressed transcript once from the start; it replaces the session's rows rather than duplicating them. Appending to a compressed file stores it uncompressed again, which a later run picks up.
 - **NTFS (Windows):** detected with `GetVolumeInformationW`, which must report NTFS with per-file compression support. `compact /c` sets LZNT1 compression on each file in place, keeping its inode and timestamps; later appends are stored compressed too. WOF (`compact /exe`) is not used because a write inflates the whole file.
 
 Other filesystems report the phase as unsupported.
@@ -743,7 +707,7 @@ Discovery helpers live in `session-listing.ts`; `SessionManager` exposes project
 
 `HistoryStorage` (`history-storage.ts`) is a separate SQLite subsystem for prompt recall/search, not session replay.
 
-- DB: `~/.zeta/agent/history.db`
+- DB: `~/.omp/agent/history.db`
 - Table: `history(id, prompt, created_at, cwd, session_id, use_count)`, with unique `prompt`
 - FTS5 index: `history_fts`; new prompts are indexed by an insert trigger
 - Normalizes line endings and surrounding/trailing whitespace, then deduplicates prompts across the database

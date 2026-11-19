@@ -1,25 +1,23 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
-import { getMCPConfigPath, getProjectDir, logger, sanitizeText } from "@linxiraos/pi-utils";
-import { loadDirectoryPins } from "../modes/directory-pins";
-import { refreshLinuxMounts, refreshWindowsDrives } from "../utils/directory-listing";
+import type { AutocompleteItem } from "@oh-my-pi/pi-tui";
+import { getMCPConfigPath, getProjectDir, logger, sanitizeText } from "@oh-my-pi/pi-utils";
 import { formatModelRoleAlias, getKnownRoleIds } from "../config/model-roles";
 import { cfgCycleOrder } from "../config/model-settings";
 import { readMCPConfigFile } from "../mcp/config-writer";
 import { collectMcpServerNames } from "../modes/controllers/mcp-command-controller";
 import { InternalUrlRouter } from "../internal-urls";
-import { replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
-import { encodeLocalPath, sessionLocalProtocolOptions } from "../modes/local-file-editor";
+import { replaceTabs } from "@oh-my-pi/pi-tui/render/render-utils";
+import { sessionLocalProtocolOptions } from "../internal-urls/context";
+import { encodeLocalPath } from "../modes/local-file-editor";
 import { createModelBrowserSource } from "../modes/model-browser-source";
 import {
 	createModelMentionSource,
 	type ModelMentionCandidateSource,
-} from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
-import { getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+} from "@oh-my-pi/pi-tui/prompt/model-mention-autocomplete";
+import { getConfiguredThinkingLevelMetadata } from "@oh-my-pi/pi-tui/thinking";
 import { expandTilde } from "../tools/path-utils";
-import { resolveCommandDescription } from "./helpers/description";
 import type { SubcommandDef, TuiSlashCommandRuntime } from "./types";
 
 /** Options shared by the declarative subcommand completers. */
@@ -54,7 +52,7 @@ export function buildArgumentCompletions(
 			.map(s => ({
 				value: `${s.name} `,
 				label: s.name,
-				description: resolveCommandDescription(s.description),
+				description: s.description,
 				hint: subcommandRemainderHint(s, lower),
 			}));
 		return matches.length > 0 ? matches : null;
@@ -326,105 +324,22 @@ const TRAILING_SEPARATOR = process.platform === "win32" ? /[\\/]$/ : /\/$/;
 /** A path whose last segment is `.` or `..` (or a bare `~`) names a directory without listing it. */
 const UNTERMINATED_DIRECTORY = process.platform === "win32" ? /(?:^|[\\/])\.{1,2}$|^~$/ : /(?:^|\/)\.{1,2}$|^~$/;
 
-/** Optional fixtures for tests; production callers use the live cwd, pins and roots. */
-export interface DirectoryArgumentCompletionOptions {
-	/** Pinned directories, newest first; defaults to the on-disk pin store. */
-	pins?: readonly string[];
-	/** Root paths (drives/mounts); defaults to the live roots cache. */
-	roots?: readonly string[];
-}
-
-/** Absolute directory completion value: forward slashes and one trailing slash (root stays `/`). */
-function absoluteDirectoryValue(directory: string): string {
-	const normalized = path.normalize(directory).replaceAll("\\", "/");
-	return normalized.endsWith("/") ? normalized : `${normalized}/`;
-}
-
-function directoryCompletionKey(directory: string): string {
-	const resolved = path.resolve(directory);
-	return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-}
-
 /**
  * Build getArgumentCompletions that suggests directories relative to the
- * current project directory. Used by /move and /cd so users can Tab-complete
- * the destination directory.
+ * current project directory. Used by /move so users can Tab-complete the
+ * destination directory.
  *
  * Tab accepts the highlighted suggestion, so only a prefix that ends in a
  * separator lists the directory's children. A prefix naming a directory
  * without one (`..`, `~`, `foo/.`) completes the separator first; otherwise
- * Tab would jump straight to the first child. An empty prefix lists pinned
- * directories, then filesystem roots, then the cwd's folders, in that order.
+ * Tab would jump straight into the first child.
  */
-export function buildDirectoryArgumentCompletions(
-	options: DirectoryArgumentCompletionOptions = {},
-): (prefix: string) => Promise<AutocompleteItem[] | null> {
+export function buildDirectoryArgumentCompletions(): (prefix: string) => Promise<AutocompleteItem[] | null> {
 	return async (argumentPrefix: string) => {
 		const prefix = argumentPrefix.trim();
-		if (process.platform === "win32" && /^[A-Za-z]:$/.test(prefix)) {
-			const drive = `${prefix[0]!.toUpperCase()}:/`;
-			return [{ value: drive, label: drive }];
-		}
 		if (UNTERMINATED_DIRECTORY.test(prefix)) return [{ value: `${prefix}/`, label: `${prefix}/` }];
 
 		const cwd = getProjectDir();
-		if (prefix === "") {
-			const suggestions: AutocompleteItem[] = [];
-			const seen = new Set<string>();
-			const addAbsolute = (directory: string, label: string, description: string) => {
-				const key = directoryCompletionKey(directory);
-				if (seen.has(key)) return;
-				seen.add(key);
-				suggestions.push({ value: absoluteDirectoryValue(directory), label, description });
-			};
-			const pins = options.pins ?? (await loadDirectoryPins());
-			for (const pin of pins) {
-				const name = path.basename(pin) || pin;
-				addAbsolute(pin, name.endsWith("/") ? name : `${name}/`, pin);
-			}
-			let roots = options.roots;
-			if (!roots) {
-				try {
-					roots =
-						process.platform === "win32"
-							? (await refreshWindowsDrives()).map(drive => drive.path)
-							: (await refreshLinuxMounts()).map(mount => mount.path);
-				} catch {
-					roots = [];
-				}
-			}
-			for (const root of roots ?? []) {
-				const value = absoluteDirectoryValue(root);
-				addAbsolute(root, value, value);
-			}
-			try {
-				const entries = await fs.readdir(cwd, { withFileTypes: true });
-				const cwdSuggestions: AutocompleteItem[] = [];
-				for (const entry of entries) {
-					if (entry.name === ".git") continue;
-					let isDirectory = entry.isDirectory();
-					if (!isDirectory && entry.isSymbolicLink()) {
-						try {
-							isDirectory = (await fs.stat(path.join(cwd, entry.name))).isDirectory();
-						} catch {
-							continue;
-						}
-					}
-					if (!isDirectory) continue;
-					const absolute = path.join(cwd, entry.name);
-					const key = directoryCompletionKey(absolute);
-					if (seen.has(key)) continue;
-					seen.add(key);
-					cwdSuggestions.push({ value: `${entry.name}/`, label: `${entry.name}/` });
-				}
-				cwdSuggestions.sort((left, right) => left.label.localeCompare(right.label));
-				suggestions.push(...cwdSuggestions);
-			} catch {
-				// Keep pins/roots when the cwd listing fails.
-			}
-			return suggestions.length > 0 ? suggestions : null;
-		}
-
 		const expandedPrefix = expandTilde(prefix);
 		const isAbsolute = path.isAbsolute(expandedPrefix);
 		const resolvedPrefix = isAbsolute ? expandedPrefix : path.join(cwd, expandedPrefix);

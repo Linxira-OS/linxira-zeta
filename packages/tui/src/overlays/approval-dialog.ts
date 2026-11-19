@@ -32,9 +32,9 @@ import {
 	matchesSelectPageUp,
 	matchesSelectUp,
 } from "../keybinding-matchers";
-import type { TspSpan } from "@linxiraos/pi-wire";
+import type { TspSpan } from "@oh-my-pi/pi-wire";
 import { col, item, node, span } from "../native/describe";
-import { leafKey, type NativeNode, type NativeUiEvent } from "../native/node";
+import { leafKey, type NativeNode, type NativeScroll, type NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";
 import { PREVIEW_LIMITS, sanitizeDisplayLines } from "../render/render-utils";
 import { theme } from "../theme/theme";
@@ -181,6 +181,10 @@ export class ApprovalDialogComponent implements Component {
 	#native: NativeNode | undefined;
 	/** Whether a draft held the keys when {@link #native} was described: it moves the highlight. */
 	#nativeDrafting = false;
+	/** Page Up/Down forwarded to the terminal's details scroller: bumped per key press. */
+	#nativeScroll: NativeScroll = { by: "start", n: 0 };
+	/** The summary's first prompted compound-bash segment row when it opens past {@link MAX_DETAIL_ROWS}. */
+	#promptedRow: number | undefined;
 	readonly #armedAt = performance.now() + APPROVE_ARM_MS;
 	readonly #countdown: CountdownTimer | undefined;
 
@@ -201,11 +205,12 @@ export class ApprovalDialogComponent implements Component {
 			.slice(segmentStart, segmentEnd)
 			.findIndex(line => PROMPTED_SEGMENT_RE.test(line));
 		if (firstPrompted >= 0 && segmentStart + firstPrompted >= MAX_DETAIL_ROWS) {
-			this.#scrollOffset = segmentStart + firstPrompted - MAX_DETAIL_ROWS + 1;
+			this.#promptedRow = segmentStart + firstPrompted;
+			this.#scrollOffset = this.#promptedRow - MAX_DETAIL_ROWS + 1;
 		}
 		this.#choices = this.#buildChoices();
 		this.#choice = this.#choices.findIndex(choice => choice.answer === "once");
-		this.#panel = new OverlayPanel(title, "zeta.overlay.approval");
+		this.#panel = new OverlayPanel(title, "omp.overlay.approval");
 		this.#footer.setHeight(1);
 		this.#panel.addChild(this.#body);
 		this.#panel.addChild(this.#choiceRows);
@@ -293,8 +298,8 @@ export class ApprovalDialogComponent implements Component {
 		const page = Math.max(1, this.#bodyRows - 1);
 		if (matchesSelectUp(keyData)) this.#moveChoice(-1);
 		else if (matchesSelectDown(keyData)) this.#moveChoice(1);
-		else if (matchesSelectPageUp(keyData)) this.#scroll(-page);
-		else if (matchesSelectPageDown(keyData)) this.#scroll(page);
+		else if (matchesSelectPageUp(keyData)) this.#scroll(-page, "page-up");
+		else if (matchesSelectPageDown(keyData)) this.#scroll(page, "page-down");
 		else if (getKeybindings().matches(keyData, "tui.select.confirm")) {
 			if (performance.now() >= this.#armedAt) this.#take(this.#choices[this.#choice]!.answer);
 		}
@@ -385,7 +390,7 @@ export class ApprovalDialogComponent implements Component {
 
 	/**
 	 * In the dock, in the composer's place and framed as the composer is (an
-	 * `zeta.editor.*` root role), like the ask dialog, rather than a card over
+	 * `omp.editor.*` root role), like the ask dialog, rather than a card over
 	 * the transcript: the title, the details, the choices with the keyboard's
 	 * highlight (a click takes one), then Details (with a full prompt), Deny,
 	 * and the primary Approve, whose keys show in their tooltips.
@@ -415,34 +420,51 @@ export class ApprovalDialogComponent implements Component {
 				]
 			: [];
 		const children: NativeNode[] = [
-			node("text", { text: this.#title, role: "zeta.approval.title", tone: "accent" }, undefined, "title"),
+			node("text", { text: this.#title, role: "omp.approval.title", tone: "accent" }, undefined, "title"),
 		];
 		if (this.#details.length > 0) {
-			// One clipped row per detail like the text view; expanded details wrap.
+			// One clipped row per detail like the text view; expanded details wrap. A `list` capped at the
+			// text view's row budget is the terminal's scroller (a capped `col` would only clip), so the
+			// rest scrolls by wheel or Page Up/Down while the choices and action bar stay in view.
 			const styledRows = styleApprovalDetails(this.#details);
 			const rows = this.#details.map((line, index) => {
 				const styled = styledRows[index]!;
 				const content = styled.spans ? { spans: styled.spans } : { text: line };
-				return node("text", this.#expanded ? content : { ...content, truncate: "end" }, undefined, String(index));
+				const row = node(
+					"text",
+					this.#expanded ? content : { ...content, truncate: "end" },
+					undefined,
+					String(index),
+				);
+				// Like the text view's opening offset: the first prompted segment past the fold scrolls into view on mount.
+				return !this.#expanded && index === this.#promptedRow ? { ...row, reveal: "nearest" as const } : row;
 			});
-			children.push(node("col", { role: "zeta.approval.details" }, rows, "details"));
+			const details = node("col", { role: "omp.approval.details" }, rows, "details");
+			children.push(
+				node(
+					"list",
+					{ max: { lines: MAX_DETAIL_ROWS } },
+					[{ ...details, scroll: this.#nativeScroll }],
+					"details-scroll",
+				),
+			);
 		}
 		const choices = this.#choices.map(choice =>
 			item(choice.answer, {
 				label: choice.label,
-				role: "zeta.approval.choice",
+				role: "omp.approval.choice",
 				tone: choice.answer === "deny" ? "error" : "accent",
 			}),
 		);
 		const selected = drafting ? "deny" : this.#choices[this.#choice]!.answer;
-		children.push(node("list", { selected, role: "zeta.approval.choices" }, choices, "choices"));
+		children.push(node("list", { selected, role: "omp.approval.choices" }, choices, "choices"));
 		// The countdown, when one runs, leads the bar like the ask dialog's.
 		children.push(
 			actionBar([...(this.#countdown ? [this.#countdown.describe()] : []), null, ...expand, deny, approve]),
 		);
-		// Under the `zeta.editor.ask` prefix: Tern's console layout sizes an ask's rows to the
-		// composer column by that prefix, where a bare `zeta.editor.*` role spans the whole dock.
-		this.#native = col(children, { role: "zeta.editor.ask.approval", gap: "md" });
+		// Under the `omp.editor.ask` prefix: Tern's console layout sizes an ask's rows to the
+		// composer column by that prefix, where a bare `omp.editor.*` role spans the whole dock.
+		this.#native = col(children, { role: "omp.editor.ask.approval", gap: "md" });
 		this.#nativeDrafting = drafting;
 		return this.#native;
 	}
@@ -486,8 +508,10 @@ export class ApprovalDialogComponent implements Component {
 		return `${choose} · ${keys}${scroll}${this.options.draft ? " · type to deny and steer" : ""}`;
 	}
 
-	#scroll(delta: number): void {
+	#scroll(delta: number, by: "page-up" | "page-down"): void {
 		this.#scrollOffset = Math.max(0, this.#scrollOffset + delta);
+		this.#nativeScroll = { by, n: this.#nativeScroll.n + 1 };
+		this.#native = undefined;
 		this.options.tui?.requestRender();
 	}
 

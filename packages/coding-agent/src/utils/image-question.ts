@@ -1,7 +1,7 @@
-import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
-import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
-import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@linxiraos/pi-ai";
-import { prompt } from "@linxiraos/pi-utils";
+import { instrumentedCompleteSimple, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
+import { sendsImageInputOnWire } from "@oh-my-pi/pi-ai/providers/vision-guard";
+import { type Api, type AssistantMessage, completeSimple, type Model, type Usage } from "@oh-my-pi/pi-ai";
+import { prompt } from "@oh-my-pi/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import {
 	expandRoleAlias,
@@ -10,9 +10,10 @@ import {
 	resolveModelFromString,
 } from "../config/model-resolver";
 import imageQuestionSystemPromptTemplate from "../prompts/tools/image-question-system.md" with { type: "text" };
-import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
+import { journalCompletion } from "../session/model-usage-journal";
+import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "@oh-my-pi/pi-tui/thinking";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import type { LoadedImageInput } from "./image-loading";
 
 import { cfgImagesBlockImages } from "../modes/settings";
@@ -135,6 +136,7 @@ export async function askImageQuestion(
 	const reasoning = toReasoningEffort(resolveThinkingLevelForModel(model, configuredThinking));
 
 	session.costGate?.admit();
+	const journal = journalCompletion(session.sessionManager, { purpose: "image-question" });
 	let response: AssistantMessage;
 	try {
 		response = await instrumentedCompleteSimple(
@@ -160,6 +162,7 @@ export async function askImageQuestion(
 			{ telemetry, oneshotKind: "image_question", completeImpl },
 		);
 		session.costGate?.record(response.usage.cost.total);
+		journal?.(response, question);
 	} catch (error) {
 		if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
 			if (timedOut()) throw new ToolError(formatTimeoutMessage());

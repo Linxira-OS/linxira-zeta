@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
@@ -12,7 +12,9 @@ import {
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@linxiraos/pi-ai/auth-broker";
+} from "@oh-my-pi/pi-ai/auth-broker";
+import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
+import { decodeKiroCredential } from "@oh-my-pi/pi-catalog/wire/kiro";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 
@@ -281,7 +283,7 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 		expect(reported.hostname).toBe(os.hostname());
 		// Default identity carries the app label so broker-side attribution can
 		// answer "what did app X use" even for broker-direct installs.
-		expect(reported.providers.every(p => p.app === "zeta")).toBe(true);
+		expect(reported.providers.every(p => p.app === "omp")).toBe(true);
 
 		const anthropic = reported.providers.find(p => p.provider === "anthropic");
 		expect(anthropic).toMatchObject({
@@ -347,9 +349,9 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 	});
 
 	test("a process that quits before the flush interval still reports its observed usage", async () => {
-		// Mirrors `zetacode -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
+		// Mirrors `omp -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
 		const script = [
-			'import { postmortem } from "@linxiraos/pi-utils";',
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
 			`import { AuthBrokerClient, RemoteAuthCredentialStore } from ${JSON.stringify(AUTH_BROKER_MODULE)};`,
 			`const client = new AuthBrokerClient({ url: ${JSON.stringify(handle!.url)}, token: ${JSON.stringify(token)} });`,
 			"const remote = new RemoteAuthCredentialStore({ client, streamSnapshots: false });",
@@ -500,6 +502,40 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 		expect(remote.listAuthCredentials("openai-codex")).toHaveLength(1);
 	});
 
+	test("a broker-refreshed Kiro login keeps the routing fields its API key needs", async () => {
+		const kiro = getProviderDefinition("kiro")!;
+		vi.spyOn(kiro, "refreshToken").mockImplementation(async current => ({
+			...current,
+			access: "access-fresh",
+			expires: Date.now() + 3_600_000,
+		}));
+		await storage!.credentials.upsert("kiro", {
+			type: "oauth",
+			access: "access-stale",
+			refresh: "refresh-kiro",
+			expires: Date.now() - 1_000,
+			region: "us-east-1",
+			accountId: "login-a",
+		});
+		remote = new RemoteAuthCredentialStore({ client: new AuthBrokerClient({ url: handle!.url, token }) });
+		await waitUntil(() => remote!.snapshot.credentials.some(entry => entry.provider === "kiro"));
+		const clientStorage = new AuthStorage(remote);
+		try {
+			await clientStorage.credentials.reload();
+			// `accessAll` refreshes the expired row in `tryOAuth`, without the key-selection preflight.
+			const [access] = await clientStorage.oauth.accessAll("kiro");
+			expect(access).toMatchObject({ ok: true, accessToken: "access-fresh", accountId: "login-a" });
+			const apiKey = await clientStorage.keys.get("kiro", "kiro-session");
+			expect(decodeKiroCredential(apiKey ?? "", {})).toMatchObject({
+				token: "access-fresh",
+				region: "us-east-1",
+				loginId: "login-a",
+			});
+		} finally {
+			clientStorage.close();
+		}
+	});
+
 	test("an allow-list pool hides unlisted providers and API keys over snapshots and SSE", async () => {
 		await storage!.credentials.upsert("anthropic", { type: "api_key", key: "hidden-anthropic-key" });
 		await storage!.credentials.upsert("openai-codex", mintOAuthCredential("codex", Date.now() + 120_000));
@@ -542,9 +578,9 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 
 		await withEnv(
 			{
-				ZETA_AUTH_BROKER_URL: handle!.url,
-				ZETA_AUTH_BROKER_TOKEN: token,
-				ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE: poolPath,
+				OMP_AUTH_BROKER_URL: handle!.url,
+				OMP_AUTH_BROKER_TOKEN: token,
+				OMP_AUTH_BROKER_ACCOUNT_POOL_FILE: poolPath,
 			},
 			async () => {
 				const discovered = await discoverAuthStorage({
@@ -585,9 +621,9 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 
 		await withEnv(
 			{
-				ZETA_AUTH_BROKER_URL: handle!.url,
-				ZETA_AUTH_BROKER_TOKEN: token,
-				ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE: poolPath,
+				OMP_AUTH_BROKER_URL: handle!.url,
+				OMP_AUTH_BROKER_TOKEN: token,
+				OMP_AUTH_BROKER_ACCOUNT_POOL_FILE: poolPath,
 			},
 			async () => {
 				const discovered = await discoverAuthStorage({
@@ -617,9 +653,9 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 	test("prefers a programmatic SDK account pool over the environment file", async () => {
 		await withEnv(
 			{
-				ZETA_AUTH_BROKER_URL: handle!.url,
-				ZETA_AUTH_BROKER_TOKEN: token,
-				ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE: path.join(tempDir, "missing-account-pool.json"),
+				OMP_AUTH_BROKER_URL: handle!.url,
+				OMP_AUTH_BROKER_TOKEN: token,
+				OMP_AUTH_BROKER_ACCOUNT_POOL_FILE: path.join(tempDir, "missing-account-pool.json"),
 			},
 			async () => {
 				const discovered = await discoverAuthStorage({

@@ -1,19 +1,15 @@
 /**
  * Tiny-model UI labels for spawned subagents.
  */
-import { logger, prompt } from "@linxiraos/pi-utils";
+import { logger, prompt } from "@oh-my-pi/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
-import type { ZetaLanguage } from "../i18n";
 import { resolveModelOverride } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import taskLabelSystemPrompt from "../prompts/system/task-label.md" with { type: "text" };
-import { generateSessionTitle, generatedNameLanguage } from "../utils/title-generator";
+import { generateSessionTitle, type TitleUsageReporter } from "../utils/title-generator";
 
-const TASK_LABEL_SYSTEM_PROMPTS = {
-	en: prompt.render(taskLabelSystemPrompt),
-	zh: prompt.render(taskLabelSystemPrompt, { zh: true }),
-};
+const TASK_LABEL_SYSTEM_PROMPT = prompt.render(taskLabelSystemPrompt);
 
 /** True when a generated label is just the spawn handle, including `Name-2`. */
 export function labelEchoesHandle(handle: string | undefined, label: string): boolean {
@@ -26,22 +22,19 @@ export function labelEchoesHandle(handle: string | undefined, label: string): bo
 	return /^\d+$/.test(suffix) && prefix.localeCompare(label, undefined, { sensitivity: "accent" }) === 0;
 }
 
-/** Compresses a delegated assignment into a one-sentence UI label via the tiny title model — fired by the executor spawn path because the task wire schema no longer carries a `description`; null on empty input or failure. */
+/** Compresses a delegated assignment into a one-sentence UI label via the tiny title model — fired by the executor spawn path because the task wire schema no longer carries a `description`; null on empty input or failure. `onUsage` receives every request that ran, for the spawning session's usage journal. */
 export async function generateTaskLabel(
 	assignment: string,
 	registry: ModelRegistry,
 	settings: Settings,
 	sessionId?: string,
 	signal?: AbortSignal,
-	language?: ZetaLanguage,
 	parentActiveModelPattern?: string,
 	parentActiveProvider?: string,
+	onUsage?: TitleUsageReporter,
 ): Promise<string | null> {
 	const text = assignment.trim();
 	if (!text) return null;
-	// Resolve once, before the request: the prompt branch and the generation
-	// override must agree even if another view reloads settings meanwhile.
-	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	try {
 		const resolvedModel =
 			cfgOffline.get(settings) && parentActiveModelPattern
@@ -58,11 +51,10 @@ export async function generateTaskLabel(
 			sessionId,
 			currentModel,
 			undefined,
-			TASK_LABEL_SYSTEM_PROMPTS[resolvedLanguage],
+			TASK_LABEL_SYSTEM_PROMPT,
 			signal,
 			undefined,
-			undefined,
-			resolvedLanguage,
+			onUsage,
 		);
 		if (!label || labelEchoesHandle(sessionId, label)) return null;
 		return label;

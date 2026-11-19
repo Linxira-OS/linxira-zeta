@@ -12,17 +12,18 @@ import {
 	type ToolCall,
 	type ToolResultMessage,
 	type Usage,
-} from "@linxiraos/pi-ai";
-import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
-import { getSessionsDir, isEnoent, readLines } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { classifyModel } from "@oh-my-pi/pi-catalog/compat/taxonomy";
+import { getSessionsDir, isEnoent, readLines } from "@oh-my-pi/pi-utils";
 import type {
 	AgentType,
-	AssistantTextStats,
 	MessageStatsInput,
 	SessionEntry,
 	SessionMessageEntry,
 	SessionModelUsageEntry,
 	SessionServiceTierChangeEntry,
+	SessionTypedEntry,
+	SnapcompactCompactionStats,
 	ToolCallStats,
 	ToolResultLink,
 	UserMessageLink,
@@ -35,8 +36,7 @@ import {
 	type SpotlightParseRows,
 	type SpotlightParserState,
 } from "./spotlight-ingest";
-import { computeAssistantMessageMetrics } from "./model-metrics";
-import { analysisProse, computeUserMessageMetrics } from "./user-metrics";
+import { computeUserMessageMetrics, judgeProse } from "./user-metrics";
 
 /** Basename of an advisor agent's transcript inside a session artifacts dir. */
 const ADVISOR_TRANSCRIPT_BASENAME = "__advisor.jsonl";
@@ -122,20 +122,21 @@ function isToolResultMessage(entry: SessionEntry): entry is SessionMessageEntry 
 }
 
 /**
- * Concatenate the `text` content blocks of a message payload, skipping every
- * other block type (thinking/reasoning, tool calls, tool results, images).
+ * Build the row for a snapcompact compaction entry. Entries of other methods,
+ * legacy entries without `tokensAfter`, and malformed ones yield null.
  */
-function extractTextBlocks(content: unknown): string {
-	if (!Array.isArray(content)) return "";
-	const parts: string[] = [];
-	for (const block of content) {
-		if (!block || typeof block !== "object" || !("type" in block)) continue;
-		const type = block.type;
-		if (type !== "text" || !("text" in block)) continue;
-		const text = block.text;
-		if (typeof text === "string") parts.push(text);
-	}
-	return parts.join("");
+function extractSnapcompactCompaction(
+	sessionFile: string,
+	folder: string,
+	entry: SessionEntry,
+): SnapcompactCompactionStats | null {
+	if (entry.type !== "compaction") return null;
+	const { id, timestamp, method, tokensBefore, tokensAfter } = entry as SessionTypedEntry;
+	if (method !== "snapcompact" || typeof id !== "string" || id.length === 0) return null;
+	if (!isFiniteCount(tokensBefore) || !isFiniteCount(tokensAfter)) return null;
+	const ts = typeof timestamp === "string" ? Date.parse(timestamp) : Number.NaN;
+	if (!Number.isFinite(ts)) return null;
+	return { sessionFile, entryId: id, folder, timestamp: ts, tokensBefore, tokensAfter };
 }
 
 /**
@@ -143,18 +144,21 @@ function extractTextBlocks(content: unknown): string {
  */
 function extractUserText(content: unknown): string {
 	if (typeof content === "string") return content;
-	return extractTextBlocks(content);
+	if (!Array.isArray(content)) return "";
+	const parts: string[] = [];
+	for (const block of content) {
+		if (block && typeof block === "object" && (block as { type?: unknown }).type === "text") {
+			const text = (block as { text?: unknown }).text;
+			if (typeof text === "string") parts.push(text);
+		}
+	}
+	return parts.join("");
 }
 
 /**
  * Build user-message stats from an entry. Returns null for empty, synthetic, or agent-attributed content.
  */
-function extractUserStats(
-	sessionFile: string,
-	folder: string,
-	entry: SessionMessageEntry,
-	prevText: string,
-): UserMessageStats | null {
+function extractUserStats(sessionFile: string, folder: string, entry: SessionMessageEntry): UserMessageStats | null {
 	const msg = entry.message as {
 		role: "user";
 		content?: unknown;
@@ -164,8 +168,8 @@ function extractUserStats(
 	if (msg.role !== "user" || msg.synthetic || msg.attribution === "agent") return null;
 	const text = extractUserText(msg.content);
 	if (!text.trim()) return null;
-	const metrics = computeUserMessageMetrics(text, { prevText });
-	const prose = analysisProse(text);
+	const metrics = computeUserMessageMetrics(text);
+	const prose = judgeProse(text);
 	const ts = Date.parse(entry.timestamp);
 	return {
 		sessionFile,
@@ -182,57 +186,8 @@ function extractUserStats(
 		negation: metrics.negation,
 		repetition: metrics.repetition,
 		blame: metrics.blame,
-		emphasis: metrics.emphasis,
-		unsupportedScript: metrics.unsupportedScript,
 		prose,
 		proseHash: prose ? Bun.hash(prose).toString(16) : "",
-	};
-}
-
-/**
- * Build the model-side analysis row for an assistant turn. Only `text` blocks
- * are read: thinking/reasoning blocks are the model's scratchpad, not what it
- * said to the user (see {@link extractTextBlocks}). Returns null for turns
- * without text or without an attributable model/provider: a tool-call-only
- * reply has nothing to analyze, and an unattributable turn cannot join a
- * per-model aggregate.
- */
-function extractAssistantTextStats(
-	sessionFile: string,
-	folder: string,
-	entry: SessionMessageEntry,
-	agentType: AgentType,
-	prevProse: string,
-	toolErrors: number,
-): AssistantTextStats | null {
-	const msg = entry.message as AssistantMessage;
-	if (msg?.role !== "assistant") return null;
-	if (typeof msg.model !== "string" || typeof msg.provider !== "string") return null;
-	const text = extractTextBlocks(msg.content);
-	if (!text.trim()) return null;
-	const prose = analysisProse(text);
-	// A reply that was nothing but code/markup has no analysis body to store.
-	if (!prose) return null;
-	const metrics = computeAssistantMessageMetrics(prose, { prevText: prevProse, toolErrors });
-	return {
-		sessionFile,
-		entryId: entry.id,
-		folder,
-		timestamp: coerceEntryTimestamp(msg.timestamp, entry),
-		model: msg.model,
-		provider: msg.provider,
-		agentType,
-		chars: metrics.chars,
-		words: metrics.words,
-		selfBlame: metrics.selfBlame,
-		restatement: metrics.restatement,
-		hedge: metrics.hedge,
-		verbose: metrics.verbose,
-		toolErrors: metrics.toolErrors,
-		toolSpiral: metrics.toolSpiral,
-		collapse: metrics.collapse,
-		unsupportedScript: metrics.unsupportedScript,
-		prose,
 	};
 }
 
@@ -380,6 +335,17 @@ function extractStats(
 	};
 }
 
+/**
+ * Stored for a `model_usage` entry whose `purpose` is missing or not a string:
+ * a non-null purpose is what keeps the row off the conversation turns.
+ */
+const UNKNOWN_PURPOSE = "unknown";
+
+/**
+ * Row for a `model_usage` entry (usage of a model call that is not a
+ * conversation turn). It keeps the entry's raw `purpose`, which assistant
+ * messages lack, and the request timings newer entries carry.
+ */
 function extractModelUsageStats(
 	sessionFile: string,
 	folder: string,
@@ -387,7 +353,7 @@ function extractModelUsageStats(
 	agentType: AgentType,
 ): MessageStatsInput | null {
 	const timestamp = Date.parse(entry.timestamp);
-	return extractStats(
+	const stats = extractStats(
 		sessionFile,
 		folder,
 		{
@@ -405,11 +371,16 @@ function extractModelUsageStats(
 				stopReason: entry.stopReason ?? "stop",
 				errorMessage: entry.errorMessage,
 				timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+				duration: isFiniteCount(entry.duration) ? entry.duration : undefined,
+				ttft: isFiniteCount(entry.ttft) ? entry.ttft : undefined,
 			},
 		},
 		undefined,
 		agentType,
 	);
+	if (!stats) return null;
+	stats.purpose = typeof entry.purpose === "string" && entry.purpose.length > 0 ? entry.purpose : UNKNOWN_PURPOSE;
+	return stats;
 }
 
 /** Message timestamp, falling back to the entry's ISO timestamp, then 0. */
@@ -651,10 +622,10 @@ export interface SessionParserState {
 export interface ParseSessionResult {
 	stats: MessageStatsInput[];
 	userStats: UserMessageStats[];
-	assistantTexts: AssistantTextStats[];
 	userLinks: UserMessageLink[];
 	toolCalls: ToolCallStats[];
 	toolResults: ToolResultLink[];
+	snapcompactCompactions: SnapcompactCompactionStats[];
 	spotlight: SpotlightParseRows;
 	newOffset: number;
 	parserState?: SessionParserState;
@@ -703,26 +674,14 @@ export async function parseSessionFile(
 	const agentType = classifyAgentType(sessionPath);
 	const stats: MessageStatsInput[] = [];
 	const userStats: UserMessageStats[] = [];
-	const assistantTexts: AssistantTextStats[] = [];
 	const userLinks: UserMessageLink[] = [];
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
+	const snapcompactCompactions: SnapcompactCompactionStats[] = [];
 	// First call per id: the row `INSERT OR IGNORE` keeps, so it can be written with its result.
 	const callsById = new Map<string, ToolCallStats>();
 	let spotlight = new SpotlightCollector(sessionPath, folder, emptySpotlightState());
 	let replies = new ReplyTracker();
-
-	// The previous user message, for the whole-message repetition signal. An
-	// incremental parse starts mid-session, so the first message of a resumed
-	// pass simply carries no predecessor.
-	let prevUserText = "";
-	// Model-side analysis: the previous prose-bearing assistant turn (for
-	// repeated restatement) and the failed tool results since the last
-	// assistant turn (for tool-failure spirals). Both start empty on a resumed
-	// tail read: the first assistant turn of that pass carries no predecessor
-	// and no spiral count, and the next full re-parse fills them in.
-	let prevAssistantText = "";
-	let pendingToolErrors = 0;
 
 	// Reduce each entry immediately so full replays do not retain tool-output/message bodies.
 	const visit = (entry: SessionEntry): void => {
@@ -732,19 +691,20 @@ export async function parseSessionFile(
 			currentServiceTier = coerceServiceTierByFamily(entry.serviceTier);
 			return;
 		}
+		const compaction = extractSnapcompactCompaction(sessionPath, folder, entry);
+		if (compaction) {
+			snapcompactCompactions.push(compaction);
+			return;
+		}
 		if (isUserMessage(entry)) {
-			const userMsg = extractUserStats(sessionPath, folder, entry, prevUserText);
-			if (userMsg) {
-				userStats.push(userMsg);
-				prevUserText = userMsg.prose || prevUserText;
-			}
+			const userMsg = extractUserStats(sessionPath, folder, entry);
+			if (userMsg) userStats.push(userMsg);
 			return;
 		}
 		if (isToolResultMessage(entry)) {
 			const link = extractToolResultLink(sessionPath, entry);
 			if (!link) return;
 			toolResults.push(link);
-			if (link.isError) pendingToolErrors++;
 			const call = callsById.get(link.toolCallId);
 			if (call && call.resultChars === undefined) {
 				call.resultChars = link.resultChars;
@@ -764,20 +724,6 @@ export async function parseSessionFile(
 				toolCalls.push(call);
 				if (!callsById.has(call.toolCallId)) callsById.set(call.toolCallId, call);
 			}
-			const textStats = extractAssistantTextStats(
-				sessionPath,
-				folder,
-				entry,
-				agentType,
-				prevAssistantText,
-				pendingToolErrors,
-			);
-			if (textStats) {
-				assistantTexts.push(textStats);
-				prevAssistantText = textStats.prose;
-			}
-			// The next assistant turn starts a fresh failure chain.
-			pendingToolErrors = 0;
 			// Persist links even when the user entry was ingested in an earlier tail read.
 			const msg = entry.message;
 			if (answered && msg.role === "assistant" && msg.model && msg.provider) {
@@ -839,10 +785,10 @@ export async function parseSessionFile(
 			return {
 				stats: [],
 				userStats: [],
-				assistantTexts: [],
 				userLinks: [],
 				toolCalls: [],
 				toolResults: [],
+				snapcompactCompactions: [],
 				spotlight: emptySpotlightRows(),
 				newOffset: fromOffset,
 			};
@@ -854,10 +800,10 @@ export async function parseSessionFile(
 	return {
 		stats,
 		userStats,
-		assistantTexts,
 		userLinks,
 		toolCalls,
 		toolResults,
+		snapcompactCompactions,
 		spotlight: spotlight.rows,
 		newOffset,
 		reset,
@@ -890,12 +836,12 @@ export async function listSessionFolders(): Promise<string[]> {
 }
 
 /**
- * Name prefix of the scratch directories `zetacode gc --compress` creates beside
+ * Name prefix of the scratch directories `omp gc --compress` creates beside
  * the files it copies on APFS. Their `.jsonl` files are transient copies of
  * transcripts, never transcripts of their own; a killed run can leave one
- * behind until the next `zetacode gc --compress --apply` removes it.
+ * behind until the next `omp gc --compress --apply` removes it.
  */
-export const COMPRESS_SCRATCH_PREFIX = ".zeta-gc-compress-";
+export const COMPRESS_SCRATCH_PREFIX = ".omp-gc-compress-";
 
 /** Whether `relativePath` (from any ancestor directory) lies inside a compress scratch directory. */
 export function isCompressScratchPath(relativePath: string): boolean {
@@ -904,7 +850,7 @@ export function isCompressScratchPath(relativePath: string): boolean {
 
 /**
  * List all session files in a folder, excluding copies inside
- * `zetacode gc --compress` scratch directories.
+ * `omp gc --compress` scratch directories.
  */
 export async function listSessionFiles(folderPath: string): Promise<string[]> {
 	try {

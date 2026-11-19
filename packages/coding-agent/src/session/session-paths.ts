@@ -1,8 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getTerminalId } from "@linxiraos/pi-tui/ttyid";
+import { getTerminalId } from "@oh-my-pi/pi-tui/ttyid";
 import {
 	getCustomSessionFilesDir,
 	getSessionsDir,
@@ -11,9 +10,11 @@ import {
 	hashPath,
 	pathIsWithin,
 	resolveEquivalentPath,
-} from "@linxiraos/pi-utils/dirs";
-import { isEnoent } from "@linxiraos/pi-utils/fs-error";
-import * as logger from "@linxiraos/pi-utils/logger";
+} from "@oh-my-pi/pi-utils/dirs";
+import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import type { Settings } from "../config/settings";
+import { worktreeFamily } from "../worktree/worktrees";
 import type { SessionStorage } from "./session-storage";
 
 const migratedSessionRoots = new Set<string>();
@@ -223,28 +224,23 @@ export function sessionDirForCwd(cwd: string, sessionsRoot: string = getSessions
 	return path.join(sessionsRoot, getDefaultSessionDirName(cwd).encodedDirName);
 }
 
-/**
- * Session directories for `cwd`'s folder in the other worktrees of its git
- * repository, under the sessions root holding `sessionDir`: every worktree git
- * lists, plus agent-managed ones (`/wt`, PR checkouts) found by name, so a
- * worktree removed since still counts. `/wt` moves a session into a linked
- * worktree's directory; the session picker lists these so it stays resumable
- * from the checkout it left, and vice versa.
- *
- * Empty outside git, when `cwd` sits outside its checkout, when `sessionDir`
- * is not cwd-derived (a custom `--session-dir`), or when git metadata is
- * unreadable.
- */
-export async function worktreeSessionDirs(cwd: string, sessionDir: string): Promise<string[]> {
+/** Session buckets for both backends, including removed worktrees whose sessions can be resumed. */
+export async function worktreeSessionDirs(
+	cwd: string,
+	sessionDir: string,
+	options: { settings?: Settings; stranded?: boolean } = {},
+): Promise<string[]> {
 	const sessionsRoot = resolveManagedSessionRoot(sessionDir, cwd);
 	if (!sessionsRoot) return [];
 	try {
-		const repo = vcs.git(cwd);
-		const prefix = repo?.prefixOf(cwd);
-		if (!repo || prefix == null) return [];
-		const dirs = new Set(managedWorktreeSessionDirs(repo.primaryRoot(), prefix, sessionsRoot));
-		for (const worktree of await repo.worktrees()) {
-			dirs.add(sessionDirForCwd(path.resolve(worktree.path, prefix), sessionsRoot));
+		const family = await worktreeFamily(cwd, options.settings);
+		if (!family) return [];
+		const { primary, prefix, locations } = family;
+		const dirs = new Set(managedWorktreeSessionDirs(primary, prefix, sessionsRoot));
+		for (const location of locations) {
+			const dir = sessionDirForCwd(path.resolve(location.root, prefix), sessionsRoot);
+			if (options.stranded && location.offline) dirs.delete(dir);
+			else dirs.add(dir);
 		}
 		dirs.delete(path.resolve(sessionDir));
 		return [...dirs];
@@ -425,7 +421,7 @@ function writeIfChangedSync(file: string, content: string): void {
  * absolute path. Best-effort — a failure here must never break session
  * creation.
  *
- * `sessionFile` may be relative (e.g. `--session .zeta-sessions/work`); it is
+ * `sessionFile` may be relative (e.g. `--session .omp-sessions/work`); it is
  * resolved against the recorded `cwd`, matching how the breadcrumb stores it.
  */
 function recordCustomSessionFile(cwd: string, sessionFile: string, scope: CustomSessionFileScope | undefined): void {

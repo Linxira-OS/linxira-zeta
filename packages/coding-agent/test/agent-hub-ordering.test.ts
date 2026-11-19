@@ -1,18 +1,19 @@
-import { createAgentHubRuntime } from "@linxiraos/zeta/modes/agent-hub-runtime";
+import { createAgentHubRuntime } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
 /**
  * Regression: the agent hub keeps its initial status/recency order while open,
  * regardless of heartbeats; newly spawned agents appear above existing rows.
  */
 import { afterEach, beforeAll, describe, expect, it, setSystemTime, vi } from "bun:test";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { type AgentHubDeps, AgentHubOverlayComponent } from "@linxiraos/pi-tui/overlays/agent-hub";
-import { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import { initTheme, theme } from "@linxiraos/pi-tui/theme";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { visibleWidth } from "@linxiraos/pi-tui/utils";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import { type AgentHubDeps, AgentHubOverlayComponent } from "@oh-my-pi/pi-tui/overlays/agent-hub";
+import { agentColored, agentColorHex, agentPalette } from "@oh-my-pi/pi-tui/overlays/agent-identity";
+import { SessionObserverRegistry } from "@oh-my-pi/pi-tui/overlays/session-observer-registry";
+import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
 import { AgentActivityIndex, type AgentActivityRow } from "../src/activity";
 
 interface GeometryStub {
@@ -146,7 +147,7 @@ describe("Agent hub row ordering", () => {
 			const rendered = Bun.stripANSI(hub.render(120).join("\n"));
 			expect(rendered).toContain("No agents in this session");
 			expect(rendered).toContain("Finished, parked, and killed subagents remain with the session");
-			expect(rendered).toContain("Resume that session with zetacode --continue, or spawn a task here.");
+			expect(rendered).toContain("Resume that session with omp-dev --continue, or spawn a task here.");
 		} finally {
 			hub.dispose();
 		}
@@ -722,7 +723,7 @@ describe("Agent hub row ordering", () => {
 			history: {
 				outputPath: "/tmp/Reviewer.md",
 				patchPath: "/tmp/Reviewer.patch",
-				branchName: "zeta/task/Reviewer",
+				branchName: "omp/task/Reviewer",
 			},
 			createdAt,
 		});
@@ -789,7 +790,7 @@ describe("Agent hub row ordering", () => {
 			expect(rendered).toContain("Output /tmp/Reviewer.md");
 			expect(rendered).toContain("Patch /tmp/Reviewer.patch");
 			hub.handleInput("\x1b[6~");
-			expect(Bun.stripANSI(hub.render(140).join("\n"))).toContain("Worktree branch zeta/task/Reviewer");
+			expect(Bun.stripANSI(hub.render(140).join("\n"))).toContain("Worktree branch omp/task/Reviewer");
 		} finally {
 			hub.dispose();
 		}
@@ -1120,11 +1121,6 @@ describe("Agent hub row ordering", () => {
 	});
 
 	it("renders parent lineage with bash-style tree connectors", () => {
-		// Equal activity timestamps keep the sibling order used by the connector
-		// assertions deterministic. With distinct millisecond stamps the roster is
-		// newest-first, so `Last` would render before `First` and `First` would flip
-		// from a middle child to the last one — the CI flake this pins.
-		setSystemTime(1_000);
 		geometry = stubStdoutGeometry(120);
 		geometry.setRows(32);
 		const agents = new AgentRegistry();
@@ -1139,6 +1135,54 @@ describe("Agent hub row ordering", () => {
 			expect(Bun.stripANSI(renderedRosterHeaderLineRaw(hub, "First", 120))).toContain("├── ⟳ First");
 			expect(Bun.stripANSI(renderedRosterHeaderLineRaw(hub, "Grandchild", 120))).toContain("│   └── ⟳ Grandchild");
 			expect(Bun.stripANSI(renderedRosterHeaderLineRaw(hub, "Last", 120))).toContain("└── ⟳ Last");
+		} finally {
+			hub.dispose();
+		}
+	});
+	it("draws each unselected agent's id in its identity colour and the selected one in accent", () => {
+		geometry = stubStdoutGeometry(120);
+		const agents = new AgentRegistry();
+		agents.register({ id: "Scout", displayName: "Scout", kind: "sub", session: null });
+		agents.register({ id: "Scout.Probe", displayName: "Probe", kind: "sub", parentId: "Scout", session: null });
+		const hub = makeHub(agents);
+
+		try {
+			const selected = selectedAgentId(hub)!;
+			const other = selected === "Scout" ? "Scout.Probe" : "Scout";
+			expect(renderedRosterHeaderLineRaw(hub, selected, 120)).toContain(theme.bold(theme.fg("accent", selected)));
+			expect(renderedRosterHeaderLineRaw(hub, other, 120)).toContain(theme.bold(agentColored(theme, other, other)));
+		} finally {
+			hub.dispose();
+		}
+	});
+	it("keeps each agent's arrival colour across re-renders and after an earlier agent ends", () => {
+		vi.useFakeTimers();
+		geometry = stubStdoutGeometry(120);
+		// Arrival slots are process-wide, so these ids appear in no other test.
+		const [lead, tests, docs, bench] = ["ArrivalLead", "ArrivalTests", "ArrivalDocs", "ArrivalBench"] as const;
+		const agents = new AgentRegistry();
+		for (const id of [lead, tests, docs]) agents.register({ id, displayName: id, kind: "sub", session: null });
+		const palette = agentPalette(theme).subagents;
+		const slotOf = (id: string) => palette.indexOf(agentColorHex(theme, id));
+		const first = slotOf(lead);
+		expect([tests, docs].map(slotOf)).toEqual([(first + 1) % palette.length, (first + 2) % palette.length]);
+		const hub = makeHub(agents);
+
+		try {
+			const drawnInOwnColour = (id: string) =>
+				id === selectedAgentId(hub) ||
+				renderedRosterHeaderLineRaw(hub, id, 120).includes(theme.bold(agentColored(theme, id, id)));
+			expect([tests, docs].every(drawnInOwnColour)).toBe(true);
+
+			agents.unregister(lead);
+			agents.register({ id: bench, displayName: bench, kind: "sub", session: null });
+			vi.advanceTimersByTime(100);
+			expect([tests, docs, bench].map(slotOf)).toEqual([
+				(first + 1) % palette.length,
+				(first + 2) % palette.length,
+				(first + 3) % palette.length,
+			]);
+			expect([tests, docs, bench].every(drawnInOwnColour)).toBe(true);
 		} finally {
 			hub.dispose();
 		}

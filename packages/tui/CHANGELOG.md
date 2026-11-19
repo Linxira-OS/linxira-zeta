@@ -1,6 +1,70 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
+## [19.0.0] - 2026-11-18
+
+### Breaking Changes
+
+- Full-output references and the `[raw output: …]` footer now use `local://N.log` instead of `artifact://N`.
+
+### Added
+
+- Added the `btw` composer mode, including the `btwMode` theme color in all bundled themes.
+- Added feature-gated native docking for runtime children, allowing components to appear only on terminals that advertise the required capability.
+- Added options to preserve intraword underscores when stripping inline Markdown and to open `JobsSheet` on a selected job.
+- Custom message payloads can now be excluded from model context while remaining available in normalized and restored saved entries.
+- Added transcript blocks for output reported by running background jobs and services.
+
+### Changed
+
+- Reworked ask dialogs into a single stacked flow: the active question stays open while answered questions fold into compact summaries with their selected options visible. This applies across terminal and native interfaces and improves keyboard navigation, sizing, and host composer integration.
+- Improved composer behavior while an ask dialog is pending: the composer indicates that typing there will skip the question, folds to a compact state when appropriate, and offers an explicit Skip & send action for drafts that bypass the ask.
+- Added support for folded and faint composer states and clearer visual indication when the interface is awaiting an answer.
+- Model search now supports `provider/model` queries, prioritizing exact provider matches and searching that provider's model IDs first.
+
+### Fixed
+
+- Improved background-job notices in Tern by grouping all output under one header and showing the complete lines.
+- Fixed Tern composer handling of `->` and `=>` so typing them no longer unexpectedly inserts a line break.
+- Fixed web search results without a synthesized answer to show each source once with a concise cleaned excerpt.
+- Fixed long Tern tool-approval prompts so their details scroll within the available window and the choices and Approve/Deny controls remain visible.
+- Fixed table chart unit display and change-factor calculations for measurements with scaled units.
+- Fixed checkbox groups so pressing Enter with nothing selected first checks the focused box.
+- Ask forms now open each question with its preselected answer, allowing Enter to accept the recommendation without replacing it.
+
+## [18.22.2] - 2026-11-18
+
+### Added
+
+- `ui.loop-blocked` log records now name what held the event loop (`cause`, `causeShare`, `top`), sampled by an always-on profiler; `PI_LOOP_SAMPLER=0` turns it off
+
+### Changed
+
+- On Windows, terminal output is written off the JS thread, so input and rendering stay responsive while the console drains a large repaint
+
+### Fixed
+
+- On Windows, omp no longer freezes when the terminal stops reading its output (a hung Windows Terminal, a paused ssh client); it keeps running and catches up once the terminal reads again
+
+## [18.22.1] - 2026-11-17
+
+### Added
+
+- Task tool and agent hub rows now use distinct, theme-aware colours for the main agent and subagents; themes can optionally customize the six subagent colours.
+- Added word wrapping for table columns and rows, preserving hard line breaks so long table content remains readable.
+
+### Changed
+
+- Improved terminal UI responsiveness and reduced CPU usage while streaming long responses, monitoring the event loop, and typing with macOS spell checking enabled.
+- Status account identities can now include an optional credential ID, allowing usage to be attributed to API-key accounts and cached usage to refresh when the credential changes.
+
+### Fixed
+
+- Images in Ask forms now render correctly in Kitty-protocol terminals, including Kitty, Ghostty, and herdr.
+- Fixed model mentions followed by punctuation so they become editable chips without consuming the punctuation.
+- Fixed /copy to copy the visible prose from mid-turn out:// replies, including replies sent by commands, instead of the tool's internal result text.
+
+## [18.22.0] - 2026-11-16
 
 ### Breaking Changes
 
@@ -447,3 +511,8 @@ Older entries are archived in [packages/tui/CHANGELOG.md@bdbb5c920f69](https://g
 - Fixed TUI renders repeatedly clearing terminal scrollback after content filled the viewport. Unknown viewport probes no longer let foreground-streaming offscreen growth take the destructive `historyRebuild` path on every frame; newly appended tail rows stay reachable while stale history waits for a safe checkpoint. ([#2154](https://github.com/can1357/oh-my-pi/issues/2154))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@7049d1b1afeb](https://github.com/can1357/oh-my-pi/blob/7049d1b1afeb8e421e7f9fba5c1dcebd7c382232/packages/tui/CHANGELOG.md).
+### Added
+
+- Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
+
+Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/can1357/oh-my-pi/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).

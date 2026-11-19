@@ -1,24 +1,26 @@
-import type { GrepToolDetails } from "@linxiraos/pi-tui/tools/grep";
+import type { GrepToolDetails } from "@oh-my-pi/pi-tui/tools/grep";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/zeta-schema";
-import type {
-	AgentTool,
-	AgentToolContext,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolTier,
-} from "@linxiraos/pi-agent-core";
-import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
-import { prompt, sanitizeText, untilAborted } from "@linxiraos/pi-utils";
-import { LRUCache } from "@linxiraos/pi-utils/lru";
+import { type } from "@oh-my-pi/omptype";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
+import {
+	type EditStore,
+	type GrepMatch,
+	GrepOutputMode,
+	type GrepResult,
+	grep,
+	notebookToEditableText,
+} from "@oh-my-pi/pi-natives";
+import { prompt, sanitizeText, untilAborted } from "@oh-my-pi/pi-utils";
+import { LRUCache } from "@oh-my-pi/pi-utils/lru";
 import {
 	type ArchiveReader,
 	type ExtractedArchiveFile,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@linxiraos/pi-utils/ar";
+} from "@oh-my-pi/pi-utils/ar";
+import { normalizeToLF } from "../edit/normalize";
 import { getEditStore, NO_FULL_LINE, recordFullySeenRows } from "../edit/store";
 import { sessionResolveContext } from "../internal-urls/context";
 import { InternalUrlRouter } from "../internal-urls/router";
@@ -29,7 +31,7 @@ import {
 	DEFAULT_MAX_COLUMN,
 	type TruncationResult,
 	truncateHead,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+} from "@oh-my-pi/pi-tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { isScoutSpawnable } from "../task/spawn-policy";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
@@ -37,8 +39,8 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { type FileMatchSection, formatFileMatches } from "@linxiraos/pi-tui/tools/grouped-file-output";
-import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
+import { type FileMatchSection, formatFileMatches } from "@oh-my-pi/pi-tui/tools/grouped-file-output";
+import { formatMatchLine } from "@oh-my-pi/pi-tui/tools/match-line-format";
 import { isFindEnabled } from "./jfind";
 import {
 	expandDelimitedPathEntries,
@@ -64,12 +66,12 @@ import {
 	approvalRootCandidates,
 	searchApprovalCacheTargets,
 } from "./search-approval-targets";
-import { type LineRange, parseLineRanges, selectorLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
-import { isReadableUrlPath, splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
-import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
+import { type LineRange, parseLineRanges, selectorLineRanges } from "@oh-my-pi/pi-tui/tools/line-ranges";
+import { isReadableUrlPath, splitPathAndSel } from "@oh-my-pi/pi-tui/tools/read";
+import { toPathList } from "@oh-my-pi/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { formatCodeFrameLine } from "@linxiraos/pi-tui/render/render-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { formatCodeFrameLine } from "@oh-my-pi/pi-tui/render/render-utils";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";
@@ -99,7 +101,7 @@ export const SINGLE_FILE_MATCHES = 50;
  * (DEFAULT_FILE_LIMIT files × MULTI_FILE_PER_FILE_MATCHES matches) plus
  * pagination headroom so the caller can see total file count. */
 const INTERNAL_TOTAL_CAP = 2000;
-/** Mirrors `MAX_FILE_BYTES` in `crates/pi-natives/src/grep.rs`. Native grep
+/** Mirrors `MAX_FILE_BYTES` in `crates/natives/src/grep.rs`. Native grep
  * searches only the first `MAX_FILE_BYTES` of a larger file (a leading mmap
  * window) and drops the rest; matches beyond the window are not returned. We
  * surface a partial-coverage note when the caller explicitly targeted such a
@@ -109,6 +111,8 @@ const NATIVE_GREP_MAX_FILE_BYTES = 4 * 1024 * 1024;
  * aborted or runaway search (huge tree, network mount) keeps burning CPU on
  * the native thread pool after the JS promise is abandoned. */
 const SEARCH_GREP_TIMEOUT_MS = 30_000;
+/** Budget for checking whether gitignored files would match a search that found nothing. */
+const GITIGNORE_PROBE_TIMEOUT_MS = 5_000;
 
 /**
  * Parsed `paths` entry — a path (possibly archive-shaped) plus an optional
@@ -707,6 +711,11 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					{ path: target.path, raw: isRawSelector(target.sel) },
 					signal,
 				);
+				// An error page or a blocked fetch has no content to search; "no matches" would hide why.
+				const { method, notes } = materialized.details;
+				if (method === "failed" || method === "blocked") {
+					throw new ToolError(`Cannot search ${rawPath}: ${notes.join("; ") || "the fetch failed"}`);
+				}
 				materializedExternalPaths.set(rawPath, materialized.path);
 				return { sourcePath: materialized.path, immutable: true };
 			};
@@ -854,6 +863,8 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 									multiline: effectiveMultiline,
 									hidden: true,
 									gitignore: useGitignore,
+									// Skills are often linked into place, file by file or whole trees; read follows those links too.
+									followLinks: target.basePath.startsWith("skill://"),
 									maxCount: nativeMaxCount,
 									contextBefore: normalizedContextBefore,
 									contextAfter: normalizedContextAfter,
@@ -908,6 +919,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 								multiline: effectiveMultiline,
 								hidden: true,
 								gitignore: useGitignore,
+								followLinks: searchPath.startsWith("skill://"),
 								maxCount: nativeMaxCount,
 								contextBefore: normalizedContextBefore,
 								contextAfter: normalizedContextAfter,
@@ -935,6 +947,77 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						);
 					}
 					throw err;
+				}
+				// read and edit work on a notebook's cell projection, not its JSON: search
+				// that projection too, so line numbers, ranges and anchors agree with them.
+				// A notebook that cannot be projected keeps its JSON matches, unanchored.
+				const projectedNotebooks = new Map<string, { tag: string | null; path: string }>();
+				const notebookPaths = new Set(
+					result.matches.map(match => match.path).filter(matchPath => matchPath.toLowerCase().endsWith(".ipynb")),
+				);
+				if (notebookPaths.size > 0) {
+					const scratch = await mkdtemp(path.join(tmpdir(), "omp-grep-ipynb-"));
+					try {
+						const projectedMatches = new Map<string, GrepMatch[]>();
+						for (const notebookPath of notebookPaths) {
+							const absolute = resolveSearchResultPath(searchPath, notebookPath);
+							if (!path.isAbsolute(absolute)) continue;
+							let text: string;
+							try {
+								text = normalizeToLF(notebookToEditableText(await Bun.file(absolute).text(), notebookPath));
+							} catch {
+								continue;
+							}
+							const scratchPath = path.join(scratch, `${projectedMatches.size}.txt`);
+							await writeFile(scratchPath, text);
+							const projected = await grep(
+								{
+									pattern: normalizedPattern,
+									path: scratchPath,
+									ignoreCase,
+									multiline: effectiveMultiline,
+									hidden: true,
+									gitignore: false,
+									contextBefore: normalizedContextBefore,
+									contextAfter: normalizedContextAfter,
+									maxColumns: DEFAULT_MAX_COLUMN,
+									mode: effectiveOutputMode,
+									maxCountPerFile: nativeMaxCountPerFile,
+									signal,
+									timeoutMs: SEARCH_GREP_TIMEOUT_MS,
+								},
+								undefined,
+							);
+							projectedMatches.set(
+								notebookPath,
+								projected.matches.map(match => ({ ...match, path: notebookPath })),
+							);
+							const tag = baseDisplayMode.hashLines
+								? getEditStore(this.session).recordSnapshot(absolute, text)
+								: null;
+							projectedNotebooks.set(notebookPath, { tag, path: absolute });
+						}
+						if (projectedMatches.size > 0) {
+							const matches: GrepMatch[] = [];
+							for (const match of result.matches) {
+								const projected = projectedMatches.get(match.path);
+								if (!projected) {
+									matches.push(match);
+									continue;
+								}
+								matches.push(...projected);
+								projectedMatches.set(match.path, []);
+							}
+							result = {
+								...result,
+								matches,
+								totalMatches: matches.length,
+								filesWithMatches: new Set(matches.map(match => match.path)).size,
+							};
+						}
+					} finally {
+						await rm(scratch, { recursive: true, force: true });
+					}
 				}
 				// A cross-line match is kept by its first line alone, so it carries its file's
 				// ranges to the renderer, which hides the continuation rows they exclude.
@@ -1138,7 +1221,41 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 							: binaryMatchNote
 								? "No matches in text files"
 								: "No matches found";
-					const text = warningNote ? `${noMatchText}\n${warningNote}` : noMatchText;
+					// A directory search that respected .gitignore and found nothing says
+					// whether ignored files would have matched, so "no matches" is not
+					// mistaken for absence (generated docs, plans, vendored sources).
+					let ignoredNote: string | undefined;
+					if (useGitignore && isDirectory && !multiTargets && !exactFilePaths && !skipPastEnd) {
+						const ignored = await grep(
+							{
+								pattern: normalizedPattern,
+								path: searchPath,
+								glob: globFilter,
+								recursive: scope.bareGlob,
+								ignoreCase,
+								multiline: effectiveMultiline,
+								hidden: true,
+								gitignore: false,
+								followLinks: searchPath.startsWith("skill://"),
+								maxCount: 1,
+								mode: GrepOutputMode.FilesWithMatches,
+								exclude: exclusionsForRoot(exclusions, this.session.cwd, searchPath),
+								signal,
+								timeoutMs: GITIGNORE_PROBE_TIMEOUT_MS,
+								filesystem,
+							},
+							undefined,
+						).catch(error => {
+							// Best effort: a probe that times out or fails leaves the plain no-match result.
+							if (signal?.aborted) throw error;
+							return undefined;
+						});
+						const example = ignored?.matches[0]?.path;
+						if (example !== undefined) {
+							ignoredNote = `Gitignored files match (e.g. ${formatPath(example)}); pass \`gitignore: false\` to search them.`;
+						}
+					}
+					const text = [noMatchText, ignoredNote, warningNote].filter(Boolean).join("\n");
 					// Zero matches is useless regardless of warnings: by the time
 					// compaction runs, the follow-up call has already corrected course.
 					return toolResult(details).text(text).useless().done();
@@ -1157,7 +1274,14 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				const displayLines: string[] = [];
 				const hashContexts = new Map<string, { tag: string; path: string }>();
 				if (baseDisplayMode.hashLines) {
-					const candidates = fileList.filter(relativePath => !archiveDisplaySet.has(relativePath));
+					// Notebook JSON lines never anchor an edit; projected notebooks got their tag above.
+					const candidates = fileList.filter(
+						relativePath =>
+							!archiveDisplaySet.has(relativePath) && !relativePath.toLowerCase().endsWith(".ipynb"),
+					);
+					for (const [notebookPath, { tag, path: snapshotPath }] of projectedNotebooks) {
+						if (tag) hashContexts.set(formatPath(notebookPath), { tag, path: snapshotPath });
+					}
 					// Immutable schemes get no host file; mutable URLs (`local://`) bind to their backing file.
 					const snapshotPaths = await Promise.all(
 						candidates.map(relativePath => resultSnapshotPath(relativePath, this.session.cwd, resolveContext)),

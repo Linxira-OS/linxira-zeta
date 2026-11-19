@@ -19,9 +19,9 @@ export const SKIP_PREFIXES = [
 	"AGENTS.md", // the registry prose itself discusses the tokens
 	"UPDATE-LOG.md", // released entries are immutable history
 	"crates/vendor/", // vendored upstream code
-	"crates/pi-natives/tools/cache/", // tokenizer vocab dumps (byte soup)
-	"crates/pi-natives/src/utok/", // multilingual tokenizer fixtures
-	"crates/pi-natives/src/syntaxes/", // highlight grammars (Julia π constant)
+	"crates/natives/tools/cache/", // tokenizer vocab dumps (byte soup)
+	"crates/natives/src/utok/", // multilingual tokenizer fixtures
+	"crates/natives/src/syntaxes/", // highlight grammars (Julia π constant)
 	"plugins/", // shipped extension assets
 	"infra/", // self-hosted ARC deployment docs/lists; historical runner labels are data
 	".zeta/", // in-repo dev-tool directory (not the product config dir)
@@ -267,17 +267,17 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	// re-registers the product as `zetacode` at the platform level, which no
 	// docs/sources-only guard can catch.
 	{
-		file: "crates/pi-natives/src/oauth_callback/darwin.rs",
+		file: "crates/natives/src/oauth_callback/darwin.rs",
 		needle: 'const BUNDLE_PREFIX: &str = "dev.zeta.oauth-callback.";',
 		why: "macOS bundle id for the OAuth callback handler; upstream is dev.omp.oauth-callback and appears in LaunchServices + any bundle inventory",
 	},
 	{
-		file: "crates/pi-natives/src/oauth_callback/windows.rs",
+		file: "crates/natives/src/oauth_callback/windows.rs",
 		needle: 'const MARKER_NAME: &str = "Zeta OAuth Callback Transaction";',
 		why: "HKCU registry transaction name for the Windows URL protocol handler",
 	},
 	{
-		file: "crates/pi-natives/src/oauth_callback/linux.rs",
+		file: "crates/natives/src/oauth_callback/linux.rs",
 		needle: 'const DESKTOP_ID_PREFIX: &str = "dev.zeta.oauth-callback.";',
 		why: "XDG desktop-entry id for the Linux URL protocol handler",
 	},
@@ -287,7 +287,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "file-descriptor URL scheme handed to the opener; upstream omp-descriptor:// registers under his name",
 	},
 	{
-		file: "crates/pi-natives/src/lib.rs",
+		file: "crates/natives/src/lib.rs",
 		needle: "pub fn omp_install_tokio_runtime()",
 		why: "the Tokio install export keeps its upstream name ON PURPOSE — sweeping it to __zeta* made Tokio silently fail to install (v18.0.10)",
 	},
@@ -955,7 +955,7 @@ export const MUST_NOT_CONTAIN: Array<{
  * Python is deliberately narrow: `python/**` + `sdk/**` are the Python SDK, its
  * generated languages and robomp (its only in-repo consumer). The other ~150
  * tracked `.py` files are eval preludes, fixture generators and analysis tools
- * under `packages/**`, `crates/pi-natives/tools/**` and
+ * under `packages/**`, `crates/natives/tools/**` and
  * `bazel/**`, which no SDK rename can reach.
  */
 export const MUST_NOT_CONTAIN_EXTRA_GLOBS: RegExp[] = [

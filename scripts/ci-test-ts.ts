@@ -3,6 +3,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
 
 type Mode =
 	| "all"
@@ -14,10 +15,9 @@ type Mode =
 	| "coding-agent-ui"
 	| "coding-agent-runtime"
 	| "coding-agent-native"
-	| "coding-agent-browser"
 	| "coding-agent-heavy";
 
-type CodingAgentBucket = "singleton" | "ui" | "runtime" | "native" | "browser";
+type CodingAgentBucket = "singleton" | "ui" | "runtime" | "native";
 
 interface TestCommand {
 	label: string;
@@ -26,6 +26,8 @@ interface TestCommand {
 	command: string[];
 	/** `bun test --parallel` width this chunk wants when it has the machine to itself. */
 	parallel?: number;
+	/** Expected wall seconds from the timing history, set by weighted chunk planning; orders pool dispatch. */
+	estimatedSeconds?: number;
 }
 
 type CodingAgentTestPartition = Record<CodingAgentBucket, string[]>;
@@ -59,16 +61,21 @@ const validModes: Record<Mode, true> = {
 	"coding-agent-ui": true,
 	"coding-agent-runtime": true,
 	"coding-agent-native": true,
-	"coding-agent-browser": true,
 	"coding-agent-heavy": true,
 };
 
-// `chunkSize` splits a bucket's file list into that-many-file groups, each run as a
-// separate `bun test` child process. A fresh process per chunk resets Bun's
-// heap and reaps any dangling spawned children between groups, keeping peak RSS
-// under the CI runner's OOM ceiling (a single 170–370-file invocation gets
-// SIGKILLed at 137). The singleton/global-state bucket is left whole: its suites
-// co-locate in one process to exercise process-wide state, so they must not split.
+// `chunkSize` caps how many files of a bucket share one `bun test` child process.
+// A fresh process per chunk resets Bun's heap and reaps any dangling spawned
+// children between groups, keeping peak RSS under the CI runner's OOM ceiling (a
+// single 170–370-file invocation gets SIGKILLed at 137). A bucket always gets
+// `ceil(files / chunkSize)` chunks. Which files share a chunk comes from the
+// timing history (see TimingHistory): files are dealt heaviest-first onto the
+// lightest chunk with room, so slow suites spread out instead of clustering in
+// one alphabetical run (ten `cli-*` files once made a 67s chunk beside a 5s
+// median), and chunks are numbered heaviest-first. With no history for any of a
+// bucket's files the plan falls back to consecutive alphabetical runs. The
+// singleton/global-state bucket is left whole: its suites co-locate in one
+// process to exercise process-wide state, so they must not split.
 //
 // The UI/TUI bucket uses a smaller chunk (5) than the others: its suites build up
 // native ghostty-vt cells, and bun 1.3.14's GC aborts (SIGTRAP/SIGABRT, exit
@@ -81,11 +88,7 @@ const codingAgentBucketPlans: Record<CodingAgentBucket, { label: string; paralle
 	singleton: { label: "singleton/global-state bucket", parallel: 1 },
 	ui: { label: "UI/TUI bucket", parallel: 1, chunkSize: 5 },
 	runtime: { label: "runtime/session bucket", parallel: 1, chunkSize: 10 },
-	native: { label: "native/tooling/unit bucket", parallel: 1, chunkSize: 10 },
-	// Real-Chromium suites: each file launches (or drives) a browser process, so a
-	// chunk stays small both for memory and because the release/nightly job is the
-	// only place these run.
-	browser: { label: "browser/Chromium bucket", parallel: 1, chunkSize: 5 },
+	native: { label: "native/tooling/browser/unit bucket", parallel: 1, chunkSize: 10 },
 };
 
 // Smaller workspace packages stay separate from native/TUI/integration suites so
@@ -107,37 +110,20 @@ const fastWorkspacePackages = [
 const nativeAndIntegrationPackages = [
 	"packages/natives",
 	"packages/tui",
-	"packages/export-web",
+	"packages/collab-web",
 	"packages/typescript-edit-benchmark",
 ];
 
-// The project-local TUI debug tool (`.zeta/tools/tui.ts`) is exercised by its
-// own test in `.zeta/tests`, outside every workspace package.
 const projectToolTestCommand: TestCommand = {
-	label: ".zeta/tests (project-local TUI debug tool)",
+	label: ".omp/tests (project-local TUI debug tool)",
 	cwd: ".",
-	command: ["bun", "test", ...onlyFailuresArgs, "./.zeta/tests/tui.test.ts"],
+	command: ["bun", "test", ...onlyFailuresArgs, "./.omp/tests/tui.test.ts"],
 	parallel: 1,
 };
 
 // Packages the CI buckets deliberately skip but a local full run should still
 // cover. robomp-web lives under python/robomp and is outside every CI TS bucket.
 const localOnlyWorkspacePackages = ["python/robomp/web"];
-
-// Real-browser suites: every `browser*.test.ts` (relay, tabs, screenshots,
-// uploads, webmcp…) plus the PDF renderer that embeds Chromium. They launch a
-// browser process (or drive a CDP endpoint), so they are slow and
-// timing-sensitive: they run in their own bucket, on the scheduled/release-only
-// job, instead of competing with the per-push unit buckets.
-const codingAgentBrowserPathPatterns = [
-	/(^|\/)browser[^/]*\.test\.ts$/i,
-	/(^|\/)read-pdf[^/]*chromium[^/]*\.test\.ts$/i,
-];
-
-// The shared probe is imported only by suites that launch or attach to a real
-// Chromium; it classifies a future chromium-driving suite whose name does not
-// start with `browser`.
-const codingAgentBrowserContentMarkers = ["chromium-probe"];
 
 const codingAgentNativePathPatterns = [
 	/(^|\/)[^/]*(bash|native|browser|cmux|mnemopi|hindsight|memory)[^/]*\.test\.ts$/i,
@@ -174,7 +160,7 @@ const codingAgentRuntimePathPatterns = [
 ];
 
 const codingAgentNativeContentMarkers = [
-	"@linxiraos/pi-natives",
+	"@oh-my-pi/pi-natives",
 	"pi-natives",
 	"native",
 	"readImageMetadata",
@@ -210,7 +196,7 @@ const codingAgentSingletonContentPatterns = [
 ];
 
 const codingAgentUiContentMarkers = [
-	"@linxiraos/pi-tui",
+	"@oh-my-pi/pi-tui",
 	"InteractiveMode",
 	"InputController",
 	"StatusLine",
@@ -222,6 +208,29 @@ const codingAgentUiContentMarkers = [
 const codingAgentRuntimeContentMarkers = ["AgentSession", "SessionManager", "AuthStorage", "Bun.sleep", "setTimeout("];
 
 let codingAgentTestPartitionPromise: Promise<CodingAgentTestPartition> | null = null;
+
+// A test whose own junit `time` exceeds this many seconds is called out in its
+// chunk's progress line and in the end-of-run slow-test section. A warning
+// only: it never fails the run.
+const SLOW_TEST_SECONDS = 5;
+
+// Observed durations from earlier non-dry runs, used to balance coding-agent
+// chunks and to start the longest pool commands first. `files` maps a
+// repo-relative test file to the seconds of its file-level junit suite;
+// `commands` maps the label of a command that lists no test files (a whole
+// package, the Rust task — labels that stay stable across runs) to its wall
+// seconds. A machine-local cache: missing or malformed reads as empty, which is
+// the cold-start plan.
+interface TimingHistory {
+	files: Record<string, number>;
+	commands: Record<string, number>;
+}
+
+const timingHistoryPath = path.join(repoRoot, "node_modules/.cache/omp-test-timings.json");
+const codingAgentCwd = "packages/coding-agent";
+const TEST_FILE_ARG_RE = /\.test\.[cm]?[jt]sx?$/;
+
+let timingHistoryPromise: Promise<TimingHistory> | null = null;
 
 function shellQuote(value: string): string {
 	if (/^[A-Za-z0-9_./:=@+-]+$/.test(value)) {
@@ -281,18 +290,9 @@ function matchesAnyPath(testFile: string, patterns: RegExp[]): boolean {
 function matchesAnyContentPattern(content: string, patterns: RegExp[]): boolean {
 	return patterns.some(pattern => pattern.test(content));
 }
-// Browser/Chromium tests are classified first: their content also matches the
-// native markers (puppeteer, WebSocket, Worker, spawn), but they need a real
-// browser and belong in the scheduled/release bucket, never the per-push one.
-// Native/tooling tests come next because they need the lowest concurrency; all
-// coding-agent buckets run with the native addon available in CI.
-export function classifyCodingAgentTest(testFile: string, content: string): CodingAgentBucket {
-	if (
-		matchesAnyPath(testFile, codingAgentBrowserPathPatterns) ||
-		hasAnyMarker(content, codingAgentBrowserContentMarkers)
-	) {
-		return "browser";
-	}
+// Native/tooling tests are classified first because they need the lowest
+// concurrency; all coding-agent buckets run with the native addon available in CI.
+function classifyCodingAgentTest(testFile: string, content: string): CodingAgentBucket {
 	if (
 		matchesAnyPath(testFile, codingAgentNativePathPatterns) ||
 		hasAnyMarker(content, codingAgentNativeContentMarkers)
@@ -321,25 +321,12 @@ export function classifyCodingAgentTest(testFile: string, content: string): Codi
 async function getCodingAgentTestPartition(): Promise<CodingAgentTestPartition> {
 	codingAgentTestPartitionPromise ??= (async () => {
 		const codingAgentDir = path.join(repoRoot, "packages/coding-agent");
-		// `test/` only, for years: every guard that lives *next to* its subject
-		// under `src/` — `src/i18n/messages.test.ts` (catalogue key parity),
-		// `src/config/settings-zh.test.ts`, `src/i18n/command-descriptions.test.ts`
-		// — was collected by no bucket and therefore ran in no CI job. It is the
-		// reason a 3219-key catalogue could silently drift, and why the settings
-		// zh overlay could park 29 option entries in a map the panel never reads.
-		// Both roots are `bun test`-runnable from the package root; unmatched
-		// files fall through to the `native` bucket (lowest concurrency, native
-		// addon present), which is what these guards want.
-		const testFiles = [
-			...(await collectTestsUnder(path.join(codingAgentDir, "test"), codingAgentDir)),
-			...(await collectTestsUnder(path.join(codingAgentDir, "src"), codingAgentDir)),
-		].sort();
+		const testFiles = (await collectTestsUnder(path.join(codingAgentDir, "test"), codingAgentDir)).sort();
 		const partition: CodingAgentTestPartition = {
 			singleton: [],
 			ui: [],
 			runtime: [],
 			native: [],
-			browser: [],
 		};
 
 		for (const testFile of testFiles) {
@@ -352,6 +339,201 @@ async function getCodingAgentTestPartition(): Promise<CodingAgentTestPartition> 
 	return codingAgentTestPartitionPromise;
 }
 
+// Keep the finite numeric entries of an untrusted JSON object.
+function numberRecord(value: unknown): Record<string, number> {
+	const record: Record<string, number> = {};
+	if (typeof value !== "object" || value === null) return record;
+	for (const key in value) {
+		const entry: unknown = Reflect.get(value, key);
+		if (typeof entry === "number" && Number.isFinite(entry)) record[key] = entry;
+	}
+	return record;
+}
+
+// Read the timing history from disk; a missing or corrupt file is an empty one.
+async function readTimingHistory(): Promise<TimingHistory> {
+	let raw: unknown;
+	try {
+		raw = await Bun.file(timingHistoryPath).json();
+	} catch (err) {
+		if (isEnoent(err) || err instanceof SyntaxError) return { files: {}, commands: {} };
+		throw err;
+	}
+	if (typeof raw !== "object" || raw === null) return { files: {}, commands: {} };
+	return {
+		files: numberRecord("files" in raw ? raw.files : undefined),
+		commands: numberRecord("commands" in raw ? raw.commands : undefined),
+	};
+}
+
+// The history as it stood when this run started, read once for planning and dispatch.
+function getTimingHistory(): Promise<TimingHistory> {
+	timingHistoryPromise ??= readTimingHistory();
+	return timingHistoryPromise;
+}
+
+function roundSeconds(seconds: number): number {
+	return Math.round(seconds * 1000) / 1000;
+}
+
+// Whether the argv names test files; commands that don't run a whole package or task.
+function listsTestFiles(testCommand: TestCommand): boolean {
+	return testCommand.command.some(arg => TEST_FILE_ARG_RE.test(arg));
+}
+
+// Merge this run's observations into the on-disk history: re-read it (another
+// run may have written since this one started), let every observed file and
+// whole-package command overwrite its entry, keep everything not seen this run.
+async function recordTimingHistory(runs: CommandRun[]): Promise<void> {
+	if (runs.length === 0) return;
+	const history = await readTimingHistory();
+	for (const run of runs) {
+		Object.assign(history.files, run.report?.fileSeconds);
+		if (!listsTestFiles(run.command)) history.commands[run.command.label] = roundSeconds(run.seconds);
+	}
+	await Bun.write(timingHistoryPath, `${JSON.stringify(history, null, "\t")}\n`);
+}
+
+// A test slower than SLOW_TEST_SECONDS: where it lives (repo-relative
+// `file:line`) and its `describe > test` name.
+interface SlowTest {
+	seconds: number;
+	location: string;
+	name: string;
+}
+
+// What one bun junit report says about timing: seconds per repo-relative test
+// file (its file-level suite) and the slow tests.
+interface JunitReport {
+	fileSeconds: Record<string, number>;
+	slowTests: SlowTest[];
+}
+
+// One finished command's contribution to the run's timing record: wall seconds
+// (crash retries included) and its junit report, null when the command is not
+// a `bun test` child or its child died before writing one.
+interface CommandRun {
+	command: TestCommand;
+	seconds: number;
+	report: JunitReport | null;
+}
+
+const JUNIT_TAG_RE = /<(\/?)(testsuites|testsuite|testcase)\b([^>]*)>/g;
+const XML_ATTR_RE = /([\w:-]+)="([^"]*)"/g;
+const XML_ENTITY_RE = /&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos));/g;
+const XML_NAMED_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+function decodeXmlText(value: string): string {
+	return value.replace(XML_ENTITY_RE, (_match: string, dec?: string, hex?: string, named?: string) => {
+		if (dec) return String.fromCodePoint(Number(dec));
+		if (hex) return String.fromCodePoint(Number.parseInt(hex, 16));
+		return named ? XML_NAMED_ENTITIES[named] : "";
+	});
+}
+
+function parseXmlAttributes(source: string): Record<string, string> {
+	const attributes: Record<string, string> = {};
+	for (const [, key, value] of source.matchAll(XML_ATTR_RE)) attributes[key] = decodeXmlText(value);
+	return attributes;
+}
+
+// Parse a bun junit report written by a child running in repo-relative `cwd`.
+// Bun nests one `<testsuite>` per file directly under `<testsuites>`, then one
+// per `describe`, with `<testcase>`s at any depth; `file` attributes are
+// relative to the child's cwd. Only the tags are scanned (attribute values are
+// entity-escaped, so they hold no `<`/`>`). Returns null for a truncated report.
+function parseJunitReport(xml: string, cwd: string): JunitReport | null {
+	if (!xml.includes("</testsuites>")) return null;
+	const report: JunitReport = { fileSeconds: {}, slowTests: [] };
+	let depth = 0;
+	for (const [, closing, tag, rawAttributes] of xml.matchAll(JUNIT_TAG_RE)) {
+		if (tag === "testsuites" || (closing && tag === "testcase")) continue;
+		if (closing) {
+			depth -= 1;
+			continue;
+		}
+		const attributes = parseXmlAttributes(rawAttributes);
+		const seconds = Number(attributes.time);
+		const file = path.posix.join(cwd, attributes.file ?? "");
+		if (tag === "testsuite") {
+			depth += 1;
+			if (depth === 1 && attributes.file && Number.isFinite(seconds)) {
+				report.fileSeconds[file] = roundSeconds(seconds);
+			}
+			if (rawAttributes.trimEnd().endsWith("/")) depth -= 1;
+		} else if (seconds > SLOW_TEST_SECONDS) {
+			const name = attributes.name ?? "";
+			report.slowTests.push({
+				seconds,
+				location: `${file}:${attributes.line ?? "?"}`,
+				// Bun lists a nested test's describes innermost-first in `classname`.
+				name: [...(attributes.classname?.split(" > ").reverse() ?? []), name].filter(Boolean).join(" > "),
+			});
+		}
+	}
+	return report;
+}
+
+// The junit report a finished child left at `junitPath`, or null when it wrote
+// none (crashed, killed, or not a `bun test` child) or left it unparseable.
+async function readJunitReport(junitPath: string, cwd: string): Promise<JunitReport | null> {
+	try {
+		return parseJunitReport(await Bun.file(junitPath).text(), cwd);
+	} catch (err) {
+		if (isEnoent(err)) return null;
+		throw err;
+	}
+}
+
+// One chunk of a bucket plan; `seconds` is its estimate, absent without history.
+interface ChunkPlan {
+	files: string[];
+	seconds?: number;
+}
+
+// Per-file weights for a coding-agent bucket from the timing history; files with
+// no entry weigh the mean of those that have one. Null when none has one.
+function bucketFileWeights(testFiles: string[], history: TimingHistory): Map<string, number> | null {
+	const known = testFiles
+		.map(file => history.files[`${codingAgentCwd}/${file}`])
+		.filter(seconds => seconds !== undefined);
+	if (known.length === 0) return null;
+	const mean = known.reduce((sum, seconds) => sum + seconds, 0) / known.length;
+	return new Map(testFiles.map(file => [file, history.files[`${codingAgentCwd}/${file}`] ?? mean]));
+}
+
+// Cold-start plan: consecutive runs of `chunkSize` alphabetical files.
+function consecutiveChunks(testFiles: string[], chunkSize: number): ChunkPlan[] {
+	const chunks: ChunkPlan[] = [];
+	for (let i = 0; i < testFiles.length; i += chunkSize) {
+		chunks.push({ files: testFiles.slice(i, i + chunkSize) });
+	}
+	return chunks;
+}
+
+// Weighted plan: `ceil(n / chunkSize)` chunks, each capped at `chunkSize` files.
+// Files are dealt in descending weight onto the currently lightest chunk with
+// room (ties → lowest index), then each chunk's files are put back in
+// alphabetical order and the chunks ordered heaviest-first.
+function balancedChunks(testFiles: string[], chunkSize: number, weights: Map<string, number>): ChunkPlan[] {
+	const weightOf = (file: string): number => weights.get(file) ?? 0;
+	const chunks: Required<ChunkPlan>[] = Array.from({ length: Math.ceil(testFiles.length / chunkSize) }, () => ({
+		files: [],
+		seconds: 0,
+	}));
+	for (const file of [...testFiles].sort((a, b) => weightOf(b) - weightOf(a))) {
+		let target = chunks[0];
+		for (const chunk of chunks) {
+			if (chunk.files.length >= chunkSize) continue;
+			if (target.files.length >= chunkSize || chunk.seconds < target.seconds) target = chunk;
+		}
+		target.files.push(file);
+		target.seconds += weightOf(file);
+	}
+	for (const chunk of chunks) chunk.files.sort();
+	return chunks.sort((a, b) => b.seconds - a.seconds);
+}
+
 async function codingAgentTestCommands(bucket: CodingAgentBucket): Promise<TestCommand[]> {
 	const partition = await getCodingAgentTestPartition();
 	const testFiles = partition[bucket];
@@ -360,27 +542,26 @@ async function codingAgentTestCommands(bucket: CodingAgentBucket): Promise<TestC
 	}
 	const plan = codingAgentBucketPlans[bucket];
 	const chunkSize = plan.chunkSize ?? testFiles.length;
-	const chunkCount = Math.ceil(testFiles.length / chunkSize);
-	const commands: TestCommand[] = [];
-	for (let i = 0; i < testFiles.length; i += chunkSize) {
-		const chunk = testFiles.slice(i, i + chunkSize);
-		const chunkLabel = chunkCount > 1 ? ` chunk ${commands.length + 1}/${chunkCount}` : "";
-		commands.push({
-			label: `packages/coding-agent (${plan.label}; ${testFiles.length} files; parallel=${plan.parallel}${chunkLabel}; ${chunk.length} files)`,
-			cwd: "packages/coding-agent",
-			command: ["bun", "test", ...onlyFailuresArgs, ...chunk],
+	const weights = bucketFileWeights(testFiles, await getTimingHistory());
+	const chunks = weights ? balancedChunks(testFiles, chunkSize, weights) : consecutiveChunks(testFiles, chunkSize);
+	return chunks.map((chunk, index) => {
+		const chunkLabel = chunks.length > 1 ? ` chunk ${index + 1}/${chunks.length}` : "";
+		return {
+			label: `packages/coding-agent (${plan.label}; ${testFiles.length} files; parallel=${plan.parallel}${chunkLabel}; ${chunk.files.length} files)`,
+			cwd: codingAgentCwd,
+			command: ["bun", "test", ...onlyFailuresArgs, ...chunk.files],
 			parallel: plan.parallel,
-		});
-	}
-	return commands;
+			estimatedSeconds: chunk.seconds === undefined ? undefined : roundSeconds(chunk.seconds),
+		};
+	});
 }
 
 async function commandsForMode(mode: Mode): Promise<TestCommand[]> {
 	switch (mode) {
 		case "workspace":
-			return [...fastWorkspacePackages.map(pkg => workspaceTestCommand(pkg, 8)), projectToolTestCommand];
+			return fastWorkspacePackages.map(pkg => workspaceTestCommand(pkg, 8));
 		case "native":
-			return nativeAndIntegrationPackages.map(pkg => workspaceTestCommand(pkg, 4));
+			return [...nativeAndIntegrationPackages.map(pkg => workspaceTestCommand(pkg, 4)), projectToolTestCommand];
 		case "coding-agent-singleton":
 			return await codingAgentTestCommands("singleton");
 		case "coding-agent-ui":
@@ -389,15 +570,12 @@ async function commandsForMode(mode: Mode): Promise<TestCommand[]> {
 			return await codingAgentTestCommands("runtime");
 		case "coding-agent-native":
 			return await codingAgentTestCommands("native");
-		case "coding-agent-browser":
-			return await codingAgentTestCommands("browser");
 		case "coding-agent-heavy":
 			return [
 				...(await codingAgentTestCommands("singleton")),
 				...(await codingAgentTestCommands("ui")),
 				...(await codingAgentTestCommands("runtime")),
 				...(await codingAgentTestCommands("native")),
-				...(await codingAgentTestCommands("browser")),
 			];
 		case "all":
 			return [
@@ -414,6 +592,7 @@ async function commandsForMode(mode: Mode): Promise<TestCommand[]> {
 			return [
 				...fastWorkspacePackages.map(pkg => workspaceTestCommand(pkg, 8, { extraArgs: onlyFailuresArgs })),
 				...nativeAndIntegrationPackages.map(pkg => workspaceTestCommand(pkg, 4, { extraArgs: onlyFailuresArgs })),
+				projectToolTestCommand,
 				...localOnlyWorkspacePackages.map(pkg => workspaceTestCommand(pkg, 4, { extraArgs: onlyFailuresArgs })),
 				...(await commandsForMode("coding-agent-heavy")),
 			];
@@ -453,61 +632,86 @@ function isScrubbedEnvVar(key: string): boolean {
 	return /_(API_KEY|OAUTH_TOKEN)$/.test(key) || key.includes("BEARER_TOKEN");
 }
 
-async function runTestCommand(testCommand: TestCommand): Promise<void> {
-	const cwd = path.join(repoRoot, testCommand.cwd);
+// Print a command's `==> label` / `$ argv` header; returns the rendered argv.
+function printCommandHeader(testCommand: TestCommand): string {
 	const renderedCommand = testCommand.command.map(shellQuote).join(" ");
 	console.log(`\n==> ${testCommand.label}`);
 	console.log(`$ ${renderedCommand}`);
+	return renderedCommand;
+}
 
-	if (isDryRun) {
-		return;
+// The argv actually spawned. Every `bun test` child (the commands
+// applyChunkBudget gave a `parallel` width) also writes a junit report to
+// `junitPath`, the runner's only per-test timing source; bun keeps its console
+// reporter alongside it, so the captured output and `--only-failures` are
+// unchanged. The displayed command omits it and stays the one to paste for a
+// rerun. Crash retries overwrite the same file.
+function spawnArgv(testCommand: TestCommand, junitPath: string): string[] {
+	if (testCommand.parallel === undefined) return testCommand.command;
+	return [...testCommand.command, "--reporter=junit", `--reporter-outfile=${junitPath}`];
+}
+
+// The sequential path: each command streams straight to the terminal in
+// planned order and the first failure throws. Every finished command (failed
+// ones too) lands in `runs`, and the slow-test section prints before the
+// failure propagates.
+async function runTestCommandsSequentially(
+	commands: TestCommand[],
+	junitDir: string,
+	runs: CommandRun[],
+): Promise<void> {
+	try {
+		for (const [index, testCommand] of commands.entries()) {
+			await runTestCommand(testCommand, path.join(junitDir, `${index}.xml`), runs);
+		}
+	} finally {
+		process.stdout.write(formatSlowTests(runs));
 	}
+}
 
+async function runTestCommand(testCommand: TestCommand, junitPath: string, runs: CommandRun[]): Promise<void> {
+	const cwd = path.join(repoRoot, testCommand.cwd);
+	const renderedCommand = printCommandHeader(testCommand);
 	const env = buildChildEnv();
-	for (let attempt = 1; ; attempt++) {
-		const proc = Bun.spawn(testCommand.command, {
-			cwd,
-			env,
-			stdout: "inherit",
-			stderr: "inherit",
-		});
-		// Watchdog, mirroring the parallel path: record that *we* killed the child,
-		// otherwise the resulting 137 is indistinguishable from an OOM kill.
-		let timedOut = false;
-		const killTimer = setTimeout(async () => {
-			timedOut = true;
-			try {
-				process.stdout.write(await describeStuckProcessTree(proc.pid));
-			} finally {
-				proc.kill("SIGKILL");
+	const startedAt = performance.now();
+	try {
+		for (let attempt = 1; ; attempt++) {
+			const proc = Bun.spawn(spawnArgv(testCommand, junitPath), {
+				cwd,
+				env,
+				stdout: "inherit",
+				stderr: "inherit",
+			});
+			// Watchdog, mirroring the parallel path: record that *we* killed the child,
+			// otherwise the resulting 137 is indistinguishable from an OOM kill.
+			let timedOut = false;
+			const killTimer = setTimeout(async () => {
+				timedOut = true;
+				try {
+					process.stdout.write(await describeStuckProcessTree(proc.pid));
+				} finally {
+					proc.kill("SIGKILL");
+				}
+			}, chunkTimeoutMs());
+			const exitCode = await proc.exited;
+			clearTimeout(killTimer);
+			if (exitCode === 0) {
+				return;
 			}
-		}, chunkTimeoutMs());
-		const exitCode = await proc.exited;
-		clearTimeout(killTimer);
-		if (exitCode === 0) {
-			return;
+			if (!timedOut && BUN_CRASH_EXITS[exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
+				console.log(
+					`==> ${testCommand.label}: bun crashed (exit ${exitCode}); retrying (attempt ${attempt + 1}/${MAX_CHUNK_ATTEMPTS})`,
+				);
+				continue;
+			}
+			throw new Error(`${testCommand.label} ${describeChunkFailure(exitCode, timedOut)}: ${renderedCommand}`);
 		}
-		if (!timedOut && BUN_CRASH_EXITS[exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
-			console.log(
-				`==> ${testCommand.label}: bun crashed (exit ${exitCode}); retrying (attempt ${attempt + 1}/${MAX_CHUNK_ATTEMPTS})`,
-			);
-			continue;
-		}
-		// A chunk can die without printing a single test-level line (silent
-		// exit 1 at load or during teardown). Rerun it once with piped output
-		// so the log carries the actual failure instead of an opaque exit code.
-		const echo = Bun.spawnSync(testCommand.command, {
-			cwd,
-			env,
-			stdout: "pipe",
-			stderr: "pipe",
+	} finally {
+		runs.push({
+			command: testCommand,
+			seconds: (performance.now() - startedAt) / 1000,
+			report: await readJunitReport(junitPath, testCommand.cwd),
 		});
-		const tail = `${echo.stdout.toString()}\n${echo.stderr.toString()}`.trimEnd().split("\n").slice(-120);
-		if (tail.length > 0) {
-			console.log(`==> ${testCommand.label}: captured output tail from the diagnostic rerun:`);
-			for (const line of tail) console.log(`    ${line}`);
-		}
-		throw new Error(`${testCommand.label} ${describeChunkFailure(exitCode, timedOut)}: ${renderedCommand}`);
 	}
 }
 
@@ -575,44 +779,18 @@ function chunkTimeoutMs(): number {
 // chunk right after, and a snapshot failure must not stop that.
 async function describeStuckProcessTree(rootPid: number): Promise<string> {
 	if (process.platform !== "linux" || !Bun.which("ps")) return "";
-	const running: HelperProcess[] = [];
-	const snapshot = snapshotProcessTree(rootPid, running).catch(
-		err => `[watchdog] process tree snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`,
-	);
-	// The snapshot only explains the kill that follows it, so it is abandoned at the
-	// budget: the caller SIGKILLs the chunk right after this returns, and a helper
-	// that never answers must not keep that kill from happening.
-	const taken = await Promise.race([snapshot, Bun.sleep(SNAPSHOT_BUDGET_MS).then(() => null)]);
-	if (taken !== null) return taken;
-	for (const proc of running) proc.kill();
-	return `[watchdog] process tree snapshot abandoned after ${SNAPSHOT_BUDGET_MS} ms\n`;
+	try {
+		return await snapshotProcessTree(rootPid);
+	} catch (err) {
+		return `[watchdog] process tree snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`;
+	}
 }
 
-/** A diagnostics helper the watchdog may have to abandon. */
-interface HelperProcess {
-	kill: () => void;
-}
-
-/** Seconds a `describeStuckProcessTree` snapshot may take before it is abandoned;
- * the SIGKILL it explains happens right after either way. */
-const SNAPSHOT_BUDGET_MS = 5_000;
-
-// `Bun.spawnSync` cannot be used here: on a CI runner `ps ... args=` prints
-// megabytes (bucket commands list hundreds of files), and a helper whose output
-// fills the pipe buffer while the parent waits for it to exit wedges both. The
-// watchdog's kill must never be what wedges -- these spawns are drained as they
-// arrive and the caller abandons them at a budget.
-async function captureHelper(argv: string[], running: HelperProcess[]): Promise<string | null> {
-	const proc = Bun.spawn(argv, { stdin: "ignore", stdout: "pipe", stderr: "ignore" });
-	running.push(proc);
-	const [text, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
-	return code === 0 ? text : null;
-}
-
-async function snapshotProcessTree(rootPid: number, running: HelperProcess[]): Promise<string> {
-	const ps = await captureHelper(["ps", "-eo", "pid=,ppid=,stat=,etimes=,pcpu=,rss=,wchan:24=,args="], running);
-	if (ps === null) return "";
-	const rows = ps
+async function snapshotProcessTree(rootPid: number): Promise<string> {
+	const ps = Bun.spawnSync(["ps", "-eo", "pid=,ppid=,stat=,etimes=,pcpu=,rss=,wchan:24=,args="]);
+	if (!ps.success) return "";
+	const rows = ps.stdout
+		.toString()
 		.split("\n")
 		.map(line => line.trim().split(/\s+/))
 		.filter(cols => cols.length >= 8);
@@ -630,9 +808,12 @@ async function snapshotProcessTree(rootPid: number, running: HelperProcess[]): P
 	for (const cols of rows) {
 		if (tree.has(cols[0])) lines.push(`  ${cols.slice(0, 7).join(" ")} ${cols.slice(7).join(" ").slice(0, 200)}`);
 	}
-	const ss = Bun.which("ss") ? await captureHelper(["ss", "-tuanpH"], running) : null;
-	if (ss !== null) {
-		const owned = ss.split("\n").filter(line => [...tree].some(pid => line.includes(`pid=${pid},`)));
+	const ss = Bun.which("ss") ? Bun.spawnSync(["ss", "-tuanpH"]) : null;
+	if (ss?.success) {
+		const owned = ss.stdout
+			.toString()
+			.split("\n")
+			.filter(line => [...tree].some(pid => line.includes(`pid=${pid},`)));
 		lines.push(`[watchdog] sockets held by that tree (${owned.length}):`, ...owned.map(line => `  ${line.trim()}`));
 		return `${lines.join("\n")}\n`;
 	}
@@ -672,38 +853,6 @@ const BUN_CRASH_EXITS: Record<number, true> = {
 // heap-timing dependent — a fresh process nearly always passes — while a
 // deterministic crash still fails every attempt and is reported normally.
 const MAX_CHUNK_ATTEMPTS = 3;
-
-// `bun test` prints a `N fail` line and `(fail)` markers whenever a test fails, so a
-// nonzero exit with neither is the *process*, not the suite: a test that runs the CLI
-// in process can leave `process.exitCode` set, and a descendant writing to a closed
-// pipe can end the run early — either way the child finishes its suite and still exits
-// nonzero (seen on the coding-agent native bucket: `66 pass / 0 fail`, exit 1, no further
-// output). Retried exactly like a runtime crash: a fresh process does not inherit the
-// leftover exit code, while a deterministic failure reproduces on every attempt.
-const REPORTED_FAILURE = /(^|\n)\s*\(fail\)|(^|\n)\s*[1-9]\d*\s+fail\b/;
-
-function reportsFailingTest(output: string): boolean {
-	return REPORTED_FAILURE.test(output);
-}
-
-// `bun test`'s own summary is the authority on whether tests failed, and a nonzero exit
-// can come from the *process* rather than the suite: an in-process CLI command sets
-// `process.exitCode` to report a status, a test asserts that value and does not always
-// put it back, and the runner inherits it. The coding-agent native bucket's test/cli
-// chunk printed `66 pass / 2 skip / 0 fail / 216 expect() calls / Ran 68 tests across 10
-// files` and still exited 1 on three consecutive attempts, so retrying cannot help.
-// Such a chunk counts as passed — but only on a complete summary: a real failure always
-// brings `N fail`, a `(fail)` marker or an `error:` block, and any of the three keeps the
-// chunk red.
-const CLEAN_SUMMARY_RAN = /(^|\n)\s*Ran \d+ tests? across \d+ files?\b/;
-const CLEAN_SUMMARY_ZERO_FAIL = /(^|\n)\s*0 fail\b/;
-const CLEAN_SUMMARY_ERROR = /(^|\n)\s*error:/;
-
-function exitedOnCleanSummary(exitCode: number, output: string): boolean {
-	if (exitCode === 0) return false;
-	if (!CLEAN_SUMMARY_RAN.test(output) || !CLEAN_SUMMARY_ZERO_FAIL.test(output)) return false;
-	return !reportsFailingTest(output) && !CLEAN_SUMMARY_ERROR.test(output);
-}
 
 // Why a chunk failed, in words. Exit 137 is SIGKILL, which this runner reaches
 // two very different ways -- the per-chunk watchdog firing, or the kernel OOM
@@ -809,11 +958,13 @@ const style = {
 	red: (s: string) => paint("31", s),
 	bold: (s: string) => paint("1", s),
 	dim: (s: string) => paint("2", s),
+	yellow: (s: string) => paint("33", s),
 };
 
 // Outcome of one finished chunk. `output` is the chunk's combined stdout+stderr,
 // buffered so it can be withheld during a quiet run and replayed only on failure.
 // `retries` counts extra attempts spent on bun-crash exits (see BUN_CRASH_EXITS).
+// `slowTests` comes from the chunk's junit report (see SLOW_TEST_SECONDS).
 interface ChunkOutcome {
 	label: string;
 	command: string;
@@ -821,8 +972,7 @@ interface ChunkOutcome {
 	seconds: number;
 	output: string;
 	retries: number;
-	/** Nonzero exit with a complete, failure-free bun summary (see `exitedOnCleanSummary`). */
-	cleanSummaryExit: boolean;
+	slowTests: SlowTest[];
 }
 
 // Human duration in bun's bracket style: `[264ms]` under a second, `[3.3s]`
@@ -835,22 +985,25 @@ function formatDuration(seconds: number): string {
 // pass, `✗ <label> [time]` for a failure (bold red so the eye lands on it in a
 // long scroll). A failure also names the first failing test parsed from the
 // captured output — `— file > test (+N more)` — so the exact break is visible
-// in the stream without waiting for the end-of-run report. Emitted in completion
-// order as each chunk finishes.
+// in the stream without waiting for the end-of-run report. A yellow
+// `(N slow >5s)` note counts the chunk's slow tests, listed at the end of the
+// run. Emitted in completion order as each chunk finishes.
 function formatProgressLine(outcome: ChunkOutcome): string {
 	const time = style.dim(`[${formatDuration(outcome.seconds)}]`);
+	const slowNote =
+		outcome.slowTests.length > 0
+			? ` ${style.yellow(`(${outcome.slowTests.length} slow >${SLOW_TEST_SECONDS}s)`)}`
+			: "";
 	const retryNote = outcome.retries > 0 ? ` ${style.dim(`(retried ×${outcome.retries} after bun crash)`)}` : "";
-	const summaryNote = outcome.cleanSummaryExit
-		? ` ${style.dim(`(exit ${outcome.exitCode} on a clean summary — process-level exit code, counted as passed)`)}`
-		: "";
-	if (outcome.exitCode === 0 || outcome.cleanSummaryExit) {
-		return `${style.green("✓")} ${outcome.label} ${time}${retryNote}${summaryNote}`;
+	const notes = `${slowNote}${retryNote}`;
+	if (outcome.exitCode === 0) {
+		return `${style.green("✓")} ${outcome.label} ${time}${notes}`;
 	}
 	const failing = extractFailingTests(outcome.output);
 	const first = failing[0]?.name;
 	const more = failing.length > 1 ? style.dim(` (+${failing.length - 1} more)`) : "";
 	const detail = first ? ` ${style.dim("—")} ${style.red(first)}${more}` : "";
-	return `${style.bold(style.red(`✗ ${outcome.label}`))} ${time}${detail}${retryNote}`;
+	return `${style.bold(style.red(`✗ ${outcome.label}`))} ${time}${detail}${notes}`;
 }
 
 // Closing tally in `bun test` style, but counting test *chunks* (child commands),
@@ -866,6 +1019,22 @@ function formatSummaryFooter(passed: number, failed: number, totalSeconds: numbe
 		` ${failLine}`,
 		style.dim(`Ran ${passed + failed} test command(s) in ${formatDuration(totalSeconds)}.`),
 	].join("\n");
+}
+
+// End-of-run warning listing every test slower than SLOW_TEST_SECONDS, slowest
+// first: `[duration] file:line — describe > test`. Printed by both run paths
+// ahead of the failure report / summary footer; "" when nothing was slow. It
+// is advice, not a failure, and never touches the exit code.
+function formatSlowTests(runs: CommandRun[]): string {
+	const slowTests = runs.flatMap(run => run.report?.slowTests ?? []).sort((a, b) => b.seconds - a.seconds);
+	if (slowTests.length === 0) return "";
+	const lines = ["", style.yellow(`⚠ ${slowTests.length} test(s) slower than ${SLOW_TEST_SECONDS}s:`)];
+	for (const test of slowTests) {
+		lines.push(
+			`  ${style.yellow(`[${formatDuration(test.seconds)}]`)} ${test.location} ${style.dim("—")} ${test.name}`,
+		);
+	}
+	return `${lines.join("\n")}\n`;
 }
 
 // A single failing test pulled from a chunk's captured bun output: its
@@ -927,11 +1096,7 @@ function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): strin
 	const lines: string[] = [];
 	lines.push(
 		"",
-		style.bold(
-			style.red(
-				`✗ ${failure.label} (exit ${failure.exitCode}${failure.retries > 0 ? `, ${failure.retries + 1} attempts` : ""})`,
-			),
-		),
+		style.bold(style.red(`✗ ${failure.label} (exit ${failure.exitCode})`)),
 		style.dim(`$ ${failure.command}`),
 	);
 	const failing = extractFailingTests(failure.output);
@@ -959,11 +1124,18 @@ function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): strin
 // at the end; `--full` streams every chunk's output inline as it completes. All
 // failures are collected and reported together instead of failing fast, so one
 // run surfaces every broken chunk and exits non-zero without a runner stack trace.
-export async function runTestCommandsInParallel(commands: TestCommand[], concurrency: number): Promise<void> {
+// Commands are dispatched in the given order; every finished one lands in `runs`.
+async function runTestCommandsInParallel(
+	commands: TestCommand[],
+	concurrency: number,
+	junitDir: string,
+	runs: CommandRun[],
+): Promise<void> {
 	const env = buildChildEnv();
 	const queue = [...commands];
 	const failures: ChunkOutcome[] = [];
 	let completed = 0;
+	let dispatched = 0;
 	const fileWidths = [...new Set(commands.map(c => c.parallel).filter(p => p !== undefined))].sort((a, b) => a - b);
 	console.log(
 		`Running ${commands.length} test command(s), up to ${concurrency} in parallel ` +
@@ -1015,8 +1187,9 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 	// can't keep the runner's event loop alive.
 	async function runAttempt(
 		testCommand: TestCommand,
+		junitPath: string,
 	): Promise<{ exitCode: number; output: string; timedOut: boolean }> {
-		const proc = Bun.spawn(testCommand.command, {
+		const proc = Bun.spawn(spawnArgv(testCommand, junitPath), {
 			cwd: path.join(repoRoot, testCommand.cwd),
 			env,
 			stdout: "pipe",
@@ -1041,13 +1214,7 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		}, chunkTimeoutMs());
 		const exitCode = await proc.exited;
 		clearTimeout(killTimer);
-		// A descendant that outlives the chunk keeps the pipes open, and cancelling the
-		// readers discards whatever is still buffered in them. Say so in the output:
-		// without it a chunk that fails this way reports nothing at all, and the
-		// failure looks like a silent exit 1.
-		let pipesHeldOpen = false;
 		if (!(await settleWithin(drains, 5000))) {
-			pipesHeldOpen = true;
 			stdoutDrain.cancel();
 			stderrDrain.cancel();
 			await drains;
@@ -1055,11 +1222,7 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		return {
 			exitCode,
 			timedOut,
-			output: `${stdout.text}${stderr.text}${
-				pipesHeldOpen
-					? `\n[runner] the chunk's stdout/stderr pipes stayed open 5s after it exited (a descendant still holds them); cancelled them after capturing ${stdout.text.length + stderr.text.length} byte(s), so buffered output may be missing\n`
-					: ""
-			}${timedOut ? `\n${stuckTree}[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
+			output: `${stdout.text}${stderr.text}${timedOut ? `\n${stuckTree}[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
 		};
 	}
 
@@ -1070,49 +1233,45 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 				return;
 			}
 			const renderedCommand = testCommand.command.map(shellQuote).join(" ");
+			const junitPath = path.join(junitDir, `${dispatched++}.xml`);
 			const startedAt = performance.now();
 			let attempt = 1;
-			let result = await runAttempt(testCommand);
+			let result = await runAttempt(testCommand, junitPath);
 			// Bun-crash retry: a 128+signal exit means the runtime died (GC
-			// segfault/abort), not that tests failed — rerun in a fresh heap. A leftover
-			// `process.exitCode` needs no retry: it provably survives one (see
-			// `exitedOnCleanSummary`), so that class is classified instead of re-run.
+			// segfault/abort), not that tests failed — rerun in a fresh heap.
 			while (!result.timedOut && BUN_CRASH_EXITS[result.exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
 				attempt += 1;
 				process.stdout.write(
 					`${style.dim(`↻ ${testCommand.label} — bun crashed (exit ${result.exitCode}); retrying (attempt ${attempt}/${MAX_CHUNK_ATTEMPTS})`)}\n`,
 				);
-				result = await runAttempt(testCommand);
+				result = await runAttempt(testCommand, junitPath);
 			}
 			completed += 1;
-			const cleanSummaryExit = exitedOnCleanSummary(result.exitCode, result.output);
+			const seconds = (performance.now() - startedAt) / 1000;
+			const report = await readJunitReport(junitPath, testCommand.cwd);
+			runs.push({ command: testCommand, seconds, report });
 			const outcome: ChunkOutcome = {
 				label: testCommand.label,
 				command: renderedCommand,
 				exitCode: result.exitCode,
-				seconds: (performance.now() - startedAt) / 1000,
+				seconds,
 				output: result.output,
 				retries: attempt - 1,
-				cleanSummaryExit,
+				slowTests: report?.slowTests ?? [],
 			};
-			const failed = result.timedOut || (result.exitCode !== 0 && !cleanSummaryExit);
 			if (quiet) {
 				let msg = `${formatProgressLine(outcome)}\n`;
-				if (failed) {
+				if (result.exitCode !== 0 || result.timedOut) {
 					msg += `${formatChunkFailure(outcome, true)}\n`;
 				}
 				process.stdout.write(msg);
 			} else {
-				const status = cleanSummaryExit
-					? `exit ${result.exitCode} on a clean summary — counted as passed`
-					: result.exitCode === 0
-						? "ok"
-						: `FAILED exit ${result.exitCode}`;
+				const status = result.exitCode === 0 ? "ok" : `FAILED exit ${result.exitCode}`;
 				process.stdout.write(
 					`\n==> [${completed}/${commands.length}] ${testCommand.label} (${status}, ${outcome.seconds.toFixed(1)}s)\n$ ${renderedCommand}\n${outcome.output}`,
 				);
 			}
-			if (failed) {
+			if (result.exitCode !== 0 || result.timedOut) {
 				failures.push(outcome);
 			}
 		}
@@ -1120,6 +1279,8 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 
 	const runStartedAt = performance.now();
 	await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+	process.stdout.write(formatSlowTests(runs));
 
 	if (quiet) {
 		const totalSeconds = (performance.now() - runStartedAt) / 1000;
@@ -1134,12 +1295,30 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 	}
 }
 
+// Pool dispatch order: longest expected first, so the slowest commands start
+// while the pool is full instead of trailing alone at the end. A chunk's
+// estimate is its planned `estimatedSeconds`; a command that lists no test
+// files uses its label's recorded wall time. Commands with no estimate go
+// first (they may be long), and the sort is stable, so a cold history
+// dispatches in planned order.
+function dispatchOrder(commands: TestCommand[], history: TimingHistory): TestCommand[] {
+	const estimate = (testCommand: TestCommand): number =>
+		testCommand.estimatedSeconds ??
+		(listsTestFiles(testCommand) ? undefined : history.commands[testCommand.label]) ??
+		Number.POSITIVE_INFINITY;
+	return commands
+		.map(testCommand => ({ testCommand, seconds: estimate(testCommand) }))
+		.sort((a, b) => (a.seconds === b.seconds ? 0 : a.seconds > b.seconds ? -1 : 1))
+		.map(entry => entry.testCommand);
+}
+
 // `OMP_TEST_SHARD=i/n` splits a mode's chunk commands across n CI jobs; job i
 // runs every chunk whose index ≡ i-1 (mod n). Round-robin rather than
-// contiguous ranges because the chunk list follows sorted file order, so slow
-// neighbouring suites spread evenly instead of piling into one shard. Every
-// chunk lands in exactly one shard; unset/empty runs everything.
-export function selectShard<T>(commands: T[], spec: string | undefined): T[] {
+// contiguous ranges because neighbouring chunks are alike in cost (weighted
+// plans list a bucket's chunks heaviest-first; consecutive ones keep similar
+// suites together), so slow chunks spread evenly instead of piling into one
+// shard. Every chunk lands in exactly one shard; unset/empty runs everything.
+function selectShard<T>(commands: T[], spec: string | undefined): T[] {
 	const trimmed = spec?.trim();
 	if (!trimmed) return commands;
 	const match = /^(\d+)\/(\d+)$/.exec(trimmed);
@@ -1155,30 +1334,42 @@ export function selectShard<T>(commands: T[], spec: string | undefined): T[] {
 	return selected;
 }
 
-if (import.meta.main) {
-	if (!(requestedMode in validModes)) {
-		throw new Error(
-			`Unknown mode ${shellQuote(requestedMode)}. Expected one of: ${Object.keys(validModes).join(", ")}`,
-		);
-	}
+if (!(requestedMode in validModes)) {
+	throw new Error(`Unknown mode ${shellQuote(requestedMode)}. Expected one of: ${Object.keys(validModes).join(", ")}`);
+}
 
-	const requestedCommands = selectShard(await commandsForMode(requestedMode as Mode), Bun.env.OMP_TEST_SHARD);
-	const explicitConcurrency = Boolean(Bun.env.OMP_TEST_CONCURRENCY?.trim());
-	// CI defaults to one process at a time, but memory-sized workflow buckets
-	// explicitly opt into bounded process concurrency. Local runs fan out by
-	// default and may use the same override. Resolved before the dry-run check so
-	// `--dry-run` prints the argv the real run would use, budget included.
-	const pooled = requestedCommands.length > 1 && (!isCI() || explicitConcurrency);
-	// The sequential path is a pool of one, so a lone chunk keeps the whole budget.
-	const poolWidth = pooled
-		? testConcurrency(requestedCommands.length, Bun.env.OMP_TEST_CONCURRENCY, os.availableParallelism())
-		: 1;
-	const testCommands = applyChunkBudget(requestedCommands, poolWidth);
-	if (pooled && !isDryRun) {
-		await runTestCommandsInParallel(testCommands, poolWidth);
-	} else {
-		for (const testCommand of testCommands) {
-			await runTestCommand(testCommand);
+const requestedCommands = selectShard(await commandsForMode(requestedMode as Mode), Bun.env.OMP_TEST_SHARD);
+const explicitConcurrency = Boolean(Bun.env.OMP_TEST_CONCURRENCY?.trim());
+// CI defaults to one process at a time, but memory-sized workflow buckets
+// explicitly opt into bounded process concurrency. Local runs fan out by
+// default and may use the same override. Resolved before the dry-run check so
+// `--dry-run` prints the argv the real run would use, budget included.
+const pooled = requestedCommands.length > 1 && (!isCI() || explicitConcurrency);
+// The sequential path is a pool of one, so a lone chunk keeps the whole budget.
+const poolWidth = pooled
+	? testConcurrency(requestedCommands.length, Bun.env.OMP_TEST_CONCURRENCY, os.availableParallelism())
+	: 1;
+const testCommands = applyChunkBudget(requestedCommands, poolWidth);
+if (isDryRun) {
+	for (const testCommand of testCommands) printCommandHeader(testCommand);
+} else {
+	// Per-command junit reports (see spawnArgv) live only for this run; what they
+	// say is folded into the timing history before they are removed.
+	const junitDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-test-junit-"));
+	const runs: CommandRun[] = [];
+	try {
+		if (pooled) {
+			await runTestCommandsInParallel(
+				dispatchOrder(testCommands, await getTimingHistory()),
+				poolWidth,
+				junitDir,
+				runs,
+			);
+		} else {
+			await runTestCommandsSequentially(testCommands, junitDir, runs);
 		}
+	} finally {
+		await recordTimingHistory(runs);
+		await fs.rm(junitDir, { recursive: true, force: true });
 	}
 }

@@ -10,13 +10,16 @@
  * a silent fallback to local credentials.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
-import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import { describeAuthBrokerStartupError } from "@linxiraos/zeta/session/auth-broker-config";
-import { setInteractiveHost } from "@linxiraos/pi-utils";
+import { AuthBrokerError } from "@oh-my-pi/pi-ai/auth-broker";
+import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
+import {
+	describeAuthBrokerStartupError,
+	discoverAuthStorage,
+} from "@oh-my-pi/pi-coding-agent/session/auth-broker-config";
+import { setInteractiveHost, TempDir } from "@oh-my-pi/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {
@@ -27,7 +30,7 @@ class ProcessExitSignal extends Error {
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearZetaExtensionCliRoots();
+	clearOmpExtensionCliRoots();
 });
 
 describe("describeAuthBrokerStartupError", () => {
@@ -38,29 +41,29 @@ describe("describeAuthBrokerStartupError", () => {
 		expect(message).not.toBeNull();
 		expect(message).toContain("Auth broker request failed after 2 attempt(s)");
 		// Both recovery routes the reporter asked for: start it, or disable it.
-		expect(message).toContain("zetacode auth-broker serve");
-		expect(message).toContain("zetacode config reset auth.broker.url");
-		expect(message).toContain("ZETA_AUTH_BROKER_URL");
+		expect(message).toContain("omp auth-broker serve");
+		expect(message).toContain("omp config reset auth.broker.url");
+		expect(message).toContain("OMP_AUTH_BROKER_URL");
 	});
 
 	it("names the configured broker URL when it can be resolved", async () => {
-		const prevUrl = process.env.ZETA_AUTH_BROKER_URL;
-		const prevToken = process.env.ZETA_AUTH_BROKER_TOKEN;
-		process.env.ZETA_AUTH_BROKER_URL = "http://127.0.0.1:8765";
-		process.env.ZETA_AUTH_BROKER_TOKEN = "test-token";
+		const prevUrl = process.env.OMP_AUTH_BROKER_URL;
+		const prevToken = process.env.OMP_AUTH_BROKER_TOKEN;
+		process.env.OMP_AUTH_BROKER_URL = "http://127.0.0.1:8765";
+		process.env.OMP_AUTH_BROKER_TOKEN = "test-token";
 		try {
 			const message = await describeAuthBrokerStartupError(new AuthBrokerError("connection refused"));
 			expect(message).toContain("http://127.0.0.1:8765");
 		} finally {
-			if (prevUrl === undefined) delete process.env.ZETA_AUTH_BROKER_URL;
-			else process.env.ZETA_AUTH_BROKER_URL = prevUrl;
-			if (prevToken === undefined) delete process.env.ZETA_AUTH_BROKER_TOKEN;
-			else process.env.ZETA_AUTH_BROKER_TOKEN = prevToken;
+			if (prevUrl === undefined) delete process.env.OMP_AUTH_BROKER_URL;
+			else process.env.OMP_AUTH_BROKER_URL = prevUrl;
+			if (prevToken === undefined) delete process.env.OMP_AUTH_BROKER_TOKEN;
+			else process.env.OMP_AUTH_BROKER_TOKEN = prevToken;
 		}
 	});
 
 	it("passes through a missing-token message unchanged", async () => {
-		const err = new MissingApiKeyError(undefined, "ZETA_AUTH_BROKER_URL is set but no bearer token is available.");
+		const err = new MissingApiKeyError(undefined, "OMP_AUTH_BROKER_URL is set but no bearer token is available.");
 		expect(await describeAuthBrokerStartupError(err)).toBe(err.message);
 	});
 
@@ -108,6 +111,51 @@ describe("runRootCommand — unreachable auth broker at startup", () => {
 		expect(thrown).toBeInstanceOf(ProcessExitSignal);
 		expect(exitCodes).toEqual([1]);
 		expect(stderr).toContain("Auth broker request failed after 2 attempt(s)");
-		expect(stderr).toContain("zetacode auth-broker serve");
+		expect(stderr).toContain("omp auth-broker serve");
 	}, 15_000);
+});
+
+describe("discoverAuthStorage with a broker that is down", () => {
+	// A restarting broker answers 503; a later answer the retry cannot fix (401) ends startup.
+	it.each([
+		{ interactive: true, requests: 1, notice: false },
+		{ interactive: false, requests: 2, notice: true },
+	])(
+		"retries only outside interactive omp (interactive: $interactive)",
+		async ({ interactive, requests, notice }) => {
+			let served = 0;
+			using server = Bun.serve({
+				port: 0,
+				fetch: () => new Response("unavailable", { status: ++served === 1 ? 503 : 401 }),
+			});
+			using agentDir = TempDir.createSync("@omp-broker-down-");
+			const env = {
+				OMP_AUTH_BROKER_URL: process.env.OMP_AUTH_BROKER_URL,
+				OMP_AUTH_BROKER_TOKEN: process.env.OMP_AUTH_BROKER_TOKEN,
+				OMP_AUTH_BROKER_SNAPSHOT_TTL_MS: process.env.OMP_AUTH_BROKER_SNAPSHOT_TTL_MS,
+			};
+			process.env.OMP_AUTH_BROKER_URL = server.url.toString();
+			process.env.OMP_AUTH_BROKER_TOKEN = "test-token";
+			process.env.OMP_AUTH_BROKER_SNAPSHOT_TTL_MS = "0";
+			const previous = setInteractiveHost(interactive);
+			let stderr = "";
+			vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+				stderr += String(chunk);
+				return true;
+			});
+			try {
+				await expect(discoverAuthStorage(agentDir.path())).rejects.toBeInstanceOf(AuthBrokerError);
+			} finally {
+				vi.restoreAllMocks();
+				setInteractiveHost(previous);
+				for (const [key, value] of Object.entries(env)) {
+					if (value === undefined) delete process.env[key];
+					else process.env[key] = value;
+				}
+			}
+			expect(served).toBe(requests);
+			expect(stderr.includes("Waiting for auth broker")).toBe(notice);
+		},
+		15_000,
+	);
 });

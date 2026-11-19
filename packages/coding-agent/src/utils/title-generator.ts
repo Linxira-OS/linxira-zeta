@@ -2,7 +2,9 @@
  * Generate session titles using a smol, fast model.
  */
 import { dlopen, FFIType, ptr } from "bun:ffi";
+import * as os from "node:os";
 import * as path from "node:path";
+import * as url from "node:url";
 
 import {
 	type Api,
@@ -11,16 +13,15 @@ import {
 	type Message,
 	type Model,
 	retryTransientCompletion,
-} from "@linxiraos/pi-ai";
-import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
-import { writeTerminalSequence } from "@linxiraos/pi-tui";
-import { isNativeRendering, onNativeRenderingChange } from "@linxiraos/pi-tui/native/state";
-import { theme } from "@linxiraos/pi-tui/theme";
-import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
-import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
+import { writeTerminalSequence } from "@oh-my-pi/pi-tui";
+import { isNativeRendering, onNativeRenderingChange } from "@oh-my-pi/pi-tui/native/state";
+import { theme } from "@oh-my-pi/pi-tui/theme";
+import { SPINNER_FRAMES } from "@oh-my-pi/pi-tui/theme/symbols";
+import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@oh-my-pi/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
-import type { ZetaLanguage } from "../i18n";
 
 import { roleCandidatePool } from "../config/model-roles";
 import { formatModelStringWithRouting } from "../config/model-resolver";
@@ -31,33 +32,18 @@ import titleSystemPrompt from "../prompts/system/title-system.md" with { type: "
 import { formatTitleUserMessage } from "../tiny/message-preproc";
 import { isLowSignalTitleInput, normalizeGeneratedTitle } from "../tiny/text";
 import { tinyTitleClient } from "../tiny/title-client";
-import { cfgLanguage } from "../zeta-settings";
 
 import { cfgRetryModelFallback } from "../session/settings";
-import { DEFAULT_SPINNER_INTERVAL_MS, SPINNER_INTERVAL_STATIC } from "@linxiraos/pi-tui/spinner-clock";
+import { DEFAULT_SPINNER_INTERVAL_MS, SPINNER_INTERVAL_STATIC } from "@oh-my-pi/pi-tui/spinner-clock";
 
-/**
- * The language automatic session names and task labels are written in when a
- * command does not carry its own: the effective `language` setting of the
- * session's settings. Explicit user titles never pass through here, and a
- * caller-supplied title prompt (a `TITLE_SYSTEM.md` override or a
- * plan-filename topic) keeps its own wording.
- */
-export function generatedNameLanguage(settings: Settings): ZetaLanguage {
-	return cfgLanguage.get(settings);
-}
-
-const TITLE_SYSTEM_PROMPTS: Record<ZetaLanguage, string> = {
-	en: prompt.render(titleSystemPrompt),
-	zh: prompt.render(titleSystemPrompt, { zh: true }),
-};
+const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
-// Plain ζ, not the nerd-font `icon.omp` glyph: window/tab titles render in the
+// Plain π, not the nerd-font `icon.omp` glyph: window/tab titles render in the
 // OS UI font, which has no nerd-font PUA coverage.
 const DEFAULT_TERMINAL_TITLE = "ζ";
 /** The native tab title without a session name. */
-const NATIVE_TERMINAL_TITLE = "zeta";
+const NATIVE_TERMINAL_TITLE = "omp";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 /**
@@ -208,10 +194,49 @@ function getTitleModels(registry: ModelRegistry, settings: Settings, currentMode
 }
 
 /**
- * Receives each title request the provider billed, for the caller's usage
- * ledger. Must not throw: accounting never fails a title.
+ * Receives each title request that ran, with the user-turn text it was sent, for the caller's
+ * usage ledger: every attempt a provider billed, and a local model's title, which bills nothing.
+ * Must not throw: accounting never fails a title.
  */
-export type TitleUsageReporter = (message: AssistantMessage) => void;
+export type TitleUsageReporter = (message: AssistantMessage, prompt: string) => void;
+
+/** Hand one title attempt to the caller's ledger. Best-effort: accounting never fails a title. */
+function reportTitleAttempt(
+	onUsage: TitleUsageReporter | undefined,
+	message: AssistantMessage,
+	prompt: string,
+	context: Record<string, unknown>,
+): void {
+	try {
+		onUsage?.(message, prompt);
+	} catch (err) {
+		logger.debug("title-generator: usage report failed", {
+			...context,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
+/** An assistant message for `model` that no provider metered: an assistant prefill, or a local worker's reply. */
+export function unmeteredMessage(model: Model<Api>, text: string): AssistantMessage {
+	return {
+		role: "assistant",
+		content: [{ type: "text", text }],
+		api: model.api,
+		provider: model.provider,
+		model: model.id,
+		usage: {
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		},
+		stopReason: "stop",
+		timestamp: Date.now(),
+	};
+}
 
 /**
  * Generate a title for a session based on the first user message.
@@ -229,10 +254,9 @@ export type TitleUsageReporter = (message: AssistantMessage) => void;
  * @param signal Session-lifecycle cancellation for background title requests
  * @param credentialSourceSessionId Optional foreground session whose selected
  *   OAuth credential should seed an isolated title-request session.
- * @param onUsage Optional reporter for every title attempt the provider billed,
- *   so the caller can record its usage on the session's cost ledger.
- * @param language Optional invocation language; omitted uses the effective
- *   `language` setting captured at the start of this call.
+ * @param onUsage Optional reporter for every title attempt the provider billed
+ *   and for a local model's title, so the caller can journal the request on
+ *   the session's cost ledger.
  */
 export async function generateSessionTitle(
 	firstMessage: string,
@@ -245,7 +269,6 @@ export async function generateSessionTitle(
 	signal?: AbortSignal,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
-	language?: ZetaLanguage,
 ): Promise<string | null> {
 	// Defer titling for greetings / acknowledgements / empty input. The default
 	// tiny title model can't reliably decline trivial input, so this happens
@@ -264,7 +287,6 @@ export async function generateSessionTitle(
 	}
 
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
-	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	if (firstModel.api !== "local-inference") {
 		return generateTitleOnlineWithModels(
 			firstMessage,
@@ -276,27 +298,24 @@ export async function generateSessionTitle(
 			titleSystemPrompt,
 			credentialSourceSessionId,
 			onUsage,
-			resolvedLanguage,
 		);
 	}
 
 	// A local role selection is an explicit no-billing boundary. If the worker
 	// fails (download missing, runtime crash, abort, or no output), leave the
 	// session untitled rather than advancing into a paid fallback candidate.
-	// The English prompt stays the worker's built-in default; only a selected
-	// Chinese policy (or an explicit override) is sent as a system turn.
-	const localSystemPrompt = titleSystemPrompt ?? (resolvedLanguage === "zh" ? TITLE_SYSTEM_PROMPTS.zh : undefined);
 	try {
+		const started = performance.now();
 		let localTitle: string | null;
 		if (signal) {
 			localTitle = await tinyTitleClient.generate(
 				firstModel.id,
 				firstMessage,
-				localSystemPrompt ? { signal, systemPrompt: localSystemPrompt } : { signal },
+				titleSystemPrompt ? { signal, systemPrompt: titleSystemPrompt } : { signal },
 			);
-		} else if (localSystemPrompt) {
+		} else if (titleSystemPrompt) {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage, {
-				systemPrompt: localSystemPrompt,
+				systemPrompt: titleSystemPrompt,
 			});
 		} else {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage);
@@ -309,6 +328,14 @@ export async function generateSessionTitle(
 			});
 			return null;
 		}
+		// A null result may never have reached the worker (failed model, abort), so only a
+		// produced title is journaled.
+		reportTitleAttempt(
+			onUsage,
+			{ ...unmeteredMessage(firstModel, localTitle), duration: Math.round(performance.now() - started) },
+			formatTitleUserMessage(firstMessage),
+			{ titleSessionId: sessionId, model: firstModel.id },
+		);
 		return localTitle;
 	} catch (err) {
 		logger.warn("title-generator: local tiny model errored; skipping (no online fallback)", {
@@ -347,7 +374,6 @@ export async function generateTitleOnline(
 		customSystemPrompt,
 		credentialSourceSessionId,
 		onUsage,
-		generatedNameLanguage(settings),
 	);
 }
 
@@ -361,18 +387,14 @@ async function generateTitleOnlineWithModels(
 	customSystemPrompt?: string,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
-	language: ZetaLanguage = "en",
 ): Promise<string | null> {
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
 	// The model is always asked to wrap the title in `<title>...</title>` and
 	// the title is parsed from text. A forced `set_title` tool call was the old
 	// scheme, but hosts that ignore or reject forced `tool_choice` then echoed
 	// the prompt's `{"title": ...}` JSON example verbatim as the session title;
-	// markers work uniformly everywhere. A selected Chinese policy is part of
-	// the bundled prompt; caller-supplied prompts keep their own wording.
-	const systemPrompt = titleSystemPrompt
-		? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION]
-		: [TITLE_SYSTEM_PROMPTS[language]];
+	// markers work uniformly everywhere.
+	const systemPrompt = titleSystemPrompt ? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION] : [TITLE_SYSTEM_PROMPT];
 	const userMessage = formatTitleUserMessage(firstMessage);
 
 	for (const model of models) {
@@ -425,7 +447,11 @@ async function generateTitleOnlineWithModels(
 			logger.debug("title-generator: request", { ...modelContext, maxTokens });
 
 			const messages: Message[] = [{ role: "user", content: userMessage, timestamp: Date.now() }];
-			if (model.supportsAssistantPrefill) messages.push(titlePrefill(model));
+			// Open the `<title>` marker as a trailing assistant turn on hosts that continue it
+			// verbatim. Some Ollama chat templates (LFM2.5) open a reasoning channel regardless
+			// of the disable flag, burning the whole output budget on thinking and never emitting
+			// a title. Committing the marker first skips the reasoning channel entirely.
+			if (model.supportsAssistantPrefill) messages.push(unmeteredMessage(model, "<title>"));
 
 			const response = await retryTransientCompletion(
 				async () => {
@@ -450,19 +476,11 @@ async function generateTitleOnlineWithModels(
 						},
 					);
 					// Every attempt that reached the provider was billed, failures included,
-					// so a transient retry must not discard the attempt it replaced. Reporting
-					// is best-effort: accounting can never fail the title.
-					try {
-						onUsage?.(message);
-					} catch (err) {
-						logger.debug("title-generator: usage report failed", {
-							...modelContext,
-							error: err instanceof Error ? err.message : String(err),
-						});
-					}
+					// so a transient retry must not discard the attempt it replaced.
+					reportTitleAttempt(onUsage, message, userMessage, modelContext);
 					return message;
 				},
-				{ signal, provider: model.provider },
+				{ signal, provider: model.provider, baseUrl: model.baseUrl },
 			);
 
 			if (response.stopReason === "aborted" || signal?.aborted) {
@@ -521,33 +539,6 @@ async function generateTitleOnlineWithModels(
 		}
 	}
 	return null;
-}
-
-/**
- * Open the `<title>` marker as a trailing assistant turn on hosts that continue
- * it verbatim (`Model.supportsAssistantPrefill`). Some Ollama chat templates
- * (LFM2.5) open a reasoning channel regardless of the disable flag, burning the
- * whole output budget on thinking and never emitting a title. Committing the
- * marker first skips the reasoning channel entirely.
- */
-function titlePrefill(model: Model<Api>): AssistantMessage {
-	return {
-		role: "assistant",
-		content: [{ type: "text", text: "<title>" }],
-		api: model.api,
-		provider: model.provider,
-		model: model.id,
-		usage: {
-			input: 0,
-			output: 0,
-			cacheRead: 0,
-			cacheWrite: 0,
-			totalTokens: 0,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-		},
-		stopReason: "stop",
-		timestamp: Date.now(),
-	};
 }
 
 function extractGeneratedTitle(contentBlocks: AssistantMessage["content"]): string {
@@ -742,7 +733,8 @@ function writeTerminalTitle(title: string, recomposeStaticOnFailure = false): vo
 
 /**
  * Set the session's base terminal title: the session name, which a generated
- * title carries in the card form `<icon> <CODE>: <name>`, else the cwd.
+ * title carries in the card form `<icon> <CODE>: <name>` that Tern indexes
+ * parked panes by, else the cwd.
  */
 export function setSessionTerminalTitle(sessionName: string | undefined, cwd?: string): void {
 	// An authoritative session title (rename, new session, focus swap) supersedes
@@ -759,6 +751,7 @@ export function setSessionTerminalTitle(sessionName: string | undefined, cwd?: s
 	terminalTitleRuntime.sessionName = sanitizeTerminalTitlePart(sessionName);
 	terminalTitleRuntime.label = terminalTitleRuntime.sessionName ?? getFallbackTerminalTitle(cwd);
 	emitTerminalTitle();
+	reportTernSession();
 }
 
 /**
@@ -767,6 +760,67 @@ export function setSessionTerminalTitle(sessionName: string | undefined, cwd?: s
  */
 export function nerdGlyphsActive(): boolean {
 	return typeof theme !== "undefined" && theme.getSymbolPreset() === "nerd";
+}
+
+/** The OSC 1337 user variable Tern reads the session file from. */
+const TERN_SESSION_FILE_VAR = "omp_session_file";
+/**
+ * The OSC 1337 user variable telling Tern this omp understands `--restore`, set to
+ * `1` before each session file report: Tern's daemon then relaunches it after a
+ * crash with `--restore <file>` instead of `--resume <file>`.
+ */
+const TERN_RESTORE_VAR = "omp_restore";
+
+/** The live session as Tern hears about it (read from the interactive session manager). */
+export interface TerminalSessionSource {
+	/** The session file, if the session persists to one. */
+	file(): string | undefined;
+	/** The session's working directory. */
+	cwd(): string;
+}
+
+/** Where the current session's file and directory are read from. */
+let sessionSource: TerminalSessionSource | undefined;
+/** The session file Tern was last told about. */
+let reportedSessionFile: string | undefined;
+/** The working directory Tern was last told about. */
+let reportedCwd: string | undefined;
+
+/**
+ * Name the live session's source. Every session title update (start, new
+ * session, resume, cwd switch) and {@link reportTernSession} re-read it and, in
+ * Tern, report what changed: the file, so Tern's daemon can relaunch
+ * `omp --resume <file>` after it restarts, and the directory, which Tern names
+ * in omp's composer bar.
+ */
+export function setTerminalSessionSource(source: TerminalSessionSource | undefined): void {
+	sessionSource = source;
+	reportTernSession();
+}
+
+/**
+ * Tell Tern (`TERM_PROGRAM=tern`, nowhere else) what changed about the session:
+ * the file as an OSC 1337 user variable holding its absolute path in base64 (no
+ * file removes the variable), preceded by {@link TERN_RESTORE_VAR}, and the working
+ * directory as OSC 7 (`file://host/path`), as a shell reports it at each prompt.
+ */
+export function reportTernSession(): void {
+	if (terminalTitleRuntime.disposed || $env.TERM_PROGRAM?.toLowerCase() !== "tern") return;
+	if (!process.stdout.isTTY || isTerminalHeadless()) return;
+	const file = sessionSource?.file();
+	const resolvedFile = file ? path.resolve(file) : undefined;
+	if (resolvedFile !== reportedSessionFile) {
+		reportedSessionFile = resolvedFile;
+		const value = resolvedFile ? `=${Buffer.from(resolvedFile).toString("base64")}` : "";
+		if (resolvedFile) writeTerminalSequence(`\x1b]1337;SetUserVar=${TERN_RESTORE_VAR}=MQ==\x07`);
+		writeTerminalSequence(`\x1b]1337;SetUserVar=${TERN_SESSION_FILE_VAR}${value}\x07`);
+	}
+	// Without a session the shell takes the directory back at its next prompt.
+	const cwd = sessionSource ? path.resolve(sessionSource.cwd()) : undefined;
+	if (cwd && cwd !== reportedCwd) {
+		writeTerminalSequence(`\x1b]7;file://${os.hostname()}${url.pathToFileURL(cwd).pathname}\x07`);
+	}
+	reportedCwd = cwd;
 }
 
 /**
@@ -885,13 +939,13 @@ const terminalTitleRuntime: {
 };
 
 /**
- * Compose the terminal title from the `ζ` brand, a state-carrying separator, and
+ * Compose the terminal title from the `π` brand, a state-carrying separator, and
  * the session label. Pure (no I/O) so the state→separator contract is testable:
- *   - `idle` (user's turn):  `ζ > label`;
- *   - `working`:             `ζ ⠋ label` (static `ζ : label` under WSL, or when `staticSpinner` is set);
- *   - `attention`:           `ζ ! label`;
- *   - disabled:              `ζ: label`.
- * Without a label the separator trails the brand (`ζ >`) so the state stays visible.
+ *   - `idle` (user's turn):  `π > label`;
+ *   - `working`:             `π ⠋ label` (static `π : label` under WSL, or when `staticSpinner` is set);
+ *   - `attention`:           `π ! label`;
+ *   - disabled:              `π: label`.
+ * Without a label the separator trails the brand (`π >`) so the state stays visible.
  * The `working` separator cycles `TERMINAL_TITLE_SPINNER_STYLES[style]`; `style`
  * defaults to `braille` so existing 5-arg callers keep the historical frames.
  * `staticSpinner` is the caller's own reasons to pin the working separator: the
@@ -922,7 +976,7 @@ export function buildTerminalTitleWithState(
 }
 
 /**
- * The tab title while a TSP terminal renders: the session name (`zeta` before
+ * The tab title while a TSP terminal renders: the session name (`omp` before
  * there is one) and the branch's pull request. The terminal shows run state
  * itself, so there is no brand or state separator.
  */
@@ -1080,7 +1134,7 @@ export function initTerminalTitleState(): void {
 	// state — a frozen spinner frame. Mirror the enable path and re-arm.
 	if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
 	// A TSP terminal takes the plain native title while it renders; the
-	// classic `ζ > label` (and its spinner) comes back when it stops.
+	// classic `π > label` (and its spinner) comes back when it stops.
 	terminalTitleRuntime.unwatchNative ??= onNativeRenderingChange(native => {
 		if (native) stopTerminalTitleSpinner();
 		else if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
@@ -1092,10 +1146,13 @@ export function initTerminalTitleState(): void {
  * Stop the spinner timer and latch the runtime off; call on session/UI teardown.
  * The latch is the load-bearing half: `shutdown()` disposes and restores the shell
  * title BEFORE it unsubscribes the session, so a live `#handleAgentStart` in that
- * window would otherwise re-arm the spinner and write `ζ ⠋ …` into the parent
+ * window would otherwise re-arm the spinner and write `π ⠋ …` into the parent
  * shell's tab. Released only by {@link initTerminalTitleState}.
  */
 export function disposeTerminalTitleState(): void {
+	// The session ends with the UI: Tern must not resume it in this pane.
+	sessionSource = undefined;
+	reportTernSession();
 	terminalTitleRuntime.disposed = true;
 	terminalTitleRuntime.unwatchNative?.();
 	terminalTitleRuntime.unwatchNative = undefined;

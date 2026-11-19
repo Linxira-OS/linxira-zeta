@@ -27,25 +27,27 @@
 
 import type { Database } from "bun:sqlite";
 import { currentDb, unpricedRequestSql } from "./db";
+import { isDecisionModelApi, sideChannelCategory } from "./side-channels";
 import type {
 	AgentType,
 	AgentTypeStats,
 	AggregatedStats,
 	CostTimeSeriesPoint,
 	DailyActivityPoint,
+	DashboardStats,
 	FolderStats,
-	ModelDailyActivityPoint,
-	ModelHourlyActivityPoint,
 	ModelPerformancePoint,
 	ModelStats,
 	ModelTimeSeriesPoint,
 	ProviderAggregate,
 	ProviderHourlyPoint,
 	ProviderTimeSeriesPoint,
+	SideChannelStats,
 	TimeSeriesPoint,
 	ToolModelStats,
 	ToolTimeSeriesPoint,
 	ToolUsageStats,
+	UsageAttributionTotals,
 } from "./types";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -55,7 +57,7 @@ const DAY_MS = 24 * HOUR_MS;
  * Bump when the rollup schema or fact definitions change: the tables are then
  * dropped and every hour is rebuilt from the raw tables.
  */
-const ROLLUP_VERSION = "2";
+const ROLLUP_VERSION = "3";
 const ROLLUP_VERSION_KEY = "rollup_version";
 /** Bump when the dirty-marking triggers change; they are then recreated in place. */
 const TRIGGER_VERSION = "4";
@@ -81,13 +83,25 @@ const REFRESH_MAX_BATCH = 64;
 // the raw read paths so both produce identical columns.
 // ---------------------------------------------------------------------------
 
-const MESSAGE_DIMENSIONS = "model, provider, folder, agent_type";
+/**
+ * `purpose` (NULL on assistant messages) and `api` carry the attribution of
+ * off-transcript model calls. Both stay raw: the purpose's category and whether
+ * the api is a native judgment api are decided in TypeScript at read time, so
+ * re-cutting either needs no rebuild.
+ */
+const MESSAGE_DIMENSION_COLUMNS = ["model", "provider", "folder", "agent_type", "purpose", "api"] as const;
+const MESSAGE_DIMENSIONS = MESSAGE_DIMENSION_COLUMNS.join(", ");
+
+/** The message dimensions as columns of `messages` qualified by `p`. */
+function messageDimensions(p: string): string {
+	return MESSAGE_DIMENSION_COLUMNS.map(column => `${p}${column}`).join(", ");
+}
 
 /** Additive per-bucket facts over `messages` (columns qualified by `p`). */
 function messageFacts(bucketExpr: string, p: string): string {
 	return `
 		${bucketExpr} AS bucket,
-		${p}model AS model, ${p}provider AS provider, ${p}folder AS folder, ${p}agent_type AS agent_type,
+		${MESSAGE_DIMENSION_COLUMNS.map(column => `${p}${column} AS ${column}`).join(", ")},
 		COUNT(*) AS requests,
 		SUM(CASE WHEN ${p}stop_reason = 'error' THEN 1 ELSE 0 END) AS failed,
 		SUM(${p}input_tokens) AS input_tokens,
@@ -228,6 +242,8 @@ export function ensureRollupSchema(database: Database): void {
 				provider TEXT NOT NULL,
 				folder TEXT NOT NULL,
 				agent_type TEXT NOT NULL,
+				purpose TEXT,
+				api TEXT NOT NULL,
 				requests INTEGER NOT NULL,
 				failed INTEGER NOT NULL,
 				input_tokens INTEGER NOT NULL,
@@ -529,7 +545,7 @@ function messageSource(database: Database, cutoff: number | null, fine: boolean)
 			`SELECT ${messageFacts("d.bucket", "m.")}
 			 FROM rollup_dirty d JOIN messages m ON m.timestamp >= d.bucket AND m.timestamp < d.bucket + ${HOUR_MS}
 			 ${hi !== null ? "WHERE d.bucket >= ?" : ""}
-			 GROUP BY d.bucket, m.model, m.provider, m.folder, m.agent_type`,
+			 GROUP BY d.bucket, ${messageDimensions("m.")}`,
 		);
 		if (hi !== null) params.push(hi);
 	}
@@ -721,29 +737,19 @@ export function getStatsByFolder(cutoff: number | null = null, limit = Number.MA
 	).map(row => ({ folder: row.folder, ...toAggregatedStats(row) }));
 }
 
-/** Distinct project folders the stats registry knows, most recently active first. */
-export function getProjectFolders(limit = Number.MAX_SAFE_INTEGER): string[] {
-	return queryMessages<{ folder: string }>(
-		{ cutoff: null },
-		"f.folder AS folder, MAX(f.last_ts) AS last_ts",
-		`GROUP BY f.folder ORDER BY last_ts DESC LIMIT ${Math.max(0, Math.floor(limit))}`,
-	).map(row => row.folder);
-}
-
-/** Newest session file registered for a project folder, used to resolve its real cwd. */
-export function getProjectSessionFile(folder: string): string | null {
-	const database = currentDb();
-	if (!database) return null;
-	const row = database
-		.query("SELECT session_file FROM messages WHERE folder = ? ORDER BY timestamp DESC LIMIT 1")
-		.get(folder) as { session_file: string } | null;
-	return row?.session_file ?? null;
-}
-
-/** Token usage per agent type (main, subagent, advisor). */
-export function getStatsByAgentType(cutoff: number | null = null): AgentTypeStats[] {
-	return queryMessages<{
+/**
+ * Usage attributed to what spent it: conversation turns per agent type (main,
+ * subagent, advisor) and side channels per category, apart for decision models.
+ * Rows are grouped by their raw dimensions and classified here (see
+ * `side-channels.ts`), so every row lands in exactly one group.
+ */
+export function getUsageAttribution(
+	cutoff: number | null = null,
+): Pick<DashboardStats, "byAgentType" | "bySideChannel"> {
+	const rows = queryMessages<{
 		agent_type: string | null;
+		purpose: string | null;
+		api: string;
 		requests: number;
 		input_tokens: number | null;
 		output_tokens: number | null;
@@ -752,19 +758,54 @@ export function getStatsByAgentType(cutoff: number | null = null): AgentTypeStat
 		cost_total: number | null;
 	}>(
 		{ cutoff },
-		`f.agent_type AS agent_type, SUM(f.requests) AS requests, SUM(f.input_tokens) AS input_tokens,
+		`f.agent_type AS agent_type, f.purpose AS purpose, f.api AS api,
+		 SUM(f.requests) AS requests, SUM(f.input_tokens) AS input_tokens,
 		 SUM(f.output_tokens) AS output_tokens, SUM(f.cache_read_tokens) AS cache_read_tokens,
 		 SUM(f.cache_write_tokens) AS cache_write_tokens, TOTAL(f.cost_total) AS cost_total`,
-		"GROUP BY f.agent_type",
-	).map(row => ({
-		agentType: (row.agent_type as AgentType | null) ?? "main",
-		totalRequests: row.requests,
-		totalInputTokens: row.input_tokens ?? 0,
-		totalOutputTokens: row.output_tokens ?? 0,
-		totalCacheReadTokens: row.cache_read_tokens ?? 0,
-		totalCacheWriteTokens: row.cache_write_tokens ?? 0,
-		totalCost: row.cost_total ?? 0,
-	}));
+		"GROUP BY f.agent_type, f.purpose, f.api",
+	);
+	const emptyTotals = (): UsageAttributionTotals => ({
+		totalRequests: 0,
+		totalInputTokens: 0,
+		totalOutputTokens: 0,
+		totalCacheReadTokens: 0,
+		totalCacheWriteTokens: 0,
+		totalCost: 0,
+	});
+	const byAgentType = new Map<AgentType, AgentTypeStats>();
+	const bySideChannel = new Map<string, SideChannelStats>();
+	for (const row of rows) {
+		const category = sideChannelCategory(row.purpose);
+		let totals: UsageAttributionTotals;
+		if (category === null) {
+			const agentType = (row.agent_type as AgentType | null) ?? "main";
+			let stat = byAgentType.get(agentType);
+			if (!stat) {
+				stat = { agentType, ...emptyTotals() };
+				byAgentType.set(agentType, stat);
+			}
+			totals = stat;
+		} else {
+			const decision = isDecisionModelApi(row.api);
+			const key = `${decision ? "decision" : "model"}:${category}`;
+			let stat = bySideChannel.get(key);
+			if (!stat) {
+				stat = { category, decision, ...emptyTotals() };
+				bySideChannel.set(key, stat);
+			}
+			totals = stat;
+		}
+		totals.totalRequests += row.requests;
+		totals.totalInputTokens += row.input_tokens ?? 0;
+		totals.totalOutputTokens += row.output_tokens ?? 0;
+		totals.totalCacheReadTokens += row.cache_read_tokens ?? 0;
+		totals.totalCacheWriteTokens += row.cache_write_tokens ?? 0;
+		totals.totalCost += row.cost_total ?? 0;
+	}
+	return {
+		byAgentType: [...byAgentType.values()],
+		bySideChannel: [...bySideChannel.values()].sort((a, b) => b.totalRequests - a.totalRequests),
+	};
 }
 
 /** Requests, errors, tokens and cost per bucket. */
@@ -943,37 +984,6 @@ export function getDailyActivityFromRollup(cutoff: number): DailyActivityPoint[]
 		 SUM(f.requests) AS requests, SUM(f.total_tokens) AS total_tokens`,
 		"GROUP BY day ORDER BY day",
 	).map(row => ({ day: row.day, cost: row.cost, requests: row.requests, totalTokens: row.total_tokens ?? 0 }));
-}
-
-/**
- * Per-model token totals per local day since `cutoff`, oldest day first. Same
- * exactness rules as every range read (clean rollup hours plus raw rows for the
- * partial hour and dirty hours), so a live ingest shows up before its hour is
- * re-rolled. Hourly buckets are attributed by their start, so a half-hour UTC
- * offset can move up to 30 minutes of burn onto the neighbouring day — the same
- * caveat {@link getProviderHourlyBurn} documents for local hours.
- */
-export function getModelDailyActivity(cutoff: number | null = null): ModelDailyActivityPoint[] {
-	return queryMessages<{ day: string; model: string; total_tokens: number | null }>(
-		{ cutoff },
-		`date(f.bucket / 1000, 'unixepoch', 'localtime') AS day, f.model AS model,
-		 SUM(f.total_tokens) AS total_tokens`,
-		"GROUP BY day, f.model ORDER BY day, f.model",
-	).map(row => ({ day: row.day, model: row.model, totalTokens: row.total_tokens ?? 0 }));
-}
-
-/**
- * Per-model token totals per local hour of day (`0`–`23`) since `cutoff`. Used
- * with today's local midnight so the result is today's hourly series. Same
- * attribution caveat as {@link getProviderHourlyBurn}.
- */
-export function getModelHourlyActivity(cutoff: number | null = null): ModelHourlyActivityPoint[] {
-	return queryMessages<{ model: string; hour: number; total_tokens: number | null }>(
-		{ cutoff },
-		`f.model AS model, CAST(strftime('%H', f.bucket / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour,
-		 SUM(f.total_tokens) AS total_tokens`,
-		"GROUP BY f.model, hour ORDER BY hour, f.model",
-	).map(row => ({ hour: row.hour, model: row.model, totalTokens: row.total_tokens ?? 0 }));
 }
 
 /** Tokens/cost per bucket per provider. */

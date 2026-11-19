@@ -5,7 +5,19 @@
  * scans stale promise-job frames whose slots can still hold pointers to released objects, so whether a
  * target survives depends on stack layout. A timer callback runs on the event loop's shallow stack, out of
  * reach of those frames.
+ *
+ * The concurrent JIT also holds values: a DFG/FTL plan compiling a hot loop for OSR entry keeps the loop's
+ * locals (a rows array a render loop walked) reachable until the plan lands, so a released target can
+ * outlive a run of back-to-back full collections. With `BUN_JSC_useConcurrentJIT=0` it does not.
  */
+
+/**
+ * Full collections a target gets before it counts as retained, however long they take. A plan's hold
+ * lasted 18–34 probe collections whether each took 5 ms or 350 ms (macOS arm64, Linux x64), so it is
+ * counted in collections, not time: on a CI worker's grown heap a full collection takes hundreds of
+ * milliseconds, and the time deadline alone ran out first.
+ */
+const MIN_COLLECTIONS = 64;
 
 /** Runs a full synchronous GC from a fresh timer callback, away from stale async stack frames. */
 export function collectGarbage(): Promise<void> {
@@ -18,24 +30,14 @@ export function collectGarbage(): Promise<void> {
 }
 
 /**
- * Whether `target` becomes collectible within `deadlineMs`; a retained target never does.
- *
- * The bound is only a latency ceiling for a target that *can* go: {@link collectGarbage} runs one
- * timer-callback GC per pass and the loop yields between passes, so a few seconds buys hundreds of
- * passes even on a loaded runner. It cannot rescue a target pinned by a stale native stack slot —
- * JSC scans the whole stack region conservatively, so the object dropped last may stay reachable for
- * the life of the process no matter how many passes run (see the survivor tolerance in
- * `packages/coding-agent/test/task/spawn-run.test.ts`). Callers probing the last-dropped object
- * should tolerate that one survivor; widening this bound does not help.
- *
- * (Widened 3s → 8s on 2026-10-12 for the post-#92 flake, then reverted the same day: the flake was
- * the stale slot, not too few passes.)
+ * Whether `target` becomes collectible within `deadlineMs` and {@link MIN_COLLECTIONS} collections; a
+ * retained target never does.
  */
 export async function becomesCollectible(target: WeakRef<object>, deadlineMs = 3_000): Promise<boolean> {
 	const deadline = performance.now() + deadlineMs;
-	do {
+	for (let collections = 1; ; collections++) {
 		await collectGarbage();
 		if (target.deref() === undefined) return true;
-	} while (performance.now() < deadline);
-	return false;
+		if (collections >= MIN_COLLECTIONS && performance.now() >= deadline) return false;
+	}
 }

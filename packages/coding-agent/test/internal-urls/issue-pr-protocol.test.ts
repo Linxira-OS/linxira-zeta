@@ -9,18 +9,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
-import { parsePrUnifiedDiff, retainPrDiffGeneration } from "@linxiraos/zeta/tools/gh-pr-diff";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { parsePrUnifiedDiff, retainPrDiffGeneration } from "@oh-my-pi/pi-coding-agent/tools/gh-pr-diff";
 import {
 	getCached,
 	getCachedGeneration,
 	putCached,
 	resetForTests as resetCacheForTests,
 	resolveGithubCacheAuthKey,
-} from "@linxiraos/zeta/tools/github-cache";
-import { github } from "@linxiraos/zeta/utils/github";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/tools/github-cache";
+import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { resourceText } from "../helpers/resource-text";
 
 let tempDir: string;
 let originalEnv: string | undefined;
@@ -197,7 +198,7 @@ describe("issue:// protocol handler", () => {
 		});
 
 		const resource = await router.resolve("issue://owner/example/43", { settings });
-		expect(resource.content.startsWith("> WARNING: Live GitHub refresh failed")).toBe(true);
+		expect(resourceText(resource).startsWith("> WARNING: Live GitHub refresh failed")).toBe(true);
 		expect(resource.notes?.[0]).toMatch(/^WARNING: showing cached content/);
 		expect(resource.content).toContain("cached body");
 		expect(spy).toHaveBeenCalledTimes(2);
@@ -465,14 +466,14 @@ describe("pr://.../diff family", () => {
 		const router = InternalUrlRouter.instance();
 		const first = await router.resolve("pr://owner/example/77/diff/1");
 		expect(first.contentType).toBe("text/plain");
-		expect(first.content.startsWith("diff --git a/src/one.ts b/src/one.ts")).toBe(true);
+		expect(resourceText(first).startsWith("diff --git a/src/one.ts b/src/one.ts")).toBe(true);
 		expect(first.content).not.toContain("src/two.ts");
 		expect(first.notes).toEqual(
 			expect.arrayContaining(["Showing file 1/2: src/one.ts", "Read all: pr://owner/example/77/diff/all"]),
 		);
 
 		const second = await router.resolve("pr://owner/example/77/diff/2");
-		expect(second.content.startsWith("diff --git a/src/two.ts b/src/two.ts")).toBe(true);
+		expect(resourceText(second).startsWith("diff --git a/src/two.ts b/src/two.ts")).toBe(true);
 		expect(second.content).not.toContain("src/one.ts");
 	});
 

@@ -1,7 +1,9 @@
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Component, OverlayHandle, TUI } from "@linxiraos/pi-tui";
-import { Container, Spacer, Text } from "@linxiraos/pi-tui";
-import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { Component, OverlayHandle, TUI } from "@oh-my-pi/pi-tui";
+import { Container, Spacer, Text } from "@oh-my-pi/pi-tui";
+import type { CollabUiRequestDraft, CollabUiSelectItem } from "@oh-my-pi/pi-wire";
+import type { CollabHost } from "../../collab/host";
+import { formatKeyHint, formatKeyHints, KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
 import type {
 	CompactOptions,
 	ExtensionActions,
@@ -9,6 +11,7 @@ import type {
 	ExtensionApprovalPrompt,
 	ExtensionAskDialogQuestion,
 	ExtensionAskDialogResult,
+	ExtensionAskDialogResultItem,
 	ExtensionCommandContextActions,
 	ExtensionContextActions,
 	ExtensionCustomOptions,
@@ -26,34 +29,70 @@ import type {
 } from "../../extensibility/extensions";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { cfgExtensionAssistantTextRenderers } from "../../extensibility/settings";
-import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { ApprovalDialogComponent } from "@linxiraos/pi-tui/overlays/approval-dialog";
+import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
+import { ApprovalDialogComponent } from "@oh-my-pi/pi-tui/overlays/approval-dialog";
 import {
-	type AskDialogInputGuard,
 	type AskDialogPrompt,
 	type AskDialogPromptDraft,
 	type AskDialogPromptValue,
 	AskDialogComponent,
 	normalizeDialogQuestions,
-} from "@linxiraos/pi-tui/overlays/ask-dialog";
-import { installExtensionComposerShape } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
-import { HtmlFormDialog } from "@linxiraos/pi-tui/html-form/dialog";
-import { type HtmlForm, parseHtmlForm } from "@linxiraos/pi-tui/html-form/parse";
-import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
-import { HookEditorComponent, type HookEditorOptions } from "@linxiraos/pi-tui/overlays/hook-editor";
-import { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
-import { extensionLinkClicksAvailable } from "@linxiraos/pi-tui/render/extension-links";
-import { HookSelectorComponent, type HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
-import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";
+} from "@oh-my-pi/pi-tui/overlays/ask-dialog";
+import { installExtensionComposerShape } from "@oh-my-pi/pi-tui/overlays/composer-shape-registry";
+import {
+	choiceValue,
+	fieldError,
+	fieldQuestions,
+	type HtmlFormData,
+	type HtmlFormValue,
+	textValue,
+} from "@oh-my-pi/pi-tui/html-form/data";
+import { HtmlFormDialog } from "@oh-my-pi/pi-tui/html-form/dialog";
+import {
+	type ChoiceField,
+	type HtmlForm,
+	parseHtmlForm,
+	spansText,
+	type TextField,
+} from "@oh-my-pi/pi-tui/html-form/parse";
+import { EditorTopGap } from "@oh-my-pi/pi-tui/prompt/editor-top-gap";
+import { boundPromptTitle, HookEditorComponent, type HookEditorOptions } from "@oh-my-pi/pi-tui/overlays/hook-editor";
+import { HookInputComponent } from "@oh-my-pi/pi-tui/overlays/hook-input";
+import { extensionLinkClicksAvailable } from "@oh-my-pi/pi-tui/render/extension-links";
+import { HookSelectorComponent, type HookSelectorSlider } from "@oh-my-pi/pi-tui/overlays/hook-selector";
+import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@oh-my-pi/pi-tui/theme";
 import type { ComposerOwner, InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
 import { normalizeCustomMessagePayload, USER_INTERRUPT_LABEL } from "../../session/messages";
-import { sanitizeCarriageReturns } from "@linxiraos/pi-tui/render/render-utils";
+import { disambiguateDisplayLabels, sanitizeCarriageReturns } from "@oh-my-pi/pi-tui/render/render-utils";
+import { type BlockedKind, type BlockedStatus, holdBlockedStatus } from "../../utils/run-status";
 import { setExtensionTerminalTitle, setSessionTerminalTitle } from "../../utils/title-generator";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { launchTerminal } from "../../subprocess/terminal-launch";
-import { approvalAnswerForChoice, approvalOnceLabel } from "../../tools/approval";
+import { approvalAnswerForChoice, approvalChoiceLabels, approvalOnceLabel } from "../../tools/approval";
 
 const MAX_WIDGET_LINES = 10;
+
+/**
+ * Footer hint for a guest-rendered ask selector. The guest's selector handles
+ * the keys, so the host can't know its bindings: advertise the defaults.
+ */
+function guestAskHelpText(enterAction: string, extra = ""): string {
+	return `${formatKeyHints(["up", "down"])} navigate  ${formatKeyHint("enter")} ${enterAction}  ${extra}${formatKeyHint("escape")} cancel`;
+}
+
+const ASK_OTHER_OPTION = "Other (type your own)";
+const ASK_CHAT_OPTION = "Chat about this";
+const ASK_NEXT_OPTION = "Next →";
+/** What an inline ask warns while sending the composer's draft would skip it. */
+const ASK_SKIP_NOTICE = "Sending your message skips these questions";
+
+/** Where a local ask shows; see `#mountAsk`. */
+interface AskSlot {
+	/** Shows the ask again, with the keys, after a nested prompt took the composer's place. */
+	restore(): void;
+	/** Takes the ask down and gives the composer its place and the keys back. */
+	unmount(): void;
+}
 
 function withTerminalLauncher(uiContext: ExtensionUIContext, hasUI: boolean): ExtensionUIContext {
 	if (!hasUI || uiContext.openTerminal) return uiContext;
@@ -72,6 +111,33 @@ async function editDialogExternally(text: string): Promise<string | null> {
 	return command ? openInEditor(command, text) : null;
 }
 
+interface CollabWinner<T> {
+	source: "local" | "remote";
+	value: T | undefined;
+}
+/** Tagged result from a guest UI request, distinguishing a real answer (even
+ *  one whose literal value is "unavailable"), an explicit guest cancel, and a
+ *  transport-unavailable sentinel (collab teardown / abort). Replaces the old
+ *  `string | "unavailable" | undefined` channel that let a guest answer of
+ *  "unavailable" collide with the transport sentinel. */
+type GuestUiResult = { kind: "answered"; value: string } | { kind: "cancelled" } | { kind: "unavailable" };
+
+/** A guest's answer to one form field: its value (none for an unchecked choice), a cancel, or no guest. */
+type GuestFieldResult =
+	| { kind: "answered"; value: HtmlFormValue | undefined }
+	| { kind: "cancelled" }
+	| { kind: "unavailable" };
+
+function toWireSelectOptions(options: ExtensionUISelectItem[]): CollabUiSelectItem[] {
+	return options.map(option =>
+		typeof option === "string"
+			? option
+			: option.description
+				? { label: option.label, description: option.description }
+				: { label: option.label },
+	);
+}
+
 export class ExtensionUiController {
 	#extensionTerminalInputUnsubscribers = new Set<() => void>();
 	#composerShapeDisposers: Array<() => void> = [];
@@ -82,6 +148,8 @@ export class ExtensionUiController {
 	// the rest queue. See `#presentDialog`.
 	#dialogActive = false;
 	#dialogQueue: Array<() => void> = [];
+	/** The local ask shown above the composer (`#mountAsk`). */
+	#ask: Component | undefined;
 	/**
 	 * The steering messages that last denied an approval. Steering waits for the tool batch to
 	 * end, so while any of them is still pending, later approvals of that batch (an exclusive call
@@ -136,12 +204,12 @@ export class ExtensionUiController {
 		const uiContext: ExtensionUIContext = {
 			timeoutStartsOnPresentation: true,
 			supportsEditor: true,
-			select: (title, options, dialogOptions) => this.showSelector(title, options, dialogOptions),
+			select: (title, options, dialogOptions) => this.showCollabAwareSelector(title, options, dialogOptions),
 			confirm: (title, message, dialogOptions) => this.showHookConfirm(title, message, dialogOptions),
 			input: (title, placeholder, dialogOptions) => this.showHookInput(title, placeholder, dialogOptions),
 			askDialog: (questions, dialogOptions) => this.showAskDialog(questions, dialogOptions),
 			formDialog: (html, dialogOptions) => this.showFormDialog(html, dialogOptions),
-			approve: (prompt, dialogOptions) => this.showApproval(prompt, dialogOptions),
+			approve: (prompt, dialogOptions) => this.showCollabAwareApproval(prompt, dialogOptions),
 			notify: (message, type) => this.showHookNotify(message, type),
 			onTerminalInput: handler => this.addExtensionTerminalInputListener(handler),
 			rerenderMessage: timestamp => this.#rerenderAssistantMessage(timestamp),
@@ -162,7 +230,7 @@ export class ExtensionUiController {
 			},
 			getEditorText: () => this.ctx.editor.getText(),
 			editor: (title, prefill, dialogOptions, editorOptions) =>
-				this.showEditor(title, prefill, dialogOptions, editorOptions),
+				this.showCollabAwareEditor(title, prefill, dialogOptions, editorOptions),
 			addAutocompleteProvider: factory => this.ctx.addAutocompleteProvider(factory),
 			getEditorComponent: () => this.ctx.getEditorComponent(),
 			get theme() {
@@ -404,29 +472,20 @@ export class ExtensionUiController {
 	}
 
 	#rebuildHookWidgets(): void {
-		this.#renderHookWidgetContainer(this.ctx.hookWidgetContainerAbove, this.#hookWidgetsAbove, true, true);
-		this.#renderHookWidgetContainer(this.ctx.hookWidgetContainerBelow, this.#hookWidgetsBelow, false, false);
+		// The margin above the editor is the top gap, or a plain spacer over hook
+		// widgets; either way it stays in the one billed root, so installing a
+		// widget never moves that row out of the retirement baseline.
+		this.ctx.editorTopGapContainer.clear();
+		this.ctx.editorTopGapContainer.addChild(
+			this.#hookWidgetsAbove.size === 0 ? new EditorTopGap(() => this.ctx.statusRowOccupied) : new Spacer(1),
+		);
+		this.#renderHookWidgetContainer(this.ctx.hookWidgetContainerAbove, this.#hookWidgetsAbove);
+		this.#renderHookWidgetContainer(this.ctx.hookWidgetContainerBelow, this.#hookWidgetsBelow);
 		this.ctx.ui.requestRender();
 	}
 
-	#renderHookWidgetContainer(
-		container: Container,
-		widgets: Map<string, ExtensionUiComponent>,
-		spacerWhenEmpty: boolean,
-		leadingSpacer: boolean,
-	): void {
+	#renderHookWidgetContainer(container: Container, widgets: Map<string, ExtensionUiComponent>): void {
 		container.clear();
-
-		if (widgets.size === 0) {
-			if (spacerWhenEmpty) {
-				container.addChild(new EditorTopGap(() => this.ctx.statusRowOccupied));
-			}
-			return;
-		}
-
-		if (leadingSpacer) {
-			container.addChild(new Spacer(1));
-		}
 		for (const widget of widgets.values()) {
 			container.addChild(widget);
 		}
@@ -621,39 +680,64 @@ export class ExtensionUiController {
 		this.ctx.ui.requestRender();
 	}
 
-	async showSelector(
+	async showCollabAwareSelector(
 		title: string,
 		options: ExtensionUISelectItem[],
 		dialogOptions?: InteractiveSelectorDialogOptions,
-		extra?: { slider?: HookSelectorSlider },
+		extra?: { slider?: HookSelectorSlider; kind?: BlockedKind },
 	): Promise<string | undefined> {
-		return this.showHookSelector(title, options, dialogOptions, extra);
+		const request: CollabUiRequestDraft = {
+			kind: "select",
+			title,
+			options: toWireSelectOptions(options),
+			initialIndex: dialogOptions?.initialIndex,
+			selectionMarker: dialogOptions?.selectionMarker,
+			checkedIndices: dialogOptions?.checkedIndices ? [...dialogOptions.checkedIndices] : undefined,
+			markableCount: dialogOptions?.markableCount,
+			helpText: dialogOptions?.helpText,
+			...(extra?.kind === "permission" ? { approval: true } : {}),
+		};
+		return this.#raceCollabDialog(request, dialogOptions?.signal, signal =>
+			this.showHookSelector(title, options, { ...dialogOptions, signal }, extra),
+		);
 	}
 
-	async showEditor(
+	async showCollabAwareEditor(
 		title: string,
 		prefill?: string,
 		dialogOptions?: ExtensionUIDialogOptions,
 		editorOptions?: { promptStyle?: boolean },
 	): Promise<string | undefined> {
-		return this.showHookEditor(title, prefill, dialogOptions, editorOptions);
+		const request: CollabUiRequestDraft = { kind: "editor", title, prefill };
+		return this.#raceCollabDialog(request, dialogOptions?.signal, signal =>
+			this.showHookEditor(title, prefill, { ...dialogOptions, signal }, editorOptions),
+		);
 	}
 
 	/**
-	 * The tool-approval prompt in the composer's place. It shows the compact prompt (the details
-	 * summarized to a row, so the composer beneath keeps its room) over the choice list, and the
-	 * expand key swaps in the full one, wrapped — even when the two match, since a row the summary
-	 * kept whole can still clip. The composer stays mounted beneath it and takes the typing: a user
-	 * message queued as steering while the call waits (sent here or from Tern) denies the call, so
-	 * the message tells the agent why instead of a bare denial. The watch starts with the request,
-	 * so approvals still queued behind another dialog are denied by the same message.
+	 * The tool-approval prompt in the composer's place; a collab guest answers it as a select over
+	 * the full prompt with the same choices ({@link approvalChoiceLabels}): the prompt's grants when
+	 * it offers any, Approve, its "for this session" choice when it offers one, and Deny. Locally it
+	 * shows the compact prompt (the details summarized to a
+	 * row, so the composer beneath keeps its room) over that list, and the expand key
+	 * swaps in the full one, wrapped — even when the two match, since a row the summary kept whole
+	 * can still clip. The composer stays mounted beneath it and takes the typing: a user message
+	 * queued as steering while the call waits (sent here, from Tern, or by a collab guest) denies
+	 * the call, so the message tells the agent why instead of a bare denial. The watch starts with
+	 * the request, so approvals still queued behind another dialog are denied by the same message.
 	 */
-	async showApproval(
+	async showCollabAwareApproval(
 		prompt: ExtensionApprovalPrompt,
 		dialogOptions?: ExtensionUIDialogOptions,
 	): Promise<ExtensionApprovalAnswer> {
 		const sessionLabel = prompt.session;
 		const onceLabel = approvalOnceLabel(prompt);
+		const request: CollabUiRequestDraft = {
+			kind: "select",
+			title: prompt.full,
+			options: approvalChoiceLabels(prompt),
+			approval: true,
+		};
 		const session = this.ctx.session;
 		const agent = session.agent;
 		const pendingSteering = agent.peekSteeringQueue();
@@ -679,53 +763,57 @@ export class ExtensionUiController {
 		});
 		const signal = dialogOptions?.signal ? AbortSignal.any([dialogOptions.signal, steered.signal]) : steered.signal;
 		try {
-			const choice = await this.#presentDialog(signal, settle => {
-				const editor = this.ctx.editor;
-				const dialog = new ApprovalDialogComponent(
-					prompt.compact,
-					{ onApprove: () => settle(onceLabel), onDeny: () => settle("Deny") },
-					{
-						tui: this.ctx.ui,
-						fullPrompt: prompt.full,
-						timeout: dialogOptions?.timeout,
-						onTimeout: dialogOptions?.onTimeout,
-						onTimeoutStart: dialogOptions?.onTimeoutStart,
-						onTimeoutReset: dialogOptions?.onTimeoutReset,
-						...(sessionLabel ? { session: { label: sessionLabel, onApprove: () => settle(sessionLabel) } } : {}),
-						...(prompt.grants?.length
-							? {
-									grants: prompt.grants,
-									onGrant: (grant, always) => settle(always ? grant.alwaysLabel : grant.label),
-								}
-							: {}),
-						draft: {
-							hasDraft: () =>
-								editor.getText().length > 0 || editor.pendingImages.length > 0 || editor.pasteInFlight,
-							handleInput: keyData => editor.handleDraftEdit(keyData),
+			const choice = await this.#raceCollabDialog(request, signal, localSignal =>
+				this.#presentDialog({ kind: "permission", msg: prompt.compact }, localSignal, settle => {
+					const editor = this.ctx.editor;
+					const dialog = new ApprovalDialogComponent(
+						prompt.compact,
+						{ onApprove: () => settle(onceLabel), onDeny: () => settle("Deny") },
+						{
+							tui: this.ctx.ui,
+							fullPrompt: prompt.full,
+							timeout: dialogOptions?.timeout,
+							onTimeout: dialogOptions?.onTimeout,
+							onTimeoutStart: dialogOptions?.onTimeoutStart,
+							onTimeoutReset: dialogOptions?.onTimeoutReset,
+							...(sessionLabel
+								? { session: { label: sessionLabel, onApprove: () => settle(sessionLabel) } }
+								: {}),
+							...(prompt.grants?.length
+								? {
+										grants: prompt.grants,
+										onGrant: (grant, always) => settle(always ? grant.alwaysLabel : grant.label),
+									}
+								: {}),
+							draft: {
+								hasDraft: () =>
+									editor.getText().length > 0 || editor.pendingImages.length > 0 || editor.pasteInFlight,
+								handleInput: keyData => editor.handleDraftEdit(keyData),
+							},
 						},
-					},
-				);
-				this.ctx.closeLinkBrowser();
-				this.ctx.editorContainer.clear();
-				this.ctx.editorContainer.addChild(dialog);
-				this.ctx.editorContainer.addChild(editor);
-				this.ctx.ui.setFocus(dialog);
-				// The dialog owns focus but forwards typing: keep the composer's cursor visible.
-				editor.focused = true;
-				// Its submissions steer this (main) session, even from a focused agent's view.
-				this.ctx.approvalOwnsComposer = true;
-				const releaseComposerOwner = this.#claimComposerOwner(dialog, () => true);
-				this.ctx.ui.requestRender();
-				return () => {
-					this.ctx.approvalOwnsComposer = false;
-					releaseComposerOwner();
-					dialog.dispose();
+					);
+					this.ctx.closeLinkBrowser();
 					this.ctx.editorContainer.clear();
+					this.ctx.editorContainer.addChild(dialog);
 					this.ctx.editorContainer.addChild(editor);
-					this.ctx.ui.setFocus(editor);
+					this.ctx.ui.setFocus(dialog);
+					// The dialog owns focus but forwards typing: keep the composer's cursor visible.
+					editor.focused = true;
+					// Its submissions steer this (main) session, even from a focused agent's view.
+					this.ctx.approvalOwnsComposer = true;
+					const releaseComposerOwner = this.#claimComposerOwner(dialog, () => true);
 					this.ctx.ui.requestRender();
-				};
-			});
+					return () => {
+						this.ctx.approvalOwnsComposer = false;
+						releaseComposerOwner();
+						dialog.dispose();
+						this.ctx.editorContainer.clear();
+						this.ctx.editorContainer.addChild(editor);
+						this.ctx.ui.setFocus(editor);
+						this.ctx.ui.requestRender();
+					};
+				}),
+			);
 			return approvalAnswerForChoice(prompt, choice);
 		} finally {
 			unsubscribe();
@@ -736,41 +824,148 @@ export class ExtensionUiController {
 		questions: ExtensionAskDialogQuestion[],
 		dialogOptions?: ExtensionUIDialogOptions,
 	): Promise<ExtensionAskDialogResult | undefined> {
-		// Normalize the public extension input once: malformed entries
-		// (missing/non-string fields) coerce to empty strings/arrays here instead
-		// of throwing inside `sanitizeCarriageReturns` or taking down the render.
+		// Normalize the public extension input once for both race participants:
+		// malformed entries (missing/non-string fields) coerce to empty
+		// strings/arrays here instead of throwing inside `sanitizeCarriageReturns`
+		// on the guest path or taking down the local render.
 		const normalized = normalizeDialogQuestions(questions);
-		return this.#showLocalAskDialog(normalized, dialogOptions);
+		return this.#raceGuestDialog(
+			dialogOptions,
+			options => this.#showLocalAskDialog(normalized, options),
+			(host, signal) => this.#runGuestAskDialog(host, normalized, signal),
+		);
 	}
 
-	/** An agent-written HTML form in the composer's place ({@link HtmlFormDialog}). */
+	/**
+	 * An agent-written HTML form in the composer's place ({@link HtmlFormDialog}). A collab
+	 * guest answers it field by field — a select per choice group, an editor per text field —
+	 * and the first side to finish wins, as {@link showAskDialog}.
+	 */
 	async showFormDialog(
 		html: string,
 		dialogOptions?: ExtensionUIDialogOptions,
 	): Promise<ExtensionFormDialogResult | undefined> {
 		const form = parseHtmlForm(html);
-		return this.#showLocalFormDialog(form, dialogOptions);
+		return this.#raceGuestDialog(
+			dialogOptions,
+			options => this.#showLocalFormDialog(form, options),
+			(host, signal) => this.#runGuestForm(host, form, signal),
+		);
 	}
 
 	/**
-	 * A draft in progress when a dialog lands keeps the keyboard, so in-flight
-	 * typing never answers by accident; up/down hand input to the dialog and the
-	 * draft stays parked beneath it until the dialog closes.
+	 * Race a local multi-step dialog against its guest mirror. First answer (or
+	 * cancel) wins and aborts the other side; a guest `unavailable` leaves the
+	 * local dialog running and returns its eventual result.
 	 */
-	#draftInputGuard(): { guard: AskDialogInputGuard; owns(): boolean } | undefined {
-		const draftEditor = this.ctx.editor;
-		if (draftEditor.getText().length === 0) return undefined;
-		let reportedBlocked = false;
-		const guard: AskDialogInputGuard = {
-			isBlocked: () => draftEditor.getText().length > 0,
-			handleInput: (keyData: string) => draftEditor.handleDraftEdit(keyData),
-			hint: "typing edits your prompt",
-			syncPresentation: (blocked: boolean) => {
-				reportedBlocked = blocked;
-				draftEditor.focused = blocked;
+	async #raceGuestDialog<T>(
+		dialogOptions: ExtensionUIDialogOptions | undefined,
+		local: (dialogOptions: ExtensionUIDialogOptions | undefined) => Promise<T | undefined>,
+		remote: (host: CollabHost, signal: AbortSignal) => Promise<T | "unavailable" | undefined>,
+	): Promise<T | undefined> {
+		const host = this.ctx.collabHost;
+		if (!host) return local(dialogOptions);
+		const localAbort = new AbortController();
+		const remoteAbort = new AbortController();
+		const parentSignal = dialogOptions?.signal;
+		const localSignal = parentSignal ? AbortSignal.any([parentSignal, localAbort.signal]) : localAbort.signal;
+		const remoteSignal = parentSignal ? AbortSignal.any([parentSignal, remoteAbort.signal]) : remoteAbort.signal;
+		const localWinner = local({ ...dialogOptions, signal: localSignal }).then((value): CollabWinner<T> => ({
+			source: "local",
+			value,
+		}));
+		const remoteWinner: Promise<CollabWinner<T>> = remote(host, remoteSignal).then(result =>
+			result === "unavailable" ? localWinner : { source: "remote", value: result },
+		);
+		const winner = await Promise.race([localWinner, remoteWinner]);
+		if (winner.source === "remote") localAbort.abort();
+		else remoteAbort.abort();
+		return winner.value;
+	}
+
+	/**
+	 * What the composer shows about the ask waiting above it: `pending` while one waits, `skip` while
+	 * sending its draft would skip it; undefined with no ask or with the composer talking to a `/btw` note.
+	 */
+	composerAsk(): "pending" | "skip" | undefined {
+		if (!this.#ask || this.ctx.isBtwFocused) return undefined;
+		return this.#draftSkipsAsk() ? "skip" : "pending";
+	}
+
+	/** Whether an ask waits above the composer while the keys are away from the composer (it draws faint). */
+	askHoldsKeys(): boolean {
+		return this.#ask !== undefined && !this.ctx.editor.focused;
+	}
+
+	/** In rows, the keys of the ask holding them, which the faint composer under it shows. */
+	askKeyHints(): string | undefined {
+		if (!this.askHoldsKeys()) return undefined;
+		const ask = this.#ask;
+		return ask instanceof HtmlFormDialog || ask instanceof AskDialogComponent ? ask.keyHints() : undefined;
+	}
+
+	/** Gives the keys to the ask waiting above the composer; false when none waits. */
+	focusAsk(): boolean {
+		const ask = this.#ask;
+		if (!ask) return false;
+		this.ctx.ui.setFocus(ask);
+		this.ctx.ui.requestRender();
+		return true;
+	}
+
+	/** Gives the keys to the composer (Tab past an ask's last stop, the ask closing). */
+	#focusComposer(): void {
+		this.ctx.ui.setFocus(this.ctx.editor);
+		this.ctx.ui.requestRender();
+	}
+
+	/**
+	 * Whether sending the composer's draft now skips the ask shown: a plain message, which reaches the
+	 * agent as the user's and closes the ask, not a command, a shell run or a `/btw` follow-up.
+	 */
+	#draftSkipsAsk(): boolean {
+		if (!this.#ask || this.ctx.isBtwFocused || this.ctx.isBashMode || this.ctx.isPythonMode || this.ctx.isBtwMode)
+			return false;
+		const draft = this.ctx.editor.getText().trim();
+		return draft.length > 0 && !draft.startsWith("/");
+	}
+
+	/** The ask's warning while sending the composer's draft would skip it, with the key back to it. */
+	#skipNotice(): string | undefined {
+		if (!this.#draftSkipsAsk()) return undefined;
+		const back = this.ctx.keybindings.getKeys("app.thinking.cycle")[0];
+		return this.ctx.editor.focused && back
+			? `${ASK_SKIP_NOTICE} · ${formatKeyHint(back)} answers them`
+			: ASK_SKIP_NOTICE;
+	}
+
+	/**
+	 * Shows a local ask above the composer, which stays: natively (Tern) at the transcript's end, in rows
+	 * just over it. The ask takes the keys unless the composer holds a draft, whose sending skips it;
+	 * Shift+Tab, Tab past the ask's last stop and clicks move the keys between them.
+	 */
+	#mountAsk(dialog: Component): AskSlot {
+		this.ctx.closeLinkBrowser();
+		this.#ask = dialog;
+		this.ctx.askContainer.addChild(dialog);
+		this.ctx.statusLine.setAwaitingAnswer(true);
+		if (this.ctx.editor.getText().trim()) this.ctx.ui.requestRender();
+		else this.focusAsk();
+		return {
+			restore: () => {
+				this.ctx.editorContainer.clear();
+				this.ctx.editorContainer.addChild(this.ctx.editor);
+				this.focusAsk();
+			},
+			unmount: () => {
+				if (this.#ask === dialog) this.#ask = undefined;
+				this.ctx.askContainer.removeChild(dialog);
+				this.ctx.statusLine.setAwaitingAnswer(this.#ask !== undefined);
+				this.ctx.editorContainer.clear();
+				this.ctx.editorContainer.addChild(this.ctx.editor);
+				this.#focusComposer();
 			},
 		};
-		return { guard, owns: () => reportedBlocked && guard.isBlocked() };
 	}
 
 	/** Registers `component` as the composer's owner; the returned release clears it only if it is still registered. */
@@ -786,64 +981,191 @@ export class ExtensionUiController {
 		form: HtmlForm,
 		dialogOptions: ExtensionUIDialogOptions | undefined,
 	): Promise<ExtensionFormDialogResult | undefined> {
-		return this.#presentDialog<ExtensionFormDialogResult>(dialogOptions?.signal, settle => {
-			const draft = this.#draftInputGuard();
+		const first = form.fields.find(field => field.name);
+		const prompt = { kind: "question", msg: first && fieldQuestions(form).get(first) } as const;
+		return this.#presentDialog<ExtensionFormDialogResult>(prompt, dialogOptions?.signal, settle => {
 			const dialog = new HtmlFormDialog(form, {
 				tui: this.ctx.ui,
 				cwd: this.ctx.sessionManager.getCwd(),
 				timeout: dialogOptions?.timeout,
-				onTimeout: data => {
+				onTimeout: (data, notes) => {
 					dialogOptions?.onTimeout?.();
-					settle({ data, timedOut: true });
+					settle({ data, ...(notes.length ? { notes } : {}), timedOut: true });
 				},
-				onSubmit: data => settle({ data }),
+				onSubmit: (data, notes) => settle({ data, ...(notes.length ? { notes } : {}) }),
 				onCancel: () => settle(undefined),
-				inputGuard: draft?.guard,
 				acceptImages: dialogOptions?.acceptImages === true,
 				onPasteImage: () => this.ctx.handleImagePaste(),
 				onPasteImagePath: path => this.ctx.handleImagePathPaste(path),
+				skipNotice: () => this.#skipNotice(),
+				claimKeys: () => this.focusAsk(),
+				releaseKeys: () => this.#focusComposer(),
 			});
-			const releaseComposerOwner = draft && this.#claimComposerOwner(dialog, draft.owns);
-			this.ctx.closeLinkBrowser();
-			this.ctx.editorContainer.clear();
-			this.ctx.editorContainer.addChild(dialog);
-			// The guarded draft stays visible beneath the form while typing edits it.
-			if (draft) this.ctx.editorContainer.addChild(this.ctx.editor);
-			this.ctx.ui.setFocus(dialog);
-			this.ctx.ui.requestRender();
+			const slot = this.#mountAsk(dialog);
 			return () => {
-				releaseComposerOwner?.();
+				// Closed by its signal (a message sent instead, the turn aborted): what was answered goes along.
+				if (dialogOptions?.signal?.aborted) {
+					const given = dialog.givenAnswers();
+					if (given) dialogOptions.onAbandon?.(given);
+				}
+				slot.unmount();
 				dialog.dispose();
-				this.ctx.editorContainer.clear();
-				this.ctx.editorContainer.addChild(this.ctx.editor);
-				this.ctx.ui.setFocus(this.ctx.editor);
-				this.ctx.ui.requestRender();
 			};
 		});
+	}
+
+	/**
+	 * A guest's run through the form: every named field in order, each choice
+	 * group as a select (defaults preselected), each text field as an editor
+	 * prefilled with its value and re-asked until it passes the form's rules.
+	 */
+	async #runGuestForm(
+		host: CollabHost,
+		form: HtmlForm,
+		signal: AbortSignal,
+	): Promise<ExtensionFormDialogResult | "unavailable" | undefined> {
+		const questions = fieldQuestions(form);
+		const data: HtmlFormData = Object.fromEntries(form.hidden);
+		for (const field of form.fields) {
+			if (!field.name) continue;
+			const question = sanitizeCarriageReturns(questions.get(field) ?? field.name);
+			const result =
+				field.kind === "choice"
+					? await this.#runGuestFormChoice(host, field, question, signal)
+					: await this.#runGuestFormText(host, field, question, signal);
+			if (result.kind === "unavailable") return "unavailable";
+			if (result.kind === "cancelled") return undefined;
+			if (result.value !== undefined) data[field.name] = result.value;
+		}
+		return { data };
+	}
+
+	async #runGuestFormChoice(
+		host: CollabHost,
+		field: ChoiceField,
+		question: string,
+		signal: AbortSignal,
+	): Promise<GuestFieldResult> {
+		const enabled = field.options.flatMap((option, index) => (option.disabled ? [] : [index]));
+		// Nothing a guest could pick: the group contributes nothing, as in the local form.
+		if (enabled.length === 0 && !field.other) return { kind: "answered", value: undefined };
+		const checked = new Set(enabled.filter(index => field.options[index]!.checked));
+		const labels = disambiguateDisplayLabels(
+			enabled.map(index => {
+				const option = field.options[index]!;
+				return sanitizeCarriageReturns(spansText(option.label).trim() || option.value);
+			}),
+			[ASK_OTHER_OPTION, ASK_NEXT_OPTION],
+		);
+		// Radio and checkbox groups end with a free-text Other row.
+		const rows = field.other ? [...labels, ASK_OTHER_OPTION] : labels;
+		if (!field.multi) {
+			// Several checked radios: the last wins, as in the local form.
+			const preselected = enabled.findLastIndex(index => checked.has(index));
+			while (true) {
+				const choice = await this.#requestGuestUiString(
+					host,
+					{
+						kind: "select",
+						title: question,
+						options: rows,
+						initialIndex: Math.max(0, preselected),
+						selectionMarker: "radio",
+						helpText: guestAskHelpText("select"),
+					},
+					signal,
+				);
+				if (choice.kind !== "answered") return choice;
+				if (field.other && choice.value === ASK_OTHER_OPTION) {
+					const typed = await this.#requestGuestOtherText(host, question, signal);
+					if (typed.kind === "unavailable") return typed;
+					// A cancelled or blank Other answer re-shows the options.
+					if (typed.kind === "cancelled" || !typed.value.trim()) continue;
+					return { kind: "answered", value: choiceValue(field, new Set(), typed.value) };
+				}
+				const picked = enabled[labels.indexOf(choice.value)];
+				return { kind: "answered", value: choiceValue(field, new Set(picked === undefined ? [] : [picked])) };
+			}
+		}
+		let other: string | undefined;
+		while (true) {
+			// Mirror the local form's required check: Next appears once something is checked.
+			const canSubmit = !field.required || checked.size > 0 || other !== undefined;
+			const checkedIndices = enabled.flatMap((index, row) => (checked.has(index) ? [row] : []));
+			if (other !== undefined) checkedIndices.push(labels.length);
+			const choice = await this.#requestGuestUiString(
+				host,
+				{
+					kind: "select",
+					title: question,
+					options: canSubmit ? [...rows, ASK_NEXT_OPTION] : rows,
+					selectionMarker: "checkbox",
+					checkedIndices,
+					markableCount: rows.length,
+					helpText: guestAskHelpText("toggle", canSubmit ? `${ASK_NEXT_OPTION} continue  ` : ""),
+				},
+				signal,
+			);
+			if (choice.kind !== "answered") return choice;
+			if (choice.value === ASK_NEXT_OPTION) return { kind: "answered", value: choiceValue(field, checked, other) };
+			if (field.other && choice.value === ASK_OTHER_OPTION) {
+				if (other !== undefined) {
+					other = undefined;
+					continue;
+				}
+				const typed = await this.#requestGuestOtherText(host, question, signal);
+				if (typed.kind === "unavailable") return typed;
+				// A cancelled or blank Other answer leaves Other unchecked.
+				if (typed.kind === "answered" && typed.value.trim()) other = typed.value;
+				continue;
+			}
+			const toggled = enabled[labels.indexOf(choice.value)];
+			if (toggled === undefined) continue;
+			if (!checked.delete(toggled)) checked.add(toggled);
+		}
+	}
+
+	/** A guest's free-text "Other" answer to a choice group, on one line. */
+	async #requestGuestOtherText(host: CollabHost, question: string, signal: AbortSignal): Promise<GuestUiResult> {
+		const input = await this.#requestGuestUiString(host, { kind: "editor", title: question }, signal);
+		return input.kind === "answered" ? { kind: "answered", value: input.value.replace(/[\r\n]+/g, " ") } : input;
+	}
+
+	async #runGuestFormText(
+		host: CollabHost,
+		field: TextField,
+		question: string,
+		signal: AbortSignal,
+	): Promise<GuestFieldResult> {
+		let text = field.value;
+		let error: string | undefined;
+		while (true) {
+			const input = await this.#requestGuestUiString(
+				host,
+				{ kind: "editor", title: error ? `${question} (${error})` : question, prefill: text },
+				signal,
+			);
+			if (input.kind !== "answered") return input;
+			// A single-line input cannot hold line breaks.
+			text = field.multiline ? input.value : input.value.replace(/[\r\n]+/g, " ");
+			const value = textValue(field, text);
+			error = fieldError(field, value);
+			if (!error) return { kind: "answered", value };
+		}
 	}
 
 	#showLocalAskDialog(
 		questions: ExtensionAskDialogQuestion[],
 		dialogOptions?: ExtensionUIDialogOptions,
 	): Promise<ExtensionAskDialogResult | undefined> {
-		return this.#presentDialog<ExtensionAskDialogResult>(dialogOptions?.signal, settle => {
+		const prompt = { kind: "question", msg: questions[0]?.question } as const;
+		return this.#presentDialog<ExtensionAskDialogResult>(prompt, dialogOptions?.signal, settle => {
 			let promptEditor: HookEditorComponent | undefined;
 			let promptResolve: ((value: AskDialogPromptValue | AskDialogPromptDraft | undefined) => void) | undefined;
 			let closed = false;
-			const draft = this.#draftInputGuard();
-			const inputGuard = draft?.guard;
-
+			// After a nested prompt took the composer's place: the composer back, the keys to the ask.
 			const restoreAskDialog = (): void => {
-				if (closed || !askDialog) return;
-				this.ctx.editorContainer.clear();
-				this.ctx.editorContainer.addChild(askDialog);
-				// Keep the draft editor mounted beneath the restored ask, matching the
-				// initial presentation: the guard re-blocks whenever the draft is
-				// non-empty (e.g. a failed submit restored its text while a nested
-				// prompt was open), and routed input must land on a visible surface.
-				if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
-				this.ctx.ui.setFocus(askDialog);
-				this.ctx.ui.requestRender();
+				if (!closed) slot.restore();
 			};
 
 			const finishPrompt = (value: AskDialogPromptValue | AskDialogPromptDraft | undefined): void => {
@@ -922,43 +1244,223 @@ export class ExtensionUiController {
 					timeout: dialogOptions?.timeout,
 					onTimeout: dialogOptions?.onTimeout,
 					tui: this.ctx.ui,
-					inputGuard,
+					skipNotice: () => this.#skipNotice(),
+					claimKeys: () => this.focusAsk(),
+					releaseKeys: () => this.#focusComposer(),
 				},
 			);
-			const releaseComposerOwner = draft && this.#claimComposerOwner(askDialog, draft.owns);
-			this.ctx.closeLinkBrowser();
-			this.ctx.editorContainer.clear();
-			this.ctx.editorContainer.addChild(askDialog);
-			if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
-			this.ctx.ui.setFocus(askDialog);
-			this.ctx.ui.requestRender();
+			const slot = this.#mountAsk(askDialog);
 
 			return () => {
 				closed = true;
-				releaseComposerOwner?.();
-				askDialog?.dispose();
+				askDialog.dispose();
 				promptEditor?.dispose();
 				promptResolve?.(undefined);
 				promptResolve = undefined;
 				promptEditor = undefined;
-				this.ctx.editorContainer.clear();
-				this.ctx.editorContainer.addChild(this.ctx.editor);
-				this.ctx.ui.setFocus(this.ctx.editor);
-				this.ctx.ui.requestRender();
+				slot.unmount();
 			};
 		});
 	}
 
 	/**
-	 * Show a selector for hooks.
+	 * Race the local hook dialog against a mirrored guest ask. First *answer*
+	 * wins and cancels the other side. A remote `unavailable` settlement
+	 * (collab teardown, relay drop, abort) is NOT an answer: the local dialog
+	 * keeps running — the host user may be mid-keystroke in it — and its
+	 * eventual result is returned.
+	 */
+	async #raceCollabDialog(
+		request: CollabUiRequestDraft,
+		signal: AbortSignal | undefined,
+		local: (signal: AbortSignal | undefined) => Promise<string | undefined>,
+	): Promise<string | undefined> {
+		const host = this.ctx.collabHost;
+		if (!host) return local(signal);
+		const localAbort = new AbortController();
+		const remoteAbort = new AbortController();
+		const remote = host.requestGuestUi(
+			request,
+			signal ? AbortSignal.any([signal, remoteAbort.signal]) : remoteAbort.signal,
+			{ retainOnReconnect: true },
+		);
+		if (!remote) return local(signal);
+		const localWinner = local(signal ? AbortSignal.any([signal, localAbort.signal]) : localAbort.signal).then(
+			(value): CollabWinner<string> => ({ source: "local", value }),
+		);
+		const remoteWinner: Promise<CollabWinner<string>> = remote.then(result =>
+			result.kind === "answered" ? { source: "remote", value: result.value } : localWinner,
+		);
+		const winner = await Promise.race([localWinner, remoteWinner]);
+		if (winner.source === "remote") localAbort.abort();
+		else remoteAbort.abort();
+		return winner.value;
+	}
+
+	async #runGuestAskDialog(
+		host: CollabHost,
+		questions: ExtensionAskDialogQuestion[],
+		signal: AbortSignal,
+	): Promise<ExtensionAskDialogResult | "unavailable" | undefined> {
+		const results: ExtensionAskDialogResultItem[] = [];
+		for (const question of questions) {
+			const result = await this.#runGuestAskQuestion(host, question, signal);
+			if (result === "unavailable" || result === undefined) return result;
+			if (result === "chat") return { kind: "chat" };
+			results.push(result);
+		}
+		return { kind: "submit", results };
+	}
+
+	async #runGuestAskQuestion(
+		host: CollabHost,
+		question: ExtensionAskDialogQuestion,
+		signal: AbortSignal,
+	): Promise<ExtensionAskDialogResultItem | "chat" | "unavailable" | undefined> {
+		const selected = new Set<string>();
+		let customInput: string | undefined;
+		// Sanitize display copies for the guest wire (same degeneration as
+		// the local dialog). `selected` and results keep the ORIGINAL labels
+		// so both race winners echo identical correlation values. Display
+		// labels are unique and sentinel-safe; the suffix maps back below.
+		const displayLabels = disambiguateDisplayLabels(
+			question.options.map(option => option.label),
+			[ASK_OTHER_OPTION, ASK_CHAT_OPTION, ASK_NEXT_OPTION],
+		);
+		const originalByDisplay = new Map<string, string>();
+		question.options.forEach((option, index) => {
+			originalByDisplay.set(displayLabels[index]!, option.label);
+		});
+		// Map a guest answer (a display label, suffix included) back to the
+		// original correlation value; unknown values pass through and are
+		// ignored at result build, as before.
+		const resolveGuestLabel = (value: string): string => originalByDisplay.get(value) ?? value;
+		const displayQuestion = sanitizeCarriageReturns(question.question);
+		const baseOptions: CollabUiSelectItem[] = question.options.map((option, index) =>
+			option.description?.trim()
+				? { label: displayLabels[index]!, description: sanitizeCarriageReturns(option.description.trim()) }
+				: displayLabels[index]!,
+		);
+		if (question.multi) {
+			while (true) {
+				const checkedIndices = question.options
+					.map((option, index) => (selected.has(option.label) ? index : -1))
+					.filter(index => index >= 0);
+				// Mirror the local dialog's Next gating: omit the Next option until
+				// at least one option is checked or a custom answer exists, so a
+				// guest cannot submit an empty multi-select result
+				// (PRRT_kwDOQxs0bc6OFbDW). The remote select has no "disabled" row
+				// concept, so we omit rather than dim it.
+				const hasAnswer = selected.size > 0 || customInput !== undefined;
+				const options = [...baseOptions, ASK_OTHER_OPTION];
+				if (hasAnswer) options.push(ASK_NEXT_OPTION);
+				options.push(ASK_CHAT_OPTION);
+				const choice = await this.#requestGuestUiString(
+					host,
+					{
+						kind: "select",
+						title: displayQuestion,
+						options,
+						selectionMarker: "checkbox",
+						checkedIndices,
+						markableCount: question.options.length,
+						helpText: guestAskHelpText("toggle", hasAnswer ? "Next → continue  " : ""),
+					},
+					signal,
+				);
+				if (choice.kind === "unavailable") return "unavailable";
+				if (choice.kind === "cancelled") return undefined;
+				if (choice.value === ASK_CHAT_OPTION) return "chat";
+				if (choice.value === ASK_NEXT_OPTION) break;
+				if (choice.value === ASK_OTHER_OPTION) {
+					const input = await this.#requestGuestUiString(
+						host,
+						{ kind: "editor", title: boundPromptTitle("Custom answer: ", displayQuestion) },
+						signal,
+					);
+					if (input.kind === "unavailable") return "unavailable";
+					// Guest cancelled the Other editor: keep the ask open and
+					// return to the option list instead of cancelling the whole ask.
+					if (input.kind === "cancelled") continue;
+					customInput = input.value;
+					break;
+				}
+				const picked = resolveGuestLabel(choice.value);
+				if (selected.has(picked)) selected.delete(picked);
+				else selected.add(picked);
+			}
+		} else {
+			const recommended =
+				typeof question.recommended === "number" && Number.isInteger(question.recommended)
+					? question.recommended
+					: 0;
+			const initialIndex = Math.max(0, Math.min(recommended, Math.max(0, question.options.length - 1)));
+			while (true) {
+				const choice = await this.#requestGuestUiString(
+					host,
+					{
+						kind: "select",
+						title: displayQuestion,
+						options: [...baseOptions, ASK_OTHER_OPTION, ASK_CHAT_OPTION],
+						initialIndex,
+						selectionMarker: "radio",
+						markableCount: question.options.length,
+						helpText: guestAskHelpText("select"),
+					},
+					signal,
+				);
+				if (choice.kind === "unavailable") return "unavailable";
+				if (choice.kind === "cancelled") return undefined;
+				if (choice.value === ASK_CHAT_OPTION) return "chat";
+				if (choice.value === ASK_OTHER_OPTION) {
+					const input = await this.#requestGuestUiString(
+						host,
+						{ kind: "editor", title: boundPromptTitle("Custom answer: ", displayQuestion) },
+						signal,
+					);
+					if (input.kind === "unavailable") return "unavailable";
+					// Guest cancelled the Other editor: re-show the select list
+					// instead of cancelling the whole ask.
+					if (input.kind === "cancelled") continue;
+					customInput = input.value;
+				} else {
+					selected.add(resolveGuestLabel(choice.value));
+				}
+				break;
+			}
+		}
+		return {
+			id: question.id,
+			question: question.question,
+			options: question.options.map(option => option.label),
+			multi: question.multi ?? false,
+			selectedOptions: question.options.map(option => option.label).filter(label => selected.has(label)),
+			customInput,
+		};
+	}
+
+	async #requestGuestUiString(
+		host: CollabHost,
+		request: CollabUiRequestDraft,
+		signal: AbortSignal,
+	): Promise<GuestUiResult> {
+		const remote = host.requestGuestUi(request, signal, { retainOnReconnect: true });
+		if (!remote) return { kind: "unavailable" };
+		const result = await remote;
+		if (result.kind === "unavailable") return { kind: "unavailable" };
+		return typeof result.value === "string" ? { kind: "answered", value: result.value } : { kind: "cancelled" };
+	}
+
+	/**
+	 * Show a selector for hooks; it reports a `question` unless `extra.kind` says otherwise.
 	 */
 	showHookSelector(
 		title: string,
 		options: ExtensionUISelectItem[],
 		dialogOptions?: InteractiveSelectorDialogOptions,
-		extra?: { slider?: HookSelectorSlider },
+		extra?: { slider?: HookSelectorSlider; kind?: BlockedKind },
 	): Promise<string | undefined> {
-		return this.#presentDialog(dialogOptions?.signal, settle => {
+		return this.#presentDialog({ kind: extra?.kind ?? "question", msg: title }, dialogOptions?.signal, settle => {
 			const maxVisible = Math.max(4, Math.min(15, this.ctx.ui.terminal.rows - 12));
 			this.ctx.hookSelector = new HookSelectorComponent(
 				title,
@@ -1024,7 +1526,9 @@ export class ExtensionUiController {
 		message: string,
 		dialogOptions?: InteractiveSelectorDialogOptions,
 	): Promise<boolean> {
-		const result = await this.showHookSelector(`${title}\n${message}`, ["Yes", "No"], dialogOptions);
+		const result = await this.showHookSelector(`${title}\n${message}`, ["Yes", "No"], dialogOptions, {
+			kind: "permission",
+		});
 		return result === "Yes";
 	}
 
@@ -1036,7 +1540,7 @@ export class ExtensionUiController {
 		placeholder?: string,
 		dialogOptions?: ExtensionUIDialogOptions,
 	): Promise<string | undefined> {
-		return this.#presentDialog(dialogOptions?.signal, settle => {
+		return this.#presentDialog({ kind: "question", msg: title }, dialogOptions?.signal, settle => {
 			this.ctx.hookInput = new HookInputComponent(
 				title,
 				placeholder,
@@ -1079,7 +1583,7 @@ export class ExtensionUiController {
 		dialogOptions?: ExtensionUIDialogOptions,
 		editorOptions?: { promptStyle?: boolean },
 	): Promise<string | undefined> {
-		return this.#presentDialog(dialogOptions?.signal, settle => {
+		return this.#presentDialog({ kind: "question", msg: title }, dialogOptions?.signal, settle => {
 			this.ctx.hookEditor = new HookEditorComponent(
 				this.ctx.ui,
 				title,
@@ -1260,17 +1764,38 @@ export class ExtensionUiController {
 		await this.ctx.sessionManager.setSessionName(name, "user");
 	}
 
+	/**
+	 * Collab guest: the replica session only mirrors the host, and mirrored host
+	 * lifecycle events (`agent_end`, `turn_end`, …) reach guest extensions. An
+	 * extension reacting to them must not start or queue a turn on the replica —
+	 * it would run on the guest's local model and diverge from the host. Refuse
+	 * like typed prompts are refused (input-controller); true when dropped.
+	 */
+	#rejectGuestExtensionTurn(): boolean {
+		if (!this.ctx.collabGuest) return false;
+		this.ctx.showStatus("Extension-initiated turns are host-only during a collab session");
+		return true;
+	}
+
 	#sendExtensionMessage: SendMessageHandler = (message, options) => {
+		const normalized = normalizeCustomMessagePayload(message);
+		// A row kept out of context never starts a turn, whatever its options ask (see `sendCustomMessage`).
+		const startsTurn =
+			normalized.excludeFromContext !== true &&
+			(options?.triggerTurn === true ||
+				options?.deliverAs === "steer" ||
+				options?.deliverAs === "followUp" ||
+				options?.deliverAs === "aside");
+		if (startsTurn && this.#rejectGuestExtensionTurn()) return;
 		const wasStreaming = this.ctx.session.isStreaming;
 		const messageCountBefore = this.ctx.session.messages.length;
-		const normalized = normalizeCustomMessagePayload(message);
 		this.ctx.session
 			.sendCustomMessage(normalized, options)
 			.then(() => {
 				// `deliverAs: "nextTurn"` without a trigger is the one idle arm that appends
 				// to the session silently (no message_start/message_end), so nothing else
 				// paints it and nothing else in the transcript changed.
-				const silentAppend = options?.deliverAs === "nextTurn" && options.triggerTurn !== true;
+				const silentAppend = options?.deliverAs === "nextTurn" && !startsTurn;
 				this.#applyCustomMessageDisplay(wasStreaming, normalized, silentAppend ? messageCountBefore : undefined);
 			})
 			.catch((err: unknown) => {
@@ -1280,6 +1805,11 @@ export class ExtensionUiController {
 
 	/** Every `sendUserMessage` form prompts or queues a user turn (see `AgentSession.sendUserMessage`). */
 	#sendExtensionUserMessage: SendUserMessageHandler = (content, options) => {
+		if (this.#rejectGuestExtensionTurn()) {
+			const denied = Promise.reject(new Error("Extension-initiated turns are host-only during a collab session"));
+			denied.catch(() => {});
+			return denied;
+		}
 		const task = this.ctx.session.sendUserMessage(content, options);
 		task.catch((err: unknown) => {
 			this.ctx.showError(`Extension sendUserMessage failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -1335,8 +1865,12 @@ export class ExtensionUiController {
 	 * presented at a time and the rest queue (FIFO). `settle` (or an abort) hides
 	 * the current dialog and hands the surface to the next queued request. A request
 	 * whose signal aborts before its turn resolves `undefined` and is never shown.
+	 *
+	 * While presented, the dialog reports the run as `blocked` on `prompt` (OSC 7501 and the title): nothing it
+	 * gates goes on until the user answers. Whether that needs an alert is the terminal's call.
 	 */
 	#presentDialog<T = string>(
+		prompt: Omit<BlockedStatus, "state">,
 		signal: AbortSignal | undefined,
 		present: (settle: (value: T | undefined) => void) => () => void,
 	): Promise<T | undefined> {
@@ -1344,6 +1878,7 @@ export class ExtensionUiController {
 		let settled = false;
 		let started = false;
 		let hide: (() => void) | undefined;
+		let release: (() => void) | undefined;
 
 		function onAbort(): void {
 			settle(undefined);
@@ -1356,7 +1891,9 @@ export class ExtensionUiController {
 			if (started) {
 				hide?.();
 				this.#dialogActive = false;
+				// Present the next dialog before releasing this one, so no `working`/`done` report slips out between.
 				this.#advanceDialogQueue();
+				release?.();
 			}
 			resolve(value);
 		};
@@ -1369,14 +1906,17 @@ export class ExtensionUiController {
 			}
 			started = true;
 			this.#dialogActive = true;
+			// Held before `present` so a synchronous settle still releases it.
+			release = holdBlockedStatus({ state: "blocked", ...prompt });
 			try {
 				hide = present(settle);
 			} catch (error) {
 				settled = true;
 				signal?.removeEventListener("abort", onAbort);
 				this.#dialogActive = false;
-				reject(error);
 				this.#advanceDialogQueue();
+				release();
+				reject(error);
 			}
 		};
 
