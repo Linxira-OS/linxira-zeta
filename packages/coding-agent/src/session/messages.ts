@@ -61,7 +61,7 @@ import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
-import { isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
+import { type ImUserMessageMetadata, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
 
 export {
 	type BranchSummaryMessage,
@@ -74,11 +74,15 @@ export {
 import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { titleTextFromSkillPrompt } from "@linxiraos/pi-tui/chat/skill-title-input";
 
-/** True for the live IRC wake associated with a separately journaled IM user turn. */
-export function isImUserWake(message: CustomMessage): boolean {
-	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return false;
+/** The immutable source of an IM user input carried by an IRC wake. */
+export function imUserWakeSource(message: CustomMessage): ImUserMessageMetadata | undefined {
+	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return undefined;
 	const metadata = normalizeImMessageMetadata(message.details.metadata);
-	return metadata !== undefined && isImUserMessageMetadata(metadata);
+	return metadata !== undefined && isImUserMessageMetadata(metadata) ? metadata : undefined;
+}
+
+export function isImUserWake(message: CustomMessage): boolean {
+	return imUserWakeSource(message) !== undefined;
 }
 
 /**

@@ -119,6 +119,8 @@ keep separate conversations even when all other fields match.
 - Concurrent/queued turns on one shared session answer only the message they
   actually woke for. A turn that answers no delivered IM record (Studio/attach
   prompt, agent-to-agent traffic) consumes no IM reply slot.
+- Journal each inbound entry when its input enters the session context. Waiting
+  inputs are process-local and stay out of compaction and replay until consumed.
 - **Boundary:** the pending reply map is process-local. A process restart
   preserves the user entry's immutable message metadata and the conversation
   selection, but it does not resurrect an in-flight assistant reply slot; a

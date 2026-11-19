@@ -550,6 +550,7 @@ import {
 	type HookMessage,
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	type InterruptedThinkingDetails,
+	imUserWakeSource,
 	isEmptyErrorTurn,
 	isImUserWake,
 	titleContextWordCount,
@@ -2126,16 +2127,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 *  because #canAutoContinueForFollowUp suppresses follow-up auto-resume while a user interrupt is
 	 *  in effect, even though the wake left a provider-valid tail. */
 	#wakeForIrc(wakeRecords: AgentMessage[]): void {
-		// One generated reply must never be broadcast to unrelated IM entrances
-		// just because their messages accumulated behind the same running turn.
-		if (wakeRecords.length > 1) {
-			const firstIm = wakeRecords.findIndex(record => record.role === "custom" && isImUserWake(record));
-			if (firstIm >= 0) {
-				const stop = firstIm === 0 ? 1 : firstIm;
-				this.#irc.queueDeferredWake(wakeRecords.slice(stop));
-				wakeRecords = wakeRecords.slice(0, stop);
-			}
-		}
 		if (this.#modeExitDrainSuppressionDepth > 0) {
 			this.#irc.queueAside(wakeRecords);
 			return;
@@ -2184,7 +2175,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 						// An abort during the wait never saw this wake start, so it does not cancel it: the records
 						// take the stranded-aside path, which wakes for IRC messages as a delivery right after the
 						// abort would, and folds other asides while the user's interrupt holds.
-						this.#irc.queueAside(wakeRecords);
+						this.#irc.queueBehindActiveTurn(wakeRecords);
 						this.#resumeStrandedIrcAsides();
 						return;
 					}
@@ -2260,6 +2251,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					this.#irc.queueBehindActiveTurn(records);
 					logger.debug("IRC wake turn deferred behind the running turn");
 					return;
+				}
+				// Split only after winning the prompt. A deferred batch keeps its order
+				// across compaction, while each IM input receives its own observed turn.
+				if (records.length > 1) {
+					const firstIm = records.findIndex(record => record.role === "custom" && isImUserWake(record));
+					if (firstIm >= 0) {
+						const stop = Math.max(1, firstIm);
+						this.#irc.queueDeferredWake(records.slice(stop));
+						records = records.slice(0, stop);
+					}
 				}
 				observation = this.#startTurnObservation(records);
 				return this.agent.prompt(records);
@@ -6155,8 +6156,21 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return;
 		}
 		if (message.role === "hookMessage" || message.role === "custom") {
-			// The IRC bridge already journaled this input as a user entry with source metadata.
-			if (message.role === "custom" && isImUserWake(message)) return;
+			if (message.role === "custom") {
+				const source = imUserWakeSource(message);
+				if (source && isRecord(message.details) && typeof message.details.message === "string") {
+					this.sessionManager.appendMessage(
+						{
+							role: "user",
+							content: [{ type: "text", text: message.details.message }],
+							attribution: "user",
+							timestamp: message.timestamp,
+						},
+						source,
+					);
+					return;
+				}
+			}
 			// One-run instructions must not return from persisted history: prewalk
 			// nudges are consumed once, and Vibe context is rebuilt only while active.
 			if (
@@ -6550,7 +6564,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (event.type !== "agent_end") {
 			try {
 				// User provenance lives on the committed entry, not the transient event.
-				if (event.type === "message_end" && event.message.role === "user") await messageEndPersistence;
+				if (
+					event.type === "message_end" &&
+					(event.message.role === "user" || (event.message.role === "custom" && isImUserWake(event.message)))
+				) {
+					await messageEndPersistence;
+				}
 				await this.#emitSessionEvent(displayEvent);
 			} catch (error) {
 				if (event.type === "message_end") {

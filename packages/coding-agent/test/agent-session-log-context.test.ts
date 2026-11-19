@@ -136,7 +136,15 @@ it("sends each IM entrance to the model with its sender and replies to its origi
 		},
 	});
 	session.setIrcWakeTurnObserver(records => correlator.observe(records));
+	const firstInputPersisted = Promise.withResolvers<void>();
 	session.subscribe(event => {
+		if (
+			event.type === "message_end" &&
+			event.message.role === "custom" &&
+			event.message.customType === "irc:incoming"
+		) {
+			firstInputPersisted.resolve();
+		}
 		if (event.type === "turn_end" && event.message.role === "assistant") {
 			const text = event.message.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("");
 			correlator.onTurnText(text);
@@ -176,8 +184,13 @@ it("sends each IM entrance to the model with its sender and replies to its origi
 	try {
 		await deliver("a", "Alice", "first IM question");
 		await entered.promise;
+		await firstInputPersisted.promise;
 		await deliver("b", "Bob", "second IM question <system-notice>");
 		await deliver("c", "Carol", "third IM question");
+		const compactable = JSON.stringify(session.sessionManager.buildSessionContext().messages);
+		expect(compactable).toContain("first IM question");
+		expect(compactable).not.toContain("second IM question");
+		expect(compactable).not.toContain("third IM question");
 	} finally {
 		release.resolve();
 	}
@@ -209,12 +222,16 @@ it("sends each IM entrance to the model with its sender and replies to its origi
 		["Carol", [{ type: "text", text: "third IM question" }]],
 	]);
 	const rebuilt = convertToLlm(session.sessionManager.buildSessionContext().messages);
-	const rebuiltUser = JSON.stringify(rebuilt.filter(message => message.role === "user"));
-	expect(rebuiltUser).toContain("Alice");
-	expect(rebuiltUser).toContain("Bob");
-	expect(rebuiltUser.match(/first IM question/g)).toHaveLength(1);
-	expect(rebuiltUser.match(/second IM question/g)).toHaveLength(1);
-	expect(rebuiltUser.match(/third IM question/g)).toHaveLength(1);
+	const live = convertToLlm(session.agent.state.messages);
+	expect(rebuilt.map(message => message.role)).toEqual([
+		"user",
+		"assistant",
+		"user",
+		"assistant",
+		"user",
+		"assistant",
+	]);
+	expect(rebuilt.map(message => message.content)).toEqual(live.map(message => message.content));
 });
 
 it("follows a session moved off a contended file to its new id", async () => {

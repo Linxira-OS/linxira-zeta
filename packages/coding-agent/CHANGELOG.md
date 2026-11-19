@@ -112,7 +112,7 @@
 ### Fixed
 
 - Include third-party notices in the standalone IDE and Editor npm packages and their platform payloads.
-- IM turns include the sender and message body in the model input, including after resuming the conversation. The transcript retains one user entry with the original text and source.
+- IM turns include the sender and message body in the model input. Queued inputs enter the transcript in turn order, so compaction and replay preserve each question and its reply.
 - Fixed Work Studio packaging when Vite runs under Bun during npm tarball preparation.
 - Account/device 2FA fails closed when its store is damaged, keeps verification grants tied to the active factor and clears them after factor/policy changes. Recovery codes work from the global prompt and Settings; concurrent requests share one verification and cancellation settles late challenges. `/2fa status` and `zetacode 2fa status` expose secret-free terminal status (ADR-0060).
 - **Z Work Studio identity** — sidebar, About, empty conversations, BTW labels, logs, session import/resume and bilingual previews use Z Work Studio / Zeta. Browser preferences consistently use `zeta.*`; the existing startup migration preserves earlier `omp.*` preferences. Existing IndexedDB databases and old recording files remain readable.

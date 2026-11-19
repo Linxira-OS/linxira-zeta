@@ -1,5 +1,4 @@
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Message } from "@linxiraos/pi-ai";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
@@ -241,20 +240,9 @@ export class IrcBridge {
 		// harness envelope it is rendered into or open a forged one, e.g. a parent
 		// steer. `details.message` keeps the raw body for the transcript card and inbox.
 		const envelopeBody = escapeHarnessTags(msg.body);
-		// Keep the raw user entry and its immutable source in the transcript. The live
-		// wake carries the corresponding user input and the existing correlation id.
+		// Queued IM stays out of the model and transcript until the session consumes it.
 		const imMetadata = normalizeImMessageMetadata(msg.metadata);
 		const isImUserTurn = imMetadata !== undefined && isImUserMessageMetadata(imMetadata);
-		if (isImUserTurn) {
-			this.#host.sessionManager.appendMessage(
-				{
-					role: "user",
-					content: [{ type: "text", text: msg.body }],
-					timestamp: msg.ts,
-				} as Message,
-				imMetadata,
-			);
-		}
 		const record: CustomMessage = {
 			role: "custom",
 			customType: "irc:incoming",
@@ -270,7 +258,7 @@ export class IrcBridge {
 					}),
 			// The parent steer becomes the transcript card when consumed; keep this
 			// observation available to listeners without also painting a live card.
-			display: !isImUserTurn && !(streaming && fromParent && !peerMessage),
+			display: isImUserTurn || !(streaming && fromParent && !peerMessage),
 			details: {
 				id: msg.id,
 				from: msg.from,
@@ -280,13 +268,17 @@ export class IrcBridge {
 				...(msg.broadcast ? { broadcast: true } : {}),
 				...(msg.progress ? { progress: true } : {}),
 				...(fromParent ? { fromParent: true } : {}),
-				...(msg.metadata ? { metadata: msg.metadata } : {}),
+				...(imMetadata ? { metadata: imMetadata } : msg.metadata ? { metadata: msg.metadata } : {}),
 			},
 			attribution: "agent",
 			timestamp: msg.ts,
 		};
 		if (peerMessage) this.#peerMessages.add(record);
-		void this.#host.emitSessionEvent({ type: "irc_message", message: record });
+		// Render the IM turn when it starts, in the same order as journal replay.
+		void this.#host.emitSessionEvent({
+			type: "irc_message",
+			message: isImUserTurn ? { ...record, display: false } : record,
+		});
 		if (streaming) {
 			if (isImUserTurn) {
 				this.queueBehindActiveTurn([record]);
@@ -310,8 +302,11 @@ export class IrcBridge {
 			return "injected";
 		}
 		if (this.#host.planModeEnabled()) {
-			this.#host.agent.appendMessage(record);
-			if (!isImUserTurn) {
+			if (isImUserTurn) {
+				this.#host.agent.emitExternalEvent({ type: "message_start", message: record });
+				this.#host.agent.emitExternalEvent({ type: "message_end", message: record });
+			} else {
+				this.#host.agent.appendMessage(record);
 				this.#host.sessionManager.appendCustomMessageEntry(
 					record.customType,
 					record.content,
