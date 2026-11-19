@@ -30,7 +30,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { callOvnfs, checkoutStem, type NewReply, removeCheckout } from "../ovnfs/checkouts";
 import { OvnfsError, socketFeatures } from "../ovnfs/client";
 import { startDaemon } from "../ovnfs/daemon";

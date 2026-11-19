@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import type { DescribeContext } from "@oh-my-pi/pi-tui/native/node";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import type { DescribeContext } from "@linxiraos/pi-tui/native/node";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 
 const context = (tray: boolean): DescribeContext => ({
 	cols: 120,

@@ -1,4 +1,4 @@
-import { formatBytes, formatDuration } from "@oh-my-pi/pi-utils";
+import { formatBytes, formatDuration } from "@linxiraos/pi-utils";
 import type { CapturedHttpErrorResponse } from "../utils/http-inspector";
 import { AbortError } from "./abort";
 import { networkFailureMessage } from "./network-cause";

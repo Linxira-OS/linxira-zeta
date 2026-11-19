@@ -9,8 +9,8 @@
  * shutdown (issue #3031, mnemopi sibling of #1606/#1607) never runs.
  */
 
-import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@oh-my-pi/pi-mnemopi/core";
-import { logger } from "@oh-my-pi/pi-utils";
+import { defaultLocalModelInitializer, type StandardEmbeddingModel } from "@linxiraos/pi-mnemopi/core";
+import { logger } from "@linxiraos/pi-utils";
 import { claimWorkerStdout, type WorkerStdout } from "../daemon/modules/speech-frames";
 import { startParentWatchdog } from "../subprocess/parent-watchdog";
 import type { MnemopiEmbedModelId, MnemopiEmbedWorkerInbound, MnemopiEmbedWorkerOutbound } from "./embed-protocol";

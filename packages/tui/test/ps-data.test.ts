@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { SHELL_PROCESS_SELECTOR } from "@oh-my-pi/pi-utils";
+import { SHELL_PROCESS_SELECTOR } from "@linxiraos/pi-utils";
 import { formatCommand } from "../src/apps/ps-data";
 import type { ProcSpec } from "../src/tools/daemon";
 

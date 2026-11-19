@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { AgentAwaits } from "@oh-my-pi/pi-coding-agent/registry/agent-awaits";
+import { AgentAwaits } from "@linxiraos/zeta/registry/agent-awaits";
 
 describe("AgentAwaits", () => {
 	it("names the chain through which an agent waits on another", () => {

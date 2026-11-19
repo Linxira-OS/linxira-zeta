@@ -15,7 +15,7 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	type ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	Context,
 	CredentialDisabledEvent,
@@ -28,26 +28,26 @@ import type {
 	ServiceTierByFamily,
 	SimpleStreamOptions,
 	TextContent,
-} from "@oh-my-pi/pi-ai";
-import { resolveApiKeyOnce } from "@oh-my-pi/pi-ai/auth-retry";
-import type { DiscoverAuthStorageOptions } from "@oh-my-pi/pi-ai/auth-broker/discover";
-import type { Dialect } from "@oh-my-pi/pi-ai/dialect";
-import { anthropicHostRunsTool } from "@oh-my-pi/pi-ai/providers/anthropic";
-import { prewarmModelConnection } from "@oh-my-pi/pi-ai/providers/connection-prewarm";
-import { isOpenAICodexWebSocketPreferred } from "@oh-my-pi/pi-ai/providers/openai-codex-transport";
-import { withCredentialRedaction } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import { sendsImageInputOnWire } from "@oh-my-pi/pi-ai/providers/vision-guard";
-import { syncOpenAIResponsesHistoryTexts } from "@oh-my-pi/pi-ai/utils";
-import { FALLBACK_DIALECT, preferredDialect } from "@oh-my-pi/pi-catalog/identity";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { $env, isInteractiveHost } from "@oh-my-pi/pi-utils/env";
-import { getAgentDir, getModelDbPath, getProjectDir } from "@oh-my-pi/pi-utils/dirs";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import * as prompt from "@oh-my-pi/pi-utils/prompt";
-import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
-import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@oh-my-pi/snapcompact";
+} from "@linxiraos/pi-ai";
+import { resolveApiKeyOnce } from "@linxiraos/pi-ai/auth-retry";
+import type { DiscoverAuthStorageOptions } from "@linxiraos/pi-ai/auth-broker/discover";
+import type { Dialect } from "@linxiraos/pi-ai/dialect";
+import { anthropicHostRunsTool } from "@linxiraos/pi-ai/providers/anthropic";
+import { prewarmModelConnection } from "@linxiraos/pi-ai/providers/connection-prewarm";
+import { isOpenAICodexWebSocketPreferred } from "@linxiraos/pi-ai/providers/openai-codex-transport";
+import { withCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import { syncOpenAIResponsesHistoryTexts } from "@linxiraos/pi-ai/utils";
+import { FALLBACK_DIALECT, preferredDialect } from "@linxiraos/pi-catalog/identity";
+import type { Component } from "@linxiraos/pi-tui";
+import { $env, isInteractiveHost } from "@linxiraos/pi-utils/env";
+import { getAgentDir, getModelDbPath, getProjectDir } from "@linxiraos/pi-utils/dirs";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import * as prompt from "@linxiraos/pi-utils/prompt";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@linxiraos/zeta-compact";
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,
@@ -88,7 +88,7 @@ import {
 	resolveSessionModelSelector,
 	sessionModelDiscoveryProviders,
 } from "./config/model-resolver";
-import { formatModelSelectorValue, parseModelString } from "@oh-my-pi/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { bindEffects, combine } from "./config/registry";
@@ -105,7 +105,7 @@ import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { getEnabledEvalPreludes, type EvalPreludeDefinition } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
-import type { EditMode } from "@oh-my-pi/pi-tui/tools/edit";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import {
 	CustomCommandWatcher,
 	type CustomCommandsLoadResult,
@@ -161,7 +161,7 @@ import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal }
 import type { HindsightSessionStateApi } from "./hindsight/state";
 import { LocalProtocolHandler, type LocalProtocolOptions, outRepliesActive } from "./internal-urls";
 import { onJudgeRejection } from "./judgment";
-import { stripXdUnderscorePrefix, stripXdUrlPrefix } from "@oh-my-pi/pi-tui/tools/xd-url";
+import { stripXdUnderscorePrefix, stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
 import { holdSharedLsp } from "./lsp/client";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
 import {
@@ -178,7 +178,7 @@ import {
 	resolveMCPTransformContext,
 	shouldFilterBrowserMCPForPrelude,
 } from "./mcp";
-import { parseMCPToolName } from "@oh-my-pi/pi-tui/tools/mcp";
+import { parseMCPToolName } from "@linxiraos/pi-tui/tools/mcp";
 import { isEvalNamespaceTool, MCPEvalNamespaceCatalog } from "./mcp/eval-namespaces";
 import { mapPromptArguments } from "./mcp/prompt-args";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } from "./mcp/startup-events";
@@ -308,7 +308,7 @@ import { wrapStreamFnWithProviderConcurrency } from "./task/provider-concurrency
 import { sessionDelegationBias } from "./task/prompt-policy";
 import { isScoutSpawnable } from "./task/spawn-policy";
 import { isMainThread } from "./thread/identity";
-import type { StructuredSubagentSchemaMode } from "@oh-my-pi/pi-tui/tools/task";
+import type { StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -319,7 +319,7 @@ import {
 	resolveConfiguredThinkingLevel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@oh-my-pi/pi-tui/thinking";
+} from "@linxiraos/pi-tui/thinking";
 import {
 	BashTool,
 	BUILTIN_TOOLS,
@@ -379,7 +379,7 @@ import { ttsTool } from "./tools/tts";
 import { resolveActiveRepoContext } from "./utils/active-repo-context";
 import { EventBus } from "./utils/event-bus";
 import { normalizeProviderContextImagesForModel } from "./utils/image-loading";
-import { formatLocalCalendarDate } from "@oh-my-pi/pi-tui/chrome/local-date";
+import { formatLocalCalendarDate } from "@linxiraos/pi-tui/chrome/local-date";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { VibeSessionRegistry } from "./vibe/runtime";
@@ -2049,7 +2049,7 @@ export function createAutoLearnCaptureRunner(
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@oh-my-pi/pi-ai';
+ * import { getModel } from '@linxiraos/pi-ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',
@@ -6240,7 +6240,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 						if (!codexPrewarmApiKey) return;
 						// Load the transport only for an actual Codex prewarm, not unrelated session setup.
 						const { prewarmOpenAICodexResponses } =
-							await import("@oh-my-pi/pi-ai/providers/openai-codex-responses");
+							await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 						await logger.time("prewarmOpenAICodexResponses", prewarmOpenAICodexResponses, codexModel, {
 							apiKey: codexPrewarmApiKey,
 							sessionId: providerSessionId,

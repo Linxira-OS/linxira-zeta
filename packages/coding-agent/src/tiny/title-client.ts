@@ -10,7 +10,7 @@
  * message-level `chat` requests.
  */
 import * as os from "node:os";
-import { $env, logger, prompt } from "@oh-my-pi/pi-utils";
+import { $env, logger, prompt } from "@linxiraos/pi-utils";
 import type { Setting } from "../config/registry";
 import { isSettingsInitialized, settings } from "../config/settings";
 

@@ -4,24 +4,24 @@ import {
 	moveCodexInstructionsToInput,
 	transformRequestBody,
 	withCodexRoutingFieldsFirst,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+} from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
 	streamOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { resetOpenAICodexHistoryAfterCompaction } from "@oh-my-pi/pi-ai/providers/openai-codex-state";
-import { configureCredentialRedaction } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import { isOpenAIResponsesProgressEvent } from "@oh-my-pi/pi-ai/utils/websocket";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-state";
+import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import { isOpenAIResponsesProgressEvent } from "@linxiraos/pi-ai/utils/websocket";
 import type {
 	CodexCompactionRequestContext,
 	Context,
 	FetchImpl,
 	ModelSpec,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import * as piUtils from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import * as piUtils from "@linxiraos/pi-utils";
 import { createCodexModel } from "./helpers";
 
 /** The base-instructions developer item codex-rs leads every request with. */

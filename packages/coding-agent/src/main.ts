@@ -6,10 +6,10 @@
  */
 import * as fsSync from "node:fs";
 import * as os from "node:os";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
-import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
-import { getModelPricingStatus } from "@oh-my-pi/pi-catalog/models";
-import { ensureSqliteLockShim, isEnoent, isEnotdir } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
+import { ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import { bindAgentMesh } from "./irc/mesh";
 import {
 	APP_NAME,
@@ -20,12 +20,12 @@ import {
 	normalizePathForComparison,
 	setProjectDir,
 	VERSION,
-} from "@oh-my-pi/pi-utils/dirs";
-import { $env, isBunTestRuntime, isCompiledBinary, setInteractiveHost } from "@oh-my-pi/pi-utils/env";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import { fuzzyFilter } from "@oh-my-pi/pi-tui/fuzzy";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+} from "@linxiraos/pi-utils/dirs";
+import { $env, isBunTestRuntime, isCompiledBinary, setInteractiveHost } from "@linxiraos/pi-utils/env";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
 import {
 	type Args,
@@ -40,8 +40,8 @@ import {
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
 import { buildInitialMessage } from "./cli/initial-message";
-import { formatKeyHint, KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import type { SessionPickerOptions } from "@oh-my-pi/pi-tui/apps/session-picker";
+import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
 import { fetchBuild } from "./cli/build-service";
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { runAutoUpdate } from "./cli/auto-update";
@@ -50,7 +50,7 @@ import { getLatestRelease, isSourceCheckout } from "./cli/update-cli";
 import { findConfigFile } from "./config";
 import { cfgNoJudge, cfgNoSpotlight, cfgOffline } from "./config/auxiliary-model-policy";
 import { ModelRegistry } from "./config/model-registry";
-import { formatModelSelectorValue } from "@oh-my-pi/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
 	disabledProviderIds,
 	expandRoleAlias,
@@ -87,9 +87,9 @@ import { formatSessionContinuationNotice } from "./modes/persistence-failure";
 import type { PrintModeOptions } from "./modes/print-mode";
 import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
-import { CURRENT_SETUP_VERSION } from "@oh-my-pi/pi-tui/setup/setup-version";
+import { CURRENT_SETUP_VERSION } from "@linxiraos/pi-tui/setup/setup-version";
 import type * as SetupWizardModule from "./modes/setup";
-import type { SetupScene } from "@oh-my-pi/pi-tui/setup/scenes/types";
+import type { SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
 import {
 	applyStartupComposerPreferences,
@@ -97,7 +97,7 @@ import {
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "./modes/startup-composer";
-import { ensureTheme, initTheme, stopThemeWatcher } from "@oh-my-pi/pi-tui/theme";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@linxiraos/pi-tui/theme";
 import type { SubmittedUserInput } from "./modes/types";
 import { createWarpEventBridgeExtension } from "./modes/warp-events";
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
@@ -144,9 +144,13 @@ import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
 import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import {
+	automaticThinkingLevel,
+	concreteThinkingLevel,
+	parseConfiguredThinkingLevel,
+} from "@linxiraos/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
-import { sanitizeDisplayWarnings } from "@oh-my-pi/pi-tui/render/render-utils";
+import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
 import { getChangelogPath, readLastChangelogVersion, resolveStartupChangelogForDisplay } from "./utils/changelog";
 import { EventBus } from "./utils/event-bus";
 import { resolveFirstLaunchPythonEvalWarning } from "./eval/startup-warning";
@@ -223,7 +227,7 @@ type SessionPicker = (
 async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionPicker> {
 	const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds, setSessionPinned }, { FileSessionStorage }] =
 		await Promise.all([
-			import("@oh-my-pi/pi-tui/apps/session-picker"),
+			import("@linxiraos/pi-tui/apps/session-picker"),
 			import("./session/history-storage"),
 			import("./session/session-pins"),
 			import("./session/session-storage"),
@@ -730,13 +734,12 @@ async function runInteractiveMode(
 			await setupWizard.markSetupWizardComplete(settings);
 		}
 		playStartupSplash = showStartupSplash && setupScenes.length === 0;
-		const offersStartupWorktree = !resuming && joinLink === undefined;
+		const offersStartupWorktree = !resuming;
 
 		await logger.time("InteractiveMode.init", () =>
 			mode.init({
 				suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
 				clearInitialTerminalHistory: true,
-				autoStartCollab: joinLink === undefined,
 				// Setup scenes and the startup worktree question wait on the user before any
 				// prompt runs, so they keep the boot `idle`. The worktree check runs before its
 				// async git check, so a folder where the question never shows also keeps `idle`.
@@ -804,29 +807,8 @@ async function runInteractiveMode(
 		if (offersStartupWorktree) {
 			await mode.maybeAutoCreateWorktree();
 		}
-
-		// `omp join <link>`: dispatch through the same builtin path as a typed
-		// `/join` so collab guards and error rendering stay in one place.
-		if (joinLink !== undefined) {
-			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
-			await executeBuiltinSlashCommand(`/join ${joinLink}`, { ctx: mode });
-			// Join failure returns to the local session; success still needs the
-			// controller observing its eventual restoration without hosting replicas.
-			mode.collabController.autoStart();
-		}
-		// Keep guest mutations gated through setup dialogs and transcript replay,
-		// not just init. Only a successful outer startup opens the room for input.
-		mode.collabController.startupComplete();
 	} catch (error) {
-		// Init publishes before startup dialogs, so any later startup failure
-		// must withdraw the room before restoring the terminal.
-		try {
-			await mode.collabController.shutdown("startup failed");
-		} catch (cleanupError) {
-			logger.warn("Failed to stop collaboration after startup failure", { error: String(cleanupError) });
-		} finally {
-			mode.stop();
-		}
+		mode.stop();
 		throw error;
 	}
 

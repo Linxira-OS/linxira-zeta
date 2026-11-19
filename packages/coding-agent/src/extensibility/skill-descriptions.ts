@@ -1,9 +1,9 @@
 import { Database, type Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type AgentTelemetry, instrumentedCompleteSimple } from "@oh-my-pi/pi-agent-core";
-import type { Api, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
-import { transportFetch } from "@oh-my-pi/pi-ai/utils/transport-fetch";
+import { type AgentTelemetry, instrumentedCompleteSimple } from "@linxiraos/pi-agent-core";
+import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
+import { transportFetch } from "@linxiraos/pi-ai/utils/transport-fetch";
 import {
 	getAgentDir,
 	getSkillDescriptionsDbPath,
@@ -13,7 +13,7 @@ import {
 	postmortem,
 	prompt,
 	toError,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import {
 	resolveConfiguredModelPatterns,

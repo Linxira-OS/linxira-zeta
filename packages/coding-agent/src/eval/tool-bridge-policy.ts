@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 
 /** Xdev state of the session whose eval bridge started the current async chain. */
 const evalBridgeCall = new AsyncLocalStorage<object>();

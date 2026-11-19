@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
-import { requestBodyText } from "@oh-my-pi/pi-ai/utils/request-body";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { withOfficialAnthropicEndpoint } from "./helpers";
 
 function makeModel(id: string): Model<"anthropic-messages"> {

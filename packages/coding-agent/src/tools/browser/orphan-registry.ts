@@ -22,7 +22,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getDaemonRuntimeDir, isEnoent, isPidAlive, logger, untilAborted } from "@oh-my-pi/pi-utils";
+import { getDaemonRuntimeDir, isEnoent, isPidAlive, logger, untilAborted } from "@linxiraos/pi-utils";
 import type { Browser, CDPSession, Connection } from "puppeteer-core";
 import { browserConnection } from "./launch";
 

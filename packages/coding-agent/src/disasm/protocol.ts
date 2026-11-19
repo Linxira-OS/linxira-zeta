@@ -5,8 +5,8 @@
  * daemon (so it shows up in `omp ps`). The unit owns the database lock and one Python worker;
  * omp processes speak NDJSON {@link HostRequest}s to it over an attached daemon tunnel.
  */
-import { type } from "@oh-my-pi/omptype";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { type } from "@linxiraos/zeta-schema";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { DisasmBackendId } from "./backend";
 
 /** Daemon unit kind and module name. */

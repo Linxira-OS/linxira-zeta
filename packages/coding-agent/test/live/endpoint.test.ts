@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import { OPENAI_HEADERS } from "@oh-my-pi/pi-catalog/wire/codex";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LiveSessionController, type LiveSessionControllerOptions } from "@oh-my-pi/pi-coding-agent/live/controller";
-import { buildLiveSessionUpdate } from "@oh-my-pi/pi-coding-agent/live/protocol";
-import * as liveTransport from "@oh-my-pi/pi-coding-agent/live/transport";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { OPENAI_HEADERS } from "@linxiraos/pi-catalog/wire/codex";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { LiveSessionController, type LiveSessionControllerOptions } from "@linxiraos/zeta/live/controller";
+import { buildLiveSessionUpdate } from "@linxiraos/zeta/live/protocol";
+import * as liveTransport from "@linxiraos/zeta/live/transport";
 import {
 	buildLiveSidebandUrl,
 	type LiveEndpoint,
@@ -15,7 +15,7 @@ import {
 	liveEndpointSidebandUrl,
 	parseLiveEndpointCallId,
 	resolveLiveEndpoint,
-} from "@oh-my-pi/pi-coding-agent/live/transport";
+} from "@linxiraos/zeta/live/transport";
 
 /** Headers only Codex calls carry besides {@link OPENAI_HEADERS}; a custom endpoint must never see any. */
 const CODEX_ONLY_HEADERS = ["x-oai-attestation", "openai-alpha", "x-session-id"];

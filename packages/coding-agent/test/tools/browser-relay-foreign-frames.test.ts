@@ -3,8 +3,8 @@ import {
 	closeLaunchedBrowser,
 	ensureChromiumExecutable,
 	RENDERER_PRIORITY_ARGS,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { type HiddenFrame, isHiddenFrame } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/protocol";
+} from "@linxiraos/zeta/tools/browser/launch";
+import { type HiddenFrame, isHiddenFrame } from "@linxiraos/zeta/tools/browser/relay/protocol";
 import puppeteer from "puppeteer-core";
 import { onForeignFramesHidden, pastForeignFrames } from "../../../browser-relay/extension/foreign-frames";
 import { rejectionOf } from "../helpers/rejection";

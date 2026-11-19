@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type DownloadActivity, onDownloadActivity, trackStep } from "@oh-my-pi/pi-coding-agent/downloads/activity";
+import { type DownloadActivity, onDownloadActivity, trackStep } from "@linxiraos/zeta/downloads/activity";
 
 describe("trackStep", () => {
 	let stop: (() => void) | undefined;

@@ -2,7 +2,7 @@
  * Resolve auth-broker connection configuration for the local omp client.
  *
  * This is a thin coding-agent wrapper around the shared resolver in
- * `@oh-my-pi/pi-ai/auth-broker/discover` that preserves the process-lifetime
+ * `@linxiraos/pi-ai/auth-broker/discover` that preserves the process-lifetime
  * memoization expected by the CLI and injects the full `resolveConfigValue`
  * (including `!command` config indirection) from coding-agent's config layer.
  *
@@ -24,7 +24,7 @@ import {
 	type AuthAccountPolicyConfig,
 	AuthBrokerError,
 	loadAuthAccountPolicyConfig,
-} from "@oh-my-pi/pi-ai/auth-broker";
+} from "@linxiraos/pi-ai/auth-broker";
 import {
 	type AuthBrokerClientConfig,
 	type AuthBrokerStartupRetry,
@@ -33,10 +33,10 @@ import {
 	getAuthBrokerTokenFilePath,
 	openAuthCredentialStore,
 	resolveAuthBrokerConfig as resolveAuthBrokerConfigShared,
-} from "@oh-my-pi/pi-ai/auth-broker/discover";
-import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
-import { setUnpausedProviders } from "@oh-my-pi/pi-ai/oauth";
-import { getAgentDir, isInteractiveHost, logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/auth-broker/discover";
+import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import { setUnpausedProviders } from "@linxiraos/pi-ai/oauth";
+import { getAgentDir, isInteractiveHost, logger } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { combine, effectsSettings, type ScopeLike } from "../config/registry";
 import { resolveConfigValue } from "../config/resolve-config-value";

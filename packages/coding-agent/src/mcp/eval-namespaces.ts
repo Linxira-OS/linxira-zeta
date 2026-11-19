@@ -18,11 +18,11 @@
  * of the presented tools, the SDK appends {@link MCPEvalNamespaceCatalog.preludes}
  * to the session's eval preludes, and the eval tool bridge serves the calls.
  */
-import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { jsonSchemaToTypeScript, toolWireSchema } from "@oh-my-pi/pi-ai";
-import { blobExtensionForImageMimeType, normalizeBlobExtension } from "@oh-my-pi/pi-tui/prompt/image-format";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import { isRecord, logger, prompt, Snowflake } from "@oh-my-pi/pi-utils";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { jsonSchemaToTypeScript, toolWireSchema } from "@linxiraos/pi-ai";
+import { blobExtensionForImageMimeType, normalizeBlobExtension } from "@linxiraos/pi-tui/prompt/image-format";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isRecord, logger, prompt, Snowflake } from "@linxiraos/pi-utils";
 import type { EvalPreludeDefinition } from "../eval/preludes";
 import { resolveLocalUrlToPath } from "../internal-urls/local-protocol";
 import type { LocalProtocolOptions } from "../internal-urls/local-root";

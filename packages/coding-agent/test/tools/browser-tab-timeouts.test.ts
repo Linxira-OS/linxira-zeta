@@ -1,12 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
-import {
-	BROWSER_PAGE_PROTOCOL_TIMEOUT_MS,
-	BROWSER_PROTOCOL_TIMEOUT_MS,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { resolveOpTimeouts, resolveWaitTimeout } from "@oh-my-pi/pi-coding-agent/tools/browser/op-timeouts";
-import { parseRoleSelector } from "@oh-my-pi/pi-coding-agent/tools/browser/query-handlers";
-import { dispatchScroll, normalizeSelector } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-worker";
-import { resolvePredicateTimeout } from "@oh-my-pi/pi-coding-agent/tools/run-scope";
+import { BROWSER_PAGE_PROTOCOL_TIMEOUT_MS, BROWSER_PROTOCOL_TIMEOUT_MS } from "@linxiraos/zeta/tools/browser/launch";
+import { resolveOpTimeouts, resolveWaitTimeout } from "@linxiraos/zeta/tools/browser/op-timeouts";
+import { parseRoleSelector } from "@linxiraos/zeta/tools/browser/query-handlers";
+import { dispatchScroll, normalizeSelector } from "@linxiraos/zeta/tools/browser/tab-worker";
+import { resolvePredicateTimeout } from "@linxiraos/zeta/tools/run-scope";
 import { Connection, type ConnectionTransport } from "puppeteer-core";
 
 // Regression coverage for the "weird timeouts" failure mode: interactive `tab.*` helpers

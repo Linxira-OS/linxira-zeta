@@ -13,8 +13,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/zeta-schema";
+import { isRecord, logger } from "@linxiraos/pi-utils";
 import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";
 import {
 	LSP_ACQUIRE_METHOD,

@@ -7,7 +7,7 @@
  * endpoint up and down, modelling `units.ts` (find-or-start, generation-scoped `stop`).
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as daemonClientModule from "@oh-my-pi/pi-coding-agent/daemon/client";
+import * as daemonClientModule from "@linxiraos/zeta/daemon/client";
 import type {
 	DaemonClient,
 	DaemonOp,
@@ -15,9 +15,9 @@ import type {
 	OpenRequest,
 	OpenResult,
 	UnitSnapshot,
-} from "@oh-my-pi/pi-coding-agent/daemon/protocol";
-import { ensureRelayDaemon, restartRelayDaemon } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/daemon";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/zeta/daemon/protocol";
+import { ensureRelayDaemon, restartRelayDaemon } from "@linxiraos/zeta/tools/browser/relay/daemon";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 
 const OLDER_VERSION = "0.0.1";
 const NEWER_VERSION = "999.0.0";

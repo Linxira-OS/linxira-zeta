@@ -3,12 +3,12 @@
  * against a fake `ABHost` process: no real engine and no real Chromium.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import * as launch from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import * as registry from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import * as supervisor from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import * as launch from "@linxiraos/zeta/tools/browser/launch";
+import * as registry from "@linxiraos/zeta/tools/browser/registry";
+import * as supervisor from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { createFakeHost, type FakeHost, type FakeHostMode, isProcessAlive } from "./webkit-fake-host";
 
 // Ambient browser env of the developer's shell (and of an omp running the suite) must not pick the backend.

@@ -1,4 +1,4 @@
-import { extractHttpStatusFromError } from "@oh-my-pi/pi-utils";
+import { extractHttpStatusFromError } from "@linxiraos/pi-utils";
 import {
 	classify,
 	Flag,

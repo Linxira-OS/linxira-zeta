@@ -1,7 +1,7 @@
 /** Managed agy releases, installed from Google's manifest without running its shell-profile installer. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { $env, formatBytes, getAntigravityCliDir, isEnoent, logger, withFileLock } from "@oh-my-pi/pi-utils";
+import { $env, formatBytes, getAntigravityCliDir, isEnoent, logger, withFileLock } from "@linxiraos/pi-utils";
 import type { FetchImpl } from "../../types";
 
 const MANIFEST_BASE_URL = "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests";

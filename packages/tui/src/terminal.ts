@@ -1,12 +1,12 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import * as fs from "node:fs";
-import { isolateThreadStartsFromConsole, TtyWriter } from "@oh-my-pi/pi-natives";
-import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@oh-my-pi/pi-utils/env";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { popLoopPhase, pushLoopPhase } from "@oh-my-pi/pi-utils/loop-phase";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import { restoreTerminalStderr, suppressTerminalStderr } from "@oh-my-pi/pi-utils/stderr-guard";
-import { TSP_VERSION } from "@oh-my-pi/pi-wire";
+import { isolateThreadStartsFromConsole, TtyWriter } from "@linxiraos/pi-natives";
+import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@linxiraos/pi-utils/env";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { popLoopPhase, pushLoopPhase } from "@linxiraos/pi-utils/loop-phase";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { restoreTerminalStderr, suppressTerminalStderr } from "@linxiraos/pi-utils/stderr-guard";
+import { TSP_VERSION } from "@linxiraos/pi-wire";
 import { getActiveTerminal, registerStdoutErrorHandler, setActiveTerminal } from "./active-terminal";
 import {
 	encodeBundledGlyphRegistrations,

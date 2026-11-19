@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { OAuthRefreshReason } from "@oh-my-pi/pi-ai/auth/types";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
+import type { OAuthRefreshReason } from "@linxiraos/pi-ai/auth/types";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 
 function fakeJwt(payload: Record<string, unknown>): string {
 	const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

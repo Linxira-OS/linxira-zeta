@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { fetchReadUrl } from "@oh-my-pi/pi-coding-agent/tools/fetch";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { fetchReadUrl } from "@linxiraos/zeta/tools/fetch";
 
 let server: Bun.Server<undefined>;
 let origin: string;

@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { resolveBrowserKind, resolveWebKitKind, type WebKitKind } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { resolveBrowserKind, resolveWebKitKind, type WebKitKind } from "@linxiraos/zeta/tools/browser";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 
 let root: string;
 /** An engine directory holding an executable host. */

@@ -3,8 +3,8 @@
  * backend: a string with `*` is a glob (as `tab.route()` takes), any other string a substring.
  */
 import { describe, expect, it } from "bun:test";
-import { parseUrlPattern } from "@oh-my-pi/pi-coding-agent/tools/browser/navigation";
-import { matchesRequest, toPublicRecord, urlMatcher } from "@oh-my-pi/pi-coding-agent/tools/browser/network";
+import { parseUrlPattern } from "@linxiraos/zeta/tools/browser/navigation";
+import { matchesRequest, toPublicRecord, urlMatcher } from "@linxiraos/zeta/tools/browser/network";
 
 const PAGE_URL = "https://www.stardoll.com/en/starplaza.php";
 

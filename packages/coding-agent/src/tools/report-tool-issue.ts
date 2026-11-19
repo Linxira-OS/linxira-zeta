@@ -31,20 +31,21 @@
  * execution is never blocked on the network and never throws.
  */
 import { Database } from "bun:sqlite";
+import type { ComposedIssue } from "../grievances/client";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { FetchImpl } from "@oh-my-pi/pi-ai";
-import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { FetchImpl } from "@linxiraos/pi-ai";
+import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
 import type { ToolSession } from "./index";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { BUILTIN_TOOL_NAMES, isMCPToolName } from "./builtin-names";
 import type { XdevDispatch } from "./xdev";
 
-import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "@oh-my-pi/pi-tui/tools/report-tool-issue";
-import { truncateHeadBytes } from "@oh-my-pi/pi-tui/tools/streaming-output";
+import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "@linxiraos/pi-tui/tools/report-tool-issue";
+import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
 
 import { cfgDevAutoqa, cfgDevAutoqaConsent, cfgDevAutoqaPushEndpoint, cfgDevAutoqaPushToken } from "./settings";
 
@@ -406,6 +407,14 @@ export interface FlushResult {
 	rejected?: number;
 	/** Last collector error (`HTTP <status>: <body>`), for CLI reporting. */
 	error?: string;
+	/** `html_url` of every issue created this flush, in send order. */
+	urls?: string[];
+	/** Set when no GitHub token was available: nothing was sent. */
+	unauthenticated?: boolean;
+	/** Prefilled new-issue URL for the first unsent row (unauthenticated only). */
+	manualUrl?: string;
+	/** Composed issue for the first unsent row (unauthenticated only). */
+	composed?: ComposedIssue;
 }
 
 /**

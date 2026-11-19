@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { $which, logger, pathIsWithin, resolveEquivalentPath } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { $which, logger, pathIsWithin, resolveEquivalentPath } from "@linxiraos/pi-utils";
 import { Settings } from "../config/settings";
 import { cfgIsolationBackend, ovnfsCommand } from "../task/settings";
 import type { ManagedWorktree, SessionWorktree, WorktreeBackend, WorktreeLocation } from "./backend";

@@ -1,15 +1,15 @@
 /**
  * Client half of text prediction, served by the daemon's `predict` module.
  *
- * The composer's word-completion provider (`@oh-my-pi/pi-tui/prompt/word-completion`)
+ * The composer's word-completion provider (`@linxiraos/pi-tui/prompt/word-completion`)
  * reaches the module through {@link textPredictionBackend}. The first request
  * opens (find-or-start) the global `predict` unit of this agent directory and
  * holds a lease on it; every request is then a `call`. Failures never surface
  * to the editor: a query that cannot be answered shows no ghost text.
  */
-import type { PredictedWord } from "@oh-my-pi/pi-natives";
-import type { WordCompletionEngine, WordPredictionBackend } from "@oh-my-pi/pi-tui/prompt/word-completion";
-import { getAgentDir, getHistoryDbPath, getPredictStateDir, logger } from "@oh-my-pi/pi-utils";
+import type { PredictedWord } from "@linxiraos/pi-natives";
+import type { WordCompletionEngine, WordPredictionBackend } from "@linxiraos/pi-tui/prompt/word-completion";
+import { getAgentDir, getHistoryDbPath, getPredictStateDir, logger } from "@linxiraos/pi-utils";
 import { daemonClient } from "../daemon/client";
 import { type DaemonClient, GLOBAL_SCOPE } from "../daemon/protocol";
 import {

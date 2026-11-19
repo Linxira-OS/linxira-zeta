@@ -9,8 +9,8 @@
  * `skill://` and `attachment://`. Every other scheme is missing there.
  */
 import * as fs from "node:fs/promises";
-import type { ToolTier } from "@oh-my-pi/pi-agent-core";
-import { SHELL_PROCESS_SELECTOR } from "@oh-my-pi/pi-utils";
+import type { ToolTier } from "@linxiraos/pi-agent-core";
+import { SHELL_PROCESS_SELECTOR } from "@linxiraos/pi-utils";
 import { getActiveSkills } from "../extensibility/skills";
 import { LocalProtocolHandler, resolveLocalRoot } from "../internal-urls/local-protocol";
 import { InternalUrlRouter } from "../internal-urls/router";

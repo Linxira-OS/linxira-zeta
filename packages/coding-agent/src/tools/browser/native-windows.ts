@@ -1,6 +1,6 @@
-import type { DesktopRosterWindow } from "@oh-my-pi/pi-natives";
-import { desktopWindowRoster } from "@oh-my-pi/pi-natives/desktop";
-import { isRecord, prompt, withTimeout } from "@oh-my-pi/pi-utils";
+import type { DesktopRosterWindow } from "@linxiraos/pi-natives";
+import { desktopWindowRoster } from "@linxiraos/pi-natives/desktop";
+import { isRecord, prompt, withTimeout } from "@linxiraos/pi-utils";
 import type { Browser, Page } from "puppeteer-core";
 import { probeCdpResponse } from "./attach";
 import nativeWindowNotice from "../../prompts/tools/browser-native-window.md" with { type: "text" };

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isEnoent, isRecord } from "@oh-my-pi/pi-utils";
+import { isEnoent, isRecord } from "@linxiraos/pi-utils";
 import { removeCheckout } from "./checkouts";
 
 /** Record of the checkout an isolation dir stands for. */

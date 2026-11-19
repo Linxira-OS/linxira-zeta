@@ -22,7 +22,7 @@
  *   shared root session and passed through verbatim
  */
 import { createHash } from "node:crypto";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { BROWSER_PAGE_PROTOCOL_TIMEOUT_MS } from "../launch";
 import {
 	DISCARDED_TABS_PROTOCOL_VERSION,
@@ -335,7 +335,7 @@ function canOpenWindow(method: string, params: Record<string, unknown> | undefin
 	return types === true || (typeof type === "string" && Object.hasOwn(types, type));
 }
 
-/** The app in front of the user, as `macOSFrontApp` from `@oh-my-pi/pi-natives` reads it. */
+/** The app in front of the user, as `macOSFrontApp` from `@linxiraos/pi-natives` reads it. */
 export interface FrontApp {
 	/** Puts the app back in front each time the app that took the front takes it again within `durationMs`, until the user picks an app; resolves how many times. */
 	keepInFront(durationMs: number): Promise<number>;

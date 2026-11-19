@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message, ToolResultMessage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, Message, ToolResultMessage } from "@linxiraos/pi-ai";
 
 /**
  * Model-facing text of a tool call the provider stream ended before it could run.

@@ -8,7 +8,7 @@ import type {
 	ServiceTierByFamily,
 	TextContent,
 	Usage,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	directoryIsEnterable,
 	directoryIsMissing,
@@ -26,10 +26,10 @@ import {
 	stringifyJson,
 	toError,
 	withLoopPhase,
-} from "@oh-my-pi/pi-utils";
-import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@oh-my-pi/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@linxiraos/pi-utils";
+import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
 import { hasAnnotationDraftsSync } from "../extensibility/custom-commands/bundled/annotate/draft-store";
 import { resolveLocalRoot } from "../internal-urls/local-root";
@@ -133,6 +133,8 @@ import {
 	type SessionStorageWriter,
 	SessionWriteConflictError,
 } from "./session-storage";
+import { resolveTeamSessionOrigin } from "../team/session-origin";
+import { sameSessionOrigin, type SessionOrigin } from "./session-origin";
 import { type SessionTitleUpdate, serializeTitleSlot } from "./session-title-slot";
 import {
 	additionalWorkspaceDirectories,
@@ -2102,6 +2104,11 @@ export class SessionManager {
 			// passes one explicitly.
 			client: options?.client ?? this.#client ?? this.#header?.client,
 			parentSession: options?.parentSession,
+			memoryNamespace: options?.memoryNamespace ?? this.#header?.memoryNamespace,
+			// An IM/bot or Team conversation keeps its stamp across `/new`; a new
+			// session created inside a resolved Team location is stamped from that
+			// location. A personal session outside a team never acquires one.
+			origin: options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd),
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 			taskPromptCacheKey: options?.taskPromptCacheKey,
 		};
@@ -3271,6 +3278,44 @@ export class SessionManager {
 
 	getSessionFile(): string | undefined {
 		return this.#sessionFile;
+	}
+
+	/** This conversation's per-agent memory namespace, or `undefined` for project scope. */
+	getMemoryNamespace(): string | undefined {
+		return this.#header.memoryNamespace;
+	}
+
+	/**
+	 * Stamp the conversation's IM/Team origin on the header. Persisted like any
+	 * other header field; an undefined origin clears the stamp.
+	 */
+	async setOrigin(origin: SessionOrigin | undefined): Promise<void> {
+		const current = this.#header.origin;
+		if (sameSessionOrigin(current, origin)) return;
+		if (origin === undefined) delete this.#header.origin;
+		else this.#header.origin = { ...origin };
+		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
+	}
+
+	/** The origin stamp on the header, or `undefined` for a personal session. */
+	getOrigin(): SessionOrigin | undefined {
+		return this.#header.origin;
+	}
+
+	/**
+	 * Pin the per-agent memory namespace on the header. The SDK calls this once
+	 * at session creation (and on profile resume) so every memory backend and
+	 * restart resolves the same scope.
+	 */
+	async setMemoryNamespace(namespace: string | undefined): Promise<void> {
+		if (this.#header.memoryNamespace === namespace) return;
+		if (namespace === undefined) delete this.#header.memoryNamespace;
+		else this.#header.memoryNamespace = namespace;
+		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
 	}
 
 	/**

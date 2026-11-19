@@ -3,7 +3,7 @@
  * discovery, usage and the stream is produced and read only here, so every
  * consumer routes a credential to the same region and cache scope.
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 
 /** Kiro API keys are `ksk_…`; the prefix tells a raw key from an encoded credential. */
 export const KIRO_API_KEY_PREFIX = "ksk_";

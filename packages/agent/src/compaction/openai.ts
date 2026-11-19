@@ -15,27 +15,27 @@
  *   with `{ summary, shortSummary? }`.
  */
 
-import { attach, create, Flag, ProviderHttpError } from "@oh-my-pi/pi-ai/error";
-import { getCodexAttestationHeader } from "@oh-my-pi/pi-ai/providers/openai-codex-attestation";
-import { createOpenAICodexCompactionRequestContext } from "@oh-my-pi/pi-ai/providers/openai-codex-compaction";
+import { attach, create, Flag, ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { getCodexAttestationHeader } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
+import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import {
 	applyCodexResponsesLiteShape,
 	moveCodexInstructionsToInput,
 	withCodexRoutingFieldsFirst,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+} from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	applyInferenceHeaders,
 	applySessionHeader,
 	resolveOpenCodeGoCacheAffinity,
-} from "@oh-my-pi/pi-ai/providers/inference-headers";
+} from "@linxiraos/pi-ai/providers/inference-headers";
 import {
 	encodeResponsesToolResultOutput,
 	getOpenAIPromptCacheKey,
 	hoistInterleavedResponsesToolBatchMessages,
 	parseAzureDeploymentNameMap,
 	parseTextSignature,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { transformMessages } from "@oh-my-pi/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { transformMessages } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -44,7 +44,7 @@ import type {
 	Model,
 	ProviderSessionState,
 	SimpleStreamOptions,
-} from "@oh-my-pi/pi-ai/types";
+} from "@linxiraos/pi-ai/types";
 import {
 	dropMalformedOpenAIResponsesToolCalls,
 	getOpenAIResponsesHistoryItems,
@@ -53,10 +53,10 @@ import {
 	stripOpenAIResponsesInternalMetadataForReplay,
 	stripOpenAIResponsesOutputOnlyStatusesForReplay,
 	truncateResponseItemId,
-} from "@oh-my-pi/pi-ai/utils";
-import { captureOpenAIHttpError } from "@oh-my-pi/pi-ai/utils/openai-http";
-import { withResolvedHeaders } from "@oh-my-pi/pi-ai/utils/model-headers";
-import { isBedrockOpenAIUrl } from "@oh-my-pi/pi-catalog/hosts";
+} from "@linxiraos/pi-ai/utils";
+import { captureOpenAIHttpError } from "@linxiraos/pi-ai/utils/openai-http";
+import { withResolvedHeaders } from "@linxiraos/pi-ai/utils/model-headers";
+import { isBedrockOpenAIUrl } from "@linxiraos/pi-catalog/hosts";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -64,8 +64,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { $env, isRecord, logger, prompt, ptree, stringifyJson, structuredCloneJSON } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { $env, isRecord, logger, prompt, ptree, stringifyJson, structuredCloneJSON } from "@linxiraos/pi-utils";
 import { dataUrlImageSize } from "../image-tokens";
 import { Tokenizer } from "../tokenizer";
 import { appendAzureApiVersion, resolveAzureOpenAiBaseUrl } from "./azure-openai-endpoint";
@@ -970,7 +970,7 @@ export async function requestOpenAiRemoteCompaction(
 	if (isCodexResponses) {
 		// Keep transport loading on the actual Codex request path, not compaction policy inspection.
 		const { createOpenAICodexCompatibilityMetadata } =
-			await import("@oh-my-pi/pi-ai/providers/openai-codex-responses");
+			await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 		const accountId = getCodexAccountId(apiKey);
 		if (accountId) {
 			headers[OPENAI_HEADERS.ACCOUNT_ID] = accountId;

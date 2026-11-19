@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { crc32 } from "@oh-my-pi/pi-ai/providers/aws-eventstream";
-import { type KiroOptions, streamKiro } from "@oh-my-pi/pi-ai/providers/kiro/stream";
-import type { KiroRequest } from "@oh-my-pi/pi-ai/providers/kiro/transform";
-import type { Context, FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { encodeKiroCredential } from "@oh-my-pi/pi-catalog/wire/kiro";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { crc32 } from "@linxiraos/pi-ai/providers/aws-eventstream";
+import { type KiroOptions, streamKiro } from "@linxiraos/pi-ai/providers/kiro/stream";
+import type { KiroRequest } from "@linxiraos/pi-ai/providers/kiro/transform";
+import type { Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { encodeKiroCredential } from "@linxiraos/pi-catalog/wire/kiro";
 
 const MODEL_ENDPOINT = "https://runtime.us-east-1.kiro.dev/";
 const API_KEY = encodeKiroCredential({ kind: "api_key", token: "ksk_kiro-token" });

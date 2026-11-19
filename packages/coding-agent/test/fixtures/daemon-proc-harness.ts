@@ -11,7 +11,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection, ipcEndpoint } from "@oh-my-pi/pi-natives";
+import { IpcConnection, ipcEndpoint } from "@linxiraos/pi-natives";
 import { isSameProcess, processStartTime } from "../../src/daemon/children";
 import {
 	DAEMON_DIR_ENV,

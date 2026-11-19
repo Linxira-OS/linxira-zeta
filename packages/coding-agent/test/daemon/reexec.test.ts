@@ -9,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { IpcConnection } from "@oh-my-pi/pi-natives";
+import { IpcConnection } from "@linxiraos/pi-natives";
 import { closeDaemonClient, daemonClient, probeDaemon } from "../../src/daemon/client";
 import { daemonEndpoint, daemonTokenPath, unitLogDir } from "../../src/daemon/paths";
 import {

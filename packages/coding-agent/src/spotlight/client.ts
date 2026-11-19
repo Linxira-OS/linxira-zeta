@@ -1,6 +1,6 @@
-import { decodeJwtPayload } from "@oh-my-pi/pi-ai/registry/engine/common";
-import { getRetryAfterMsFromHeaders } from "@oh-my-pi/pi-ai/utils/retry-after";
-import { logger, USER_AGENT } from "@oh-my-pi/pi-utils";
+import { decodeJwtPayload } from "@linxiraos/pi-ai/registry/engine/common";
+import { getRetryAfterMsFromHeaders } from "@linxiraos/pi-ai/utils/retry-after";
+import { logger, USER_AGENT } from "@linxiraos/pi-utils";
 import { StencilCredential } from "../stencil/credential";
 import { DEFAULT_SPOTLIGHT_MODEL, DEFAULT_SPOTLIGHT_URL, type SpotlightThinking } from "./types";
 

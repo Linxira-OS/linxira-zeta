@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { validateEmulateOptions } from "@oh-my-pi/pi-coding-agent/tools/browser/emulation";
+import { validateEmulateOptions } from "@linxiraos/zeta/tools/browser/emulation";
 
 describe("validateEmulateOptions", () => {
 	it("reads Puppeteer's viewport keys and the CSS reduced-motion values", () => {

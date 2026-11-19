@@ -1,36 +1,36 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { JobWidgetRegistry } from "@oh-my-pi/pi-coding-agent/job-widgets/types";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { SessionFocusController } from "@oh-my-pi/pi-coding-agent/modes/controllers/session-focus-controller";
-import { cfgDisplayPinnedAgents } from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { asyncJobSnapshot, asyncJobTree } from "@oh-my-pi/pi-coding-agent/session/async-job-views";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { type } from "@linxiraos/zeta-schema";
+import { Agent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { JobWidgetRegistry } from "@linxiraos/zeta/job-widgets/types";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { SessionFocusController } from "@linxiraos/zeta/modes/controllers/session-focus-controller";
+import { cfgDisplayPinnedAgents } from "@linxiraos/zeta/modes/settings";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { asyncJobSnapshot, asyncJobTree } from "@linxiraos/zeta/session/async-job-views";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
 	type SubagentLifecyclePayload,
 	type SubagentProgressPayload,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
-} from "@oh-my-pi/pi-coding-agent/task";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import type { DescribeContext, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { JobsSheet } from "@oh-my-pi/pi-tui/overlays/jobs-panel";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { JobWidgetView } from "@oh-my-pi/pi-tui/tools/job-widget";
-import type { AgentProgress } from "@oh-my-pi/pi-tui/tools/task";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/task";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import type { DescribeContext, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { JobsSheet } from "@linxiraos/pi-tui/overlays/jobs-panel";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
+import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const context = (tray: boolean): DescribeContext => ({

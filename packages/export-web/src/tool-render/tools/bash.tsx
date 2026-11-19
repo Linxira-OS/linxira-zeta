@@ -1,5 +1,5 @@
 /** `bash` — shell command execution: prompt line with env prefix, badges, output tail. */
-import { parseSpillUrl, spillUrl } from "@oh-my-pi/pi-utils/spill-url";
+import { parseSpillUrl, spillUrl } from "@linxiraos/pi-utils/spill-url";
 import type { ReactNode } from "react";
 import { Badge, Badges, InvalidArg, ResultImages, ResultText, Row } from "../parts";
 import type { ToolRenderer, ToolRenderProps } from "../types";

@@ -2,8 +2,8 @@
  * List and clean up agent-managed Git and ovnfs worktrees.
  */
 
-import { getProjectDir } from "@oh-my-pi/pi-utils";
-import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
+import { getProjectDir } from "@linxiraos/pi-utils";
+import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { worktreeHelp as commandHelp } from "../cli/command-help";
 import { addWorktree, clearWorktrees, listWorktrees } from "../cli/worktree-cli";
 import { Settings } from "../config/settings";

@@ -4,7 +4,7 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-import { type AgentMessage, toProviderReplayMessage } from "@oh-my-pi/pi-agent-core";
+import { type AgentMessage, toProviderReplayMessage } from "@linxiraos/pi-agent-core";
 import {
 	isUserInterruptAbort,
 	isCustomMessageContent,
@@ -15,7 +15,7 @@ import {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@oh-my-pi/pi-tui/chat/messages";
+} from "@linxiraos/pi-tui/chat/messages";
 export {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
@@ -45,20 +45,20 @@ export {
 	type FileMentionMessage,
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
-} from "@oh-my-pi/pi-tui/chat/messages";
-import { calculateContextTokens } from "@oh-my-pi/pi-agent-core/compaction";
+} from "@linxiraos/pi-tui/chat/messages";
+import { calculateContextTokens } from "@linxiraos/pi-agent-core/compaction";
 import {
 	invalidateMessageCache,
 	registerMessageCacheInvalidator,
-} from "@oh-my-pi/pi-agent-core/compaction/message-cache";
-import { convertMessageToLlm } from "@oh-my-pi/pi-agent-core/compaction/messages";
-import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@oh-my-pi/pi-ai";
-import { copyPerCallContextMessage } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-agent-core/compaction/message-cache";
+import { convertMessageToLlm } from "@linxiraos/pi-agent-core/compaction/messages";
+import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@linxiraos/pi-ai";
+import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
+import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
-import { stripXdUrlPrefix } from "@oh-my-pi/pi-tui/tools/xd-url";
+import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
 
 export {
 	type BranchSummaryMessage,
@@ -66,10 +66,10 @@ export {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@oh-my-pi/pi-agent-core/compaction/messages";
+} from "@linxiraos/pi-agent-core/compaction/messages";
 
-import { formatOutputNotice } from "@oh-my-pi/pi-tui/tools/output-meta";
-import { titleTextFromSkillPrompt } from "@oh-my-pi/pi-tui/chat/skill-title-input";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { titleTextFromSkillPrompt } from "@linxiraos/pi-tui/chat/skill-title-input";
 
 /**
  * Logs provider-error turns so their actual cause is available outside the

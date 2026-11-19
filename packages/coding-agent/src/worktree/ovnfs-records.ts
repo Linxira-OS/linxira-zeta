@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getWorktreeDir, isEnoent, isRecord } from "@oh-my-pi/pi-utils";
+import { getWorktreeDir, isEnoent, isRecord } from "@linxiraos/pi-utils";
 import type { OvnfsCheckout } from "./backend";
 
 /** Reserved metadata directory in the managed worktree base. */

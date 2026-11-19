@@ -3,7 +3,7 @@ import {
 	encodeTextSignatureV1,
 	parseAssistantMessagePhase,
 	parseTextSignature,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
+} from "@linxiraos/pi-ai/providers/openai-shared";
 
 describe("assistant message phase", () => {
 	it("round-trips every Responses phase through the text signature", () => {

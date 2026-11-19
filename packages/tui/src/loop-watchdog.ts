@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import { logger, resetLoopPhaseWindow, takeLoopPhaseAttribution } from "@oh-my-pi/pi-utils";
+import { logger, resetLoopPhaseWindow, takeLoopPhaseAttribution } from "@linxiraos/pi-utils";
 import { createJscLoopSampler, type LoopSampler, summarizeBlock } from "./loop-sampler";
 
 export interface LoopWatchdogOptions {

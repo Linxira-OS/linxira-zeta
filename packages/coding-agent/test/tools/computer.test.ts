@@ -1,16 +1,16 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import * as os from "node:os";
 import * as path from "node:path";
 import { inspect } from "node:util";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { EvalPreludeDefinition, HostEvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { executeJs } from "@oh-my-pi/pi-coding-agent/eval/js/executor";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { computerApproval, createComputerPrelude } from "@oh-my-pi/pi-coding-agent/tools/computer";
-import { isReadOnlyComputerCall, renderComputerCall } from "@oh-my-pi/pi-coding-agent/tools/computer/call";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { EvalPreludeDefinition, HostEvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { executeJs } from "@linxiraos/zeta/eval/js/executor";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { computerApproval, createComputerPrelude } from "@linxiraos/zeta/tools/computer";
+import { isReadOnlyComputerCall, renderComputerCall } from "@linxiraos/zeta/tools/computer/call";
 import {
 	type ComputerSessionSnapshot,
 	type ComputerWorkerInbound,
@@ -21,7 +21,7 @@ import {
 	ESCAPE_STOPPED_MESSAGE,
 	screenLockedCaptureNotice,
 	screenStateNotice,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/protocol";
+} from "@linxiraos/zeta/tools/computer/protocol";
 import {
 	beginComputerTurnForOwner,
 	type ComputerController,
@@ -31,10 +31,10 @@ import {
 	endComputerTurnForOwner,
 	registerComputerController,
 	resumeComputerUseForOwner,
-} from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
-import { ComputerWorkerCore, type NativeDesktopSession } from "@oh-my-pi/pi-coding-agent/tools/computer/worker";
-import * as clipboard from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import { DesktopKeyboardReturn } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/zeta/tools/computer/supervisor";
+import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
+import * as clipboard from "@linxiraos/zeta/utils/clipboard";
+import { DesktopKeyboardReturn } from "@linxiraos/pi-natives";
 import type {
 	ApplicationOpenOptions,
 	AxNode,
@@ -54,9 +54,9 @@ import type {
 	DesktopWindow,
 	HoldOptions as NativeHoldOptions,
 	PointerOptions,
-} from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-natives";
 
-import { cfgComputerEnabled } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgComputerEnabled } from "@linxiraos/zeta/tools/settings";
 
 /** Method name of the last step in a facade call chain, or "" when the chain is malformed. */
 function terminalMethod(chain: unknown): string {
@@ -3565,7 +3565,7 @@ describe("expanded computer APIs", () => {
 			{
 				read: () => {
 					// The stale-addon stub `desktopEscapeStops` falls back to.
-					if (unreadable) throw new Error("@oh-my-pi/pi-natives export `desktopEscapeStops` is missing");
+					if (unreadable) throw new Error("@linxiraos/pi-natives export `desktopEscapeStops` is missing");
 					return stops;
 				},
 				forget: () => {},
@@ -3607,7 +3607,7 @@ describe("expanded computer APIs", () => {
 			{
 				read: () => 0,
 				forget: () => {
-					throw new Error("@oh-my-pi/pi-natives export `forgetDesktopEscapeStops` is missing");
+					throw new Error("@linxiraos/pi-natives export `forgetDesktopEscapeStops` is missing");
 				},
 			},
 		);

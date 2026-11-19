@@ -107,7 +107,7 @@ export const INVENTORY: Placement[] = [
 			"packages/coding-agent/src/utils/grammars.ts",
 			"crates/pi-ast/src/language/grammar.rs",
 			"crates/pi-ast/src/language/wasm_grammars.rs",
-			"crates/pi-natives/src/grammars.rs",
+			"crates/natives/src/grammars.rs",
 			"packages/natives/native/index.d.ts",
 		],
 		why:

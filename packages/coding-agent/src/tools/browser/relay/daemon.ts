@@ -13,9 +13,9 @@
  * external server without attempting another bind (and hold no lease).
  */
 import * as os from "node:os";
-import type { UnitPolicy, UnitSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
-import { logger } from "@oh-my-pi/pi-utils";
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import type { UnitPolicy, UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import { logger } from "@linxiraos/pi-utils";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { daemonClient } from "../../../daemon/client";
 import { type DaemonClient, GLOBAL_SCOPE, type OpenRequest } from "../../../daemon/protocol";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../../../subprocess/worker-client";

@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import {
 	type GeneratedImage,
 	generateImage,
@@ -11,10 +11,10 @@ import {
 	isImageGenerationApi,
 	type Model,
 	parseAntigravityCredentials,
-} from "@oh-my-pi/pi-ai";
-import { ProviderHttpError } from "@oh-my-pi/pi-ai/error";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import { getEffectiveTokenCost } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-ai";
+import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
 import {
 	isEnoent,
 	logger,
@@ -24,7 +24,7 @@ import {
 	Snowflake,
 	truncate,
 	untilAborted,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";

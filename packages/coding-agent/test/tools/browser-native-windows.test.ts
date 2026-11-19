@@ -1,17 +1,13 @@
 import { describe, expect, test, vi } from "bun:test";
-import type { DesktopRosterWindow } from "@oh-my-pi/pi-natives";
-import { FrontTab, NativeWindowWatch, readTabFrame } from "@oh-my-pi/pi-coding-agent/tools/browser/native-windows";
-import * as nativeWindows from "@oh-my-pi/pi-coding-agent/tools/browser/native-windows";
-import { WorkerCore } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-worker";
-import type { WorkerInbound, WorkerOutbound } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
-import { getPuppeteerDir } from "@oh-my-pi/pi-utils";
-import {
-	closeLaunchedBrowser,
-	launchHeadlessBrowser,
-	removeUserDataDir,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { acquireBrowser, releaseBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { frontTabSource } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import type { DesktopRosterWindow } from "@linxiraos/pi-natives";
+import { FrontTab, NativeWindowWatch, readTabFrame } from "@linxiraos/zeta/tools/browser/native-windows";
+import * as nativeWindows from "@linxiraos/zeta/tools/browser/native-windows";
+import { WorkerCore } from "@linxiraos/zeta/tools/browser/tab-worker";
+import type { WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
+import { getPuppeteerDir } from "@linxiraos/pi-utils";
+import { closeLaunchedBrowser, launchHeadlessBrowser, removeUserDataDir } from "@linxiraos/zeta/tools/browser/launch";
+import { acquireBrowser, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { frontTabSource } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

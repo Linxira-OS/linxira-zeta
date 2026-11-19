@@ -1,51 +1,49 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
-import { getStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { type Component, Text } from "@oh-my-pi/pi-tui";
-import { RecapNotice } from "@oh-my-pi/pi-tui/chat/recap-notice";
-import { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import { QueuedMessagesBand } from "@oh-my-pi/pi-tui/prompt/queued-messages";
-import { previewLine, TRUNCATE_LENGTHS } from "@oh-my-pi/pi-tui/render/render-utils";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
+import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Text } from "@linxiraos/pi-tui";
+import { RecapNotice } from "@linxiraos/pi-tui/chat/recap-notice";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
+import { previewLine, TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
+import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { InternalUrlRouter } from "../../internal-urls";
-import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
 import { continuesConversation } from "./conversation-position";
-import { createAdvisorMessageCard } from "@oh-my-pi/pi-tui/chat/advisor-message";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { readMediaPath } from "@oh-my-pi/pi-tui/native/blobs";
-import { createBackgroundTanDispatchBlock } from "@oh-my-pi/pi-tui/chat/background-tan-message";
-import { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { detectCacheInvalidation } from "@oh-my-pi/pi-tui/chat/cache-invalidation-marker";
-import { ServedModelTracker } from "@oh-my-pi/pi-tui/chat/served-model-marker";
-import { CollabPromptMessageComponent } from "@oh-my-pi/pi-tui/chat/collab-prompt-message";
+import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { readMediaPath } from "@linxiraos/pi-tui/native/blobs";
+import { createBackgroundTanDispatchBlock } from "@linxiraos/pi-tui/chat/background-tan-message";
+import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
 	createHandoffSummaryMessageComponent,
-} from "@oh-my-pi/pi-tui/chat/compaction-summary-message";
-import { CustomMessageComponent } from "@oh-my-pi/pi-tui/chat/custom-message";
-import { DynamicBorder } from "@oh-my-pi/pi-tui/chrome/dynamic-border";
-import { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
+} from "@linxiraos/pi-tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@linxiraos/pi-tui/chat/custom-message";
+import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
+import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import {
 	type LateDiagnosticsFile,
 	LateDiagnosticsMessageComponent,
 	routeLateDiagnostics,
-} from "@oh-my-pi/pi-tui/chat/late-diagnostics-message";
+} from "@linxiraos/pi-tui/chat/late-diagnostics-message";
 import {
 	groupedReadUsageCallIds,
 	ReadToolGroupComponent,
 	readArgsCollapseIntoGroup,
-} from "@oh-my-pi/pi-tui/chat/read-tool-group";
-import { ReplyWriteComponent, replyDisplayMessage, toolResultReplies } from "@oh-my-pi/pi-tui/chat/reply-write";
-import { SkillMessageComponent } from "@oh-my-pi/pi-tui/chat/skill-message";
-import { StrippedToolCallsPlaceholder } from "@oh-my-pi/pi-tui/chat/stripped-tool-calls-placeholder";
-import { imageContent, textContent } from "@oh-my-pi/pi-tui/chat/transcript-entry";
-import { messageBlock, PresentedBlock } from "@oh-my-pi/pi-tui/chat/transcript-presentation";
-import { ToolActivityContainer } from "@oh-my-pi/pi-tui/chrome/tool-activity";
+} from "@linxiraos/pi-tui/chat/read-tool-group";
+import { ReplyWriteComponent, replyDisplayMessage, toolResultReplies } from "@linxiraos/pi-tui/chat/reply-write";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
+import { imageContent, textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
+import { messageBlock, PresentedBlock } from "@linxiraos/pi-tui/chat/transcript-presentation";
+import { ToolActivityContainer } from "@linxiraos/pi-tui/chrome/tool-activity";
 import {
 	isSettledJobFrame,
 	parksAsBackground,
@@ -53,21 +51,21 @@ import {
 	ToolExecutionComponent,
 	type ToolExecutionHandle,
 	toolRenderName,
-} from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { noticeRow, TranscriptNotice } from "@oh-my-pi/pi-tui/chrome/transcript-notice";
-import { span } from "@oh-my-pi/pi-tui/native/describe";
-import { createUsageRowBlock, turnElapsedMs } from "@oh-my-pi/pi-tui/overlays/usage-row";
-import { UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
+} from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { noticeRow, TranscriptNotice } from "@linxiraos/pi-tui/chrome/transcript-notice";
+import { span } from "@linxiraos/pi-tui/native/describe";
+import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
 import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
 import { createToolCallBlock } from "../../modes/controllers/tool-call-block";
 import {
 	materializeImageReferenceLinks,
 	materializeImageReferenceLinksSync,
-} from "@oh-my-pi/pi-tui/prompt/image-references";
-import { normalizeBlobExtension } from "@oh-my-pi/pi-tui/prompt/image-format";
-import { imageAttachmentSource } from "@oh-my-pi/pi-tui/prompt/image-source";
-import { theme } from "@oh-my-pi/pi-tui/theme";
+} from "@linxiraos/pi-tui/prompt/image-references";
+import { normalizeBlobExtension } from "@linxiraos/pi-tui/prompt/image-format";
+import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
+import { theme } from "@linxiraos/pi-tui/theme";
 import type {
 	CompactionQueuedMessage,
 	InteractiveModeContext,
@@ -76,7 +74,6 @@ import type {
 	ShowStatusOptions,
 } from "../../modes/types";
 import { extractVisibleAssistantText } from "../rpc/rpc-live";
-import { ASYNC_NOTIFY_MESSAGE_TYPE } from "@oh-my-pi/pi-tui/chat/messages";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
 import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
@@ -90,16 +87,20 @@ import type { SessionContext, StrippedToolCallsMarker } from "../../session/sess
 import { listSessionRecaps } from "../../session/session-index";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { parseSlashCommand } from "../../slash-commands/helpers/parse";
-import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
+import {
+	buildSkillCommandPrompt,
+	invokeSkillCommandFromText,
+	isKnownSkillCommand,
+	type SkillCommandHost,
+} from "../skill-command";
 import {
 	createAssistantMessageComponent,
 	getAssistantMessageLinkTargets,
 	refreshAssistantMessageLinkTargets,
-} from "@oh-my-pi/pi-tui/prompt/interactive-context-helpers";
+} from "@linxiraos/pi-tui/prompt/interactive-context-helpers";
 import {
 	assistantHasVisibleContent,
 	assistantUsageIsBilled,
-	buildAsyncNotifyBlock,
 	buildAsyncResultComponent,
 	buildFileMentionBlock,
 	buildIrcMessageCard,
@@ -108,7 +109,7 @@ import {
 	normalizeToolArgs,
 	resolveAssistantErrorPresentation,
 	splitAssistantMessageToolTimeline,
-} from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
+} from "@linxiraos/pi-tui/chat/transcript-render-helpers";
 
 import {
 	cfgComposerRecallClearedDrafts,
@@ -122,6 +123,98 @@ import { cfgReadToolResultPreview } from "../../tools/settings";
 
 const TRANSCRIPT_RENDER_CHUNK_MESSAGES = 32;
 const TRANSCRIPT_RENDER_CHUNK_MS = 8;
+/**
+ * Fresh resumes replay only the newest slice of a large transcript. Component
+ * construction and the first full paint are linear in rendered text, so a
+ * 30–100 MB session spent seconds building rows the user had already scrolled
+ * past. The session itself is untouched: model context still contains every
+ * message, and `/export` writes the full transcript. Older display rows are
+ * intentionally not hydrated into terminal scrollback, which cannot be
+ * prepended to after the fact.
+ */
+export const TRANSCRIPT_REPLAY_MAX_MESSAGES = 400;
+export const TRANSCRIPT_REPLAY_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Display bytes a message contributes, without serializing tool arguments. */
+function approximateMessageDisplayBytes(message: AgentMessage): number {
+	let bytes = 64;
+	if (!("content" in message)) return bytes;
+	const content = message.content;
+	if (typeof content === "string") return bytes + content.length;
+	if (!Array.isArray(content)) return bytes;
+	for (const block of content) {
+		if (typeof block !== "object" || block === null) continue;
+		if ("text" in block && typeof block.text === "string") {
+			bytes += block.text.length;
+			continue;
+		}
+		if ("thinking" in block && typeof block.thinking === "string") bytes += block.thinking.length;
+	}
+	return bytes;
+}
+
+/**
+ * Tail window of a display transcript for a fresh replay. Starts at a user
+ * turn so a tool result never opens the transcript without its call. Returns
+ * the context unchanged when it already fits both caps.
+ */
+export function windowTranscriptReplay(
+	context: SessionContext,
+	maxMessages: number = TRANSCRIPT_REPLAY_MAX_MESSAGES,
+	maxBytes: number = TRANSCRIPT_REPLAY_MAX_BYTES,
+): { context: SessionContext; hiddenMessages: number } {
+	const messages = context.messages;
+	if (messages.length <= 1 || maxMessages <= 0 || maxBytes <= 0) {
+		return { context, hiddenMessages: 0 };
+	}
+	let start = messages.length;
+	let bytes = 0;
+	for (let i = messages.length - 1; i >= 0; i--) {
+		bytes += approximateMessageDisplayBytes(messages[i]!);
+		start = i;
+		if (messages.length - i >= maxMessages || bytes >= maxBytes) break;
+	}
+	if (start === 0) return { context, hiddenMessages: 0 };
+	// Prefer a user turn, but do not let one far ahead shrink the window to a
+	// handful of rows; an assistant turn is also a safe opening.
+	const USER_BOUNDARY_LOOKAHEAD = 32;
+	let userBoundary = start;
+	while (userBoundary < messages.length && messages[userBoundary]!.role !== "user") userBoundary++;
+	let boundary: number;
+	if (userBoundary < messages.length && userBoundary - start <= USER_BOUNDARY_LOOKAHEAD) {
+		boundary = userBoundary;
+	} else {
+		boundary = start;
+		while (
+			boundary < messages.length &&
+			messages[boundary]!.role !== "user" &&
+			messages[boundary]!.role !== "assistant"
+		) {
+			boundary++;
+		}
+		if (boundary >= messages.length) {
+			boundary = start;
+			while (boundary > 0 && messages[boundary]!.role !== "user" && messages[boundary]!.role !== "assistant") {
+				boundary--;
+			}
+			if (messages[boundary]?.role !== "user" && messages[boundary]?.role !== "assistant") boundary = start;
+		}
+	}
+	start = boundary;
+	if (start <= 0) return { context, hiddenMessages: 0 };
+	return {
+		context: {
+			...context,
+			messages: messages.slice(start),
+			// The window starts mid-conversation, so the previous-model/pending-reset
+			// state that classifies the first assistant turn is gone. Marking every
+			// retained turn explained suppresses a false cache-miss marker rather
+			// than guessing from a truncated prefix.
+			cacheMissExplainedAt: context.cacheMissExplainedAt ? messages.slice(start).map(() => true) : undefined,
+		},
+		hiddenMessages: start,
+	};
+}
 /**
  * Upper bound on full-transcript replay restarts inside
  * {@link UiHelpers.renderInitialMessages}. Each restart discards the staged
@@ -351,17 +444,6 @@ export class UiHelpers {
 					if (message.customType === LAUNCH_COMPLETION_MESSAGE_TYPE) {
 						const component = new PresentedBlock(buildLaunchCompletionBlock(message), messageBlock(message));
 						component.setExpanded(this.ctx.toolOutputExpanded);
-						this.ctx.chatContainer.addChild(component);
-						break;
-					}
-					if (message.customType === ASYNC_NOTIFY_MESSAGE_TYPE) {
-						const component = new PresentedBlock(buildAsyncNotifyBlock(message), messageBlock(message));
-						component.setExpanded(this.ctx.toolOutputExpanded);
-						this.ctx.chatContainer.addChild(component);
-						break;
-					}
-					if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
-						const component = new CollabPromptMessageComponent(message as CustomMessage<CollabPromptDetails>);
 						this.ctx.chatContainer.addChild(component);
 						break;
 					}
@@ -1156,6 +1238,16 @@ export class UiHelpers {
 			keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
 		});
 		let replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
+		// A fresh transcript (startup resume, session switch, /tree navigation)
+		// may be arbitrarily large; a mid-session rebuild must keep the rows
+		// already on screen, so only the fresh path takes the display window.
+		const windowTranscript =
+			options.limitTranscript !== false &&
+			(options.clearTerminalHistory === true || !this.#chatRenderedBeforeReplay) &&
+			!this.ctx.viewSession.isStreaming;
+		const applyReplayWindow = (source: SessionContext) =>
+			windowTranscript ? windowTranscriptReplay(source) : { context: source, hiddenMessages: 0 };
+		let windowed = applyReplayWindow(context);
 
 		// Build against a detached container. Incremental construction still yields
 		// to terminal input, while paints keep using the complete visible transcript
@@ -1179,7 +1271,7 @@ export class UiHelpers {
 			// Resolve before replacing live component maps: streaming events may arrive during filesystem I/O.
 			await refreshAssistantMessageLinkTargets(
 				this.ctx,
-				context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
+				windowed.context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
 			);
 			if (generation !== this.#replayGeneration) return;
 
@@ -1193,14 +1285,24 @@ export class UiHelpers {
 			this.ctx.updatePendingMessagesDisplay();
 			this.ctx.pendingBashComponents = [];
 			this.ctx.pendingPythonComponents = [];
+			const addReplayWindowNotice = () => {
+				if (windowed.hiddenMessages === 0) return;
+				stagedChatContainer.addChild(
+					TranscriptNotice.line(
+						"warning",
+						`Showing the latest ${windowed.context.messages.length} of ${context.messages.length} messages for fast resume. Older messages remain in the session and in the model context; use /export for the full transcript.`,
+					),
+				);
+			};
+			addReplayWindowNotice();
 			while (true) {
 				const passRendererSetVersion = this.#textRendererSetVersion;
 				if (this.ctx.viewSession.isStreaming) {
 					// Live events mutate the same component maps; keep their replay atomic so
 					// a delta cannot land halfway through rebuilding its pending tool block.
-					this.ctx.renderSessionContext(context, renderOptions);
+					this.ctx.renderSessionContext(windowed.context, renderOptions);
 				} else {
-					await this.ctx.renderSessionContextIncrementally(context, renderOptions);
+					await this.ctx.renderSessionContextIncrementally(windowed.context, renderOptions);
 				}
 				if (generation !== this.#replayGeneration) return;
 				const entriesChanged = this.ctx.viewSession.sessionManager.getEntries().length !== replayEntryCount;
@@ -1227,10 +1329,11 @@ export class UiHelpers {
 					collapseCompactedHistory: cfgDisplayCollapseCompacted.get(settings),
 					keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
 				});
+				windowed = applyReplayWindow(context);
 				replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
 				await refreshAssistantMessageLinkTargets(
 					this.ctx,
-					context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
+					windowed.context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
 				);
 				if (generation !== this.#replayGeneration) return;
 				stagedChatContainer.disposeChildren();
@@ -1238,6 +1341,7 @@ export class UiHelpers {
 				this.ctx.pendingTools.clear();
 				this.ctx.pendingBashComponents = [];
 				this.ctx.pendingPythonComponents = [];
+				addReplayWindowNotice();
 			}
 
 			const replayedChatChildren = [...stagedChatContainer.children];
@@ -1315,7 +1419,7 @@ export class UiHelpers {
 	showNewVersionNotification(newVersion: string): void {
 		const title = "Update Available";
 		const prefix = `New version ${newVersion} is available. Run: `;
-		const command = "omp update";
+		const command = `${CLI_BIN_NAME} update`;
 		const native = noticeRow(
 			"info",
 			[
@@ -1339,7 +1443,10 @@ export class UiHelpers {
 
 	updatePendingMessagesDisplay(): void {
 		this.ctx.pendingMessagesContainer.disposeChildren();
-		const queuedMessages = this.ctx.viewSession.getQueuedMessages() as QueuedMessages;
+		// A backend-owned queue only exists on the server; the replica's session
+		// queue is always empty. Render the mirrored snapshot when attached so the
+		// chips, dequeue affordance and counts match what will actually run.
+		const queuedMessages = (this.ctx.backendQueue ?? this.ctx.viewSession.getQueuedMessages()) as QueuedMessages;
 
 		const steeringMessages = [...queuedMessages.steering];
 		const followUpMessages = [...queuedMessages.followUp];
@@ -1412,7 +1519,7 @@ export class UiHelpers {
 			return;
 		}
 		if (
-			await invokeSkillCommandFromText(this.ctx, message.text, message.mode, {
+			await invokeSkillCommandFromText(this.ctx as unknown as SkillCommandHost, message.text, message.mode, {
 				propagateErrors: true,
 				queueOnly: true,
 				images: message.images,
@@ -1601,7 +1708,7 @@ export class UiHelpers {
 			// are rebuilt as user-attributed custom messages so queued `/skill:` text
 			// is not sent as a literal prompt after compaction.
 			let promptPromise: Promise<unknown>;
-			if (isKnownSkillCommand(this.ctx, first.text)) {
+			if (isKnownSkillCommand(this.ctx as unknown as SkillCommandHost, first.text)) {
 				const built = await buildSkillCommandPrompt(this.ctx, first.text, first.mode, first.images);
 				promptPromise = built
 					? this.ctx.session

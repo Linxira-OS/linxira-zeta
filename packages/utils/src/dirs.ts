@@ -14,19 +14,34 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { expandWindowsLongPath } from "@oh-my-pi/pi-natives/path";
+import { expandWindowsLongPath } from "@linxiraos/pi-natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 import { isBunTestRuntime } from "./test-runtime";
 
-/** App name (e.g. "omp") */
-export const APP_NAME: string = "omp";
+/** App name (e.g. "zeta") — product-level identity: config-dir root, log file
+ * names, provider attribution headers, splash wordmark. NOT the CLI command. */
+export const APP_NAME: string = "zeta";
 
-/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit omp traffic to. */
-export const APP_URL: string = "https://omp.sh/";
+/** Read `primary`, falling back to the pre-rename `legacy` spelling. */
+function readAliasedEnv(primary: string, legacy: string): string | undefined {
+	const value = process.env[primary]?.trim();
+	if (value) return value;
+	return process.env[legacy]?.trim() || undefined;
+}
 
-/** Config directory name (e.g. ".omp") */
-export const CONFIG_DIR_NAME: string = ".omp";
+/** CLI binary name (`npm i -g @linxiraos/zeta` installs exactly one bin,
+ * `zetacode` — the retired `zeta-c`/`zeta-cli` aliases are gone). Every
+ * user-facing "run this command" string and process title uses this; the
+ * bare `zeta` name belongs to the @linxiraos/main workbench product, where it
+ * prints the suite index, not this package. */
+export const CLI_BIN_NAME: string = "zetacode";
+
+/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit our traffic to. */
+export const APP_URL: string = "https://linxira-os.github.io/zeta/";
+
+/** Config directory name (e.g. ".zeta") */
+export const CONFIG_DIR_NAME: string = ".zeta";
 
 /** Ordered main settings filenames: canonical write target first, legacy-compatible YAML fallback second. */
 export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
@@ -34,8 +49,8 @@ export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
 /** Version (e.g. "1.0.0") */
 export const VERSION: string = version;
 
-/** Default User-Agent header string (e.g. "omp/17.2.12") */
-export const USER_AGENT = `omp/${VERSION}`;
+/** Default User-Agent header string (e.g. "zeta/17.2.12") */
+export const USER_AGENT = `zeta/${VERSION}`;
 
 /** Minimum Bun version */
 export const MIN_BUN_VERSION: string = engines.bun.replace(/[^0-9.]/g, "");
@@ -58,7 +73,7 @@ const WINDOWS_RESERVED_BASENAME_RE = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(?:\
  * default (empty string, whitespace, or the explicit "default" sentinel) and
  * throws for syntactically invalid or platform-reserved names.
  *
- * Exported so consumers of `@oh-my-pi/pi-utils/dirs` (CLI bootstrap, tests,
+ * Exported so consumers of `@linxiraos/pi-utils/dirs` (CLI bootstrap, tests,
  * downstream tools) can validate user input without re-deriving the rules.
  */
 export function normalizeProfileName(profile: string | undefined): string | undefined {
@@ -1237,14 +1252,15 @@ let cachedInstallId: string | null = null;
 
 const INSTALL_ID_FILE = "install-id";
 /**
- * Application label for usage attribution (`OMP_APP_NAME`), defaulting to
- * `omp`. Embedders that drive omp programmatically (robomp, CI bots, …) set
- * the env var so broker-side per-client burn tracking can answer "what did
- * app X use" instead of folding everything into one install-wide bucket.
+ * Application label for usage attribution (`ZETA_APP_NAME`, with
+ * `OMP_APP_NAME` kept as a read alias), defaulting to `zeta`. Embedders that
+ * drive zeta programmatically (robomp, CI bots, …) set the env var so
+ * broker-side per-client burn tracking can answer "what did app X use"
+ * instead of folding everything into one install-wide bucket.
  */
 export function getAppName(): string {
-	const value = process.env.OMP_APP_NAME?.trim();
-	return value ? value : "omp";
+	const value = readAliasedEnv("ZETA_APP_NAME", "OMP_APP_NAME");
+	return value ? value : "zeta";
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

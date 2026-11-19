@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { FencedThinkingScanner } from "@oh-my-pi/pi-ai/dialect/fenced-thinking";
+import { FencedThinkingScanner } from "@linxiraos/pi-ai/dialect/fenced-thinking";
 
 interface Scan {
 	thinking: string;

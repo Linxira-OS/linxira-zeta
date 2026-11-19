@@ -11,31 +11,31 @@
  * counter) and memoises each card's node by its face, so an unchanged card is
  * the same node reference and the reconciler skips it.
  */
-import type { TspProps, TspTrayMain, TspTrayStatus } from "@oh-my-pi/pi-wire";
-import type { Component } from "@oh-my-pi/pi-tui";
-import { compact, keyed, keyNames, node, span, stableKey } from "@oh-my-pi/pi-tui/native/describe";
-import { sameItems, sameProps } from "@oh-my-pi/pi-tui/native/memo";
-import type { NativeChild, NativeNode, NativeUiEvent } from "@oh-my-pi/pi-tui/native/node";
-import { formatCost, modelChip } from "@oh-my-pi/pi-tui/overlays/agent-hub-renderer";
-import { type AgentRecordLike, MAIN_AGENT_ID } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
-import { stripInlineMarkdown } from "@oh-my-pi/pi-tui/overlays/plan-toc";
-import type { ObservableSession } from "@oh-my-pi/pi-tui/overlays/session-observer-registry";
+import type { TspProps, TspTrayMain, TspTrayStatus } from "@linxiraos/pi-wire";
+import type { Component } from "@linxiraos/pi-tui";
+import { compact, keyed, keyNames, node, span, stableKey } from "@linxiraos/pi-tui/native/describe";
+import { sameItems, sameProps } from "@linxiraos/pi-tui/native/memo";
+import type { NativeChild, NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
+import { formatCost, modelChip } from "@linxiraos/pi-tui/overlays/agent-hub-renderer";
+import { type AgentRecordLike, MAIN_AGENT_ID } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import { stripInlineMarkdown } from "@linxiraos/pi-tui/overlays/plan-toc";
+import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import {
 	previewLine,
 	replaceTabs,
 	shortenEmbeddedPaths,
 	shortenToolArgumentPaths,
 	TRUNCATE_LENGTHS,
-} from "@oh-my-pi/pi-tui/render/render-utils";
+} from "@linxiraos/pi-tui/render/render-utils";
 import {
 	describeJobWidget,
 	describeJobWidgetMiniSpark,
 	type JobWidgetView,
 	jobWidgetGlance,
 	jobWidgetGlanceSpans,
-} from "@oh-my-pi/pi-tui/tools/job-widget";
-import type { AgentProgress } from "@oh-my-pi/pi-tui/tools/task";
-import { formatCount, formatDuration, formatNumber, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/tools/job-widget";
+import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import { formatCount, formatDuration, formatNumber, sanitizeText } from "@linxiraos/pi-utils";
 import type { AsyncJob, AsyncJobManagerApi } from "../async";
 import { agentRunOf } from "../async/job-control";
 import type { IrcBusApi } from "../irc/bus";

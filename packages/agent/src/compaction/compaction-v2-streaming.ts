@@ -7,28 +7,28 @@
  * compaction item as replacement history.
  */
 
-import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createOpenAICodexCompactionRequestContext } from "@oh-my-pi/pi-ai/providers/openai-codex-compaction";
+import type { Api, CodexCompactionContext, FetchImpl, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import {
 	applyCodexResponsesLiteShape,
 	moveCodexInstructionsToInput,
 	withCodexRoutingFieldsFirst,
-} from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+} from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import type {
 	OpenAICodexCompactionBody,
 	OpenAICodexCompatibilityMetadata,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	getOpenAIPromptCacheKey,
 	getOpenAIResponsesRoutingSessionId,
 	parseAzureDeploymentNameMap,
 	resolveOpenAIRequestSetup,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { captureOpenAIHttpError } from "@oh-my-pi/pi-ai/utils/openai-http";
-import { withResolvedHeaders } from "@oh-my-pi/pi-ai/utils/model-headers";
-import type { CatalogPolicyInputs } from "@oh-my-pi/pi-catalog/types";
-import { isBedrockOpenAIUrl } from "@oh-my-pi/pi-catalog/hosts";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { captureOpenAIHttpError } from "@linxiraos/pi-ai/utils/openai-http";
+import { withResolvedHeaders } from "@linxiraos/pi-ai/utils/model-headers";
+import type { CatalogPolicyInputs } from "@linxiraos/pi-catalog/types";
+import { isBedrockOpenAIUrl } from "@linxiraos/pi-catalog/hosts";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -36,8 +36,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { $env, isUnexpectedSocketCloseMessage, logger, ptree, stringifyJson, toError } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { $env, isUnexpectedSocketCloseMessage, logger, ptree, stringifyJson, toError } from "@linxiraos/pi-utils";
 import { appendAzureApiVersion, resolveAzureOpenAiBaseUrl } from "./azure-openai-endpoint";
 import { prepareBedrockCompactionRequest } from "./bedrock";
 
@@ -306,7 +306,7 @@ export async function requestCompactionV2Streaming(
 	if (isCodexResponses && !shouldUseCodexProviderTransport(model)) {
 		// Metadata generation is request work; importing compaction policy must not load the Codex transport.
 		const { createOpenAICodexCompatibilityMetadata } =
-			await import("@oh-my-pi/pi-ai/providers/openai-codex-responses");
+			await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 		codexMetadata = createOpenAICodexCompatibilityMetadata({
 			sessionId: request.sessionId,
 			providerSessionState: options?.providerSessionState,
@@ -382,7 +382,7 @@ async function attemptCompactionV2Streaming(
 
 	if (shouldUseCodexProviderTransport(model)) {
 		// The native transport is only needed when sending a Codex compaction request.
-		const { openCodexCompactionEventStream } = await import("@oh-my-pi/pi-ai/providers/openai-codex-responses");
+		const { openCodexCompactionEventStream } = await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 		const eventStream = await openCodexCompactionEventStream(model, body, {
 			apiKey,
 			signal,

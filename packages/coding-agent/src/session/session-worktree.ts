@@ -1,9 +1,9 @@
 /** Session relocation and exit policy for worktrees created by `/wt`. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
-import { logger } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { SettingValueOf } from "../config/registry";
 import type { Settings } from "../config/settings";
 import { cfgWorktreeCleanSource, type cfgWorktreeOnExit } from "../task/settings";

@@ -3,7 +3,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
+import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 
 type Mode =
 	| "all"
@@ -160,7 +160,7 @@ const codingAgentRuntimePathPatterns = [
 ];
 
 const codingAgentNativeContentMarkers = [
-	"@oh-my-pi/pi-natives",
+	"@linxiraos/pi-natives",
 	"pi-natives",
 	"native",
 	"readImageMetadata",
@@ -196,7 +196,7 @@ const codingAgentSingletonContentPatterns = [
 ];
 
 const codingAgentUiContentMarkers = [
-	"@oh-my-pi/pi-tui",
+	"@linxiraos/pi-tui",
 	"InteractiveMode",
 	"InputController",
 	"StatusLine",

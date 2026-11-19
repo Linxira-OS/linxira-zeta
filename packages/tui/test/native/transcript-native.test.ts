@@ -1,42 +1,42 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { createCompactionSummaryMessage, createCustomMessage } from "@oh-my-pi/pi-agent-core/compaction/messages";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { createAdvisorMessageCard } from "@oh-my-pi/pi-tui/chat/advisor-message";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { ChatTranscriptBuilder } from "@oh-my-pi/pi-tui/chat/chat-transcript-builder";
-import { CompactionSummaryMessageComponent } from "@oh-my-pi/pi-tui/chat/compaction-summary-message";
-import { CustomMessageComponent } from "@oh-my-pi/pi-tui/chat/custom-message";
-import { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
-import { LateDiagnosticsMessageComponent } from "@oh-my-pi/pi-tui/chat/late-diagnostics-message";
-import { SkillMessageComponent } from "@oh-my-pi/pi-tui/chat/skill-message";
-import { StrippedToolCallsPlaceholder } from "@oh-my-pi/pi-tui/chat/stripped-tool-calls-placeholder";
-import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { setInternalUrlSchemeHost } from "@oh-my-pi/pi-tui/tools/url-scheme-host";
-import type { TranscriptEntryLike } from "@oh-my-pi/pi-tui/chat/transcript-entry";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { createCompactionSummaryMessage, createCustomMessage } from "@linxiraos/pi-agent-core/compaction/messages";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { ChatTranscriptBuilder } from "@linxiraos/pi-tui/chat/chat-transcript-builder";
+import { CompactionSummaryMessageComponent } from "@linxiraos/pi-tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@linxiraos/pi-tui/chat/custom-message";
+import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
+import { LateDiagnosticsMessageComponent } from "@linxiraos/pi-tui/chat/late-diagnostics-message";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
+import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { setInternalUrlSchemeHost } from "@linxiraos/pi-tui/tools/url-scheme-host";
+import type { TranscriptEntryLike } from "@linxiraos/pi-tui/chat/transcript-entry";
 import {
 	buildAsyncNotifyBlock,
 	buildAsyncResultBlock,
 	buildFileMentionBlock,
-} from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
-import { TodoReminderComponent } from "@oh-my-pi/pi-tui/chat/todo-reminder";
-import { TtsrNotificationComponent } from "@oh-my-pi/pi-tui/chat/ttsr-notification";
-import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
-import { card, node, text } from "@oh-my-pi/pi-tui/native/describe";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
+} from "@linxiraos/pi-tui/chat/transcript-render-helpers";
+import { TodoReminderComponent } from "@linxiraos/pi-tui/chat/todo-reminder";
+import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
+import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
+import { card, node, text } from "@linxiraos/pi-tui/native/describe";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
 import {
 	messageBlock,
 	onTranscriptPresentationRedrawn,
 	PresentedBlock,
 	presentNative,
 	setTranscriptPresenters,
-} from "@oh-my-pi/pi-tui/chat/transcript-presentation";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import type { TspNode, TspOp } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui/chat/transcript-presentation";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import type { TspNode, TspOp } from "@linxiraos/pi-wire";
 import { TspHarness } from "./tsp-harness";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { Container } from "@oh-my-pi/pi-tui/tui";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { Container } from "@linxiraos/pi-tui/tui";
 
 beforeAll(async () => {
 	await initTheme(false);

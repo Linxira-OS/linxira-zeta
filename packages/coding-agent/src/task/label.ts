@@ -1,7 +1,7 @@
 /**
  * Tiny-model UI labels for spawned subagents.
  */
-import { logger, prompt } from "@oh-my-pi/pi-utils";
+import { logger, prompt } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveModelOverride } from "../config/model-resolver";

@@ -1,4 +1,4 @@
-import type { TspText } from "@oh-my-pi/pi-wire";
+import type { TspText } from "@linxiraos/pi-wire";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
 import { col, node, text } from "../native/describe";

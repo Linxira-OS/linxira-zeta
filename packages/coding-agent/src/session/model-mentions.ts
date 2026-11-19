@@ -1,6 +1,6 @@
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { isRecord, prompt } from "@oh-my-pi/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { isRecord, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import modelMentionDescription from "../prompts/agents/model-mention.md" with { type: "text" };
@@ -13,8 +13,8 @@ import {
 	modelMentionName,
 	modelMentionTag,
 	resolveModelMentionToken,
-} from "@oh-my-pi/pi-tui/prompt/model-mention-syntax";
-import { AUTO_THINKING, parseEffort } from "@oh-my-pi/pi-tui/thinking";
+} from "@linxiraos/pi-tui/prompt/model-mention-syntax";
+import { AUTO_THINKING, parseEffort } from "@linxiraos/pi-tui/thinking";
 import type { SessionEntry } from "./session-entries";
 import type { SessionManager } from "./session-manager";
 

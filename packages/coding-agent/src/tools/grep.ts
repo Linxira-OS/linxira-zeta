@@ -1,9 +1,9 @@
-import type { GrepToolDetails } from "@oh-my-pi/pi-tui/tools/grep";
+import type { GrepToolDetails } from "@linxiraos/pi-tui/tools/grep";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import {
 	type EditStore,
 	type GrepMatch,
@@ -11,15 +11,15 @@ import {
 	type GrepResult,
 	grep,
 	notebookToEditableText,
-} from "@oh-my-pi/pi-natives";
-import { prompt, sanitizeText, untilAborted } from "@oh-my-pi/pi-utils";
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+} from "@linxiraos/pi-natives";
+import { prompt, sanitizeText, untilAborted } from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	type ArchiveReader,
 	type ExtractedArchiveFile,
 	openArchive,
 	parseArchivePathCandidates,
-} from "@oh-my-pi/pi-utils/ar";
+} from "@linxiraos/pi-utils/ar";
 import { normalizeToLF } from "../edit/normalize";
 import { getEditStore, NO_FULL_LINE, recordFullySeenRows } from "../edit/store";
 import { sessionResolveContext } from "../internal-urls/context";
@@ -31,7 +31,7 @@ import {
 	DEFAULT_MAX_COLUMN,
 	type TruncationResult,
 	truncateHead,
-} from "@oh-my-pi/pi-tui/tools/streaming-output";
+} from "@linxiraos/pi-tui/tools/streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { isScoutSpawnable } from "../task/spawn-policy";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
@@ -39,8 +39,8 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { type FileMatchSection, formatFileMatches } from "@oh-my-pi/pi-tui/tools/grouped-file-output";
-import { formatMatchLine } from "@oh-my-pi/pi-tui/tools/match-line-format";
+import { type FileMatchSection, formatFileMatches } from "@linxiraos/pi-tui/tools/grouped-file-output";
+import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
 import { isFindEnabled } from "./jfind";
 import {
 	expandDelimitedPathEntries,
@@ -66,12 +66,12 @@ import {
 	approvalRootCandidates,
 	searchApprovalCacheTargets,
 } from "./search-approval-targets";
-import { type LineRange, parseLineRanges, selectorLineRanges } from "@oh-my-pi/pi-tui/tools/line-ranges";
-import { isReadableUrlPath, splitPathAndSel } from "@oh-my-pi/pi-tui/tools/read";
-import { toPathList } from "@oh-my-pi/pi-tui/render/render-utils";
+import { type LineRange, parseLineRanges, selectorLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
+import { isReadableUrlPath, splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { formatCodeFrameLine } from "@oh-my-pi/pi-tui/render/render-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { formatCodeFrameLine } from "@linxiraos/pi-tui/render/render-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";

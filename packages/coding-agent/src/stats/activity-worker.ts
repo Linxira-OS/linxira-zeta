@@ -7,9 +7,9 @@
  * the worker once `done` arrives.
  */
 import { parentPort } from "node:worker_threads";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { getDailyActivity } from "@oh-my-pi/omp-stats/db";
-import { consumeWorkerInbox } from "@oh-my-pi/pi-utils/worker-host";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { getDailyActivity } from "@linxiraos/pi-stats/db";
+import { consumeWorkerInbox } from "@linxiraos/pi-utils/worker-host";
 import type { StatsActivityWorkerInbound, StatsActivityWorkerOutbound } from "./activity-protocol";
 
 if (!parentPort) throw new Error("stats activity worker: missing parentPort");

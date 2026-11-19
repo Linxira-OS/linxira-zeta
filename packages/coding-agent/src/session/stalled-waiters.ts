@@ -4,7 +4,7 @@
  * agent that promised another a later reply, or whose subagent waits for its
  * next message, would otherwise leave the waiter blocked until someone notices.
  */
-import { formatDuration, prompt } from "@oh-my-pi/pi-utils";
+import { formatDuration, prompt } from "@linxiraos/pi-utils";
 import { IrcBus, type IrcBusApi } from "../irc/bus";
 import stalledWaitersTemplate from "../prompts/system/stalled-waiters.md" with { type: "text" };
 import type { AgentRegistryApi } from "../registry/agent-registry";

@@ -23,6 +23,6 @@ export function isNativeShell(word: string | undefined): word is string {
  */
 export async function runNativeShell(argv: string[]): Promise<never> {
 	// Command boundary: only the shell path loads the native addon here.
-	const { runShellMain } = await import("@oh-my-pi/pi-natives");
+	const { runShellMain } = await import("@linxiraos/pi-natives");
 	process.exit(runShellMain(argv));
 }

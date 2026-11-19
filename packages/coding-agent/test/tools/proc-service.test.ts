@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { adaptSchemaForStrict, isJsonSchemaValueValid, toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { procmgr } from "@oh-my-pi/pi-utils";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { adaptSchemaForStrict, isJsonSchemaValueValid, toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { procmgr } from "@linxiraos/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "../../src/config/settings";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { ProcProtocolHandler } from "../../src/internal-urls/proc-protocol";
@@ -15,7 +15,7 @@ import { BashTool } from "../../src/tools/bash";
 import { WriteTool } from "../../src/tools/write";
 import { sharedBrowserDaemonName } from "../../src/tools/browser/shared-daemon";
 import type { ToolSession } from "../../src/tools";
-import type { UnitSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
+import type { UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 
 /** A `proc` unit in the current project with the given board fields. */
 function serviceUnit(key: string, fields: Partial<UnitSnapshot> = {}): UnitSnapshot {

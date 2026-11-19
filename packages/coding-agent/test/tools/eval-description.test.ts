@@ -1,20 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { Tool as AiTool } from "@oh-my-pi/pi-ai";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { JsRuntime, type RuntimeHooks } from "@oh-my-pi/pi-coding-agent/eval/js/shared/runtime";
-import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool, getEvalToolDescription } from "@oh-my-pi/pi-coding-agent/tools/eval";
-import { getEvalDocTopics } from "@oh-my-pi/pi-coding-agent/tools/eval-doc-topics";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { Tool as AiTool } from "@linxiraos/pi-ai";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { JsRuntime, type RuntimeHooks } from "@linxiraos/zeta/eval/js/shared/runtime";
+import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool, getEvalToolDescription } from "@linxiraos/zeta/tools/eval";
+import { getEvalDocTopics } from "@linxiraos/zeta/tools/eval-doc-topics";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgEvalPy } from "@oh-my-pi/pi-coding-agent/eval/settings";
-import { cfgTaskMaxRecursionDepth } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgEvalPy } from "@linxiraos/zeta/eval/settings";
+import { cfgTaskMaxRecursionDepth } from "@linxiraos/zeta/task/settings";
 
 function makeSession(opts: {
 	spawns?: string | null;

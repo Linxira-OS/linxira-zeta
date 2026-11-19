@@ -1,11 +1,11 @@
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	type AgentTool,
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
 	TOOL_INTERRUPT_ABORT_REASON,
-} from "@oh-my-pi/pi-agent-core";
-import { formatDuration, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { formatDuration, prompt } from "@linxiraos/pi-utils";
 import { IrcBus } from "../irc/bus";
 import { agentMesh } from "../irc/mesh";
 import { parsePeerAddress } from "../irc/mesh-protocol";
@@ -19,8 +19,8 @@ import { USER_AWAIT_ID } from "../registry/agent-awaits";
 import type { AgentRegistryApi } from "../registry/agent-registry";
 import type { PromptCacheEntry } from "../session/cache-warmer";
 import { stalledWaiters } from "../session/stalled-waiters";
-import type { IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
-import type { CoordinationDetails } from "@oh-my-pi/pi-tui/tools/wait";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 import { throwIfAborted } from "./tool-errors";
 
 import { cfgLaunchEnabled } from "./settings";

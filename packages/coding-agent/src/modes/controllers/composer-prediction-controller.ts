@@ -1,10 +1,9 @@
-import { type AgentMessage, isExcludedFromContext } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { MeterProvider } from "@opentelemetry/api";
-import { logger, prompt, sanitizeText } from "@oh-my-pi/pi-utils";
+import { logger, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import composerPredictionPrompt from "../../prompts/system/composer-prediction-user.md" with { type: "text" };
 import type { AgentViewSession } from "../../session/agent-session-handle";
-import { completionRecord } from "../../session/model-usage-journal";
 import { isAdvisorCard } from "../../session/queued-messages";
 import { cfgComposerPredictionAlternatives, cfgComposerPredictions } from "../settings";
 import type { InteractiveModeContext } from "../types";
@@ -40,16 +39,13 @@ const LIST_MARKER = /^\s*(?:[-*•]|\d{1,2}[.)])\s+/;
 const NON_WORD = /[^\p{L}\p{N}]+/gu;
 
 /**
- * The message a prediction is keyed on: the last one that reaches the model and is not an advisor
- * card. Silent advisor notes and rows kept out of context (an extension's stats line sent with
- * `excludeFromContext`) land after the turn without changing what the user would reply to.
+ * The message a prediction is keyed on: the last one that is not an advisor card. Silent advisor
+ * notes land after the turn without changing what the user would reply to.
  */
-function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
+export function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
 	const messages = session.messages;
 	for (let i = messages.length - 1; i >= 0; i--) {
-		const message = messages[i];
-		if (isAdvisorCard(message) || isExcludedFromContext(message)) continue;
-		return message;
+		if (!isAdvisorCard(messages[i])) return messages[i];
 	}
 	return undefined;
 }
@@ -77,7 +73,10 @@ interface Prediction {
 	rank: number | undefined;
 }
 
-type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId" | "editor" | "ui">;
+type PredictionContext = Pick<InteractiveModeContext, "settings" | "viewSession" | "focusedAgentId"> & {
+	editor: Pick<InteractiveModeContext["editor"], "getText">;
+	ui: Pick<InteractiveModeContext["ui"], "requestRender">;
+};
 
 /**
  * Normalize a prediction reply to the single line the composer shows, or
@@ -283,10 +282,6 @@ export class ComposerPredictionController {
 					usage: message.usage,
 					stopReason: message.stopReason,
 					errorMessage: message.errorMessage,
-					duration: message.duration,
-					ttft: message.ttft,
-					// The prompt is a static template, so only the reply is kept.
-					completion: completionRecord(undefined, message),
 				},
 				{ sessionId: source.sessionId, parentId: source.leafId },
 			);

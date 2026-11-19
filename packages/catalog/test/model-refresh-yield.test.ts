@@ -1,19 +1,19 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { bypassCascadeMemoForTesting } from "@oh-my-pi/pi-catalog/compat/cascade";
-import { hasModelScopedEffortLadder, resolveModelPolicy } from "@oh-my-pi/pi-catalog/compat/resolve";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { bypassCascadeMemoForTesting } from "@linxiraos/pi-catalog/compat/cascade";
+import { hasModelScopedEffortLadder, resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import {
 	getModelCacheWriteStats,
 	type ModelCacheWriteOutcome,
 	readModelCache,
 	writeModelCache,
 	writeModelCacheAsync,
-} from "@oh-my-pi/pi-catalog/model-cache";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import type { Api, Model, ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/model-cache";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import type { Api, Model, ModelSpec } from "@linxiraos/pi-catalog/types";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const PROVIDER = "refresh-yield-test";

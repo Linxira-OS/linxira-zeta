@@ -23,7 +23,7 @@ import {
 	spillFileName,
 	spillUrl,
 	spillUrlIds,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 
 /**
  * Whether a custom entry marks its session as a Spotlight experiment session: pi's `spotlight:session` entry, which

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { VERSION } from "@oh-my-pi/pi-utils";
+import { VERSION } from "@linxiraos/pi-utils";
 import { daemonBuildId } from "../../src/daemon/build";
 import { compareDaemonBuilds, parseDaemonBuild } from "../../src/daemon/protocol";
 

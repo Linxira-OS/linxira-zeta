@@ -6,8 +6,8 @@
  * forwards `send`s to the recipient instance and its receipt back.
  * It holds no mailbox: an absent recipient fails the send at once.
  */
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
-import type { IrcDeliveryReceipt } from "@oh-my-pi/pi-tui/tools/irc";
+import { isRecord, logger } from "@linxiraos/pi-utils";
+import type { IrcDeliveryReceipt } from "@linxiraos/pi-tui/tools/irc";
 import {
 	AGENT_MESH_KIND,
 	AGENT_MESH_VERSION,

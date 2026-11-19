@@ -3,7 +3,7 @@ import * as https from "node:https";
 import * as stream from "node:stream";
 import * as tls from "node:tls";
 import * as zlib from "node:zlib";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { ConnectionLostBeforeResponseError } from "../error";
 import type { FetchImpl } from "../types";
 

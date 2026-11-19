@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { bifrostModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
+import { bifrostModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 async function discover(rows: Record<string, unknown>[]) {
 	const options = bifrostModelManagerOptions({

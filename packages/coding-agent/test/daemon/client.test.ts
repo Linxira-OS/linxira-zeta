@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { procmgr } from "@oh-my-pi/pi-utils";
+import { procmgr } from "@linxiraos/pi-utils";
 import { closeDaemonClient, daemonClient, probeDaemon } from "../../src/daemon/client";
 import { daemonTokenPath } from "../../src/daemon/paths";
 import {

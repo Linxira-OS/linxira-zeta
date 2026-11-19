@@ -1,9 +1,9 @@
-import { type AuthStorage, type OAuthAccess, withOAuthAccess } from "@oh-my-pi/pi-ai";
-import { getProxyForUrl, wrapFetchForProxy } from "@oh-my-pi/pi-ai/utils/proxy";
-import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADERS } from "@oh-my-pi/pi-catalog/wire/codex";
-import { getCodexClientVersion } from "@oh-my-pi/pi-catalog/wire/codex-version";
-import { LiveWebRtcPeer } from "@oh-my-pi/pi-natives";
-import { toError } from "@oh-my-pi/pi-utils";
+import { type AuthStorage, type OAuthAccess, withOAuthAccess } from "@linxiraos/pi-ai";
+import { getProxyForUrl, wrapFetchForProxy } from "@linxiraos/pi-ai/utils/proxy";
+import { CODEX_BASE_URL, getCodexAccountId, OPENAI_HEADERS } from "@linxiraos/pi-catalog/wire/codex";
+import { getCodexClientVersion } from "@linxiraos/pi-catalog/wire/codex-version";
+import { LiveWebRtcPeer } from "@linxiraos/pi-natives";
+import { toError } from "@linxiraos/pi-utils";
 import type { ScopeLike } from "../config/registry";
 import { resolveConfigValue } from "../config/resolve-config-value";
 import { generateCodexAttestation } from "./attestation";

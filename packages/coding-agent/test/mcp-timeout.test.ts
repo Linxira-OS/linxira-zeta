@@ -4,8 +4,8 @@ import {
 	isMCPTimeoutEnabled,
 	resolveMCPRequestDeadline,
 	resolveMCPTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/mcp/timeout";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/mcp/timeout";
+import { logger } from "@linxiraos/pi-utils";
 
 const ORIGINAL_TIMEOUT = process.env.OMP_MCP_TIMEOUT_MS;
 

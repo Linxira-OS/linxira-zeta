@@ -2,22 +2,18 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
-import type { SpeechRequest, SpeechResult } from "@oh-my-pi/pi-ai/speech";
-import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import {
-	ShellSpeechHost,
-	type ShellSpeechServices,
-	type ShellSpeechSession,
-} from "@oh-my-pi/pi-coding-agent/tts/shell-speech";
-import type { TtsStreamHandle, TtsStreamOptions } from "@oh-my-pi/pi-coding-agent/tts/tts-client";
-import type { VocalizerPlayer } from "@oh-my-pi/pi-coding-agent/tts/vocalizer";
-import { encodeWav } from "@oh-my-pi/pi-coding-agent/tts/wav";
-import { ShellSpeechOp } from "@oh-my-pi/pi-natives";
+import type { Model } from "@linxiraos/pi-ai";
+import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import type { SpeechRequest, SpeechResult } from "@linxiraos/pi-ai/speech";
+import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { ShellSpeechHost, type ShellSpeechServices, type ShellSpeechSession } from "@linxiraos/zeta/tts/shell-speech";
+import type { TtsStreamHandle, TtsStreamOptions } from "@linxiraos/zeta/tts/tts-client";
+import type { VocalizerPlayer } from "@linxiraos/zeta/tts/vocalizer";
+import { encodeWav } from "@linxiraos/zeta/tts/wav";
+import { ShellSpeechOp } from "@linxiraos/pi-natives";
 
 function requireModel(provider: GeneratedProvider, id: string): Model {
 	const model = getBundledModel(provider, id);

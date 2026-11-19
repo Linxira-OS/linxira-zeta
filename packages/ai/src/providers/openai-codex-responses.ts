@@ -1,7 +1,7 @@
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
+import { type } from "@linxiraos/zeta-schema";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -9,8 +9,8 @@ import {
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
-} from "@oh-my-pi/pi-catalog/wire/codex";
-import { getCodexClientVersion } from "@oh-my-pi/pi-catalog/wire/codex-version";
+} from "@linxiraos/pi-catalog/wire/codex";
+import { getCodexClientVersion } from "@linxiraos/pi-catalog/wire/codex-version";
 import {
 	$env,
 	$flag,
@@ -23,8 +23,8 @@ import {
 	readSseJson,
 	structuredCloneJSON,
 	USER_AGENT,
-} from "@oh-my-pi/pi-utils";
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+} from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import * as AIError from "../error";
 import { parseToolCallArguments, replayableToolCallArguments } from "../utils/tool-call-arguments";
 import { getEnvApiKey } from "../env-api-key";

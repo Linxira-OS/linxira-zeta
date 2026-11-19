@@ -264,7 +264,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 
 ### Breaking Changes
 
-- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@oh-my-pi/pi-ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
+- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@linxiraos/pi-ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
 - `PI_CODEX_ZSTD` is replaced by `PI_REQUEST_COMPRESSION`; set `PI_REQUEST_COMPRESSION=0` to send Codex (and every other) request body uncompressed ([#16086](https://github.com/can1357/oh-my-pi/pull/16086) by [@H4vC](https://github.com/H4vC))
 
 ### Added
@@ -565,7 +565,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://gi
 
 ### Breaking Changes
 
-- Anthropic streaming and provider request helpers must now be imported from `@oh-my-pi/pi-ai/providers/anthropic` instead of the package root.
+- Anthropic streaming and provider request helpers must now be imported from `@linxiraos/pi-ai/providers/anthropic` instead of the package root.
 - Moved the public `NO_AUTH_SENTINEL` export from `providers/openai-shared` to `auth-retry`.
 
 ### Fixed
@@ -1231,7 +1231,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://gi
 
 ### Breaking Changes
 
-- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@oh-my-pi/omptype/zod`.
+- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@linxiraos/zeta-schema/zod`.
 
 ## [17.2.9] - 2026-08-05
 
@@ -1248,7 +1248,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://gi
 
 ### Changed
 
-- Replaced `arktype` with `@oh-my-pi/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
+- Replaced `arktype` with `@linxiraos/zeta-schema` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
 
 ### Fixed
 
@@ -1306,7 +1306,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://gi
 
 ### Added
 
-- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@oh-my-pi/pi-catalog`.
+- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@linxiraos/pi-catalog`.
 
 ### Changed
 

@@ -4,8 +4,8 @@
  * calls were sequential, and the advice to await them would send it in circles).
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { acquireBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
 import {
 	acquireTab,
 	getTabsMapForTest,
@@ -13,8 +13,8 @@ import {
 	releaseTab,
 	runInTab,
 	type TabSession,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 const TAB = "shared-busy";

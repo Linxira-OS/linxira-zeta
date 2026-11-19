@@ -6,8 +6,8 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { PtySession } from "@oh-my-pi/pi-natives";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { PtySession } from "@linxiraos/pi-natives";
+import { TempDir } from "@linxiraos/pi-utils";
 import { shellMounts, shellProcessCommand } from "../src/exec/shell-process";
 import type { ShellProcessSpec } from "../src/exec/shell-process-protocol";
 import type { Skill } from "../src/extensibility/skills";

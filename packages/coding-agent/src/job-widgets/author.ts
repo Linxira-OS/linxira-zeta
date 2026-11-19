@@ -3,10 +3,10 @@
  * role (aliasing `smol`) with a forced `respond` call carrying the spec
  * schema, fed the job's brief and redacted output samples.
  */
-import { type AgentTelemetryConfig, instrumentedCompleteSimple, resolveTelemetry } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Tool, ToolChoice, UserMessage } from "@oh-my-pi/pi-ai";
-import { markPerCallContextMessage } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { formatBytes, prompt, truncate } from "@oh-my-pi/pi-utils";
+import { type AgentTelemetryConfig, instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Tool, ToolChoice, UserMessage } from "@linxiraos/pi-ai";
+import { markPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
+import { formatBytes, prompt, truncate } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";

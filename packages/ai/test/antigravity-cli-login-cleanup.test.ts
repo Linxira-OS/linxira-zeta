@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 import { cleanupAbandonedLoginDirectories } from "../src/registry/oauth/antigravity-cli";
 
 async function exists(target: string): Promise<boolean> {

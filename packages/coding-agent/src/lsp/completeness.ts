@@ -5,7 +5,7 @@
  * location without saying so; these checks name what looks missing or off.
  */
 import * as path from "node:path";
-import { grep } from "@oh-my-pi/pi-natives";
+import { grep } from "@linxiraos/pi-natives";
 import { formatPathRelativeToCwd } from "../tools/path-utils";
 import type { Location } from "./types";
 import { readLocationContext, uriToFile } from "./utils";

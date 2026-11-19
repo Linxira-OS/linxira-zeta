@@ -6,21 +6,21 @@
  * that would eliminate every result.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runSearchQuery, type SearchQueryParams } from "@oh-my-pi/pi-coding-agent/web/search";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import * as provider from "@oh-my-pi/pi-coding-agent/web/search/provider";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { runSearchQuery, type SearchQueryParams } from "@linxiraos/zeta/web/search";
+import type { SearchParams } from "@linxiraos/zeta/web/search/provider";
+import * as provider from "@linxiraos/zeta/web/search/provider";
 import {
 	type SearchProviderId,
 	SearchProviderError,
 	type SearchResponse,
 	type SearchSource,
-} from "@oh-my-pi/pi-coding-agent/web/search/types";
+} from "@linxiraos/zeta/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
-import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 
 const SOURCES: SearchSource[] = [
 	{ title: "Docs page", url: "https://docs.example.com/guide" },

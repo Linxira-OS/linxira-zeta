@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { hashPath, isEnoent, logger, resolveEquivalentPath } from "@oh-my-pi/pi-utils";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { hashPath, isEnoent, logger, resolveEquivalentPath } from "@linxiraos/pi-utils";
 import { callOvnfs, checkoutStem, type NewReply, removeCheckout } from "../ovnfs/checkouts";
 import { callSocket, OvnfsError, socketFeatures } from "../ovnfs/client";
 import { runningDaemon, startDaemon } from "../ovnfs/daemon";

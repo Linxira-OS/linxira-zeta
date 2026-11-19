@@ -9,7 +9,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isCompiledBinary, logger, VERSION } from "@oh-my-pi/pi-utils";
+import { isCompiledBinary, logger, VERSION } from "@linxiraos/pi-utils";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 
 let cached: string | undefined;
@@ -21,7 +21,7 @@ function buildFiles(): string[] {
 	const entry = resolveCliEntryCmd()[1];
 	if (entry) files.push(entry);
 	try {
-		const nativeDir = path.dirname(Bun.resolveSync("@oh-my-pi/pi-natives", import.meta.dir));
+		const nativeDir = path.dirname(Bun.resolveSync("@linxiraos/pi-natives", import.meta.dir));
 		for (const name of fs.readdirSync(nativeDir)) {
 			if (name.endsWith(".node")) files.push(path.join(nativeDir, name));
 		}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyPatchShellInput } from "@oh-my-pi/pi-coding-agent/tools/bash-apply-patch";
+import { applyPatchShellInput } from "@linxiraos/zeta/tools/bash-apply-patch";
 
 const PATCH = "*** Begin Patch\n*** Update File: a.ts\n@@\n-const a = `$x`;\n+const a = 1;\n*** End Patch";
 

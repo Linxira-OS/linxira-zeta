@@ -1,6 +1,6 @@
-import { formatDuration } from "@oh-my-pi/pi-tui/render/render-utils";
-import type { UnitSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
-import { formatBytes, logger, sanitizeText, spillUrl, truncate } from "@oh-my-pi/pi-utils";
+import { formatDuration } from "@linxiraos/pi-tui/render/render-utils";
+import type { UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import { formatBytes, logger, sanitizeText, spillUrl, truncate } from "@linxiraos/pi-utils";
 import type { AsyncJob } from "../async";
 import {
 	agentStaleNote,
@@ -23,7 +23,7 @@ import {
 	serviceUnitLogPath,
 	stopService,
 } from "../launch/services";
-import type { ProcReadDetails } from "@oh-my-pi/pi-tui/tools/proc-render";
+import type { ProcReadDetails } from "@linxiraos/pi-tui/tools/proc-render";
 import procPromptDoc from "../prompts/internal-urls/proc.md" with { type: "text" };
 import procReferenceDoc from "../prompts/internal-urls/proc-reference.md" with { type: "text" };
 import type { ToolSession } from "../tools";

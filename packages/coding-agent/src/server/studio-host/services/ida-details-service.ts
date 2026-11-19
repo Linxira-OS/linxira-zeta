@@ -58,7 +58,7 @@ export interface StudioIdaDetailsDeps {
 
 const nativeIdaDetailsDeps: StudioIdaDetailsDeps = {
 	resolve: resolveIdaRuntime,
-	list: toolSession => listDatabases(toolSession, "ida"),
+	list: toolSession => listDatabases("ida"),
 	acquire: (toolSession, source, options) => acquireDatabase(toolSession, "ida", source, options),
 	findOpen: (toolSession, ref) => findOpenDatabase(toolSession, "ida", ref),
 };

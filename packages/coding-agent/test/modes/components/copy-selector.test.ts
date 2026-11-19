@@ -6,15 +6,15 @@
  * their blocks.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import "@oh-my-pi/pi-coding-agent/internal-urls/router";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CopySelectorComponent, type CopyPickSource, turnPreview } from "@oh-my-pi/pi-tui/overlays/copy-selector";
-import type { OutlineTarget } from "@oh-my-pi/pi-tui/chat/transcript-outline";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { setKeybindings, type TUI } from "@oh-my-pi/pi-tui";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import "@linxiraos/zeta/internal-urls/router";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CopySelectorComponent, type CopyPickSource, turnPreview } from "@linxiraos/pi-tui/overlays/copy-selector";
+import type { OutlineTarget } from "@linxiraos/pi-tui/chat/transcript-outline";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
 
 const UP = "\x1b[A";
 const LEFT = "\x1b[D";

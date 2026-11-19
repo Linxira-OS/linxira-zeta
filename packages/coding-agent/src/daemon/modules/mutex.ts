@@ -19,7 +19,7 @@
  *   release();
  * }
  */
-import { isRecord, logger, toError } from "@oh-my-pi/pi-utils";
+import { isRecord, logger, toError } from "@linxiraos/pi-utils";
 import { lineReader } from "../../irc/mesh-protocol";
 import { daemonClient } from "../client";
 import type { DaemonModule, ModuleTunnel, ModuleUnit } from "../module";

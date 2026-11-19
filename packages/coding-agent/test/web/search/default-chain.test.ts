@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { Api, AuthStorage, Model } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runSearchQuery } from "@oh-my-pi/pi-coding-agent/web/search";
-import * as provider from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import { SearchProvider } from "@oh-my-pi/pi-coding-agent/web/search/provider";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import type { SearchResponse } from "@oh-my-pi/pi-coding-agent/web/search/types";
-import { cfgProvidersWebKeyless, cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
+import type { Api, AuthStorage, Model } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { runSearchQuery } from "@linxiraos/zeta/web/search";
+import * as provider from "@linxiraos/zeta/web/search/provider";
+import { SearchProvider } from "@linxiraos/zeta/web/search/provider";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import type { SearchResponse } from "@linxiraos/zeta/web/search/types";
+import { cfgProvidersWebKeyless, cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 /** The real engine loader, captured before any test replaces it. */

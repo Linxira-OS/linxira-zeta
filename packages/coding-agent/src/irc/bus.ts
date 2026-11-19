@@ -9,8 +9,8 @@
  * boundary (see AgentSession.deliverIrcMessage).
  */
 
-import { type IrcDeliveryReceipt, type IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
-import { logger, Snowflake } from "@oh-my-pi/pi-utils";
+import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { type AgentLifecycleApi, AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { CustomMessage } from "../session/messages";
@@ -86,7 +86,10 @@ export type IrcSend = Omit<IrcMessage, "id" | "ts"> & { localOnly?: boolean };
 /** Public surface of the process-global IRC bus, implemented locally on main and by a proxy in workers. */
 export interface IrcBusApi {
 	/** Fire-and-forget delivery; the receipt reports how the message reached the recipient. */
-	send(msg: IrcSend): Promise<IrcDeliveryReceipt>;
+	send(
+		msg: IrcSend,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
+	): Promise<IrcDeliveryReceipt>;
 	/** Whether `from` successfully sent `to` anything, progress included, at or after `sinceTs`. */
 	sentSince(from: string, to: string, sinceTs: number): boolean;
 	/** Agents `from` messaged directly at or after `sinceTs` that have not answered since. */
@@ -183,8 +186,11 @@ export class IrcBus implements IrcBusApi {
 	 * `wait`/`inbox` and inflate unread counts. Only a failed live hand-off
 	 * is buffered for the recipient to drain later.
 	 */
-	async send({ localOnly, ...msg }: IrcSend): Promise<IrcDeliveryReceipt> {
-		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
+	async send(
+		{ localOnly, ...msg }: IrcSend,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
+	): Promise<IrcDeliveryReceipt> {
+		const message: IrcMessage = { ...msg, id: opts?.messageId ?? Snowflake.next(), ts: Date.now() };
 		// Taken before delivery: a reply sent while this message is still being
 		// delivered must still order after it.
 		const mark: SendMark = { ts: message.ts, seq: ++this.#sendSeq, excerpt: excerptOf(message.body) };

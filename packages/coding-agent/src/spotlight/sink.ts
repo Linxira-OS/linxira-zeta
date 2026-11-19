@@ -1,4 +1,4 @@
-import { logger, parseSpillUrl, spillUrl } from "@oh-my-pi/pi-utils";
+import { logger, parseSpillUrl, spillUrl } from "@linxiraos/pi-utils";
 import type { SessionManager } from "../session/session-manager";
 import type { ShapedTool, ShapeSink } from "./types";
 

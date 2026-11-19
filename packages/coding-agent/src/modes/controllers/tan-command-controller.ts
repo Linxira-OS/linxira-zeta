@@ -1,89 +1,45 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { logger, prompt, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { prompt, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import backgroundTanDispatchPrompt from "../../prompts/system/background-tan-dispatch.md" with { type: "text" };
 import tanContextSwitchPrompt from "../../prompts/system/tan-context-switch.md" with { type: "text" };
-import tanNamePrompt from "../../prompts/system/tan-name.md" with { type: "text" };
 import { AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import * as sdk from "../../sdk";
 import type { AgentSession } from "../../session/agent-session";
-import { escapeHarnessTags } from "../../session/harness-tags";
-import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE, buildTitleDriftTurns } from "../../session/messages";
+import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE } from "../../session/messages";
 import { isHiddenUserCompanion } from "../../session/queued-messages";
 import { SessionManager } from "../../session/session-manager";
 import { createSubagentSettings, followMCPTools } from "../../task/executor";
-import { generateTaskName } from "../../task/name-generator";
-import { AgentOutputManager } from "../../task/output-manager";
-import { cleanTinyMessage, formatTitleConversationContext, MAX_TINY_MESSAGE_CHARS } from "../../tiny/message-preproc";
 import { USER_TODO_EDIT_CUSTOM_TYPE } from "../../tools/todo";
-import type { InteractiveModeContext } from "../types";
+import type { Settings } from "../../config/settings";
+import type { MCPManager } from "../../mcp/manager";
+import type { ShowStatusOptions } from "../types";
 
 import { cfgTaskEnableLsp } from "../../task/settings";
 
+/**
+ * The surface `/tan` needs. The TUI supplies its full context; the headless
+ * `/tan` handler supplies the backend session plus text output, so the same
+ * dispatch path serves both.
+ */
+export interface TanCommandHost {
+	session: AgentSession;
+	sessionManager: SessionManager;
+	settings: Settings;
+	mcpManager?: MCPManager;
+	showStatus(message: string, options?: ShowStatusOptions): void;
+	showError(message: string): void;
+	rebuildChatFromMessages?(): void;
+}
+
 const TAN_LABEL_PREVIEW_LENGTH = 80;
-const TAN_NAME_SYSTEM_PROMPT = prompt.render(tanNamePrompt);
-/** How long dispatch waits on the small model for a name before falling back to a random one. */
-const TAN_NAME_TIMEOUT_MS = 30_000;
-/** Longest generated name, the task tool's bound on agent names. */
-const TAN_NAME_MAX_CHARS = 32;
-/** `<chat>` scaffolding around the name context's turns. */
-const CHAT_ENVELOPE_CHARS = "<chat>\n\n</chat>".length;
-/** Scaffolding one turn adds at most: the longest role's tags plus the turn separator. */
-const CHAT_TURN_TAG_CHARS = "<assistant>\n\n</assistant>\n\n".length;
 
 function previewWork(work: string): string {
 	const singleLine = work.trim().replace(/\s+/g, " ");
 	if (singleLine.length <= TAN_LABEL_PREVIEW_LENGTH) return singleLine;
 	return `${singleLine.slice(0, TAN_LABEL_PREVIEW_LENGTH - 1)}…`;
-}
-
-/**
- * What the small model names a tan from: its request as the final `<user>`
- * turn, after the newest parent turns that fit the tiny-model window beside it.
- */
-function tanNameContext(work: string, messages: readonly AgentMessage[]): string {
-	const request = cleanTinyMessage(work);
-	let budget = MAX_TINY_MESSAGE_CHARS - CHAT_ENVELOPE_CHARS - CHAT_TURN_TAG_CHARS - request.length;
-	const recent = buildTitleDriftTurns(messages);
-	let start = recent.length;
-	while (start > 0) {
-		const cost = recent[start - 1]!.text.length + CHAT_TURN_TAG_CHARS;
-		if (cost > budget) break;
-		budget -= cost;
-		start--;
-	}
-	return formatTitleConversationContext([...recent.slice(start), { role: "user", text: request }]);
-}
-
-/** PascalCase agent id of a generated title (`Flaky retry test` → `FlakyRetryTest`): whole words, at most {@link TAN_NAME_MAX_CHARS}. */
-function tanNameFromTitle(title: string): string | undefined {
-	let name = "";
-	for (const word of title.split(/[^A-Za-z0-9]+/)) {
-		if (!word) continue;
-		const part = word.charAt(0).toUpperCase() + word.slice(1);
-		if (name.length + part.length > TAN_NAME_MAX_CHARS) break;
-		name += part;
-	}
-	return name || undefined;
-}
-
-/**
- * The small model's name for a tan, from its request and the parent's latest
- * turns; `undefined` when it names none, fails, or misses {@link TAN_NAME_TIMEOUT_MS}.
- */
-async function generateTanName(session: AgentSession, work: string): Promise<string | undefined> {
-	const timeout = AbortSignal.timeout(TAN_NAME_TIMEOUT_MS);
-	try {
-		const context = tanNameContext(work, session.messages);
-		// The race bounds the wait even where a request path ignores the signal.
-		const title = await untilAborted(timeout, () => session.generateTitle(context, TAN_NAME_SYSTEM_PROMPT, timeout));
-		return title ? tanNameFromTitle(title) : undefined;
-	} catch (error) {
-		logger.debug("tan: name generation failed", { error: error instanceof Error ? error.message : String(error) });
-		return undefined;
-	}
 }
 
 function extractAssistantText(message: AssistantMessage | undefined): string {
@@ -103,7 +59,7 @@ async function removeCloneSession(cloneFile: string): Promise<void> {
 }
 
 export class TanCommandController {
-	constructor(private readonly ctx: InteractiveModeContext) {}
+	constructor(private readonly ctx: TanCommandHost) {}
 
 	/** Dispatch `work` to a background clone of this session; resolves `false` when nothing was dispatched. */
 	async start(work: string, images?: ImageContent[]): Promise<boolean> {
@@ -168,7 +124,7 @@ export class TanCommandController {
 		// `session.sessionId`, which can diverge after `/fresh` or a provider
 		// session override) so the tan resolves the same local root the parent's
 		// large-paste writes and `local://` reads use — notably the Windows
-		// short-root fallback keys `%TEMP%/omp-local/<id>` off this id.
+		// short-root fallback keys `%TEMP%/zeta-local/<id>` off this id.
 		const parentLocalSessionId = this.ctx.sessionManager.getSessionId();
 		const localProtocolOptions = {
 			getArtifactsDir: () => parentArtifactsDir,
@@ -181,21 +137,12 @@ export class TanCommandController {
 		const settings = createSubagentSettings(this.ctx.settings);
 		const enableLsp = cfgTaskEnableLsp.get(this.ctx.settings) !== false;
 		const agentRegistry = AgentRegistry.global();
+		const cloneId = `Tan-${Snowflake.next()}`;
+		const cloneFile = path.join(sessionDir, `${cloneId}.jsonl`);
 		const label = `/tan ${previewWork(trimmedWork)}`;
-		const naming = generateTanName(session, trimmedWork);
-		this.ctx.showStatus("Naming background tan…");
 
 		await this.ctx.sessionManager.ensureOnDisk();
 		await this.ctx.sessionManager.flush();
-
-		// The clone's transcript nests beside the parent's task subagents, so its id
-		// comes from the same allocator; registry ids cover agents not yet on disk.
-		const name = (await naming) ?? generateTaskName();
-		const ids =
-			session.agentOutputManager ?? new AgentOutputManager(() => sessionDir, { settings: this.ctx.settings });
-		await ids.reserve(agentRegistry.list().map(ref => ref.id));
-		const cloneId = await ids.allocate(name);
-		const cloneFile = path.join(sessionDir, `${cloneId}.jsonl`);
 
 		let jobId = "";
 		try {
@@ -409,25 +356,23 @@ export class TanCommandController {
 			return false;
 		}
 
-		const content = prompt.render(backgroundTanDispatchPrompt, {
-			jobId: escapeHarnessTags(jobId),
-			work: escapeHarnessTags(trimmedWork),
-		});
-		// Steer the notice into a running turn at its next step boundary so the agent
-		// learns of the tangent now, not after it finishes; idle, the same call appends,
-		// persists and paints it without starting a turn. Harness-authored (agent
-		// attribution): no editable queue chip, and an interrupt records it instead of
-		// restoring the raw notice into the editor.
+		const content = prompt.render(backgroundTanDispatchPrompt, { jobId, work: trimmedWork });
+		// /tan is meant to run alongside an active session. While the parent turn is
+		// still streaming, queue the dispatch breadcrumb for the next turn rather than
+		// steering the in-flight response; when idle this same call appends + persists
+		// the entry immediately (identical to omitting deliverAs).
+		const wasStreaming = session.isStreaming;
 		await session.sendCustomMessage(
 			{
 				customType: BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 				content,
 				display: true,
-				attribution: "agent",
+				attribution: "user",
 				details: { jobId, work: trimmedWork, sessionFile: cloneFile },
 			},
-			{ triggerTurn: false, deliverAs: "steer" },
+			{ triggerTurn: false, deliverAs: "nextTurn" },
 		);
+		if (!wasStreaming) this.ctx.rebuildChatFromMessages?.();
 		this.ctx.showStatus(`Dispatched background tan ${jobId}`);
 		return true;
 	}

@@ -1,16 +1,16 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { setKeybindings, type Component, type TerminalFrameProvider, type TUI } from "@oh-my-pi/pi-tui";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { setKeybindings, type Component, type TerminalFrameProvider, type TUI } from "@linxiraos/pi-tui";
 import { stripVTControlCharacters } from "node:util";
-import { md } from "@oh-my-pi/pi-tui/native/describe";
-import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@oh-my-pi/pi-tui/native/node";
-import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@oh-my-pi/pi-tui/overlays/ask-dialog";
-import { APPROVE_ARM_MS, ApprovalDialogComponent } from "@oh-my-pi/pi-tui/overlays/approval-dialog";
-import { LoginDialogComponent } from "@oh-my-pi/pi-tui/overlays/login-dialog";
-import { PlanReviewOverlay } from "@oh-my-pi/pi-tui/overlays/plan-review-overlay";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { PREVIEW_LIMITS } from "@oh-my-pi/pi-tui/render/render-utils";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+import { md } from "@linxiraos/pi-tui/native/describe";
+import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@linxiraos/pi-tui/native/node";
+import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import { APPROVE_ARM_MS, ApprovalDialogComponent } from "@linxiraos/pi-tui/overlays/approval-dialog";
+import { LoginDialogComponent } from "@linxiraos/pi-tui/overlays/login-dialog";
+import { PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { PREVIEW_LIMITS } from "@linxiraos/pi-tui/render/render-utils";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 import { TspHarness } from "./native/tsp-harness";
 
 const ENTER = "\n";

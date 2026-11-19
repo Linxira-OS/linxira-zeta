@@ -13,14 +13,14 @@ import { renderTableRow, type TableColumn } from "../components/table";
 import { matchesKey } from "../keys";
 import { ProcessTerminal } from "../terminal";
 import { type Component, TUI } from "../tui";
-import type { TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { col, compact, elapsed, keyed, node, row, span, stableKey, text } from "../native/describe";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton, iconButton, segmentedTabs } from "../native/overlay";
 import { Memo } from "../native/memo";
 import { truncateToWidth } from "../utils";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatDuration } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { ProcSpec, UnitScope, UnitSnapshot } from "../tools/daemon";
 import {
 	collapseCommand,

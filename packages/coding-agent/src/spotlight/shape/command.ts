@@ -5,7 +5,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { spillUrlIds } from "@oh-my-pi/pi-utils";
+import { spillUrlIds } from "@linxiraos/pi-utils";
 
 /** Source extensions: code windows outline, and reads of these are "source reads". */
 export const SOURCE_PATH =

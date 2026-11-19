@@ -1,6 +1,6 @@
-import type { DailyActivityPoint } from "@oh-my-pi/omp-stats/shared-types";
-import { logger } from "@oh-my-pi/pi-utils";
-import { workerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
+import type { DailyActivityPoint } from "@linxiraos/pi-stats/shared-types";
+import { logger } from "@linxiraos/pi-utils";
+import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
 import {
 	STATS_ACTIVITY_WORKER_ARG,
 	type StatsActivityWorkerInbound,

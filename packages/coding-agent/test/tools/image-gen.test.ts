@@ -1,23 +1,19 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import * as compatAuth from "@oh-my-pi/pi-catalog/compat/auth";
-import { type Api, type FetchImpl, type Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { factoryDroidRegistry } from "@oh-my-pi/pi-catalog/compat/factory-droid";
-import { buildFactoryDroidModel } from "@oh-my-pi/pi-catalog/discovery";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CustomToolContext, CustomToolResult } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import {
-	getImageGenTools,
-	getImageGenToolsWithRegistry,
-	imageGenTool,
-} from "@oh-my-pi/pi-coding-agent/tools/image-gen";
-import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
-import { hasFsCode, removeWithRetries, TempDir } from "@oh-my-pi/pi-utils";
+import * as compatAuth from "@linxiraos/pi-catalog/compat/auth";
+import { type Api, type FetchImpl, type Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { factoryDroidRegistry } from "@linxiraos/pi-catalog/compat/factory-droid";
+import { buildFactoryDroidModel } from "@linxiraos/pi-catalog/discovery";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CustomToolContext, CustomToolResult } from "@linxiraos/zeta/extensibility/custom-tools";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { getImageGenTools, getImageGenToolsWithRegistry, imageGenTool } from "@linxiraos/zeta/tools/image-gen";
+import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
+import { hasFsCode, removeWithRetries, TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const generatedImagePaths: string[] = [];

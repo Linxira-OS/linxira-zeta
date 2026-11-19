@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { BoundedJsonReadError, readBoundedBody, readBoundedJson } from "@oh-my-pi/pi-utils/bounded-json";
+import { BoundedJsonReadError, readBoundedBody, readBoundedJson } from "@linxiraos/pi-utils/bounded-json";
 
 function chunked(chunks: string[], { close = true } = {}): Response {
 	const encoder = new TextEncoder();

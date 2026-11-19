@@ -1,9 +1,9 @@
 /** Managed linked worktrees and native/task-isolation directories. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as natives from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { getWorktreesDir, isEnoent } from "@oh-my-pi/pi-utils";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getWorktreesDir, isEnoent } from "@linxiraos/pi-utils";
 import { hasLiveIsolationOwner, ISOLATION_OWNER_FILE, readRetainedMountBackend } from "../task/isolation-ownership";
 import { releaseOvnfsCheckout } from "../ovnfs/task-record";
 import type { ManagedWorktree } from "./backend";

@@ -7,8 +7,8 @@
  * without a daemon (or one lacking the `agents` module) the mesh stays empty
  * and every remote send fails with a clear receipt.
  */
-import type { IrcDeliveryReceipt } from "@oh-my-pi/pi-tui/tools/irc";
-import { isRecord, logger, toError } from "@oh-my-pi/pi-utils";
+import type { IrcDeliveryReceipt } from "@linxiraos/pi-tui/tools/irc";
+import { isRecord, logger, toError } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { canonicalProjectDir, daemonClient } from "../daemon/client";
 import { type DaemonClient, type DaemonTunnel, projectScope } from "../daemon/protocol";

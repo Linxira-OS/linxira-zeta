@@ -180,6 +180,7 @@ import {
 import { writeArchive } from "@linxiraos/pi-utils/ar";
 import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/zeta-compact";
 import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
+import { ASYNC_NOTIFY_MESSAGE_TYPE } from "@linxiraos/pi-tui/chat/messages";
 import { formatUsageResetWindow } from "@linxiraos/pi-tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";
 import {
@@ -1635,6 +1636,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#skillFilter?: (name: string) => boolean;
 	#setMcpServerInstructionsSource: AgentSessionConfig["setMcpServerInstructionsSource"];
 	#skillDescriptions: SkillDescriptionCatalog;
+	#mcpNamespaces: MCPEvalNamespaceCatalog | undefined;
 	#promptSkillsSource: readonly Skill[] | undefined;
 	#promptSkills: readonly Skill[] = [];
 	/**

@@ -5,8 +5,8 @@
  * re-exec into a newer client's build on `upgrade`.
  */
 import * as fs from "node:fs/promises";
-import { execReplace, FileLock, type IpcConnection, IpcServer } from "@oh-my-pi/pi-natives";
-import { isEnoent, isRecord, logger, postmortem, setProcessName } from "@oh-my-pi/pi-utils";
+import { execReplace, FileLock, type IpcConnection, IpcServer } from "@linxiraos/pi-natives";
+import { isEnoent, isRecord, logger, postmortem, setProcessName } from "@linxiraos/pi-utils";
 import { daemonBuildId } from "./build";
 import { isSameProcess, processStartTime } from "./children";
 import type { ModuleClient, ModuleTunnel } from "./module";

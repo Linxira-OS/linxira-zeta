@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { isPromptCachePrewarmSupported } from "@oh-my-pi/pi-catalog/compat/prompt-cache-prewarm";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { isPromptCachePrewarmSupported } from "@linxiraos/pi-catalog/compat/prompt-cache-prewarm";
 
 const base = {
 	reasoning: true,

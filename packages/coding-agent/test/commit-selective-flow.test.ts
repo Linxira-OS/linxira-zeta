@@ -4,11 +4,11 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { commitSelection, type CommitOutcome } from "@oh-my-pi/pi-coding-agent/commit/selective/apply";
-import { createDraft } from "@oh-my-pi/pi-coding-agent/commit/selective/draft";
-import { ChangeJournal, type JournalRecord } from "@oh-my-pi/pi-coding-agent/commit/selective/journal";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { commitSelection, type CommitOutcome } from "@linxiraos/zeta/commit/selective/apply";
+import { createDraft } from "@linxiraos/zeta/commit/selective/draft";
+import { ChangeJournal, type JournalRecord } from "@linxiraos/zeta/commit/selective/journal";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const tempDirs: string[] = [];
 

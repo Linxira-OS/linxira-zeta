@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Database } from "bun:sqlite";
 import * as path from "node:path";
-import type { ChatUsageEvent } from "@oh-my-pi/pi-agent-core";
+import type { ChatUsageEvent } from "@linxiraos/pi-agent-core";
 import type {
 	Api,
 	AssistantMessage,
@@ -10,12 +10,12 @@ import type {
 	Model,
 	NoulQuestion,
 	ScoreQuestion,
-} from "@oh-my-pi/pi-ai";
-import * as ai from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { cfgJudgmentAttemptTimeoutMs, cfgModelRoles } from "@oh-my-pi/pi-coding-agent/config/model-settings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+} from "@linxiraos/pi-ai";
+import * as ai from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { cfgJudgmentAttemptTimeoutMs, cfgModelRoles } from "@linxiraos/zeta/config/model-settings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	ChainJudge,
 	hasNativeJudge,
@@ -23,14 +23,14 @@ import {
 	journalJudgmentUsage,
 	nativeJudgeRejection,
 	onJudgeRejection,
-} from "@oh-my-pi/pi-coding-agent/judgment";
-import type { ModelUsageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { tinyModelClient } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
-import { FindTool, isFindEnabled } from "@oh-my-pi/pi-coding-agent/tools/jfind";
-import * as imageResize from "@oh-my-pi/pi-coding-agent/utils/image-resize";
-import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/judgment";
+import type { ModelUsageEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { tinyModelClient } from "@linxiraos/zeta/tiny/title-client";
+import { FindTool, isFindEnabled } from "@linxiraos/zeta/tools/jfind";
+import * as imageResize from "@linxiraos/zeta/utils/image-resize";
+import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 

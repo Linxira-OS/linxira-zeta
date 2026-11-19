@@ -1,18 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { invalidateMessageCache } from "@oh-my-pi/pi-agent-core/compaction/message-cache";
+import { invalidateMessageCache } from "@linxiraos/pi-agent-core/compaction/message-cache";
 import {
 	type AgentMessage,
 	filterProviderReplayMessages,
 	PROVIDER_ERROR_NOT_EXECUTED_TEXT,
-} from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, Message, TextContent } from "@oh-my-pi/pi-ai";
-import { inferCopilotInitiator } from "@oh-my-pi/pi-ai/providers/github-copilot-headers";
-import {
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-	wrapSteeringForModel,
-} from "@oh-my-pi/pi-coding-agent/session/messages";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-agent-core";
+import type { ImageContent, Message, TextContent } from "@linxiraos/pi-ai";
+import { inferCopilotInitiator } from "@linxiraos/pi-ai/providers/github-copilot-headers";
+import { convertToLlm, SKILL_PROMPT_MESSAGE_TYPE, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 
 function expectAttribution(message: Message | undefined, expected: "user" | "agent" | undefined): void {
 	expect(message).toBeDefined();

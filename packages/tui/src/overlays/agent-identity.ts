@@ -1,4 +1,4 @@
-import { hexToOklch, oklabDistance, oklchToHex, relativeLuminance } from "@oh-my-pi/pi-utils/color";
+import { hexToOklch, oklabDistance, oklchToHex, relativeLuminance } from "@linxiraos/pi-utils/color";
 import { BG_RESET, FG_RESET } from "../theme/color";
 import type { AnsiColor, ThemeBg, ThemeColor } from "../theme/schema";
 import { getSessionAccentAnsi, getSessionAccentHexAt } from "../theme/session-color";

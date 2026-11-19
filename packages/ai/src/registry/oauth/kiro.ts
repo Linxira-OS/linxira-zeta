@@ -12,7 +12,7 @@ import {
 	type KiroProfile,
 	listKiroProfiles,
 	resolveKiroApiKeyRegion,
-} from "@oh-my-pi/pi-catalog/discovery/kiro";
+} from "@linxiraos/pi-catalog/discovery/kiro";
 import {
 	decodeKiroCredential,
 	encodeKiroCredential,
@@ -20,16 +20,16 @@ import {
 	KIRO_BOOTSTRAP_REGIONS,
 	isKiroRegion,
 	kiroProfileRegion,
-} from "@oh-my-pi/pi-catalog/wire/kiro";
+} from "@linxiraos/pi-catalog/wire/kiro";
 import {
 	type KiroCliAttempt,
 	KIRO_CLI_SOCIAL_CLIENT_ID,
 	KIRO_CLI_SOCIAL_HEADERS,
 	kiroCliOidcHeaders,
-} from "@oh-my-pi/pi-catalog/wire/kiro-cli";
-import { fetchWithRetry, isRecord, prompt } from "@oh-my-pi/pi-utils";
-import { readBoundedJson } from "@oh-my-pi/pi-utils/bounded-json";
-import { sanitizeText } from "@oh-my-pi/pi-utils/sanitize-text";
+} from "@linxiraos/pi-catalog/wire/kiro-cli";
+import { fetchWithRetry, isRecord, prompt } from "@linxiraos/pi-utils";
+import { readBoundedJson } from "@linxiraos/pi-utils/bounded-json";
+import { sanitizeText } from "@linxiraos/pi-utils/sanitize-text";
 import * as AIError from "../../error";
 import { throwIfCancelled } from "../engine/common";
 import { pollOAuthDeviceCodeFlow } from "./device-code";

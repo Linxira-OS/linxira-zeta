@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { TernError } from "@oh-my-pi/pi-coding-agent/tools/browser/tern/wire";
-import { WebKitHost, WebKitUnavailableError } from "@oh-my-pi/pi-coding-agent/tools/browser/webkit/host";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { TernError } from "@linxiraos/zeta/tools/browser/tern/wire";
+import { WebKitHost, WebKitUnavailableError } from "@linxiraos/zeta/tools/browser/webkit/host";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { createFakeHost, type FakeHost, isProcessAlive } from "./webkit-fake-host";
 
 let fake: FakeHost | undefined;

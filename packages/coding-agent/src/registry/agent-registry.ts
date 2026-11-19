@@ -9,13 +9,13 @@
  * revival) and are only removed on explicit release/teardown.
  */
 
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
 import { AgentAwaits, type AgentAwaitsApi } from "./agent-awaits";
-import { oneLineLabel } from "@oh-my-pi/pi-tui/tools/task";
+import { oneLineLabel } from "@linxiraos/pi-tui/tools/task";
 
-import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
-import { noteAgentArrival } from "@oh-my-pi/pi-tui/overlays/agent-identity";
+import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import { noteAgentArrival } from "@linxiraos/pi-tui/overlays/agent-identity";
 export { MAIN_AGENT_ID };
 export type { AgentStatus, AgentMetricsSummary };
 
@@ -176,6 +176,10 @@ export interface AgentRegistryApi {
 	syncSessionStatus(id: string, session: AgentSessionHandle): () => void;
 	/** Subscribe to registry events; returns the unsubscribe function. */
 	onChange(listener: RegistryListener): () => void;
+}
+
+export function isRootAgentRef(ref: Pick<AgentRef, "kind" | "parentId">): boolean {
+	return ref.kind === "main" && ref.parentId === undefined;
 }
 
 export class AgentRegistry implements AgentRegistryApi {

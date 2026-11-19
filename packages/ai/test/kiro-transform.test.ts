@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { transformKiroRequest } from "@oh-my-pi/pi-ai/providers/kiro/transform";
-import type { AssistantMessage, Context, Message, Model, ToolResultMessage, Usage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { type } from "@linxiraos/zeta-schema";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { transformKiroRequest } from "@linxiraos/pi-ai/providers/kiro/transform";
+import type { AssistantMessage, Context, Message, Model, ToolResultMessage, Usage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 const lookupTool = { name: "lookup", description: "Look up a path.", parameters: type({ path: "string" }) };
 const zero = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };

@@ -30,13 +30,13 @@ import type {
 	DesktopWindow,
 	OpenedApplication,
 	PointerOptions,
-} from "@oh-my-pi/pi-natives";
-import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
-import { expandTilde } from "@oh-my-pi/pi-utils/path";
-import { truncate } from "@oh-my-pi/pi-utils/format";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
-import * as prompt from "@oh-my-pi/pi-utils/prompt";
+} from "@linxiraos/pi-natives";
+import { isEnoent } from "@linxiraos/pi-utils/fs-error";
+import { expandTilde } from "@linxiraos/pi-utils/path";
+import { truncate } from "@linxiraos/pi-utils/format";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import * as prompt from "@linxiraos/pi-utils/prompt";
 import backgroundMoveNote from "../../prompts/tools/computer-background-move.md" with { type: "text" };
 import { JsRuntime, type RuntimeHooks } from "../../eval/js/shared/runtime";
 import { cloneSafe, RunOutput } from "../browser/run-output";
@@ -48,7 +48,7 @@ import {
 	waitForRun,
 } from "../run-scope";
 import { ToolAbortError, throwIfAborted } from "../tool-errors";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { unknownOptionsMessage } from "./option-errors";
 import {
 	type ComputerEscapeScope,
@@ -1607,7 +1607,7 @@ export class ComputerWorkerCore {
 				// The worker must answer its readiness handshake without loading the native
 				// addon; normal CLI startup and selector pings never execute desktop code.
 				const createSession =
-					this.#createSession ?? (await import("@oh-my-pi/pi-natives/desktop")).createDesktopSession;
+					this.#createSession ?? (await import("@linxiraos/pi-natives/desktop")).createDesktopSession;
 				const session = await createSession({
 					display: snapshot.display,
 					escapeStopKey: escape.key,

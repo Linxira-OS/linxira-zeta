@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolContext, AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	EVAL_TIMEOUT_PAUSE_OP,
 	EVAL_TIMEOUT_RESUME_OP,
 	isEvalTimeoutControlEvent,
-} from "@oh-my-pi/pi-coding-agent/eval/bridge-timeout";
-import { callSessionTool } from "@oh-my-pi/pi-coding-agent/eval/js/tool-bridge";
-import type { EvalShadowCellSession } from "@oh-my-pi/pi-coding-agent/eval/speculation/cell-session";
-import { type TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
-import { TodoTool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { resolveXdevTool, type XdevState } from "@oh-my-pi/pi-coding-agent/tools/xdev";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/zeta/eval/bridge-timeout";
+import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
+import type { EvalShadowCellSession } from "@linxiraos/zeta/eval/speculation/cell-session";
+import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { resolveXdevTool, type XdevState } from "@linxiraos/zeta/tools/xdev";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 function createTool(name: string, execute: AgentTool["execute"]): AgentTool {
 	return {

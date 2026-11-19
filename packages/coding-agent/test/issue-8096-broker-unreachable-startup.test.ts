@@ -10,16 +10,13 @@
  * a silent fallback to local credentials.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthBrokerError } from "@oh-my-pi/pi-ai/auth-broker";
-import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import {
-	describeAuthBrokerStartupError,
-	discoverAuthStorage,
-} from "@oh-my-pi/pi-coding-agent/session/auth-broker-config";
-import { setInteractiveHost, TempDir } from "@oh-my-pi/pi-utils";
+import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
+import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { describeAuthBrokerStartupError, discoverAuthStorage } from "@linxiraos/zeta/session/auth-broker-config";
+import { setInteractiveHost, TempDir } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {

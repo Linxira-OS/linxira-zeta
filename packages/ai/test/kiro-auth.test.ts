@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { loginKiroHook, refreshKiroHook } from "@oh-my-pi/pi-ai/registry/oauth/kiro";
-import type { OAuthController, OAuthCredentials, OAuthPrompt } from "@oh-my-pi/pi-ai/registry/oauth/types";
-import type { FetchImpl } from "@oh-my-pi/pi-catalog/types";
-import { decodeKiroCredential, encodeKiroOAuthRow } from "@oh-my-pi/pi-catalog/wire/kiro";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { loginKiroHook, refreshKiroHook } from "@linxiraos/pi-ai/registry/oauth/kiro";
+import type { OAuthController, OAuthCredentials, OAuthPrompt } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
+import { decodeKiroCredential, encodeKiroOAuthRow } from "@linxiraos/pi-catalog/wire/kiro";
 
 const PROFILE_US = "arn:aws:codewhisperer:us-east-1:123456789012:profile/one";
 const PROFILE_EU = "arn:aws:codewhisperer:eu-central-1:123456789012:profile/two";

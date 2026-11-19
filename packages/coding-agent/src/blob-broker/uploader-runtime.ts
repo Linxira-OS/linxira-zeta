@@ -1,4 +1,4 @@
-import { getSafeProjectCwd } from "@oh-my-pi/pi-utils";
+import { getSafeProjectCwd } from "@linxiraos/pi-utils";
 import type { BlobDestinationId } from "./destinations";
 import type { BlobPublication, BlobUploadRequest, RemoteDeleteAction } from "./publication";
 

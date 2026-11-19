@@ -6,7 +6,7 @@
  * completion to every omp process through `call("predict", method, params, { unit })`.
  */
 import * as path from "node:path";
-import type { PredictedWord } from "@oh-my-pi/pi-natives";
+import type { PredictedWord } from "@linxiraos/pi-natives";
 
 /** Daemon module kind and `call` module name. */
 export const TEXT_PREDICT_KIND = "predict";

@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
 const DEFAULT_MCP_TOOL_CALL_TIMEOUT_MS = 600_000;

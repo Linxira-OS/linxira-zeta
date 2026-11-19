@@ -4,23 +4,23 @@ import {
 	type AgentMessage,
 	type AgentToolResult,
 	TOOL_INTERRUPT_ABORT_REASON,
-} from "@oh-my-pi/pi-agent-core";
-import { buildJobResult } from "@oh-my-pi/pi-coding-agent/async/job-control";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as daemonClient from "@oh-my-pi/pi-coding-agent/daemon/client";
-import type { DaemonClient } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
-import { runEvalWait } from "@oh-my-pi/pi-coding-agent/eval/handle-bridge";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { USER_AWAIT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-awaits";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { IrcBridge, type IrcBridgeHost } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
-import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
-import type { IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
-import type { CoordinationDetails } from "@oh-my-pi/pi-tui/tools/wait";
+} from "@linxiraos/pi-agent-core";
+import { buildJobResult } from "@linxiraos/zeta/async/job-control";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as daemonClient from "@linxiraos/zeta/daemon/client";
+import type { DaemonClient } from "@linxiraos/zeta/daemon/protocol";
+import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { USER_AWAIT_ID } from "@linxiraos/zeta/registry/agent-awaits";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
+import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { WaitTool } from "@linxiraos/zeta/tools/wait";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 
 function session(
 	manager?: AsyncJobManager,

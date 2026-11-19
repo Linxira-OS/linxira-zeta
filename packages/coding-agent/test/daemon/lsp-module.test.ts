@@ -7,11 +7,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as daemonClientModule from "@oh-my-pi/pi-coding-agent/daemon/client";
-import { daemonClient, isolateDaemonForSmokeTest } from "@oh-my-pi/pi-coding-agent/daemon/client";
-import type { DaemonClient, DaemonTunnel } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
-import { encodeMessageFrame, MessageFramer } from "@oh-my-pi/pi-coding-agent/jsonrpc/message-framing";
-import { getOrCreateClient, holdSharedLsp, sendRequest, shutdownAll } from "@oh-my-pi/pi-coding-agent/lsp/client";
+import * as daemonClientModule from "@linxiraos/zeta/daemon/client";
+import { daemonClient, isolateDaemonForSmokeTest } from "@linxiraos/zeta/daemon/client";
+import type { DaemonClient, DaemonTunnel } from "@linxiraos/zeta/daemon/protocol";
+import { encodeMessageFrame, MessageFramer } from "@linxiraos/zeta/jsonrpc/message-framing";
+import { getOrCreateClient, holdSharedLsp, sendRequest, shutdownAll } from "@linxiraos/zeta/lsp/client";
 import {
 	LSP_ACQUIRE_METHOD,
 	LSP_MODULE_KIND,
@@ -22,8 +22,8 @@ import {
 	lspInstanceKey,
 	MUX_SERVER_EXITED_METHOD,
 	muxServerKey,
-} from "@oh-my-pi/pi-coding-agent/lsp/mux/protocol";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/lsp/mux/protocol";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const FIXTURE = path.join(import.meta.dir, "..", "fixtures", "fake-language-server.ts");
 const DAEMON_TEST_TIMEOUT_MS = 60_000;

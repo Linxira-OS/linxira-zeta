@@ -4,27 +4,27 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import * as zlib from "node:zlib";
-import type { AgentTool, AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import * as bashExecutor from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { RACY_STAMP_WINDOW_MS } from "@oh-my-pi/pi-coding-agent/tools/racy-stamp";
-import * as toolTimeouts from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { $which, removeSyncWithRetries, Snowflake, spillFileName, spillUrl } from "@oh-my-pi/pi-utils";
-import { openArchive, readArchiveEntries } from "@oh-my-pi/pi-utils/ar";
+import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { RACY_STAMP_WINDOW_MS } from "@linxiraos/zeta/tools/racy-stamp";
+import * as toolTimeouts from "@linxiraos/zeta/tools/tool-timeouts";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { $which, removeSyncWithRetries, Snowflake, spillFileName, spillUrl } from "@linxiraos/pi-utils";
+import { openArchive, readArchiveEntries } from "@linxiraos/pi-utils/ar";
 import { GlobTool } from "../src/tools/glob";
 import { DEFAULT_FILE_LIMIT, GrepTool, MULTI_FILE_PER_FILE_MATCHES } from "../src/tools/grep";
 
-import { cfgEditFuzzyMatch, cfgEditFuzzyThreshold } from "@oh-my-pi/pi-coding-agent/edit/settings";
-import { cfgReadDefaultLimit } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { cfgEditFuzzyMatch, cfgEditFuzzyThreshold } from "@linxiraos/zeta/edit/settings";
+import { cfgReadDefaultLimit } from "@linxiraos/zeta/tools/settings";
 
 // Helper to extract text from content blocks
 function getTextOutput(result: any): string {

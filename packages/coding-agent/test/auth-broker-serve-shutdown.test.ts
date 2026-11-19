@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { type MCPStoredOAuthCredential, mcpOAuthCredentialId } from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type MCPStoredOAuthCredential, mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const cliEntry = path.resolve(import.meta.dir, "../src/cli.ts");
 const MCP_PROVIDER = mcpOAuthCredentialId("https://mcp.example.test/mcp", "default");

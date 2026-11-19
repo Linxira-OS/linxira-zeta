@@ -1,4 +1,4 @@
-import { logger, toError } from "@oh-my-pi/pi-utils";
+import { logger, toError } from "@linxiraos/pi-utils";
 import { type ModelWorkerMessage, type ModelWorkerSender, ModelWorkerHost } from "../subprocess/model-worker-host";
 import { SMOKE_TEST_TIMEOUT_MS } from "../subprocess/worker-client";
 import { getTtsLocalModelSpec, isTtsLocalModelKey, type TtsLocalModelKey } from "./models";

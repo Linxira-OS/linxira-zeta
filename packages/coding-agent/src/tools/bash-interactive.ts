@@ -1,11 +1,11 @@
-import { BashInteractiveOverlayComponent } from "@oh-my-pi/pi-tui/tools/bash-interactive";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { type PtyRunResult, PtySession } from "@oh-my-pi/pi-natives";
-import { loadXtermTerminal } from "@oh-my-pi/pi-tui/tools/terminal-output";
+import { BashInteractiveOverlayComponent } from "@linxiraos/pi-tui/tools/bash-interactive";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { type PtyRunResult, PtySession } from "@linxiraos/pi-natives";
+import { loadXtermTerminal } from "@linxiraos/pi-tui/tools/terminal-output";
 import { Settings } from "../config/settings";
 import { buildNonInteractiveEnv } from "../exec/non-interactive-env";
-import { OutputSink, type OutputSummary } from "@oh-my-pi/pi-tui/tools/streaming-output";
+import { OutputSink, type OutputSummary } from "@linxiraos/pi-tui/tools/streaming-output";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
 

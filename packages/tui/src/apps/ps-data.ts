@@ -1,5 +1,5 @@
-import { formatDuration, SHELL_PROCESS_SELECTOR } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatDuration, SHELL_PROCESS_SELECTOR } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import type { DaemonState, ProcSpec, UnitScope, UnitSnapshot } from "../tools/daemon";
 
 /** The daemon answering the board, absent when the board was read from its store offline. */

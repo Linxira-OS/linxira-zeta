@@ -1,4 +1,4 @@
-import type { IsoBackendKind, VcsGitRepo } from "@oh-my-pi/pi-natives";
+import type { IsoBackendKind, VcsGitRepo } from "@linxiraos/pi-natives";
 import type { Settings } from "../config/settings";
 
 /** A session worktree and the identity of the backend that owns it. */

@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { Shell } from "@oh-my-pi/pi-natives";
-import { getThemeByName } from "@oh-my-pi/pi-tui/theme";
-import { bashToolRenderer } from "@oh-my-pi/pi-tui/tools/bash";
-import { formatRawOutputNotice } from "@oh-my-pi/pi-tui/tools/output-meta";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { Shell } from "@linxiraos/pi-natives";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
+import { bashToolRenderer } from "@linxiraos/pi-tui/tools/bash";
+import { formatRawOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 
 afterEach(() => {
 	mock.restore();

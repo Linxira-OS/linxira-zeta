@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { nativeLibraryPathOverlay, workerEnvFromParent } from "@oh-my-pi/pi-coding-agent/subprocess/worker-client";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgProvidersTinyModelDevice } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { tinyWorkerEnvOverlay } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
+import { nativeLibraryPathOverlay, workerEnvFromParent } from "@linxiraos/zeta/subprocess/worker-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgProvidersTinyModelDevice } from "@linxiraos/zeta/session/settings";
+import { tinyWorkerEnvOverlay } from "@linxiraos/zeta/tiny/title-client";
 
 describe("workerEnvFromParent", () => {
 	it("drops inherited git repo-location overrides but keeps an explicit overlay", () => {

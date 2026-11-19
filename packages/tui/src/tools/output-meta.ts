@@ -1,5 +1,5 @@
 import type { Theme } from "../theme/theme";
-import { parseSpillUrl, sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
+import { parseSpillUrl, sanitizeText, spillUrl } from "@linxiraos/pi-utils";
 import {
 	flattenLine,
 	formatBytes,

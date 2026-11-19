@@ -14,11 +14,11 @@ import {
 	type BlobUnitParams,
 	blobBrokerConfigKey,
 	type EnsureBlobResponse,
-} from "@oh-my-pi/pi-coding-agent/blob-broker/protocol";
-import { canonicalProjectDir, daemonClient, isolateDaemonForSmokeTest } from "@oh-my-pi/pi-coding-agent/daemon/client";
-import { BLOB_APPEND_METHOD, BLOB_CALL_CHUNK_CHARS } from "@oh-my-pi/pi-coding-agent/daemon/modules/blob";
-import { type DaemonClient, type DaemonTunnel, projectScope } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/blob-broker/protocol";
+import { canonicalProjectDir, daemonClient, isolateDaemonForSmokeTest } from "@linxiraos/zeta/daemon/client";
+import { BLOB_APPEND_METHOD, BLOB_CALL_CHUNK_CHARS } from "@linxiraos/zeta/daemon/modules/blob";
+import { type DaemonClient, type DaemonTunnel, projectScope } from "@linxiraos/zeta/daemon/protocol";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const DAEMON_TEST_TIMEOUT_MS = 60_000;
 const WAIT_MS = 15_000;

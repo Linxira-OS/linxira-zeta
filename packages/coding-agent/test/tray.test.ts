@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AsyncJob } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import type { AsyncJob } from "@linxiraos/zeta/async/job-manager";
 import {
 	buildTrayItems,
 	describeTrayCard,
@@ -10,13 +10,13 @@ import {
 	type TrayMain,
 	TrayMainActivity,
 	TrayMemory,
-} from "@oh-my-pi/pi-coding-agent/modes/tray";
-import type { NativeNode, NativeUiEvent } from "@oh-my-pi/pi-tui/native/node";
-import type { AgentRecordLike } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
-import type { ObservableSession } from "@oh-my-pi/pi-tui/overlays/session-observer-registry";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { JobWidgetView } from "@oh-my-pi/pi-tui/tools/job-widget";
-import type { AgentProgress } from "@oh-my-pi/pi-tui/tools/task";
+} from "@linxiraos/zeta/modes/tray";
+import type { NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
+import type { AgentRecordLike } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
+import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
 
 function progress(id: string, overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {

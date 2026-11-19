@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncAllSessions } from "@oh-my-pi/omp-stats/aggregator";
-import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@oh-my-pi/omp-stats/db";
-import { parseSessionFile } from "@oh-my-pi/omp-stats/parser";
-import { handleApi } from "@oh-my-pi/omp-stats/server";
-import { getSessionsDir } from "@oh-my-pi/pi-utils";
+import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
+import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
+import { parseSessionFile } from "@linxiraos/pi-stats/parser";
+import { handleApi } from "@linxiraos/pi-stats/server";
+import { getSessionsDir } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
 installStatsTestIsolation("@pi-stats-model-usage-");

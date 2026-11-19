@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type * as net from "node:net";
 import * as tls from "node:tls";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { AnthropicMessagesClient } from "@oh-my-pi/pi-ai/providers/anthropic-client";
-import type { MessageCreateParamsStreaming } from "@oh-my-pi/pi-ai/providers/anthropic-wire";
-import { coworkFetch } from "@oh-my-pi/pi-ai/providers/cowork-fetch";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { AnthropicMessagesClient } from "@linxiraos/pi-ai/providers/anthropic-client";
+import type { MessageCreateParamsStreaming } from "@linxiraos/pi-ai/providers/anthropic-wire";
+import { coworkFetch } from "@linxiraos/pi-ai/providers/cowork-fetch";
 
 // Self-signed for `localhost` and 127.0.0.1. The transport sends the URL host as
 // TLS SNI, which may not be an IP, so requests name `localhost` as the server.

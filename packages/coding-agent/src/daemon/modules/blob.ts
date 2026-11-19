@@ -8,7 +8,7 @@
  * tunnel on {@link BLOB_RENDER_CHANNEL} open, the unit sends `{id,key}` lines
  * down it and the session answers `{id,mime,base64}` or `{id,error}`.
  */
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
+import { isRecord, logger } from "@linxiraos/pi-utils";
 import { isUploaderKind, LocalBlobBackend, MAX_LAZY_RENDER_MS, redactUrl } from "../../blob-broker/broker";
 import {
 	BLOB_BROKER_KIND,

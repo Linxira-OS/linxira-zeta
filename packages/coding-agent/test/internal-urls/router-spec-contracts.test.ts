@@ -2,17 +2,17 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type InternalResource,
 	InternalUrlRouter,
 	type ProtocolHandler,
 	type SchemeSpec,
-} from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { registerArtifactsDir } from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { resolveApproval } from "@oh-my-pi/pi-coding-agent/tools/approval";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+} from "@linxiraos/zeta/internal-urls";
+import { registerArtifactsDir } from "@linxiraos/zeta/internal-urls/registry-helpers";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { resolveApproval } from "@linxiraos/zeta/tools/approval";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
 
 const resolveNothing = async (): Promise<InternalResource> => {
 	throw new Error("fixture:// never resolves");

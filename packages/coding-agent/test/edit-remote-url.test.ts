@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { InternalResource, InternalUrl, ProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EditTool } from "@linxiraos/zeta/edit";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import type { InternalResource, InternalUrl, ProtocolHandler } from "@linxiraos/zeta/internal-urls/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const text = (result: AgentToolResult<unknown>): string =>
 	result.content.map(part => (part.type === "text" ? part.text : "")).join("\n");

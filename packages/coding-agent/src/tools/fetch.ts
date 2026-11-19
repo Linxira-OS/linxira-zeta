@@ -1,13 +1,13 @@
-import { repairCollapsedScheme, tryExtractEmbeddedUrlSelector } from "@oh-my-pi/pi-tui/tools/fetch";
-import type { ReadUrlToolDetails } from "@oh-my-pi/pi-tui/tools/fetch";
+import { repairCollapsedScheme, tryExtractEmbeddedUrlSelector } from "@linxiraos/pi-tui/tools/fetch";
+import type { ReadUrlToolDetails } from "@linxiraos/pi-tui/tools/fetch";
 import type { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@oh-my-pi/pi-ai";
-import { htmlToMarkdown, notebookToEditableText } from "@oh-my-pi/pi-natives";
-import { $which, ptree } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { type FetchImpl, getEnvApiKey, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
+import { htmlToMarkdown, notebookToEditableText } from "@linxiraos/pi-natives";
+import { $which, ptree } from "@linxiraos/pi-utils";
 import {
 	type ArchiveFormat,
 	formatArchiveEntryLines,
@@ -15,14 +15,14 @@ import {
 	openArchive,
 	parseArchivePathCandidates,
 	sniffArchiveFormat,
-} from "@oh-my-pi/pi-utils/ar";
-import type { Element } from "@oh-my-pi/pi-utils/dom";
+} from "@linxiraos/pi-utils/ar";
+import type { Element } from "@linxiraos/pi-utils/dom";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { ToolSession } from "../sdk";
 import type { AgentStorageApi } from "../session/agent-storage";
-import { DEFAULT_MAX_BYTES, truncateHead, truncateHeadBytes } from "@oh-my-pi/pi-tui/tools/streaming-output";
-import { webpExclusionForModel } from "@oh-my-pi/pi-tui/chat/image-loading";
+import { DEFAULT_MAX_BYTES, truncateHead, truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
+import { webpExclusionForModel } from "@linxiraos/pi-tui/chat/image-loading";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS } from "../utils/markit";
 import { ensureTool } from "../utils/tools-manager";
@@ -33,16 +33,16 @@ import type { RenderResult, SpecialHandler } from "../web/scrapers/types";
 import { finalizeOutput, loadPage, looksLikeHtml, MAX_BYTES } from "../web/scrapers/types";
 import { type BinaryFetchResult, convertWithMarkit, fetchBinary } from "../web/scrapers/utils";
 import { findCredential } from "../web/search/providers/utils";
-import { applyListLimit } from "@oh-my-pi/pi-tui/tools/list-limit";
+import { applyListLimit } from "@linxiraos/pi-tui/tools/list-limit";
 import { parseTailCount } from "./path-utils";
-import { type LineRange, parseLineRanges } from "@oh-my-pi/pi-tui/tools/line-ranges";
-import { isReadableUrlPath } from "@oh-my-pi/pi-tui/tools/read";
+import { type LineRange, parseLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
+import { isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
 import { executeJsonQuery } from "./read-json";
 import type { ParsedSelector } from "./read-selector";
-import { formatBytes } from "@oh-my-pi/pi-tui/render/render-utils";
+import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
 import { listTables, looksLikeSqlite, openSqliteReadConnection, renderTableList } from "./sqlite-reader";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 
@@ -465,7 +465,7 @@ function feedField(parent: Element, selector: string): string {
  * Parse RSS/Atom feed to markdown
  */
 async function parseFeedToMarkdown(content: string, maxItems = 10): Promise<string> {
-	const { parseHTML } = await import("@oh-my-pi/pi-utils/dom");
+	const { parseHTML } = await import("@linxiraos/pi-utils/dom");
 	try {
 		const doc = parseHTML(content).document;
 

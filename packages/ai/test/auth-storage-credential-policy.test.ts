@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
 
 describe("AuthStorage remote snapshots", () => {
 	it("redacts refresh secrets while keeping the Kiro client binding", async () => {

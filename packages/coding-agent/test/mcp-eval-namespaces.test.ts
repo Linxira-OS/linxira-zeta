@@ -2,19 +2,19 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vm from "node:vm";
-import { type } from "@oh-my-pi/omptype";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import { type DownloadActivity, onDownloadActivity } from "@oh-my-pi/pi-coding-agent/downloads/activity";
-import { SkillDescriptionStore } from "@oh-my-pi/pi-coding-agent/extensibility/skill-descriptions";
-import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol";
+import { type } from "@linxiraos/zeta-schema";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import { type DownloadActivity, onDownloadActivity } from "@linxiraos/zeta/downloads/activity";
+import { SkillDescriptionStore } from "@linxiraos/zeta/extensibility/skill-descriptions";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls/local-protocol";
 import {
 	EVAL_MCP_BRIDGE_NAME,
 	groupMCPNamespaces,
 	MCPEvalNamespaceCatalog,
 	mcpNamespaceValue,
-} from "@oh-my-pi/pi-coding-agent/mcp/eval-namespaces";
-import { createMCPToolName } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/mcp/eval-namespaces";
+import { createMCPToolName } from "@linxiraos/zeta/mcp/tool-bridge";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 function mcpTool(server: string, tool: string, description = `${tool} on ${server}`): AgentTool {
 	// A registry entry carries its MCP route beside the AgentTool fields.

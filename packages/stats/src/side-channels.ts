@@ -16,7 +16,7 @@
  * already ingested and can be re-cut without re-ingesting.
  */
 
-import { isJudgmentApi } from "@oh-my-pi/pi-ai";
+import { isJudgmentApi } from "@linxiraos/pi-ai";
 
 /** Purpose of the `model_usage` entry carrying the billed usage of a discarded assistant turn. */
 const DISCARDED_TURN_PURPOSE = "discarded-turn";

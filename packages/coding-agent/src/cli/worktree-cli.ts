@@ -1,9 +1,9 @@
 /** CLI presentation and explicit-path Git worktree creation. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { isEnoent } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { isEnoent } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
 import { cfgIsolationBackend, cfgWorktreeClone } from "../task/settings";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";

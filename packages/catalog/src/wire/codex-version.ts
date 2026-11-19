@@ -19,7 +19,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, logger } from "@oh-my-pi/pi-utils";
+import { getAgentDir, logger } from "@linxiraos/pi-utils";
 import { CODEX_CLIENT_VERSION } from "./codex";
 
 const NPM_LATEST_URL = "https://registry.npmjs.org/@openai/codex/latest";

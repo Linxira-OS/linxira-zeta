@@ -13,8 +13,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Database } from "bun:sqlite";
-import { type PredictedWord, TextPredictor } from "@oh-my-pi/pi-natives";
-import { isEnoent, isRecord, logger } from "@oh-my-pi/pi-utils";
+import { type PredictedWord, TextPredictor } from "@linxiraos/pi-natives";
+import { isEnoent, isRecord, logger } from "@linxiraos/pi-utils";
 import { blendPredictions } from "../../predict/blend";
 import { readForeignPrompts } from "../../predict/foreign-history";
 import {

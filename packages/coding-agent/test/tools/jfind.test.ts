@@ -2,34 +2,24 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@oh-my-pi/pi-ai";
-import { tokenUsage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
-import { InternalUrlFilesystem } from "@oh-my-pi/pi-coding-agent/internal-urls/url-filesystem";
-import { ChainJudge } from "@oh-my-pi/pi-coding-agent/judgment";
-import { FIND_TIMEOUT_MS, FindTool } from "@oh-my-pi/pi-coding-agent/tools/jfind";
-import {
-	type SpotlightClient,
-	SpotlightError,
-	type SpotlightRequest,
-} from "@oh-my-pi/pi-coding-agent/spotlight/client";
-import { type CascadeSpotlight, runCascade } from "@oh-my-pi/pi-coding-agent/tools/jfind/cascade";
-import { keywordsFromQuery } from "@oh-my-pi/pi-coding-agent/tools/jfind/keywords";
-import { grepIndex } from "@oh-my-pi/pi-coding-agent/tools/jfind/lexical";
-import {
-	mergeHeat,
-	type Passage,
-	selectWindows,
-	sketch,
-	windows,
-} from "@oh-my-pi/pi-coding-agent/tools/jfind/passages";
-import { readText, ReadTextError } from "@oh-my-pi/pi-coding-agent/tools/jfind/text";
-import { eligibleFile, renderTree, resolveSearchRoot } from "@oh-my-pi/pi-coding-agent/tools/jfind/tree";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { resolveSearchResultPath } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { Judge, JudgmentRequest, JudgmentResult, NoulAnswer, Questions } from "@linxiraos/pi-ai";
+import { tokenUsage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
+import { ChainJudge } from "@linxiraos/zeta/judgment";
+import { FIND_TIMEOUT_MS, FindTool } from "@linxiraos/zeta/tools/jfind";
+import { type SpotlightClient, SpotlightError, type SpotlightRequest } from "@linxiraos/zeta/spotlight/client";
+import { type CascadeSpotlight, runCascade } from "@linxiraos/zeta/tools/jfind/cascade";
+import { keywordsFromQuery } from "@linxiraos/zeta/tools/jfind/keywords";
+import { grepIndex } from "@linxiraos/zeta/tools/jfind/lexical";
+import { mergeHeat, type Passage, selectWindows, sketch, windows } from "@linxiraos/zeta/tools/jfind/passages";
+import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
+import { eligibleFile, renderTree, resolveSearchRoot } from "@linxiraos/zeta/tools/jfind/tree";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { resolveSearchResultPath } from "@linxiraos/zeta/tools/path-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { rejectionOf } from "../helpers/rejection";
 

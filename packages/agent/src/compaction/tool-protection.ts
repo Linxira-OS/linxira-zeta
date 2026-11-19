@@ -1,5 +1,5 @@
-import type { ToolResultMessage } from "@oh-my-pi/pi-ai";
-import { parseSpillUrl } from "@oh-my-pi/pi-utils";
+import type { ToolResultMessage } from "@linxiraos/pi-ai";
+import { parseSpillUrl } from "@linxiraos/pi-utils";
 import type { AgentMessage, AgentToolCall } from "../types";
 import type { SessionEntry } from "./entries";
 

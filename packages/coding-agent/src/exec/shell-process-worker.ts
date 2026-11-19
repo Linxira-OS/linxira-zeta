@@ -14,7 +14,7 @@
  * defines the functions and aliases of the session it was started from.
  */
 import * as fs from "node:fs";
-import { Shell } from "@oh-my-pi/pi-natives";
+import { Shell } from "@linxiraos/pi-natives";
 import { parseShellProcessArgs } from "./shell-process-protocol";
 
 /**

@@ -2,33 +2,29 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { findFreeCdpPort } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import type { BrowserDownload } from "@oh-my-pi/pi-coding-agent/tools/browser/downloads";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
+import type { BrowserDownload } from "@linxiraos/zeta/tools/browser/downloads";
 import {
 	closeLaunchedBrowser,
 	ensureChromiumExecutable,
 	RENDERER_PRIORITY_ARGS,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { acquireBrowser, releaseBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { unpackedExtensionId } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/extension-files";
-import { waitForRelayExtension } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/probe";
-import { type RelayServer, startRelayServer } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/server";
-import type {
-	WorkerInbound,
-	WorkerInitPayload,
-	WorkerOutbound,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
+} from "@linxiraos/zeta/tools/browser/launch";
+import { acquireBrowser, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { unpackedExtensionId } from "@linxiraos/zeta/tools/browser/relay/extension-files";
+import { waitForRelayExtension } from "@linxiraos/zeta/tools/browser/relay/probe";
+import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
+import type { WorkerInbound, WorkerInitPayload, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
 import {
 	acquireTab,
 	getTabsMapForTest,
 	releaseTab,
 	releaseTabsForOwner,
 	runInTab,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { WorkerCore } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-worker";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { getPuppeteerDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { WorkerCore } from "@linxiraos/zeta/tools/browser/tab-worker";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { getPuppeteerDir } from "@linxiraos/pi-utils";
 import puppeteer, { type Browser, type Page, type Protocol } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 

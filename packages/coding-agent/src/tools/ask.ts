@@ -9,12 +9,12 @@
  * preselected values.
  */
 
-import { type as arkType } from "@oh-my-pi/omptype";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { TERMINAL } from "@oh-my-pi/pi-tui";
-import { formatKeyHint } from "@oh-my-pi/pi-tui/app-keybindings";
-import { editorKey, editorKeys } from "@oh-my-pi/pi-tui/chrome/keybinding-hints";
+import { type as arkType } from "@linxiraos/zeta-schema";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { TERMINAL } from "@linxiraos/pi-tui";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { editorKey, editorKeys } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import {
 	choiceValue,
 	defaultFormData,
@@ -26,20 +26,20 @@ import {
 	type OptionNote,
 	OTHER_LABEL,
 	textValue,
-} from "@oh-my-pi/pi-tui/html-form/data";
+} from "@linxiraos/pi-tui/html-form/data";
 import {
 	type ChoiceField,
 	type HtmlForm,
 	parseHtmlForm,
 	spansText,
 	type TextField,
-} from "@oh-my-pi/pi-tui/html-form/parse";
-import { shiftImageMarkers } from "@oh-my-pi/pi-tui/prompt/composer-attachments";
-import { disambiguateDisplayLabels } from "@oh-my-pi/pi-tui/render/render-utils";
-import { theme } from "@oh-my-pi/pi-tui/theme";
-import type { AskToolDetails } from "@oh-my-pi/pi-tui/tools/ask";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import { isRecord, logger, prompt, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/html-form/parse";
+import { shiftImageMarkers } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { disambiguateDisplayLabels } from "@linxiraos/pi-tui/render/render-utils";
+import { theme } from "@linxiraos/pi-tui/theme";
+import type { AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isRecord, logger, prompt, untilAborted } from "@linxiraos/pi-utils";
 import type {
 	ExtensionFormDialogResult,
 	ExtensionUIContext,

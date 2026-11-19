@@ -2,14 +2,14 @@ import { afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { RenderResultOptions } from "../src/tools/renderer";
-import { getThemeByName, setThemeInstance, type Theme } from "@oh-my-pi/pi-tui/theme";
-import { bashToolRenderer, formatBackgroundNotice } from "@oh-my-pi/pi-tui/tools/bash";
-import { previewWindowRows } from "@oh-my-pi/pi-tui/render/render-utils";
-import { ImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
-import { sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
-import { RunTrace } from "@oh-my-pi/pi-natives";
-import { defaultShellVizPreferences, readShellPresentation } from "@oh-my-pi/pi-tui/tools/shell-viz";
-import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
+import { bashToolRenderer, formatBackgroundNotice } from "@linxiraos/pi-tui/tools/bash";
+import { previewWindowRows } from "@linxiraos/pi-tui/render/render-utils";
+import { ImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
+import { sanitizeText, spillUrl } from "@linxiraos/pi-utils";
+import { RunTrace } from "@linxiraos/pi-natives";
+import { defaultShellVizPreferences, readShellPresentation } from "@linxiraos/pi-tui/tools/shell-viz";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
 
 type MutableTerminalInfo = {
 	imageProtocol: ImageProtocol | null;

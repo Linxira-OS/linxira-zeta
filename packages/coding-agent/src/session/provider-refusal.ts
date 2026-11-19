@@ -7,7 +7,7 @@
  * skips, so the refusal stays inspectable in the JSONL without reaching any
  * later request.
  */
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 
 export const PROVIDER_REFUSAL_CUSTOM_TYPE = "provider_refusal";
 

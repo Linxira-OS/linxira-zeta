@@ -36,10 +36,10 @@ import {
 	resolveCacheRetention,
 	type SimpleStreamOptions,
 	type Usage,
-} from "@oh-my-pi/pi-ai";
-import { isPromptCachePrewarmSupported } from "@oh-my-pi/pi-catalog/compat/prompt-cache-prewarm";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { isAnthropicOAuthToken } from "@oh-my-pi/pi-catalog/utils";
+} from "@linxiraos/pi-ai";
+import { isPromptCachePrewarmSupported } from "@linxiraos/pi-catalog/compat/prompt-cache-prewarm";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { isAnthropicOAuthToken } from "@linxiraos/pi-catalog/utils";
 import type { CacheWarmingDecisionEvent, CacheWarmingDecisionEventResult } from "../extensibility/shared-events";
 
 export type { CacheWarmingDecisionEvent, CacheWarmingDecisionEventResult };

@@ -1,29 +1,29 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { setKeybindings, type TerminalFrameProvider, TUI } from "@oh-my-pi/pi-tui";
-import { defaultFormData, fieldError, formAnswers } from "@oh-my-pi/pi-tui/html-form/data";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { setKeybindings, type TerminalFrameProvider, TUI } from "@linxiraos/pi-tui";
+import { defaultFormData, fieldError, formAnswers } from "@linxiraos/pi-tui/html-form/data";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Input } from "@oh-my-pi/pi-tui/components/input";
-import { Editor } from "@oh-my-pi/pi-tui/components/editor";
-import { loadMedia } from "@oh-my-pi/pi-tui/media";
-import { getNativeBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import { ASK_RESERVED_ROWS } from "@oh-my-pi/pi-tui/chrome/ask-fold";
-import { HtmlFormDialog } from "@oh-my-pi/pi-tui/html-form/dialog";
-import { parseHtmlForm, spansText } from "@oh-my-pi/pi-tui/html-form/parse";
-import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@oh-my-pi/pi-tui/native/node";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+import { Input } from "@linxiraos/pi-tui/components/input";
+import { Editor } from "@linxiraos/pi-tui/components/editor";
+import { loadMedia } from "@linxiraos/pi-tui/media";
+import { getNativeBlob } from "@linxiraos/pi-tui/native/blobs";
+import { ASK_RESERVED_ROWS } from "@linxiraos/pi-tui/chrome/ask-fold";
+import { HtmlFormDialog } from "@linxiraos/pi-tui/html-form/dialog";
+import { parseHtmlForm, spansText } from "@linxiraos/pi-tui/html-form/parse";
+import type { DescribeContext, NativeChild, NativeNode, NativeSurfaceProvider } from "@linxiraos/pi-tui/native/node";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 import { TspHarness } from "./native/tsp-harness";
-import { getKittyGraphics, setKittyGraphics } from "@oh-my-pi/pi-tui/kitty-graphics";
+import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import {
 	getCellDimensions,
 	ImageProtocol,
 	setCellDimensions,
 	setTerminalImageProtocol,
 	TERMINAL,
-} from "@oh-my-pi/pi-tui/terminal-capabilities";
+} from "@linxiraos/pi-tui/terminal-capabilities";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

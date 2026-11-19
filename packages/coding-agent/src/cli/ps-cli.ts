@@ -10,7 +10,7 @@
  * re-adopt detached units before acting on them.
  */
 
-import { truncateToWidth } from "@oh-my-pi/pi-tui";
+import { truncateToWidth } from "@linxiraos/pi-tui";
 import {
 	daemonHeader,
 	formatCommand,
@@ -22,10 +22,10 @@ import {
 	tableCells,
 	unitLabel,
 	unitName,
-} from "@oh-my-pi/pi-tui/apps/ps-data";
-import { type PsTopHost, runPsTop } from "@oh-my-pi/pi-tui/apps/ps-top";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+} from "@linxiraos/pi-tui/apps/ps-data";
+import { type PsTopHost, runPsTop } from "@linxiraos/pi-tui/apps/ps-top";
+import { formatDuration } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import { closeDaemonClient, daemonClient, probeDaemon } from "../daemon/client";
 import type { DaemonClient, DaemonSignal, UnitSnapshot } from "../daemon/protocol";
 import { isSharedBrowserUnit, restartSharedBrowser } from "../tools/browser/shared-daemon";

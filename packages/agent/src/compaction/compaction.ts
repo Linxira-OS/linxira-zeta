@@ -23,25 +23,25 @@ import {
 	type Tool,
 	type Usage,
 	withAuth,
-} from "@oh-my-pi/pi-ai";
-import type { Dialect } from "@oh-my-pi/pi-ai/dialect";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createOpenAICodexCompactionRequestContext } from "@oh-my-pi/pi-ai/providers/openai-codex-compaction";
-import type { OpenAICodexCompactionBody } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import type { InputItem as CodexInputItem } from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
+} from "@linxiraos/pi-ai";
+import type { Dialect } from "@linxiraos/pi-ai/dialect";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
+import type { OpenAICodexCompactionBody } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import type { InputItem as CodexInputItem } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildResponsesInput,
 	calculateOpenAIUsageAccounting,
 	resolveOpenAICompatPolicy,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { isSurvivingAssistant } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@oh-my-pi/pi-ai/utils";
-import { resolveCatalogPolicy } from "@oh-my-pi/pi-catalog/compat/catalog-policy";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { preferredDialect } from "@oh-my-pi/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
-import { isRecord, logger, prompt, withLoopPhase } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { isSurvivingAssistant } from "@linxiraos/pi-ai/providers/transform-messages";
+import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@linxiraos/pi-ai/utils";
+import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import { isRecord, logger, prompt, withLoopPhase } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { ThinkingLevel } from "../thinking";
 import { Tokenizer } from "../tokenizer";
@@ -2004,7 +2004,7 @@ export async function compact(
 			if (isCodexResponsesModel(model)) {
 				// Load the serializer only when building a Codex compaction request, not session policy setup.
 				const { buildTransformedCodexRequestBody } =
-					await import("@oh-my-pi/pi-ai/providers/openai-codex-responses");
+					await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 				const previousCodexInput: CodexInputItem[] = [];
 				for (const item of previousReplacementHistory ?? []) {
 					if (!isCodexInputItem(item)) {
@@ -2071,7 +2071,7 @@ export async function compact(
 					? codexBody.tools
 					: undefined
 				: summaryOptions.tools
-					? (await import("@oh-my-pi/pi-ai/providers/openai-responses")).convertTools(
+					? (await import("@linxiraos/pi-ai/providers/openai-responses")).convertTools(
 							summaryOptions.tools,
 							model.compat.supportsStrictMode,
 							model,

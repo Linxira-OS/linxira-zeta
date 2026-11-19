@@ -1,6 +1,6 @@
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { transportFetch } from "@oh-my-pi/pi-ai/utils/transport-fetch";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import type { FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { transportFetch } from "@linxiraos/pi-ai/utils/transport-fetch";
 
 export interface BedrockCompactionRequest {
 	model: Model;

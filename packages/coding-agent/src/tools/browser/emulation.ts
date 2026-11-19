@@ -1,6 +1,6 @@
-import { type } from "@oh-my-pi/omptype";
-import { untilAborted } from "@oh-my-pi/pi-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { type } from "@linxiraos/zeta-schema";
+import { untilAborted } from "@linxiraos/pi-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { Device, Frame, NetworkConditions, Page, Permission } from "puppeteer-core";
 import { pressKey } from "./interactions";
 import { applyViewport } from "./launch";

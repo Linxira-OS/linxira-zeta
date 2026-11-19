@@ -3,8 +3,8 @@
  * plain file descriptors, so a child keeps running and stays reachable across
  * an in-place `execReplace` of the daemon.
  */
-import { FdStream, Process, reapChild, spawnRaw } from "@oh-my-pi/pi-natives";
-import { logger } from "@oh-my-pi/pi-utils";
+import { FdStream, Process, reapChild, spawnRaw } from "@linxiraos/pi-natives";
+import { logger } from "@linxiraos/pi-utils";
 import type { ChildExit, ChildSpawn, ManagedChild, ManagedChildState } from "./module";
 
 /** Allowed skew between a recorded and an observed process start time. */

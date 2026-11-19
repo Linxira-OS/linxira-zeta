@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CompactionCancelledError, type CompactionOutcome } from "@oh-my-pi/pi-agent-core/compaction";
+import { CompactionCancelledError, type CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import {
 	getEnvApiKey,
 	getProviderDetails,
@@ -10,8 +10,7 @@ import {
 	resolveUsedFraction,
 	type UsageLimit,
 	type UsageReport,
-	usageSubscriptionPlan,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	type Component,
 	Loader,
@@ -22,15 +21,13 @@ import {
 	Text,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import { formatDuration, logger, Snowflake, sanitizeText } from "@oh-my-pi/pi-utils";
-import { getActiveProfile, getConfigDirName } from "@oh-my-pi/pi-utils/dirs";
-import { classifyTerminalMultiplexer } from "@oh-my-pi/pi-tui/terminal-multiplexer";
+} from "@linxiraos/pi-tui";
+import { formatDuration, logger, Snowflake, sanitizeText } from "@linxiraos/pi-utils";
+import { getActiveProfile, getConfigDirName } from "@linxiraos/pi-utils/dirs";
+import { classifyTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-multiplexer";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
 import { type BashResult, isPersistentShellCdCommand } from "../../exec/bash-executor";
-import { type LoadedCustomShare, loadCustomShare } from "../../export/custom-share";
 import { parseExportArgs } from "../../export/html/args";
-import { shareSession } from "../../export/share";
 import type { CompactOptions } from "../../extensibility/extensions/types";
 import {
 	diffMentalModelContent,
@@ -42,31 +39,35 @@ import {
 	seedAlreadyExists,
 	summarizeMentalModel,
 } from "../../hindsight";
+import { currentLanguage } from "../../i18n";
+import { LIVE_FEATURE_ENABLED } from "../../live/feature-gate";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../../memory-backend";
-import { BashExecutionComponent, bashPtyViewport } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { appKey } from "@oh-my-pi/pi-tui/chrome/keybinding-hints";
-import { BorderedLoader } from "@oh-my-pi/pi-tui/overlays/bordered-loader";
-import { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
-import { promptCacheDetails } from "@oh-my-pi/pi-tui/status-line/prompt-cache";
-import { messageBlock, PresentedBlock } from "@oh-my-pi/pi-tui/chat/transcript-presentation";
-import { MoveOverlay, type MoveOverlayResult } from "@oh-my-pi/pi-tui/overlays/move-overlay";
+import { BashExecutionComponent, bashPtyViewport } from "@linxiraos/pi-tui/chat/bash-execution";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
+import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
+import { promptCacheDetails } from "@linxiraos/pi-tui/status-line/prompt-cache";
+import { messageBlock, PresentedBlock } from "@linxiraos/pi-tui/chat/transcript-presentation";
+import { MoveOverlay, type MoveOverlayResult } from "@linxiraos/pi-tui/overlays/move-overlay";
+import { DirectoryPickerOverlay } from "@linxiraos/pi-tui/overlays/directory-picker";
+import { loadDirectoryPickerSource } from "../directory-picker-source";
 import { moveDirectorySource } from "../move-directory-source";
-import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@oh-my-pi/pi-tui/theme";
+import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
 import { continuesConversation } from "../utils/conversation-position";
-import { ContextViewer } from "@oh-my-pi/pi-tui/overlays/context-viewer";
-import type { OverlayHandle } from "@oh-my-pi/pi-tui";
-import { ReportPanel } from "@oh-my-pi/pi-tui/overlays/report-panel";
-import type { TspText } from "@oh-my-pi/pi-wire";
+import { ContextViewer } from "@linxiraos/pi-tui/overlays/context-viewer";
+import type { OverlayHandle } from "@linxiraos/pi-tui";
+import { ReportPanel } from "@linxiraos/pi-tui/overlays/report-panel";
+import type { TspText } from "@linxiraos/pi-wire";
 import { computeSessionContextBreakdown } from "../../session/context-usage-runtime";
 import { buildSessionContextView } from "../../session/context-view";
-import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@oh-my-pi/pi-tui/hotkeys-markdown";
-import { isNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { buildToolsMarkdown } from "@oh-my-pi/pi-tui/prompt/tools-markdown";
+import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@linxiraos/pi-tui/hotkeys-markdown";
+import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { buildToolsMarkdown } from "@linxiraos/pi-tui/prompt/tools-markdown";
 import type { AsyncJobSnapshotItem } from "../../session/agent-session";
-import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@oh-my-pi/pi-tui/overlays/job-tree";
+import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@linxiraos/pi-tui/overlays/job-tree";
 import type { AuthStorage, OAuthAccountIdentity } from "../../session/auth-storage";
-import { type CompactMode, findCompactMode } from "../../session/compact-modes";
+import type { CompactMode } from "../../session/compact-modes";
+import { compactionPhaseSuffix, setCompactionPhaseLabel } from "./compaction-progress";
 import {
 	currentRuntimeIdentity,
 	formatRuntimeIdentity,
@@ -79,8 +80,8 @@ import {
 	createSessionWorktree,
 	defaultSessionWorktreeBranch,
 	formatSessionWorktreeSummary,
+	type SessionWorktree,
 } from "../../session/session-worktree";
-import type { SessionWorktree } from "../../worktree/backend";
 import { formatShakeSummary, type ShakeMode, type ShakeResult } from "../../session/shake-types";
 import {
 	codexUsagePlan,
@@ -88,13 +89,11 @@ import {
 	formatCodexUsageReportLabel,
 	limitMatchesActiveAccount,
 } from "../../slash-commands/helpers/active-oauth-account";
-import { formatProviderName } from "@oh-my-pi/pi-tui/chrome/format";
-import { formatCompactQuota } from "@oh-my-pi/pi-tui/overlays/advisor-config";
-import { resolveTernPane } from "../../tools/browser/tern/kind";
-import { TernError, type TernErrorKind, TernSocketClient } from "../../tools/browser/tern/wire";
+import { formatProviderName } from "@linxiraos/pi-tui/chrome/format";
+import { formatCompactQuota } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { outputMeta } from "../../tools/output-meta";
-import { resolveToCwd, stripOuterDoubleQuotes } from "../../tools/path-utils";
-import { replaceTabs, shortenEmbeddedPaths, truncateToWidth } from "@oh-my-pi/pi-tui/render/render-utils";
+import { resolveShellDirectory, stripOuterDoubleQuotes } from "../../tools/path-utils";
+import { replaceTabs, shortenEmbeddedPaths, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import {
 	getChangelogPath,
 	parseChangelog,
@@ -111,13 +110,12 @@ import {
 	collapseSharedUsageReports,
 	formatLimitTitle,
 	summarizeUsageResetCredits,
-} from "@oh-my-pi/pi-tui/overlays/usage-display";
-import { formatRemainingOnlyTotal, isUsedOnlyAbsoluteAmount } from "@oh-my-pi/pi-tui/prompt/usage-amounts";
-import type { UnavailableUsageAccount } from "@oh-my-pi/pi-tui/overlays/usage-dashboard";
+} from "@linxiraos/pi-tui/overlays/usage-display";
+import { formatRemainingOnlyTotal, isUsedOnlyAbsoluteAmount } from "@linxiraos/pi-tui/prompt/usage-amounts";
+import type { UnavailableUsageAccount } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 
 import { cfgTerminalShowImages } from "../settings";
 import { cfgProviderAppendOnlyContext } from "../../session/settings";
-import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../../commands/settings";
 import { flagConsumesValue, restartArgv } from "../../cli/flag-tables";
 import {
 	createDefaultTerminalLaunchRequest,
@@ -128,12 +126,6 @@ import {
 	type TerminalLaunchResult,
 } from "../../subprocess/terminal-launch";
 import { resolveCliEntryCmd } from "../../subprocess/worker-client";
-
-/** How long `/fork` waits for Tern to open the fork's pane. */
-const TERN_FORK_TIMEOUT_MS = 10_000;
-
-/** Fork failures after which Tern may still open the pane, so `/fork` must not also fork in place. */
-const TERN_FORK_UNCONFIRMED: Partial<Record<TernErrorKind, true>> = { closed: true, timeout: true, protocol: true };
 
 /** Rows `/session` spends on the builds that wrote the session, including the elision row. */
 const MAX_LISTED_BUILDS = 5;
@@ -387,8 +379,8 @@ export class CommandController {
 		try {
 			// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 			// matching src/cli/stats-cli.ts, to keep CLI startup fast.
-			const { formatStatsDashboardUrl, startServer } = await import("@oh-my-pi/omp-stats");
-			const { hostname, port } = await startServer();
+			const { formatStatsDashboardUrl, startServer } = await import("@linxiraos/pi-stats");
+			const { hostname, port } = await startServer(undefined, undefined, { language: currentLanguage() });
 			const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 			this.openInBrowser(url);
 			this.ctx.showStatus(`Trace: ${url}`);
@@ -486,90 +478,6 @@ export class CommandController {
 			this.ctx.showError(
 				`Failed to write debug transcript: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
-		}
-	}
-
-	async handleShareCommand(): Promise<void> {
-		let customShare: LoadedCustomShare | null;
-		try {
-			customShare = await loadCustomShare();
-		} catch (err) {
-			this.ctx.showError(err instanceof Error ? err.message : String(err));
-			return;
-		}
-
-		const loader = new BorderedLoader(this.ctx.ui, theme, "Sharing session...");
-		this.ctx.editorContainer.clear();
-		this.ctx.editorContainer.addChild(loader);
-		this.ctx.ui.setFocus(loader);
-		this.ctx.ui.requestRender();
-
-		const restoreEditor = () => {
-			loader.dispose();
-			this.ctx.editorContainer.clear();
-			this.ctx.editorContainer.addChild(this.ctx.editor);
-			this.ctx.ui.setFocus(this.ctx.editor);
-		};
-		loader.onAbort = () => {
-			restoreEditor();
-			this.ctx.showStatus("Share cancelled");
-		};
-
-		// Custom share scripts keep their legacy contract: they receive a path
-		// to a standalone HTML export. No fallback to the default flow on error.
-		if (customShare) {
-			const tmpFile = path.join(os.tmpdir(), `${Snowflake.next()}.html`);
-			try {
-				await this.ctx.session.exportToHtml(tmpFile);
-				const result = await customShare.fn(tmpFile);
-				if (loader.signal.aborted) return;
-				restoreEditor();
-
-				if (typeof result === "string") {
-					this.ctx.showStatus(`Share URL: ${result}`);
-					this.openInBrowser(result);
-				} else if (result) {
-					const parts: string[] = [];
-					if (result.url) parts.push(`Share URL: ${result.url}`);
-					if (result.message) parts.push(result.message);
-					if (parts.length > 0) this.ctx.showStatus(parts.join("\n"));
-					if (result.url) this.openInBrowser(result.url);
-				} else {
-					this.ctx.showStatus("Session shared");
-				}
-			} catch (err) {
-				if (!loader.signal.aborted) {
-					restoreEditor();
-					this.ctx.showError(`Custom share failed: ${err instanceof Error ? err.message : String(err)}`);
-				}
-			} finally {
-				await fs.rm(tmpFile, { force: true }).catch(() => {});
-			}
-			return;
-		}
-
-		// Default: encrypted snapshot to a secret gist (preferred) or the share
-		// server; the key rides in the link fragment and never leaves the client.
-		try {
-			const result = await shareSession(this.ctx.session.sessionManager, {
-				serverUrl: cfgShareServerUrl.get(this.ctx.settings),
-				store: cfgShareStore.get(this.ctx.settings),
-				state: this.ctx.session.state,
-				obfuscator: cfgShareRedactSecrets.get(this.ctx.settings) ? this.ctx.session.obfuscator : undefined,
-			});
-			if (loader.signal.aborted) return;
-			restoreEditor();
-
-			const lines = [`Share URL: ${result.url}`];
-			if (result.gistUrl) lines.push(`Gist: ${result.gistUrl}`);
-			if (result.truncated) lines.push("Note: large content was trimmed to fit the share size limit.");
-			this.ctx.showStatus(lines.join("\n"));
-			this.openInBrowser(result.url);
-		} catch (error: unknown) {
-			if (!loader.signal.aborted) {
-				restoreEditor();
-				this.ctx.showError(`Failed to share session: ${error instanceof Error ? error.message : "Unknown error"}`);
-			}
 		}
 	}
 
@@ -970,7 +878,7 @@ export class CommandController {
 	}
 
 	handleHotkeysCommand(): void {
-		const bindings = { keybindings: this.ctx.keybindings };
+		const bindings = { keybindings: this.ctx.keybindings, liveEnabled: LIVE_FEATURE_ENABLED };
 		if (isNativeRendering()) {
 			// A native terminal gets a dismissable sheet with keycaps instead of a markdown table.
 			const sheet = new HotkeysSheetComponent(bindings, () => {
@@ -1442,9 +1350,6 @@ export class CommandController {
 			return;
 		}
 
-		// A Tern pane fork leaves this session untouched, so it may run mid-turn.
-		if (await this.#forkIntoTernPane()) return;
-
 		// An in-place fork moves this process onto the new file; a running turn
 		// would finish there and leave the original transcript cut mid-turn.
 		if (this.ctx.session.isStreaming) await this.ctx.session.abort();
@@ -1568,10 +1473,9 @@ export class CommandController {
 			// Pin only non-secret scope variables.
 			const command = [
 				...forkScopeEnvCommand({
-					PI_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
+					ZETA_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
 					PI_CONFIG_DIR: getConfigDirName(),
-					OMP_PROFILE: activeProfile,
-					PI_PROFILE: activeProfile,
+					ZETA_PROFILE: activeProfile,
 					PI_CONFIG_FILES: this.ctx.settings.getConfigFiles().join(path.delimiter),
 					PI_CODING_AGENT_SESSION_DIR: environment.PI_CODING_AGENT_SESSION_DIR,
 					XDG_DATA_HOME: environment.XDG_DATA_HOME,
@@ -1614,53 +1518,6 @@ export class CommandController {
 	}
 
 	/**
-	 * `/fork` inside a Tern pane: ask Tern to run `omp --fork` of this session in a new pane beside
-	 * this one, which keeps the original session. False means fork in place instead: outside Tern,
-	 * an unsaved session, a Tern without `fork`, or Tern refusing it. Once the request is out, an
-	 * unconfirmed one is reported rather than retried in place, since Tern may still open the pane.
-	 */
-	async #forkIntoTernPane(): Promise<boolean> {
-		const tern = resolveTernPane();
-		if (!tern || !this.ctx.sessionManager.isSessionOnDisk()) return false;
-		const client = new TernSocketClient({ socketPath: tern.socketPath });
-		try {
-			try {
-				await client.connect();
-			} catch (error) {
-				logger.debug("Tern unreachable for /fork; forking in place", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-				return false;
-			}
-			if (!client.supports("fork")) return false;
-			// The new pane's omp reads the session file as it starts.
-			await this.ctx.session.flushToDisk();
-			try {
-				await client.fork({ block: tern.pane }, { timeoutMs: TERN_FORK_TIMEOUT_MS });
-			} catch (error) {
-				if (error instanceof TernError && !TERN_FORK_UNCONFIRMED[error.kind]) {
-					const details = { kind: error.kind, error: error.message };
-					if (error.kind === "failed") logger.warn("Tern could not open the fork pane; forking in place", details);
-					else logger.debug("Tern refused the fork; forking in place", details);
-					return false;
-				}
-				this.ctx.showError(
-					`Tern did not confirm the fork: ${error instanceof Error ? error.message : String(error)}`,
-				);
-				return true;
-			}
-		} finally {
-			client.close();
-		}
-		const note = this.ctx.session.isStreaming ? " · the running response continues here, not in the fork" : "";
-		this.ctx.present([
-			new Spacer(1),
-			new Text(theme.fg("accent", `${theme.status.success} Session forked into a new pane${note}`), 1, 1),
-		]);
-		return true;
-	}
-
-	/**
 	 * `/move` — relocate the current session to a different directory.
 	 *
 	 * With no `targetPath` (TUI only), opens an autocomplete overlay so the user
@@ -1669,11 +1526,12 @@ export class CommandController {
 	 * it. The active session file and artifacts are moved into the target
 	 * directory's session bucket so `/resume` from that directory can find it.
 	 */
-	async handleMoveCommand(targetPath?: string): Promise<void> {
+	async handleMoveCommand(targetPath?: string, options: { allowCreate?: boolean } = {}): Promise<void> {
 		if (this.ctx.session.isStreaming) {
 			this.ctx.showWarning("Wait for the current response to finish or abort it before moving.");
 			return;
 		}
+		const allowCreate = options.allowCreate !== false;
 
 		let input: string | undefined = targetPath?.trim() || undefined;
 
@@ -1695,17 +1553,39 @@ export class CommandController {
 		}
 
 		const cwd = this.ctx.sessionManager.getCwd();
-		const resolvedPath = resolveToCwd(unquoted, cwd);
+		// A shell `cd` target: a bare `/` is the filesystem root, not the
+		// workspace-root alias used for read/write tool paths.
+		const resolvedPath = resolveShellDirectory(unquoted, cwd);
+		const targetKey = process.platform === "win32" ? resolvedPath.toLowerCase() : resolvedPath;
+		const cwdKey = process.platform === "win32" ? path.resolve(cwd).toLowerCase() : path.resolve(cwd);
+		if (targetKey === cwdKey) {
+			this.ctx.showStatus(`Already in ${resolvedPath}`);
+			return;
+		}
 
-		// If the directory doesn't exist, offer to create it.
-		let isDirectory: boolean;
+		// If the directory doesn't exist, offer to create it only where the
+		// command allows it; /cd is existing-directory-only in every host.
+		let isDirectory = false;
+		let exists = false;
 		try {
-			isDirectory = (await fs.stat(resolvedPath)).isDirectory();
+			const stat = await fs.stat(resolvedPath);
+			exists = true;
+			isDirectory = stat.isDirectory();
 		} catch {
 			isDirectory = false;
 		}
 
 		if (!isDirectory) {
+			if (!allowCreate) {
+				this.ctx.showError(
+					exists ? `Not a directory: ${resolvedPath}` : `Directory does not exist: ${resolvedPath}`,
+				);
+				return;
+			}
+			if (exists) {
+				this.ctx.showError(`Not a directory: ${resolvedPath}`);
+				return;
+			}
 			const parentDir = path.dirname(resolvedPath);
 			let parentExists = false;
 			try {
@@ -1743,8 +1623,51 @@ export class CommandController {
 	}
 
 	/**
-	 * `/wt [<branch>]` — fork the checkout into a new worktree (an ovnfs
-	 * checkout when ovnfs is found, else a linked git worktree) on
+	 * `/cd` — change the session working directory through the folder picker.
+	 *
+	 * Picking a folder relocates the session through the same safe path as
+	 * `/move <path>` (session file and artifacts move to the new bucket, the
+	 * project dir/settings/plugins/skills/commands are re-scoped, and a failure
+	 * rolls the whole switch back). Ctrl+R or Ctrl+click on a row opens `/resume`
+	 * focused on that folder's conversations instead of switching.
+	 */
+	async showDirectoryPicker(): Promise<void> {
+		if (this.ctx.session.isStreaming) {
+			this.ctx.showWarning("Wait for the current response to finish or abort it before changing directory.");
+			return;
+		}
+		const cwd = this.ctx.sessionManager.getCwd();
+		let resumePath: string | undefined;
+		const source = await loadDirectoryPickerSource();
+		const picked = await this.ctx.showHookCustom<string | undefined>(
+			(_tui, _theme, _keybindings, done) =>
+				new DirectoryPickerOverlay({
+					source,
+					initialPath: cwd,
+					home: os.homedir(),
+					onSelect: directory => done(directory),
+					onResume: directory => {
+						resumePath = directory;
+						done(undefined);
+					},
+					onCancel: () => done(undefined),
+				}),
+			// Fullscreen so the terminal reports mouse clicks for row selection.
+			{ overlay: true, overlayOptions: { fullscreen: true } },
+		);
+		if (resumePath) {
+			await this.ctx.showSessionSelector(undefined, undefined, {
+				workspacePath: resumePath,
+				initialScope: "workspace",
+			});
+			return;
+		}
+		if (!picked) return;
+		await this.handleMoveCommand(picked, { allowCreate: false });
+	}
+
+	/**
+	 * `/wt [<branch>]` — fork the checkout into a new linked git worktree on
 	 * `branch` (default `wt/<timestamp>`), carrying uncommitted changes along
 	 * unless `keepChanges` is false, then relocate the session there like `/move`.
 	 * Returns the worktree only when the session now lives in it.
@@ -1972,7 +1895,7 @@ export class CommandController {
 				if (shouldPersistCwd) return await this.#applyBashResultCwd(result);
 			} catch (error) {
 				this.ctx.showError(
-					`Bash command completed, but OMP failed to update its working directory: ${
+					`Bash command completed, but Zeta failed to update its working directory: ${
 						error instanceof Error ? error.message : "Unknown error"
 					}`,
 				);
@@ -2234,88 +2157,193 @@ export class CommandController {
 		mode?: CompactMode,
 		readerModel?: Model,
 	): Promise<CompactionOutcome> {
-		const instructions = typeof customInstructionsOrOptions === "string" ? customInstructionsOrOptions : undefined;
-		const baseOptions = typeof customInstructionsOrOptions === "object" ? customInstructionsOrOptions : undefined;
-		const effectiveMode = mode ?? baseOptions?.mode;
-		const options =
-			baseOptions || effectiveMode || readerModel
-				? { ...baseOptions, mode: effectiveMode, readerModel: readerModel ?? baseOptions?.readerModel }
-				: undefined;
-		const session = this.ctx.session;
-		const background = effectiveMode !== undefined && findCompactMode(effectiveMode)?.background === true;
-		if (session.isBackgroundCompacting || (background && session.isCompacting)) {
-			this.ctx.showWarning("Context compaction is already in progress");
-			return "failed";
+		if (this.ctx.loadingAnimation) {
+			this.ctx.loadingAnimation.stop();
+			this.ctx.loadingAnimation = undefined;
 		}
-		const sessionId = background ? this.ctx.sessionManager.getSessionId() : undefined;
-		const inView = () =>
-			!background || (this.ctx.viewSession === session && this.ctx.sessionManager.getSessionId() === sessionId);
+		this.ctx.statusContainer.disposeChildren();
 
 		const cancelHint = `(${appKey(this.ctx.keybindings, "app.interrupt")} to cancel)`;
-		const label = isAuto ? "Auto-compacting context" : "Compacting context";
-		let compactingLoader: Loader | undefined;
-		if (background) {
-			this.ctx.showStatus(`${label} in the background… ${cancelHint}`);
-		} else {
-			if (this.ctx.loadingAnimation) {
-				this.ctx.loadingAnimation.stop();
-				this.ctx.loadingAnimation = undefined;
-			}
-			this.ctx.statusContainer.disposeChildren();
-			compactingLoader = new Loader(
-				this.ctx.ui,
-				spinner => theme.fg("accent", spinner),
-				text => theme.fg("muted", text),
-				`${label}… ${cancelHint}`,
-				getSymbolTheme().spinnerFrames,
-			);
-			const startedAt = Date.now();
-			compactingLoader.setWorkingRow(
-				() => ({
-					label: `${label}…`,
-					startedAt,
-					variant: { kind: "compaction" },
-					interruptKey: this.ctx.maintenanceInterruptKey(),
-				}),
-				() => this.ctx.interruptFromPointer(),
-			);
-			this.ctx.statusContainer.addChild(compactingLoader);
-			this.ctx.ui.requestRender();
-		}
+		const label = isAuto ? `Auto-compacting context... ${cancelHint}` : `Compacting context... ${cancelHint}`;
+		setCompactionPhaseLabel(undefined);
+		const compactingLoader = new Loader(
+			this.ctx.ui,
+			spinner => theme.fg("accent", spinner),
+			text => theme.fg("muted", text),
+			label,
+			getSymbolTheme().spinnerFrames,
+		);
+		const compactionStartMs = Date.now();
+		compactingLoader.setWorkingRow(
+			() => ({
+				label: `${isAuto ? "Auto-compacting context" : "Compacting context"}${compactionPhaseSuffix()}…`,
+				startedAt: compactionStartMs,
+				variant: { kind: "compaction" },
+				interruptKey: this.ctx.maintenanceInterruptKey(),
+			}),
+			() => this.ctx.interruptFromPointer(),
+		);
+		this.ctx.statusContainer.addChild(compactingLoader);
+		this.ctx.ui.requestRender();
 
 		let outcome: CompactionOutcome = "ok";
 		try {
-			try {
-				await session.compact(instructions, options);
-			} finally {
-				if (compactingLoader) {
-					compactingLoader.stop();
-					this.ctx.statusContainer.removeChild(compactingLoader);
-				}
-			}
-			if (inView()) {
-				this.ctx.rebuildChatFromMessages({ reuseSettledComponents: true });
-				this.ctx.statusLine.invalidate();
-				if (background) this.ctx.showStatus("Compaction complete");
-				// Rebuilding resets the transcript's emission ledger. Clear terminal
-				// scrollback before re-emitting its blocks (#12140).
-				this.ctx.ui.requestRender(true, { clearScrollback: true });
-			}
+			const instructions = typeof customInstructionsOrOptions === "string" ? customInstructionsOrOptions : undefined;
+			const baseOptions =
+				customInstructionsOrOptions && typeof customInstructionsOrOptions === "object"
+					? customInstructionsOrOptions
+					: undefined;
+			// The slash path passes `mode` positionally; the extension path carries
+			// it inside the options object. Either source wins over no mode.
+			const effectiveMode = mode ?? baseOptions?.mode;
+			const options =
+				baseOptions || effectiveMode || readerModel
+					? {
+							...baseOptions,
+							...(effectiveMode ? { mode: effectiveMode } : {}),
+							...(readerModel ? { readerModel } : {}),
+						}
+					: undefined;
+			await this.ctx.session.compact(instructions, options);
+			setCompactionPhaseLabel(undefined);
+
+			compactingLoader.stop();
+			this.ctx.statusContainer.disposeChildren();
+			this.ctx.rebuildChatFromMessages({ reuseSettledComponents: true });
+
+			this.ctx.statusLine.invalidate();
+			// Same pairing as the auto-compaction arm in event-controller: the
+			// rebuild clears the container's emission ledger, so every block
+			// re-emits on this frame while the previous copy is still in native
+			// scrollback — without a clear the collapse-disabled path appends a
+			// duplicate transcript, exactly as `/compact` reproduced (#12140).
+			this.ctx.ui.requestRender(true, { clearScrollback: true });
 		} catch (error) {
 			if (error instanceof CompactionCancelledError) {
 				outcome = "cancelled";
-				if (inView()) this.ctx.showError("Compaction cancelled");
+				this.ctx.showError("Compaction cancelled");
 			} else {
 				outcome = "failed";
 				const message = error instanceof Error ? error.message : String(error);
-				logger.error("Compaction failed", { error: message });
-				if (inView()) this.ctx.showError(`Compaction failed: ${message}`);
+				this.ctx.showError(`Compaction failed: ${message}`);
 			}
+		} finally {
+			compactingLoader.stop();
+			this.ctx.statusContainer.disposeChildren();
 		}
-		// A plan approval may switch models before queued input can dispatch.
+		// Run the caller's pre-flush hook (e.g. the plan-approval model transition)
+		// before queued user input is dispatched, so any turn queued during
+		// compaction executes on the post-compaction model rather than the model
+		// compaction itself ran on.
 		if (beforeFlush) await beforeFlush(outcome);
-		if (!background) await this.ctx.flushCompactionQueue({ willRetry: false });
+		await this.ctx.flushCompactionQueue({ willRetry: false });
 		return outcome;
+	}
+
+	async handleHandoffCommand(customInstructions?: string): Promise<void> {
+		if (this.ctx.session.isStreaming) {
+			this.ctx.showWarning("Wait for the current response to finish or abort it before handing off.");
+			return;
+		}
+		if (this.ctx.session.isCompacting) {
+			this.ctx.showWarning("Wait for context compaction to finish or cancel it before handing off.");
+			return;
+		}
+
+		const entries = this.ctx.sessionManager.getEntries();
+		const messageCount = entries.filter(e => e.type === "message").length;
+
+		if (messageCount < 2) {
+			this.ctx.showWarning("Nothing to hand off (no messages yet)");
+			return;
+		}
+
+		if (this.ctx.loadingAnimation) {
+			this.ctx.loadingAnimation.stop();
+			this.ctx.loadingAnimation = undefined;
+		}
+		this.ctx.statusContainer.disposeChildren();
+
+		const handoffLoader = new Loader(
+			this.ctx.ui,
+			spinner => theme.fg("accent", spinner),
+			text => theme.fg("muted", text),
+			`Generating handoff… (${appKey(this.ctx.keybindings, "app.interrupt")} to cancel)`,
+			getSymbolTheme().spinnerFrames,
+		);
+		this.ctx.statusContainer.addChild(handoffLoader);
+		this.ctx.ui.requestRender();
+
+		try {
+			// Handoff generation runs as a oneshot request; the document is then
+			// committed as a compaction entry on this session.
+			const result = await this.ctx.session.handoff(customInstructions);
+
+			if (!result) {
+				this.ctx.showError("Handoff cancelled");
+				return;
+			}
+
+			// Rebuild chat from the session, which now shows the handoff compaction divider.
+			this.ctx.clearTransientSessionUi();
+			await this.ctx.renderInitialMessages();
+			this.ctx.statusLine.invalidate();
+			this.ctx.updateEditorBorderColor();
+			await this.ctx.reloadTodos();
+
+			this.ctx.present([
+				new Spacer(1),
+				new Text(
+					`${theme.fg("accent", `${theme.status.success} Context handed off and compacted in place`)}`,
+					1,
+					1,
+				),
+			]);
+			if (result.savedPath) {
+				this.ctx.showStatus(`Handoff document saved to: ${result.savedPath}`);
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			// `session.handoff()` normalizes genuine cancellations to this exact message; a
+			// provider error (even one named AbortError) is re-thrown verbatim so it surfaces
+			// as a real failure instead of a false "cancelled".
+			if (message === "Handoff cancelled") {
+				this.ctx.showError("Handoff cancelled");
+			} else {
+				// Persist the real failure so it is debuggable after the transient
+				// TUI error clears (#7993).
+				logger.error("Handoff failed", { error: message });
+				this.ctx.showError(`Handoff failed: ${message}`);
+			}
+		} finally {
+			this.#finishHandoffUi(handoffLoader);
+			await this.ctx.flushCompactionQueue({ willRetry: false });
+		}
+		this.ctx.ui.requestRender(true, { clearScrollback: true });
+	}
+
+	#finishHandoffUi(handoffLoader: Loader): void {
+		handoffLoader.stop();
+		// A retry/compaction event may replace the handoff overlay while transcript
+		// replay yields. Preserve it only while it still owns the status row; a
+		// reference to a loader disposed earlier must not retain the handoff overlay.
+		const maintenanceLoader = this.ctx.autoCompactionLoader ?? this.ctx.retryLoader;
+		if (maintenanceLoader && this.ctx.statusContainer.children.includes(maintenanceLoader)) return;
+		this.ctx.statusContainer.disposeChildren();
+		// `disposeChildren()` disposed any working loader mounted by a delayed
+		// `agent_start` during transcript replay, which stops its animation timer.
+		// Drop the now-frozen reference so the reconciler below never reattaches it
+		// (`ensureLoadingAnimation()` only re-adds an existing instance, never
+		// restarts it).
+		if (this.ctx.loadingAnimation) {
+			this.ctx.loadingAnimation.stop();
+			this.ctx.loadingAnimation = undefined;
+		}
+		if (this.ctx.session.isStreaming) {
+			// A new turn won the race with handoff cleanup; mount a fresh, running
+			// loader for it now that the stale reference is cleared.
+			this.ctx.ensureLoadingAnimation();
+		}
 	}
 }
 
@@ -2393,13 +2421,12 @@ function formatWindowSuffix(label: string, windowLabel: string, uiTheme: Theme):
 	return uiTheme.fg("dim", `(${windowLabel})`);
 }
 
-/** ` (org · plan)` suffix for providers whose orgName is an organization. */
+/** ` (org)` suffix for providers whose orgName is an organization. */
 function orgSuffix(report: UsageReport): string {
 	const orgName = report.metadata?.orgName;
 	const orgId = report.metadata?.orgId;
 	const org = typeof orgName === "string" && orgName ? orgName : typeof orgId === "string" ? orgId : undefined;
-	const detail = [org, usageSubscriptionPlan(report)].filter(Boolean).join(" · ");
-	return detail ? ` (${detail})` : "";
+	return org ? ` (${org})` : "";
 }
 
 /** Keep the existing TUI `(plan)` layout while using the live Codex usage plan. */

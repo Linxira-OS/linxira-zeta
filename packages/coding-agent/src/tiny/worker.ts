@@ -8,7 +8,7 @@
  * never runs (issue #1606).
  */
 import * as path from "node:path";
-import { getTinyModelsCacheDir, logger, setProcessName } from "@oh-my-pi/pi-utils";
+import { getTinyModelsCacheDir, logger, setProcessName } from "@linxiraos/pi-utils";
 import { claimWorkerStdout } from "../daemon/modules/speech-frames";
 import { startParentWatchdog } from "../subprocess/parent-watchdog";
 import type {

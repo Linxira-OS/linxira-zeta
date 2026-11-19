@@ -17,7 +17,7 @@
  * The client half ({@link InferConnection}) lives here too so both ends of the
  * contract stay in one file.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { daemonClient } from "../client";
 import type { DaemonModule, ManagedChild, ModuleContext, ModuleOpen, ModuleTunnel, ModuleUnit } from "../module";
 import { type DaemonClient, type DaemonTunnel, GLOBAL_SCOPE, type UnitPolicy } from "../protocol";

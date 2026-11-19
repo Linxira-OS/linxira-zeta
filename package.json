@@ -8,7 +8,8 @@
     "packages": [
       "packages/*",
       "plugins/*",
-      "python/robomp/web"
+      "python/robomp/web",
+      "!packages/collab-web"
     ],
     "catalog": {
       "@babel/generator": "^7.29.7",

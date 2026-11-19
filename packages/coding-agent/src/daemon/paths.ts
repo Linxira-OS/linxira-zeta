@@ -1,8 +1,8 @@
 /** Filesystem layout of the single per-user omp daemon. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { ipcEndpoint } from "@oh-my-pi/pi-natives";
-import { getDaemonDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@oh-my-pi/pi-utils";
+import { ipcEndpoint } from "@linxiraos/pi-natives";
+import { getDaemonDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@linxiraos/pi-utils";
 import { DAEMON_DIR_ENV, DAEMON_TCP_ENV } from "./protocol";
 
 /** Runtime directory of the daemon: `OMP_DAEMON_DIR`, else the profile-independent `run/daemon`. */

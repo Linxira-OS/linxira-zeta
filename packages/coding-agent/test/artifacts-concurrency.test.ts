@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ArtifactManager } from "@oh-my-pi/pi-coding-agent/session/artifacts";
-import { removeSyncWithRetries, spillFileName } from "@oh-my-pi/pi-utils";
+import { ArtifactManager } from "@linxiraos/zeta/session/artifacts";
+import { removeSyncWithRetries, spillFileName } from "@linxiraos/pi-utils";
 
 describe("ArtifactManager spill ids", () => {
 	const dirs: string[] = [];

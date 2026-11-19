@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { CmuxTab } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/cmux-tab";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { CmuxTab } from "@linxiraos/zeta/tools/browser/cmux/cmux-tab";
 import {
 	ClickRefusedError,
 	clickElement,
@@ -16,12 +16,12 @@ import {
 	setElementChecked,
 	TypingInterruptedError,
 	withLiveElement,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/interactions";
-import { acquireBrowser, releaseBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { normalizeSelectOptions } from "@oh-my-pi/pi-coding-agent/tools/browser/select-options";
-import { releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { TERN_KIT_SOURCE } from "@oh-my-pi/pi-coding-agent/tools/browser/tern/page-kit";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/interactions";
+import { acquireBrowser, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { normalizeSelectOptions } from "@linxiraos/zeta/tools/browser/select-options";
+import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { TERN_KIT_SOURCE } from "@linxiraos/zeta/tools/browser/tern/page-kit";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";
 import type { ElementHandle } from "puppeteer-core";

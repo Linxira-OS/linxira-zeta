@@ -9,7 +9,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileLock } from "@oh-my-pi/pi-natives";
+import { FileLock } from "@linxiraos/pi-natives";
 import { closeDaemonClient, probeDaemon } from "../../src/daemon/client";
 import { daemonLockPath } from "../../src/daemon/paths";
 import { DAEMON_DIR_ENV, DAEMON_TCP_ENV } from "../../src/daemon/protocol";

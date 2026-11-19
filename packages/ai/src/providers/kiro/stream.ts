@@ -1,8 +1,8 @@
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
-import { decodeKiroCredential, kiroRuntimeBaseUrl } from "@oh-my-pi/pi-catalog/wire/kiro";
-import { kiroCliServiceHeaders } from "@oh-my-pi/pi-catalog/wire/kiro-cli";
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { readBoundedBody } from "@oh-my-pi/pi-utils/bounded-json";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { decodeKiroCredential, kiroRuntimeBaseUrl } from "@linxiraos/pi-catalog/wire/kiro";
+import { kiroCliServiceHeaders } from "@linxiraos/pi-catalog/wire/kiro-cli";
+import { isRecord } from "@linxiraos/pi-utils";
+import { readBoundedBody } from "@linxiraos/pi-utils/bounded-json";
 import * as AIError from "../../error";
 import type {
 	AssistantMessage,

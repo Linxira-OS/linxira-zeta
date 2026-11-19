@@ -1,6 +1,6 @@
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { clampThinkingLevelForModel, mapEffortToAnthropicAdaptiveEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import { prompt } from "@oh-my-pi/pi-utils";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { clampThinkingLevelForModel, mapEffortToAnthropicAdaptiveEffort } from "@linxiraos/pi-catalog/model-thinking";
+import { prompt } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import type { Context, DeveloperMessage, ImageContent, Model, ToolResultMessage, UserMessage } from "../../types";
 import { toolWireSchema } from "../../utils/schema/wire";

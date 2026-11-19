@@ -12,8 +12,8 @@
  * external's arguments. Everything else is left exactly as written.
  */
 import * as fs from "node:fs/promises";
-import { ShellFsOp } from "@oh-my-pi/pi-natives";
-import { isCmdShell } from "@oh-my-pi/pi-utils/procmgr";
+import { ShellFsOp } from "@linxiraos/pi-natives";
+import { isCmdShell } from "@linxiraos/pi-utils/procmgr";
 import type { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
 import { lexShellCommand } from "./shell-tokenize";
 

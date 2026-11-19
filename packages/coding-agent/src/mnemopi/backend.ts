@@ -1,13 +1,13 @@
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
-import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@oh-my-pi/pi-ai";
-import { hostMatchesUrl } from "@oh-my-pi/pi-catalog/hosts";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
-import type { Mnemopi } from "@oh-my-pi/pi-mnemopi";
-import type { MnemopiLlmCompleteOptions } from "@oh-my-pi/pi-mnemopi/core/runtime-options";
-import type * as MnemopiDiagnoseNs from "@oh-my-pi/pi-mnemopi/diagnose";
-import type { DiagnosticSummary } from "@oh-my-pi/pi-mnemopi/diagnose";
-import { logger, prompt, withLoopPhase } from "@oh-my-pi/pi-utils";
+import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@linxiraos/pi-ai";
+import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import type { Mnemopi } from "@linxiraos/pi-mnemopi";
+import type { MnemopiLlmCompleteOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
+import type * as MnemopiDiagnoseNs from "@linxiraos/pi-mnemopi/diagnose";
+import type { DiagnosticSummary } from "@linxiraos/pi-mnemopi/diagnose";
+import { logger, prompt, withLoopPhase } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { roleCandidatePool } from "../config/model-roles";
@@ -28,8 +28,8 @@ import mnemopiInstructions from "../prompts/system/mnemopi-instructions.md" with
 import type { AgentSession } from "../session/agent-session";
 import { tinyModelClient } from "../tiny/title-client";
 import { unmeteredMessage } from "../utils/title-generator";
-import { shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
-import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@oh-my-pi/pi-tui/thinking";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import {
 	loadMnemopiConfig,
 	type MnemopiBackendConfig,
@@ -60,7 +60,7 @@ let mnemopiDiagnoseMod: typeof MnemopiDiagnoseNs | undefined;
 
 async function loadMnemopiDiagnose(): Promise<typeof MnemopiDiagnoseNs> {
 	if (!mnemopiDiagnoseMod) {
-		mnemopiDiagnoseMod = await import("@oh-my-pi/pi-mnemopi/diagnose");
+		mnemopiDiagnoseMod = await import("@linxiraos/pi-mnemopi/diagnose");
 	}
 	return mnemopiDiagnoseMod;
 }

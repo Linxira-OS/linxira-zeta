@@ -6,8 +6,8 @@
  * below are load-bearing, not cosmetic.
  */
 import { describe, expect, it } from "bun:test";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { isDefinitiveOAuthFailure } from "@oh-my-pi/pi-ai/error";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { isDefinitiveOAuthFailure } from "@linxiraos/pi-ai/error";
 
 describe("isDefinitiveOAuthFailure", () => {
 	it("treats explicit dead-grant errors as definitive", () => {

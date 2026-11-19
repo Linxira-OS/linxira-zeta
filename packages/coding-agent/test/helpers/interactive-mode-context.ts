@@ -31,21 +31,21 @@
  * that also import the module-level `settings` need the global initialized.
  */
 import { vi } from "bun:test";
-import { isSettingsInitialized, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPDroppedServer } from "@oh-my-pi/pi-coding-agent/mcp/transforms";
-import type { MCPServerConnection } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { ServedModelTracker } from "@oh-my-pi/pi-tui/chat/served-model-marker";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { OAuthManualInputManager } from "@oh-my-pi/pi-coding-agent/modes/oauth-manual-input";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TokenRateMeter } from "@oh-my-pi/pi-coding-agent/utils/token-rate";
-import { type Component, Container } from "@oh-my-pi/pi-tui";
+import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPDroppedServer } from "@linxiraos/zeta/mcp/transforms";
+import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TokenRateMeter } from "@linxiraos/zeta/utils/token-rate";
+import { type Component, Container } from "@linxiraos/pi-tui";
 
-import { cfgTerminalShowImages } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTerminalShowImages } from "@linxiraos/zeta/modes/settings";
 
 type AnyFn = (...args: never[]) => unknown;
 

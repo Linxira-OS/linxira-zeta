@@ -6,8 +6,8 @@
  * (the daemon closes the least recently used idle one beyond `disassembler.maxOpen`), attaches a
  * tunnel to each, and forwards NDJSON requests over it.
  */
-import { logger, postmortem, untilAborted } from "@oh-my-pi/pi-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { logger, postmortem, untilAborted } from "@linxiraos/pi-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { daemonClient } from "../daemon/client";
 import { type DaemonTunnel, GLOBAL_SCOPE, type UnitSnapshot } from "../daemon/protocol";
 import type { ToolSession } from "../tools";

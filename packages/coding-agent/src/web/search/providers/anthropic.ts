@@ -18,15 +18,15 @@ import {
 	resolveAnthropicMetadataUserId,
 	stripClaudeToolPrefix,
 	withAuth,
-} from "@oh-my-pi/pi-ai";
-import { buildAnthropicSystemBlocks, wrapFetchForCch } from "@oh-my-pi/pi-ai/providers/anthropic";
+} from "@linxiraos/pi-ai";
+import { buildAnthropicSystemBlocks, wrapFetchForCch } from "@linxiraos/pi-ai/providers/anthropic";
 import {
 	anthropicApiVersionAcceptsSamplingParams,
 	isOfficialAnthropicApiUrl,
 	resolveAnthropicApiVersion,
-} from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { fallbackCreditTargets } from "@oh-my-pi/pi-catalog/compat/fallback-credit";
-import { $env } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/compat/anthropic";
+import { fallbackCreditTargets } from "@linxiraos/pi-catalog/compat/fallback-credit";
+import { $env } from "@linxiraos/pi-utils";
 // The model decides whether to search and answers from its weights when a query
 // reads as stable knowledge; a search backend must always search.
 import searchInstruction from "../../../prompts/system/web-search-anthropic.md" with { type: "text" };

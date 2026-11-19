@@ -33,7 +33,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { isEnoent } from "@oh-my-pi/pi-utils/fs-error";
+import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import {
 	mergeNativeCaptures,
 	NATIVE_CASES,

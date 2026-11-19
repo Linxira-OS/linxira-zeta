@@ -5,8 +5,8 @@
  * {@link buildJobTree}) beside the selected one's status, command, facts
  * (cwd, live pids, exit code, artifact) and live output.
  */
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { formatDuration, sanitizeText, spillUrl } from "@oh-my-pi/pi-utils";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { formatDuration, sanitizeText, spillUrl } from "@linxiraos/pi-utils";
 import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";

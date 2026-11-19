@@ -1,6 +1,6 @@
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import type { TextContent } from "@oh-my-pi/pi-ai";
-import { type ImageMetadata, parseImageMetadata, TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { TextContent } from "@linxiraos/pi-ai";
+import { type ImageMetadata, parseImageMetadata, TempDir } from "@linxiraos/pi-utils";
 import {
 	type ArchiveFormat,
 	type ArchiveReader,
@@ -9,13 +9,13 @@ import {
 	openArchive,
 	parseArchivePathCandidates,
 	sniffArchiveFormat,
-} from "@oh-my-pi/pi-utils/ar";
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+} from "@linxiraos/pi-utils/ar";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import type { ToolSession } from "../sdk";
 import { convertBufferWithMarkit } from "../utils/markit";
-import { truncateHead } from "@oh-my-pi/pi-tui/tools/streaming-output";
+import { truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@oh-my-pi/pi-tui/tools/read";
+import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import {
 	buildInMemorySelectorResult,
 	decodeUtf8Text,
@@ -32,9 +32,9 @@ import {
 import { isMultiRange, type ParsedSelector, parseSel, resolveTailSelector, selToOffsetLimit } from "./read-selector";
 import { type PdfImageReadTarget, type PdfPageReadOptions, splitPdfImageReadPath } from "./read-pdf";
 import { cfgReadRenderMarkdown } from "./settings";
-import { formatBytes } from "@oh-my-pi/pi-tui/render/render-utils";
+import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { RACY_STAMP_WINDOW_MS } from "./racy-stamp";
 import { parseJsonSelector, readJson, splitJsonQueryTarget } from "./read-json";

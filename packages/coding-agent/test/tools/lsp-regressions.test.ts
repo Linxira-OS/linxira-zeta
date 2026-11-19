@@ -3,25 +3,25 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult, RenderResultOptions } from "@oh-my-pi/pi-agent-core";
-import { arkToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { preloadPluginRoots } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
+import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
 import { rejectionOf, trackUnhandled } from "../helpers/rejection";
 import { restoreEnvValue } from "../helpers/settings-test-state";
-import { createLspWritethrough, LspTool } from "@oh-my-pi/pi-coding-agent/lsp";
-import * as lspClient from "@oh-my-pi/pi-coding-agent/lsp/client";
-import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
-import { configCache, getServersForFile, type LspConfig, loadConfig } from "@oh-my-pi/pi-coding-agent/lsp/config";
-import { waitForDiagnostics } from "@oh-my-pi/pi-coding-agent/lsp/diagnostics";
+import { createLspWritethrough, LspTool } from "@linxiraos/zeta/lsp";
+import * as lspClient from "@linxiraos/zeta/lsp/client";
+import * as lspConfig from "@linxiraos/zeta/lsp/config";
+import { configCache, getServersForFile, type LspConfig, loadConfig } from "@linxiraos/zeta/lsp/config";
+import { waitForDiagnostics } from "@linxiraos/zeta/lsp/diagnostics";
 import {
 	applyTextEditsToString,
 	applyWorkspaceEdit,
 	type ExecutedWorkspaceChange,
 	sortAndValidateTextEdits,
-} from "@oh-my-pi/pi-coding-agent/lsp/edits";
-import { renderCall, renderResult } from "@oh-my-pi/pi-tui/tools/lsp";
+} from "@linxiraos/zeta/lsp/edits";
+import { renderCall, renderResult } from "@linxiraos/pi-tui/tools/lsp";
 import {
 	type CodeAction,
 	type CreateFile,
@@ -35,8 +35,8 @@ import {
 	type SymbolInformation,
 	type TextDocumentEdit,
 	type WorkspaceEdit,
-} from "@oh-my-pi/pi-coding-agent/lsp/types";
-import { type LspToolDetails } from "@oh-my-pi/pi-tui/tools/lsp";
+} from "@linxiraos/zeta/lsp/types";
+import { type LspToolDetails } from "@linxiraos/pi-tui/tools/lsp";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -49,17 +49,17 @@ import {
 	resolveDiagnosticTargets,
 	resolveSymbolColumn,
 	uriToFile,
-} from "@oh-my-pi/pi-coding-agent/lsp/utils";
-import { getThemeByName, initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { clampTimeout } from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { sanitizeText, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/lsp/utils";
+import { getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
+import * as piUtils from "@linxiraos/pi-utils";
+import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
-import { renderResult as renderLocalResult } from "@oh-my-pi/pi-tui/tools/lsp";
-import { getLanguageFromPath } from "@oh-my-pi/pi-tui/lang-from-path";
+import { renderResult as renderLocalResult } from "@linxiraos/pi-tui/tools/lsp";
+import { getLanguageFromPath } from "@linxiraos/pi-tui/lang-from-path";
 
 const lspTestSettings = Settings.isolated();
 

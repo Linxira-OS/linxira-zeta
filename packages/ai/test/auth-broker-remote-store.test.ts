@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
+import { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import {
 	AuthBrokerClient,
 	type AuthBrokerServerHandle,
@@ -12,9 +12,9 @@ import {
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
 	startAuthBroker,
-} from "@oh-my-pi/pi-ai/auth-broker";
-import { getProviderDefinition } from "@oh-my-pi/pi-ai/registry";
-import { decodeKiroCredential } from "@oh-my-pi/pi-catalog/wire/kiro";
+} from "@linxiraos/pi-ai/auth-broker";
+import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { decodeKiroCredential } from "@linxiraos/pi-catalog/wire/kiro";
 import { removeWithRetries } from "../../utils/src/temp";
 import { withEnv } from "./helpers";
 
@@ -351,7 +351,7 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 	test("a process that quits before the flush interval still reports its observed usage", async () => {
 		// Mirrors `omp -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
 		const script = [
-			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			'import { postmortem } from "@linxiraos/pi-utils";',
 			`import { AuthBrokerClient, RemoteAuthCredentialStore } from ${JSON.stringify(AUTH_BROKER_MODULE)};`,
 			`const client = new AuthBrokerClient({ url: ${JSON.stringify(handle!.url)}, token: ${JSON.stringify(token)} });`,
 			"const remote = new RemoteAuthCredentialStore({ client, streamSnapshots: false });",

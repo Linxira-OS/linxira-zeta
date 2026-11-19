@@ -9,8 +9,8 @@
  * dropped once the last local listener unsubscribes; events arrive
  * asynchronously after the main-side change.
  */
-import type { IrcDeliveryReceipt, IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { IrcDeliveryReceipt, IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import { logger } from "@linxiraos/pi-utils";
 import type { AgentAwaitsApi, AwaitHoldOptions, AwaitWaiter } from "../../registry/agent-awaits";
 import type {
 	AdoptOptions,

@@ -12,8 +12,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { UnitPolicy, UnitSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import type { UnitPolicy, UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	acquireFileLock,
 	type FileLockHandle,
@@ -21,7 +21,7 @@ import {
 	logger,
 	sanitizeText,
 	withTimeout,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { daemonClient } from "../../daemon/client";
 import { canonicalProjectDir } from "../../daemon/paths";
 import { type DaemonClient, type OpenRequest, projectScope } from "../../daemon/protocol";

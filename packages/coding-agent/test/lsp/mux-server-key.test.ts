@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type LspServerParams, muxServerKey } from "@oh-my-pi/pi-coding-agent/lsp/mux/protocol";
+import { type LspServerParams, muxServerKey } from "@linxiraos/zeta/lsp/mux/protocol";
 
 const base: LspServerParams = {
 	command: "typescript-language-server",

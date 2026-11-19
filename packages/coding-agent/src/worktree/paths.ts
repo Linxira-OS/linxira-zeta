@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { VcsWorktreeEntry } from "@oh-my-pi/pi-natives";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import type { VcsWorktreeEntry } from "@linxiraos/pi-natives";
+import { isEnoent } from "@linxiraos/pi-utils";
 
 /** Maximum disambiguation suffixes we try before giving up on a worktree path. */
 const WORKTREE_PATH_MAX_SUFFIX = 100;

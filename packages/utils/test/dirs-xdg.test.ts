@@ -10,8 +10,8 @@ import {
 	getSkillDescriptionsDbPath,
 	setAgentDir,
 	setProfile,
-} from "@oh-my-pi/pi-utils/dirs";
-import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
+} from "@linxiraos/pi-utils/dirs";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 
 const ENV_KEYS = [
 	"OMP_PROFILE",

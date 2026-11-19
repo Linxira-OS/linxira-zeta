@@ -14,8 +14,8 @@
  * journal?.(message, userPrompt);
  * ```
  */
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { logger } from "@linxiraos/pi-utils";
 import { extractTextContent } from "../commit/utils";
 import type { CompletionRecord } from "./session-entries";
 import type { SessionManager } from "./session-manager";

@@ -5,8 +5,8 @@ import {
 	type LoopSampleFrame,
 	type LoopSampler,
 	summarizeBlock,
-} from "@oh-my-pi/pi-tui/loop-sampler";
-import { LoopWatchdog } from "@oh-my-pi/pi-tui/loop-watchdog";
+} from "@linxiraos/pi-tui/loop-sampler";
+import { LoopWatchdog } from "@linxiraos/pi-tui/loop-watchdog";
 import {
 	currentLoopPhase,
 	logger,
@@ -14,7 +14,7 @@ import {
 	pushLoopPhase,
 	resetLoopPhaseWindow,
 	takeLoopPhaseAttribution,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 
 /**
  * Contract: LoopWatchdog turns event-loop lag into exactly one

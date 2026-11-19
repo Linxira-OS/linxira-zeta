@@ -2,14 +2,14 @@ import * as os from "node:os";
 import { setFeedModelBadgeEnabled } from "../src/render/render-utils";
 import { setShimmerMode } from "../src/theme/shimmer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type RenderResultOptions, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
-import { taskToolRenderer } from "@oh-my-pi/pi-tui/tools/task";
-import { getSubprocessToolRenderer } from "@oh-my-pi/pi-tui/tools/subprocess";
-import type { AgentProgress, SingleResult, TaskToolDetails } from "@oh-my-pi/pi-tui/tools/task";
-import { FEED_MODEL_BADGE_WIDTH } from "@oh-my-pi/pi-tui/render/render-utils";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
-import { agentColored } from "@oh-my-pi/pi-tui/overlays/agent-identity";
+import { type RenderResultOptions, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
+import { taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
+import { getSubprocessToolRenderer } from "@linxiraos/pi-tui/tools/subprocess";
+import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
+import { FEED_MODEL_BADGE_WIDTH } from "@linxiraos/pi-tui/render/render-utils";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import { agentColored } from "@linxiraos/pi-tui/overlays/agent-identity";
 
 function runningProgress(overrides: Partial<AgentProgress> = {}): AgentProgress {
 	return {

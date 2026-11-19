@@ -1,5 +1,5 @@
 import * as os from "node:os";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { daemonClient } from "../daemon/client";
 import {
 	decodeMessage,

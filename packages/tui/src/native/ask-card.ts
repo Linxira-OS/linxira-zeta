@@ -23,7 +23,7 @@
  * 	actions: actionBar([null, actionButton("Submit", "submit", { tone: "accent" })]),
  * });
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { Ellipsis, truncateToWidth } from "../utils";
 import { col, node, row, span, text, withMotion } from "./describe";
 import type { NativeChild, NativeNode } from "./node";

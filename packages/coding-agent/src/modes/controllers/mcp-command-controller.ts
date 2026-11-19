@@ -16,7 +16,6 @@ import {
 	MCPManager,
 	OAuthIssuerMismatchError,
 	reconnectMCPServers,
-	resolveMCPTransformContext,
 } from "../../mcp";
 import {
 	findMcpServerForAuth,
@@ -38,7 +37,6 @@ import {
 	readMCPConfigFile,
 	removeMCPServer,
 	setServerDisabled,
-	setServerForceEnabled,
 	updateMCPServer,
 	validateServerName,
 } from "../../mcp/config-writer";
@@ -295,11 +293,6 @@ export async function collectMcpServerNames(
 	if (ctx.mcpManager) {
 		for (const name of ctx.mcpManager.getAllServerNames()) {
 			names.add(name);
-		}
-		// Dropped by a built-in transform: not running, so only what accepts a
-		// disabled server can act on them.
-		if (includeDisabledOnly) {
-			for (const name of ctx.mcpManager.getBuiltinDrops().keys()) names.add(name);
 		}
 	}
 	return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -1044,13 +1037,11 @@ export class MCPCommandController {
 				}
 			}
 
-			const builtinDrops = this.ctx.mcpManager?.getBuiltinDrops();
 			if (
 				userServers.length === 0 &&
 				projectServers.length === 0 &&
 				discoveredServers.length === 0 &&
-				disabledServerNames.size === 0 &&
-				!builtinDrops?.size
+				disabledServerNames.size === 0
 			) {
 				this.#showReport(
 					"MCP Servers",
@@ -1135,21 +1126,6 @@ export class MCPCommandController {
 				lines.push(theme.fg("accent", "Disabled") + theme.fg("muted", " (discovered servers):"));
 				for (const name of relevantDisabled) {
 					lines.push(`  ${theme.fg("accent", name)}${theme.fg("warning", " ◌ disabled")}`);
-				}
-				lines.push("");
-			}
-
-			// Show servers a built-in transform left unconnected, with the way back
-			if (builtinDrops?.size) {
-				lines.push(
-					theme.fg("accent", "Replaced by built-ins") +
-						theme.fg("muted", " (/mcp enable <name> connects one anyway):"),
-				);
-				for (const [name, drop] of builtinDrops) {
-					const detail = `${drop.reason} (${shortenPath(drop.source.path)})`;
-					lines.push(
-						`  ${theme.fg("accent", name)}${theme.fg("warning", " ◌ replaced:")} ${theme.fg("dim", detail)}`,
-					);
 				}
 				lines.push("");
 			}
@@ -1399,9 +1375,6 @@ export class MCPCommandController {
 		}
 
 		try {
-			// A server a built-in transform dropped counts as disabled: enabling it
-			// records an explicit enable, which outranks the transform.
-			const dropped = this.ctx.mcpManager?.getBuiltinDrops().get(name);
 			const found = await findMcpServerForAuth(name, getProjectDir(), this.ctx.mcpManager, {
 				enableProjectConfig: cfgMcpEnableProjectConfig.get(this.ctx.settings),
 			});
@@ -1409,8 +1382,8 @@ export class MCPCommandController {
 				// Check if this is a discovered server from a third-party config
 				const userConfigPath = getMCPConfigPath("user", getProjectDir());
 				const disabledServers = new Set(await readDisabledServers(userConfigPath));
-				const isDiscovered = this.ctx.mcpManager?.getSource(name) ?? dropped?.source;
-				const isCurrentlyDisabled = disabledServers.has(name) || dropped !== undefined;
+				const isDiscovered = this.ctx.mcpManager?.getSource(name);
+				const isCurrentlyDisabled = disabledServers.has(name);
 				if (!isDiscovered && !isCurrentlyDisabled) {
 					this.ctx.showError(`Server "${name}" not found.`);
 					return;
@@ -1424,7 +1397,6 @@ export class MCPCommandController {
 					return;
 				}
 				await setServerDisabled(userConfigPath, name, !enabled);
-				if (dropped) await setServerForceEnabled(userConfigPath, name, true);
 				if (enabled) {
 					await this.#connectEnabledMCPServer(name);
 					const state = await this.#waitForServerConnectionWithAnimation(name);
@@ -1451,7 +1423,7 @@ export class MCPCommandController {
 				return;
 			}
 
-			if ((found.config.enabled ?? true) === enabled && !(enabled && dropped)) {
+			if ((found.config.enabled ?? true) === enabled) {
 				this.#showMessage(
 					["", theme.fg("muted", `Server "${name}" is already ${enabled ? "enabled" : "disabled"}.`), ""].join(
 						"\n",
@@ -1767,9 +1739,6 @@ export class MCPCommandController {
 			enableProjectConfig: cfgMcpEnableProjectConfig.get(this.ctx.settings),
 			filterExa: true,
 			filterBrowser: this.ctx.session.getEvalPreludes().some(definition => definition.name === "browser"),
-			builtinTransforms: resolveMCPTransformContext(this.ctx.settings, {
-				evalActive: this.ctx.session.getActiveToolNames().includes("eval"),
-			}),
 			extensionRoots: this.ctx.session.effectiveExtensionRoots,
 		});
 

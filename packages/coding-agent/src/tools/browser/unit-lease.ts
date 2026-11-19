@@ -7,7 +7,7 @@
  * was using — a different generation is a different browser, whose consumers
  * re-open it themselves.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { DaemonClient, OpenRequest, OpenResult, UnitScope, UnitSnapshot } from "../../daemon/protocol";
 import { throwIfAborted } from "../tool-errors";
 

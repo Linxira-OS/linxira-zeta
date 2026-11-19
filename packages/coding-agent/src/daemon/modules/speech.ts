@@ -6,7 +6,7 @@
  * request and stream ids per tunnel, routes replies and audio back to the
  * originating tunnel, and cancels a tunnel's streams when it closes.
  */
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import type { DaemonModule, ManagedChild, ModuleTunnel, ModuleUnit } from "../module";
 import type { UnitPolicy } from "../protocol";
 import {

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { fetchKiroModels, resolveKiroApiKeyRegion } from "@oh-my-pi/pi-catalog/discovery/kiro";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
-import type { FetchImpl } from "@oh-my-pi/pi-catalog/types";
-import { encodeKiroCredential, type KiroCredential } from "@oh-my-pi/pi-catalog/wire/kiro";
-import { logger } from "@oh-my-pi/pi-utils";
+import { fetchKiroModels, resolveKiroApiKeyRegion } from "@linxiraos/pi-catalog/discovery/kiro";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import type { FetchImpl } from "@linxiraos/pi-catalog/types";
+import { encodeKiroCredential, type KiroCredential } from "@linxiraos/pi-catalog/wire/kiro";
+import { logger } from "@linxiraos/pi-utils";
 
 const PROFILE_ARN = "arn:aws:codewhisperer:us-east-1:123456789012:profile/kiro-default";
 const OAUTH: KiroCredential = { kind: "oauth", token: "access", region: "us-east-1", loginId: "login-a" };
