@@ -1152,6 +1152,8 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
+         - name: Create repository test scratch directory
+           run: mkdir -p temp
          - name: Test coding-agent native/unit bucket
            # 2, not 4: this bucket still carries timing-sensitive tests
            # (broker-endpoint-loss, mcp stdio grandchild), and four chunks on a
