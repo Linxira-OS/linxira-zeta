@@ -100,7 +100,7 @@ import "./discovery";
 import { LiveImageUrlService } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import { initializeWithSettings } from "./discovery";
-import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
+import { setInvocationConfiguredExtensions, withZetaExtensionRootScope } from "./discovery/zeta-extension-roots";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { getEnabledEvalPreludes, type EvalPreludeDefinition } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
@@ -159,6 +159,7 @@ import {
 } from "./extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands as loadSlashCommandsInternal } from "./extensibility/slash-commands";
 import type { HindsightSessionStateApi } from "./hindsight/state";
+import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { LocalProtocolHandler, type LocalProtocolOptions, outRepliesActive } from "./internal-urls";
 import { onJudgeRejection } from "./judgment";
 import { stripXdUnderscorePrefix, stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
@@ -2076,7 +2077,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	const extensionRoots = options.extensionRoots?.();
 	const explicit = extensionRoots?.explicit ?? options.additionalExtensionPaths ?? [];
 	const mode = extensionRoots?.mode ?? (options.disableExtensionDiscovery ? "explicit-only" : "merge");
-	return await withOmpExtensionRootScope(explicit, mode, () => createAgentSessionScoped(options));
+	return await withZetaExtensionRootScope(explicit, mode, () => createAgentSessionScoped(options));
 }
 
 async function createAgentSessionScoped(options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> {

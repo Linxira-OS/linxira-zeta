@@ -31,6 +31,8 @@ export declare class AudioPlayback {
 /** Persistent, serialized native desktop capture/input/accessibility session. */
 export declare class DesktopSession {
   constructor(options?: DesktopSessionOptions | undefined | null)
+  /** Passive observation-only session (no input injection). */
+  readonly observationOnly?: boolean;
   /**
    * Asks the worker when it is idle, so permissions are read live. While
    * another operation holds the worker, answers from the snapshot of the

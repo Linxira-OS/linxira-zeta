@@ -26,7 +26,12 @@ import type { ModelRegistry } from "../config/model-registry";
 import { roleCandidatePool } from "../config/model-roles";
 import { formatModelStringWithRouting } from "../config/model-resolver";
 import { collectOnlineTinyCandidates, expandOnlineTinyModelFallbacks } from "../tiny/online-candidates";
-import type { Settings } from "../config/settings";
+import { cfgLanguage, type Settings } from "../config/settings";
+/** Language automatic session names and task labels are written in. */
+export function generatedNameLanguage(settings: Settings): ZetaLanguage {
+	return cfgLanguage.get(settings);
+}
+
 import titleMarkerInstruction from "../prompts/system/title-marker-instruction.md" with { type: "text" };
 import titleSystemPrompt from "../prompts/system/title-system.md" with { type: "text" };
 import { formatTitleUserMessage } from "../tiny/message-preproc";

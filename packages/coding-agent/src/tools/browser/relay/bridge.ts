@@ -30,7 +30,7 @@ import {
 	EXTENSION_RELOAD_PROTOCOL_VERSION,
 	FOREIGN_FRAME_REFUSAL,
 	isHiddenFrame,
-	isOlderOmpVersion,
+	isOlderZetaVersion,
 	isOmpVersion,
 } from "./protocol";
 import type { ExtToRelayMessage, HiddenFrame, RelayRpcRequest, RelayToExtMessage, TabSnapshot } from "./protocol";
@@ -511,7 +511,7 @@ export class RelayBridge {
 			const ompVersion = instance.info.ompVersion ?? "";
 			if (
 				oldestExtensionOmp === undefined ||
-				isOlderOmpVersion(ompVersion, oldestExtensionOmp) ||
+				isOlderZetaVersion(ompVersion, oldestExtensionOmp) ||
 				(oldestExtensionOmp !== "" && !isOmpVersion(oldestExtensionOmp))
 			) {
 				oldestExtensionOmp = ompVersion;
@@ -710,7 +710,7 @@ export class RelayBridge {
 			userAgent: msg.userAgent,
 			browserVersion: msg.browserVersion,
 			discardedTabsProtocol: msg.discardedTabsProtocol,
-			ompVersion: typeof msg.ompVersion === "string" ? msg.ompVersion : undefined,
+			ompVersion: typeof msg.zetaVersion === "string" ? msg.zetaVersion : undefined,
 			reloadProtocol: msg.reloadProtocol,
 			downloadsProtocol: msg.downloadsProtocol,
 		};
@@ -800,7 +800,7 @@ export class RelayBridge {
 	#outdatedReloadable(inst: ExtInstance): string | null {
 		const ompVersion = inst.info?.ompVersion ?? "";
 		if (inst.info?.reloadProtocol !== EXTENSION_RELOAD_PROTOCOL_VERSION || !inst.extensionId) return null;
-		if (!isOmpVersion(ompVersion) || !isOlderOmpVersion(ompVersion, VERSION)) return null;
+		if (!isOmpVersion(ompVersion) || !isOlderZetaVersion(ompVersion, VERSION)) return null;
 		return this.#updateTried.get(inst.instanceId)?.has(ompVersion) ? null : ompVersion;
 	}
 

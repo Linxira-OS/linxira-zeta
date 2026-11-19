@@ -48,6 +48,7 @@ export type WorkerMethod =
 	| "set_type"
 	| "make_function"
 	| "save"
+	| "studio"
 	| "close";
 
 /** Loader facts the worker reports when a database opens. */

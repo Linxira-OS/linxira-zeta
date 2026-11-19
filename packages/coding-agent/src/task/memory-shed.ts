@@ -115,7 +115,7 @@ export const DEFAULT_MEMORY_SHED_EFFECTS: MemoryShedEffects = {
 			if (daemon.persist || daemon.detached || TERMINAL_STATES[daemon.state]) continue;
 			if (daemon.owner !== ownerId) continue;
 			try {
-				await stopService(brokerSession, daemon.name);
+				await stopService(brokerSession, daemon.key);
 				stopped.push(daemon.name);
 			} catch (error) {
 				logger.warn("memory-shed: failed to stop idle broker daemon", {

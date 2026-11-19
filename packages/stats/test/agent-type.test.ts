@@ -4,7 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getOverviewStats } from "@linxiraos/pi-stats/aggregator";
 import { initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
-import { getUsageAttribution } from "@linxiraos/pi-stats/rollup";
+import { getStatsByAgentType } from "@linxiraos/pi-stats/rollup";
 import { classifyAgentType } from "@linxiraos/pi-stats/parser";
 import type { AgentType, MessageStats } from "@linxiraos/pi-stats/types";
 import { getConfigRootDir, getSessionsDir, getStatsDbPath } from "@linxiraos/pi-utils";
@@ -64,7 +64,7 @@ describe("classifyAgentType", () => {
 	});
 });
 
-describe("getUsageAttribution byAgentType", () => {
+describe("getStatsByAgentType", () => {
 	it("groups token usage and requests by agent type", async () => {
 		await initDb();
 		insertMessageStats([
@@ -74,7 +74,7 @@ describe("getUsageAttribution byAgentType", () => {
 			makeMessage("a1", "advisor", { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }),
 		]);
 
-		const byType = new Map(getUsageAttribution().byAgentType.map(stat => [stat.agentType, stat]));
+		const byType = new Map(getStatsByAgentType().map(stat => [stat.agentType, stat]));
 		expect(byType.get("main")).toMatchObject({
 			totalRequests: 2,
 			totalInputTokens: 200,
@@ -176,7 +176,7 @@ describe("agent_type migration backfill", () => {
 
 		await initDb();
 
-		const byType = new Map(getUsageAttribution().byAgentType.map(stat => [stat.agentType, stat.totalRequests]));
+		const byType = new Map(getStatsByAgentType().map(stat => [stat.agentType, stat.totalRequests]));
 		expect(byType.get("main")).toBe(1);
 		expect(byType.get("subagent")).toBe(1);
 		expect(byType.get("advisor")).toBe(1);

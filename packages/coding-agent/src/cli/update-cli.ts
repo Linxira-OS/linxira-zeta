@@ -2103,6 +2103,8 @@ export interface UpdateOptions {
 	check: boolean;
 	/** Switch to and persist this channel; unset keeps `update.channel`. */
 	channel?: UpdateChannel;
+	/** Update the desktop app instead of this CLI (`--desktop`). */
+	desktop?: boolean;
 	onProgress?: UpdateProgressListener;
 }
 

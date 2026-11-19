@@ -31,7 +31,7 @@
  * execution is never blocked on the network and never throws.
  */
 import { Database } from "bun:sqlite";
-import type { ComposedIssue } from "../grievances/client";
+import type { ComposedIssue, GrievanceKind } from "../grievances/client";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -430,6 +430,11 @@ export interface FlushOptions {
 	 * future debug recipes); never set from the device's auto-flush path.
 	 */
 	bypassConsent?: boolean;
+	/**
+	 * Label the created issues carry. Tool-defect rows skip this and default
+	 * to `"bug"`; the manual `zetacode grievances push` uses `"feedback"`.
+	 */
+	kind?: GrievanceKind;
 	/**
 	 * Fetch implementation for the push POST. Defaults to global fetch.
 	 */

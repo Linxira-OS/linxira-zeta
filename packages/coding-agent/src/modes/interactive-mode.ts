@@ -8780,7 +8780,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		await postmortem.drainStdout();
 		if (process.platform !== "win32") {
 			try {
-				execReplace(cmd); // never returns on success
+				execReplace(cmd[0] ?? "/bin/sh", cmd.slice(1), {}, []); // never returns on success
 			} catch (err) {
 				process.stderr.write(`${chalk.red(`Restart exec failed: ${err instanceof Error ? err.message : err}`)}\n`);
 			}

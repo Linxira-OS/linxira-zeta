@@ -1,11 +1,5 @@
 import { isRecord } from "@linxiraos/pi-utils";
-import {
-	type DaemonState,
-	type DaemonRestartPolicy,
-	type DaemonReadySpec,
-	type DaemonSpec as NativeDaemonSpec,
-	type DaemonSnapshot as NativeDaemonSnapshot,
-} from "@linxiraos/pi-tui/tools/daemon";
+import { type DaemonState, type DaemonRestartPolicy, type DaemonReadySpec } from "@linxiraos/pi-tui/tools/daemon";
 /**
  * Cross-process daemon broker protocol shared by the tool, client, and broker.
  */
@@ -28,13 +22,44 @@ export const DAEMON_IDLE_GRACE_ENV = "ZETA_DAEMON_IDLE_GRACE_MS";
 export type DaemonSignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT" | "SIGKILL";
 
 /** Broker metadata is not forwarded to native process APIs. */
-export interface DaemonSpec extends NativeDaemonSpec {
+export interface DaemonSpec {
+	name: string;
 	previewUrl?: string;
+	application: string;
+	args: string[];
+	env?: Record<string, string>;
+	cwd: string;
+	pty: boolean;
+	ready?: DaemonReadySpec;
+	restart?: DaemonRestartPolicy;
+	persist?: boolean;
+	detached?: boolean;
 }
 
 /** Explicitly declared previews only; never inferred from process output. */
-export interface DaemonSnapshot extends NativeDaemonSnapshot {
+export interface DaemonSnapshot {
+	name: string;
+	/** Unit key in the upstream daemon vocabulary. */
+	key?: string;
+	/** Unit label in the upstream daemon vocabulary. */
+	label?: string;
 	previewUrl?: string;
+	id: string;
+	state: DaemonState;
+	pid?: number;
+	createdAt: number;
+	startedAt: number;
+	readyAt?: number;
+	exitedAt?: number;
+	exitCode?: number;
+	exitReason?: string;
+	restartCount: number;
+	outputBytes: number;
+	owner?: string;
+	readyMatch?: string;
+	readyPending?: unknown;
+	persist: boolean;
+	detached: boolean;
 }
 
 /** Typed broker operation sent over the authenticated socket. */

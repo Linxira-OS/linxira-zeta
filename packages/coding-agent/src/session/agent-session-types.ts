@@ -7,6 +7,8 @@ import type {
 	ThinkingLevel,
 	ToolCallContext,
 } from "@linxiraos/pi-agent-core";
+import type { ZetaLanguage } from "../i18n";
+import type { SessionClient } from "./session-entries";
 import type {
 	AssistantMessage,
 	Context,
@@ -179,6 +181,20 @@ export interface InitialRetryFallbackState {
 
 /** Dependencies and initial state used to construct an AgentSession. */
 export interface AgentSessionConfig {
+	/** Zeta lead-mode tool factory. */
+	createLeadTools?: () => AgentTool[];
+	/** Zeta approval-cache location for remembered grants. */
+	approvalCacheDir?: string;
+	/** Zeta MCP tool admission filter. */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	/** Snapshot current MCP precedence for reconnects and command-driven refreshes. */
+	buildMcpRefreshAnalysis?: (
+		tools: import("../tools").CustomTool[],
+		activeToolNames: readonly string[],
+		cwd: string,
+	) => Promise<import("../mcp/analysis-precedence-hook").AnalysisMcpRefreshInput>;
+	/** Zeta skill admission filter. */
+	skillFilter?: (name: string) => boolean;
 	agent: Agent;
 	sessionManager: SessionManager;
 	settings: Settings;
@@ -311,6 +327,8 @@ export interface AgentSessionConfig {
 	toolRegistry?: Map<string, AgentTool>;
 	/** Creates tools registered only while vibe mode is active. */
 	createVibeTools?: () => AgentTool[];
+	/** Creates tools registered only while Team mode is active. */
+	createTeamTools?: () => AgentTool[];
 	/** Names whose current registry entry is the built-in implementation. */
 	builtInToolNames?: Iterable<string>;
 	/** MCP names whose initial registry entries came from the manager snapshot. */
@@ -479,6 +497,12 @@ export interface PromptOptions {
 	userInitiated?: boolean;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
+	/**
+	 * Language for automatic session titles and task labels generated from this
+	 * prompt's turn. When omitted, admission captures the then-effective
+	 * `language` setting; the value never inherits another prompt or view.
+	 */
+	language?: ZetaLanguage;
 	/** Skip pre-send compaction checks for this prompt. */
 	skipCompactionCheck?: boolean;
 	/** Delegator's open-endedness description (task tool `solutionSpace`); replaces the prompt as `auto` thinking classification input. */
@@ -534,6 +558,8 @@ export interface DroppedPrompt {
 export interface FollowUpOptions {
 	/** Enqueue as a hidden developer message instead of a user follow-up. */
 	synthetic?: boolean;
+	/** Actual ingress client for this follow-up; captured before queueing. */
+	client?: SessionClient;
 	/** Whether to expand file-based prompt templates (default: true). */
 	expandPromptTemplates?: boolean;
 	/** Explicit billing/initiator attribution. */
@@ -544,6 +570,8 @@ export interface FollowUpOptions {
 
 /** Options for AgentSession.steer(). */
 export interface SteerOptions {
+	/** Actual ingress client for this steer; captured before queueing. */
+	client?: SessionClient;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the steering queue. See {@link PromptOptions.onPromptQueued}. */
@@ -649,6 +677,19 @@ export interface ResetSessionContextResult {
 export type RestoredQueuedMessage = { text: string; images?: ImageContent[] };
 
 /** A queued message the dequeue key took back, tagged with the queue it left so the editor can restore its delivery. */
+/** A queued user message as the session keeps it, before any dequeue. */
+export interface QueuedMessageEntry {
+	/** Present while a queued compaction barrier holds this follow-up out of executable queues. */
+	heldFor?: "compaction";
+	/** Stable generation-local object identity; duplicate display text never shares one. */
+	id: string;
+	text: string;
+	queue: "steering" | "followUp";
+	state: "queued" | "inFlight" | "held";
+	imageCount: number;
+	editable: boolean;
+}
+
 export type DequeuedMessage = RestoredQueuedMessage & { queue: "steering" | "followUp" };
 
 /** Options for the same ephemeral side turn used by /btw. */
@@ -692,4 +733,25 @@ export interface EphemeralTurnOptions {
 export interface EphemeralTurnResult {
 	replyText: string;
 	assistantMessage: AssistantMessage;
+}
+
+/** Compact display row for native queue indicators. */
+export interface StudioQueueSnapshotEntry {
+	id: string;
+	queue: "steering" | "followUp";
+	state: "pending" | "delivering";
+	text: string;
+	imageCount: number;
+}
+
+/** Generated session handoff document. */
+export interface HandoffResult {
+	document: string;
+	savedPath?: string;
+}
+
+/** Options controlling handoff generation. */
+export interface SessionHandoffOptions {
+	autoTriggered?: boolean;
+	signal?: AbortSignal;
 }

@@ -294,6 +294,10 @@ export interface AgentViewSession extends AgentSessionHandle {
 	readonly ttsrManager: AgentViewRuleSource | undefined;
 	/** Whether the transcript ends in a tool call that was aborted before its result. */
 	readonly hasAbortedToolCallTail: boolean;
+	/** Whether a handoff generation is in flight (Zeta session handoff). */
+	readonly isGeneratingHandoff?: boolean;
+	/** Abort the in-flight handoff generation, when supported. */
+	abortHandoff?(): void;
 	/** Effective system prompt blocks. */
 	readonly systemPrompt: string[];
 	/** Skills available to the session. */
@@ -326,6 +330,8 @@ export interface AgentViewSession extends AgentSessionHandle {
 	autoResolvedThinkingLevel(): Effort | undefined;
 	/** Configured (possibly `auto`) thinking level. */
 	configuredThinkingLevel(): ConfiguredThinkingLevel | undefined;
+	/** Per-model temporary thinking level remembered for a model switch, when supported. */
+	resolveTemporaryModelThinkingLevel?(model: Model): ConfiguredThinkingLevel | undefined;
 	/** Thinking levels selectable for the current model. */
 	getAvailableEffortSelectors(): ConfiguredThinkingLevel[];
 	/** Set the thinking level, optionally persisting it. */

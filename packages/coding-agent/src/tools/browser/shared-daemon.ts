@@ -91,6 +91,11 @@ export interface SharedBrowserEndpoint {
 }
 
 /** Stable unit key of the shared automation browser. */
+/** Whether `name` is one of the project-shared browser daemon names. */
+export function isSharedBrowserDaemonName(name: string): boolean {
+	return name === sharedBrowserDaemonName(true) || name === sharedBrowserDaemonName(false);
+}
+
 export function sharedBrowserDaemonName(headless: boolean): string {
 	return headless ? "omp.browser.headless" : "omp.browser.headed";
 }

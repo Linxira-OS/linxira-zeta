@@ -151,6 +151,32 @@ export interface DailyActivityPoint {
 }
 
 /**
+ * One local calendar day of token usage for one model, for the Studio home
+ * card's per-model heatmap. Days with no usage are absent, not zeroed.
+ */
+export interface ModelDailyActivityPoint {
+	/** Local calendar date, `YYYY-MM-DD`. */
+	day: string;
+	/** Model id as recorded on the assistant turn. */
+	model: string;
+	/** Total tokens (input + output + cache) for the day. */
+	totalTokens: number;
+}
+
+/**
+ * Per-model token usage for one local hour of the day, for the Studio home
+ * card's "today" view.
+ */
+export interface ModelHourlyActivityPoint {
+	/** Local hour of day, `0`–`23`. */
+	hour: number;
+	/** Model id as recorded on the assistant turn. */
+	model: string;
+	/** Total tokens (input + output + cache) for the hour. */
+	totalTokens: number;
+}
+
+/**
  * Overall dashboard stats.
  */
 export interface DashboardStats {
@@ -158,7 +184,6 @@ export interface DashboardStats {
 	byModel: ModelStats[];
 	byFolder: FolderStats[];
 	byAgentType: AgentTypeStats[];
-	bySideChannel: SideChannelStats[];
 	timeSeries: TimeSeriesPoint[];
 	modelSeries: ModelTimeSeriesPoint[];
 	modelPerformanceSeries: ModelPerformancePoint[];
@@ -174,12 +199,12 @@ export interface DashboardStats {
 export type AgentType = "main" | "subagent" | "advisor";
 
 /**
- * Request, token and cost totals of one usage-attribution group over the
- * active range. Token columns are explicit so the dashboard's share
- * denominator matches the counts it renders (input + output + cache read +
- * cache write).
+ * Token usage aggregated by {@link AgentType} over the active range. Token
+ * columns are explicit so the dashboard's share denominator matches the
+ * counts it renders (input + output + cache read + cache write).
  */
-export interface UsageAttributionTotals {
+export interface AgentTypeStats {
+	agentType: AgentType;
 	/** Total number of requests */
 	totalRequests: number;
 	/** Total input tokens */
@@ -195,25 +220,94 @@ export interface UsageAttributionTotals {
 }
 
 /**
- * Usage of conversation turns (assistant messages, discarded ones included)
- * aggregated by {@link AgentType}. Off-transcript model calls are not in here:
- * see {@link SideChannelStats}.
+ * Model-side tallies over assistant turns. Every field except `messages`,
+ * `collapse`, `words` and `toolErrors` counts turns carrying the signal, so
+ * `blamed / messages` is a share. `collapse` and `words` are sums: their means
+ * are `collapse / messages` and `words / messages`.
+ *
+ * Coverage is textual: only turns that produced prose are analyzed, so
+ * tool-call-only replies and thinking blocks are outside the denominator.
+ * `unscored` counts turns whose prose leans on a script no lexicon covers -
+ * their zero signal counts mean "unscored", not "calm".
  */
-export interface AgentTypeStats extends UsageAttributionTotals {
-	agentType: AgentType;
+export interface ModelSideCounts {
+	/** Assistant turns with stored prose. */
+	messages: number;
+	/** Turns with an apology or admission. */
+	blamed: number;
+	/** Turns restating earlier content. */
+	restated: number;
+	/** Turns with a hedged fallback. */
+	hedged: number;
+	/** Turns past the verbosity threshold. */
+	verbose: number;
+	/** Turns following a tool-failure spiral. */
+	spiraled: number;
+	/** Turns with a non-zero per-turn aggregate. */
+	breakdown: number;
+	/** Sum of per-turn aggregate values. */
+	collapse: number;
+	/** Sum of analyzed words. */
+	words: number;
+	/** Sum of failed tool results preceding the turns. */
+	toolErrors: number;
+	/** Turns in a script no lexicon covers. */
+	unscored: number;
 }
 
-/**
- * Usage of side channels (model calls that are not conversation turns: title
- * generation, job captions, judge queries, …) aggregated per use case, apart
- * for calls served by a decision model and calls served by a language model.
- * Busiest group first.
- */
-export interface SideChannelStats extends UsageAttributionTotals {
-	/** Use case, such as `title` or `progress`; a purpose without a known category is its own. */
-	category: string;
-	/** Whether the calls ran on a decision model (an api that answers judgments natively). */
-	decision: boolean;
+/** Model-side tallies for one model version, merged by catalog identity. */
+export interface ModelSideModelStats extends ModelSideCounts {
+	/** Stable key: `class/family/revision` when classified, else the raw model id. */
+	key: string;
+	/** Display label, e.g. `opus 4.5`; the raw model id when unclassified. */
+	label: string;
+	/** Catalog identity class, e.g. `anthropic`; `unknown` when unclassified. */
+	modelClass: string;
+	/** Catalog family within the class, e.g. `opus`. */
+	family: string | null;
+	/** Canonical `major.minor.patch`, e.g. `4.5.0`. */
+	revision: string | null;
+	/** Raw model ids merged into this row. */
+	models: string[];
+	/** Earliest turn timestamp (ms) in range. */
+	firstSeen: number;
+}
+
+/** One bucket of the model-side time series. */
+export interface ModelSideTimeSeriesPoint {
+	/** Bucket start (Unix ms). */
+	timestamp: number;
+	messages: number;
+	breakdown: number;
+	blamed: number;
+	restated: number;
+	hedged: number;
+	spiraled: number;
+	collapse: number;
+}
+
+/** Model-side tallies for one session, busiest first in the dashboard payload. */
+export interface ModelSideSessionStats extends ModelSideCounts {
+	/** Absolute transcript path. */
+	sessionFile: string;
+	/** Project folder the transcript belongs to. */
+	folder: string;
+	/** Distinct model ids in the session. */
+	models: string[];
+	/** Earliest and latest analyzed turn (ms). */
+	firstSeen: number;
+	lastSeen: number;
+}
+
+/** Payload of the model-side section of `GET /api/stats/frustration`. */
+export interface ModelSideDashboardStats {
+	overall: ModelSideCounts;
+	/** Every model with analyzed turns in range. */
+	byModel: ModelSideModelStats[];
+	/** Bucketed trend over the active range. */
+	series: ModelSideTimeSeriesPoint[];
+	/** Sessions with the most analyzed turns, capped for payload size. */
+	bySession: ModelSideSessionStats[];
 }
 
 /**
@@ -226,6 +320,13 @@ export interface FrustrationCounts {
 	messages: number;
 	/** Messages whose prose has a cached judge verdict; the rest use regex fallback. */
 	judged: number;
+	/**
+	 * Unjudged messages whose prose is written in a script no lexicon covers
+	 * (Kana, Hangul, Cyrillic, …). Their regex counts are zeros because there is
+	 * no lexicon, not because the user was calm - the dashboard says so instead
+	 * of folding them into "not annoyed", and the judge is the fix for them.
+	 */
+	unscored: number;
 	/** Annoyed at anything (the assistant, tooling, other people, ...). */
 	annoyed: number;
 	/** Annoyed and aimed at the assistant. Subset of `annoyed`. */
@@ -285,6 +386,8 @@ export interface FrustrationDashboardStats {
 	overall: FrustrationCounts;
 	/** Every model with messages in range, ordered by class, then revision, then family. */
 	byModel: FrustrationModelStats[];
+	/** Model-side (AI breakdown) analysis alongside the user-side tallies. */
+	modelSide: ModelSideDashboardStats;
 	/** Whether this dashboard host can run the judge (standalone `omp-stats` cannot). */
 	judgeAvailable: boolean;
 	job: FrustrationJobStatus;
@@ -320,17 +423,13 @@ export interface GainSourceTotals {
 	reductionPercent: number | null;
 }
 
-/**
- * Per-source breakdown: `snapcompact` is tool results snapcompact sent as images,
- * `compaction` is the context snapcompact compactions freed.
- */
-export type GainSource = "snapcompact" | "compaction";
+/** Per-source breakdown. */
+export type GainSource = "snapcompact";
 
 /** Time-series point for gain (daily bucket). */
 export interface GainTimeSeriesPoint {
 	date: string;
 	snapcompact: number;
-	compaction: number;
 	total: number;
 }
 
@@ -362,7 +461,7 @@ export interface SpotlightToolRow extends SpotlightToolTotals {
 
 /**
  * How the model got back output a shortened result hid:
- * - `artifact`: a later call read or searched a spill the shortened result named (`local://N.log`, or `artifact://N` in older transcripts);
+ * - `artifact`: a later call read or searched an artifact the shortened result named (`artifact://N`);
  * - `reread`: a later `read` of the same file whose selection overlaps the hidden lines, or the whole file again;
  * - `rerun`: a later call of the same tool repeating the shortened one: a bash command with a pipe, redirect or
  *   changed flags; any other tool with near-identical arguments (same tool, argument tokens' Jaccard ≥ 0.6).

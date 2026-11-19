@@ -44,7 +44,7 @@ export const cfgDisasmMaxOpen = register({
 		group: "Disassembler",
 		label: "Max Open Databases",
 		description:
-			"Most databases (zeta.ida.* / zeta.ghidra.* daemons in zetacode ps) open at once per project; opening another evicts an unreferenced idle one. Close retained dsm handles when done",
+			"Most databases (omp.ida.* / omp.ghidra.* daemons in omp ps) open at once per project; opening another evicts an unreferenced idle one. Close retained dsm handles when done",
 		options: [
 			{ value: "2", label: "2" },
 			{ value: "4", label: "4" },

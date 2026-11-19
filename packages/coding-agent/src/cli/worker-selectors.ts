@@ -15,3 +15,9 @@ export const PARENT_WATCHDOG_WORKER_ARG = "__omp_worker_parent_watchdog";
 export const SUBAGENT_WORKER_ARG = "__omp_worker_subagent";
 /** Activity-worker selector shared by the CLI dispatcher and worker launcher. */
 export const STATS_ACTIVITY_WORKER_ARG = "__omp_worker_stats_activity";
+/** Daemon broker worker selector shared by the launch client and CLI dispatcher. */
+export const DAEMON_BROKER_WORKER_ARG = "__zeta_worker_daemon_broker";
+/** Terminal-output worker selector shared by the CLI dispatcher and the launch client. */
+export const TERMINAL_OUTPUT_WORKER_ARG = "__zeta_worker_terminal_output";
+/** Text-prediction worker selector shared by the CLI dispatcher and predict client. */
+export const TEXT_PREDICT_WORKER_ARG = "__zeta_worker_text_predict";

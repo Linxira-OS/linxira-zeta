@@ -16,12 +16,15 @@ import {
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
 } from "@linxiraos/pi-tui/chat/messages";
+/** Custom message type for the transient Team mode directive (coding-agent owned). */
+export const TEAM_MODE_CONTEXT_MESSAGE_TYPE = "team-mode-context";
 export {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	PREWALK_PLAN_MESSAGE_TYPE,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
+	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
 	DEFAULT_CUSTOM_MESSAGE_TYPE,
 	LIVE_DELEGATION_MESSAGE_TYPE,
 	type CustomMessageContent,
@@ -52,6 +55,18 @@ import {
 	registerMessageCacheInvalidator,
 } from "@linxiraos/pi-agent-core/compaction/message-cache";
 import { convertMessageToLlm } from "@linxiraos/pi-agent-core/compaction/messages";
+import { type ImUserMessageMetadata, isImUserMessageMetadata, normalizeImMessageMetadata } from "./session-im";
+
+/** The immutable source of an IM user input carried by an IRC wake. */
+export function imUserWakeSource(message: CustomMessage): ImUserMessageMetadata | undefined {
+	if (message.customType !== "irc:incoming" || !isRecord(message.details)) return undefined;
+	const metadata = normalizeImMessageMetadata(message.details.metadata);
+	return metadata !== undefined && isImUserMessageMetadata(metadata) ? metadata : undefined;
+}
+
+export function isImUserWake(message: CustomMessage): boolean {
+	return imUserWakeSource(message) !== undefined;
+}
 import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@linxiraos/pi-ai";
 import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
 import { isRecord, logger, prompt } from "@linxiraos/pi-utils";

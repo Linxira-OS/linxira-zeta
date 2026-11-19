@@ -77,7 +77,16 @@ export function parseDatabaseHandle(value: string): DatabaseHandle | undefined {
 }
 
 /** RPC methods an omp process may forward to the worker through `call`. */
-export const HOST_CALL_METHODS = ["view", "exec", "rename", "comment", "set_type", "make_function", "save"] as const;
+export const HOST_CALL_METHODS = [
+	"view",
+	"exec",
+	"rename",
+	"comment",
+	"set_type",
+	"make_function",
+	"save",
+	"studio",
+] as const;
 
 /** A method forwarded with `call`. */
 export type HostCallMethod = (typeof HOST_CALL_METHODS)[number];

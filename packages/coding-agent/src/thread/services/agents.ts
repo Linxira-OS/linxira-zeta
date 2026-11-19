@@ -249,32 +249,39 @@ function serveBridge(): RpcServe<MainSessionBridge, SessionBridgeProtocol> {
 
 function serveRegistry(bridge: MainSessionBridge): RpcServe<AgentRegistry, AgentRegistryProtocol> {
 	return {
-		register: (registry, input) => registry.register(input),
-		registerRoot: (registry, input) => registry.registerRoot(input),
-		workspaceMain: (registry, workspaceId) => registry.workspaceMain(workspaceId),
-		resolveMainAlias: (registry, requested, callerId) => registry.resolveMainAlias(requested, callerId),
-		registerIfAvailable: (registry, input, expected) => registry.registerIfAvailable(input, expected),
-		reopen: (registry, id, expected) => registry.reopen(id, expected),
-		setHistory: (registry, id, history, expectedSessionFile) => registry.setHistory(id, history, expectedSessionFile),
-		setStatus: (registry, id, status, expected) => registry.setStatus(id, status, expected),
-		markResultAccepted: (registry, id, expected, responseAt) => registry.markResultAccepted(id, expected, responseAt),
+		register: (registry: AgentRegistry, input) => registry.register(input),
+		registerRoot: (registry: AgentRegistry, input) => registry.registerRoot(input),
+		workspaceMain: (registry: AgentRegistry, workspaceId) => registry.workspaceMain(workspaceId),
+		resolveMainAlias: (registry: AgentRegistry, requested, callerId) =>
+			registry.resolveMainAlias(requested, callerId),
+		registerIfAvailable: (registry: AgentRegistry, input, expected) => registry.registerIfAvailable(input, expected),
+		reopen: (registry: AgentRegistry, id, expected) => registry.reopen(id, expected),
+		setHistory: (registry: AgentRegistry, id, history, expectedSessionFile) =>
+			registry.setHistory(id, history, expectedSessionFile),
+		setStatus: (registry: AgentRegistry, id, status, expected) => registry.setStatus(id, status, expected),
+		markResultAccepted: (registry: AgentRegistry, id, expected, responseAt) =>
+			registry.markResultAccepted(id, expected, responseAt),
 		staleAcceptedRuns: registry => registry.staleAcceptedRuns(),
-		setActivity: (registry, id, activity) => registry.setActivity(id, activity),
-		attachSession: (registry, id, session, sessionFile, expected) =>
+		setActivity: (registry: AgentRegistry, id, activity) => registry.setActivity(id, activity),
+		attachSession: (registry: AgentRegistry, id, session, sessionFile, expected) =>
 			registry.attachSession(id, session, sessionFile, expected),
-		detachSession: (registry, id, expected) => registry.detachSession(id, expected),
-		unregister: (registry, id, expected) => registry.unregister(id, expected),
-		get: (registry, id) => registry.get(id),
+		detachSession: (registry: AgentRegistry, id, expected) => registry.detachSession(id, expected),
+		unregister: (registry: AgentRegistry, id, expected) => registry.unregister(id, expected),
+		get: (registry: AgentRegistry, id) => registry.get(id),
 		list: registry => registry.list(),
-		listVisibleTo: (registry, id) => registry.listVisibleTo(id),
-		isRunning: (registry, ref) => registry.isRunning(ref),
-		subscribe: (registry, listener: RegistryListener) =>
+		listVisibleTo: (registry: AgentRegistry, id) => registry.listVisibleTo(id),
+		isRunning: (registry: AgentRegistry, ref) => registry.isRunning(ref),
+		subscribe: (registry: AgentRegistry, listener: RegistryListener) =>
 			bridge.forward(listener, forward => registry.onChange(forward)),
-		awaitsHold: (registry, waiter, awaited, options) => bridge.track(registry.awaits.hold(waiter, awaited, options)),
-		awaitsBlocksOn: (registry, agent, target, sentAt) => registry.awaits.blocksOn(agent, target, sentAt),
-		awaitsBlockedVia: (registry, agent, target, sentAt) => registry.awaits.blockedVia(agent, target, sentAt),
-		awaitsWaitersOn: (registry, target) => registry.awaits.waitersOn(target),
-		awaitsSubscribe: (registry, listener) => bridge.forward(listener, forward => registry.awaits.onChange(forward)),
+		awaitsHold: (registry: AgentRegistry, waiter, awaited, options) =>
+			bridge.track(registry.awaits.hold(waiter, awaited, options)),
+		awaitsBlocksOn: (registry: AgentRegistry, agent, target, sentAt) =>
+			registry.awaits.blocksOn(agent, target, sentAt),
+		awaitsBlockedVia: (registry: AgentRegistry, agent, target, sentAt) =>
+			registry.awaits.blockedVia(agent, target, sentAt),
+		awaitsWaitersOn: (registry: AgentRegistry, target) => registry.awaits.waitersOn(target),
+		awaitsSubscribe: (registry: AgentRegistry, listener) =>
+			bridge.forward(listener, forward => registry.awaits.onChange(forward)),
 	};
 }
 

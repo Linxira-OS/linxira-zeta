@@ -348,6 +348,13 @@ export function getConfigDirName(): string {
 	return process.env.PI_CONFIG_DIR || CONFIG_DIR_NAME;
 }
 
+/** Get the config agent directory name relative to home (e.g. ".zeta/agent" or ZETA_CONFIG_DIR + "/agent"). */
+export function getConfigAgentDirName(): string {
+	return activeProfile
+		? path.join(getConfigDirName(), "profiles", activeProfile, "agent")
+		: `${getConfigDirName()}/agent`;
+}
+
 // =============================================================================
 // DirResolver — cached, XDG-aware path resolution
 // =============================================================================
@@ -738,6 +745,25 @@ export function getPluginsNodeModules(home?: string): string {
 	return path.join(getPluginsDir(home), "node_modules");
 }
 
+function getPluginTierDir(tier: "data" | "cache" | "state", pluginId: string, home?: string): string {
+	return path.join(getPluginsDir(home), tier, pluginId);
+}
+
+/** Per-plugin persistent data dir (~/.zeta/plugins/data/<id>). */
+export function getPluginDataDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("data", pluginId, home);
+}
+
+/** Per-plugin rebuildable cache dir (~/.zeta/plugins/cache/<id>). */
+export function getPluginCacheDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("cache", pluginId, home);
+}
+
+/** Per-plugin runtime state dir (~/.zeta/plugins/state/<id>). */
+export function getPluginStateDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("state", pluginId, home);
+}
+
 /** Plugin manifest (~/.omp/plugins/package.json). */
 export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
@@ -970,6 +996,10 @@ export function getStatsDbPath(): string {
 	return dirs.rootSubdir("stats.db", "data");
 }
 
+export function getZetaDbPath(): string {
+	return dirs.rootSubdir(path.join("data", "zeta.db"), "data");
+}
+
 /** Get the autoresearch state directory (~/.omp/autoresearch). */
 export function getAutoresearchDir(): string {
 	return dirs.rootSubdir("autoresearch", "state");
@@ -1164,6 +1194,24 @@ export function getSecretPlaceholderKeyPath(): string {
 }
 
 /** Runtime directory of the single per-user omp daemon (~/.omp/run/daemon; XDG default: $XDG_STATE_HOME/omp/run/daemon). Shared across profiles; holds its socket, token, sqlite store and unit logs. */
+/** Root directory containing every per-project daemon runtime scope (~/.zeta/run/daemons). */
+export function getDaemonRuntimeRoot(): string {
+	return dirs.rootSubdir(path.join("run", "daemons"), "state");
+}
+
+/** Root directory containing every machine-global daemon service scope (~/.zeta/run/daemons/global). Shared across profiles. */
+export function getGlobalDaemonRuntimeRoot(): string {
+	return dirs.baseRootSubdir(path.join("run", "daemons", "global"), "state");
+}
+
+/** Get a profile-independent runtime directory for a machine-global daemon service. */
+export function getGlobalDaemonRuntimeDir(service: string): string {
+	if (!/^[a-z0-9][a-z0-9._-]*$/i.test(service)) {
+		throw new Error(`Invalid global daemon service name: ${JSON.stringify(service)}`);
+	}
+	return path.join(getGlobalDaemonRuntimeRoot(), service);
+}
+
 export function getDaemonDir(): string {
 	return dirs.baseRootSubdir(path.join("run", "daemon"), "state");
 }

@@ -12,6 +12,8 @@ import type { SessionWorktree } from "../worktree/backend";
 import { creationBackend, worktreeBackend, worktreeOrigin } from "../worktree/worktrees";
 
 /** State of a session-owned worktree at exit. */
+export type { SessionWorktree } from "../worktree/backend";
+
 export interface SessionWorktreeState {
 	/** Worktree has uncommitted or untracked changes. */
 	dirty: boolean;

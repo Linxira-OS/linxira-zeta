@@ -645,6 +645,10 @@ const ownedSupervisors = new Map<string, Set<ComputerController>>();
 /** Per owner with agent turns: the turn in flight, or between turns the one that ended last, counted from 1. */
 const ownerTurns = new Map<string, { turn: number; inFlight: boolean }>();
 
+export function computerPreludeAvailableForOwner(ownerId: string | undefined): boolean {
+	return !!ownerId && (ownedSupervisors.get(ownerId)?.size ?? 0) > 0;
+}
+
 /** Registers a controller for owner-scoped session cleanup. */
 export function registerComputerController(ownerId: string | undefined, controller: ComputerController): () => void {
 	if (!ownerId) return () => {};
@@ -658,11 +662,13 @@ export function registerComputerController(ownerId: string | undefined, controll
 }
 
 /** Revoke task-scoped foreground ownership without resetting frames or the worker. */
-export async function revokeComputerControlForOwner(ownerId: string | undefined): Promise<void> {
+export async function revokeComputerControlForOwner(ownerId: string | undefined, strict = false): Promise<void> {
 	if (!ownerId) return;
-	await Promise.allSettled(
-		Array.from(ownedSupervisors.get(ownerId) ?? [], controller => controller.revokeControl?.()),
+	const revocations = Array.from(ownedSupervisors.get(ownerId) ?? [], controller =>
+		controller.revokeControl?.(strict),
 	);
+	if (strict) await Promise.all(revocations);
+	else await Promise.allSettled(revocations);
 }
 
 /**

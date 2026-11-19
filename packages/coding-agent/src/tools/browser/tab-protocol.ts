@@ -266,3 +266,14 @@ export interface Transport {
 	onMessage(handler: (msg: WorkerOutbound | WorkerInbound) => void): () => void;
 	close(): void;
 }
+
+/** Host WebMCP request forwarded to a tab worker. */
+export type TabWebMcpRequest =
+	| { action: "list"; options?: unknown }
+	| {
+			action: "invoke";
+			name: string;
+			params: Record<string, unknown>;
+			options?: object;
+	  }
+	| { action: "events"; options?: unknown };

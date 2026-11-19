@@ -156,10 +156,21 @@ interface AskDialogCallbacks {
 	): Promise<AskDialogPromptValue | AskDialogPromptDraft | undefined>;
 }
 
+/** A composer draft that keeps typing until the dialog takes the keyboard. */
+export interface AskDialogInputGuard {
+	isBlocked(): boolean;
+	handleInput(keyData: string): void;
+	/** Shown after the release keys while the guard holds input. */
+	hint: string;
+	/** Mirror the guard's blocked state onto the proxied draft surface each render. */
+	syncPresentation?(blocked: boolean): void;
+}
+
 interface AskDialogOptions {
 	timeout?: number;
 	onTimeout?: () => void;
 	tui?: TUI;
+	inputGuard?: AskDialogInputGuard;
 	/** While it returns text, the native card dims its questions and warns with it: sending the composer draft skips the ask. */
 	skipNotice?(): string | undefined;
 	/** Natively, a pointer action on the card: the host gives it the keyboard, which the composer may hold. */

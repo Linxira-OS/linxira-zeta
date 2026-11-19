@@ -15,6 +15,7 @@ import {
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
+import type { ImageProvider } from "./image-providers";
 import {
 	isEnoent,
 	logger,
@@ -64,6 +65,22 @@ export const imageGenSchema = type({
 	"model?": type("string").describe("image model selector for this request"),
 });
 export type ImageGenParams = typeof imageGenSchema.infer;
+
+/**
+ * Zeta: the providers settings tab owns the image-provider order.
+ * `applyProviderGlobalsFromSettings` seeds it at session start.
+ */
+let zetaImageProviderOrder: ImageProvider[] | undefined;
+
+/** Zeta: apply the configured image-provider order. */
+export function setImageProviderOrder(order: ImageProvider[]): void {
+	zetaImageProviderOrder = [...order];
+}
+
+/** Zeta: the configured order, if the tab has written one. */
+export function getImageProviderOrder(): readonly ImageProvider[] | undefined {
+	return zetaImageProviderOrder;
+}
 
 interface ImageGenToolDetails {
 	provider: string;
@@ -157,8 +174,8 @@ async function saveImagesToTemp(images: ImageGenerationResult["images"]): Promis
  * call: the session model when it can carry the tool on the same provider,
  * otherwise the cheapest available carrier there.
  */
-function resolveHostedImageCarrier(
-	modelRegistry: ModelRegistry,
+export function resolveHostedImageCarrier(
+	modelRegistry: Pick<ModelRegistry, "getAvailable">,
 	selectedModel: Model,
 	activeModel: Model | undefined,
 ): Model | undefined {
@@ -427,7 +444,7 @@ export async function getImageGenTools(
 }
 
 export async function getImageGenToolsWithRegistry(
-	_modelRegistry: ModelRegistry,
+	_modelRegistry: Pick<ModelRegistry, "getAvailable">,
 	_activeModel?: Model,
 ): Promise<Array<CustomTool<typeof imageGenSchema, ImageGenToolDetails>>> {
 	return [imageGenTool];

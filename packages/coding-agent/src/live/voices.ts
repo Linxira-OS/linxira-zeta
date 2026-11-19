@@ -11,5 +11,8 @@ export const LIVE_VOICE_OPTIONS = [
 	{ value: "vale", label: "Vale" },
 ] as const;
 
+/** Accepted values for the live voice setting. */
+export const LIVE_VOICE_VALUES = LIVE_VOICE_OPTIONS.map(({ value }) => value);
+
 /** Voice used when no live voice preference is configured. */
 export const DEFAULT_LIVE_VOICE = "sol";

@@ -37,6 +37,7 @@
  * });
  */
 import type { ImageContent } from "@linxiraos/pi-ai";
+import type { AskDialogInputGuard } from "../overlays/ask-dialog";
 import { formatKeyHint } from "../app-keybindings";
 import { BracketedPasteHandler } from "../bracketed-paste";
 import { editorKey, editorKeys } from "../chrome/keybinding-hints";
@@ -120,6 +121,8 @@ export interface HtmlFormDialogOptions {
 	/** Inactivity in ms after which `onTimeout` receives the current values and notes; any input restarts it. */
 	timeout?: number;
 	onTimeout?(data: HtmlFormData, notes: OptionNote[]): void;
+	/** A composer draft that keeps typing until ↑/↓ hands the keyboard to the form. */
+	inputGuard?: AskDialogInputGuard;
 	/** Directory relative `<img src>` paths resolve against; the process's when omitted. */
 	cwd?: string;
 	/** Lets the open option note take pasted images; see {@link HtmlFormDialog.attachImage}. */

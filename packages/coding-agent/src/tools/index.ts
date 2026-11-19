@@ -29,7 +29,7 @@ import { GoalTool } from "../goals/tools/goal-tool";
 import type { HindsightSessionState } from "../hindsight/state";
 import type { ZetaLanguage } from "../i18n";
 import type { LocalProtocolOptions } from "../internal-urls";
-import type { DaemonCompletionEvent } from "../daemon/protocol";
+import type { DaemonCompletionNotification } from "../launch/protocol";
 import { LspTool } from "../lsp";
 import type { MCPManagerApi, MCPToolScope } from "../mcp";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
@@ -659,7 +659,7 @@ export interface ToolSession {
 	/** Queue a hidden message to be injected at the next agent turn. */
 	queueDeferredMessage?(message: CustomMessage): void;
 	/** Queue a daemon service completion for the owning session. */
-	queueLaunchCompletion?(notification: DaemonCompletionEvent): Promise<void>;
+	queueLaunchCompletion?(notification: DaemonCompletionNotification): Promise<void>;
 	/**
 	 * Opens the channel for the `notify` matches of a background job this session started: each batch
 	 * sent through it reaches the session as a notice, delivered like the job's result. Absent where

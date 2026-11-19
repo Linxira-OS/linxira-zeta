@@ -62,6 +62,7 @@ import {
 	type Transferable,
 	type Transport,
 	type WorkerInbound,
+	type TabWebMcpRequest,
 	type WorkerInitPayload,
 	type WorkerOutbound,
 } from "./tab-protocol";
@@ -253,6 +254,8 @@ export interface AcquireTabResult {
 
 export interface RunInTabOptions {
 	code: string;
+	/** Host WebMCP request forwarded with the run. */
+	webmcp?: TabWebMcpRequest;
 	timeoutMs: number;
 	signal?: AbortSignal;
 	session: ToolSession;
@@ -3242,4 +3245,23 @@ function errorFromWorkerEvent(event: ErrorEvent): Error {
 	if (event.error instanceof Error) return event.error;
 	if (event.message) return new Error(event.message);
 	return new Error("Unknown tab worker error");
+}
+
+/** Independent CDP observation of the exact Runtime-owned target. */
+export async function createStudioBrowserObservation(tab: TabSession): Promise<CDPSession> {
+	if (tab.backend !== "worker" || tab.state !== "alive" || tabs.get(tab.name) !== tab)
+		throw new ToolError("This browser backend cannot be observed through CDP");
+	const target = await findTargetForTab(tab as WorkerTabSession);
+	if (!target || tabs.get(tab.name) !== tab) throw new ToolError("Browser target changed before observation");
+	return target.createCDPSession();
+}
+
+export async function resumeStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (!(await unfreezeTabSession(tab as WorkerTabSession)))
+		throw new ToolError("Browser target could not be resumed for human control");
+	tab.lastActivityAt = Date.now();
+}
+
+export async function settleStudioBrowserControl(tab: TabSession): Promise<void> {
+	if (tabs.get(tab.name) === tab && tab.state === "alive") await setTabFrozen(tab as WorkerTabSession, true);
 }

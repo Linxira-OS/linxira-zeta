@@ -72,7 +72,7 @@ import {
 	preloadPluginRoots,
 	resolveActiveProjectRegistryPath,
 } from "./discovery/helpers";
-import { injectOmpExtensionCliRoots } from "./discovery/omp-extension-roots";
+import { injectZetaExtensionCliRoots } from "./discovery/zeta-extension-roots";
 import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
 import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
@@ -255,7 +255,7 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 							SessionManager.renameSessionTitle(session.path, title, { cwd: session.cwd }),
 						setSessionPinned: (session: SessionInfo, pinned: boolean) => setSessionPinned(session.id, pinned),
 					}),
-			loadAllSessions: () => SessionManager.listAllForPicker(storage),
+			loadAllSessions: async () => (await SessionManager.listAllForPicker(storage)).sessions,
 		});
 	};
 }
@@ -1908,7 +1908,7 @@ export async function runRootCommand(
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
 			const cliExtensions = [...(parsedArgs.extensions ?? []), ...(parsedArgs.hooks ?? [])];
-			injectOmpExtensionCliRoots(cliExtensions, home, getProjectDir(), {
+			injectZetaExtensionCliRoots(cliExtensions, home, getProjectDir(), {
 				mode: parsedArgs.noExtensions ? "explicit-only" : "merge",
 				replace: true,
 			});
@@ -2291,7 +2291,7 @@ export async function runRootCommand(
 			const selectSessionImpl = deps.selectSession ?? (await loadSessionPicker());
 			const picked = await logger.time("selectSession", selectSessionImpl, folder.sessions, {
 				completeSessions: folder.complete,
-				allSessions: preloadedAllSessions,
+				allSessions: preloadedAllSessions?.sessions,
 			});
 			resumeStartupWatchdog();
 			if (!picked) {
@@ -2838,7 +2838,7 @@ export async function runRootCommand(
 
 			if (mode === "rpc" || mode === "rpc-ui") {
 				// Branch-only protocol runner: keep RPC host code out of normal interactive startup.
-				const runRpcMode: RunRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
+				const runRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode as unknown as RunRpcMode;
 				stopStartupWatchdog();
 				logger.endTiming();
 				await runRpcMode(session, {
@@ -2893,7 +2893,7 @@ export async function runRootCommand(
 						subagentEventBus,
 						initialMessage,
 						initialImages,
-						parsedArgs.join,
+						undefined,
 						startDeferredStartupWork,
 						startupLease,
 						initialArgs.goal,

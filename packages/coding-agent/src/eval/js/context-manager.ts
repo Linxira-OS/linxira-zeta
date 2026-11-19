@@ -49,6 +49,8 @@ export { rewriteImports, wrapCode } from "./shared/rewrite-imports";
 
 export interface VmRunState {
 	signal?: AbortSignal;
+	/** Tool call whose eval cell is running, when the cell was reached through a tool. */
+	outerToolCallId?: string;
 	onText?: (chunk: string) => void;
 	onDisplay?: (output: EvalDisplayOutput) => void;
 	/** Shows the user `out://` replies of the run's bridged tool calls; absent, those calls are refused. */

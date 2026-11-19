@@ -53,7 +53,7 @@ interface PredictSession {
 }
 
 /** Process-wide access shared by every editor and the submit hook. */
-class TextPredictionClient {
+export class TextPredictionClient {
 	#session: PredictSession | undefined;
 	#opening: Promise<PredictSession> | undefined;
 	#retryAt = 0;

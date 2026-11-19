@@ -1,7 +1,7 @@
 {
 	const call = async (action, parameters = {}) => {
 		const defined = Object.fromEntries(Object.entries(parameters).filter(([, value]) => value !== undefined));
-		const response = await globalThis.__zeta_prelude__("dsm", { ...defined, action });
+		const response = await globalThis.__omp_prelude__("dsm", { ...defined, action });
 		if (!response || typeof response !== "object" || !response.details || !Object.hasOwn(response.details, "value")) {
 			throw new Error("dsm returned an invalid response");
 		}

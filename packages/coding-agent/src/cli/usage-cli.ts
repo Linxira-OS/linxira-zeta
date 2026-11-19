@@ -680,7 +680,7 @@ export type UsagePolicyDiagnostics = {
 	| { state: "eligible" | "inside-reserve"; remainingPct: number }
 );
 
-function computePolicyDiagnostics(
+export function computePolicyDiagnostics(
 	provider: string,
 	identity: OAuthAccountIdentity,
 	limits: UsageLimit[] | undefined,

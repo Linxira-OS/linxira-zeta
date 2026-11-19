@@ -653,5 +653,6 @@ export function getSearchTools(): CustomTool<typeof webSearchSchema, SearchResul
 	return [webSearchCustomTool];
 }
 
-export { getSearchProvider } from "./provider";
+export { getSearchProvider, setExcludedSearchProviders, setSearchProviderOrder } from "./provider";
+export { isSearchProviderId } from "./types";
 export type { SearchProviderId as SearchProvider, SearchResponse } from "./types";

@@ -24,7 +24,7 @@ import { installPinnedHubFiles, type PinnedHubFile, pinnedHubFilesReady } from "
  *
  * Only interactive processes download (the composer on first use through
  * {@link prefetchSmolLmWeights}, shown in the download HUD, or
- * `zetacode tiny-models download smollm`); the prediction daemon just checks
+ * `omp tiny-models download smollm`); the prediction daemon just checks
  * {@link smolLmWeightsReady} and serves ngram until then.
  */
 
