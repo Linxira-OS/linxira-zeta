@@ -39,6 +39,10 @@ fn pace_clicks(count: u32, mut send: impl FnMut(bool) -> CoreResult<()>) -> Core
 	Ok(())
 }
 
+pub fn new_backend(display: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
+	new_backend_observed(display, false)
+}
+
 pub fn new_backend_observed(
 	display: DisplaySelector,
 	observation_only: bool,

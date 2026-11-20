@@ -314,6 +314,18 @@ pub struct DesktopObservation {
 	pub accessibility: AxSnapshot,
 }
 
+/// One node of the passive observation tree (Studio workspace observation).
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct DesktopObservationNode {
+	pub id:       String,
+	pub role:     String,
+	pub name:     String,
+	pub enabled:  bool,
+	pub bounds:   Option<CaptureRegion>,
+	pub children: Vec<DesktopObservationNode>,
+}
+
 #[napi(object)]
 #[derive(Debug, Clone, Copy)]
 pub struct DesktopPoint {
