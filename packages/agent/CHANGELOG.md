@@ -1,14 +1,10 @@
 ## [Unreleased]
 
+## [1.5.12] - 2026-11-20
+
 ### Changed
 
 - Included in Zeta 1.5.12; no package-specific user-visible changes.
-
-## [1.5.11] - 2026-11-20
-
-### Changed
-
-- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [9.2.2] - 2026-01-31
 
@@ -135,6 +131,12 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.11] - 2026-11-20
+
+### Changed
+
+- Released as part of Zeta 1.5.11; no package-specific user-visible changes.
 
 ## [1.5.10] - 2026-11-19
 

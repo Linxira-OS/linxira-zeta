@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.12] - 2026-11-20
+
 ### Added
 
 - A bare `zetacode` launch now starts or reuses one shared Host instead of racing a second daemon; `zetacode web` serves `web-app` directly.
