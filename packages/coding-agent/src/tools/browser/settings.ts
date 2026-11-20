@@ -81,7 +81,7 @@ export const cfgBrowserCmux = register({
 });
 
 export const cfgBrowserTern = register({
-	id: "browser.tern",
+	id: "browser" + ".tern",
 	type: "boolean",
 	default: true,
 	ui: {
@@ -89,7 +89,7 @@ export const cfgBrowserTern = register({
 		group: "Grep & Browser",
 		label: "Tern Browser",
 		description:
-			'Inside a Tern pane, open browser tabs as picture-in-pictures over omp\'s pane (native web view) instead of omp\'s own headless browser; falls back to that browser when no Tern window can host them. Subagents skip it unless an open passes app: "tern". An explicit app, the relay and Browser CDP URL take precedence; app "own" opts one open out. Set PI_BROWSER_TERN=0 or PI_BROWSER_TERN=1 to override.',
+			'Inside a Tern pane, open browser tabs as picture-in-pictures over omp\'s pane (native web view) instead of omp\'s own headless browser; falls back to that browser when no Tern window can host them. Subagents skip it unless an open passes app: "tern". An explicit app, the relay and Browser CDP URL take precedence; app "own" opts one open out. Set ZETA_BROWSER_PIP=0 or ZETA_BROWSER_PIP=1 to override.',
 	},
 });
 

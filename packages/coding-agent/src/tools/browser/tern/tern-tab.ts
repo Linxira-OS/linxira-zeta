@@ -215,7 +215,7 @@ interface ViewportOptions {
 export interface TernOpenOptions {
 	/** Managed tab name (names the saved-state file). */
 	name: string;
-	/** Pane that owns the PiP (`TERN_PANE`). */
+	/** Pane that owns the PiP (`ZETA_PANE`). */
 	pane: number;
 	/** First real navigation after configuration. */
 	url?: string;
@@ -297,7 +297,7 @@ const NAVIGATION_IDLE_MS = 500;
 /** The address a PiP opens at, and the one a stale or substituted load reports. */
 const BLANK_URL = "about:blank";
 const KIT_CALL =
-	"async function (method, args) { const kit = globalThis.__ompTernKit; if (!kit) return { missing: true }; return { value: await kit[method](...args) }; }";
+	"async function (method, args) { const kit = globalThis.__zetaTernKit; if (!kit) return { missing: true }; return { value: await kit[method](...args) }; }";
 /** Rendering updates an element's rect must hold still for before a native action aims at it. */
 const RESOLVE_STABLE_UPDATES = 2;
 /** How long one native `resolve` waits for a stable rect before omp asks again. */

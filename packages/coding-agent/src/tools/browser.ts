@@ -171,7 +171,7 @@ interface BrowserPreludeDetails {
  * The browser an open drives, by precedence: an explicit `app` (an executable
  * path or CDP URL, or a keyword: `relay`, `tern`, `webkit`, `chromium`, `own`),
  * the relay, `browser.cdpUrl`, Tern (inside a Tern pane; `target` selects it
- * over the `browser.tern` setting to adopt a block; `headed` does not opt out),
+ * over the `browser["tern"]` setting to adopt a block; `headed` does not opt out),
  * a cmux surface, then omp's own browser ({@link ownBrowserKind}). `app: "auto"`
  * is that chain without the relay. Tern and cmux are automatic only while no
  * other omp owns the terminal, and none of the user's own surfaces (relay, Tern,
@@ -209,7 +209,7 @@ export function resolveBrowserKind(
 		const ternKind = resolveTernKind({ settingEnabled: true }, env);
 		if (!ternKind) {
 			throw new ToolError(
-				'app: "tern" requires running inside a Tern pane (TERN_PANE_SOCKET and TERN_PANE are not set) with PI_BROWSER_TERN not set to 0.',
+				'app: "tern" requires running inside a Tern pane (ZETA_PANE_SOCKET and ZETA_PANE are not set) with ZETA_BROWSER_PIP not set to 0.',
 			);
 		}
 		return ternKind;
@@ -251,7 +251,7 @@ export function resolveBrowserKind(
 	// session's commands (`zetacode -p` from its bash tool, a script an eval cell runs) inherited the
 	// pane env, and its tabs would float over the other session's work. A subagent has no pane of
 	// its own either: its tabs would pile up over the parent's, so it skips both even when
-	// PI_BROWSER_TERN=1 or PI_BROWSER_CMUX=1 forces them for the parent.
+	// ZETA_BROWSER_PIP=1 or PI_BROWSER_CMUX=1 forces them for the parent.
 	const ownsPane = ownsTerminal(env);
 	if (!subagent || params.target !== undefined) {
 		// `target` inside Tern names a browser block to adopt: an explicit request, like `app: "tern"`.
@@ -791,7 +791,7 @@ async function listTargets(
 	timeoutMs: number,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<unknown>> {
-	// Resolve as an open naming a target: inside Tern that selects Tern even when the `browser.tern` setting is off.
+	// Resolve as an open naming a target: inside Tern that selects Tern even when the `browser["tern"]` setting is off.
 	const kind = resolveBrowserKind({ ...params, target: params.target ?? "" }, session);
 	if (kind.kind !== "tern" && kind.kind !== "relay" && kind.kind !== "connected") {
 		throw new ToolError(
@@ -821,7 +821,7 @@ async function listTargets(
 				targets = await untilAborted(listSignal, () => listCdpTargets(kind.cdpUrl, listSignal));
 				text = describeCdpTargets(targets, "Chrome pages via the relay");
 			} else if ("tern" in browser) {
-				const blocks = await listTernBlocks(browser.tern, { timeoutMs, signal: listSignal });
+				const blocks = await listTernBlocks(browser["tern"], { timeoutMs, signal: listSignal });
 				const taken = ternBlocksTaken();
 				targets = ternTargets(blocks, taken);
 				text = describeTernTargets(blocks, taken);

@@ -222,7 +222,7 @@ export interface TernRequestOptions {
 
 /** A `fork` request: open `zetacode --fork` of pane `block`'s session in a new pane beside it. */
 export interface TernForkRequest {
-	/** The pane whose omp session to fork (`TERN_PANE`). */
+	/** The pane whose omp session to fork (`ZETA_PANE`). */
 	block: number;
 	/** Where the new pane goes (Tern's default: `right`). */
 	dir?: "right" | "down";

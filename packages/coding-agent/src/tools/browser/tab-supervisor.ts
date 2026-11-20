@@ -987,7 +987,7 @@ export function ternBlocksTaken(except?: string): Map<number, string> {
 /** Whether reopening Tern tab `existing` with `opts.target` names the block it already adopted. */
 async function adoptsSameBlock(existing: TernTabSession, opts: AcquireTabOptions): Promise<boolean> {
 	if (!existing.ternTab.adopted || opts.target === undefined) return false;
-	const blocks = await listTernBlocks(existing.browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
+	const blocks = await listTernBlocks(existing.browser["tern"], { timeoutMs: opts.timeoutMs, signal: opts.signal });
 	return pickTernBlock(blocks, opts.target, ternBlocksTaken(existing.name))?.block === existing.ternTab.block;
 }
 
@@ -1020,17 +1020,17 @@ async function acquireTernTab(
 	};
 	let ternTab: Tern.TernTab;
 	if (opts.target === undefined) {
-		ternTab = await TernTab.open(browser.tern, {
+		ternTab = await TernTab.open(browser["tern"], {
 			...settings,
 			pane: browser.kind.pane,
 			viewport: opts.viewport ?? DEFAULT_VIEWPORT,
 		});
 	} else {
-		const blocks = await listTernBlocks(browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
+		const blocks = await listTernBlocks(browser["tern"], { timeoutMs: opts.timeoutMs, signal: opts.signal });
 		const taken = ternBlocksTaken(name);
 		const block = pickTernBlock(blocks, opts.target, taken);
 		if (!block) throw noTernBlockError(blocks, opts.target, taken);
-		ternTab = await TernTab.adopt(browser.tern, { ...settings, block, viewport: opts.viewport });
+		ternTab = await TernTab.adopt(browser["tern"], { ...settings, block, viewport: opts.viewport });
 	}
 	try {
 		const info = await ternTab.readyInfo();

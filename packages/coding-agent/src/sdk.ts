@@ -1221,7 +1221,7 @@ export {
  *
  * Default: local SQLite store at `<agentDir>/agent.db`.
  *
- * Broker mode: when `OMP_AUTH_BROKER_URL` is set, credentials are pulled from
+ * Broker mode: when `ZETA_AUTH_BROKER_URL` is set, credentials are pulled from
  * a remote auth-broker over the wire. Refresh tokens never leave the broker;
  * the client receives access tokens with `refresh = "__remote__"` and calls
  * back into the broker through the {@link AuthStorageOptions.refreshOAuthCredential}
@@ -1592,7 +1592,7 @@ function isCustomTool(tool: CustomTool | ToolDefinition): tool is CustomTool {
 }
 
 function isLegacyBuiltinToolDefinition(tool: CustomTool | ToolDefinition): boolean {
-	return !isCustomTool(tool) && "__ompLegacyBuiltinTool" in tool && tool.__ompLegacyBuiltinTool === true;
+	return !isCustomTool(tool) && "__zetaLegacyBuiltinTool" in tool && tool.__zetaLegacyBuiltinTool === true;
 }
 
 const TOOL_DEFINITION_MARKER = Symbol("__isToolDefinition");

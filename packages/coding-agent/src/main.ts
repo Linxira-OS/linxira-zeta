@@ -1910,7 +1910,7 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
