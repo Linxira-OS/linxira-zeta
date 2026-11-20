@@ -9,7 +9,7 @@
 - TUI：右栏同时显示待办与运行中的 Agent，窄屏分档收缩；非输入态 Backspace 返回上一页；resume 不取消后台任务，结果回到拥有它的 transcript。
 - 设置：General 增加 Emoji 标签开关（默认开），关闭后 Team tabs 只用文字；语言/术语设置沿用既有 i18n。
 - Host 文件面：`team.files.list/read` 只接受 Team 根相对路径，拒绝 `..` 与真实路径逃逸，读取上限 1 MiB。
-- 验证边界：上述功能已在隔离 Team DB/Team root 的浏览器实例实测；`bun check` 的 Rust 段因依赖下载在 900 秒超时，未冒充完整 CI 绿；未推送、未打 tag、未发布。
+- 验证边界：上述功能已在隔离 Team DB/Team root 的浏览器实例实测；`bun check` 的 Rust 段曾因依赖下载在 900 秒超时，不作为完整 CI 绿；最终源码以 tag 前的 GitHub CI push run 为准，构建与发布由 release tag run 执行。
 
 ### Zeta 1.5.10 发布候选
 
