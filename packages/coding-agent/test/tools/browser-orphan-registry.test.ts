@@ -1,6 +1,6 @@
 /**
  * Regression tests for issue #10022: the project-shared broker-owned Chromium
- * (`zeta.browser.headless`) retains page targets created by omp processes that
+ * (`omp.browser.headless`) retains page targets created by omp processes that
  * ended abnormally, because tab ownership was tracked only in per-process
  * memory. `orphan-registry` records ownership durably and reaps targets whose
  * owning process is gone.
@@ -17,7 +17,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { daemonRuntimeDir } from "@linxiraos/zeta/launch/paths";
 import {
 	closeCdpTarget,
 	closeSharedTargetUntilGone,
@@ -30,9 +29,10 @@ import {
 	retryUnclosedSharedTargets,
 	type SharedTargetScope,
 } from "@linxiraos/zeta/tools/browser/orphan-registry";
+import { getDaemonRuntimeDir } from "@linxiraos/pi-utils";
 import type { Browser } from "puppeteer-core";
 
-const DAEMON_NAME = "zeta.browser.headless";
+const DAEMON_NAME = "omp.browser.headless";
 
 /** Unique per-test scope so registry dirs never collide across the suite. */
 function makeScope(): SharedTargetScope {
@@ -41,7 +41,7 @@ function makeScope(): SharedTargetScope {
 }
 
 function registryDir(scope: SharedTargetScope): string {
-	return path.join(daemonRuntimeDir(scope.projectDir), `${scope.daemonName}.targets`);
+	return path.join(getDaemonRuntimeDir(scope.projectDir), `${scope.daemonName}.targets`);
 }
 
 async function writeOwnershipFile(
@@ -214,7 +214,7 @@ function trackedScope(): SharedTargetScope {
 afterEach(async () => {
 	resetOrphanRegistryForTest();
 	for (const scope of scopes.splice(0)) {
-		await fs.rm(daemonRuntimeDir(scope.projectDir), { recursive: true, force: true }).catch(() => undefined);
+		await fs.rm(getDaemonRuntimeDir(scope.projectDir), { recursive: true, force: true }).catch(() => undefined);
 	}
 });
 

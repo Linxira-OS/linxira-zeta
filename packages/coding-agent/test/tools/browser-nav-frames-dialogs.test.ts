@@ -2,7 +2,9 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { loadPuppeteer } from "@linxiraos/zeta/tools/browser/launch";
 import { navigateMainFrame } from "@linxiraos/zeta/tools/browser/navigation";
+import { getBrowsersMapForTest } from "@linxiraos/zeta/tools/browser/registry";
 import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import type { Page, WaitForOptions } from "puppeteer-core";
@@ -83,6 +85,7 @@ function createHost() {
 			"browser.enabled": true,
 			"browser.headless": true,
 			"browser.cmux": false,
+			"browser.tern": false,
 			"tools.maxTimeout": 0,
 		}),
 	};
@@ -158,42 +161,6 @@ test("hands any waitUntil other than load/domcontentloaded to Puppeteer unchange
 		await navigateMainFrame(page, waitUntil, 1_000, undefined, async options => seen.push(options.waitUntil));
 	}
 	expect(seen).toEqual(["networkidle0", ["load", "networkidle2"]]);
-});
-
-// A cancel abandons the wait but not the navigation, and the browser keeps owing an answer: the
-// caller tracking "a main-frame navigation is pending" reads that promise's own settlement.
-test("hands the caller a navigation's own promise, which a cancel leaves unanswered", async () => {
-	const page = fakePage({ _lifecycleEvents: new Set(["load"]) });
-	const answer = Promise.withResolvers<void>();
-	let reported: Promise<unknown> | undefined;
-	let answered = false;
-	const cancel = new AbortController();
-	const wait = navigateMainFrame(
-		page,
-		"load",
-		10_000,
-		cancel.signal,
-		() => answer.promise,
-		navigation => {
-			reported = navigation;
-			void navigation.then(
-				() => {
-					answered = true;
-				},
-				() => {
-					answered = true;
-				},
-			);
-		},
-	);
-	expect(reported).toBe(answer.promise);
-	cancel.abort();
-	await expect(wait).rejects.toThrow("Aborted: The operation was aborted.");
-	await Promise.resolve();
-	expect(answered).toBe(false);
-	answer.resolve();
-	await reported;
-	expect(answered).toBe(true);
 });
 
 describe.skipIf(!CHROMIUM_AVAILABLE)("browser navigation, frames, dialogs, and tab listing", () => {
@@ -412,6 +379,39 @@ return { blocked, fast: blockedMs < 2000, answered: await tab.evaluate(() => glo
 		// The read names the dialog that stops the page instead of running out its own deadline.
 		expect(outcome.blocked).toContain("Leave?");
 		expect(outcome).toMatchObject({ fast: true, answered: true });
+	}, 30_000);
+
+	test("forgets a confirm that the user or another client answered", async () => {
+		const invoke = createHost();
+		const url = `${baseUrl}/answered-elsewhere`;
+		await invoke({ action: "open", name: "answered-elsewhere", url });
+		// A second CDP client answers the dialog, as the user's click on it does.
+		const handle = [...getBrowsersMapForTest().values()].find(entry => "wsEndpoint" in entry);
+		if (!handle || !("wsEndpoint" in handle)) throw new Error("no managed Chromium");
+		const other = await (await loadPuppeteer()).connect({ browserWSEndpoint: handle.wsEndpoint });
+		try {
+			const target = other.targets().find(entry => entry.url() === url);
+			if (!target) throw new Error("tab target not found");
+			const session = await target.createCDPSession();
+			await session.send("Page.enable");
+			await invoke({
+				action: "run",
+				name: "answered-elsewhere",
+				code: 'await tab.evaluate(() => { requestAnimationFrame(() => { globalThis.confirmResult = confirm("Leave?"); }); }); return await wait(async () => (await tab.dialog()).open, { timeout: 2000, interval: 10 });',
+			});
+			await session.send("Page.handleJavaScriptDialog", { accept: false });
+			expect(
+				valueOf(
+					await invoke({
+						action: "run",
+						name: "answered-elsewhere",
+						code: "await wait(async () => !(await tab.dialog()).open, { timeout: 2000, interval: 10 }); return { dialog: await tab.dialog(), answered: await tab.evaluate(() => globalThis.confirmResult) };",
+					}),
+				),
+			).toEqual({ dialog: { open: false }, answered: false });
+		} finally {
+			await other.disconnect();
+		}
 	}, 30_000);
 
 	test("scopes helpers to iframe documents in run and direct call paths", async () => {

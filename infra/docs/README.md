@@ -40,7 +40,7 @@ Key properties:
 2. The relay verifies `X-Hub-Signature-256` and forwards the delivery unchanged to the vmon driver over the tailnet.
 3. The driver's CI controller checks the label (size `vmon-large`, template `omp-ci`), the repo's installation link (team) and the public-repo policy, then **creates a sandbox** from `omp-ci` in the linked team.
 4. It asks GitHub for a **repo-level JIT runner config** with the job's labels and starts `/home/user/actions-runner/run.sh --jitconfig …` as `user` inside the sandbox.
-5. The runner picks up the job. Steps run in `/home/user/actions-runner/_work/oh-my-pi/oh-my-pi` with `VMON_CI=1` in the environment; Bazel jobs use the node's Bazel cache at `$VMON_CACHE_URL/bazel` ([03-caching.md](03-caching.md)).
+5. The runner picks up the job. Steps run in `/home/user/actions-runner/_work/zeta/zeta` with `VMON_CI=1` in the environment; Bazel jobs use the node's Bazel cache at `$VMON_CACHE_URL/bazel` ([03-caching.md](03-caching.md)).
 6. On `completed` the driver **kills the sandbox** (and deletes the runner after an idle timeout if no job ever arrived). Missed webhooks are redelivered by the driver's reconcile loop.
 
 ## Component map

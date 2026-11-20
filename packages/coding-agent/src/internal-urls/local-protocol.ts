@@ -26,10 +26,11 @@ import type {
 import { formatByteSize } from "../utils/video";
 
 export interface LocalProtocolOptions {
+	/** Agent whose files are being resolved. */
+	agentId?: string;
 	getArtifactsDir?: () => string | null;
 	getSessionId?: () => string | null;
 	/** Main-agent-owned namespace for worker-local scratch; absent for ordinary sessions. */
-	agentId?: string;
 	/** Agent whose files are being resolved; must be set for every subagent. */
 	callerAgentId?: string;
 	/** Whether the caller owns the shared namespace and may write there. */

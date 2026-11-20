@@ -186,6 +186,11 @@ _CACHE_WARMING_OUTCOME_VALUES: Final[frozenset[str]] = frozenset({"hit", "miss",
 _decode_cache_warming_outcome = cast("Decoder[CacheWarmingOutcome]", literal(_CACHE_WARMING_OUTCOME_VALUES))
 
 
+CacheWarmingRentMethod: TypeAlias = Literal["prewarm", "replay"]
+_CACHE_WARMING_RENT_METHOD_VALUES: Final[frozenset[str]] = frozenset({"prewarm", "replay"})
+_decode_cache_warming_rent_method = cast("Decoder[CacheWarmingRentMethod]", literal(_CACHE_WARMING_RENT_METHOD_VALUES))
+
+
 NotifyType: TypeAlias = Literal["info", "warning", "error"]
 _NOTIFY_TYPE_VALUES: Final[frozenset[str]] = frozenset({"info", "warning", "error"})
 _decode_notify_type = cast("Decoder[NotifyType]", literal(_NOTIFY_TYPE_VALUES))
@@ -1258,6 +1263,7 @@ class CacheWarmingStartEvent:
     """A prompt-cache refresh was handed to the provider."""
     type: Literal["cache_warming_start"] = "cache_warming_start"
     phase: CacheWarmingPhase
+    method: CacheWarmingRentMethod
     provider: str
     model: str
 
@@ -1267,6 +1273,7 @@ class CacheWarmingEndEvent:
     """Outcome of the refresh announced by the matching `cache_warming_start`."""
     type: Literal["cache_warming_end"] = "cache_warming_end"
     phase: CacheWarmingPhase
+    method: CacheWarmingRentMethod
     provider: str
     model: str
     outcome: CacheWarmingOutcome
@@ -2842,6 +2849,7 @@ def parse_cache_warming_start_event(value: object, path: str = "CacheWarmingStar
     required(payload, "type", cast('Decoder[Literal["cache_warming_start"]]', literal(frozenset({"cache_warming_start"}))), path)
     return CacheWarmingStartEvent(
         phase=required(payload, "phase", _decode_cache_warming_phase, path),
+        method=required(payload, "method", _decode_cache_warming_rent_method, path),
         provider=required(payload, "provider", decode_str, path),
         model=required(payload, "model", decode_str, path),
     )
@@ -2852,6 +2860,7 @@ def parse_cache_warming_end_event(value: object, path: str = "CacheWarmingEndEve
     required(payload, "type", cast('Decoder[Literal["cache_warming_end"]]', literal(frozenset({"cache_warming_end"}))), path)
     return CacheWarmingEndEvent(
         phase=required(payload, "phase", _decode_cache_warming_phase, path),
+        method=required(payload, "method", _decode_cache_warming_rent_method, path),
         provider=required(payload, "provider", decode_str, path),
         model=required(payload, "model", decode_str, path),
         outcome=required(payload, "outcome", _decode_cache_warming_outcome, path),
@@ -4480,6 +4489,7 @@ __all__ = [
     "CacheWarmingMode",
     "CacheWarmingOutcome",
     "CacheWarmingPhase",
+    "CacheWarmingRentMethod",
     "CacheWarmingStartEvent",
     "CancelUiRequest",
     "CancellationResult",

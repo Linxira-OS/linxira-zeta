@@ -1,7 +1,14 @@
-"""omp IDA worker: drives one idalib database over an NDJSON stdin/stdout protocol.
+"""omp IDA worker: drives one idalib database over an NDJSON socket protocol.
+
+Launched as `worker.py --socket PATH` (Unix socket) or `worker.py --port-file PATH` (loopback TCP;
+the bound port is written to PATH). The omp daemon connects, sends `{"token": $OMP_DISASM_WORKER_TOKEN}`
+as its first line, then speaks:
 
 Request:  {"id": int, "method": str, "params": dict}
 Response: {"id", "ok": true, "result"} | {"id", "ok": false, "error": {"type", "message"}}
+
+A dropped connection does not close the database: the daemon reconnects after a restart. With no
+connection for `_ORPHAN_S` the worker saves and exits.
 """
 
 import _thread
@@ -11,26 +18,48 @@ import json
 import os
 import queue
 import re
-import shutil
 import signal
+import socket
 import sys
 import threading
 import time
 import traceback
-import uuid
 from contextlib import redirect_stderr, redirect_stdout
 
-_STUDIO_IDENTITY = str(uuid.uuid4())
-_STUDIO_VERSION = 0
 
-# Keep a private handle on the real stdout for protocol frames, then point fd 1 at stderr so
-# kernel messages and stray prints can never corrupt the NDJSON stream.
-_proto = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
-os.dup2(2, 1)
-try:
-    sys.stdin.reconfigure(encoding="utf-8")
-except (AttributeError, ValueError):
-    pass
+def _listen():
+    """Bind the protocol listener before the slow idalib import so the daemon can connect at once."""
+    args = sys.argv[1:]
+    if len(args) == 2 and args[0] == "--socket":
+        try:
+            os.unlink(args[1])
+        except FileNotFoundError:
+            pass
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(args[1])
+        sock.listen(4)
+        return sock
+    if len(args) == 2 and args[0] == "--port-file":
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(4)
+        tmp = args[1] + ".tmp"
+        with open(tmp, "w") as f:
+            f.write(str(sock.getsockname()[1]))
+        os.replace(tmp, args[1])
+        return sock
+    raise SystemExit("usage: worker.py --socket PATH | --port-file PATH")
+
+
+_TOKEN = os.environ.pop("OMP_DISASM_WORKER_TOKEN", "")
+_listener = _listen()
+# Set by SIGTERM: the main loop saves and exits once the running request (if any) finishes.
+_terminate = False
+
+
+def _on_sigterm(signum, frame):
+    global _terminate
+    _terminate = True
 
 import idapro  # noqa: E402,F401  (loads libidalib before any ida_* module)
 
@@ -41,10 +70,10 @@ def _arm_sigint():
     # supervisor's timeout/abort SIGINT raises KeyboardInterrupt instead of killing the worker.
     if signal.getsignal(signal.SIGINT) is not signal.default_int_handler:
         signal.signal(signal.SIGINT, signal.default_int_handler)
-    # The broker stops the host's whole process group; the host saves and closes this worker,
-    # so a group SIGTERM must not kill it mid-save.
-    if signal.getsignal(signal.SIGTERM) is not signal.SIG_IGN:
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    # SIGTERM must not kill the worker mid-request or mid-save: it only asks the main loop to
+    # save and exit at the next request boundary.
+    if signal.getsignal(signal.SIGTERM) is not _on_sigterm:
+        signal.signal(signal.SIGTERM, _on_sigterm)
 
 
 _arm_sigint()
@@ -488,63 +517,21 @@ def _view_overview():
 
 
 def _view_imports():
-    return _text(_view_list("imports")[0])
+    return _text(f"0x{ea:x}  {module}!{name}" for ea, module, name in imports())
 
 
 def _view_exports():
-    return _text(_view_list("exports")[0])
+    lines = []
+    for e in _db().entries.get_all():
+        line = f"0x{e.address:x}  {e.name}  (ordinal {e.ordinal})"
+        if e.forwarder_name:
+            line += f" -> {e.forwarder_name}"
+        lines.append(line)
+    return _text(lines)
 
 
 def _view_strings():
-    return _text(_view_list("strings")[0])
-
-
-def _view_list(kind, offset=0, limit=None):
-    db = _db()
-    if kind == "functions":
-        items = db.functions.get_all()
-        def render(item):
-            return f"0x{item.start_ea:x}  {ida_funcs.get_func_name(item.start_ea)}"
-    elif kind == "imports":
-        items = db.imports.get_all_imports()
-        def render(item):
-            return f"0x{item.address:x}  {item.module_name}!{item.name or f'#{item.ordinal}'}"
-    elif kind == "exports":
-        items = db.entries.get_all()
-        def render(item):
-            line = f"0x{item.address:x}  {item.name}  (ordinal {item.ordinal})"
-            return line + (f" -> {item.forwarder_name}" if item.forwarder_name else "")
-    elif kind == "strings":
-        items = db.strings.get_all()
-        def render(item):
-            raw = ida_bytes.get_strlit_contents(item.address, item.length, item.internal_type) or b""
-            return f"0x{item.address:x}  {json.dumps(raw.decode('utf-8', 'replace'), ensure_ascii=False)}"
-    else:
-        raise ValueError(f"unknown list view: {kind}")
-    lines = []
-    total = 0
-    for index, item in enumerate(items):
-        total = index + 1
-        if index >= offset and (limit is None or index < offset + limit):
-            lines.append(render(item).expandtabs(4))
-    return lines, total
-
-
-def _view_page(params, offset, limit, delegate):
-    if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
-        raise ValueError("Invalid IDA page")
-    if params.get("kind") in ("functions", "imports", "exports", "strings"):
-        page, total = _view_list(params["kind"], offset, limit)
-    else:
-        lines = delegate(params)["text"].splitlines()
-        total = len(lines)
-        page = lines[offset:offset + limit]
-    if offset > total:
-        raise ValueError("IDA page is out of range")
-    result = {"text": "\n".join(line[:2048] for line in page), "total": total, "offset": offset, "truncated": any(len(line) > 2048 for line in page)}
-    if offset + len(page) < total:
-        result["nextOffset"] = offset + len(page)
-    return result
+    return _text(f"0x{ea:x}  {json.dumps(s, ensure_ascii=False)}" for ea, s in strings())
 
 
 def _view_xrefs(target):
@@ -659,6 +646,10 @@ def _rpc_open(params):
     NS.update({"__name__": "__ida_exec__", "__builtins__": __builtins__, "db": DB, "ida_domain": ida_domain})
     NS.update({m.__name__: m for m in _NS_MODULES})
     NS.update({h.__name__: h for h in _HELPERS})
+    return _open_info()
+
+
+def _open_info():
     return {
         "idb": _idb_path(),
         "module": DB.module,
@@ -668,10 +659,15 @@ def _rpc_open(params):
     }
 
 
+def _rpc_status(params):
+    # Queued behind any running request, so a reconnecting daemon sees the finished open.
+    if DB is None:
+        return {"open": False}
+    return {"open": True, **_open_info()}
+
+
 def _rpc_view(params):
     kind = params.get("kind") or "overview"
-    if kind == "functions":
-        return {"text": _text(_view_list("functions")[0])}
     if kind in _PLAIN_VIEWS:
         return {"text": _PLAIN_VIEWS[kind]()}
     if kind in _TARGET_VIEWS:
@@ -683,10 +679,6 @@ def _rpc_view(params):
 
 
 def _rpc_exec(params):
-    # Studio requests a checkpoint in this same serialized worker request: no
-    # other process can edit between the checkpoint and the requested code.
-    if params.get("studioBackup"):
-        _rpc_save({"studioBackup": params["studioBackup"]})
     code = params.get("code") or ""
     buf = io.StringIO()
     value = None
@@ -731,23 +723,9 @@ def _rpc_save(params):
     global _DIRTY
     _db()
     p = _idb_path()
-    backup = params.get("studioBackup")
-    if backup:
-        if not isinstance(backup, str) or not os.path.isabs(backup):
-            raise ValueError("Studio checkpoint must be an absolute file path")
-        if os.path.realpath(backup) == os.path.realpath(p):
-            raise ValueError("Studio checkpoint cannot replace the database")
-        # Exclusive creation preserves existing recovery copies. Keep the
-        # original disk version before saving the current in-memory database.
-        if os.path.isfile(p):
-            with open(p, "rb") as source, open(backup + ".before-flush", "xb") as target:
-                shutil.copyfileobj(source, target)
     if not ida_loader.save_database(p, 0):
         raise RuntimeError("save failed")
     _DIRTY = False
-    if backup:
-        with open(p, "rb") as source, open(backup, "xb") as target:
-            shutil.copyfileobj(source, target)
     return {"idb": p}
 
 
@@ -760,6 +738,7 @@ _METHODS = {
     "set_type": _rpc_set_type,
     "make_function": _rpc_make_function,
     "save": _rpc_save,
+    "status": _rpc_status,
 }
 
 
@@ -774,50 +753,96 @@ def _error(e):
 
 
 def _send(frame):
-    data = json.dumps(frame, ensure_ascii=False, default=str) + "\n"
-    if _WINDOWS:
-        _proto.write(data)
-        _proto.flush()
-        return
-    # Defer SIGINT while writing so a late interrupt cannot truncate a frame; it is
-    # delivered after unblocking and swallowed by the idle loop.
-    signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+    data = (json.dumps(frame, ensure_ascii=False, default=str) + "\n").encode("utf-8")
+    with _conn_lock:
+        conn = _conn
+        if conn is None:
+            # The daemon is gone; after it reconnects it asks `status` instead.
+            return
+        if _WINDOWS:
+            _sendall(conn, data)
+            return
+        # Defer SIGINT while writing so a late interrupt cannot truncate a frame; it is
+        # delivered after unblocking and swallowed by the idle loop.
+        signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+        try:
+            _sendall(conn, data)
+        finally:
+            signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGINT})
+
+
+def _sendall(conn, data):
     try:
-        _proto.write(data)
-        _proto.flush()
-    finally:
-        signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGINT})
+        conn.sendall(data)
+    except OSError:
+        traceback.print_exc()
 
 
-# Windows cannot deliver SIGINT to one child process (the supervisor's kill terminates it), so
-# the supervisor writes `{"interrupt": <id>}` to stdin instead. A reader thread consumes stdin
-# and schedules KeyboardInterrupt in the main thread (at most once) while that request runs.
-# Scheduling is asynchronous, so `_run` absorbs a pending interrupt before the response is
-# written: it can never truncate a frame or hit the next request.
+# Windows cannot deliver SIGINT to one child process (kill terminates it), so the daemon writes
+# `{"interrupt": <id>}` to the socket instead. The connection's reader thread schedules
+# KeyboardInterrupt in the main thread (at most once) while that request runs. Scheduling is
+# asynchronous, so `_run` absorbs a pending interrupt before the response is written: it can
+# never truncate a frame or hit the next request.
 _WINDOWS = sys.platform == "win32"
 # How long `_run` spins for a scheduled interrupt the request's own code already swallowed.
 _INTERRUPT_ABSORB_S = 0.5
+# How long the worker keeps its database open with no daemon connected before it saves and exits.
+_ORPHAN_S = 600.0
 _requests = queue.Queue()
 _running_lock = threading.Lock()
 _running_id = None
 _interrupt_pending = False
+_conn_lock = threading.Lock()
+_conn = None
+_disconnected_at = time.monotonic()
 
 
-def _read_requests():
-    global _interrupt_pending
-    for line in sys.stdin:
+def _accept_connections():
+    """Serve one daemon connection at a time; a new connection replaces the previous one."""
+    while True:
         try:
-            frame = json.loads(line)
-        except ValueError:
-            frame = None
-        if isinstance(frame, dict) and "interrupt" in frame:
-            with _running_lock:
-                if not _interrupt_pending and _running_id is not None and _running_id == frame["interrupt"]:
-                    _interrupt_pending = True
-                    _thread.interrupt_main()
-            continue
-        _requests.put(line)
-    _requests.put("")
+            conn, _ = _listener.accept()
+        except OSError:
+            traceback.print_exc()
+            return
+        threading.Thread(target=_read_requests, args=(conn,), name="omp-ida-conn", daemon=True).start()
+
+
+def _read_requests(conn):
+    global _interrupt_pending, _conn, _disconnected_at
+    authenticated = False
+    try:
+        for line in conn.makefile("r", encoding="utf-8", newline="\n"):
+            try:
+                frame = json.loads(line)
+            except ValueError:
+                frame = None
+            if not authenticated:
+                if not isinstance(frame, dict) or frame.get("token") != _TOKEN:
+                    break
+                authenticated = True
+                with _conn_lock:
+                    previous, _conn = _conn, conn
+                if previous is not None:
+                    try:
+                        previous.shutdown(socket.SHUT_RDWR)
+                    except OSError:
+                        pass
+                continue
+            if isinstance(frame, dict) and "interrupt" in frame:
+                with _running_lock:
+                    if not _interrupt_pending and _running_id is not None and _running_id == frame["interrupt"]:
+                        _interrupt_pending = True
+                        _thread.interrupt_main()
+                continue
+            _requests.put(line)
+    except OSError:
+        pass
+    with _conn_lock:
+        if _conn is conn:
+            _conn = None
+            _disconnected_at = time.monotonic()
+    conn.close()
 
 
 def _run(req_id, handler, params):
@@ -867,12 +892,10 @@ def _close_and_exit(save):
             traceback.print_exc()
             code = 1
         DB = None
-    _proto.flush()
     sys.exit(code)
 
 
 def _handle(line):
-    global _STUDIO_VERSION
     _arm_sigint()
     req_id = None
     try:
@@ -882,27 +905,8 @@ def _handle(line):
         req_id = req.get("id")
         method = req.get("method")
         params = req.get("params") or {}
-        studio = method == "studio"
-        if studio:
-            envelope = params
-            method = envelope.get("method")
-            if method == "status":
-                _send({"id": req_id, "ok": True, "result": {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": {}}})
-                return
-            if envelope.get("identity") != _STUDIO_IDENTITY or type(envelope.get("version")) is not int or envelope["version"] != _STUDIO_VERSION:
-                raise ValueError("IDA database changed; review the current identity and version")
-            if method not in ("view", "exec", "rename", "comment", "set_type", "make_function", "save", "close"):
-                raise ValueError("Unsupported Studio IDA method")
-            params = envelope.get("params") or {}
-        if method in ("open", "exec", "rename", "comment", "set_type", "make_function", "save", "close"):
-            # Failures and cancellation can leave partial edits; invalidate reviews before dispatch.
-            _STUDIO_VERSION += 1
         if method == "close":
             save = bool(params.get("save"))
-            checkpoint = None
-            if studio and save and DB is not None:
-                checkpoint = os.path.abspath(_idb_path()) + ".studio-" + uuid.uuid4().hex + ".backup"
-                _rpc_save({"studioBackup": checkpoint})
             try:
                 if DB is not None:
                     DB.close(save=save)
@@ -910,10 +914,7 @@ def _handle(line):
                 _send({"id": req_id, "ok": False, "error": _error(e)})
                 traceback.print_exc()
                 sys.exit(1)
-            closed = {"closed": True, "saved": save}
-            if checkpoint:
-                closed["backup"] = checkpoint
-            _send({"id": req_id, "ok": True, "result": {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": closed} if studio else closed})
+            _send({"id": req_id, "ok": True, "result": {"closed": True, "saved": save}})
             sys.exit(0)
         handler = _METHODS.get(method)
         if handler is None:
@@ -923,21 +924,6 @@ def _handle(line):
     except BaseException as e:
         _send({"id": req_id, "ok": False, "error": _error(e)})
         return
-    if studio:
-        delegate = handler
-        def guarded(params):
-            checkpoint = None
-            if method in ("exec", "rename", "comment", "set_type", "make_function", "save"):
-                checkpoint = os.path.abspath(_idb_path()) + ".studio-" + uuid.uuid4().hex + ".backup"
-                _rpc_save({"studioBackup": checkpoint})
-            if method == "view":
-                result = _view_page(params, envelope.get("offset", 0), envelope.get("limit", 100), delegate)
-            else:
-                result = delegate(params)
-                if checkpoint:
-                    result = {"result": result, "backup": checkpoint}
-            return {"identity": _STUDIO_IDENTITY, "version": _STUDIO_VERSION, "result": result}
-        handler = guarded
     ok, result = _run(req_id, handler, params)
     if ok:
         _send({"id": req_id, "ok": True, "result": result, "dirty": _DIRTY})
@@ -946,13 +932,17 @@ def _handle(line):
 
 
 def main():
-    if _WINDOWS:
-        threading.Thread(target=_read_requests, name="omp-ida-stdin", daemon=True).start()
-    while True:
+    threading.Thread(target=_accept_connections, name="omp-ida-accept", daemon=True).start()
+    while not _terminate:
         try:
-            line = _requests.get() if _WINDOWS else sys.stdin.readline()
-            if not line:
-                break
+            try:
+                line = _requests.get(timeout=1)
+            except queue.Empty:
+                with _conn_lock:
+                    orphaned = _conn is None and time.monotonic() - _disconnected_at > _ORPHAN_S
+                if orphaned:
+                    break
+                continue
             if line.strip():
                 _handle(line)
         except KeyboardInterrupt:

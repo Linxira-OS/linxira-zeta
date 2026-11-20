@@ -16,7 +16,7 @@ import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@linxiraos/pi-ai";
 import type { BashResult } from "@linxiraos/zeta/exec/bash-executor";
 import type { GoalModeState } from "@linxiraos/zeta/goals/state";
-import type { RpcGoalResult } from "@linxiraos/zeta/goals/continuation-controller";
+import type { RpcGoalResult } from "../../src/goals/continuation-controller";
 import type { RpcMessagesPage } from "@linxiraos/zeta/modes/rpc/rpc-messages";
 import type {
 	RpcAbortAndRestoreQueueResult,

@@ -1116,7 +1116,7 @@ export class SelectorController {
 		const target = this.ctx.viewSession;
 		const focusedAgentId = this.ctx.focusedAgentId;
 		const apply = async () => {
-			const level = thinkingLevel ?? target.resolveTemporaryModelThinkingLevel(model);
+			const level = thinkingLevel ?? target.resolveTemporaryModelThinkingLevel?.(model);
 			await target.setModelTemporary(model, level);
 			this.ctx.statusLine.invalidate();
 			this.ctx.updateEditorBorderColor();
@@ -1229,7 +1229,7 @@ export class SelectorController {
 				// level, else the session's (auto carries over; a fixed level yields to the
 				// model's own default, as setModelTemporary re-applies it).
 				thinkingLevelFor: model => {
-					const roleLevel = viewed.resolveTemporaryModelThinkingLevel(model);
+					const roleLevel = viewed.resolveTemporaryModelThinkingLevel?.(model);
 					if (roleLevel !== undefined) return roleLevel;
 					const configured = viewed.configuredThinkingLevel();
 					return configured === AUTO_THINKING ? configured : (model.thinking?.defaultLevel ?? configured);

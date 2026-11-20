@@ -63,7 +63,7 @@ export async function materializeOmpScope(rawInput: string, context?: ResolveCon
 
 		let content: string;
 		try {
-			content = (await InternalUrlRouter.instance().resolve(`zeta://${rel}`, context)).content;
+			content = String((await InternalUrlRouter.instance().resolve(`zeta://${rel}`, context)).content);
 		} catch (error) {
 			throw new ToolError(error instanceof Error ? error.message : String(error));
 		}

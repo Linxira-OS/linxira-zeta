@@ -202,7 +202,7 @@ def _ensure_agent_run_dir() -> None:
     omp registers daemon project presence under ``~/.zeta/run`` at startup,
     nesting per-project dirs (``daemons/<hash>/clients``) that any slot user
     must be able to create or enter regardless of which slot made them first.
-    The tree stays group ``omp``, setgid, group-writable; slot subprocesses
+    The tree stays group ``zetacode``, setgid, group-writable; slot subprocesses
     spawn with umask 0002 so their entries inherit group write.
     """
     if sys.platform == "win32" or os.geteuid() != 0:

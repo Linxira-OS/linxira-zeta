@@ -789,8 +789,8 @@ class DaemonBroker {
 					restartCount: 0,
 					outputBytes: 0,
 					owner,
-					persist: spec.persist,
-					detached: spec.detached,
+					persist: spec.persist ?? false,
+					detached: spec.detached ?? false,
 				},
 				dir,
 				log: await DaemonLog.create(dir),
@@ -856,8 +856,8 @@ class DaemonBroker {
 		record.stopRequested = false;
 		record.terminalSettled = undefined;
 		record.snapshot.state = record.spec.ready ? "starting" : "running";
-		record.snapshot.persist = record.spec.persist;
-		record.snapshot.detached = record.spec.detached;
+		record.snapshot.persist = record.spec.persist ?? false;
+		record.snapshot.detached = record.spec.detached ?? false;
 		record.snapshot.startedAt = Math.max(Date.now(), record.snapshot.startedAt + 1);
 		record.snapshot.readyAt = undefined;
 		record.snapshot.exitedAt = undefined;
@@ -1404,7 +1404,7 @@ class DaemonBroker {
 				throw new Error(`Detached daemon ${operation.name} must remain persistent`);
 			}
 			record.spec = { ...record.spec, persist: operation.mode === "persist" };
-			record.snapshot.persist = record.spec.persist;
+			record.snapshot.persist = record.spec.persist ?? false;
 			this.#persist(record);
 		}
 		await record.persistQueue;
@@ -1537,16 +1537,16 @@ class DaemonBroker {
 				} else if (snapshot.state === "restarting") {
 					snapshot.state = spec.ready ? "starting" : "running";
 				}
-				snapshot.persist = spec.persist;
-				snapshot.detached = spec.detached;
+				snapshot.persist = spec.persist ?? false;
+				snapshot.detached = spec.detached ?? false;
 				const record: ManagedDaemon = {
 					spec,
 					snapshot,
 					dir,
 					generation: 0,
 					stopRequested: !detached || snapshot.state === "stopping",
-					logReady: detached && (!spec.ready?.log || snapshot.state === "ready"),
-					portReady: detached && (spec.ready?.port === undefined || snapshot.state === "ready"),
+					logReady: !!detached && (!spec.ready?.log || snapshot.state === "ready"),
+					portReady: !!detached && (spec.ready?.port === undefined || snapshot.state === "ready"),
 					readinessBuffer: "",
 					outputOffset: detached ? snapshot.outputBytes : 0,
 					readyPattern: spec.ready?.log ? new RegExp(spec.ready.log, "u") : undefined,

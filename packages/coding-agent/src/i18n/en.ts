@@ -2576,6 +2576,8 @@ export const en = {
 	grepTruncated: "truncated",
 	grepItemOne: "1 item",
 	grepItemManyFmt: "%d items",
+	moreItemsFmt: "… %s more %s",
+	todoBlockedSuffix: "(blocked)",
 	grepMatchOne: "1 match",
 	grepMatchManyFmt: "%d matches",
 	grepFileOne: "1 file",

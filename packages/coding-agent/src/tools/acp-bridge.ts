@@ -3,7 +3,7 @@
  *
  * When an ACP client (e.g. Zed) advertises the `fs.writeTextFile` capability,
  * all write-mode tools must route through it so the editor's open buffer is
- * updated immediately. Internal artifacts ('/Users/theo/.zeta/agent/sessions/-Projects-oh-my-pi/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local' plan files, other scheme
+ * updated immediately. Internal artifacts ('/Users/theo/.zeta/agent/sessions/-Projects-zeta/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local' plan files, other scheme
  * URLs) are always written directly to disk — those are OMP-owned and should
  * never be pushed into the editor.
  */
@@ -18,7 +18,7 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 /**
  * Return `true` when an ACP client bridge write is appropriate for this path.
  *
- * Returns `false` for internal-URL paths (e.g. `'/Users/theo/.zeta/agent/sessions/-Projects-oh-my-pi/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local/PLAN.md'`) and for the
+ * Returns `false` for internal-URL paths (e.g. `'/Users/theo/.zeta/agent/sessions/-Projects-zeta/2026-06-10T09-11-41-506Z_019eb0cd-3ec2-7000-92aa-1b82aa4d78f0/local/PLAN.md'`) and for the
  * active plan file while plan mode is enabled — both are OMP-internal artifacts
  * that must stay off the editor's buffer.
  */
@@ -86,7 +86,15 @@ export async function routeWriteThroughBridge(
 	if (!bridge?.capabilities.writeTextFile || !bridge.writeTextFile) return undefined;
 	if (!(await shouldRouteWriteThroughBridge(session, requestedPath, absolutePath))) return undefined;
 
-	const changeType = (await Bun.file(absolutePath).exists()) ? FileChangeType.Changed : FileChangeType.Created;
+	// The pre-image tells "the client never persisted the write" (an editor that
+	// only updated its buffer) apart from a client-side reformat.
+	const existed = await Bun.file(absolutePath).exists();
+	const preImage = existed
+		? await Bun.file(absolutePath)
+				.text()
+				.catch(() => undefined)
+		: undefined;
+	const changeType = existed ? FileChangeType.Changed : FileChangeType.Created;
 	// The ACP protocol has no cancellation for fs writes; the most we can do is
 	// refuse to start one after the tool was aborted. Racing the promise would
 	// report failure while the editor still applies the write.
@@ -119,6 +127,11 @@ export async function routeWriteThroughBridge(
 	} catch {
 		// Unreadable right after a reported-successful write; nothing more we
 		// can verify here.
+	}
+	if (preImage !== undefined && actualText === preImage && actualText !== content) {
+		throw new ToolError(
+			`write through the editor appeared successful but file content did not change on disk: ${requestedPath}`,
+		);
 	}
 	return { text: actualText, driftedFromRequest: actualText !== content };
 }

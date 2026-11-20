@@ -29,7 +29,12 @@ export type StudioPredictionResult = PredictionResult;
 export class StudioPredictionEngine {
 	readonly directory: string;
 	readonly client: Pick<TextPredictionClient, "complete" | "sync" | "close"> &
-		Partial<Pick<TextPredictionClient, "stop" | "backend">>;
+		Partial<{
+			stop(): void | Promise<void>;
+			backend: (method: WordCompletionEngine) => {
+				feedback(before: string, prefix: string, suggestion: string, accepted: boolean): void;
+			};
+		}>;
 	#download: PredictionControlState["download"] = { state: "idle", loaded: 0, total: SMOLLM_TOTAL_BYTES };
 	#downloadAbort: AbortController | undefined;
 	get running(): boolean {
@@ -42,9 +47,7 @@ export class StudioPredictionEngine {
 		options: { directory?: string; client?: Pick<TextPredictionClient, "complete" | "sync" | "close"> } = {},
 	) {
 		this.directory = options.directory ?? join(getAgentDir(), "studio", "prediction");
-		this.client =
-			options.client ??
-			new TextPredictionClient({ agentDirectory: this.directory, profile: "studio", downloadWeights: false });
+		this.client = options.client ?? new TextPredictionClient();
 		this.#unsubscribe = session.subscribe?.(event => {
 			if (event.type !== "message_end" || event.message.role !== "user") return;
 			const message = event.message;

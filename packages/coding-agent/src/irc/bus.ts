@@ -57,6 +57,16 @@ function ircWaitAccepts(filter: IrcWaitFilter, msg: IrcMessage): boolean {
 	return !msg.progress && (filter.repliesFrom?.includes(msg.from) ?? false);
 }
 
+/** A direct send still waiting for an answer. */
+export interface UnansweredSend {
+	to: string;
+	sentAt: number;
+	promised: boolean;
+	ask?: string;
+	/** Opening text of the progress note that promised the reply. */
+	promise?: string;
+}
+
 /** When a send went out: wall-clock `ts`, and `seq` to order sends within one millisecond. */
 interface SendMark {
 	ts: number;
@@ -70,13 +80,17 @@ const MAILBOX_CAP = 100;
 export interface IrcBusApi {
 	/** Fire-and-forget delivery; the receipt reports how the message reached the recipient. */
 	send(
-		msg: Omit<IrcMessage, "id" | "ts">,
+		msg: Omit<IrcMessage, "id" | "ts"> & { localOnly?: boolean },
 		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
 	): Promise<IrcDeliveryReceipt>;
 	/** Whether `from` successfully sent `to` anything, progress included, at or after `sinceTs`. */
 	sentSince(from: string, to: string, sinceTs: number): boolean;
 	/** Agents `from` messaged directly at or after `sinceTs` that have not answered since. */
-	unansweredSends(from: string, sinceTs: number): Array<{ to: string; sentAt: number; promised: boolean }>;
+	unansweredSends(from: string, sinceTs: number): UnansweredSend[];
+	/** When `from` last sent `to` a message that ends `to`'s wait; undefined if never. */
+	lastMessageAt(from: string, to: string): number | undefined;
+	/** Store a message in the recipient's mailbox without waking it. */
+	park(msg: Omit<IrcMessage, "id" | "ts">): IrcMessage;
 	/** Block until a message for `agentId` that `filter` accepts arrives; null on timeout. */
 	wait(
 		agentId: string,
@@ -115,6 +129,11 @@ export class IrcBus implements IrcBusApi {
 		if (!IrcBus.#global) {
 			IrcBus.#global = new IrcBus();
 		}
+		return IrcBus.#global;
+	}
+
+	/** The process-global bus if one exists; never creates it. */
+	static existing(): IrcBusApi | undefined {
 		return IrcBus.#global;
 	}
 
@@ -242,10 +261,10 @@ export class IrcBus implements IrcBusApi {
 	 * to an earlier question never settles a later one sent within the same
 	 * millisecond.
 	 */
-	unansweredSends(from: string, sinceTs: number): Array<{ to: string; sentAt: number; promised: boolean }> {
+	unansweredSends(from: string, sinceTs: number): UnansweredSend[] {
 		const sends = this.#lastDirect.get(from);
 		if (!sends) return [];
-		const unanswered: Array<{ to: string; sentAt: number; promised: boolean }> = [];
+		const unanswered: UnansweredSend[] = [];
 		for (const [to, sent] of sends) {
 			if (sent.ts < sinceTs) continue;
 			const after = (table: Map<string, Map<string, SendMark>>) => (table.get(to)?.get(from)?.seq ?? 0) > sent.seq;
@@ -254,6 +273,24 @@ export class IrcBus implements IrcBusApi {
 			unanswered.push({ to, sentAt: sent.ts, promised });
 		}
 		return unanswered;
+	}
+
+	lastMessageAt(from: string, to: string): number | undefined {
+		return this.#lastReply.get(from)?.get(to)?.ts;
+	}
+
+	park(msg: Omit<IrcMessage, "id" | "ts">): IrcMessage {
+		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
+		const mark: SendMark = { ts: message.ts, seq: ++this.#sendSeq };
+		this.#enqueue(message);
+		if (message.progress) {
+			this.#record(this.#lastProgress, message.from, message.to, mark);
+		} else {
+			this.#record(this.#lastSent, message.from, message.to, mark);
+			this.#record(this.#lastReply, message.from, message.to, mark);
+			this.#record(this.#lastDirect, message.from, message.to, mark);
+		}
+		return message;
 	}
 
 	async #deliver(

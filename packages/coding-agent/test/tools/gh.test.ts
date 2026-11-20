@@ -22,7 +22,14 @@ import type { GhToolDetails } from "@linxiraos/pi-tui/tools/github";
 import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import {
+	getAgentDir,
+	hashPath,
+	normalizePathForComparison,
+	removeWithRetries,
+	setAgentDir,
+	spillFileName,
+} from "@linxiraos/pi-utils";
 import { mockSchedulerWaitWithClock } from "../helpers/mock-scheduler-clock";
 
 const TINY_PNG_BASE64 =
@@ -62,11 +69,11 @@ function createSession(
 		getSessionFile: () => null,
 		getArtifactsDir: () => artifactsDir ?? null,
 		allocateOutputArtifact: artifactsDir
-			? async toolType => {
+			? async () => {
 					const artifactId = String(nextArtifactId++);
 					return {
 						id: artifactId,
-						path: path.join(artifactsDir, `${artifactId}-${toolType}.md`),
+						path: path.join(artifactsDir, spillFileName(artifactId)),
 					};
 				}
 			: undefined,
@@ -537,12 +544,12 @@ describe("github tool", () => {
 			encoding: "base64",
 			size: 20,
 			content: Buffer.from('{"version":"16.3.11"}\n').toString("base64"),
-			html_url: "https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/package.json",
+			html_url: "https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/package.json",
 		});
 		const tool = new GithubTool(createSession());
 		const result = await tool.execute("file-read", {
 			op: "file_read",
-			repo: "can1357/oh-my-pi",
+			repo: "Linxira-OS/linxira-zeta",
 			branch: "main",
 			path: "packages/coding-agent/package.json",
 		});
@@ -553,7 +560,7 @@ describe("github tool", () => {
 			"/tmp/test",
 			[
 				"api",
-				"/repos/can1357/oh-my-pi/contents/packages/coding-agent/package.json",
+				"/repos/Linxira-OS/linxira-zeta/contents/packages/coding-agent/package.json",
 				"--method",
 				"GET",
 				"-H",
@@ -1387,6 +1394,12 @@ echo ok
 					originMainBefore,
 				);
 			});
+
+			it("pushes the branch pr_checkout made for the named PR, not the current branch", async () => {
+				const tool = new GithubTool(createSession(fixture.repoRoot));
+				const result = await tool.execute("pr-push-named", { op: "pr_push", pr: "100" });
+				expect(result.details).toMatchObject({ branch: "pr-100", remoteBranch: fixture.headRefName });
+			});
 		});
 	});
 
@@ -1453,14 +1466,14 @@ echo ok
 			expect(text).toContain("zeta");
 			expect(text).not.toContain("alpha");
 			expect(text).toContain("Run failed.");
-			expect(text).toContain("Full failed-job logs: artifact://0");
+			expect(text).toContain("Full failed-job logs: local://0.log");
 			expect(result.details?.artifactId).toBe("0");
 			expect(result.details?.watch?.mode).toBe("run");
 			expect(result.details?.watch?.state).toBe("completed");
 			expect(result.details?.watch?.failedLogs?.[0]?.jobName).toBe("test");
 			expect(result.details?.watch?.failedLogs?.[0]?.tail).toContain("zeta");
 
-			const artifactText = await Bun.file(path.join(artifactsDir, "0-github.md")).text();
+			const artifactText = await Bun.file(path.join(artifactsDir, spillFileName(0))).text();
 			expect(artifactText).toContain("# GitHub Actions Run #77");
 			expect(artifactText).toContain("Full log:");
 			expect(artifactText).toContain("alpha");

@@ -23,7 +23,7 @@ export function isIrcEnabled(settings: Settings, taskDepth: number): boolean {
 /** Send a direct message or, from a top-level agent only, a broadcast; delivery never waits for a reply. */
 export async function executeSend(
 	deps: { registry: AgentRegistryApi; senderId: string; sessionFileHint?: string | null },
-	params: { to: string; message: string; progress?: boolean },
+	params: { to: string; message: string; progress?: boolean; remote?: boolean },
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId, sessionFileHint } = deps;
 	const requestedTo = params.to.trim();

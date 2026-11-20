@@ -553,7 +553,7 @@ def _prepare_slot_runtime_env(workspace: Workspace, slot_uid: int | None) -> dic
     tests) or for the case where a runtime dir was deleted mid-process.
 
     Cargo/rustup/target caches live under ``/data/cache/*`` (container ENV)
-    and are group-shared via ``omp``. Bun's install cache is explicitly
+    and are group-shared via ``zetacode``. Bun's install cache is explicitly
     workspace-private because bun chmod/chowns its cache root, which makes a
     cross-slot shared cache a permanent source of permission failures.
     """
@@ -668,7 +668,7 @@ def _share_git_metadata_with_slots(repo_dir: Path, slot_uid: int | None) -> None
     The worktree checkout itself is slot-private, but `.git` in a Git worktree
     points back into the shared clone pool. A retry may run as a different
     `omp-N` user, so the pool-side worktree gitdir, refs, reflogs, and object
-    directories must stay writable through the shared `omp` group.
+    directories must stay writable through the shared `zetacode` group.
     """
     if not _slot_permissions_active(slot_uid):
         return

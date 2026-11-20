@@ -3,7 +3,7 @@
  *
  * The brand overlay misses prose/identifier variants it has no rule for; the
  * merge then silently reverts a Zeta spelling that used to be correct
- * (v18.8.7/v18.8.8: `zetacode update`, `~/.omp`, `Set up omp in terminal`,
+ * (v18.8.7/v18.8.8: `zetacode update`, `~/.zeta`, `Set up omp in terminal`,
  * `agentInfo.name = "omp"`). `brand-check.ts` passes because no rule covers
  * those exact tokens.
  *
@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const baseIdx = args.indexOf("--base");
 const BASE = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 
-const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@oh-my-pi|\.omp-plugin|omp\.sh/;
+const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@zeta|\.omp-plugin|omp\.sh/;
 const ZETA_TOKEN = /zeta|CLI_BIN_NAME|ZETA_|\.zeta/;
 
 // The trailing `--` disambiguates the base ref from the `main/` directory.

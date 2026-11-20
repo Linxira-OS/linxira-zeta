@@ -22,7 +22,7 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import { cfgBrowserEnabled, cfgBrowserHeadless } from "@linxiraos/zeta/tools/browser/settings";
 import { cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
 import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
-import { cfgWorktreeCleanSource } from "@linxiraos/zeta/task/settings";
+import { cfgOvnfsPath, cfgWorktreeCleanSource } from "@linxiraos/zeta/task/settings";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
 interface FakeAcpBuiltinSession {
@@ -59,7 +59,6 @@ interface FakeAcpBuiltinSession {
 	moveSession(newCwd: string, targetSessionDir?: string): Promise<void>;
 	markMovedFromEmptySessionFile(sessionFile: string): void;
 	fork(): Promise<boolean>;
-	handoff(instr?: string): Promise<{ document: string; savedPath?: string } | undefined>;
 	dispose(): Promise<void>;
 	exportToHtml(outputPath?: string): Promise<string>;
 	effectiveExtensionRoots: unknown;
@@ -154,9 +153,6 @@ function createRuntime() {
 		},
 		async fork() {
 			return true;
-		},
-		async handoff(_instr?: string) {
-			return undefined;
 		},
 		async exportToHtml(outputPath?: string) {
 			return outputPath ?? "/tmp/exported-session.html";
@@ -1109,7 +1105,7 @@ describe("wave 3 commands", () => {
 		const { output, session, runtime } = createRuntime();
 		session._todoPhases = [{ name: "Work", tasks: [{ content: "Ship it", status: "pending" }] }];
 
-		const result = await executeAcpBuiltinSlashCommand("/todo export artifact://1", runtime);
+		const result = await executeAcpBuiltinSlashCommand("/todo export agent://1", runtime);
 
 		expect(result).toEqual({ consumed: true, failed: true });
 		expect(output[0]).toContain("Failed to write todos:");
@@ -1119,7 +1115,7 @@ describe("wave 3 commands", () => {
 	it("/todo import: reports invalid internal-scheme paths", async () => {
 		const { output, session, runtime } = createRuntime();
 
-		const result = await executeAcpBuiltinSlashCommand("/todo import artifact://1", runtime);
+		const result = await executeAcpBuiltinSlashCommand("/todo import agent://1", runtime);
 
 		expect(result).toEqual({ consumed: true, failed: true });
 		expect(output[0]).toContain("Failed to read todos:");
@@ -1207,12 +1203,13 @@ describe("wave 3 commands", () => {
 
 	it("/wt: creates a worktree carrying uncommitted changes and relocates the session into it", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
+		cfgOvnfsPath.override(runtime.settings, "/nonexistent/ovnfs");
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-"));
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
-		process.env.ZETA_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
+		process.env.OMP_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1251,8 +1248,8 @@ describe("wave 3 commands", () => {
 			expect(await git("symbolic-ref", "HEAD")).toBe("refs/heads/main");
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
-			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
+			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
@@ -1260,12 +1257,13 @@ describe("wave 3 commands", () => {
 	it("/wt: with worktree.cleanSource=true, cleans the source checkout while preserving the worktree", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
 		cfgWorktreeCleanSource.override(runtime.settings, true);
+		cfgOvnfsPath.override(runtime.settings, "/nonexistent/ovnfs");
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-clean-"));
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
-		process.env.ZETA_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
+		process.env.OMP_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1309,8 +1307,8 @@ describe("wave 3 commands", () => {
 			expect(await git("status", "--porcelain")).toBe("");
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
-			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
+			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
@@ -1322,8 +1320,8 @@ describe("wave 3 commands", () => {
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
-		process.env.ZETA_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
+		process.env.OMP_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1356,8 +1354,8 @@ describe("wave 3 commands", () => {
 			expect(wtDirs).toEqual([]);
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
-			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
+			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
@@ -1449,18 +1447,6 @@ describe("wave 3 commands", () => {
 		const result = await executeAcpBuiltinSlashCommand("/compact", runtime);
 		expect(result).toEqual({ consumed: true, failed: true });
 		expect(output[0]).toContain("Compaction failed: no available model");
-	});
-
-	it("/handoff: marks the run failed when the handoff fails", async () => {
-		// Same contract as /compact: an operational failure (here: nothing to
-		// hand off) must reach print mode's exit status, not only its output.
-		const { output, session, runtime } = createRuntime();
-		session.handoff = async (_instr?: string) => {
-			throw new Error("nothing to hand off");
-		};
-		const result = await executeAcpBuiltinSlashCommand("/handoff", runtime);
-		expect(result).toEqual({ consumed: true, failed: true });
-		expect(output.join("\n")).toContain("Handoff failed: nothing to hand off");
 	});
 });
 
@@ -1695,14 +1681,12 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /context breakdown
 	it("/context: lists more than one breakdown line for session with messages", async () => {
-		const { output, session, runtime, fakeSessionManager } = createRuntime();
-		Object.assign(session, { sessionManager: fakeSessionManager });
-		// Use a text-only model so the report can also evaluate inline-image eligibility.
+		const { output, session, runtime } = createRuntime();
+		// computeContextBreakdown needs model.contextWindow; fake session falls back gracefully
 		(session as unknown as Record<string, unknown>).model = {
 			provider: "anthropic",
 			id: "claude-test",
 			contextWindow: 200_000,
-			input: ["text"],
 		};
 		(session as unknown as Record<string, unknown>).skills = [];
 		(session as unknown as Record<string, unknown>).agent = { state: { tools: [] }, tokenizer: new Tokenizer() };

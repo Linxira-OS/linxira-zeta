@@ -52,7 +52,7 @@
 
 解析规则（全部由 `DirResolver`（dirs.ts）承担，业务代码 MUST NOT 复刻）：
 
-- **R1** 根目录名 `.zeta`（`CONFIG_DIR_NAME`）受 `PI_CONFIG_DIR` 覆盖
+- **R1** 根目录名 `.zeta`（`CONFIG_DIR_NAME`）受 `ZETA_CONFIG_DIR` 覆盖
   （`getConfigDirName`）。
 - **R2** Linux/macOS 上设了 `XDG_DATA_HOME/STATE_HOME/CACHE_HOME` 且目标
   存在时，按 data/state/cache 三档重定向到 `$XDG_*_HOME/zeta/`；首次迁移
@@ -189,7 +189,7 @@ dirs.ts 增符号，一次 PR 完成。为什么：白名单外根部条目即�
 
 ### 3.4 统一 override env
 
-全产品统一语义：`PI_CONFIG_DIR`（TS 面已认，dirs.ts `getConfigDirName`）
+全产品统一语义：`ZETA_CONFIG_DIR`（TS 面已认，dirs.ts `getConfigDirName`）
 与 `ZETA_CONFIG_DIR`（本文新增裁定：全产品等价 override）。新代码 MUST 只用
 这两个名字之一（推荐 `ZETA_CONFIG_DIR` 做长期名），禁止自造第三个。vendored
 面（zeta-main settings.rs）至少 MUST 认其中之一。为什么：三套
@@ -211,7 +211,7 @@ zeta-plugins.lock.json）。`InstalledPlugin`（types.ts:102-110）与 manifest
 ### 4.2 per-plugin 目录约定（normative）
 
 每个启用的插件获得三个宿主管辖目录，`<plugin-id>` 取 manifest id
-（package.json 的 `omp` 或 `pi` 键所声明的身份；命名校验复用
+（package.json 的 `zetacode` 或 `pi` 键所声明的身份；命名校验复用
 marketplace/cache.ts 的 `isValidNameSegment`：alnum+`.-_`、≤64）：
 
 | 档位 | 路径 | 语义 |
@@ -271,7 +271,7 @@ interface InstalledPlugin {
 2. 读写其它插件的 `plugins/{data,cache,state}/<other-id>/` 目录。
 3. 写 `.zeta` 白名单（§2.4）之外的任何宿主路径（含 `agent/` 子树、
    `config.yml`、`web.yml`、`sessions/`）。
-4. 写上游根 `~/.pi/`、`~/.omp/` 及其任何子路径。
+4. 写上游根 `~/.pi/`、`~/.zeta/` 及其任何子路径。
 5. 绕过 loader 直接改 `zeta-plugins.lock.json` / `package.json` /
    `plugin-overrides.json`。
 
@@ -347,7 +347,7 @@ Zeta 管辖的 pi 安装仍在使用。
 2. 有档位声明吗？（data/state/cache 三选一，§3.1）
 3. 路径名小写、单数、连字符分词？与现有骨架一致？（§3.3）
 4. 是否引入新的复数 `agents/` 形态？（禁止，§3.2）
-5. override env 只用 `PI_CONFIG_DIR`/`ZETA_CONFIG_DIR`？（§3.4）
+5. override env 只用 `ZETA_CONFIG_DIR`/`ZETA_CONFIG_DIR`？（§3.4）
 6. 插件代码是否只写 ctx `storage` 或 `<project>/.zeta/`？（§4.4）
 7. 迁移逻辑幂等 + 有标记文件？（§4.5）
 

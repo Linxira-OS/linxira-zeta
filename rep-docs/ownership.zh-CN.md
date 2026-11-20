@@ -13,7 +13,7 @@ Zeta 是下游发行版，边界是刻意的：上游缺陷走上游发布流程
 
 | 产品面 | 上游 | 维护者 |
 | --- | --- | --- |
-| `zetacode` 运行时、CLI、TUI | [OMP](https://github.com/can1357/oh-my-pi)，只通过点名的官方 release tag | Zeta 差异由 **Zeta core maintainers** 维护；干净的上游缺陷走上游 |
+| `zetacode` 运行时、CLI、TUI | [OMP](https://github.com/Linxira-OS/linxira-zeta)，只通过点名的官方 release tag | Zeta 差异由 **Zeta core maintainers** 维护；干净的上游缺陷走上游 |
 | Z Work Studio（`web-app/`）、server/Studio host、`/api/v1/*` 与 Web Gateway | OMP Studio 渲染器分支；宿主、契约、网关和分支集成归 Zeta | **Zeta server maintainers** |
 | IM（`packages/channels/`、`packages/coding-agent/src/channels/`） | Zeta 原创的频道运行时 | **Zeta IM maintainers** |
 | `zetaide` 与编辑器载荷（`termide/`、`editor/`） | [TermIDE](https://github.com/termide/termide)，vendored 分支 | 分支差异与品牌由 **Zeta IDE maintainers** 维护 |
@@ -73,7 +73,7 @@ Zeta 修改与新增的部分。按产品面说明：
 
 ### `zetacode` —— 编码 Agent 与运行时（源自 OMP）
 
-- **上游**：[OMP](https://github.com/can1357/oh-my-pi)，只在官方发布 tag 上整树
+- **上游**：[OMP](https://github.com/Linxira-OS/linxira-zeta)，只在官方发布 tag 上整树
   合并。集成源码为 `v18.22.0`
   （`3e8cff3b7ce19a805c11a26a6dd1703066435851`）：`packages/*`、`crates/*`、
   `sdk/*`、`python/*` 与 TUI。

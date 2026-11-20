@@ -15,7 +15,11 @@ import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-to
 import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { setInternalUrlSchemeHost } from "@linxiraos/pi-tui/tools/url-scheme-host";
 import type { TranscriptEntryLike } from "@linxiraos/pi-tui/chat/transcript-entry";
-import { buildAsyncResultBlock, buildFileMentionBlock } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
+import {
+	buildAsyncNotifyBlock,
+	buildAsyncResultBlock,
+	buildFileMentionBlock,
+} from "@linxiraos/pi-tui/chat/transcript-render-helpers";
 import { TodoReminderComponent } from "@linxiraos/pi-tui/chat/todo-reminder";
 import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
 import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
@@ -979,11 +983,36 @@ describe("native transcript", () => {
 				"zeta.notice.todo",
 				"zeta.diagnostics.late",
 				"zeta.marker.cache-miss",
-				"zeta.status-block",
+				"omp.status-block",
 				"zeta.advisor",
 			]),
 		);
 		expect(h.errors).toEqual([]);
+	});
+});
+
+describe("background job output notice", () => {
+	it("draws one icon row natively with the full output lines beneath it", async () => {
+		const long = `02 INTERP: NOT RECORDED, omp quit resuming it (its screen, with --keep: ${"x".repeat(120)})`;
+		const report = { id: "bg_5", type: "bash", pattern: "^\\d\\d ", lines: [long, "03 shell: 43 KB"] };
+		const block = buildAsyncNotifyBlock(
+			createCustomMessage(
+				"async-notify",
+				"notice",
+				true,
+				{ reports: [{ ...report, omitted: 0, running: true, stopped: false }] },
+				"2026",
+			),
+		);
+		const h = await startWith(h => h.tui.addChild(block));
+		const texts = h
+			.findAll(n => n.k === "text")
+			.flatMap(n => (n.k === "text" ? [(n.p?.spans ?? []).map(part => part.t).join("")] : []));
+
+		expect(h.findAll(n => n.k === "icon")).toHaveLength(1);
+		expect(texts).toEqual(["Background job output · bg_5 · 2 lines", long, "03 shell: 43 KB"]);
+		// The text terminal still cuts the overlong line to keep its row.
+		expect(Bun.stripANSI(block.render(200).join("\n"))).not.toContain(long);
 	});
 });
 

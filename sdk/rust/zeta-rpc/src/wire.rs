@@ -3902,6 +3902,24 @@ impl CacheWarmingOutcome {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CacheWarmingRentMethod {
+	#[serde(rename = "prewarm")]
+	Prewarm,
+	#[serde(rename = "replay")]
+	Replay,
+}
+
+impl CacheWarmingRentMethod {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Prewarm => "prewarm",
+			Self::Replay => "replay",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NotifyType {
 	#[serde(rename = "info")]
 	Info,
@@ -4124,6 +4142,7 @@ pub struct AutoRetryEndEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CacheWarmingStartEvent {
 	pub phase: CacheWarmingPhase,
+	pub method: CacheWarmingRentMethod,
 	pub provider: String,
 	pub model: String,
 }
@@ -4132,6 +4151,7 @@ pub struct CacheWarmingStartEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CacheWarmingEndEvent {
 	pub phase: CacheWarmingPhase,
+	pub method: CacheWarmingRentMethod,
 	pub provider: String,
 	pub model: String,
 	pub outcome: CacheWarmingOutcome,

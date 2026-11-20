@@ -54,7 +54,7 @@ export const DISASM_BACKENDS: Record<DisasmBackendId, DisasmBackend> = {
 		label: "Ghidra",
 		storeDir: "ghidra-projects",
 		databaseExt: ".gpr",
-		databaseName: () => "zeta.gpr",
+		databaseName: () => "omp.gpr",
 		isDatabasePath: () => false,
 		workerScript: ghidraWorker,
 		workerStageDir: "omp-ghidra-worker",

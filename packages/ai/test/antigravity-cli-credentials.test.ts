@@ -246,7 +246,7 @@ try {
 						...process.env,
 						HOME: root,
 						USERPROFILE: root,
-						PI_CONFIG_DIR: ".omp-fixture",
+						ZETA_CONFIG_DIR: ".omp-fixture",
 						ZETA_CODING_AGENT_DIR: path.join(root, "agent"),
 						PI_AGY_PATH: executable,
 						FIXTURE_MODE: mode,

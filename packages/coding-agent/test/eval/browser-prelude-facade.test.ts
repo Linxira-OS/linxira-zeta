@@ -73,6 +73,8 @@ function makeSession(getPreludes?: () => readonly EvalPreludeDefinition[]): Tool
 			"browser.headless": true,
 			"browser.relay": false,
 			"browser.cmux": false,
+			"browser.tern": false,
+			"tools.outputMaxColumns": 256,
 		}),
 		...(getPreludes === undefined ? {} : { getEvalPreludes: getPreludes }),
 	};
@@ -198,15 +200,7 @@ describe("browser JavaScript facade", () => {
 	});
 
 	it("refuses run args it would drop before anything runs, and still runs empty or null args", async () => {
-		const calls: unknown[] = [];
-		const context = createContext({
-			__zeta_log__: () => {},
-			__zeta_prelude__: async (_name: string, parameters: unknown) => {
-				calls.push(parameters);
-				return responseFor(parameters);
-			},
-		});
-		runInContext(createBrowserPrelude(makeSession()).javascript, context);
+		const { calls, context } = recordingFacade();
 
 		await expect(
 			runInContext(

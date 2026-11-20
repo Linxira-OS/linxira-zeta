@@ -77,7 +77,7 @@ export interface UsageLimit {
  * Populated when the provider's listing endpoint returns individual credit
  * metadata (e.g. OpenAI Codex credits or Claude Cedar grants). Callers that
  * only need the count can ignore this; display layers use `expiresAt` to show
- * when banked resets expire ([#3339](https://github.com/can1357/oh-my-pi/issues/3339)).
+ * when banked resets expire ([#3339](https://github.com/Linxira-OS/linxira-zeta/issues/3339)).
  */
 export interface UsageResetCreditDetail {
 	/** Opaque provider credit/grant identifier. */
@@ -149,8 +149,18 @@ export interface UsageReport {
 	 * requests: N") stay on {@link UsageLimit.notes}.
 	 */
 	notes?: string[];
+	/**
+	 * Provider-specific attributes. `subscriptionPlan` names the account's paid
+	 * plan (e.g. "Max 20x"); read it with {@link usageSubscriptionPlan}.
+	 */
 	metadata?: Record<string, unknown>;
 	raw?: unknown;
+}
+
+/** Subscription plan label a report carries in `metadata.subscriptionPlan`, when the provider resolved one. */
+export function usageSubscriptionPlan(report: Pick<UsageReport, "metadata"> | null | undefined): string | undefined {
+	const plan = report?.metadata?.subscriptionPlan;
+	return typeof plan === "string" && plan.trim() ? plan.trim() : undefined;
 }
 
 /**
@@ -391,6 +401,8 @@ export interface UsageCredential {
 	activeOrganizationId?: string;
 	metadata?: Record<string, unknown>;
 	apiEndpoint?: string;
+	/** Kiro profile ARN the login routes by (see OAuthCredentials.kiroProfileArn). */
+	kiroProfileArn?: string;
 }
 
 /** Parameters provided to a usage fetcher. */

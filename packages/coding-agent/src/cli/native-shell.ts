@@ -1,5 +1,5 @@
 /**
- * `zetacode zsh|bash|sh [args...]`: the pi-shell engine as a process shell, run
+ * `zetacode zsh|bash|sh [args...]`: the shell engine as a process shell, run
  * in this process through the native `runShellMain`.
  *
  * The argv after `zetacode` reaches the shell untouched (`zetacode zsh --help`, `-c`,

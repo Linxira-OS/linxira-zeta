@@ -2,13 +2,6 @@
 
 This document describes how coding-agent implements MCP JSON-RPC messaging and how protocol concerns are split from transport concerns.
 
-> **Protocol ownership.** MCP and its transports are third-party protocols;
-> this page documents Zeta's implementation of them, not a fork of the
-> specification. Upstream wire changes are adopted as-is. Zeta-specific SDK
-> directory/package names (`sdk/*/zeta-rpc` instead of upstream
-> `sdk/*/omp-rpc`) are distribution names, not protocol changes. Any actual
-> wire divergence belongs in this page with the upstream version it applies to.
-
 ## Scope
 
 Covers:
@@ -125,9 +118,9 @@ Routing stops when the request settles, including failure or timeout. For Stream
 
 When a tool update sink exists, `MCPTool` and `DeferredMCPTool` expose the latest progress in partial `details.progress` and a bounded one-line text update. Identical text coalesces within a call, and updates are spaced at least `PROGRESS_UPDATE_INTERVAL_MS` (50 ms) apart: the first progress shows immediately, and a burst inside the interval shows only its newest step when the interval ends. A coalesced update still waiting when the call settles is dropped. Final results retain their existing text, error status, and structured content, without a progress field.
 
-Progress never resets or extends the absolute request deadline. An awaited MCP tool call also continues counting against an Eval cell's watchdog while it reports progress.
+Without a configured timeout, each progress notification restarts a tool call's deadline, up to a one-hour cap; a configured timeout is a hard deadline. An awaited MCP tool call also continues counting against an Eval cell's watchdog while it reports progress.
 
-An MCP request id correlates a JSON-RPC response, its progress token correlates progress notifications, and a Zeta background job id identifies a locally managed job. These are different handles even though Zeta uses the request id's value as the progress token. Zeta adds no MCP background jobs and provides no confirmed remote cancellation: local timeout or abort does not prove that server-side work stopped.
+An MCP request id correlates a JSON-RPC response, its progress token correlates progress notifications, and an OMP background job id identifies a locally managed job. These are different handles even though OMP uses the request id's value as the progress token. OMP adds no MCP background jobs and provides no confirmed remote cancellation: local timeout or abort does not prove that server-side work stopped.
 
 ## Stdio transport internals
 
@@ -152,7 +145,7 @@ If the read loop exits unexpectedly, `finally` triggers `#handleClose()` with th
 
 Per request:
 
-- timeout from `resolveMCPTimeoutMs`: `ZETA_MCP_TIMEOUT_MS` env override, else `config.timeout ?? 30000`; `0` disables
+- timeout from `resolveMCPTimeoutMs`: `OMP_MCP_TIMEOUT_MS` env override, else `config.timeout`, else 600000 for `tools/call` (raised to a tool's own timeout argument plus 30000) and 30000 otherwise; `0` disables
 - optional `AbortSignal` from caller
 - abort and timeout both reject the pending promise and clean its map entry; a late write rejection is ignored after settlement
 
@@ -210,7 +203,7 @@ So `connected` means "transport usable", not "persistent stream established".
 
 For `request()`:
 
-- timeout uses `AbortController` via `createMCPTimeout` (`ZETA_MCP_TIMEOUT_MS` override, else `config.timeout ?? 30000`; `0` disables)
+- timeout uses `AbortController` via `createMCPTimeout` (same resolution as stdio)
 - external signal, if provided, is merged via `AbortSignal.any([...])`
 - AbortError handling distinguishes caller abort vs timeout
 
@@ -251,7 +244,7 @@ Two SSE paths exist:
 2. **Background SSE listener** (`startSSEListener()`)
    - optional GET listener for server-initiated notifications and server-to-client requests
    - `connectToServer()` starts it for Streamable HTTP transports after the `notifications/initialized` notification
-   - listener startup waits up to one second, or less for very small request timeouts; `timeout: 0` / `ZETA_MCP_TIMEOUT_MS=0` disables that startup deadline
+   - listener startup waits up to one second, or less for very small request timeouts; `timeout: 0` / `OMP_MCP_TIMEOUT_MS=0` disables that startup deadline
    - if GET returns `405`, another non-OK status, no body, or times out, listener silently disables itself
 
 ## Malformed payload and disconnect handling
@@ -306,7 +299,7 @@ For previously connected HTTP/SSE servers that remain unavailable after that lad
 
 `MCPTool` and `DeferredMCPTool` also attempt one reconnect + retry for retriable connection errors during a tool call. This is tool availability recovery, not transport-level retry.
 
-Connection loss is non-retryable once the request may have reached the server: after writing a stdio frame to stdin, after a Streamable HTTP or legacy SSE POST connection is reset or closed once established (before or after its response starts), after receiving a Streamable HTTP 2xx response (JSON or SSE), or after a legacy SSE POST is accepted. These calls are never replayed automatically; check the operation's effect before retrying manually. Failures that prove the request never left Zeta, such as `Transport not connected` or a refused connection, retain reconnect + retry.
+Connection loss is non-retryable once the request may have reached the server: after writing a stdio frame to stdin, after a Streamable HTTP or legacy SSE POST connection is reset or closed once established (before or after its response starts), after receiving a Streamable HTTP 2xx response (JSON or SSE), or after a legacy SSE POST is accepted. These calls are never replayed automatically; check the operation's effect before retrying manually. Failures that prove the request never left OMP, such as `Transport not connected` or a refused connection, retain reconnect + retry.
 
 ## Failure scenarios summary
 

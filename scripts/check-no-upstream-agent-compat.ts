@@ -8,7 +8,7 @@
  *   compatibility names.
  *
  * Frozen external contracts (`client-id "omp"`, catalog/docs hosts,
- * `__omp_judgment_images`, `icon.pi`) are intentionally outside this scan.
+ * `__zeta_judgment_images`, `icon.pi`) are intentionally outside this scan.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -45,7 +45,7 @@ const FORBIDDEN: ReadonlyArray<{ pattern: RegExp; why: string }> = [
 		pattern: /\bOMP_(?:AUTH_BROKER_|AUTORESEARCH_DB_DIR|CONVERSATION_PARSER_REUSE|HARMONY_DEBUG|NO_WEBP|PROFILE)/,
 		why: "OMP env aliases are removed",
 	},
-	{ pattern: /__omp/, why: "OMP internal marker is removed", allow: /__omp_judgment_images|mcp__omp__/ },
+	{ pattern: /__omp/, why: "OMP internal marker is removed", allow: /__zeta_judgment_images|mcp__zeta__/ },
 	{ pattern: /\.ompcast\b/, why: "legacy OMP recording extension is removed" },
 	{ pattern: /\.ompshare\b/, why: "legacy OMP share extension is removed" },
 	{ pattern: /\bompMarkdown\b/, why: "legacy OMP viewer global is removed" },

@@ -37,6 +37,7 @@ import {
 	validateAgentToolArguments,
 } from "@linxiraos/pi-agent-core";
 import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@linxiraos/pi-ai";
+import { isEvalBridgeToolCall, isEvalBridgeToolCallable } from "../eval/tool-bridge-policy";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { resolveToolWireName } from "../utils/tool-wire-name";
 import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
@@ -54,18 +55,13 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
  * (which have no notion of the `xd://` protocol) so hiding it behind dispatch
  * makes it unreachable in practice (issue #5973). `yield` terminates structured
  * subagent runs and must stay directly callable — each loses its harness
- * integration or usability if hidden behind dispatch. `tracking_update` is the
- * same class: the todo phase nudge and the approved-plan prompt both read the
- * *active* set and instruct the model to call it by name, so mounting it under
- * `xd://` silently closes both gates (the tool is enabled but the nudge never
- * fires and the prompt never carries the instruction).
+ * integration or usability if hidden behind dispatch.
  */
 export const XDEV_KEEP_TOP_LEVEL: Record<string, true> = {
 	todo: true,
 	yield: true,
 	ask: true,
 	grep: true,
-	tracking_update: true,
 	web_search: true,
 };
 
@@ -463,6 +459,12 @@ export async function dispatchXdevTool(
 				result: { content: [{ type: "text", text: renderDocs(canonical) }] },
 				xdev: { tool: name, mode: "help" },
 			};
+		}
+
+		if (isEvalBridgeToolCall(state) && !isEvalBridgeToolCallable(canonical)) {
+			throw new ToolError(
+				`\`${canonical.name}\` cannot run through the eval bridge; call the direct \`${canonical.name}\` tool.`,
+			);
 		}
 
 		const validated = parseDeviceArgs(canonical, content, toolCallId, () => renderDocs(canonical));

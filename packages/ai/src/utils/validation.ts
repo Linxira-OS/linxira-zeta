@@ -1326,7 +1326,7 @@ function parsedArrayMatchesArrayBranch(schema: Record<string, unknown>, value: u
  * against the schema's array branch. Conservative: array-shaped strings like
  * `"[1]"` stay on the string branch when the array branch is `string[]`.
  *
- * See https://github.com/can1357/oh-my-pi/issues/1788.
+ * See https://github.com/Linxira-OS/linxira-zeta/issues/1788.
  */
 function normalizeStringEncodedArrayUnions(schema: unknown, value: unknown): { value: unknown; changed: boolean } {
 	if (value === null || value === undefined) return { value, changed: false };
@@ -1612,7 +1612,7 @@ function buildFlattenedPath(root: Record<string, unknown>, steps: FlattenedPathS
 
 /**
  * Rebuild nested arrays/objects from LLM-emitted flattened property paths.
- * See https://github.com/can1357/oh-my-pi/issues/8886.
+ * See https://github.com/Linxira-OS/linxira-zeta/issues/8886.
  */
 function normalizeFlattenedArrayProperties(value: unknown): { value: unknown; changed: boolean } {
 	if (!isRecord(value)) return { value, changed: false };

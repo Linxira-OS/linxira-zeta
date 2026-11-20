@@ -1,19 +1,19 @@
 /**
- * Centralized logger for zeta.
+ * Centralized logger for omp.
  *
- * Default: rotating `~/.zeta/logs/zeta.<DATE>.<PID>.log`, no console output (writing
+ * Default: rotating `~/.zeta/logs/omp.<DATE>.<PID>.log`, no console output (writing
  * to stdout/stderr would corrupt the TUI). Long-running headless services
  * (the auth broker, etc.) call {@link setTransports} to swap in a console
  * transport so a process supervisor (pm2, journald, k8s) captures the logs.
  *
- * Each entry includes `process.pid` so concurrent zeta instances stay
+ * Each entry includes `process.pid` so concurrent omp instances stay
  * traceable, and the fields of the enclosing {@link withContext} (a session's
  * `sessionId`) so sessions sharing one process stay apart. The file is created
  * on the first record written. Records are batched — one write per second or
  * per 64 KiB — while `warn`/`error` records are written at once together with
  * everything buffered before them; exit, fatal, and signal paths flush the
- * rest. `ZETA_LOG_LEVEL` optionally limits the levels written to the file
- * (default: all).
+ * rest. `OMP_LOG_LEVEL` optionally limits the levels written to the file and
+ * the console (default: all).
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs";
@@ -172,11 +172,11 @@ function dispatchToSinks(event: LogEvent): void {
 	}
 }
 
-const PROCESS_LOG_PATTERN = /^zeta\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
+const PROCESS_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.(\d+)\.log(?:\.(\d+))?$/;
 /** Per-process audit files written by earlier releases; current sinks track rotations in memory. */
 const PROCESS_AUDIT_PATTERN = /^\.zeta\.(\d+)-audit\.json$/;
 /** Shared daily logs (plain, size-rolled, or gzipped) written by the winston-era logger. */
-const LEGACY_LOG_PATTERN = /^zeta\.(\d{4}-\d{2}-\d{2})\.log(?:\.\d+)?(?:\.gz)?$/;
+const LEGACY_LOG_PATTERN = /^omp\.(\d{4}-\d{2}-\d{2})\.log(?:\.\d+)?(?:\.gz)?$/;
 /** Hash-named audit files written by winston-daily-rotate-file. */
 const LEGACY_AUDIT_PATTERN = /^\.[0-9a-f]{8,}-audit\.json$/;
 const RETAINED_STALE_LOGS_PER_PROCESS_DAY = 1;
@@ -457,11 +457,12 @@ const LOG_LEVEL_RANK: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, d
 const IMMEDIATE_FLUSH_RANK = LOG_LEVEL_RANK.warn;
 
 /**
- * Rank of the most verbose level the file transport persists: `ZETA_LOG_LEVEL`
- * (error|warn|info|debug, case-insensitive), default `debug` (everything).
+ * Rank of the most verbose level the local transports (file and console)
+ * write: `OMP_LOG_LEVEL` (error|warn|info|debug, case-insensitive), default
+ * `debug` (everything).
  */
-function resolveFileLevelRank(): number {
-	const requested = process.env.ZETA_LOG_LEVEL?.trim().toLowerCase();
+function resolveLevelRank(): number {
+	const requested = process.env.OMP_LOG_LEVEL?.trim().toLowerCase();
 	return requested && Object.hasOwn(LOG_LEVEL_RANK, requested)
 		? LOG_LEVEL_RANK[requested as LogLevel]
 		: LOG_LEVEL_RANK.debug;
@@ -491,8 +492,8 @@ let transportOpts: { console?: boolean; file?: boolean | string } = { file: true
 interface LocalTransports {
 	readonly file: RotatingFileSink | undefined;
 	readonly console: boolean;
-	/** Rank of the most verbose level written to {@link file}. */
-	readonly fileLevelRank: number;
+	/** Rank of the most verbose level written to {@link file} and the console. */
+	readonly levelRank: number;
 }
 
 /** Local transports, constructed lazily on first log emission. */
@@ -502,7 +503,7 @@ function buildTransports(opts: { console?: boolean; file?: boolean | string }): 
 	return {
 		file: opts.file ? makeFileTransport(typeof opts.file === "string" ? opts.file : undefined) : undefined,
 		console: opts.console === true,
-		fileLevelRank: resolveFileLevelRank(),
+		levelRank: resolveLevelRank(),
 	};
 }
 
@@ -525,12 +526,11 @@ function emitLocally(
 ): void {
 	const transports = getLocalTransports();
 	const rank = LOG_LEVEL_RANK[level];
-	const file = rank <= transports.fileLevelRank ? transports.file : undefined;
-	if (!file && !transports.console) return;
+	if (rank > transports.levelRank || (!transports.file && !transports.console)) return;
 	const now = new Date();
 	const scoped = foreignTimestamp ? undefined : logContextStorage.getStore();
 	const line = formatLogRecord(level, message, context, formatLocalTimestamp(foreignTimestamp ?? now), scoped);
-	file?.write(line, rank <= IMMEDIATE_FLUSH_RANK || exiting, localDay(now));
+	transports.file?.write(line, rank <= IMMEDIATE_FLUSH_RANK || exiting, localDay(now));
 	if (transports.console) fs.writeSync(1, `${line}${os.EOL}`);
 }
 
@@ -539,13 +539,13 @@ function emitLocally(
  * long-running services (the auth broker, etc.) that want their structured
  * logs piped into a process supervisor instead of the rotating file.
  * The previous file transport writes its buffered records before closing, and
- * the file level (`ZETA_LOG_LEVEL`) is re-read on each reconfiguration.
+ * the level (`OMP_LOG_LEVEL`) is re-read on each reconfiguration.
  */
 export function setTransports(opts: { console?: boolean; file?: boolean | string }): void {
 	transportOpts = opts;
 	if (!activeTransports) return; // applied lazily when local logging is first initialized
 	const previousTransports = activeTransports;
-	activeTransports = { file: undefined, console: false, fileLevelRank: previousTransports.fileLevelRank };
+	activeTransports = { file: undefined, console: false, levelRank: previousTransports.levelRank };
 	previousTransports.file?.close();
 	activeTransports = buildTransports(opts);
 }

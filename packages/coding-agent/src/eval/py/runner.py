@@ -236,7 +236,7 @@ _CURRENT_RID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 )
 _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS: contextvars.ContextVar[set[int] | None] = (
     contextvars.ContextVar(
-        "zeta_displayed_matplotlib_figure_ids",
+        "omp_displayed_matplotlib_figure_ids",
         default=None,
     )
 )
@@ -912,7 +912,7 @@ def _start_capture_drain() -> None:
     if _CAPTURE_READ_FD is None:
         return
     thread = threading.Thread(
-        target=_drain_captured_stdout, name="zeta-fd1-capture", daemon=True
+        target=_drain_captured_stdout, name="omp-fd1-capture", daemon=True
     )
     thread.start()
 
@@ -1520,6 +1520,11 @@ def _run_pip(argv: list[str], args: str) -> None:
     if not _has_pip():
         code = _bootstrap_pip()
         if code != 0:
+            sys.stderr.write(
+                f"%pip: {sys.executable} has no pip and it could not be bootstrapped"
+                " (ensurepip failed and `uv` is not on PATH). Install `uv`, or your distribution's"
+                " python3-pip/python3-venv package, then retry.\n"
+            )
             _emit_status("pip", args=args, installed=[], exit_code=code)
             return
     installed_packages: list[str] = []
@@ -2404,7 +2409,9 @@ def _install_builtins(ns: dict) -> None:
     ns["__zeta_magic_async"] = __zeta_magic_async
     ns["__zeta_magic_cell"] = __zeta_magic_cell
     ns["__zeta_shell"] = __zeta_shell
-    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get()
+    # Plain threads (ThreadPoolExecutor) do not inherit the ContextVar: fall back
+    # to the request currently executing, the same target fd-1 capture uses.
+    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get() or _STATE.capture_rid
 
 
 _install_builtins(_STATE.user_ns)
@@ -2708,10 +2715,29 @@ _MANAGED_ENV_KEYS = (
 )
 
 
-def _apply_request_runtime(req: dict) -> None:
+def _apply_request_runtime(req: dict, rid: str) -> None:
     cwd = req.get("cwd")
     if isinstance(cwd, str) and cwd:
-        os.chdir(cwd)
+        try:
+            os.chdir(cwd)
+        except OSError as exc:
+            # The session cwd was moved or removed (e.g. a deleted worktree): keep running
+            # in the last valid directory instead of failing every cell.
+            try:
+                fallback = os.getcwd()
+            except OSError:
+                # The process cwd is gone too (usually the same deleted directory).
+                fallback = os.path.expanduser("~")
+                os.chdir(fallback)
+            _emit(
+                {
+                    "type": "stderr",
+                    "id": rid,
+                    "data": f"Warning: session cwd {cwd} is unavailable ({exc.strerror or exc}); this cell runs in {fallback}\n",
+                }
+            )
+            cwd = None
+    if isinstance(cwd, str) and cwd:
         try:
             sys.path.remove(cwd)
         except ValueError:
@@ -2754,7 +2780,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="zeta-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
     thread.start()
 
 
@@ -2914,7 +2940,7 @@ async def _handle_request_async(req: dict) -> None:
 
     try:
         try:
-            _apply_request_runtime(req)
+            _apply_request_runtime(req, rid)
             source = req.get("code", "")
             requested_filename = req.get("filename")
             filename = (
@@ -3148,7 +3174,7 @@ async def _serve_posix(loop: asyncio.AbstractEventLoop, stdin) -> None:
     reader = threading.Thread(
         target=_read_stdin,
         args=(loop, queue, stdin),
-        name="zeta-stdin-reader",
+        name="omp-stdin-reader",
         daemon=True,
     )
     reader.start()

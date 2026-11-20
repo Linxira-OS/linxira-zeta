@@ -23,7 +23,7 @@ Default-profile config paths, in precedence order:
 - `~/.zeta/agent/models.yaml`
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
-`~/.zeta/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
+`~/.zeta/profiles/<name>/agent/`; `ZETA_CONFIG_DIR` changes the config-root directory name, and
 `ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
@@ -327,7 +327,7 @@ After image filtering, the same native-only tail policy used for text judgments 
 
 Native image judgments for Jev are experimental. Direct TypeSafe Jev supports `jev-latest`, `jev-preview`, `jev-1.13.0`, and `jev-1.14.0` (the default `judge` role uses `typesafe/jev-1.14.0`; `jev-latest` is TypeSafe's stable alias and has served `jev-1.14.0` since 2026-10-22). OpenRouter supports `typesafe/jev-1.13`, `typesafe/jev-1.14`, and `~typesafe/jev-latest`.
 
-Images join `state` without replacing it: an object root keeps its fields and gains them under a collision-safe `__omp_judgment_images` key (with a numeric suffix if the key is taken), an array root gains them at the end, and a string root becomes `[original, ...images]`. Direct TypeSafe requests add each image as a referenced `assets` entry and put its reference in `state`, setting `TypeSafe-Danger-Zone-Images: true` only when images are attached; caller-supplied assets (auth gateway) must each be referenced in `state`, `instructions`, or `criteria`, and each split request carries only the assets it references. OpenRouter encodes each image as an `image_url` data URL part and uses neither the TypeSafe header nor a top-level `images` field.
+Images join `state` without replacing it: an object root keeps its fields and gains them under a collision-safe `__zeta_judgment_images` key (with a numeric suffix if the key is taken), an array root gains them at the end, and a string root becomes `[original, ...images]`. Direct TypeSafe requests add each image as a referenced `assets` entry and put its reference in `state`, setting `TypeSafe-Danger-Zone-Images: true` only when images are attached; caller-supplied assets (auth gateway) must each be referenced in `state`, `instructions`, or `criteria`, and each split request carries only the assets it references. OpenRouter encodes each image as an `image_url` data URL part and uses neither the TypeSafe header nor a top-level `images` field.
 
 Text-only requests retain their original request shape and bytes. Image support is limited to the listed TypeSafe Jev and OpenRouter Jev models; it does not imply support for other System One-compatible servers or OpenRouter Decisions models.
 
@@ -662,6 +662,10 @@ When `litellm` is active (for example through `LITELLM_API_KEY` or stored auth),
 Runtime discovery probes LiteLLM management metadata in order: `GET /model_group/info`, `GET /v2/model/info`, `GET /model/info`, and `GET /v1/model/info`. The configured key must be authorized to read at least one of these routes; on deployments that restrict management endpoints, grant the route through LiteLLM's `allowed_routes` access controls or use a master/admin key for discovery.
 
 If every metadata route is unavailable, discovery falls back to the OpenAI-compatible `GET /models` list. A forbidden or failed metadata request is logged once with its endpoint and status; `404` is treated as an absent route. Both paths exclude models explicitly marked with known task-specific LiteLLM modes: `audio_speech`, `audio_transcription`, `batch`, `embedding`, `guardrail`, `image_edit`, `image_generation`, `moderation`, `ocr`, `rerank`, `search`, `vector_store`, and `video_generation`. Missing, null, and unrecognized modes remain selectable so router aliases continue to work. Rich metadata maps per-model context, capability, and upstream-provider fields. OpenAI-backed models use LiteLLM's Responses route so reasoning summaries remain available; mixed-provider groups stay on Chat Completions. Bare fallback ids use the known OpenAI model families for routing and bundled reference metadata when available. Fallback pricing remains unknown (represented by zero); configured generic discovery uses a 128,000-token context default when neither the endpoint nor a bundled reference supplies a limit. Rich management metadata can supply provider-specific prices. Later probes fill or override reported metadata for models in the first usable roster rather than unioning every endpoint's roster.
+
+### Bifrost provider discovery
+
+When `bifrost` has a credential (`BIFROST_API_KEY` or stored `/login bifrost` auth), runtime discovery reads the gateway's `GET /models` roster from the provider `baseUrl` / `models.yml` config, otherwise `BIFROST_BASE_URL`, otherwise `http://localhost:8080/v1`. Model ids keep Bifrost's `<bifrost-provider>/<model>` form. Chat models use `openai-completions`; decision models become `openai-decisions` judges on `POST {baseUrl}/decisions`. The roster is authoritative and cached per key and base URL. Row mapping, decision-model detection, and judge retry guidance are in [Bifrost](provider-quirks.md#bifrost-bifrost).
 
 ### Generic OpenAI-compatible discovery
 

@@ -7,6 +7,7 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
+import { tuiTextFmt } from "../i18n";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { Ellipsis } from "@linxiraos/pi-natives";
 import { expandWindowsLongPath, getWindowsShortPath } from "@linxiraos/pi-natives/path";
@@ -339,7 +340,12 @@ export function formatBadge(label: string, color: ToolUIColor, theme: Theme): st
  */
 export function formatMoreItems(remaining: number, itemType: string): string {
 	const safeRemaining = Number.isFinite(remaining) ? remaining : 0;
-	return `… ${safeRemaining} more ${pluralize(itemType, safeRemaining)}`;
+	return tuiTextFmt(
+		"moreItemsFmt",
+		`… ${safeRemaining} more ${pluralize(itemType, safeRemaining)}`,
+		safeRemaining,
+		pluralize(itemType, safeRemaining),
+	);
 }
 
 /**

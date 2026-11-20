@@ -32,6 +32,7 @@ export const eventDefs = {
 	AutoCompactionAction: "'context-full' | 'remote' | 'handoff' | 'shake' | 'snapcompact'",
 	CacheWarmingPhase: "'streaming' | 'idle'",
 	CacheWarmingOutcome: "'hit' | 'miss' | 'error' | 'aborted'",
+	CacheWarmingRentMethod: "'prewarm' | 'replay'",
 	NotifyType: "'info' | 'warning' | 'error'",
 
 	AgentStartEvent: {
@@ -160,13 +161,20 @@ export const eventDefs = {
 		),
 	},
 	CacheWarmingStartEvent: doc(
-		{ type: "'cache_warming_start'", phase: "CacheWarmingPhase", provider: "string", model: "string" },
+		{
+			type: "'cache_warming_start'",
+			phase: "CacheWarmingPhase",
+			method: "CacheWarmingRentMethod",
+			provider: "string",
+			model: "string",
+		},
 		"A prompt-cache refresh was handed to the provider.",
 	),
 	CacheWarmingEndEvent: doc(
 		{
 			type: "'cache_warming_end'",
 			phase: "CacheWarmingPhase",
+			method: "CacheWarmingRentMethod",
 			provider: "string",
 			model: "string",
 			outcome: "CacheWarmingOutcome",

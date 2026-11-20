@@ -8,7 +8,8 @@ import { JsRuntime, type RuntimeHooks } from "@linxiraos/zeta/eval/js/shared/run
 import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
 import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { EvalTool, getEvalDocTopics, getEvalToolDescription } from "@linxiraos/zeta/tools/eval";
+import { EvalTool, getEvalToolDescription } from "@linxiraos/zeta/tools/eval";
+import { getEvalDocTopics } from "@linxiraos/zeta/tools/eval-doc-topics";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { TempDir } from "@linxiraos/pi-utils";
 
@@ -228,6 +229,24 @@ describe("eval tool description", () => {
 		expect(withoutRead.description.split("INLINE PRELUDE DOCUMENTATION")).toHaveLength(2);
 		expect(withoutRead.description).not.toContain("<fixture>");
 		expect(withoutRead.description).not.toContain("xd://eval/fixture");
+	});
+
+	it("keeps first-call guides out of a session without a guide delivery channel", () => {
+		const prelude: EvalPreludeDefinition = {
+			name: "fixture",
+			documentation: "Fixture summary line.\n\nFULL PRELUDE DOCUMENTATION",
+			firstCallDocumentation: "FIRST CALL GUIDE",
+			javascript: "",
+			python: "",
+			exports: [],
+			async invoke() {
+				return { content: [] };
+			},
+		};
+		const session = makeSession({ preludes: () => [prelude] });
+		expect(new EvalTool(session).description).not.toContain("No `read` needed");
+		session.noteEvalPreludeCall = () => {};
+		expect(new EvalTool(session).description).toContain("No `read` needed");
 	});
 });
 

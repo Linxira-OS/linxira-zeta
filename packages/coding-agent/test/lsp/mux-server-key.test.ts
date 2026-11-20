@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type MuxConnectParams, muxServerKey } from "@linxiraos/zeta/lsp/mux/protocol";
+import { type LspServerParams, muxServerKey } from "@linxiraos/zeta/lsp/mux/protocol";
 
-const base: MuxConnectParams = {
+const base: LspServerParams = {
 	command: "typescript-language-server",
 	args: ["--stdio"],
 	cwd: "/workspace/project",

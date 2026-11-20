@@ -174,9 +174,9 @@ describe("formatQuery", () => {
 
 describe("formatScraperQuery", () => {
 	it("demotes path-carrying site: and inurl: to plain terms, keeping bare-domain site:", () => {
-		expect(formatScraperQuery("site:github.com/can1357/oh-my-pi inurl:releases site:github.com 17.1.1 release")).toBe(
-			"17.1.1 release github.com/can1357/oh-my-pi releases site:github.com",
-		);
+		expect(
+			formatScraperQuery("site:github.com/Linxira-OS/linxira-zeta inurl:releases site:github.com 17.1.1 release"),
+		).toBe("17.1.1 release github.com/Linxira-OS/linxira-zeta releases site:github.com");
 	});
 
 	it("demotes every site in an OR-groupable multi-site query when all carry paths", () => {
@@ -190,8 +190,8 @@ describe("formatScraperQuery", () => {
 	});
 
 	it("passes directive-free queries through byte-identical", () => {
-		expect(formatScraperQuery("github.com/can1357/oh-my-pi 17.1.1 release")).toBe(
-			"github.com/can1357/oh-my-pi 17.1.1 release",
+		expect(formatScraperQuery("github.com/Linxira-OS/linxira-zeta 17.1.1 release")).toBe(
+			"github.com/Linxira-OS/linxira-zeta 17.1.1 release",
 		);
 	});
 
@@ -235,11 +235,17 @@ describe("applyQueryConstraints", () => {
 		expect(dropped).toEqual([]);
 	});
 
-	it("drops a constraint that would eliminate every result and reports it", () => {
+	it("enforces a scope directive even when it leaves nothing", () => {
 		const q = parseSearchQuery("install site:nonexistent.example");
+		expect(applyQueryConstraints(sources, q)).toEqual({ sources: [], dropped: [] });
+		expect(applyQueryConstraints(sources, parseSearchQuery("k8s -inurl:/"))).toEqual({ sources: [], dropped: [] });
+	});
+
+	it("relaxes a non-scope directive that would eliminate every result and reports it", () => {
+		const q = parseSearchQuery("install intitle:nonexistent");
 		const { sources: out, dropped } = applyQueryConstraints(sources, q);
 		expect(out).toHaveLength(sources.length);
-		expect(dropped).toEqual(["site:nonexistent.example"]);
+		expect(dropped).toEqual(["intitle:nonexistent"]);
 	});
 
 	it("relaxes dimensions independently", () => {

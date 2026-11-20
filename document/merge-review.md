@@ -62,7 +62,7 @@ duplicating (or inventing) rows for them.
 | Rust format | `cargo fmt --all --check` | when `crates/` touched | `rust_validate` |
 | **Upstream merge lineage** (tag-to-tag only) | `bun scripts/check-merge-lineage.ts --tag <tag>` | **before every upstream merge** | `sync/omp-release/*`, `port/*` |
 | **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree (or `--against <ref>`), exit 1 when any are gone, exit 2 when the audit could not run | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>` | **before pushing an upstream merge**; its regression test runs on every push | `check` |
-| **Brand regression in the merge diff** — added lines carrying an upstream `omp` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet) | — |
+| **Brand regression in the merge diff** — added lines carrying an upstream `zetacode` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet) | — |
 | Native pipeline smoke | desktop smoke | release runs | `desktop_*` |
 
 The member-loss auditor's own regression is gated on every push
@@ -172,9 +172,9 @@ never come back) so `brand-check` fails on the merge that breaks it.
 | Policy | Canonical | Pinned by | Why a merge reverts it |
 |---|---|---|---|
 | OTLP telemetry export | hard-off (`TELEMETRY_EXPORT_ENABLED = false`, no setting exists) | MUST_CONTAIN ×2 + MUST_NOT_CONTAIN on the setting id | upstream ships the opt-in setting with `default: true`; a merge restores both the setting and the call site |
-| OTLP `service.name` fallback | `zeta` | registry row in AGENTS.md | upstream literal is `oh-my-pi` |
-| Tokio install export name | `omp_install_tokio_runtime` (**upstream name on purpose**) | MUST_CONTAIN | sweeping it to `__zeta*` made Tokio silently fail to install (v18.0.10) — the guard exists to stop a well-meaning sweep |
-| External identity (OS/browser visible) | `dev.zeta.oauth-callback.*`, `Zeta OAuth Callback`, `zeta-auth`, `zeta-descriptor://`, `zeta-file-lock-`, `zeta.ida.*`, `zeta-plugins.lock.json`, `.zetacast` | MUST_CONTAIN ×7 + MUST_NOT_CONTAIN ×7 | these names are registered with the OS and read by our own peers; nothing in a source-only review notices, and the product silently reintroduces itself as `omp` at the platform level |
+| OTLP `service.name` fallback | `zeta` | registry row in AGENTS.md | upstream literal is `zeta` |
+| Tokio install export name | `zeta_install_tokio_runtime` (**upstream name on purpose**) | MUST_CONTAIN | sweeping it to `__zeta*` made Tokio silently fail to install (v18.0.10) — the guard exists to stop a well-meaning sweep |
+| External identity (OS/browser visible) | `dev.zeta.oauth-callback.*`, `Zeta OAuth Callback`, `zeta-auth`, `zeta-descriptor://`, `zeta-file-lock-`, `zeta.ida.*`, `zeta-plugins.lock.json`, `.zetacast` | MUST_CONTAIN ×7 + MUST_NOT_CONTAIN ×7 | these names are registered with the OS and read by our own peers; nothing in a source-only review notices, and the product silently reintroduces itself as `zetacode` at the platform level |
 
 ### Scanner scope rule
 
@@ -193,7 +193,7 @@ produced it was not matched by any rule. When renaming a token that is both an
 input and an expected output:
 
 1. Search for the **bare** form too (`bin: "omp"`), not only command-position
-   forms (`omp <cmd>`, `omp --`). Word-boundary rules anchored on a following
+   forms (`zetacode <cmd>`, `zetacode --`). Word-boundary rules anchored on a following
    character will not match a closing quote.
 2. Re-run the affected tests immediately; do not batch renames across a whole
    tree and verify at the end.

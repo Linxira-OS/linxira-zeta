@@ -28,6 +28,8 @@ export * from "./reload";
 export * from "./tool-bridge";
 // Tool cache
 export * from "./tool-cache";
+// Built-in transforms
+export * from "./transforms";
 // Transports
 export * from "./transports/http";
 export * from "./transports/stdio";
@@ -38,6 +40,8 @@ export type {
 	MCPToolDetails,
 	MCPTextContent,
 	MCPImageContent,
+	MCPAudioContent,
 	MCPResourceContent,
+	MCPResourceLinkContent,
 	MCPContent,
 } from "@linxiraos/pi-tui/tools/mcp";

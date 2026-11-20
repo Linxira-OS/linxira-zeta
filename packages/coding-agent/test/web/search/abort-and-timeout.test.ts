@@ -22,7 +22,8 @@ import { searchAnthropic } from "@linxiraos/zeta/web/search/providers/anthropic"
 import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
 import { searchBrave } from "@linxiraos/zeta/web/search/providers/brave";
 import { withHardTimeout } from "@linxiraos/zeta/web/search/providers/utils";
-import { SearchProviderError, type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
+import { SearchProviderError } from "@linxiraos/zeta/web/search/types";
+import { type SearchProviderId, type SearchResponse } from "@linxiraos/zeta/web/search/types";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 import { cfgProvidersWebSearchTimeoutSeconds, cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
@@ -158,6 +159,7 @@ describe("executeSearch abort propagation", () => {
 			label: id,
 			isAvailable: () => true,
 			isExplicitlyAvailable: () => true,
+			isKeyless: () => false,
 			search: behaviour,
 		};
 	}
@@ -244,7 +246,7 @@ describe("executeSearch abort propagation", () => {
 	});
 
 	it("surfaces caller cancellation instead of falling through to the next role candidate", async () => {
-		const fallbackSearch = vi.fn(async (): Promise<SearchResponse> => ({ provider: "exa", sources: [] }));
+		const fallbackSearch = vi.fn();
 		const context = await configureProviderChain([
 			fakeProvider("brave", async () => {
 				throw new DOMException("aborted", "AbortError");
@@ -293,7 +295,7 @@ describe("executeSearch abort propagation", () => {
 	});
 
 	it("stops loading the role chain after the preferred candidate succeeds", async () => {
-		const fallbackSearch = vi.fn(async (): Promise<SearchResponse> => ({ provider: "duckduckgo", sources: [] }));
+		const fallbackSearch = vi.fn();
 		const context = await configureProviderChain([
 			fakeProvider("exa", async () => ({
 				provider: "exa",
@@ -378,7 +380,7 @@ describe("executeSearch abort propagation", () => {
 		expect(note.length).toBeLessThan(320);
 	});
 
-	it("treats a request provider override as a single explicit candidate", async () => {
+	it("treats a request model override as a single explicit candidate", async () => {
 		const fallbackSearch = vi.fn(async (): Promise<SearchResponse> => ({
 			provider: "brave",
 			sources: [{ title: "Hidden fallback", url: "https://example.com/fallback" }],
@@ -390,8 +392,7 @@ describe("executeSearch abort propagation", () => {
 			fakeProvider("brave", fallbackSearch),
 		]);
 
-		// Zeta pins the engine with `provider`, not the upstream `model` role.
-		const result = await runSearchQuery({ query: "anything", provider: "exa" }, context);
+		const result = await runSearchQuery({ query: "anything", model: "web/exa" }, context);
 
 		expect(result.details.error).toContain("Explicit Exa search failed.");
 		expect(result.details.response.provider).toBe("exa");

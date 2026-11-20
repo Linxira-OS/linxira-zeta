@@ -29,10 +29,15 @@ import * as AIError from "@linxiraos/pi-ai/error";
 import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import type { OpenAICodexCompactionBody } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import type { InputItem as CodexInputItem } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
-import { buildResponsesInput, resolveOpenAICompatPolicy } from "@linxiraos/pi-ai/providers/openai-shared";
+import {
+	buildResponsesInput,
+	calculateOpenAIUsageAccounting,
+	resolveOpenAICompatPolicy,
+} from "@linxiraos/pi-ai/providers/openai-shared";
 import { isSurvivingAssistant } from "@linxiraos/pi-ai/providers/transform-messages";
 import { stripOpenAIResponsesOutputOnlyStatusesForReplay } from "@linxiraos/pi-ai/utils";
 import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
 import { isRecord, logger, prompt, withLoopPhase } from "@linxiraos/pi-utils";
@@ -53,6 +58,8 @@ import {
 	buildCompactionV2Request,
 	buildCompactionV2RequestFromBody,
 	getCompactionV2PreserveData,
+	type ResponsesCompactionUsage,
+	remoteCompactionPolicyModel,
 	requestCompactionV2Streaming,
 	shouldUseCompactionV2Streaming,
 	storeCompactionV2PreserveData,
@@ -468,8 +475,9 @@ function findValidCutPoints(entries: SessionEntry[], startIndex: number, endInde
 			case "custom_message":
 			case "label":
 		}
-		// branch_summary and custom_message are user-role messages, valid cut points
-		if (entry.type === "branch_summary" || entry.type === "custom_message") {
+		// branch_summary and custom_message are user-role messages, valid cut points; a row kept out of
+		// context is not one, so keeping it must not move the cut past the reply before it.
+		if (entry.type === "branch_summary" || (entry.type === "custom_message" && !entry.excludeFromContext)) {
 			cutPoints.push(i);
 		}
 	}
@@ -483,7 +491,7 @@ function findValidCutPoints(entries: SessionEntry[], startIndex: number, endInde
  * transcript's orphan-head trim all share this boundary definition.
  */
 export function isTurnStartEntry(entry: SessionEntry): boolean {
-	if (entry.type === "branch_summary" || entry.type === "custom_message") {
+	if (entry.type === "branch_summary" || (entry.type === "custom_message" && !entry.excludeFromContext)) {
 		return true;
 	}
 	if (entry.type === "message") {
@@ -726,7 +734,7 @@ export interface SummaryOptions {
 	/**
 	 * Optional telemetry handle. When provided, every LLM call emitted during
 	 * compaction is wrapped in an OTEL chat span tagged with
-	 * `zeta.gen_ai.oneshot.kind` (`compaction_summary`, `compaction_short_summary`,
+	 * `omp.gen_ai.oneshot.kind` (`compaction_summary`, `compaction_short_summary`,
 	 * or `compaction_turn_prefix`). `undefined` keeps the call paths zero-cost.
 	 */
 	telemetry?: AgentTelemetry;
@@ -778,6 +786,13 @@ export interface SummaryOptions {
 		options: SimpleStreamOptions,
 	) => Promise<AssistantMessage>;
 	/**
+	 * Receives each OpenAI remote compaction request (V1 `/responses/compact`,
+	 * V2 streaming) whose response reported usage. Those transports bypass
+	 * {@link completeImpl}, so this is the only record of their spend: a
+	 * content-less assistant message carrying the priced usage and duration.
+	 */
+	onRemoteUsage?: (message: AssistantMessage) => void;
+	/**
 	 * Transient-failure retry for the summarization oneshots (`generateSummary`,
 	 * `generateShortSummary`, `generateTurnPrefixSummary`).
 	 *
@@ -791,6 +806,42 @@ export interface SummaryOptions {
 	 * stacks on top of the inner backoff.
 	 */
 	oneshotRetry?: OneshotRetryOptions | false;
+}
+
+/**
+ * The record {@link SummaryOptions.onRemoteUsage} receives for one OpenAI
+ * remote compaction request, priced at `model`'s catalog rates (a
+ * `remoteCompaction.model` override is recorded by id; it has no rates here).
+ */
+function remoteCompactionUsageMessage(
+	model: Model,
+	usage: ResponsesCompactionUsage,
+	startedAt: number,
+): AssistantMessage {
+	const target = remoteCompactionPolicyModel(model);
+	const tokens = calculateOpenAIUsageAccounting({
+		promptTokens: usage.inputTokens,
+		outputTokens: usage.outputTokens,
+		cachedTokens: usage.cachedInputTokens ?? 0,
+		reasoningTokens: usage.reasoningOutputTokens ?? 0,
+		cacheWriteOpenRouter: usage.cacheWriteTokens,
+		cacheWriteDeepSeek: undefined,
+		hasDeepSeekCacheHitAndMiss: false,
+	});
+	const billed: Usage = { ...tokens, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
+	billed.cost = calculateCost(model, billed);
+	const now = Date.now();
+	return {
+		role: "assistant",
+		content: [],
+		api: target.api,
+		provider: model.provider,
+		model: target.id,
+		usage: billed,
+		stopReason: "stop",
+		timestamp: now,
+		duration: now - startedAt,
+	};
 }
 
 /**
@@ -1108,7 +1159,7 @@ export interface HandoffOptions {
 	metadata?: Record<string, unknown>;
 	/**
 	 * Optional telemetry handle. When provided, the handoff LLM call is
-	 * wrapped in an OTEL chat span tagged with `zeta.gen_ai.oneshot.kind = "handoff"`.
+	 * wrapped in an OTEL chat span tagged with `omp.gen_ai.oneshot.kind = "handoff"`.
 	 */
 	telemetry?: AgentTelemetry;
 	/**
@@ -1820,6 +1871,7 @@ export async function compact(
 		fetch: options?.fetch,
 		onPayload: options?.onPayload,
 		completeImpl: options?.completeImpl,
+		onRemoteUsage: options?.onRemoteUsage,
 		// The caller's opt-out must reach every summarization oneshot, otherwise
 		// an outer retry loop multiplies with the inner one (see SummaryOptions).
 		oneshotRetry: options?.oneshotRetry,
@@ -1893,6 +1945,11 @@ export async function compact(
 	 * rewrite the tail's trailing tool outputs: the prefix keeps them intact.
 	 */
 	const canCompactBeforeTail = lastSummarizedEntryId !== undefined && recentMessages.length > 0;
+	const reportRemoteUsage = (usage: ResponsesCompactionUsage | undefined, startedAt: number): void => {
+		if (usage && summaryOptions.onRemoteUsage) {
+			summaryOptions.onRemoteUsage(remoteCompactionUsageMessage(model, usage, startedAt));
+		}
+	};
 	const sendRemoteCompaction = async (
 		sendWhole: () => Promise<void>,
 		sendPrefix: () => Promise<boolean>,
@@ -2052,6 +2109,7 @@ export async function compact(
 						tools,
 						reasoning: buildCompactionV2Reasoning(model, summaryOptions.thinkingLevel),
 					});
+			const startedAt = Date.now();
 			const remote = await withAuth(
 				apiKey,
 				key =>
@@ -2064,6 +2122,7 @@ export async function compact(
 					}),
 				{ signal },
 			);
+			reportRemoteUsage(remote.usage, startedAt);
 			preserveData = { ...preserveData, ...storeCompactionV2PreserveData(remote, model) };
 		};
 		const whole = await buildV2Input(true);
@@ -2112,7 +2171,8 @@ export async function compact(
 		const convertToLlm = summaryOptions.convertToLlm ?? defaultConvertToLlm;
 		const supportsOriginalDetail = openAiCompatSupportsImageDetailOriginal(model);
 		const sendV1 = async (remoteHistory: Array<Record<string, unknown>>, rewriteOutputs: boolean): Promise<void> => {
-			const remote = await withAuth(
+			const startedAt = Date.now();
+			const { usage, ...remote } = await withAuth(
 				apiKey,
 				key =>
 					requestOpenAiRemoteCompaction(
@@ -2132,6 +2192,7 @@ export async function compact(
 					),
 				{ signal },
 			);
+			reportRemoteUsage(usage, startedAt);
 			preserveData = withOpenAiRemoteCompactionPreserveData(preserveData, remote);
 		};
 		const whole = buildOpenAiNativeHistory(

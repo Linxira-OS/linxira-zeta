@@ -1,7 +1,6 @@
 import type { Model } from "@linxiraos/pi-ai";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
-
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import modelMentionDescription from "../prompts/agents/model-mention.md" with { type: "text" };
@@ -13,6 +12,7 @@ import {
 	modelMentionDisplayName,
 	modelMentionName,
 	modelMentionTag,
+	resolveModelMentionToken,
 } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import { AUTO_THINKING, parseEffort } from "@linxiraos/pi-tui/thinking";
 import type { SessionEntry } from "./session-entries";
@@ -128,22 +128,22 @@ export class ModelMentionRegistry {
 	expandMentions(text: string): string {
 		if (!text.includes("^")) return text;
 		return text.replace(MODEL_MENTION_RE, (token, delimiter: string, selector: string) => {
-			let mention = this.#bySelector.get(selector);
+			const match = resolveModelMentionToken(
+				selector,
+				candidate => this.#bySelector.get(candidate) ?? this.resolve(candidate),
+			);
+			if (!match) return token;
+			let mention = this.#bySelector.get(match.value.selector);
 			if (!mention) {
-				const resolved = this.resolve(selector);
-				if (!resolved) return token;
-				mention = this.#bySelector.get(resolved.selector);
-				if (!mention) {
-					let next = 1;
-					while (this.#agents.has(`m${next}`)) next++;
-					mention = { agent: `m${next}`, ...resolved };
-					this.#host.sessionManager.appendCustomEntry(MODEL_MENTION_ENTRY_TYPE, mention);
-					this.#mentions.push(mention);
-					this.#bySelector.set(mention.selector, mention);
-					this.#agents.add(mention.agent);
-				}
+				let next = 1;
+				while (this.#agents.has(`m${next}`)) next++;
+				mention = { agent: `m${next}`, ...match.value };
+				this.#host.sessionManager.appendCustomEntry(MODEL_MENTION_ENTRY_TYPE, mention);
+				this.#mentions.push(mention);
+				this.#bySelector.set(mention.selector, mention);
+				this.#agents.add(mention.agent);
 			}
-			return `${delimiter}${modelMentionTag(mention)}`;
+			return `${delimiter}${modelMentionTag(mention)}${match.suffix}`;
 		});
 	}
 

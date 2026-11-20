@@ -588,7 +588,7 @@ export class InputController {
 					aborted = true;
 				}
 				if (viewSession.isGeneratingHandoff) {
-					safeAbort("handoff", () => viewSession.abortHandoff());
+					safeAbort("handoff", () => viewSession.abortHandoff?.());
 					aborted = true;
 				}
 				if (viewSession.isRetrying) {

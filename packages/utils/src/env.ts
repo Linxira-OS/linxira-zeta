@@ -73,7 +73,7 @@ export function filterProcessEnv(env: Record<string, string | undefined>): Recor
  * so forwarding them to a child shell makes `git` ignore the command's `cwd`
  * and mutate the wrong worktree or index. Stripped from child shell envs so git
  * rediscovers the repository from the working directory. Mirrors the
- * `env_remove` list in `crates/pi-vcs/src/git/cli.rs`.
+ * `env_remove` list in `crates/vcs/src/git/cli.rs`.
  */
 const GIT_REPO_LOCATION_ENV_NAMES = [
 	"GIT_DIR",
@@ -511,7 +511,7 @@ export function setInteractiveHost(interactive: boolean): boolean {
  * history.db, stats.db).
  *
  * Interactive hosts tolerate a longer synchronous wait on lock contention
- * (SQLITE_BUSY during WAL recovery/checkpoint — see oh-my-pi#2421): the
+ * (SQLITE_BUSY during WAL recovery/checkpoint — see zeta#2421): the
  * operator sees a brief freeze and the statement eventually completes.
  * Headless hosts (print/RPC/ACP/eval/SDK) run a protocol on the same thread —
  * a multi-second synchronous busy-wait freezes their event loop and stalls

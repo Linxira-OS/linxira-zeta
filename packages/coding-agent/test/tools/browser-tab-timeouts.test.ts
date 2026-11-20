@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
 import { BROWSER_PAGE_PROTOCOL_TIMEOUT_MS, BROWSER_PROTOCOL_TIMEOUT_MS } from "@linxiraos/zeta/tools/browser/launch";
 import { resolveOpTimeouts, resolveWaitTimeout } from "@linxiraos/zeta/tools/browser/op-timeouts";
+import { parseRoleSelector } from "@linxiraos/zeta/tools/browser/query-handlers";
 import { dispatchScroll, normalizeSelector } from "@linxiraos/zeta/tools/browser/tab-worker";
 import { resolvePredicateTimeout } from "@linxiraos/zeta/tools/run-scope";
 import { Connection, type ConnectionTransport } from "puppeteer-core";
@@ -120,9 +121,9 @@ describe("browser scroll acknowledgement", () => {
 });
 
 describe("browser wait-helper timeout resolution", () => {
-	it("defaults a wait to the action ceiling when no explicit timeout is given", () => {
+	it("defaults a wait to the cell budget when no explicit timeout is given", () => {
 		const cell = 30_000;
-		expect(resolveWaitTimeout(cell)).toBe(resolveOpTimeouts(cell).actionOpMs);
+		expect(resolveWaitTimeout(cell)).toBe(resolveOpTimeouts(cell).budgetBound);
 	});
 
 	it("honors a positive explicit timeout but clamps it under the cell budget", () => {
@@ -199,6 +200,17 @@ describe("browser selector guard", () => {
 		expect(normalizeSelector("p-text/Continue")).toBe("text/Continue");
 	});
 
+	it("reads a role/ exact flag written inside the name quotes", () => {
+		expect(parseRoleSelector('button[name="Save exact"]')).toEqual({ role: "button", name: "save", exact: true });
+		expect(parseRoleSelector('button[name="Save" exact]')).toEqual({ role: "button", name: "save", exact: true });
+	});
+
+	it("keeps p-<element> custom element selectors as CSS", () => {
+		expect(normalizeSelector("p-confirmdialog")).toBe("p-confirmdialog");
+		expect(normalizeSelector("p-button.primary")).toBe("p-button.primary");
+		expect(() => normalizeSelector("p-foo/bar")).toThrow(/Unsupported selector prefix/);
+	});
+
 	it("refuses a role/ selector with text it would otherwise ignore, before any op waits on it", () => {
 		expect(() =>
 			normalizeSelector('role/region[name="billing-worker" exact] >> role/combobox[name="REGION" exact]'),
@@ -221,7 +233,7 @@ describe("browser selector guard", () => {
 				return this;
 			},
 		};
-		expect(() => normalizeSelector(handle as never)).toThrow(/must be a string; got an ElementHandle/);
+		expect(() => normalizeSelector(handle as never)).toThrow(/must be a string; got an element handle/);
 		expect(() => normalizeSelector(23 as never)).toThrow(/must be a string; got a number/);
 	});
 });

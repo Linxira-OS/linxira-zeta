@@ -34,7 +34,7 @@ import {
 import packageJson from "../package.json" with { type: "json" };
 
 const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@linxiraos\\pi-natives\\native";
-const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\oh-my-pi\\packages\\natives\\native";
+const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\zeta\\packages\\natives\\native";
 const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@linxiraos/pi-natives/native";
 
 describe("windows native addon staging", () => {
@@ -125,7 +125,7 @@ describe("windows native addon staging", () => {
 			const workspace = initLoaderContext({
 				platform: "linux",
 				isCompiledBinary: false,
-				nativeDir: "/tmp/oh-my-pi/packages/natives/native",
+				nativeDir: "/tmp/zeta/packages/natives/native",
 				leafPackageDir,
 			});
 			const installed = initLoaderContext({
@@ -173,7 +173,7 @@ describe("windows native addon staging", () => {
 	});
 
 	it("removes only older version directories after the current native version loads", async () => {
-		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-natives-cache-"));
+		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-natives-cache-"));
 		const currentMajor = Number.parseInt(packageJson.version, 10);
 		const futureVersion = `${currentMajor + 1}.0.0`;
 		// Zeta's version line (1.x) sits below upstream's, so the historical

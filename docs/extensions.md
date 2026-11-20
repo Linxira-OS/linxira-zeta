@@ -12,8 +12,6 @@ This document covers the current extension runtime in:
 
 For discovery paths and filesystem loading rules, see [`extension-loading.md`](./extension-loading.md).
 
-For installing, enabling, and using a packaged plugin (as opposed to authoring an extension in this repo), see [`plugins.md`](./plugins.md).
-
 For packaged user-facing extension CLIs/features, see [`user-facing-packages.md`](./user-facing-packages.md).
 
 ## What an extension is
@@ -21,7 +19,7 @@ For packaged user-facing extension CLIs/features, see [`user-facing-packages.md`
 An extension is a TS/JS module exporting a default factory. Factories may initialize synchronously or return a promise:
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
 	// register handlers/tools/commands/renderers
@@ -37,7 +35,7 @@ Extensions can combine all of the following in one module:
 - custom message rendering
 - session/message injection APIs (`sendMessage`, `sendUserMessage`, `appendEntry`)
 
-Import host values from the package root, `@linxiraos/zeta`. Deeper paths such as `@linxiraos/pi-tui/native/spans` also resolve inside the omp binary, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. Besides the extension types and the theme (`theme`, `getSettingsListTheme`), the root exports these helpers:
+Import host values from the package root, `@linxiraos/pi-coding-agent`. Deeper paths such as `@linxiraos/pi-tui/native/spans` also resolve inside the omp binary, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. Besides the extension types and the theme (`theme`, `getSettingsListTheme`), the root exports these helpers:
 
 - `formTheme`, `editorKey`, `editorKeys` and `formatKeyHint` for settings dialogs and key hints
 - `styledSpans` and `compactText` to turn ANSI-styled text into `TspText`, such as a transcript presenter's `{ compact: { label, rows } }`, and `rowsText` to wrap pre-rendered rows in one native text node; `styleSpans`, `plainText`, `plainLine`, `spansLine` and `styledBackground` cover the other conversions between ANSI text and spans
@@ -79,7 +77,7 @@ Important constraint from `loader.ts`:
 ## Quick start
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	const z = pi.zod;
@@ -150,15 +148,15 @@ labeling action. `getAllTools()` returns tool schemas and source metadata, while
 
 ### Keyboard shortcuts
 
-Register shortcuts in the extension factory; Zeta binds them before `session_start`, so a later registration applies on the next start.
+Register shortcuts in the extension factory; omp binds them before `session_start`, so a later registration applies on the next start.
 
 `getShortcutConflict(chord)` returns `undefined` for a free chord, otherwise the first holder of:
 
-- `{ kind: "reserved" }`: Zeta keeps the chord (see [Constraints and pitfalls](#constraints-and-pitfalls)); a shortcut on it is never bound.
+- `{ kind: "reserved" }`: omp keeps the chord (see [Constraints and pitfalls](#constraints-and-pitfalls)); a shortcut on it is never bound.
 - `{ kind: "keybinding", keybindings }`: keymap actions bound to it in the editor (Ctrl+Enter counts for approve and follow-up when their bindings are emptied). `app.*` actions usually take the key first where they apply; editing keys (`tui.editor.*`, `tui.input.*`, e.g. `alt+y` yank-pop) lose it to the shortcut.
 - `{ kind: "extension", extensionPath }`: another extension's shortcut. When several extensions register one chord, in any spelling, only the last one loaded is bound.
 
-Chords compare as the TUI matches them: `alt+ctrl+x` is `ctrl+alt+x`, and `?` also covers `shift+?`. The caller's own registrations don't count. Keybindings come from the session's TUI keymap, user remaps included; sessions without a TUI (print, RPC, ACP, SDK) use Zeta's defaults.
+Chords compare as the TUI matches them: `alt+ctrl+x` is `ctrl+alt+x`, and `?` also covers `shift+?`. The caller's own registrations don't count. Keybindings come from the session's TUI keymap, user remaps included; sessions without a TUI (print, RPC, ACP, SDK) use omp's defaults.
 
 It throws while extensions are loading, so call it from a handler (a command, `session_start`), e.g. to validate a chord the user picks; the factory then registers it on the next start.
 
@@ -260,7 +258,7 @@ names are reserved), and `streamSimple` returns the canonical
 
 ```ts
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai";
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerProvider("local-command", {
@@ -270,7 +268,7 @@ export default function (pi: ExtensionAPI) {
 		api: "local-command-api",
 		streamSimple(model, context, options) {
 			const stream = new AssistantMessageEventStream();
-			// Spawn the command, translate its output, and push canonical Zeta events.
+			// Spawn the command, translate its output, and push canonical OMP events.
 			// The implementation owns process cleanup, cancellation, and errors; the
 			// helper needs `context` for the conversation and `options` for `signal`,
 			// `cwd`, and the stable `sessionId`.
@@ -316,11 +314,11 @@ Also exposed:
 
 ### Runtime setting overrides
 
-Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@linxiraos/zeta/config/registry` subpath, then pass `pi.pi.settings` as the scope:
+Settings are addressed through typed registry handles (see "Definitions" in [config-usage.md](./config-usage.md#definitions-srcconfigregistryts)); the string-path `settings.get`/`set`/`override` methods were removed in 18.3. Extensions resolve a handle by id with `lookup(id)` (and enumerate them with `all()`) from the `@linxiraos/pi-coding-agent/config/registry` subpath, then pass `pi.pi.settings` as the scope:
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
-import { lookup } from "@linxiraos/zeta/config/registry";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
+import { lookup } from "@linxiraos/pi-coding-agent/config/registry";
 
 export default function (pi: ExtensionAPI) {
 	const recap = lookup("recap.enabled");
@@ -366,6 +364,17 @@ re-exported by `session/messages.ts`): non-object payloads are coerced to string
 content under the default custom type, missing `customType`/`attribution` fields
 are defaulted, and invalid content collapses to an empty string.
 
+Set `excludeFromContext: true` on the payload for a row that is drawn and saved
+but never sent to the model, like a `!!` bash run: per-turn stats or status
+lines. The flag is persisted on the `custom_message` entry, so the row stays out
+of context after resume, compaction and branch summaries. Such a row never
+starts or extends a turn: `triggerTurn` and `"aside"` are ignored. Sent while a
+run is live, it is queued like a `!!` bash row and drawn and saved when the run
+ends or the next prompt starts; a `/new` or session switch that interrupts the
+run saves it to the session being left. Like `!!` and `$$` runs, it leaves a
+shown composer prediction in place and does not hold back a queued follow-up,
+since the model's view is unchanged.
+
 ## 2) Handler context (`ExtensionContext`)
 
 Handlers and tool `execute` receive `ctx` with:
@@ -399,9 +408,7 @@ Handlers and tool `execute` receive `ctx` with:
    ```
 
 - `getSystemPrompt()`
-- `isProjectTrusted()` — always `true`; Zeta does not ask for per-directory trust before loading project inputs
-- `agents`: read-only directory of the agents this process knows (`list()`, `get(id)`), each entry `{ id, displayName, kind, status, parentId?, workspace? }`. Scope is the running process: a separate `zetacode` process publishes nothing here, and every top-level session still registers as `Main`.
-- `messaging`: agent-to-agent delivery with the session lifecycle attached — `send(from, to, body, opts?)` resolves the recipient through the same registry the `agent://` URL uses (busy recipients get a non-interrupting aside at the next step boundary, idle ones start a turn), `wait(from, filter, timeoutMs, signal?)` waits for a matching message, and `inbox(id, { peek? })` drains or inspects the mailbox. Unknown recipients fail; messages are not queued for a future process.
+- `isProjectTrusted()` — always `true`; OMP does not ask for per-directory trust before loading project inputs
 - `agent` — the agent this session runs: `{ kind: "main" | "sub", id, name, depth, parentId? }`. Factories are rebound to every subagent session (task tool, eval `agent()`, `/tan` clones), so a handler can check `ctx.agent.kind === "sub"` or the lowercased agent definition `name` (for example `"explore"`) to act only in subagents. Use `kind`, not `depth`: `depth` counts `task` nesting only, so `/tan` clones are subagents at depth 0 and report `name: "sub"`. An advisor's own tool calls reach the session's `tool_call`/`tool_result` handlers with `{ kind: "sub", id: "advisor", name: "advisor", depth: 0, parentId }`, so `kind === "main"` also excludes advisor activity
 - `runEphemeralTurn(...)` (optional; see below)
 - `startLive(...)` (optional; interactive mode only; see below)
@@ -440,7 +447,7 @@ Use `history` only for detached prior side-turn messages; it is cloned with `str
 
 ### Live voice on your own peer (`ctx.startLive`)
 
-Start a `/live` session whose audio runs on a WebRTC peer the extension owns, for example a browser on a phone, instead of the host's microphone and speakers. Zeta keeps everything else: Codex signaling with the session's OpenAI Codex sign-in, the bundled live prompt, delegations into this session as ordinary turns, and transcripts. The TUI shows its live visualizer, and the stop key (or the extension calling `live.stop()`) ends the call. The `/live` slash command is gated off product-wide; `ctx.startLive` itself is still available to extensions.
+Start a `/live` session whose audio runs on a WebRTC peer the extension owns, for example a browser on a phone, instead of the host's microphone and speakers. omp keeps everything else: signaling (Codex with the session's OpenAI Codex sign-in, or the [custom live endpoint](./rpc.md#custom-live-endpoint) when `live.endpoint` is set), the bundled live prompt, delegations into this session as ordinary turns, and transcripts. The TUI shows its live visualizer, and `/live` or the stop key ends the call.
 
 ```ts
 if (!ctx.startLive) throw new Error("This host does not run live sessions");
@@ -454,9 +461,9 @@ await peer.setRemoteDescription({ type: "answer", sdp: live.sdpAnswer });
 // later: await live.stop();
 ```
 
-The promise resolves once the call is signaled and its control socket is open; apply `sdpAnswer` right away. It rejects without a non-empty `sdpOffer` and while another live session is active. `voice` and `instructions` work as for RPC `live_start`. The peer does its own echo cancellation and mute: the TUI mute key only moves the phase to `muted`, so silence the peer's microphone track while that phase lasts. Zeta reports no audio levels and no `speaking` phase for these calls. `onEnd` is called exactly once, including when the call fails to start (before the promise rejects). Observer callbacks that throw are logged and do not end the call.
+The promise resolves once the call is signaled and its control socket is open; apply `sdpAnswer` right away. It rejects without a non-empty `sdpOffer` and while another live session is active. `voice` and `instructions` work as for RPC `live_start`. The peer does its own echo cancellation and mute: the TUI mute key only moves the phase to `muted`, so silence the peer's microphone track while that phase lasts. omp reports no audio levels and no `speaking` phase for these calls. `onEnd` is called exactly once, including when the call fails to start (before the promise rejects). Observer callbacks that throw are logged and do not end the call.
 
-Zeta has no media peer for these calls, so it cannot tell when yours goes away. Call `live.stop()` when the peer disconnects (`connectionstatechange` to `failed` or `closed`, or your relay socket closing); otherwise the call stays open and the TUI keeps the live visualizer up.
+omp has no media peer for these calls, so it cannot tell when yours goes away. Call `live.stop()` when the peer disconnects (`connectionstatechange` to `failed` or `closed`, or your relay socket closing); otherwise the call stays open and the TUI keeps the live visualizer up.
 
 Whoever holds the peer steers this session by voice, including delegated work that runs tools, so authenticate the page or relay that hands you the offer.
 
@@ -532,7 +539,7 @@ source. Its `session_start` still runs (it is delivered when the extension
 binds), and the first submitted message and every model turn wait until it is
 loaded, so its tools, commands, and `input`/`before_agent_start` hooks apply from
 the first request. Events emitted before it binds are not replayed. Resumed
-sessions, `--tools`, and launches with flags Zeta does not recognize load every
+sessions, `--tools`, and launches with flags omp does not recognize load every
 extension before the session starts.
 
 `session_clear` receives `{ type: "session_clear" }` after a successful in-place
@@ -589,7 +596,7 @@ Cancellation stops the host from waiting but cannot stop extension code or undo 
 - `context` — receives conversation messages and may return `{ messages }`; replacements chain without rewriting persisted history
 - `agent_start` / `agent_end` — agent loop lifecycle notification; `agent_end` remains notification-only
 - `session_stop` — main-session stop hook, awaited before settle. Advisory `{ continue: true, additionalContext }` requests are capped at 8 continuations. Explicit `{ decision: "block", reason }` refusals take precedence over advisory requests, do not consume that allowance, and remain blocking until the hook allows completion or the operator interrupts. A refusal without a reason receives a diagnostic continuation rather than permission to finish. This event never fires for task/subagent sessions and defers until agent-owned background jobs are fully idle (`#hasPendingAsyncWake` in `session/agent-session.ts`).
-- `cache_warming_decision` — fired before each prompt-cache warming refresh with the warmer's economics (`warmCost`, `missCost`, `continuationProbability`, `action`). Return `{ action: "warm" | "stop" }` to override; the last handler returning an action wins, handler failures or answers slower than 2 seconds leave the warmer's decision standing, and a `"stop"` override ends warming until the next real request. Only the main agent loop warms; task/subagent sessions never fire this. The refresh itself replays the real request through the same provider path, so `before_provider_request` and `after_provider_response` fire for it too; a replacement payload must stay byte-identical to the real one for the refresh to hit the cache.
+- `cache_warming_decision` — fired before each prompt-cache warming decision with the warmer's economics: `method` (`"prewarm"` for a `max_tokens: 0` pre-warm, `"replay"` for a one-token replay; absent when the request cannot be refreshed safely), `warmCost` (a cache read of the prompt, plus the expected billed output for a replay), `missCost` (re-writing the prompt instead of reading it), `compactCost` (bridging the wait with compaction; absent when compaction is not an option), `spentCost` (refresh spend since the last real request), `continuationProbability`, and `action` (`"warm"`, `"compact"`, or `"stop"`). Return `{ action }` to override; the last handler returning an action wins, handler failures or answers slower than 2 seconds leave the warmer's decision standing, and so does an override the warmer cannot carry out (`"warm"` without a `method`, `"compact"` without `compactCost` or later than a minute before the entry expires). A `"stop"` override ends warming until the next real request. The main agent loop warms in any mode and task subagents up to `streaming`; one-shot sessions never fire this. The refresh itself goes through the same provider path as the real request, so `before_provider_request` and `after_provider_response` fire for it too; a replacement payload must stay byte-identical to the real one for the refresh to hit the cache.
 - `turn_start` / `turn_end`
 - `assistant_message` — awaited once per finalized assistant message before agent context, persistence, `message_end`, or tool dispatch. Return `{ content }` to replace text for history, persistence, `message_end` consumers, and the next provider request; handlers chain. Text already delivered through streaming updates (`message_update`, ACP/RPC chunks) is not retracted, so clients that render from the stream may keep showing the original text. Text blocks must retain their count, order, and positions; only their text may change. All non-text blocks and other block metadata must remain unchanged. Unchanged text retains its original `textSignature` (even if the handler drops or changes it); edited text loses its signature so provider replay state is never reused for different text. Invalid replacements and handler errors are reported and skipped. If aborted while a handler is pending, completed rewrites so far are retained and remaining handlers are skipped.
 - `message_start` / `message_update` / `message_end` — lifecycle notifications; `message_end` receives a detached snapshot, so in-place changes cannot rewrite agent or provider context
@@ -758,7 +765,7 @@ supports it. Repeats (compared ignoring surrounding whitespace) are dropped at t
 identical to an earlier handler's on the same call, and a call's joined context identical to an earlier
 call's in the same batch. Raw tool output and other untrusted data must stay in the ordinary tool result.
 
-Distinct non-empty context from every non-blocking handler is preserved in registration order. Zeta waits
+Distinct non-empty context from every non-blocking handler is preserved in registration order. OMP waits
 until the tool batch settles, then emits the context after the corresponding tool results in
 assistant tool-call order and before the next provider request. Handler context is delivered only when
 the call actually runs and returns a non-error result: if the call is blocked by this or a later
@@ -853,7 +860,7 @@ with a permission error (`EPERM`/`EACCES`/`EROFS` — every other error, such as
 via `pi.registerFileWriteFallback` before giving up:
 
 ```ts
-import type { FileWriteFallbackHandler } from "@linxiraos/zeta";
+import type { FileWriteFallbackHandler } from "@linxiraos/pi-coding-agent";
 
 const writeThroughBroker: FileWriteFallbackHandler = async (req, ctx) => {
 	// req: { dst: string; content: string; cause: unknown; sessionId: string | undefined }
@@ -1013,17 +1020,6 @@ up to 10 content lines plus a truncation notice). Pass `undefined` to remove a
 widget. `setEditorText` and `pasteToEditor` request a repaint after mutating the
 editor.
 
-`ctx.ui.registerSidebarWidget(widget)` adds a widget to the interactive TUI's
-right-hand sidebar (built-ins: context gauge, todos, subagents, MCP health, Git);
-`unregisterSidebarWidget(id)` removes it and re-registering an id replaces the
-widget. `render(ctx, width)` returns the widget's rows and must never perform IO;
-third-party widgets render only while the `tui.sidebarWidgets` setting is on.
-A widget may also implement `describe(ctx, width)` and return a `NativeNode`
-(plain TSP nodes, no escapes, `null` when hidden) — the semantic twin a native
-sidebar renderer draws, which `zetawork` uses inside a terminal pane. Without
-`describe`, the renderer degrades `render`'s rows to plain text; a tree carrying
-a `Component` child cannot cross the snapshot boundary, so the ANSI rows stay.
-
 #### Launching terminal commands
 
 `ctx.ui.openTerminal(request)` is available only in the interactive TUI. It creates a
@@ -1048,7 +1044,7 @@ provider session or a native pane ID exists.
 The TUI host injects this capability; extensions do not need to import dispatcher
 code to use it.
 
-Built-in Zeta callers can pass `classifyTerminalMultiplexer(env)` to
+Built-in OMP callers can pass `classifyTerminalMultiplexer(env)` to
 `getTerminalLaunchPlacement(...)` for support and presentation metadata or as the
 first argument to `createDefaultTerminalLaunchRequest(...)` for a validated
 provider-default request. The factory also takes a placement, command argv, cwd, and
@@ -1293,7 +1289,7 @@ for (const entry of ctx.sessionManager.getBranch()) {
 `registerComposerShape` adds an extension-owned input-editor layout to **Appearance → Composer Shape**. Register it from the extension factory; the renderer is used by the live editor and its settings preview.
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@linxiraos/pi-coding-agent";
 import type { ComposerStyle } from "@linxiraos/pi-tui";
 
 const dockStyle: ComposerStyle = {
@@ -1455,17 +1451,17 @@ Chooses how each block of the main session's transcript is drawn, in the plain t
 
 - **Blocks.** A presenter receives a read-only `TranscriptBlock`. Later versions add block types: return `undefined` for a `type` you do not know.
   - `{ type: "toolCall", id, toolName, args, result?, isError, isPartial }` for a model tool call, `id` its `toolCallId`; the reads of a grouped read card are asked one by one.
-  - `{ type: "message", id, message }` for a session message drawn as its own block: `custom` messages with `customType` `advisor`, `skill-prompt`, `lsp-late-diagnostic`, `async-result` (background job completions) and `launch-completion` (supervised process exits), and user `!`/`$` runs (`bashExecution`, `pythonExecution`). `id` is `String(message.timestamp)`, the same live and after a resume; messages recorded in the same millisecond share it, as they share `rerenderMessage`'s timestamp. A `!`/`$` run still going has a provisional message and id; it is asked again with the recorded message once the session records the run.
+  - `{ type: "message", id, message }` for a session message drawn as its own block: `custom` messages with `customType` `advisor`, `skill-prompt`, `lsp-late-diagnostic`, `async-result` (background job completions), `async-notify` (output a running background job or service reports) and `launch-completion` (supervised process exits), and user `!`/`$` runs (`bashExecution`, `pythonExecution`). `id` is `String(message.timestamp)`, the same live and after a resume; messages recorded in the same millisecond share it, as they share `rerenderMessage`'s timestamp. A `!`/`$` run still going has a provisional message and id; it is asked again with the recorded message once the session records the run.
   - `{ type: "event", id, event }` for a TTSR rule hit (`ttsr_triggered`) or an incomplete-todo reminder (`todo_reminder`), shaped like the extension event of the same type. These exist only in the session that raised them; `id` is unique within the process.
 
-  `args`, `result`, `message` and `event` are not copies: they are the live objects Zeta draws the block from, often the session's own message data, so never mutate them.
-- **Answers.** `undefined` defers to the next presenter. `"full"` is Zeta's own drawing. `"hidden"` draws nothing, as `display.hideToolActivity` does. `"compact"` is one row of Zeta's own summary. `{ compact: { label, rows } }` replaces that row's text with `label` and adds one row per entry of `rows` below it; both take `TspText` (a string or theme-token spans). Presenters answer synchronously and run while the transcript draws, so keep them cheap: any other value (a misspelt mode, the Promise of an `async` presenter) draws the block in full and is reported like a throw.
+  `args`, `result`, `message` and `event` are not copies: they are the live objects omp draws the block from, often the session's own message data, so never mutate them.
+- **Answers.** `undefined` defers to the next presenter. `"full"` is omp's own drawing. `"hidden"` draws nothing, as `display.hideToolActivity` does. `"compact"` is one row of omp's own summary. `{ compact: { label, rows } }` replaces that row's text with `label` and adds one row per entry of `rows` below it; both take `TspText` (a string or theme-token spans). Presenters answer synchronously and run while the transcript draws, so keep them cheap: any other value (a misspelt mode, the Promise of an `async` presenter) draws the block in full and is reported like a throw.
 - **Precedence.** Presenters are asked in extension load order and the first answer that is not `undefined` wins. A suspended extension's presenter is skipped. A presenter that throws answers `"full"` for that block: the block is drawn in full and later presenters are not asked for it. Its first failure (a throw or an unknown answer) is reported once through the extension error channel (event `transcript_presenter`). A block the user expanded, with `Ctrl+O` or its own toggle in Tern, is always drawn in full, and `display.hideToolActivity` still hides tool activity.
 - **Tern.** A compact tool call keeps its `tool` node as one inline, collapsed row; with `rows`, its body is one text node of those rows, all shown. Other blocks become an inline row with their full drawing folded below it. The row's toggle opens the full block.
 - **Spacing.** Consecutive compact blocks draw as tight rows, with no blank row between them in the terminal and no gap in Tern; blocks that draw nothing between them (hidden ones, a reply holding only tool calls) don't break the run. A block drawn in full keeps its blank row or gap on both sides. Extension message renderers can join a run too (see [Compact rows](#compact-rows)).
-- **When Zeta asks.** Whenever a block's data changes (arguments stream, a result lands). Call `ctx.ui.refreshTranscript(ids)` when the presenter's own state changes, as the `agent_end` handler above does. Registering a presenter, disposing it (`registerTranscriptPresenter` returns the disposer) and suspending or resuming its extension redraw every block.
-- **Same block, same answer.** Zeta may ask again at any time, for example when a setting change rebuilds the transcript, and keeps no earlier answer. Make the answer a function of the block and the extension's own state only, and key that state by block `id` as above: state reset per run (on `agent_start`) would redraw earlier runs' blocks with the new run's answer once a rebuild asks again.
-- **Scrollback.** In a plain terminal, settled blocks stay in the live viewport until the screen fills (or more than 256 blocks are live, hidden ones included), so a turn that fits on screen just repaints when its blocks change. If a changed block already has rows in terminal scrollback, Zeta erases and replays the scrollback once for the whole batch of changes (as toggling thinking visibility does). Late results that change such blocks (a presenter answering from `isPartial`, say, with background jobs finishing) share one replay per frame, but each replay still redraws the whole transcript, so its cost grows with the session. Tern never replays. Avoid changing old blocks often.
+- **When omp asks.** Whenever a block's data changes (arguments stream, a result lands). Call `ctx.ui.refreshTranscript(ids)` when the presenter's own state changes, as the `agent_end` handler above does. Registering a presenter, disposing it (`registerTranscriptPresenter` returns the disposer) and suspending or resuming its extension redraw every block.
+- **Same block, same answer.** omp may ask again at any time, for example when a setting change rebuilds the transcript, and keeps no earlier answer. Make the answer a function of the block and the extension's own state only, and key that state by block `id` as above: state reset per run (on `agent_start`) would redraw earlier runs' blocks with the new run's answer once a rebuild asks again.
+- **Scrollback.** In a plain terminal, settled blocks stay in the live viewport until the screen fills (or more than 256 blocks are live, hidden ones included), so a turn that fits on screen just repaints when its blocks change. If a changed block already has rows in terminal scrollback, omp erases and replays the scrollback once for the whole batch of changes (as toggling thinking visibility does). Late results that change such blocks (a presenter answering from `isPartial`, say, with background jobs finishing) share one replay per frame, but each replay still redraws the whole transcript, so its cost grows with the session. Tern never replays. Avoid changing old blocks often.
 - **Main transcript only.** A focused subagent's transcript, a collab guest's view of the host's session, and the overlays that replay a transcript (link browser, rewind and `/copy` pickers, agent transcript viewer) draw stock cards, as if no presenter were registered.
 - **Late diagnostics.** In Tern, late LSP diagnostics join the edit/write card they belong to and are drawn with it; while a presenter draws that card compact or hidden, they show as a block of their own right after it. Late diagnostics no card takes (all of them in a plain terminal) are `lsp-late-diagnostic` message blocks, asked like any other.
 
@@ -1486,9 +1482,9 @@ pi.on("link_activate", ({ url }) => {
 - **Untrusted input.** `url` comes from whatever drew the link, not only from your renderer: the model, or tool output it repeats, can write `[Continue](cc-stretch:delete/all)`, and since the URL is hidden the user sees only `Continue`. Validate `url` and treat it like user input: parse it strictly, reject unknown operations, and confirm before anything destructive.
 - **Handler.** A `link_activate` handler runs like a command, without the event-handler timeout, so it may await a dialog (`ctx.ui.confirm`, `ctx.ui.select`, …). A handler that throws is reported as an extension error.
 - **Fallback.** `ctx.ui.getLinkClicksAvailable()` is true only while claimed links can be picked: interactive mode, a plain terminal, `extensionRenderers.assistantText` on, and the hint key bound or `tui.mouse` on. A subagent's copy of the extension gets the same answer, since its links are picked on the same screen. Changing the setting, `tui.mouse` while the hint key is unbound, Tern's native view opening or closing, or suspending or resuming an extension (a live `disabledExtensions` edit) re-runs the assistant text renderers, so a renderer can check it on each call and draw content inline instead of behind a link nobody can pick.
-- **Ownership.** Scheme names are case-insensitive and at least two characters long, so no scheme captures a Windows drive path such as `C:/notes.md`. When two extensions claim one scheme, the first loaded gets its clicks; a suspended extension's schemes are released until it resumes. Web, file and mail schemes (`http`, `https`, `file`, `mailto`, …) and Zeta's internal URL schemes (`local`, `skill`, `agent`, …) are reserved: claiming one throws and fails the extension's load. Only links Zeta draws itself are picked: a raw terminal hyperlink of a claimed scheme in tool output stays an ordinary hyperlink.
+- **Ownership.** Scheme names are case-insensitive and at least two characters long, so no scheme captures a Windows drive path such as `C:/notes.md`. When two extensions claim one scheme, the first loaded gets its clicks; a suspended extension's schemes are released until it resumes. Web, file and mail schemes (`http`, `https`, `file`, `mailto`, …) and omp's internal URL schemes (`local`, `skill`, `agent`, …) are reserved: claiming one throws and fails the extension's load. Only links omp draws itself are picked: a raw terminal hyperlink of a claimed scheme in tool output stays an ordinary hyperlink.
 - **Registration.** Claim schemes in the extension's factory. A scheme claimed later (from `session_start` or another handler) is ignored until `extensionRenderers.assistantText` changes or an extension is suspended or resumed.
-- **Tern.** Tern's native view draws such links as its own links and does not route their clicks back to Zeta; handle them there with a Tern plugin.
+- **Tern.** Tern's native view draws such links as its own links and does not route their clicks back to omp; handle them there with a Tern plugin.
 
 ### Link browser
 

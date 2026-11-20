@@ -232,7 +232,7 @@ by the next session's migrating read.
 
 ### Related: a plugin installed under a different manifest key
 
-A plugin directory whose `package.json` declares its manifest under `zeta`, `omp`,
+A plugin directory whose `package.json` declares its manifest under `zeta`, `zetacode`,
 or `pi` loads either way: all three keys are read, `zeta` first. This used to be
 a real trap — a `zeta`-only package was listed by `zetacode plugin list` and
 `doctor` while the session loader read only the upstream keys, so no skill and no

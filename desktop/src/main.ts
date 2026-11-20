@@ -1604,7 +1604,7 @@ function showAboutDialog(): void {
 			`Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}`,
 			"",
 			"Built on upstream projects (MIT unless noted):",
-			"· OMP — https://github.com/can1357/oh-my-pi",
+			"· OMP — https://github.com/Linxira-OS/linxira-zeta",
 			"· OMP Studio — https://github.com/the-snowpear/omp-studio",
 			"· TermIDE — https://github.com/termide/termide",
 			"Semantic-port sources credited: Pi — https://github.com/earendil-works/pi",

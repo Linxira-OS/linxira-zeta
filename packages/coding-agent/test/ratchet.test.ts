@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval";
+import type { HostEvalPreludeDefinition } from "@linxiraos/zeta/eval";
 import { type ApprovalOutcome, createRatchetPrelude } from "@linxiraos/zeta/ratchet/prelude-definition";
 import type { ApprovalStatus, GateResult, RatchetState } from "@linxiraos/zeta/ratchet/ratchet";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -18,7 +18,7 @@ type Status = RatchetState & { approval_status: ApprovalStatus };
 type Row = Record<string, unknown>;
 
 interface Harness {
-	prelude: EvalPreludeDefinition;
+	prelude: HostEvalPreludeDefinition;
 	call<T>(params: Record<string, unknown>, answer?: Answer): Promise<T>;
 	approve(stage: string, answer?: Answer): Promise<ApprovalOutcome>;
 	gate(variant: string, change?: string): Promise<GateResult>;
@@ -30,7 +30,7 @@ interface Harness {
 let root: string;
 
 beforeEach(async () => {
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-ratchet-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ratchet-"));
 	await Bun.write(path.join(root, "eval/cases.jsonl"), CASES.map(id => JSON.stringify({ id })).join("\n"));
 	await Bun.write(path.join(root, "eval/run.ts"), "// runner\n");
 	await Bun.write(path.join(root, "src/prompt.md"), "route emails\n");

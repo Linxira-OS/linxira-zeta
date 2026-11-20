@@ -62,7 +62,7 @@ plugins/official/<plugin-id>/
 ## `locales/` 与宿主 i18n（已实现）
 
 标准模板里的 `locales/{zh,en}.json` 是**插件宿主 i18n 的字符串表**：插件在
-`package.json` 的 `zeta`（或 `omp`/`pi`）清单里声明路径，宿主把
+`package.json` 的 `zeta`（或 `zetacode`/`pi`）清单里声明路径，宿主把
 `ctx.t(key, fallback?)` 注入给该插件扩展的 event handler / tool / command /
 shortcut 上下文。
 

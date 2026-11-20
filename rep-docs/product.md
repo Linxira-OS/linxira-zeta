@@ -16,7 +16,7 @@ It is an **agent development environment (ADE)**, not an IDE with a chat pane:
 the session is the unit of work, and every panel is a surface the agent can
 use.
 
-The suite is a downstream distribution of [OMP](https://github.com/can1357/oh-my-pi)
+The suite is a downstream distribution of [OMP](https://github.com/Linxira-OS/linxira-zeta)
 with a maintained [OMP Studio](https://github.com/the-snowpear/omp-studio)
 renderer fork and a vendored [TermIDE](https://github.com/termide/termide) tree.
 Attribution, integrated tags, and per-component differences are recorded in

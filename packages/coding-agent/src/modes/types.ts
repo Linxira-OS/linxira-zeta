@@ -181,6 +181,8 @@ export interface AgentHubOpenOptions {
 	requireContent?: boolean;
 	armCloseTap?: boolean;
 	initialSection?: "agents" | "activity";
+	/** On a native tray host, focus moves into the tray instead of opening the hub. */
+	trayFirst?: boolean;
 }
 
 export interface InteractiveModeContext {
@@ -188,6 +190,12 @@ export interface InteractiveModeContext {
 	ui: TUI;
 	readonly composer: Pick<Composer, "setRunActive">;
 	chatContainer: TranscriptContainer;
+	/** Ask/dialog mount above the composer (upstream layout); falls back to `editorContainer`. */
+	askContainer?: Container;
+	editorTopGapContainer?: Container;
+	isBtwMode?: boolean;
+	collabHost?: unknown;
+	collabGuest?: unknown;
 	/** `!`/`$` runs started while the agent streams, until {@link flushPendingBashComponents} moves them into the transcript. */
 	pendingShellContainer: Container;
 	pendingMessagesContainer: Container;

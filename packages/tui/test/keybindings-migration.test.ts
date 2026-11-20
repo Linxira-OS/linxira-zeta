@@ -237,13 +237,13 @@ describe("KeybindingsManager.create", () => {
 	});
 
 	it("merges default user keybindings when create uses the active profile with no arguments (#4867)", async () => {
-		const originalConfigDir = process.env.PI_CONFIG_DIR;
+		const originalConfigDir = process.env.ZETA_CONFIG_DIR;
 		const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		const originalZetaProfile = process.env.ZETA_PROFILE;
 		const configRootDir = await fs.mkdtemp(path.join(os.tmpdir(), "pi-keybindings-active-profile-"));
 
 		try {
-			process.env.PI_CONFIG_DIR = path.relative(os.homedir(), configRootDir);
+			process.env.ZETA_CONFIG_DIR = path.relative(os.homedir(), configRootDir);
 			restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 			restoreEnvValue("ZETA_PROFILE", originalZetaProfile);
 			__resetDirsFromEnvForTests();
@@ -268,7 +268,7 @@ describe("KeybindingsManager.create", () => {
 			expect(manager.getKeys("app.session.fork")).toEqual(["alt+f"]);
 			expect(manager.getKeys("app.clipboard.copyLine")).toEqual(["alt+l"]);
 		} finally {
-			restoreEnvValue("PI_CONFIG_DIR", originalConfigDir);
+			restoreEnvValue("ZETA_CONFIG_DIR", originalConfigDir);
 			restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 			restoreEnvValue("ZETA_PROFILE", originalZetaProfile);
 			__resetDirsFromEnvForTests();

@@ -1,17 +1,25 @@
-import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, spyOn, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { stripVTControlCharacters } from "node:util";
 import { type Component, Container, isFocusable, type OverlayOptions, setKeybindings } from "@linxiraos/pi-tui";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { ExtensionAskDialogQuestion, ExtensionUIContext } from "../../../src/extensibility/extensions";
 import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
-import { HtmlFormDialog } from "@linxiraos/pi-tui/html-form/dialog";
 import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
 import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import { HtmlFormDialog } from "@linxiraos/pi-tui/html-form/dialog";
 import { ExtensionUiController } from "../../../src/modes/controllers/extension-ui-controller";
 import { InputController } from "../../../src/modes/controllers/input-controller";
 import { getEditorTheme, getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../../../src/modes/types";
+import {
+	disposeProgramStatus,
+	initProgramStatus,
+	setProgramStatusEnabled,
+	setRunStatus,
+} from "../../../src/utils/run-status";
+import * as titleGenerator from "../../../src/utils/title-generator";
+import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	setKeybindings(KeybindingsManager.inMemory());
@@ -27,6 +35,7 @@ function makeHarness() {
 	const editor = new CustomEditor(getEditorTheme());
 	const editorContainer = new Container();
 	editorContainer.addChild(editor);
+	const askContainer = new Container();
 	const requestRender = vi.fn();
 	let focused: Component | null = editor;
 	editor.focused = true;
@@ -58,6 +67,7 @@ function makeHarness() {
 			terminal: { rows: 40, columns: 120 },
 		},
 		editorContainer,
+		askContainer,
 		sessionManager: { getCwd: () => process.cwd() },
 		session: {
 			agent,
@@ -77,6 +87,9 @@ function makeHarness() {
 		syncExtensionLinks: vi.fn(),
 		showStatus: vi.fn(),
 		closeLinkBrowser: vi.fn(),
+		updateEditorBorderColor: vi.fn(),
+		statusLine: { setAwaitingAnswer: vi.fn() },
+		keybindings: KeybindingsManager.inMemory(),
 		rerenderInLinkBrowser: vi.fn(),
 		rebuildTranscriptScrollback: vi.fn(),
 	} as unknown as InteractiveModeContext;
@@ -89,6 +102,7 @@ function makeHarness() {
 		requestRender,
 		addAutocompleteProvider,
 		editorContainer,
+		askContainer,
 		getFocused,
 		setFocus,
 		showOverlay,
@@ -178,6 +192,8 @@ describe("ExtensionUiController Ask dialog input", () => {
 		expect(harness.getFocused()).toBeInstanceOf(HookEditorComponent);
 		await Promise.resolve();
 		expect(harness.getFocused()).toBeInstanceOf(AskDialogComponent);
+		// The lone multi-select stays open on Other; Enter on an option row submits it.
+		harness.handleInput("\x1b[A");
 		harness.handleInput("\r");
 		expect(await pending).toMatchObject({
 			kind: "submit",
@@ -281,12 +297,13 @@ describe("ExtensionUiController form dialog", () => {
 		</fieldset>
 	</form>`;
 
-	it("mounts the form in the editor slot and resolves the submitted data", async () => {
+	it("shows the form above the composer with the keys and resolves the submitted data", async () => {
 		const harness = makeHarness();
 		const pending = harness.controller.showFormDialog(html);
 		const dialog = harness.getFocused();
 		expect(dialog).toBeInstanceOf(HtmlFormDialog);
-		expect(harness.editorContainer.children).toEqual([dialog!]);
+		expect(harness.askContainer.children).toEqual([dialog!]);
+		expect(harness.editorContainer.children).toEqual([harness.editor]);
 		dialog!.render(80);
 
 		harness.handleInput("\x1b[B");
@@ -298,25 +315,61 @@ describe("ExtensionUiController form dialog", () => {
 		expect(harness.editorContainer.children).toEqual([harness.editor]);
 		expect(harness.getFocused()).toBe(harness.editor);
 	});
-
-	it("resolves undefined on Esc and restores the editor", async () => {
+	it("returns notes for the selected option without changing form values", async () => {
 		const harness = makeHarness();
 		const pending = harness.controller.showFormDialog(html);
-		harness.handleInput("\x1b");
+		const dialog = harness.getFocused();
+		expect(dialog).toBeInstanceOf(HtmlFormDialog);
 
+		harness.handleInput("n");
+		harness.handleInput("unselected draft");
+		harness.handleInput("\r");
+		harness.handleInput("\x1b[B");
+		harness.handleInput("n");
+		harness.handleInput("shared cache");
+		harness.handleInput("\r");
+		harness.handleInput(" ");
+		harness.handleInput("\t");
+		harness.handleInput("\r");
+
+		expect(await pending).toEqual({
+			data: { db: "postgres" },
+			notes: [{ name: "db", question: "Database", option: "Postgres", value: "postgres", text: "shared cache" }],
+		});
+		expect(harness.editorContainer.children).toEqual([harness.editor]);
+		expect(harness.getFocused()).toBe(harness.editor);
+	});
+
+	it("hands the keys to the composer on Esc; Cancel resolves undefined and restores the editor", async () => {
+		const harness = makeHarness();
+		const pending = harness.controller.showFormDialog(html);
+		const dialog = harness.getFocused();
+		if (!(dialog instanceof HtmlFormDialog)) throw new Error("Expected the form dialog");
+		harness.handleInput("\x1b");
+		expect(harness.getFocused()).toBe(harness.editor);
+		expect(harness.askContainer.children).toEqual([dialog]);
+
+		dialog.handleNativeEvent({ type: "action", key: "actions/cancel", act: "cancel", mods: [] });
 		expect(await pending).toBeUndefined();
 		expect(harness.editorContainer.children).toEqual([harness.editor]);
 		expect(harness.getFocused()).toBe(harness.editor);
 	});
 
-	it("submits the current values when the timeout lapses", async () => {
+	it("submits current values and an active note draft when the timeout lapses", async () => {
 		const harness = makeHarness();
 		const onTimeout = vi.fn();
 		const pending = harness.controller.showFormDialog(html, { timeout: 20, onTimeout });
+		harness.handleInput("n");
+		harness.handleInput("local store");
 
-		expect(await pending).toEqual({ data: { db: "sqlite" }, timedOut: true });
+		expect(await pending).toEqual({
+			data: { db: "sqlite" },
+			notes: [{ name: "db", question: "Database", option: "SQLite", value: "sqlite", text: "local store" }],
+			timedOut: true,
+		});
 		expect(onTimeout).toHaveBeenCalledTimes(1);
 		expect(harness.editorContainer.children).toEqual([harness.editor]);
+		expect(harness.getFocused()).toBe(harness.editor);
 	});
 
 	it("tears the form down when the signal aborts", async () => {
@@ -335,43 +388,68 @@ describe("ExtensionUiController form dialog", () => {
 		expect(harness.getFocused()).toBe(harness.editor);
 	});
 
-	it("lets typing edit a pending draft until up/down hands the keyboard to the form", async () => {
-		const harness = makeHarness();
-		harness.editor.setText("half typed");
-		const pending = harness.controller.showFormDialog(html);
-		const dialog = harness.getFocused();
-		expect(harness.editorContainer.children).toEqual([dialog!, harness.editor]);
-		dialog!.render(80);
+	describe("above the composer", () => {
+		const act = (dialog: Component | null, name: string) => {
+			if (!(dialog instanceof HtmlFormDialog)) throw new Error("Expected the form dialog");
+			dialog.handleNativeEvent({ type: "action", key: "x", act: name, mods: [] });
+		};
 
-		harness.handleInput("!");
-		expect(harness.editor.getText()).toBe("half typed!");
+		it("takes the keys; a draft in the composer would skip it, a click on the form takes them back", async () => {
+			const harness = makeHarness();
+			const pending = harness.controller.showFormDialog(html);
+			const dialog = harness.getFocused();
+			expect(dialog).toBeInstanceOf(HtmlFormDialog);
+			expect(harness.askContainer.children).toEqual([dialog!]);
+			expect(harness.editorContainer.children).toEqual([harness.editor]);
+			expect(harness.controller.composerAsk()).toBe("pending");
 
-		harness.handleInput("\x1b[B");
-		harness.handleInput("\x1b[B");
-		harness.handleInput(" ");
-		harness.handleInput("\t");
-		harness.handleInput("\r");
+			// A click into the composer, then a message: sending it would skip the ask.
+			harness.setFocus(harness.editor);
+			harness.editor.setText("use the managed one");
+			expect(harness.controller.composerAsk()).toBe("skip");
+			harness.editor.setText("/model");
+			expect(harness.controller.composerAsk()).toBe("pending");
 
-		expect(await pending).toEqual({ data: { db: "postgres" } });
-		expect(harness.editor.getText()).toBe("half typed!");
-		expect(harness.editorContainer.children).toEqual([harness.editor]);
-	});
+			// A click on the card takes the keys back.
+			act(dialog, "pick:0:1");
+			expect(harness.getFocused()).toBe(dialog);
+			act(dialog, "submit");
 
-	it("owns the composer for a form only while its draft guard holds the keyboard", async () => {
-		const harness = makeHarness();
-		harness.editor.setText("half typed");
-		const pending = harness.controller.showFormDialog(html);
-		const dialog = harness.getFocused();
-		const owns = () => harness.ctx.composerOwner?.component === dialog && harness.ctx.composerOwner.owns();
-		dialog!.render(80);
-		expect(owns()).toBe(true);
+			expect(await pending).toEqual({ data: { db: "postgres" } });
+			expect(harness.askContainer.children).toEqual([]);
+			expect(harness.getFocused()).toBe(harness.editor);
+			expect(harness.controller.composerAsk()).toBeUndefined();
+		});
 
-		harness.handleInput("\x1b[B");
-		expect(owns()).toBe(false);
+		it("leaves the keys with a draft the user is typing when the form lands; Shift+Tab's way takes them", async () => {
+			const harness = makeHarness();
+			harness.editor.setText("half typed");
+			const pending = harness.controller.showFormDialog(html);
+			expect(harness.getFocused()).toBe(harness.editor);
+			expect(harness.editorContainer.children).toEqual([harness.editor]);
+			expect(harness.controller.composerAsk()).toBe("skip");
+			expect(harness.controller.askHoldsKeys()).toBe(false);
+			harness.handleInput("!");
+			expect(harness.editor.getText()).toBe("half typed!");
+			expect(harness.controller.focusAsk()).toBe(true);
+			expect(harness.controller.askHoldsKeys()).toBe(true);
+			act(harness.getFocused(), "cancel");
+			expect(await pending).toBeUndefined();
+			expect(harness.editor.getText()).toBe("half typed!");
+		});
 
-		harness.handleInput("\x1b");
-		await pending;
-		expect(harness.ctx.composerOwner).toBeUndefined();
+		it("reports what was answered when a message closes the form", async () => {
+			const harness = makeHarness();
+			const abort = new AbortController();
+			const onAbandon = vi.fn();
+			const pending = harness.controller.showFormDialog(html, { signal: abort.signal, onAbandon });
+			act(harness.getFocused(), "pick:0:1");
+			abort.abort();
+
+			expect(await pending).toBeUndefined();
+			expect(onAbandon).toHaveBeenCalledWith({ data: { db: "postgres" }, notes: [] });
+			expect(harness.askContainer.children).toEqual([]);
+		});
 	});
 });
 
@@ -397,7 +475,7 @@ describe("ExtensionUiController editor UI", () => {
 		expect(harness.requestRender).toHaveBeenCalledTimes(1);
 	});
 
-	it("keeps a populated prompt visible and routes input to it until the draft is cleared", async () => {
+	it("shows an ask above a populated prompt, which keeps the keys until they move to the ask", async () => {
 		const harness = makeHarness();
 		harness.editor.setText("finish this wor");
 		const questions: ExtensionAskDialogQuestion[] = [
@@ -405,15 +483,15 @@ describe("ExtensionUiController editor UI", () => {
 		];
 
 		const pending = harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
+		const ask = harness.askContainer.children[0];
 		expect(ask).toBeInstanceOf(AskDialogComponent);
-		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
+		expect(harness.editorContainer.children).toEqual([harness.editor]);
 
-		ask?.handleInput?.("d");
+		harness.handleInput("d");
 		expect(harness.editor.getText()).toBe("finish this word");
 
-		harness.editor.setText("");
-		ask?.handleInput?.("\n");
+		harness.controller.focusAsk();
+		harness.handleInput("\n");
 		expect(await pending).toEqual({
 			kind: "submit",
 			results: [
@@ -429,171 +507,32 @@ describe("ExtensionUiController editor UI", () => {
 				},
 			],
 		});
-		expect(harness.editorContainer.children).toEqual([harness.editor]);
+		expect(harness.askContainer.children).toEqual([]);
+		expect(harness.editor.getText()).toBe("finish this word");
 	});
 
-	it("lets up/down take the ask from a populated prompt and restores the untouched draft", async () => {
+	it("gives the composer its place back and the ask the keys when a nested prompt closes", async () => {
 		const harness = makeHarness();
-		harness.editor.setText("half typed prompt");
-		const questions: ExtensionAskDialogQuestion[] = [
-			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
-		];
-
-		const pending = harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
-		expect(ask).toBeInstanceOf(AskDialogComponent);
-		ask?.render?.(80);
-		expect(harness.editor.focused).toBe(true);
-
-		// Down hands the keyboard to the ask without touching the draft; the next
-		// Down moves to "No", and typing/Enter now answer instead of editing.
-		ask?.handleInput?.("\x1b[B");
-		const rendered = stripVTControlCharacters(ask?.render?.(80).join("\n") ?? "");
-		expect(rendered).not.toContain("typing edits your prompt");
-		expect(harness.editor.focused).toBe(false);
-		ask?.handleInput?.("\x1b[B");
-		ask?.handleInput?.("\r");
-		expect(harness.editor.getText()).toBe("half typed prompt");
-		const result = await pending;
-		expect(result?.kind === "submit" ? result.results[0]?.selectedOptions : undefined).toEqual(["No"]);
-		expect(harness.editorContainer.children).toEqual([harness.editor]);
-		expect(harness.getFocused()).toBe(harness.editor);
-		expect(harness.editor.getText()).toBe("half typed prompt");
-	});
-
-	it("owns the composer for an ask only while its draft guard blocks, and releases it when it settles", async () => {
-		const harness = makeHarness();
-		harness.editor.setText("half typed prompt");
-		const questions: ExtensionAskDialogQuestion[] = [
-			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
-		];
-
-		const pending = harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
-		ask?.render?.(80);
-		expect(harness.ctx.composerOwner?.component).toBe(ask);
-		expect(harness.ctx.composerOwner?.owns()).toBe(true);
-
-		ask?.handleInput?.("\x1b[B");
-		expect(harness.ctx.composerOwner?.owns()).toBe(false);
-
-		ask?.handleInput?.("\r");
-		await pending;
-		expect(harness.ctx.composerOwner).toBeUndefined();
-	});
-
-	it("does not fire editor-slot shortcuts that would orphan the ask dialog (#6738)", () => {
-		const harness = makeHarness();
-		harness.editor.setText("draft in progress");
-		// Simulate an editor-slot shortcut like the Agent Hub binding, whose
-		// handler clears editorContainer and would strand the pending ask.
-		let hubOpened = false;
-		harness.editor.setCustomKeyHandler("ctrl+s", () => {
-			hubOpened = true;
-			harness.editorContainer.clear();
-		});
 		const questions: ExtensionAskDialogQuestion[] = [
 			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
 		];
 
 		harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
+		const ask = harness.askContainer.children[0];
 		expect(ask).toBeInstanceOf(AskDialogComponent);
 
-		// Ctrl+S reaches the draft editor while ask is open; the shortcut must be
-		// swallowed, the draft untouched, and the ask surface preserved.
-		ask?.handleInput?.("\x13");
-		expect(hubOpened).toBe(false);
-		expect(harness.editor.getText()).toBe("draft in progress");
-		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
-	});
-
-	it("exposes the draft editor cursor while it proxies input, and drops it once cleared (#6738)", () => {
-		const harness = makeHarness();
-		harness.editor.setText("finish this wor");
-		const questions: ExtensionAskDialogQuestion[] = [
-			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
-		];
-
-		harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
-		expect(ask).toBeInstanceOf(AskDialogComponent);
-
-		// The ask dialog holds TUI focus, but rendering it must mirror focus onto
-		// the draft editor so its insertion cursor is visible.
-		ask?.render?.(80);
-		expect(harness.editor.focused).toBe(true);
-
-		// Once the draft clears, the ask controls take over and the editor cursor
-		// must not linger.
-		harness.editor.setText("");
-		ask?.render?.(80);
-		expect(harness.editor.focused).toBe(false);
-	});
-
-	it("lets the clear action empty the draft and lift the ask guard (#6738)", () => {
-		const harness = makeHarness();
-		// Route Ctrl+C to the guard: keep app.clear on Ctrl+C but move the ask
-		// cancel key off it, so Ctrl+C reaches draft editing instead of cancelling.
-		setKeybindings(KeybindingsManager.inMemory({ "tui.select.cancel": "ctrl+g" }));
-		harness.editor.setActionKeys("app.clear", ["ctrl+c"]);
-		let cleared = 0;
-		// Mirror interactive wiring: app.clear (Ctrl+C) clears the draft.
-		harness.editor.onClear = () => {
-			cleared++;
-			harness.editor.setText("");
-		};
-		harness.editor.setText("half typed prompt");
-		const questions: ExtensionAskDialogQuestion[] = [
-			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
-		];
-
-		harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
-		expect(ask).toBeInstanceOf(AskDialogComponent);
-
-		// Ctrl+C is reserved by the base editor and never clears; the guard must
-		// dispatch the configured clear action so the "finish or clear" hint works.
-		ask?.handleInput?.("\x03");
-		expect(cleared).toBe(1);
-		expect(harness.editor.getText()).toBe("");
-
-		// With the draft gone the guard releases: the next key reaches the ask
-		// controls and submits the highlighted option.
-		ask?.handleInput?.("\n");
-		expect(harness.editorContainer.children).toEqual([harness.editor]);
-	});
-
-	it("remounts the draft editor when the ask surface is restored after a nested prompt (#6738)", async () => {
-		const harness = makeHarness();
-		harness.editor.setText("half typed prompt");
-		const questions: ExtensionAskDialogQuestion[] = [
-			{ id: "confirm", question: "Continue?", options: [{ label: "Yes" }, { label: "No" }] },
-		];
-
-		harness.controller.showAskDialog(questions);
-		const ask = harness.editorContainer.children[0];
-		expect(ask).toBeInstanceOf(AskDialogComponent);
-		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
-
-		// Draft submitted: the guard lifts and ask controls take input; open the
-		// note prompt, which swaps the container to the nested editor.
-		harness.editor.setText("");
-		ask?.handleInput?.("n");
+		// The note prompt takes the composer's place, the ask staying above it.
+		harness.handleInput("n");
 		const promptEditor = harness.editorContainer.children[0];
-		expect(promptEditor).not.toBe(ask);
+		expect(promptEditor).not.toBe(harness.editor);
+		expect(harness.askContainer.children).toEqual([ask!]);
 
-		// A failed async submission restores the draft while the nested prompt is
-		// open, re-blocking the guard.
-		harness.editor.setText("half typed prompt");
-
-		// Cancelling the nested prompt settles its awaited state before restoring
-		// the ask surface and remounting the guarded draft editor.
+		// Cancelling it settles its awaited state before restoring the composer.
 		promptEditor?.handleInput?.("\x1b");
 		await Promise.resolve();
-		expect(harness.editorContainer.children).toEqual([ask, harness.editor]);
-		ask?.handleInput?.("!");
-		expect(harness.editor.getText()).toBe("half typed prompt!");
+		await Promise.resolve();
+		expect(harness.editorContainer.children).toEqual([harness.editor]);
+		expect(harness.getFocused()).toBe(ask);
 	});
 
 	it("bridges addAutocompleteProvider factories to the interactive mode context (#4919)", async () => {
@@ -697,7 +636,7 @@ describe("ExtensionUiController tool approval", () => {
 		const now = vi.spyOn(performance, "now").mockReturnValue(1_000);
 		try {
 			const harness = makeHarness();
-			const pending = harness.controller.showApproval({
+			const pending = harness.controller.showCollabAwareApproval({
 				...prompt,
 				session: "Approve bash for this session",
 			});
@@ -719,7 +658,7 @@ describe("ExtensionUiController tool approval", () => {
 	it("owns the composer for image pastes while mounted and releases it when it settles", async () => {
 		const harness = makeHarness();
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const pending = harness.controller.showApproval(prompt);
+		const pending = harness.controller.showCollabAwareApproval(prompt);
 		const [dialog] = harness.editorContainer.children;
 		expect(harness.ctx.composerOwner?.component).toBe(dialog);
 		expect(harness.ctx.composerOwner?.owns()).toBe(true);
@@ -736,7 +675,7 @@ describe("ExtensionUiController tool approval", () => {
 		// A steer queued before the prompt appeared does not answer it.
 		harness.queueSteer("earlier message");
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const pending = harness.controller.showApproval(prompt);
+		const pending = harness.controller.showCollabAwareApproval(prompt);
 		const [dialog] = harness.editorContainer.children;
 		expect(harness.editorContainer.children).toEqual([dialog, harness.editor]);
 		// An Enter as the prompt appears is ignored: the dialog stays up (settling unmounts it synchronously).
@@ -753,8 +692,8 @@ describe("ExtensionUiController tool approval", () => {
 	it("one steer denies every approval of the batch, including those queued behind the shown one", async () => {
 		const harness = makeHarness();
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const first = harness.controller.showApproval(prompt);
-		const second = harness.controller.showApproval({ ...prompt, full: "Allow tool: write" });
+		const first = harness.controller.showCollabAwareApproval(prompt);
+		const second = harness.controller.showCollabAwareApproval({ ...prompt, full: "Allow tool: write" });
 		for (const key of "stop") harness.handleInput(key);
 		harness.handleInput("\r");
 		expect(await first).toBe("deny");
@@ -765,15 +704,15 @@ describe("ExtensionUiController tool approval", () => {
 	it("a steer also denies approvals its batch requests later, until it is delivered", async () => {
 		const harness = makeHarness();
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const first = harness.controller.showApproval(prompt);
+		const first = harness.controller.showCollabAwareApproval(prompt);
 		for (const key of "stop") harness.handleInput(key);
 		harness.handleInput("\r");
 		expect(await first).toBe("deny");
 		// An exclusive call asks only after the denied one settled; the steer is still queued.
-		expect(await harness.controller.showApproval(prompt)).toBe("deny");
+		expect(await harness.controller.showCollabAwareApproval(prompt)).toBe("deny");
 		// Delivered at the batch boundary: the next turn's approvals ask again.
 		harness.deliverSteering();
-		void harness.controller.showApproval(prompt);
+		void harness.controller.showCollabAwareApproval(prompt);
 		expect(harness.editorContainer.children).toHaveLength(2);
 	});
 
@@ -781,7 +720,7 @@ describe("ExtensionUiController tool approval", () => {
 		const harness = makeHarness();
 		harness.queueSteer("earlier message");
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const pending = harness.controller.showApproval(prompt);
+		const pending = harness.controller.showCollabAwareApproval(prompt);
 		for (const key of "keep the build dir") harness.handleInput(key);
 		harness.handleInput("\r");
 		expect(await pending).toBe("deny");
@@ -795,14 +734,14 @@ describe("ExtensionUiController tool approval", () => {
 	it("an equal-looking steer queued after the denying one was delivered does not answer a new prompt", async () => {
 		const harness = makeHarness();
 		harness.editor.onSubmit = text => harness.queueSteer(text);
-		const first = harness.controller.showApproval(prompt);
+		const first = harness.controller.showCollabAwareApproval(prompt);
 		for (const key of "[Image]") harness.handleInput(key);
 		harness.handleInput("\r");
 		expect(await first).toBe("deny");
 		harness.deliverSteering();
 		// A later turn's steer with the same chip text predates the next prompt.
 		harness.queueSteer("[Image]");
-		void harness.controller.showApproval(prompt);
+		void harness.controller.showCollabAwareApproval(prompt);
 		expect(harness.editorContainer.children).toHaveLength(2);
 	});
 
@@ -813,7 +752,7 @@ describe("ExtensionUiController tool approval", () => {
 		const onPasteImagePath = vi.fn();
 		harness.editor.onPasteImage = onPasteImage;
 		harness.editor.onPasteImagePath = onPasteImagePath;
-		void harness.controller.showApproval(prompt);
+		void harness.controller.showCollabAwareApproval(prompt);
 		// Image-only clipboard paste: the terminal sends an empty bracketed paste.
 		harness.handleInput("\x1b[200~\x1b[201~");
 		expect(onPasteImage).toHaveBeenCalledTimes(1);
@@ -839,7 +778,7 @@ describe("ExtensionUiController tool approval", () => {
 		};
 		const onSubmit = vi.fn();
 		harness.editor.onSubmit = onSubmit;
-		void harness.controller.showApproval(prompt);
+		void harness.controller.showCollabAwareApproval(prompt);
 		harness.handleInput("\x1b[200~\x1b[201~");
 		// The composer is still empty, yet this Enter belongs to the paste, not to the empty-composer guard.
 		harness.handleInput("\r");
@@ -853,11 +792,111 @@ describe("ExtensionUiController tool approval", () => {
 	it("lets ctrl+o reveal a single-line detail the row clips, even when compact and full match", () => {
 		const harness = makeHarness();
 		const command = `Allow tool: bash\nCommand: echo ok && ${"x".repeat(120)} && rm -rf ~`;
-		void harness.controller.showApproval({ full: command, compact: command });
+		void harness.controller.showCollabAwareApproval({ full: command, compact: command });
 		const body = () =>
 			stripVTControlCharacters(harness.editorContainer.children[0]!.render(60).join("\n")).replace(/[│\s]+/g, "");
 		expect(body()).not.toContain("rm-rf~");
 		harness.handleInput("\x0f");
 		expect(body()).toContain("rm-rf~");
+	});
+});
+
+describe("ExtensionUiController OSC 7501 run status", () => {
+	const report = (body: string) => `\x1b]7501;${body}\x1b\\`;
+	const blocked = (kind: "permission" | "question", msg: string) =>
+		report(`state=blocked:kind=${kind}:app=zeta:msg=${Buffer.from(msg).toString("base64")}`);
+	let writes: string[] = [];
+	let prevHeadless = false;
+	let ttyDescriptor: PropertyDescriptor | undefined;
+
+	beforeEach(() => {
+		vi.spyOn(titleGenerator, "setTerminalTitleState").mockImplementation(() => {});
+		prevHeadless = setTerminalHeadless(false);
+		ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+		Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+		writes = [];
+		spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+			writes.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk as Uint8Array));
+			return true;
+		});
+		initProgramStatus();
+		setProgramStatusEnabled(true);
+		setRunStatus({ state: "working" });
+		writes.length = 0;
+	});
+
+	afterEach(() => {
+		disposeProgramStatus();
+		vi.restoreAllMocks();
+		if (ttyDescriptor) Object.defineProperty(process.stdout, "isTTY", ttyDescriptor);
+		else Reflect.deleteProperty(process.stdout, "isTTY");
+		setTerminalHeadless(prevHeadless);
+	});
+
+	it("reports a hook confirm as blocked on permission until answered, also across a settled run", async () => {
+		const harness = makeHarness();
+		const ui = await harness.init();
+
+		const answer = ui.confirm("Run terraform apply?", "This changes production.");
+		expect(writes).toEqual([blocked("permission", "Run terraform apply? This changes production.")]);
+
+		// The run settles while the dialog still waits: the dialog keeps the record.
+		setRunStatus({ state: "done" });
+		expect(writes).toHaveLength(1);
+
+		harness.handleInput("\r");
+		expect(await answer).toBe(true);
+		expect(writes.slice(1)).toEqual([report("state=done:app=zeta")]);
+	});
+
+	it("hands the record to the next queued dialog without reporting completion between prompts", async () => {
+		const harness = makeHarness();
+		const ui = await harness.init();
+		const first = ui.confirm("Approve deployment?", "terraform apply");
+		const second = ui.input("Deployment reason?");
+		setRunStatus({ state: "done" });
+
+		harness.handleInput("\r");
+		expect(await first).toBe(true);
+		expect(writes).toEqual([
+			blocked("permission", "Approve deployment? terraform apply"),
+			blocked("question", "Deployment reason?"),
+		]);
+
+		harness.handleInput("\x1b");
+		expect(await second).toBeUndefined();
+		expect(writes.at(-1)).toBe(report("state=done:app=zeta"));
+	});
+
+	it("reports a tool approval as blocked on permission and releases it when the call aborts", async () => {
+		const harness = makeHarness();
+		const ui = await harness.init();
+		const abort = new AbortController();
+
+		const answer = ui.approve!(
+			{ full: "Allow tool: bash\nCommand: gh pr merge", compact: "Allow tool: bash\nCommand: gh pr merge" },
+			{ signal: abort.signal },
+		);
+		expect(writes).toEqual([blocked("permission", "Allow tool: bash Command: gh pr merge")]);
+
+		abort.abort();
+		expect(await answer).toBe("deny");
+		expect(writes.slice(1)).toEqual([report("state=working:app=zeta")]);
+	});
+
+	it("reports a selector that asks for a permission (a cfg:// change) as blocked on permission", async () => {
+		const harness = makeHarness();
+		await harness.init();
+
+		const answer = harness.controller.showCollabAwareSelector(
+			"Your agent wants to change tui.theme",
+			["Approve", "Deny"],
+			undefined,
+			{ kind: "permission" },
+		);
+		expect(writes).toEqual([blocked("permission", "Your agent wants to change tui.theme")]);
+
+		harness.handleInput("\x1b");
+		expect(await answer).toBeUndefined();
 	});
 });

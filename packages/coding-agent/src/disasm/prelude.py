@@ -1,6 +1,6 @@
 def _make_dsm():
     async def _call(action, parameters=None):
-        response = await _zeta_prelude(
+        response = await _omp_prelude(
             "dsm",
             {
                 **{key: value for key, value in (parameters or {}).items() if value is not None},

@@ -8,7 +8,7 @@
 import { logger } from "@linxiraos/pi-utils";
 import { throwIfAborted } from "../tools/tool-errors";
 import { type DaemonBrokerClient, DaemonBrokerRejectedError } from "./client";
-import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import type { DaemonSnapshot } from "./protocol";
 
 const DEFAULT_READY_TIMEOUT_MS = 30_000;
 const STOP_TIMEOUT_MS = 5_000;

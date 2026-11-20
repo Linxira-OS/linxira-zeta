@@ -101,6 +101,8 @@ import { CompactionAgent } from "./compaction/agent";
 import { fidelityCounts, readCompactionFidelity, type FidelityTracking } from "./compaction/fidelity";
 import { CompactionService, type CompactionCommitListener, type CompactionPass } from "./compaction/service";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
+import type { CacheBridgeEstimate, CacheBridgeOutcome } from "./cache-warmer";
+import type { HandoffGenerationOptions } from "./session-handoff";
 import { findCompactMode } from "./compact-modes";
 import {
 	type CompactionMethod,
@@ -359,6 +361,22 @@ const SNAPCOMPACT_POST_COMPACTION_TARGET = 0.6;
  *  occupancy stays under this ceiling (≥10% headroom) and reported usage stays within the window (#9235). */
 const PAYLOAD_REJECTION_OCCUPANCY_CEILING = 0.9;
 
+/** Index of the newest assistant message with an unanswered tool call, or -1. */
+function findPendingToolCall<T>(items: readonly T[], messageOf: (item: T) => AgentMessage | undefined): number {
+	const answered = new Set<string>();
+	for (let index = items.length - 1; index >= 0; index--) {
+		const message = messageOf(items[index]);
+		if (message?.role === "toolResult") answered.add(message.toolCallId);
+		else if (message?.role === "assistant") {
+			return message.content.some(block => block.type === "toolCall" && !answered.has(block.id)) ? index : -1;
+		}
+	}
+	return -1;
+}
+
+/** Summary output a bridge compaction is priced at (measured remote summaries run ~3–5k tokens). */
+const BRIDGE_SUMMARY_TOKENS = 5_000;
+
 /** A speculation-produced compaction result, ready to commit at threshold. */
 interface ArmedSpeculation {
 	/** Pass that produced this summary; the applying auto pass reports it as `sourcePassId`. */
@@ -386,6 +404,9 @@ type CompactionProjectionArgs = {
 
 /** One background speculative-compaction run and (once resolved) its armed result. */
 interface SpeculationRun {
+	method: ArmedSpeculation["method"];
+	bridge: boolean;
+	accepted: boolean;
 	/** Progress pass for this background attempt (no commit: the applying pass commits). */
 	passId?: string;
 	pass?: CompactionPass;
@@ -529,7 +550,7 @@ export interface SessionMaintenanceHost {
 	dropImages(): Promise<{ removed: number; tokensFreed: number }>;
 	generateHandoffDocument(
 		customInstructions?: string,
-		options?: SessionHandoffOptions,
+		options?: HandoffGenerationOptions,
 	): Promise<HandoffResult | undefined>;
 	removeAssistantMessageFromActiveContext(message: AssistantMessage): void;
 	dropPersistedAssistantTurn(message: AssistantMessage): Promise<string | undefined>;
@@ -740,7 +761,7 @@ export class SessionMaintenance {
 	#maybeQueueExperimentalNotesReminder(contextTokens: number, contextWindow: number): void {
 		if (!this.#usesExperimentalContextManagement()) return;
 		const settings = this.#compactionSettings;
-		if (!settings.enabled || this.isCompacting || this.#host.isGeneratingHandoff()) return;
+		if (!settings.enabled || this.isCompacting || this.#host.isGeneratingHandoff?.()) return;
 		const thresholdTokens = resolveThresholdTokens(contextWindow, settings);
 		if (contextTokens >= thresholdTokens) return;
 		if (thresholdTokens - contextTokens > resolveSpeculationLeadTokens(thresholdTokens)) return;
@@ -775,9 +796,15 @@ export class SessionMaintenance {
 		return run.armed ? "armed" : "running";
 	}
 
-	/** Completion of the current speculative pass, used to resume maintenance skipped during its handoff. */
-	get speculationCompletion(): Promise<void> | undefined {
-		return this.#speculation?.promise;
+	/** Completion of the speculative pass; a method filter selects only work still generating. */
+	speculationCompletion(method?: ArmedSpeculation["method"]): Promise<void> | undefined {
+		const run = this.#speculation;
+		return run && (!method || (run.method === method && !run.armed)) ? run.promise : undefined;
+	}
+
+	/** Whether a manual compaction is preparing or waiting to apply without blocking turns. */
+	get isBackgroundCompacting(): boolean {
+		return this.#compactionAbortController !== undefined && this.#manualCompactionCleanup === undefined;
 	}
 
 	/** Abort and discard any in-flight or armed speculative compaction. */
@@ -1131,7 +1158,7 @@ export class SessionMaintenance {
 
 		let reservedArtifact: { id?: string; path?: string } = {};
 		try {
-			reservedArtifact = await this.#host.sessionManager.allocateArtifactPath("shake");
+			reservedArtifact = await this.#host.sessionManager.allocateArtifactPath();
 		} catch {
 			if (opts.requireArtifact) throw new Error("shake could not save a recovery artifact");
 		}
@@ -1273,7 +1300,7 @@ export class SessionMaintenance {
 	/** Persist the shake artifact, using the session manager's in-memory fallback when needed. */
 	async #saveShakeArtifact(regions: ShakeRegion[]): Promise<string | undefined> {
 		try {
-			return await this.#host.sessionManager.saveArtifact(this.#shakeArtifactText(regions), "shake");
+			return await this.#host.sessionManager.saveArtifact(this.#shakeArtifactText(regions));
 		} catch {
 			return undefined;
 		}
@@ -2379,7 +2406,10 @@ export class SessionMaintenance {
 		const cleanup = Promise.withResolvers<void>();
 		this.#handoffCleanup = cleanup.promise;
 		try {
-			const result = await this.#host.generateHandoffDocument(customInstructions, options);
+			const result = await this.#host.generateHandoffDocument(customInstructions, {
+				...options,
+				model: this.#model!,
+			});
 			if (!result) return undefined;
 			const { summary, details } = handoffSummaryFromDocument(result.document, preparation);
 			await this.#commitCompactionEntry({
@@ -2420,7 +2450,7 @@ export class SessionMaintenance {
 			return;
 		}
 		if (!settings.enabled || settings.asyncEnabled === false || !hasConfiguredCompactionMethod(settings)) return;
-		if (this.isCompacting || this.#host.isGeneratingHandoff()) return;
+		if (this.isCompacting || this.#host.isGeneratingHandoff?.()) return;
 		// Extensions that intercept compaction (cancel/replace) keep exact
 		// blocking semantics; a speculated result would bypass their veto.
 		if (this.#host.extensionRunner?.hasHandlers("session_before_compact")) return;
@@ -2452,9 +2482,16 @@ export class SessionMaintenance {
 	}
 
 	/** Install and launch one background speculation run for `method`. */
-	#startSpeculationRun(contextTokens: number, method: "remote" | "handoff" | "soft"): void {
+	#startSpeculationRun(contextTokens: number, method: "remote" | "handoff" | "soft", bridge = false): SpeculationRun {
 		const controller = new AbortController();
-		const run: SpeculationRun = { controller, promise: Promise.resolve(), contextTokensAtStart: contextTokens };
+		const run: SpeculationRun = {
+			method,
+			controller,
+			promise: Promise.resolve(),
+			contextTokensAtStart: contextTokens,
+			bridge,
+			accepted: false,
+		};
 		const model = this.#model;
 		// Keyed now: the session can switch before the run settles.
 		const nativeKey = model && this.#nativeSpeculationKey(model);
@@ -2483,6 +2520,54 @@ export class SessionMaintenance {
 				this.#failedNativeSpeculation = nativeKey;
 			}
 		});
+		return run;
+	}
+
+	#bridgeMethod(): "remote" | "handoff" | undefined {
+		if (this.#host.isDisposed() || this.#usesExperimentalContextManagement()) return undefined;
+		const settings = this.#compactionSettings;
+		if (!settings.enabled || settings.asyncEnabled === false || settings.midTurnEnabled === false) return undefined;
+		if (this.isCompacting || this.isBackgroundCompacting) return undefined;
+		if (this.#host.extensionRunner?.hasHandlers("session_before_compact")) return undefined;
+		const model = this.#model;
+		if (!model) return undefined;
+		const methodOrder = resolveCompactionMethodOrder(settings.methodOrder).filter(method => method !== "soft");
+		const method = resolveSpeculationMethod(
+			model,
+			{ ...settings, methodOrder },
+			{ skipRemote: this.#nativeSpeculationFailed(model) },
+		);
+		return method === "soft" ? undefined : method;
+	}
+
+	/** Cost inputs for bridging a prompt with compaction, or undefined when no bridge-capable method can run. */
+	bridgeCompactionEstimate(promptTokens: number): CacheBridgeEstimate | undefined {
+		if (!this.#bridgeMethod()) return undefined;
+		const latest = getLatestCompactionEntry(this.#host.sessionManager.getBranch());
+		const keptTokens = latest?.tokensAfter ?? this.#compactionSettings.keepRecentTokens + BRIDGE_SUMMARY_TOKENS;
+		return { summaryTokens: BRIDGE_SUMMARY_TOKENS, keptTokens: Math.min(keptTokens, promptTokens) };
+	}
+
+	/** Compact the history behind a pending tool call in the background; the armed result commits at the next boundary. */
+	startBridgeCompaction(): Promise<CacheBridgeOutcome> {
+		const method = this.#bridgeMethod();
+		if (!method) return Promise.resolve("failed-unaccepted");
+		let run = this.#speculation;
+		if (run && run.method !== "soft") {
+			run.bridge = true;
+		} else {
+			this.cancelSpeculation();
+			const lastAssistant = this.#host.findLastAssistantMessage();
+			const contextTokens = compactionContextTokens(
+				lastAssistant ? calculateContextTokens(lastAssistant.usage) : 0,
+				this.#estimateStoredContextTokens(),
+			);
+			run = this.#startSpeculationRun(contextTokens, method, true);
+		}
+		const bridged = run;
+		return bridged.promise.then(() =>
+			bridged.armed ? "armed" : bridged.accepted ? "failed-accepted" : "failed-unaccepted",
+		);
 	}
 
 	/** Identity of `model`'s native speculation in the current session. */
@@ -2518,7 +2603,7 @@ export class SessionMaintenance {
 		if (this.#usesExperimentalContextManagement()) return false;
 		if (!settings.enabled || settings.asyncEnabled === false || !hasConfiguredCompactionMethod(settings))
 			return false;
-		if (this.isCompacting || this.#host.isGeneratingHandoff()) return false;
+		if (this.isCompacting || this.#host.isGeneratingHandoff?.()) return false;
 		if (this.#host.extensionRunner?.hasHandlers("session_before_compact")) return false;
 		const model = this.#model;
 		if (!model) return false;
@@ -2560,7 +2645,12 @@ export class SessionMaintenance {
 		if (!model) return clear();
 		const settings = this.#compactionSettings;
 		const effectiveSettings = resolveMethodSettings(settings, method);
-		const branch = this.#host.sessionManager.getBranch();
+		const fullBranch = this.#host.sessionManager.getBranch();
+		// A bridge summarizes the prefix before the pending tool call; the call and its result stay in the tail.
+		const pendingEntry = run.bridge
+			? findPendingToolCall(fullBranch, entry => (entry.type === "message" ? entry.message : undefined))
+			: -1;
+		const branch = pendingEntry < 0 ? fullBranch : fullBranch.slice(0, pendingEntry);
 		const snapshotLeafId = branch[branch.length - 1]?.id;
 		if (!snapshotLeafId) return clear();
 		const preparation = prepareCompaction(branch, effectiveSettings, model, this.#tokenizer);
@@ -2576,11 +2666,19 @@ export class SessionMaintenance {
 		run.pass = pass;
 		await pass.enter("summarize", { tokensBefore: preparation.tokensBefore });
 		const signal = run.controller.signal;
+		const onAttempt = (message: AssistantMessage) => {
+			if (message.usage.totalTokens > 0) run.accepted = true;
+		};
 		let armed: ArmedSpeculation;
 		if (method === "handoff") {
+			const liveMessages = this.#host.agent.state.messages;
+			const pendingMessage = run.bridge ? findPendingToolCall(liveMessages, message => message) : -1;
 			const generated = await this.#host.generateHandoffDocument(AUTO_HANDOFF_THRESHOLD_FOCUS, {
 				autoTriggered: true,
 				signal,
+				model: this.#model!,
+				onAttempt,
+				...(pendingMessage < 0 ? {} : { messages: liveMessages.slice(0, pendingMessage) }),
 			});
 			if (!generated) {
 				await pass.settle("failed", { errorMessage: "handoff document was not generated" });
@@ -2858,7 +2956,7 @@ export class SessionMaintenance {
 		// Project-tracking mirror of the committed summary. Awaited so the file
 		// exists once the commit resolves; the host call swallows its own errors,
 		// so a tracking failure can never fail the compaction.
-		if (savedCompactionEntry) await this.#host.recordTrackingCompaction(savedCompactionEntry);
+		if (savedCompactionEntry) await this.#host.recordTrackingCompaction?.(savedCompactionEntry);
 		if (savedCompactionEntry) {
 			// Stable consumer hook: exactly once per appended entry, after the entry and
 			// the tracking mirror are durable, before `session_compact` fans out.
@@ -3077,7 +3175,7 @@ export class SessionMaintenance {
 			signal?.aborted ||
 			this.#host.isDisposed() ||
 			this.isCompacting ||
-			this.#host.isGeneratingHandoff() ||
+			this.#host.isGeneratingHandoff?.() ||
 			!context?.willContinue
 		)
 			return;
@@ -3139,6 +3237,33 @@ export class SessionMaintenance {
 		const billedContextTokens = calculateContextTokens(lastAssistant.usage);
 		const storedContextTokens = this.#estimateStoredContextTokens();
 		const contextTokens = compactionContextTokens(billedContextTokens, storedContextTokens);
+		// A bridge compaction replaced the long tool call's prompt-cache entry: its result lands here,
+		// whatever the threshold says. A run still summarizing leaves this turn on the old, warm context.
+		if (this.#speculation?.bridge && this.#speculation.armed) {
+			const bridged = this.#claimArmedSpeculation(contextTokens);
+			if (bridged) {
+				if (!(await this.#host.persistTurnMessagesForMidRunCompaction(context))) return;
+				if (signal?.aborted || this.#host.isDisposed()) return;
+				await this.runAutoCompaction("threshold", false, {
+					autoContinue: false,
+					suppressContinuation: true,
+					triggerContextTokens: contextTokens,
+					phase: "mid_turn",
+					detachPostCommit: true,
+				});
+				if (signal?.aborted) return;
+				const compactedMessages = this.#host.agent.state.messages;
+				if (compactedMessages !== activeMessages) {
+					activeMessages.splice(0, activeMessages.length, ...compactedMessages);
+					invalidateConvertToLlmArrayCache(activeMessages);
+				}
+				logger.debug("Bridge compaction committed between provider calls", {
+					method: bridged.method,
+					contextTokens,
+				});
+				return;
+			}
+		}
 		const persistedDeadEnd = this.#midTurnCompactionDeadEnds.has(activeMessages);
 		if (persistedDeadEnd) {
 			if (!(await this.#host.persistTurnMessagesForMidRunCompaction(context))) return;
@@ -5840,6 +5965,7 @@ export class SessionMaintenance {
 				handoffDocument = await this.#host.generateHandoffDocument(AUTO_HANDOFF_THRESHOLD_FOCUS, {
 					autoTriggered: true,
 					signal: autoCompactionSignal,
+					model: this.#model!,
 				});
 				if (autoCompactionSignal.aborted) {
 					await this.#emitLifecycleEvent(

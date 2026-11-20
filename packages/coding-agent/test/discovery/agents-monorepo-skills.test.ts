@@ -97,7 +97,7 @@ describe("agents provider project-level discovery", () => {
 		});
 
 		test("project walk-up skips home directory (no repo root)", async () => {
-			// Regression for https://github.com/can1357/oh-my-pi/issues/1116:
+			// Regression for https://github.com/Linxira-OS/linxira-zeta/issues/1116:
 			// when cwd is under $HOME and no closer repoRoot exists, the walk-up
 			// must NOT enumerate `~/.agent[s]/` as project paths — those belong
 			// to the user level and getUserPathCandidates already covers them.

@@ -59,7 +59,7 @@ Key integration points:
 
 User-level bases:
 
-- Zeta native: the active agent directory, `getAgentDir()` (normally `~/.zeta/agent`; `PI_CONFIG_DIR`, a named profile, or the default-profile `ZETA_CODING_AGENT_DIR` changes it as described below)
+- Zeta native: the active agent directory, `getAgentDir()` (normally `~/.zeta/agent`; `ZETA_CONFIG_DIR`, a named profile, or the default-profile `ZETA_CODING_AGENT_DIR` changes it as described below)
 - Claude's active config directory (`~/.claude` by default; `CLAUDE_CONFIG_DIR` overrides it)
 - `~/.codex`
 - `~/.gemini`
@@ -71,7 +71,7 @@ Project-level bases:
 - `<cwd>/.codex`
 - `<cwd>/.gemini`
 
-`CONFIG_DIR_NAME` is `.zeta` (`packages/utils/src/dirs.ts`). `PI_CONFIG_DIR` changes the Zeta user root used by the generic helpers. In the default profile, `ZETA_CODING_AGENT_DIR` replaces the whole agent directory, so it relocates the generic `getConfigDirs()` / `findConfigFile()` Zeta user base along with native discovery, settings, and runtime state. Project bases stay `<cwd>/.omp`. Named profiles ignore `ZETA_CODING_AGENT_DIR`.
+`CONFIG_DIR_NAME` is `.zeta` (`packages/utils/src/dirs.ts`). `ZETA_CONFIG_DIR` changes the Zeta user root used by the generic helpers. In the default profile, `ZETA_CODING_AGENT_DIR` replaces the whole agent directory, so it relocates the generic `getConfigDirs()` / `findConfigFile()` Zeta user base along with native discovery, settings, and runtime state. Project bases stay `<cwd>/.omp`. Named profiles ignore `ZETA_CODING_AGENT_DIR`.
 
 ## Profiles
 
@@ -81,7 +81,7 @@ While a named profile is active, the status line's `pi` segment tags the brand w
 
 The relocation is uniform across the native provider (`builtin.ts`) and the generic `config.ts` helpers, so it covers slash commands, rules, prompts, instructions, hooks, tools, extensions, settings, skills, and MCP, plus the top-level `SYSTEM.md` / `RULES.md` / `AGENTS.md` files and runtime state (sessions, blobs, `agent.db`). A profile sees only its own Zeta config, never the default profile's agent config.
 
-Keybindings are the one exception: a named profile merges the default profile's `~/.zeta/agent/keybindings.*` under its own `~/.zeta/profiles/<name>/agent/keybindings.*`, with the profile file overriding per binding ([#4867](https://github.com/can1357/oh-my-pi/issues/4867)). Keybindings describe the terminal/keyboard in front of the user, which doesn't change with the active profile, so user-level remaps keep working in every profile unless the profile explicitly overrides them. The inherited file is read-only for the profile process — legacy-format migration of the default profile's file only happens when the default profile itself runs.
+Keybindings are the one exception: a named profile merges the default profile's `~/.zeta/agent/keybindings.*` under its own `~/.zeta/profiles/<name>/agent/keybindings.*`, with the profile file overriding per binding ([#4867](https://github.com/Linxira-OS/linxira-zeta/issues/4867)). Keybindings describe the terminal/keyboard in front of the user, which doesn't change with the active profile, so user-level remaps keep working in every profile unless the profile explicitly overrides them. The inherited file is read-only for the profile process — legacy-format migration of the default profile's file only happens when the default profile itself runs.
 
 On macOS and Linux, an existing `$XDG_DATA_HOME/zetacode`, `$XDG_STATE_HOME/zetacode`, or `$XDG_CACHE_HOME/zetacode` can relocate the corresponding data, state, or cache paths. For a named profile, Zeta uses an XDG category only when that category already contains `zetacode/profiles/<name>`; otherwise that category remains under `~/.zeta/profiles/<name>`. Run `zetacode config init-xdg` before relying on XDG paths.
 

@@ -7,10 +7,10 @@ import type { Message, UserMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import * as daemonClient from "@linxiraos/zeta/daemon/client";
+import type { DaemonClient } from "@linxiraos/zeta/daemon/protocol";
 import { applyToolProxy } from "@linxiraos/zeta/extensibility/tool-proxy";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import * as daemonClient from "@linxiraos/zeta/launch/client";
-import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -143,8 +143,10 @@ describe("agent-loop wait wake delivery", () => {
 					throw new Error("Daemon broker request aborted");
 				},
 				onCompletion: () => () => {},
-			} as unknown as DaemonBrokerClient;
-			vi.spyOn(daemonClient, "daemonClientForProject").mockResolvedValue(broker);
+				onNotify: () => () => {},
+				onReconnect: () => () => {},
+			} as unknown as DaemonClient;
+			vi.spyOn(daemonClient, "daemonClient").mockResolvedValue(broker);
 		}
 		const schema = type({});
 		const barrier: AgentTool<typeof schema> = {

@@ -18,7 +18,6 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { ToolSession } from "../tools";
 import { TIER_RANK } from "../tools/approval";
 import { AgentProtocolHandler } from "./agent-protocol";
-import { ArtifactProtocolHandler } from "./artifact-protocol";
 import { AttachmentProtocolHandler } from "./attachment-protocol";
 import { CfgProtocolHandler } from "./cfg-protocol";
 import { ConflictProtocolHandler } from "./conflict-protocol";
@@ -115,7 +114,6 @@ export class InternalUrlRouter {
 		this.register(new OutProtocolHandler());
 		this.register(new AgentProtocolHandler());
 		this.register(new HistoryProtocolHandler());
-		this.register(new ArtifactProtocolHandler());
 		this.register(new LocalProtocolHandler());
 		this.register(new ProcProtocolHandler());
 		this.register(new CfgProtocolHandler());
@@ -322,8 +320,8 @@ export class InternalUrlRouter {
 
 	/**
 	 * locate or throw ToolError. A locatable, immutable, non-remote scheme resolves from session-local
-	 * stores, so its resolve error diagnoses the miss (`Cannot find artifact://9: Artifact 9 not found.
-	 * Available: …`); otherwise `Cannot ${action} ${scheme}:// URL: no local file backs ${input}`
+	 * stores, so its resolve error diagnoses the miss (`Cannot find agent://x: Not found: x`);
+	 * otherwise `Cannot ${action} ${scheme}:// URL: no local file backs ${input}`
 	 * (+ a `read` hint for remote/virtual schemes).
 	 */
 	async requireLocal(
@@ -504,7 +502,7 @@ export class InternalUrlRouter {
 	}
 
 	/** Resolve an internal URL through its registered protocol handler. */
-	async resolve(input: string, context?: ResolveContext): Promise<InternalResource> {
+	async resolve(input: string, context?: ResolveContext): Promise<InternalResource<string | Buffer>> {
 		const { parsed, handler } = this.#route(input, true);
 		const resource = await handler.resolve(parsed, context);
 		return { ...resource, immutable: resource.immutable ?? handler.spec.immutable };

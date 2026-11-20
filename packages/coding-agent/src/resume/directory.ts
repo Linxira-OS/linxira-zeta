@@ -483,7 +483,7 @@ export function filterHiddenResumeDirectory(directory: ResumeDirectory, showHidd
  */
 export async function loadResumeDirectory(options: LoadResumeDirectoryOptions = {}): Promise<ResumeDirectory> {
 	const [sessions, pinnedIds, preferences, hiddenIds] = await Promise.all([
-		options.sessions ?? (await SessionManager.listAllForPicker(options.storage, options.sessionsRoot)).sessions,
+		options.sessions ?? (await SessionManager.listAllForPicker(options.storage)).sessions,
 		options.pinnedIds ?? loadPinnedSessionIds(options.agentDir),
 		options.preferences ?? loadResumePreferences(options.agentDir, options.preferencesOptions),
 		options.hiddenIds ?? loadHiddenSessionIds(options.agentDir),

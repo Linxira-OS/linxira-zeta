@@ -1,43 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-
-### Breaking Changes
-
-- `TtyWriter` now requires a drain threshold and callback and only supports independently reopenable TTYs. Its pending UTF-8 byte bounds are reported conservatively.
-- Changed lsTree() to return { path, mode } entries instead of bare paths; mode matches git ls-tree output (for example, 100755 or 120000).
-
-### Added
-
-- Added the `PhononTts` binding for on-device Phonon text-to-speech.
-- Added `Shell.adopt(fork)` to apply variables, functions, aliases, options, and traps from a completed fork back to its parent shell. When both shells set a name, the value from the command that finished last is retained.
-- Added noVerify to commitCreate() options to skip the pre-commit and commit-msg hooks, matching git commit --no-verify.
-- Added optimistic concurrency and alternate-index support to commitCreate(), allowing commits to use a separate index and reject stale commits when HEAD has changed.
-- Improved grep() and glob() performance for ovnfs checkouts by using the serving daemon when available while preserving native fallback behavior and existing streaming, filtering, and link-following options.
-
-### Changed
-
-- Large terminal repaints are handled more efficiently, reducing JavaScript-thread work and releasing oversized buffers after output drains.
-- Improved shell search across local and network filesystems: local searches avoid unexpectedly traversing network mounts, network-backed searches perform more directory operations concurrently, and fd supports parallel traversal together with ignore, pruning, depth, worker, and error-reporting options.
-
-### Fixed
-
-- Fixed Bazel host builds of the Linux addon with GNU linkers. Shipping Zig builds keep the single N-API export.
-- On Unix, external commands now honor explicit nonstandard descriptor closures even when the host has an inheritable descriptor at the same number.
-- Fixed stalled terminal writers continuing to emit output or leaking file descriptors after shutdown.
-- Fixed terminal output preserving Unicode across chunk boundaries and safely replacing malformed surrogate sequences.
-- Fixed concurrent `commitCreate()` calls incorrectly overwriting each other’s commit subject and body.
-- Committing or writing trees now correctly reports unresolved index conflicts instead of silently omitting conflicted files.
-- Fixed shell compatibility with GNU `grep` for end-of-line-anchored patterns, including `-o` and `-z` modes, and corrected `sed` substitutions on multibyte-character lines.
-- Fixed native diff and patch handling for filenames containing spaces and other characters requiring quoting, including binary changes.
-- Fixed binary patches produced by diffText({ binary: true }) and diffNoIndex(…, true) for non-UTF-8 text, such as Latin-1, so patches preserve the original bytes and apply correctly.
-- Fixed SVG rendering when a generic font family refers to an unavailable font, preventing <text> elements from disappearing.
-- Fixed worktree add for source checkouts containing read-only files or directories, including cases where tracked directories are replaced by symlinks.
-- Fixed cancelled and timed-out Shell.run calls so they terminate only jobs started by that invocation while preserving the shell session for later runs.
-- Reduced memory usage when visualizing long multi-line shell commands.
-- Fixed the shell cp builtin so symlink-following options work correctly with archive and directory-copy modes without disabling recursion or attribute preservation.
-- Replaced built-in shell crashes on very long -a/-o chains in [ ] and test expressions with a clear error for excessively deep expressions.
-
 ## [9.8.0] - 2026-02-01
 
 ### Breaking Changes
@@ -239,7 +202,7 @@
 - `menu.select()` and `menu.items()` on macOS, Linux and Windows now name the items a menu offers, escaping labels and marking disabled items and submenus, when a label in the path is not found; macOS waits for menu revalidation after activation before listing states ([#18923](https://github.com/can1357/oh-my-pi/pull/18923) by [@will-bogusz](https://github.com/will-bogusz))
 - Fixed Linux `press()` refusing with "AT-SPI action 'press' is unavailable" on Chromium and Electron menu items, list options and tabs, and on page elements whose only action is `doDefault`: a press now takes their `select` or `doDefault` action, as it already took `click` and `activate` ([#18921](https://github.com/can1357/oh-my-pi/pull/18921) by [@will-bogusz](https://github.com/will-bogusz))
 - macOS input from a second omp process no longer refuses with `UserIntervened` after the first process takes over a click in the same app; hardware clicks still pause input in that app ([#18896](https://github.com/can1357/oh-my-pi/pull/18896) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed `omp worktree add` — and the bash tool's `git worktree add` rewrite — exiting 1 with `git: 'hook' is not a git command` on Git older than 2.36 (such as Git 2.34 on Ubuntu 22.04) after the worktree had already been created ([#18935](https://github.com/can1357/oh-my-pi/pull/18935) by [@Bensonluo](https://github.com/Bensonluo))
+- Fixed `zetacode worktree add` — and the bash tool's `git worktree add` rewrite — exiting 1 with `git: 'hook' is not a git command` on Git older than 2.36 (such as Git 2.34 on Ubuntu 22.04) after the worktree had already been created ([#18935](https://github.com/can1357/oh-my-pi/pull/18935) by [@Bensonluo](https://github.com/Bensonluo))
 
 ## [1.5.0] - 2026-11-09
 

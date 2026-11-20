@@ -18,10 +18,11 @@ import {
 	getDomain,
 	PREVIEW_LIMITS,
 	replaceTabs,
+	sanitizeDisplayLines,
+	TRUNCATE_LENGTHS,
 	truncateToWidth,
 	clipCollapsed,
 } from "../render/render-utils";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { renderStatusLine, renderTreeList, urlHyperlink } from "../render";
 import { framedToolCard } from "../render/tool-card";
 import { getSearchProviderLabel, type SearchResponse } from "./web-search-types";
@@ -32,6 +33,26 @@ import { plainText } from "../native/spans";
 import { errorText, noteText, resultText } from "./native-view";
 
 const MAX_COLLAPSED_ITEMS = PREVIEW_LIMITS.COLLAPSED_ITEMS;
+
+/** Most excerpt lines shown under a source when the provider returned no synthesized answer. */
+const EXCERPT_LINES = PREVIEW_LIMITS.COLLAPSED_LINES;
+
+/**
+ * A source's page excerpt as display lines: control characters and tabs removed,
+ * whitespace runs collapsed, lines without a letter or digit (blank lines, code
+ * fences, rules) dropped, capped at {@link EXCERPT_LINES}. Callers truncate to width.
+ */
+function excerptLines(snippet: unknown): string[] {
+	if (typeof snippet !== "string") return [];
+	const lines: string[] = [];
+	for (const raw of sanitizeDisplayLines(snippet)) {
+		const line = raw.replace(/\s+/g, " ").trim();
+		if (!/[\p{L}\p{N}]/u.test(line)) continue;
+		lines.push(line);
+		if (lines.length === EXCERPT_LINES) break;
+	}
+	return lines;
+}
 
 function renderFallbackText(contentText: string, expanded: boolean, theme: Theme): Component {
 	const lines = contentText.split("\n").filter(line => line.trim());
@@ -70,7 +91,7 @@ export interface SearchRenderDetails {
 /** Render a web search failure as a framed error panel, matching the success layout. */
 function renderSearchErrorPanel(message: string, providerLabel: string | undefined, theme: Theme): Component {
 	const header = renderStatusLine({ icon: "error", title: "Web Search", description: providerLabel }, theme);
-	const body = theme.fg("error", tuiTextFmt("wsErrorFmt", `Error: ${replaceTabs(message)}`, replaceTabs(message)));
+	const body = theme.fg("error", `Error: ${replaceTabs(message)}`);
 	return framedToolCard(theme, () => ({
 		header,
 		phase: "error",
@@ -111,9 +132,12 @@ export function renderSearchResult(
 		: [];
 	const provider = response.provider;
 
-	// Get answer text
+	// Without a synthesized answer the result text is the model-facing numbered listing of
+	// these same sources: show each source's excerpt under it instead of rendering that text.
 	const answerText = typeof response.answer === "string" ? response.answer.trim() : "";
-	const contentText = answerText || rawText;
+	const excerpts = answerText ? undefined : sources.map(src => excerptLines(src.snippet));
+	const fallbackLines =
+		!answerText && sourceCount === 0 ? sanitizeDisplayLines(rawText).filter(line => line.trim()) : [];
 
 	const providerLabel = provider !== "none" ? getSearchProviderLabel(provider) : "None";
 	const queryPreview = args?.query
@@ -128,19 +152,13 @@ export function renderSearchResult(
 					iconOverride: theme.styledSymbol("tool.webSearch", "accent"),
 					title: "Web Search",
 					description: providerLabel,
-					meta:
-						sourceCount === 1
-							? [tuiText("wsSourceOne", "1 source")]
-							: [tuiTextFmt("wsSourceManyFmt", "%d sources", sourceCount)],
+					meta: [formatCount("source", sourceCount)],
 				}
 			: {
 					icon: "warning",
 					title: "Web Search",
 					description: providerLabel,
-					meta:
-						sourceCount === 1
-							? [tuiText("wsSourceOne", "1 source")]
-							: [tuiTextFmt("wsSourceManyFmt", "%d sources", sourceCount)],
+					meta: [formatCount("source", sourceCount)],
 				},
 		theme,
 	);
@@ -160,7 +178,7 @@ export function renderSearchResult(
 			metaLines.push(`${theme.fg("muted", "Usage:")} ${theme.fg("text", usageParts.join(theme.sep.dot))}`);
 	}
 
-	const answerMarkdown = contentText ? new Markdown(contentText, 0, 0, getMarkdownTheme()) : undefined;
+	const answerMarkdown = answerText ? new Markdown(answerText, 0, 0, getMarkdownTheme()) : undefined;
 
 	return framedToolCard(theme, ({ width, contentWidth }) => {
 		// Read mutable state at render time
@@ -168,9 +186,21 @@ export function renderSearchResult(
 
 		// Answer lines: full markdown when expanded, capped markdown preview when collapsed.
 		const renderedAnswer = answerMarkdown ? answerMarkdown.render(contentWidth) : [];
-		let answerLines: readonly string[];
-		if (renderedAnswer.length === 0) {
-			answerLines = [theme.fg("muted", tuiText("wsNoAnswerText", "No answer text returned"))];
+		let answerLines: readonly string[] | undefined;
+		if (excerpts && sourceCount > 0) {
+			// No answer: the excerpts under each source stand in for it.
+			answerLines = undefined;
+		} else if (fallbackLines.length > 0) {
+			const shown = expanded ? fallbackLines : fallbackLines.slice(0, PREVIEW_LIMITS.OUTPUT_COLLAPSED);
+			answerLines = shown.map(line => theme.fg("dim", truncateToWidth(line, contentWidth)));
+			if (shown.length < fallbackLines.length) {
+				answerLines = [
+					...answerLines,
+					theme.fg("muted", formatMoreItems(fallbackLines.length - shown.length, "line")),
+				];
+			}
+		} else if (renderedAnswer.length === 0) {
+			answerLines = [theme.fg("muted", "No answer text returned")];
 		} else if (args?.maxAnswerLines !== undefined && !expanded) {
 			// CLI compact mode (`zetacode q`) caps the answer; the TUI passes no cap and shows it in full.
 			// `renderedAnswer` is the Markdown component's shared cache — slice copies before appending.
@@ -190,7 +220,7 @@ export function renderSearchResult(
 				expanded,
 				maxCollapsed: MAX_COLLAPSED_ITEMS,
 				itemType: "source",
-				renderItem: src => {
+				renderItem: (src, { index }) => {
 					const titleText =
 						typeof src.title === "string" && src.title.trim()
 							? src.title
@@ -212,7 +242,12 @@ export function renderSearchResult(
 					const titleBudget = Math.max(12, lineBudget - Bun.stringWidth(metaSuffix));
 					const title = theme.fg("accent", truncateToWidth(titleText, titleBudget));
 					const linkedTitle = url ? urlHyperlink(url, title) : title;
-					return [`${linkedTitle}${metaSuffix}`];
+					const excerpt = excerpts?.[index] ?? [];
+					const excerptShown = expanded ? excerpt : excerpt.slice(0, 1);
+					return [
+						`${linkedTitle}${metaSuffix}`,
+						...excerptShown.map(line => theme.fg("dim", truncateToWidth(line, lineBudget))),
+					];
 				},
 			},
 			theme,
@@ -229,16 +264,10 @@ export function renderSearchResult(
 							},
 						]
 					: []),
-				{
-					label: theme.fg("toolTitle", "Answer"),
-					content: answerLines,
-				},
+				...(answerLines ? [{ label: theme.fg("toolTitle", "Answer"), content: answerLines }] : []),
 				{
 					label: theme.fg("toolTitle", "Sources"),
-					content:
-						sourceTree.length > 0
-							? sourceTree
-							: [theme.fg("muted", tuiText("wsNoSourcesReturned", "No sources returned"))],
+					content: sourceTree.length > 0 ? sourceTree : [theme.fg("muted", "No sources returned")],
 				},
 				{ label: theme.fg("toolTitle", "Metadata"), content: metaLines },
 			],
@@ -293,6 +322,23 @@ function sourceRow(src: SearchResponse["sources"][number], index: number): Nativ
 	);
 }
 
+/**
+ * One result of an answerless search: its {@link sourceRow} over the cleaned page
+ * excerpt, standing in for the model-facing numbered listing of the same sources.
+ */
+function sourceResult(src: SearchResponse["sources"][number], index: number): NativeChild {
+	const excerpt = excerptLines(src.snippet).map(line => truncateToWidth(line, TRUNCATE_LENGTHS.LINE));
+	return node(
+		"col",
+		{ gap: "none", role: "zeta.tool.web.hit" },
+		compact([
+			sourceRow(src, index),
+			excerpt.length > 0 ? noteText(excerpt.join("\n"), "muted", EXCERPT_LINES) : undefined,
+		]),
+		`hit:${index}:${typeof src.url === "string" ? src.url : ""}`,
+	);
+}
+
 function describeSearchResult(
 	result: ToolRenderResult<SearchRenderDetails>,
 	args: SearchRenderArgs | undefined,
@@ -325,7 +371,7 @@ function describeSearchResult(
 		: [];
 	const providerLabel = response.provider !== "none" ? getSearchProviderLabel(response.provider) : "None";
 	const query = argQuery || searchQueries[0];
-	const answer = (typeof response.answer === "string" ? response.answer.trim() : "") || rawText;
+	const answer = typeof response.answer === "string" ? response.answer.trim() : "";
 
 	const authShort =
 		response.authMode === "oauth" ? "OAuth" : response.authMode === "api_key" ? "API" : response.authMode;
@@ -343,12 +389,18 @@ function describeSearchResult(
 	return {
 		tool: searchHead(query, `${providerLabel} · ${formatCount("source", sources.length)}`, badge),
 		tone: sources.length > 0 ? undefined : "warning",
-		body: compact([
-			answer ? { ...md(plainText(answer), { title: tooltip }), key: "answer" } : noteText("No answer text returned"),
-			sources.length > 0
-				? node("col", { role: "zeta.tool.files" }, sources.map(sourceRow), "sources")
-				: noteText("No sources returned"),
-		]),
+		body: answer
+			? [
+					{ ...md(plainText(answer), { title: tooltip }), key: "answer" },
+					sources.length > 0
+						? node("col", { role: "zeta.tool.files" }, sources.map(sourceRow), "sources")
+						: noteText("No sources returned"),
+				]
+			: sources.length > 0
+				? // No synthesized answer: the result text is the model-facing numbered listing of these
+					// sources, so list each source once with its excerpt instead of rendering that text.
+					[node("col", { gap: "sm" }, sources.map(sourceResult), "results")]
+				: [noteText(rawText || "No answer text returned"), noteText("No sources returned")],
 	};
 }
 

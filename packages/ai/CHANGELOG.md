@@ -1,42 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-
-### Breaking Changes
-
-- Removed the public `isXdDevicePath` export from `providers/cursor-pi-args`. Ranged reads of `xd://` documents now use the standard line-selector behavior.
-
-### Added
-
-- Added automatic detection of thinking capabilities for previously unknown models, with persistent results and support for alternate effort and token-budget request formats.
-- Added the Antigravity CLI ACP provider with managed installation, Google sign-in, refreshable distributed credentials, host tools, and retained conversations across tool steps and history changes.
-- Added `setUnpausedProviders()` to `@linxiraos/pi-ai/oauth`, allowing applications to re-enable providers paused by authentication rules; loaded credential pools and extension logins recognize the change on their next read.
-
-### Changed
-
-- Updated Vertex AI Gemini requests to use the v1beta1 API, restoring support for long Gemini responses.
-- Improved Google Antigravity quota recovery so Gemini 4 Argon access can resume after quota or plan changes when shared Gemini capacity is available.
-- Improved Amazon Bedrock region selection to honor a configured regional endpoint before falling back to `us-east-1`.
-
-### Fixed
-
-- Fixed slow streaming of Gemma tool calls with large arguments.
-- Fixed rate-limit handling for Mistral and other OpenAI-compatible providers so requests with no available allowance fail immediately with an actionable error suggesting a model or plan change.
-- Fixed Anthropic OAuth requests for pooled Claude accounts to report accurate device and account information, including after credentials are rotated during a request.
-- Fixed Gemini 4 responses that exceed a single output segment across Google, Vertex AI, Gemini CLI, and Antigravity, ensuring long responses continue generating and are delivered as one complete reply.
-- Fixed Cursor conversations so hook-added prompt content remains in the current user message and conversation context is correctly preserved across turns.
-- Fixed Amazon Bedrock streaming so malformed responses fail promptly and interrupted responses are retried rather than treated as complete.
-- Fixed Claude account recovery when usage reports contain only one shared usage window.
-- Fixed OpenRouter conversations with Kimi and DeepSeek so reasoning context is preserved when switching models.
-- Fixed Xiaomi MiMo Token Plan authentication to use the correct regional endpoint, including for models loaded from bundled or cached configuration.
-- Fixed Perplexity sign-in in the login flow and setup wizard, including email-code and browser-based SSO authentication.
-- Stopped native judges from retrying gateway errors caused by exhausted upstream credentials while retaining retries for other transient 502 errors.
-- Fixed simple completion and authenticated gateway chat routes so supported providers receive stop-sequence and frequency-penalty settings.
-- Fixed Muse sessions after credential changes, key rotation, or idle resume so subsequent turns can continue normally.
-- Fixed sequential-cutoff reasoning summaries duplicating section headers across Codex reasoning items by tracking the cumulative summary response-globally, so replayed sections and replay-only items no longer re-emit text earlier thinking blocks already streamed.
-
-Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://github.com/can1357/oh-my-pi/blob/15b63dda377c99cead82ce07d5aac567f2b413b3/packages/ai/CHANGELOG.md).
-
 ## [1.5.2] - 2026-11-13
 
 ### Added
@@ -157,12 +121,12 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 - Fixed turns ending without automatic retry when a gateway forwards Go's `use of closed network connection` transport error; it now retries like other dropped connections ([#15385](https://github.com/can1357/oh-my-pi/issues/15385))
 - Fixed Codex SSE streams failing with an abort instead of retrying when the first event stalls ([#15542](https://github.com/can1357/oh-my-pi/issues/15542))
 - Fixed Codex (ChatGPT subscription) requests with reasoning disabled, such as judges, titles, commit messages, and thinking `off`, leaving effort to the server default; they now send the lowest supported effort, or `none` where the model accepts it ([#15514](https://github.com/can1357/oh-my-pi/issues/15514))
-- Fixed a Codex account whose token OpenAI rejects (401/403) continuing to show its last quota as healthy; `omp usage` now drops the stale report and `omp auth-gateway check` reports the credential as failing ([#15439](https://github.com/can1357/oh-my-pi/issues/15439))
+- Fixed a Codex account whose token OpenAI rejects (401/403) continuing to show its last quota as healthy; `zetacode usage` now drops the stale report and `zetacode auth-gateway check` reports the credential as failing ([#15439](https://github.com/can1357/oh-my-pi/issues/15439))
 - Fixed usage reports being served indefinitely while their provider keeps failing; the last successful report is now shown for at most 24 hours after it was fetched ([#15439](https://github.com/can1357/oh-my-pi/issues/15439))
 - Fixed Responses requests 400ing (DeepSeek: "The `reasoning_text` in the thinking mode must be passed back to the API") after a tool call whose arguments were invalid JSON: the call is now replayed with its parse diagnostic instead of being dropped and leaving a trailing `[Orphan tool result]` note ([#15568](https://github.com/can1357/oh-my-pi/issues/15568))
 - Fixed DeepSeek on OpenAI-compatible gateways leaving doubled-pipe DSML markup (`</｜｜DSML｜｜parameter>`) in assistant text and reasoning ([#15485](https://github.com/can1357/oh-my-pi/issues/15485))
 - Fixed sessions failing every request with `400 … thinking or redacted_thinking blocks in the latest assistant message cannot be modified` after a response fell back to another model mid-turn (e.g. through a gateway that opts into Anthropic server-side fallback); the turn now replays one model's reasoning, and a session already stuck on such a turn recovers by dropping that turn's reasoning and retrying ([#15654](https://github.com/can1357/oh-my-pi/pull/15654) by [@abilliontokens](https://github.com/abilliontokens))
-- Fixed `omp auth-gateway`'s Anthropic `/v1/messages` stream misnumbering content blocks after a redacted reasoning block, which misrouted every later delta in index-addressed clients ([#15654](https://github.com/can1357/oh-my-pi/pull/15654) by [@abilliontokens](https://github.com/abilliontokens))
+- Fixed `zetacode auth-gateway`'s Anthropic `/v1/messages` stream misnumbering content blocks after a redacted reasoning block, which misrouted every later delta in index-addressed clients ([#15654](https://github.com/can1357/oh-my-pi/pull/15654) by [@abilliontokens](https://github.com/abilliontokens))
 - Fixed error results from non-first-party providers regaining partial output the provider had discarded; an error with empty content now stays empty ([#14516](https://github.com/can1357/oh-my-pi/issues/14516), [#14572](https://github.com/can1357/oh-my-pi/pull/14572) by [@oleg494](https://github.com/oleg494))
 - Fixed the auth gateway's `POST /v1/audio/speech` answering 502 for requests the speech adapter rejects (unsupported format, over-long input); they now get 400 `invalid_request_error` ([#14508](https://github.com/can1357/oh-my-pi/pull/14508) by [@F0Rextasy](https://github.com/F0Rextasy))
 - Fixed a single-string tool call with two or more mislabelled string fields silently dispatching whichever field came first in the JSON; such ambiguous calls now fail validation and the model sees its own arguments back ([#14414](https://github.com/can1357/oh-my-pi/pull/14414) by [@F0Rextasy](https://github.com/F0Rextasy))
@@ -186,7 +150,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 
 ### Breaking Changes
 
-- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@oh-my-pi/pi-ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
+- `resolveGatewayApiKey` and `buildGatewayApiKeyResolver` (`@linxiraos/pi-ai/auth-gateway`) take the request's route options (`{ storage, client? }`) instead of an `AuthStorage`, their resolver callback receives the resolved credential, and `resolveGatewayAccount` takes that credential ([#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
 - `PI_CODEX_ZSTD` is replaced by `PI_REQUEST_COMPRESSION`; set `PI_REQUEST_COMPRESSION=0` to send Codex (and every other) request body uncompressed ([#16086](https://github.com/can1357/oh-my-pi/pull/16086) by [@H4vC](https://github.com/H4vC))
 
 ### Added
@@ -231,3 +195,15 @@ Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://gi
 Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://github.com/can1357/oh-my-pi/blob/a20cc0d04b64f4a68fcc559cbd258743d984c50e/packages/ai/CHANGELOG.md).
 
 Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://github.com/can1357/oh-my-pi/blob/b81a844b520af43d1d190a99fcdc8928e242b315/packages/ai/CHANGELOG.md).
+### Fixed
+
+- Fixed DeepSeek and OpenAI Responses requests failing or entering retry loops when replayed tool calls contained repaired arguments, orphaned tool results, or missing reasoning context.
+- Fixed requests to models that do not support sampling parameters from failing with HTTP 400 errors when accessed through non-native providers. Sampling parameters are now omitted for incompatible models, including requests made by chat judging, title generation, skill descriptions, and memory extraction.
+- Fixed OpenRouter BYOK usage being reported as free; provider inference costs and applicable credits charges are now included in session and status-line cost reporting.
+- Fixed Claude background and long-running bash commands losing their requested timeout and being terminated at the default deadline.
+- Fixed cleared credential cooldowns being incorrectly restored by another concurrently running session.
+- Fixed retryable Cursor provider errors, such as “Unable to reach the model provider,” from prematurely ending a turn.
+- Fixed resumed OpenAI Responses sessions losing earlier plaintext reasoning, which could cause self-hosted Responses servers to reprocess the entire context after a restart.
+- Fixed non-retryable HTTP 4xx responses being retried when their error messages contained transient-error terms such as “server_error,” “timeout,” or “overloaded.”
+- Fixed Cursor models receiving earlier multi-step tool calls as if they occurred simultaneously instead of in their original execution order.
+

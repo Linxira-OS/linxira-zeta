@@ -74,7 +74,7 @@ function nativePort(session: StudioIdaSession): StudioIdaPort {
 		},
 		list: async () =>
 			Promise.all(
-				(await listDatabases(tool(), "ida")).map(async db => {
+				(await listDatabases("ida")).map(async db => {
 					await db.refresh();
 					return {
 						id: db.id,

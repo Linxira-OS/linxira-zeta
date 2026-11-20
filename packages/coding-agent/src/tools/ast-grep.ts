@@ -7,7 +7,6 @@ import { type AstFindMatch, astGrep, type ShellFilesystem } from "@linxiraos/pi-
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import { getEditStore } from "../edit/store";
 
-import { formatHashlineHeader } from "@linxiraos/pi-tui/tools/hashline-format";
 import { sessionResolveContext } from "../internal-urls/context";
 import { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
 import astGrepDescription from "../prompts/tools/ast-grep.md" with { type: "text" };
@@ -19,34 +18,26 @@ import { ensureGrammar, missingGrammarsNote, rerunWithGrammars } from "../utils/
 import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
-import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import {
-	formatGroupedFiles,
-	type FileMatchSection,
-	formatFileMatches,
-} from "@linxiraos/pi-tui/tools/grouped-file-output";
+import { createFileRecorder, formatResultPath, resultSnapshotPath, targetResultBase } from "./file-recorder";
+import { type FileMatchSection, formatFileMatches } from "@linxiraos/pi-tui/tools/grouped-file-output";
 import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
 
 import {
+	parseSearchPath,
 	relativeSearchResultPath,
 	resolveSearchResultPath,
 	resolveToolSearchScope,
-	parseSearchPath,
 	searchPathTier,
 } from "./path-utils";
+import { searchApprovalCacheTargets } from "./search-approval-targets";
+import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
+import { capParseErrors, formatCodeFrameLine, formatParseErrors } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { singleLine } from "@linxiraos/pi-tui/utils";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";
-import {
-	toPathList,
-	capParseErrors,
-	formatCodeFrameLine,
-	formatParseErrors,
-} from "@linxiraos/pi-tui/render/render-utils";
-import { searchApprovalCacheTargets } from "./search-approval-targets";
 
 const astGrepSchema = type({
 	pat: type("string").describe("ast pattern"),
@@ -130,8 +121,9 @@ async function runMultiTargetAstGrep(
 		limitReached = limitReached || targetResult.limitReached;
 		if (targetResult.parseErrors) parseErrors.push(...targetResult.parseErrors);
 		for (const language of targetResult.missingGrammars ?? []) missingGrammars.add(language);
+		const resultBase = await targetResultBase(target.basePath);
 		for (const match of targetResult.matches) {
-			const absolute = resolveSearchResultPath(target.basePath, match.path);
+			const absolute = resolveSearchResultPath(resultBase, match.path);
 			const rebased = relativeSearchResultPath(options.commonBasePath, absolute);
 			retainAstFindMatch(retainedMatches, retainedCapacity, { ...match, path: rebased });
 		}

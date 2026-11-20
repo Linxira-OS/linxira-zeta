@@ -1,18 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-
-### Added
-
-- Added a profile-aware data directory for managed Antigravity CLI installations and isolated account state.
-- Added `mixHex` for blending two hexadecimal colors.
-
-### Fixed
-
-- Fixed bare URLs swallowing the following word when Korean, Japanese, or Chinese text follows a parenthesized URL without a space.
-- Fixed HTML-to-Markdown conversion for fetched and pasted HTML to preserve whitespace in inline elements, maintain code indentation in preformatted blocks, and avoid inserting stray blank lines between block elements.
-- Improved extraction of Cloud Code Assist quota reset information, including compound durations and reset timestamps, to provide more accurate retry guidance.
-
 ## [1.5.2] - 2026-11-13
 
 ### Changed

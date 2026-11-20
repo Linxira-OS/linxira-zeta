@@ -1,4 +1,4 @@
-/** Voices accepted by Codex-backed realtime sessions and exposed in settings. */
+/** Voices Codex-backed realtime sessions accept, offered as `live.voice` suggestions. */
 export const LIVE_VOICE_OPTIONS = [
 	{ value: "arbor", label: "Arbor" },
 	{ value: "breeze", label: "Breeze" },

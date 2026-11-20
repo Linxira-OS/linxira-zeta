@@ -2,7 +2,9 @@
  * Generate session titles using a smol, fast model.
  */
 import { dlopen, FFIType, ptr } from "bun:ffi";
+import * as os from "node:os";
 import * as path from "node:path";
+import * as url from "node:url";
 
 import {
 	type Api,
@@ -20,37 +22,28 @@ import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
 import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
-import type { ZetaLanguage } from "../i18n";
 
 import { roleCandidatePool } from "../config/model-roles";
 import { formatModelStringWithRouting } from "../config/model-resolver";
 import { collectOnlineTinyCandidates, expandOnlineTinyModelFallbacks } from "../tiny/online-candidates";
+import type { ZetaLanguage } from "../i18n";
+import { cfgLanguage } from "../zeta-settings";
 import type { Settings } from "../config/settings";
+/** Language automatic session names and task labels are written in. */
+export function generatedNameLanguage(settings: Settings): ZetaLanguage {
+	return cfgLanguage.get(settings);
+}
+
 import titleMarkerInstruction from "../prompts/system/title-marker-instruction.md" with { type: "text" };
 import titleSystemPrompt from "../prompts/system/title-system.md" with { type: "text" };
 import { formatTitleUserMessage } from "../tiny/message-preproc";
 import { isLowSignalTitleInput, normalizeGeneratedTitle } from "../tiny/text";
 import { tinyTitleClient } from "../tiny/title-client";
-import { cfgLanguage } from "../zeta-settings";
 
 import { cfgRetryModelFallback } from "../session/settings";
 import { DEFAULT_SPINNER_INTERVAL_MS, SPINNER_INTERVAL_STATIC } from "@linxiraos/pi-tui/spinner-clock";
 
-/**
- * The language automatic session names and task labels are written in when a
- * command does not carry its own: the effective `language` setting of the
- * session's settings. Explicit user titles never pass through here, and a
- * caller-supplied title prompt (a `TITLE_SYSTEM.md` override or a
- * plan-filename topic) keeps its own wording.
- */
-export function generatedNameLanguage(settings: Settings): ZetaLanguage {
-	return cfgLanguage.get(settings);
-}
-
-const TITLE_SYSTEM_PROMPTS: Record<ZetaLanguage, string> = {
-	en: prompt.render(titleSystemPrompt),
-	zh: prompt.render(titleSystemPrompt, { zh: true }),
-};
+const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
 // Plain ζ, not the nerd-font `icon.omp` glyph: window/tab titles render in the
@@ -208,10 +201,49 @@ function getTitleModels(registry: ModelRegistry, settings: Settings, currentMode
 }
 
 /**
- * Receives each title request the provider billed, for the caller's usage
- * ledger. Must not throw: accounting never fails a title.
+ * Receives each title request that ran, with the user-turn text it was sent, for the caller's
+ * usage ledger: every attempt a provider billed, and a local model's title, which bills nothing.
+ * Must not throw: accounting never fails a title.
  */
-export type TitleUsageReporter = (message: AssistantMessage) => void;
+export type TitleUsageReporter = (message: AssistantMessage, prompt: string) => void;
+
+/** Hand one title attempt to the caller's ledger. Best-effort: accounting never fails a title. */
+function reportTitleAttempt(
+	onUsage: TitleUsageReporter | undefined,
+	message: AssistantMessage,
+	prompt: string,
+	context: Record<string, unknown>,
+): void {
+	try {
+		onUsage?.(message, prompt);
+	} catch (err) {
+		logger.debug("title-generator: usage report failed", {
+			...context,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
+/** An assistant message for `model` that no provider metered: an assistant prefill, or a local worker's reply. */
+export function unmeteredMessage(model: Model<Api>, text: string): AssistantMessage {
+	return {
+		role: "assistant",
+		content: [{ type: "text", text }],
+		api: model.api,
+		provider: model.provider,
+		model: model.id,
+		usage: {
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		},
+		stopReason: "stop",
+		timestamp: Date.now(),
+	};
+}
 
 /**
  * Generate a title for a session based on the first user message.
@@ -229,10 +261,9 @@ export type TitleUsageReporter = (message: AssistantMessage) => void;
  * @param signal Session-lifecycle cancellation for background title requests
  * @param credentialSourceSessionId Optional foreground session whose selected
  *   OAuth credential should seed an isolated title-request session.
- * @param onUsage Optional reporter for every title attempt the provider billed,
- *   so the caller can record its usage on the session's cost ledger.
- * @param language Optional invocation language; omitted uses the effective
- *   `language` setting captured at the start of this call.
+ * @param onUsage Optional reporter for every title attempt the provider billed
+ *   and for a local model's title, so the caller can journal the request on
+ *   the session's cost ledger.
  */
 export async function generateSessionTitle(
 	firstMessage: string,
@@ -245,7 +276,6 @@ export async function generateSessionTitle(
 	signal?: AbortSignal,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
-	language?: ZetaLanguage,
 ): Promise<string | null> {
 	// Defer titling for greetings / acknowledgements / empty input. The default
 	// tiny title model can't reliably decline trivial input, so this happens
@@ -264,7 +294,6 @@ export async function generateSessionTitle(
 	}
 
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
-	const resolvedLanguage = language ?? generatedNameLanguage(settings);
 	if (firstModel.api !== "local-inference") {
 		return generateTitleOnlineWithModels(
 			firstMessage,
@@ -276,27 +305,24 @@ export async function generateSessionTitle(
 			titleSystemPrompt,
 			credentialSourceSessionId,
 			onUsage,
-			resolvedLanguage,
 		);
 	}
 
 	// A local role selection is an explicit no-billing boundary. If the worker
 	// fails (download missing, runtime crash, abort, or no output), leave the
 	// session untitled rather than advancing into a paid fallback candidate.
-	// The English prompt stays the worker's built-in default; only a selected
-	// Chinese policy (or an explicit override) is sent as a system turn.
-	const localSystemPrompt = titleSystemPrompt ?? (resolvedLanguage === "zh" ? TITLE_SYSTEM_PROMPTS.zh : undefined);
 	try {
+		const started = performance.now();
 		let localTitle: string | null;
 		if (signal) {
 			localTitle = await tinyTitleClient.generate(
 				firstModel.id,
 				firstMessage,
-				localSystemPrompt ? { signal, systemPrompt: localSystemPrompt } : { signal },
+				titleSystemPrompt ? { signal, systemPrompt: titleSystemPrompt } : { signal },
 			);
-		} else if (localSystemPrompt) {
+		} else if (titleSystemPrompt) {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage, {
-				systemPrompt: localSystemPrompt,
+				systemPrompt: titleSystemPrompt,
 			});
 		} else {
 			localTitle = await tinyTitleClient.generate(firstModel.id, firstMessage);
@@ -309,6 +335,14 @@ export async function generateSessionTitle(
 			});
 			return null;
 		}
+		// A null result may never have reached the worker (failed model, abort), so only a
+		// produced title is journaled.
+		reportTitleAttempt(
+			onUsage,
+			{ ...unmeteredMessage(firstModel, localTitle), duration: Math.round(performance.now() - started) },
+			formatTitleUserMessage(firstMessage),
+			{ titleSessionId: sessionId, model: firstModel.id },
+		);
 		return localTitle;
 	} catch (err) {
 		logger.warn("title-generator: local tiny model errored; skipping (no online fallback)", {
@@ -347,7 +381,6 @@ export async function generateTitleOnline(
 		customSystemPrompt,
 		credentialSourceSessionId,
 		onUsage,
-		generatedNameLanguage(settings),
 	);
 }
 
@@ -361,18 +394,14 @@ async function generateTitleOnlineWithModels(
 	customSystemPrompt?: string,
 	credentialSourceSessionId?: string,
 	onUsage?: TitleUsageReporter,
-	language: ZetaLanguage = "en",
 ): Promise<string | null> {
 	const titleSystemPrompt = customSystemPrompt?.trim() || undefined;
 	// The model is always asked to wrap the title in `<title>...</title>` and
 	// the title is parsed from text. A forced `set_title` tool call was the old
 	// scheme, but hosts that ignore or reject forced `tool_choice` then echoed
 	// the prompt's `{"title": ...}` JSON example verbatim as the session title;
-	// markers work uniformly everywhere. A selected Chinese policy is part of
-	// the bundled prompt; caller-supplied prompts keep their own wording.
-	const systemPrompt = titleSystemPrompt
-		? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION]
-		: [TITLE_SYSTEM_PROMPTS[language]];
+	// markers work uniformly everywhere.
+	const systemPrompt = titleSystemPrompt ? [titleSystemPrompt, TITLE_MARKER_INSTRUCTION] : [TITLE_SYSTEM_PROMPT];
 	const userMessage = formatTitleUserMessage(firstMessage);
 
 	for (const model of models) {
@@ -425,7 +454,11 @@ async function generateTitleOnlineWithModels(
 			logger.debug("title-generator: request", { ...modelContext, maxTokens });
 
 			const messages: Message[] = [{ role: "user", content: userMessage, timestamp: Date.now() }];
-			if (model.supportsAssistantPrefill) messages.push(titlePrefill(model));
+			// Open the `<title>` marker as a trailing assistant turn on hosts that continue it
+			// verbatim. Some Ollama chat templates (LFM2.5) open a reasoning channel regardless
+			// of the disable flag, burning the whole output budget on thinking and never emitting
+			// a title. Committing the marker first skips the reasoning channel entirely.
+			if (model.supportsAssistantPrefill) messages.push(unmeteredMessage(model, "<title>"));
 
 			const response = await retryTransientCompletion(
 				async () => {
@@ -450,19 +483,11 @@ async function generateTitleOnlineWithModels(
 						},
 					);
 					// Every attempt that reached the provider was billed, failures included,
-					// so a transient retry must not discard the attempt it replaced. Reporting
-					// is best-effort: accounting can never fail the title.
-					try {
-						onUsage?.(message);
-					} catch (err) {
-						logger.debug("title-generator: usage report failed", {
-							...modelContext,
-							error: err instanceof Error ? err.message : String(err),
-						});
-					}
+					// so a transient retry must not discard the attempt it replaced.
+					reportTitleAttempt(onUsage, message, userMessage, modelContext);
 					return message;
 				},
-				{ signal, provider: model.provider },
+				{ signal, provider: model.provider, baseUrl: model.baseUrl },
 			);
 
 			if (response.stopReason === "aborted" || signal?.aborted) {
@@ -521,33 +546,6 @@ async function generateTitleOnlineWithModels(
 		}
 	}
 	return null;
-}
-
-/**
- * Open the `<title>` marker as a trailing assistant turn on hosts that continue
- * it verbatim (`Model.supportsAssistantPrefill`). Some Ollama chat templates
- * (LFM2.5) open a reasoning channel regardless of the disable flag, burning the
- * whole output budget on thinking and never emitting a title. Committing the
- * marker first skips the reasoning channel entirely.
- */
-function titlePrefill(model: Model<Api>): AssistantMessage {
-	return {
-		role: "assistant",
-		content: [{ type: "text", text: "<title>" }],
-		api: model.api,
-		provider: model.provider,
-		model: model.id,
-		usage: {
-			input: 0,
-			output: 0,
-			cacheRead: 0,
-			cacheWrite: 0,
-			totalTokens: 0,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-		},
-		stopReason: "stop",
-		timestamp: Date.now(),
-	};
 }
 
 function extractGeneratedTitle(contentBlocks: AssistantMessage["content"]): string {
@@ -742,7 +740,8 @@ function writeTerminalTitle(title: string, recomposeStaticOnFailure = false): vo
 
 /**
  * Set the session's base terminal title: the session name, which a generated
- * title carries in the card form `<icon> <CODE>: <name>`, else the cwd.
+ * title carries in the card form `<icon> <CODE>: <name>` that Tern indexes
+ * parked panes by, else the cwd.
  */
 export function setSessionTerminalTitle(sessionName: string | undefined, cwd?: string): void {
 	// An authoritative session title (rename, new session, focus swap) supersedes
@@ -922,7 +921,7 @@ export function buildTerminalTitleWithState(
 }
 
 /**
- * The tab title while a TSP terminal renders: the session name (`zeta` before
+ * The tab title while a TSP terminal renders: the session name (`zetacode` before
  * there is one) and the branch's pull request. The terminal shows run state
  * itself, so there is no brand or state separator.
  */
@@ -1096,6 +1095,7 @@ export function initTerminalTitleState(): void {
  * shell's tab. Released only by {@link initTerminalTitleState}.
  */
 export function disposeTerminalTitleState(): void {
+	// The session ends with the UI: Tern must not resume it in this pane.
 	terminalTitleRuntime.disposed = true;
 	terminalTitleRuntime.unwatchNative?.();
 	terminalTitleRuntime.unwatchNative = undefined;

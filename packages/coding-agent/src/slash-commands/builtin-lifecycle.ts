@@ -1,16 +1,13 @@
-import { handleOmfgSlashCommand } from "./omfg";
-import { handleTanSlashCommand } from "./tan";
 import { clearSubmittedText, refuseImages, restoreDetachedDraft, runWithDetachedDraft } from "./helpers/draft";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { logger, setProjectDir } from "@linxiraos/pi-utils";
-import { M } from "../i18n";
 import { rescopeSessionToCwd } from "../session/cwd-rescope";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import { continuesConversation } from "../modes/utils/conversation-position";
-import type { FreshSessionResult, HandoffResult } from "../session/agent-session";
-import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
+import type { FreshSessionResult } from "../session/agent-session";
+import { COMPACT_MODES, findCompactMode, type ParsedCompactArgs, parseCompactArgs } from "../session/compact-modes";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
 import { resolveResumableSession, resolveResumeTarget } from "../session/session-listing";
 import { toggleSessionPin, unpinSession } from "../session/session-pins";
@@ -19,12 +16,11 @@ import {
 	createSessionWorktree,
 	defaultSessionWorktreeBranch,
 	formatSessionWorktreeSummary,
-	type SessionWorktree,
 } from "../session/session-worktree";
+import type { SessionWorktree } from "../worktree/backend";
 import { formatShakeSummary, type ShakeMode } from "../session/shake-types";
-import { resolveShellDirectory, resolveToCwd } from "../tools/path-utils";
+import { resolveToCwd } from "../tools/path-utils";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
-import { shutdownHandlerTui } from "./helpers/shutdown";
 import { handleSshAcp } from "./helpers/ssh";
 import type {
 	ParsedSlashCommand,
@@ -34,10 +30,97 @@ import type {
 	TuiSlashCommandRuntime,
 } from "./types";
 
+function parseCompactionCommand(command: ParsedSlashCommand): ParsedCompactArgs | { error: string } {
+	return command.name === "handoff"
+		? { mode: "handoff", instructions: command.args || undefined }
+		: parseCompactArgs(command.args);
+}
+
+async function handleCompact(command: ParsedSlashCommand, runtime: SlashCommandRuntime): Promise<SlashCommandResult> {
+	const parsed = parseCompactionCommand(command);
+	if ("error" in parsed) return usage(parsed.error, runtime);
+	let failed = false;
+	const run = async (): Promise<void> => {
+		const before = runtime.session.getContextUsage?.()?.tokens;
+		try {
+			const { mode, instructions } = parsed;
+			await runtime.session.compact(
+				instructions,
+				runtime.signal ? { mode, signal: runtime.signal } : mode ? { mode } : undefined,
+			);
+		} catch (err) {
+			// Don't append an out-of-turn notice after the host already reported its interrupt.
+			if (
+				err instanceof CompactionCancelledError &&
+				(err.cause === USER_INTERRUPT_LABEL || runtime.signal?.aborted)
+			) {
+				return;
+			}
+			const message = errorMessage(err);
+			logger.error("Compaction failed", { error: message });
+			failed = true;
+			await runtime.output(`Compaction failed: ${message}`);
+			return;
+		}
+		const after = runtime.session.getContextUsage?.()?.tokens;
+		await runtime.output(
+			before == null || after == null
+				? "Compaction complete."
+				: `Compaction complete. Tokens: ${before} -> ${after} (saved ${before - after}).`,
+		);
+	};
+	if (runtime.runCommandInBackground) {
+		runtime.runCommandInBackground(run);
+		return commandConsumed();
+	}
+	await run();
+	return commandConsumed({ failed });
+}
+
+async function handleCompactTui(command: ParsedSlashCommand, runtime: TuiSlashCommandRuntime): Promise<void> {
+	const parsed = parseCompactionCommand(command);
+	if (!("error" in parsed) && parsed.mode === "handoff" && refuseImages(command, runtime)) return;
+	clearSubmittedText(runtime);
+	if ("error" in parsed) {
+		runtime.ctx.showWarning(parsed.error);
+		return;
+	}
+	const { ctx } = runtime;
+	const origin = runtime.followUp;
+	// A switch still applying (or rolling back) decides which conversation is live.
+	if (origin && ctx.session.isSessionTransitioning) await ctx.session.waitForSessionTransition();
+	if (origin && !continuesConversation(ctx.sessionManager, origin)) {
+		restoreDetachedDraft(ctx.editor, command.text, runtime.input?.images, runtime.input?.imageLinks);
+		ctx.showWarning(`Conversation changed before /${command.name} ran; returned it to the editor`);
+		return;
+	}
+	const background = parsed.mode && findCompactMode(parsed.mode)?.background;
+	if (background) {
+		// Background compaction doesn't hold the submission slot or its follow-ups.
+		void ctx.handleCompactCommand(parsed.instructions, parsed.mode);
+	} else if (origin && ctx.session.isStreaming) {
+		ctx.yieldCompaction = { ...origin, text: command.text, instructions: parsed.instructions, mode: parsed.mode };
+		ctx.updatePendingMessagesDisplay();
+		ctx.showStatus("Queued compaction for when the agent yields");
+		ctx.runYieldCompaction();
+	} else {
+		await ctx.handleCompactCommand(parsed.instructions, parsed.mode);
+	}
+}
+
 function formatFreshSessionResult(result: FreshSessionResult): string {
 	const stateLabel = result.closedProviderSessions === 1 ? "provider state" : "provider states";
 	return `Fresh provider session started (${result.closedProviderSessions} ${stateLabel} pruned).`;
 }
+
+export const shutdownHandlerTui = (
+	_command: ParsedSlashCommand,
+	runtime: TuiSlashCommandRuntime,
+): SlashCommandResult => {
+	clearSubmittedText(runtime);
+	void runtime.ctx.shutdown();
+	return commandConsumed();
+};
 
 /** Parse the `/shake` subcommand into a {@link ShakeMode}; empty defaults to elide. */
 function parseShakeMode(args: string): ShakeMode | { error: string } {
@@ -145,18 +228,18 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "ssh",
 		icon: "host",
-		description: () => M.cmdSsh,
-		acpDescription: () => M.cmdSshAcp,
+		description: "Manage SSH hosts (add, list, remove)",
+		acpDescription: "Manage SSH connections",
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: () => M.cmdSshAdd,
+				description: "Add an SSH host",
 				usage: "<name> --host <host> [--user <user>] [--port <port>] [--key <keyPath>] [--scope project|user]",
 			},
-			{ name: "list", description: () => M.cmdSshList },
-			{ name: "remove", description: () => M.cmdSshRemove, usage: "<name> [--scope project|user]" },
-			{ name: "help", description: () => M.cmdMcpHelp },
+			{ name: "list", description: "List all configured SSH hosts" },
+			{ name: "remove", description: "Remove an SSH host", usage: "<name> [--scope project|user]" },
+			{ name: "help", description: "Show help message" },
 		],
 		allowArgs: true,
 		handle: handleSshAcp,
@@ -168,7 +251,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "new",
 		icon: "plus",
-		description: () => M.cmdNew,
+		description: "Start a new session",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleNewCommand();
@@ -177,9 +260,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "fresh",
 		icon: "restart",
-		description: () => M.cmdFresh,
+		description: "Reset provider stream state without changing the local transcript",
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? M.acFreshUnavailable : M.acFreshReady,
+			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
 		handle: async (_command, runtime) => {
 			const result = runtime.session.freshSession();
 			if (!result) {
@@ -199,9 +282,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "clear",
 		icon: "eraser",
-		description: () => M.cmdClear,
+		description: "Clear the conversation context in place, keeping the session",
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
+			runtime.ctx.session.isStreaming ? "Clear: unavailable while streaming" : "Clear: drop context, keep session",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleResetContextCommand();
@@ -210,7 +293,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "delete",
 		icon: "trash",
-		description: () => M.cmdDrop,
+		description: "Delete the current session and start a new one",
 		allowArgs: true,
 		inlineHint: "yes",
 		handleTui: async (command, runtime) => {
@@ -226,113 +309,31 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "compact",
 		icon: "compress",
-		description: () => M.cmdCompact,
-		acpDescription: () => M.cmdCompactAcp,
+		description: "Manually compact the session context",
+		acpDescription: "Compact the conversation",
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
-			// Thunk, not an eager `M.*` read: the spec table is built at import
-			// time, so a plain read would freeze whichever locale was active then.
-			description: () =>
-				mode.name === "soft"
-					? M.compactModeSoft
-					: mode.name === "remote"
-						? M.compactModeRemote
-						: M.compactModeSnapcompact,
+			description: mode.description,
 			usage: mode.rejectsFocus ? undefined : "[focus]",
 		})),
 		acpInputHint: `[${COMPACT_MODES.map(mode => mode.name).join("|")}] [focus]`,
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			return usage ? M.acCompactUsedFmt.replace("%s", String(Math.round(usage.percent))) : M.acCompactUnavailable;
+			return usage ? `Compact: context ${Math.round(usage.percent)}% used` : "Compact: context unavailable";
 		},
-		handle: async (command, runtime) => {
-			const parsed = parseCompactArgs(command.args);
-			if ("error" in parsed) return usage(parsed.error, runtime);
-			// Print mode turns a failed compaction into a nonzero exit; the
-			// flag is closure state because the background-dispatch branch
-			// (RPC) returns before `runCompact` settles.
-			let compactFailed = false;
-			const runCompact = async (): Promise<void> => {
-				const before = runtime.session.getContextUsage?.();
-				const beforeTokens = before?.tokens;
-				try {
-					await runtime.session.compact(parsed.instructions, parsed.mode ? { mode: parsed.mode } : undefined);
-				} catch (err) {
-					// RPC `abort` and ACP `session/cancel` propagate their explicit
-					// USER_INTERRUPT_LABEL through the compaction abort signal. The client
-					// already saw the interrupt it sent; emitting anything here would
-					// append an out-of-turn chunk. Other cancellations (including an
-					// extension veto) remain visible.
-					if (err instanceof CompactionCancelledError && err.cause === USER_INTERRUPT_LABEL) return;
-					// Compaction precondition failures (no model, already compacted, too
-					// small) and provider errors propagate as plain Errors; surface them
-					// via runtime.output so they don't fail the ACP prompt turn.
-					compactFailed = true;
-					await runtime.output(`Compaction failed: ${errorMessage(err)}`);
-					return;
-				}
-				const after = runtime.session.getContextUsage?.();
-				const afterTokens = after?.tokens;
-				if (beforeTokens != null && afterTokens != null) {
-					const saved = beforeTokens - afterTokens;
-					await runtime.output(`Compaction complete. Tokens: ${beforeTokens} -> ${afterTokens} (saved ${saved}).`);
-				} else {
-					await runtime.output("Compaction complete.");
-				}
-			};
-			// Provider-backed: background-dispatch under RPC so the serialized command
-			// queue stays free for `abort` (SlashCommandRuntime.runCommandInBackground).
-			// ACP/TUI have no such hook and keep the inline await.
-			if (runtime.runCommandInBackground) {
-				runtime.runCommandInBackground(runCompact);
-				return commandConsumed();
-			}
-			await runCompact();
-			return commandConsumed({ failed: compactFailed });
-		},
-		handleTui: async (command, runtime) => {
-			const parsed = parseCompactArgs(command.args);
-			clearSubmittedText(runtime);
-			if ("error" in parsed) {
-				runtime.ctx.showWarning(parsed.error);
-				return;
-			}
-			const { ctx } = runtime;
-			const origin = runtime.followUp;
-			// A switch still applying (or rolling back) decides which conversation is live; judge after it.
-			if (origin && ctx.session.isSessionTransitioning) await ctx.session.waitForSessionTransition();
-			if (origin && !continuesConversation(ctx.sessionManager, origin)) {
-				// Input hooks ran while the conversation changed: never compact one it was not sent in.
-				restoreDetachedDraft(ctx.editor, command.text, runtime.input?.images, runtime.input?.imageLinks);
-				ctx.showWarning("Conversation changed before /compact ran; returned it to the editor");
-				return;
-			}
-			if (origin && ctx.session.isStreaming) {
-				ctx.yieldCompaction = {
-					...origin,
-					text: command.text,
-					instructions: parsed.instructions,
-					mode: parsed.mode,
-				};
-				ctx.updatePendingMessagesDisplay();
-				ctx.showStatus("Queued compaction for when the agent yields");
-				// A prompt still in setup may bail without an agent run, and so without the settle that runs this.
-				ctx.runYieldCompaction();
-				return;
-			}
-			await ctx.handleCompactCommand(parsed.instructions, parsed.mode);
-		},
+		handle: handleCompact,
+		handleTui: handleCompactTui,
 	},
 	{
 		name: "shake",
 		icon: "vibrate",
-		description: () => M.cmdShake,
-		acpDescription: () => M.cmdShakeAcp,
+		description: "Drop heavy content from context (tool results, large blocks)",
+		acpDescription: "Shake heavy content out of the conversation context",
 		subcommands: [
-			{ name: "elide", description: () => M.cmdCompactElide },
-			{ name: "images", description: () => M.cmdCompactImages },
-			{ name: "thinking", description: () => M.cmdDropAllThinkingBlocks },
+			{ name: "elide", description: "Strip tool results + large blocks (default)" },
+			{ name: "images", description: "Strip image blocks" },
+			{ name: "thinking", description: "Drop all thinking blocks" },
 		],
 		acpInputHint: "[elide|images|thinking]",
 		allowArgs: true,
@@ -356,80 +357,16 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "handoff",
 		icon: "handoff",
-		description: () => M.cmdHandoff,
-		acpDescription: () => M.cmdHandoff,
+		description: "Compact in the background with a handoff summary (alias for /compact handoff)",
 		inlineHint: "[focus instructions]",
 		allowArgs: true,
-		handle: async (command, runtime) => {
-			if (runtime.session.isStreaming) {
-				return usage("Wait for the current response to finish or abort it before handing off.", runtime);
-			}
-			if (runtime.session.isGeneratingHandoff) {
-				return usage("Handoff generation is already in progress.", runtime);
-			}
-			// Print mode turns a failed handoff into a nonzero exit; closure
-			// state because the background-dispatch branch (RPC) returns
-			// before `runHandoff` settles.
-			let handoffFailed = false;
-			const runHandoff = async (): Promise<void> => {
-				let result: HandoffResult | undefined;
-				try {
-					result = await runtime.session.handoff(command.args || undefined);
-				} catch (err) {
-					const message = errorMessage(err);
-					// A user interrupt (ACP `session/cancel`, TUI Esc) already settled the
-					// owning turn: `AgentSession.abort()` forwards its reason into the
-					// handoff abort controller, and `throwIfHandoffAborted` rethrows a
-					// reasoned abort verbatim — so the throw arrives as
-					// `USER_INTERRUPT_LABEL`, not "Handoff cancelled". Emitting anything
-					// here would append an out-of-turn chunk after the client already saw
-					// `stopReason: "cancelled"`, so consume silently.
-					if (message === USER_INTERRUPT_LABEL) {
-						return;
-					}
-					// `session.handoff()` normalizes an unreasoned cancellation to this
-					// exact message; every other throw is a real failure (no model
-					// selected, nothing to hand off, already compacted, provider error)
-					// and is surfaced verbatim behind the same "<verb> failed:" prefix
-					// `/compact` uses.
-					if (message === "Handoff cancelled") {
-						await runtime.output("Handoff cancelled.");
-						return;
-					}
-					// Persist the real failure so it stays debuggable after the client
-					// message scrolls away (same rationale as the TUI path, #7993).
-					logger.error("Handoff failed", { error: message });
-					handoffFailed = true;
-					await runtime.output(`Handoff failed: ${message}`);
-					return;
-				}
-				if (!result) {
-					await runtime.output("Handoff cancelled.");
-					return;
-				}
-				// `savedPath` is deliberately not reported: `SessionHandoff` only writes
-				// the document to disk when `options.autoTriggered` is set, which the
-				// user-invoked path never passes.
-				await runtime.output("Context handed off and compacted in place.");
-			};
-			if (runtime.runCommandInBackground) {
-				runtime.runCommandInBackground(runHandoff);
-				return commandConsumed();
-			}
-			await runHandoff();
-			return commandConsumed({ failed: handoffFailed });
-		},
-		handleTui: async (command, runtime) => {
-			if (refuseImages(command, runtime)) return;
-			const customInstructions = command.args || undefined;
-			clearSubmittedText(runtime);
-			await runtime.ctx.handleHandoffCommand(customInstructions);
-		},
+		handle: handleCompact,
+		handleTui: handleCompactTui,
 	},
 	{
 		name: "resume",
 		icon: "history",
-		description: () => M.cmdResume,
+		description: "Resume a different session",
 		inlineHint: "[session id|@claude|@codex]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -465,7 +402,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "pin",
 		icon: "pin",
-		description: () => M.cmdPinorUnpinaSessionattheTopoftheResumeList,
+		description: "Pin or unpin a session at the top of the resume list",
 		inlineHint: "[session id]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -480,7 +417,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "unpin",
 		icon: "pin",
-		description: () => M.cmdUnpinaSessionfromtheTopoftheResumeList,
+		description: "Unpin a session from the top of the resume list",
 		inlineHint: "[session id]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -495,7 +432,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "btw",
 		icon: "question",
-		description: () => M.cmdBtwHistory,
+		description: "Ask a side question, or browse this session's BTW history",
 		inlineHint: "[question]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -511,10 +448,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "tan",
 		icon: "rocket",
-		description: () => M.cmdTan,
+		description: "Run a full background agent on tangential work",
 		inlineHint: "<work>",
 		allowArgs: true,
-		handle: handleTanSlashCommand,
 		handleTui: async (command, runtime) => {
 			const work = command.text.slice(`/${command.name}`.length).trim();
 			await runWithDetachedDraft(command, runtime, () => runtime.ctx.handleTanCommand(work, runtime.input?.images), {
@@ -525,10 +461,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "omfg",
 		icon: "rule",
-		description: () => M.cmdOmfg,
+		description: "Forge a TTSR rule from a complaint to stop a recurring behavior",
 		inlineHint: "<complaint>",
 		allowArgs: true,
-		handle: handleOmfgSlashCommand,
 		handleTui: async (command, runtime) => {
 			if (refuseImages(command, runtime)) return;
 			const complaint = command.text.slice(`/${command.name}`.length).trim();
@@ -539,13 +474,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "cleanse",
 		icon: "stethoscope",
-		description: () => M.cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents,
+		description: "Detect and fix project diagnostics with weighted parallel subagents",
 		inlineHint: "[request] [--all]",
 		allowArgs: true,
-		handle: async (command, runtime) => {
-			const { handleCleanseSlashCommand } = await import("./cleanse");
-			return handleCleanseSlashCommand(command, runtime);
-		},
 		handleTui: async (command, runtime) => {
 			if (refuseImages(command, runtime)) return;
 			const args = command.text.slice(`/${command.name}`.length).trim();
@@ -556,7 +487,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "retry",
 		icon: "redo",
-		description: () => M.cmdRetry,
+		description: "Retry the last failed agent turn",
 		handle: async (_command, runtime) => {
 			if (runtime.session.isStreaming) {
 				return usage("Wait for the current response to finish or abort it before retrying.", runtime);
@@ -591,7 +522,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "debug",
 		icon: "bug",
-		description: () => M.cmdDebug,
+		description: "Open debug tools selector",
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.showDebugSelector();
 			clearSubmittedText(runtime);
@@ -600,29 +531,29 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "memory",
 		icon: "memory",
-		description: () => M.cmdMemory,
-		acpDescription: () => M.cmdMemoryAcp,
+		description: "Inspect and operate memory maintenance",
+		acpDescription: "Manage memory",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "view", description: () => M.cmdMemoryView },
-			{ name: "stats", description: () => M.cmdMemoryStats },
-			{ name: "diagnose", description: () => M.cmdMemoryDiagnose },
-			{ name: "queue", description: () => M.cmdShowPendingMemoryDeltasAwaitingConsolidation },
-			{ name: "sync", description: () => M.cmdRunMemoryConsolidationNow },
-			{ name: "clear", description: () => M.cmdMemoryClear },
-			{ name: "reset", description: () => M.cmdMemoryReset },
-			{ name: "enqueue", description: () => M.cmdMemoryEnqueue },
-			{ name: "rebuild", description: () => M.cmdMemoryRebuild },
-			{ name: "mm list", description: () => M.cmdMemoryMmList },
-			{ name: "mm show", description: () => M.cmdMemoryMmShow },
+			{ name: "view", description: "Show current memory injection payload" },
+			{ name: "stats", description: "Show memory backend statistics" },
+			{ name: "diagnose", description: "Run memory backend diagnostics" },
+			{ name: "queue", description: "Show pending memory deltas awaiting consolidation" },
+			{ name: "sync", description: "Run memory consolidation now" },
+			{ name: "clear", description: "Clear persisted memory data and artifacts" },
+			{ name: "reset", description: "Alias for clear" },
+			{ name: "enqueue", description: "Enqueue memory consolidation maintenance" },
+			{ name: "rebuild", description: "Alias for enqueue" },
+			{ name: "mm list", description: "List mental models on the active bank" },
+			{ name: "mm show", description: "Show one mental model (id required)" },
 			{
 				name: "mm refresh",
-				description: () => M.cmdMemoryMmRefresh,
+				description: "Refresh auto-refresh models bank-wide, or one model by id",
 			},
-			{ name: "mm history", description: () => M.cmdMemoryMmHistory },
-			{ name: "mm seed", description: () => M.cmdMemoryMmSeed },
-			{ name: "mm delete", description: () => M.cmdMemoryMmDelete },
-			{ name: "mm reload", description: () => M.cmdMemoryMmReload },
+			{ name: "mm history", description: "Diff the change history of a mental model" },
+			{ name: "mm seed", description: "Create any built-in mental models that are missing" },
+			{ name: "mm delete", description: "Delete a mental model from the bank (id required)" },
+			{ name: "mm reload", description: "Re-pull the cached <mental_models> block" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -690,7 +621,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "rename",
 		icon: "pencil",
-		description: () => M.cmdRenameGenerate,
+		description: "Rename the current session (omit title to generate)",
 		inlineHint: "[title]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -709,7 +640,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 					sessionManager.getSessionId() === sessionId &&
 					sessionManager.titleRevision === titleRevision;
 				try {
-					const generation = session.renameTitle(command.args, runtime.signal, runtime.language);
+					const generation = session.renameTitle(command.args, runtime.signal);
 					titleRevision = sessionManager.titleRevision;
 					const title = await generation;
 					if (!isCurrent() || title === undefined) return;
@@ -766,79 +697,23 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 	},
 	{
-		name: "cd",
-		aliases: ["chdir"],
-		icon: "folderMove",
-		description: () => M.cmdCd,
-		acpDescription: () => M.cmdCdAcp,
-		inlineHint: "[<path>]",
-		allowArgs: true,
-		argumentCompletionOnly: true,
-		handle: async (command, runtime) => {
-			if (!command.args) return usage("Usage: /cd <path>", runtime);
-			if (runtime.session.isStreaming) return usage("Cannot change directory while streaming.", runtime);
-			const resolvedPath = resolveShellDirectory(command.args, runtime.cwd);
-			try {
-				const stat = await fs.stat(resolvedPath);
-				if (!stat.isDirectory()) return usage(`Not a directory: ${resolvedPath}`, runtime);
-			} catch {
-				return usage(`Directory does not exist: ${resolvedPath}`, runtime);
-			}
-			const failure = await relocateHeadlessSession(runtime, resolvedPath);
-			if (failure) return failure;
-			await runtime.output(`Changed directory to ${runtime.sessionManager.getCwd()}.`);
-			return commandConsumed();
-		},
-		handleTui: async (command, runtime) => {
-			if (runtime.ctx.session.isStreaming) {
-				runtime.ctx.showWarning("Wait for the current response to finish or abort it before changing directory.");
-				clearSubmittedText(runtime);
-				return;
-			}
-			runtime.ctx.editor.addToHistory(command.text);
-			clearSubmittedText(runtime);
-			const target = command.args.trim();
-			// `/cd <path>` moves directly; a bare `/cd` opens the folder picker.
-			// `/cd` never creates a directory: TUI, headless and ACP agree.
-			if (target) await runtime.ctx.handleMoveCommand(target, { allowCreate: false });
-			else await runtime.ctx.showDirectoryPicker();
-		},
-	},
-	{
 		name: "move",
 		icon: "folderMove",
-		description: () => M.cmdMove,
-		acpDescription: () => M.cmdMoveAcp,
+		description: "Move the current session to a different directory",
+		acpDescription: "Move the current session to a different directory",
 		inlineHint: "[<path>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			if (runtime.session.isStreaming) return usage("Cannot move while streaming.", runtime);
 			if (!command.args) return usage("Usage: /move <path>", runtime);
-			const resolvedPath = resolveShellDirectory(command.args, runtime.cwd);
-			let exists = false;
+			const resolvedPath = resolveToCwd(command.args, runtime.cwd);
 			try {
 				const stat = await fs.stat(resolvedPath);
-				exists = true;
-				if (!stat.isDirectory()) return usage(`Not a directory: ${resolvedPath}`, runtime);
+				if (!stat.isDirectory()) {
+					return usage(`Not a directory: ${resolvedPath}`, runtime);
+				}
 			} catch {
-				// Missing target: /move may create it, matching the TUI.
-			}
-			if (!exists) {
-				const parentDir = path.dirname(resolvedPath);
-				let parentExists = false;
-				try {
-					parentExists = (await fs.stat(parentDir)).isDirectory();
-				} catch {
-					parentExists = false;
-				}
-				if (!parentExists) {
-					return usage(`Cannot create "${path.basename(resolvedPath)}": parent directory does not exist`, runtime);
-				}
-				try {
-					await fs.mkdir(resolvedPath, { recursive: true });
-				} catch (error) {
-					return usage(`Failed to create directory: ${errorMessage(error)}`, runtime);
-				}
+				return usage(`Directory does not exist: ${resolvedPath}`, runtime);
 			}
 			const failure = await relocateHeadlessSession(runtime, resolvedPath);
 			if (failure) return failure;
@@ -855,8 +730,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "wt",
 		aliases: ["worktree"],
 		icon: "folderMove",
-		description: () => M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
-		acpDescription: () => M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
+		description: "Move this session into a new worktree, changes included",
+		acpDescription: "Move this session into a new worktree, changes included",
 		inlineHint: "[<branch>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -889,8 +764,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "add-dir",
 		icon: "folderPlus",
-		description: () => M.cmdAddDir,
-		acpDescription: () => M.cmdAddDirAcp,
+		description: "Add a workspace directory to this session (multi-root)",
+		acpDescription: "Add a workspace directory to this session",
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -921,8 +796,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "remove-dir",
 		icon: "folderMinus",
-		description: () => M.cmdRemoveDir,
-		acpDescription: () => M.cmdRemoveDirAcp,
+		description: "Remove a workspace directory from this session",
+		acpDescription: "Remove a workspace directory from this session",
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -949,8 +824,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "dirs",
-		description: () => M.cmdDirs,
-		acpDescription: () => M.cmdDirsAcp,
+		description: "List this session's workspace directories",
+		acpDescription: "List this session's workspace directories",
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
 			return commandConsumed();
@@ -958,31 +833,15 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	},
 	{
 		name: "exit",
-		description: () => M.cmdExit,
+		description: "Exit the application",
 		handleTui: shutdownHandlerTui,
 	},
 	{
 		name: "restart",
 		icon: "restart",
-		description: () => M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
-		inlineHint: "[client|backend]",
-		allowArgs: true,
-		handleTui: async (command, runtime) => {
+		description: "Restart omp with the same launch flags, resuming this session and its running subagents",
+		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
-			const target = command.args.trim().toLowerCase();
-			if (target === "backend") {
-				const attach = runtime.ctx.backendAttach;
-				if (!attach) {
-					runtime.ctx.showError("This session is local; there is no backend to restart. Use /restart client.");
-					return;
-				}
-				await attach.restartBackend();
-				return;
-			}
-			if (target !== "" && target !== "client") {
-				runtime.ctx.showError("Usage: /restart [client|backend]");
-				return;
-			}
 			await runtime.ctx.restart();
 		},
 	},

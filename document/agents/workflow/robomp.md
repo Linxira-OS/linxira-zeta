@@ -1,6 +1,6 @@
 # 上游 robomp：issue → 修复 PR → 发布哨兵
 
-> 来源：上游 `v18.16.0` 的 `python/robomp/`、`.omp/commands/`、
+> 来源：上游 `v18.16.0` 的 `python/robomp/`、`.zeta/commands/`、
 > `packages/coding-agent/CHANGELOG.md`（18.16.0）与 `scripts/release.ts`。
 > **Zeta 已经在 v18.15.0 合并中携带 `python/robomp/`，并把命令/配置适配为
 > `zetacode` / `.zeta`**；本文记录上游机制、Zeta 当前状态和仍需补齐的边界，
@@ -9,7 +9,7 @@
 ## 一句话
 
 robomp 是上游自托管的 GitHub 机器人：GitHub webhook 进入持久队列，每个 issue
-分配独立 git worktree，子进程跑 `omp --mode rpc` 做分类、复现、修复，再通过一个
+分配独立 git worktree，子进程跑 `zetacode --mode rpc` 做分类、复现、修复，再通过一个
 只拿 PAT 的 sidecar 写回 GitHub。它不是“第二天定时扫”，而是收到 webhook 后立即
 入队；延迟只来自限流、并发和积压。
 
@@ -21,7 +21,7 @@ flowchart LR
   API --> Q[(SQLite events)]
   Q --> W[WorkerPool]
   W --> WT[per-issue worktree]
-  WT --> OMP[omp --mode rpc]
+  WT --> OMP[zetacode --mode rpc]
   OMP -->|host tools only| PROXY[gh-proxy]
   PROXY -->|PAT| GH
   PROXY -->|git push / PR| GH
@@ -35,7 +35,7 @@ flowchart LR
   只在内部网络，另有出站到 `api.github.com`。
 - **隔离**：每个 issue 一个 worktree，分支 `farm/<8hex>/<slug>`；同一 issue 的后续
   事件串行，避免并发写同一分支。release 任务按 `<repo>#release` 串行。
-- **会话延续**：`omp --mode rpc` 使用持久 `session_dir`；后续评论 / PR review 用
+- **会话延续**：`zetacode --mode rpc` 使用持久 `session_dir`；后续评论 / PR review 用
   `--continue` 恢复同一 transcript；orchestrator 重启后从 SQLite 重新入队并继续。
 - **写入面**：agent 只能用内置 `read`/`edit`/`bash`/`lsp` 和 robomp 的 `gh_*` /
   `classify_*` / `pr_review_*` host tools；不能 shell 出 `gh` 或 `git push`。
@@ -106,7 +106,7 @@ flowchart LR
 
 - `scripts/release.ts <version|major|minor|patch|canary>`；`major/minor/patch`
   只是对最新 tag 做机械 bump。
-- `.omp/commands/release.md` 说得很清楚：没有给版本时，agent 看上一个 tag 之后的
+- `.zeta/commands/release.md` 说得很清楚：没有给版本时，agent 看上一个 tag 之后的
   commit，自己判断 major/minor/patch；脚本不替它推断。
 - 所以上游是“agent/维护者先选版本并 cut release，哨兵只负责把失败的发布 CI 修绿”，
   不是“PR 合并后按 commit 类型自动算 semver”。
@@ -159,7 +159,7 @@ flowchart LR
 
 - **版本线不同**：上游 tag 是 `v18.x`，Zeta 产品线是 `1.4.x`；robomp 的
   release 前缀/版本假设要改。
-- **品牌与目录**：`python/robomp` 使用 `.omp`、`omp` 命令、上游 package 名；
+- **品牌与目录**：`python/robomp` 使用 `.omp`、`zetacode` 命令、上游 package 名；
   作为内部开发工具可以保留兼容名，但一旦进入 Zeta 产品面必须按品牌注册表处理。
 - **发布流程不同**：Zeta 的 `release-v2.ts` 要求显式版本、tag 与 dispatch；
   robomp 的 `release_retag` 不能直接套，否则会绕开现有发布门禁。
@@ -185,6 +185,6 @@ flowchart LR
 - `python/robomp/src/prompts/kickoff_issue.md` — 新 issue 启动提示。
 - `python/robomp/src/prompts/kickoff_release.md` /
   `system_append_release.md` — release sentinel 的唯一职责。
-- `.omp/commands/fix-issues.md` / `triage.md` / `review-prs.md` / `release.md` —
+- `.zeta/commands/fix-issues.md` / `triage.md` / `review-prs.md` / `release.md` —
   维护者手动版流程，和 robomp 的自动版分开。
 - `scripts/release.ts` — 版本 bump 与 tag 的机械实现；不做 semver 推断。

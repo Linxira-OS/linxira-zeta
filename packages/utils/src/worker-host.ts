@@ -3,6 +3,13 @@ import { stripWindowsExtendedLengthPathPrefix } from "./path";
 /** Prefix reserved for argv selectors dispatched by the shared CLI worker host. */
 export const WORKER_HOST_SELECTOR_PREFIX = "__zeta_worker_";
 
+/**
+ * Selector of a shell process: `zetacode __zeta_worker_shell_process [options] -- <command>` runs one
+ * command in the embedded shell as a process of its own (a named service, a pty command). The
+ * command is always the last argument, which is what a process listing shows for it.
+ */
+export const SHELL_PROCESS_SELECTOR = "__zeta_worker_shell_process";
+
 /** Whether an argv value selects a worker hosted by the shared CLI entrypoint. */
 export function isWorkerHostSelector(value: string | undefined): value is string {
 	return value?.startsWith(WORKER_HOST_SELECTOR_PREFIX) ?? false;

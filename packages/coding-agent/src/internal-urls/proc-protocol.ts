@@ -1,5 +1,5 @@
 import { formatDuration } from "@linxiraos/pi-tui/render/render-utils";
-import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import type { DaemonSnapshot } from "../launch/protocol";
 import { logger, formatBytes, sanitizeText, truncate } from "@linxiraos/pi-utils";
 import type { AsyncJob } from "../async";
 import {

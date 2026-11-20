@@ -1,11 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-
-### Fixed
-
-- Corrected context cost estimates for requests that omit reasoning history, so billing estimates now include thinking text only when it is sent or reconstructed for a tool call.
-
 ## [9.2.2] - 2026-01-31
 
 ### Added
@@ -172,7 +167,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 ### Breaking Changes
 
-- Removed the Bun event-loop workaround utilities from `@oh-my-pi/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
+- Removed the Bun event-loop workaround utilities from `@linxiraos/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
 
 ### Added
 

@@ -1,12 +1,6 @@
 ## [Unreleased]
 
 ## [1.5.10] - 2026-11-19
-
-### Added
-
-- Added optional picker icons for tooltips and accessible names, plus an option to control the placement of the search interface.
-- Added buttons, menu, and document component kinds, including menu-row action state changes and document text editing, commenting, and uncommenting events.
-
 ## [1.5.2] - 2026-11-13
 
 ### Changed

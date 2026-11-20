@@ -811,7 +811,7 @@ async function runWithIsolatedBroker(
 			...process.env,
 			HOME: home,
 			USERPROFILE: home,
-			PI_CONFIG_DIR: ".zeta",
+			ZETA_CONFIG_DIR: ".zeta",
 			ZETA_DAEMON_IDLE_GRACE_MS: "200",
 			...env,
 		},

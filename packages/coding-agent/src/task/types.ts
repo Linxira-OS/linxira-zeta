@@ -307,7 +307,7 @@ export interface AgentDefinition {
 	thinkingLevel?: ConfiguredThinkingLevel;
 	output?: unknown;
 	blocking?: boolean;
-	/** `true` = task spawns keep the `yield` tool and this agent's `output` schema even when `task.structured` is off. */
+	/** `true` = task spawns keep this agent's `output` schema, and with it the `yield` tool, even when `task.structured` is off. */
 	structured?: boolean;
 	/** `true` = the subagent owns a `todo` list instead of having the parent-owned tool stripped. */
 	ownsTodo?: boolean;

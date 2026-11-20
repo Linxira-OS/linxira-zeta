@@ -15,25 +15,20 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, getMCPConfigPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initializeWithSettings, reset as resetDiscoveryCache } from "@linxiraos/zeta/discovery";
 import { readMCPConfigFile, setMcpServerEnabled, setServerDisabled } from "@linxiraos/zeta/mcp/config-writer";
 import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, getMCPConfigPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 	let projectDir = "";
 	let userAgentDir = "";
-	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
-		// `opencode.json` is a foreign project source; these dashboard parity
-		// cases exercise its MCP rows, so consent to it for the fixture repo.
-		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "opencode";
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-3827-project-"));
-		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-3827-user-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-3827-project-"));
+		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-3827-user-"));
 
 		// Redirect user-scoped mcp.json (resolved via getAgentDir() at the call
 		// site) into the per-test temp directory so neither the discovery loader
@@ -68,8 +63,6 @@ describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 
 	afterEach(async () => {
 		resetSettingsForTest();
-		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
-		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(projectDir);
 		await removeWithRetries(userAgentDir);
@@ -89,6 +82,15 @@ describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 		expect(flagDisabled).toBeDefined();
 		expect(flagDisabled!.state).toBe("disabled");
 		expect(flagDisabled!.disabledReason).toBe("item-disabled");
+	});
+
+	test("shows a server a built-in transform dropped as disabled, so its toggle offers the enable", async () => {
+		const source = { provider: "native", providerName: "OMP", path: projectDir, level: "project" } as const;
+		const drops = new Map([["active-server", { reason: "replaced by a built-in", source }]]);
+		const extensions = await loadAllExtensions(projectDir, [], undefined, drops);
+		const dropped = extensions.find(e => e.id === "mcp:active-server");
+		expect(dropped?.state).toBe("disabled");
+		expect(dropped?.disabledReason).toBe("item-disabled");
 	});
 
 	test("leaves untouched servers active", async () => {

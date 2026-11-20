@@ -3961,6 +3961,26 @@ func (v *CacheWarmingOutcome) UnmarshalJSON(data []byte) error {
 	return unknownValue("CacheWarmingOutcome", s)
 }
 
+type CacheWarmingRentMethod string
+
+const (
+	CacheWarmingRentMethodPrewarm CacheWarmingRentMethod = "prewarm"
+	CacheWarmingRentMethodReplay  CacheWarmingRentMethod = "replay"
+)
+
+func (v *CacheWarmingRentMethod) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "CacheWarmingRentMethod")
+	if err != nil {
+		return err
+	}
+	switch value := CacheWarmingRentMethod(s); value {
+	case CacheWarmingRentMethodPrewarm, CacheWarmingRentMethodReplay:
+		*v = value
+		return nil
+	}
+	return unknownValue("CacheWarmingRentMethod", s)
+}
+
 type NotifyType string
 
 const (
@@ -4540,9 +4560,10 @@ func (v AutoRetryEndEvent) MarshalJSON() ([]byte, error) {
 
 // A prompt-cache refresh was handed to the provider.
 type CacheWarmingStartEvent struct {
-	Phase    CacheWarmingPhase `json:"phase"`
-	Provider string            `json:"provider"`
-	Model    string            `json:"model"`
+	Phase    CacheWarmingPhase      `json:"phase"`
+	Method   CacheWarmingRentMethod `json:"method"`
+	Provider string                 `json:"provider"`
+	Model    string                 `json:"model"`
 }
 
 func (v *CacheWarmingStartEvent) UnmarshalJSON(data []byte) error {
@@ -4554,6 +4575,7 @@ func (v *CacheWarmingStartEvent) decodeFrom(raw map[string]json.RawMessage) erro
 	d := fieldDecoder{raw: raw, owner: "CacheWarmingStartEvent"}
 	d.constant("type", "cache_warming_start")
 	d.required("phase", &out.Phase)
+	d.required("method", &out.Method)
 	d.required("provider", &out.Provider)
 	d.required("model", &out.Model)
 	if d.err != nil {
@@ -4570,10 +4592,11 @@ func (v CacheWarmingStartEvent) MarshalJSON() ([]byte, error) {
 
 // Outcome of the refresh announced by the matching `cache_warming_start`.
 type CacheWarmingEndEvent struct {
-	Phase    CacheWarmingPhase   `json:"phase"`
-	Provider string              `json:"provider"`
-	Model    string              `json:"model"`
-	Outcome  CacheWarmingOutcome `json:"outcome"`
+	Phase    CacheWarmingPhase      `json:"phase"`
+	Method   CacheWarmingRentMethod `json:"method"`
+	Provider string                 `json:"provider"`
+	Model    string                 `json:"model"`
+	Outcome  CacheWarmingOutcome    `json:"outcome"`
 	// Present only when the refresh was billed.
 	Usage *Usage `json:"usage,omitempty"`
 	// Why warming stopped; absent while it continues.
@@ -4589,6 +4612,7 @@ func (v *CacheWarmingEndEvent) decodeFrom(raw map[string]json.RawMessage) error 
 	d := fieldDecoder{raw: raw, owner: "CacheWarmingEndEvent"}
 	d.constant("type", "cache_warming_end")
 	d.required("phase", &out.Phase)
+	d.required("method", &out.Method)
 	d.required("provider", &out.Provider)
 	d.required("model", &out.Model)
 	d.required("outcome", &out.Outcome)

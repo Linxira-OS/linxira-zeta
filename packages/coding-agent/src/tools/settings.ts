@@ -1082,7 +1082,8 @@ export const cfgToolsIntentTracing = register({
 		tab: "tools",
 		group: "Execution",
 		label: "Intent Tracing",
-		description: "Ask the agent to describe the intent of each tool call before executing it",
+		description:
+			"Ask the agent to describe the intent of each tool call before executing it. Unset: on in the interactive TUI, off in print, RPC, ACP, and SDK sessions",
 	},
 });
 
@@ -1275,6 +1276,12 @@ export const cfgDevAutoqa = register({
 		description:
 			"Automated tool issue reporting (xd://report_issue). Reports are filed as GitHub issues on ZETA_ISSUE_REPO. On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
 	},
+});
+
+export const cfgDevAutoqaPushEndpoint = register({
+	id: "dev.autoqaPush.endpoint",
+	type: "string",
+	default: undefined,
 });
 
 export const cfgDevAutoqaPushToken = register({

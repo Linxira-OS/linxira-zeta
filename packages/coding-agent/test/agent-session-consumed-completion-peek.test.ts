@@ -6,6 +6,8 @@ import { createMockModel, type MockHandler } from "@linxiraos/pi-ai/providers/mo
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import * as daemonClient from "@linxiraos/zeta/daemon/client";
+import type { DaemonClient } from "@linxiraos/zeta/daemon/protocol";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -14,8 +16,6 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WaitTool } from "@linxiraos/zeta/tools/wait";
 import { TempDir } from "@linxiraos/pi-utils";
-import * as daemonClient from "@linxiraos/zeta/launch/client";
-import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
 
 /**
  * An eval cell awaiting a subagent consumes the subagent's output after the
@@ -165,8 +165,10 @@ describe("AgentSession peek at consumed background completions", () => {
 				return promise;
 			},
 			onCompletion: () => () => {},
-		} as unknown as DaemonBrokerClient;
-		vi.spyOn(daemonClient, "daemonClientForProject").mockResolvedValue(broker);
+			onNotify: () => () => {},
+			onReconnect: () => () => {},
+		} as unknown as DaemonClient;
+		vi.spyOn(daemonClient, "daemonClient").mockResolvedValue(broker);
 		const build = gatedJob("build", "bash");
 		const queued = Promise.withResolvers<void>();
 		const active = createSession(

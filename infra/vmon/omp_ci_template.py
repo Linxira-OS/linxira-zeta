@@ -49,8 +49,8 @@ import sys
 import time
 import urllib.request
 
-REPO_URL = "https://github.com/can1357/oh-my-pi"
-RAW_URL = "https://raw.githubusercontent.com/can1357/oh-my-pi"
+REPO_URL = "https://github.com/Linxira-OS/linxira-zeta"
+RAW_URL = "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta"
 NAME = "omp-ci"
 CPU_COUNT = 8
 MEMORY_MB = 16384
@@ -64,7 +64,7 @@ BAZELISK_VERSION = "1.29.0"
 
 # actions/checkout's workspace for this repo. Warming Bazel here makes the
 # output base (keyed by the workspace path) the one CI jobs reuse.
-WORKSPACE = "/home/user/actions-runner/_work/oh-my-pi/oh-my-pi"
+WORKSPACE = "/home/user/actions-runner/_work/zeta/zeta"
 # Read by .github/actions/bazel-cache; keep the two in sync.
 REPO_CACHE = "/opt/bazel-repo-cache"
 
@@ -218,7 +218,7 @@ WARM_CACHES = f"""set -eux
 {RETRY}
 cd {WORKSPACE}
 bun install --frozen-lockfile
-bun install --cwd .omp/tools --frozen-lockfile
+bun install --cwd .zeta/tools --frozen-lockfile
 cargo fetch --locked
 bazelisk version
 retry bazelisk build --nobuild --config=ci \\
@@ -227,7 +227,7 @@ retry bazelisk build --nobuild --config=ci \\
   //:natives-all //crates/...
 bazelisk shutdown
 cd /home/user
-rm -rf /home/user/actions-runner/_work/oh-my-pi "$HOME/.cargo/registry/src"
+rm -rf /home/user/actions-runner/_work/zeta "$HOME/.cargo/registry/src"
 du -sh "$HOME/.bun/install/cache" "$HOME/.cargo/registry" "$HOME/.cache/bazel" {REPO_CACHE} || true
 """
 

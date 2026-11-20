@@ -1,6 +1,6 @@
 # Plugin manager and installer plumbing
 
-This document describes how `omp plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `zeta-plugins.lock.json` runtime surfaces used by npm/git/link installs; the pre-rename `zeta-plugins.lock.json` is still read and migrated on first read (see `document/brand-surface-rules.md`, DUAL row); see `docs/marketplace.md`.
+This document describes how `zetacode plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `zeta-plugins.lock.json` runtime surfaces used by npm/git/link installs; the pre-rename `zeta-plugins.lock.json` is still read and migrated on first read (see `document/brand-surface-rules.md`, DUAL row); see `docs/marketplace.md`.
 
 ## Scope and architecture
 
@@ -9,14 +9,14 @@ There are two plugin-management implementations in the codebase:
 1. **Active path used by CLI commands**: `PluginManager` (`src/extensibility/plugins/manager.ts`)
 2. **Legacy helper module**: installer functions (`src/extensibility/plugins/installer.ts`)
 
-`omp plugin` npm/git/link actions go through `PluginManager`; marketplace actions go through `MarketplaceManager`. `install` classifies each target (`classifyInstallTarget` in `cli/classify-install-target.ts`): local paths route to `PluginManager.link()`, and `name@marketplace` routes to the marketplace manager only when the marketplace is configured. Scoped npm specs, common npm dist-tags, and version-like suffixes remain npm targets. Git and npm specs go to `PluginManager.install()`.
+`zetacode plugin` npm/git/link actions go through `PluginManager`; marketplace actions go through `MarketplaceManager`. `install` classifies each target (`classifyInstallTarget` in `cli/classify-install-target.ts`): local paths route to `PluginManager.link()`, and `name@marketplace` routes to the marketplace manager only when the marketplace is configured. Scoped npm specs, common npm dist-tags, and version-like suffixes remain npm targets. Git and npm specs go to `PluginManager.install()`.
 
 `installer.ts` still documents important safety checks and filesystem behavior, but it is not the path used by `src/commands/plugin.ts` + `src/cli/plugin-cli.ts`.
 
 ## Lifecycle: from CLI invocation to runtime availability
 
 ```text
-omp plugin <npm/link action> ...
+zetacode plugin <npm/link action> ...
   -> src/commands/plugin.ts
   -> runPluginCommand(...) in src/cli/plugin-cli.ts
   -> PluginManager method (install/list/uninstall/link/...)
@@ -25,7 +25,7 @@ omp plugin <npm/link action> ...
   -> direct loaders resolve manifest-declared tool/extension entries
   -> `zeta-plugins` capability discovery scans conventional skills/hooks/tools/commands/rules/prompts/MCP content; task discovery scans `agents/`
 
-omp plugin install name@marketplace / omp install name@marketplace
+zetacode plugin install name@marketplace / zetacode install name@marketplace
   -> MarketplaceManager
   -> mutate scope registry and shared cache
   -> symlink the cached package into the scope's node_modules and update zeta-plugins.lock.json
@@ -64,7 +64,7 @@ Marketplace installs add registry and cache state alongside those runtime entrie
 - user plugins data root `installed_plugins.json` (`~/.zeta/plugins/installed_plugins.json` by default) — user-scoped marketplace installs
 - `<anchor>/.zeta/plugins/installed_plugins.json` — project-scoped marketplace installs
 - user plugins data root `cache/{marketplaces,plugins}/` — cached catalogs and plugin directories
-- `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` manifest (`zeta`/`omp`/`pi` `extensions`) and tools to load
+- `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` manifest (`zeta`/`zetacode`/`pi` `extensions`) and tools to load
 - `<scope>/plugins/zeta-plugins.lock.json` — enablement and feature state shared with the runtime plugin loader
 
 ## Plugin spec parsing and metadata interpretation
@@ -96,15 +96,15 @@ Manifest is resolved as:
 Implications:
 
 - There is no strict schema validation in manager/loader.
-- A package missing `omp`/`pi` is still installable and listable.
-- Runtime plugin loading (`getEnabledPlugins`) skips packages without `omp`/`pi` manifest.
+- A package missing `zetacode`/`pi` is still installable and listable.
+- Runtime plugin loading (`getEnabledPlugins`) skips packages without `zetacode`/`pi` manifest.
 - `manifest.version` is always overwritten from package `version`.
 
 Malformed `package.json` JSON is a hard failure at read time; malformed manifest shape may fail later only when specific fields are consumed.
 
 ## Install/update flow (`PluginManager.install`)
 
-Every Bun package-manager call below (`install`, `update`, `uninstall`, `pm cache`) goes through `runBunCli` (`src/extensibility/plugins/bun-cli.ts`), which re-runs the current executable with `BUN_BE_BUN=1` rather than looking up `bun` on `PATH`. The standalone `omp` binary embeds Bun, so npm/Git plugin installs need no separately installed Bun; Git sources still need `git` on `PATH`.
+Every Bun package-manager call below (`install`, `update`, `uninstall`, `pm cache`) goes through `runBunCli` (`src/extensibility/plugins/bun-cli.ts`), which re-runs the current executable with `BUN_BE_BUN=1` rather than looking up `bun` on `PATH`. The standalone `zetacode` binary embeds Bun, so npm/Git plugin installs need no separately installed Bun; Git sources still need `git` on `PATH`.
 
 1. Parse feature bracket syntax from install spec.
 2. Validate the spec: git specs via `validateGitSpec`; npm specs against the package-name regex + shell-metacharacter denylist.
@@ -121,7 +121,7 @@ Every Bun package-manager call below (`install`, `update`, `uninstall`, `pm cach
 
 ### Update semantics
 
-- `omp plugin install pkg@newVersion` updates the dependency and runtime version. A plain reinstall resets enablement to true and feature selection to defaults unless explicitly supplied; settings remain in the separate settings map.
+- `zetacode plugin install pkg@newVersion` updates the dependency and runtime version. A plain reinstall resets enablement to true and feature selection to defaults unless explicitly supplied; settings remain in the separate settings map.
 - `zetacode plugin upgrade <package-name>` uses the source recorded in `plugins/package.json`: npm moves to the latest published version, while Git re-resolves its recorded ref. It preserves enablement and feature selection, removing selected features absent from a new feature map. Local links and `file:`/`link:`/`workspace:`/`portal:` dependencies have nothing to upgrade and are rejected.
 - Upgrade compares both package version and Bun lockfile resolution, so a moving Git ref can report a changed revision without a version bump.
 - Install snapshots the prior package tree, `package.json`, and `bun.lock`. Failure during installation, feature/extension validation, or runtime-config save attempts to restore all three.
@@ -148,7 +148,7 @@ If uninstall command fails, runtime state is not changed.
    - project overrides can replace feature selection
    - project `disabled` list masks the plugin as disabled
 
-`omp plugin list` combines this result with `MarketplaceManager.listInstalledPlugins()`.
+`zetacode plugin list` combines this result with `MarketplaceManager.listInstalledPlugins()`.
 
 `PluginManager.getPlugin()` resolves one runtime package directly, including marketplace symlinks intentionally omitted from `list()`. An explicit trusted path wins; otherwise an enabled project package shadows the user package. Config commands use this path for manifest/schema lookup, while settings reads/writes still use the user lockfile plus read-only project overrides. `config validate` includes marketplace packages without duplicating marketplace entries in list/status output.
 
@@ -181,7 +181,7 @@ Caveat: `PluginManager.link` validates the package name but does not restrict th
 Filtering:
 
 - skip if no plugin package.json
-- skip if manifest (`omp`/`pi`) absent
+- skip if manifest (`zetacode`/`pi`) absent
 - skip if globally disabled in lockfile
 - skip if project-disabled
 - when the root has a dependency manifest, skip a lockfile-only entry unless its `node_modules` path is a symlink (links and marketplace registration remain valid)
@@ -202,7 +202,7 @@ Each resolver includes base entries plus feature entries:
 - explicit feature list -> only selected features
 - `enabledFeatures === null` -> enable features marked `default: true`
 
-Manifest entries may point to a file. Tool/hook/command directories require a direct `index.ts`, `index.js`, `index.mjs`, or `index.cjs`. Extension directories instead use this precedence: their own `package.json` `omp`/`pi.extensions`, then a direct index, then a sorted one-level scan of module files and child directories with indexes. Declaration files are excluded from that scan. Missing paths are omitted during runtime resolution; enabled declared extension entries are validated during install.
+Manifest entries may point to a file. Tool/hook/command directories require a direct `index.ts`, `index.js`, `index.mjs`, or `index.cjs`. Extension directories instead use this precedence: their own `package.json` `zetacode`/`pi.extensions`, then a direct index, then a sorted one-level scan of module files and child directories with indexes. Declaration files are excluded from that scan. Missing paths are omitted during runtime resolution; enabled declared extension entries are validated during install.
 
 ## Current runtime wiring
 
@@ -268,7 +268,7 @@ Operationally, `doctor --fix` can repair some drift (`bun install`, orphaned con
 
 ## Malformed/missing manifest behavior summary
 
-- Missing `omp`/`pi` field:
+- Missing `zetacode`/`pi` field:
   - install/list: tolerated (minimal manifest)
   - runtime enabled-plugin discovery: skipped as non-plugin
 - Unknown feature referenced by install spec or feature mutation: hard error with available feature list when the manifest declares a feature map; without a map, names can be retained without validation

@@ -31,13 +31,8 @@ export declare class AudioPlayback {
 /** Persistent, serialized native desktop capture/input/accessibility session. */
 export declare class DesktopSession {
   constructor(options?: DesktopSessionOptions | undefined | null)
-  /** Positive capability probe. Older bindings return no such property. */
-  get observationOnly(): boolean
-  /**
-   * A cancellation barrier that queues behind native input without holding or
-   * waking the display.
-   */
-  settle(): Promise<undefined>
+  /** Passive observation-only session (no input injection). */
+  readonly observationOnly?: boolean;
   /**
    * Asks the worker when it is idle, so permissions are read live. While
    * another operation holds the worker, answers from the snapshot of the
@@ -249,7 +244,8 @@ export declare class EditStore {
   recordSnapshot(absolutePath: string, text: string, seenLines?: Array<number> | undefined | null): string
   /**
    * Read `absolutePath` from disk and record it; null when the file is
-   * unreadable or larger than 4 MiB.
+   * unreadable or larger than 64 MiB. Past 4 MiB only the tag is returned:
+   * no snapshot is retained.
    */
   recordSnapshotFile(absolutePath: string, seenLines?: Array<number> | undefined | null): string | null
   /** Merge displayed lines into the snapshot tagged `tag`. */
@@ -273,6 +269,41 @@ export declare class EditStore {
   invalidate(absolutePath: string): void
   relocate(from: string, to: string): void
   clear(): void
+}
+
+/** Async reader/writer over a raw fd (pipe end). */
+export declare class FdStream {
+  /** Take ownership of `fd` (Windows: a pipe handle value). */
+  constructor(fd: number)
+  /**
+   * Begin reading: every chunk goes to `onChunk`, then `onClose` fires once
+   * with `null` on EOF/`close()` or an error message.
+   */
+  start(onChunk: (chunk: Uint8Array) => void, onClose: (reason: string | null) => void): void
+  /**
+   * Stop reading without closing the fd. Resolves once every chunk read
+   * before the pause has been delivered to `onChunk`; unread bytes stay in
+   * the kernel buffer. Writes are unaffected. No-op (resolved) when not
+   * reading (not started, already paused, or closed).
+   *
+   * Windows: the blocking pipe read cannot be interrupted without losing its
+   * bytes, so this resolves immediately and reading continues.
+   */
+  pause(): Promise<void>
+  /**
+   * Restart the read loop after `pause()` with the callbacks given to
+   * `start`. No-op when not paused.
+   */
+  resume(): void
+  /**
+   * Queue `data`; false once more than 1 MiB is unwritten (or the stream is
+   * closed).
+   */
+  write(data: string | Uint8Array): boolean
+  /** Resolve once every queued byte was written or the stream closed. */
+  drained(): Promise<void>
+  /** Stop reading and writing, drop queued bytes, and close the fd. */
+  close(): void
 }
 
 /**
@@ -326,6 +357,12 @@ export declare class IpcConnection {
    */
   static connect(endpoint: string, options: IpcConnectOptions): Promise<IpcConnection>
   /**
+   * Dial TCP `host:port` (`TCP_NODELAY` set; no peer-credential check:
+   * authenticate in-band). Rejects with code ECONNREFUSED, ETIMEDOUT
+   * (`timeoutMs` expired), EADDRNOTAVAIL, or the OS errno name.
+   */
+  static connectTcp(host: string, port: number, options: IpcConnectOptions): Promise<IpcConnection>
+  /**
    * Begin delivery on a `lines` connection (throws `TypeError` on a `raw`
    * one). Call `start`/`startRaw` exactly once. Frames received before
    * start are buffered, never dropped. `onLine` gets each non-empty line
@@ -341,8 +378,21 @@ export declare class IpcConnection {
    */
   startRaw(onChunk: (chunk: Uint8Array) => void, onClose: (reason: string | null) => void): void
   /**
+   * On a started `lines` connection: stop line framing. Bytes received
+   * past the last line already passed to `onLine` — including the rest of
+   * the batch when called from inside `onLine` — and every later byte go to
+   * `onChunk`, in order, nothing lost or reframed. `send()` then takes raw
+   * strings (UTF-8) / `Uint8Array` written as-is, without an LF. The
+   * `onClose` given to `start` still fires exactly once, last.
+   * `maxFrameBytes` stops applying once the switch reaches the reader. Throws
+   * `TypeError` on a `raw` connection, `ERR_INVALID_STATE` before `start` or
+   * when already upgraded.
+   */
+  upgradeRaw(onChunk: (chunk: Uint8Array) => void): void
+  /**
    * Send one frame. lines: a string without LF (`TypeError` otherwise);
-   * LF is appended. raw: string (UTF-8) or `Uint8Array` written as-is.
+   * LF is appended. raw (or after `upgradeRaw`): string (UTF-8) or
+   * `Uint8Array` written as-is.
    * Frames sent during one JS task are written together when it ends (a
    * microtask), in order; `end()` writes them first. Returns false once
    * unwritten bytes exceed 1 MiB (await `drained()` before sending more).
@@ -383,8 +433,25 @@ export declare class IpcServer {
    * started).
    */
   static listen(endpoint: string, options: IpcListenOptions, onConnection: (connection: IpcConnection) => void): Promise<IpcServer>
-  /** The endpoint this server listens on. */
+  /**
+   * Bind and listen on TCP `host:port`; `port` 0 picks an ephemeral port
+   * (read it back from `port`). Loopback and non-loopback hosts are both
+   * allowed. No peer-credential check: authenticate in-band. Accepted
+   * sockets have `TCP_NODELAY` set. `onConnection` receives each accepted
+   * connection (not yet started). Rejects with code EADDRINUSE,
+   * EADDRNOTAVAIL, EACCES, or the OS errno name.
+   */
+  static listenTcp(host: string, port: number, options: IpcListenOptions, onConnection: (connection: IpcConnection) => void): Promise<IpcServer>
+  /**
+   * The endpoint this server listens on: the socket path / pipe name, or
+   * `"<ip>:<port>"` for TCP.
+   */
   get endpoint(): string
+  /**
+   * The bound TCP port (the real one when listening on port 0); `null` for
+   * Unix-socket / named-pipe servers.
+   */
+  get port(): number | null
   /**
    * Stop accepting. Unix: unlink the socket file if it is still the inode
    * this server bound. Accepted connections are untouched. Idempotent.
@@ -603,11 +670,25 @@ export declare class Process {
   children(): Array<Process>
   /** Current status of this process reference. */
   status(): ProcessStatus
+  /**
+   * Process start time in milliseconds since the Unix epoch, when the
+   * platform reports it; a pid-reuse guard for re-adopting processes.
+   */
+  startTime(): number | null
 }
 
 /** Stateful PTY session for interactive stdin/stdout passthrough. */
 export declare class PtySession {
   constructor()
+  /**
+   * Wrap an inherited pty master fd and its child pid (e.g. kept across
+   * `execReplace`); call `resume` to drive it like a started session.
+   */
+  static adopt(masterFd: number, pid: number): PtySession
+  /** Unix pty master fd of the running session, for `execReplace` keepFds. */
+  masterFd(): number | null
+  /** Process id of the running session's child. */
+  pid(): number | null
   /**
    * Start a shell command, stream output chunks, and report the spawned child
    * PID.
@@ -618,12 +699,33 @@ export declare class PtySession {
    * report the spawned child PID.
    */
   startArgv(options: PtyArgvStartOptions, onChunk?: ((error: Error | null, chunk: string) => void) | undefined | null, onStart?: ((error: Error | null, pid: number) => void) | undefined | null): Promise<PtyRunResult>
+  /**
+   * Drive an adopted session: stream output chunks and resolve when the
+   * child exits (exit code via `waitpid`).
+   */
+  resume(onChunk: (error: Error | null, chunk: string) => void): Promise<PtyRunResult>
   /** Write raw input bytes to PTY stdin. */
   write(data: string): void
   /** Resize the active PTY. */
   resize(cols: number, rows: number): void
   /** Force-kill the active PTY command. */
   kill(): void
+  /**
+   * Stop reading output without closing the master. Resolves once every
+   * chunk read before the pause has been delivered to `onChunk`, including
+   * partial UTF-8 held by the decoder (flushed lossily); unread bytes stay in
+   * the kernel buffer. Input, resize, kill and child-exit handling keep
+   * working. No-op (resolved) when no session runs or output is already
+   * paused. A run whose child exits while paused stops waiting for output
+   * as for a slave held open elsewhere, leaving the unread bytes unread.
+   *
+   * Windows: `ConPTY` output is a blocking pipe read that cannot be
+   * interrupted without losing its bytes, so this resolves immediately and
+   * reading continues.
+   */
+  pauseOutput(): Promise<void>
+  /** Restart reading output after `pauseOutput()`. No-op when not paused. */
+  resumeOutput(): void
 }
 
 /**
@@ -665,7 +767,7 @@ export declare class RunTrace {
   present(options: ShellVizOptions): string
 }
 
-/** Persistent embedded bash engine (pi-shell) shell session. */
+/** Persistent embedded bash engine shell session. */
 export declare class Shell {
   /**
    * Create a new shell session from optional configuration.
@@ -783,11 +885,12 @@ export declare class TextPredictor {
 
 /**
  * Dedicated, cancellable terminal writer. The destination must be a TTY that
- * can be independently reopened; pipes and files are deliberately rejected.
+ * can be independently reopened (unix) or a console (Windows); pipes and
+ * files are deliberately rejected.
  */
 export declare class TtyWriter {
   /**
-   * Start an independently opened terminal writer. onDrain runs when the
+   * Start a writer on its own handle to the terminal. onDrain runs when the
    * pending bound crosses from above drainThreshold to at/below it, and on
    * fatal writes even below the threshold. It does not retain the event loop.
    */
@@ -804,9 +907,10 @@ export declare class TtyWriter {
   /** Wait for queued output until the deadline. False on timeout or failure. */
   flushSync(timeoutMs: number): boolean
   /**
-   * Drain until the deadline, then cancel and join. Never detaches a writer
-   * or leaves old output running after return. Already queued JS callbacks
-   * may still run; callers must ignore callbacks from a stopped writer.
+   * Drain until the deadline, then cancel and join. Nothing is written after
+   * return, except one chunk a Windows console refused to abort. Already
+   * queued JS callbacks may still run; callers must ignore callbacks from a
+   * stopped writer.
    */
   stop(flushTimeoutMs: number): void
 }
@@ -844,6 +948,11 @@ export declare class VcsGitRepo {
    * change.
    */
   isDirty(signal?: unknown | undefined | null): Promise<boolean>
+  /**
+   * Operation underway, including unresolved index conflicts without state
+   * files.
+   */
+  operationKind(signal?: unknown | undefined | null): Promise<"merge" | "cherry-pick" | "revert" | "rebase" | "am" | "unmerged-index" | null>
   /** Porcelain status. */
   statusPorcelain(options: VcsStatusOptions, signal?: unknown | undefined | null): Promise<string>
   /** Status counts. */
@@ -886,6 +995,12 @@ export declare class VcsGitRepo {
   submodulePaths(signal?: unknown | undefined | null): Promise<Array<string>>
   /** Read blob bytes. */
   showBlob(spec: string, maxBytes?: number | undefined | null, signal?: unknown | undefined | null): Promise<VcsShowResult>
+  /**
+   * Convert worktree content to the blob `git add` would store per path
+   * (EOL/`text` attributes, `core.autocrlf`, `ident`, clean filters such as
+   * Git LFS), in input order.
+   */
+  worktreeToGit(entries: Array<VcsWorktreeContent>, signal?: unknown | undefined | null): Promise<Array<Buffer>>
   /** Read commit and patch bytes. */
   showCommit(rev: string, maxBytes?: number | undefined | null, signal?: unknown | undefined | null): Promise<VcsShowResult>
   /** Local LFS media directory. */
@@ -931,6 +1046,11 @@ export declare class VcsGitRepo {
   clean(options: VcsCleanOptions, signal?: unknown | undefined | null): Promise<undefined>
   /** Read tree into index. */
   readTree(treeish: string, indexPath?: string | undefined | null, signal?: unknown | undefined | null): Promise<undefined>
+  /**
+   * Read a tree into a private index while preserving sparse-checkout
+   * exclusions.
+   */
+  readTreeKeepingSparse(treeish: string, indexPath: string, signal?: unknown | undefined | null): Promise<undefined>
   /** Write index tree. */
   writeTree(indexPath?: string | undefined | null, signal?: unknown | undefined | null): Promise<string>
   /** Apply patch. */
@@ -1692,17 +1812,51 @@ export interface DesktopDragResult {
 export declare function desktopEscapeStops(key: string): number
 
 /**
- * Where focus ended after a takeover input call, as `WindowServer` reports
- * it. Input calls resolve to it on macOS when they took over; other
- * backends and background delivery resolve to `null`.
+ * Where focus ended after a takeover input call.
+ *
+ * Input calls resolve to it on macOS and Windows when they took over, as
+ * the window server reports it; other backends and background delivery
+ * resolve to `null`.
  */
 export interface DesktopFocusReturn {
-  /** Whether the takeover handed focus back to the app front before it. */
+  /** Whether the takeover handed the front back to the app front before it. */
   handedBack: boolean
   /** The process front before the takeover. */
   previousPid?: number
   /** The process front once the takeover ended; absent when unreadable. */
   frontPid?: number
+  /**
+   * What a macOS takeover did with the user's keyboard; absent elsewhere and
+   * when it did not reach the hand-back.
+   */
+  keyboard?: DesktopKeyboardReturn
+}
+
+/**
+ * What a macOS takeover did to give the user back their keyboard. Nothing
+ * outside an app can see which of its windows is key, so these name what was
+ * sent, not a key state that was observed.
+ */
+export declare enum DesktopKeyboardReturn {
+  /** The window that was key when the takeover began was made key again. */
+  HandedBack = 'handedBack',
+  /**
+   * The user clicked, used a shortcut or switched during the takeover, so
+   * nothing was sent over their choice.
+   */
+  LeftAsChosen = 'leftAsChosen',
+  /**
+   * The user's app never left the front (the target was another of its
+   * windows) and still reported its key window, so nothing was sent.
+   */
+  Kept = 'kept',
+  /** The user's app showed no window: only its front status came back. */
+  FrontOnly = 'frontOnly',
+  /**
+   * macOS refused the hand-back or the user's last input was still being
+   * read, so their window was not made key.
+   */
+  NotSent = 'notSent'
 }
 
 /**
@@ -1721,30 +1875,46 @@ export interface DesktopMenuItem {
 export interface DesktopObservation {
   capture: DesktopCapture
   accessibility: AxSnapshot
-  /**
-   * Passive observer-local nodes from the same AX walk; never executable
-   * refs.
-   */
-  nodes?: Array<DesktopObservationNode>
-  /**
-   * Frame pixel bounds are supplied only when native capture geometry and the
-   * AX window agree.
-   */
-  coordinateSpace?: string
-}
-
-export interface DesktopObservationNode {
-  id: string
-  role: string
-  name: string
-  enabled: boolean
-  bounds?: CaptureRegion
-  children: Array<DesktopObservationNode>
 }
 
 export interface DesktopPoint {
   x: number
   y: number
+}
+
+/**
+ * One on-screen window from the unfiltered roster. Unlike
+ * [`super::DesktopWindow`] it keeps popup menus, pickers and system panels,
+ * which publish no title or sharing state and sit above layer 0.
+ */
+export interface DesktopRosterWindow {
+  /** `kCGWindowNumber`, decimal; the same id `listWindows` reports. */
+  id: string
+  /** Owning process id. */
+  pid: number
+  /** Owning process name. */
+  app: string
+  /**
+   * Window title; empty without Screen Recording permission and for
+   * windows that publish none.
+   */
+  title: string
+  x: number
+  y: number
+  width: number
+  height: number
+  /**
+   * `kCGWindowLayer`: 0 for ordinary windows, 3 for floating panels, 101
+   * for popup menus, higher for system panels.
+   */
+  layer: number
+  /** `kCGWindowAlpha`; 0 is an invisible overlay. */
+  alpha: number
+  /**
+   * Whether `listWindows` reports this window, so `computer.window(id)`
+   * resolves it.
+   */
+  listed: boolean
 }
 
 /**
@@ -1757,14 +1927,19 @@ export interface DesktopScreenState {
 }
 
 export interface DesktopSessionOptions {
-  /** Passive reads: no display hold, wake-up, input listener or mutation. */
-  observationOnly?: boolean
   display?: string
+  /** Open in passive observation mode (no input injection). */
+  observationOnly?: boolean
   /**
    * Sessions created with the same key share one physical-Escape stop
    * count, which `desktopEscapeStops` reads after they close.
    */
   escapeStopKey?: string
+  /**
+   * The registry id of the agent this session acts for, named to other
+   * sessions that wait for its input/focus control.
+   */
+  agentId?: string
 }
 
 /** What a typing call did. */
@@ -1804,6 +1979,12 @@ export interface DesktopWindow {
   /** Whether the window currently holds input focus. */
   focused: boolean
 }
+
+/**
+ * Samples every on-screen window, front to back, in one `WindowServer` pass,
+ * with no desktop session and no permission prompt. Empty off macOS.
+ */
+export declare function desktopWindowRoster(): Array<DesktopRosterWindow>
 
 /**
  * Detect macOS system appearance via CoreFoundation.
@@ -2222,23 +2403,18 @@ export declare enum Encoding {
 }
 
 /**
- * Replace the current process image via `execvp(3)`.
+ * execve in place: clears CLOEXEC on keepFds, replaces the image, same PID.
+ * Throws ENOSYS on Windows.
  *
- * On success this never returns: the kernel tears down every other thread and
- * the new program takes over this PID, controlling terminal, and inherited
- * (non-`CLOEXEC`) file descriptors. Callers must flush logs and restore the
- * terminal first — no JS or native cleanup runs after a successful call.
- *
- * # Errors
- * Returns an error, leaving the process untouched, when `argv` is empty, an
- * argument contains an interior NUL byte, or the exec itself fails (e.g.
- * executable not found). Windows has no exec-replace semantics, so this
- * always errors there; callers fall back to spawn-and-wait.
+ * On success this never returns: no JS or native cleanup runs afterwards, so
+ * callers flush logs and restore the terminal first. On failure the
+ * `CLOEXEC` flags are restored and a JS error whose `code` is the errno name
+ * is thrown.
  */
-export declare function execReplace(argv: Array<string>): void
+export declare function execReplace(path: string, argv: Array<string>, env: Record<string, string>, keepFds: Array<number>): never
 
 /**
- * Execute a command in the embedded bash engine (pi-shell).
+ * Execute a command in the embedded bash engine.
  *
  * Creates a fresh session for each call. The `on_chunk` callback receives
  * streamed stdout/stderr output. Returns the exit code when the command
@@ -2486,6 +2662,11 @@ export interface GrepOptions {
   hidden?: boolean
   /** Respect .gitignore files (default: true). */
   gitignore?: boolean
+  /**
+   * Follow descendant symbolic links with cycle detection (default: false).
+   * The filesystem provider is responsible for enforcing mount containment.
+   */
+  followLinks?: boolean
   /** Maximum number of matches to return. */
   maxCount?: number
   /** Skip first N matches. */
@@ -2721,7 +2902,7 @@ export interface InlineSloppyRegion {
  */
 export declare function installSqliteLockShim(): boolean
 
-/** Options for `IpcConnection.connect`. */
+/** Options for `IpcConnection.connect` / `IpcConnection.connectTcp`. */
 export interface IpcConnectOptions {
   /**
    * `lines`: UTF-8 text frames delimited by LF; `raw`: byte chunks as
@@ -2745,7 +2926,7 @@ export interface IpcConnectOptions {
  */
 export declare function ipcEndpoint(dir: string, name: string): string
 
-/** Options for `IpcServer.listen`. */
+/** Options for `IpcServer.listen` / `IpcServer.listenTcp`. */
 export interface IpcListenOptions {
   /**
    * `lines`: UTF-8 text frames delimited by LF; `raw`: byte chunks as
@@ -2816,6 +2997,17 @@ export interface IsoFileChange {
  * failure when handling caught errors on the JS side.
  */
 export declare function isoIsUnavailableError(message: string): boolean
+
+/**
+ * Keep a stalled Windows console from blocking thread starts in this process.
+ *
+ * Stops `KernelBase`'s per-thread console call, which JSC's lazily started
+ * helper threads would otherwise wait on. Process-wide and permanent; repeat
+ * calls are no-ops. Returns false, leaving the process untouched, when
+ * `KernelBase`'s loader entry does not have the expected shape; always false
+ * off Windows.
+ */
+export declare function isolateThreadStartsFromConsole(): boolean
 
 /**
  * Probe whether the requested backend can start on this host. Pass
@@ -3126,9 +3318,9 @@ export interface MinimizerOptions {
  * Telemetry for a single minimization.
  *
  * Surfaced when the minimizer actually rewrote the command's output. The
- * session layer is expected to persist `original_text` via its
- * `ArtifactManager`, splice the resulting `artifact://<id>` reference
- * into `text`, and replace any previously streamed raw output with the
+ * session layer is expected to persist `original_text` as a session
+ * spill, splice the spill's URL (formatted only on the JS side) into
+ * `text`, and replace any previously streamed raw output with the
  * minimized text.
  */
 export interface MinimizerResult {
@@ -3533,6 +3725,27 @@ export interface PtyStartOptions {
 export declare function rasterizeSvg(input: Uint8Array, maxWidthPx: number, maxHeightPx: number, scale?: number | undefined | null, cell?: SvgCell | undefined | null): Promise<Uint8Array>
 
 /**
+ * A child spawned by `spawnRaw`: its pid and the parent-side pipe ends.
+ *
+ * The fds are `CLOEXEC`, nonblocking raw fds (Windows: handle values) owned
+ * by the caller.
+ */
+export interface RawChild {
+  pid: number
+  stdin: number
+  stdout: number
+  stderr: number
+}
+
+/** Exit status of a reaped child. */
+export interface RawExit {
+  /** Exit code when the child exited normally. */
+  exitCode: number | null
+  /** Terminating signal when the child was killed by one (Unix). */
+  signal: number | null
+}
+
+/**
  * Read an image from the system clipboard.
  *
  * Returns `Ok(None)` when no image data is available.
@@ -3552,6 +3765,9 @@ export declare function readImageFromClipboard(): Promise<ClipboardImage | undef
  * Returns an error if clipboard access fails.
  */
 export declare function readTextFromClipboard(): Promise<string | undefined | null>
+
+/** waitpid for a direct child (also one inherited across execReplace). */
+export declare function reapChild(pid: number): Promise<RawExit>
 
 /**
  * Render Mermaid diagram text (flowchart, state, sequence, class, ER, or
@@ -3587,7 +3803,7 @@ export declare function renderMermaidAscii(text: string, options?: MermaidRender
 export declare function renderSnapcompactPng(text: string, options: SnapcompactRenderOptions): Promise<string>
 
 /**
- * Run the pi-shell engine as a process shell in this process (`zetacode zsh`,
+ * Run the shell engine as a process shell in this process (`zetacode zsh`,
  * `zetacode bash`, `zetacode sh`).
  *
  * `argv` is the shell's whole command line,
@@ -3662,8 +3878,8 @@ export declare function setHangulCompatJamoWidthOverride(value: number): void
 export declare function shellBuiltins(sessionEnv?: Record<string, string>): Array<string>
 
 /**
- * Options for executing a shell command via the embedded bash engine
- * (pi-shell).
+ *  Options for executing a shell command via the embedded bash engine
+ * .
  */
 export interface ShellExecuteOptions {
   /** Command string to execute in the shell. */
@@ -4013,6 +4229,13 @@ export interface ShellOptions {
   minimizer?: MinimizerOptions
   /** Filesystem backing every run of this session (native when absent). */
   filesystem?: ShellFilesystem
+  /**
+   * The shell is this process's own: every run reads the process's stdin
+   * and writes its stdout and stderr directly (`run` streams no chunks and
+   * minimizes nothing), and externals stay in the process's session and
+   * process group, sharing its controlling terminal.
+   */
+  process?: boolean
 }
 
 /** Options for running a shell command. */
@@ -4032,6 +4255,11 @@ export interface ShellRunOptions {
    * filesystem applies again to later runs.
    */
   filesystem?: ShellFilesystem
+  /**
+   * The application's speech synthesizer, which `say` speaks through when
+   * it has one configured; absent leaves `say` to the system's.
+   */
+  speech?: ShellSpeech
   /** Receives a copy of every byte crossing the run's pipeline pipes. */
   streams?: PipeStreams
   /** Folds the run's engine events into a live model of the command. */
@@ -4049,12 +4277,78 @@ export interface ShellRunResult {
   /**
    * When the minimizer rewrote the captured output, this carries the
    * original buffer + telemetry so the session layer can persist it as
-   * an artifact and splice an `artifact://<id>` reference into the
-   * minimized text shown to the agent. `None` when nothing was rewritten.
+   * a spill and splice the spill's URL into the minimized text shown to
+   * the agent. `None` when nothing was rewritten.
    */
   minimized?: MinimizerResult
   /** Shell working directory after command completion. */
   workingDir?: string
+}
+
+/** The application's speech synthesizer, injected into a shell run. */
+export interface ShellSpeech {
+  /**
+   * Serves every request; failures are returned as `error` data rather
+   * than thrown.
+   */
+  handler: (error: Error | null, request: ShellSpeechRequest) => Promise<ShellSpeechResponse>
+}
+
+/** What a [`ShellSpeechRequest`] asks of the handler. */
+export declare enum ShellSpeechOp {
+  /** List the synthesizer's voices. */
+  Voices = 'voices',
+  /** Speak `text`, or synthesize it when `capture` is set. */
+  Speak = 'speak',
+  /** Stop the `speak` request with this `id`. */
+  Cancel = 'cancel'
+}
+
+/** One speech request. Only the fields documented for `op` are set. */
+export interface ShellSpeechRequest {
+  op: ShellSpeechOp
+  /** Identifies a `speak` request to a later `cancel`. */
+  id?: number
+  /** `speak`: the text. */
+  text?: string
+  /** `speak`: the voice asked for (`say -v`), verbatim. */
+  voice?: string
+  /** `speak`: the rate asked for, in words per minute (`say -r`). */
+  rate?: number
+  /** `speak`: return the audio as `samples` instead of playing it. */
+  capture?: boolean
+  /**
+   * `voices`, `speak`: answer even when no synthesizer is configured,
+   * because the system has none either.
+   */
+  required?: boolean
+}
+
+/** Handler answer. */
+export interface ShellSpeechResponse {
+  /**
+   * False when the application has no synthesizer configured and the
+   * request did not require one; nothing was spoken.
+   */
+  configured: boolean
+  /** `voices`: the voices. */
+  voices?: Array<ShellSpeechVoice>
+  /** `speak` with `capture`: mono samples in `-1..=1`. */
+  samples?: Float32Array
+  /** `speak` with `capture`: samples per second. */
+  sampleRate?: number
+  /** Why the request failed. */
+  error?: string
+}
+
+/** One voice of the application's synthesizer. */
+export interface ShellSpeechVoice {
+  /** The name `say -v` selects it by. */
+  name: string
+  /** Its locale, `en_US` style. */
+  locale: string
+  /** A line describing it. */
+  sample: string
 }
 
 /** Native non-executing visualization transformations. */
@@ -4156,6 +4450,24 @@ export interface SnapcompactRenderOptions {
  * considered renderable because they are interpreted outside font lookup.
  */
 export declare function snapcompactSupportedChars(font: string, chars: string): string
+
+/**
+ * Spawn in its own process group with three pipes; parent-side fds are
+ * CLOEXEC raw fds owned by the caller.
+ */
+export declare function spawnRaw(options: SpawnRawOptions): RawChild
+
+/** Options for `spawnRaw`. */
+export interface SpawnRawOptions {
+  /** Executable name or path (resolved against `env.PATH`). */
+  application: string
+  /** Arguments passed to the executable. */
+  args: Array<string>
+  /** Complete child environment; nothing is inherited from this process. */
+  env: Record<string, string>
+  /** Working directory of the child. */
+  cwd: string
+}
 
 /** A misspelled span measured in JavaScript/UTF-16 code units. */
 export interface SpellingRange {
@@ -4477,6 +4789,15 @@ export interface VcsWorktreeAddOptions {
 export interface VcsWorktreeAddResult {
   clonedWith?: IsoBackendKind
   cloneError?: string
+}
+
+/**
+ * Worktree content of one repo-relative path, for
+ * [`VcsGitRepo::worktree_to_git`].
+ */
+export interface VcsWorktreeContent {
+  path: string
+  data: Uint8Array
 }
 
 /** One worktree listing row. */

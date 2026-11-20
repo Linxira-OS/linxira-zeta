@@ -19,7 +19,6 @@ import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
 import { eligibleFile, renderTree, resolveSearchRoot } from "@linxiraos/zeta/tools/jfind/tree";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { resolveSearchResultPath } from "@linxiraos/zeta/tools/path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { rejectionOf } from "../helpers/rejection";
@@ -554,6 +553,12 @@ describe("jfind cascade", () => {
 		await expect(resolveSearchRoot(filesystem, "zeta://tools/read.md:1-10", process.cwd())).rejects.toThrow(
 			"line-range selectors are not supported",
 		);
+		await expect(resolveSearchRoot(filesystem, "https://github.com/a/b", process.cwd())).rejects.toThrow(
+			"not http(s) URLs: https://github.com/a/b",
+		);
+		await expect(resolveSearchRoot(filesystem, "src;test", process.cwd())).rejects.toThrow(
+			"find takes one path, not a `;` list: src;test",
+		);
 	});
 
 	it("searches a single omp doc in place and reports hits as its URL", async () => {
@@ -572,7 +577,7 @@ describe("jfind cascade", () => {
 	});
 
 	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
-		const completions = (await InternalUrlRouter.instance().complete("zeta", "")) ?? [];
+		const completions = (await InternalUrlRouter.instance().complete("omp", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());
 		const root = await resolveSearchRoot(filesystem, "zeta://", process.cwd());
@@ -711,7 +716,7 @@ describe("jfind cascade", () => {
 		}
 	});
 
-	it("names the interrupted phase when find's deadline fires before anything is verified", async () => {
+	it("names the interrupted phase and returns literal matches when find's deadline fires before anything is verified", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "jfind-deadline-early-"));
 		try {
 			await Bun.write(path.join(dir, "a.ts"), "export function refreshToken() { return 1; }\n");
@@ -720,10 +725,14 @@ describe("jfind cascade", () => {
 				deadline.abort();
 				throw new Error("request aborted");
 			});
-			const error = await rejectionOf(findTool(dir).execute("x", { query: "token refresh", grep_keywords: [] }));
-			if (!(error instanceof ToolError)) throw error;
-			expect(error.message).toContain('at "filename ranking 0/1"');
-			expect(error.message).toContain("Narrow `path`");
+			const result = await findTool(dir).execute("x", { query: "token refresh", grep_keywords: [] });
+			expect(result.details?.timeout).toEqual({ verified: 0, passages: 0 });
+			expect(result.details?.lexicalFallback).toEqual([
+				{ rel: "a.ts", line: 1, snippet: "export function refreshToken() { return 1; }" },
+			]);
+			const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+			expect(text).toContain('at "filename ranking 0/1", before any passage was verified');
+			expect(text).toContain("unranked literal keyword matches (not semantically judged):");
 		} finally {
 			await removeWithRetries(dir);
 		}

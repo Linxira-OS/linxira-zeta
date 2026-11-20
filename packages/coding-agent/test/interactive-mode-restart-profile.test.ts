@@ -14,7 +14,7 @@ it("native restart preserves the active profile and reopens its persisted sessio
 			ZETA_PROFILE: undefined,
 			ZETA_CODING_AGENT_DIR: undefined,
 			PI_CODING_AGENT_SESSION_DIR: undefined,
-			PI_CONFIG_DIR: ".zeta",
+			ZETA_CONFIG_DIR: ".zeta",
 			XDG_DATA_HOME: undefined,
 			XDG_STATE_HOME: undefined,
 			XDG_CACHE_HOME: undefined,

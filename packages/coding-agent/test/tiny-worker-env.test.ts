@@ -1,12 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import * as path from "node:path";
-import { ipcEndpoint } from "@linxiraos/pi-natives";
-import { sharedWorkerLogPath } from "@linxiraos/zeta/subprocess/shared-worker";
 import { nativeLibraryPathOverlay, workerEnvFromParent } from "@linxiraos/zeta/subprocess/worker-client";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { cfgProvidersTinyModelDevice } from "@linxiraos/zeta/session/settings";
 import { tinyWorkerEnvOverlay } from "@linxiraos/zeta/tiny/title-client";
-import { tinyWorkerName } from "@linxiraos/zeta/tiny/title-protocol";
 
 describe("workerEnvFromParent", () => {
 	it("drops inherited git repo-location overrides but keeps an explicit overlay", () => {
@@ -83,28 +79,5 @@ describe("nativeLibraryPathOverlay", () => {
 	it("stays out of the env on Linux when no dirs are advertised", () => {
 		expect(nativeLibraryPathOverlay({ LD_LIBRARY_PATH: "/inherited" }, "linux")).toEqual({});
 		expect(nativeLibraryPathOverlay({ ZETA_NATIVE_LIBRARY_PATH: "" }, "linux")).toEqual({});
-	});
-});
-
-describe("sharedWorkerLogPath", () => {
-	// Regression: the log used to be `${endpoint}.log`, which on Windows turns
-	// the named-pipe endpoint (`\\.\pipe\omp-tiny-…`) into an unopenable file
-	// path and crashed `--smoke-test` with ENOENT.
-	it("stays under the runtime directory instead of deriving from the endpoint", () => {
-		const runtimeDir = "/runtime";
-		const name = tinyWorkerName("lfm2.5-230m", "onnx");
-		const logPath = sharedWorkerLogPath(runtimeDir, name);
-		// `path.join` is platform-native, so assert containment through
-		// `path.relative` rather than assuming the host's separator: on Windows
-		// the same call yields `\runtime\<name>.log`.
-		const relativeToRuntime = path.relative(runtimeDir, logPath);
-		expect(path.isAbsolute(relativeToRuntime)).toBe(false);
-		expect(relativeToRuntime.startsWith("..")).toBe(false);
-		expect(logPath.endsWith(".log")).toBe(true);
-		expect(logPath.includes(".sock")).toBe(false);
-		if (process.platform === "win32") {
-			expect(ipcEndpoint(runtimeDir, name).startsWith("\\\\.\\pipe\\")).toBe(true);
-			expect(logPath.startsWith("\\\\.\\pipe\\")).toBe(false);
-		}
 	});
 });

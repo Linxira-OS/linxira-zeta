@@ -33,6 +33,7 @@
 import { vi } from "bun:test";
 import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
 import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPDroppedServer } from "@linxiraos/zeta/mcp/transforms";
 import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
@@ -51,7 +52,10 @@ type AnyFn = (...args: never[]) => unknown;
 /** Partial at every depth; function members keep their exact signature. */
 export type Deep<T> = T extends AnyFn ? T : T extends object ? { [K in keyof T]?: Deep<T[K]> } : T;
 
-export type ContextOverrides = Omit<Deep<InteractiveModeContext>, "viewSession"> & { viewSession?: Deep<AgentSession> };
+export type ContextOverrides = Omit<Deep<InteractiveModeContext>, "viewSession"> & {
+	viewSession?: Deep<AgentSession>;
+	isBtwMode?: boolean;
+};
 export type SessionOverrides = Deep<AgentSession>;
 export type McpManagerOverrides = Deep<MCPManager>;
 
@@ -123,6 +127,7 @@ export function createSessionStub(
 			metadataForProvider: () => undefined,
 		},
 		getEvalPreludes: () => [],
+		getActiveToolNames: () => [],
 		getEnabledToolNames: () => [],
 		getContextUsage: () => undefined,
 		getGoalModeState: () => undefined,
@@ -168,6 +173,7 @@ export function createMcpManagerStub(overrides?: McpManagerOverrides): MCPManage
 		getConnectedServers: vi.fn(() => []),
 		getAllServerNames: vi.fn(() => []),
 		getSource: vi.fn(() => undefined),
+		getBuiltinDrops: vi.fn(() => new Map<string, MCPDroppedServer>()),
 		getServerConfig: vi.fn(() => undefined),
 		getServerResources: vi.fn(() => undefined),
 		getServerPrompts: vi.fn(() => undefined),
@@ -267,6 +273,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		pythonComponent: undefined,
 		isBashMode: false,
 		isPythonMode: false,
+		isBtwMode: false,
 		streamingComponent: undefined,
 		streamingMessage: undefined,
 		lastAssistantUsage: undefined,

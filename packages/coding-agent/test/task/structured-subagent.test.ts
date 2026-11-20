@@ -1302,7 +1302,7 @@ describe("agent frontmatter structured opt-in", () => {
 	])(
 		"task.structured=$setting: yield and schema follow the agent opt-in",
 		async ({ setting, structured }) => {
-			// Under the isolated HOME so project discovery stops before the developer's real ~/.omp.
+			// Under the isolated HOME so project discovery stops before the developer's real ~/.zeta.
 			const cwd = path.join(root, "home", "work");
 			await fs.mkdir(cwd, { recursive: true });
 			const agentsDir = path.join(root, "home", ".zeta", "agent", "agents");

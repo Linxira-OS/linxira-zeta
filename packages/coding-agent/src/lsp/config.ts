@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -12,13 +11,22 @@ import {
 } from "../utils/config-file-sources";
 import { BiomeClient } from "./clients/biome-client";
 import { SwiftLintClient } from "./clients/swiftlint-client";
-import { LSP_SERVERS } from "./servers.generated";
-import type { ServerConfig, ServerCandidate } from "./types";
+import DEFAULTS from "./defaults.json" with { type: "json" };
+import type { ServerConfig } from "./types";
 
 export interface LspConfig {
 	servers: Record<string, ServerConfig>;
 	/** Idle timeout in milliseconds. If set, LSP clients will be shutdown after this period of inactivity. Disabled by default. */
 	idleTimeoutMs?: number;
+	/**
+	 * Servers whose root markers are not in the session cwd itself, e.g. a monorepo
+	 * root whose `package.json` or `go.mod` sits in a subdirectory. Each joins
+	 * `servers` the first time a file is looked up below a directory holding one of
+	 * its markers.
+	 */
+	nested?: { cwd: string; servers: Record<string, ServerConfig> };
+	/** Servers a project marker called for whose binary does not resolve, with the command looked up. */
+	unresolved?: Record<string, ServerConfig>;
 }
 
 // =============================================================================
@@ -130,12 +138,6 @@ function mergeServers(
 	for (const [name, config] of Object.entries(overrides)) {
 		if (merged[name]) {
 			const candidate = { ...merged[name], ...config };
-			// An override that names a command without a candidate list replaces
-			// the builtin chain: the user's command is what must run, not the
-			// first builtin alternative that happens to be installed.
-			if (config.command !== undefined && config.candidates === undefined) {
-				delete candidate.candidates;
-			}
 			const normalized = normalizeServerConfig(name, candidate);
 			if (normalized) {
 				merged[name] = normalized;
@@ -161,6 +163,11 @@ function applyRuntimeDefaults(servers: Record<string, ServerConfig>): Record<str
 
 	if (updated.swiftlint) {
 		updated.swiftlint = { ...updated.swiftlint, createClient: SwiftLintClient.create };
+	}
+
+	if (updated.omnisharp?.args) {
+		const args = updated.omnisharp.args.map(arg => (arg === PID_TOKEN ? String(process.pid) : arg));
+		updated.omnisharp = { ...updated.omnisharp, args };
 	}
 
 	return updated;
@@ -310,17 +317,8 @@ export function resolveCommand(command: string, cwd: string, options?: ResolveCo
 }
 
 // =============================================================================
-// Candidate Selection
+// TypeScript Server Selection
 // =============================================================================
-
-/** The candidate that won, and the absolute path it resolved to. */
-export interface SelectedServerCommand {
-	command: string;
-	args: string[];
-	resolvedCommand: string;
-}
-
-export type ServerCommandSelection = { selection: SelectedServerCommand } | { reason: string };
 
 /**
  * Directory of the package that owns a resolved `tsc`/`tsgo` launcher, or null
@@ -380,45 +378,6 @@ function selectTypescriptServer(servers: Record<string, ServerConfig>, cwd: stri
 	}
 }
 
-/**
- * Pick the first candidate that resolves on PATH (after the project-local bin
- * directories). A server without a candidate list is a one-element chain; the
- * `$PID` token is substituted either way.
- *
- * The TypeScript server needs one extra rule: `tsc --lsp` and
- * `typescript-language-server` are mutually exclusive by the installed
- * TypeScript version. Keep only the candidate that this installation can run.
- */
-export function selectServerCommand(
-	config: ServerConfig,
-	cwd: string,
-	options?: ResolveCommandOptions,
-	serverName?: string,
-): ServerCommandSelection {
-	let candidates: ServerCandidate[] = config.candidates?.length
-		? config.candidates
-		: [{ command: config.command, args: config.args }];
-	if (serverName === "typescript") {
-		const tscPath = resolveCommand("tsc", cwd, options);
-		if (tscPath) {
-			const speaksLsp = typescriptSpeaksLsp(tscPath, cwd);
-			candidates = candidates.filter(candidate => {
-				if (candidate.command === "typescript-language-server") return !speaksLsp;
-				if (candidate.command === "tsc") return speaksLsp;
-				return true;
-			});
-		}
-	}
-	for (const candidate of candidates) {
-		const resolved = resolveCommand(candidate.command, cwd, options);
-		if (!resolved) continue;
-		const args = (candidate.args ?? config.args ?? []).map(arg => (arg === PID_TOKEN ? String(process.pid) : arg));
-		return { selection: { command: candidate.command, args, resolvedCommand: resolved } };
-	}
-	const tried = candidates.map(candidate => candidate.command).join(", ");
-	return { reason: `no candidate resolves on PATH or in a project-local bin directory (tried: ${tried})` };
-}
-
 function readMarketplaceLspConfig(root: ClaudePluginRoot): NormalizedConfig | null {
 	const catalogPaths = [
 		path.resolve(root.path, "..", "..", "marketplace.json"),
@@ -464,25 +423,17 @@ function marketplaceConfigSource(root: ClaudePluginRoot): ConfigFileSource<Norma
  * 2. Project config dirs: .zeta/lsp.*, .pi/lsp.*, .claude/lsp.* (+ hidden variants)
  * 3. User config dirs: ~/.zeta/agent/lsp.*, ~/.pi/agent/lsp.*, ~/.claude/lsp.* (+ hidden variants)
  * 4. User home root: ~/lsp.*, ~/.lsp.*
- * 5. Shared user override: `~/.zeta/lsp.json` (also read by termide)
- * 6. Builtins: `lsp/servers.json`, generated into `./servers.generated.ts`
+ * 5. Auto-detect from project markers + available binaries
  *
  * Config files are merged from lowest to highest priority; later files override earlier settings.
- * An override that sets `command` without `candidates` replaces the builtin
- * candidate chain, so the user's command is what runs.
  *
  * Config file format (JSON or YAML):
  * ```json
  * {
  *   "servers": {
- *     "typescript": {
- *       "command": "tsgo",
- *       "args": ["--lsp", "--stdio"],
- *       "candidates": [
- *         { "command": "tsgo", "args": ["--lsp", "--stdio"] },
- *         { "command": "typescript-language-server", "args": ["--stdio"] },
- *         { "command": "tsc", "args": ["--lsp", "--stdio"] }
- *       ],
+ *     "typescript-language-server": {
+ *       "command": "typescript-language-server",
+ *       "args": ["--stdio", "--log-level", "4"],
  *       "disabled": false
  *     },
  *     "my-custom-server": {
@@ -497,14 +448,7 @@ function marketplaceConfigSource(root: ClaudePluginRoot): ConfigFileSource<Norma
  * ```
  */
 export function loadConfig(cwd: string): LspConfig {
-	let mergedServers = coerceServerConfigs(LSP_SERVERS);
-
-	// `~/.zeta/lsp.json` is the shared user override: the same file termide
-	// reads, merged over the builtins. Project-level lsp.* files still win.
-	const sharedOverride = readConfigFile(path.join(os.homedir(), ".zeta", "lsp.json"), adaptConfig);
-	if (sharedOverride) {
-		mergedServers = mergeServers(mergedServers, sharedOverride.servers);
-	}
+	let mergedServers = coerceServerConfigs(DEFAULTS);
 
 	const configSources = configFileSources("lsp", cwd, adaptConfig, {
 		pluginRootSource: marketplaceConfigSource,
@@ -520,29 +464,85 @@ export function loadConfig(cwd: string): LspConfig {
 		}
 	}
 
-	// Filter to servers whose project markers exist and whose candidate chain
-	// yields a command (project-local bin directory or $PATH).
+	// Filter to servers whose project markers exist and whose binary resolves (local or $PATH)
 	const servers: Record<string, ServerConfig> = {};
+	const nested: Record<string, ServerConfig> = {};
+	const unresolved: Record<string, ServerConfig> = {};
 	const candidates = applyRuntimeDefaults(mergedServers);
 	for (const name in candidates) {
 		const config = candidates[name];
 		if (config.disabled) continue;
-		if (!hasRootMarkers(cwd, config.rootMarkers)) continue;
-		const selected = selectServerCommand(config, cwd, undefined, name);
-		if ("reason" in selected) {
-			logger.debug("LSP server unavailable.", { name, reason: selected.reason });
+		if (!hasRootMarkers(cwd, config.rootMarkers)) {
+			if (config.rootMarkers.length > 0) nested[name] = config;
 			continue;
 		}
-		servers[name] = {
-			...config,
-			command: selected.selection.command,
-			args: selected.selection.args,
-			resolvedCommand: selected.selection.resolvedCommand,
-		};
+		const resolved = resolveCommand(config.command, cwd);
+		if (!resolved) {
+			unresolved[name] = config;
+			continue;
+		}
+		servers[name] = { ...config, resolvedCommand: resolved };
 	}
 	selectTypescriptServer(servers, cwd);
 
-	return { servers, idleTimeoutMs };
+	return { servers, idleTimeoutMs, nested: { cwd, servers: nested }, unresolved };
+}
+
+/**
+ * The nearest directory from `filePath` up to (not including) `cwd` that holds
+ * one of `markers`, or null when the file is outside `cwd` or none does.
+ */
+function nestedRootMarkerDir(filePath: string, cwd: string, markers: string[]): string | null {
+	const root = path.resolve(cwd);
+	let dir = path.dirname(path.resolve(filePath));
+	while (dir !== root && dir.startsWith(root + path.sep)) {
+		if (hasRootMarkers(dir, markers)) return dir;
+		dir = path.dirname(dir);
+	}
+	return null;
+}
+
+/**
+ * Enable the nested servers that claim `filePath` and have a root marker between
+ * it and the session cwd, resolving their binary from that project first.
+ */
+function activateNestedServers(config: LspConfig, filePath: string): void {
+	const nested = config.nested;
+	if (!nested) return;
+	const activated: Record<string, ServerConfig> = {};
+	let projectDir: string | undefined;
+	for (const [name, serverConfig] of Object.entries(nested.servers)) {
+		if (!serverHandlesFile(serverConfig, filePath)) continue;
+		const markerDir = nestedRootMarkerDir(filePath, nested.cwd, serverConfig.rootMarkers);
+		if (!markerDir) continue;
+		delete nested.servers[name];
+		const resolved = resolveCommand(serverConfig.command, nested.cwd, { localRoots: [markerDir, nested.cwd] });
+		if (!resolved) {
+			(config.unresolved ??= {})[name] = serverConfig;
+			continue;
+		}
+		activated[name] = { ...serverConfig, resolvedCommand: resolved };
+		projectDir ??= markerDir;
+	}
+	if (projectDir === undefined) return;
+	selectTypescriptServer(activated, projectDir);
+	Object.assign(config.servers, activated);
+}
+
+function serverHandlesFile(serverConfig: ServerConfig, filePath: string): boolean {
+	const ext = path.extname(filePath).toLowerCase();
+	const extNoDot = ext.startsWith(".") ? ext.slice(1) : ext;
+	const fileName = path.basename(filePath).toLowerCase();
+	return serverConfig.fileTypes.some(fileType => {
+		// Accept both `.ts` and `ts` forms in user config / fixtures so a
+		// missing dot in `fileTypes` doesn't silently exclude the server
+		// from extension-based routing (e.g. rename_file's relevance filter).
+		const normalized = fileType.toLowerCase();
+		const normalizedNoDot = normalized.startsWith(".") ? normalized.slice(1) : normalized;
+		return (
+			normalized === ext || normalized === fileName || normalizedNoDot === extNoDot || normalizedNoDot === fileName
+		);
+	});
 }
 
 // Cache config per cwd to avoid repeated file I/O
@@ -566,27 +566,11 @@ export function getConfig(cwd: string): LspConfig {
  * Returns servers sorted with primary (non-linter) servers first.
  */
 export function getServersForFile(config: LspConfig, filePath: string): Array<[string, ServerConfig]> {
-	const ext = path.extname(filePath).toLowerCase();
-	const extNoDot = ext.startsWith(".") ? ext.slice(1) : ext;
-	const fileName = path.basename(filePath).toLowerCase();
+	activateNestedServers(config, filePath);
 	const matches: Array<[string, ServerConfig]> = [];
 
 	for (const [name, serverConfig] of Object.entries(config.servers)) {
-		const supportsFile = serverConfig.fileTypes.some(fileType => {
-			// Accept both `.ts` and `ts` forms in user config / fixtures so a
-			// missing dot in `fileTypes` doesn't silently exclude the server
-			// from extension-based routing (e.g. rename_file's relevance filter).
-			const normalized = fileType.toLowerCase();
-			const normalizedNoDot = normalized.startsWith(".") ? normalized.slice(1) : normalized;
-			return (
-				normalized === ext ||
-				normalized === fileName ||
-				normalizedNoDot === extNoDot ||
-				normalizedNoDot === fileName
-			);
-		});
-
-		if (supportsFile) {
+		if (serverHandlesFile(serverConfig, filePath)) {
 			matches.push([name, serverConfig]);
 		}
 	}
@@ -597,6 +581,28 @@ export function getServersForFile(config: LspConfig, filePath: string): Array<[s
 		const bIsLinter = b[1].isLinter ? 1 : 0;
 		return aIsLinter - bIsLinter;
 	});
+}
+
+/**
+ * Why no server handles `filePath`: each server that claims its file type and
+ * what it lacks (a binary on PATH, or a root marker between the file and the
+ * session cwd).
+ */
+export function describeMissingServers(config: LspConfig, filePath: string): string {
+	const ext = path.extname(filePath) || path.basename(filePath);
+	const reasons: string[] = [];
+	for (const [name, serverConfig] of Object.entries(config.unresolved ?? {})) {
+		if (serverHandlesFile(serverConfig, filePath)) {
+			reasons.push(`${name}: \`${serverConfig.command}\` not found on PATH`);
+		}
+	}
+	for (const [name, serverConfig] of Object.entries(config.nested?.servers ?? {})) {
+		if (serverHandlesFile(serverConfig, filePath)) {
+			reasons.push(`${name}: no ${serverConfig.rootMarkers.join(", ")} in the file's directory or its parents`);
+		}
+	}
+	if (reasons.length === 0) return `No language server handles ${ext} files`;
+	return `No language server for ${ext}:\n${reasons.map(reason => `  ${reason}`).join("\n")}`;
 }
 
 /**

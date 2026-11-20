@@ -54,18 +54,18 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   误扫与文档打架的根源）：
   - **绝对冻结**（改了对面就认不出）：Stencil OIDC 的 `client-id "omp"` 与 issuer/scope、
     `catalog.stencil.so`、`docs.stencil.so/tern/protocol/`、judgment 上行 payload 的
-    `__omp_judgment_images`。`my.omp.sh` 的 `DEFAULT_RELAY_URL` 随协作功能于 2026-11-07
+    `__zeta_judgment_images`。`my.omp.sh` 的 `DEFAULT_RELAY_URL` 随协作功能于 2026-11-07
     完全退役，不再随包发布。
     `icon.pi`、latex π 是 pi-provider 图标，非品牌。
   - **内部标识一律 `__zeta*`**：eval 沙箱全局、注入用户页面的 global、TUI/native 握手、
-    legacy 垫片标记。此前只扫了一半（`__omp_with_call_site__`、`__omp_tool_bridge__`、
+    legacy 垫片标记。此前只扫了一半（`__zeta_with_call_site__`、`__zeta_tool_bridge__`、
     `__ompLegacy*` 等仍在上游名下），扫齐清单见 `document/agents/brand/registry.md`
     §「待扫清单」；代价是每次同步多解冲突，接受。
   - **用户可见配置只走 Zeta 名**：`ZETA_AUTH_BROKER_*`、`ZETA_AUTORESEARCH_DB_DIR`、
     `ZETA_CONVERSATION_PARSER_REUSE`、`ZETA_HARMONY_DEBUG`、`ZETA_NO_WEBP`、
     `ZETA_PROFILE`（以及 `ZETA_WORKTREE_DIR`）没有旧名回退；`.omp-plugin` 清单目录与
     `zeta-plugins` provider 别名已删除，只认 `zeta-plugins` 与 Zeta 扩展包。上游状态目录
-    （`~/.omp` 的 models/credentials/dotenv）**一律不读**，没有 `ZETA_OMP_COMPAT`
+    （`~/.zeta` 的 models/credentials/dotenv）**一律不读**，没有 `ZETA_OMP_COMPAT`
     之类的开关；迁移只能由用户显式复制文件完成。
   - **共享端点归台账管**：`my.omp.sh` 的协作中继常量随 live-session 协作于 2026-11-07
     完全退役，产品不再发布任何中继端点；分享上传面已于 2026-11-02 退役（`/share` 只把

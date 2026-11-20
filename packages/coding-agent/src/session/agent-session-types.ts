@@ -7,6 +7,8 @@ import type {
 	ThinkingLevel,
 	ToolCallContext,
 } from "@linxiraos/pi-agent-core";
+import type { ZetaLanguage } from "../i18n";
+import type { SessionClient } from "./session-entries";
 import type {
 	AssistantMessage,
 	Context,
@@ -26,10 +28,8 @@ import type { AsyncJob, AsyncJobDeliveryState, AsyncJobManager, AsyncJobManagerA
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { AgentDefinition } from "../task/types";
 import type { AgentRegistryApi } from "../registry/agent-registry";
-import type { SessionClient } from "./session-client";
 import type { SessionAccountPoolScope } from "../config/account-pools";
 import type { ModelRegistry } from "../config/model-registry";
-import type { ZetaLanguage } from "../i18n";
 import type { PromptTemplate } from "../config/prompt-templates";
 import type { Settings } from "../config/settings";
 import type { SkillsSettings } from "../extensibility/settings";
@@ -39,12 +39,13 @@ import type { EvalPreludeDefinition } from "../eval/preludes";
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
+import type { HandoffGenerationOptions } from "./session-handoff";
 import type { ExtensionRunner, PreparedExtension } from "../extensibility/extensions";
 import type { MCPLoadResult } from "../mcp";
-import type { AnalysisMcpRefreshInput } from "../mcp/analysis-precedence-hook";
 import type { CacheWarmer } from "./cache-warmer";
 import type { ContextUsage } from "../extensibility/extensions/types";
 import type { SkillDescriptionCatalog } from "../extensibility/skill-descriptions";
+import type { MCPEvalNamespaceCatalog } from "../mcp/eval-namespaces";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import type { FileSlashCommand } from "../extensibility/slash-commands";
 import type { SecretObfuscator } from "../secrets/obfuscator";
@@ -75,9 +76,11 @@ export interface AgentSessionDisposeOptions {
 	 * Postmortem reason that triggered this dispose (signal/fatal teardown
 	 * paths). When set, the persisted `session_exit` diagnostic records it
 	 * instead of the generic `"dispose"` used for normal programmatic disposal
-	 * (`/quit`, test teardown, subagent completion). `EXIT` (also a subagent cut
-	 * off by its owner's shutdown) additionally records a turn still in flight as
-	 * interrupted, so `zetacode --restore` goes on with it.
+	 * (`/quit`, test teardown, subagent completion). A reason that ends the process
+	 * under the turn (`EXIT`, also a subagent cut off by its owner's shutdown;
+	 * `SIGTERM`/`SIGHUP` from the host, such as a terminal restarting; a fatal
+	 * error) additionally records a turn still in flight as interrupted, so
+	 * `zetacode --restore` goes on with it. `SIGINT` and `MANUAL` stop it, as a quit does.
 	 */
 	reason?: postmortem.Reason;
 }
@@ -179,7 +182,6 @@ export interface InitialRetryFallbackState {
 
 /** Dependencies and initial state used to construct an AgentSession. */
 export interface AgentSessionConfig {
-	agent: Agent;
 	/** Zeta lead-mode tool factory. */
 	createLeadTools?: () => AgentTool[];
 	/** Zeta approval-cache location for remembered grants. */
@@ -191,9 +193,10 @@ export interface AgentSessionConfig {
 		tools: CustomTool[],
 		activeToolNames: readonly string[],
 		cwd: string,
-	) => Promise<AnalysisMcpRefreshInput>;
+	) => Promise<import("../mcp/analysis-precedence-hook").AnalysisMcpRefreshInput>;
 	/** Zeta skill admission filter. */
 	skillFilter?: (name: string) => boolean;
+	agent: Agent;
 	sessionManager: SessionManager;
 	settings: Settings;
 	/**
@@ -283,6 +286,8 @@ export interface AgentSessionConfig {
 	skills?: Skill[];
 	/** Frozen routing hints shared with the system prompt and later skillful notices. */
 	skillDescriptions?: SkillDescriptionCatalog;
+	/** MCP eval namespace hints; {@link AgentSession.startHintCompression} starts them with the skill hints. */
+	mcpNamespaces?: MCPEvalNamespaceCatalog;
 	/** Skill loading warnings already captured by the SDK. */
 	skillWarnings?: SkillWarning[];
 	/** Whether runtime reloads may rediscover disk-backed skills. */
@@ -381,6 +386,10 @@ export interface AgentSessionConfig {
 	xdev?: XdevState;
 	/** Names pinned top-level during runtime repartitioning. */
 	presentationPinnedToolNames?: ReadonlySet<string>;
+	/** Whether enabled MCP tools present as eval namespaces (`mcp.evalNamespaces`); read at every apply. */
+	bindsMcpToEval?: () => boolean;
+	/** MCP tools of the initial slate presented as eval namespace methods. */
+	evalBoundToolNames?: Iterable<string>;
 	/** Accessor for live MCP server instructions. */
 	getMcpServerInstructions?: () => Map<string, string> | undefined;
 	/** Installs a host-owned MCP instructions source; see {@link AgentSession.setMcpServerInstructionsSource}. */
@@ -489,14 +498,14 @@ export interface PromptOptions {
 	userInitiated?: boolean;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
-	/** Skip pre-send compaction checks for this prompt. */
-	skipCompactionCheck?: boolean;
 	/**
 	 * Language for automatic session titles and task labels generated from this
 	 * prompt's turn. When omitted, admission captures the then-effective
 	 * `language` setting; the value never inherits another prompt or view.
 	 */
 	language?: ZetaLanguage;
+	/** Skip pre-send compaction checks for this prompt. */
+	skipCompactionCheck?: boolean;
 	/** Delegator's open-endedness description (task tool `solutionSpace`); replaces the prompt as `auto` thinking classification input. */
 	solutionSpace?: string;
 	/**
@@ -548,30 +557,30 @@ export interface DroppedPrompt {
 
 /** Options for AgentSession.followUp(). */
 export interface FollowUpOptions {
-	/** Ingress client for this user message; see {@link PromptOptions.client}. */
-	client?: SessionClient;
 	/** Enqueue as a hidden developer message instead of a user follow-up. */
 	synthetic?: boolean;
+	/** Actual ingress client for this follow-up; captured before queueing. */
+	client?: SessionClient;
+	/** Language for names generated from this turn. */
+	language?: ZetaLanguage;
 	/** Whether to expand file-based prompt templates (default: true). */
 	expandPromptTemplates?: boolean;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the follow-up queue. See {@link PromptOptions.onPromptQueued}. */
 	onPromptQueued?: PromptOptions["onPromptQueued"];
-	/** Language for names generated from this turn; see {@link PromptOptions.language}. */
-	language?: ZetaLanguage;
 }
 
 /** Options for AgentSession.steer(). */
 export interface SteerOptions {
-	/** Ingress client for this user message; see {@link PromptOptions.client}. */
+	/** Actual ingress client for this steer; captured before queueing. */
 	client?: SessionClient;
+	/** Language for names generated from this turn. */
+	language?: ZetaLanguage;
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
 	/** Called synchronously with the messages pushed onto the steering queue. See {@link PromptOptions.onPromptQueued}. */
 	onPromptQueued?: PromptOptions["onPromptQueued"];
-	/** Language for names generated from this turn; see {@link PromptOptions.language}. */
-	language?: ZetaLanguage;
 }
 
 /** Options for AgentSession.sendUserMessage(). */
@@ -580,18 +589,6 @@ export interface SendUserMessageOptions {
 	deliverAs?: "steer" | "followUp" | "aside";
 	/** Explicit billing/initiator attribution. */
 	attribution?: MessageAttribution;
-}
-
-/** Result from a handoff operation. */
-export interface HandoffResult {
-	document: string;
-	savedPath?: string;
-}
-
-/** Options controlling handoff generation. */
-export interface SessionHandoffOptions {
-	autoTriggered?: boolean;
-	signal?: AbortSignal;
 }
 
 /** Result from cycleModel(). */
@@ -684,7 +681,8 @@ export interface ResetSessionContextResult {
 /** Queued user content restored to the editor. */
 export type RestoredQueuedMessage = { text: string; images?: ImageContent[] };
 
-/** One prepared user submission in a native executable queue or held outside it. */
+/** A queued message the dequeue key took back, tagged with the queue it left so the editor can restore its delivery. */
+/** A queued user message as the session keeps it, before any dequeue. */
 export interface QueuedMessageEntry {
 	/** Present while a queued compaction barrier holds this follow-up out of executable queues. */
 	heldFor?: "compaction";
@@ -697,17 +695,8 @@ export interface QueuedMessageEntry {
 	editable: boolean;
 }
 
-/** Compact display row for native queue indicators. */
-export interface StudioQueueSnapshotEntry {
-	id: string;
-	queue: "steering" | "followUp";
-	state: "pending" | "delivering";
-	text: string;
-	imageCount: number;
-}
-
-/** A queued message the dequeue key took back, tagged with the queue it left so the editor can restore its delivery. */
 export type DequeuedMessage = RestoredQueuedMessage & { queue: "steering" | "followUp" };
+
 /** Options for the same ephemeral side turn used by /btw. */
 export interface EphemeralTurnOptions {
 	promptText: string;
@@ -733,6 +722,12 @@ export interface EphemeralTurnOptions {
 	 * off-transcript callers can journal the spend. A throw is logged, never surfaced.
 	 */
 	onUsage?: (message: AssistantMessage) => void;
+	/**
+	 * Names the turn in the session journal (`recap`, `btw`). When set and no
+	 * `onUsage` is given, every billed attempt is written as a `model_usage` entry
+	 * with its reply; the prompt is left out, since the turn reads the conversation.
+	 */
+	purpose?: string;
 	signal?: AbortSignal;
 	dedupeReply?: boolean;
 	/** UTF-8 byte cap of the deduped reply (default 4 KiB); `Infinity` keeps a long answer whole. */
@@ -743,4 +738,25 @@ export interface EphemeralTurnOptions {
 export interface EphemeralTurnResult {
 	replyText: string;
 	assistantMessage: AssistantMessage;
+}
+
+/** Compact display row for native queue indicators. */
+export interface StudioQueueSnapshotEntry {
+	id: string;
+	queue: "steering" | "followUp";
+	state: "pending" | "delivering";
+	text: string;
+	imageCount: number;
+}
+
+/** Generated session handoff document. */
+export interface HandoffResult {
+	document: string;
+	savedPath?: string;
+}
+
+/** Options controlling handoff generation. */
+export interface SessionHandoffOptions {
+	autoTriggered?: boolean;
+	signal?: AbortSignal;
 }

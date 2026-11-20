@@ -2,6 +2,7 @@ import { rm } from "node:fs/promises";
 import * as path from "node:path";
 import { type ApiKeyResolver, completeSimple, retryTransientCompletion } from "@linxiraos/pi-ai";
 import { hostMatchesUrl } from "@linxiraos/pi-catalog/hosts";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
 import type { Mnemopi } from "@linxiraos/pi-mnemopi";
 import type { MnemopiLlmCompleteOptions } from "@linxiraos/pi-mnemopi/core/runtime-options";
 import type * as MnemopiDiagnoseNs from "@linxiraos/pi-mnemopi/diagnose";
@@ -11,7 +12,7 @@ import { cfgOffline } from "../config/auxiliary-model-policy";
 import type { ModelRegistry } from "../config/model-registry";
 import { roleCandidatePool } from "../config/model-roles";
 import { resolveRoleChain } from "../config/model-resolver";
-import { type JudgmentUsageLedger, journalJudgmentUsage } from "../judgment";
+import { journalCompletion, type ModelUsageLedger } from "../session/model-usage-journal";
 import type {
 	MemoryBackend,
 	MemoryBackendSaveInput,
@@ -26,7 +27,9 @@ import memoryExtractionPrompt from "../prompts/system/memory-extraction-system.m
 import mnemopiInstructions from "../prompts/system/mnemopi-instructions.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
 import { tinyModelClient } from "../tiny/title-client";
+import { unmeteredMessage } from "../utils/title-generator";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import {
 	loadMnemopiConfig,
 	type MnemopiBackendConfig,
@@ -50,8 +53,6 @@ import {
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
 import { cfgMnemopiInjectionTokenLimit } from "./settings";
-import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 
 // `/diagnose` is the only user of this subpath; load it lazily alongside the
 // loaders in ./state to keep mnemopi off the CLI startup module graph.
@@ -150,7 +151,6 @@ export const mnemopiBackend: MemoryBackend = {
 				modelRegistry,
 				sessionId,
 				session.sessionManager,
-				session.sessionManager?.getMemoryNamespace?.(),
 				session,
 			);
 			await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -188,11 +188,7 @@ export const mnemopiBackend: MemoryBackend = {
 	async clear(agentDir, _cwd, session): Promise<void> {
 		const previous = session ? setMnemopiSessionState(session, undefined) : undefined;
 		await previous?.dispose({ consolidate: false });
-		const config =
-			previous?.config ??
-			(session
-				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
-				: undefined);
+		const config = previous?.config ?? (session ? loadMnemopiConfig(session.settings, agentDir) : undefined);
 		if (!config) return;
 		await loadMnemopiCore();
 		// Close the cached default Mnemopi instance so its SQLite handle doesn't
@@ -223,7 +219,6 @@ export const mnemopiBackend: MemoryBackend = {
 					session.modelRegistry,
 					session.sessionId,
 					session.sessionManager,
-					session.sessionManager?.getMemoryNamespace?.(),
 					session,
 				);
 				await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -235,12 +230,6 @@ export const mnemopiBackend: MemoryBackend = {
 		}
 	},
 
-	async learnWindow({ session }, input): Promise<void> {
-		const state = getMnemopiSessionState(session);
-		if (!state) throw new Error("Mnemopi backend is not initialised for window learning.");
-		await state.learnWindow(input);
-	},
-
 	async stats(agentDir, _cwd, session): Promise<string | undefined> {
 		await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 		const banks = collectBankStats(agentDir, session);
@@ -250,11 +239,7 @@ export const mnemopiBackend: MemoryBackend = {
 
 	async diagnose(agentDir, _cwd, session): Promise<string | undefined> {
 		const state = getMnemopiSessionState(session);
-		const config =
-			state?.config ??
-			(session
-				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
-				: undefined);
+		const config = state?.config ?? (session ? loadMnemopiConfig(session.settings, agentDir) : undefined);
 		if (!config) return undefined;
 		const [{ inspectDatabase }] = await Promise.all([loadMnemopiDiagnose(), loadMnemopiCore()]);
 		const banks = getMnemopiScopedBanks(config);
@@ -374,7 +359,7 @@ function collectBankStats(agentDir: string, session: AgentSession | undefined): 
 	const state = getMnemopiSessionState(session);
 	if (state) return withLoopPhase("mnemopi.open", () => state.getScopedStats());
 	if (!session) return [];
-	const config = loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.());
+	const config = loadMnemopiConfig(session.settings, agentDir);
 	const owned = withLoopPhase("mnemopi.open", () =>
 		getMnemopiScopedBanks(config).map(bank => ({ bank, memory: createStatsMemory(config, bank) })),
 	);
@@ -507,11 +492,10 @@ async function loadMnemopiConfigWithProviders(
 	agentDir: string,
 	modelRegistry: ModelRegistry,
 	sessionId: string,
-	usageLedger: Partial<JudgmentUsageLedger>,
-	memoryNamespace: string | undefined,
+	usageLedger: Partial<ModelUsageLedger>,
 	session: AgentSession,
 ): Promise<MnemopiBackendConfig> {
-	const config = loadMnemopiConfig(settings, agentDir, memoryNamespace);
+	const config = loadMnemopiConfig(settings, agentDir);
 	config.providerOptions = await resolveMnemopiProviderOptions(
 		config,
 		settings,
@@ -547,7 +531,7 @@ async function resolveMnemopiProviderOptions(
 	settings: MemoryBackendStartOptions["settings"],
 	modelRegistry: ModelRegistry,
 	sessionId: string,
-	usageLedger: Partial<JudgmentUsageLedger>,
+	usageLedger: Partial<ModelUsageLedger>,
 	session: AgentSession,
 ): Promise<MnemopiProviderOptions> {
 	const base: MnemopiProviderOptions = {
@@ -624,11 +608,11 @@ async function resolveMnemopiProviderOptions(
 		}
 
 		const complete = async (prompt: string, opts?: MnemopiLlmCompleteOptions): Promise<string | null> => {
-			// journalJudgmentUsage snapshots the session id. /new, fork, and session
+			// journalCompletion snapshots the session id and leaf. /new, fork, and session
 			// switch keep this function, so bind inside each call. An in-flight call
-			// keeps the callback it already created and still journals to its start.
-			const { onUsage, request, signal } = {
-				onUsage: journalJudgmentUsage(usageLedger),
+			// keeps the journal it already created and still journals to its start.
+			const { journal, request, signal } = {
+				journal: journalCompletion(usageLedger, { purpose: "memory", role: "memory" }),
 				request: resolveMemoryCompletionInput(prompt, opts),
 				signal:
 					typeof opts?.timeout === "number" && Number.isFinite(opts.timeout) && opts.timeout > 0
@@ -643,12 +627,22 @@ async function resolveMnemopiProviderOptions(
 					if (model.api === "local-inference") {
 						// The tiny worker may download its runtime or model on first use.
 						if (cfgOffline.get(settings)) continue;
+						const started = performance.now();
 						const result = await tinyModelClient.complete(model.id, request.prompt, {
 							maxTokens: opts?.maxTokens,
 							systemPrompt: request.systemPrompt,
 							signal,
 						});
-						if (result !== null) return result;
+						if (result !== null) {
+							// A null result may never have reached the worker, so only produced output is journaled.
+							if (result) {
+								journal?.(
+									{ ...unmeteredMessage(model, result), duration: Math.round(performance.now() - started) },
+									request.prompt,
+								);
+							}
+							return result;
+						}
 						if (signal?.aborted) return null;
 						logger.warn("Mnemopi: local memory completion failed; trying the next configured fallback.", {
 							provider: model.provider,
@@ -688,17 +682,7 @@ async function resolveMnemopiProviderOptions(
 										reasoning: clampThinkingLevelForModel(model, toReasoningEffort(level)),
 										disableReasoning: shouldDisableReasoning(level) ? true : undefined,
 										signal,
-										onAttempt: message =>
-											onUsage?.({
-												purpose: "memory",
-												role: "memory",
-												api: model.api,
-												provider: model.provider,
-												model: model.id,
-												usage: message.usage,
-												stopReason: message.stopReason,
-												errorMessage: message.errorMessage,
-											}),
+										onAttempt: message => journal?.(message, request.prompt),
 									},
 								),
 							);

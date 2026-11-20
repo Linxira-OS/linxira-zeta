@@ -5,13 +5,14 @@ import { classifyModel } from "@linxiraos/pi-catalog/identity";
 import type { DesktopCapabilities } from "@linxiraos/pi-natives";
 import { once } from "@linxiraos/pi-utils";
 import { callSessionTool } from "../eval/js/tool-bridge";
-import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";
+import type { EvalPreludeContext, HostEvalPreludeDefinition } from "../eval/preludes";
 import computerUsePrompt from "../prompts/system/computer-use.md" with { type: "text" };
 import { enforceInlineByteCap } from "@linxiraos/pi-tui/tools/streaming-output";
 import { type ComputerCallStep, isReadOnlyComputerCall, renderComputerCall } from "./computer/call";
 import {
 	type ComputerScreenshot,
 	type ComputerSessionSnapshot,
+	type RunErrorPayload,
 	screenStateNotice,
 	secureInputNotice,
 } from "./computer/protocol";
@@ -104,6 +105,7 @@ interface ComputerPreludeDetails {
 	code?: string;
 	readOnly?: boolean;
 	screenshots: ComputerScreenshot[];
+	error?: RunErrorPayload;
 	value?: unknown;
 	backend?: string;
 	capturePermission?: string;
@@ -134,7 +136,7 @@ export function createComputerPrelude(
 	session: ToolSession,
 	createController: ComputerControllerFactory = currentSession =>
 		new ComputerSupervisor(currentSession, undefined, undefined, callSessionTool),
-): EvalPreludeDefinition {
+): HostEvalPreludeDefinition {
 	const controller = createController(session);
 	const unregisterOwner = registerComputerController(session.getEvalKernelOwnerId?.() ?? undefined, controller);
 	// Eval-first-use boundary: source/declaration assets stay unloaded until a
@@ -242,6 +244,7 @@ function buildComputerSnapshot(session: ToolSession, readOnly: boolean): Compute
 	return {
 		cwd: session.cwd,
 		sessionId: session.getEvalSessionId?.() ?? session.getSessionId?.() ?? "computer",
+		agentId: session.getAgentId?.() ?? undefined,
 		captureMaxWidth: coordinateSafe
 			? Math.min(configuredMaxWidth, COORDINATE_SAFE_MAX_CAPTURE_WIDTH)
 			: configuredMaxWidth,
@@ -295,6 +298,7 @@ async function runComputer(
 		code,
 		readOnly: snapshot.readOnly,
 		screenshots: run.screenshots,
+		error: run.error,
 	};
 	if (run.returnValue !== undefined) details.value = run.returnValue;
 	populateCapabilityDetails(details, run.capabilities);
@@ -315,7 +319,8 @@ async function runComputer(
 	for (const image of run.displays) {
 		if (image.type === "image") content.push({ ...image, detail: "original" });
 	}
-	return { content, details };
+	if (run.error) content.push({ type: "text", text: `${run.error.name}: ${run.error.message}` });
+	return { content, details, ...(run.error ? { isError: true } : {}) };
 }
 
 function stringifyReturnValue(value: unknown): string {
@@ -341,7 +346,7 @@ function populateCapabilityDetails(
 /** Persist over-cap computer run output as a session artifact; mirrors the browser run save path. */
 async function saveComputerOutputArtifact(session: ToolSession, fullText: string): Promise<string | undefined> {
 	try {
-		const alloc = await session.allocateOutputArtifact?.("computer-original");
+		const alloc = await session.allocateOutputArtifact?.();
 		if (!alloc?.path || !alloc.id) return undefined;
 		await Bun.write(alloc.path, fullText);
 		return alloc.id;

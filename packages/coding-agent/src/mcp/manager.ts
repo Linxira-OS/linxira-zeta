@@ -13,6 +13,7 @@ import { invalidateCommandConfig, isCommandConfigValue, resolveConfigValue } fro
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { AuthStorage } from "../session/auth-storage";
 import {
+	MCPConnectionTimeoutError,
 	connectToServer,
 	disconnectServer,
 	getPrompt,
@@ -20,7 +21,6 @@ import {
 	listResources,
 	listResourceTemplates,
 	listTools,
-	MCPConnectionTimeoutError,
 	readResource,
 	serverSupportsPrompts,
 	serverSupportsResources,
@@ -46,6 +46,7 @@ import { resolveMCPStartupTimeoutMs } from "./timeout";
 import type { MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
 import { DeferredMCPTool, MCPTool, type MCPToolCallObserver } from "./tool-bridge";
 import type { MCPToolCache } from "./tool-cache";
+import type { MCPDroppedServer, MCPTransformContext } from "./transforms";
 import { setGeneratedHeader } from "./transports/header-policy";
 import type {
 	MCPAuthChallenge,
@@ -267,8 +268,8 @@ export interface MCPDiscoverOptions {
 	filterBrowser?: boolean;
 	/** Session-local extension roots for post-startup rediscovery (explicit + mode + configured). */
 	extensionRoots?: EffectiveExtensionRoots;
-	/** Server allowlist for a per-agent profile; unlisted servers are never connected. */
-	serverNames?: readonly string[];
+	/** What the session offers natively, for built-in transforms; omitted: none applies. */
+	builtinTransforms?: MCPTransformContext;
 	/** Called when MCP server connection state changes. */
 	onStatus?: (event: McpConnectionStatusEvent) => void;
 	/** Non-blocking discovery window in milliseconds; environment override wins. */
@@ -315,10 +316,8 @@ export interface MCPManagerApi {
 	addNotificationListener(listener: (serverName: string, method: string, params: unknown) => void): () => void;
 	/** Names of currently connected servers. */
 	getConnectedServers(): string[];
-	/** Read the server configuration used by session-local analysis precedence. */
+	/** Configuration of one server by name, connected or merely configured. */
 	getServerConfig(name: string): MCPServerConfig | undefined;
-	/** Include configured servers whose tool list has not arrived yet. */
-	getAllServerNames(): string[];
 	/** Cached resources/templates of one server. */
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined;
 	/** Wait until one server's resource catalog is loaded. */
@@ -418,7 +417,11 @@ export class MCPManager implements MCPManagerApi {
 	#startupUpdates = new Map<string, Promise<void>>();
 	#startupServers = new Set<string>();
 	#startupFailures = new Map<string, string>();
+	/** Newest connect/reconnect failure per server, cleared when it connects; explains "not connected". */
+	#lastConnectErrors = new Map<string, string>();
 	#sources = new Map<string, SourceMeta>();
+	/** Servers the newest config load left unconnected because a built-in transform dropped them. */
+	#builtinDrops = new Map<string, MCPDroppedServer>();
 	#authStorage: AuthStorage | null = null;
 	#authHandler?: MCPAuthHandler;
 	#notificationListeners = new Set<(serverName: string, method: string, params: unknown) => void>();
@@ -515,6 +518,8 @@ export class MCPManager implements MCPManagerApi {
 	}
 
 	#emitConnectionStatus(event: McpConnectionStatusEvent): void {
+		if (event.type === "failed") this.#lastConnectErrors.set(event.serverName, event.error);
+		else if (event.type === "connected") this.#lastConnectErrors.delete(event.serverName);
 		if (event.type === "failed" && this.#startupServers.has(event.serverName)) {
 			this.#startupFailures.set(event.serverName, event.error);
 		} else if (event.type === "connected") {
@@ -805,12 +810,12 @@ export class MCPManager implements MCPManagerApi {
 		this.#discoverOptions = options ? { ...options } : undefined;
 		let loadedConfigs: LoadMCPConfigsResult;
 		try {
-			loadedConfigs = await this.loadConfigs(this.cwd, {
+			loadedConfigs = await this.#discoverConfigs({
 				enableProjectConfig: options?.enableProjectConfig,
 				filterExa: options?.filterExa,
 				filterBrowser: options?.filterBrowser,
 				extensionRoots: options?.extensionRoots,
-				serverNames: options?.serverNames,
+				builtinTransforms: options?.builtinTransforms,
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -823,6 +828,18 @@ export class MCPManager implements MCPManagerApi {
 		const result = await this.connectServers(configs, sources, options?.onStatus, options?.startupTimeoutMs);
 		result.exaApiKeys = exaApiKeys;
 		return result;
+	}
+
+	/** Load configs and remember which servers built-in transforms dropped. */
+	async #discoverConfigs(options: LoadMCPConfigsOptions): Promise<LoadMCPConfigsResult> {
+		const loaded = await this.loadConfigs(this.cwd, options);
+		this.#builtinDrops.clear();
+		const dropped = loaded.dropped ?? {};
+		for (const name in dropped) {
+			const drop = dropped[name];
+			if (drop) this.#builtinDrops.set(name, drop);
+		}
+		return loaded;
 	}
 
 	/**
@@ -853,12 +870,12 @@ export class MCPManager implements MCPManagerApi {
 		const options = this.#discoverOptions;
 		if (!options || (options.enableProjectConfig ?? true) === enabled) return;
 		this.#discoverOptions = { ...options, enableProjectConfig: enabled };
-		const loaded = await this.loadConfigs(this.cwd, {
+		const loaded = await this.#discoverConfigs({
 			enableProjectConfig: enabled,
 			filterExa: options.filterExa,
 			filterBrowser: options.filterBrowser,
 			extensionRoots: options.extensionRoots,
-			serverNames: options.serverNames,
+			builtinTransforms: options.builtinTransforms,
 		});
 		// Every server whose resolution depends on the flag: project-level ones
 		// known now, plus project-level ones the enabled load resolves.
@@ -888,11 +905,12 @@ export class MCPManager implements MCPManagerApi {
 
 	async #applyBrowserFilter(enabled: boolean): Promise<void> {
 		const options = this.#discoverOptions;
-		const loaded = await this.loadConfigs(this.cwd, {
+		const loaded = await this.#discoverConfigs({
 			enableProjectConfig: options?.enableProjectConfig,
 			filterExa: options?.filterExa,
 			filterBrowser: false,
 			extensionRoots: options?.extensionRoots,
+			builtinTransforms: options?.builtinTransforms,
 		});
 		const browserConfigs: Record<string, MCPServerConfig> = {};
 		const browserSources: Record<string, SourceMeta> = {};
@@ -958,6 +976,8 @@ export class MCPManager implements MCPManagerApi {
 
 		for (const [name, config] of Object.entries(configs)) {
 			this.#startupServers.add(name);
+			// Connecting a server by name (`/mcp enable`) ends its built-in drop.
+			this.#builtinDrops.delete(name);
 			if (sources[name]) {
 				this.#sources.set(name, sources[name]);
 				const existing = this.#connections.get(name);
@@ -1147,7 +1167,7 @@ export class MCPManager implements MCPManagerApi {
 			// Pending tasks without cached tools used to be awaited synchronously here,
 			// which gated the entire UI on the slowest server's per-request timeout
 			// (issue #2100: a single unresponsive MCP server blocked startup for the
-			// full 30 s `ZETA_MCP_TIMEOUT_MS`). Leave them in flight — the background
+			// full 30 s `OMP_MCP_TIMEOUT_MS`). Leave them in flight — the background
 			// `void toolsPromise.then(...)` chain above registers their tools and
 			// fires `#onToolsChanged` once the connect finishes, or logs the failure
 			// after `allowBackgroundLogging` flips below.
@@ -1478,6 +1498,15 @@ export class MCPManager implements MCPManagerApi {
 	}
 
 	/**
+	 * Servers the newest config load left unconnected because a built-in
+	 * transform dropped them, by name. `/mcp list` and the extensions dashboard
+	 * report them; connecting one by name removes it.
+	 */
+	getBuiltinDrops(): ReadonlyMap<string, MCPDroppedServer> {
+		return this.#builtinDrops;
+	}
+
+	/**
 	 * Get the preserved (pre-auth) config for a known server — whether currently
 	 * connected or merely discovered (a connect was attempted but may have failed,
 	 * e.g. an OAuth server that has not been authorized yet). Mirrors the
@@ -1526,7 +1555,24 @@ export class MCPManager implements MCPManagerApi {
 			const result = await reconnecting;
 			if (result) return result;
 		}
-		throw new Error(`MCP server not connected: ${name}`);
+		throw new Error(this.#describeNotConnected(name));
+	}
+
+	/** Why `name` has no connection and what happens next, for the failing call. */
+	#describeNotConnected(name: string): string {
+		const parts = [`MCP server not connected: ${name}`];
+		const lastError = this.#lastConnectErrors.get(name);
+		if (lastError) parts.push(`last connect error: ${lastError}`);
+		const now = Date.now();
+		const recentCrashes = (this.#reconnectHistory.get(name) ?? []).filter(ts => now - ts < RECONNECT_BURST_WINDOW_MS);
+		if (recentCrashes.length > RECONNECT_BURST_LIMIT) {
+			parts.push(`automatic reconnects are suspended after repeated failures; run /mcp reconnect ${name}`);
+		} else if (this.#lostRemoteServers.has(name)) {
+			parts.push("a reconnect is scheduled");
+		} else if (!this.#serverConfigs.has(name)) {
+			parts.push("the server is not configured in this session");
+		}
+		return parts.join("; ");
 	}
 
 	/**
@@ -1675,6 +1721,7 @@ export class MCPManager implements MCPManagerApi {
 		this.#pendingReconnections.clear();
 		this.#pendingResourceRefresh.clear();
 		this.#sources.clear();
+		this.#builtinDrops.clear();
 		// The next connect (`/mcp reload` rediscovery) runs every `!command` again.
 		for (const config of this.#serverConfigs.values()) invalidateCommandValues(config);
 		this.#serverConfigs.clear();
@@ -1900,6 +1947,7 @@ export class MCPManager implements MCPManagerApi {
 				}
 
 				const msg = error instanceof Error ? error.message : String(error);
+				this.#lastConnectErrors.set(name, msg);
 				if (attempt < delays.length) {
 					logger.debug("MCP reconnect attempt failed, retrying", {
 						path: `mcp:${name}`,

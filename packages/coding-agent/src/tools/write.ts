@@ -64,7 +64,7 @@ import { hasColumnTruncationClause, isColumnTruncationNotice } from "@linxiraos/
 import { recoverConflictUriPrefix } from "./conflict-detect";
 import { unwrapHashlineHeaderPath } from "./hashline-header-path";
 import { outputMeta } from "./output-meta";
-import { formatPathRelativeToCwd, probeLiteralPathExists, specialFileKind } from "./path-utils";
+import { formatPathRelativeToCwd, probeLiteralPathExists, resolveToCwd, specialFileKind } from "./path-utils";
 import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
 import { enforcePlanModeWrite, resolvePlanPath, targetsLocalSandbox } from "./plan-mode-guard";
 import { decodeUtf8Text } from "./read-format";
@@ -351,8 +351,8 @@ function assertNotShorterReadProjection(
 	}
 	throw new ToolError(
 		columnCut
-			? `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with a zetacode read column-cap notice, so its cut lines would replace the full ones. Re-read the cut lines in raw mode and write the complete file, or use edit for a partial change.`
-			: `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with a zetacode read truncation notice and covers less than the current source, so it would discard unseen content. Re-read the omitted ranges and write the complete file, or use edit for a partial change.`,
+			? `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an zetacode read column-cap notice, so its cut lines would replace the full ones. Re-read the cut lines in raw mode and write the complete file, or use edit for a partial change.`
+			: `Refusing to overwrite '${displayPath}' with an incomplete read projection: the content ends with an zetacode read truncation notice and covers less than the current source, so it would discard unseen content. Re-read the omitted ranges and write the complete file, or use edit for a partial change.`,
 	);
 }
 
@@ -1000,7 +1000,9 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			const verbatim = policy?.payload === "verbatim";
 			const { text: cleanContent, stripped } = verbatim
 				? { text: content, stripped: false }
-				: stripWriteContent(this.session, content);
+				: stripWriteContent(this.session, content, {
+						targetPath: target ? undefined : resolveToCwd(path, this.session.cwd),
+					});
 			// One UTF-8 scan per call, shared by the progress and result lines.
 			const cleanBytes = Buffer.byteLength(cleanContent, "utf8");
 			assertWriteTargetAddressable(path, router);
@@ -1011,8 +1013,10 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 					if (!verbatim && target.spec.backing !== "device" && endsWithReadTruncationNotice(content)) {
 						let currentContent: string | undefined;
 						try {
-							currentContent = (await router.resolve(path, sessionResolveContext(this.session, { signal })))
+							const current = (await router.resolve(path, sessionResolveContext(this.session, { signal })))
 								.content;
+							// Bytes were never read as text, so no read projection of them can be truncated.
+							if (typeof current === "string") currentContent = current;
 						} catch (error) {
 							// A missing target has no source to discard, as for a new disk file (readCurrentWriteSource).
 							if (!isEnoent(error)) throw error;

@@ -1418,7 +1418,7 @@ export function buildResumeArgs(cfg: Config, jobDir: string): string[] {
 const FORWARD_ENV_DENYLIST = new Set([
 	"ZETA_CODING_AGENT_DIR", // kept: Rust crates (crash handler) still read this key
 	"ZETA_CODING_AGENT_DIR",
-	"PI_CONFIG_DIR",
+	"ZETA_CONFIG_DIR",
 	"ZETA_PROFILE",
 	"PI_PACKAGE_DIR",
 	"PI_SESSION_FILE",

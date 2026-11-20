@@ -22,7 +22,7 @@ import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "
 let tempDir: string;
 let home: string;
 // setAgentDir() rewrites these; restore them all so later test files see the original resolver.
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "ZETA_PROFILE", "PI_CONFIG_DIR"] as const;
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "ZETA_PROFILE", "ZETA_CONFIG_DIR"] as const;
 let savedEnv: Record<(typeof ENV_KEYS)[number], string | undefined>;
 
 function writeFile(filePath: string, content: string): void {
@@ -146,9 +146,9 @@ test("a repo-local session agent directory does not hide native project config o
 });
 
 test.each([undefined, ".pi"])(
-	"native project discovery skips a foreign user config root without hiding a workspace above it (PI_CONFIG_DIR=%s)",
+	"native project discovery skips a foreign user config root without hiding a workspace above it (ZETA_CONFIG_DIR=%s)",
 	async configDirName => {
-		if (configDirName) process.env.PI_CONFIG_DIR = configDirName;
+		if (configDirName) process.env.ZETA_CONFIG_DIR = configDirName;
 		const foreignHome = path.join(tempDir, "alice");
 		const cwd = path.join(foreignHome, "scratch", "work");
 		fs.mkdirSync(cwd, { recursive: true });
