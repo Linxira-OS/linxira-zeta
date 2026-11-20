@@ -519,7 +519,7 @@ const QUERY_RESPONSES = {
   "team.files.list": {
     ok: true,
     queryName: "team.files.list",
-    result: { root: "/fixture/team", path: ".zeta/board", entries: [] },
+    result: { path: ".zeta/board", entries: [] },
   },
   "team.files.read": {
     ok: true,
@@ -531,7 +531,6 @@ const QUERY_RESPONSES = {
     queryName: "team.read",
     result: {
       team: { id: "team-fixture", name: "Fixture Team", createdAt: 0 },
-      root: "/fixture/team",
       pms: [],
       engineers: [],
       repos: [],

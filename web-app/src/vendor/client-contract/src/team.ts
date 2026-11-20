@@ -256,8 +256,6 @@ export interface TeamDoctorSummary {
 /** Complete Team workspace snapshot; real rows only, no fabricated agents. */
 export interface TeamWorkspaceReadModel {
 	readonly team: TeamSummary;
-	/** Absolute root backing this Team; Board and Calendar pages read here. */
-	readonly root: string;
 	readonly pms: ReadonlyArray<TeamWorkspacePm>;
 	readonly engineers: ReadonlyArray<TeamWorkspaceEngineer>;
 	readonly repos: ReadonlyArray<TeamWorkspaceRepo>;
@@ -290,7 +288,6 @@ export interface TeamFileEntry {
 }
 
 export interface TeamFilesResult {
-	readonly root: string;
 	readonly path: string;
 	readonly entries: ReadonlyArray<TeamFileEntry>;
 }

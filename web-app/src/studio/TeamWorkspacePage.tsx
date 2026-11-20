@@ -598,7 +598,7 @@ export function TeamWorkspacePage({
               locale={resolvedLanguage}
             />
           ) : null}
-					{tab === "board" ? <BoardTab root={workspace.root} copy={copy} /> : null}
+					{tab === "board" ? <BoardTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
 					{tab === "calendar" ? <CalendarTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
 					{tab === "mail" ? <MailTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
         </div>
@@ -824,7 +824,37 @@ function CalendarTab({ client, teamId, copy }: { client: StudioClient; teamId: s
 	);
 }
 
-function BoardTab({ root, copy }: { root: string; copy: Copy }) {
+function parseBoardCard(path: string, content: string): BoardCardView | null {
+	const normalized = content.replace(/\r\n/g, "\n");
+	if (!normalized.startsWith("---\n")) return null;
+	const end = normalized.indexOf("\n---", 4);
+	if (end < 0) return null;
+	const frontmatter = normalized.slice(4, end);
+	const body = normalized.slice(end + 4).trim();
+	const fields = new Map<string, string>();
+	for (const line of frontmatter.split("\n")) {
+		const colon = line.indexOf(":");
+		if (colon < 0) continue;
+		fields.set(line.slice(0, colon).trim().toLowerCase(), line.slice(colon + 1).trim());
+	}
+	const title = fields.get("title");
+	if (!title) return null;
+	const rawTags = fields.get("tags") ?? "";
+	const rawColumn = fields.get("column");
+	const column: BoardColumn = rawColumn === "doing" || rawColumn === "done" ? rawColumn : "todo";
+	const tags = rawTags.replace(/^\[|\]$/g, "").split(",").map(tag => tag.trim()).filter(Boolean);
+	return {
+		id: path.split("/").pop()?.replace(/\.md$/i, "") ?? path,
+		title,
+		column,
+		tags,
+		assignee: fields.get("assignee") === "agent" ? "agent" : "user",
+		due: fields.get("due") ?? null,
+		body,
+	};
+}
+
+function BoardTab({ client, teamId, copy }: { client: StudioClient; teamId: string; copy: Copy }) {
 	const [cards, setCards] = useState<BoardCardView[]>([]);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -835,12 +865,21 @@ function BoardTab({ root, copy }: { root: string; copy: Copy }) {
 		setError("");
 		void (async () => {
 			try {
-				const response = await fetch(`/api/board?cwd=${encodeURIComponent(root)}`, { credentials: "include" });
-				if (!response.ok) throw new Error(`HTTP ${response.status}`);
-				const body = (await response.json()) as { cards?: BoardCardView[] };
-				if (active) setCards(body.cards ?? []);
+				const listing = await client.query("team.files.list", { teamId, path: ".zeta/board" });
+				const files = listing.entries.filter(entry => entry.kind === "file" && entry.name.endsWith(".md"));
+				const parsed = await Promise.all(
+					files.map(async file => {
+						const content = await client.query("team.files.read", { teamId, path: file.path });
+						return parseBoardCard(file.path, content.content);
+					}),
+				);
+				if (active) setCards(parsed.filter((card): card is BoardCardView => card !== null));
 			} catch (cause) {
-				if (active) setError(cause instanceof Error ? cause.message : String(cause));
+				if (active) {
+					const message = hostErrorMessage(cause, copy.boardError);
+					if (message.includes("ENOENT")) setCards([]);
+					else setError(message);
+				}
 			} finally {
 				if (active) setLoading(false);
 			}
@@ -848,11 +887,11 @@ function BoardTab({ root, copy }: { root: string; copy: Copy }) {
 		return () => {
 			active = false;
 		};
-	}, [root]);
+	}, [client, teamId, copy.boardError]);
 
 	return (
 		<div className="tw-board-page">
-			<p className="tw-hint">{root}</p>
+			<p className="tw-hint">.zeta/board</p>
 			{error ? <div className="tw-banner error">{`${copy.boardError}: ${error}`}</div> : null}
 			{loading ? <p className="tw-hint">{copy.loading}</p> : null}
 			{!loading && !error && cards.length === 0 ? <p className="tw-empty">{copy.boardEmpty}</p> : null}

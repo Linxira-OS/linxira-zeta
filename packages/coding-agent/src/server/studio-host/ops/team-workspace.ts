@@ -252,7 +252,6 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 		const worktrees: WorktreeRecord[] = db.listWorktrees(teamId);
 		return {
 			team: { id: team.id, name: team.name, createdAt: team.createdAt },
-			root: team.rootPath,
 			pms: model.pms.map((pm: PmRecord) => ({ id: pm.id, name: pm.name })),
 			engineers: model.engineers.map((engineer: EngineerRecord) => ({
 				id: engineer.id,
@@ -421,7 +420,7 @@ async function teamFilesList(input: unknown): Promise<TeamFilesResult> {
 		}),
 	);
 	rows.sort((left, right) => left.name.localeCompare(right.name));
-	return { root, path: relative, entries: rows };
+	return { path: relative, entries: rows };
 }
 
 async function teamFilesRead(input: unknown): Promise<TeamFileReadResult> {
