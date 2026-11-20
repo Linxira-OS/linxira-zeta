@@ -30,6 +30,8 @@ export interface EnsureHostOptions {
 	timeoutMs?: number;
 	/** Test seam: replace the live-registry probe. */
 	probe?: typeof probeServeIdentity;
+	/** Explicit CLI invocation for the spawned serve (tests/source runs). */
+	cliInvocation?: string[];
 	/** Test seam: replace the daemon starter. */
 	start?: (options: Parameters<typeof import("../commands/daemon").startDaemon>[0]) => Promise<
 		import("../commands/daemon").DaemonStartResult
@@ -113,12 +115,13 @@ export async function ensureHost(options: EnsureHostOptions = {}): Promise<Ensur
 		cwd: options.cwd ?? process.cwd(),
 		env,
 		channels: options.channels ?? true,
+		...(options.cliInvocation ? { cliInvocation: options.cliInvocation } : {}),
 	});
 	if (result.action === "failed" || result.status.pid === null || result.status.webUrl === null) {
 		throw new Error(result.message ?? "Zeta Host did not start");
 	}
 	return {
-		action: "started",
+		action: result.action === "already-running" ? "reused" : "started",
 		pid: result.status.pid,
 		webUrl: result.status.webUrl,
 		gatewayUrl: result.status.gatewayUrl,
