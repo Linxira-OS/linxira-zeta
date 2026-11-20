@@ -154,14 +154,14 @@ describe("SidebarComponent", () => {
 		expect(rows.every(row => !row.includes("Plan Mode"))).toBe(true);
 	});
 
-	it("renders subagent status dots with active work first and caps the rows", () => {
+	it("renders agent status dots with active work first and caps the rows", () => {
 		const sessions = [
 			subagent("completed", "reviewer-alpha"),
 			subagent("active", "worker-one"),
 			subagent("active", "worker-two"),
 		];
 		const rows = renderSidebar(bareSessionSources({ subagents: () => sessions }));
-		expect(rows.some(row => row.includes("Subagents") && row.includes("2/3 running"))).toBe(true);
+		expect(rows.some(row => row.includes("Agents") && row.includes("2/3 running"))).toBe(true);
 		const oneIdx = rows.findIndex(row => row.includes("worker-one"));
 		const twoIdx = rows.findIndex(row => row.includes("worker-two"));
 		const doneIdx = rows.findIndex(row => row.includes("reviewer-alpha"));
