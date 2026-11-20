@@ -133,6 +133,16 @@ class HostConnection {
 	}
 
 	close(): void {
+		if (!this.#open) return;
+		// Destroying the socket reports closure asynchronously, but callers that
+		// just disconnected must not issue one more request into the gap: mark
+		// the connection closed and reject queued calls before destroying it.
+		this.#open = false;
+		const error = new HostGoneError(
+			`${hostLabel(this.#name)} ${this.#name} exited; see \`zetacode ps logs ${this.#name}\``,
+		);
+		for (const entry of this.#pending.values()) entry.reject(error);
+		this.#pending.clear();
 		this.#conn.destroy();
 	}
 

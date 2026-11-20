@@ -3,6 +3,7 @@
 ### Fixed
 
 - Fixed a 1.5.10 startup crash when `web.yml` contained IM instances created by the instance editor with an empty peer allowlist; empty peers remain deny-by-default but are valid config.
+- Fixed a disassembler connection race where a reference closed just before disconnect could issue one request into the destroyed host and report its exit instead of `dsm.open`.
 
 ## [1.5.10] - 2026-11-19
 
