@@ -124,6 +124,9 @@ const COPY = {
     reason: "Reason",
     events: "Events",
     createRoom: "Create room",
+    directMessage: "Direct message",
+    target: "Target",
+    openDm: "Open DM",
     kind: "Kind",
     members: "Members",
     addMember: "Add member",
@@ -210,6 +213,9 @@ const COPY = {
     reason: "原因",
     events: "事件",
     createRoom: "创建房间",
+    directMessage: "直聊",
+    target: "对象",
+    openDm: "打开直聊",
     kind: "类型",
     members: "成员",
     addMember: "添加成员",
@@ -1324,6 +1330,7 @@ function RoomsTab({
   const [newKind, setNewKind] = useState<TeamRoomKind>("coordination");
   const [newPm, setNewPm] = useState(workspace.pms[0]?.name ?? "");
   const [newMembers, setNewMembers] = useState<string[]>([]);
+  const [dmTarget, setDmTarget] = useState(workspace.pms[0]?.id ?? "");
   const [memberToAdd, setMemberToAdd] = useState("");
   const [kindDraft, setKindDraft] = useState<TeamRoomKind>("coordination");
   const [kindPm, setKindPm] = useState(workspace.pms[0]?.name ?? "");
@@ -1333,6 +1340,24 @@ function RoomsTab({
   const reloadRef = useRef<() => void>(() => {});
 
   const memberChoices = memberOptions(workspace.pms, workspace.engineers);
+
+  const openDirectMessage = () => {
+    const roomName = `dm-${dmTarget.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+    if (workspace.rooms.some(room => room.name === roomName)) {
+      setRoomName(roomName);
+      return;
+    }
+    void perform(async () => {
+      const handle = await client.command("team.room.create", {
+        teamId: workspace.team.id,
+        room: roomName,
+        kind: "room",
+        members: [dmTarget],
+      });
+      await waitReceipt(client, handle.requestId);
+      setRoomName(roomName);
+    }, "Direct message opened");
+  };
 
   useEffect(() => {
     if (!roomName) {
@@ -1449,6 +1474,26 @@ function RoomsTab({
         >
           {copy.createRoom}
         </button>
+      </section>
+
+      <section className="tw-panel">
+        <h3>{copy.directMessage}</h3>
+        <div className="tw-form-row">
+          <Field label={copy.target}>
+            <Select value={dmTarget} onChange={setDmTarget}>
+              <option value="">—</option>
+              {memberChoices.map(member => (
+                <option key={member.id} value={member.id}>
+                  {member.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <button type="button" className="tw-button primary" disabled={busy || !dmTarget} onClick={openDirectMessage}>
+            {copy.openDm}
+          </button>
+        </div>
+        <p className="tw-hint">{copy.imBoundary}</p>
       </section>
 
       <div className="tw-room-layout">
