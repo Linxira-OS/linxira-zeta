@@ -115,9 +115,11 @@ function subagentDot(session: ObservableSession): string {
 	return theme.fg(status.color, status.glyph);
 }
 
-/** The row's plain text: the status glyph plus the label, shared by both renderers. */
+/** The row's plain text: the status glyph plus the label and current activity. */
 function subagentLabel(session: ObservableSession): string {
-	return `${subagentStatus(session).glyph} ${session.label}`;
+	const activity = session.progress?.currentTool ?? session.progress?.assignment ?? session.description;
+	const suffix = activity === undefined || activity === "" ? "" : ` · ${activity}`;
+	return `${subagentStatus(session).glyph} ${session.label}${suffix}`;
 }
 
 /** The task row's plain text: the ANSI row and the native snapshot share it. */
@@ -205,7 +207,7 @@ function subagentPanel(provider: (() => ObservableSession[]) | undefined): {
 	// registry's spawn order for the rest, capped at the row limit.
 	const ordered = [...subs.filter(s => s.status === "active"), ...subs.filter(s => s.status !== "active")];
 	return {
-		header: `${theme.icon.agents} Subagents · ${running}/${subs.length} running`,
+		header: `${theme.icon.agents} Agents · ${running}/${subs.length} running`,
 		rows: ordered.slice(0, SUBAGENT_ROW_LIMIT),
 	};
 }
