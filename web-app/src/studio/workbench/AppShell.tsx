@@ -111,6 +111,13 @@ const NO_RESIDENT_ROWS: readonly never[] = [];
 /** 导航面包屑保留的最大深度：只增不减的数组，路由对象虽小也不该无界。 */
 const TRAIL_MAX = 100;
 
+/** Backspace must delete text, never navigate, while focus is in a text field. */
+function isTextEntryTarget(target: EventTarget | null): boolean {
+	const element = target instanceof HTMLElement ? target : null;
+	if (!element) return false;
+	return element.isContentEditable || element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT";
+}
+
 import type { EvaluationKind } from "@linxiraos/studio-protocol";
 export function AppShell({ state, client, healthReady, onRoute, selectedHistoryId, onSelectThread, onNewThread, projectsLoading, onWorkspacesChange, onHistoryChange }: {
   state: ViewState;
@@ -944,6 +951,21 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     setTrailAt((value) => Math.min(value + 1, TRAIL_MAX - 1));
     return true;
   }, [onRoute, trail, trailAt, state.model.workspaces]);
+
+  /** Navigate to an existing trail entry; Backspace and title arrows share it. */
+  const stepTrail = useCallback((delta: -1 | 1) => {
+    const next = trailAt + delta;
+    if (next < 0 || next >= trail.length) return;
+    const route = trail[next] ?? "workbench";
+    if (!onRoute(route)) return;
+    setTrailAt(next);
+    if (route === "home") {
+      setSelectedProject(null);
+      setExplorerOpen(false);
+    } else if (route === "workbench") {
+      enterWorkbench();
+    }
+  }, [enterWorkbench, onRoute, trail, trailAt]);
   useEffect(() => {
     const reveal = (event: Event) => { (event as CustomEvent<{ accepted: boolean }>).detail.accepted = go("workbench"); };
     window.addEventListener("zeta:dock-reveal-workbench", reveal);
@@ -2026,6 +2048,15 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Backspace" && !event.isComposing) {
+        // Backspace belongs to the focused text field first. Outside one it is
+        // application Back, not the browser's history navigation.
+        if (isTextEntryTarget(event.target)) return;
+        if (paletteOpen || dialog || archivePending || skillsOpen || openMenu || ompMenuOpen) return;
+        event.preventDefault();
+        stepTrail(-1);
+        return;
+      }
       if (event.key === "Escape") {
         if (paletteOpen) {
           closePalette();
@@ -2069,7 +2100,7 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [archiveBusy, archivePending, toggleBottom, openBottomPanel, toggleSidebar, dialog, go, skillsOpen, paletteOpen, closePalette, openPalette, startNewChat]);
+  }, [archiveBusy, archivePending, toggleBottom, openBottomPanel, toggleSidebar, dialog, go, skillsOpen, paletteOpen, closePalette, openPalette, startNewChat, stepTrail, openMenu, ompMenuOpen]);
 
   // macOS menu bar: the same actions as the shortcuts above plus a few menu-only ones.
   const runMenuCommand = useRef<(command: string) => void>(() => {});
@@ -2370,32 +2401,8 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
       <Titlebar
         canBack={trailAt > 0}
         canForward={trailAt < trail.length - 1}
-        onBack={() => {
-          if (trailAt <= 0) return;
-          const next = trailAt - 1;
-          const route = trail[next] ?? "workbench";
-          if (!onRoute(route)) return;
-          setTrailAt(next);
-          if (route === "home") {
-            setSelectedProject(null);
-            setExplorerOpen(false);
-          } else if (route === "workbench") {
-            enterWorkbench();
-          }
-        }}
-        onForward={() => {
-          if (trailAt >= trail.length - 1) return;
-          const next = trailAt + 1;
-          const route = trail[next] ?? "workbench";
-          if (!onRoute(route)) return;
-          setTrailAt(next);
-          if (route === "home") {
-            setSelectedProject(null);
-            setExplorerOpen(false);
-          } else if (route === "workbench") {
-            enterWorkbench();
-          }
-        }}
+        onBack={() => stepTrail(-1)}
+        onForward={() => stepTrail(1)}
         onToggleSidebar={toggleSidebar}
         sidebarCollapsed={mdi ? collapsed : !layout.sidebarShown}
         menus={
