@@ -60,6 +60,8 @@ export interface AppSettings {
   readonly dictationToggleShortcut: string;
   readonly showThinkingSummary: boolean;
   readonly showToolIntent: boolean;
+  /** 导航与页面标签显示 emoji；关闭后只留文字。 */
+  readonly emojiLabels: boolean;
   /** 预留：对话内 Token 用量视图尚未实现，控件显示「尚未接入」。 */
   readonly showTokenUsage: boolean;
 }
@@ -96,6 +98,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   dictationToggleShortcut: "",
   showThinkingSummary: true,
   showToolIntent: true,
+  emojiLabels: true,
   showTokenUsage: false,
 };
 
@@ -166,6 +169,7 @@ function parseStoredSettings(raw: string | null): AppSettings {
       dictationToggleShortcut: typeof value.dictationToggleShortcut === "string" ? value.dictationToggleShortcut : "",
       showThinkingSummary: pickBoolean(value.showThinkingSummary) ?? DEFAULT_APP_SETTINGS.showThinkingSummary,
       showToolIntent: pickBoolean(value.showToolIntent) ?? DEFAULT_APP_SETTINGS.showToolIntent,
+      emojiLabels: pickBoolean(value.emojiLabels) ?? DEFAULT_APP_SETTINGS.emojiLabels,
       showTokenUsage: pickBoolean(value.showTokenUsage) ?? DEFAULT_APP_SETTINGS.showTokenUsage,
     };
   } catch {
