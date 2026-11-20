@@ -420,4 +420,47 @@ describe("TUI sidebar snapshot APC", () => {
 			tui.stop();
 		}
 	});
+
+	it("caps the gutter reservation at the compact width on a medium terminal", async () => {
+		const term = new VirtualTerminal(110, 24, 12_000);
+		const tui = new TUI(term);
+		const main = new AppendableLines(Array.from({ length: 30 }, (_, i) => `MAIN-${String(i).padStart(3, "0")}`));
+		const gutter = new MutableGutter();
+		gutter.rows = gutterRows(24, "GTR");
+		tui.addChild(main);
+		tui.setMainWidth(36);
+		tui.setGutterComponent(gutter);
+		try {
+			tui.start({ clearScrollback: true });
+			await term.waitForRender();
+			const viewport = term.getViewport();
+			const mainRows = viewport.filter(line => line.includes("MAIN-"));
+			expect(mainRows.length).toBeGreaterThan(0);
+			expect(viewport.some(line => line.includes("GTR"))).toBe(true);
+			for (const line of mainRows) {
+				// 110 - compact 28 = 82 main columns; a 36-column gutter would exceed 110.
+				expect(visibleWidth(line.trimEnd())).toBeGreaterThan(82);
+			}
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("drops the gutter instead of squeezing the main area below its floor", async () => {
+		const term = new VirtualTerminal(90, 24, 12_000);
+		const tui = new TUI(term);
+		const main = new AppendableLines(Array.from({ length: 30 }, (_, i) => `MAIN-${String(i).padStart(3, "0")}`));
+		const gutter = new MutableGutter();
+		gutter.rows = gutterRows(24, "GTR");
+		tui.addChild(main);
+		tui.setMainWidth(36);
+		tui.setGutterComponent(gutter);
+		try {
+			tui.start({ clearScrollback: true });
+			await term.waitForRender();
+			expect(term.getViewport().some(line => line.includes("GTR"))).toBe(false);
+		} finally {
+			tui.stop();
+		}
+	});
 });

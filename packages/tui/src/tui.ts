@@ -88,6 +88,11 @@ const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
 // Zeta sidebar: the main area never composes narrower than this, even when a
 // gutter reservation is active — narrow terminals ignore the reservation.
 const MIN_MAIN_AREA_COLUMNS = 64;
+// A sidebar thins out before it disappears: below this terminal width the
+// reservation is capped at the compact width, and the existing main-area floor
+// hides it entirely when even that no longer fits.
+const GUTTER_COMPACT_BELOW_COLUMNS = 120;
+const GUTTER_COMPACT_MAX_COLUMNS = 28;
 // Zeta sidebar snapshot: the gutter column's semantic description travels
 // out-of-band as an APC (`ESC _ zeta;sidebar; <base64 JSON> ESC \`) so a native
 // GUI draws the same column from one frame's data. Unknown APCs are dropped by
@@ -1332,14 +1337,12 @@ export class TUI extends Container {
 
 	/** Effective main-area width for this frame, honoring the sidebar guards. */
 	#effectiveMainWidth(rawWidth: number): number {
-		if (
-			this.#mainWidthOverride === null ||
-			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
-			this.overlayStack.length > 0
-		) {
-			return rawWidth;
-		}
-		return rawWidth - this.#mainWidthOverride;
+		const requested = this.#mainWidthOverride;
+		if (requested === null || this.overlayStack.length > 0) return rawWidth;
+		const reservation =
+			rawWidth < GUTTER_COMPACT_BELOW_COLUMNS ? Math.min(requested, GUTTER_COMPACT_MAX_COLUMNS) : requested;
+		if (rawWidth - reservation < MIN_MAIN_AREA_COLUMNS) return rawWidth;
+		return rawWidth - reservation;
 	}
 
 	/**
