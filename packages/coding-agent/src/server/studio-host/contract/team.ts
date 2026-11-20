@@ -256,6 +256,8 @@ export interface TeamDoctorSummary {
 /** Complete Team workspace snapshot; real rows only, no fabricated agents. */
 export interface TeamWorkspaceReadModel {
 	readonly team: TeamSummary;
+	/** Absolute root backing this Team; Board and Calendar pages read here. */
+	readonly root: string;
 	readonly pms: ReadonlyArray<TeamWorkspacePm>;
 	readonly engineers: ReadonlyArray<TeamWorkspaceEngineer>;
 	readonly repos: ReadonlyArray<TeamWorkspaceRepo>;
@@ -270,6 +272,39 @@ export interface TeamWorkspaceReadModel {
 
 export interface TeamListResult {
 	readonly teams: ReadonlyArray<TeamSummary>;
+}
+
+export interface TeamFilesQuery {
+	readonly teamId: string;
+	/** Root-relative directory; omitted means the Team root. */
+	readonly path?: string;
+}
+
+export interface TeamFileEntry {
+	readonly name: string;
+	/** Root-relative path. */
+	readonly path: string;
+	readonly kind: "file" | "directory";
+	readonly size: number | null;
+	readonly modifiedAt: string | null;
+}
+
+export interface TeamFilesResult {
+	readonly root: string;
+	readonly path: string;
+	readonly entries: ReadonlyArray<TeamFileEntry>;
+}
+
+export interface TeamFileReadQuery {
+	readonly teamId: string;
+	/** Root-relative file path. */
+	readonly path: string;
+}
+
+export interface TeamFileReadResult {
+	readonly path: string;
+	readonly content: string;
+	readonly size: number;
 }
 
 export interface TeamRoomEventsQuery {
@@ -464,6 +499,8 @@ export interface TeamBootstrapRollbackCommand {
 
 export interface TeamQueryInputMap {
 	"team.list": Readonly<Record<string, never>>;
+	"team.files.list": TeamFilesQuery;
+	"team.files.read": TeamFileReadQuery;
 	"team.read": { readonly teamId: string };
 	"team.doctor": { readonly teamId: string };
 	"team.room.events": TeamRoomEventsQuery;
@@ -474,6 +511,8 @@ export interface TeamQueryInputMap {
 
 export interface TeamQueryResultMap {
 	"team.list": TeamListResult;
+	"team.files.list": TeamFilesResult;
+	"team.files.read": TeamFileReadResult;
 	"team.read": TeamWorkspaceReadModel;
 	"team.doctor": TeamDoctorSummary;
 	"team.room.events": TeamRoomView;

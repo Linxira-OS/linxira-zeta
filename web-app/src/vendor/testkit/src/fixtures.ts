@@ -313,6 +313,8 @@ const QUERY_INPUTS = {
   "agents.definitions.get": {},
   "team.graph.get": {},
   "team.list": {},
+  "team.files.list": { teamId: "team-fixture", path: ".zeta/board" },
+  "team.files.read": { teamId: "team-fixture", path: ".zeta/calendar/events/a.json" },
   "team.read": { teamId: "team-fixture" },
   "team.doctor": { teamId: "team-fixture" },
   "team.room.events": { teamId: "team-fixture", room: "room-fixture" },
@@ -514,11 +516,22 @@ const QUERY_RESPONSES = {
     queryName: "team.list",
     result: { teams: [] },
   },
+  "team.files.list": {
+    ok: true,
+    queryName: "team.files.list",
+    result: { root: "/fixture/team", path: ".zeta/board", entries: [] },
+  },
+  "team.files.read": {
+    ok: true,
+    queryName: "team.files.read",
+    result: { path: ".zeta/calendar/events/a.json", content: "{}", size: 2 },
+  },
   "team.read": {
     ok: true,
     queryName: "team.read",
     result: {
       team: { id: "team-fixture", name: "Fixture Team", createdAt: 0 },
+      root: "/fixture/team",
       pms: [],
       engineers: [],
       repos: [],

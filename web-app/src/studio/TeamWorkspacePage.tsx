@@ -42,13 +42,16 @@ import {
 } from "./teamWorkspaceModel";
 import "./TeamWorkspacePage.css";
 
-type Tab = "overview" | "onboarding" | "tasks" | "rooms" | "graph" | "im";
+type Tab = "overview" | "onboarding" | "tasks" | "rooms" | "board" | "calendar" | "mail" | "graph" | "im";
 
 const TAB_EMOJI: Record<Tab, string> = {
 	overview: "🧭",
 	onboarding: "🚀",
 	tasks: "📋",
 	rooms: "💬",
+	board: "📌",
+	calendar: "📅",
+	mail: "📬",
 	graph: "🕸",
 	im: "✉️",
 };
@@ -70,6 +73,9 @@ const COPY = {
     onboarding: "Onboarding",
     tasks: "Tasks",
     rooms: "Rooms",
+		board: "Board",
+		calendar: "Calendar",
+		mail: "Mail",
     graph: "Graph",
     im: "IM chat",
     imBoundary:
@@ -80,6 +86,12 @@ const COPY = {
     repos: "Repos",
     roomsCount: "Rooms",
     tasksCount: "Tasks",
+		boardEmpty: "No board cards in this Team root.",
+		boardError: "Could not read the board",
+		calendarEmpty: "No calendar events in this Team root.",
+		calendarError: "Could not read the calendar",
+		mailEmpty: "No .eml files in this Team root's mail/ directory.",
+		mailError: "Could not read mail",
     runs: "Bootstrap runs",
     plan: "Plan (dry run)",
     apply: "Apply",
@@ -160,6 +172,9 @@ const COPY = {
     onboarding: "初始化",
     tasks: "任务",
     rooms: "房间",
+		board: "看板",
+		calendar: "日历",
+		mail: "邮件",
     graph: "关系图",
     im: "IM 聊天",
     imBoundary: "读取 IM 后端选择器与 canonical 网关 transcript，不新建 transcript store；本地单用户边界。",
@@ -169,6 +184,12 @@ const COPY = {
     repos: "仓库",
     roomsCount: "房间",
     tasksCount: "任务",
+		boardEmpty: "该 Team 根目录还没有看板卡片。",
+		boardError: "读取看板失败",
+		calendarEmpty: "该 Team 根目录还没有日历事件。",
+		calendarError: "读取日历失败",
+		mailEmpty: "该 Team 根目录的 mail/ 还没有 .eml 文件。",
+		mailError: "读取邮件失败",
     runs: "Bootstrap 运行",
     plan: "生成计划（dry run）",
     apply: "执行",
@@ -256,13 +277,7 @@ function statusClass(status: string): string {
   return `tw-status tw-status-${status}`;
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="tw-field">
       <span>{label}</span>
@@ -481,7 +496,7 @@ export function TeamWorkspacePage({
       {notice ? <div className="tw-banner ok">{notice}</div> : null}
 
       <nav className="tw-tabs" aria-label="Team">
-        {(["overview", "onboarding", "tasks", "rooms", "graph"] as const).map(id => (
+				{(["overview", "onboarding", "tasks", "rooms", "board", "calendar", "mail", "graph"] as const).map(id => (
           <button
             key={id}
             type="button"
@@ -492,11 +507,7 @@ export function TeamWorkspacePage({
             {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
           </button>
         ))}
-        <button
-          type="button"
-          className={`tw-tab${tab === "im" ? " active" : ""}`}
-          onClick={() => setTab("im")}
-        >
+				<button type="button" className={`tw-tab${tab === "im" ? " active" : ""}`} onClick={() => setTab("im")}>
           {appSettings.emojiLabels ? `${TAB_EMOJI.im} ` : ""}
           {copy.im}
         </button>
@@ -512,12 +523,7 @@ export function TeamWorkspacePage({
         <div className="tw-body">
           <p className="tw-hint">{copy.imBoundary}</p>
           {imError ? <div className="tw-banner error">{imError}</div> : null}
-          {imChat ?? (
-            <TeamImChatPane
-              candidates={imCandidates ?? fetchedCandidates}
-              loading={imLoading}
-            />
-          )}
+					{imChat ?? <TeamImChatPane candidates={imCandidates ?? fetchedCandidates} loading={imLoading} />}
         </div>
       ) : !workspace ? (
         error ? (
@@ -592,10 +598,289 @@ export function TeamWorkspacePage({
               locale={resolvedLanguage}
             />
           ) : null}
+					{tab === "board" ? <BoardTab root={workspace.root} copy={copy} /> : null}
+					{tab === "calendar" ? <CalendarTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
+					{tab === "mail" ? <MailTab client={client} teamId={workspace.team.id} copy={copy} /> : null}
         </div>
       )}
     </div>
   );
+}
+
+type BoardColumn = "todo" | "doing" | "done";
+
+interface BoardCardView {
+	readonly id: string;
+	readonly title: string;
+	readonly column: BoardColumn;
+	readonly tags: readonly string[];
+	readonly assignee: "user" | "agent";
+	readonly due: string | null;
+	readonly body: string;
+}
+
+const BOARD_COLUMNS: ReadonlyArray<{ id: BoardColumn; label: string }> = [
+	{ id: "todo", label: "TODO" },
+	{ id: "doing", label: "DOING" },
+	{ id: "done", label: "DONE" },
+];
+
+interface CalendarEventView {
+	readonly id: string;
+	readonly title: string;
+	readonly start: string;
+	readonly end?: string;
+	readonly allDay: boolean;
+	readonly location?: string;
+	readonly notes?: string;
+	readonly tags?: readonly string[];
+}
+
+interface MailView {
+	readonly path: string;
+	readonly subject: string;
+	readonly from: string;
+	readonly to: string;
+	readonly date: string;
+	readonly body: string;
+}
+
+function decodeQuotedPrintable(value: string): string {
+	return value
+		.replaceAll("=\n", "")
+		.replace(/=([0-9A-Fa-f]{2})/g, (_match, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)));
+}
+
+function decodeBase64(value: string): string {
+	try {
+		const bytes = Uint8Array.from(atob(value.replaceAll(/\s/g, "")), char => char.charCodeAt(0));
+		return new TextDecoder().decode(bytes);
+	} catch {
+		return value;
+	}
+}
+
+/** Headers + a single text body; multipart bodies use their first text/plain part. */
+function parseEml(raw: string): { subject: string; from: string; to: string; date: string; body: string } {
+	const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	const separator = normalized.indexOf("\n\n");
+	const headerText = separator < 0 ? normalized : normalized.slice(0, separator);
+	const rawBody = separator < 0 ? "" : normalized.slice(separator + 2);
+	const unfolded = headerText.replace(/\n[ \t]+/g, " ");
+	const headers = new Map<string, string>();
+	for (const line of unfolded.split("\n")) {
+		const colon = line.indexOf(":");
+		if (colon < 0) continue;
+		headers.set(line.slice(0, colon).trim().toLowerCase(), line.slice(colon + 1).trim());
+	}
+	let body = rawBody;
+	const encoding = (headers.get("content-transfer-encoding") ?? "").toLowerCase();
+	if (encoding === "quoted-printable") body = decodeQuotedPrintable(body);
+	else if (encoding === "base64") body = decodeBase64(body);
+	const contentType = headers.get("content-type") ?? "";
+	const boundary = /boundary="?([^";]+)"?/i.exec(contentType)?.[1];
+	if (boundary && contentType.includes("multipart")) {
+		const part = body.split(`--${boundary}`).find(chunk => /content-type:\s*text\/plain/i.test(chunk));
+		if (part) {
+			const split = part.indexOf("\n\n");
+			const partBody = split < 0 ? part : part.slice(split + 2);
+			const partEncoding = /content-transfer-encoding:\s*([^\n]+)/i.exec(part)?.[1]?.trim().toLowerCase();
+			body =
+				partEncoding === "quoted-printable"
+					? decodeQuotedPrintable(partBody)
+					: partEncoding === "base64"
+						? decodeBase64(partBody)
+						: partBody;
+		}
+	}
+	return {
+		subject: headers.get("subject") ?? "(no subject)",
+		from: headers.get("from") ?? "",
+		to: headers.get("to") ?? "",
+		date: headers.get("date") ?? "",
+		body: body.trim(),
+	};
+}
+
+function MailTab({ client, teamId, copy }: { client: StudioClient; teamId: string; copy: Copy }) {
+	const [messages, setMessages] = useState<MailView[]>([]);
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		let active = true;
+		setLoading(true);
+		setError("");
+		void (async () => {
+			try {
+				const listing = await client.query("team.files.list", { teamId, path: "mail" });
+				const files = listing.entries.filter(entry => entry.kind === "file" && entry.name.endsWith(".eml"));
+				const rows = await Promise.all(
+					files.map(async file => {
+						const content = await client.query("team.files.read", { teamId, path: file.path });
+						return { path: file.path, ...parseEml(content.content) };
+					}),
+				);
+				if (active) setMessages(rows);
+			} catch (cause) {
+				if (active) {
+					const message = hostErrorMessage(cause, copy.mailError);
+					if (message.includes("ENOENT")) setMessages([]);
+					else setError(message);
+				}
+			} finally {
+				if (active) setLoading(false);
+			}
+		})();
+		return () => {
+			active = false;
+		};
+	}, [client, teamId, copy.mailError]);
+
+	return (
+		<div className="tw-mail-page">
+			{error ? <div className="tw-banner error">{error}</div> : null}
+			{loading ? <p className="tw-hint">{copy.loading}</p> : null}
+			{!loading && !error && messages.length === 0 ? <p className="tw-empty">{copy.mailEmpty}</p> : null}
+			<ul className="tw-mail-list">
+				{messages.map(message => (
+					<li key={message.path} className="tw-mail-message">
+						<strong>{message.subject}</strong>
+						<p className="tw-hint">
+							{message.from}
+							{message.to ? ` → ${message.to}` : ""}
+							{message.date ? ` · ${message.date}` : ""}
+						</p>
+						<p className="tw-body-text">{message.body || "—"}</p>
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+}
+
+function CalendarTab({ client, teamId, copy }: { client: StudioClient; teamId: string; copy: Copy }) {
+	const [events, setEvents] = useState<CalendarEventView[]>([]);
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		let active = true;
+		setLoading(true);
+		setError("");
+		void (async () => {
+			try {
+				const listing = await client.query("team.files.list", {
+					teamId,
+					path: ".zeta/calendar/events",
+				});
+				const files = listing.entries.filter(entry => entry.kind === "file" && entry.name.endsWith(".json"));
+				const rows = await Promise.all(
+					files.map(async file => {
+						const content = await client.query("team.files.read", { teamId, path: file.path });
+						return JSON.parse(content.content) as CalendarEventView;
+					}),
+				);
+				if (active) setEvents(rows);
+			} catch (cause) {
+				if (active) {
+					const message = hostErrorMessage(cause, copy.calendarError);
+					if (message.includes("ENOENT")) setEvents([]);
+					else setError(message);
+				}
+			} finally {
+				if (active) setLoading(false);
+			}
+		})();
+		return () => {
+			active = false;
+		};
+	}, [client, teamId, copy.calendarError]);
+
+	const sorted = [...events].sort((left, right) => left.start.localeCompare(right.start));
+
+	return (
+		<div className="tw-calendar-page">
+			{error ? <div className="tw-banner error">{error}</div> : null}
+			{loading ? <p className="tw-hint">{copy.loading}</p> : null}
+			{!loading && !error && sorted.length === 0 ? <p className="tw-empty">{copy.calendarEmpty}</p> : null}
+			<ul className="tw-calendar-list">
+				{sorted.map(event => (
+					<li key={event.id} className="tw-calendar-event">
+						<div className="tw-calendar-date">
+							<strong>{event.start}</strong>
+							{event.end ? <span className="tw-hint"> → {event.end}</span> : null}
+						</div>
+						<div>
+							<strong>{event.title}</strong>
+							{event.allDay ? <span className="tw-hint"> · all day</span> : null}
+							{event.location ? <p className="tw-hint">{event.location}</p> : null}
+							{event.notes ? <p className="tw-body-text">{event.notes}</p> : null}
+						</div>
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+}
+
+function BoardTab({ root, copy }: { root: string; copy: Copy }) {
+	const [cards, setCards] = useState<BoardCardView[]>([]);
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		let active = true;
+		setLoading(true);
+		setError("");
+		void (async () => {
+			try {
+				const response = await fetch(`/api/board?cwd=${encodeURIComponent(root)}`, { credentials: "include" });
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				const body = (await response.json()) as { cards?: BoardCardView[] };
+				if (active) setCards(body.cards ?? []);
+			} catch (cause) {
+				if (active) setError(cause instanceof Error ? cause.message : String(cause));
+			} finally {
+				if (active) setLoading(false);
+			}
+		})();
+		return () => {
+			active = false;
+		};
+	}, [root]);
+
+	return (
+		<div className="tw-board-page">
+			<p className="tw-hint">{root}</p>
+			{error ? <div className="tw-banner error">{`${copy.boardError}: ${error}`}</div> : null}
+			{loading ? <p className="tw-hint">{copy.loading}</p> : null}
+			{!loading && !error && cards.length === 0 ? <p className="tw-empty">{copy.boardEmpty}</p> : null}
+			<div className="tw-board">
+				{BOARD_COLUMNS.map(column => {
+					const columnCards = cards.filter(card => card.column === column.id);
+					return (
+						<section key={column.id} className="tw-board-column">
+							<h3>
+								{column.label} <span className="tw-hint">{columnCards.length}</span>
+							</h3>
+							{columnCards.map(card => (
+								<article key={card.id} className="tw-board-card">
+									<strong>{card.title}</strong>
+									<div className="tw-action-row">
+										<span className={`tw-kind kind-${card.assignee}`}>{card.assignee}</span>
+										{card.due ? <span className="tw-hint">due {card.due}</span> : null}
+									</div>
+									{card.tags.length > 0 ? <p className="tw-hint">{card.tags.join(" · ")}</p> : null}
+									{card.body ? <p className="tw-body-text">{card.body}</p> : null}
+								</article>
+							))}
+						</section>
+					);
+				})}
+			</div>
+		</div>
+	);
 }
 
 function Card({ label, value }: { label: string; value: ReactNode }) {
@@ -633,7 +918,6 @@ function OverviewTab({
 
   const pms = workspace.pms;
   const repos = workspace.repos;
-  const engineerOptions = memberOptions(pms, workspace.engineers).filter(option => option.role === "engineer");
 
   return (
     <div className="tw-grid">
@@ -821,7 +1105,9 @@ function OverviewTab({
                     disabled={busy}
                     onClick={() =>
                       void perform(async () => {
-                        const handle = await client.command("team.bootstrap.rollback", { runId: run.runId });
+												const handle = await client.command("team.bootstrap.rollback", {
+													runId: run.runId,
+												});
                         await waitReceipt(client, handle.requestId);
                       }, `Run ${run.runId} rolled back`)
                     }
@@ -899,10 +1185,18 @@ function OnboardingPanel({
             <input value={draft.name} onChange={event => update("name", event.target.value)} placeholder="acme" />
           </Field>
           <Field label={copy.root}>
-            <input value={draft.root} onChange={event => update("root", event.target.value)} placeholder="/work/acme-team" />
+						<input
+							value={draft.root}
+							onChange={event => update("root", event.target.value)}
+							placeholder="/work/acme-team"
+						/>
           </Field>
           <Field label={copy.displayName}>
-            <input value={draft.displayName} onChange={event => update("displayName", event.target.value)} placeholder="Acme" />
+						<input
+							value={draft.displayName}
+							onChange={event => update("displayName", event.target.value)}
+							placeholder="Acme"
+						/>
           </Field>
           <Field label={copy.pmList}>
             <textarea value={draft.pms} onChange={event => update("pms", event.target.value)} rows={2} />
@@ -911,7 +1205,11 @@ function OnboardingPanel({
             <textarea value={draft.repos} onChange={event => update("repos", event.target.value)} rows={3} />
           </Field>
           <Field label={copy.engineerList}>
-            <textarea value={draft.engineers} onChange={event => update("engineers", event.target.value)} rows={3} />
+						<textarea
+							value={draft.engineers}
+							onChange={event => update("engineers", event.target.value)}
+							rows={3}
+						/>
           </Field>
           <Field label={copy.roomList}>
             <textarea value={draft.rooms} onChange={event => update("rooms", event.target.value)} rows={2} />
@@ -929,12 +1227,18 @@ function OnboardingPanel({
           <button type="button" className="tw-button" disabled={busy} onClick={() => void makePlan()}>
             {copy.plan}
           </button>
-          <button type="button" className="tw-button primary" disabled={busy || !plan} onClick={() => void apply()}>
+					<button
+						type="button"
+						className="tw-button primary"
+						disabled={busy || !plan}
+						onClick={() => void apply()}
+					>
             {copy.apply}
           </button>
         </div>
         <p className="tw-hint">
-          Root is the only path this surface accepts. Existing Team actions use `teamId`; the Host resolves the root.
+					Root is the only path this surface accepts. Existing Team actions use `teamId`; the Host resolves the
+					root.
         </p>
       </section>
 
@@ -1016,7 +1320,9 @@ function TasksTab({
   const tasks = workspace.tasks.filter(view => filter === "all" || view.task.status === filter);
   const selectedView = workspace.tasks.find(view => view.task.taskKey === selected) ?? tasks[0];
   const actions = selectedView ? teamTaskActions(selectedView.task) : [];
-  const engineerChoices = memberOptions(workspace.pms, workspace.engineers).filter(option => option.role === "engineer");
+	const engineerChoices = memberOptions(workspace.pms, workspace.engineers).filter(
+		option => option.role === "engineer",
+	);
 
   const create = () =>
     perform(async () => {
@@ -1155,7 +1461,12 @@ function TasksTab({
         <Field label={copy.body}>
           <textarea value={body} onChange={event => setBody(event.target.value)} rows={2} />
         </Field>
-        <button type="button" className="tw-button primary" disabled={busy || !taskKey.trim() || !title.trim()} onClick={() => void create()}>
+				<button
+					type="button"
+					className="tw-button primary"
+					disabled={busy || !taskKey.trim() || !title.trim()}
+					onClick={() => void create()}
+				>
           {copy.createTask}
         </button>
       </section>
@@ -1215,7 +1526,9 @@ function TasksTab({
                 <dd>{labelFor(selectedView.task.ownerAgentId)}</dd>
                 <dt>{copy.lease}</dt>
                 <dd>
-                  <span className={`tw-lease ${teamLeaseInfo(selectedView.task, Math.floor(Date.now() / 1000)).state}`}>
+									<span
+										className={`tw-lease ${teamLeaseInfo(selectedView.task, Math.floor(Date.now() / 1000)).state}`}
+									>
                     {formatLease(selectedView.task, "en")}
                   </span>
                 </dd>
@@ -1261,7 +1574,11 @@ function TasksTab({
               </div>
               {selectedView.task.status === "review" ? (
                 <Field label={copy.reason}>
-                  <input value={reason} onChange={event => setReason(event.target.value)} placeholder="rejection reason" />
+									<input
+										value={reason}
+										onChange={event => setReason(event.target.value)}
+										placeholder="rejection reason"
+									/>
                 </Field>
               ) : null}
               <div className="tw-action-row">
@@ -1293,7 +1610,9 @@ function TasksTab({
               <ul className="tw-events">
                 {selectedView.events.map(event => (
                   <li key={event.seq}>
-                    <span className="tw-hint">#{event.seq} {new Date(event.at * 1000).toLocaleString()}</span>
+										<span className="tw-hint">
+											#{event.seq} {new Date(event.at * 1000).toLocaleString()}
+										</span>
                     <code>{event.kind}</code> {event.body}
                   </li>
                 ))}
@@ -1493,7 +1812,12 @@ function RoomsTab({
               ))}
             </Select>
           </Field>
-          <button type="button" className="tw-button primary" disabled={busy || !dmTarget} onClick={openDirectMessage}>
+					<button
+						type="button"
+						className="tw-button primary"
+						disabled={busy || !dmTarget}
+						onClick={openDirectMessage}
+					>
             {copy.openDm}
           </button>
         </div>
@@ -1632,7 +1956,8 @@ function RoomsTab({
               <h4>{copy.events}</h4>
               {subscription ? (
                 <p className="tw-hint">
-                  {copy.acceptedThrough} #{subscription.acceptedThrough} · {copy.readThrough} #{subscription.readThrough}
+									{copy.acceptedThrough} #{subscription.acceptedThrough} · {copy.readThrough} #
+									{subscription.readThrough}
                 </p>
               ) : null}
               <div className="tw-action-row">

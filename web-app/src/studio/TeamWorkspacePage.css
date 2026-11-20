@@ -377,3 +377,117 @@
   color: var(--text, #fff);
   background: color-mix(in srgb, var(--accent, #4c9aff) 22%, transparent);
 }
+
+.tw-board-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tw-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.tw-board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #111) 92%, transparent);
+}
+
+.tw-board-column > h3 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.tw-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  background: var(--surface, #171717);
+}
+
+.tw-board-card strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .tw-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tw-calendar-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tw-calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tw-calendar-event {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #111) 92%, transparent);
+}
+
+.tw-calendar-date {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .tw-calendar-event {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tw-mail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tw-mail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tw-mail-message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #111) 92%, transparent);
+}

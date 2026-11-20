@@ -8,6 +8,7 @@
  * The bootstrap plan/apply input is the one explicit root a new Team needs.
  * There are no accounts, passwords, tokens or credentials in this surface.
  */
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
 	TeamBootstrapApplyCommand,
@@ -18,6 +19,8 @@ import type {
 	TeamBootstrapRunsResult,
 	TeamBootstrapStepSummary,
 	TeamDoctorSummary,
+	TeamFileReadResult,
+	TeamFilesResult,
 	TeamListResult,
 	TeamRoomEvent,
 	TeamRoomKind,
@@ -249,6 +252,7 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 		const worktrees: WorktreeRecord[] = db.listWorktrees(teamId);
 		return {
 			team: { id: team.id, name: team.name, createdAt: team.createdAt },
+			root: team.rootPath,
 			pms: model.pms.map((pm: PmRecord) => ({ id: pm.id, name: pm.name })),
 			engineers: model.engineers.map((engineer: EngineerRecord) => ({
 				id: engineer.id,
@@ -372,6 +376,66 @@ async function teamList(): Promise<TeamListResult> {
 	} finally {
 		db.close();
 	}
+}
+
+const MAX_TEAM_FILE_BYTES = 1024 * 1024;
+
+/** Resolve a Team-root-relative path and refuse absolute/`..` escapes. */
+function teamFilePath(root: string, requested: string): { target: string; relative: string } {
+	const normalized = requested.replaceAll("\\", "/").replace(/^\/+/, "");
+	if (normalized.split("/").some(part => part === "..")) throw invalid("path must stay inside the Team root");
+	const target = path.resolve(root, normalized);
+	const relative = path.relative(root, target);
+	if (relative.startsWith("..") || path.isAbsolute(relative)) throw invalid("path must stay inside the Team root");
+	return { target, relative: relative.replaceAll(path.sep, "/") };
+}
+
+async function assertExistingFileInsideRoot(root: string, target: string): Promise<void> {
+	const [rootReal, targetReal] = await Promise.all([fs.realpath(root), fs.realpath(target)]);
+	const relative = path.relative(rootReal, targetReal);
+	if (relative.startsWith("..") || path.isAbsolute(relative)) throw invalid("path must stay inside the Team root");
+}
+
+async function teamFilesList(input: unknown): Promise<TeamFilesResult> {
+	const record = object(input);
+	const teamId = text(record.teamId, "teamId");
+	const root = teamRoot(teamId);
+	const requested = typeof record.path === "string" ? record.path : "";
+	const { target, relative } = teamFilePath(root, requested);
+	await assertExistingFileInsideRoot(root, target);
+	const stat = await fs.stat(target);
+	if (!stat.isDirectory()) throw invalid("path is not a directory");
+	const entries = await fs.readdir(target, { withFileTypes: true });
+	const rows = await Promise.all(
+		entries.map(async entry => {
+			const entryPath = relative === "" ? entry.name : `${relative}/${entry.name}`;
+			const entryTarget = path.join(target, entry.name);
+			const entryStat = await fs.stat(entryTarget);
+			return {
+				name: entry.name,
+				path: entryPath,
+				kind: entry.isDirectory() ? ("directory" as const) : ("file" as const),
+				size: entry.isDirectory() ? null : entryStat.size,
+				modifiedAt: entryStat.mtime.toISOString(),
+			};
+		}),
+	);
+	rows.sort((left, right) => left.name.localeCompare(right.name));
+	return { root, path: relative, entries: rows };
+}
+
+async function teamFilesRead(input: unknown): Promise<TeamFileReadResult> {
+	const record = object(input);
+	const teamId = text(record.teamId, "teamId");
+	const requested = text(record.path, "path");
+	const root = teamRoot(teamId);
+	const { target, relative } = teamFilePath(root, requested);
+	await assertExistingFileInsideRoot(root, target);
+	const stat = await fs.stat(target);
+	if (!stat.isFile()) throw invalid("path is not a file");
+	if (stat.size > MAX_TEAM_FILE_BYTES) throw invalid(`file exceeds ${MAX_TEAM_FILE_BYTES} bytes`);
+	const content = await fs.readFile(target, "utf8");
+	return { path: relative, content, size: stat.size };
 }
 
 async function teamRead(input: unknown): Promise<TeamWorkspaceReadModel> {
@@ -779,6 +843,8 @@ async function bootstrapRollback(input: unknown): Promise<TeamBootstrapRollbackV
 
 export const teamWorkspaceQueries = {
 	"team.list": teamList,
+	"team.files.list": teamFilesList,
+	"team.files.read": teamFilesRead,
 	"team.read": teamRead,
 	"team.doctor": teamDoctor,
 	"team.room.events": roomEvents,
