@@ -58,6 +58,9 @@ export function LocalSettings({ ctl, section }: { ctl: SettingsCtl; section: "ge
       <SettingRow label={t("settings.general.language")} desc={t("settings.general.languageDesc")} source={source("language")}>
         <Select label={t("settings.general.language")} value={app.language} options={[["system", t("settings.general.langSystem")], ["zh", t("settings.general.langZh")], ["en", t("settings.general.langEn")]]} onChange={language => updateApp({ language })} />
       </SettingRow>
+      <SettingRow label={t("settings.general.emojiLabels")} desc={t("settings.general.emojiLabelsDesc")} source={source("emojiLabels")}>
+        <Switch label={t("settings.general.emojiLabels")} checked={app.emojiLabels} onChange={emojiLabels => updateApp({ emojiLabels })} />
+      </SettingRow>
     </SettingSection>
     <SettingSection title={t("settings.general.sectionStartup")}>
       {reset(["restoreLastProject", "restoreLastSession", "startupPage"], zh ? "恢复启动默认值" : "Reset startup settings")}

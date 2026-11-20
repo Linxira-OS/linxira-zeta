@@ -2255,6 +2255,8 @@ const zhRaw = {
 			sectionApp: "应用",
 			language: "界面语言",
 			languageDesc: "界面文案语言（概念术语保留英文）",
+			emojiLabels: "Emoji 标签",
+			emojiLabelsDesc: "在导航和页面标签前显示 emoji；关闭后只用文字",
 			langSystem: "跟随系统 (System)",
 			langZh: "简体中文 (Simplified Chinese)",
 			langEn: "English",

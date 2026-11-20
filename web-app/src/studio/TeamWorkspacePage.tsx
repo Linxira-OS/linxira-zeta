@@ -28,6 +28,7 @@ import { TeamImChatPane } from "./TeamImChatPane";
 import { loadImChatCandidates, type ImChatCandidate } from "./teamImChatGateway";
 import { hostErrorMessage, waitReceipt } from "./hostError";
 import { useI18n } from "./i18n";
+import { useAppSettings } from "./settings/appSettings";
 import {
   bootstrapProgress,
   lastRoomSeq,
@@ -305,6 +306,7 @@ export function TeamWorkspacePage({
   imCandidates?: readonly ImChatCandidate[];
 }) {
   const { resolvedLanguage } = useI18n();
+  const { settings: appSettings } = useAppSettings();
   const copy: Copy = resolvedLanguage.startsWith("zh") ? COPY.zh : COPY.en;
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [teamId, setTeamId] = useState(initialTeamId ?? "");
@@ -486,7 +488,8 @@ export function TeamWorkspacePage({
             className={`tw-tab${tab === id ? " active" : ""}`}
             onClick={() => setTab(id)}
           >
-            {TAB_EMOJI[id]} {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
+            {appSettings.emojiLabels ? `${TAB_EMOJI[id]} ` : ""}
+            {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
           </button>
         ))}
         <button
@@ -494,7 +497,8 @@ export function TeamWorkspacePage({
           className={`tw-tab${tab === "im" ? " active" : ""}`}
           onClick={() => setTab("im")}
         >
-          {TAB_EMOJI.im} {copy.im}
+          {appSettings.emojiLabels ? `${TAB_EMOJI.im} ` : ""}
+          {copy.im}
         </button>
       </nav>
 

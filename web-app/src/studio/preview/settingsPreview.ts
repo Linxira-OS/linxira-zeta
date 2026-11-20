@@ -53,6 +53,7 @@ export const PREVIEW_APP_SETTINGS: AppSettings = {
   dictationToggleShortcut: "",
   showThinkingSummary: true,
   showToolIntent: true,
+  emojiLabels: true,
   showTokenUsage: false,
 };
 

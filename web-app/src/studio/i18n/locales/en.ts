@@ -2311,6 +2311,8 @@ export const en: LocaleDictionary = {
 			sectionApp: "Application",
 			language: "Interface Language",
 			languageDesc: "Display language for UI text (technical terms remain in English)",
+			emojiLabels: "Emoji labels",
+			emojiLabelsDesc: "Show emoji prefixes on navigation and page tabs; turn off for text-only labels",
 			langSystem: "Follow System (System)",
 			langZh: "Simplified Chinese (简体中文)",
 			langEn: "English",
