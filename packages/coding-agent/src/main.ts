@@ -2043,7 +2043,12 @@ export async function runRootCommand(
 		}
 		// One Host per user: a bare launch starts/reuses it before transport
 		// resolution. Explicit remote URLs are never replaced by a local start.
-		if ((backendEnabled || explicitBackend) && !standalone && !isProtocolMode && parsedArgs.backendUrl === undefined) {
+		if (
+			(backendEnabled || explicitBackend) &&
+			!standalone &&
+			!isProtocolMode &&
+			parsedArgs.backendUrl === undefined
+		) {
 			try {
 				const { ensureHost } = await import("./backend/ensure-host");
 				await ensureHost({ cwd, channels: true });

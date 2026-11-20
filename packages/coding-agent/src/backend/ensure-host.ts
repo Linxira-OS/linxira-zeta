@@ -33,9 +33,9 @@ export interface EnsureHostOptions {
 	/** Explicit CLI invocation for the spawned serve (tests/source runs). */
 	cliInvocation?: string[];
 	/** Test seam: replace the daemon starter. */
-	start?: (options: Parameters<typeof import("../commands/daemon").startDaemon>[0]) => Promise<
-		import("../commands/daemon").DaemonStartResult
-	>;
+	start?: (
+		options: Parameters<typeof import("../commands/daemon").startDaemon>[0],
+	) => Promise<import("../commands/daemon").DaemonStartResult>;
 }
 
 export interface EnsureHostResult {
