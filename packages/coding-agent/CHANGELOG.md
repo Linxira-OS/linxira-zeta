@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.11] - 2026-11-20
+
 ### Fixed
 
 - Fixed a 1.5.10 startup crash when `web.yml` contained IM instances created by the instance editor with an empty peer allowlist; empty peers remain deny-by-default but are valid config.

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.11] - 2026-11-20
+
 ### Fixed
 
 - QQ direct messages listed in `allowedUsers` are now authorized even when the instance's peer list contains only groups; a users-only QQ allowlist starts instead of being rejected.
