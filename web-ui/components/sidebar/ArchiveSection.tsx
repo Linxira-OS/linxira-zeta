@@ -1,6 +1,6 @@
 /**
  * Sidebar bottom "Archived" section: collapsed list of archived sessions with
- * per-row restore/delete (zeta-UI in-sidebar model — no separate page).
+ * per-row restore/delete (oh-my-pi-UI in-sidebar model — no separate page).
  * Search across projects is provided by the caller passing pre-filtered rows.
  */
 "use client";

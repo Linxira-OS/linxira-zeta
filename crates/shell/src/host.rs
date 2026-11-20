@@ -22,8 +22,8 @@ use std::{
 };
 
 use bstr::{BStr, BString, ByteSlice};
-use pi_builtins::extras::SpeechHost;
 use parking_lot::Mutex;
+use pi_builtins::extras::SpeechHost;
 
 use crate::{
 	bash::{

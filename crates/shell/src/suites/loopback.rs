@@ -17,8 +17,8 @@ use std::{
 
 use async_trait::async_trait;
 use bstr::BString;
-use pi_vfs::{FileHandle, FileSystem, FileType, Metadata, OpenOptions, Permissions, ReadDir};
 use parking_lot::Mutex;
+use pi_vfs::{FileHandle, FileSystem, FileType, Metadata, OpenOptions, Permissions, ReadDir};
 use tokio_util::sync::CancellationToken;
 
 use crate::{

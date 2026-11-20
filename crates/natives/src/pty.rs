@@ -20,8 +20,8 @@ use napi::{
 	threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode, UnknownReturnValue},
 };
 use napi_derive::napi;
-use pi_shell::output_decode::OutputDecoder;
 use parking_lot::Mutex;
+use pi_shell::output_decode::OutputDecoder;
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 
 use crate::{

@@ -2070,7 +2070,8 @@ mod tests {
 		let ctx = test_ctx(Some("fetch"), "git fetch origin", &cfg);
 		let out = filter(
 			&ctx,
-			"From github.com:Linxira-OS/linxira-zeta\n * [new branch]      feature -> origin/feature\n",
+			"From github.com:Linxira-OS/linxira-zeta\n * [new branch]      feature -> \
+			 origin/feature\n",
 			0,
 		);
 		assert!(out.changed);
@@ -2086,8 +2087,11 @@ mod tests {
 	fn push_output_keeps_deleted_refs() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = test_ctx(Some("push"), "git push origin --delete old-branch", &cfg);
-		let out =
-			filter(&ctx, "To github.com:Linxira-OS/linxira-zeta.git\n - [deleted]         old-branch\n", 0);
+		let out = filter(
+			&ctx,
+			"To github.com:Linxira-OS/linxira-zeta.git\n - [deleted]         old-branch\n",
+			0,
+		);
 		assert!(out.changed);
 		assert!(out.text.contains("- [deleted]         old-branch"));
 		assert!(out.text.contains("ok old-branch"));

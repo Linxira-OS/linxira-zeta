@@ -367,15 +367,18 @@ async fn fuzzy_find_async(
 		cache: config.cache.unwrap_or(false),
 		..Default::default()
 	};
-	let entries =
-		pi_xfs::walk::collect(&pi_xfs::Fs::new(fs, &root), &root, &opts, false, |_, entry| {
-			match entry.file_type {
-				pi_xfs::FileType::File | pi_xfs::FileType::Dir => pi_xfs::walk::Action::Continue,
-				pi_xfs::FileType::Symlink => pi_xfs::walk::Action::Skip,
-			}
-		})
-		.await
-		.map_err(task::walk_failure)?;
+	let entries = pi_xfs::walk::collect(
+		&pi_xfs::Fs::new(fs, &root),
+		&root,
+		&opts,
+		false,
+		|_, entry| match entry.file_type {
+			pi_xfs::FileType::File | pi_xfs::FileType::Dir => pi_xfs::walk::Action::Continue,
+			pi_xfs::FileType::Symlink => pi_xfs::walk::Action::Skip,
+		},
+	)
+	.await
+	.map_err(task::walk_failure)?;
 	let scored = score_entries(&entries, &query, max_results, &ct)?;
 
 	let total_matches = scored.total_matches();

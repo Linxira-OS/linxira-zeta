@@ -572,7 +572,7 @@ async fn commands_run_through_a_wrapper_receive_host_paths_for_url_arguments() {
 /// through a program that execs it.
 #[cfg(unix)]
 #[tokio::test]
-async fn omp_receives_its_url_arguments_as_written() {
+async fn zetacode_receives_its_url_arguments_as_written() {
 	use std::os::unix::fs::PermissionsExt;
 
 	let directory = tempfile::tempdir().expect("isolated provider filesystem");
@@ -580,15 +580,16 @@ async fn omp_receives_its_url_arguments_as_written() {
 	fs::create_dir(&docs).expect("provider directory");
 	fs::write(docs.join("a.txt"), b"alpha\n").expect("document");
 	let bin = tempfile::tempdir().expect("program directory");
-	let omp = bin.path().join("omp");
-	fs::write(&omp, b"#!/bin/sh\nprintf '%s\\n' \"$@\" \"ref=$REF\"\n").expect("stand-in omp");
-	fs::set_permissions(&omp, fs::Permissions::from_mode(0o755)).expect("executable stand-in");
+	let zetacode = bin.path().join("zetacode");
+	fs::write(&zetacode, b"#!/bin/sh\nprintf '%s\\n' \"$@\" \"ref=$REF\"\n")
+		.expect("stand-in zetacode");
+	fs::set_permissions(&zetacode, fs::Permissions::from_mode(0o755)).expect("executable stand-in");
 	let script = format!(
 		"PATH='{bin}':$PATH; REF=virtual://docs/a.txt zetacode read virtual://docs/a.txt:1-2 \
-		 --from=virtual://docs/a.txt; nice zetacode read virtual://docs; '{omp}' read \
+		 --from=virtual://docs/a.txt; nice zetacode read virtual://docs; '{zetacode}' read \
 		 @virtual://docs/a.txt",
 		bin = bin.path().display(),
-		omp = omp.display(),
+		zetacode = zetacode.display(),
 	);
 	let run = run_virtual(directory.path(), &script).await;
 	assert_eq!(run.status, Some(0), "{}", run.stderr);

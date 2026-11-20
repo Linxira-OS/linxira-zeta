@@ -1316,24 +1316,23 @@ mod tests {
 	async fn repo_files(byte_budget: Option<usize>) -> Vec<PathBuf> {
 		let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
 		let opts = pi_xfs::walk::Options { gitignore: true, skip_git: true, ..Default::default() };
-		let walked =
-			pi_xfs::walk::collect(&pi_xfs::Fs::native(), &root, &opts, false, |_, entry| {
-				let wanted = entry.file_type == pi_xfs::FileType::File
-					&& matches!(
-						entry
-							.rel_path()
-							.extension()
-							.and_then(std::ffi::OsStr::to_str),
-						Some("ts" | "py" | "rs")
-					);
-				if wanted {
-					pi_xfs::walk::Action::Continue
-				} else {
-					pi_xfs::walk::Action::Skip
-				}
-			})
-			.await
-			.expect("repository should walk");
+		let walked = pi_xfs::walk::collect(&pi_xfs::Fs::native(), &root, &opts, false, |_, entry| {
+			let wanted = entry.file_type == pi_xfs::FileType::File
+				&& matches!(
+					entry
+						.rel_path()
+						.extension()
+						.and_then(std::ffi::OsStr::to_str),
+					Some("ts" | "py" | "rs")
+				);
+			if wanted {
+				pi_xfs::walk::Action::Continue
+			} else {
+				pi_xfs::walk::Action::Skip
+			}
+		})
+		.await
+		.expect("repository should walk");
 		let mut files: Vec<PathBuf> = walked
 			.iter()
 			.map(|entry| root.join(entry.rel_path()))

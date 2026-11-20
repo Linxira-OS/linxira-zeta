@@ -20,10 +20,10 @@
 //! - Backtraces are captured via [`Backtrace::force_capture`], so they work
 //!   regardless of `RUST_BACKTRACE`.
 //! - The crash log path mirrors the JS side (`packages/utils/src/dirs.ts`):
-//!   `$XDG_STATE_HOME/zeta/logs/` on Linux / macOS when the user has migrated to
-//!   XDG (i.e. that directory already exists and `ZETA_CODING_AGENT_DIR` isn't
-//!   pointed somewhere custom), otherwise `<home>/<ZETA_CONFIG_DIR>/logs/`
-//!   (defaulting to `~/.zeta/logs/`).
+//!   `$XDG_STATE_HOME/zeta/logs/` on Linux / macOS when the user has migrated
+//!   to XDG (i.e. that directory already exists and `ZETA_CODING_AGENT_DIR`
+//!   isn't pointed somewhere custom), otherwise
+//!   `<home>/<ZETA_CONFIG_DIR>/logs/` (defaulting to `~/.zeta/logs/`).
 //! - This crate's own unit-test build writes to a per-user temp dir instead
 //!   (see `test_logs_dir`). The release addon a `bun test` process loads is not
 //!   a test build, so its crash reports still go to the path above while that
@@ -474,9 +474,9 @@ mod tests {
 	#[test]
 	fn resolve_logs_dir_reroots_absolute_pi_config_dir_under_home() {
 		// JS resolves the config root via `path.join(os.homedir(),
-		// getConfigDirName())`, which never honors an absolute ZETA_CONFIG_DIR — it
-		// is always re-rooted under `$HOME` (and `..` components are normalized
-		// away).
+		// getConfigDirName())`, which never honors an absolute ZETA_CONFIG_DIR —
+		// it is always re-rooted under `$HOME` (and `..` components are
+		// normalized away).
 		let dir = resolve_logs_dir(
 			Path::new("/tmp/pi-natives-test-home"),
 			Some(OsStr::new("/var/tmp/pi-natives-state")),
@@ -561,8 +561,8 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_skipped_when_agent_dir_overridden() {
-		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
-		// false` branch in `packages/utils/src/dirs.ts` and must disable XDG.
+		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault
+		// === false` branch in `packages/utils/src/dirs.ts` and must disable XDG.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			Some(OsStr::new("/some/custom/agent")),

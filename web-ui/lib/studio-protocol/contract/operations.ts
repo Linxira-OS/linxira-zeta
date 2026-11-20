@@ -192,7 +192,7 @@ export interface QueryResultMap extends ContextViewResultMap {
   /** Host workspace inventory. Paths never leave the Host registry. */
   "projects.list": WorkspaceListReadModel;
   "workspace.fileTree": WorkspaceFileTreeReadModel;
-  /** Homepage token heatmap / curve. Aggregates from zetacode stats.db only. */
+  /** Homepage token heatmap / curve. Aggregates from omp stats.db only. */
   "usage.get": TokenUsageReadModel;
   /** Loopback URL of the native statistics dashboard, for in-app embedding. */
   "stats.dashboard": StatsDashboardReadModel;
@@ -565,7 +565,7 @@ interface CoreCommandInputMap {
   "models.roles.create": ModelRoleCreateInput;
   /** Delete a custom role (`modelTags` + `modelRoles`). Built-in roles are rejected. */
   "models.roles.delete": { readonly roleId: string };
-  /** Switch `modelRoleStorage` between global config and `<cwd>/.zeta/config.yml`. */
+  /** Switch `modelRoleStorage` between global config and `<cwd>/.omp/config.yml`. */
   "models.roleStorage.set": { readonly storage: "global" | "project" };
   /** Persist `retry.fallbackChains` and optional `retry.fallbackRevertPolicy`. */
   "models.fallback.set": ModelFallbackSetInput;
@@ -590,7 +590,7 @@ interface CoreCommandInputMap {
   "models.provider.test": ModelProviderTestInput;
   /** One-shot discovery HTTP probe. Does not write `models.db`. */
   "models.provider.probe": ModelProviderProbeInput;
-  /** Force `zetacode models refresh` so runtime discovery rewrites `models.db`. */
+  /** Force `omp models refresh` so runtime discovery rewrites `models.db`. */
   "models.discovery.refresh": EmptyInput;
   "models.catalog.refresh": EmptyInput;
   /** Persist the quick model-switch rotation order into config.yml. */
@@ -656,8 +656,8 @@ interface CoreCommandInputMap {
     readonly scope?: "user" | "project";
   };
   /**
-   * Open the native OMP skills root (user `~/.zeta/agent/skills` or project
-   * `.zeta/skills`) in the system file manager. Creates the directory if missing.
+   * Open the native OMP skills root (user `~/.omp/agent/skills` or project
+   * `.omp/skills`) in the system file manager. Creates the directory if missing.
    */
   "skills.revealRoot": {
     readonly scope?: "user" | "project";
@@ -677,7 +677,7 @@ interface CoreCommandInputMap {
     readonly name: string;
     readonly scope?: "user" | "project";
   };
-  /** Create or replace a user/project `.zeta/agents/*.md` definition. */
+  /** Create or replace a user/project `.omp/agents/*.md` definition. */
   "agents.definition.upsert": AgentDefinitionUpsertInput;
   /** Remove a user/project task-agent file. Bundled/plugin agents cannot be deleted. */
   "agents.definition.delete": AgentDefinitionDeleteInput;

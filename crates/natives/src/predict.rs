@@ -43,8 +43,7 @@ fn open_engine(options: &TextPredictorOptions) -> Engine {
 		#[allow(clippy::cast_possible_truncation, reason = "thresholds are probabilities")]
 		show_threshold: options.show_threshold.map(|value| value as f32),
 	};
-	let opened =
-		Method::parse(&options.method).and_then(|method| pi_predict::open(method, &config));
+	let opened = Method::parse(&options.method).and_then(|method| pi_predict::open(method, &config));
 	opened.map_err(|error| format!("{error:#}"))
 }
 

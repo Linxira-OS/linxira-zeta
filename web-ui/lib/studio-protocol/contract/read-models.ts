@@ -670,7 +670,7 @@ export interface WebSearchProviderRecord {
   readonly hasCredential: boolean;
   /** Env vars the runtime accepts for this provider's credential (empty for keyless engines). */
   readonly envKeys?: ReadonlyArray<string>;
-  /** `zetacode login` provider id when an in-app OAuth login exists; absent otherwise. */
+  /** `omp login` provider id when an in-app OAuth login exists; absent otherwise. */
   readonly loginId?: string;
   /** agent.db provider id the engine reads an api_key from; absent when there is no direct key path. */
   readonly apiKeyId?: string;
@@ -761,7 +761,7 @@ export interface ModelWebSearchSetInput {
 /**
  * Studio-managed web-search credential write: stores an `api_key` credential
  * for the engine in the local OMP credential store (agent.db) so the runtime
- * picks it up natively — no `zetacode login` and no environment variables needed.
+ * picks it up natively — no `omp login` and no environment variables needed.
  */
 export interface ModelWebSearchCredentialSetInput {
   /** Search engine id (catalog id, e.g. `tavily`). */
@@ -834,7 +834,7 @@ export type PluginSourceKind = "npm" | "marketplace" | "link" | "git";
 export type PluginConfigStatus = "configured" | "error";
 
 /**
- * One configured plugin from ~/.zeta/plugins (and project overrides).
+ * One configured plugin from ~/.omp/plugins (and project overrides).
  * Contribution lists are declared entry names from the package manifest,
  * not Runtime-registered tools.
  */

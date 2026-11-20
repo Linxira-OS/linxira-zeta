@@ -157,6 +157,8 @@ pub struct WaylandBackend {
 	/// Bus names of the applications that did not answer the last window
 	/// listing, whose windows it therefore left out.
 	unanswered:        Vec<String>,
+	/// Observation-only sessions must never initialize native input.
+	observation_only:  bool,
 }
 
 /// Reads the compositor's PID from the peer credentials of its Wayland socket.
@@ -186,6 +188,10 @@ fn compositor_pid() -> Option<u32> {
 
 impl WaylandBackend {
 	pub fn new(display: DisplaySelector) -> Self {
+		Self::new_observed(display, false)
+	}
+
+	pub fn new_observed(display: DisplaySelector, observation_only: bool) -> Self {
 		// Remove the world-readable RemoteDesktop restore token that pre-#7884
 		// builds wrote during read-only calls; nothing reads it anymore (#7884).
 		portal::remove_orphaned_remote_desktop_token();
@@ -203,6 +209,7 @@ impl WaylandBackend {
 			displays: Vec::new(),
 			compositor_pid: compositor_pid(),
 			unanswered: Vec::new(),
+			observation_only,
 		}
 	}
 
@@ -236,6 +243,11 @@ impl WaylandBackend {
 		action: impl FnOnce(&mut libei::Libei) -> CoreResult<()>,
 	) -> CoreResult<()> {
 		control::check()?;
+		if self.observation_only {
+			return Err(DesktopError::background_unavailable(
+				"observation-only desktop session does not inject input",
+			));
+		}
 		Self::window_input_error(target, kind)?;
 		self.refuse_input()?;
 		if self.input.is_none() {
