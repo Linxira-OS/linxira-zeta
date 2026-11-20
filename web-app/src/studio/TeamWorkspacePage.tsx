@@ -43,6 +43,15 @@ import "./TeamWorkspacePage.css";
 
 type Tab = "overview" | "onboarding" | "tasks" | "rooms" | "graph" | "im";
 
+const TAB_EMOJI: Record<Tab, string> = {
+	overview: "🧭",
+	onboarding: "🚀",
+	tasks: "📋",
+	rooms: "💬",
+	graph: "🕸",
+	im: "✉️",
+};
+
 const TASK_STATUSES: ReadonlyArray<TeamTaskStatus> = ["pending", "claimed", "review", "done", "cancelled"];
 
 const COPY = {
@@ -439,13 +448,20 @@ export function TeamWorkspacePage({
         </div>
         <div className="tw-head-actions">
           {teams.length > 0 ? (
-            <Select value={teamId} onChange={setTeamId}>
+            <div className="tw-team-tabs" role="tablist" aria-label={copy.title}>
               {teams.map(team => (
-                <option key={team.id} value={team.id}>
+                <button
+                  key={team.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={teamId === team.id}
+                  className={`tw-team-tab${teamId === team.id ? " active" : ""}`}
+                  onClick={() => setTeamId(team.id)}
+                >
                   {team.name}
-                </option>
+                </button>
               ))}
-            </Select>
+            </div>
           ) : null}
           <button type="button" className="tw-button" onClick={reload} disabled={busy}>
             {copy.refresh}
@@ -464,7 +480,7 @@ export function TeamWorkspacePage({
             className={`tw-tab${tab === id ? " active" : ""}`}
             onClick={() => setTab(id)}
           >
-            {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
+            {TAB_EMOJI[id]} {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
           </button>
         ))}
         <button
@@ -472,12 +488,16 @@ export function TeamWorkspacePage({
           className={`tw-tab${tab === "im" ? " active" : ""}`}
           onClick={() => setTab("im")}
         >
-          {copy.im}
+          {TAB_EMOJI.im} {copy.im}
         </button>
       </nav>
 
       {tab === "graph" ? (
-        <TeamPage client={client} />
+        workspace ? (
+          <TeamPage client={client} teamId={workspace.team.id} />
+        ) : (
+          <div className="tw-empty">{error || copy.loading}</div>
+        )
       ) : tab === "im" ? (
         <div className="tw-body">
           <p className="tw-hint">{copy.imBoundary}</p>
@@ -490,7 +510,15 @@ export function TeamWorkspacePage({
           )}
         </div>
       ) : !workspace ? (
-        teams.length === 0 ? (
+        error ? (
+          <section className="tw-empty">
+            <h3>{copy.error}</h3>
+            <p className="tw-hint">{error}</p>
+            <button type="button" className="tw-button" onClick={reload} disabled={busy}>
+              {copy.refresh}
+            </button>
+          </section>
+        ) : teams.length === 0 ? (
           <section className="tw-empty">
             <h3>{copy.noTeams}</h3>
             <OnboardingPanel

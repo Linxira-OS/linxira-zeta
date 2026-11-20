@@ -94,7 +94,9 @@ const EvaluationPage = lazyPanel(() => import("../evaluation/EvaluationPage").th
 const MediaPage = lazyPanel(() => import("../MediaPage").then(module => ({ default: module.MediaPage })));
 
 const AgentHubPage = lazyPanel(() => import("../AgentHub").then(module => ({ default: module.AgentHubPage })));
-const TeamPage = lazyPanel(() => import("../TeamPage").then(module => ({ default: module.TeamPage })));
+const TeamWorkspacePage = lazyPanel(() =>
+  import("../TeamWorkspacePage").then(module => ({ default: module.TeamWorkspacePage })),
+);
 const RoomsPage = lazyPanel(() => import("../RoomsPage").then(module => ({ default: module.RoomsPage })));
 
 const CapabilitiesPage = lazyPanel(() => import("../CapabilitiesPage").then(module => ({ default: module.CapabilitiesPage })));
@@ -2583,7 +2585,7 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
               onOpenMain={() => go("workbench")}
             />
           ) : pageRoute === "team" ? (
-            <TeamPage client={client} />
+            <TeamWorkspacePage client={client} />
           ) : pageRoute === "rooms" ? (
             <RoomsPage client={client} />
           ) : pageRoute === "media" ? (

@@ -144,7 +144,7 @@ function NodeCard({
   );
 }
 
-export function TeamPage({ client }: { client: StudioClient }) {
+export function TeamPage({ client, teamId }: { client: StudioClient; teamId?: string }) {
   const { t, resolvedLanguage } = useI18n();
   const { preview } = usePreviewMode();
   const [phase, setPhase] = useState<Phase>("loading");
@@ -164,6 +164,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
     void (async () => {
       try {
         const result = await client.query("team.graph.get", {
+          ...(teamId === undefined ? {} : { clusterId: `team:${teamId}` }),
           ...(project === "all" ? {} : { workspaceId: project as WorkspaceId }),
           ...(lifetime === "all" ? {} : { lifetime }),
         });
@@ -179,7 +180,7 @@ export function TeamPage({ client }: { client: StudioClient }) {
     return () => {
       active = false;
     };
-  }, [client, project, lifetime, nonce, preview, t]);
+  }, [client, project, lifetime, nonce, preview, t, teamId]);
 
   const filterOptions = useMemo(
     () => (graph ? teamFilterOptions(graph) : { pms: [], rooms: [], repos: [] }),
