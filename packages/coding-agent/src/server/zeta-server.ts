@@ -666,6 +666,16 @@ export class ZetaServer {
 	}
 
 	async #startWebUi(): Promise<void> {
+		// The current renderer is the in-repo/package `web-app` build. The old
+		// Next `web-ui` child is retained only as a legacy fallback for an
+		// install with no web-app build; spawning it beside web-app made `serve`
+		// depend on an obsolete runtime and produced the Bun 1.4.3 startup error.
+		if (this.#webAppDir) {
+			this.#webUiPort = 0;
+			this.#webUiChild = null;
+			logger.info("Work Studio renderer served from web-app", { dir: this.#webAppDir });
+			return;
+		}
 		this.#webUiPort = getRandomPort();
 		try {
 			// NEXT_PUBLIC_STATS_URL lets the web-ui Stats iframe tab target the
