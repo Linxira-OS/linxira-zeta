@@ -2,6 +2,15 @@
 
 ## 下一版本（Unreleased）
 
+### Zeta 1.5.12 发布候选
+
+- 单一 Host：`zetacode` 普通启动与 `zetacode web` 复用同一个共享 Host；不同版本的活动实例被拒绝接管，不再静默杀旧进程。跨进程 smoke 覆盖两个独立 CLI 进程和 Desktop 的同一 `serve.json` 复用/版本冲突语义。
+- Team 工作区：Studio Team 路由挂载完整 Team 页面，包含 Team tabs、Overview、Onboarding、Tasks、Rooms、Board、Calendar、Mail、Graph 和 IM chat；新增直聊房间与 Team 根目录 `.zeta/board`、`.zeta/calendar/events`、`mail/*.eml` 读取。
+- TUI：右栏同时显示待办与运行中的 Agent，窄屏分档收缩；非输入态 Backspace 返回上一页；resume 不取消后台任务，结果回到拥有它的 transcript。
+- 设置：General 增加 Emoji 标签开关（默认开），关闭后 Team tabs 只用文字；语言/术语设置沿用既有 i18n。
+- Host 文件面：`team.files.list/read` 只接受 Team 根相对路径，拒绝 `..` 与真实路径逃逸，读取上限 1 MiB。
+- 验证边界：上述功能已在隔离 Team DB/Team root 的浏览器实例实测；`bun check` 的 Rust 段因依赖下载在 900 秒超时，未冒充完整 CI 绿；未推送、未打 tag、未发布。
+
 ### Zeta 1.5.10 发布候选
 
 - 基线：OMP `v18.22.0`。沿用现有 Work Studio 和 TermIDE 产品边界；Android 和移动真机流程不纳入本版（ADR-0071、REQ-125、REQ-141）。

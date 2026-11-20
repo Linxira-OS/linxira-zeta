@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+
+- IM channels are hosted by the shared Host, so a normal launch and `zetacode web` share one channel runtime.
+
 ## [1.5.11] - 2026-11-20
 
 ### Fixed

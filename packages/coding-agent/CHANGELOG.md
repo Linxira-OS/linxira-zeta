@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+### Added
+
+- A bare `zetacode` launch now starts or reuses one shared Host instead of racing a second daemon; `zetacode web` serves `web-app` directly.
+- Studio Team opens the full workspace: Team tabs, tasks, rooms, direct-message rooms, Board, Calendar, Mail and IM chat.
+- Team Board reads the Team root's `.zeta/board` cards; Calendar reads `.zeta/calendar/events`; Mail reads `mail/*.eml` with a bounded text parser.
+- Settings -> General adds an Emoji labels switch; team tabs fall back to text-only labels when it is off.
+
+### Fixed
+
+- Resuming a session keeps background jobs running and delivers their results to the transcript that owned them.
+
 ## [1.5.11] - 2026-11-20
 
 ### Fixed

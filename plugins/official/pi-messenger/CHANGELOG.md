@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+
+- Included in Zeta 1.5.12; no plugin-specific behavior changes.
+
 ## [1.5.11] - 2026-11-20
 
 ### Changed

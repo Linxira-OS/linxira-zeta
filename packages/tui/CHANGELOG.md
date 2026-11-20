@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Changed
+
+- The right rail now keeps todos and running agents visible and collapses before the main pane becomes unusable.
+- Backspace returns to the previous page outside the composer without interfering with text editing.
+
 ## [1.5.11] - 2026-11-20
 
 ### Changed
