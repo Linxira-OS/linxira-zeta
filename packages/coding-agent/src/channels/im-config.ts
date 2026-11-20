@@ -383,7 +383,6 @@ export function validateChannelInstances(value: unknown, profiles: readonly ImAg
 		}
 		const allowRec = record(rec.allow) ?? {};
 		const peers = strings(allowRec.peers, `${p}.allow.peers`, issues);
-		if (peers.length === 0) issues.push({ path: `${p}.allow.peers`, message: "must not be empty (deny-by-default)" });
 		const users = strings(allowRec.users, `${p}.allow.users`, issues, { optional: true });
 		const credentials = record(rec.credentials) ?? {};
 		const optionsRec = record(rec.options);

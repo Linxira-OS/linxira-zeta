@@ -27,9 +27,18 @@ export interface ChannelAllowlists {
 	perInstance: Partial<Record<ChannelInstanceId, ChannelAllowRule>>;
 }
 
-/** True when this instance has no peers (it must refuse to start). */
-export function isAllowlistEmpty(instanceId: ChannelInstanceId, allow: ChannelAllowlists): boolean {
-	return (allow.perInstance[instanceId]?.peers ?? []).length === 0;
+/** True when this instance has no peers and no QQ user allowlist (it must refuse to start). */
+export function isAllowlistEmpty(
+	instanceId: ChannelInstanceId,
+	allow: ChannelAllowlists,
+	platform?: ChannelPlatform,
+): boolean {
+	const rule = allow.perInstance[instanceId];
+	if (!rule) return true;
+	if (rule.peers.length > 0) return false;
+	// QQ direct messages are authorized by allowedUsers, so a users-only rule is
+	// a real allowlist even when no group/channel peer is listed.
+	return !(platform === "qq" && (rule.users?.length ?? 0) > 0);
 }
 
 /** Instance-scoped authorization; an unknown instance denies. */
@@ -40,13 +49,22 @@ export function isPeerAllowedFor(
 	platform?: ChannelPlatform,
 ): boolean {
 	const rule = allow?.perInstance?.[instanceId];
-	if (!rule || rule.peers.length === 0) return false;
+	if (!rule) return false;
 	const keys = new Set<string>([identity.peer, ...(identity.allowKeys ?? [])]);
-	if (!rule.peers.some(peer => keys.has(peer))) return false;
 	const users = rule.users ?? [];
-	if (users.length === 0) return true;
 	// QQ's user list scopes direct messages; group conversations are governed by
 	// the group peer list alone (matching the pre-instance adapter behavior).
+	// A listed DM user is authorized even when only group peers are configured:
+	// legacy web.yml stored `allowedGroups` in peers and `allowedUsers` apart.
+	if (platform === "qq" && identity.peer.startsWith("user:")) {
+		const userId = identity.peer.slice("user:".length);
+		if (users.includes(userId) || (identity.senderId !== undefined && users.includes(identity.senderId))) {
+			return true;
+		}
+	}
+	if (rule.peers.length === 0) return false;
+	if (!rule.peers.some(peer => keys.has(peer))) return false;
+	if (users.length === 0) return true;
 	if (platform === "qq") {
 		if (identity.peer.startsWith("group:")) return true;
 		if (identity.peer.startsWith("user:")) {

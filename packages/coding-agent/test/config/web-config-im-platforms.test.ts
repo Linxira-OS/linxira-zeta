@@ -55,6 +55,26 @@ describe("web.yml — Discord/QQ as explicit instances", () => {
 		expect(config.getData().imAgents).toEqual([]);
 	});
 
+	test("a web.yml with empty instance allowlists still loads and starts the CLI", async () => {
+		// Regression: 1.5.10 wrote empty-peer instances from the instance editor
+		// and then rejected them at startup, crashing every CLI command.
+		const file = await tempFile();
+		await Bun.write(
+			file,
+			YAML.stringify({
+				imAgents: [PROFILE],
+				channels: {
+					instances: ["wechat", "feishu", "telegram", "discord", "qq"].map((platform, index) =>
+						instance(platform, platform, { enabled: index === 0, allow: { peers: [] } }),
+					),
+				},
+			}),
+		);
+		const config = await WebConfig.load(file);
+		expect(config.getData().channels.instances).toHaveLength(5);
+		expect(config.getData().channels.instances.every(row => row.allow.peers.length === 0)).toBe(true);
+	});
+
 	test("instances carry credentials and per-instance allowlists", async () => {
 		const config = await makeConfig();
 		await config.setImAgents([PROFILE]);
@@ -88,15 +108,16 @@ describe("web.yml — Discord/QQ as explicit instances", () => {
 
 		// Unknown platform.
 		await expect(config.setChannelInstances([instance("slack", "slack")])).rejects.toThrow(/unknown platform/);
-		// Deny-by-default: an empty allowlist is not a valid startable instance.
-		await expect(
-			config.setChannelInstances([instance("discord", "discord", { allow: { peers: [] } })]),
-		).rejects.toThrow(/allow\.peers/);
+		// Deny-by-default: an empty allowlist is valid config and admits nobody.
+		await config.setChannelInstances([instance("discord", "discord", { allow: { peers: [] } })]);
+		expect(config.getChannelInstance("discord")?.allow.peers).toEqual([]);
 		// The agent profile must exist.
 		await expect(
 			config.setChannelInstances([instance("discord", "discord", { agentProfile: "missing" })]),
 		).rejects.toThrow(/unknown profile/);
-		expect(config.getData().channels.instances).toEqual([]);
+		expect(config.getData().channels.instances).toEqual([
+			expect.objectContaining({ id: "discord", allow: { peers: [] } }),
+		]);
 	});
 
 	test("instances are keyed by id, so two accounts may share a platform", async () => {

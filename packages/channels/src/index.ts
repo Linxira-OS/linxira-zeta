@@ -496,7 +496,7 @@ export async function startChannels(
 
 	for (const instance of instances) {
 		if (!instance.enabled) continue;
-		if (isAllowlistEmpty(instance.id, allow)) {
+		if (isAllowlistEmpty(instance.id, allow, instance.platform)) {
 			refuseStart(instance, "allow.peers is empty (deny-by-default)");
 			continue;
 		}

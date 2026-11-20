@@ -40,6 +40,16 @@ describe("instance allowlist", () => {
 		expect(isPeerAllowedFor("qq-main", { peer: "user:42" }, allow)).toBe(false);
 	});
 
+	test("QQ users are authorized by allowedUsers even when only groups are peers", () => {
+		const allow = { perInstance: { "qq-main": { peers: ["group:42"], users: ["900"] } } };
+		expect(isPeerAllowedFor("qq-main", { peer: "user:900", senderId: "900" }, allow, "qq")).toBe(true);
+		expect(isPeerAllowedFor("qq-main", { peer: "user:901", senderId: "901" }, allow, "qq")).toBe(false);
+		expect(isPeerAllowedFor("qq-main", { peer: "group:42" }, allow, "qq")).toBe(true);
+		expect(isAllowlistEmpty("qq-main", { perInstance: { "qq-main": { peers: [], users: ["900"] } } }, "qq")).toBe(
+			false,
+		);
+	});
+
 	test("an unknown instance or missing policy denies", () => {
 		expect(isPeerAllowedFor("missing", { peer: "c1" }, { perInstance: {} })).toBe(false);
 		expect(isPeerAllowedFor("missing", { peer: "c1" }, undefined)).toBe(false);
