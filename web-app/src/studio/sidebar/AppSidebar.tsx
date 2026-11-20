@@ -491,6 +491,10 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
           <span className="lbl">{t("skills.sidebarAction")}</span>
           <span className="meta"><span className="count">{chrome.skillsEnabledCount}</span><Icon name="chevron-r" extra="sm chev" /></span>
         </button>
+        <button className="action-row team-btn" aria-label={t("nav.team")} onClick={() => onRoute("team")}>
+          <Icon name="network" />
+          <span className="lbl">{t("nav.team")}</span>
+        </button>
       </div>
       <section className="sb-section" id="sbProjects" aria-labelledby="sbProjectsTitle" style={{ ["--sb-proj-basis" as string]: hasDockCards && leftCardsExpanded ? `${projectShare.toFixed(3)}%` : "100%" }}>
         <div className="sb-section-head">
