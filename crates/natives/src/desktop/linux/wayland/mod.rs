@@ -581,6 +581,7 @@ mod tests {
 			displays:          Vec::new(),
 			compositor_pid:    None,
 			unanswered:        Vec::new(),
+			observation_only:  false,
 		}
 	}
 	/// Holds `LIBEI_ENV_LOCK` with `LIBEI_SOCKET` set to a test's value (removed

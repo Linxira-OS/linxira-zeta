@@ -110,7 +110,7 @@ bun scripts/brand/brand-check.ts
 | 项 | 落点 | 现状 | 处置 |
 |---|---|---|---|
 | **CLI `share` 的默认上传（已退役）**（更正 §1/§4 旧说法） | `packages/wire/src/index.ts`（`DEFAULT_SHARE_URL` 已删）、`packages/coding-agent/src/commands/settings.ts`（`share.serverUrl` / `share.store` 已删）、`src/commands/share.ts`（已删） | **2026-11-02 退役**：`/share` 不再上传，只把脱敏后的转录稿交给 agent 走 GitHub 发布；CLI 命令与加密上传路径一并删除 | **完成**：`my.omp.sh` 只剩中继常量 `DEFAULT_RELAY_URL`（绝对冻结）；与 §3d 顶部「门禁语义」一节一致 |
-| **`github.com/stencil-hq/wasm-grammars`** | `src/utils/grammars.ts` 的 `DEFAULT_GRAMMARS_URL`；生成物/注释：`crates/pi-ast/src/language/wasm_grammars.rs`、`crates/pi-ast/src/language/grammar.rs`、`crates/pi-natives/src/grammars.rs`、`packages/natives/native/index.d.ts` | 运行时按需下载 WASM 语法包；生成物记上游 release 来源 | **保留**：GitHub Releases 无运营方锁定；守卫新增该域名，新落点必须先过台账。将来可镜像到自有 release |
+| **`github.com/stencil-hq/wasm-grammars`** | `src/utils/grammars.ts` 的 `DEFAULT_GRAMMARS_URL`；生成物/注释：`crates/ast/src/language/wasm_grammars.rs`、`crates/ast/src/language/grammar.rs`、`crates/natives/src/grammars.rs`、`packages/natives/native/index.d.ts` | 运行时按需下载 WASM 语法包；生成物记上游 release 来源 | **保留**：GitHub Releases 无运营方锁定；守卫新增该域名，新落点必须先过台账。将来可镜像到自有 release |
 | **`@stencil-hq/vibemon`** | `packages/metaharness/package.json`、`src/tb/{cli,vmon}.ts` | metaharness（开发工具，不随产品发布）依赖上游 scope 的 npm 包 | **保留（开发面）**：URL 守卫覆盖不到 npm scope，以本行为准 |
 | **Homebrew tap 文案** | `docs/macos-signing-notarization.md`（称「本仓库维护 Homebrew tap」） | macOS 发布面已于 2026-10-01 裁掉（README 写明 "no macOS build"），该文档整体是上游遗留 | **P2 待删**：删除或改写为「Zeta 不发布 macOS 构建」 |
 | **`stencil` OAuth 回调端口 54547** | 仅测试 `packages/ai/test/stencil-oauth-callback.test.ts` | 测试 fixture，无生产落点 | 记录在案，无动作 |

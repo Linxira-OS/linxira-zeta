@@ -105,8 +105,8 @@ export const INVENTORY: Placement[] = [
 		kind: "runtime-data",
 		files: [
 			"packages/coding-agent/src/utils/grammars.ts",
-			"crates/pi-ast/src/language/grammar.rs",
-			"crates/pi-ast/src/language/wasm_grammars.rs",
+			"crates/ast/src/language/grammar.rs",
+			"crates/ast/src/language/wasm_grammars.rs",
 			"crates/natives/src/grammars.rs",
 			"packages/natives/native/index.d.ts",
 		],
