@@ -417,11 +417,14 @@ async function assertReleaseLogs(): Promise<void> {
 	console.log("  Log gate: no upstream OMP sections, all [Unreleased] non-empty, UPDATE-LOG updated");
 }
 
-async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean): Promise<void> {
+async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean, resume = false): Promise<void> {
 	console.log("\n=== Release v2 ===\n");
 
-	// Step 0: pre-tag log gate — see assertReleaseLogs above.
-	await assertReleaseLogs();
+	// Step 0: pre-tag log gate — see assertReleaseLogs above. A resumed run
+	// starts with the target version's changelog section already materialized
+	// by the interrupted attempt, so [Unreleased] may be empty while the
+	// package version is already the target.
+	if (!resume) await assertReleaseLogs();
 
 	// Step 1: strict explicit-version guard (bump keywords and prereleases rejected).
 	const version = validateExplicitVersion(versionArg);
@@ -487,9 +490,12 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	}
 	const status = (await git(["status", "--porcelain"]).text()).trim();
 	if (status) {
-		console.error("Error: Uncommitted changes detected. Commit or stash first.");
-		console.error(status);
-		process.exit(1);
+		if (!resume) {
+			console.error("Error: Uncommitted changes detected. Commit or stash first.");
+			console.error(status);
+			process.exit(1);
+		}
+		console.log("  Resume: keeping the interrupted release's version/changelog/binary state.");
 	}
 	// The commit the release is cut from (pre-bump main HEAD). Its push run is
 	// the test evidence for the code the release ships — the bump commit only
@@ -871,13 +877,17 @@ if (import.meta.main) {
 	if (!args[0]) {
 		console.error("Usage:");
 		console.error("  bun scripts/release-v2.ts <version> [--watch] [--no-ci-wait]   Full release");
+		console.error("  bun scripts/release-v2.ts <version> --resume [--watch]        Resume an interrupted bump");
 		console.error("  bun scripts/release-v2.ts watch                 Watch CI for current commit");
 		console.error("");
+		console.error("  --resume      Keep the interrupted release's version/changelog state");
+		console.error("                instead of requiring a clean worktree; use after a");
+		console.error("                build/check failure before the bump commit was made.");
 		console.error("  --no-ci-wait  Skip verifying that the release source commit's");
 		console.error("                push run is green before pushing branch+tag atomically.");
 		console.error("                (Escape hatch; the default verifies the source commit.)");
 		process.exit(1);
 	}
 
-	await cmdRelease(args[0], args.includes("--watch"), args.includes("--no-ci-wait"));
+	await cmdRelease(args[0], args.includes("--watch"), args.includes("--no-ci-wait"), args.includes("--resume"));
 }
