@@ -10,7 +10,7 @@ import { register } from "../config/registry";
 export const cfgBackendEnabled = register({
 	id: "backend.enabled",
 	type: "boolean",
-	default: false,
+	default: true,
 	ui: {
 		tab: "interaction",
 		group: "Startup & Updates",

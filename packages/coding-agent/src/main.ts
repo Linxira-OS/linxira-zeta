@@ -2041,6 +2041,20 @@ export async function runRootCommand(
 			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
 			process.exit(1);
 		}
+		// One Host per user: a bare launch starts/reuses it before transport
+		// resolution. Explicit remote URLs are never replaced by a local start.
+		if ((backendEnabled || explicitBackend) && !standalone && !isProtocolMode && parsedArgs.backendUrl === undefined) {
+			try {
+				const { ensureHost } = await import("./backend/ensure-host");
+				await ensureHost({ cwd, channels: true });
+			} catch (error) {
+				process.stderr.write(
+					`${chalk.red(error instanceof Error ? error.message : String(error))}\n` +
+						`${chalk.dim("Run `zetacode --standalone` for a local process, or fix the running Host.")}\n`,
+				);
+				process.exit(1);
+			}
+		}
 		// Transport is decided before any local session exists. A bare launch is
 		// local unless backend mode is enabled; explicit --attach/--backend must
 		// reach a backend or startup fails, so a client never silently forks a
