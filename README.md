@@ -125,7 +125,7 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 Further upstreams shaped earlier work and stay credited:
 [Pi](https://github.com/earendil-works/pi) / [Pi Web](https://github.com/agegr/pi-web)
 as semantic port sources, and [OMP Web](https://github.com/17380936778/omp-web) as
-the origin of the frozen `web-ui/` snapshot. Per-tree ledgers and the full fork
+the origin of the frozen `retired/web-ui/` snapshot. Per-tree ledgers and the full fork
 declaration are in [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
 
 ## License

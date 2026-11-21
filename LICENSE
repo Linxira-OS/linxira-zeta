@@ -5,7 +5,7 @@ decides which licence applies:
                                    (full text: retired/zetawork/LICENSE)
     packages/  crates/  sdk/       MIT
     termide/  editor/              MIT  (vendored TermIDE: termide/LICENSE)
-    web-ui/  desktop/              MIT
+    retired/web-ui/  desktop/     MIT
     docs/  document/  scripts/     MIT
 
 Everything outside retired/zetawork/ is under the MIT licence reproduced below.
