@@ -7,6 +7,7 @@
 - The machine-wide serve daemon is independent of the TUI: a `zetacode` launch remains its own local process, never starts or adopts serve; only explicit backend/attach options (or backend mode for print/protocol runs) reach an existing daemon. Installers that support login autostart own that lifecycle.
 - Settings no longer adds a top-level Runtime page; identity and IM remain child pages of the existing Interaction settings.
 - The composer's More Models flyout links to model visibility, where exact `provider/model` entries can be hidden without hiding an entire provider.
+- The Windows desktop installer now repairs the Start Menu and desktop shortcut AppUserModelID, so the taskbar associates the running window with the Zeta icon.
 - Sidebar project names are explicitly left-aligned instead of inheriting the button's centered text alignment.
 - Release notes now start with a user-facing summary; technical traceability is folded at the end.
 
