@@ -1,5 +1,5 @@
 /**
- * Split a plan into preamble + one section per ATX heading, matching OMP TUI
+ * Split a plan into preamble + one section per ATX heading, matching Zeta TUI
  * `plan-toc.ts` so Refine feedback can address the same chunks.
  */
 

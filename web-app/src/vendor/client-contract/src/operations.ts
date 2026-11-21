@@ -183,6 +183,11 @@ export interface QueryInputMap extends TeamQueryInputMap, RuntimeViewQueryMap, C
   "workspace.file.inspect": import("./files.js").WorkspaceFileTarget;
   "workspace.file.readText": import("./files.js").WorkspaceFileTarget;
   "workspace.file.readChunk": import("./files.js").WorkspaceFileChunkInput;
+  "fs.places": Record<string, never>;
+  "fs.list": import("./system-files.js").SystemListInput;
+  "fs.file.inspect": import("./system-files.js").SystemFileTarget;
+  "fs.file.readText": import("./system-files.js").SystemFileTarget;
+  "fs.file.readChunk": import("./system-files.js").SystemFileChunkInput;
   "usage.get": EmptyInput;
   /** Native dashboard endpoint the statistics page embeds; starts it if needed. */
   "stats.dashboard": EmptyInput;
@@ -289,6 +294,10 @@ export interface QueryResultMap extends TeamQueryResultMap, RuntimeViewResultMap
   "workspace.file.inspect": import("./files.js").WorkspaceFileInfo;
   "workspace.file.readText": import("./files.js").WorkspaceFileText;
   "workspace.file.readChunk": import("./files.js").WorkspaceFileChunk;
+  "fs.places": import("./system-files.js").SystemPlaces;
+  "fs.list": import("./system-files.js").SystemDirectory;
+  "fs.file.inspect": import("./system-files.js").SystemFileInfo;
+  "fs.file.readText": import("./system-files.js").SystemFileText;
   /** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
   "usage.get": TokenUsageReadModel;
   /** Loopback URL of the native statistics dashboard, for in-app embedding. */
@@ -490,8 +499,8 @@ export type PromptTextInput = {
 /** Public semantic command inputs exposed by the Runtime control surface. */
 export type EvaluationCommandInputMap = { [K in EvaluationOperation["kind"]]: Omit<Extract<EvaluationOperation, {kind:K}>, "kind"> };
 type UpgradeInputMap = { [K in UpgradeOperation["kind"]]: Omit<Extract<UpgradeOperation, { kind: K }>, "kind" | "fallbackCwd"> };
-type WorkbenchInputMap = { [K in WorkbenchOperation["kind"]]: Omit<Extract<WorkbenchOperation, { kind: K }>, "kind" | "inputTransfers" | "targetCwd"> };
-export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, UpgradeInputMap, WorkbenchInputMap {
+type WorkbenchInputMap = { [K in WorkbenchOperation["kind"]]: Omit<Extract<WorkbenchOperation, { kind: K }>, "kind" | "inputTransfers" | "targetCwd" | "executionCwd"> };
+export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, UpgradeInputMap, WorkbenchInputMap, ModelServicesCommandInputMap {
   "core.prompt": PromptTextInput;
   "core.steer": PromptTextInput;
   "core.followUp": PromptTextInput;
@@ -577,7 +586,7 @@ export interface RuntimeCommandInputMap extends EvaluationCommandInputMap, Upgra
     readonly model?: string[];
     readonly definition: string;
     readonly assignment?: string;
-    readonly taskFile?: string;
+    readonly steps?: string[];
     readonly solutionSpace?: string;
     readonly context?: string;
     readonly async?: boolean;
@@ -610,7 +619,8 @@ export type InteractionResponseValue =
   | string
   | boolean
   | ReadonlyArray<string>
-  | Readonly<Record<string, unknown>>;
+  | Readonly<Record<string, unknown>>
+  | FormSubmitValue;
 
 interface CoreCommandInputMap {
   "timeTravel.settings.set": Partial<TimeTravelSettings>;
@@ -726,9 +736,15 @@ interface CoreCommandInputMap {
   "workspace.hide": { readonly workspaceId: WorkspaceId; readonly hidden?: boolean };
   /** Open the system directory picker and register the chosen folder. */
   "workspace.pick": { readonly name?: string };
+  /** Forget unavailable registry records; project and session files stay intact. */
+  "workspace.forgetUnavailable": EmptyInput;
   /** Create an empty file inside the selected workspace. */
   "workspace.file.create": { readonly workspaceId: WorkspaceId; readonly path: string };
   "workspace.file.writeText": import("./files.js").WorkspaceFileWrite;
+  "fs.file.writeText": import("./system-files.js").SystemFileWrite;
+  "fs.directory.create": { readonly parent: string; readonly name: string };
+  "fs.rename": { readonly path: string; readonly name: string };
+  "fs.trash": { readonly paths: readonly string[] };
   /** Create a directory inside the selected workspace. */
   "workspace.directory.create": { readonly workspaceId: WorkspaceId; readonly path: string };
   /**
@@ -900,7 +916,8 @@ interface CoreCommandResultMap {
   "session.drop": OperatorStateSnapshot;
   "session.archive": ConfigWriteResult;
   "session.unarchive": ConfigWriteResult;
-  "session.delete": ConfigWriteResult;
+  /** `cleanup: "partial"` means some native history/stats or artifact residue may remain; `message` says which. */
+  "session.delete": ConfigWriteResult & { readonly cleanup?: "complete" | "partial" };
   "interaction.respond": OperatorStateSnapshot;
   "permissions.mode.set": {
     readonly mode: ApprovalMode;
@@ -933,8 +950,13 @@ interface CoreCommandResultMap {
   "workspace.open": WorkspaceListReadModel;
   "workspace.hide": WorkspaceListReadModel;
   "workspace.pick": WorkspaceListReadModel;
+  "workspace.forgetUnavailable": WorkspaceListReadModel;
   "workspace.file.create": WorkspaceFileMutationResult;
   "workspace.file.writeText": import("./files.js").WorkspaceFileSaveResult;
+  "fs.file.writeText": import("./system-files.js").SystemFileSaveResult;
+  "fs.directory.create": import("./system-files.js").SystemFileMutationResult;
+  "fs.rename": import("./system-files.js").SystemFileMutationResult;
+  "fs.trash": { readonly paths: readonly string[] };
   "workspace.directory.create": WorkspaceFileMutationResult;
   "plugins.setEnabled": ConfigWriteResult;
   "plugins.callTool": PluginCallToolResult;
@@ -1029,10 +1051,11 @@ export interface ContinueTurnOutcome {
   readonly mode: "restored" | "continue" | "none";
 }
 
-export type CommandResultMap = CoreCommandResultMap & {
+export type CommandResultMap = CoreCommandResultMap & ModelServicesCommandResultMap & {
   [K in Exclude<
     keyof RuntimeCommandInputMap,
     | EvaluationOperation["kind"]
+    | keyof ModelServicesCommandInputMap
     | "operator.invoke"
     | "session.tree.navigate"
     | "session.tree.branch"

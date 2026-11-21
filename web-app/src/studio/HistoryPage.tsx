@@ -1,5 +1,5 @@
 import { timeTravelPreview } from "./preview/timeTravelPreview";
-import { ResumeScopePane } from "./history/ResumeScopePane";
+import { ResumeScopePane, type OpenPreparedSession } from "./history/ResumeScopePane";
 import { SessionPortabilityPane } from "./history/SessionPortabilityPane";
 import type { SessionTitleRow } from "@linxiraos/studio-protocol";
 import { useSessionTitles } from "./history/useSessionTitles";
@@ -17,7 +17,7 @@ import { ToastHost } from "./ToastHost";
 import type { PageRoute } from "./HomePage";
 import { usePreviewMode } from "./preview/PreviewContext";
 import {
-  PREVIEW_HISTORY,
+  getPreviewHistory,
   type PreviewHistoryRow,
   type PreviewHistoryStatus,
 } from "./preview/fixtures";
@@ -53,14 +53,23 @@ const HOST_STATUS: Record<SessionHistoryStatus, { chip: string; key: string }> =
   closed: { chip: "gray", key: "history.closed" },
 };
 
-function formatHostTime(value: string, t: (key: string) => string): string {
+function formatHostTime(value: string, t: (key: string) => string, zh: boolean): string {
   const then = Date.parse(value);
   if (!Number.isFinite(then)) return value;
   const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
   if (seconds < 60) return t("common.justNow");
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 86400 * 7) return `${Math.floor(seconds / 86400)}d ago`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    return zh ? `${m} 分钟前` : `${m}m ago`;
+  }
+  if (seconds < 86400) {
+    const h = Math.floor(seconds / 3600);
+    return zh ? `${h} 小时前` : `${h}h ago`;
+  }
+  if (seconds < 86400 * 7) {
+    const d = Math.floor(seconds / 86400);
+    return zh ? `${d} 天前` : `${d}d ago`;
+  }
   return new Date(then).toLocaleDateString();
 }
 
@@ -102,7 +111,8 @@ function HistMoreMenu({
   onPin?: (() => void) | undefined;
   pinned?: boolean | undefined;
 }) {
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const popRef = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 200 });
 
@@ -149,7 +159,7 @@ function HistMoreMenu({
       style={{ top: anchor.top, left: anchor.left, minWidth: anchor.width }}
     >
       {onRename ? <button type="button" role="menuitem" className="menu-item" onClick={onRename}><Icon name="pencil" extra="sm" /><span>{t("conversation.renameThread")}</span></button> : null}
-      {onPin ? <button type="button" role="menuitem" className="menu-item" onClick={onPin}><Icon name="pin" extra="sm" /><span>{pinned ? "取消置顶 / Unpin" : "置顶 / Pin"}</span></button> : null}
+      {onPin ? <button type="button" role="menuitem" className="menu-item" onClick={onPin}><Icon name="pin" extra="sm" /><span>{pinned ? (zh ? "取消置顶" : "Unpin") : (zh ? "置顶" : "Pin")}</span></button> : null}
       <button type="button" role="menuitem" className="menu-item danger" onClick={onDelete}>
         <Icon name="trash" extra="sm" />
         <span>{t("history.deleteSession")}</span>
@@ -175,7 +185,8 @@ function DeleteSessionDialog({
   onConfirm: (deleteManagedArtifacts: boolean) => void;
   onCancel: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const { marks } = usePreviewMode();
   const [deleteManagedArtifacts, setDeleteManagedArtifacts] = useState(false);
   useEffect(() => {
@@ -311,7 +322,7 @@ function HostHistRow({
       <span className="a-ic purple" aria-hidden="true"><Icon name="message" extra="sm" /></span>
       <a className="h-main" href="#!workbench" onClick={(event) => { event.preventDefault(); onOpen(); }}>
         <span className="h-title ellipsis">
-          {lease === true ? <span className="chip blue xs">使用中 / In use</span> : lease === null ? <span className="chip gray xs">占用未知 / Unknown lease</span> : null}
+          {lease === true ? <span className="chip blue xs">{zh ? "使用中" : "In use"}</span> : lease === null ? <span className="chip gray xs">{zh ? "占用未知" : "Unknown lease"}</span> : null}
           {entry.pinned === true ? <span className="t-pin" role="img" aria-label={t("history.pinned")}><Icon name="pin" extra="sm" /></span> : null}
           <SessionTitleMark row={titleRow} title={title} />{title}
         </span>
@@ -345,7 +356,7 @@ function HostHistRow({
 
 export function HistoryPage({
  nativeContext,
-  client, onImportedOpen, onImported,
+  client, onImportedOpen, onNativeResume, onImported,
   workspaceId,
   history,
   onRoute,
@@ -362,6 +373,7 @@ export function HistoryPage({
   onRenameSession?: (entry: SessionHistoryEntry) => void;
   onPinSession?: (entry: SessionHistoryEntry) => void;
   onImportedOpen?: (sessionId: string, workspaceId: WorkspaceId) => void;
+  onNativeResume?: OpenPreparedSession;
   onImported?: () => void;
   history?: SessionHistoryReadModel;
   onRoute: (route: PageRoute) => void;
@@ -442,10 +454,10 @@ export function HistoryPage({
   }, [deleteFor, deleting, marks, preview, onDeleteSession, show, t]);
 
   const previewRows = useMemo(
-    () => PREVIEW_HISTORY.map(row => ({ ...row, ...previewMetadata[row.id] })).sort((a,b) => Number(!!b.pinned)-Number(!!a.pinned))
+    () => getPreviewHistory(zh).map(row => ({ ...row, ...previewMetadata[row.id] })).sort((a,b) => Number(!!b.pinned)-Number(!!a.pinned))
       .filter((row) => `${row.title} ${row.project} ${row.branch}`.toLowerCase().includes(q))
       .filter((row) => matchesStatusTab(row.status, statusTab)),
-    [q, statusTab, previewMetadata],
+    [q, statusTab, previewMetadata, zh],
   );
   const hostRows = useMemo(
     () => (history?.entries ?? [])
@@ -491,7 +503,7 @@ export function HistoryPage({
         <header className="history-catalog-heading">
           <div className="history-catalog-title"><h2 id="histHeading">{zh ? "项目会话" : "Project sessions"}</h2><span className="history-catalog-count">{t("history.conversationsCount", { count: rows.length })}</span></div>
           <div className="history-catalog-actions">
-            <ResumeScopePane key={nativeContext?.sessionId ?? "no-live-session"} client={client} context={nativeContext} onOpen={onImportedOpen} onPreviewOpen={() => onRoute("workbench")} />
+            <ResumeScopePane key={nativeContext?.sessionId ?? "no-live-session"} client={client} context={nativeContext} onOpen={onNativeResume} onPreviewOpen={() => onRoute("workbench")} />
             <SessionImportPanel client={client ?? null} onOpen={onImportedOpen ?? (() => {})} {...(onImported ? { onImported } : {})} onPreviewOpen={() => onRoute("workbench")} />
           </div>
         </header>

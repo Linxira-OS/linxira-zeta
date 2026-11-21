@@ -44,7 +44,7 @@ export function collectPreviewRecents(
   hiddenIds: ReadonlySet<string> = new Set(),
   lang: "zh" | "en" = "zh",
 ): EmptyRecentRow[] {
-  return PREVIEW_PROJECTS
+  return getPreviewProjects(lang === "zh")
     .flatMap((project) => project.threads.map((thread) => ({ project: project.name, thread })))
     .filter(({ thread }) => thread.status !== "archived" && thread.id !== "t0" && !hiddenIds.has(thread.id))
     .sort((left, right) => previewAgeMinutes(left.thread.time) - previewAgeMinutes(right.thread.time))

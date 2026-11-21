@@ -1235,7 +1235,7 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     for (const id of sessionTitleRefreshTimers.current) window.clearTimeout(id);
   }, []);
 
-  /** 真实模式「归档」：session.archive 把会话移入 OMP 冷归档（gzip）。
+  /** 真实模式「归档」：session.archive 把会话移入 Zeta 冷归档（gzip）。
       进行中的会话由 Host 先 abort / 切走 Runtime，再移文件。
       归档的是当前选中会话时回到新对话视图。仅由确认弹窗调用。 */
   const archiveThread = async (entry: SessionHistoryEntry, workspaceId?: WorkspaceId): Promise<boolean> => {

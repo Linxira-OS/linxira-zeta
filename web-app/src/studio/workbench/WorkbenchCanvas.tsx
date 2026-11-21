@@ -7,14 +7,16 @@ import type { BrowserElementReference } from "@linxiraos/studio-protocol"
 import { EnvironmentDockCard } from "../environment/EnvironmentCard";
 import { ContextDockPanel } from "../conversation/ContextCard";
 import { PanelRegistration } from "../dock/PanelRegistration";
+import { FileBrowserDock } from "../fileBrowser/FileBrowserDock";
 import { revealMainWindow } from "../dock/SurfaceContext";
 import { DockPanel, useAgentDockLayout, useDockEngine } from "../dock/DockContext";
 import { DockGroupRegion, DockRail, DockCapsules, DockKeyboard } from "../dock/DockRegions";
 import { useBottomToggleClearance } from "../dock/revealClearance";
 import { locatePanel } from "../dock/model";
-import { agentPanelId, type AgentPanelId, type PanelId } from "../dock/types";
+import { agentPanelId, panelBaseId, type AgentPanelId, type PanelId } from "../dock/types";
 import { DeferredPanel, lazyPanel } from "../DeferredPanel";
 import { DictationControl } from "../composer/DictationControl";
+import { PromptHistoryButton } from "../composer/PromptHistory";
 import { useExecutionTarget, useTargetMemory } from "../workspaces/ExecutionTargets";
 import { ExecutionTargetPicker } from "../workspaces/ExecutionTargetPicker";
 import { AppSelect } from "../AppSelect";
@@ -25,6 +27,8 @@ import { BrowserDockInstances } from "../browser/BrowserDockInstances";
 import { ComputerLinkProvider } from "../computer/links";
 import type { ComputerFrameIntent } from "../computer/types";
 import { TokenCounterPane } from "../usage/TokenCounterPane";
+import { SelectiveCommitPane, selectiveCommitHandoff, type SelectiveCommitIntent } from "../commit/SelectiveCommitPane";
+import { SelectiveCommitLauncherProvider } from "../commit/SelectiveCommitLauncher";
 import { setHubIntent, setModelConfigIntent, setSettingsIntent } from "../pageIntents";
 import { conversationViewLeases } from "../conversation/conversationViews";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -46,6 +50,7 @@ import { RuntimeQueue } from "../composer/RuntimeQueue";
 import { ComposerModePicker } from "../ComposerModePicker";
 import { ChipComposer, type ChipComposerHandle } from "../composer/ChipComposer";
 import { bindSlashTypedCommand, composerSlashExecute, isDestructiveMemoryClear, mergeSlashCatalogWithManifest, planComposerSend, resolveSlashExecute, type SlashNativeUi, type StudioSlashCommand } from "../composer/commands";
+import { LuxOrbit } from "../lux/LuxOrbit";
 import { composerFollowUpEnabled, composerOwnerSessionId, composerOwnsLiveSnapshot, composerPromptEnabled, composerQueueEnabled, composerRunningForTarget, createComposerDispatchGate, promptTargetChanged, visibleQueuedMessages } from "../composer/dispatch";
 import { beginQueueEdit, cancelQueueEdit, commitQueueEdit, parkQueueEdit, snapshotOfQueued, switchQueueEdit, type QueueEditState } from "../composer/queueEdit";
 import { createWorkspaceFileIndex, followWorkspaceFileIndex, loadMentions, previewMentions, workspaceDirectoryLister } from "../composer/mentions";
@@ -75,14 +80,15 @@ import { ConversationEmpty } from "../conversation/ConversationEmpty";
 import { ConversationPane } from "../conversation/ConversationPane";
 import { CommandBlockProvider } from "../conversation/CommandBlock";
 import { SubagentHoverProvider } from "../conversation/SubagentHoverPreview";
-import { AgentRosterPanel } from "../agents/AgentRosterPanel";
-import { AgentRosterMeter } from "../agents/AgentRosterMeter";
+import { AgentsDock } from "../agents/deck/AgentsDock";
+import { agentSwarmScope } from "../agents/deck/swarmScope";
+import type { DeckLinks } from "../agents/deck/AgentDeck";
 import { BackgroundTasksDock } from "../backgroundTasks/BackgroundTasksDock";
 import { AgentDetailPanel } from "../agents/AgentDetailPanel";
-import { PREVIEW_DOCK_AGENTS } from "../preview/agentDockPreview";
-import { sharedSubagentViewBook, subagentViewKey } from "../conversation/subagentViewState";
+import { getPreviewDockAgents } from "../preview/agentDockPreview";
+import { nextSubagentBtwIntent, sharedSubagentViewBook, subagentViewKey } from "../conversation/subagentViewState";
 import { agentPresentation } from "../agents/agentPresentation";
-import { collectLatestPlanDocument, SESSION_CHANGE_LAST_ID, sessionTaskProgress, type SubagentHubTarget } from "../conversation/toolMeta";
+import { collectAgents, collectLatestPlanDocument, SESSION_CHANGE_LAST_ID, sessionTaskProgress, type SubagentHubTarget } from "../conversation/toolMeta";
 import { TaskProgressDock } from "../conversation/TaskProgressDock";
 import { SessionChanges } from "../conversation/SessionChanges";
 import { ChangesDockMeter } from "../conversation/ChangesDockMeter";
@@ -96,16 +102,17 @@ import { executeUserMessageBranch, executeUserMessageRestore, userMessageRestore
 import { useUserMessageTreeConfirm } from "../conversation/UserMessageTreeConfirm";
 import { claimTransientToast, isTransientStatusNotice, transientStatusFamily } from "../conversation/transientStatusNotice";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_LEDGER_COMMANDS, PREVIEW_PROJECTS, PREVIEW_QUEUED_MESSAGES, PREVIEW_RUN_ACTIVITY, PREVIEW_SHELL_EVENTS, PREVIEW_TODOS, PREVIEW_TODO_FILES, findPreviewProject } from "../preview/fixtures";
+import { PREVIEW_LEDGER_COMMANDS, PREVIEW_SHELL_EVENTS, PREVIEW_TODO_FILES, findPreviewProject, getPreviewProjects, getPreviewQueuedMessages, getPreviewRunActivity, getPreviewTodos } from "../preview/fixtures";
 import { PreviewChanges, PreviewLogs, PreviewProblems, PreviewTests } from "../preview/surfaces";
 import { PreviewDeck } from "../preview/PreviewDeck";
 import { ContentGallerySamples } from "../preview/ContentGallerySamples";
-import { PREVIEW_DECK_ITEMS } from "../preview/deckFixtures";
+import { getPreviewDeckItems } from "../preview/deckFixtures";
 import { previewEnvironmentCard } from "../preview/environmentCardPreview";
 import { previewTailInterrupted } from "../preview/conversationFixtures";
 import { BtwPanel } from "../btw/BtwPanel";
 import { type BtwSessionApi } from "../btw/useBtwSession";
 import { InteractionDeck } from "../InteractionDeck";
+import { useFormInteractionLifecycle } from "../deck/FormSession";
 import { ASK_GENIE_HOLD_MS, isAskDeckInteraction } from "../deck/askGenie";
 import { motionReduced } from "../motion";
 import { interactionDeckDisabled, planReviewDeckDisabled, usableCapabilityManifest } from "../deck/interactionGate";
@@ -134,8 +141,6 @@ const ContextInspector = lazyPanel(() => import("../contextViewer/ContextInspect
 const ComputerDockPane = lazyPanel(() => import("../computer/ComputerDockPane").then(module => ({ default: module.ComputerDockPane })));
 
 const TerminalPane = lazyPanel(() => import("../TerminalPane").then(module => ({ default: module.TerminalPane })));
-
-const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
 /** 已弹过 toast 的通知 id 记忆量。通知本身封顶 100 条，留 4 倍余量。 */
 const TOASTED_NOTICE_MEMORY = 400;
@@ -284,6 +289,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const { document, window } = useConversationDom();
   const mdi = useConversationView();
   const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
   const executionTarget = useExecutionTarget();
   const [draft, setDraft] = useTargetMemory<ComposerSnapshot>("composer-current-draft", () => composerDraft ?? emptySnapshot());
   const composerDraftRef = useRef<ComposerSnapshot | undefined>(composerDraft);
@@ -352,6 +360,12 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const [modeMenuNonce, setModeMenuNonce] = useState(0);
   const [modeOpenToggles, setModeOpenToggles] = useState(false);
   const [changesFocus, setChangesFocus] = useState<{ key: number; path?: string; turnId?: string }>({ key: 0 });
+  const [commitIntent, setCommitIntent] = useState<SelectiveCommitIntent | undefined>(undefined);
+  /* Git, Changes and `/commit` all land in the same session-scoped panel. */
+  const openSelectiveCommit = (intent: Omit<SelectiveCommitIntent, "key"> = {}) => {
+    setCommitIntent(previous => ({ ...intent, key: (previous?.key ?? 0) + 1 }));
+    dock.store.dispatch({ type: "open", panel: "commit" });
+  };
   const promptUnsub = useRef<Unsubscribe | undefined>(undefined);
   const promptDispatchGate = useMemo(createComposerDispatchGate, []);
   useEffect(() => () => promptUnsub.current?.(), []);
@@ -364,23 +378,25 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const [localFileName, setLocalFileName] = useState("");
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [rememberedPlan, setRememberedPlan] = useState<{ title: string; body: string } | undefined>(undefined);
+  const [selectedPlanDoc, setSelectedPlanDoc] = useState<{ title: string; body: string } | undefined>(undefined);
   const planDialogOriginRef = useRef<HTMLElement | null>(null);
   const [previewDeckKind, setPreviewDeckKind] = useState<"plan" | "ask" | null>(null);
   const lastAskDeckRef = useRef<ClientInteraction | null>(null);
   const [askDeckLeaving, setAskDeckLeaving] = useState(false);
   useEffect(() => {
     setRememberedPlan(undefined);
+    setSelectedPlanDoc(undefined);
     setPlanDialogOpen(false);
-  }, [selectedSessionId]);
-  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 omp-web」流式中显示 fixture
+  }, [selectedSessionId, previewThreadId]);
+  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 zeta-web」流式中显示 fixture
   // 两条消息；操作只改本地列表，不触 Host（AGENTS.md 预览规则）。
   const previewQueueActive = preview === true && previewThreadId === "t1";
   const [previewQueue, setPreviewQueue] = useState<QueuedMessage[]>([]);
   const previewQueueSeqRef = useRef(100);
   useEffect(() => {
     // 进入 t1 重新播种演示队列；离开（run 结束的故事线）清空，如同已 flush。
-    setPreviewQueue(previewQueueActive ? PREVIEW_QUEUED_MESSAGES.map((entry) => ({ ...entry })) : []);
-  }, [previewQueueActive]);
+    setPreviewQueue(previewQueueActive ? getPreviewQueuedMessages(zh).map((entry) => ({ ...entry })) : []);
+  }, [previewQueueActive, previewQueueActive ? zh : false]);
   const queueEditRef = useRef(queueEdit);
   queueEditRef.current = queueEdit;
   const queuedMessagesRef = useRef(queuedMessages);
@@ -426,6 +442,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       return;
     }
     replaceDraft(composerDraftRef.current ?? emptySnapshot());
+    setSubmittedPrompt((current) => current !== undefined && selectedSessionId !== undefined && current.sessionId === selectedSessionId ? current : undefined);
     setComposerError(undefined);
     setQueueEdit(undefined);
   }, [selectedSessionId, selectedThreadId, viewIdentity]);
@@ -440,16 +457,23 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     queueMicrotask(() => composerInputRef.current?.focus());
   }, [selectedSessionId]);
   const snapshot = snapshotFrom(state);
-  const submittedPromptTitle = submittedPrompt !== undefined && submittedPrompt.sessionId === snapshot?.sessionId
+  const terminalConversationId = mdi?.view && mdi.view.placement !== "main" ? mdi.document.id : undefined;
+  const terminalSessionId = terminalConversationId || !mdi ? snapshot?.sessionId : undefined;
+  const submittedPromptTitle = submittedPrompt !== undefined
+    && (
+      submittedPrompt.sessionId === undefined
+      || submittedPrompt.sessionId === snapshot?.sessionId
+      || (selectedSessionId !== undefined && submittedPrompt.sessionId === selectedSessionId)
+    )
     ? submittedPrompt.title
     : undefined;
   const rosterAgents = viewedAgents ?? (selectedSessionId === undefined || selectedSessionId === snapshot?.sessionId ? snapshot?.agents : undefined);
   const agentParentSessionId = preview ? `preview:${previewThreadId ?? "current"}` : selectedSessionId ?? snapshot?.sessionId;
-  const agentScope = JSON.stringify([executionTarget.id, workspaceId, agentParentSessionId, preview]);
+  const agentScope = agentSwarmScope(executionTarget.id, workspaceId, agentParentSessionId, preview);
   const recentAgentPanel = agentDockLayout.lastAgentPanel;
   const recentAgent = recentAgentPanel ? agentDockLayout.agentPanels[recentAgentPanel] : undefined;
   const inspectTarget = recentAgent?.scope === agentScope && recentAgentPanel && locatePanel(agentDockLayout, recentAgentPanel) ? recentAgent.target : null;
-  const dockAgents = useMemo(() => preview ? PREVIEW_DOCK_AGENTS : rosterAgents ?? [], [preview, rosterAgents]);
+  const dockAgents = useMemo(() => preview ? getPreviewDockAgents(zh) : rosterAgents ?? [], [preview, preview ? zh : false, rosterAgents]);
   const openedAgentIds = Object.entries(agentDockLayout.agentPanels).filter(([id, descriptor]) => descriptor.scope === agentScope && locatePanel(agentDockLayout, id as PanelId)).map(([, descriptor]) => descriptor.target.agentId);
   const openAgentDetail = useCallback((target: SubagentHubTarget) => {
     const agent = dockAgents.find(item => item.agentId === target.agentId);
@@ -457,10 +481,17 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       ...(agent?.resolvedModel === undefined ? {} : { resolvedModel: agent.resolvedModel }),
       ...(agentParentSessionId === undefined ? {} : { parentSessionId: agentParentSessionId }) } } });
   }, [agentScope, agentParentSessionId, dock.store, dockAgents]);
+  /** The deck's BTW action opens the agent's tab on its BTW page; the serial lets a repeat request re-apply. */
+  const [agentBtwIntent, setAgentBtwIntent] = useState<{ scope: string; agentId: string; serial: number } | null>(null);
   const connection = state.clientState?.connection;
   const runtime = connection?.runtime ?? state.bootstrap?.runtime;
   const commands = state.clientState?.commands ?? {};
   const pendingInteraction = state.clientState?.interaction.pending ?? null;
+  useFormInteractionLifecycle(pendingInteraction);
+  const readForm = useCallback(async (interaction: Extract<ClientInteraction, { kind: "form" }>) => {
+    const result = await client.query("interaction.form.read", { sessionId: interaction.sessionId, interactionId: interaction.interactionId, leaseGeneration: interaction.leaseGeneration });
+    return result.form;
+  }, [client]);
   const askDeckLive = isAskDeckInteraction(pendingInteraction);
   if (askDeckLive && pendingInteraction) lastAskDeckRef.current = pendingInteraction;
   useEffect(() => {
@@ -499,8 +530,8 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   );
   const commandManifest = state.model.commandManifest;
   const slashCatalog = useMemo(
-    () => mergeSlashCatalogWithManifest(preview ? undefined : commandManifest),
-    [commandManifest, preview],
+    () => mergeSlashCatalogWithManifest(preview ? undefined : commandManifest, resolvedLanguage === "zh"),
+    [commandManifest, preview, resolvedLanguage],
   );
   const capabilityById = useMemo(() => new Map((capabilities?.capabilities ?? []).map((capability) => [capability.id, capability])), [capabilities]);
   const can = (id: string) => {
@@ -667,6 +698,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   /* 项目 / 分支 / 执行位置 / 变更统计条只属于「新对话且还没发送」的界面；
      已开始的对话整条不显示（项目与分支在顶栏里）。 */
   const showContextStrip = isNewConversation && !composerSubmitted;
+  const hideNewConversationRail = showContextStrip && !dock.newConversationRailOpened;
+  useLayoutEffect(() => {
+    dock.setNewConversation(showContextStrip);
+  }, [dock.setNewConversation, showContextStrip]);
+  useLayoutEffect(() => () => dock.setNewConversation(false), [dock.setNewConversation]);
   const showWelcome = shouldShowConversationWelcome(welcomeGate);
   /* 在屏面的欢迎态：由 ConversationPane 上报（leaving 期间保留旧屏）。壳层布局类
      跟它走，避免切换瞬间 minimap 占宽把还在淡出的欢迎页向左顶。 */
@@ -688,22 +724,22 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const taskProgress = useMemo(() => {
     if (preview) {
       if (isNewConversation) return { todos: [], files: [] };
-      return { todos: PREVIEW_TODOS, files: PREVIEW_TODO_FILES };
+      return { todos: getPreviewTodos(zh), files: PREVIEW_TODO_FILES };
     }
     return sessionTaskProgress(convo.rows);
-  }, [convo.rows, isNewConversation, preview]);
+  }, [convo.rows, isNewConversation, preview, preview ? zh : false]);
   const testRuns = useMemo(() => preview ? [] : projectAgentTestRuns(convo.rows), [convo.rows, preview]);
   const activeWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
   const gitWorkspaceId = preview ? undefined : activeWorkspace?.workspaceId;
   const realGit = useGitRepository(client, gitWorkspaceId);
-  const activePreviewProject = preview ? findPreviewProject(previewProjectId ?? "") : undefined;
+  const activePreviewProject = preview ? findPreviewProject(previewProjectId ?? "", zh) : undefined;
   const gitScope = `${preview ? "preview" : "real"}:${executionTarget.id ?? "local"}:${preview ? previewProjectId ?? "none" : activeWorkspace?.workspaceId ?? "none"}`;
   const gitSharedWorkspaceId = preview ? `preview-${previewProjectId ?? "none"}` as WorkspaceId : activeWorkspace?.workspaceId;
   const contextProjectName = preview
-    ? (previewCreatedProject?.name ?? activePreviewProject?.name ?? "未选择项目")
-    : (activeWorkspace?.name ?? "未选择项目");
+    ? (previewCreatedProject?.name ?? activePreviewProject?.name ?? (zh ? "未选择项目" : "No project selected"))
+    : (activeWorkspace?.name ?? (zh ? "未选择项目" : "No project selected"));
   const normalizedProjectQuery = contextProjectQuery.trim().toLocaleLowerCase();
-  const previewProjectOptions = PREVIEW_PROJECTS.filter((project) => project.name.toLocaleLowerCase().includes(normalizedProjectQuery));
+  const previewProjectOptions = getPreviewProjects(zh).filter((project) => project.name.toLocaleLowerCase().includes(normalizedProjectQuery));
   // 项目选择器同样按稳定顺序，切换后列表不重排。
   const workspaceOptions = sidebarProjectOrder(state.model.workspaces).filter((workspace) => workspace.name.toLocaleLowerCase().includes(normalizedProjectQuery));
   const openCreateProject = () => {
@@ -721,7 +757,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     const name = createProjectName.trim();
     setCreateProjectError(undefined);
     if (preview) {
-      setPreviewCreatedProject({ id: `preview-created-${Date.now()}`, name: name || (marks ? "演示新项目" : "新项目") });
+      setPreviewCreatedProject({ id: `preview-created-${Date.now()}`, name: name || (marks ? (zh ? "演示新项目" : "Demo new project") : (zh ? "新项目" : "New project")) });
       setCreateProjectOpen(false);
       return;
     }
@@ -731,7 +767,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       const handle = await client.command("workspace.pick", name ? { name } : {});
       const model = await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null);
       const active = model.workspaces.find((workspace) => workspace.active);
-      if (!active) throw new Error("选择的文件夹未注册为项目");
+      if (!active) throw new Error(zhRef.current ? "选择的文件夹未注册为项目" : "The selected folder is not registered as a project");
       onSelectProject({ id: active.workspaceId, name: active.name });
       setCreateProjectOpen(false);
     } catch (error) {
@@ -744,7 +780,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       ) {
         return;
       }
-      setCreateProjectError(hostErrorMessage(error, "创建项目失败"));
+      setCreateProjectError(hostErrorMessage(error, zhRef.current ? "创建项目失败" : "Failed to create project"));
     } finally {
       setCreateProjectBusy(false);
     }
@@ -773,13 +809,13 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       const handle = await client.command(name, input);
       const result = await waitReceipt<{ readonly syncStatus?: "complete" | "partial"; readonly failedSessions?: number }>(client, handle.requestId);
       if (name === "permissions.mode.set" && result.syncStatus === "partial") {
-        setComposerError(`权限模式仅同步到部分 Runtime（${result.failedSessions ?? 0} 个失败），请稍后重试。`);
+        setComposerError(zhRef.current ? `权限模式仅同步到部分 Runtime（${result.failedSessions ?? 0} 个失败），请稍后重试。` : `Permission mode synced to only some Runtimes (${result.failedSessions ?? 0} failed); please try again later.`);
         return false;
       }
       setComposerError(undefined);
       return true;
     } catch (error) {
-      const message = hostErrorMessage(error, "操作失败");
+      const message = hostErrorMessage(error, zhRef.current ? "操作失败" : "Operation failed");
       if (isTransientStatusNotice(message)) {
         const claimed = claimTransientToast(transientStatusFamily(message), lastStatusToast.current);
         lastStatusToast.current = claimed.next;
@@ -809,7 +845,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     if (!nativePlanEnabled) return run("mode.plan.review.respond", { decision, ...(feedback ? { feedback } : {}) });
     const reviewId = planExecution.details?.reviewId;
     if (!snapshot?.sessionId || !reviewId || !planExecution.details?.available || planExecution.loading) {
-      setStatusToast(planExecution.error || "计划评审已变化，请稍后重试");
+      setStatusToast(planExecution.error || (zhRef.current ? "计划评审已变化，请稍后重试" : "Plan review changed; please try again shortly"));
       return Promise.resolve(false);
     }
     return run("mode.plan.review.resolve", { sessionId: snapshot.sessionId, reviewId, decision,
@@ -824,7 +860,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       }
       const ok = await submitPlanDecision("dismiss");
       if (ok) {
-        setStatusToast("请在输入框写下修改意见");
+        setStatusToast(zhRef.current ? "请在输入框写下修改意见" : "Write your requested changes in the input box");
         queueMicrotask(() => composerInputRef.current?.focus());
       }
       return ok;
@@ -858,19 +894,19 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     const chrome = globalThis.zetaStudioChrome;
     if (chrome?.pickPlanSavePath !== undefined) {
       if (activeWorkspace === undefined) {
-        setStatusToast("没有可用的本地项目，无法选择保存位置");
+        setStatusToast(zhRef.current ? "没有可用的本地项目，无法选择保存位置" : "No local project is available to choose a save location");
         return null;
       }
       const picked = await chrome.pickPlanSavePath({ workspaceId: activeWorkspace.workspaceId });
       if (picked.status === "cancelled") return null;
       if (picked.status === "outside-workspace") {
-        setStatusToast(`保存位置在工作区外（${picked.fileName}），已取消保存`);
+        setStatusToast(zhRef.current ? `保存位置在工作区外（${picked.fileName}），已取消保存` : `Save location is outside the workspace (${picked.fileName}); save cancelled`);
         return null;
       }
       return picked.relativePath;
     }
     try {
-      const raw = window.prompt("请输入相对于工作区的 PLAN.md 路径：", "PLAN.md");
+      const raw = window.prompt(zhRef.current ? "请输入相对于工作区的 PLAN.md 路径：" : "Enter a PLAN.md path relative to the workspace:", "PLAN.md");
       const normalized = raw?.trim();
       if (normalized) return normalized;
     } catch {
@@ -900,9 +936,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         // title/history refresh path for runtimes that omit a session id.
         onSessionTitleMaybeChanged?.();
       }
-      setStatusToast(planSaveAndQuitNotice(result, selected));
+      setStatusToast(planSaveAndQuitNotice(result, selected, zhRef.current));
     } catch (error) {
-      setStatusToast(hostErrorMessage(error, "保存计划并退出失败"));
+      setStatusToast(hostErrorMessage(error, zhRef.current ? "保存计划并退出失败" : "Failed to save plan and quit"));
     } finally {
       planSaveBusyRef.current = false;
       setPlanSaveBusy(false);
@@ -927,6 +963,10 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   // keeps the old verdict; its queue is a local fixture, never a Host write.
   const composerTarget = { selectedSessionId, sessionCreating, liveSessionId: snapshot?.sessionId };
   const composerOwner = composerOwnerSessionId(composerTarget) as SessionId | undefined;
+  useEffect(() => {
+    if (submittedPrompt === undefined || submittedPrompt.sessionId !== undefined || composerOwner === undefined) return;
+    setSubmittedPrompt({ sessionId: composerOwner, title: submittedPrompt.title });
+  }, [composerOwner, submittedPrompt]);
   useEffect(() => {
     if (!workbenchVisible || !composerInsertion || composerInsertion.owner !== composerOwner || !composerInputRef.current) return;
     const current = composerInputRef.current.getSnapshot();
@@ -968,7 +1008,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const liveReviewKey = pendingInteraction || planReview === undefined
     ? ""
     : `${planReview.planReference ?? ""}:${planReview.title ?? ""}:${planReview.body ?? ""}`;
-  const previewPlanActive = preview === true && previewThreadId === "t3" && previewDeckKind === "plan";
+  const previewPlanThread = preview === true && previewThreadId === "t3";
+  const previewDeckActive = previewPlanThread && previewDeckKind !== null;
+  const previewPlanActive = previewDeckActive && previewDeckKind === "plan";
   // `planReview` 是 `snapshot.plan`，每次 operator 状态更新都是新对象，所以直接
   // 依赖它会在整个评审期间每帧往 state 写一个全新对象，React 永远无法 bail out。
   // 按内容签名依赖，值真的变了才写；对象本身从 ref 读，不参与依赖比较。
@@ -983,42 +1025,59 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     if (current === undefined) return;
     setRememberedPlan({ title: current.title ?? "Plan", body: current.body ?? "" });
   }, [planReviewContentKey]);
+  const previewPlanFixture = useMemo(() => {
+    const item = getPreviewDeckItems(zh).find((entry) => entry.kind === "plan");
+    return item?.kind === "plan" ? { title: item.title, body: item.body } : undefined;
+  }, [zh]);
   const transcriptPlan = useMemo(() => collectLatestPlanDocument(convo.rows), [convo.rows]);
-  const planView = planReview === undefined
-    ? (rememberedPlan ?? transcriptPlan)
-    : { title: planReview.title ?? "Plan", body: planReview.body ?? "" };
+  const planView = preview
+    ? (previewPlanThread ? previewPlanFixture : transcriptPlan)
+    : planReview === undefined
+      ? (selectedPlanDoc ?? rememberedPlan ?? transcriptPlan)
+      : { title: planReview.title ?? "Plan", body: planReview.body ?? "" };
   useEffect(() => {
     if (liveReviewKey.length > 0) return;
     if (!previewPlanActive) setPlanDialogOpen(false);
   }, [liveReviewKey, previewPlanActive]);
-  const openPlanFromConversation = useCallback((origin: HTMLElement) => {
+  const planViewRef = useRef(planView);
+  planViewRef.current = planView;
+  const planStatus = snapshot?.plan?.status;
+  const openPlanFromConversation = useCallback((origin: HTMLElement, doc?: { readonly title: string; readonly body: string }) => {
     planDialogOriginRef.current = origin;
-    if (preview || snapshot?.plan?.status === "review") {
+    setSelectedPlanDoc(doc ? { title: doc.title, body: doc.body } : undefined);
+    if (preview || planStatus === "review") {
       setPlanDialogOpen(true);
       return;
     }
-    if (snapshot?.plan?.status === "active" || snapshot?.plan?.status === "paused") {
+    if (doc !== undefined) {
+      setPlanDialogOpen(true);
+      return;
+    }
+    if (planStatus === "active" || planStatus === "paused") {
       void run("mode.plan.review.open", {});
       return;
     }
-    if (planView !== undefined) {
+    if (planViewRef.current !== undefined) {
       setPlanDialogOpen(true);
       return;
     }
     void run("mode.plan.review.open", {});
-  }, [planView, preview, run, snapshot?.plan?.status]);
+  }, [planStatus, preview, run]);
+  const previewPlanTitle = previewPlanFixture?.title ?? "Plan";
+  const hasPlanReview = planReview !== undefined;
+  const activePlanReviewTitle = planReview?.title;
   const planLink = useMemo(
     () => ({
       onOpen: openPlanFromConversation,
-      ...(planReview?.title
-        ? { title: planReview.title }
-        : previewPlanActive
-          ? { title: PREVIEW_PLAN_TITLE }
+      ...(activePlanReviewTitle
+        ? { title: activePlanReviewTitle }
+        : previewPlanThread
+          ? { title: previewPlanTitle, ...(previewPlanFixture?.body ? { body: previewPlanFixture.body } : {}) }
           : {}),
-      ...(previewPlanActive ? { demo: true as const } : {}),
-      ...((planReview !== undefined || previewPlanActive) ? { attachEvenWithoutPropose: true as const } : {}),
+      ...(previewPlanThread ? { demo: true as const } : {}),
+      ...((hasPlanReview || previewPlanThread) ? { attachEvenWithoutPropose: true as const } : {}),
     }),
-    [openPlanFromConversation, planReview, previewPlanActive],
+    [activePlanReviewTitle, hasPlanReview, openPlanFromConversation, previewPlanFixture?.body, previewPlanThread, previewPlanTitle],
   );
   const textReady = !snapshotIsEmpty(draft);
   const conversationLive = executionMatches && (
@@ -1085,7 +1144,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   // Idempotent: a no-op as soon as the store has nothing open.
   useEffect(() => {
     if (!executionMatches || snapshot?.isStreaming !== false) return;
-    // OMP 18.12: the run ended only to wait for background jobs; their result resumes it.
+    // Zeta 18.12: the run ended only to wait for background jobs; their result resumes it.
     if (snapshot?.awaitingAsyncWork === true) return;
     if (!runStreaming.settled && abortGeneration === 0) return;
     if (hasLiveActivityProgress(convoRef.current.state)) return;
@@ -1103,6 +1162,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   // being filed against the session the operator just left. Preview keeps its
   // fixture story (the local demo queue is not a Host target).
   const composerRunning = preview ? running : composerRunningForTarget({ ...composerTarget, running });
+  const composerLightState = pendingInteraction !== null || planReview !== undefined || previewDeckActive
+    ? "waiting"
+    : composerRunning ? "running" : "idle";
   // Title freezes on the first accepted prompt; later drafts never override it.
   const provisionalTitle = submittedPromptTitle ?? provisionalThreadTitle(draft.text);
   useEffect(() => {
@@ -1119,7 +1181,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   useEffect(() => {
     if (preview || !snapshot || !composerOwner || executionTarget.id) return;
     conversationViewLeases.setOwnerKnown();
-    const blocked = !snapshotIsEmpty(draft) || sending || optimisticPrompt !== undefined || queuedMessages.length > 0 || pendingInteraction !== undefined || worktreeGated;
+    const blocked = !snapshotIsEmpty(draft) || sending || optimisticPrompt !== undefined || queuedMessages.length > 0 || pendingInteraction !== null || worktreeGated;
     return blocked ? conversationViewLeases.block(Number(snapshot.runtimeEpoch), composerOwner) : undefined;
   }, [preview, snapshot?.runtimeEpoch, composerOwner, draft, sending, optimisticPrompt, queuedMessages.length, pendingInteraction, worktreeGated, executionTarget.id]);
   const abortEligible = isAbortEligible({
@@ -1132,21 +1194,22 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const abortAllowed = !gated && abortEligible && can("core.abort");
   const activityStatus = useMemo(
     () => (preview
-      ? (previewThreadId === "t1" ? PREVIEW_RUN_ACTIVITY.status : null)
+      ? (previewThreadId === "t1" ? getPreviewRunActivity(zh).status : null)
       : snapshot?.pause?.paused
-        ? { phase: "waiting" as const, label: snapshot.pause.unsettledTurns || snapshot.pause.unfinishedJobs ? `暂停收尾 / Draining · ${snapshot.pause.unsettledTurns ?? 0} turns · ${snapshot.pause.unfinishedJobs ?? 0} jobs` : "已停稳 / Safely paused" }
+        ? { phase: "waiting" as const, label: snapshot.pause.unsettledTurns || snapshot.pause.unfinishedJobs ? (zh ? `暂停收尾 / Draining · ${snapshot.pause.unsettledTurns ?? 0} turns · ${snapshot.pause.unfinishedJobs ?? 0} jobs` : `Draining · ${snapshot.pause.unsettledTurns ?? 0} turns · ${snapshot.pause.unfinishedJobs ?? 0} jobs`) : (zh ? "已停稳 / Safely paused" : "Safely paused") }
       : optimisticPrompt !== undefined
         ? { phase: "waiting" as const, label: PROMPT_SEND_PHASE_LABEL[optimisticPrompt.phase] }
         : executionMatches && snapshot?.awaitingAsyncWork === true && !sessionStreaming
-          ? { phase: "waiting" as const, label: "等待后台任务 / Waiting for background jobs" }
+          ? { phase: "waiting" as const, label: zh ? "等待后台任务 / Waiting for background jobs" : "Waiting for background jobs" }
           : deriveActivityStatus({
           state: convo.state,
           streaming: sessionStreaming,
           pendingMessages: snapshot?.pendingMessages ?? 0,
           awaiting: executionMatches && awaitingTurn,
+          zh,
           ...(activityRetry === undefined ? {} : { retry: activityRetry }),
         })),
-    [activityRetry, awaitingTurn, convo.state, executionMatches, optimisticPrompt, preview, previewThreadId, sessionStreaming, snapshot?.pendingMessages, snapshot?.awaitingAsyncWork, snapshot?.pause],
+    [activityRetry, awaitingTurn, convo.state, executionMatches, optimisticPrompt, preview, previewThreadId, sessionStreaming, snapshot?.pendingMessages, snapshot?.awaitingAsyncWork, snapshot?.pause, zh],
   );
   const runWindowKey = preview ? `preview:${previewThreadId ?? ""}` : convo.identityKey;
   const runWindow = useRunWindow(activityStatus !== null, runWindowKey);
@@ -1248,11 +1311,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         }
       }
       if (promptTargetChanged({ sent: expected, current: selectedTargetRef.current, createdSessionId })) {
-        throw new Error("模型选择期间已切换会话，本次选择已取消。");
+        throw new Error(zhRef.current ? "模型选择期间已切换会话，本次选择已取消。" : "Session switched while selecting model; selection cancelled.");
       }
       return await run(name, input);
     } catch (error) {
-      setComposerError(hostErrorMessage(error, "模型选择失败"));
+      setComposerError(hostErrorMessage(error, zhRef.current ? "模型选择失败" : "Failed to select model"));
       return false;
     }
   };
@@ -1276,12 +1339,12 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const slashExecuteReady = composerSlashExecute(draft, slashCatalog) !== undefined;
   const testRerunDisabled = !promptChannelReady || running || pendingInteraction !== null;
   const testRerunTitle = running
-    ? "进行中"
+    ? (zh ? "进行中" : "In progress")
     : pendingInteraction !== null
-      ? "先处理询问"
+      ? (zh ? "先处理询问" : "Resolve prompt first")
       : promptChannelReady
-        ? "重跑"
-        : "未就绪";
+        ? (zh ? "重跑" : "Rerun")
+        : (zh ? "未就绪" : "Not ready");
   // 流式期间 Enter 不再禁用：消息进本地排队栏，本轮结束后自动发送。
   // 想纠偏就在排队栏里点「插入纠偏」，走 core.steer 打断当前回合。
   const queueEnabled = composerQueueEnabled({ textReady, running: composerRunning, promptChannelReady });
@@ -1341,7 +1404,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     const targetThreadId = selectedThreadId;
     const viewingHistory = viewIdentity?.startsWith("history:") === true;
     if (viewingHistory && targetSessionId === undefined) {
-      setComposerError("当前历史会话缺少 sessionId，无法安全执行会话树操作。");
+      setComposerError(zhRef.current ? "当前历史会话缺少 sessionId，无法安全执行会话树操作。" : "The current historical session is missing sessionId, so session tree operations cannot safely proceed.");
       return undefined;
     }
     const needsResume =
@@ -1360,7 +1423,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         currentTarget.selectedSessionId !== targetSessionId
         || currentTarget.selectedThreadId !== targetThreadId
       ) {
-        throw { code: "STATE_VERSION_CONFLICT", message: "操作期间已切换会话，本次操作已取消。" };
+        throw { code: "STATE_VERSION_CONFLICT", message: zhRef.current ? "操作期间已切换会话，本次操作已取消。" : "Session switched during the operation; operation cancelled." };
       }
       if (needsResume) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -1370,7 +1433,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       setComposerError(undefined);
       return outcome;
     } catch (error) {
-      const message = hostErrorMessage(error, name === "session.tree.branch" ? "新建会话失败" : "恢复失败");
+      const message = hostErrorMessage(error, name === "session.tree.branch" ? (zhRef.current ? "新建会话失败" : "Failed to branch session") : (zhRef.current ? "恢复失败" : "Failed to restore"));
       if (isTransientStatusNotice(message)) {
         const claimed = claimTransientToast(transientStatusFamily(message), lastStatusToast.current);
         lastStatusToast.current = claimed.next;
@@ -1407,9 +1470,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     gated: !preview && treeActionGated,
     canNavigateTree: can("session.tree.navigate") || can("session.tree") || canResumeViewedHistory,
   });
+  // Runtime 18.20.2 branches while a turn streams: the new session starts from the
+  // chosen message and the running turn keeps going in the original session.
   const userBranchDisabledReason = userMessageRestoreDisabledReason({
     preview,
-    running,
+    running: retrying,
     compacting: treeTargetMatches && snapshot?.isCompacting === true,
     resyncRequired: Boolean(connection?.resyncRequired) || convo.state.resyncRequired,
     sessionCreating: sessionCreating === true,
@@ -1437,14 +1502,14 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   // 「重试上一轮」：与 restore/branch 同一套门控习惯；busy 置位让按钮在回执
   // 落地前立即禁用（Runtime 的 retry() 是排程即返回，isStreaming 翻转有间隙）。
   const retryTurnDisabledReason = (() => {
-    if (sessionCreating === true) return "创建中";
-    if (Boolean(connection?.resyncRequired) || convo.state.resyncRequired) return "同步中";
-    if (busy) return "进行中";
-    if (running) return "进行中";
-    if (snapshot?.isCompacting === true) return "压缩中";
-    if (!preview && (!runtimeConnected || !snapshotReady)) return "未连接";
-    if (!executionMatches) return "无法操作";
-    if (!preview && !can("turn.retry")) return "当前 Runtime 不支持重试";
+    if (sessionCreating === true) return zh ? "创建中" : "Creating";
+    if (Boolean(connection?.resyncRequired) || convo.state.resyncRequired) return zh ? "同步中" : "Syncing";
+    if (busy) return zh ? "进行中" : "In progress";
+    if (running) return zh ? "进行中" : "In progress";
+    if (snapshot?.isCompacting === true) return zh ? "压缩中" : "Compacting";
+    if (!preview && (!runtimeConnected || !snapshotReady)) return zh ? "未连接" : "Disconnected";
+    if (!executionMatches) return zh ? "无法操作" : "Unavailable";
+    if (!preview && !can("turn.retry")) return zh ? "当前 Runtime 不支持重试" : "Current Runtime does not support retry";
     return undefined;
   })();
   const retryLastTurn = () => {
@@ -1460,10 +1525,10 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           setComposerError(undefined);
           return;
         }
-        setStatusToast(result.reason === "nothing_to_retry" ? "没有可重试的上一轮" : "未重试");
+        setStatusToast(result.reason === "nothing_to_retry" ? (zhRef.current ? "没有可重试的上一轮" : "No previous turn to retry") : (zhRef.current ? "未重试" : "Not retried"));
       })
       .catch((error: unknown) => {
-        setComposerError(hostErrorMessage(error, "重试上一轮失败"));
+        setComposerError(hostErrorMessage(error, zhRef.current ? "重试上一轮失败" : "Failed to retry last turn"));
       })
       .finally(() => setBusy(false));
   };
@@ -1486,7 +1551,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const continueTurn = () => {
     if (!continueEnabled) return;
     if (preview) {
-      if (marks) setStatusToast("预览模式：继续仅演示，不会调用 Runtime");
+      if (marks) setStatusToast(zhRef.current ? "预览模式：继续仅演示，不会调用 Runtime" : "Preview mode: Continue is demo-only and does not invoke Runtime");
       return;
     }
     if (!can("core.continue")) {
@@ -1502,7 +1567,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           setComposerError(undefined);
           return;
         }
-        setStatusToast(result.mode === "none" ? "没有可继续的上一轮" : "未继续");
+        setStatusToast(result.mode === "none" ? (zhRef.current ? "没有可继续的上一轮" : "No previous turn to continue") : (zhRef.current ? "未继续" : "Not continued"));
       })
       .catch((error: unknown) => {
         setComposerError(hostErrorMessage(error, t("composer.continueUnavailable")));
@@ -1532,7 +1597,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         pendingComposerFillRef.current = { sessionId, fill };
       },
       clearQueued: clearTreeQueued,
-      onPreviewDone: () => { if (marks) setStatusToast("演示：已从这条消息新建会话（未调用 Host）"); },
+      onPreviewDone: () => { if (marks) setStatusToast(zhRef.current ? "演示：已从这条消息新建会话（未调用 Host）" : "Demo: branched a new session from this message (Host not called)"); },
     });
   };
   const promptInputOf = (payload: ComposerSnapshot): { text: string; images?: PromptImageInput[]; language: "en" | "zh" } => {
@@ -1544,7 +1609,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   const prepareDictationSession = async (signal: AbortSignal): Promise<string> => {
     const expected = selectedTargetRef.current;
     signal.throwIfAborted();
-    if (executionTarget.id) throw new Error("远程工作区暂不支持本机听写 / Local dictation is unavailable for remote workspaces");
+    if (executionTarget.id) throw new Error(zhRef.current ? "远程工作区暂不支持本机听写 / Local dictation is unavailable for remote workspaces" : "Local dictation is unavailable for remote workspaces");
     let readySessionId: SessionId | undefined;
     if (expected.selectedSessionId === undefined) {
       if (!snapshot) ensureNewSession?.();
@@ -1562,9 +1627,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       ...(expected.selectedThreadId ? { selectedThreadId: expected.selectedThreadId } : {}),
     });
     signal.throwIfAborted();
-    if (selectedTargetRef.current.selectedSessionId !== expected.selectedSessionId || selectedTargetRef.current.selectedThreadId !== expected.selectedThreadId) throw new Error("听写准备期间已切换会话 / The dictation target changed");
+    if (selectedTargetRef.current.selectedSessionId !== expected.selectedSessionId || selectedTargetRef.current.selectedThreadId !== expected.selectedThreadId) throw new Error(zhRef.current ? "听写准备期间已切换会话 / The dictation target changed" : "The dictation target changed while preparing dictation");
     const id = expected.selectedSessionId ?? readySessionId ?? client.getState?.()?.entities.snapshot?.sessionId;
-    if (!id) throw new Error("没有可用于听写的会话 / No dictation session is ready");
+    if (!id) throw new Error(zhRef.current ? "没有可用于听写的会话 / No dictation session is ready" : "No dictation session is ready");
     return id;
   };
   // sendPrompt 与排队 flush 共用的发送路径。失败时置 composerError 并返回 false，
@@ -1581,7 +1646,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     try {
       if (plan.kind === "execute") {
         if (options?.asFollowUp === true && composerRunning) {
-          setComposerError("当前回合进行中，斜杠指令请等结束后再发。");
+          setComposerError(zhRef.current ? "当前回合进行中，斜杠指令请等结束后再发。" : "A turn is running; wait until it finishes before sending slash commands.");
           return false;
         }
         return await runSlashCommand(plan.command, plan.args, payload.images);
@@ -1603,7 +1668,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       const rememberSubmittedPrompt = (sessionId: SessionId | undefined) => {
         if (acceptedPromptTitle === undefined) return;
         setSubmittedPrompt((current) =>
-          current?.sessionId === sessionId
+          current !== undefined && current.sessionId === sessionId && current.title === acceptedPromptTitle
             ? current
             : {
                 ...(sessionId === undefined ? {} : { sessionId }),
@@ -1618,20 +1683,23 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       rememberSubmittedPrompt(targetSessionId ?? composerOwner);
       const resumed = targetSessionId !== undefined && snapshot?.sessionId !== targetSessionId;
       const outbound = promptInputOf(outboundPayload);
-      optimisticRequestId = `optimistic:${Date.now()}:${nextOptimisticPromptId++}`;
-      const pending: PendingUser = {
-        requestId: optimisticRequestId,
-        text: outbound.text,
-        draft: payload.text,
-        status: "pending",
-        knownItemIds: convoRef.current.state.items.map((item) => item.itemId),
-        doc: outboundPayload.doc,
-      };
-      const initialPhase: PromptSendPhase = sessionCreating === true || (targetSessionId === undefined && snapshot === undefined) || resumed
-        ? "starting"
-        : "sending";
-      convoRef.current.trackPending(pending);
-      setOptimisticPrompt({ pending, phase: initialPhase });
+      const commandName = options?.asFollowUp === true || plan.kind === "follow-up" ? "core.followUp" : "core.prompt";
+      if (commandName === "core.prompt") {
+        optimisticRequestId = `optimistic:${Date.now()}:${nextOptimisticPromptId++}`;
+        const pending: PendingUser = {
+          requestId: optimisticRequestId,
+          text: outbound.text,
+          draft: payload.text,
+          status: "pending",
+          knownItemIds: convoRef.current.state.items.map((item) => item.itemId),
+          doc: outboundPayload.doc,
+        };
+        const initialPhase: PromptSendPhase = sessionCreating === true || (targetSessionId === undefined && snapshot === undefined) || resumed
+          ? "starting"
+          : "sending";
+        convoRef.current.trackPending(pending);
+        setOptimisticPrompt({ pending, phase: initialPhase });
+      }
       setSending(true);
       if (options?.waitForReady === true && waitForNewSession !== undefined) {
         const ready = await waitForNewSession();
@@ -1657,21 +1725,26 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       if (promptTargetChanged({
         sent: { selectedSessionId: targetSessionId, selectedThreadId: targetThreadId },
         current: selectedTargetRef.current,
-        createdSessionId: readySessionId,
+        createdSessionId: readySessionId ?? (targetSessionId === undefined ? snapshot?.sessionId : undefined),
       })) {
-        throw { code: "STATE_VERSION_CONFLICT", message: "发送期间已切换会话，本次发送已取消，草稿已恢复。" };
+        throw { code: "STATE_VERSION_CONFLICT", message: zhRef.current ? "发送期间已切换会话，本次发送已取消，草稿已恢复。" : "Session switched while sending; send cancelled and draft restored." };
       }
       if (resumed) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       }
-      setOptimisticPrompt((current) => current !== undefined && current.pending.requestId === optimisticRequestId
-        ? { pending: current.pending, phase: "sending" }
-        : current);
-      const commandName = options?.asFollowUp === true || plan.kind === "follow-up" ? "core.followUp" : "core.prompt";
+      if (optimisticRequestId !== undefined) {
+        setOptimisticPrompt((current) => current !== undefined && current.pending.requestId === optimisticRequestId
+          ? { pending: current.pending, phase: "sending" }
+          : current);
+      }
       const handle = await client.command(commandName, outbound);
-      setOptimisticPrompt((current) => current !== undefined && current.pending.requestId === optimisticRequestId
-        ? { pending: current.pending, phase: "initiating" }
-        : current);
+      const boundSessionId = (readySessionId ?? targetSessionId ?? client.getState?.()?.entities.snapshot?.sessionId) as SessionId | undefined;
+      if (boundSessionId !== undefined) rememberSubmittedPrompt(boundSessionId);
+      if (optimisticRequestId !== undefined) {
+        setOptimisticPrompt((current) => current !== undefined && current.pending.requestId === optimisticRequestId
+          ? { pending: current.pending, phase: "initiating" }
+          : current);
+      }
       promptUnsub.current?.();
       const watchReceipt = () => {
         const commands = client.getState?.()?.commands;
@@ -1687,14 +1760,26 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         }
         promptUnsub.current?.();
         promptUnsub.current = undefined;
-        if (receipt.phase === "completed") return;
-        if (receipt.phase === "failed") {
-          convoRef.current.failPending(optimisticRequestId!, receipt.error.message);
-          setOptimisticPrompt(undefined);
+        if (receipt.phase === "completed") {
+          if (optimisticRequestId !== undefined) {
+            const terminal = selectComposerTerminal(commands, handle.requestId);
+            const result = terminal?.status === "completed" ? terminal.result : undefined;
+            const started = result && typeof result === "object" && "started" in result ? result.started : undefined;
+            if (started === false) {
+              convoRef.current.dropPending(optimisticRequestId);
+              setOptimisticPrompt((current) => current?.pending.requestId === optimisticRequestId ? undefined : current);
+            }
+          }
           return;
         }
-        convoRef.current.failPending(optimisticRequestId!, receipt.reason);
-        setOptimisticPrompt(undefined);
+        const message = receipt.phase === "failed" ? receipt.error.message : receipt.reason;
+        if (optimisticRequestId !== undefined) {
+          convoRef.current.failPending(optimisticRequestId, message);
+          setOptimisticPrompt((current) => current?.pending.requestId === optimisticRequestId ? undefined : current);
+          return;
+        }
+        setComposerError(message);
+        if (snapshotIsEmpty(takeComposerSnapshot())) replaceDraft(payload);
       };
       promptUnsub.current = client.onState
         ? client.onState(() => watchReceipt())
@@ -1703,7 +1788,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       if (!preview) onSessionTitleMaybeChanged?.();
       return true;
     } catch (error) {
-      const message = hostErrorMessage(error, "发送失败");
+      const message = hostErrorMessage(error, zhRef.current ? "发送失败" : "Send failed");
       setComposerError(message);
       if (optimisticRequestId !== undefined) convoRef.current.failPending(optimisticRequestId, message);
       setOptimisticPrompt(undefined);
@@ -1719,7 +1804,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     if (promptDispatchGate.busy && !composerRunning) return;
     if (await composerInputRef.current?.waitForAttachments?.() === false) return;
     const payload = composerInputRef.current?.getSnapshot() ?? draftLive.current;
-    // OMP 18.11: typing while a tool approval waits denies that call and steers the turn.
+    // Zeta 18.11: typing while a tool approval waits denies that call and steers the turn.
     if (
       composerRunning &&
       pendingInteraction?.kind === "approval" &&
@@ -1751,7 +1836,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     replaceDraft(emptySnapshot());
     setSending(true);
     try {
-      if (!(await respond("cancel"))) throw new Error("拒绝审批失败 / Could not deny the approval");
+      if (!(await respond("cancel"))) throw new Error(zhRef.current ? "拒绝审批失败 / Could not deny the approval" : "Could not deny the approval");
       const outbound = promptInputOf(payload);
       const handle = await client.command("core.steer", outbound);
       convoRef.current.trackPending({
@@ -1765,7 +1850,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       await waitReceipt(client, handle.requestId);
     } catch (error) {
       replaceDraft(payload);
-      setComposerError(hostErrorMessage(error, "纠偏失败"));
+      setComposerError(hostErrorMessage(error, zhRef.current ? "纠偏失败" : "Steer failed"));
     } finally {
       setSending(false);
     }
@@ -1834,7 +1919,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       return;
     }
     if (!composerRunning) return;
-    if (!can("session.queue.list")) { setComposerError("当前 Runtime 不支持消息队列，输入已保留为草稿。 / Queue unavailable; input kept as a draft."); return; }
+    if (!can("core.followUp")) { setComposerError(zhRef.current ? "当前 Runtime 不支持消息队列，输入已保留为草稿。" : "Queue unavailable; input kept as a draft."); return; }
     void sendFollowUp();
   };
   const editQueuedMessage = (entry: QueuedMessage) => {
@@ -1891,7 +1976,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     try {
       const planned = planComposerSend(snapshotOfEntry(target), slashCatalog);
       if (planned.kind === "execute") {
-        setComposerError("当前回合进行中，斜杠指令请等结束后再发。");
+        setComposerError(zhRef.current ? "当前回合进行中，斜杠指令请等结束后再发。" : "A turn is running; wait until it finishes before sending slash commands.");
         return;
       }
       let outboundPayload = snapshotOfEntry(target);
@@ -1905,7 +1990,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
         outboundPayload = planned.snapshot;
       }
       const outbound = promptInputOf(outboundPayload);
-      // A waiting approval would hold the steer; deny it first, as OMP does when the user types.
+      // A waiting approval would hold the steer; deny it first, as Zeta does when the user types.
       if (pendingInteraction?.kind === "approval" && !(await respond("cancel"))) return;
       const handle = await client.command("core.steer", outbound);
       const pendingConvo = convoRef.current;
@@ -1921,7 +2006,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       setQueuedMessages((queue) => queue.filter((item) => item.id !== target.id));
       if (!preview) onSessionTitleMaybeChanged?.();
     } catch (error) {
-      setComposerError(hostErrorMessage(error, "纠偏失败"));
+      setComposerError(hostErrorMessage(error, zhRef.current ? "纠偏失败" : "Steer failed"));
     } finally {
       setSending(false);
     }
@@ -1939,13 +2024,13 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   }, [client, workspaceId, fileIndex]);
   const fetchMentions = useCallback(async (trigger: "@" | "/" | "^", query: string) => {
     if (trigger === "/") return [];
-    if (preview) return previewMentions(trigger, query);
+    if (preview) return previewMentions(trigger, query, zh);
     try {
       return await loadMentions(client, trigger, query, fileIndex, can("session.skills.list") ? composerOwner ?? null : null);
     } catch {
       return [];
     }
-  }, [preview, client, fileIndex, composerOwner, capabilities]);
+  }, [preview, client, fileIndex, composerOwner, capabilities, zh]);
   const predictDraft = useCallback(async (before:string,prefix:string,version:number) => {
     if(preview||!composerOwner||!can("prediction.query"))return {version,suffix:null,engine:"off" as const};
     return client.query("prediction.query",{sessionId:composerOwner,version,before,prefix});
@@ -2003,7 +2088,10 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     }
     onSlashUi(ui);
   }
+  const openSlashUiRef = useRef(openSlashUi);
+  openSlashUiRef.current = openSlashUi;
   useEffect(() => {
+    if (mdi && !mdi.active) return;
     const ui = takeSlashUiIntent();
     if (ui !== undefined) openSlashUi(ui);
     const receive = (event: Event) => openSlashUi((event as CustomEvent<SlashNativeUi>).detail);
@@ -2013,11 +2101,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
   async function runSlashCommand(command: StudioSlashCommand, args: string, images?: readonly PromptImageInput[]): Promise<boolean> {
     if (command.name === "local") { setLocalFileName(args.trim()); setLocalFilesOpen(true); return true; }
     if (command.availability === "disabled") {
-      setComposerError(command.disabledReason ?? `/${command.name} 暂不可用`);
+      setComposerError(command.disabledReason ?? (zhRef.current ? `/${command.name} 暂不可用` : `/${command.name} is unavailable`));
       return false;
     }
     const destructive = command.risk === "destructive" || isDestructiveMemoryClear(command, args);
-    if (destructive && !preview && !window.confirm(`确定执行 /${command.name}${args ? ` ${args}` : ""}？此操作会改会话状态。`)) {
+    if (destructive && !preview && !window.confirm(zhRef.current ? `确定执行 /${command.name}${args ? ` ${args}` : ""}？此操作会改会话状态。` : `Run /${command.name}${args ? ` ${args}` : ""}? This modifies session state.`)) {
       return false;
     }
     const execute = resolveSlashExecute(command, args);
@@ -2045,7 +2133,11 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       return await btwSession.ask(question, true, images ? [...images] : undefined);
     }
     if (preview) {
-      if (marks) setStatusToast(`演示：/${command.name}${args ? ` ${args}` : ""}`);
+      if (execute.kind === "invoke" && execute.commandId === "builtin.commit") {
+        openSelectiveCommit(args.trim() ? { instructions: args.trim() } : {});
+        return true;
+      }
+      if (marks) setStatusToast(zhRef.current ? `演示：/${command.name}${args ? ` ${args}` : ""}` : `Demo: /${command.name}${args ? ` ${args}` : ""}`);
       return true;
     }
     if (execute.kind === "typed") {
@@ -2065,8 +2157,12 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           ...(execute.arguments ? { arguments: execute.arguments } : {}),
         });
         const outcome = await waitReceipt<OperatorInvokeOutcome>(client, handle.requestId);
-        if (compacting) {
-          const notice = compactNoticeFromOutput(outcome.output, { successText: "已压缩上下文" });
+        const commitDraft = execute.commandId === "builtin.commit" ? selectiveCommitHandoff(outcome.result) : undefined;
+        if (commitDraft) {
+          /* builtin.commit only prepares a native draft; the panel owns preview and confirmation. */
+          openSelectiveCommit(commitDraft);
+        } else if (compacting) {
+          const notice = compactNoticeFromOutput(outcome.output, { successText: zhRef.current ? "已压缩上下文" : "Context compacted" });
           setStatusToast(notice.text);
           if (notice.ok) onViewedTelemetryRefresh?.();
         } else if (command.name === "pin") {
@@ -2076,12 +2172,12 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           await onPinCompleted?.();
         } else {
           const line = outcome.output.find((item) => item.trim().length > 0);
-          setStatusToast(line ?? `已执行 /${command.name}`);
+          setStatusToast(line ?? (zhRef.current ? `已执行 /${command.name}` : `Executed /${command.name}`));
         }
         setComposerError(undefined);
         return true;
       } catch (error) {
-        setComposerError(hostErrorMessage(error, `/${command.name} 失败`));
+        setComposerError(hostErrorMessage(error, zhRef.current ? `/${command.name} 失败` : `/${command.name} failed`));
         return false;
       } finally {
         if (compacting) onCompactPending?.(false);
@@ -2089,19 +2185,65 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
     }
     return false;
   }
+  const commitBlocked = preview ? undefined
+    : !runtimeConnected || !executionMatches || !snapshot?.sessionId ? (zh ? "连接 Runtime 并打开会话后可用" : "Available once a Runtime session is open")
+      : !can("commit.draft.prepare") ? (zh ? "当前 Runtime 不支持原生选择性提交" : "This Runtime has no native selective commit") : undefined;
+  const revealDeckDestination = (panel?: PanelId) => {
+    revealMainWindow();
+    for (const group of dock.store.getSnapshot().layout.floats) {
+      if (group.maximized && group.panels.some(id => panelBaseId(id) === "agents") && (!panel || !group.panels.includes(panel))) {
+        dock.store.dispatch({ type: "float", groupId: group.id, maximized: false });
+      }
+    }
+  };
+  const goMainAgent = () => { revealDeckDestination(); onRoute("workbench"); composerInputRef.current?.focus(); };
+  const openRosterAgent = (agent: StudioAgentSnapshot) => {
+    revealDeckDestination(agentPanelId(agentScope, agent.agentId));
+    openAgentDetail({ agentId: agent.agentId, displayName: agent.displayName, ...(agent.assignment === undefined ? {} : { task: agent.assignment }) });
+  };
+  /** The delegation that spawned an agent, when its card is among the loaded conversation rows. */
+  const agentSourceCall = (agentId: string): string | undefined => {
+    for (const row of convo.rows) {
+      if (row.type !== "assistant") continue;
+      for (const segment of row.segments) {
+        if (segment.type !== "batch") continue;
+        const found = collectAgents(segment.tools).find(agent => agent.agentId === agentId);
+        if (found) return found.toolCallId;
+      }
+    }
+    return undefined;
+  };
+  const agentDeckLinks: DeckLinks = {
+    onOpen: row => openRosterAgent(row.agent),
+    onMain: goMainAgent,
+    onHub: row => { setHubIntent(row.id, "chat"); onRoute("agent-hub"); },
+    onBtw: preview || can("agent.btw.read") ? row => {
+      const serial = nextSubagentBtwIntent(agentViewBook.get(subagentViewKey(agentScope, row.id)));
+      setAgentBtwIntent({ scope: agentScope, agentId: row.id, serial });
+      openRosterAgent(row.agent);
+    } : undefined,
+    canLocate: row => agentSourceCall(row.id) !== undefined,
+    onLocate: row => {
+      const toolCallId = agentSourceCall(row.id);
+      if (toolCallId === undefined) return Promise.resolve(false);
+      revealDeckDestination(); onRoute("workbench");
+      return revealConversationTarget(convoScrollerRef.current, { toolCallId });
+    },
+  };
   return (
     <ComputerLinkProvider onOpen={openComputerFrame}>
+    <SelectiveCommitLauncherProvider value={{ open: () => openSelectiveCommit(), blocked: commitBlocked }}>
     <SubagentHoverProvider scope={JSON.stringify([agentScope, viewIdentity, snapshot?.runtimeEpoch])}
       enabled={workbenchVisible && !sessionCreating} client={conversationClient} agents={dockAgents}
       runtimeConnected={runtimeConnected && !connection?.resyncRequired}
       {...(agentParentSessionId === undefined ? {} : { parentSessionId: agentParentSessionId as SessionId })}
       {...(snapshot?.sessionId === undefined ? {} : { liveSessionId: snapshot.sessionId })}>
       {remotePlanSave ? <div className="modal-backdrop" onKeyDown={event => { if (event.key === "Escape") { remotePlanSave.resolve(null); setRemotePlanSave(undefined); } }}>
-        <section className="modal" role="dialog" aria-modal="true" aria-label="保存远端计划">
+        <section className="modal" role="dialog" aria-modal="true" aria-label={zh ? "保存远端计划" : "Save remote plan"}>
           <form onSubmit={event => { event.preventDefault(); remotePlanSave.resolve(remotePlanPath.trim()); setRemotePlanSave(undefined); }}>
-            <h2>保存远端计划</h2><p>保存到 SSH · {executionTarget.name} 的当前项目中。</p>
-            <label>项目内相对路径<input autoFocus required value={remotePlanPath} onChange={event => setRemotePlanPath(event.target.value)} /></label>
-            <div className="ssh-dialog-actions"><button type="button" className="btn outline" onClick={() => { remotePlanSave.resolve(null); setRemotePlanSave(undefined); }}>取消</button><button className="btn primary" disabled={!remotePlanPath.trim()}>保存并退出</button></div>
+            <h2>{zh ? "保存远端计划" : "Save remote plan"}</h2><p>{zh ? `保存到 SSH · ${executionTarget.name} 的当前项目中。` : `Save to the current project on SSH · ${executionTarget.name}.`}</p>
+            <label>{zh ? "项目内相对路径" : "Project-relative path"}<input autoFocus required value={remotePlanPath} onChange={event => setRemotePlanPath(event.target.value)} /></label>
+            <div className="ssh-dialog-actions"><button type="button" className="btn outline" onClick={() => { remotePlanSave.resolve(null); setRemotePlanSave(undefined); }}>{zh ? "取消" : "Cancel"}</button><button className="btn primary" disabled={!remotePlanPath.trim()}>{zh ? "保存并退出" : "Save & Quit"}</button></div>
           </form>
         </section>
       </div> : null}
@@ -2109,7 +2251,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       <WorktreeLaunchGate client={client} context={{ sessionId: snapshot?.sessionId, available: runtimeConnected && executionMatches && !connection?.resyncRequired, capabilities }} visible={state.route === "workbench"} onGateChange={changeWorktreeGate} onOpenWorkspace={onOpenWorktree} />
       <div className={`workbench${!mdi && sideOpen ? " split-right" : ""}`} id="workbench">
         <div ref={readingColumnRef} className={`convo-wrap${surfaceWelcome ? " is-empty" : ""}`} inert={state.loading}>
-          {state.loading && <div className="cw-content-loading" role="status"><span className="spinner" />正在打开对话…</div>}
+          {state.loading && <div className="cw-content-loading" role="status"><span className="spinner" />{zh ? "正在打开对话…" : "Opening conversation…"}</div>}
           {!state.loading && <RuntimeLossBanner
             {...(runtime === undefined ? {} : { runtime })}
             client={client}
@@ -2117,10 +2259,10 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
             floating
             onOpenDiagnostics={() => onRoute("diagnostics")}
           />}
-          <DockRail mode={showContextStrip ? "hidden" : railMode} />
+          <DockRail mode={hideNewConversationRail ? "hidden" : railMode} />
           <DockCapsules />
           <SessionModelRecovery demo={previewThreadId === "t5"} client={client} currentSessionId={snapshot?.sessionId} targetSessionId={selectedSessionId} threadId={selectedThreadId} available={runtimeConnected && !connection?.resyncRequired} capabilities={capabilities} onOpenModels={() => onRoute("model-config")} />
-          <CommandBlockProvider workspaceId={workspaceId} sessionId={snapshot?.sessionId} conversationId={mdi?.document.id}>
+          <CommandBlockProvider workspaceId={workspaceId} sessionId={terminalSessionId} conversationId={terminalConversationId}>
           <ConversationPane
             {...(preview && previewThreadId === "t15" ? { supplement: <ContentGallerySamples /> } : {})}
             runtimeTools={{ client, actions: client, sessionId: snapshot?.sessionId, enabled: preview || runtimeConnected && executionMatches && can("shell.view.read") }}
@@ -2167,6 +2309,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
               <InteractionDeck
                 interaction={deckInteraction}
                 onRespond={respond}
+                readForm={readForm}
                 disabled={interactionDisabled}
                 {...(askDeckLeaving ? { leaving: true } : {})}
               />
@@ -2193,7 +2336,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                 planOriginRef={planDialogOriginRef}
               />
             ) : null}
-            {!preview && planReview === undefined && planDialogOpen && planView !== undefined ? (
+            {((!preview && planReview === undefined) || (preview && !previewPlanActive)) && planDialogOpen && planView !== undefined ? (
               <PlanViewDialog
                 title={planView.title}
                 body={planView.body}
@@ -2240,7 +2383,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                         <b>{createProjectBusy ? t("shell.openingFolderPicker") : t("shell.selectProjectFolder")}</b>
                         <span>{preview && marks ? t("shell.createProjectDemoTip") : t("shell.createProjectFolderTip")}</span>
                       </span>
-                      {preview && marks ? <span className="chip purple xs">演示</span> : <Icon name="chevron-r" extra="sm" />}
+                      {preview && marks ? <span className="chip purple xs">{t("common.demo")}</span> : <Icon name="chevron-r" extra="sm" />}
                     </button>
                     {createProjectError ? <div className="create-project-error" role="alert"><Icon name="alert" extra="sm" />{createProjectError}</div> : null}
                   </div>
@@ -2305,7 +2448,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                       <h2 id="switchBlockTitle">{t("shell.switchBlockTitle", { branch: switchBlock.branch })}</h2>
                       <p className="create-branch-sub">{t("shell.switchBlockSub")}</p>
                     </div>
-                    <button type="button" className="icon-btn" aria-label="关闭" disabled={switchCommitBusy} onClick={cancelSwitchBlock}><Icon name="x" /></button>
+                    <button type="button" className="icon-btn" aria-label={t("common.close")} disabled={switchCommitBusy} onClick={cancelSwitchBlock}><Icon name="x" /></button>
                   </div>
                   <div className="create-project-body">
                     <ul className="switch-block-files" aria-label={t("shell.switchBlockFilesAria")}>
@@ -2360,8 +2503,8 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                 type="button"
                 className="new-content-pill composer-jump-latest"
                 onClick={jumpPill.jumpToLatest}
-                aria-label="回到最新"
-                data-tip="回到最新"
+                aria-label={zh ? "回到最新" : "Jump to latest"}
+                data-tip={zh ? "回到最新" : "Jump to latest"}
               >
                 <Icon name="chevron-d" />
               </button>
@@ -2408,8 +2551,8 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                 </button>
                 {contextProjectMenuOpen ? (
                   <>
-                    <button className="ctx-project-backdrop" aria-label="关闭项目菜单" onClick={() => setContextProjectMenuOpen(false)} />
-                    <div className="menu ctx-project-menu" role="menu" aria-label="切换项目">
+                    <button className="ctx-project-backdrop" aria-label={zh ? "关闭项目菜单" : "Close project menu"} onClick={() => setContextProjectMenuOpen(false)} />
+                    <div className="menu ctx-project-menu" role="menu" aria-label={zh ? "切换项目" : "Switch project"}>
                       <label className="ctx-project-search">
                         <Icon name="search" extra="sm" />
                         <span className="sr-only">{t("shell.searchProject")}</span>
@@ -2601,8 +2744,9 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
               </button>
             </div> : null}
             <div className={`composer${composerRunning ? ` running ${composerExpanded ? "expanded" : "compact"}` : ""}`} id="composer">
-              <div className="composer-ctx" aria-label="已引用的上下文" role="group" />
-              <label className="sr-only" htmlFor="composerInput">消息输入框。发送给 Runtime 的文本。</label>
+              <LuxOrbit state={composerLightState} />
+              <div className="composer-ctx" aria-label={zh ? "已引用的上下文" : "Referenced context"} role="group" />
+              <label className="sr-only" htmlFor="composerInput">{zh ? "消息输入框。发送给 Runtime 的文本。" : "Message input box. Text to send to the Runtime."}</label>
               <ChipComposer
                 prediction={{client,sessionId:snapshot?.sessionId,available:runtimeConnected&&executionMatches&&can("prediction.prepare"),nextMessageAvailable:can("prediction.prepare")}}
                 ref={composerInputRef}
@@ -2785,7 +2929,10 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                 />
                 {!can("session.speed.get") ? <ServiceTierPicker client={client} sessionId={composerOwner} available={can("session.tier.get")} modelKey={JSON.stringify(snapshot?.model)} /> : null}
                 <div className="cb-group">
-                  <DictationControl client={client} sessionId={composerOwner} draftId="composer" label="工作台 / Composer" available={can("dictation.inspect") && runtimeConnected && !worktreeGated} visible={workbenchVisible} composerRef={composerInputRef} ensureSession={prepareDictationSession} onSubmit={() => { if (queueEdit !== undefined) commitQueuedEdit(); else void sendPrompt(); }} onSettings={() => { setSettingsIntent("voice", "dictation"); onRoute("settings"); }} onModels={() => { setModelConfigIntent({ tab: "roles", role: "dictation" }); onRoute("model-config"); }} />
+                  <PromptHistoryButton client={client} sessionId={composerOwner ?? snapshot?.sessionId} ownSession={composerOwner !== undefined}
+                    available={can("history.prompts.list") && can("history.prompts.read") && runtimeConnected && !worktreeGated}
+                    canDelete={can("history.prompts.delete")} composerRef={composerInputRef} />
+                  <DictationControl client={client} sessionId={composerOwner} draftId="composer" label={zh ? "工作台 / Composer" : "Workbench / Composer"} available={can("dictation.inspect") && runtimeConnected && !worktreeGated} visible={workbenchVisible} composerRef={composerInputRef} ensureSession={prepareDictationSession} onSubmit={() => { if (queueEdit !== undefined) commitQueuedEdit(); else void sendPrompt(); }} onSettings={() => { setSettingsIntent("voice", "dictation"); onRoute("settings"); }} onModels={() => { setModelConfigIntent({ tab: "roles", role: "dictation" }); onRoute("model-config"); }} />
                   {/* 运行中且没有草稿时，发送位变停止；上一轮停在没有最终汇报的尾巴上时
                       变播放键（空输入也能点，点了继续）；有草稿时保持"加入排队栏"，
                       否则会吃掉流式期间唯一的点击排队入口。编辑排队时始终是写回。 */}
@@ -2882,13 +3029,15 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       />
       </SharedSurface>
       <DockKeyboard />
-      <AgentRosterMeter agents={dockAgents} ready={preview || rosterAgents !== undefined}
-        source={agentRosterSource} />
+      <AgentsDock agents={dockAgents} ready={preview || rosterAgents !== undefined} source={agentRosterSource} scope={agentScope}
+        openedIds={openedAgentIds} {...(inspectTarget === null ? {} : { selectedId: inspectTarget.agentId })}
+        onMain={goMainAgent} onOpenRoster={openRosterAgent} links={agentDeckLinks}
+        commandContext={{ client, capabilities, preview, viewingLive: preview || agentRosterSource === "live", online: runtimeConnected && !connection?.resyncRequired, sessionId: snapshot?.sessionId }} />
       <ChangesDockMeter rows={convo.rows} />
       <BackgroundTasksDock client={client} snapshot={snapshot} sessionId={selectedSessionId ?? snapshot?.sessionId}
         scopeKey={`${executionTarget.id ?? "local"}:${workspaceId ?? ""}:${selectedSessionId ?? snapshot?.sessionId ?? ""}:${connection?.runtimeEpoch ?? ""}:${preview ? previewThreadId ?? "preview" : "real"}`}
         available={runtimeConnected && executionMatches && !connection?.resyncRequired && !sessionCreating}
-        jobsReady={preview || (executionMatches && !!snapshot)} workbenchVisible={workbenchVisible && !showContextStrip}
+        jobsReady={preview || (executionMatches && !!snapshot)} workbenchVisible={workbenchVisible && !hideNewConversationRail}
         canListServices={can("services.list")} canStopServices={can("services.stop")} canCancelJobs={can("job.cancel")} />
       <ContextDockPanel client={client} viewedSessionId={selectedSessionId as SessionId | undefined} liveSessionId={snapshot?.sessionId}
         liveTelemetry={state.clientState?.entities.telemetry ?? undefined} refreshToken={telemetryRefreshToken}
@@ -2902,9 +3051,14 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
       <PanelRegistration panels={{
         "context-viewer": visibility => <ContextInspector client={client} sessionId={selectedSessionId ?? snapshot?.sessionId} sessionName={viewedSessionName} sourceKey={preview ? previewThreadId : selectedSessionId} opened={contextInspectorOpened} available={runtimeConnected && executionMatches && !connection?.resyncRequired} width={visibility.width} height={visibility.height} />,
         "token-counter": <TokenCounterPane key={String(preview)} client={client} />,
+        commit: visibility => <SelectiveCommitPane client={client} sessionId={snapshot?.sessionId} runtimeEpoch={connection?.runtimeEpoch ?? undefined}
+          available={runtimeConnected && executionMatches && !connection?.resyncRequired && !sessionCreating}
+          supported={can("commit.draft.prepare") && can("commit.draft.select") && can("commit.draft.preview") && can("commit.draft.execute")}
+          visible={visibility.visible} intent={commitIntent}
+          onOpenSettings={() => { setSettingsIntent("tasks", "commit.enabled"); onRoute("settings"); }} />,
         changes: <>{preview ? <PreviewChanges {...(changesFocus.path === undefined ? {} : { focusPath: changesFocus.path })} {...(changesFocus.turnId === undefined ? {} : { focusTurnId: changesFocus.turnId })} focusKey={changesFocus.key} /> : <SessionChanges rows={convo.rows} {...(changesFocus.path === undefined ? {} : { focusPath: changesFocus.path })} {...(changesFocus.turnId === undefined ? {} : { focusTurnId: changesFocus.turnId })} focusKey={changesFocus.key} />}</>,
         environment: <EnvironmentDockCard {...(preview
-          ? previewEnvironmentCard(activePreviewProject === undefined ? undefined : { name: activePreviewProject.name, root: activePreviewProject.path })
+          ? previewEnvironmentCard(activePreviewProject === undefined ? undefined : { name: activePreviewProject.name, root: activePreviewProject.path }, zh)
           : {
               target: { remote: executionTarget.id !== null, ...(executionTarget.id === null ? {} : { name: executionTarget.name }) },
               runtimeStatus: runtime?.status ?? "unavailable",
@@ -2920,10 +3074,6 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           frameIntent={computerFrameIntent} onRevealConversation={revealComputerAction}
           onRevealApproval={pendingInteraction ? () => { onRoute("workbench"); const deck = computerApprovalRef.current?.querySelector<HTMLElement>(".deck"); deck?.scrollIntoView({ block: "nearest" }); deck?.querySelector<HTMLElement>("button, input, [tabindex]")?.focus(); } : undefined}
           onOpenSettings={() => { setSettingsIntent("tasks", "computer.enabled"); onRoute("settings"); }} />,
-        agents: visibility => <AgentRosterPanel agents={dockAgents} ready={preview || rosterAgents !== undefined}
-          source={agentRosterSource} openedIds={openedAgentIds}
-          visible={visibility.visible} {...(inspectTarget === null ? {} : { selectedId: inspectTarget.agentId })}
-          onMain={() => { revealMainWindow(); onRoute("workbench"); composerInputRef.current?.focus(); }} onOpen={agent => openAgentDetail({ agentId: agent.agentId, displayName: agent.displayName, ...(agent.assignment === undefined ? {} : { task: agent.assignment }) })} />,
         "agent-detail": visibility => <AgentDetailPanel target={null} scope={agentScope} agents={dockAgents}
           visible={visibility.visible} client={client} conversationClient={conversationClient}
           runtimeConnected={runtimeConnected} canSend={can("agent.send")} canBtw={can("agent.btw.read")}
@@ -2935,7 +3085,7 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           onOpenHub={agentId => { setHubIntent(agentId, "chat"); onRoute("agent-hub"); }}
           onRevealSource={target => target.toolCallId === undefined ? Promise.resolve(false) : revealConversationTarget(convoScrollerRef.current, { toolCallId: target.toolCallId })} />,
         btw: visibility => <><BtwPanel session={btwSession} onClose={() => dock.store.dispatch({ type: "hide", panels: ["btw"] })} visible={visibility.visible} {...(preview ? { demo: true, onDemoNext: onBtwDemoNext } : {})} /></>,
-        terminal: visibility => <><TerminalPane workspaceId={preview ? state.bootstrap?.selected?.workspaceId : workspaceId} sessionId={snapshot?.sessionId} conversationId={mdi?.document.id} visible={visibility.visible} /></>,
+        terminal: visibility => <><TerminalPane workspaceId={preview ? state.bootstrap?.selected?.workspaceId : workspaceId} sessionId={terminalSessionId} conversationId={terminalConversationId} visible={visibility.visible} /></>,
         problems: <>{preview ? <div className="dock-pad"><PreviewProblems /></div> : <Deferred title={t("shell.problemsUnavailableTitle")} detail={t("shell.problemsUnavailableDetail")} />}</>,
         tests: <div className="dock-pad">{preview ? <PreviewTests /> : (
               <AgentTestsPane
@@ -2995,15 +3145,18 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
           {...(pendingInteraction?.sessionId === undefined ? {} : { pendingInteractionSessionId: pendingInteraction.sessionId })}
           {...(workspaceId === undefined ? {} : { workspaceId })} loadMentions={fetchMentions}
           viewState={agentViewBook.get(subagentViewKey(descriptor.scope, descriptor.target.agentId))}
+          {...(agentBtwIntent !== null && agentBtwIntent.scope === descriptor.scope && agentBtwIntent.agentId === descriptor.target.agentId && descriptor.scope === agentScope ? { btwIntent: agentBtwIntent.serial } : {})}
           onActivate={() => dock.store.dispatch({ type: "agent-focus", panel: id as AgentPanelId })}
           onMain={() => { revealMainWindow(); onRoute("workbench"); composerInputRef.current?.focus(); }}
           onOpenHub={agentId => { setHubIntent(agentId, "chat"); onRoute("agent-hub"); }}
           onRevealSource={target => target.toolCallId === undefined ? Promise.resolve(false) : revealConversationTarget(convoScrollerRef.current, { toolCallId: target.toolCallId })} />}</DockPanel>)}
-      <FileDockInstances workspaceId={workspaceId ? String(workspaceId) : undefined} targetId={executionTarget.id} onSettings={() => { setSettingsIntent("maintenance", "Office 文档预览"); onRoute("settings"); }} actions={fileViewerActions} />
+      <FileDockInstances workspaceId={workspaceId ? String(workspaceId) : undefined} targetId={executionTarget.id} onSettings={() => { setSettingsIntent("maintenance", "office-preview"); onRoute("settings"); }} actions={fileViewerActions} />
+      <FileBrowserDock workspaceId={workspaceId ? String(workspaceId) : undefined} targetId={executionTarget.id} targetName={executionTarget.name} actions={fileViewerActions} />
       <BrowserDockInstances client={client} sessionId={browserChatId} available={runtimeConnected && executionMatches && !connection?.resyncRequired} capabilities={capabilities} remote={!!executionTarget.id} onReferences={insertBrowserReferences} />
       <ToastHost message={statusToast} icon="info" onDismiss={() => setStatusToast(null)} />
       {treeConfirm.dialog}
     </SubagentHoverProvider>
+    </SelectiveCommitLauncherProvider>
     </ComputerLinkProvider>
   );
 }

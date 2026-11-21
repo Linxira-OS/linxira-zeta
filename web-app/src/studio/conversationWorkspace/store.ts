@@ -2,10 +2,12 @@ import { conversationKey, conversationVisible, type ConversationDocument, type C
 import { conversationPanelId, type DockPinMode, type DockTarget } from "../dock/types";
 import type { SessionHistoryEntry, WorkspaceListReadModel } from "@linxiraos/studio-contract"
 import { ProjectHistoryStore } from "../sidebar/useProjectHistories";
+import { ProvisionalThreadStore } from "../sidebar/provisionalThread";
 import { WorkbenchWindows, type WindowLayout, type WorkbenchWindow } from "../dock/windows";
 import { clampFloat } from "../dock/model";
 import { DocumentHosts } from "./hosts";
 import { sessionSwitchPerformance } from "../sessionSwitchPerformance";
+import { isZh } from "../i18n";
 import { snapTree, WINDOW_MINIMUM, type SnapRatios, type SnapNode, type SnapTemplate, type WindowSnapLayout } from "../dock/snap";
 
 export type ConversationAction = { id: string; kind: "rename" | "fork" | "handoff" | "compact" | "export" | "archive" | "delete"; entry: SessionHistoryEntry; workspaceId: string };
@@ -13,25 +15,54 @@ export const WORKSPACE_STORAGE_KEY = "zeta.conversation-workspace.v1";
 type WorkspaceMetadata = Omit<ConversationWorkspaceLayout, "views" | "snap" | "snapAssistCell">;
 const initial = (): WorkspaceMetadata => ({ version: 4, coordinateVersion: 1, documents: [], activeViewId: null, activeDocumentId: null, sidebarWidth: 272, sidebarVisible: true, panelWidth: 480, bottomHeight: 240, railCollapsed: false });
 const asView = (record: WorkbenchWindow): ConversationView => ({ id: record.id, documentId: record.content.documentId, placement: record.placement, rect: record.rect, minimized: record.minimized, maximized: record.maximized, pin: record.pin, ...(record.nativeRect ? { nativeRect: record.nativeRect } : {}), restoreSnap: record.restoreSnap });
+const conversationRefEqual = (first: ConversationRef, second: ConversationRef): boolean =>
+  first.targetId === second.targetId
+  && first.workspaceId === second.workspaceId
+  && first.sessionId === second.sessionId
+  && first.draftId === second.draftId
+  && first.threadId === second.threadId
+  && first.historyId === second.historyId
+  && first.previewThreadId === second.previewThreadId
+  && first.previewProjectId === second.previewProjectId;
+const documentPatchChanged = (current: ConversationDocument, patch: Partial<Pick<ConversationDocument, "ref" | "title" | "projectName" | "route" | "page" | "pagePhase">>): boolean =>
+  (patch.ref !== undefined && !conversationRefEqual(current.ref, patch.ref))
+  || ("title" in patch && patch.title !== current.title)
+  || ("projectName" in patch && patch.projectName !== current.projectName)
+  || ("route" in patch && patch.route !== current.route)
+  || ("page" in patch && patch.page !== current.page)
+  || ("pagePhase" in patch && patch.pagePhase !== current.pagePhase);
+
+const cleanSnap = (snap: WindowSnapLayout | null | undefined, recordIds: ReadonlySet<string>): WindowSnapLayout | null => {
+  if (!snap) return null;
+  const members = Object.fromEntries(Object.entries(snap.members).filter(([, member]) => recordIds.has(member)));
+  return Object.keys(members).length ? { ...snap, members } : null;
+};
 
 export class ConversationWorkspaceStore {
+  sidebarScrollTop = 0;
   readonly manager = new WorkbenchWindows();
   readonly windows = this.manager.focus;
   readonly hosts = new DocumentHosts();
   private catalogs = new Map<string | null, WorkspaceListReadModel>();
   private histories = new Map<string | null, ProjectHistoryStore>();
+  private provisionals = new Map<string | null, ProvisionalThreadStore>();
   catalog(target: string | null) { return this.catalogs.get(target); }
   rememberCatalog(target: string | null, value: WorkspaceListReadModel) { this.catalogs.set(target, value); }
   history(target: string | null) { let value = this.histories.get(target); if (!value) { value = new ProjectHistoryStore(); this.histories.set(target, value); } return value; }
+  provisional(target: string | null) { let value = this.provisionals.get(target); if (!value) { value = new ProvisionalThreadStore(); this.provisionals.set(target, value); } return value; }
   cancelDrag?: (() => void) | undefined;
   private legacyCoordinates = false;
   get geometry() { return this.manager.geometry; }
   private actions = new Map<string, ConversationAction>();
   private pendingDock = new Map<string, DockTarget>();
+  private closedDocuments = new Set<string>();
   private metadata = initial();
   private state: ConversationWorkspaceLayout;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private batchDepth = 0;
+  private dirty = false;
+  private dirtySave = false;
   readonly demo: boolean;
 
   constructor(private storage: Pick<Storage, "getItem" | "setItem"> | null, demo = false, private persistenceEnabled = true) {
@@ -41,19 +72,25 @@ export class ConversationWorkspaceStore {
         const saved = JSON.parse(storage?.getItem(WORKSPACE_STORAGE_KEY) ?? "null") as (ConversationWorkspaceLayout & { windowLayout?: WindowLayout; focus?: ReturnType<WorkbenchWindows["focus"]["checkpoint"]> }) | null;
         if (saved && Array.isArray(saved.documents)) {
           const { views, snap, snapAssistCell, windowLayout, focus, ...metadata } = saved;
-          this.metadata = { ...initial(), ...metadata, version: 4, coordinateVersion: 1 };
+          const validDocs = new Set(saved.documents.map(doc => doc.id));
           this.legacyCoordinates = saved.coordinateVersion !== 1;
-          if (windowLayout) this.manager.restore({ ...windowLayout, assist: null });
-          else {
+          this.metadata = { ...initial(), ...metadata, version: 4, coordinateVersion: this.legacyCoordinates ? 0 : 1 };
+          if (windowLayout) {
+            const records = (windowLayout.records ?? []).filter(record => validDocs.has(record.content.documentId));
+            const recordIds = new Set(records.map(record => record.id));
+            this.manager.restore({ records, snap: cleanSnap(windowLayout.snap, recordIds), assist: null });
+          } else {
             let main = false;
-            const records: WorkbenchWindow[] = (views ?? []).map(view => {
+            const records: WorkbenchWindow[] = (views ?? []).filter(view => validDocs.has(view.documentId)).map(view => {
               const embedded = view.placement === "main" || (view.placement as string) === "tile";
-              const placement = embedded && !main ? "main" : view.placement === "native" ? "native" : "float";
+              const placement = embedded && !main ? "main" : view.placement === "native" ? "native" : view.placement === "docked" ? "docked" : "float";
               if (placement === "main") main = true;
-              return { ...view, placement, content: { kind: "conversation", documentId: view.documentId }, minimum: WINDOW_MINIMUM, title: saved.documents.find(doc => doc.id === view.documentId)?.title ?? "新对话", pin: view.pin ?? (placement === "native" ? "window" : "none") };
+              return { ...view, placement, content: { kind: "conversation", documentId: view.documentId }, minimum: WINDOW_MINIMUM, title: saved.documents.find(doc => doc.id === view.documentId)?.title ?? (isZh() ? "新对话" : "New conversation"), pin: view.pin ?? (placement === "native" ? "window" : "none") };
             });
+            const recordIds = new Set(records.map(record => record.id));
             const legacySnap = snap as (WindowSnapLayout & { ratios?: SnapRatios }) | null;
-            this.manager.restore({ records, assist: null, snap: legacySnap ? { template: legacySnap.template, members: legacySnap.members, tree: legacySnap.tree ?? snapTree(legacySnap.template, legacySnap.ratios) } : null });
+            const restoredSnap = legacySnap ? { template: legacySnap.template, members: legacySnap.members, tree: legacySnap.tree ?? snapTree(legacySnap.template, legacySnap.ratios) } : null;
+            this.manager.restore({ records, assist: null, snap: cleanSnap(restoredSnap, recordIds) });
           }
           if (focus) this.windows.restoreCheckpoint(focus);
         }
@@ -65,14 +102,17 @@ export class ConversationWorkspaceStore {
       const record = this.manager.get(id);
       if (record?.content.kind !== "tools") return ownerId;
       const { documentId, groupId } = record.content;
-      const layout = this.hosts.get(documentId).tools?.store.getSnapshot().layout;
+      const layout = this.hosts.existing(documentId)?.tools?.store.getSnapshot().layout;
       const group = layout?.floats.find(group => group.id === groupId);
       const file = group ? layout?.fileViews[group.active] : undefined;
       const active = this.metadata.documents.find(document => document.id === this.metadata.activeDocumentId);
       if (file && (file.scope === "workspace" || group?.pin?.mode === "workspace") && active?.ref.workspaceId === file.workspaceId && (active.ref.targetId ?? null) === file.targetId) return active.id;
       return ownerId;
     };
-    this.manager.subscribe(() => this.publish());
+    this.manager.subscribe(() => {
+      this.pruneClosedDocuments();
+      this.publish();
+    });
     this.windows.subscribe(() => {
       const activeDocumentId = this.windows.getSnapshot().ownerId;
       if (!activeDocumentId) return;
@@ -103,21 +143,64 @@ export class ConversationWorkspaceStore {
   }
   enablePersistence() { this.persistenceEnabled = true; }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  batch<T>(fn: () => T): T {
+    this.batchDepth++;
+    try {
+      return fn();
+    } finally {
+      this.batchDepth--;
+      if (this.batchDepth === 0 && this.dirty) {
+        const save = this.dirtySave;
+        this.dirty = false;
+        this.dirtySave = false;
+        this.publish(save);
+      }
+    }
+  }
   private publish(save = true) {
     this.state = this.snapshot();
+    if (this.batchDepth > 0) {
+      this.dirty = true;
+      this.dirtySave ||= save;
+      return;
+    }
     for (const listener of this.listeners) listener();
     if (!save || this.demo || !this.persistenceEnabled) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), 200);
+  }
+  private pruneClosedDocuments() {
+    if (!this.closedDocuments.size) return;
+    const referenced = new Set(this.manager.getSnapshot().records.map(record => record.content.documentId));
+    const removeIds = new Set<string>();
+    for (const docId of this.closedDocuments) {
+      if (referenced.has(docId)) continue;
+      this.closedDocuments.delete(docId);
+      this.actions.delete(docId);
+      removeIds.add(docId);
+    }
+    if (removeIds.size > 0 && this.metadata.documents.some(doc => removeIds.has(doc.id))) {
+      this.metadata = {
+        ...this.metadata,
+        documents: this.metadata.documents.filter(doc => !removeIds.has(doc.id)),
+      };
+    }
   }
   flush = () => {
     clearTimeout(this.timer); this.timer = undefined;
     if (this.demo || !this.persistenceEnabled) return;
     const windowLayout = this.manager.getSnapshot();
     const open = new Set(windowLayout.records.map(record => record.content.documentId));
-    const documents = this.metadata.documents.filter(doc => open.has(doc.id)).map(({ page, pagePhase, route, ...doc }) => doc.ref.sessionId || doc.ref.historyId ? doc : { ...doc, title: "新对话" });
-    const records = windowLayout.records.map(record => record.content.kind === "conversation" ? { ...record, title: documents.find(doc => doc.id === record.content.documentId)!.title } : record);
-    const state = { ...this.metadata, documents, windowLayout: { ...windowLayout, records, assist: null }, focus: this.windows.checkpoint() };
+    const documents = this.metadata.documents.filter(doc => open.has(doc.id)).map(({ page, pagePhase, route, ...doc }) => doc.ref.sessionId || doc.ref.historyId ? doc : { ...doc, title: isZh() ? "新对话" : "New conversation" });
+    const docById = new Map(documents.map(doc => [doc.id, doc]));
+    const records = windowLayout.records.flatMap((record): WorkbenchWindow[] => {
+      const doc = docById.get(record.content.documentId);
+      if (!doc) return [];
+      if (record.content.kind === "tools" && !doc.ref.sessionId && !doc.ref.historyId) return [];
+      return [record.content.kind === "conversation" ? { ...record, title: doc.title } : record];
+    });
+    const recordIds = new Set(records.map(record => record.id));
+    const state = { ...this.metadata, documents, windowLayout: { ...windowLayout, records, snap: cleanSnap(windowLayout.snap, recordIds), assist: null }, focus: this.windows.checkpoint() };
     try { this.storage?.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(state)); } catch {}
   };
   documentFor(viewId: string | null): ConversationDocument | undefined {
@@ -135,25 +218,29 @@ export class ConversationWorkspaceStore {
     this.publish(false);
   }
   setGeometry(workbench: Rect, canvas: Rect) {
-    const changed = JSON.stringify(this.geometry) !== JSON.stringify({ workbench, canvas });
+    const prev = this.geometry;
+    const changed = prev.workbench.x !== workbench.x || prev.workbench.y !== workbench.y || prev.workbench.width !== workbench.width || prev.workbench.height !== workbench.height
+      || prev.canvas.x !== canvas.x || prev.canvas.y !== canvas.y || prev.canvas.width !== canvas.width || prev.canvas.height !== canvas.height;
     this.manager.geometry = { workbench, canvas };
     if (this.legacyCoordinates && canvas.width && canvas.height) {
       this.legacyCoordinates = false;
+      this.metadata = { ...this.metadata, coordinateVersion: 1 };
       this.manager.transaction(() => { for (const record of this.manager.getSnapshot().records) {
         const rect = clampFloat(record.rect, { width: canvas.width, height: canvas.height }, 280);
         this.manager.patch(record.id, { rect: { ...rect, x: rect.x + canvas.x - workbench.x, y: rect.y + canvas.y - workbench.y } });
       } });
+      this.publish(true);
     } else if (changed) this.publish(false);
   }
   activate(id: string) {
     const record = this.manager.get(id);
-    if (record?.placement === "docked") this.hosts.get(record.content.documentId).tools?.store.dispatch({ type: "open", panel: conversationPanelId(id) });
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.dispatch({ type: "open", panel: conversationPanelId(id) });
     this.manager.activate(id);
   }
   dockPanel(id: string, target: DockTarget) {
     const record = this.manager.get(id);
     if (!record) return;
-    const tools = this.hosts.get(record.content.documentId).tools;
+    const tools = this.hosts.existing(record.content.documentId)?.tools;
     if (!tools) { this.pendingDock.set(id, target); return; }
     tools.store.dispatch({ type: "move", panels: [conversationPanelId(id)], target });
     if (target.region === "left") this.shared({ sidebarVisible: true });
@@ -188,48 +275,73 @@ export class ConversationWorkspaceStore {
     const offset = count % 5 * 24;
     return clampFloat({ x: canvas.x - workbench.x + (canvas.width - width) / 2 + offset, y: canvas.y - workbench.y + Math.min(64, (canvas.height - height) / 2) + offset, width, height }, { width: workbench.width, height: workbench.height }, 280);
   }
-  openFromDirectory(ref: ConversationRef): string {
+  openFromDirectory(ref: ConversationRef, title?: string): string {
     const finish = sessionSwitchPerformance.span("switch.dispatch");
     try {
       const existing = this.viewFor(ref);
-      if (existing) return this.open(ref);
-      return this.isWindowed() ? this.open(ref, "float", this.nextWindowRect()) : this.open(ref);
+      if (existing) return this.open(ref, "current", undefined, title);
+      return this.isWindowed() ? this.open(ref, "float", this.nextWindowRect(), title) : this.open(ref, "current", undefined, title);
     } finally { finish(); }
   }
-  open(ref: ConversationRef, placement: "current" | "float" = "current", rect?: Rect): string {
-    if (this.demo && ref.draftId && ref.draftId !== "initial") ref = { ...ref, previewThreadId: "t0", previewProjectId: ref.workspaceId ?? this.documentFor(this.state.activeViewId)?.ref.previewProjectId };
-    const key = conversationKey(ref);
-    // Only the startup document defers to startupPage; an explicit open reveals the conversation, including cached documents.
-    const document: ConversationDocument = this.state.documents.find(doc => conversationKey(doc.ref) === key) ?? { id: crypto.randomUUID(), ref, title: "新对话", route: ref.draftId === "initial" ? undefined : "workbench" };
-    if (!this.metadata.documents.includes(document)) this.metadata = { ...this.metadata, documents: [...this.metadata.documents, document] };
-    else this.updateDocument(document.id, { route: "workbench" });
-    const existing = this.state.views.find(view => view.documentId === document.id);
-    if (existing) { if (placement === "float" && existing.placement === "main") this.float(existing.id, rect); this.focus(existing.id); return existing.id; }
-    // A minimized view is not "current": reusing it would swap out a conversation the user only put away.
-    const current = this.state.views.find(view => view.id === this.state.activeViewId && !view.minimized);
-    if (placement === "current" && current) {
-      this.manager.patch(current.id, { content: { kind: "conversation", documentId: document.id }, title: document.title, minimized: false });
-      this.activate(current.id);
-      return current.id;
-    }
-    const id = crypto.randomUUID();
-    this.manager.register({ id, content: { kind: "conversation", documentId: document.id }, title: document.title, placement: placement === "float" ? "float" : "main", pin: "none", minimum: WINDOW_MINIMUM, rect: rect ?? { x: 40, y: 40, width: 640, height: 560 }, minimized: false, maximized: false });
-    this.activate(id);
-    return id;
+  open(ref: ConversationRef, placement: "current" | "float" = "current", rect?: Rect, title?: string): string {
+    return this.batch(() => {
+      if (this.demo && ref.draftId && ref.draftId !== "initial") ref = { ...ref, previewThreadId: "t0", previewProjectId: ref.workspaceId ?? this.documentFor(this.state.activeViewId)?.ref.previewProjectId };
+      const key = conversationKey(ref);
+      // Only the startup document defers to startupPage; an explicit open reveals the conversation, including cached documents.
+      const found = this.state.documents.find(doc => conversationKey(doc.ref) === key);
+      const route = !found && ref.draftId === "initial" ? undefined : ("workbench" as const);
+      let document: ConversationDocument;
+      if (!found) {
+        document = { id: crypto.randomUUID(), ref, title: title ?? (isZh() ? "新对话" : "New conversation"), route };
+        this.metadata = { ...this.metadata, documents: [...this.metadata.documents, document] };
+      } else if (found.route !== route || (title !== undefined && found.title !== title)) {
+        document = { ...found, route, ...(title !== undefined ? { title } : {}) };
+        this.metadata = { ...this.metadata, documents: this.metadata.documents.map(doc => doc.id === found.id ? document : doc) };
+      } else {
+        document = found;
+      }
+      this.closedDocuments.delete(document.id);
+      const existing = this.state.views.find(view => view.documentId === document.id);
+      if (existing) {
+        if (title !== undefined) this.manager.patch(existing.id, { title: document.title });
+        if (placement === "float" && existing.placement === "main") this.float(existing.id, rect);
+        this.focus(existing.id);
+        this.publish();
+        return existing.id;
+      }
+      // A minimized view is not "current": reusing it would swap out a conversation the user only put away.
+      const current = this.state.views.find(view => view.id === this.state.activeViewId && !view.minimized);
+      if (placement === "current" && current) {
+        this.manager.patch(current.id, { content: { kind: "conversation", documentId: document.id }, title: document.title, minimized: false });
+        this.activate(current.id);
+        this.publish();
+        return current.id;
+      }
+      const id = crypto.randomUUID();
+      this.manager.register({ id, content: { kind: "conversation", documentId: document.id }, title: document.title, placement: placement === "float" ? "float" : "main", pin: "none", minimum: WINDOW_MINIMUM, rect: rect ?? { x: 40, y: 40, width: 640, height: 560 }, minimized: false, maximized: false });
+      this.activate(id);
+      this.publish();
+      return id;
+    });
   }
   updateDocument(id: string, patch: Partial<Pick<ConversationDocument, "ref" | "title" | "projectName" | "route" | "page" | "pagePhase">>) {
     const current = this.metadata.documents.find(doc => doc.id === id);
-    if (!current || JSON.stringify({ ...current, ...patch }) === JSON.stringify(current)) return;
-    this.metadata = { ...this.metadata, documents: this.metadata.documents.map(doc => doc.id === id ? { ...doc, ...patch } : doc) };
-    const view = this.state.views.find(view => view.documentId === id);
-    if (view && patch.title) this.manager.patch(view.id, { title: patch.title });
-    this.publish();
+    if (!current || !documentPatchChanged(current, patch)) return;
+    this.batch(() => {
+      this.metadata = { ...this.metadata, documents: this.metadata.documents.map(doc => doc.id === id ? { ...doc, ...patch } : doc) };
+      const view = this.state.views.find(view => view.documentId === id);
+      if (view && patch.title !== undefined) this.manager.patch(view.id, { title: patch.title });
+      this.publish();
+    });
   }
   close(id: string) {
     this.pendingDock.delete(id);
     const record = this.manager.get(id);
-    if (record) this.hosts.get(record.content.documentId).tools?.store.removeConversationPanel(id);
-    this.manager.remove(id); this.settleActive();
+    if (record) {
+      if (record.content.kind === "conversation") this.closedDocuments.add(record.content.documentId);
+      this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
+    }
+    this.manager.remove(id); this.pruneClosedDocuments(); this.settleActive();
   }
   /** Nothing visible is left: minimized conversations stay (and keep the shared chrome); only an empty workspace starts a new conversation. */
   private settleActive() {
@@ -242,13 +354,13 @@ export class ConversationWorkspaceStore {
   }
   float(id: string, rect?: Rect, native = false) {
     const record = this.manager.get(id);
-    if (record?.placement === "docked") this.hosts.get(record.content.documentId).tools?.store.removeConversationPanel(id);
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
     this.manager.transaction(() => { this.manager.float(id, rect, native); this.manager.patch(id, { pin: native ? "window" : record?.pin === "window" || record?.pin === "topmost" ? "none" : record?.pin ?? "none" }); });
     this.activate(id);
   }
   dock(id: string) {
     const record = this.manager.get(id);
-    if (record?.placement === "docked") this.hosts.get(record.content.documentId).tools?.store.removeConversationPanel(id);
+    if (record?.placement === "docked") this.hosts.existing(record.content.documentId)?.tools?.store.removeConversationPanel(id);
     this.manager.transaction(() => {
       for (const record of this.manager.getSnapshot().records) if (record.placement === "main" && record.id !== id) this.manager.remove(record.id);
       this.manager.float(id);

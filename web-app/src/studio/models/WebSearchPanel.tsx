@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useListReorder } from "./useListReorder";
 import { createPortal } from "react-dom";
 import { modelAcceptsRole } from "@linxiraos/studio-contract";
-import type { ModelWebSearchSetInput, StudioClient, WebSearchConfigReadModel, WebSearchProviderRecord } from "@linxiraos/studio-contract";
+import type { ModelWebSearchSetInput, StudioClient, WebSearchConfigReadModel, WebSearchProviderRecord, WebSearchRouting } from "@linxiraos/studio-contract";
 import { Brand, hasBrand } from "../brands";
 import { Icon } from "../icons";
 import { useI18n } from "../i18n";
@@ -19,6 +19,8 @@ import { usePreviewMode } from "../preview/PreviewContext";
 import { ToastHost } from "../ToastHost";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { credentialProviders, useSearchCredentials } from "./useSearchCredentials";
+import type { ClientBootstrap } from "@linxiraos/studio-contract";
+import { modelServiceAvailable, useModelAuth } from "./useModelAuth";
 
 const TIMEOUT_OPTIONS = [30, 60, 120, 180, 300];
 
@@ -89,11 +91,22 @@ function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>): bo
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
+function sameRouting(left: WebSearchRouting | undefined, right: WebSearchRouting | undefined): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  if (left.primary !== right.primary) return false;
+  if (left.fallbacks === null || right.fallbacks === null) return left.fallbacks === right.fallbacks;
+  return sameList(left.fallbacks, right.fallbacks);
+}
+
 interface WebSearchPanelProps {
   readonly client: StudioClient;
   readonly sessionId?: string | undefined;
   readonly visible?: boolean;
+  readonly runtimeAvailable?: boolean;
+  readonly capabilities?: ClientBootstrap["capabilityManifest"] | undefined;
   readonly onReadyCount?: (count: number) => void;
+  readonly onDirtyChange?: (dirty: boolean) => void;
   readonly preview: boolean;
   readonly webSearch: WebSearchConfigReadModel;
   readonly models?: readonly import("@linxiraos/studio-contract").AvailableModelRecord[];
@@ -116,17 +129,33 @@ function credStateOf(provider: SearchProvider | undefined): CredState {
   return provider.credentialUnknown ? "unknown" : "missing";
 }
 
-export function WebSearchPanel({ client, preview, sessionId, visible = true, onReadyCount, webSearch, models = [], loginAvailable, onSaved, onPreviewSave }: WebSearchPanelProps) {
+export function WebSearchPanel({ client, preview, sessionId, visible = true, runtimeAvailable = false, capabilities, onReadyCount, onDirtyChange, webSearch, models = [], loginAvailable, onSaved, onPreviewSave }: WebSearchPanelProps) {
   const { t } = useI18n();
   const { marks } = usePreviewMode();
   const [draft, setDraft] = useState<Draft>(() => draftFromReadModel(webSearch));
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [chainError, setChainError] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [routingDraft, setRoutingDraft] = useState(webSearch.routing);
   const [chainPickerId, setChainPickerId] = useState<string | null>(null);
   const [chainPickerSelector, setChainPickerSelector] = useState("");
-  useEffect(() => { setRoutingDraft(webSearch.routing); }, [webSearch.routing]);
+  const paramsDirtyRef = useRef(false);
+  const routingDirtyRef = useRef(false);
+  const ownerRef = useRef({ preview, sessionId });
+  useEffect(() => {
+    if (ownerRef.current.preview !== preview || ownerRef.current.sessionId !== sessionId) {
+      ownerRef.current = { preview, sessionId };
+      paramsDirtyRef.current = false;
+      routingDirtyRef.current = false;
+      setChainError("");
+      setDraft(draftFromReadModel(webSearch));
+      setRoutingDraft(webSearch.routing);
+    }
+  }, [preview, sessionId, webSearch]);
+  useEffect(() => {
+    if (!routingDirtyRef.current) setRoutingDraft(webSearch.routing);
+  }, [webSearch.routing]);
   const searchModels = useMemo(() => models.filter(model => modelAcceptsRole("web", model)), [models]);
   const choicesFor = (id: string) => searchModels.filter(model => model.provider === "web" && model.id === id || model.webSearch === id);
   const currentChain = routingDraft ? searchChain(routingDraft, searchModels) : [];
@@ -146,6 +175,8 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const credentials = useSearchCredentials(client, preview, sessionId, visible, webSearch.providers);
+  const modelContext = { client, sessionId, available: runtimeAvailable, capabilities };
+  const nativeAuth = useModelAuth(modelContext, preview, visible && !!credModalId);
   const providers = useMemo<SearchProvider[]>(() => webSearch.providers.map(provider => {
     const ids = credentialProviders(provider);
     const states = ids.flatMap(id => credentials.statuses.get(id) ?? []);
@@ -156,9 +187,9 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
   const credLabel = (state: CredState) => t(state === "ready" ? "modelConfig.webSearchCredReady" : state === "free" ? "modelConfig.webSearchCredFree" : state === "unknown" ? "modelConfig.webSearchCredUnknown" : "modelConfig.webSearchCredMissing");
 
 
-  // Re-sync the draft when the read model changes (real save refresh).
+  // Re-sync the draft when the read model changes unless local edits are still unsaved.
   useEffect(() => {
-    setDraft(draftFromReadModel(webSearch));
+    if (!paramsDirtyRef.current) setDraft(draftFromReadModel(webSearch));
   }, [webSearch]);
 
   const orderRef = useRef(draft.order);
@@ -176,7 +207,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
 
   const byId = useMemo(() => new Map(providers.map((provider) => [provider.id, provider])), [providers]);
 
-  const dirty = useMemo(() => {
+  const paramsDirty = useMemo(() => {
     const base = draftFromReadModel(webSearch);
     return (
       base.enabled !== draft.enabled
@@ -196,6 +227,20 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
       || base.exaSearchDelayMs !== draft.exaSearchDelayMs
     );
   }, [draft, webSearch]);
+  const routingDirty = useMemo(
+    () => Boolean(routingDraft && !sameRouting(webSearch.routing, routingDraft)),
+    [routingDraft, webSearch.routing],
+  );
+  paramsDirtyRef.current = paramsDirty;
+  routingDirtyRef.current = routingDirty;
+  const dirty = paramsDirty || routingDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => {
+      onDirtyChange?.(false);
+    };
+  }, [dirty, onDirtyChange]);
 
   const inOrder = new Set(draft.order);
   const inExclude = new Set(draft.exclude);
@@ -206,7 +251,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
     .map((id) => byId.get(id))
     .filter((provider): provider is WebSearchProviderRecord => Boolean(provider));
   const autoChain = providers.filter(
-    (provider) => !inOrder.has(provider.id) && !inExclude.has(provider.id) && (provider.credentialFree || provider.hasCredential),
+    (provider) => !provider.siteRoute && !inOrder.has(provider.id) && !inExclude.has(provider.id) && (provider.credentialFree || provider.hasCredential),
   );
 
   const credCounts = useMemo(() => {
@@ -287,10 +332,11 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
     if (preview) { if (marks) setFlash(t("modelConfig.toastDemoLogin")); return; }
     setLoginBusy(true);
     try {
-      const handle = await client.command("models.login.start", { providerId: loginId });
-      await waitReceipt(client, handle.requestId);
-      await credentials.reload();
-      setFlash(t("modelConfig.webSearchLoginDone"));
+      if (!modelServiceAvailable(modelContext, "models.auth.login")) return;
+      if (await nativeAuth.login(loginId)) {
+        await credentials.reload();
+        setFlash(t("modelConfig.webSearchLoginDone"));
+      }
     } catch (error) {
       setFlash(hostErrorMessage(error, t("modelConfig.toastLoginFailed", { providerId: loginId })));
     } finally { setLoginBusy(false); }
@@ -303,52 +349,99 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
 
   /* ── Save ── */
 
+  const saveChain = async () => {
+    if (!routingDraft) return;
+    if (preview) {
+      const nextRouting: WebSearchRouting = { ...routingDraft, migratedLegacy: false };
+      routingDirtyRef.current = false;
+      setRoutingDraft(nextRouting);
+      onPreviewSave({ ...webSearch, routing: nextRouting });
+      if (marks) setFlash(t("modelConfig.demoYamlUpdated"));
+      return;
+    }
+    setBusy(true);
+    setChainError("");
+    try {
+      const handle = await client.command("models.webSearch.set", {
+        routing: { primary: routingDraft.primary, fallbacks: routingDraft.fallbacks },
+      });
+      await waitReceipt(client, handle.requestId);
+      routingDirtyRef.current = false;
+      setFlash(t("modelConfig.webSearchSaved"));
+      onSaved();
+    } catch (cause) {
+      setChainError(hostErrorMessage(cause, t("modelConfig.saveFailed")));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async () => {
     if (preview) {
+      const nextRouting = routingDraft && routingDirty
+        ? { ...routingDraft, migratedLegacy: false }
+        : webSearch.routing;
+      routingDirtyRef.current = false;
+      paramsDirtyRef.current = false;
+      if (nextRouting) setRoutingDraft(nextRouting);
       onPreviewSave({
         ...webSearch,
-        enabled: draft.enabled,
-        order: [...draft.order],
-        exclude: [...draft.exclude],
-        timeoutSeconds: draft.timeoutSeconds,
-        geminiModel: draft.geminiModel.trim(),
-        advanced: {
-          searxng: {
-            endpoint: draft.searxngEndpoint.trim(),
-            tokenSet: (webSearch.advanced.searxng?.tokenSet ?? false) || draft.searxngToken.length > 0,
-            basicUsername: draft.searxngBasicUsername.trim(),
-            passwordSet: (webSearch.advanced.searxng?.passwordSet ?? false) || draft.searxngBasicPassword.length > 0,
-            categories: draft.searxngCategories.trim(),
-            engines: draft.searxngEngines.trim(),
-            language: draft.searxngLanguage.trim(),
-            ...(draft.searxngSafesearch !== null ? { safesearch: draft.searxngSafesearch } : {}),
+        ...(nextRouting ? { routing: nextRouting } : {}),
+        ...(paramsDirty || !routingDirty ? {
+          enabled: draft.enabled,
+          order: [...draft.order],
+          exclude: [...draft.exclude],
+          timeoutSeconds: draft.timeoutSeconds,
+          geminiModel: draft.geminiModel.trim(),
+          advanced: {
+            searxng: {
+              endpoint: draft.searxngEndpoint.trim(),
+              tokenSet: (webSearch.advanced.searxng?.tokenSet ?? false) || draft.searxngToken.length > 0,
+              basicUsername: draft.searxngBasicUsername.trim(),
+              passwordSet: (webSearch.advanced.searxng?.passwordSet ?? false) || draft.searxngBasicPassword.length > 0,
+              categories: draft.searxngCategories.trim(),
+              engines: draft.searxngEngines.trim(),
+              language: draft.searxngLanguage.trim(),
+              ...(draft.searxngSafesearch !== null ? { safesearch: draft.searxngSafesearch } : {}),
+            },
+            exa: { enabled: draft.exaEnabled, searchDelayMs: draft.exaSearchDelayMs },
           },
-          exa: { enabled: draft.exaEnabled, searchDelayMs: draft.exaSearchDelayMs },
-        },
+        } : {}),
       });
       if (marks) setFlash(t("modelConfig.demoYamlUpdated"));
       return;
     }
     setBusy(true);
+    setChainError("");
     try {
-      const input: ModelWebSearchSetInput = {
-        enabled: draft.enabled,
-        ...(webSearch.routing ? {} : { order: draft.order, exclude: draft.exclude, geminiModel: draft.geminiModel.trim() }),
-        timeoutSeconds: draft.timeoutSeconds,
-        searxng: {
-          endpoint: draft.searxngEndpoint.trim(),
-          token: draft.searxngToken,
-          basicUsername: draft.searxngBasicUsername.trim(),
-          basicPassword: draft.searxngBasicPassword,
-          categories: draft.searxngCategories.trim(),
-          engines: draft.searxngEngines.trim(),
-          language: draft.searxngLanguage.trim(),
-          safesearch: draft.searxngSafesearch,
-        },
-        exa: { enabled: draft.exaEnabled, searchDelayMs: draft.exaSearchDelayMs },
-      };
-      const handle = await client.command("models.webSearch.set", input as never);
-      await waitReceipt(client, handle.requestId);
+      if (routingDraft && routingDirty) {
+        const chainHandle = await client.command("models.webSearch.set", {
+          routing: { primary: routingDraft.primary, fallbacks: routingDraft.fallbacks },
+        });
+        await waitReceipt(client, chainHandle.requestId);
+        routingDirtyRef.current = false;
+      }
+      if (paramsDirty || !routingDirty) {
+        const input: ModelWebSearchSetInput = {
+          enabled: draft.enabled,
+          ...(webSearch.routing ? {} : { order: draft.order, exclude: draft.exclude, geminiModel: draft.geminiModel.trim() }),
+          timeoutSeconds: draft.timeoutSeconds,
+          searxng: {
+            endpoint: draft.searxngEndpoint.trim(),
+            token: draft.searxngToken,
+            basicUsername: draft.searxngBasicUsername.trim(),
+            basicPassword: draft.searxngBasicPassword,
+            categories: draft.searxngCategories.trim(),
+            engines: draft.searxngEngines.trim(),
+            language: draft.searxngLanguage.trim(),
+            safesearch: draft.searxngSafesearch,
+          },
+          exa: { enabled: draft.exaEnabled, searchDelayMs: draft.exaSearchDelayMs },
+        };
+        const handle = await client.command("models.webSearch.set", input as never);
+        await waitReceipt(client, handle.requestId);
+        paramsDirtyRef.current = false;
+      }
       setFlash(t("modelConfig.webSearchSaved"));
       onSaved();
     } catch (error) {
@@ -358,7 +451,13 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
     }
   };
 
-  const reset = () => setDraft(draftFromReadModel(webSearch));
+  const reset = () => {
+    paramsDirtyRef.current = false;
+    routingDirtyRef.current = false;
+    setChainError("");
+    setDraft(draftFromReadModel(webSearch));
+    setRoutingDraft(webSearch.routing);
+  };
 
   const chainChips = (
     <div className={`wsx-chain-items${draft.enabled ? "" : " is-off"}`}>
@@ -425,7 +524,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
               </span>
             </div>
             {!credentials.available && credentialProviders(provider).length > 0 ? <p className="wsx-modal-hint">{t("modelConfig.webSearchRuntimeRequired")}</p> : null}
-            {credentials.error ? <p className="wsx-modal-error" role="alert">{credentials.error}</p> : null}
+            {credentials.error || nativeAuth.error ? <p className="wsx-modal-error" role="alert">{credentials.error || nativeAuth.error}</p> : null}
             {provider.credentialFree ? <p className="wsx-modal-hint">{t(apiKeyId ? "modelConfig.webSearchOptionalKey" : "modelConfig.webSearchFreeNoCred")}</p> : null}
             {apiKeyId ? (
               <div className="wsx-modal-keysec">
@@ -463,10 +562,11 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
               <div className="wsx-modal-alt">
                 <span className="wsx-modal-alt-label">{t("modelConfig.webSearchOtherWays")}</span>
                 {loginId ? <div className="wsx-modal-actions">
-                  <button type="button" className="btn small outline" disabled={!canEdit || (!preview && !loginAvailable)} onClick={() => void runLogin(loginId)}>
+                  <button type="button" className="btn small outline" disabled={!canEdit || (!preview && (!loginAvailable || !nativeAuth.canLogin))} onClick={() => void runLogin(loginId)}>
                     {t("modelConfig.webSearchLogin")}
                   </button>
-                  {!preview && !loginAvailable ? <span className="wsx-modal-hint">{t("modelConfig.webSearchLoginUnavailable", { id: loginId })}</span> : null}
+                  {nativeAuth.busyProvider ? <button type="button" className="btn small outline" onClick={() => void nativeAuth.cancel()}>{t("common.cancel")}</button> : null}
+                  {!preview && (!loginAvailable || !nativeAuth.canLogin) ? <span className="wsx-modal-hint">{t("modelConfig.webSearchLoginUnavailable", { id: loginId })}</span> : null}
                 </div> : null}
                 {envKeys.length > 0 ? <div className="wsx-modal-env">
                   <span>{t("modelConfig.webSearchEnvHint")}</span><code>{envKeys.join(" · ")}</code>
@@ -505,7 +605,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
         </div>}
       </section>
 
-      {routingDraft ? <WebRoleChain client={client} preview={preview} routing={routingDraft} onChange={setRoutingDraft} models={models} onSaved={onSaved} onPreviewSave={routing => onPreviewSave({ ...webSearch, routing })} /> : (
+      {routingDraft ? <WebRoleChain preview={preview} routing={routingDraft} onChange={(next) => { setChainError(""); setRoutingDraft(next); }} models={models} busy={busy} error={chainError} onSave={saveChain} /> : (
 <section className="wsx-section">
         <div className="wsx-section-head">
           <div>
@@ -595,7 +695,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
                   {credLabel(cred)}
                 </span>
                 <span className="wsx-row-actions">
-                  {webSearch.routing ? choices.length === 1 ? chainButton(choices[0]!.selector) : (
+                  {provider.siteRoute ? <button type="button" className="btn small outline" onClick={() => { void navigator.clipboard.writeText(`site:${provider.siteRoute} `); }}>{`site:${provider.siteRoute}`}</button> : webSearch.routing ? choices.length === 1 ? chainButton(choices[0]!.selector) : (
                     <button type="button" className="btn small outline" disabled={choices.length === 0 || choices.every(model => currentChain.includes(model.selector))}
                       data-tip={choices.length ? undefined : t("modelConfig.webSearchNoModels")}
                       onClick={() => { setChainPickerId(chainPickerId === provider.id ? null : provider.id); setChainPickerSelector(choices.find(model => !currentChain.includes(model.selector))!.selector); }}>
@@ -612,7 +712,7 @@ export function WebSearchPanel({ client, preview, sessionId, visible = true, onR
                       <button type="button" className="icon-btn small" aria-label={t("modelConfig.webSearchExclude", { name: provider.name })} data-tip={t("modelConfig.webSearchExclude", { name: provider.name })} onClick={() => addExclude(provider.id)}><Icon name="x" extra="sm" /></button>
                     </>
                   )}
-                  <button type="button" className="btn small outline" onClick={() => openCredModal(provider.id)}><Icon name="key" extra="sm" />{t("modelConfig.webSearchConfigure")}</button>
+                  {provider.siteRoute ? null : <button type="button" className="btn small outline" onClick={() => openCredModal(provider.id)}><Icon name="key" extra="sm" />{t("modelConfig.webSearchConfigure")}</button>}
                 </span>
                 {chainPickerId === provider.id ? <div className="wsx-pool-choice">
                   <AppSelect aria-label={t("modelConfig.webSearchChooseProviderModel", { name: provider.name })} value={chainPickerSelector} onChange={event => setChainPickerSelector(event.target.value)}>

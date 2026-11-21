@@ -1,4 +1,5 @@
 import type { LayoutMemory } from "../settings/appSettings";
+import { isZh, pickLocale } from "../i18n";
 import { preserveFileViews, applyBrowserPagePreset, applyInstancePreset, builtInPresets, clampFloat, createDefaultLayout, dockReducer, instancePresetLayout, locatePanel, moveConflicts, normalizeLayout, removePanels, resolveOpenIn } from "./model";
 import { projectConversationPanel } from "./conversationPanels";
 import { workbenchBounds } from "./workbenchGeometry";
@@ -6,7 +7,7 @@ import { pinWorkspace, pinsForScope, putPin, readPins, subtractPinPanels, withPi
 import type { DockFloat, DockPinMode, DockRect } from "./types";
 import { WorkbenchWindows, toolWindowId, type WorkbenchWindow } from "./windows";
 import { WINDOW_MINIMUM } from "./snap";
-import { WORKBENCH_PANELS } from "../panels/registry";
+import { WORKBENCH_PANELS, localizePanelDefinition } from "../panels/registry";
 import { isFilePanelId, PANEL_IDS, conversationPanelId, isConversationPanelId, isAgentPanelId, isBrowserPagePanelId, panelBaseId, type DockAction, type DockLayout, type DockPreferences, type DockPreset, type DockScope, type DockSnapshot, type DockTarget, type PanelId } from "./types";
 
 const STORAGE_KEY = "zeta.dock.v1";
@@ -138,13 +139,14 @@ function legacyPreset(value: unknown, source: string, id: string): DockPreset | 
   // Migration preserves the old region switches, even when its selected tool was hidden.
   if (typeof memory.sideOpen === "boolean") layout.right.visible = memory.sideOpen;
   layout.presetId = id;
-  return { id, name: `旧布局 · ${source}`, layout: normalizeLayout(layout) };
+  return { id, name: `${pickLocale("旧布局 · ", "Legacy layout · ")}${source}`, layout: normalizeLayout(layout) };
 }
 
 export class DockStore {
   documentId?: string;
   eventWindow?: Window;
   windowManager?: WorkbenchWindows;
+  onRailReveal?: (() => void) | undefined;
   private conversationTitle = "";
   private reconcilingWindows = false;
   private unmigratedWindows = new Set<string>();
@@ -166,6 +168,7 @@ export class DockStore {
   private unwatch: (() => void) | undefined;
   /** Storage refused even the degraded payload: this session keeps everything in memory. */
   private blocked = false;
+  private localeZh: boolean | undefined;
 
   constructor(storage?: Storage | null, owner?: DockStore, scope?: DockScope, preview = false) {
     this.owner = owner;
@@ -225,6 +228,17 @@ export class DockStore {
     return () => { this.listeners.delete(listener); };
   };
 
+  setLocale(zh: boolean): void {
+    const root = this.owner ?? this;
+    if (root.localeZh === zh) return;
+    root.localeZh = zh;
+    const fresh = new Map(builtInPresets(zh).map(preset => [preset.id, preset.name]));
+    for (const bucket of [root.real, root.demo]) {
+      bucket.presets = bucket.presets.map(preset => preset.builtin && fresh.has(preset.id) ? { ...preset, name: fresh.get(preset.id)! } : preset);
+    }
+    for (const handle of root.handles) handle.publish();
+  }
+
   fork(scope: DockScope, preview = false): DockStore {
     const store = new DockStore(undefined, this.owner ?? this, scope, preview);
     store.switchScope(scope, preview);
@@ -238,6 +252,7 @@ export class DockStore {
     this.listeners.clear();
     delete this.windowManager;
     delete this.eventWindow;
+    this.onRailReveal = undefined;
     this.unmigratedWindows.clear();
   }
 
@@ -311,9 +326,11 @@ export class DockStore {
       const groups = withPins(projectConversationPanel(this.layout, this.conversationWindow(), false), pinsForScope(this.state.pins, this.scope)).floats;
       const ids = new Set(groups.map(group => this.windowId(group.id)));
       for (const record of manager.getSnapshot().records) if (record.content.kind === "tools" && record.content.documentId === this.documentId && !ids.has(record.id)) manager.remove(record.id);
+      const zh = (this.owner ?? this).localeZh ?? isZh();
       for (const group of groups) {
         const id = this.windowId(group.id), pin = group.pin?.mode ?? "none";
-        const definition = WORKBENCH_PANELS.find(value => value.id === panelBaseId(group.active));
+        const rawDefinition = WORKBENCH_PANELS.find(value => value.id === panelBaseId(group.active));
+        const definition = rawDefinition ? localizePanelDefinition(rawDefinition, zh) : undefined;
         const conversationActive = isConversationPanelId(group.active);
         const minimum = toolWindowMinimum(group.active, group.panels.length);
         const title = conversationActive ? this.conversationTitle : `${definition?.title ?? this.snapshot?.layout.agentPanels[group.active]?.target.displayName ?? (isFilePanelId(group.active) ? this.snapshot?.layout.fileViews[group.active]?.title || "File" : isBrowserPagePanelId(group.active) ? this.snapshot?.layout.browserPages[group.active]?.title || "Browser" : group.active)}${this.conversationTitle ? ` · ${this.conversationTitle}` : ""}`;
@@ -542,6 +559,11 @@ export class DockStore {
     }
     const activePins = pinsForScope(this.state.pins, this.scope);
     const effective = dockReducer(this.snapshot.layout, action, this.state.preferences.locked);
+    if ((action.type === "region" && action.region === "rail" && action.visible)
+      || (action.type === "railMode" && action.mode !== "hidden")
+      || ((action.type === "open" || action.type === "reveal") && locatePanel(effective, action.panel)?.region === "rail")) {
+      this.onRailReveal?.();
+    }
     if (this.modalPanel) {
       const focused = effective.floats.find(group => group.panels.includes(this.modalPanel!));
       if (action.type === "apply" || !focused || focused.minimized || focused.pin || focused.panels.length !== 1) this.modalPanel = null;
@@ -845,7 +867,7 @@ export class DockStore {
         const source = key.slice(LEGACY_PREFIX.length);
         const id = `legacy-${encodeURIComponent(source)}`;
         if (this.real.presets.some(preset => preset.id === id)) continue;
-        const preset = legacyPreset(read(this.storage, key), source === "global" ? "全局" : source, id);
+        const preset = legacyPreset(read(this.storage, key), source === "global" ? pickLocale("全局", "Global") : source, id);
         if (preset) this.real.presets.push(preset);
       }
     } catch { /* Storage enumeration can be unavailable even when getItem works. */ }

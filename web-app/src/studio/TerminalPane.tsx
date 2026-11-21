@@ -10,6 +10,7 @@ import { useExecutionTarget } from "./workspaces/ExecutionTargets";
 import { useSurfaceDocument } from "./dock/SurfaceContext";
 import { BrowserLinkMenu } from "./browser/browserLinks";
 import { registerTerminalBrowserLinks } from "./browser/terminalBrowserLinks";
+import { useTmuxPanel } from "./tmux/TmuxPanel";
 /**
  * Work Studio terminal. The PTY lives behind the gateway's WebSocket; the
  * browser owns only the emulator. `window.zetaStudioTerminal` (Electron
@@ -39,7 +40,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
   const api = store.api;
   const [newProfileId, setNewProfileId] = useState<string | null>(null);
   const ownerKey = JSON.stringify([targetId, workspaceId ?? null, conversationId ?? sessionId ?? null]);
-  const sessions = allSessions.filter(session => session.targetId === targetId && (conversationId ? session.conversationId === conversationId : session.workspaceId === workspaceId && session.sessionId === sessionId));
+  const sessions = allSessions.filter(session => session.kind !== "tmux-pane" && session.targetId === targetId && (conversationId ? session.conversationId === conversationId : session.workspaceId === workspaceId && session.sessionId === sessionId));
   const [activeId, setActiveId] = useState<string | null>(() => store.activeIds.get(ownerKey) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -50,6 +51,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
   const targetStatus = executionTarget.inventory.statuses.find(status => status.id === executionTarget.id);
   const canCreate = !targetId || (targetStatus?.state === "connected" && !targetStatus.operation);
   const selectSession = (id: string): void => { store.activeIds.set(ownerKey, id); setActiveId(id); };
+  const tmuxPanel = useTmuxPanel({ targetId, workspaceId, ownerKey, connected: canCreate, cwd: sessions[0]?.cwd ?? executionTarget.inventory.profiles.find(profile => profile.id === targetId)?.lastDirectory ?? "", activeId, select: selectSession, visible, onError: setError });
   useEffect(() => { setActiveId(store.activeIds.get(ownerKey) ?? null); bootstrapped.current = sessions.length > 0; }, [ownerKey, allSessions, store]);
   const active = sessions.find(session => session.id === activeId) ?? sessions[0] ?? null;
   const activeHost = active ? store.hosts.get(active.id) : undefined;
@@ -120,7 +122,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
       .catch(cause => setError(cause instanceof Error ? cause.message : String(cause)));
   };
 
-  if (!api) {
+  if (!api && !preview) {
     return (
       <div className="empty">
         <Icon name="terminal" extra="lg" />
@@ -221,7 +223,11 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
             {globalThis.zetaStudioTerminal && active.workspaceId && active.sessionId ? <TerminalRecordingControls key={active.id} api={globalThis.zetaStudioTerminal} id={active.id} visible={visible} ended={active.status === "ended"} workspaceId={active.workspaceId} sessionId={active.sessionId} /> : null}
             {error ? <p role="alert" className="muted small">{error}</p> : null}
             {notices[active.id] ? <p role="status" className="muted small">{notices[active.id]}</p> : null}
-            {(graphics[active.id]?.length || graphicsErrors[active.id]) ? <div style={{ maxHeight: 240, overflow: "auto" }} aria-label="Terminal images / 终端图片">
+            {controlMode[active.id] && api ? <div role="status" className="muted small">
+              <p>{t("terminal.tmux.controlNotice")}</p>
+              <button type="button" className="btn" onClick={() => void api.write(active.id, "\n").catch(cause => setError(String(cause)))}>{t("terminal.tmux.exitControl")}</button>
+            </div> : null}
+            {(graphics[active.id]?.length || graphicsErrors[active.id]) ? <div style={{ maxHeight: 240, overflow: "auto" }} aria-label={zh ? "终端图片" : "Terminal images"}>
               {graphics[active.id]?.map((image, index) => <TerminalGraphicView key={index} image={image} />)}
               {graphicsErrors[active.id] ? <p role="status">{graphicsErrors[active.id]}</p> : null}
             </div> : null}
@@ -252,6 +258,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
           </div>
         ) : null}
       </div>
+      {tmuxPanel.dialogs}
     </div>
   );
 });

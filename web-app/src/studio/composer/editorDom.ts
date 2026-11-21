@@ -1,6 +1,7 @@
 import { iconSvg } from "../icons";
 import { chipPayload, chipIconName, parseChipPayload } from "./ingest";
-import { normalizeDoc } from "./serialize";
+import { isZh } from "../i18n";
+import { defaultImageChipLabel, normalizeDoc } from "./serialize";
 import { splitChipLabel, type ComposerChip, type ComposerDoc, type ComposerNode, type PromptImage } from "./types";
 import { modeChipConflictsWith } from "./commands";
 
@@ -14,16 +15,16 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function removeChipLabel(label: string): string {
-  return `移除胶囊 ${label}`;
+function removeChipLabel(label: string, zh = isZh()): string {
+  return zh ? `移除胶囊 ${label}` : `Remove chip ${label}`;
 }
 
 /**
  * `tabindex="-1"` on purpose: the capsule lives inside a textbox, where Tab
  * belongs to the surrounding form and Backspace is the keyboard way to delete.
  */
-function removeButtonHtml(label: string): string {
-  return `<button type="button" class="cm-chip-x" tabindex="-1" aria-label="${escapeHtml(removeChipLabel(label))}">${iconSvg("x", "sm")}</button>`;
+function removeButtonHtml(label: string, zh = isZh()): string {
+  return `<button type="button" class="cm-chip-x" tabindex="-1" aria-label="${escapeHtml(removeChipLabel(label, zh))}">${iconSvg("x", "sm")}</button>`;
 }
 
 function chipNameHtml(label: string): string {
@@ -165,20 +166,22 @@ export function writeDoc(editor: HTMLElement, doc: ComposerDoc, images: Map<stri
  * would otherwise leave a label that disagrees with the `[图N]` marker that
  * `serializeDoc` emits from the attachment order.
  */
-export function renumberImageChips(editor: HTMLElement): void {
+export function renumberImageChips(editor: HTMLElement, zh = isZh()): void {
   const chips = editor.querySelectorAll<HTMLElement>(".cm-chip-image");
   let index = 0;
   for (const chip of chips) {
     const parsed = parseChipPayload(chip.dataset.chip ?? "");
-    if (!parsed) continue;
+    if (!parsed || parsed.path !== undefined) continue;
     index += 1;
-    const label = `图${index}`;
-    if (parsed.label === label) continue;
-    chip.dataset.chip = chipPayload({ ...parsed, label });
-    writeChipLabel(chip, label);
-    chip.querySelector(".cm-chip-x")?.setAttribute("aria-label", removeChipLabel(label));
-    // Clipboard images have no path, so the tooltip has to follow the label.
-    if (parsed.path === undefined && parsed.name === undefined) chip.title = label;
+    const label = defaultImageChipLabel(index, zh);
+    const removeLabel = removeChipLabel(label, zh);
+    if (parsed.label !== label) {
+      chip.dataset.chip = chipPayload({ ...parsed, label });
+      writeChipLabel(chip, label);
+      // Clipboard images have no path, so the tooltip has to follow the label.
+      if (parsed.name === undefined) chip.title = label;
+    }
+    chip.querySelector(".cm-chip-x")?.setAttribute("aria-label", removeLabel);
   }
 }
 
@@ -299,9 +302,11 @@ export function insertNodesAtCaret(editor: HTMLElement, nodes: Node[]): void {
     return;
   }
   const range = selection.getRangeAt(0);
+  const fragment = document.createDocumentFragment();
+  for (const node of nodes) fragment.append(node);
+  const last = fragment.lastChild;
   range.deleteContents();
-  for (const node of [...nodes].reverse()) range.insertNode(node);
-  const last = nodes[nodes.length - 1];
+  range.insertNode(fragment);
   if (last) placeCaretAfter(last);
 }
 

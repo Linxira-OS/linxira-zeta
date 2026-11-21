@@ -20,8 +20,8 @@ export function StartupNoticeDialog({
   readonly onClose: () => void;
   readonly onDontRemind: () => void;
 }): ReactNode {
-  const copy = STARTUP_NOTICE_COPY;
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const copy = getStartupNoticeCopy(resolvedLanguage === "zh");
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { en } from "./locales/en";
 import type { AppLanguage, I18nContextValue, Locale, TranslationParams } from "./types";
-import { useAppSettings } from "../settings/appSettings";
+import { getAppSettings, useAppSettings } from "../settings/appSettings";
 
 /**
  * Per-locale dictionaries, loaded on demand. English is bundled because it is
@@ -49,6 +49,18 @@ export function resolveLanguage(preference?: AppLanguage): Locale {
     return preference;
   }
   return detectSystemLanguage();
+}
+
+export function activeLanguage(): Locale {
+  return resolveLanguage(getAppSettings().language);
+}
+
+export function isZh(): boolean {
+  return activeLanguage() === "zh";
+}
+
+export function pickLocale<T>(zhValue: T, enValue: T): T {
+  return activeLanguage() === "zh" ? zhValue : enValue;
 }
 
 function lookupKey(dict: Record<string, unknown>, path: string): string | undefined {
@@ -112,6 +124,16 @@ export function I18nProvider({ children, forcedLanguage }: { children: ReactNode
   }, [resolvedLanguage]);
 
   const ready = loadedLocale === resolvedLanguage;
+
+  useLayoutEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = resolvedLanguage === "zh" ? "zh-CN" : "en";
+      document.title = resolvedLanguage === "zh" ? "Z Work Studio — 工作台" : "Z Work Studio — Workbench";
+    }
+    if (forcedLanguage === undefined) {
+      void globalThis.zetaStudioChrome?.setLanguage?.(resolvedLanguage);
+    }
+  }, [resolvedLanguage, forcedLanguage]);
 
   const value = useMemo<I18nContextValue>(() => {
     return {

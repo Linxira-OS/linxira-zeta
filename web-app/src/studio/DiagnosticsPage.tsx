@@ -1,4 +1,5 @@
 import { SessionCompressionPane } from "./diagnostics/SessionCompressionPane";
+import { WorkspaceRecoveryPane } from "./diagnostics/WorkspaceRecoveryPane";
 import { NativeMaintenancePane } from "./diagnostics/NativeMaintenancePane";
 import { WorkspaceTabs, WorkspacePanel } from "./workspaces/Workspace";
 import type { NativePreferencesContext } from "./settings/NativePreferencesPane";
@@ -11,6 +12,7 @@ import type {
   RuntimeChannel,
   RuntimeInstallState,
   StudioClient,
+  WorkspaceRecord,
 } from "@linxiraos/studio-contract";
 import type { SessionBuildIdentity, SessionBuildProvenance } from "@linxiraos/studio-protocol";
 import { Icon, type IconName } from "./icons";
@@ -35,13 +37,14 @@ import {
   type DiagnosticsViewModel,
 } from "./diagnosticsModel";
 import { ActionProgressBar } from "./ActionProgressBar";
-import { useI18n } from "./i18n";
+import { pickLocale, useI18n } from "./i18n";
 import { fileManagerName } from "./platformCopy";
 import { PLATFORM } from "./platform";
 import { ensureRuntimeConnection } from "./runtimeEnsure";
 import { runtimeActionSupport } from "./deck/capabilitySupport";
 import { isUpdateCheckTimeout, queryWithTimeout } from "./updateCheck";
 import { checkForUpdates, downloadUpdateToReady, fetchUpdatePrefs, useUpdates } from "./settings/updates";
+import { hostErrorMessage } from "./hostError";
 
 type DiagAction = {
   readonly kind: "reconnect" | "restart" | "install" | "update" | "reinstall" | "recheck" | "check-update" | "import" | "rollback" | "prune";
@@ -56,7 +59,7 @@ import { takeDiagnosticsIntent } from "./pageIntents";
 export { DIAGNOSTICS_INTENT_KEY, setDiagnosticsIntent, type DiagnosticsIntent } from "./pageIntents";
 
 async function applyRuntimeArtifact(client: StudioClient, channel: RuntimeChannel | undefined, incompleteMessage: string): Promise<void> {
-  if (channel === undefined) throw new Error("无法确认 Runtime 工件通道，请重新检查更新");
+  if (channel === undefined) throw new Error(pickLocale("无法确认 Runtime 工件通道，请重新检查更新", "Unable to determine the Runtime artifact channel. Please check for updates again."));
   const handle = await client.command("runtime.install", { channel });
   const receipt = await waitForCommandReceipt(client, handle.requestId);
   if (receipt.status === "failed") throw new Error(receipt.error.message);
@@ -109,18 +112,18 @@ function previewGeneratedAt(): string {
   return PREVIEW_GENERATED_AT;
 }
 
-function previewEnvironment(scenario: PreviewDiagScenario, installer: RuntimeInstallState): EnvironmentReadModel {
+function previewEnvironment(scenario: PreviewDiagScenario, installer: RuntimeInstallState, zh: boolean): EnvironmentReadModel {
   return {
     platform: PLATFORM === "darwin" ? "darwin" : "win32",
     arch: PLATFORM === "darwin" ? "arm64" : "x64",
     authority: previewAuthority(),
-    runtime: previewRuntime(scenario),
+    runtime: previewRuntime(scenario, zh),
     installer,
   };
 }
 
-function previewRuntime(scenario: PreviewDiagScenario): RuntimeConnection {
-  const mock = PREVIEW_DIAGNOSTICS;
+function previewRuntime(scenario: PreviewDiagScenario, zh: boolean): RuntimeConnection {
+  const mock = getPreviewDiagnostics(zh);
   if (scenario === "fail") {
     return {
       status: "unavailable",
@@ -139,8 +142,8 @@ function previewRuntime(scenario: PreviewDiagScenario): RuntimeConnection {
   };
 }
 
-function previewInstaller(scenario: PreviewDiagScenario, t: (key: string) => string): RuntimeInstallState {
-  const mock = PREVIEW_DIAGNOSTICS;
+function previewInstaller(scenario: PreviewDiagScenario, t: (key: string) => string, zh: boolean): RuntimeInstallState {
+  const mock = getPreviewDiagnostics(zh);
   if (scenario === "fail") {
     return { status: "failed", version: mock.version, signature: "unknown", message: t("diagnostics.previewActivationFailed") };
   }
@@ -155,8 +158,8 @@ function previewInstaller(scenario: PreviewDiagScenario, t: (key: string) => str
   };
 }
 
-function previewDiagnostics(scenario: PreviewDiagScenario): DiagnosticReadModel {
-  const mock = PREVIEW_DIAGNOSTICS;
+function previewDiagnostics(scenario: PreviewDiagScenario, zh: boolean): DiagnosticReadModel {
+  const mock = getPreviewDiagnostics(zh);
   const now = previewGeneratedAt();
   if (scenario === "ok") {
     return {
@@ -184,12 +187,12 @@ function previewDiagnostics(scenario: PreviewDiagScenario): DiagnosticReadModel 
   return { generatedAt: now, authority: previewAuthority(), redacted: true, entries: scenario === "fail" ? [handshake, ...extras] : extras };
 }
 
-function previewCapabilities(): CapManifest {
+function previewCapabilities(zh: boolean): CapManifest {
   return {
     profile: "full-parity-v1",
     generatedAt: previewGeneratedAt(),
     hash: "preview-capabilities",
-    capabilities: PREVIEW_DIAGNOSTICS.capabilities.map((id) => ({
+    capabilities: getPreviewDiagnostics(zh).capabilities.map((id) => ({
       id,
       grade: "stable",
       version: 1,
@@ -276,6 +279,9 @@ export function DiagnosticsPage({
   runtime,
   environment,
   buildProvenance,
+  recoveryClient,
+  onOpenRecoveryWorkspace,
+  onChooseRemoteWorkspace,
 }: {
   nativeContext?: NativePreferencesContext;
   client: StudioClient;
@@ -285,6 +291,9 @@ export function DiagnosticsPage({
   environment?: EnvironmentReadModel;
   /** omp builds that wrote the active session (`snapshot.runtimeIdentity`). */
   buildProvenance?: SessionBuildProvenance;
+  recoveryClient?: StudioClient;
+  onOpenRecoveryWorkspace?: (workspace: WorkspaceRecord) => void;
+  onChooseRemoteWorkspace?: () => void;
 }) {
   const { preview, marks } = usePreviewMode();
   // Desktop-only maintenance reads the same matrix as Settings → 身份与设备.
@@ -297,7 +306,8 @@ export function DiagnosticsPage({
  const [workspaceTab,setWorkspaceTab]=useState<"runtime"|"maintenance">("runtime");
   const updates = useUpdates();
   const { t, resolvedLanguage } = useI18n();
-  const mock = PREVIEW_DIAGNOSTICS;
+  const zh = resolvedLanguage === "zh";
+  const mock = getPreviewDiagnostics(zh);
   const [scenario, setScenario] = useState<PreviewDiagScenario>("update");
   const [diag, setDiag] = useState<DiagnosticReadModel | undefined>(diagnostics);
   const [caps, setCaps] = useState<CapManifest | undefined>(capabilities);
@@ -311,7 +321,7 @@ export function DiagnosticsPage({
   useEffect(() => setCaps(capabilities), [capabilities]);
   useEffect(() => setEnv(environment), [environment]);
 
-  const previewInstallerState = previewInstaller(scenario, t);
+  const previewInstallerState = previewInstaller(scenario, t, zh);
   const currentPreviewScenario = PREVIEW_CYCLE.find((item) => item.id === scenario);
   const viewRuntime = preview ? previewRuntime(scenario) : runtime ?? env?.runtime;
   const viewEnv = preview ? previewEnvironment(scenario, previewInstallerState) : env;
@@ -431,18 +441,27 @@ export function DiagnosticsPage({
       let remoteCheckResult: Awaited<ReturnType<NonNullable<typeof chrome>["checkUpdates"]>> = null;
       if (chrome && typeof chrome.checkUpdates === "function") {
         try {
-          if (notify || (await fetchUpdatePrefs())?.autoCheck) remoteCheckResult = await checkForUpdates();
-        } catch {
-          // ignore
+          if (notify || (await fetchUpdatePrefs())?.autoCheck) {
+            remoteCheckResult = await checkForUpdates({ silent: false });
+            if (!remoteCheckResult) throw new Error(t("updates.stateUnavailable"));
+          }
+        } catch (error) {
+          if (notify) {
+            show(`${t("diagnostics.updateCheckFailed")}: ${hostErrorMessage(error, t("updates.stateUnavailable"))}`, "alert-c");
+            return;
+          }
         }
+      }
+
+      if (notify && remoteCheckResult?.error) {
+        show(`${t("diagnostics.updateCheckFailed")}: ${remoteCheckResult.error}`, "alert-c");
+        return;
       }
 
       const next = await queryWithTimeout(() => client.query("environment.get", {}));
       setEnv(next);
       if (!notify) return;
-      if (remoteCheckResult?.error) {
-        show(`${t("diagnostics.updateCheckFailed")}: ${remoteCheckResult.error}`, "alert-c");
-      } else if (remoteCheckResult?.runtime.plan === "blocked") {
+      if (remoteCheckResult?.runtime.plan === "blocked") {
         show(remoteCheckResult.runtime.reason ?? t("diagnostics.runtimeUpdateBlocker"), "alert-c");
       } else if (remoteCheckResult?.runtime.plan === "available") {
         show(
@@ -461,7 +480,7 @@ export function DiagnosticsPage({
       } else if (next.installer.status === "failed") {
         show(next.installer.message ?? t("diagnostics.installStateFailed"), "alert-c");
       } else {
-        show(t("diagnostics.latestArtifact"), "check");
+        show(t(remoteCheckResult ? "diagnostics.latestArtifact" : "diagnostics.localArtifactChecked"), "check");
       }
     } catch (error) {
       if (notify) show(isUpdateCheckTimeout(error) ? t("diagnostics.updateCheckTimeout") : t("diagnostics.updateCheckFailed"), "alert-c");
@@ -856,7 +875,8 @@ export function DiagnosticsPage({
         </div> : null}
       </section>
 
-      <ProcessMemoryPanel enabled={!preview} />
+      <ProcessMemoryPanel enabled={!preview && workspaceTab === "runtime"} />
+      <WorkspaceRecoveryPane client={recoveryClient ?? client} {...(onOpenRecoveryWorkspace ? { onOpenWorkspace: onOpenRecoveryWorkspace } : {})} {...(onChooseRemoteWorkspace ? { onChooseRemoteWorkspace } : {})} />
       {busy !== null ? (
         <ActionProgressBar label={busy.label} step={busy.step} steps={busy.steps} />
       ) : null}

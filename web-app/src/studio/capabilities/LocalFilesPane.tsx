@@ -42,7 +42,7 @@ export function LocalFilesPane({ client, sessionId, available, initialName }: {
   const [pending, setPending] = useState<PendingNavigation>();
   const epoch = useRef(0);
   const lock = useRef(false);
-  const previewFiles = useRef(createPreviewLocalFiles());
+  const previewFiles = useRef(createPreviewLocalFiles(zh));
   const initial = useRef(initialName);
   const handledInitial = useRef(initialName);
   initial.current = initialName;
@@ -76,7 +76,7 @@ export function LocalFilesPane({ client, sessionId, available, initialName }: {
   useEffect(() => {
     const generation = ++epoch.current;
     lock.current = true;
-    previewFiles.current = createPreviewLocalFiles();
+    previewFiles.current = createPreviewLocalFiles(zh);
     handledInitial.current = initial.current;
     setFiles([]); setTruncated(false); acceptDocument(undefined); setSearch(""); setError(""); setPending(undefined); setSupported(false);
     setBusy(preview || (available && sessionId) ? "checking" : null);
@@ -108,6 +108,24 @@ export function LocalFilesPane({ client, sessionId, available, initialName }: {
     })();
     return () => { epoch.current++; };
   }, [client, sessionId, available, preview]);
+
+  const documentRef = useRef(document);
+  documentRef.current = document;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  useEffect(() => {
+    if (!preview) return;
+    previewFiles.current = createPreviewLocalFiles(zh);
+    setFiles(previewFiles.current.map(({ text: _text, version: _version, ...file }) => file));
+    const current = documentRef.current;
+    if (!current) return;
+    const updated = previewFiles.current.find(item => item.uri === current.uri);
+    if (!updated) return;
+    const wasClean = draftRef.current === current.text;
+    setDocument({ uri: updated.uri, version: updated.version, text: updated.text });
+    if (wasClean) setDraft(updated.text);
+  }, [preview, zh]);
 
   async function navigate(action: PendingNavigation) {
     if (lock.current || !supported) return;

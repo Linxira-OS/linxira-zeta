@@ -1,11 +1,11 @@
 /**
  * Composer send/queue policy. App.tsx is the live wiring; this module is the
- * contract the UI must keep aligned with OMP:
+ * contract the UI must keep aligned with Zeta:
  *
  * - Idle Enter → `core.prompt` (AgentSession.prompt: @mentions, skills, images).
  * - Streaming Enter → local queue, then `core.prompt` once THAT session is idle
- *   (OMP Enter steers immediately; Studio keeps an editable bar instead).
- * - Ctrl+Enter → `core.followUp` with images (OMP Ctrl+Enter / Ctrl+Q).
+ *   (Zeta Enter steers immediately; Studio keeps an editable bar instead).
+ * - Ctrl+Enter → `core.followUp` with images (Zeta Ctrl+Enter / Ctrl+Q).
  * - Queue-bar “插入纠偏” → `core.steer`.
  * - `/queue` → Runtime `queue.enqueue` / `core.followUp`.
  * - Ask/approval cards block a fresh prompt, same as the TUI interaction surface.
@@ -34,7 +34,7 @@ export function composerQueueEnabled(input: {
 }
 
 /**
- * Ctrl+Enter follow-up. Allowed while streaming (OMP). Blocked when idle
+ * Ctrl+Enter follow-up. Allowed while streaming (Zeta). Blocked when idle
  * with an ask/approval card so a new turn cannot race the interaction.
  */
 export function composerFollowUpEnabled(input: {

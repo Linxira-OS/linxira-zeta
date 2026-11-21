@@ -1,4 +1,5 @@
 import type { JsonValue } from "@linxiraos/studio-contract";
+import { isZh } from "../i18n";
 
 import { demoPath } from "./demoPaths";
 import { PREVIEW_COMPUTER_TOOL_MEDIA } from "./computerPreview";
@@ -199,8 +200,9 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
       {
         name: "验证",
         tasks: [
-          { content: "typecheck / lint", status: "in_progress" },
-          { content: "Preview 缩放", status: "pending" },
+          { name: "deps", agent: "scout", task: zh ? "审计 @earendil-works/pi-* 0.82.1 变更" : "Audit @earendil-works/pi-* 0.82.1 changes" },
+          { name: "docs", agent: "scout", task: zh ? "提取 v0.8.1 Release Notes 要点" : "Extract key takeaways from v0.8.1 Release Notes" },
+          { name: "preview", agent: "scout", task: zh ? "核对 Mermaid 全屏缩放" : "Verify Mermaid fullscreen zoom" },
         ],
       },
     ],

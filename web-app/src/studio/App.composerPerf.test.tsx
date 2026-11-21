@@ -163,7 +163,7 @@ it("keeps draft books across execution-target remounts", async () => {
   };
   await choose("Test");
   await type(editor, "remote draft");
-  await choose("此计算机");
+  await choose("This computer");
   expect(editor.textContent).toBe("local draft");
 });
 

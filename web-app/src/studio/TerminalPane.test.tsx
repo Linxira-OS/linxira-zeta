@@ -1,4 +1,4 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useCallback, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { afterEach, expect, it, vi } from "vitest";
@@ -8,7 +8,8 @@ import { TerminalPane } from "./TerminalPane";
 import { PENDING_MAX_BYTES, TerminalSessionsProvider, useTerminalSessions } from "./terminalSessions";
 import { SurfaceProvider } from "./dock/SurfaceContext";
 
-const mocks = vi.hoisted(() => ({ terminals: [] as { options: Record<string, unknown>; write: ReturnType<typeof vi.fn>; focus: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] }));
+const mocks = vi.hoisted(() => ({ targetId: null as string | null, terminals: [] as { options: Record<string, unknown>; write: ReturnType<typeof vi.fn>; focus: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] }));
+vi.mock("./workspaces/ExecutionTargets", async importOriginal => ({ ...await importOriginal<typeof import("./workspaces/ExecutionTargets")>(), useExecutionTarget: () => ({ id: mocks.targetId, inventory: { profiles: [], statuses: mocks.targetId ? [{ id: mocks.targetId, state: "connected" }] : [] } }) }));
 vi.mock("@xterm/xterm", () => ({ Terminal: class {
   options: Record<string, unknown>;
   cols = 80; rows = 24;
@@ -199,4 +200,28 @@ it("selects a command terminal created outside the pane and keeps the existing s
   expect(mocks.terminals).toHaveLength(2);
   expect(api.dispose).not.toHaveBeenCalled();
   expect(api.write).not.toHaveBeenCalled();
+});
+
+it("reuses a single workspace shell across main-view conversations while keeping conversationId-scoped panes isolated", async () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const api = {
+    create: vi.fn()
+      .mockResolvedValueOnce({ id: "ws-shared", name: "Shell", cwd: "D:/workspace" })
+      .mockResolvedValueOnce({ id: "float-isolated", name: "Shell", cwd: "D:/workspace" }),
+    write: vi.fn().mockResolvedValue(undefined), resize: vi.fn().mockResolvedValue(undefined), dispose: vi.fn().mockResolvedValue(undefined),
+    onData: vi.fn(() => () => {}), onExit: vi.fn(() => () => {}),
+  };
+  vi.stubGlobal("zetaStudioTerminal", api);
+  const view = render(<TerminalSessionsProvider>
+    <section aria-label="Main view"><TerminalPane workspaceId="work" visible /></section>
+  </TerminalSessionsProvider>);
+  await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+  // Rerendering main view across session switches keeps workspaceId without conversationId/sessionId: zero extra shells.
+  view.rerender(<TerminalSessionsProvider>
+    <section aria-label="Main view"><TerminalPane workspaceId="work" visible /></section>
+    <section aria-label="Floating view"><TerminalPane workspaceId="work" sessionId="s-float" conversationId="doc-float" visible /></section>
+  </TerminalSessionsProvider>);
+  await waitFor(() => expect(api.create).toHaveBeenCalledTimes(2));
+  expect(mocks.terminals).toHaveLength(2);
+  expect(api.dispose).not.toHaveBeenCalled();
 });

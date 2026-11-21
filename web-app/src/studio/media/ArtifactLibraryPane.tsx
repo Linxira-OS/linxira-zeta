@@ -185,7 +185,7 @@ export function ArtifactLibraryPane({
         setCursor(page.nextCursor);
       } catch (cause) {
         if (generation.current === token)
-          setError(hostErrorMessage(cause, t("media.unavailable")));
+          setError(hostErrorMessage(cause, tRef.current("media.unavailable")));
       } finally {
         if (generation.current === token) setBusy(false);
       }

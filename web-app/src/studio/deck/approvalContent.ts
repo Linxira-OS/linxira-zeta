@@ -1,4 +1,5 @@
 import type { ClientInteraction } from "@linxiraos/studio-contract";
+import { isZh } from "../i18n";
 
 export type ApprovalRisk = "high" | "medium" | "low";
 
@@ -91,20 +92,21 @@ function parseLabeledLines(summary: string): Record<string, string> {
   return out;
 }
 
-function defaultScope(tool: string, explicit?: string): string | undefined {
-  if (explicit === "mcp") return "MCP 工具";
+function defaultScope(tool: string, explicit: string | undefined, zh: boolean): string | undefined {
+  if (explicit === "mcp") return zh ? "MCP 工具" : "MCP tool";
   if (explicit) return explicit;
-  if (tool === "bash") return "工作区内 · Shell";
-  if (tool === "write" || tool === "edit" || tool === "ast_edit") return "工作区内 · 文件";
-  if (tool === "eval") return "工作区内 · 代码执行";
-  if (tool === "browser") return "受控浏览器";
-  if (tool === "computer") return "本机桌面";
+  if (tool === "bash") return zh ? "工作区内 · Shell" : "Inside workspace · Shell";
+  if (tool === "write" || tool === "edit" || tool === "ast_edit") return zh ? "工作区内 · 文件" : "Inside workspace · Files";
+  if (tool === "eval") return zh ? "工作区内 · 代码执行" : "Inside workspace · Code execution";
+  if (tool === "browser") return zh ? "受控浏览器" : "Controlled browser";
+  if (tool === "computer") return zh ? "本机桌面" : "Local desktop";
   return undefined;
 }
 
-/** Shape Host `approval` details (OMP formatApprovalPrompt + wrapper fields) into the ver1 card. */
+/** Shape Host `approval` details (Zeta formatApprovalPrompt + wrapper fields) into the ver1 card. */
 export function approvalFromInteraction(
   interaction: Extract<ClientInteraction, { kind: "approval" }>,
+  zh = isZh(),
 ): ApprovalView {
   const detail = interaction.detail;
   if (interaction.approvalType === "configuration") {
@@ -138,8 +140,9 @@ export function approvalFromInteraction(
     .filter((value): value is string => Boolean(value));
   const unlabeledExtra = labeledEmpty && tool !== "bash" && summary && !command && !path ? summary : undefined;
   const extra = extraBits.length > 0 ? extraBits.join("\n") : unlabeledExtra;
-  const title = TOOL_TITLES[tool] ?? (interaction.title || `Allow ${interaction.approvalType}?`);
-  const scope = defaultScope(tool, stringDetail(detail, "scope"));
+  const titlePair = TOOL_TITLE_PAIRS[tool];
+  const title = titlePair ? (zh ? titlePair[0] : titlePair[1]) : (interaction.title || `Allow ${interaction.approvalType}?`);
+  const scope = defaultScope(tool, stringDetail(detail, "scope"), zh);
   return {
     restriction,
     title,

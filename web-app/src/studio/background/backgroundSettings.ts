@@ -2,7 +2,7 @@
  * 背景（图片 / 动图 / 视频）的本地偏好与边界。
  *
  * 这是 App 级显示设置，与主题 / 密度同类：不进 Host、不进 client-contract、
- * 不走 Studio Bridge。偏好存 localStorage（`zeta.background`），媒体文件存
+ * 不走 Z Work Studio Bridge。偏好存 localStorage（`zeta.background`），媒体文件存
  * IndexedDB（见 `backgroundLibrary.ts`）。
  *
  * 读取全部容错：坏 JSON、越界数字、未知枚举一律回落默认值并夹取，保证

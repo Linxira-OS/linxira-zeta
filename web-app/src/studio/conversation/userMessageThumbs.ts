@@ -1,10 +1,11 @@
 /**
  * Local preview bytes for sent user-bubble thumbnails.
  * Public transcript still strips images; this store is renderer UI memory
- * (IndexedDB), not Host / client-contract / Studio Bridge.
+ * (IndexedDB), not Host / client-contract / Z Work Studio Bridge.
  */
 
 import type { ComposerDoc, PromptImage } from "../composer/types";
+import { localizeImageChipLabel } from "../composer/serialize";
 import { toThumbnail } from "./thumbnailImage";
 
 export type UserMessageThumb = {
@@ -21,7 +22,7 @@ export type UserThumbStore = {
   dropSession(sessionId: string): Promise<void>;
 };
 
-const DB_NAME = "omp-studio-ui";
+const DB_NAME = "z-work-studio-ui";
 const STORE_NAME = "user-message-thumbs";
 /**
  * v2 起存的是降采样后的缩略图（`toThumbnail`），v1 存的是原图 base64。
@@ -145,22 +146,29 @@ export function thumbsFromDisplays(displays: { readonly [itemId: string]: Compos
 
 export function attachUserThumbs(doc: ComposerDoc, thumbs: readonly UserMessageThumb[]): ComposerDoc {
   if (thumbs.length === 0) return doc;
-  const byPath = new Map<string, PromptImage>();
-  const byLabel = new Map<string, PromptImage>();
-  const leftover: PromptImage[] = [];
-  for (const thumb of thumbs) {
-    if (thumb.path !== undefined) byPath.set(thumb.path, thumb.image);
-    byLabel.set(thumb.label, thumb.image);
-    leftover.push(thumb.image);
+  const byPath = new Map<string, number>();
+  const byLabel = new Map<string, number>();
+  const unused = new Set<number>();
+  for (const [index, thumb] of thumbs.entries()) {
+    if (thumb.path !== undefined) byPath.set(thumb.path.replaceAll("\\", "/"), index);
+    byLabel.set(localizeImageChipLabel(thumb.label, true), index);
+    unused.add(index);
   }
-  let unused = 0;
   return {
     nodes: doc.nodes.map((node) => {
-      if (node.type !== "chip" || node.chip.kind !== "image" || node.chip.image !== undefined) return node;
-      const fromPath = node.chip.path === undefined ? undefined : byPath.get(node.chip.path);
-      const image = fromPath ?? byLabel.get(node.chip.label) ?? leftover[unused++];
-      if (image === undefined) return node;
-      return { type: "chip", chip: { ...node.chip, image } };
+      if (node.type !== "chip" || node.chip.kind !== "image") return node;
+      const fromPath = node.chip.path === undefined ? undefined : byPath.get(node.chip.path.replaceAll("\\", "/"));
+      const fromLabel = byLabel.get(localizeImageChipLabel(node.chip.label, true));
+      let index = fromPath ?? (fromLabel !== undefined &&
+        (node.chip.path !== undefined || thumbs[fromLabel]!.path === undefined) ? fromLabel : undefined);
+      if (node.chip.image !== undefined) {
+        if (index !== undefined) unused.delete(index);
+        return node;
+      }
+      index ??= [...unused].find(candidate => (thumbs[candidate]!.path !== undefined) === (node.chip.path !== undefined));
+      if (index === undefined) return node;
+      unused.delete(index);
+      return { type: "chip", chip: { ...node.chip, image: thumbs[index]!.image } };
     }),
   };
 }
@@ -257,10 +265,18 @@ export function createIndexedDbThumbStore(): UserThumbStore {
   return {
     async load(sessionId, itemIds) {
       if (itemIds.length === 0) return {};
-      return withStore("readonly", store => loadSelectedThumbs(itemIds, async itemId => {
-        const row = await requestValue(store.get(recordId(sessionId, itemId))) as StoredRow | undefined;
-        return row?.images;
-      }));
+      return withStore("readonly", async (store) => {
+        const keys = new Set(
+          (await requestValue(store.index("sessionId").getAllKeys(sessionId))) as string[],
+        );
+        if (keys.size === 0) return {};
+        return loadSelectedThumbs(itemIds, async (itemId) => {
+          const id = recordId(sessionId, itemId);
+          if (!keys.has(id)) return undefined;
+          const row = await requestValue(store.get(id)) as StoredRow | undefined;
+          return row?.images;
+        });
+      });
     },
     async save(sessionId, itemId, thumbs) {
       if (thumbs.length === 0) return;

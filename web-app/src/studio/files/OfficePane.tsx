@@ -3,6 +3,8 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { FileResource, OfficeComponentState } from "./file-viewer-shared"
 const PdfPane = lazy(() => import("./PdfPane"));
 export function OfficePane({ resource, preview, onSettings, initialPage, onPage }: { resource: FileResource | null; preview: boolean; onSettings: () => void; initialPage?: number | undefined; onPage: (page: number) => void }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const [state, setState] = useState<OfficeComponentState>({ id: "office-preview", status: "not-installed" });
   const [url, setUrl] = useState<string>(), [error, setError] = useState(""), [retry, setRetry] = useState(0);
   useEffect(() => {

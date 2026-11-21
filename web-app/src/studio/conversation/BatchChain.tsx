@@ -6,6 +6,7 @@ import { ToolCardScroll } from "./useToolCardFollowScroll";
 import { ChunkedText } from "./textChunks";
 import { usePreviewMode } from "../preview/PreviewContext";
 import { previewAgentDisplay } from "../preview/agentDockPreview";
+import { useI18n } from "../i18n";
 import { jsonString, type ToolView } from "./conversationViewModel";
 import { applyLiveSubagentRoster, resolveSubagentMetrics, SubagentMetrics } from "./SubagentMetrics";
 import { useSubagentHoverPreview } from "./SubagentHoverContext";
@@ -17,7 +18,7 @@ import {
   resolveSubagentHubTarget,
   subagentCardKey,
   isAskPending,
-  isPathKind,
+  toolHeaderFileMeta,
   saPill,
   statusLabel,
   toolDiffStats,
@@ -54,33 +55,60 @@ function SubagentCard({ source, onInspectSubagent }: {
   onInspectSubagent?: (target: SubagentHubTarget) => void;
 }) {
   const { preview } = usePreviewMode();
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const previewControl = useSubagentHoverPreview();
   const hover = onInspectSubagent === undefined ? null : previewControl;
   const anchorRef = useRef<HTMLElement | null>(null);
   const id = `subagent-preview-${useId()}`;
-  const demo = preview ? previewAgentDisplay(source.agentId ?? "") : undefined;
+  const demo = preview ? previewAgentDisplay(source.agentId ?? "", zh) : undefined;
   const agent = demo ? { ...source, dur: demo.duration, tokens: demo.tokens, cost: demo.cost } : source;
   const pill = demo ? { cls: demo.tone === "waiting" ? "waiting" : demo.tone === "failed" ? "aborted" : "thinking", label: demo.status } : saPill(agent);
   const target = resolveSubagentHubTarget(agent);
   const inspectable = onInspectSubagent !== undefined && target !== undefined;
   const card = (anchor: HTMLElement) => ({ anchor, id, agent, pill, inspectable, ...(target === undefined ? {} : { target }) });
+  const lastOpenedAnchorRef = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     if (anchorRef.current) hover?.update(card(anchorRef.current));
   });
   useLayoutEffect(() => {
     const anchor = anchorRef.current;
-    return () => { if (anchor) hover?.close(anchor); };
-  }, [hover]);
-  const close = () => { if (anchorRef.current) hover?.close(anchorRef.current); };
+    return () => {
+      if (anchor) hover?.close(anchor);
+      if (lastOpenedAnchorRef.current && lastOpenedAnchorRef.current !== anchor) {
+        hover?.close(lastOpenedAnchorRef.current);
+      }
+      if (anchorRef.current && anchorRef.current !== anchor) {
+        hover?.close(anchorRef.current);
+      }
+    };
+  }, [hover, inspectable]);
+  const close = () => {
+    if (anchorRef.current) hover?.close(anchorRef.current);
+    if (lastOpenedAnchorRef.current && lastOpenedAnchorRef.current !== anchorRef.current) {
+      hover?.close(lastOpenedAnchorRef.current);
+    }
+    lastOpenedAnchorRef.current = null;
+  };
   const hoverProps = {
-    onPointerEnter: (event: ReactPointerEvent<HTMLElement>) => { if (event.pointerType !== "touch") hover?.open(card(event.currentTarget)); },
+    onPointerEnter: (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.pointerType !== "touch") {
+        lastOpenedAnchorRef.current = event.currentTarget;
+        hover?.open(card(event.currentTarget));
+      }
+    },
     onPointerLeave: close,
-    onFocus: () => { if (anchorRef.current) hover?.open(card(anchorRef.current)); },
+    onFocus: () => {
+      if (anchorRef.current) {
+        lastOpenedAnchorRef.current = anchorRef.current;
+        hover?.open(card(anchorRef.current));
+      }
+    },
     onBlur: close,
     onClickCapture: close,
     ...(hover ? { "aria-describedby": id } : {}),
   };
-  const aria = [agent.name, pill.label, agent.dur, agent.tokens ? `${agent.tokens} tok` : ""].filter(Boolean).join("，");
+  const aria = [agent.name, pill.label, agent.dur, agent.tokens ? `${agent.tokens} tok` : ""].filter(Boolean).join(zh ? "，" : ", ");
   const description = agent.task;
   const body = <>
     <div className="sa-top">
@@ -102,13 +130,13 @@ function SubagentCard({ source, onInspectSubagent }: {
   </>;
   if (inspectable) return <button ref={anchorRef as RefObject<HTMLButtonElement | null>} type="button"
     className={`sa-card is-inspectable ${agent.status}`} data-activity={pill.cls}
-    aria-label={`${aria}，打开对话`} aria-description={description} {...hoverProps}
+    aria-label={zh ? `${aria}，打开对话` : `${aria}, open conversation`} aria-description={description} {...hoverProps}
     onClick={event => { event.stopPropagation(); onInspectSubagent(target); }}>
     {body}
   </button>;
   return <div ref={anchorRef as RefObject<HTMLDivElement | null>} className={`sa-card ${agent.status}`}
     data-activity={pill.cls} role="group" tabIndex={hover ? 0 : undefined} {...hoverProps}
-    aria-label={target === undefined ? `${aria}，无法打开对话：缺少 Agent 身份` : aria} aria-description={description}>
+    aria-label={target === undefined ? (zh ? `${aria}，无法打开对话：缺少 Agent 身份` : `${aria}, cannot open conversation: missing agent identity`) : aria} aria-description={description}>
     {body}
   </div>;
 }
@@ -182,11 +210,15 @@ const ThinkCard = memo(function ThinkCard({ preview, full, truncated, open, foll
   slot: string;
   itemKey: string;
 }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const { mounted, expanded } = useLazyExpand(open, instant);
   // 摘要行是整段思考压成的一行。`trim().replace(/\s+/g, " ")` 要扫一遍全文，放在父
   // 组件里算意味着每次链重渲染都对每张卡重扫一次。
   const summary = useMemo(() => preview ?? full.trim().replace(/\s+/g, " "), [full, preview]);
-  const aria = `Think${summary ? ` · ${summary.slice(0, 48)}` : ""}，${open ? "收起" : "展开"}详情`;
+  const aria = zh
+    ? `Think${summary ? ` · ${summary.slice(0, 48)}` : ""}，${open ? "收起" : "展开"}详情`
+    : `Think${summary ? ` · ${summary.slice(0, 48)}` : ""}, ${open ? "collapse" : "expand"} details`;
   // `.think-scroll.convo-plain` 是 `white-space: pre-wrap`：短正文仍是单个文本节点
   // （此前那套 `split("\n")` + `<span><br/>` 只是同样换行铺成几千个 DOM 节点）；长正文
   // 经 `ChunkedText` 按 64 行分块、块上 `content-visibility: auto`，流式期间每帧只为
@@ -222,6 +254,8 @@ const ThinkCard = memo(function ThinkCard({ preview, full, truncated, open, foll
  * 一遍参数与 diff（编辑卡是逐行正则），没有它，链里每张卡每帧都要重算一次。
  */
 const ToolItem = memo(function ToolItem({ tool, open, onToggle, slot, showDetail = true }: { tool: ToolView; open: boolean; onToggle: (slot: string) => void; slot: string; showDetail?: boolean }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   // 「仍在运行」的卡片只在收起时放弃动画：它的正文每个发布帧都在变，收起过渡期间
   // 多挂 320ms 是看不见的白渲染。展开与已完成的卡一样走 250ms 过渡，不再整链硬切。
   const instant = tool.status === "running";
@@ -246,18 +280,26 @@ const ToolItem = memo(function ToolItem({ tool, open, onToggle, slot, showDetail
     );
   }
   const label = toolLabel(tool);
-  const detail = showDetail ? chainItemDetail(tool) : undefined;
+  const detail = showDetail ? chainItemDetail(tool, zh) : undefined;
+  const fileMeta = showDetail ? toolHeaderFileMeta(tool) : undefined;
   const running = tool.status === "running";
   const queued = tool.status === "queued";
   const failed = tool.status === "failed";
   const diff = toolDiffStats(tool);
-  const diffLabel = [diff.add ? `新增 ${diff.add} 行` : "", diff.del ? `删除 ${diff.del} 行` : ""].filter(Boolean).join("，");
-  const aria = `${label}${detail ? ` · ${detail}` : ""}${diffLabel ? `，${diffLabel}` : ""}，${statusLabel(tool.status)}，${open ? "收起" : "展开"}详情`;
+  const diffLabel = [
+    diff.add ? (zh ? `新增 ${diff.add} 行` : `added ${diff.add} ${diff.add === 1 ? "line" : "lines"}`) : "",
+    diff.del ? (zh ? `删除 ${diff.del} 行` : `removed ${diff.del} ${diff.del === 1 ? "line" : "lines"}`) : "",
+  ].filter(Boolean).join(zh ? "，" : ", ");
+  const aria = zh
+    ? `${label}${detail ? ` · ${detail}` : ""}${diffLabel ? `，${diffLabel}` : ""}，${statusLabel(tool.status, zh)}，${open ? "收起" : "展开"}详情`
+    : `${label}${detail ? ` · ${detail}` : ""}${diffLabel ? `, ${diffLabel}` : ""}, ${statusLabel(tool.status, zh)}, ${open ? "collapse" : "expand"} details`;
   return (
     <div className={`tl-item${expanded ? " open" : ""}${running ? " is-running" : ""}`} data-kind={kind} data-status={tool.status} data-tool-call-id={tool.toolCallId}>
       <button
         type="button"
         className={`tl-row${failed ? " is-error" : ""}${running ? " is-running" : ""}`}
+        data-ftype={fileMeta?.ftype ?? undefined}
+        data-secret={fileMeta?.secret || undefined}
         aria-expanded={open}
         aria-label={aria}
         onClick={() => onToggle(slot)}
@@ -269,7 +311,12 @@ const ToolItem = memo(function ToolItem({ tool, open, onToggle, slot, showDetail
         {detail ? (
           <>
             <span className="tl-sep">·</span>
-            <span className={`tl-detail${isPathKind(kind) ? " is-path" : ""}`}>{detail}</span>
+            {fileMeta ? (
+              <span className="tl-file-icon" aria-hidden="true">
+                <Icon name={fileMeta.icon} extra="sm" />
+              </span>
+            ) : null}
+            <span className={`tl-detail${fileMeta !== undefined || kind === "glob" ? " is-path" : ""}`}>{detail}</span>
           </>
         ) : null}
         {diff.add || diff.del ? (
@@ -318,6 +365,8 @@ export function BatchChain({
   liveAgents?: readonly StudioAgentSnapshot[];
   onInspectSubagent?: (target: SubagentHubTarget) => void;
 }) {
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   // 展开状态按「槽位」寻址而不是按 segment key：同一条链在 live → 落盘之间会换 key
   // （`m1:thinking:0` → `thinking-0`），按槽位寻址才不会在落盘那一刻丢掉展开状态。
   const chain: { readonly slot: string; readonly item: ChainItem }[] = [];
@@ -404,7 +453,7 @@ export function BatchChain({
   // 不触发整棵子树重挂载（重挂载会把首张卡的展开状态和过渡动画一起吞掉）。
   const single = cards.length === 1;
   const batchOpen = open || single;
-  const summary = batchSummary(thinking, visible);
+  const summary = batchSummary(thinking, visible, zh);
   return (
     <div
       className={`${standalone ? "ev " : ""}ev-batch${single ? " is-single" : ""}${batchOpen ? " open" : ""}${running ? " is-running" : ""}`}

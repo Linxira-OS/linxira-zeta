@@ -154,6 +154,7 @@ export function ComposerModelMenu({
     ),
     [data, bySelector],
   );
+  /* Chat picker: Judge, speech, image and other role runners stay in their roles. */
   const groups = useMemo(
     () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels), data.providers) : []),
     [data],
@@ -375,6 +376,8 @@ export function ComposerModelPicker({
   const [taskPicking, setTaskPicking] = useState(false);
   const [previewTaskPick, setPreviewTaskPick] = useState<ComposerPick | null>(null);
   const [selecting, setSelecting] = useState(false);
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
 
   useEffect(() => {
     if (openNonce > 0) setMenu("model");
@@ -386,7 +389,7 @@ export function ComposerModelPicker({
   useEffect(() => {
     let cancelled = false;
     if (preview) {
-      setData(createPreviewModelConfig());
+      setData(createPreviewModelConfig(zh));
       setLoadError(null);
       setLoading(false);
       return () => {
@@ -411,7 +414,7 @@ export function ComposerModelPicker({
     return () => {
       cancelled = true;
     };
-  }, [menuOpen, preview, client, refreshKey]);
+  }, [menuOpen, preview, client, refreshKey, zh]);
 
   // 预览：无显式选择时默认跟随 default 角色（退而求其次第一个有模型的角色）。
   useEffect(() => {
@@ -555,8 +558,6 @@ export function ComposerModelPicker({
     }
     apply("session.taskModel.set", { selector: null });
   };
-
-  const { t } = useI18n();
 
   return (
     <>

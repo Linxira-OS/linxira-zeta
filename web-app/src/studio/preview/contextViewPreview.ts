@@ -1,12 +1,13 @@
-import type { ContextCategoryId, ContextEntrySummary, ContextViewIndex } from "@linxiraos/studio-protocol";
+import type { ContextCategoryId, ContextEntrySummary, ContextViewIndex, ContextViewSourceMarker } from "@linxiraos/studio-protocol";
+import { isZh } from "../i18n";
 import { PREVIEW_CONTEXT_CARD } from "./contextCardPreview";
 
 const context = PREVIEW_CONTEXT_CARD;
 const bufferTokens = 200_000;
 
-const ENTRY = (entry: Omit<ContextEntrySummary, "bytes" | "preview"> & { preview?: string }): ContextEntrySummary => ({
+const ENTRY = (entry: Omit<ContextEntrySummary, "bytes" | "preview"> & { preview?: string }, zh = isZh()): ContextEntrySummary => ({
   bytes: Math.max(120, entry.tokens * 2),
-  preview: (entry.preview ?? `${entry.label} 的正文摘要只用于列表预览，完整内容在右侧读取。`).slice(0, 480),
+  preview: (entry.preview ?? (zh ? `${entry.label} 的正文摘要只用于列表预览，完整内容在右侧读取。` : `Summary preview for ${entry.label}; read the full body on the right.`)).slice(0, 480),
   ...entry,
 });
 
@@ -63,11 +64,13 @@ export const PREVIEW_CONTEXT_VIEW: ContextViewIndex = {
   thresholdTokens: 800_000,
   savedTokens: 6_400,
   truncated: false,
+  notices: ["1 instruction file stays in System Prompt: the system prompt changed after it was built (e.g. by an extension hook or SDK callback)."],
   model: { id: "preview-model", name: "preview-model" },
   snapcompact: { visionCapable: true, savedTokens: 6_400 },
   categories: [
-    { id: "system-prompt", label: "System Prompt", tokens: context.systemPromptTokens + context.systemContextTokens, entries: 2, overviewLabel: "System Prompt (excluding Skills)" },
-    { id: "skills", label: "Skills", tokens: context.skillsTokens, entries: 0, openable: false },
+    { id: "system-prompt", label: "System Prompt", tokens: context.systemPromptTokens, entries: 2 },
+    { id: "instruction-files", label: "Instruction Files", tokens: context.systemContextTokens, entries: 2 },
+    { id: "skills", label: "Skills", tokens: context.skillsTokens, entries: 1 },
     { id: "built-in-tools", label: "Built-in Tools", tokens: 12_000, entries: 3 },
     { id: "custom-tools", label: "Custom Tools", tokens: 6_000, entries: 1 },
     { id: "user-messages", label: "User / Developer Messages", tokens: 30_000, entries: 3 },
@@ -87,18 +90,23 @@ export const PREVIEW_CONTEXT_VIEW: ContextViewIndex = {
   ],
 };
 
-export function previewContextEntries(category: ContextCategoryId): ContextEntrySummary[] {
-  return ENTRIES[category] ?? [];
+export function previewContextEntries(category: ContextCategoryId, zh = isZh()): ContextEntrySummary[] {
+  return buildEntries(zh)[category] ?? [];
 }
 
-export function previewContextText(category: ContextCategoryId, entry: ContextEntrySummary): string {
+export function previewContextText(category: ContextCategoryId, entry: ContextEntrySummary, zh = isZh()): string {
+  if (entry.id === "system-prompt/0") return SOURCE_TEXT;
   if (category === "assistant-thinking")
     return entry.interrupted
-      ? "N/A · Interrupted\n\n这一轮被中断，推理内容没有回流。"
-      : "[Encrypted thinking]\nsignature · 384 chars\n\n不展示签名或加密内容的字节。";
+      ? (zh ? "N/A · Interrupted\n\n这一轮被中断，推理内容没有回流。" : "N/A · Interrupted\n\nThis turn was interrupted; thinking content did not stream back.")
+      : (zh ? "[Encrypted thinking]\nsignature · 384 chars\n\n不展示签名或加密内容的字节。" : "[Encrypted thinking]\nsignature · 384 chars\n\nSignature and encrypted bytes are omitted.");
   if (category === "tool-output")
-    return `${entry.preview ?? ""}\n\n…\n\n（完整正文在快照里分页读取，这里只有开头几行。）`;
+    return zh
+      ? `${entry.preview ?? ""}\n\n…\n\n（完整正文在快照里分页读取，这里只有开头几行。）`
+      : `${entry.preview ?? ""}\n\n…\n\n(Full body is paginated from the snapshot; only the first few lines are shown here.)`;
   if (category === "built-in-tools" || category === "custom-tools")
-    return `${entry.label}\n\n读取文件及分页内容。\n\n{\n  "type": "object",\n  "properties": { "path": { "type": "string" } }\n}`;
-  return `${entry.preview ?? ""}\n\n快照只在打开时读取，关闭即释放。类别与 token 估算都来自当前会话的原生视图。`;
+    return `${entry.label}\n\n${zh ? "读取文件及分页内容。" : "Read file and paginated contents."}\n\n{\n  "type": "object",\n  "properties": { "path": { "type": "string" } }\n}`;
+  return zh
+    ? `${entry.preview ?? ""}\n\n快照只在打开时读取，关闭即释放。类别与 token 估算都来自当前会话的原生视图。`
+    : `${entry.preview ?? ""}\n\nSnapshots are read only while open and released on close. Categories and token estimates come from the session's native view.`;
 }
