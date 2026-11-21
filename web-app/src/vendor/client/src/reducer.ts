@@ -178,6 +178,10 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "models.available.refresh": true,
   "models.auth.unpause": true,
  "timeTravel.settings.set": true, "timeTravel.restore": true, "timeTravel.cleanup": true,
+  "fs.file.writeText": true,
+  "fs.directory.create": true,
+  "fs.rename": true,
+  "fs.trash": true,
  "extensions.links.activate": true, "browser.webmcp.invoke": true,
  "browser.native.open": true, "browser.native.close": true,
  "models.systemTemplates.binding.set": true, "models.systemTemplates.file.write": true,
@@ -688,7 +692,6 @@ function preserveHostOwnedCommand(command: CommandState): boolean {
     || command.commandName === "timeTravel.cleanup"
     || command.commandName === "runtime.ensure"
     || command.commandName === "workspace.open"
-    || command.commandName === "workspace.openPath"
     || command.commandName.startsWith("fs.")
     || command.commandName === "workspace.pick"
     || command.commandName === "workspace.forgetUnavailable"

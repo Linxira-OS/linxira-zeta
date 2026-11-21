@@ -111,7 +111,7 @@ export const MODEL_API_TYPES: ReadonlyArray<{ id: ModelApiKind | string; label: 
 
 export function getModelAuthTypes(zh = isZh()): ReadonlyArray<{ id: ModelAuthType; label: string; hint: string }> {
   return [
-    { id: "oauth", label: "Zeta Login / OAuth", hint: zh ? "用 omp login 写入本机凭据" : "Write local credentials with omp login" },
+    { id: "oauth", label: "Zeta Login / OAuth", hint: zh ? "用 zetacode login 写入本机凭据" : "Write local credentials with zetacode login" },
     { id: "api-key", label: "API Key", hint: zh ? "密钥写入 models.yml" : "Write secret to models.yml" },
     { id: "env", label: "Environment Variable", hint: zh ? "从环境变量读取，不写密钥" : "Read from environment variable without saving secrets" },
     { id: "command", label: "External Command", hint: zh ? "用命令取密，Secret 不落盘" : "Fetch secret via command without writing to disk" },
@@ -263,6 +263,7 @@ export function createPreviewModelConfig(zh = isZh()): ModelConfigReadModel {
       { id: "modular", name: "Modular Cloud", desc: zh ? "云端模型" : "Cloud models", api: "openai-completions", auth: ["api-key", "env"], endpoint: "https://api.modular.com/v1" },
     ] }],
     roles,
+    hiddenModels: [],
     cycleOrder: ["smol", "default", "slow"],
     availableModels,
     loginProviders: [

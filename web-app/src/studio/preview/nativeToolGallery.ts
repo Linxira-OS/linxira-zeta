@@ -188,8 +188,8 @@ export function getNativeToolGallery(zh = isZh()): readonly { readonly [key: str
       ],
     },
     {
-      kind: "hub", name: "Hub", target: "IRC ➤ #omp", status: "done", dur: "0.4s",
-      hubKind: "irc", to: "#omp", text: zh ? "typecheck 已通过" : "typecheck passed", receipt: "delivered",
+      kind: "hub", name: "Hub", target: "IRC ➤ #zeta", status: "done", dur: "0.4s",
+      hubKind: "irc", to: "#zeta", text: zh ? "typecheck 已通过" : "typecheck passed", receipt: "delivered",
     },
     {
       kind: "todo", name: "Todo", target: zh ? "update phase 验证" : "update phase Verification", status: "done", dur: "0.1s",
@@ -222,17 +222,17 @@ export function getNativeToolGallery(zh = isZh()): readonly { readonly [key: str
     },
     {
       kind: "retain", name: "Retain", status: "done", dur: "0.3s",
-      stored: 2, items: zh ? ["zeta-web 会话目录是 ~/.omp/agent/sessions/", "代码主题走 useCodeTheme"] : ["zeta-web session dir is ~/.omp/agent/sessions/", "Code theme uses useCodeTheme"],
+      stored: 2, items: zh ? ["zeta-web 会话目录是 ~/.zeta/agent/sessions/", "代码主题走 useCodeTheme"] : ["zeta-web session dir is ~/.zeta/agent/sessions/", "Code theme uses useCodeTheme"],
     },
     {
       kind: "recall", name: "Recall", target: zh ? "zeta-web 路径适配" : "zeta-web path adaptation", status: "done", dur: "0.4s",
       query: zh ? "zeta-web 路径适配" : "zeta-web path adaptation", count: 1,
-      excerpts: [zh ? "会话、models.json、config.yml 都在 ~/.omp/agent/ 下，不要写回 pi-web 路径。" : "Sessions, models.json, and config.yml live under ~/.omp/agent/; do not write back pi-web paths."],
+      excerpts: [zh ? "会话、models.json、config.yml 都在 ~/.zeta/agent/ 下，不要写回 pi-web 路径。" : "Sessions, models.json, and config.yml live under ~/.zeta/agent/; do not write back pi-web paths."],
     },
     {
       kind: "reflect", name: "Reflect", target: zh ? "这次同步该保留什么？" : "What should this sync preserve?", status: "done", dur: "0.6s",
       query: zh ? "这次同步该保留什么？" : "What should this sync preserve?",
-      answer: zh ? "保留包名、CLI 名、~/.omp/agent/ 路径和 useCodeTheme；吸纳 DirectoryPicker 与 loopback 监听。" : "Preserve package names, CLI name, ~/.omp/agent/ paths, and useCodeTheme; adopt DirectoryPicker and loopback listener.",
+      answer: zh ? "保留包名、CLI 名、~/.zeta/agent/ 路径和 useCodeTheme；吸纳 DirectoryPicker 与 loopback 监听。" : "Preserve package names, CLI name, ~/.zeta/agent/ paths, and useCodeTheme; adopt DirectoryPicker and loopback listener.",
     },
     {
       kind: "memory_edit", name: "Memory Edit", target: "update mem_02", status: "done", dur: "0.2s",
@@ -247,7 +247,7 @@ export function getNativeToolGallery(zh = isZh()): readonly { readonly [key: str
     {
       kind: "manage_skill", name: "Manage Skill", target: "create upstream-sync", status: "done", dur: "0.5s",
       args: { action: "create", name: "upstream-sync" },
-      output: "skill created at .omp/skills/upstream-sync/SKILL.md",
+      output: "skill created at .zeta/skills/upstream-sync/SKILL.md",
     },
     {
       kind: "yield", name: "Submit Result", target: "type: result", status: "done", dur: "0.1s",

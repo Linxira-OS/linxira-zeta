@@ -110,7 +110,7 @@ function fakeScreen() {
     dispose: () => { disposed += 1; },
   };
   return {
-    host: { screen: host } as unknown as TerminalScreenHost,
+    host: host as unknown as TerminalScreenHost,
     writes,
     written: () => writes.join(""),
     get disposed(): number {

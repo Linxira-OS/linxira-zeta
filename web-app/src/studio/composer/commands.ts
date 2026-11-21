@@ -169,6 +169,7 @@ function manifestDisabledReason(entry: OperatorCommandManifestEntry, metadata: S
   const zh = isZh();
   if (entry.presentation === "terminal" && !hasLocalSlashMapping(metadata)) return "此指令需要终端交互，暂不能在 Z Work Studio 中执行";
   if (entry.availability === "available") return undefined;
+  if (metadata?.availability === "disabled" && metadata.disabledReason) return metadata.disabledReason;
   return entry.availability === "blocked"
     ? (zh ? "Runtime 已阻止此指令" : "Blocked by Runtime")
     : (zh ? "Runtime 已禁用此指令" : "Disabled by Runtime");
@@ -185,7 +186,7 @@ function manifestDisabledReason(entry: OperatorCommandManifestEntry, metadata: S
 export function mergeSlashCatalogWithManifest(manifest?: OperatorCommandManifest, zh = isZh()): StudioSlashCommand[] {
   if (manifest === undefined) return visibleSlashCatalog(zh);
 
-  return manifest.commands.map((entry) => {
+  const merged: StudioSlashCommand[] = manifest.commands.map((entry) => {
     const rawMetadata = BUILTIN_SLASH_CATALOG.find((command) => manifestMatchesStatic(entry, command));
     const metadata = rawMetadata ? localizeSlashCommand(rawMetadata, zh) : undefined;
     const schemaAllowsArgs = manifestAllowsArgs(entry);
@@ -196,7 +197,7 @@ export function mergeSlashCatalogWithManifest(manifest?: OperatorCommandManifest
     const select = localSelect ?? (allowArgs ? "complete-args" : "run-now");
     const aliases = [...new Set(entry.aliases.map(bareSlashName).filter((alias) => alias.length > 0))];
     const name = bareSlashName(entry.name);
-    const disabledReason = manifestDisabledReason(entry, metadata, zh);
+    const disabledReason = manifestDisabledReason(entry, metadata);
     return {
       name,
       aliases,
@@ -216,6 +217,14 @@ export function mergeSlashCatalogWithManifest(manifest?: OperatorCommandManifest
       ...(entry.side ? { side: true } : {}),
     } satisfies StudioSlashCommand;
   });
+  // Disabled builtins stay visible even when this Runtime omits them from its
+  // manifest: they carry the localized "not implemented" explanation and must
+  // not disappear merely because a capability is unavailable.
+  const present = new Set(merged.map((command) => command.name));
+  for (const command of visibleSlashCatalog(zh)) {
+    if (command.availability === "disabled" && !present.has(command.name)) merged.push(command);
+  }
+  return merged;
 }
 
 function onOffStatus(extra: string): readonly SlashSubcommand[] {

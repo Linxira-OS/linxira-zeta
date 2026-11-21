@@ -302,6 +302,7 @@ export class ProjectReads {
       await wait(2000);
       if (!await idle()) return;
       await this.read("skills.get", {}, true).catch(() => {});
+      await this.read("models.get", {}, true).catch(() => {});
       if (!await idle()) return;
       const history = await this.read("history.list", { workspaceId: this.workspaceId, limit: WARM_HISTORY_SCAN_LIMIT, status: "active" }, true);
       if (!await idle()) return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { QueryResult, StudioClient, WorkspaceId } from "@linxiraos/studio-contract"
 import { hostErrorMessage } from "../hostError";
 import { useI18n } from "../i18n";

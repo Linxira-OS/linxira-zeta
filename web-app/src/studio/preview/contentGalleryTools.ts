@@ -14,7 +14,7 @@ function buildExtraCards(zh: boolean): readonly Card[] {
     ] },
     { kind: "process", name: "read", path: "proc://renderer-check", daemon: { name: "renderer-check", state: "exited", exitCode: 0, persist: false }, status: "completed", result: { stdout: "72 suites passed", exitCode: 0 } },
     { kind: "agent_message", name: "write", path: "agent://scout", status: "delivered", result: { agent: "scout", message: zh ? "请补充浅色与深色下的正文检查记录。" : "Please add prose verification notes in light and dark themes.", accepted: true } },
-    { kind: "documentation", name: "read", path: "omp://tools/read", args: { path: "omp://tools/read" }, output: zh ? "# Read\n读取文件、进程、Agent 消息和内置文档。\n\n支持 offset / limit 与 Markdown 结果。" : "# Read\nRead files, processes, Agent messages, and built-in docs.\n\nSupports offset / limit and Markdown output." },
+    { kind: "documentation", name: "read", path: "zeta://tools/read", args: { path: "zeta://tools/read" }, output: zh ? "# Read\n读取文件、进程、Agent 消息和内置文档。\n\n支持 offset / limit 与 Markdown 结果。" : "# Read\nRead files, processes, Agent messages, and built-in docs.\n\nSupports offset / limit and Markdown output." },
     { kind: "wait", name: "Wait", op: "wait", jobs: [
       { id: "gallery-types", label: zh ? "类型检查" : "Type check", type: "process", status: "completed", completionPercent: 100, exitCode: 0, durationMs: 980 },
       { id: "gallery-render", label: zh ? "界面检查" : "UI inspection", type: "agent", status: "running", stage: zh ? "检查窄阅读列" : "Checking narrow column", completionPercent: 68, durationMs: 4200 },

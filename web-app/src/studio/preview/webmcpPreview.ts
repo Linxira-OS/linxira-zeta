@@ -4,7 +4,7 @@ import { isZh } from "../i18n";
 export function getPreviewWebMcp(zh = isZh()): StudioWebMcpCatalog {
   return {
     pageId: "preview-page", documentId: "preview-document", status: "ready", truncated: false, untrusted: true, invocationAvailable: true,
-    tools: [{ name: "search_docs", description: zh ? "搜索 Studio 使用说明" : "Search Studio documentation", frameId: "main", origin: "http://localhost:4173", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, untrusted: true }],
+    tools: [{ name: "search_docs", description: zh ? "搜索 Z Work Studio 使用说明" : "Search Z Work Studio documentation", frameId: "main", origin: "http://localhost:4173", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }, untrusted: true }],
   };
 }
 

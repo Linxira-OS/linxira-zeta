@@ -35,6 +35,8 @@ export interface UnifiedUpdateComponent {
 	readonly method?: UnifiedUpdateMethod | undefined;
 	readonly currentVersion?: string | undefined;
 	readonly blockedReason?: string | undefined;
+	readonly manualInstallUrl?: string | undefined;
+	readonly requiresSystemAuthorization?: boolean | undefined;
 	readonly message?: string | undefined;
 	readonly errorStage?: UnifiedUpdateErrorStage | undefined;
 	readonly receivedBytes?: number | undefined;

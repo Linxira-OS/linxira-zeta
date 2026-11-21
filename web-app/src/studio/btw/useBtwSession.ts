@@ -28,7 +28,6 @@ export interface BtwSessionInput {
   /** Fixture question shown while previewing; ignored outside preview mode. */
   readonly previewQuestion?: string;
   readonly canCommand: boolean;
-  readonly mainStreaming?: boolean;
   /** After a successful branch, switch the workbench to the new session. */
   readonly onBranched?: (sessionId: string) => void | Promise<void>;
 }
@@ -73,7 +72,13 @@ export interface BtwSessionApi {
   abort(): Promise<void>;
   branch(): Promise<void>;
   inject?(id?: string): Promise<void>;
+  /** Send only the latest completed answer to the main conversation. */
+  injectLatest?(): Promise<void>;
+  /** Send the whole visible conversation (questions + answers) to main. */
+  injectConversation?(mode: "full" | "selected", topicIds?: readonly string[]): Promise<void>;
+  readonly canInject?: boolean;
   copy(): Promise<void>;
+  copyConversation?(): Promise<void>;
   dismissNotice(): void;
 }
 
@@ -152,7 +157,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
       if (generation !== selectionGeneration.current) return;
       const result = input.preview ? { turns: demoHistory.current.get(topicId) ?? [] } : input.client ? await invokeUpgrade(input.client, "btw.history.read", { topicId }) : null;
       if (generation !== selectionGeneration.current || !result) return;
-      setTurns(result.turns);
+      setTurns(result.turns ?? []);
       const last = result.turns[result.turns.length - 1];
       if (last) {
         setQuestion(last.question);
@@ -266,7 +271,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     const generation = selectionGeneration.current;
     void invokeUpgrade(input.client, "btw.history.read", { topicId: selectedTopicId }).then(result => {
       if (generation !== selectionGeneration.current) return;
-      setTurns(result.turns);
+      setTurns(result.turns ?? []);
       setQuestionImages(result.turns.at(-1)?.images ?? []);
     }).catch(cause => { if (generation === selectionGeneration.current) setError(hostErrorMessage(cause, tRef.current("runtimeUpgrade.btwHistoryUnavailable"))); });
   }, [input.client, input.preview, historyAvailable, selectedTopicId, live?.ephemeralId, live?.status]);
@@ -298,17 +303,16 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
 
   const running = live?.status === "running" || (expectedRoundRef.current !== null && live?.ephemeralId !== expectedRoundRef.current);
   const canAbort = running && !pending;
-  const canBranch = snapshot !== null && snapshot.status === "completed" && activeToken !== null && branchedId === null && !input.mainStreaming;
+  const canBranch = snapshot !== null && snapshot.status === "completed" && activeToken !== null && branchedId === null;
   const branchBlockedReason = useMemo(() => {
     if (canBranch) return undefined;
-    if (input.mainStreaming) return t("btw.branchMainBusy");
     if (snapshot === null) return zh ? "还没有 BTW 答案" : "No BTW answer yet";
     if (branchedId !== null) return zh ? "本轮已分支" : "Already branched in this round";
     if (snapshot.status === "running") return zh ? "等答案写完再分支" : "Wait for the answer to finish before branching";
     if (snapshot.status !== "completed") return zh ? "只有已完成的答案可以分支" : "Only completed answers can be branched";
-    if (turns.length > 1) return t("runtimeUpgrade.btwBranchBlockedHistory");
+    if (turns?.length > 1) return t("runtimeUpgrade.btwBranchBlockedHistory");
     return zh ? "分支凭据已失效，重新问一次" : "Branch token expired; ask again";
-  }, [branchedId, canBranch, snapshot, turns.length, input.mainStreaming, t, zh]);
+  }, [branchedId, canBranch, snapshot, turns?.length, t, zh]);
 
   const dispatch = useCallback(
     async <TResult>(name: CommandName, payload: unknown): Promise<TResult> => {
@@ -483,7 +487,84 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     }
   };
 
+  const injectPrompt = useCallback(async (text: string, label: string) => {
+    if (!injectionAvailable || !input.client || !input.sessionId) {
+      setError(zhRef.current ? "当前 Runtime 不支持注入主会话" : "Injection into the main session is unavailable");
+      return;
+    }
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError(undefined);
+    try {
+      await input.prepareTarget?.();
+      const handle = await input.client.command("btw.inject", { sessionId: input.sessionId, text });
+      await waitReceipt(input.client, handle.requestId);
+      setNotice(zhRef.current ? `${label}已发送到主会话` : `${label} sent to the main session`);
+    } catch (cause) {
+      setError(hostErrorMessage(cause, zhRef.current ? "注入主会话失败" : "Failed to inject into the main session"));
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }, [input.client, input.prepareTarget, input.sessionId, injectionAvailable]);
+
+  const injectLatest = useCallback(async () => {
+    const text = snapshot?.text.trim() || [...turns].reverse().find(turn => turn.answer.trim())?.answer.trim();
+    if (!text) {
+      setError(zhRef.current ? "还没有可发送的 BTW 内容" : "There is no BTW content to send yet");
+      return;
+    }
+    await injectPrompt(text, zhRef.current ? "最新回答" : "Latest answer");
+  }, [injectPrompt, snapshot?.text, turns]);
+
+  const injectConversation = useCallback(async (mode: "full" | "selected", topicIds: readonly string[] = []) => {
+    const row = (questionText: string, answerText: string) =>
+      `${zhRef.current ? "问题" : "Question"}：${questionText.trim()}\n\n${zhRef.current ? "回答" : "Answer"}：${answerText.trim()}`;
+    let sections: string[] = [];
+    if (mode === "full") {
+      sections = turns.map(turn => row(turn.question, turn.answer));
+      if (snapshot?.text.trim() && !sections.some(section => section.includes(snapshot.text.trim()))) {
+        sections.push(row(snapshot.question || question, snapshot.text));
+      }
+    } else {
+      if (!input.client || topicIds.length === 0) return;
+      await input.prepareTarget?.();
+      for (const topicId of topicIds) {
+        const result = await invokeUpgrade(input.client, "btw.history.read", { topicId });
+        const title = topics.find(topic => topic.topicId === topicId)?.title;
+        const body = result.turns.map(turn => row(turn.question, turn.answer)).join("\n\n");
+        sections.push(`${title ? `${title}\n\n` : ""}${body}`);
+      }
+    }
+    if (sections.length === 0 && snapshot?.text.trim()) sections.push(row(snapshot.question || question, snapshot.text));
+    if (sections.length === 0) {
+      setError(zhRef.current ? "还没有可发送的 BTW 内容" : "There is no BTW content to send yet");
+      return;
+    }
+    const prefix = zhRef.current ? "以下是 BTW 侧路讨论，请据此继续主任务。" : "The following is a BTW side discussion; continue the main task accordingly.";
+    await injectPrompt(`${prefix}\n\n${sections.join("\n\n---\n\n")}`, zhRef.current ? "所选讨论" : "Selected discussion");
+  }, [input.client, input.prepareTarget, injectPrompt, question, snapshot?.question, snapshot?.text, topics, turns]);
+
+  const copyConversation = useCallback(async () => {
+    const row = (questionText: string, answerText: string) =>
+      `${zhRef.current ? "问题" : "Question"}：${questionText.trim()}\n\n${zhRef.current ? "回答" : "Answer"}：${answerText.trim()}`;
+    const sections = turns.map(turn => row(turn.question, turn.answer));
+    if (snapshot?.text.trim() && !sections.some(section => section.includes(snapshot.text.trim()))) {
+      sections.push(row(snapshot.question || question, snapshot.text));
+    }
+    if (sections.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(sections.join("\n\n---\n\n"));
+      setNotice(zhRef.current ? "已复制完整对话和问题" : "Full conversation copied");
+    } catch {
+      setError(zhRef.current ? "剪贴板不可用" : "Clipboard unavailable");
+    }
+  }, [question, snapshot?.question, snapshot?.text, turns]);
+
   const dismissNotice = useCallback(() => setNotice(undefined), []);
+
+
 
   return {
     ...(!input.preview && input.client && imagePathsAvailable ? { resolveImagePaste: async (text: string) => (await invokeUpgrade(input.client!, "btw.images.resolve", { text })).images } : {}),
@@ -510,8 +591,9 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     ask,
     abort,
     branch,
-    ...(injectionAvailable ? { inject } : {}),
+    ...(injectionAvailable ? { inject, canInject: !pending, injectLatest, injectConversation } : {}),
     copy,
+    copyConversation,
     dismissNotice,
   };
 }

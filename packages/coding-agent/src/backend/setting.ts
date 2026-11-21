@@ -25,7 +25,9 @@ async function settingsForWrite(settings: Settings | undefined): Promise<Setting
 export async function readBackendEnabledSetting(options: { settings?: Settings } = {}): Promise<boolean> {
 	const settings = await settingsForRead(options.settings);
 	const global = settings.getGlobalSettings() as GlobalBackendLayer;
-	return global.backend?.enabled === true;
+	// The default is on; only an explicit `false` opts out. This must not use
+	// `merged` settings: a checkout cannot disable a machine-wide service.
+	return global.backend?.enabled !== false;
 }
 
 export async function writeBackendEnabledSetting(value: boolean, options: { settings?: Settings } = {}): Promise<void> {

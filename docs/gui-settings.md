@@ -53,11 +53,11 @@ they run inside an external terminal: that terminal owns its font.
 ([daemon](./daemon.md#the-desktop-app)):
 
 - On launch the window reads `zetacode backend status --json`. If
-  `backend.enabled` is **false** (the default), it starts nothing: every
-  `zetacode` tab is a local process. If it is true, the window connects to the
+  `backend.enabled` is **true** (the default), the window connects to the
   single backend or starts it through `backend on` in `backend.workspace`.
-  The backend serves print/protocol runs and the Work Studio surface; the
-  interactive TUI remains a local process in both modes.
+  If it is false, the window starts nothing and every `zetacode` tab is local.
+  The backend serves print/protocol runs and the Work Studio surface; an
+  interactive TUI connects when a backend is live and otherwise stays local.
 - **后台服务** shows the live state (off / starting / running with pid and
   `webUrl` / stopped / failed) and carries 启动, 重启 and 停止. 启动 executes
   `backend on`; 停止 executes `backend off` and drains active turns; 重启
@@ -67,10 +67,10 @@ they run inside an external terminal: that terminal owns its font.
   off, quitting asks `backend off` (detached) for a backend this window
   started, so the product switch is cleared and turns drain. A backend that was
   already live when the window opened is never stopped by the window.
-- **Enable Backend Mode** (`backend.enabled`, default `false`) is the
-  machine-wide switch: off means every bare `zetacode` is a local process; on
-  means print/protocol runs connect to the one hidden backend while the TUI
-  stays local. **Backend Default Workspace** (`backend.workspace`) is the
+- **Enable Backend Mode** (`backend.enabled`, default `true`) is the
+  machine-wide switch: on means launches connect to the one hidden backend;
+  off means every bare `zetacode` stays local. A TUI falls back to a local
+  process only when no backend is reachable. **Backend Default Workspace** (`backend.workspace`) is the
   directory that backend starts in.
 - **Start Backend at Login** (`backend.autostart`, default `false`) is the
   gateway-driven checkbox in 全部设置 → 交互 → 启动与更新. It writes the same

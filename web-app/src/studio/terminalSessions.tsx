@@ -6,6 +6,7 @@ import { TerminalGraphicsDecoder, type TerminalGraphic } from "./terminalGraphic
 import { isZh } from "./i18n";
 import type { TerminalCommand } from "../../../desktop/src/terminal-shared";
 import type { TmuxAction, TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
+import type { StudioTerminalApi } from "./terminals/api";
 
 type Api = NonNullable<typeof globalThis.zetaStudioTerminal>;
 export interface TerminalSession {
@@ -129,6 +130,8 @@ export class TerminalPendingOutput {
   }
 }
 
+const TERMINAL_STORAGE_KEY = "zeta.studio.terminals.v1";
+
 export class TerminalSessions {
   readonly hosts = new Map<string, TerminalScreenHost>();
   /** Ordered backlog per terminal that has no xterm host yet. */
@@ -162,7 +165,7 @@ export class TerminalSessions {
   #creating = 0;
   #closed = false;
 
-  constructor(readonly api: Api | undefined) {}
+  constructor(readonly api: Api | StudioTerminalApi | undefined) {}
   snapshot = (): TerminalState => this.#state;
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
 
@@ -178,6 +181,7 @@ export class TerminalSessions {
       const session: TerminalSession = { ...info, targetId, ...(conversationId ? { conversationId } : {}), status: this.#earlyExits.delete(info.id) ? "ended" : "running", ...(workspaceId ? { workspaceId } : {}), ...(sessionId ? { sessionId } : {}) };
       this.activeIds.set(terminalOwnerKey(targetId, workspaceId, conversationId ?? sessionId), info.id);
       this.#publish({ ...this.#state, sessions: [...this.#state.sessions, session] });
+      this.#persist();
       return info.id;
     } finally {
       this.#creating--;
@@ -206,6 +210,38 @@ export class TerminalSessions {
     const { [id]: _notice, ...notices } = this.#state.notices;
     const { [id]: _control, ...controlMode } = this.#state.controlMode;
     this.#publish({ ...this.#state, sessions: this.#state.sessions.filter(session => session.id !== id), graphics, graphicsErrors, notices, controlMode });
+    this.#persist();
+  }
+
+  /** Restore non-tmux shells in the tab session after a Studio reload. */
+  async restore(): Promise<void> {
+    if (typeof sessionStorage === "undefined") return;
+    let rows: Array<Pick<TerminalSession, "targetId" | "workspaceId" | "sessionId" | "conversationId">> = [];
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(TERMINAL_STORAGE_KEY) ?? "[]") as unknown;
+      if (Array.isArray(parsed)) rows = parsed.filter((row): row is typeof rows[number] => !!row && typeof row === "object" && "targetId" in row);
+    } catch { return; }
+    for (const row of rows) {
+      const id = await this.create(row.targetId, row.workspaceId, row.sessionId, row.conversationId);
+      this.activeIds.set(terminalOwnerKey(row.targetId, row.workspaceId, row.conversationId ?? row.sessionId), id);
+    }
+  }
+
+  /** Replace a shell with a fresh PTY while preserving its owner and tab. */
+  async restart(id: string, shell: TerminalCommand["shell"] = "bash"): Promise<string> {
+    const session = this.#state.sessions.find(item => item.id === id);
+    if (!session) throw new Error("Terminal no longer exists");
+    await this.remove(id);
+    return this.create(session.targetId, session.workspaceId, session.sessionId, session.conversationId, { shell, text: "" });
+  }
+
+  #persist(): void {
+    if (typeof sessionStorage === "undefined") return;
+    try {
+      sessionStorage.setItem(TERMINAL_STORAGE_KEY, JSON.stringify(this.#state.sessions
+        .filter(session => session.kind !== "tmux-pane")
+        .map(({ targetId, workspaceId, sessionId, conversationId }) => ({ targetId, workspaceId, sessionId, conversationId }))));
+    } catch { /* storage can be full or disabled; restoring is best-effort */ }
   }
 
   async disposeConversation(conversationId: string): Promise<void> {
@@ -280,7 +316,7 @@ export class TerminalSessions {
     if (this.#closed) return;
     this.#closed = true;
     this.#off?.();
-    for (const session of this.#state.sessions) if (session.kind !== "tmux-pane") void this.api?.dispose(session.id).catch(() => {});
+    for (const session of this.#state.sessions) if (session.kind !== "tmux-pane") void Promise.resolve(this.api?.dispose(session.id)).catch(() => {});
     for (const id of Object.keys(this.#state.tmux)) void this.api?.tmuxDetach?.(id).catch(() => {});
     for (const id of this.hosts.keys()) this.#releaseScreen(id);
     this.activeIds.clear();

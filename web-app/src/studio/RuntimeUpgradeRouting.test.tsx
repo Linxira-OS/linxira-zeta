@@ -107,6 +107,18 @@ it("keeps legacy BTW snapshots visible when the Runtime has no history capabilit
  expect(result.current.canBranch).toBe(true);
 });
 
+it("uses C to inject only the latest completed BTW answer", async () => {
+ vi.mocked(invokeUpgrade).mockResolvedValue({ sessionId: "parent", topics: [] });
+ vi.mocked(waitReceipt).mockResolvedValue({ sent: true });
+ const command = vi.fn(async () => ({ requestId: "inject" }));
+ const client = { command } as unknown as StudioClient;
+ const snapshot: BtwSnapshot = { ephemeralId: "round", topicId: "topic", sessionId: "parent", status: "completed", text: "the latest answer" };
+ const { result } = renderHook(() => useBtwSession({ snapshot, client, preview: false, sessionId: "parent", canCommand: true }));
+ await act(async () => { await result.current.injectLatest?.(); });
+ expect(command).toHaveBeenCalledWith("btw.inject", { sessionId: "parent", text: "the latest answer" });
+ expect(result.current.notice).toContain("已发送");
+});
+
 it("retains the new branch token while its receipt is ahead of the first live snapshot", async () => {
  vi.mocked(invokeUpgrade).mockResolvedValue({ sessionId: "parent", topics: [] });
  vi.mocked(waitReceipt).mockResolvedValue({ ephemeralId: "next", branchToken: "next-token", status: "running" });

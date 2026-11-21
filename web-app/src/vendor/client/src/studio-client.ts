@@ -276,7 +276,7 @@ export class StudioClientImpl implements StudioClient {
       const computerProgressOnly = action.type === "event" && action.event.kind === "computer.changed"
         && next.entities === previous.entities && next.commands === previous.commands
         && next.connection.resyncRequired === previous.connection.resyncRequired;
-      if (!streamProgressOnly) for (const listener of this.stateListeners) {
+      if (!computerProgressOnly) for (const listener of this.stateListeners) {
         listener(this.state);
       }
     }

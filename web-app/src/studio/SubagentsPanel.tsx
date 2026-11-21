@@ -541,7 +541,6 @@ export function SubagentsPanel({
         await runWrite(client, "agents.definition.upsert", upsert);
         wroteDefinition = true;
       }
-      const nextOverrideModel = draft.overrideModel.trim();
       const nextPrewalkOverride = draft.prewalkOverride.trim();
       const nextAdvisorOverride = draft.advisorOverride.trim();
       const needsConfigure =

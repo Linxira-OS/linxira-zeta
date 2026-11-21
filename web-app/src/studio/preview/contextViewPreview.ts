@@ -22,9 +22,9 @@ function buildEntries(zh: boolean): Record<ContextCategoryId, ContextEntrySummar
     ],
     "instruction-files": [
       ENTRY({ id: "instruction-files/agents", label: "AGENTS.md", path: "AGENTS.md", tokens: 27_000, preview: "## Workspace conventions\n\nKeep the typed Z Work Studio Bridge as the capability boundary." }, zh),
-      ENTRY({ id: "instruction-files/project", label: ".omp/project.md", path: ".omp/project.md", tokens: 15_000, preview: "## Project instructions\n\nUse the existing workbench components and scoped resources." }, zh),
+      ENTRY({ id: "instruction-files/project", label: ".zeta/project.md", path: ".zeta/project.md", tokens: 15_000, preview: "## Project instructions\n\nUse the existing workbench components and scoped resources." }, zh),
     ],
-    skills: [ENTRY({ id: "skills/conventions", label: "repo-conventions", path: ".omp/skills/repo-conventions/SKILL.md", tokens: context.skillsTokens, preview: "<skill name=\"repo-conventions\">\nKeep product and Runtime ownership aligned.\n</skill>" }, zh)],
+    skills: [ENTRY({ id: "skills/conventions", label: "repo-conventions", path: ".zeta/skills/repo-conventions/SKILL.md", tokens: context.skillsTokens, preview: "<skill name=\"repo-conventions\">\nKeep product and Runtime ownership aligned.\n</skill>" }, zh)],
     "built-in-tools": [
       ENTRY({ id: "built-in-tools/0", label: "read", tokens: 4_800, info: "native" }, zh),
       ENTRY({ id: "built-in-tools/1", label: "bash", tokens: 4_200, info: "native" }, zh),
@@ -59,9 +59,9 @@ function buildEntries(zh: boolean): Record<ContextCategoryId, ContextEntrySummar
   };
 }
 
-const SOURCE_TEXT = "You are a coding agent running inside the Zeta runtime…\n\n[Shown in Instruction Files: .omp/project.md]\n\n[Shown in Skills: repo-conventions]\n\nAdditional effective policy stays in this block.";
+const SOURCE_TEXT = "You are a coding agent running inside the Zeta runtime…\n\n[Shown in Instruction Files: .zeta/project.md]\n\n[Shown in Skills: repo-conventions]\n\nAdditional effective policy stays in this block.";
 const SOURCE_MARKERS: ContextViewSourceMarker[] = [
-  { label: "[Shown in Instruction Files: .omp/project.md]", category: "instruction-files" as const, entryId: "instruction-files/project" },
+  { label: "[Shown in Instruction Files: .zeta/project.md]", category: "instruction-files" as const, entryId: "instruction-files/project" },
   { label: "[Shown in Skills: repo-conventions]", category: "skills" as const, entryId: "skills/conventions" },
 ].map(({ label, ...marker }) => ({ ...marker, start: SOURCE_TEXT.indexOf(label), end: SOURCE_TEXT.indexOf(label) + label.length }));
 

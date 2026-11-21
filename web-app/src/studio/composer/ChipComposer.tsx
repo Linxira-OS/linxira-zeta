@@ -799,6 +799,25 @@ export const ChipComposer = forwardRef<ChipComposerHandle, Props>(function ChipC
   },[documentVersion,predict,disabled,mention,commandOpen]);
 
   useEffect(() => {
+    // Mounted after a settings/language swap: the text is already in the
+    // editor, so derive the slash menu instead of waiting for a new key event.
+    const editor = editorRef.current;
+    if (!editor) return;
+    const typed = typedSlashSource(snapshotOf(editor, imagesRef.current).doc);
+    if (typed.startsWith("/")) { setSlashSource(typed); setCommandDismissed(false); }
+  }, []);
+  useEffect(() => {
+    // A language/catalog swap can re-render the composer without a new input
+    // event; keep the already-typed slash command menu visible and localized.
+    const editor = editorRef.current;
+    if (!editor) return;
+    const typed = typedSlashSource(snapshotOf(editor, imagesRef.current).doc);
+    if (typed.startsWith("/")) {
+      setSlashSource(typed);
+      setCommandDismissed(false);
+    }
+  }, [slashCatalog]);
+  useEffect(() => {
     setCommandIndex(0);
   }, [slashDraft?.name, detachedCommand]);
 
@@ -1199,7 +1218,9 @@ export const ChipComposer = forwardRef<ChipComposerHandle, Props>(function ChipC
             onBlur?.(event);
             return;
           }
-          closeCommandMenu();
+          if (editorRef.current && typedSlashSource(snapshotOf(editorRef.current, imagesRef.current).doc).startsWith("/")) {
+            setCommandDismissed(false);
+          } else closeCommandMenu();
           onBlur?.(event);
         }}
         onPointerDown={onPointerDown}

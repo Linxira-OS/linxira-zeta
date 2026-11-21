@@ -24,7 +24,7 @@ const page = (sessionId: string, id: number, zh: boolean, patch: Partial<Managed
 
 export function createManagedBrowserPreview(sessionId: string, zh = isZh()): ManagedBrowserPreviewState {
   const tab = getPreviewBrowserTab(zh);
-  const studio = page(sessionId, 1, zh, { title: zh ? "Studio 组件预览" : "Studio Component Preview", url: `${tab.url}/components`, favicon: PREVIEW_FAVICONS.studio, canGoBack: true });
+  const studio = page(sessionId, 1, zh, { title: zh ? "Z Work Studio 组件预览" : "Z Work Studio Component Preview", url: `${tab.url}/components`, favicon: PREVIEW_FAVICONS.studio, canGoBack: true });
   const docs = page(sessionId, 2, zh, { title: zh ? "浏览器 · 使用说明" : "Browser · Guide", url: DOCS_URL, favicon: PREVIEW_FAVICONS.docs, descriptor: { ...previewBrowserDescriptor("webkit", false, zh), sessionId } });
   const story = page(sessionId, 3, zh, { title: "Button · Storybook", url: STORY_URL, favicon: PREVIEW_FAVICONS.storybook, status: "released" });
   return {
@@ -43,7 +43,7 @@ export function createManagedBrowserPreview(sessionId: string, zh = isZh()): Man
 
 const PREVIEW_ORIGIN = getPreviewBrowserTab().url;
 const normalize = (address: string) => address === "about:blank" ? address : new URL(/^https?:\/\//iu.test(address) ? address : `http://${address}`).href;
-const known = (url: string, zh: boolean) => url.startsWith(PREVIEW_ORIGIN) ? { title: zh ? "Studio 组件预览" : "Studio Component Preview", favicon: PREVIEW_FAVICONS.studio } : url.startsWith(DOCS_URL) ? { title: zh ? "浏览器 · 使用说明" : "Browser · Guide", favicon: PREVIEW_FAVICONS.docs } : url.startsWith("http://localhost:6006") ? { title: "Button · Storybook", favicon: PREVIEW_FAVICONS.storybook } : undefined;
+const known = (url: string, zh: boolean) => url.startsWith(PREVIEW_ORIGIN) ? { title: zh ? "Z Work Studio 组件预览" : "Z Work Studio Component Preview", favicon: PREVIEW_FAVICONS.studio } : url.startsWith(DOCS_URL) ? { title: zh ? "浏览器 · 使用说明" : "Browser · Guide", favicon: PREVIEW_FAVICONS.docs } : url.startsWith("http://localhost:6006") ? { title: "Button · Storybook", favicon: PREVIEW_FAVICONS.storybook } : undefined;
 const title = (url: string, zh: boolean) => url === "about:blank" ? (zh ? "新标签页" : "New tab") : known(url, zh)?.title ?? new URL(url).host;
 const update = (state: ManagedBrowserPreviewState, pageId: string, patch: Partial<ManagedBrowserPage>): ManagedBrowserPreviewState => ({ ...state, pages: state.pages.map(page => page.id === pageId ? { ...page, ...patch } : page) });
 const visit = (url: string, zh: boolean): Partial<ManagedBrowserPage> => ({ url, title: title(url, zh), favicon: known(url, zh)?.favicon, status: url === "about:blank" ? "ready" : "loading", error: undefined });

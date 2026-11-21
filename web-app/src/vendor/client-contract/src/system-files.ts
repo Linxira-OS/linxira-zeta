@@ -1,11 +1,12 @@
 import type { WorkspaceId } from "./ids.js";
-import type { WorkspaceFileChunkInput, WorkspaceFileInfo, WorkspaceFileText, WorkspaceFileWrite } from "./files.js";
+import type { WorkspaceFileChunk, WorkspaceFileChunkInput, WorkspaceFileInfo, WorkspaceFileText, WorkspaceFileWrite } from "./files.js";
 
 /** User-selected absolute paths are confined to the Host-owned fs.* service. */
 export interface SystemFileTarget { readonly path: string }
 export type SystemFileInfo = Omit<WorkspaceFileInfo, "workspaceId">;
 export interface SystemFileText extends Omit<WorkspaceFileText, "file"> { readonly file: SystemFileInfo }
 export type SystemFileChunkInput = Omit<WorkspaceFileChunkInput, "workspaceId">;
+export type SystemFileChunk = WorkspaceFileChunk;
 export type SystemFileWrite = Omit<WorkspaceFileWrite, "workspaceId">;
 export type SystemFileSaveResult =
   | { readonly saved: true; readonly file: SystemFileInfo }

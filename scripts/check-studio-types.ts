@@ -11,7 +11,13 @@ for (const project of emitDesktop
 	: ["web-app/tsconfig.app.json", "web-app/tsconfig.node.json", "desktop/tsconfig.json"]) {
 	const file = path.join(root, project);
 	// Each independent npm surface owns its compiler version and module resolver.
-	const compiler = createRequire(path.join(path.dirname(file), "package.json"))("typescript") as typeof ts;
+	const loaded = createRequire(path.join(path.dirname(file), "package.json"))("typescript") as typeof ts & { default?: typeof ts };
+	// A package without its own TypeScript resolves a stub; fall back to the
+	// renderer's compiler so the desktop project still gets a real check.
+	const local = loaded.sys ? loaded : loaded.default;
+	const compiler = local?.sys
+		? local
+		: createRequire(path.resolve(root, "web-app/package.json"))("typescript") as typeof ts;
 	const config = compiler.readConfigFile(file, compiler.sys.readFile);
 	const parsed = compiler.parseJsonConfigFileContent(config.config, compiler.sys, path.dirname(file));
 	const program = compiler.createProgram(parsed.fileNames, {

@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { StudioClient } from "@linxiraos/studio-contract"
+import type { JobInspection, JsonValue } from "@linxiraos/studio-protocol";
 import { I18nProvider } from "../i18n";
 import { JobInspector } from "./JobInspector";
 import { ToolBody } from "./ToolBody";

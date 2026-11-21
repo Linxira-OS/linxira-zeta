@@ -86,14 +86,14 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
 
   return (
     <div className="term-layout">
-      <div className="term-list" role="listbox" aria-label={t("terminal.listAria")}>
+      <div className="term-list" role="tablist" aria-label={t("terminal.listAria")}>
         {sessions.map((session) => {
           const selected = !tmuxPanel.selected && session.id === active?.id;
           return (
             <div
               key={session.id}
               className={`term-item${selected ? " active" : ""}${session.status === "ended" ? " ended" : ""}`}
-              role="option"
+              role="tab"
               tabIndex={selected ? 0 : -1}
               aria-selected={selected}
               onClick={() => selectSession(session.id)}
@@ -232,7 +232,7 @@ function XtermScreen({
     host.term.options.cursorBlink = session.status !== "ended";
     const links = registerTerminalBrowserLinks(host.term, url => { hoveredLink.current = url; });
     const observer = new MutationObserver(() => applyTheme(host.term));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "style"] });
 
     return () => {
       observer.disconnect();

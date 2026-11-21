@@ -63,17 +63,20 @@ export class StudioMainBtwRuntime {
 	readonly service: StudioBtwService;
 	#injectTail: Promise<unknown> = Promise.resolve();
 	#injectGuard: (() => void) | undefined;
+	readonly #injectEnabled: () => boolean;
+	readonly #sendInjection: (text: string, sessionId: string) => Promise<void>;
 
 	constructor(
 		readonly session: AgentSession,
 		options: StudioMainBtwOptions = {},
 	) {
-		const send = options.sendInjection ?? ((text, sessionId) => sendStudioBtwInjection(session, text, sessionId));
+		this.#sendInjection = options.sendInjection ?? ((text, sessionId) => sendStudioBtwInjection(session, text, sessionId));
+		this.#injectEnabled = options.injectEnabled ?? (() => cfgBtwInject.get(session.settings));
 		this.service = new StudioBtwService(session, {
-			injectEnabled: options.injectEnabled ?? (() => cfgBtwInject.get(session.settings)),
+			injectEnabled: this.#injectEnabled,
 			sendInjection: (text, sessionId) => {
 				this.#injectGuard?.();
-				return send(text, sessionId);
+				return this.#sendInjection(text, sessionId);
 			},
 		});
 	}
@@ -120,10 +123,33 @@ export class StudioMainBtwRuntime {
 
 	/** Adopt a completed answer into the main conversation via native prompt admission. */
 	inject(injectId: string, assertActive?: () => void): Promise<{ sent: true }> {
+		return this.#queueInjection(assertActive, () => this.service.inject(injectId));
+	}
+
+	/**
+	 * Inject an arbitrary Studio-authored prompt into the main conversation.
+	 * This is the same native admission path as a completed BTW answer, but it
+	 * does not require the answer to carry an `<inject>` block.
+	 */
+	injectText(text: string, assertActive?: () => void): Promise<{ sent: true }> {
+		if (!this.#injectEnabled()) {
+			return Promise.reject(
+				new StudioBtwError("COMMAND_BLOCKED", "BTW injection is disabled in settings"),
+			);
+		}
+		return this.#queueInjection(assertActive, async () => {
+			assertActive?.();
+			const sessionId = this.session.sessionManager.getSessionId();
+			await this.#sendInjection(text, sessionId);
+			return { sent: true as const };
+		});
+	}
+
+	#queueInjection<T>(assertActive: (() => void) | undefined, work: () => Promise<T>): Promise<T> {
 		const run = this.#injectTail.then(async () => {
 			this.#injectGuard = assertActive;
 			try {
-				return await this.service.inject(injectId);
+				return await work();
 			} finally {
 				this.#injectGuard = undefined;
 			}

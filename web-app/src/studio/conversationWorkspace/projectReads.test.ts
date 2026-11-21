@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { contractFixtures } from "@linxiraos/studio-testkit"
 import type { ClientEvent, ConversationTranscriptReadPage, SessionId, StudioClient, WorkspaceId } from "@linxiraos/studio-contract"
-import { acquireProjectReads, DisplayCache } from "./projectReads";
+import { acquireProjectReads, DisplayCache, WARM_SESSION_BUDGET, bindProjectReads, invalidateProjectHistoryReads } from "./projectReads";
 
 afterEach(() => vi.useRealTimers());
 

@@ -28,6 +28,7 @@ import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { InteractionDeck } from "../InteractionDeck";
 import { Icon } from "../icons";
+import { evaluationResponseValue } from "./evaluationResponse";
 import { EvaluationConfig } from "./EvaluationConfig";
 import { startEvaluationPolling } from "./evaluationPolling";
 import { EvaluationResults, EvaluationComparison } from "./EvaluationResults";
@@ -79,6 +80,7 @@ export function EvaluationPage({
   client,
   workspaceId,
   sessionId,
+  available,
   onOpenModels,
   onOpenDiagnostics,
   intent,
@@ -203,7 +205,16 @@ export function EvaluationPage({
     return () => {
       epoch.current++;
     };
-  }, [client, workspaceId, preview, previewLocale]);
+  }, [client, sessionId, workspaceId, preview, previewLocale]);
+  useEffect(() => {
+    if (preview || !available || !workspaceId) return;
+    let active = true;
+    void client.query("evaluations.context", { workspaceId }).then(value => {
+      if (active) setContext(value);
+    }).catch(cause => { if (active) setError(hostErrorMessage(cause, "Evaluation workspace unavailable")); });
+    return () => { active = false; };
+  }, [available, client, preview, workspaceId]);
+
   useEffect(() => {
     if (intent) {
       pendingIntentRef.current = intent;
@@ -348,7 +359,7 @@ export function EvaluationPage({
       }
     }
   };
-  const draftKey = `omp.evaluation.draft.${preview ? "preview" : (workspaceId ?? "none")}.${tab}`;
+  const draftKey = `zeta.evaluation.draft.${preview ? "preview" : (workspaceId ?? "none")}.${tab}`;
   const editDraft = (spec: EvaluationSpec) => {
     setDraft(spec);
     setPlan(undefined);
@@ -487,39 +498,30 @@ export function EvaluationPage({
       }
       const result = await invoke("evaluations.export", { id: record.id, format });
       if (epoch.current !== currentEpoch) return;
-      if (!executionTarget.id && globalThis.zetaStudioChrome?.exportArtifact) {
-        const saved = await globalThis.zetaStudioChrome.exportArtifact({
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
+      let offset = 0;
+      let mimeType = "application/octet-stream";
+      for (;;) {
+        if (epoch.current !== currentEpoch) return;
+        const part = await client.query("evaluations.exportChunk", {
           artifactId: result.artifactId,
+          offset,
         });
-        if (!saved.ok) throw new Error(saved.message);
-        if (!saved.cancelled && epoch.current === currentEpoch)
-          setNotice(t("报告已导出。", "Report exported."));
-      } else {
-        const chunks: Uint8Array<ArrayBuffer>[] = [];
-        let offset = 0;
-        let mimeType = "application/octet-stream";
-        for (;;) {
-          if (epoch.current !== currentEpoch) return;
-          const part = await client.query("evaluations.exportChunk", {
-            artifactId: result.artifactId,
-            offset,
-          });
-          if (epoch.current !== currentEpoch) return;
-          if (part.data) {
-            chunks.push(Uint8Array.from(atob(part.data), (char) => char.charCodeAt(0)));
-          }
-          mimeType = part.mimeType;
-          if (part.nextOffset >= part.total || part.nextOffset <= offset) break;
-          offset = part.nextOffset;
+        if (epoch.current !== currentEpoch) return;
+        if (part.data) {
+          chunks.push(Uint8Array.from(atob(part.data), (char) => char.charCodeAt(0)));
         }
-        const url = URL.createObjectURL(new Blob(chunks, { type: mimeType }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = result.name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        setNotice(t("报告已导出。", "Report exported."));
+        mimeType = part.mimeType;
+        if (part.nextOffset >= part.total || part.nextOffset <= offset) break;
+        offset = part.nextOffset;
       }
+      const url = URL.createObjectURL(new Blob(chunks, { type: mimeType }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice(t("报告已导出。", "Report exported."));
     });
   const working = !!record && ["preparing", "running", "cancelling"].includes(record.state);
   const approvals = asObject(record?.detail.approvals);
@@ -762,7 +764,7 @@ export function EvaluationPage({
                         interactionId: record.clientInteraction!.interactionId,
                         leaseGeneration: record.clientInteraction!.leaseGeneration,
                         decision,
-                        ...(value === undefined ? {} : { value }),
+                        ...(value === undefined ? {} : { value: evaluationResponseValue(record.clientInteraction!, value) }),
                       });
                       setRefresh((n) => n + 1);
                       return true;

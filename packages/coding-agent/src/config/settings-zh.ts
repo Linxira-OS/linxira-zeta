@@ -200,7 +200,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"backend.enabled": {
 		label: "启用后端模式",
-		description: "为本机使用一个后台后端。关闭时每次 zetacode 启动都是本地进程；打开时裸启动会连接默认后端。",
+		description: "为本机使用一个后台后端。默认开启：启动时连接正在运行的后端，TUI 在没有可用后端时才回退本地进程；关闭时每次 zetacode 启动都是本地进程。",
 	},
 	"backend.workspace": {
 		label: "后端默认工作区",
@@ -870,7 +870,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"btw.inject": {
 		label: "/btw 引导注入",
 		description:
-			"当你向 /btw 询问引导提示词时，它会起草一个包裹在 <inject> 标签中的建议，并在回答中高亮显示；Alt+I（app.btw.inject）会将其发送到主会话",
+			"当你向 /btw 询问引导提示词时，它会起草一个包裹在 <inject> 标签中的建议，并在回答中高亮显示；Alt+I（app.btw.inject）会将其发送到主会话。Z Work Studio 还支持按 C 发送最新回答，或从回答菜单发送完整/所选讨论。",
 	},
 	"loop.mode": {
 		label: "循环模式",

@@ -101,8 +101,8 @@ function buildStoryCards(zh: boolean): readonly { readonly [key: string]: JsonVa
         ? "先核对 package.json 钉住的上游版本，再扫 docs 里现有同步说明。本地 Z Work Studio Bridge 和会话目录不要写回 pi-web。"
         : "Check the pinned upstream version in package.json first, then scan docs for existing sync notes. Keep Z Work Studio Bridge and the session directory out of pi-web.",
       full: zh
-        ? "目标：把 pi-web v0.8.1 合进 zeta-web。\n保留 packages/studio-bridge 与 ~/.omp/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。"
-        : "Goal: merge pi-web v0.8.1 into zeta-web.\nPreserve packages/studio-bridge and ~/.omp/agent/sessions.\nWrite docs to docs/UPSTREAM-SYNC.md and add a link in README.",
+        ? "目标：把 pi-web v0.8.1 合进 zeta-web。\n保留 packages/studio-bridge 与 ~/.zeta/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。"
+        : "Goal: merge pi-web v0.8.1 into zeta-web.\nPreserve packages/studio-bridge and ~/.zeta/agent/sessions.\nWrite docs to docs/UPSTREAM-SYNC.md and add a link in README.",
     },
     {
       kind: "read",
@@ -148,8 +148,8 @@ function buildStoryCards(zh: boolean): readonly { readonly [key: string]: JsonVa
       lines: 86,
       encoding: "UTF-8",
       preview: zh
-        ? ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Z Work Studio Bridge", "- 会话目录仍走 ~/.omp"]
-        : ["# Upstream Sync Log", "", "## v0.8.1", "", "- Preserve Z Work Studio Bridge", "- Keep session directory at ~/.omp"],
+        ? ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Z Work Studio Bridge", "- 会话目录仍走 ~/.zeta"]
+        : ["# Upstream Sync Log", "", "## v0.8.1", "", "- Preserve Z Work Studio Bridge", "- Keep session directory at ~/.zeta"],
     },
     {
       kind: "edit",

@@ -1,4 +1,4 @@
-import type { RuntimeViewOperation, RuntimeViewResultMap, ModelServicesCommandInputMap, ModelServicesCommandResultMap } from "@linxiraos/studio-protocol";
+import type { RuntimeViewOperation, RuntimeViewResultMap, ModelServicesCommandInputMap, ModelServicesCommandResultMap, FormSubmitValue } from "@linxiraos/studio-protocol";
 import type { TimeTravelSettings, TimeTravelTimeline, TimeTravelRestorePreview, TimeTravelRestoreInput, TimeTravelRestoreResult } from "./time-travel.js";
 type RuntimeViewQueryMap = { [K in RuntimeViewOperation["kind"]]: Omit<Extract<RuntimeViewOperation, { kind: K }>, "kind"> };
 import type { EvaluationRecord, EvaluationSpec, EvaluationPlan, EvaluationContext, EvaluationListInput, EvaluationResultPage, EvaluationStartInput, EvaluationControlInput, EvaluationExportInput, EvaluationExportResult } from "@linxiraos/studio-protocol";
@@ -298,6 +298,7 @@ export interface QueryResultMap extends TeamQueryResultMap, RuntimeViewResultMap
   "fs.list": import("./system-files.js").SystemDirectory;
   "fs.file.inspect": import("./system-files.js").SystemFileInfo;
   "fs.file.readText": import("./system-files.js").SystemFileText;
+  "fs.file.readChunk": import("./system-files.js").SystemFileChunk;
   /** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
   "usage.get": TokenUsageReadModel;
   /** Loopback URL of the native statistics dashboard, for in-app embedding. */

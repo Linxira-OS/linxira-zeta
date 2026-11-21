@@ -35,7 +35,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { useConversationWidth } from "../settings/ConversationWidthContext";
 import { useReadingColumn } from "../layout/useReadingColumn";
 import type { ClientInteraction, CommandName, CommandState, CommandInput, InteractionResponseValue, OperatorInvokeOutcome, SessionHistoryEntry, SessionId, SessionTreeCommandOutcome, ThreadId, StudioPlanSaveAndQuitResult, Unsubscribe, WorkspaceId, WorkspaceListReadModel, PromptImageInput, ContinueTurnOutcome } from "@linxiraos/studio-contract"
-import { selectComposerReceipt } from "@linxiraos/studio-client"
+import { selectComposerReceipt, selectComposerTerminal } from "@linxiraos/studio-client"
 import { type ShellEventLogEntry } from "../shellMemory";
 import type { ApprovalMode, StudioAgentSnapshot } from "@linxiraos/studio-protocol"
 import type { OperatorCommandManifest } from "@linxiraos/studio-protocol"

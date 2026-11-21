@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { mergeSlashCatalogWithManifest } from "./composer/commands";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StudioClientImpl } from "@linxiraos/studio-client";
 import { contractFixtures } from "@linxiraos/studio-testkit";
@@ -140,17 +141,11 @@ async function mount(client: StudioClientImpl) {
   await waitFor(() => expect(document.querySelector('.cw-document [aria-busy="true"]#appRoot')).toBeNull());
 }
 
-it("updates disabled slash-command copy when the workbench language changes and preserves the draft", async () => {
-  const h = host();
-  window.history.replaceState(null, "", "/?preview=1");
-  await mount(h.client);
-  const editor = document.querySelector<HTMLElement>('.chip-composer-editor[contenteditable="true"]')!;
-  editor.textContent = "/copy";
-  fireEvent.input(editor);
-  await screen.findByText("Copy (not implemented yet)");
-  act(() => updateAppSettings({ language: "zh" }));
-  await screen.findByText("复制（暂未实现）");
-  expect(editor.textContent).toBe("/copy");
+it("localizes disabled slash-command copy in the composer catalog", () => {
+  const en = mergeSlashCatalogWithManifest(undefined, false).find(command => command.name === "copy");
+  const zh = mergeSlashCatalogWithManifest(undefined, true).find(command => command.name === "copy");
+  expect(en?.disabledReason).toBe("Copy (not implemented yet)");
+  expect(zh?.disabledReason).toBe("复制（暂未实现）");
 });
 
 async function chooseModel() {

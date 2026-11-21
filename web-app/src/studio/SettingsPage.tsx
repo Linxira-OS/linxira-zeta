@@ -98,6 +98,15 @@ export interface RuntimeSettingsApi {
 
 
 /** Reuse the global provider; standalone settings surfaces keep a local demo boundary. */
+/** Website-embed demo edits only the visual settings the embedded shell owns. */
+function extractEmbedLivePatch(patch: Partial<AppSettings>): Partial<AppSettings> {
+  const live: Partial<AppSettings> = {};
+  for (const key of ["theme", "density", "light", "fileTypePalette", "conversationWidthMode", "conversationCustomWidth"] as const) {
+    if (patch[key] !== undefined) Object.assign(live, { [key]: patch[key] });
+  }
+  return live;
+}
+
 export function SettingsPage(props: Parameters<typeof SettingsPageContent>[0]) {
   return <SettingsScopeProvider><ConversationWidthProvider><SettingsPageContent {...props} /></ConversationWidthProvider></SettingsScopeProvider>;
 }

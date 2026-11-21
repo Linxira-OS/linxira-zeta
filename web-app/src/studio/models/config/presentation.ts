@@ -84,6 +84,10 @@ export function formatPresetDesc(id: string, desc: string, zh: boolean): string 
   return zh ? desc : (PRESET_DESC_EN[id] ?? desc);
 }
 
+export function formatRoleName(role: { id: string; name?: string; alias?: string }, t: (k: string) => string): string {
+  return role.name?.trim() || role.alias?.replace(/^@/, "").trim() || role.id;
+}
+
 export function formatRoleDesc(role: { id: string; desc: string; builtin?: boolean }, t: (k: string) => string): string {
   const key = BUILTIN_ROLE_DESC_KEYS[role.id];
   if (role.builtin && key) {

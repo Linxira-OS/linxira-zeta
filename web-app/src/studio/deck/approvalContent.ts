@@ -140,8 +140,7 @@ export function approvalFromInteraction(
     .filter((value): value is string => Boolean(value));
   const unlabeledExtra = labeledEmpty && tool !== "bash" && summary && !command && !path ? summary : undefined;
   const extra = extraBits.length > 0 ? extraBits.join("\n") : unlabeledExtra;
-  const titlePair = TOOL_TITLE_PAIRS[tool];
-  const title = titlePair ? (zh ? titlePair[0] : titlePair[1]) : (interaction.title || `Allow ${interaction.approvalType}?`);
+  const title = zh ? (TOOL_TITLES[tool] ?? (interaction.title || `Allow ${interaction.approvalType}?`)) : (interaction.title || `Allow ${interaction.approvalType}?`);
   const scope = defaultScope(tool, stringDetail(detail, "scope"), zh);
   return {
     restriction,

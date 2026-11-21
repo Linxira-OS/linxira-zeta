@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StudioClient, WorkspaceId, GitBranchRecord, GitOperationResult } from "@linxiraos/studio-contract"
 import { useI18n } from "../i18n";
 import { useConversationDom } from "../conversationWorkspace/Context";

@@ -13,10 +13,10 @@ export const PROJECT_GITHUB_HOST = "github.com/Linxira-OS/linxira-zeta";
 export const STARTUP_NOTICE_COPY = {
   kicker: "开发预览",
   title: "应用尚未完成",
-  body: "Zeta 目前仍在开发中，部分功能尚未完成。使用过程中可能遇到不稳定、缺失或与最终形态不一致的能力。欢迎提交 bug、提 issue，也欢迎提供 idea。",
+  body: "Z Work Studio 目前仍在开发中，部分功能尚未完成。使用过程中可能遇到不稳定、缺失或与最终形态不一致的能力。欢迎提交 bug、提 issue，也欢迎提供 idea。",
   hint: "可在 GitHub 仓库查看进度，或直接开 issue 参与讨论。",
   repoLabel: "项目地址",
-  thanks: "感谢使用 Zeta。",
+  thanks: "感谢使用 Z Work Studio。",
 } as const;
 
 export const STARTUP_NOTICE_COPY_EN = {
@@ -48,27 +48,16 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
-/** 本次会话内是否已经点过「关闭」。组件重挂载也不能让提示重新出现。 */
-let closedForSession = false;
-
 export function shouldShowStartupNotice(): boolean {
-  if (closedForSession) return false;
   return readStorage(STARTUP_NOTICE_STORAGE_KEY) !== STARTUP_NOTICE_ID;
 }
 
-/** 「关闭」只收起本次会话；即使 Shell 重新挂载提示也不再出现。 */
-export function dismissStartupNoticeForSession(): void {
-  closedForSession = true;
-}
-
 export function dismissStartupNoticeForever(): void {
-  closedForSession = true;
   writeStorage(STARTUP_NOTICE_STORAGE_KEY, STARTUP_NOTICE_ID);
 }
 
-/** 测试辅助：清掉持久化的「不再提醒」和会话内关闭标记。 */
+/** 测试辅助：清掉持久化的「不再提醒」。 */
 export function __resetStartupNoticeForTests(): void {
-  closedForSession = false;
   try {
     globalThis.localStorage?.removeItem(STARTUP_NOTICE_STORAGE_KEY);
   } catch {

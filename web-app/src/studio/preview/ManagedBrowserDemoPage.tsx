@@ -41,7 +41,7 @@ export function ManagedBrowserDemoPage({ page, picking, interactive, hint, onPic
     </main>
   </div>;
   else body = <div className="mbd-app">
-    <header className="mbd-app-bar"><span className="mbd-app-logo" aria-hidden="true" /><strong>Studio Kit</strong><nav><span className="is-active">Components</span><span>Tokens</span><span>Changelog</span></nav></header>
+    <header className="mbd-app-bar"><span className="mbd-app-logo" aria-hidden="true" /><strong>Z Work Studio Kit</strong><nav><span className="is-active">Components</span><span>Tokens</span><span>Changelog</span></nav></header>
     <div className="mbd-app-body">
       <aside className="mbd-app-side"><span>Overview</span><span className="is-active">Button</span><span>Input</span><span>Select</span><span>Toast</span></aside>
       <main className="mbd-app-main">

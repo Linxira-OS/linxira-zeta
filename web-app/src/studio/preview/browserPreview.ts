@@ -14,7 +14,7 @@ export function previewBrowserDescriptor(engine: BrowserEngine, embedded = false
     engine, ownership: "owned", transport: embedded ? "embedded" : "frames", capabilities };
 }
 export function getPreviewBrowserTab(zh = isZh()): StudioBrowserTab {
-  return { ...previewBrowserDescriptor("chromium", false, zh), id: "11111111-1111-4111-8111-111111111111", name: "workspace", title: "Studio component preview", url: "http://localhost:5173", kind: "headless", busy: false, frozen: false, observable: true };
+  return { ...previewBrowserDescriptor("chromium", false, zh), id: "11111111-1111-4111-8111-111111111111", name: "workspace", title: "Z Work Studio component preview", url: "http://localhost:5173", kind: "headless", busy: false, frozen: false, observable: true };
 }
 export const PREVIEW_BROWSER_TAB: StudioBrowserTab = getPreviewBrowserTab();
 export function previewBrowserFrame(tabId: string, generation: string): Extract<BrowserObservationEvent, { kind: "frame" }> {

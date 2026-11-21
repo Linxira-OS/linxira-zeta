@@ -12,7 +12,7 @@ interface GreetingOptions {
 /** Welcome the user to their current workspace. */
 export function greeting(options: GreetingOptions) {
   const { workspace, locale } = options;
-  const title = 'Hello Studio';
+  const title = 'Hello Z Work Studio';
 
   if (!workspace) {
     return locale === 'zh'
@@ -40,7 +40,7 @@ export function getPreviewAnnotationDiff(zh = isZh()): string {
  /** Welcome the user to their current workspace. */
  export function greeting(options: GreetingOptions) {
    const { workspace, locale } = options;
--  const title = 'Hello Studio';
+-  const title = 'Hello Z Work Studio';
 +  const title = workspace?.name ?? 'Z Work Studio';
 
    if (!workspace) {
@@ -65,7 +65,7 @@ export function getPreviewAnnotationBundle(zh = isZh()): AnnotationBundle {
     schemaVersion: 1,
     revision: 2,
     sources: [{ id: "demo-source", kind: "file", label: "src/app.ts", path: "src/app.ts", text: file, version: "sha256:" + "0".repeat(64) }],
-    notes: [{ id: "demo-note", sourceId: "demo-source", note: zh ? "这里应显示当前工作区名称。" : "Should display the current workspace name here.", selection: { start: file.indexOf("Hello Studio"), end: file.indexOf("Hello Studio") + 12 } }],
+    notes: [{ id: "demo-note", sourceId: "demo-source", note: zh ? "这里应显示当前工作区名称。" : "Should display the current workspace name here.", selection: { start: file.indexOf("Hello Z Work Studio"), end: file.indexOf("Hello Z Work Studio") + 12 } }],
   };
 }
 

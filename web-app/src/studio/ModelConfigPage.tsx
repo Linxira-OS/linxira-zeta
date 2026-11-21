@@ -1502,7 +1502,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     const composed = composeFallbackSlots(slots.fallback1, slots.fallback2, slots.extras);
     if (!composed.ok) {
       toast(t(composed.reason === "fallback2-without-fallback1" ? "modelConfig.fallbackSlot2Needs1" : "modelConfig.fallbackExtraLocked"));
-      return;
+      return false;
     }
     const nextChain = composed.chain;
     chains[role] = nextChain;
@@ -1536,6 +1536,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     } finally {
       setBusy(false);
     }
+    return true;
   };
 
   const onSaveRoles = async () => {
@@ -1825,6 +1826,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 <div className="auth-box">
                   {editor.authType === "oauth" ? (() => {
                     const login = preview ? data?.loginProviders.find(item => item.id === editor.id) : nativeAuth.providers?.find(item => item.id === editor.id);
+                    const loginFlows = login && "flows" in login ? login.flows : undefined;
                     const authed = Boolean(login?.authenticated);
                     const account = marks ? data?.providers.find((item) => item.id === editor.id)?.auth.account : undefined;
                     return (
@@ -1842,8 +1844,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                         </div>
                         <div className="auth-actions">
                           {data?.loginAvailable ? <>
-                          {login?.flows?.length ? <AppSelect aria-label="登录方式 / Login method" className="select" value={loginFlowByProvider[editor.id] ?? login.flows[0]!.id} disabled={busy} onChange={event => setLoginFlowByProvider(current => ({ ...current, [editor.id]: event.target.value }))}>{login.flows.map(flow => <option key={flow.id} value={flow.id}>{flow.name}</option>)}</AppSelect> : null}
-                          <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id, loginFlowByProvider[editor.id] ?? login?.flows?.[0]?.id)}>
+                          {loginFlows?.length ? <AppSelect aria-label="登录方式 / Login method" className="select" value={loginFlowByProvider[editor.id] ?? loginFlows[0]!.id} disabled={busy} onChange={event => setLoginFlowByProvider(current => ({ ...current, [editor.id]: event.target.value }))}>{loginFlows.map(flow => <option key={flow.id} value={flow.id}>{flow.name}</option>)}</AppSelect> : null}
+                          <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id, loginFlowByProvider[editor.id] ?? loginFlows?.[0]?.id)}>
                             <Icon name="key" extra="sm" />
                             {authed ? t("modelConfig.relogin") : t("modelConfig.login")}
                           </button>

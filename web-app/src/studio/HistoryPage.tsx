@@ -329,7 +329,7 @@ function HostHistRow({
         </span>
         <span className="h-sub">
           <span>{t("history.messagesCount", { count: entry.messageCount })}</span>
-          <span>{formatHostTime(entry.lastActiveAt, t)}</span>
+          <span>{formatHostTime(entry.lastActiveAt, t, zh)}</span>
           {imLocation ? <span>{imLocation}</span> : null}
           {entry.summary ? <span>{entry.summary}</span> : null}
         </span>

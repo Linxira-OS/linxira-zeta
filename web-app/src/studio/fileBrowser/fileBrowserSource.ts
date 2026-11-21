@@ -84,10 +84,13 @@ export function createHostFileBrowserSource(options: {
     },
     async peek(entry): Promise<FsPeek> {
       const client = await options.client();
-      if (fileKind(entry.path) === "image" && globalThis.zetaStudioChrome?.files) {
-        const api = globalThis.zetaStudioChrome.files;
-        const resource = await api.open({ targetId: options.targetId, workspaceId: "", path: entry.path, source: "system" });
-        return { image: resource.url, release: () => { void api.release(resource.id); } };
+      if (fileKind(entry.path) === "image") {
+        const file = await client.query("fs.file.inspect", { path: entry.path });
+        if (!file.size || file.size > 8 * 1024 * 1024) return {};
+        const ext = entry.name.split(".").pop()?.toLowerCase() ?? "";
+        const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : ext === "bmp" ? "image/bmp" : ext === "svg" || ext === "svgz" ? "image/svg+xml" : "image/png";
+        const chunk = await client.query("fs.file.readChunk", { path: file.path, version: file.version, offset: 0, length: file.size });
+        return { image: `data:${mime};base64,${chunk.data}` };
       }
       if (!["text", "markdown"].includes(fileKind(entry.path))) return {};
       const file = await client.query("fs.file.inspect", { path: entry.path });

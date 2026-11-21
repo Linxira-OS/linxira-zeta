@@ -129,6 +129,29 @@ describe("main BTW runtime", () => {
 		expect(fake.branch).toHaveBeenCalledTimes(1);
 		runtime.dispose();
 	});
+
+	it("injects an arbitrary Studio prompt without an answer injection block", async () => {
+		const artifacts = await temporaryDirectory();
+		const fake = btwSession(artifacts);
+		const runtime = runtimeFor(fake);
+		await runtime.injectText("Continue from the BTW discussion.");
+		expect(fake.injected).toEqual(["Continue from the BTW discussion."]);
+		runtime.dispose();
+	});
+
+	it("refuses arbitrary injection when btw.inject is off", async () => {
+		const artifacts = await temporaryDirectory();
+		const fake = btwSession(artifacts);
+		const runtime = new StudioMainBtwRuntime(fake.session, {
+			injectEnabled: () => false,
+			sendInjection: async text => {
+				fake.injected.push(text);
+			},
+		});
+		await expect(runtime.injectText("hidden")).rejects.toMatchObject({ code: "COMMAND_BLOCKED" });
+		expect(fake.injected).toEqual([]);
+		runtime.dispose();
+	});
 });
 
 describe("resource service", () => {

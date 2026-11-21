@@ -508,7 +508,6 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     client,
     preview: previewMode.preview,
     previewQuestion: PREVIEW_BTW_QUESTION,
-    mainStreaming: !previewMode.preview && snapshot?.isStreaming === true,
     canCommand: snapshot !== undefined && runtime?.status === "connected",
     onBranched: async (sessionId) => {
       await btwOnBranchedRef.current(sessionId);

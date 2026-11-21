@@ -2041,20 +2041,16 @@ export async function runRootCommand(
 			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
 			process.exit(1);
 		}
-		// A TUI launch is always its own process. It never starts, probes, or
-		// silently adopts the machine-wide serve daemon; only explicit
-		// --attach/--backend URL selects an existing backend. The persistent
-		// `backend.enabled` setting therefore applies to print/protocol runs,
-		// not to the interactive TUI.
-		// Transport is decided before any local session exists. A bare print or
-		// protocol run may use backend mode; the interactive TUI stays local.
+		// A TUI launch is its own process. It connects to the machine-wide
+		// backend when one is reachable, but never starts or silently adopts a
+		// daemon. With backend mode off (or no backend reachable) it stays local.
 		// Explicit --attach/--backend must reach a backend or startup fails, so
 		// a client never silently forks a second session.
 		let transport: StartupTransport;
 		try {
 			transport = await resolveStartupTransport(parsedArgs, rawArgs, {
 				interactive: isInteractive,
-				backendEnabled: !isInteractive && backendEnabled && !standalone,
+				backendEnabled: backendEnabled && !standalone,
 				cwd,
 			});
 		} catch (error) {

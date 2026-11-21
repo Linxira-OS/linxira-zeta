@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { en } from "./locales/en";
 import type { AppLanguage, I18nContextValue, Locale, TranslationParams } from "./types";
 import { getAppSettings, useAppSettings } from "../settings/appSettings";

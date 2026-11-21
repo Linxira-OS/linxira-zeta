@@ -54,12 +54,13 @@ export function BenchmarkAccountPicker({ client, sessionId, preview, zh, provide
         .then(handle => waitReceipt<{ result: BenchmarkAccounts }>(client, handle.requestId)).then(receipt => receipt.result);
     void Promise.all(unique.map(read)).then(next => {
       if (!active) return;
-      setRosters(next);
+      const valid = next.filter((roster): roster is BenchmarkAccounts => !!roster && Array.isArray(roster.accounts));
+      setRosters(valid);
       // A selection is only valid for the exact providers and credential rows it was made for.
       const current = valueRef.current;
       if (current) {
         const same = Object.keys(current.credentialIds).sort().join("\n") === unique.join("\n")
-          && next.every(roster => roster.accounts.find(option => option.account === current.account)?.credentialId === current.credentialIds[roster.providerId]);
+          && valid.every(roster => roster.accounts.find(option => option.account === current.account)?.credentialId === current.credentialIds[roster.providerId]);
         if (!same) { setStale(true); changeRef.current(undefined); }
       }
     }).catch(cause => { if (active) setError(hostErrorMessage(cause, t("无法读取 OAuth 账户", "Could not read OAuth accounts"))); })
@@ -67,7 +68,7 @@ export function BenchmarkAccountPicker({ client, sessionId, preview, zh, provide
     return () => { active = false; };
   }, [client, sessionId, preview, unique, reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shared = rosters ? Math.min(...rosters.map(roster => roster.accounts.length)) : 0;
+  const shared = rosters && rosters.length ? Math.min(...rosters.map(roster => roster.accounts.length)) : 0;
   const missing = rosters?.filter(roster => roster.accounts.length === 0).map(roster => roster.providerId) ?? [];
   const options = Array.from({ length: shared }, (_, index) => index + 1);
   const describe = (account: number) => rosters!.map(roster => `${roster.providerId}: ${roster.accounts.find(option => option.account === account)?.label ?? "—"}`).join(" · ");

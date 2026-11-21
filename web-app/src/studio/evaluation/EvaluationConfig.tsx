@@ -761,6 +761,8 @@ export function EvaluationConfig({
                           void globalThis.zetaStudioChrome
                             ?.importArtifact?.({
                               kind: "image",
+                              sessionId: currentSessionId ?? "",
+                              contextId: currentSessionId ?? "",
                               ...(workspaceId ? { workspaceId } : {}),
                             })
                             .then((result) => {

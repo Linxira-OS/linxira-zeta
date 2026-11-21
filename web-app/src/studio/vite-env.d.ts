@@ -33,8 +33,9 @@ declare global {
   type StudioArtifactFileResult = { ok: true; cancelled: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; storage?: import("@linxiraos/studio-protocol").ArtifactStorageState } | { ok: false; message: string };
 
   var zetaStudioPerf: import("./perf/tierControl").TierControlSource | undefined;
-  var zetaStudioChrome:
-    | (Partial<import("./composer/dictation-audio-shared").DictationAudioApi> & {
+  var zetaStudioChrome: (
+    Partial<import("./composer/dictation-audio-shared").DictationAudioApi> & {
+        setLanguage?(language: "en" | "zh"): void | Promise<void>;
         files?: import("./files/file-viewer-shared").FileViewerDesktopApi;
         prepareFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowPrepare): Promise<import("./dock/floating-windows-shared").FloatWindowTicket>;
         controlFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowControl): Promise<void>;

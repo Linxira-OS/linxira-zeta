@@ -522,7 +522,7 @@ export const PREVIEW_PREVIEW = {
     "[vite] connected.",
     "[vite] hmr update /components/MermaidBlock.tsx",
     "[vite] page reload src/App.tsx",
-    "[omp] preview attached, session=019fac94",
+    "[zeta] preview attached, session=019fac94",
   ],
 };
 
@@ -569,7 +569,7 @@ export function getPreviewPvLogs(zh = isZh()) {
     { tone: "", text: "[vite] hmr update /docs/UPSTREAM-SYNC.md" },
     { tone: "warn", text: "[preview] console.warn · React Hook useCallback has a missing dependency (useCodeTheme.ts:31)" },
     { tone: "err", text: "[preview] console.error · Failed to resolve import \"@earendil-works/pi-mermaid\" (MermaidBlock.tsx:12)" },
-    { tone: "", text: "[omp] preview attached, session=019fac94 · dom snapshot ok" },
+    { tone: "", text: "[zeta] preview attached, session=019fac94 · dom snapshot ok" },
     { tone: "muted", text: "[network] GET /api/session → 200 (18ms)" },
     { tone: "muted", text: "[network] GET /api/threads → 200 (9ms)" },
     { tone: "warn", text: "[bridge] preview.dom unavailable · using compatible read path" },
@@ -703,14 +703,14 @@ export function getPreviewDiagnostics(zh = isZh()): PreviewDiagnostics {
     errors: [
       { time: "13:58:12", src: "MCP · playwright", msg: "transport closed unexpectedly (code 1006)" },
       { time: "13:41:03", src: "RPC", msg: zh ? 'capability "browser.controlled" 未在握手时声明' : 'capability "browser.controlled" was not declared during handshake' },
-      { time: "12:02:47", src: "Plugin · browser-lab", msg: zh ? '加载失败：manifest.json 缺少 "omp" 字段' : 'Load failed: manifest.json missing required "omp" field' },
+      { time: "12:02:47", src: "Plugin · browser-lab", msg: zh ? '加载失败：manifest.json 缺少 "zeta" 字段' : 'Load failed: manifest.json missing required "zeta" field' },
     ],
     logs: [
       { tone: "muted", text: '13:58:12.481 [rpc →] {"jsonrpc":"2.0","id":481,"method":"capability.call","params":{"cap":"preview.dom","session":"t1"}}' },
       { tone: "muted", text: '13:58:12.512 [rpc ←] {"jsonrpc":"2.0","id":481,"result":{"ok":true,"nodes":142}} · 31ms' },
       { tone: "err", text: "13:58:15.901 [mcp playwright] transport closed unexpectedly (code 1006) · attempt 3/5" },
       { tone: "err", text: '13:41:03.220 [rpc] handshake: capability "browser.controlled" not declared by cli v0.82.1' },
-      { tone: "err", text: '12:02:47.884 [plugin browser-lab] manifest validation failed: missing required field "omp"' },
+      { tone: "err", text: '12:02:47.884 [plugin browser-lab] manifest validation failed: missing required field "zeta"' },
       { tone: "muted", text: "12:02:47.885 [plugin browser-lab] plugin skipped · 0 tools registered" },
     ],
   };
@@ -734,7 +734,7 @@ export type PreviewAppUpdate = {
 
 export function getPreviewAppUpdate(zh = isZh()): PreviewAppUpdate {
   const version = PLATFORM === "linux" ? "0.2.2" : "0.2.0";
-  const assetName = PLATFORM === "darwin" ? `Z-Work-Studio-${version}-macos-arm64.dmg` : PLATFORM === "linux" ? `Z-Work-Studio-${version}-linux-x64.deb` : `Z-Work-Studio-Setup-${version}-windows-x64.exe`;
+  const assetName = PLATFORM === "darwin" ? `zeta-work-studio-${version}-macos-arm64.dmg` : PLATFORM === "linux" ? `zeta-work-studio-${version}-linux-x64.deb` : `zeta-work-studio-Setup-${version}-windows-x64.exe`;
   return {
     available: true,
     currentVersion: "0.1.0",

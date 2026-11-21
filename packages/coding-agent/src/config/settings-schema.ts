@@ -370,13 +370,13 @@ export const SETTINGS_SCHEMA = {
 
 	"backend.enabled": {
 		type: "boolean",
-		default: false,
+		default: true,
 		ui: {
 			tab: "interaction",
 			group: "Startup & Updates",
 			label: "Enable Backend Mode",
 			description:
-				"Use one background backend for this machine. Off: every zetacode launch is a local process. On: launches connect to the default backend.",
+				"Use one background backend for this machine. On by default: every launch connects to the default backend when it is running, and falls back to a local process only when no backend is available. Off: every zetacode launch stays local.",
 		},
 	},
 

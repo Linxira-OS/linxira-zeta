@@ -1,3 +1,10 @@
 .btw-injection { margin: var(--sp-12) 0; padding: var(--sp-12); border-left: 3px solid var(--purple); border-radius: var(--r-4); background: color-mix(in srgb, var(--purple) 7%, transparent); }
 .btw-injection.sent { border-left-color: var(--green); background: color-mix(in srgb, var(--green) 7%, transparent); }
 .btw-injection .btn { margin-top: var(--sp-8); }
+.btw-inject-wrap { position: relative; display: inline-flex; }
+.btw-inject-menu { position: absolute; z-index: 30; right: 0; bottom: calc(100% + var(--sp-8)); display: grid; gap: var(--sp-4); width: min(340px, 80vw); padding: var(--sp-8); border: 1px solid var(--border); border-radius: var(--r-8); background: var(--surface); box-shadow: var(--shadow-lg, 0 8px 24px rgb(0 0 0 / 18%)); }
+.btw-inject-menu > button { justify-content: flex-start; text-align: left; }
+.btw-inject-menu-label { padding: var(--sp-4) 0 0; color: var(--muted); font-size: var(--fs-12); }
+.btw-inject-topic { display: flex; gap: var(--sp-8); align-items: center; padding: var(--sp-4); border-radius: var(--r-4); cursor: pointer; }
+.btw-inject-topic:hover { background: var(--surface-2, color-mix(in srgb, currentColor 5%, transparent)); }
+.btw-inject-topic input { margin: 0; }
