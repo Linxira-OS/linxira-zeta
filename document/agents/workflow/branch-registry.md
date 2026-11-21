@@ -278,6 +278,13 @@
 
 | `docs/jcode-citation-fix` | `e5bfa5b8…` (last-known abbreviated original pointer) | 2026-11-12 | Original row cited public URL/commit and a cleanup/worktree removal; this metadata-only pass observed the branch absent from local refs and did not delete any branch/worktree. Row moved to retired without inventing a full SHA |
 
+## 2026-11-21 审计快照
+
+- 本地分支：125 已合入 `main`，59 未合入。
+- 远端引用：127。
+- 证据目录：`~/.zeta/parked-evidence/2026-11-21/branch-audit/`（`merged.txt`、`unmerged.txt`、`branch-vv.txt`、`remotes.txt`）。
+- 本次**不删除任何分支**；删除前按上表登记 SHA，并先处理 dirty worktree / evidence。
+
 ## 定期动作
 
 - `merge-gate` 的 `branch registry` 门禁会在本地跑：未登记分支、登记了却消失的 `keep` 行、
