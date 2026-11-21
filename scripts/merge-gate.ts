@@ -249,6 +249,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 		guard("ci-surface", "CI release surface", "scripts/check-ci-surface.ts"),
 		guard("release-assets", "release asset names", "scripts/check-release-asset-names.ts"),
 		guard("license-map", "license map", "scripts/check-license-map.ts"),
+		guard("repo-layout", "repository layout", "scripts/check-repo-layout.ts"),
 		guard("service-ports", "service ports", "scripts/check-service-ports.ts"),
 		guard("lsp-tables", "LSP generated tables", "scripts/check-lsp-servers.ts"),
 		{

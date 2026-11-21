@@ -95,6 +95,8 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0071](0071-zeta-1-5-10-public-release.md) | Publish Zeta 1.5.10 from OMP v18.22.0 | Superseded | 2026-11-18 | Superseded by [0072](0072-restore-normal-public-releases.md) | [REQ-141](../requirements-ledger.md) |
 | [0072](0072-restore-normal-public-releases.md) | Restore normal public releases | Accepted | 2026-11-18 | Supersedes the ongoing freeze in [0006](0006-release-freeze-internal-line.md) and override in [0071](0071-zeta-1-5-10-public-release.md) | [Release readiness](../release.md#1510-public-release-readiness), [REQ-142](../requirements-ledger.md) |
 | [0080](0080-repository-path-governance.md) | Repository layout: Rust Pi core, retired Zetawork and frozen web-ui | Accepted | 2026-11-20 | Owner path-governance decision | [Product surfaces](../agents/surface/surfaces.md), [Release policy](../release.md) |
+| [0081](0081-dual-rust-pi-upstreams.md) | Aggregate two Rust Pi reference upstreams; do not fork either one | Proposed | 2026-11-21 | — | [bigfish1913/pi-rust](https://github.com/bigfish1913/pi-rust), [yannelli/pi-rust](https://github.com/yannelli/pi-rust), [ADR-0080](0080-repository-path-governance.md) |
+| [0082](0082-vibe-team-configuration-scopes.md) | Vibe and Team decisions are session-scoped; model configuration is global or project | Proposed | 2026-11-21 | — | [Vibe mode](../../docs/vibe-mode.md), [Team mode](../../docs/team.md), [ADR-0038](0038-two-lane-agent-hierarchy.md) |
 
 ## File and numbering rules
 

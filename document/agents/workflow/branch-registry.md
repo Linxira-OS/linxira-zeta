@@ -34,7 +34,8 @@
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
 | `sync/omp-release/v19.0.0` | sync | OMP v19.0.0 真 merge；worktree `temp/omp-v19.0.0`，tip `579992ddd2e`；PR #325 | main | 2026-11-19 | 用户合并/关闭后删，删前记 SHA |
-| `fix/1.5.13-hotfix` | fix | 1.5.13 热修、路径治理合并与 Studio 同步 WIP；worktree `temp/1.5.13-hotfix`，tip `f1b3d55bdca` | main | 2026-11-21 | 验收/发布后删，删前记最终 SHA |
+| `sync/studio-v0.2.4` | sync | Studio v0.2.4 机械差异 + 共享协议/包同步 WIP；worktree `temp/1.5.13-hotfix`（切换分支），tip `94d3535d53`；Host/契约适配未完成 | main | 2026-11-21 | 验收并入后删，删前记 SHA |
+| `fix/1.5.13-hotfix` | fix | 1.5.13 热修与路径治理；worktree `temp/1.5.13-hotfix`，tip `cca557562bc`；Studio WIP 已隔离到 `sync/studio-v0.2.4` | main | 2026-11-21 | 验收/发布后删，删前记最终 SHA |
 | `chore/repo-path-governance` | chore | 仓库路径治理：ADR-0080、retired/ 边界、旧 Zetawork/web-ui 迁移；worktree `temp/repo-governance`，tip `0a6c4b6f2a7` | main | 2026-11-20 | 已并入 main；分支保留作恢复引用，删除前记 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
@@ -277,6 +278,13 @@
 | `feat/device-account-ux` | `509e4390233b06f3ae861feec39891fe7469fdc7` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/device-account-ux` 已删除（safe-remove-tree 先删 18 links + 2120 dirs + 29314 files；worktree remove RC0；branch -d was 509e4390233）；no-follow logical 1,871,833,836 B；仅 known-regenerable ignored |
 
 | `docs/jcode-citation-fix` | `e5bfa5b8…` (last-known abbreviated original pointer) | 2026-11-12 | Original row cited public URL/commit and a cleanup/worktree removal; this metadata-only pass observed the branch absent from local refs and did not delete any branch/worktree. Row moved to retired without inventing a full SHA |
+
+## 2026-11-21 审计快照
+
+- 本地分支：125 已合入 `main`，59 未合入。
+- 远端引用：127。
+- 证据目录：`~/.zeta/parked-evidence/2026-11-21/branch-audit/`（`merged.txt`、`unmerged.txt`、`branch-vv.txt`、`remotes.txt`）。
+- 本次**不删除任何分支**；删除前按上表登记 SHA，并先处理 dirty worktree / evidence。
 
 ## 定期动作
 
