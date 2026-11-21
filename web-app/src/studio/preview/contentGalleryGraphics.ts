@@ -1,3 +1,5 @@
+import { isZh } from "../i18n";
+
 /** Self-contained sources for the graphic formats accepted in conversation Markdown. */
 const positions = new Float32Array([-1, -0.7, 0, 1, -0.7, 0, 0, 1, 0]);
 const positionBytes = new Uint8Array(positions.buffer);

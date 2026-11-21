@@ -15,4 +15,4 @@ export const PREVIEW_IMPORT_WORKSPACES: readonly WorkspaceRecord[] = [
  { workspaceId: "demo-import-worktree" as never, name: "zeta-studio-session-storage", lastOpenedAt: "2026-09-17T08:00:00Z", active: false },
 ];
 
-export const PREVIEW_MODEL_MENTIONS = [{ agent:"m1", selector:"deepseek/deepseek-chat", name:"DeepSeek" }];
+export const PREVIEW_MODEL_MENTIONS = [{ agent: "m1", selector: "deepseek/deepseek-chat", name: "DeepSeek" }];

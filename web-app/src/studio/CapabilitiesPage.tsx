@@ -103,12 +103,12 @@ function slashBareName(name: string): string {
   return name.startsWith("/") ? name.slice(1) : name;
 }
 
-function previewSkills(): SkillPreview[] {
-  return createPreviewDrawerItems().filter((item): item is SkillPreview => item.kind === "skill");
+function previewSkills(zh: boolean): SkillPreview[] {
+  return createPreviewDrawerItems(zh).filter((item): item is SkillPreview => item.kind === "skill");
 }
 
-function previewPlugins(): PluginPreview[] {
-  return createPreviewDrawerItems().filter((item): item is PluginPreview => item.kind === "plugin");
+function previewPlugins(zh: boolean): PluginPreview[] {
+  return createPreviewDrawerItems(zh).filter((item): item is PluginPreview => item.kind === "plugin");
 }
 
 function scopeOf(t: TFunc, skill: SkillPreview): { cls: "global" | "builtin" | "project"; label: string } {
@@ -273,15 +273,17 @@ export function CapabilitiesPage({
   };
 
   const slashCatalog = useMemo(
-    () => (preview ? [] : mergeSlashCatalogWithManifest(commandManifest)),
-    [commandManifest, preview],
+    () => (preview ? [] : mergeSlashCatalogWithManifest(commandManifest, zh)),
+    [commandManifest, preview, zh],
   );
   const slash = useMemo(
-    () => (preview ? createPreviewSlashCommands() : slashCatalog.map((command) => slashToPreview(t, command))),
-    [preview, slashCatalog, t],
+    () => (preview ? createPreviewSlashCommands(zh) : slashCatalog.map((command) => slashToPreview(t, command))),
+    [preview, slashCatalog, t, zh],
   );
 
+  const refreshEpoch = useRef(0);
   const refresh = useCallback(async () => {
+    const epoch = ++refreshEpoch.current;
     if (preview) {
       setSkills(previewSkills());
       setPlugins(previewPlugins());
@@ -298,21 +300,26 @@ export function CapabilitiesPage({
       supports("commands.getManifest") ? client.query("commands.getManifest", {}) : Promise.resolve(null),
       loadPluginPageGroups(client),
     ]);
+    if (epoch !== refreshEpoch.current) return;
     let identityError: string | null = null;
+    let nextSkills: SkillPreview[] = [];
+    let nextPlugins: PluginPreview[] = [];
     if (skillsResult.status === "fulfilled") {
       if (sessionId && supports("session.skills.list")) {
         try {
           const identities = await loadRuntimeSkills(client, sessionId);
-          setSkills(identities.map(skill => ({kind: "skill", name: skill.name,
-            desc: skill.description + (skill.conflict ? " · 名称冲突 / Name conflict" : ""),
+          if (epoch !== refreshEpoch.current) return;
+          nextSkills = identities.map(skill => ({kind: "skill", name: skill.name,
+            desc: skill.description + (skill.conflict ? (zh ? " · 名称冲突" : " · Name conflict") : ""),
             src: [skill.namespace, skill.source].filter(Boolean).join(" · "),
-            scope: skill.scope ?? "runtime", path: "", enabled: true, loaded: true, session: true})));
-        } catch (error) { setSkills([]); identityError = hostErrorMessage(error, "Runtime 技能身份不可用 / Runtime skill identities unavailable"); }
-      } else setSkills(skillsResult.value.skills.map(skillToPreview));
-      setPlugins(skillsResult.value.plugins.map(pluginToPreview));
-    } else {
-      setSkills([]);
-      setPlugins([]);
+            scope: skill.scope ?? "runtime", path: "", enabled: true, loaded: true, session: true}));
+        } catch (error) {
+          if (epoch !== refreshEpoch.current) return;
+          nextSkills = [];
+          identityError = hostErrorMessage(error, zh ? "Runtime 技能身份不可用" : "Runtime skill identities unavailable");
+        }
+      } else nextSkills = skillsResult.value.skills.map(skillToPreview);
+      nextPlugins = skillsResult.value.plugins.map(pluginToPreview);
     }
     if (mcpResult.status === "fulfilled" && mcpResult.value !== null) {
       setMcp([]);
@@ -327,10 +334,11 @@ export function CapabilitiesPage({
       ? (skillsResult.reason instanceof Error ? skillsResult.reason.message : "skills.get failed")
       : skillsResult.value.unavailableReason ?? null;
     setLoadError(identityError ?? loadError);
-  }, [client, preview, sessionId]);
+  }, [client, preview, sessionId, zh]);
 
   useEffect(() => {
     void refresh();
+    return () => { refreshEpoch.current += 1; };
   }, [refresh]);
 
   const [officialBusy, setOfficialBusy] = useState(false);
@@ -659,7 +667,7 @@ export function CapabilitiesPage({
                       onToggle={() => void toggleSkill(skill)}
                     />
                   ) : skill.scope === "builtin" || (sessionId && !skill.path) ? (
-                    <Disabled className="switch" tip={sessionId && !skill.path ? "Runtime 身份不支持按名称修改 / Runtime identities cannot be changed by name" : t("capabilities.scopeBuiltin")}>
+                    <Disabled className="switch" tip={sessionId && !skill.path ? (zh ? "Runtime 身份不支持按名称修改" : "Runtime identities cannot be changed by name") : t("capabilities.scopeBuiltin")}>
                       <span className="sr-only">{t("capabilities.toggleSkillAria", { name: skill.name })}</span>
                     </Disabled>
                   ) : (
@@ -1079,6 +1087,11 @@ export function CapabilitiesPage({
     );
   };
 
+  const [mountedTabs, setMountedTabs] = useState<ReadonlySet<CapTab>>(() => new Set([tab]));
+  useEffect(() => {
+    setMountedTabs((previous) => (previous.has(incoming) ? previous : new Set([...previous, incoming])));
+  }, [incoming]);
+
   const tabBody = (id: CapTab) => {
     if(id==="resources")return <ResourcesPane client={client} sessionId={sessionId} available={runtimeAvailable}/>;
     if (id === "ida") return <IdaPane client={client} sessionId={sessionId} available={runtimeAvailable} capabilities={capabilities} visible={tab === "ida"} />;
@@ -1133,7 +1146,7 @@ export function CapabilitiesPage({
                 data-tab-pane={id} role="tabpanel" id={"cap-" + id} tabIndex={active ? 0 : -1}
                 aria-labelledby={"capTab-" + id} aria-hidden={!active} inert={!active}
                 style={!active && !leaving ? { display: "none" } : undefined}>
-                {tabBody(id)}
+                {active || leaving || mountedTabs.has(id) ? tabBody(id) : null}
               </div>;
             })}
           </div>

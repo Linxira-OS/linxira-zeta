@@ -7,9 +7,15 @@ import { CONTENT_GALLERY_TOOLS, CONTENT_GALLERY_VARIANTS, galleryToolBlocks } fr
 type Chapter = { title: string; user?: string; content: readonly ConversationContentBlock[] };
 const text = (value: string): ConversationContentBlock => ({ type: "text", text: value });
 
-function toolChapter(title: string, kinds: readonly string[], id: string): Chapter {
-  return { title, content: [text(`## ${title}`), ...galleryToolBlocks(CONTENT_GALLERY_TOOLS.filter(card => kinds.includes(String(card.kind))), id)] };
-}
+export function getPreviewContentGalleryItems(zh = isZh()): readonly ConversationItem[] {
+  const tools = getContentGalleryTools(zh);
+  const code = getContentGalleryCode(zh);
+  const graphics = getContentGalleryGraphics(zh);
+  const variants = getContentGalleryVariants(zh);
+
+  function toolChapter(title: string, kinds: readonly string[], id: string): Chapter {
+    return { title, content: [text(`## ${title}`), ...galleryToolBlocks(tools.filter(card => kinds.includes(String(card.kind))), id)] };
+  }
 
 const chapters: readonly Chapter[] = [
   { title: "内容图鉴 · 目录", content: [text("# 内容图鉴\n\n逐章查看正文与工具卡，检查展开、复制、内部滚动及不同阅读列宽度。\n\n1. 用户消息与引用胶囊\n2. Markdown / GFM 完整排版\n3. Shell 命令块\n4. 全部已注册的代码高亮语言\n5. SVG、Mermaid、Chart 与三维格式\n6. 文件、搜索、执行与诊断工具\n7. Agent、协调、记忆与扩展工具\n8. 结构化结果、空结果、失败与长输出\n9. 思考、系统消息、扩展消息与上下文摘要")] },
@@ -29,18 +35,23 @@ const chapters: readonly Chapter[] = [
   { title: "思考与正文交替", content: [{ type: "thinking", text: "先查看格式和工具种类，再分别核对窄列、浅色与深色。\n\n工具链前后都保留正文，避免格式检查只覆盖连续工具结果。" }, text("## 思考与正文交替\n\n思考块进入链中，正文保持独立段落。"), ...galleryToolBlocks([{ name: "Read", path: "README.md", preview: ["# Z Work Studio", "", "内容与工具检查入口"] }], "interleaved"), text("读取后继续正文：**结果已整理**，下面保留系统消息、扩展消息与上下文摘要。"), { type: "thinking", text: "最终检查：所有章节均可以独立展开，正文与工具结果使用现有组件。" }] },
 ];
 
-const galleryItems = chapters.flatMap((chapter, index): ConversationItem[] => {
-  const userId = `content-gallery-user-${index}`;
   return [
-    { kind: "message", itemId: userId, parentId: index ? `content-gallery-assistant-${index - 1}` : "content-gallery-boundary", createdAt: new Date(Date.UTC(2026, 10, 9, 6, index * 2)).toISOString(), role: "user", content: [text(chapter.user ?? chapter.title)] },
-    { kind: "message", itemId: `content-gallery-assistant-${index}`, parentId: userId, createdAt: new Date(Date.UTC(2026, 10, 9, 6, index * 2 + 1)).toISOString(), role: "assistant", content: chapter.content },
+    { kind: "resetBoundary", itemId: "content-gallery-boundary", parentId: null, createdAt: "2026-11-09T06:00:00.000Z" },
+    ...galleryItems,
+    { kind: "message", itemId: "content-gallery-system", parentId: galleryItems.at(-1)!.itemId, createdAt: "2026-11-09T07:10:00.000Z", role: "system", content: [text(zh ? "系统消息：检查记录已保存。\n\n- 正文格式已覆盖\n- 工具链内容已整理" : "System notice: inspection log saved.\n\n- Prose formatting covered\n- Tool chain contents organized")] },
+    { kind: "message", itemId: "content-gallery-extension", parentId: "content-gallery-system", createdAt: "2026-11-09T07:11:00.000Z", role: "extension", content: [text(zh ? "### 扩展消息\n\n检查摘要：**完成** · [查看记录](studio-demo://checks/renderer)" : "### Extension message\n\nCheck summary: **done** · [View log](studio-demo://checks/renderer)")] },
+    {
+      kind: "compaction",
+      itemId: "content-gallery-compaction",
+      parentId: "content-gallery-extension",
+      createdAt: "2026-11-09T07:12:00.000Z",
+      shortSummary: zh ? "内容图鉴 · 正文、工具与结构化结果" : "Content gallery · Prose, tools & structured results",
+      summary: zh
+        ? "## 已覆盖\n\n- Markdown / GFM 与引用胶囊\n- 命令、代码高亮及图形格式\n- 工具卡与结构化结果\n\n## 检查记录\n\n| 阅读列 | 结果 |\n| --- | --- |\n| 标准 | 已检查 |\n| 窄列 | 待检查 |"
+        : "## Covered\n\n- Markdown / GFM and reference chips\n- Commands, syntax highlighting, and graphic formats\n- Tool cards and structured outputs\n\n## Inspection log\n\n| Column | Result |\n| --- | --- |\n| Standard | Checked |\n| Narrow | Pending |",
+      warning: zh ? "窄阅读列和主题切换仍需逐项核对。" : "Narrow column and theme switching still need item-by-item review.",
+    },
   ];
-});
+}
 
-export const PREVIEW_CONTENT_GALLERY_ITEMS: readonly ConversationItem[] = [
-  { kind: "resetBoundary", itemId: "content-gallery-boundary", parentId: null, createdAt: "2026-11-09T06:00:00.000Z" },
-  ...galleryItems,
-  { kind: "message", itemId: "content-gallery-system", parentId: galleryItems.at(-1)!.itemId, createdAt: "2026-11-09T07:10:00.000Z", role: "system", content: [text("系统消息：检查记录已保存。\n\n- 正文格式已覆盖\n- 工具链内容已整理")] },
-  { kind: "message", itemId: "content-gallery-extension", parentId: "content-gallery-system", createdAt: "2026-11-09T07:11:00.000Z", role: "extension", content: [text("### 扩展消息\n\n检查摘要：**完成** · [查看记录](studio-demo://checks/renderer)")] },
-  { kind: "compaction", itemId: "content-gallery-compaction", parentId: "content-gallery-extension", createdAt: "2026-11-09T07:12:00.000Z", shortSummary: "内容图鉴 · 正文、工具与结构化结果", summary: "## 已覆盖\n\n- Markdown / GFM 与引用胶囊\n- 命令、代码高亮及图形格式\n- 工具卡与结构化结果\n\n## 检查记录\n\n| 阅读列 | 结果 |\n| --- | --- |\n| 标准 | 已检查 |\n| 窄列 | 待检查 |", warning: "窄阅读列和主题切换仍需逐项核对。" },
-];
+export const PREVIEW_CONTENT_GALLERY_ITEMS: readonly ConversationItem[] = getPreviewContentGalleryItems();

@@ -74,7 +74,7 @@ function EventRow({ event, top, height }: { event: ShellEventLogEntry; top: numb
 }
 
 /**
- * OMP Logs: a tail of the semantic client events the shell records.
+ * Zeta Logs: a tail of the semantic client events the shell records.
  *
  * The host element is a fixed-size dock body, so the panel owns its own
  * geometry — masthead on top, one scrollport below — instead of inheriting a

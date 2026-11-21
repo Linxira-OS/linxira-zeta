@@ -1,6 +1,7 @@
 import { serializeBrowserReference } from "../composer/browserReference";
 import { serializeGitCommitReference } from "../composer/gitCommitReference";
 import { serializeGithubReference } from "../composer/githubReference";
+import { isZh } from "../i18n";
 import { demoPath } from "./demoPaths";
 
 export const galleryFence = (language: string, source: string) => `\`\`\`${language}\n${source}\n\`\`\``;
@@ -38,12 +39,24 @@ export const CONTENT_GALLERY_MARKDOWN = [
   "HTML 标签保留为文本：<details><summary>说明</summary>内容</details>。当前正文没有启用原始 HTML 或数学公式插件，`$x^2$` 与 `[^note]` 保留原文。",
 ].join("\n\n");
 
-export const CONTENT_GALLERY_SHELL = [
-  "## Shell 命令块", "### Bash · 单行", galleryFence("bash", "git status --short --branch"),
-  "### Bash · 多行、变量、引号、管道与续行",
-  galleryFence("bash", '# 保留中文、空格与引号\nreport_dir="docs/check reports"\nprintf \'Checking: %s\\n\' "$report_dir"\ngit diff --name-only | sort\nnpm run check -- \\\n  --only renderer'),
-  ...["sh", "zsh"].map(lang => `### ${lang}\n\n${galleryFence(lang, "printf '%s\\n' 'ready'")}`),
-  ...["pwsh", "powershell", "ps1"].map(lang => `### ${lang}\n\n${galleryFence(lang, '# 查看文件，不修改内容\n$root = Join-Path (Get-Location) "apps/renderer/src"\nGet-ChildItem -LiteralPath $root -Filter "*.tsx" |\n  Select-Object -First 5 Name, Length\nWrite-Output "检查完成：中文与空格"')}`),
-  "`shell` 是终端会话记录高亮，`text` 是日志；它们使用普通代码框。",
-  galleryFence("shell", "$ git status --short\n M README.md"), galleryFence("text", "PASS renderer\n0 errors · exit 0"),
-].join("\n\n");
+export function getContentGalleryShell(zh = isZh()): string {
+  return [
+    zh ? "## Shell 命令块" : "## Shell command blocks",
+    zh ? "### Bash · 单行" : "### Bash · Single line",
+    galleryFence("bash", "git status --short --branch"),
+    zh ? "### Bash · 多行、变量、引号、管道与续行" : "### Bash · Multiline, variables, quotes, pipes, and continuation",
+    galleryFence("bash", zh
+      ? '# 保留中文、空格与引号\nreport_dir="docs/check reports"\nprintf \'Checking: %s\\n\' "$report_dir"\ngit diff --name-only | sort\nnpm run check -- \\\n  --only renderer'
+      : '# Preserve spaces and quotes\nreport_dir="docs/check reports"\nprintf \'Checking: %s\\n\' "$report_dir"\ngit diff --name-only | sort\nnpm run check -- \\\n  --only renderer'),
+    ...["sh", "zsh"].map(lang => `### ${lang}\n\n${galleryFence(lang, "printf '%s\\n' 'ready'")}`),
+    ...["pwsh", "powershell", "ps1"].map(lang => `### ${lang}\n\n${galleryFence(lang, zh
+      ? '# 查看文件，不修改内容\n$root = Join-Path (Get-Location) "apps/renderer/src"\nGet-ChildItem -LiteralPath $root -Filter "*.tsx" |\n  Select-Object -First 5 Name, Length\nWrite-Output "检查完成：中文与空格"'
+      : '# Read files without mutating content\n$root = Join-Path (Get-Location) "apps/renderer/src"\nGet-ChildItem -LiteralPath $root -Filter "*.tsx" |\n  Select-Object -First 5 Name, Length\nWrite-Output "Check completed with spaces"')}`),
+    zh ? "`shell` 是终端会话记录高亮，`text` 是日志；它们使用普通代码框。" : "`shell` highlights terminal transcripts and `text` shows logs inside a standard code frame.",
+    galleryFence("shell", "$ git status --short\n M README.md"), galleryFence("text", "PASS renderer\n0 errors · exit 0"),
+  ].join("\n\n");
+}
+
+export const CONTENT_GALLERY_REFERENCES = getContentGalleryReferences();
+export const CONTENT_GALLERY_MARKDOWN = getContentGalleryMarkdown();
+export const CONTENT_GALLERY_SHELL = getContentGalleryShell();

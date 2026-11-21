@@ -1,9 +1,9 @@
 /**
  * 背景媒体库：上传的图片 / 视频存在 IndexedDB，偏好存在 localStorage。
  *
- * 为什么复用独立数据库而不是 `omp-studio-ui`：`userMessageThumbs` 在该库
+ * 为什么复用独立数据库而不是 `z-work-studio-ui`：`userMessageThumbs` 在该库
  * 里用 v2 升级并删表重建，两个模块各自 open 同一个库、各自 upgrade 会互相
- * 覆盖 object store。背景库用独立名字 `omp-studio-backgrounds`，版本只由
+ * 覆盖 object store。背景库用独立名字 `z-work-studio-backgrounds`，版本只由
  * 本模块推进。
  *
  * 列表只读元数据，缩略图以 data URL 保存，避免为每个 tile 创建 object URL；
@@ -61,7 +61,7 @@ export interface BackgroundLibrary {
   remove(id: string): Promise<void>;
 }
 
-export const BACKGROUND_DB_NAME = "omp-studio-backgrounds";
+export const BACKGROUND_DB_NAME = "z-work-studio-backgrounds";
 export const BACKGROUND_DB_VERSION = 1;
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
@@ -99,16 +99,42 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-async function withDatabase<T>(run: (database: IDBDatabase) => Promise<T>): Promise<T> {
-  const database = await openDatabase();
-  try {
-    return await run(database);
-  } finally {
-    database.close();
-  }
-}
-
 export function createIndexedDbBackgroundLibrary(): BackgroundLibrary {
+  let dbPromise: Promise<IDBDatabase> | undefined;
+  const reset = (expected?: Promise<IDBDatabase>) => {
+    if (expected === undefined || dbPromise === expected) dbPromise = undefined;
+  };
+  const getDatabase = (): Promise<IDBDatabase> => {
+    if (dbPromise !== undefined) return dbPromise;
+    const opening = openDatabase().then((database) => {
+      database.onversionchange = () => {
+        reset(opening);
+        database.close();
+      };
+      database.onclose = () => reset(opening);
+      return database;
+    }).catch((error) => {
+      reset(opening);
+      throw error;
+    });
+    dbPromise = opening;
+    return opening;
+  };
+  const withDatabase = async <T>(run: (database: IDBDatabase) => Promise<T>): Promise<T> => {
+    let current = getDatabase();
+    let database = await current;
+    try {
+      return await run(database);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "InvalidStateError") {
+        reset(current);
+        current = getDatabase();
+        database = await current;
+        return await run(database);
+      }
+      throw error;
+    }
+  };
   return {
     kind: "indexeddb",
     async list() {

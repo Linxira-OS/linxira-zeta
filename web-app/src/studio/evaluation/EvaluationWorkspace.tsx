@@ -56,6 +56,26 @@ type EvaluationCommand =
   | "evaluations.respond"
   | "evaluations.openWorkspace";
 type ViewRecord = EvaluationRecord & { clientInteraction?: ClientInteraction };
+
+function LazyJsonDetails({
+  summary,
+  getValue,
+}: {
+  summary: string;
+  getValue: () => unknown;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="eval-advanced"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>{summary}</summary>
+      {open ? <pre>{JSON.stringify(getValue(), null, 2)}</pre> : null}
+    </details>
+  );
+}
 export function EvaluationPage({
   client,
   workspaceId,
@@ -78,13 +98,14 @@ export function EvaluationPage({
   const { preview, marks } = usePreviewMode(),
     { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh",
+    previewLocale = preview ? resolvedLanguage : "",
     t = (cn: string, en: string) => (zh ? cn : en);
   const names = evaluationNames(zh),
     descriptions = evaluationDescriptions(zh);
-  const [tab, setTab] = useState<EvaluationKind>("benchmark"),
+  const [tab, setTab] = useState<EvaluationKind>(() => intent?.kind ?? "benchmark"),
     [context, setContext] = useState<EvaluationContext>();
   const [records, setRecords] = useState<EvaluationRecord[]>([]),
-    [selected, setSelected] = useState<string>();
+    [selected, setSelected] = useState<string | undefined>(() => intent?.id);
   const [record, setRecord] = useState<ViewRecord>(),
     [page, setPage] = useState<EvaluationResultPage>();
   const [offset, setOffset] = useState(0),
@@ -130,8 +151,12 @@ export function EvaluationPage({
     setContext(undefined);
     setRecords([]);
     setRecord(undefined);
-    setSelected(undefined);
+    if (!isInitialWorkspaceHydration) {
+      setSelected(pendingIntentRef.current?.id);
+    }
     setDraft(undefined);
+    setRevising(false);
+    setSourceId(undefined);
     setPlan(undefined);
     setError("");
     setNotice("");
@@ -152,7 +177,7 @@ export function EvaluationPage({
     setBusy(false);
     actionLock.current = undefined;
     if (preview) {
-      previewRecords.current = previewEvaluationRecords();
+      previewRecords.current = previewEvaluationRecords(zh);
       setRecords(previewRecords.current);
       setContext(EVALUATION_PREVIEW_CONTEXT);
     }
@@ -174,10 +199,13 @@ export function EvaluationPage({
   }, [client, workspaceId, sessionId, available, preview]);
   useEffect(() => {
     if (intent) {
+      pendingIntentRef.current = intent;
       setTab(intent.kind);
       setSelected(intent.id);
       setOffset(0);
       setDraft(undefined);
+      setRevising(false);
+      setSourceId(undefined);
     }
   }, [intent]);
   useEffect(() => {
@@ -196,17 +224,37 @@ export function EvaluationPage({
               })
             ).records;
         if (!active) return;
+        if (list.length > 0) pendingIntentRef.current = undefined;
         setRecords(list);
-        const id = selected ?? list.find((r) => r.spec.kind === tab)?.id;
+        const listWorking = list.some((r) =>
+          ["preparing", "running", "cancelling"].includes(r.state),
+        );
+        const tabFallback = preview
+          ? (list.find((r) => r.spec.kind === tab) ?? list[0])
+          : list.find((r) => r.spec.kind === tab);
+        const matchedPreview =
+          preview && selected ? list.find((r) => r.id === selected) : undefined;
+        const id = preview
+          ? (matchedPreview ?? tabFallback)?.id
+          : (selected ?? tabFallback?.id);
         if (!id) {
+          workingRef.current = listWorking;
           setRecord(undefined);
           setPage(undefined);
           return;
         }
         const value = preview
-          ? list.find((r) => r.id === id)!
+          ? (matchedPreview ?? tabFallback)
           : await client.query("evaluations.read", { id });
         if (!active) return;
+        if (!value) {
+          workingRef.current = listWorking;
+          setRecord(undefined);
+          setPage(undefined);
+          return;
+        }
+        workingRef.current =
+          listWorking || ["preparing", "running", "cancelling"].includes(value.state);
         setRecord(value);
         if (id !== selected) {
           setSelected(id);
@@ -228,7 +276,12 @@ export function EvaluationPage({
     };
     let stop: (() => void) | undefined;
     if (preview) void load();
-    else stop = startEvaluationPolling({ client, load, intervalMs: 1500 });
+    else
+      stop = startEvaluationPolling({
+        client,
+        load,
+        intervalMs: () => (!draftOpenRef.current && workingRef.current ? 1500 : undefined),
+      });
     return () => {
       active = false;
       stop?.();
@@ -293,7 +346,9 @@ export function EvaluationPage({
   const editDraft = (spec: EvaluationSpec) => {
     setDraft(spec);
     setPlan(undefined);
-    sessionStorage.setItem(draftKey, JSON.stringify(spec));
+    if (!sourceId && !revising) {
+      sessionStorage.setItem(draftKey, JSON.stringify(spec));
+    }
   };
   const create = () => {
     let spec = emptyEvaluation(tab);
@@ -377,10 +432,13 @@ export function EvaluationPage({
       if (preview) previewRecords.current = [value, ...previewRecords.current];
       setSelected(value.id);
       setRecord(value);
+      const wasNewDraft = !sourceId && !revising;
       setDraft(undefined);
+      setRevising(false);
+      setSourceId(undefined);
       setPlan(undefined);
       setOffset(0);
-      sessionStorage.removeItem(draftKey);
+      if (wasNewDraft) sessionStorage.removeItem(draftKey);
     });
   const control = (input: Omit<EvaluationControlInput, "id">) =>
     void action(async () => {
@@ -467,10 +525,13 @@ export function EvaluationPage({
         label={t("评测工作区", "Evaluation workspace")}
         value={tab}
         onChange={(value) => {
+          pendingIntentRef.current = undefined;
           setTab(value);
           setSelected(undefined);
           setOffset(0);
           setDraft(undefined);
+          setRevising(false);
+          setSourceId(undefined);
           setPlan(undefined);
           setCompare(undefined);
           setFilter("");
@@ -561,7 +622,10 @@ export function EvaluationPage({
                 className="btn small"
                 onClick={() => {
                   setDraft(undefined);
+                  setRevising(false);
+                  setSourceId(undefined);
                   setPlan(undefined);
+                  if (working) setRefresh((n) => n + 1);
                 }}
               >
                 {t("返回结果", "Back to results")}
@@ -866,16 +930,17 @@ export function EvaluationPage({
                         let offset = 0,
                           text = "";
                         for (;;) {
+                          if (epoch.current !== currentEpoch) return;
                           const part = await client.query("evaluations.patch", {
                             id: record.id,
                             offset,
                           });
                           assertCurrent();
                           text += part.text;
-                          if (part.nextOffset >= part.total) break;
+                          if (part.nextOffset >= part.total || part.nextOffset <= offset) break;
                           offset = part.nextOffset;
                         }
-                        setPatchText(text);
+                        if (epoch.current === currentEpoch) setPatchText(text);
                       })
                     }
                   >
@@ -904,7 +969,7 @@ export function EvaluationPage({
                   : ""}
               </span>
             </div>
-            <EvaluationResults record={record} page={shownPage} t={t} />
+            <EvaluationResults key={record.id} record={record} page={shownPage} t={t} />
             <div className="eval-pagination">
               <button
                 className="btn small"
@@ -1041,10 +1106,10 @@ export function EvaluationPage({
               )}
             </p>
           ) : null}
-          <details className="eval-advanced">
-            <summary>{t("完整冻结配置", "Frozen configuration")}</summary>
-            <pre>{JSON.stringify(plan.spec, null, 2)}</pre>
-          </details>
+          <LazyJsonDetails
+            summary={t("完整冻结配置", "Frozen configuration")}
+            getValue={() => plan.spec}
+          />
           <div className="eval-dialog-actions">
             <button className="btn" onClick={() => setPlan(undefined)}>
               {t("返回修改", "Back")}
@@ -1075,9 +1140,12 @@ export function EvaluationPage({
               <div key={r.id}>
                 <button
                   onClick={() => {
+                    pendingIntentRef.current = undefined;
                     setSelected(r.id);
                     setOffset(0);
                     setDraft(undefined);
+                    setRevising(false);
+                    setSourceId(undefined);
                     setHistory(false);
                   }}
                 >

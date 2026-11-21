@@ -1,6 +1,7 @@
-import { PREVIEW_DIFF, type PreviewDiffLine } from "./fixtures";
+import { getPreviewDiff, type PreviewDiffLine } from "./fixtures";
+import { isZh } from "../i18n";
 
-type PreviewFileDiff = { add: number; del: number; lines: readonly PreviewDiffLine[] };
+type PreviewFileDiff = { add: number; del: number; lines: readonly PreviewDiffLine[]; partial?: boolean };
 
 /** File-specific excerpts shared by Changes and Git; counts describe the full file change. */
 export const PREVIEW_FILE_DIFFS: Readonly<Record<string, PreviewFileDiff>> = {

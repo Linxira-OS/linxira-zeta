@@ -1,6 +1,7 @@
 import type { ConversationContentBlock, JsonValue } from "@linxiraos/studio-protocol"
 import { NATIVE_TOOL_GALLERY } from "./nativeToolGallery";
 import { demoPath } from "./demoPaths";
+import { previewActionsWatch } from "../hubPreview";
 
 type Card = { readonly [key: string]: JsonValue };
 
@@ -22,7 +23,7 @@ const EXTRA_CARDS: readonly Card[] = [
   { kind: "extension_tool", name: "Extension Tool", args: { action: "inspect", scope: ["conversation", "tools"], options: { verbose: true } }, output: { summary: "扩展工具使用通用 Args / Output 卡", count: 2, ready: true, warning: null } },
 ];
 
-export const CONTENT_GALLERY_TOOLS = [...NATIVE_TOOL_GALLERY.filter(card => !["ask", "askuser", "think"].includes(String(card.kind))), ...EXTRA_CARDS];
+export const CONTENT_GALLERY_TOOLS = getContentGalleryTools();
 
 export function galleryToolBlocks(cards: readonly Card[], chapter: string): ConversationContentBlock[] {
   return cards.flatMap((card, index): ConversationContentBlock[] => {

@@ -4,6 +4,51 @@ import { sessionSwitchPerformance } from "../sessionSwitchPerformance";
 type ReadClient = Pick<StudioClient, "query" | "subscribe">;
 type Entry<T> = { value: T; bytes: number; used: number; expires: number };
 const MiB = 1024 * 1024;
+export const TRANSCRIPT_PAGE_CACHE_MAX_ENTRIES = 12;
+export const TRANSCRIPT_PAGE_CACHE_MAX_BYTES = 16 * MiB;
+export const TRANSCRIPT_PAGE_CACHE_MAX_ENTRY_BYTES = 2 * MiB;
+export const TRANSCRIPT_PAGE_TTL_MS = 300_000;
+export const WARM_HISTORY_SCAN_LIMIT = 8;
+export const WARM_SESSION_BUDGET = 5;
+
+function estimateValueBytes(value: unknown, depth = 0): number {
+  if (typeof value === "string") return (value.length + 2) * 2;
+  if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean") return 8;
+  if (depth > 8) return JSON.stringify(value).length * 2;
+  if (Array.isArray(value)) {
+    let total = 4;
+    for (let index = 0; index < value.length; index++) total += estimateValueBytes(value[index], depth + 1) + 2;
+    return total;
+  }
+  if (typeof value === "object") {
+    let total = 4;
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (entry === undefined) continue;
+      total += (key.length + 3) * 2 + estimateValueBytes(entry, depth + 1);
+    }
+    return total;
+  }
+  return 8;
+}
+
+function deepValueEqual(first: unknown, second: unknown): boolean {
+  if (Object.is(first, second)) return true;
+  if (typeof first !== typeof second || first === null || second === null || typeof first !== "object") return false;
+  if (Array.isArray(first)) {
+    if (!Array.isArray(second) || first.length !== second.length) return false;
+    for (let index = 0; index < first.length; index++) if (!deepValueEqual(first[index], second[index])) return false;
+    return true;
+  }
+  if (Array.isArray(second)) return false;
+  const a = first as Record<string, unknown>, b = second as Record<string, unknown>;
+  const keysA = Object.keys(a), keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (let index = 0; index < keysA.length; index++) {
+    const key = keysA[index]!;
+    if (!(key in b) || !deepValueEqual(a[key], b[key])) return false;
+  }
+  return true;
+}
 
 /** Display data only. An entry owns no engine, DOM, Runtime state or subscription. */
 export class DisplayCache<T> {
@@ -20,7 +65,7 @@ export class DisplayCache<T> {
     return entry.value;
   }
   set(key: string, value: T, ttl: number): void {
-    const bytes = JSON.stringify(value).length * 2;
+    const bytes = estimateValueBytes(value);
     this.delete(key);
     if (bytes > this.maxEntryBytes) return;
     this.entries.set(key, { value, bytes, used: Date.now(), expires: Date.now() + ttl }); this.bytes += bytes;
@@ -45,28 +90,45 @@ const bodySignals = new WeakMap<ReadClient, () => void>();
 export function bindProjectReads(client: ReadClient, reads: ProjectReads): void { bindings.set(client, reads); }
 export function projectReadsFor(client: ReadClient): ProjectReads | undefined { return bindings.get(client); }
 export function cachedProjectReads(target: StudioClient, workspaceId: WorkspaceId): ProjectReads | undefined { return targets.get(target)?.projects.get(workspaceId); }
+export function invalidateProjectHistoryReads(client: ReadClient, workspaceId?: WorkspaceId): void {
+  const bound = bindings.get(client);
+  if (bound) {
+    if (workspaceId === undefined || bound.workspaceId === workspaceId) bound.invalidate("history.list");
+    else bound.owner.projects.get(workspaceId)?.invalidate("history.list");
+    return;
+  }
+  const root = targets.get(client as StudioClient);
+  if (!root) return;
+  if (workspaceId !== undefined) {
+    root.projects.get(workspaceId)?.invalidate("history.list");
+    return;
+  }
+  for (const project of root.projects.values()) project.invalidate("history.list");
+}
 export function bindBodyReady(client: ReadClient, ready: () => void): void { bodySignals.set(client, ready); }
 export function conversationBodyReady(client: ReadClient): void { bodySignals.get(client)?.(); }
 
 const metadataTtl: Partial<Record<QueryName, number>> = {
-  "models.get": 30_000, "skills.get": 30_000, "projects.list": 5_000,
+  // Authorized model availability belongs to the conversation's Runtime.
+  "skills.get": 30_000, "projects.list": 5_000,
   "history.list": 3_000, "workspace.fileTree": 3_000, "git.repository.get": 3_000, "git.repository.summary": 3_000,
 };
 export function isProjectRead(name: QueryName): boolean { return name in metadataTtl; }
 export function isAuxiliaryRead(name: QueryName): boolean {
-  return isProjectRead(name) || name === "session.telemetry.read" || name === "session.agents.list" || name.startsWith("evaluations.");
+  return isProjectRead(name) || name === "models.get" || name === "session.telemetry.read" || name === "session.agents.list" || name.startsWith("evaluations.");
 }
 
 class ConnectionReads {
   readonly projects = new Map<WorkspaceId, ProjectReads>();
   readonly metadata = new DisplayCache<unknown>(128, 16 * MiB);
-  readonly pages = new DisplayCache<ConversationTranscriptReadPage>(4, 8 * MiB, 2 * MiB);
+  readonly pages = new DisplayCache<ConversationTranscriptReadPage>(TRANSCRIPT_PAGE_CACHE_MAX_ENTRIES, TRANSCRIPT_PAGE_CACHE_MAX_BYTES, TRANSCRIPT_PAGE_CACHE_MAX_ENTRY_BYTES);
   readonly pending = new Map<string, Promise<unknown>>();
   foreground = 0;
   background: Promise<unknown> = Promise.resolve();
   prefetchSupported = true;
   epoch = 0;
   authorityEpoch: string | undefined;
+  readonly sessionTitles = new Map<string, string | undefined>();
   #offRoot: (() => void) | undefined;
   #rootTimer: ReturnType<typeof setTimeout> | undefined;
   #unregister: (() => void) | undefined;
@@ -87,7 +149,7 @@ class ConnectionReads {
       this.#unregister?.(); this.#unregister = undefined;
     }, 30_000);
   }
-  invalidateMetadata() { this.epoch++; this.metadata.clear(); this.pending.clear(); }
+  invalidateMetadata() { this.epoch++; this.metadata.clear(); this.pending.clear(); this.sessionTitles.clear(); }
   invalidate() { this.invalidateMetadata(); this.pages.clear(); }
   trim() {
     this.metadata.prune(); this.pages.prune();
@@ -159,10 +221,27 @@ export class ProjectReads {
     this.owner.authorityEpoch = authority;
     if (event.kind === "resync.required") this.owner.invalidate();
     if (event.kind === "git.repository.changed") this.invalidate("git.");
+    if (event.kind === "snapshot") {
+      const sessionId = String(event.snapshot.sessionId);
+      const nextTitle = event.snapshot.sessionTitle?.trim() || undefined;
+      const hadSession = this.owner.sessionTitles.has(sessionId);
+      const previousTitle = this.owner.sessionTitles.get(sessionId);
+      this.owner.sessionTitles.set(sessionId, nextTitle);
+      if (nextTitle !== previousTitle || (!hadSession && event.snapshot.isStreaming)) {
+        this.invalidate("history.list");
+      }
+    }
+    if (
+      event.kind === "conversation.changed"
+      && event.update.kind === "conversation.message.started"
+      && event.update.role === "user"
+    ) {
+      this.invalidate("history.list");
+    }
     if (event.kind === "command.receipt" && event.receipt.status === "completed") {
       const name = event.receipt.commandName;
       if (/^(models\.|skills\.|plugins\.|config\.|runtime\.install)/.test(name)) this.owner.invalidateMetadata();
-      if (/^(session\.|timeTravel\.|core\.prompt)/.test(name)) { this.invalidate("history.list"); this.owner.pages.clear(); }
+      if (name !== "session.titles.inspect" && /^(session\.|timeTravel\.|core\.prompt)/.test(name)) { this.invalidate("history.list"); this.owner.pages.clear(); }
       if (/^(git\.|github\.|workspace\.)/.test(name)) { this.invalidate("git."); this.invalidate("workspace.fileTree"); this.invalidate("projects.list"); }
     }
   }
@@ -188,20 +267,20 @@ export class ProjectReads {
     this.owner.pending.set(key, task); return task;
   }
   page(sessionId: SessionId, revision?: string): ConversationTranscriptReadPage | undefined {
-    const page = this.owner.pages.get(`${this.workspaceId}\0${sessionId}`, 60_000);
+    const page = this.owner.pages.get(`${this.workspaceId}\0${sessionId}`, TRANSCRIPT_PAGE_TTL_MS);
     return page && (!revision || page.transcriptRevision === revision) ? page : undefined;
   }
   savePage(page: ConversationTranscriptReadPage): ConversationTranscriptReadPage {
-    const key = `${this.workspaceId}\0${page.sessionId}`, previous = this.owner.pages.get(key);
-    if (previous?.transcriptRevision === page.transcriptRevision && previous.headCursor === page.headCursor && previous.olderCursor === page.olderCursor && previous.items.length === page.items.length) {
-      this.owner.pages.set(key, previous, 60_000); return previous;
+    const key = `${this.workspaceId}\0${page.sessionId}`, previous = this.owner.pages.get(key, TRANSCRIPT_PAGE_TTL_MS);
+    if (previous && previous.transcriptRevision !== undefined && previous.transcriptRevision === page.transcriptRevision && previous.headCursor === page.headCursor && previous.olderCursor === page.olderCursor && previous.items.length === page.items.length) {
+      return previous;
     }
-    // Full-page reconciliation only; streaming deltas never stringify/compare rows.
+    // Full-page reconciliation only; streaming deltas never compare full pages.
     const byId = new Map(previous?.items.map(item => [item.itemId, item]));
     const shared = { ...page, items: page.items.map(item => {
-      const old = byId.get(item.itemId); return old && JSON.stringify(old) === JSON.stringify(item) ? old : item;
+      const old = byId.get(item.itemId); return old && deepValueEqual(old, item) ? old : item;
     }) };
-    this.owner.pages.set(key, shared, 60_000); return shared;
+    this.owner.pages.set(key, shared, TRANSCRIPT_PAGE_TTL_MS); return shared;
   }
   warm(current?: SessionId): void {
     this.#warm?.abort();
@@ -221,17 +300,18 @@ export class ProjectReads {
     this.owner.background = this.owner.background.catch(() => {}).then(async () => {
       if (signal.aborted) return;
       await wait(2000);
-      for (const name of ["models.get", "skills.get"] as const) { if (!await idle()) return; await this.read(name, {}, true).catch(() => {}); }
       if (!await idle()) return;
-      const history = await this.read("history.list", { workspaceId: this.workspaceId, limit: 6, status: "active" }, true);
+      await this.read("skills.get", {}, true).catch(() => {});
+      if (!await idle()) return;
+      const history = await this.read("history.list", { workspaceId: this.workspaceId, limit: WARM_HISTORY_SCAN_LIMIT, status: "active" }, true);
       if (!await idle()) return;
       await this.read("git.repository.summary", { workspaceId: this.workspaceId }, true).catch(() => {});
       if (!this.owner.prefetchSupported) return;
       let warmed = 0;
-      for (const row of history.entries.slice(0, 6)) {
-        if (!row.sessionId || row.sessionId === current || warmed === 2) continue;
-        if (!await idle()) return;
+      for (const row of history.entries.slice(0, WARM_HISTORY_SCAN_LIMIT)) {
+        if (!row.sessionId || row.sessionId === current || warmed === WARM_SESSION_BUDGET) continue;
         if (this.page(row.sessionId)) { warmed++; continue; }
+        if (!await idle()) return;
         try {
           const epoch = this.owner.epoch;
           const result = await (await this.client()).query("session.transcript.prefetch", { sessionId: row.sessionId });

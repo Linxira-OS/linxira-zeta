@@ -1,7 +1,7 @@
 import type { AvailableModelRecord } from "@linxiraos/studio-contract"
 import type { CompactionPreview } from "@linxiraos/studio-protocol"
 
-/** Display-only compaction scenario. Real input is always planned by OMP. */
+/** Display-only compaction scenario. Real input is always planned by Zeta. */
 export function previewModelCompaction(model: AvailableModelRecord, input: string): { plan: CompactionPreview; entry: number | string | null } {
   const text = input.trim();
   const percent = /^(\d+(?:\.\d+)?)%$/.exec(text);

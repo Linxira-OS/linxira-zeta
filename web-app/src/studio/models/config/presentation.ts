@@ -10,7 +10,7 @@ export const STATUS_META: Record<string, { label: string; chip: string; dot: str
   "connection-failed": { label: "Connection Failed", chip: "red", dot: "red" },
 };
 
-// 原生 = OMP 内置/运行时解析；第三方 = 用户自定义/扩展。
+// 原生 = Zeta 内置/运行时解析；第三方 = 用户自定义/扩展。
 export const SOURCE_GROUP = (source: string): "native" | "third" =>
   source === "builtin" || source === "runtime" ? "native" : "third";
 

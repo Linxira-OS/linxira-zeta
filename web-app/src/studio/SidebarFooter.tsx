@@ -35,7 +35,8 @@ export function SidebarFooter({
   /** 底栏盒子：壳用它的底边换算落点，这里用它盯实时高度。 */
   readonly footerRef: RefObject<HTMLElement | null> | undefined;
 }) {
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const localFooterRef = useRef<HTMLElement>(null);
   const footer = footerRef ?? localFooterRef;
   const [mounted, setMounted] = useState(railCollapsed);
@@ -54,7 +55,8 @@ export function SidebarFooter({
 
   if (!mounted) return null;
 
-  const updateLabel = `${t("appUpdate.foundNewVersion")} v${version ?? ""}`;
+  const hasVersion = Boolean(version && version.trim());
+  const updateLabel = hasVersion ? `${t("appUpdate.foundNewVersion")} v${version}` : t("appUpdate.foundNewVersion");
   const tone = hasUpdate ? "ok" : status.tone;
   const dotClass = hasUpdate || status.tone === "ok" ? "green pulse" : status.tone === "err" ? "red" : "amber";
 
@@ -79,7 +81,7 @@ export function SidebarFooter({
             <span className="sb-label">
               <span className="u-name">
                 <span>{profile.displayName}</span>
-                {hasUpdate ? <span className="sb-version">v{version}</span> : null}
+                {hasUpdate && hasVersion ? <span className="sb-version">v{version}</span> : null}
               </span>
               <span className={`u-status ${tone}`} role="status" aria-live="polite">
                 <span className={`dot ${dotClass}`} aria-hidden="true" />

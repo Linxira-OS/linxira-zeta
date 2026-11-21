@@ -12,11 +12,179 @@ import { useExecutionTarget } from "../workspaces/ExecutionTargets";
 import { resolveArtifactContext } from "../media/artifactUrl";
 
 type T = (cn: string, en: string) => string;
+type JudgmentItem = Extract<EvaluationSpec, { kind: "judgment" }>["items"][number];
+
 export const lines = (text: string) =>
   text
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter(Boolean);
+
+const joinLines = (values: readonly string[]) => values.join("\n");
+
+function serializeChoiceCriteria(criteria: Record<string, string | null>): string {
+  return Object.entries(criteria)
+    .map(([key, value]) => `${key}: ${value ?? ""}`)
+    .join("\n");
+}
+
+function parseChoiceCriteria(raw: string): Record<string, string | null> {
+  const entries: Array<[string, string | null]> = [];
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const idx = line.indexOf(":");
+    if (idx < 0) {
+      entries.push([line.trim(), null]);
+    } else {
+      const key = line.slice(0, idx).trim();
+      const val = line.slice(idx + 1).trim() || null;
+      if (key) entries.push([key, val]);
+    }
+  }
+  return Object.fromEntries(entries);
+}
+
+function serializeJudgmentItems(items: readonly JudgmentItem[]): string {
+  return items
+    .map((item) => (typeof item.state === "string" ? item.state : JSON.stringify(item.state)))
+    .join("\n");
+}
+
+function mergePlainTextItems(
+  prevItems: readonly JudgmentItem[],
+  rawText: string,
+): JudgmentItem[] {
+  const nextStates = rawText.split(/\r?\n/).filter((line) => line.length > 0);
+  if (nextStates.length === 0) return [];
+  const byState = new Map<string, number[]>();
+  for (let i = 0; i < prevItems.length; i += 1) {
+    const item = prevItems[i]!;
+    if (typeof item.state !== "string") continue;
+    const list = byState.get(item.state) ?? [];
+    list.push(i);
+    byState.set(item.state, list);
+  }
+  const matchedPrevIdx = new Array<number>(nextStates.length).fill(-1);
+  const usedPrev = new Set<number>();
+  for (let i = 0; i < nextStates.length; i += 1) {
+    const bucket = byState.get(nextStates[i]!);
+    if (bucket && bucket.length > 0) {
+      const prevIdx = bucket.shift()!;
+      matchedPrevIdx[i] = prevIdx;
+      usedPrev.add(prevIdx);
+    }
+  }
+  const remainingPrev: number[] = [];
+  for (let i = 0; i < prevItems.length; i += 1) {
+    if (!usedPrev.has(i) && typeof prevItems[i]!.state === "string") {
+      remainingPrev.push(i);
+    }
+  }
+  let remCursor = 0;
+  for (let i = 0; i < nextStates.length && remCursor < remainingPrev.length; i += 1) {
+    if (matchedPrevIdx[i] === -1) {
+      const prevIdx = remainingPrev[remCursor]!;
+      if (nextStates.length <= prevItems.length || prevIdx === i) {
+        matchedPrevIdx[i] = prevIdx;
+        usedPrev.add(prevIdx);
+        remCursor += 1;
+      }
+    }
+  }
+  const takenKeys = new Set<string>();
+  for (const prevIdx of matchedPrevIdx) {
+    if (prevIdx >= 0) takenKeys.add(String(prevItems[prevIdx]!.key));
+  }
+  let nextNumericKey = 0;
+  const allocKey = (): number => {
+    while (takenKeys.has(String(nextNumericKey))) nextNumericKey += 1;
+    takenKeys.add(String(nextNumericKey));
+    return nextNumericKey;
+  };
+  return nextStates.map((state, i) => {
+    const prevIdx = matchedPrevIdx[i]!;
+    if (prevIdx >= 0) {
+      const prev = prevItems[prevIdx]!;
+      return {
+        ...prev,
+        key: prev.key,
+        state,
+      };
+    }
+    return { key: allocKey(), state };
+  });
+}
+
+function DraftTextarea<TValue>({
+  className,
+  rows,
+  placeholder,
+  readOnly,
+  disabled,
+  serialized,
+  parse,
+  format,
+  onUpdate,
+}: {
+  className?: string | undefined;
+  rows?: number | undefined;
+  placeholder?: string | undefined;
+  readOnly?: boolean | undefined;
+  disabled?: boolean | undefined;
+  serialized: string;
+  parse: (raw: string) => TValue;
+  format: (value: TValue) => string;
+  onUpdate: (value: TValue) => void;
+}) {
+  const [raw, setRaw] = useState(serialized);
+  const lastEmitted = useRef(serialized);
+  useEffect(() => {
+    if (serialized !== lastEmitted.current) {
+      lastEmitted.current = serialized;
+      setRaw(serialized);
+    }
+  }, [serialized]);
+  return (
+    <textarea
+      {...(className === undefined ? {} : { className })}
+      {...(rows === undefined ? {} : { rows })}
+      {...(placeholder === undefined ? {} : { placeholder })}
+      {...(readOnly === undefined ? {} : { readOnly })}
+      {...(disabled === undefined ? {} : { disabled })}
+      value={raw}
+      onChange={(e) => {
+        if (readOnly) return;
+        const nextRaw = e.target.value;
+        setRaw(nextRaw);
+        const parsed = parse(nextRaw);
+        lastEmitted.current = format(parsed);
+        onUpdate(parsed);
+      }}
+    />
+  );
+}
+
+function LazyDetails({
+  className,
+  summary,
+  children,
+}: {
+  className?: string | undefined;
+  summary: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      {...(className === undefined ? {} : { className })}
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>{summary}</summary>
+      {open ? children : null}
+    </details>
+  );
+}
 function Field({ label, help, children }: { label: string; help?: string; children: ReactNode }) {
   return (
     <label className="eval-field">
@@ -64,24 +232,35 @@ function JsonField({
   value: object;
   onChange(value: object): void;
 }) {
-  const [text, setText] = useState(JSON.stringify(value, null, 2)),
+  const zh = useI18n().resolvedLanguage === "zh";
+  const serialized = JSON.stringify(value, null, 2);
+  const [text, setText] = useState(serialized),
+    [focused, setFocused] = useState(false),
     [error, setError] = useState("");
+  useEffect(() => {
+    if (!focused) {
+      setText(serialized);
+      setError("");
+    }
+  }, [serialized, focused]);
   return (
     <Field label={label}>
       <textarea
         className="input mono"
         rows={5}
         value={text}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onChange={(e) => {
           setText(e.target.value);
           try {
-            const value: unknown = JSON.parse(e.target.value);
-            if (!value || typeof value !== "object")
-              throw new Error("Expected JSON object or array");
-            onChange(value);
+            const parsed: unknown = JSON.parse(e.target.value);
+            if (!parsed || typeof parsed !== "object")
+              throw new Error(zh ? "需要 JSON 对象或数组" : "Expected JSON object or array");
+            onChange(parsed);
             setError("");
-          } catch (error) {
-            setError(String(error));
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : String(cause));
           }
         }}
       />
@@ -226,11 +405,13 @@ export function EvaluationConfig({
           label={label}
           help={t("相对于工作区，每行一个路径", "Workspace-relative paths, one per line")}
         >
-          <textarea
+          <DraftTextarea
             className="input mono"
             rows={2}
-            value={spec[key].join("\n")}
-            onChange={(e) => set(key, lines(e.target.value))}
+            serialized={spec[key].join("\n")}
+            parse={lines}
+            format={joinLines}
+            onUpdate={(next) => set(key, next)}
           />
         </Field>
         <button className="btn small" onClick={() => setPicker(key)}>
@@ -291,11 +472,13 @@ export function EvaluationConfig({
               "Supports provider/model, native aliases and :thinking suffixes. Review shows resolved models.",
             )}
           >
-            <textarea
+            <DraftTextarea
               className="input mono"
-              value={spec.models.join("\n")}
               rows={3}
-              onChange={(e) => set("models", lines(e.target.value))}
+              serialized={spec.models.join("\n")}
+              parse={lines}
+              format={joinLines}
+              onUpdate={(next) => set("models", next)}
             />
           </Field>
         </details>
@@ -386,13 +569,25 @@ export function EvaluationConfig({
                 onChange={(e) => set("serviceTier", e.target.value)}
               >
                 <option value="">{t("继承原生配置", "Native configuration")}</option>
-                {["none", "auto", "default", "flex", "scale", "priority", "ultrafast"].map(
+                {NATIVE_SERVICE_TIERS.map(
                   (tier) => (
                     <option key={tier}>{tier}</option>
                   ),
                 )}
               </AppSelect>
             </Field>
+            <BenchmarkAccountPicker
+              client={client}
+              sessionId={currentSessionId}
+              preview={preview}
+              zh={resolvedLanguage === "zh"}
+              providers={spec.models.flatMap((selector) => {
+                const provider = context?.models.find((m) => m.selector === selector)?.provider ?? selectorProvider(selector);
+                return provider ? [provider] : [];
+              })}
+              value={spec.account}
+              onChange={(account) => set("account", account)}
+            />
           </div>
           {["chat", "generation"].includes(spec.profile) ? (
             <Field
@@ -441,34 +636,36 @@ export function EvaluationConfig({
         <>
           <section className="eval-config-section">
             <h3>{t("评判内容", "Items")}</h3>
-            <Field label={t("文本样本（每行一个）", "Text items (one per line)")}>
-              <textarea
-                className="input"
-                rows={6}
-                placeholder={t(
-                  "粘贴内容，或导入文本／JSON 文件",
-                  "Paste items or import text / JSON",
-                )}
-                value={spec.items
-                  .map((item) =>
-                    typeof item.state === "string" ? item.state : JSON.stringify(item.state),
-                  )
-                  .join("\n")}
-                onChange={(e) =>
-                  set(
-                    "items",
-                    e.target.value
-                      .split(/\r?\n/)
-                      .filter(Boolean)
-                      .map((state, key) => ({
-                        key: spec.items[key]?.key ?? key,
-                        state,
-                        ...(spec.items[key]?.images ? { images: spec.items[key]!.images } : {}),
-                      })),
-                  )
-                }
-              />
-            </Field>
+            {(() => {
+              const hasStructuredItems = spec.items.some((item) => typeof item.state !== "string");
+              return (
+                <Field
+                  label={t("文本样本（每行一个）", "Text items (one per line)")}
+                  {...(hasStructuredItems
+                    ? {
+                        help: t(
+                          "当前样本含结构化对象，请在下方「结构化输入」JSON 中编辑，或重新导入。",
+                          "Items contain structured objects; edit them in Structured input (JSON) below or re-import.",
+                        ),
+                      }
+                    : {})}
+                >
+                  <DraftTextarea
+                    className="input"
+                    rows={6}
+                    readOnly={hasStructuredItems}
+                    placeholder={t(
+                      "粘贴内容，或导入文本／JSON 文件",
+                      "Paste items or import text / JSON",
+                    )}
+                    serialized={serializeJudgmentItems(spec.items)}
+                    parse={(raw) => mergePlainTextItems(spec.items, raw)}
+                    format={serializeJudgmentItems}
+                    onUpdate={(next) => set("items", next)}
+                  />
+                </Field>
+              );
+            })()}
             <div className="eval-toolbar">
               <label className="btn small outline eval-file-button">
                 {t("导入样本", "Import items")}
@@ -489,7 +686,8 @@ export function EvaluationConfig({
                                 .split(/\r?\n/)
                                 .filter(Boolean)
                                 .map((state) => ({ state }));
-                        if (!Array.isArray(values)) throw new Error("Expected an array of items");
+                        if (!Array.isArray(values))
+                          throw new Error(t("需要样本数组", "Expected an array of items"));
                         set(
                           "items",
                           values.map((row: unknown, i) =>
@@ -500,7 +698,8 @@ export function EvaluationConfig({
                         );
                         setError("");
                       })
-                      .catch((cause) => setError(String(cause)));
+                      .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+                    e.target.value = "";
                   }}
                 />
               </label>
@@ -580,17 +779,15 @@ export function EvaluationConfig({
                 ))}
               </details>
             ) : null}
-            <details className="eval-advanced">
-              <summary>{t("结构化输入", "Structured input")}</summary>
+            <LazyDetails className="eval-advanced" summary={t("结构化输入", "Structured input")}>
               <JsonField
-                key={spec.items.length}
                 label={t("JSON 样本数组", "JSON item array")}
                 value={spec.items}
                 onChange={(value) => {
                   if (Array.isArray(value)) set("items", value);
                 }}
               />
-            </details>
+            </LazyDetails>
           </section>
           <section className="eval-config-section">
             <h3>{t("问题与评分标准", "Questions and criteria")}</h3>
@@ -669,47 +866,41 @@ export function EvaluationConfig({
                       </Field>
                     ))}
                   </div>
-                ) : (
+                ) : q.type === "score" ? (
                   <Field
-                    label={
-                      q.type === "score"
-                        ? t(
-                            "等级标准：从最低到最高，每行一级",
-                            "Levels, lowest to highest, one per line",
-                          )
-                        : t("选项：每行 标签: 标准", "Options: label: criterion, one per line")
-                    }
+                    label={t(
+                      "等级标准：从最低到最高，每行一级",
+                      "Levels, lowest to highest, one per line",
+                    )}
                   >
-                    <textarea
+                    <DraftTextarea
                       className="input"
                       rows={3}
-                      value={
-                        q.type === "score"
-                          ? q.criteria.join("\n")
-                          : Object.entries(q.criteria)
-                              .map(([key, value]) => `${key}: ${value ?? ""}`)
-                              .join("\n")
-                      }
-                      onChange={(e) =>
+                      serialized={q.criteria.join("\n")}
+                      parse={lines}
+                      format={joinLines}
+                      onUpdate={(criteria) =>
                         set("questions", {
                           ...spec.questions,
-                          [id]: {
-                            ...q,
-                            criteria:
-                              q.type === "score"
-                                ? e.target.value.split("\n")
-                                : Object.fromEntries(
-                                    e.target.value.split("\n").map((line) => {
-                                      const i = line.indexOf(":");
-                                      return i < 0
-                                        ? [line, null]
-                                        : [
-                                            line.slice(0, i).trim(),
-                                            line.slice(i + 1).trim() || null,
-                                          ];
-                                    }),
-                                  ),
-                          },
+                          [id]: { ...q, criteria },
+                        })
+                      }
+                    />
+                  </Field>
+                ) : (
+                  <Field
+                    label={t("选项：每行 标签: 标准", "Options: label: criterion, one per line")}
+                  >
+                    <DraftTextarea
+                      className="input"
+                      rows={3}
+                      serialized={serializeChoiceCriteria(q.criteria)}
+                      parse={parseChoiceCriteria}
+                      format={serializeChoiceCriteria}
+                      onUpdate={(criteria) =>
+                        set("questions", {
+                          ...spec.questions,
+                          [id]: { ...q, criteria },
                         })
                       }
                     />
@@ -745,13 +936,19 @@ export function EvaluationConfig({
               <input
                 className="input mono"
                 value={spec.attachId ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...spec,
-                    attachId: e.target.value,
-                    ...(currentSessionId ? { attachSessionId: currentSessionId } : {}),
-                  })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const next = { ...spec } as Record<string, unknown>;
+                  if (!value.trim()) {
+                    delete next.attachId;
+                    delete next.attachSessionId;
+                  } else {
+                    next.attachId = value;
+                    if (currentSessionId) next.attachSessionId = currentSessionId;
+                    else delete next.attachSessionId;
+                  }
+                  onChange(next as unknown as EvaluationSpec);
+                }}
               />
             </Field>
           </details>
@@ -963,11 +1160,13 @@ export function EvaluationConfig({
                 )}
               </div>
               <Field label={t("保护指标（每行一个）", "Guardrail metrics (one per line)")}>
-                <textarea
+                <DraftTextarea
                   className="input"
                   rows={2}
-                  value={spec.hold?.join("\n") ?? ""}
-                  onChange={(e) => set("hold", lines(e.target.value))}
+                  serialized={spec.hold?.join("\n") ?? ""}
+                  parse={lines}
+                  format={joinLines}
+                  onUpdate={(next) => set("hold", next.length ? next : undefined)}
                   placeholder="cost_usd"
                 />
               </Field>
@@ -1021,10 +1220,13 @@ export function EvaluationConfig({
           t={t}
           onClose={() => setImagePicker(undefined)}
           onPick={(path) => {
+            const targetKey = String(imagePicker);
             set(
               "items",
-              spec.items.map((item, index) =>
-                index === imagePicker ? { ...item, images: [...(item.images ?? []), path] } : item,
+              spec.items.map((item) =>
+                String(item.key) === targetKey
+                  ? { ...item, images: [...(item.images ?? []), path] }
+                  : item,
               ),
             );
             setImagePicker(undefined);

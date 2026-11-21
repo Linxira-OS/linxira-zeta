@@ -10,6 +10,8 @@ import { utf8ByteLength } from "@linxiraos/studio-contract";
 import type { TerminalCommand } from "./terminals/api";
 
 export interface TerminalSession {
+  readonly kind?: "shell" | "tmux-pane";
+  readonly tmux?: { connectionId: string; paneId: string; windowId: string };
   readonly conversationId?: string;
   readonly targetId: string | null;
   readonly workspaceId?: string;
@@ -31,6 +33,10 @@ interface TerminalState {
   profileWarnings: readonly string[];
   profileError: string | null;  /** Explicit, user-visible loss notices per terminal — never a silent drop. */
   notices: Readonly<Record<string, string>>;
+  controlMode: Readonly<Record<string, boolean>>;
+  tmux: Readonly<Record<string, TmuxTopology>>;
+  tmuxOwners: Readonly<Record<string, string>>;
+  hiddenWindows: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -195,6 +201,7 @@ export class TerminalSessions {
    * mid-close right now - not every terminal ever closed.
    */
   readonly #removing = new Set<string>();
+  readonly #forgettingTmux = new Set<string>();
   #ackScheduled = false;
   #state: TerminalState = { sessions: [], graphics: {}, graphicsErrors: {}, notices: {}, profiles: [], defaultProfileId: null, profileWarnings: [], profileError: null };
   #off: (() => void) | undefined;
@@ -383,6 +390,9 @@ export class TerminalSessions {
       throw error;
     }
     this.#releaseScreen(id);
+    for (const [ownerKey, activeId] of this.activeIds) {
+      if (activeId === id) this.activeIds.delete(ownerKey);
+    }
     const { [id]: _graphic, ...graphics } = this.#state.graphics;
     const { [id]: _error, ...graphicsErrors } = this.#state.graphicsErrors;
     const { [id]: _notice, ...notices } = this.#state.notices;
@@ -402,6 +412,7 @@ export class TerminalSessions {
       }
     }
     for (const id of this.hosts.keys()) this.#releaseScreen(id);
+    this.activeIds.clear();
     this.pending.clear();
     this.#acked.clear();
     this.#creditsClosed.clear();
@@ -438,6 +449,21 @@ export class TerminalSessions {
   }
   #listen(): void {
     if (!this.api || this.#off) return;
+    const offTmux = this.api.onTmux?.(topology => {
+      if (this.#forgettingTmux.has(topology.connectionId)) return;
+      const previous = this.#state.sessions.filter(session => session.tmux?.connectionId === topology.connectionId);
+      const liveIds = new Set(Object.values(topology.panes).map(pane => pane.terminalId));
+      const removed = new Set(previous.filter(pane => !liveIds.has(pane.id)).map(pane => pane.id));
+      for (const id of removed) this.#releaseScreen(id);
+      const panes: TerminalSession[] = Object.entries(topology.panes).map(([paneId, pane]) => ({
+        id: pane.terminalId, kind: "tmux-pane", tmux: { connectionId: topology.connectionId, paneId, windowId: pane.windowId },
+        targetId: topology.targetId, workspaceId: topology.workspaceId, name: pane.title, cwd: pane.cwd ?? "",
+        status: topology.state === "lost" || topology.state === "exited" ? "ended" : "running",
+      }));
+      const keep = <T,>(record: Readonly<Record<string, T>>) => Object.fromEntries(Object.entries(record).filter(([id]) => !removed.has(id)));
+      this.#publish({ ...this.#state, tmux: { ...this.#state.tmux, [topology.connectionId]: topology }, sessions: [...this.#state.sessions.filter(session => session.tmux?.connectionId !== topology.connectionId), ...panes], ...(removed.size ? { graphics: keep(this.#state.graphics), graphicsErrors: keep(this.#state.graphicsErrors), notices: keep(this.#state.notices), controlMode: keep(this.#state.controlMode) } : {}) });
+      for (const pane of panes) this.#drain(pane.id);
+    });
     const offData = this.api.onData(event => {
       if (this.#removing.has(event.id)) return;
       if (!this.#creating && !this.#sessionIds.has(event.id)) return;
@@ -448,6 +474,10 @@ export class TerminalSessions {
       let decoder = this.#decoders.get(event.id);
       if (!decoder) { decoder = new TerminalGraphicsDecoder(); this.#decoders.set(event.id, decoder); }
       const decoded = decoder.push(event.data);
+      if (decoded.controlMode) {
+        const { [event.id]: _previous, ...controlMode } = this.#state.controlMode;
+        this.#publish({ ...this.#state, controlMode: decoded.controlMode === "enter" ? { ...controlMode, [event.id]: true } : controlMode });
+      }
       if (decoded.images.length || decoded.errors.length) this.#publish({
         ...this.#state,
         graphics: decoded.images.length ? { ...this.#state.graphics, [event.id]: [...(this.#state.graphics[event.id] ?? []), ...decoded.images].slice(-4) } : this.#state.graphics,
@@ -492,7 +522,7 @@ export class TerminalSessions {
       this.#publish({ ...this.#state, sessions: this.#state.sessions.map(session => session.id === event.id ? { ...session, status: "ended" } : session) });
       this.#persist();
     });
-    this.#off = () => { offData(); offExit(); };
+    this.#off = () => { offData(); offExit(); offTmux?.(); };
   }
 
   #queue(id: string): TerminalPendingOutput {
@@ -540,7 +570,12 @@ export class TerminalSessions {
     const limit = Math.round(PENDING_MAX_BYTES / (1024 * 1024));
     this.#publish({
       ...this.#state,
-      notices: { ...this.#state.notices, [id]: `后台输出超过 ${limit} MiB 上限，较早的输出已被丢弃。` },
+      notices: {
+        ...this.#state.notices,
+        [id]: isZh()
+          ? `后台输出超过 ${limit} MiB 上限，较早的输出已被丢弃。`
+          : `Background output exceeded the ${limit} MiB limit; earlier output was discarded.`,
+      },
     });
   }
 

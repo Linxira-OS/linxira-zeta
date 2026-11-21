@@ -442,7 +442,7 @@ function DockTabs({ group, region, expanded = true, trailing, fullscreen }: { gr
         const definition = definitionFor(definitions, id);
         return <div key={id} className={`dock-tab${group.active === id ? " is-active" : ""}${source?.panels.includes(id) ? " dock-drag-source" : ""}`} data-dock-tab={id} data-window-tint={region === "float" ? panelWindowTint(id, workspace?.store) : undefined} role="presentation" onContextMenu={event => menu.onContextMenu(event, [id])}>
           <button type="button" className="dock-tab-label" role="tab" id={`dock-tab-${id}`} aria-selected={group.active === id} aria-controls={`dock-body-${group.id}`}
-            tabIndex={group.active === id ? 0 : -1} data-dock-drag="" data-tip={definition.detail ?? definition.title} title={definition.detail ?? definition.title}
+            tabIndex={group.active === id ? 0 : -1} data-dock-drag="" data-tip={definition.detail ?? definition.title}
             onPointerDown={event => drag(event, [id])} onClick={() => activate(id)} onKeyDown={event => { menu.onKeyDown(event, [id]); tabKeys(event, id); }}>
             <PanelGlyph definition={definition} /><span>{definition.title}</span>
           </button>
@@ -872,10 +872,10 @@ export function DockRail({ mode }: { mode: RailMode }) {
   return mode === "expanded" ? <ExpandedRail /> : <CompactRail key={scopeKey(scope, preview)} />;
 }
 export function DockRailToggle() {
-  const { layout } = useDock();
+  const { layout, railHiddenByDefault } = useDock();
   const transition = useRailTransition();
   const text = useLabels();
-  const visible = layout.rail.mode !== "hidden";
+  const visible = !railHiddenByDefault && layout.rail.mode !== "hidden";
   return <button type="button" className={`dock-icon-button dock-rail-toggle${visible ? " is-active" : ""}`} data-dock-entry="rail"
     aria-label={text("对话工具区", "Conversation tools")} aria-pressed={visible} data-tip={text("对话工具区", "Conversation tools")}
     onClick={() => transition({ type: "region", region: "rail", visible: !visible }, visible ? "hidden" : layout.rail.lastMode)}><Icon name="tool-list" /></button>;
@@ -1048,7 +1048,14 @@ export function DockFloatingLayer() {
     document.addEventListener("pointerdown", raise, true); document.addEventListener("focusin", raise, true);
     return () => { document.removeEventListener("pointerdown", raise, true); document.removeEventListener("focusin", raise, true); };
   }, [store]);
-  const minimizedPins = useAllWindowed() ? [] : layout.floats.filter(group => group.pin && !isNativeFloat(group) && group.minimized);
+  const workspaceState = useSyncExternalStore(
+    workspace?.store.subscribe ?? (() => () => {}),
+    () => workspace?.store.getSnapshot() ?? null,
+  );
+  const pageVisible = Boolean(
+    workspaceState?.documents.find(doc => doc.id === workspaceState.activeDocumentId)?.page,
+  );
+  const minimizedPins = useAllWindowed() || pageVisible ? [] : layout.floats.filter(group => group.pin && !isNativeFloat(group) && group.minimized);
   return <>{createPortal(<div className="dock-floating-layer">{modalPanel && <DockModalFocus panel={modalPanel} />}{layout.floats.map((group, order) => {
     const managed = store.windowManager?.get(store.windowId(group.id));
     if (managed?.content.kind === "conversation") return null;
@@ -1093,7 +1100,9 @@ export function DockCapsules() {
 /** Hosts live at the end of the document, so focus navigation follows their visual slots. */
 export function DockKeyboard() {
   const { document, window } = useConversationDom();
-  const { store } = useDock();
+  const { store, railHiddenByDefault } = useDock();
+  const railHiddenRef = useRef(railHiddenByDefault);
+  railHiddenRef.current = railHiddenByDefault;
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
@@ -1103,7 +1112,7 @@ export function DockKeyboard() {
       if (modifier && event.shiftKey && !event.altKey && event.key.toLowerCase() === "l") {
         if (target?.closest('input, textarea, [contenteditable="true"], .cm-editor, .xterm')) return;
         event.preventDefault();
-        store.dispatch({ type: "region", region: "rail", visible: store.getSnapshot().layout.rail.mode === "hidden" });
+        store.dispatch({ type: "region", region: "rail", visible: railHiddenRef.current || store.getSnapshot().layout.rail.mode === "hidden" });
         return;
       }
       if (event.key !== "F6" || event.ctrlKey || event.metaKey || event.altKey) return;

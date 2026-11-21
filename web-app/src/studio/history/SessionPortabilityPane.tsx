@@ -4,7 +4,7 @@ import type { CommandInput, SessionHistoryEntry, StudioClient, WorkspaceId, Work
 import type { SessionPortabilityResultMap, SessionPortabilityStatus } from "@linxiraos/studio-protocol";
 import type { NativeHistoryContext } from "./NativeArchivePane";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_TRANSFER_SESSIONS, previewTransferExport, previewTransferImport } from "../preview/sessionPortabilityPreview";
+import { getPreviewTransferSessions, previewTransferExport, previewTransferImport } from "../preview/sessionPortabilityPreview";
 import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { Icon } from "../icons";
@@ -27,7 +27,7 @@ export function SessionPortabilityPane({ client, context, visible, entries, onIm
   const epoch = useRef(0), lock = useRef(false);
   const supports = (kind: string) => preview || context?.capabilities?.capabilities.some(row => row.id === kind && row.grade !== "unavailable") === true;
   const enabled = preview || !!(client && context?.sessionId && context.available && supports("session.portability.status"));
-  const sessions = preview ? PREVIEW_TRANSFER_SESSIONS : entries.flatMap(row => row.sessionId ? [{ sessionId: row.sessionId as string, title: row.title || (zh ? "未命名会话" : "Untitled session") }] : []);
+  const sessions = preview ? getPreviewTransferSessions(zh) : entries.flatMap(row => row.sessionId ? [{ sessionId: row.sessionId as string, title: row.title || (zh ? "未命名会话" : "Untitled session") }] : []);
   const source = sessions.find(row => row.sessionId === selected) ?? sessions[0];
   const invoke = useCallback(async <K extends keyof SessionPortabilityResultMap>(kind: K, input: CommandInput<K>): Promise<SessionPortabilityResultMap[K]> => {
     if (!client) throw Error("Runtime unavailable");

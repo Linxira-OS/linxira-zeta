@@ -3,7 +3,7 @@ import { hostErrorMessage, waitReceipt } from "../hostError";
 import { previewFile, previewFileText } from "../preview/filesPreview";
 
 /** Persisted identity is enough to reopen a view; size, version and permissions stay unknown until read. */
-export type FileDocumentIdentity = Pick<WorkspaceFileInfo, "workspaceId" | "path" | "id" | "name"> & Partial<Pick<WorkspaceFileInfo, "mime" | "size" | "version" | "writable">>;
+export type FileDocumentIdentity = Pick<WorkspaceFileInfo, "workspaceId" | "path" | "id" | "name"> & Partial<Pick<WorkspaceFileInfo, "mime" | "size" | "version" | "writable">> & { source?: "system" };
 
 export interface FileDocumentSnapshot {
   file: FileDocumentIdentity; text: string; baseline: string; loaded: boolean; loading: boolean; saving: boolean;
@@ -28,12 +28,16 @@ export class FileDocument {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private patch(patch: Partial<FileDocumentSnapshot>) { const wasDirty = this.state.dirty; this.state = { ...this.state, ...patch }; for (const listener of this.listeners) listener(); if (wasDirty !== this.state.dirty) for (const listener of dirtyListeners) listener(); }
   edit(text: string) { this.patch({ text, dirty: text !== this.state.baseline }); }
+  private previewText() {
+    const value = previewFileText(previewFile(this.state.file.path, this.state.file.workspaceId));
+    return { ...value, file: { ...value.file, ...(this.state.file.source ? { source: this.state.file.source } : {}) } };
+  }
   async load(discard = false): Promise<void> {
     if (this.state.loading || this.state.dirty && !discard) return;
     const text = this.state.text;
     this.patch({ loading: true, error: "" });
     try {
-      const value = this.preview ? previewFileText(previewFile(this.state.file.path, this.state.file.workspaceId)) : await (await this.client()).query("workspace.file.readText", this.state.file);
+      const value = this.preview ? this.previewText() : await readFileBackend(await this.client(), this.state.file);
       // Reload discards the draft that was present when requested, never typing that began during the read.
       if (this.state.text !== text || !discard && this.state.dirty) { this.patch({ external: value.file }); return; }
       this.format = { encoding: value.encoding, bom: value.bom, lineEnding: value.lineEnding };
@@ -47,12 +51,12 @@ export class FileDocument {
     try {
       if (this.pendingSave !== undefined) {
         const pending = this.pendingSave;
-        const disk = await (await this.client()).query("workspace.file.readText", this.state.file);
+        const disk = await readFileBackend(await this.client(), this.state.file);
         this.pendingSave = undefined;
         if (disk.text === pending) { this.patch({ file: disk.file, baseline: pending, dirty: this.state.text !== pending, external: undefined, error: "" }); return; }
         if (disk.file.version !== this.state.file.version) this.patch({ external: disk.file });
       }
-      const file = await (await this.client()).query("workspace.file.inspect", this.state.file);
+      const file = await inspectFileBackend(await this.client(), this.state.file);
       if (file.version !== this.state.file.version) {
         if (this.state.dirty) this.patch({ external: file });
         else if (this.state.loaded) await this.load();
@@ -67,7 +71,7 @@ export class FileDocument {
     if (!this.visible.size && this.timer) { clearInterval(this.timer); this.timer = undefined; }
   }
   async compare() {
-    try { const value = this.preview ? previewFileText(previewFile(this.state.file.path, this.state.file.workspaceId)) : await (await this.client()).query("workspace.file.readText", this.state.file); this.patch({ external: value.file, diskText: value.text }); }
+    try { const value = this.preview ? this.previewText() : await readFileBackend(await this.client(), this.state.file); this.patch({ external: value.file, diskText: value.text }); }
     catch (error) { this.patch({ error: message(error) }); }
   }
   async save(overwrite = false): Promise<boolean> {
@@ -81,8 +85,7 @@ export class FileDocument {
       const client = await this.client();
       const expectedVersion = overwrite && this.state.external ? this.state.external.version : this.state.file.version;
       this.pendingSave = text;
-      const handle = await client.command("workspace.file.writeText", { workspaceId: this.state.file.workspaceId, path: this.state.file.path, text, expectedVersion, ...this.format });
-      const result = await waitReceipt<WorkspaceFileSaveResult>(client, handle.requestId);
+      const result = await writeFileBackend(client, this.state.file, { text, expectedVersion, ...this.format });
       this.pendingSave = undefined;
       if (!result.saved) { this.patch({ external: result.file }); return false; }
       this.patch({ file: result.file, baseline: text, dirty: this.state.text !== text, external: undefined, diskText: undefined });
@@ -90,7 +93,7 @@ export class FileDocument {
     } catch (error) {
       // A lost SSH acknowledgement is resolved by reading, never by replaying the write.
       try {
-        const disk = await (await this.client()).query("workspace.file.readText", this.state.file);
+        const disk = await readFileBackend(await this.client(), this.state.file);
         this.pendingSave = undefined;
         if (disk.text === text) { this.patch({ file: disk.file, baseline: text, dirty: this.state.text !== text, external: undefined }); return !this.state.dirty; }
         if (disk.file.version !== this.state.file.version) this.patch({ external: disk.file });
@@ -99,25 +102,61 @@ export class FileDocument {
     } finally { this.patch({ saving: false }); }
   }
   discard() { this.pendingSave = undefined; this.patch({ text: this.state.baseline, dirty: false, external: undefined, diskText: undefined }); }
+  syncIdentity(next: FileDocumentIdentity) {
+    const effectiveVersion = this.state.dirty ? this.state.file.version : (next.version ?? this.state.file.version);
+    const effectiveSource = next.source ?? this.state.file.source;
+    const { version: _dropPrevVersion, source: _dropPrevSource, ...prevRest } = this.state.file;
+    const { version: _dropNextVersion, source: _dropNextSource, ...nextRest } = next;
+    const merged: FileDocumentIdentity = {
+      ...prevRest,
+      ...nextRest,
+      ...(effectiveVersion !== undefined ? { version: effectiveVersion } : {}),
+      ...(effectiveSource !== undefined ? { source: effectiveSource } : {}),
+    };
+    if (this.state.dirty) {
+      const external = next.version && this.state.file.version && next.version !== this.state.file.version
+        ? (next as WorkspaceFileInfo)
+        : this.state.external;
+      if (merged.id !== this.state.file.id || merged.path !== this.state.file.path || external !== this.state.external) {
+        this.patch({ file: merged, external });
+      }
+      return;
+    }
+    if (this.state.loaded && next.version && this.state.file.version && next.version !== this.state.file.version) {
+      this.patch({ file: { ...this.state.file, id: next.id, path: next.path, name: next.name } });
+      void this.load();
+      return;
+    }
+    if (merged.id !== this.state.file.id || merged.path !== this.state.file.path || merged.version !== this.state.file.version) {
+      this.patch({ file: merged });
+    }
+  }
   hideComparison() { this.patch({ diskText: undefined }); }
   closeView(id: string) { this.closedViews.add(id); }
   isViewClosed(id: string) { return this.closedViews.has(id); }
   dispose() { clearInterval(this.timer); this.listeners.clear(); }
 }
-const message = (error: unknown) => hostErrorMessage(error, "无法读取或保存文件");
+const message = (error: unknown) => hostErrorMessage(error, pickLocale("无法读取或保存文件", "Unable to read or save file"));
 const documents = new Map<string, FileDocument>();
 const dirtyListeners = new Set<() => void>();
 export function subscribeDirtyFiles(listener: () => void) { dirtyListeners.add(listener); return () => { dirtyListeners.delete(listener); }; }
-export function fileDocumentKey(target: string | null, file: FileDocumentIdentity, preview: boolean) { return JSON.stringify([preview, target, file.workspaceId, file.id]); }
+export function fileDocumentKey(target: string | null, file: FileDocumentIdentity, preview: boolean) { return JSON.stringify([preview, target, file.workspaceId, file.id, file.source ?? "workspace"]); }
 export function getFileDocument(target: string | null, file: FileDocumentIdentity, client: () => Promise<StudioClient>, preview: boolean): FileDocument {
   const key = fileDocumentKey(target, file, preview);
+  const normalizedPath = normalizeFileIdentityPath(file.path);
+  const expectedSource = file.source ?? "workspace";
   let value = documents.get(key);
   if (!value) for (const [storedKey, document] of documents) {
-    const [mode, source, workspace] = JSON.parse(storedKey) as [boolean, string | null, string];
-    if (mode === preview && source === target && workspace === file.workspaceId && document.getSnapshot().file.id === file.id) { value = document; documents.set(key, value); break; }
+    const [mode, targetId, workspace, , source] = JSON.parse(storedKey) as [boolean, string | null, string, string, string];
+    const current = document.getSnapshot().file;
+    if (mode === preview && targetId === target && source === expectedSource && workspace === file.workspaceId && (current.id === file.id || normalizeFileIdentityPath(current.path) === normalizedPath)) {
+      value = document;
+      documents.set(key, value);
+      break;
+    }
   }
   if (!value) { value = new FileDocument(file, client, preview); documents.set(key, value); }
-  else value.client = client;
+  else { value.client = client; value.syncIdentity(file); }
   return value;
 }
 export function dirtyFileDocuments() { return [...new Set(documents.values())].filter(item => !item.preview && item.getSnapshot().dirty); }

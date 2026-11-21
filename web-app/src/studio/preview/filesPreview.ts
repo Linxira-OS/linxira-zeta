@@ -6,14 +6,14 @@ const CSV = "Model,Requests,Tokens\nClaude,128,52400\nGPT,96,41800\nGemini,64,28
 const README = "# Z Work Studio\n\n直接在工作台阅读和编辑项目文件。\n\n## 文件窗口\n\n- 文件树单击打开\n- 拖动标题栏停靠\n- Ctrl / Cmd + S 保存文本\n\n[查看数据](./usage.csv)\n\n```ts\nconst workspace = 'Z Work Studio';\nconsole.log(workspace);\n```\n";
 export function previewFile(path: string, workspaceId: string): WorkspaceFileInfo {
   path = path.replaceAll("\\", "/").split("/").reduce<string[]>((parts, part) => { if (part === "..") parts.pop(); else if (part && part !== ".") parts.push(part); return parts; }, []).join("/");
-  return { workspaceId: workspaceId as WorkspaceFileInfo["workspaceId"], path, id: `preview:${path}`, name: path.split(/[\\/]/).pop() ?? path, size: README.length, version: "demo-1", mime: "text/plain", writable: true };
+  return { workspaceId: workspaceId as WorkspaceFileInfo["workspaceId"], path, id: `preview:${path}`, name: path.split(/[\\/]/).pop() ?? path, size: buildReadme(zh).length, version: "demo-1", mime: "text/plain", writable: true };
 }
 export function previewFileText(file: WorkspaceFileInfo): WorkspaceFileText {
   const text = /\.[ct]sv$/i.test(file.name) ? CSV : /\.md$/i.test(file.name) ? README : /\.json$/i.test(file.name) ? '{\n  "name": "zeta-studio",\n  "private": true\n}\n' : "// Z Work Studio\nexport function hello(name: string) {\n  return `Hello, ${name}`;\n}\n";
   return { file, text, encoding: "utf8", bom: false, lineEnding: "lf" };
 }
 /** Demo working-tree patches so the Git gutter and Diff view have something to show; other files read as clean. */
-export function previewFilePatch(path: string): string {
+export function previewFilePatch(path: string, zh = isZh()): string {
   const name = path.replaceAll("\\", "/");
   if (/(^|\/)main\.ts$/i.test(name)) return [`diff --git a/${name} b/${name}`, `--- a/${name}`, `+++ b/${name}`, "@@ -1,5 +1,4 @@", " // Z Work Studio", "-export function hello(name) {", "+export function hello(name: string) {", "   return `Hello, ${name}`;", " }", "-// TODO: type the argument", ""].join("\n");
   if (/\.md$/i.test(name)) return [`diff --git a/${name} b/${name}`, `--- a/${name}`, `+++ b/${name}`, "@@ -5,4 +5,5 @@", " ## 文件窗口", " ", " - 文件树单击打开", " - 拖动标题栏停靠", "+- Ctrl / Cmd + S 保存文本", ""].join("\n");

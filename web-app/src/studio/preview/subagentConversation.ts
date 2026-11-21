@@ -1,4 +1,5 @@
 import type { ConversationItem, ConversationRuntimeEvent, SessionId } from "@linxiraos/studio-contract";
+import { isZh } from "../i18n";
 
 const T0 = "2026-08-17T04:00:00.000Z";
 const T1 = "2026-08-17T04:00:08.000Z";
@@ -53,53 +54,78 @@ const DOCS_ITEMS: ConversationItem[] = [
   },
 ];
 
-const PREVIEW_ITEMS: ConversationItem[] = [
-  {
-    kind: "message",
-    itemId: "preview-preview-user",
-    parentId: null,
-    createdAt: T0,
-    role: "user",
-    content: [{ type: "text", text: "核对 Mermaid 全屏缩放" }],
-  },
-  {
-    kind: "message",
-    itemId: "preview-preview-assistant",
-    parentId: "preview-preview-user",
-    createdAt: T1,
-    role: "assistant",
-    content: [
-      { type: "text", text: "全屏缩放按钮在窄窗口下仍然可点，没有挡住关闭。" },
-      { type: "toolCall", toolCallId: "preview-browser", toolName: "browser", arguments: { action: "waitForSelector" } },
-      {
-        type: "toolResult",
-        toolCallId: "preview-browser",
-        toolName: "browser",
-        isError: false,
-        output: "selector visible",
-      },
-    ],
-  },
-];
+function buildDocsItems(zh: boolean): ConversationItem[] {
+  return [
+    {
+      kind: "message",
+      itemId: "preview-docs-user",
+      parentId: null,
+      createdAt: T0,
+      role: "user",
+      content: [{ type: "text", text: zh ? "提取 v0.8.1 Release Notes 要点" : "Extract key takeaways from v0.8.1 Release Notes" }],
+    },
+    {
+      kind: "message",
+      itemId: "preview-docs-assistant",
+      parentId: "preview-docs-user",
+      createdAt: T2,
+      role: "assistant",
+      content: [{ type: "text", text: zh ? "Release Notes 里和 Z Work Studio 相关的是 conversation live projector 与 session telemetry。" : "Relevant items in the Release Notes for Z Work Studio are conversation live projector and session telemetry." }],
+    },
+  ];
+}
 
-const BY_AGENT_ID: { readonly [agentId: string]: readonly ConversationItem[] } = {
-  "agent-019fcb01": DEPS_ITEMS,
-  "agent-019fc9d2": DOCS_ITEMS,
-  "agent-019fcb17": PREVIEW_ITEMS,
-};
+function buildPreviewItems(zh: boolean): ConversationItem[] {
+  return [
+    {
+      kind: "message",
+      itemId: "preview-preview-user",
+      parentId: null,
+      createdAt: T0,
+      role: "user",
+      content: [{ type: "text", text: zh ? "核对 Mermaid 全屏缩放" : "Verify Mermaid fullscreen zoom" }],
+    },
+    {
+      kind: "message",
+      itemId: "preview-preview-assistant",
+      parentId: "preview-preview-user",
+      createdAt: T1,
+      role: "assistant",
+      content: [
+        { type: "text", text: zh ? "全屏缩放按钮在窄窗口下仍然可点，没有挡住关闭。" : "Fullscreen zoom buttons stay clickable in narrow windows without blocking the close button." },
+        { type: "toolCall", toolCallId: "preview-browser", toolName: "browser", arguments: { action: "waitForSelector" } },
+        {
+          type: "toolResult",
+          toolCallId: "preview-browser",
+          toolName: "browser",
+          isError: false,
+          output: "selector visible",
+        },
+      ],
+    },
+  ];
+}
 
-export function previewSubagentConversationItems(agentId: string): readonly ConversationItem[] {
-  return BY_AGENT_ID[agentId] ?? DEPS_ITEMS;
+export function previewSubagentConversationItems(agentId: string, zh = isZh()): readonly ConversationItem[] {
+  const depsItems = buildDepsItems(zh);
+  const byAgentId: { readonly [agentId: string]: readonly ConversationItem[] } = {
+    "agent-019fcb01": depsItems,
+    "agent-019fc9d2": buildDocsItems(zh),
+    "agent-019fcb17": buildPreviewItems(zh),
+  };
+  return byAgentId[agentId] ?? depsItems;
 }
 
 /** A finite local demonstration, played only by the mounted hover reader. */
-export function previewSubagentConversationStream(agentId: string, sessionId: SessionId): readonly { afterMs: number; event: ConversationRuntimeEvent }[] {
+export function previewSubagentConversationStream(agentId: string, sessionId: SessionId, zh = isZh()): readonly { afterMs: number; event: ConversationRuntimeEvent }[] {
   if (agentId !== "agent-019fcb01") return [];
   const messageId = `preview-hover-${agentId}`;
   const turnId = "preview-hover-turn";
   const toolCallId = "preview-hover-check";
-  const thinking = "依赖版本已经对齐，接着检查 TypeScript 导出和工作台调用是否仍然兼容。";
-  const textStart = "**兼容性检查**\n\n- `pi-core`：导出保持兼容\n- `pi-agent`：会话接口保持兼容\n\n```ts\nconst compatible = packages.every(pkg =>\n";
+  const thinking = zh ? "依赖版本已经对齐，接着检查 TypeScript 导出和工作台调用是否仍然兼容。" : "Dependency versions are aligned; checking whether TypeScript exports and workbench calls remain compatible.";
+  const textStart = zh
+    ? "**兼容性检查**\n\n- `pi-core`：导出保持兼容\n- `pi-agent`：会话接口保持兼容\n\n```ts\nconst compatible = packages.every(pkg =>\n"
+    : "**Compatibility check**\n\n- `pi-core`: exports remain compatible\n- `pi-agent`: session APIs remain compatible\n\n```ts\nconst compatible = packages.every(pkg =>\n";
   const textEnd = "  pkg.version === \"0.82.1\"\n);\n```\n";
   const summary = "\n\n检查已完成，Z Work Studio Bridge 与会话目录保持一致。";
   const output = "Checking pi-core exports…\nChecking pi-agent session API…\nTypeScript check passed.\n";
@@ -115,7 +141,7 @@ export function previewSubagentConversationStream(agentId: string, sessionId: Se
       result: { type: "toolResult", toolCallId, toolName: "bash", isError: false, output, data: { output, exitCode: 0 } } },
     { kind: "conversation.message.delta", sessionId, turnId, messageId, blockId: "summary", blockType: "text", delta: summary },
     { kind: "conversation.message.completed", sessionId, turnId, messageId, item: {
-      kind: "message", itemId: messageId, parentId: previewSubagentConversationItems(agentId).at(-1)?.itemId ?? null, createdAt: T2, role: "assistant", content: [
+      kind: "message", itemId: messageId, parentId: previewSubagentConversationItems(agentId, zh).at(-1)?.itemId ?? null, createdAt: T2, role: "assistant", content: [
         { type: "thinking", text: thinking }, { type: "text", text: textStart + textEnd },
         { type: "toolCall", toolCallId, toolName: "bash", arguments: { command: "npm run typecheck" } },
         { type: "toolResult", toolCallId, toolName: "bash", isError: false, output, data: { output, exitCode: 0 } }, { type: "text", text: summary },

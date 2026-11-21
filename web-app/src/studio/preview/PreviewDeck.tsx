@@ -1,6 +1,9 @@
-import type { RefObject } from "react";
-import { QueuedDeck } from "../deck/QueuedDeck";
-import { PREVIEW_DECK_ITEMS } from "./deckFixtures";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
+import type { InteractionId, SessionId } from "@linxiraos/studio-contract";
+import { FormSession } from "../deck/FormSession";
+import { QueuedDeck, type QueuedDeckItem } from "../deck/QueuedDeck";
+import { useI18n } from "../i18n";
+import { getPreviewDeckItems } from "./deckFixtures";
 import { usePreviewMode } from "./PreviewContext";
 
 /**
@@ -20,12 +23,49 @@ export function PreviewDeck({
   planOriginRef?: RefObject<HTMLElement | null>;
 } = {}) {
   const { marks } = usePreviewMode();
+  const zh = useI18n().resolvedLanguage === "zh";
+  const sessionsRef = useRef<Map<string, FormSession>>(new Map());
+  const mounting = useRef(0);
+  const deckFixtures = useMemo(() => getPreviewDeckItems(zh), [zh]);
+  const items = useMemo<readonly QueuedDeckItem[]>(() => deckFixtures.map(item => {
+    if (item.kind !== "form") return item;
+    let session = sessionsRef.current.get(item.id);
+    if (!session) {
+      session = new FormSession({ kind: "form", interactionId: item.id as InteractionId, sessionId: "preview:deck" as SessionId, leaseGeneration: 1, title: item.title, summary: item.summary, fieldCount: item.form.fields.length, sectionCount: item.form.sections.length });
+      sessionsRef.current.set(item.id, session);
+    } else if (session.form !== undefined && session.getMeta().phase !== "closed") {
+      session.form = item.form;
+    }
+    return { kind: "form", id: item.id, title: item.title, summary: item.summary, session, ...(item.meta ? { meta: item.meta } : {}) };
+  }), [deckFixtures]);
+  useEffect(() => {
+    for (const item of items) {
+      if (item.kind !== "form") continue;
+      const fixture = deckFixtures.find(candidate => candidate.id === item.id);
+      if (fixture?.kind === "form") {
+        if (item.session.form !== undefined && item.session.getMeta().phase !== "closed") {
+          item.session.form = fixture.form;
+        } else {
+          void item.session.load(() => Promise.resolve(fixture.form));
+        }
+      }
+    }
+  }, [items, deckFixtures]);
+  useEffect(() => {
+    const generation = ++mounting.current;
+    return () => { queueMicrotask(() => {
+      // StrictMode's effect replay is not a terminal preview lifecycle.
+      if (mounting.current !== generation) return;
+      for (const session of sessionsRef.current.values()) session.close();
+      sessionsRef.current.clear();
+    }); };
+  }, []);
   return (
     <QueuedDeck
-      items={PREVIEW_DECK_ITEMS}
-      demo
-      previewMark
-      regionLabel={marks ? "待处理的审批与提问（演示）" : "待处理的审批与提问"}
+      items={items}
+      demo={marks}
+      previewMark={marks}
+      regionLabel={zh ? (marks ? "待处理的审批与提问（演示）" : "待处理的审批与提问") : (marks ? "Pending approvals and questions (Demo)" : "Pending approvals and questions")}
       {...(onCurrentKind === undefined ? {} : { onCurrentKind })}
       {...(planExpanded === undefined ? {} : { planExpanded })}
       {...(onPlanExpandedChange === undefined ? {} : { onPlanExpandedChange })}

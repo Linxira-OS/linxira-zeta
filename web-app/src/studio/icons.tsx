@@ -65,11 +65,11 @@ const PATHS = {
   more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
   filter: '<path d="M2 3.5h12l-4.5 5v4l-3 1.5v-5.5z"/>',
   layout: '<rect x="2" y="2.5" width="12" height="11" rx="1.2"/><path d="M6 2.5v11"/>',
-  /* 工作台：一块竖长面板 + 右侧两块叠放。`layout` / `panel` / `columns` 全是
-     「矩形 + 一条分割线」，表示「切换某一栏」；工作台是目的地，必须一眼分开，
-     所以改用彼此分离的块面拼贴（无外框），剪影与那三个都不同。三块留 1.4 的缝、
-     1.3 圆角，18px 下最窄的孔仍有 3px，不糊。 */
-  workbench: '<rect x="2.2" y="2.6" width="5.2" height="10.8" rx="1.3"/><rect x="8.8" y="2.6" width="5" height="4.7" rx="1.3"/><rect x="8.8" y="8.7" width="5" height="4.7" rx="1.3"/>',
+  /* 工作台：外框里一条左栏 + 右侧上下两行，取自 Agent 画布原型 rail 的 `bench`
+     （ui_reference/agent-canvas/canvas.js）。`layout` / `panel` / `columns` / `rows`
+     各只有一条分割线，这块是唯一同时给出「一栏 + 两行」的，所以四者不重影；
+     18px 描边 1.6 下左栏净宽约 2.7、右侧每行约 3.4，都不糊。 */
+  workbench: '<path d="M2 3h12v10H2zM6 3v10M6 8h8"/>',
   columns: '<rect x="2" y="2.5" width="12" height="11" rx="1.2"/><path d="M8 2.5v11"/>',
   /* 对话工具区：两行「圆钮 + 条目」，读作一列可展开的工具卡片，而不是
      「切换某一栏」的矩形+分割线（panel / columns 那族），避免和右侧栏开关撞脸。 */
@@ -99,6 +99,10 @@ const PATHS = {
   home: '<path d="M2.5 7 8 2l5.5 5M4 6v7.5h8V6"/>',
   mic: '<rect x="5.4" y="1.5" width="5.2" height="8.2" rx="2.6"/><path d="M3.3 7.1v.5a4.7 4.7 0 0 0 9.4 0v-.5M8 12.3v2.2M5.7 14.5h4.6"/>',
   pulse: '<path d="M1.5 8h3l1.5-4 3 8 1.5-4h4"/>',
+  // Agents deck views: a lead with two reports, staggered lanes, and a body with two satellites.
+  formation: '<rect x="1.8" y="2" width="5" height="3.6" rx="1.2"/><rect x="9.2" y="6.2" width="5" height="3.6" rx="1.2"/><rect x="9.2" y="10.6" width="5" height="3.6" rx="1.2"/><path d="M4.3 5.6v6.2a.7.7 0 0 0 .7.7h4.2M4.3 8h4.9"/>',
+  timeline: '<path d="M1.6 3.4h7.2M4.4 8h9.8M3 12.6h6.4"/><path d="M1.6 1.6v12.8" stroke-dasharray="1.2 1.6"/>',
+  orbit: '<circle cx="8" cy="8" r="2.2"/><ellipse cx="8" cy="8" rx="6.6" ry="3.1" transform="rotate(-28 8 8)"/><circle cx="13.2" cy="4.6" r="1.15" fill="currentColor" stroke="none"/><circle cx="2.9" cy="11.4" r=".9" fill="currentColor" stroke="none"/>',
   // 用量条形图：L 形坐标轴 + 三根不同高度的竖柱。顶栏压缩时顶替
   // 「↑ 3.5M ↓ 73k | 36.6M cache」整串数字（见 App.css 的 chrome-size 规则）。
   chart: '<path d="M2.5 2.4v11h11.2"/><path d="M5.7 13.4V10.2"/><path d="M8.9 13.4V4.6"/><path d="M12.1 13.4V7.4"/>',
@@ -133,6 +137,9 @@ const PATHS = {
   save: '<path d="M3 2.5h8l2.5 2.5v8.5H3z"/><path d="M5.5 2.5V6h5V2.5M5.5 13.5V9.5h5v4"/>',
   unlock: '<rect x="3" y="7" width="10" height="6.5" rx="1.2"/><path d="M5.5 7V4.8a2.5 2.5 0 0 1 5-.6"/>',
   lock: '<rect x="3" y="7" width="10" height="6.5" rx="1.2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+  drive: '<rect x="1.8" y="4" width="12.4" height="8" rx="1.6"/><path d="M1.8 9h12.4M11.2 10.6h.4M9.2 10.6h.4"/>',
+  "view-list": '<path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.4M2.5 8h.4M2.5 12h.4"/>',
+  "view-columns": '<rect x="1.8" y="2.5" width="12.4" height="11" rx="1.2"/><path d="M6 2.5v11M10 2.5v11"/>',
   server: '<rect x="2" y="2.5" width="12" height="4.5" rx="1"/><rect x="2" y="9" width="12" height="4.5" rx="1"/><path d="M4.5 4.7h.2M4.5 11.2h.2"/>',
   wrench: '<path d="M13.6 2.8a2.8 2.8 0 0 0-3.9 3.8L4 12.3a1.5 1.5 0 0 0 2.1 2.1l5.7-5.7a2.8 2.8 0 0 0 3.8-3.9L13 6.5 11.5 5z"/>',
   update: '<path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10"/>',
