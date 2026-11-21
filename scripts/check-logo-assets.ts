@@ -52,18 +52,14 @@ const PNG_ASSETS: ReadonlyArray<readonly [string, number]> = [
 	["assets/icon-512.png", 512],
 	["assets/icon-1024.png", 1024],
 	["web-app/public/icon.png", 512],
-	["web-ui/public/icons/icon-192.png", 192],
-	["web-ui/public/icons/icon-512.png", 512],
-	["web-ui/public/icons/icon-maskable-512.png", 512],
-	["web-ui/public/icons/apple-touch-icon.png", 180],
-	["main/crates/zetawork-gui/assets/icon.png", 256],
+	["assets/legacy/zetawork/icon.png", 256],
 ];
 
 /** ICO carriers that must expose the tab/taskbar sizes. */
 const ICO_ASSETS = [
 	"assets/favicon.ico",
 	"web-app/public/favicon.ico",
-	"main/crates/zetawork-gui/assets/icon.ico",
+	"assets/legacy/zetawork/icon.ico",
 	"packages/stats/src/client/favicon.ico",
 ] as const;
 
