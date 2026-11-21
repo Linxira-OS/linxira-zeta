@@ -11,11 +11,8 @@ const sourcePath = path.join(assetsDir, "icon.svg");
 // the declared single-tile LZ fallback. See document/agents/brand/registry.md.
 const smallSourcePath = path.join(assetsDir, "zeta-mark-16.svg");
 const markSourcePath = path.join(assetsDir, "zeta-mark.svg");
-const maskableSourcePath = path.join(assetsDir, "icon-maskable.svg");
 const buildDir = path.join(desktopDir, "build");
 const webPublicDir = path.join(repoRoot, "web-app", "public");
-const webUiIconsDir = path.join(repoRoot, "web-ui", "public", "icons");
-const guiAssetsDir = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets");
 const require = createRequire(import.meta.url);
 const sharp = require("sharp");
 
@@ -63,7 +60,6 @@ const favicon = createIco(
 
 fs.mkdirSync(buildDir, { recursive: true });
 fs.mkdirSync(webPublicDir, { recursive: true });
-fs.mkdirSync(webUiIconsDir, { recursive: true });
 fs.writeFileSync(path.join(buildDir, "icon.png"), png512);
 fs.writeFileSync(path.join(buildDir, "icon.ico"), ico);
 // One canonical render for the browser: the tab icon, sidebar/About AppIcon,
@@ -91,11 +87,5 @@ for (const [name, source, size] of assets) {
 }
 fs.writeFileSync(path.join(assetsDir, "favicon.ico"), favicon);
 
-// The workbench's About/tray raster and the Rust unit test that decodes it.
-fs.writeFileSync(path.join(guiAssetsDir, "icon.png"), await render(sourcePath, 256));
-
-// PWA + iOS: full-bleed maskable plate, 180 for apple-touch-icon.
-fs.writeFileSync(path.join(webUiIconsDir, "icon-192.png"), await render(sourcePath, 192));
-fs.writeFileSync(path.join(webUiIconsDir, "icon-512.png"), await render(sourcePath, 512));
-fs.writeFileSync(path.join(webUiIconsDir, "icon-maskable-512.png"), await render(maskableSourcePath, 512));
-fs.writeFileSync(path.join(webUiIconsDir, "apple-touch-icon.png"), await render(maskableSourcePath, 180));
+// PWA + iOS icon generation for the retired web-ui snapshot was removed with
+// that tree. Only the active desktop and web-app assets are generated here.

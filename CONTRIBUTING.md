@@ -112,13 +112,13 @@ test gate.
 
 ## Contribution licensing
 
-Zeta uses a per-directory licence split: `main/` is AGPL-3.0, while everything
-outside `main/` — including `packages/`, `crates/`, `sdk/`, `termide/`,
-`editor/`, `web-app/`, `desktop/`, `web-ui/`, `docs/`, `document/`, and
-`rep-docs/` — is MIT. Submit work you have the right to licence under the terms
-that apply to the files you change. Third-party or vendored code keeps its own
-licence and attribution; do not relicense it. The licence text is not
-translated.
+Zeta uses a per-directory licence split: `retired/zetawork/` is AGPL-3.0,
+while everything outside it — including `packages/`, `crates/`, `sdk/`,
+`termide/`, `editor/`, `web-app/`, `desktop/`, `retired/web-ui/`, `docs/`,
+`document/`, and `rep-docs/` — is MIT. Submit work you have the right to licence
+under the terms that apply to the files you change. Third-party or vendored
+code keeps its own licence and attribution; do not relicense it. The licence
+text is not translated.
 
 ## Review
 

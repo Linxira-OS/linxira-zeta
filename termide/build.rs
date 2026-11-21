@@ -59,7 +59,7 @@ fn main() {
     println!("cargo:rustc-env=TERMIDE_VERSION={version}");
 
     println!("cargo:rerun-if-changed=assets/termide.rc");
-    println!("cargo:rerun-if-changed=../main/crates/zetawork-gui/assets/icon.ico");
+    println!("cargo:rerun-if-changed=../assets/legacy/zetawork/icon.ico");
     println!("cargo:rerun-if-changed=../packages/coding-agent/package.json");
 
     // The vendored TermIDE workspace keeps its upstream 0.49.0 crate version
@@ -134,10 +134,9 @@ fn resource_script(manifest_dir: &Path, out_dir: &Path) -> Result<PathBuf, Strin
         .map_err(|error| format!("assets/termide.rc: {error}"))?;
     let icon = manifest_dir
         .join("..")
-        .join("main")
-        .join("crates")
-        .join("zetawork-gui")
         .join("assets")
+        .join("legacy")
+        .join("zetawork")
         .join("icon.ico");
     if !icon.exists() {
         return Err(format!("{}: missing", icon.display()));

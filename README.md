@@ -132,16 +132,16 @@ declaration are in [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
 
 Zeta carries two licences, split by path:
 
-- `main/` — the paused Rust workbench — is **AGPL-3.0-only**
-  ([text](./main/LICENSE)).
-- Everything outside `main/` is **MIT**, including `packages/`, `crates/`,
-  `sdk/`, `web-app/`, `desktop/`, `docs/`, `document/`, `scripts/`, and
-  `rep-docs/`. `termide/` and `editor/` — vendored TermIDE — are **MIT**
+- `retired/zetawork/` — the historical Rust workbench — is **AGPL-3.0-only**
+  ([text](./retired/zetawork/LICENSE)).
+- Everything outside `retired/zetawork/` is **MIT**, including `packages/`,
+  `crates/`, `sdk/`, `web-app/`, `desktop/`, `docs/`, `document/`, `scripts/`,
+  and `rep-docs/`. `termide/` and `editor/` — vendored TermIDE — are **MIT**
   ([text](./termide/LICENSE)).
 
 The root [`LICENSE`](./LICENSE) states the split and reproduces the MIT text
-that governs everything outside `main/`. Derived and vendored projects keep
-their own licences and are listed in
+that governs everything outside `retired/zetawork/`. Derived and vendored
+projects keep their own licences and are listed in
 [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt). Zeta's copyright lines
 mark Zeta's modifications and additions only; upstream notices and licence
 texts remain in force for the upstream portions. The licence text is not

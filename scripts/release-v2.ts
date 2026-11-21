@@ -27,7 +27,6 @@ import { runChangelogFixer } from "./fix-changelogs";
  * match.
  */
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 import { assertTagAllowed, INTERNAL_BUILD_MARKER, internalBuildTagMessage } from "./release-policy";
@@ -53,16 +52,6 @@ const ALL_PACKAGES = [
 	"packages/wire",
 	"plugins/official/pi-messenger",
 ] as const;
-
-// Published packages that ride the same line but ship no CHANGELOG.md, so they
-// cannot join ALL_PACKAGES: that list doubles as the changelog set
-// (assertReleaseLogs / finalizeChangelogsForRelease read `${dir}/CHANGELOG.md`
-// unconditionally). web-ui is the standalone OMP Web snapshot published as
-// @linxiraos/zeta-web by `release_web_ui_packages` in ci.yml — it must move
-// with the line, or the tag run republishes nothing (the publish leg skips a
-// version already on the registry). scripts/set-version.ts bumps it in its
-// ALL_PACKAGES; keep the two in lock-step.
-const VERSION_ONLY_PACKAGES = ["web-ui"] as const;
 
 // Root catalog key → package dir mapping. Exactly these keys may carry a
 // `@linxiraos/*` workspace dependency; any other count is a drift error.
@@ -187,12 +176,6 @@ async function assertConsistency(version: string): Promise<void> {
 		const pkgJson = await Bun.file(`${pkg}/package.json`).json();
 		if (pkgJson.version !== version) problems.push(`${pkg}: ${pkgJson.version} != ${version}`);
 	}
-	// Version-only siblings (web-ui): the release must not tag a tree whose
-	// publishable web-ui still carries the previous release's version.
-	for (const pkg of VERSION_ONLY_PACKAGES) {
-		const pkgJson = await Bun.file(`${pkg}/package.json`).json();
-		if (pkgJson.version !== version) problems.push(`${pkg}: ${pkgJson.version} != ${version}`);
-	}
 	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = await Bun.file(manifestPath).json();
 		if (manifest.version !== version) problems.push(`${manifestPath}: ${manifest.version} != ${version}`);
@@ -229,22 +212,6 @@ async function assertConsistency(version: string): Promise<void> {
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
 
-	// main/ is its own workspace: the manifest AND every member entry in its
-	// lock must ride the line, or the release ships a tree whose
-	// `cargo build --locked` refuses to run (only zeta-main used to be patched).
-	const mainToml = await Bun.file("main/Cargo.toml").text();
-	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
-	if (mainVersion !== version) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${version}`);
-	const mainMembers = mainWorkspaceMembers();
-	const mainLocked = pinnedWorkspaceVersions(
-		await Bun.file("main/Cargo.lock").text(),
-		mainMembers.map(m => m.name),
-	);
-	for (const member of mainMembers) {
-		const pinned = mainLocked.get(member.name);
-		if (pinned !== version) problems.push(`main/Cargo.lock ${member.name}: ${pinned ?? "<absent>"} != ${version}`);
-	}
-
 	// v18.3.3+ mechanism: no per-release sentinel name — verify the stamp
 	// mechanism symbols instead (same list as the Step-2c check below).
 	for (const [file, needle] of [
@@ -271,7 +238,7 @@ async function assertConsistency(version: string): Promise<void> {
 		process.exit(1);
 	}
 	console.log(
-		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/main-workspace-lock/natives-stamp/npm leaf pins OK, tag absent`,
+		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/natives-stamp/npm leaf pins OK, tag absent`,
 	);
 }
 
@@ -534,27 +501,6 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 		const pkgPath = `${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
 	}
-	// Step 2a: the version-only siblings (web-ui/@linxiraos/zeta-web) move with
-	// the line too, but stay out of the changelog steps below.
-	if (VERSION_ONLY_PACKAGES.length > 0) {
-		console.log(`Updating ${VERSION_ONLY_PACKAGES.length} version-only package(s)…`);
-		for (const pkg of VERSION_ONLY_PACKAGES) {
-			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${`${pkg}/package.json`}`;
-			// web-ui ships its own npm lockfile; its root version and
-			// packages[""] entry move with the manifest (same rule as
-			// desktop/package-lock.json in Step 3 below).
-			const lockPath = `${pkg}/package-lock.json`;
-			if (await Bun.file(lockPath).exists()) {
-				const lock = (await Bun.file(lockPath).json()) as {
-					version?: string;
-					packages?: Record<string, { version?: string }>;
-				};
-				lock.version = version;
-				if (lock.packages?.[""]) lock.packages[""].version = version;
-				await Bun.write(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
-			}
-		}
-	}
 	// Step 2b: Cargo workspace version follows the release version. The
 	// version lives under `[workspace.package]` (indented per standard Cargo
 	// formatting), so allow leading whitespace.
@@ -648,23 +594,6 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 		}
 	}
 
-	// Step 2f-4: the main workbench is a separate Cargo workspace whose
-	// version stamps the published workbench binary (`zeta --version`) — it
-	// rides the same release line (mirror of Step 2b/2d for main/).
-	console.log("Updating main workbench Cargo workspace...");
-	await $`sd '^ *version = "[^"]+"' ${`version = "${version}"`} main/Cargo.toml`;
-	// EVERY member rides the line, not just zeta-main: `cargo build --locked`
-	// in main/ refuses a lock whose sibling crates (`zetawork-gui`, `sysmon`,
-	// `workbench-projects`) still carry the previous version.
-	const mainMembers = mainWorkspaceMembers();
-	const mainLock = rewriteWorkspaceVersions(
-		await Bun.file("main/Cargo.lock").text(),
-		mainMembers.map(m => m.name),
-		version,
-	);
-	await Bun.write("main/Cargo.lock", mainLock.lock);
-	console.log(`  main/Cargo.lock: ${mainLock.rewritten.length} workspace members -> ${version}`);
-
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");
 	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
@@ -756,13 +685,6 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 	// Step 7: pre-commit consistency gate.
 	console.log("Verifying consistency before commit...");
 	await assertConsistency(version);
-
-	// The workbench leaves embed the release version. A version bump without
-	// rebuilt/stamped leaves passes every manifest check and then fails the
-	// tag run's bundle guard, after the tag is already public. Gate it before
-	// the bump commit so the failure cannot consume a tag.
-	console.log("Verifying workbench leaf binaries...");
-	await $`bun scripts/check-workbench-bundles.ts`;
 
 	// Step 8: full checks. `bun run check` also runs check:rs (Rust
 	// tests/clippy), which is environment-blocked on hosts without an MSVC

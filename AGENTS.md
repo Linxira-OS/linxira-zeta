@@ -14,11 +14,11 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 |---|---|
 | OMP（`omp-upstream`） | 运行时树；**只按官方 release tag 集成**（§6） |
 | Pi（`pi-upstream`） | 语义移植来源；永不直接 merge（`port/pi/<scope>` 分支） |
-| OMP Web（`omp-web-upstream`） | **冻结**：`web-ui/` 只作快照（2026-11-05 起非产品面），只手工 cherry-pick，记进 `document/upstream-sync.md`；产品渲染器是 `web-app/` |
+| OMP Web（`omp-web-upstream`） | **冻结**：`retired/web-ui/` 只作快照（2026-11-05 起非产品面），只手工 cherry-pick，记进 `document/upstream-sync.md`；产品渲染器是 `web-app/` |
 | Pi Web（`pi-web-upstream`） | Web 特性的语义移植来源（`port/pi-web/<scope>` 分支） |
 
 分支：`main` = 产品分支；`sync/omp` = 上游未改镜像（只快进，永不并入 `main`）；
-`web-ui/` 是独立快照（自己的包管理器与 `web-ui/AGENTS.md`，不是根 workspace 包，
+`retired/web-ui/` 是独立快照（自己的包管理器与 `AGENTS.md`，不是根 workspace 包，
 不得有自己的 GitHub workflow——根 `.github/workflows/ci.yml` 覆盖它）；**2026-11-05
 起冻结**（构建门禁 `web_ui_build` 同日退役），不再作为产品 UI。产品渲染器是 `web-app/`
 （Vite 7，自己的 `package-lock.json`，同样不是根 workspace 成员）；它的构建在 CI
@@ -91,19 +91,19 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 
 | 写什么 | 放哪里 |
 |---|---|
-| React 组件 / pages / hooks | `web-app/src/studio/`（产品渲染器；`web-ui/` 已冻结，不再加功能） |
+| React 组件 / pages / hooks | `web-app/src/studio/`（产品渲染器；`retired/web-ui/` 已冻结，不再加功能） |
 | Studio 宿主 `/api/v1/*`（pair / CSRF / query / command / events） | `packages/coding-agent/src/server/studio-host/`（`ops/` 一家族一文件；`zeta-server.ts` 只做路由分派） |
 | 渲染器静态服务（`web-app/dist`、history fallback、CSP） | `packages/coding-agent/src/server/studio-web-app.ts`（`ZETA_WEB_APP_DIR` 覆盖） |
 | Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
 | 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
-| zetawork（TUI / GUI，**暂停**） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/`（`@linxiraos/main` 只在 `publish_zetawork` 输入时发布） |
-| zetaide / vendored TermIDE | `termide/`（**不要**在 `main/` 里重写 vendored 面板库） |
+| zetawork（TUI / GUI，**已退役**） | `retired/zetawork/crates/zeta-main/`、`retired/zetawork/crates/zetawork-gui/`（不构建、不发布、不被产品 import） |
+| zetaide / vendored TermIDE | `termide/`（**不要**在 retired/zetawork 里重写 vendored 面板库） |
 | `@linxiraos/editor` npm 面 | `editor/` |
 | Work Studio 桌面壳（Electron / 无浏览器引擎两版） | `desktop/`；渲染器与内核复用 `web-app/` + `packages/coding-agent`，不新增第二套 UI 代码 |
 
 依赖方向不可倒：`web-app/` 只经 HTTP 打 `/api/v1/*`（Studio 宿主，由它转 gateway）；
-`desktop/`、`web-ui/` 属冻结/暂停面，同样只走 HTTP，
+`desktop/` 属产品壳，`retired/web-ui/` 属冻结快照，同样只走 HTTP，
 **不得 import `packages/*` 源码**。
 
 Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catalog/<module>` 引；

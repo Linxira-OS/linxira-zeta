@@ -250,7 +250,6 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 		guard("release-assets", "release asset names", "scripts/check-release-asset-names.ts"),
 		guard("license-map", "license map", "scripts/check-license-map.ts"),
 		guard("service-ports", "service ports", "scripts/check-service-ports.ts"),
-		guard("workbench-bundles", "workbench bundles", "scripts/check-workbench-bundles.ts"),
 		guard("lsp-tables", "LSP generated tables", "scripts/check-lsp-servers.ts"),
 		{
 			id: "export-viewer",

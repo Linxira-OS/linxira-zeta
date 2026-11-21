@@ -71,9 +71,8 @@ pathIgnorePatterns = [
   # root bun test must not walk into their suites (vitest's it.fails etc. are
   # not bun APIs).
   "termide/**",
-  # web-ui is a standalone npm project with its own tsc/lint/build gate
-  # (web_ui_build job); its React/vitest suites are not bun-test-compatible.
-  "web-ui/**",
+  # retired/ is a one-way archive (no product build, no root test walk).
+  "retired/**",
 ]
 
 [run]

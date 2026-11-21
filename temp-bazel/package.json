@@ -1,5 +1,0 @@
-{
-  "dependencies": {
-    "@bazel/bazelisk": "^1.28.1"
-  }
-}

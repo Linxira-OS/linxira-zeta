@@ -76,20 +76,6 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 		],
 	},
 	{
-		// Suspended 2026-11-05 with the Rust workbench; see `paused` below.
-		dir: "main/npm/main",
-		paused: "zetawork suspended 2026-11-05 (roadmap P0): no Rust UI, npm line only via publish_zetawork",
-		leaves: [
-			{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
-			{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
-		],
-		// zetacode and zetaide ship with zetawork: one install, three commands.
-		companions: [
-			{ dir: "packages/coding-agent", name: "@linxiraos/zeta" },
-			{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
-		],
-	},
-	{
 		dir: "termide/npm/ide",
 		leaves: [
 			{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
