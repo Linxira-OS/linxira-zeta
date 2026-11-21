@@ -256,17 +256,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		artifactRules: [],
 	},
 	{
-		file: ".github/workflows/main-publish.yml",
-		requiresAll: [
-			{
-				job: "publish",
-				why: "manual main-branch package publish path; must survive every merge like its ide sibling (damage class 7)",
-			},
-		],
-		needsEdges: [],
-		artifactRules: [],
-	},
-	{
 		file: ".github/workflows/generated-freshness.yml",
 		minJobs: 2,
 		requiresAll: [

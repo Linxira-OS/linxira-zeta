@@ -491,12 +491,6 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
-         # 镜像 GitHub `check` job：安装 zetawork 必须同时装上 zetacode 与
-         # zetaide（同一条版本线的 companion 钉），发布构建把三个二进制放在
-         # 同一目录、发布资产三族齐发。钉或发布腿少带一个，用户装到的就是
-         # 一个工作台加两个失踪命令，而所有 manifest 仍然可解析。
-         - name: Workbench bundle guard
-           run: bun scripts/check-workbench-bundles.ts
          - name: Windows icon guard
            run: bun scripts/check-windows-icons.ts
          # 镜像 GitHub `check` job：产品标记只有一份画（SVG），其余栅格、
@@ -1556,22 +1550,14 @@ jobs:
               # test buckets, desktop launcher tests).
               export PATH="$extra:$PATH"
               bun install --frozen-lockfile
-         - name: Install Web UI dependencies
-           working-directory: web-ui
-           run: npm ci
-         - name: Test web-ui
-           working-directory: web-ui
-           run: npm test
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
          - name: Test desktop platform contracts
            working-directory: desktop
            run: npm test
-         # Mirror of ci.yml `web_desktop_tests`: the two suites that had no
-         # PR-time signal while both desktop jobs stayed release-only.
-         - name: Test the Web UI launcher resolution
-           run: bun test packages/coding-agent/test/web-ui-launcher.test.ts
+         # Mirror of ci.yml `web_desktop_tests`: the desktop platform contracts
+         # and the port-scoped serve reuse decision.
          - name: Test the serve reuse decision
            run: bun test packages/coding-agent/test/serve-registry.test.ts
 
@@ -1673,9 +1659,9 @@ jobs:
            run: cargo nextest run --workspace || cargo test --workspace
 
    main_tests:
-      name: Test main workspace (zeta workbench)
+      name: Test main workspace (retired)
+      if: false
       needs: [preflight, toolchains]
-      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates' || inputs.suite == 'rust') }}
       runs-on: self-hosted
       timeout-minutes: 120
       steps:

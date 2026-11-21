@@ -29,7 +29,7 @@ portions of the upstream tree. Those changes are Zeta's, not upstream's.
 
 - Copyright (c) 2026 Linxira-OS and Zeta contributors
 - The fork is licensed under the terms in [`LICENSE`](./LICENSE): MIT for the
-  runtime tree, AGPL-3.0-only for the `main/` workbench.
+  runtime tree, AGPL-3.0-only for the `retired/zetawork/` workbench.
 - The integrated upstream release and the merge decisions are recorded in
   [`document/upstream-sync.md`](./document/upstream-sync.md). Historical
   changes are visible in this repository's git history.

@@ -13,9 +13,10 @@ Rules:
 
 See `document/adr/0080-repository-path-governance.md`.
 
-Current and planned contents:
+Current contents:
 
 - `retired/zetawork/` — the old `main/` Rust workspace and its paused npm
-  distribution, once the Rust Pi import starts.
-- `retired/web-ui/` — the frozen Next renderer snapshot, once its references
-  are removed from the active product path.
+  distribution. `main/` is reserved for the future Rust Pi import; this tree
+  must not be built, published, or imported.
+- `retired/web-ui/` — the frozen Next renderer snapshot, removed from the
+  active product path. `web-app/` is the Work Studio renderer.

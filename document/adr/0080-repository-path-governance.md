@@ -1,9 +1,25 @@
 # 0080. Repository layout: Rust Pi core, retired Zetawork and frozen web-ui
 
-- **Status:** Accepted
+- **Status:** Accepted; owner override 2026-11-21 (immediate move, Rust Pi import still deferred)
 - **Date:** 2026-11-20
 - **Deciders:** Owner, main agent
 - **Links:** `document/agents/surface/surfaces.md`, `document/agents/surface/code-locations.md`
+
+## Owner override (2026-11-21)
+
+The owner superseded the deferred timing in the original decision:
+
+- `main/` and `web-ui/` move to `retired/zetawork/` and `retired/web-ui/`
+  immediately, even while Rust Pi remains outside the repository.
+- `main/` is reserved for the future Rust Pi import; the retired Zetawork tree
+  must not be rebuilt, published, or imported from.
+- The active release/CI gates must stop referencing `main/` and `web-ui/` rather
+  than keep passing by accident. A release gate that depends on retired paths
+  is a defect, not a reason to keep the old path.
+
+ADR is an implementation record for the owner's decision, not an authority
+above the owner. This section is the current decision; the earlier deferred
+timing sentence below is historical context only.
 
 ## Context
 

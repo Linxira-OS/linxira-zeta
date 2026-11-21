@@ -5,8 +5,6 @@ import { parse } from "yaml";
 import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages";
 import { SHIPPED_CLI_ASSETS, shippedCliAssetName } from "../packages/utils/src/release-assets";
 import { buildNativeOptionalDependencies, prepareStandalonePackage } from "./ci-release-publish";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
-import { leafStampProblem, STAMP_SUFFIX, type LeafStamp, WORKBENCH_LEAVES } from "./workbench-leaves";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const WORKFLOW = ".github/workflows/ci.yml";
@@ -25,51 +23,6 @@ const workflow = parse(fs.readFileSync(path.join(ROOT, WORKFLOW), "utf8")) as Wo
 function stepRun(job: string, step: string): string {
 	return workflow.jobs?.[job]?.steps?.find(candidate => candidate.name === step)?.run ?? "";
 }
-
-describe("main/ Cargo workspace lock", () => {
-	it("rewrites every workspace member, not just zeta-main", () => {
-		const members = mainWorkspaceMembers().map(member => member.name);
-		// Derived from main/Cargo.toml + each member manifest: a new crate joins
-		// the bump automatically, and a rename updates both sides at once.
-		expect(members.length).toBeGreaterThan(1);
-		expect(members).toContain("zeta-main");
-		expect(members).toContain("zetawork-gui");
-		expect(members).toContain("sysmon");
-		expect(members).toContain("workbench-projects");
-
-		const lock = fs.readFileSync(path.join(ROOT, "main", "Cargo.lock"), "utf8");
-		const { lock: bumped, rewritten } = rewriteWorkspaceVersions(lock, members, "9.9.9");
-		expect(rewritten.sort()).toEqual([...members].sort());
-		const pinnedAfter = pinnedWorkspaceVersions(bumped, members);
-		for (const name of members) expect(pinnedAfter.get(name)).toBe("9.9.9");
-		// Only member entries move: an unrelated path dependency keeps its own line.
-		expect(bumped).toContain('name = "termide-core"');
-	});
-
-	it("throws when a workspace member has no lock entry", () => {
-		expect(() =>
-			rewriteWorkspaceVersions(
-				'[[package]]\nname = "zeta-main"\nversion = "1.0.0"\n',
-				["zeta-main", "ghost"],
-				"2.0.0",
-			),
-		).toThrow("ghost");
-	});
-
-	it("has every member of the committed lock on the manifest version", () => {
-		const manifestVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(
-			fs.readFileSync(path.join(ROOT, "main", "Cargo.toml"), "utf8"),
-		)?.[1];
-		const lock = fs.readFileSync(path.join(ROOT, "main", "Cargo.lock"), "utf8");
-		const pinned = pinnedWorkspaceVersions(
-			lock,
-			mainWorkspaceMembers().map(member => member.name),
-		);
-		for (const member of mainWorkspaceMembers()) {
-			expect(pinned.get(member.name)).toBe(manifestVersion);
-		}
-	});
-});
 
 describe("native leaf single source of truth", () => {
 	it("pins exactly the leaves the release publishes", () => {
@@ -240,29 +193,3 @@ describe("release asset surfaces", () => {
 	});
 });
 
-describe("leaf freshness stamps", () => {
-	it("stamps every workbench leaf binary at (or ahead of) its manifest version, over its exact bytes", () => {
-		for (const leaf of WORKBENCH_LEAVES) {
-			const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, leaf.dir, "package.json"), "utf8")) as {
-				version?: string;
-			};
-			const binaryPath = path.join(ROOT, leaf.dir, "bin", leaf.binary);
-			expect(fs.existsSync(binaryPath)).toBe(true);
-			const stamp = JSON.parse(fs.readFileSync(`${binaryPath}${STAMP_SUFFIX}`, "utf8")) as LeafStamp;
-			const actual = new Bun.CryptoHasher("sha256").update(fs.readFileSync(binaryPath)).digest("hex");
-			expect(leafStampProblem(stamp, manifest.version ?? "", actual)).toBeUndefined();
-		}
-	});
-
-	it("fails a stale stamp, a missing stamp and a mismatched payload", () => {
-		const digest = "a".repeat(64);
-		expect(leafStampProblem(undefined, "1.3.2", digest)).toContain("no stamp");
-		expect(leafStampProblem({ version: "1.3.1", sha256: digest }, "1.3.2", digest)).toContain("not rebuilt");
-		expect(leafStampProblem({ version: "1.3.2", sha256: digest }, "1.3.2", "b".repeat(64))).toContain(
-			"sha256 does not match",
-		);
-		// A binary rebuilt ahead of the manifest is the repo's release ritual,
-		// not drift: the bump commit lifts the manifest to it.
-		expect(leafStampProblem({ version: "1.3.3", sha256: digest }, "1.3.2", digest)).toBeUndefined();
-	});
-});

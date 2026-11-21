@@ -92,11 +92,11 @@ Gitea 镜像供项目自己的 Linux 主机使用。GitHub Actions 是贡献门�
 
 ## 贡献许可
 
-Zeta 采用按目录划分的许可：`main/` 为 AGPL-3.0，`main/` 之外的全部路径——包括
+Zeta 采用按目录划分的许可：`retired/zetawork/` 为 AGPL-3.0，其外全部路径——包括
 `packages/`、`crates/`、`sdk/`、`termide/`、`editor/`、`web-app/`、`desktop/`、
-`web-ui/`、`docs/`、`document/` 与 `rep-docs/`——为 MIT。提交你有权按适用许可
-授权的作品。第三方或 vendored 代码保持其自身许可与归属；不要重新许可。许可文本
-不作翻译。
+`retired/web-ui/`、`docs/`、`document/` 与 `rep-docs/`——为 MIT。提交你有权按适用
+许可授权的作品。第三方或 vendored 代码保持其自身许可与归属；不要重新许可。许可
+文本不作翻译。
 
 ## 评审
 

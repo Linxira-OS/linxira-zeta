@@ -276,79 +276,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 			"function deriveTrackingUpdatedAt(trackingDir: string, markdown: readonly { mtimeMs: number }[]): string {",
 		why: "content-derived tracking freshness stamp (newest file mtime, not the request clock)",
 	},
-	// -- Tracking web-ui surface (vendored from omp-web: these files are
-	//    upstream-owned copies, so a re-vendor can silently drop the panel) -----
-	{
-		file: "web-ui/components/shell/panel-registry.tsx",
-		symbol: 'titleKey: "dock.window.tracking"',
-		why: "tracking dock entry label (tracking.enabled-gated dock window; registry-driven rail)",
-	},
-	{
-		file: "web-ui/components/TrackingPanel.tsx",
-		symbol: "export function TrackingMarkdownList({",
-		why: "tracking sub-tab markdown listing — carries the Summaries tab that used to be declared but never rendered",
-	},
-	{
-		file: "web-ui/components/TrackingPanel.tsx",
-		symbol: '{ id: "summaries", labelKey: "tracking.tab.summaries" },',
-		why: "summaries sub-tab entry in the tracking panel",
-	},
-	{
-		file: "web-ui/lib/i18n/messages/en.ts",
-		symbol: '"tracking.tab.summaries": "Summaries"',
-		why: "EN label for the tracking Summaries tab",
-	},
-	{
-		file: "web-ui/lib/i18n/messages/zh-CN.ts",
-		symbol: '"tracking.tab.summaries": "摘要"',
-		why: "zh-CN label for the tracking Summaries tab",
-	},
-	{
-		file: "web-ui/lib/i18n/messages/en.ts",
-		symbol: '"dock.window.tracking": "Tracking"',
-		why: "EN dock label for the tracking window",
-	},
-	{
-		file: "web-ui/lib/i18n/messages/zh-CN.ts",
-		symbol: '"dock.window.tracking": "追踪"',
-		why: "zh-CN dock label for the tracking window",
-	},
-	{
-		file: "web-ui/next.config.ts",
-		symbol: '"/api/tracking/:path*"',
-		why: "beforeFiles rewrite routing /api/tracking + /events to the runtime gateway",
-	},
-	// -- Web chat surface: ```svg figures -----------------------------------------
-	{
-		file: "packages/coding-agent/src/sdk.ts",
-		symbol: "chatSvgRendering?: boolean;",
-		why: "Zeta-only prompt surface flag: the web UI draws ```svg fences, so serve/web-gateway sessions advertise them. Upstream OMP gates every visual on tuiTranscript, so a merge taking sdk.ts wholesale leaves browser clients the only surface that cannot draw what the prompt promises.",
-	},
-	{
-		file: "packages/coding-agent/src/server/web-gateway/agents.ts",
-		symbol: "chatSvgRendering: true,",
-		why: "the serve/web-gateway session path is what sets the flag above (every web/desktop session funnels through startRpcSession); losing the line silently reverts browser chats to text-only replies",
-	},
-	{
-		file: "web-ui/components/SvgBlock.tsx",
-		symbol: "export function SvgBlock(",
-		why: "web-ui renders ```svg fences as figures (vendored file: a re-vendor drops the block, and every emitted figure degrades to a code block)",
-	},
-	{
-		file: "web-ui/components/MarkdownBody.tsx",
-		symbol: 'lang === "svg"',
-		why: "the markdown renderer's ```svg branch, closed fences only — without it an emitted SVG fence stays plain code even with SvgBlock present",
-	},
-	{
-		file: "web-ui/lib/svg-sanitize.ts",
-		symbol: 'FORBID_TAGS: ["script", "foreignObject", "style"],',
-		why: "the security contract for model-authored ```svg: the SVG profile alone, no script/foreignObject/style elements, and (via the afterSanitizeAttributes hook) no reference that leaves the figure. A weakened or dropped policy is an XSS surface on the gateway",
-	},
-	{
-		file: "web-ui/app/globals.css",
-		symbol: "--c6: var(--zeta-alias-chart-6);",
-		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless. The right-hand side is the L2 alias layer — L1 `--chart-6` still resolves through the compat bridge, but the alias is what the three-layer scheme (lib/theme/tokens.ts) puts in feature CSS",
-	},
 	// -- Cross-client session provenance -------------------------------------------
 	{
 		file: "packages/coding-agent/src/session/session-entries.ts",
@@ -599,17 +526,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: ".github/workflows/ci.yml",
 		symbol: "bun scripts/check-package-json-merge.ts",
 		why: "Zeta-only step in the shared `check` job: the `merge.zeta-package` driver rebuilds the merged manifest from the merged-in side, so a local `git merge main` silently drops or reverts branch-side leaves — `scripts` entries (2026-10-14: three) and any other top-level key such as `packageManager`. ci.yml is a shared file an upstream merge takes in blocks, and the local-CI parity guard only checks GitHub → mirror, never the reverse, so a trimmed step would go unnoticed.",
-	},
-	// -- CI: PR-path web/desktop test legs ---------------------------------------
-	{
-		file: ".github/workflows/ci.yml",
-		symbol: "bun test packages/coding-agent/test/web-ui-launcher.test.ts",
-		why: "Zeta-only test leg (`web_desktop_tests`): the desktop contract suite and the CLI's Web UI launcher/serve-reuse suites had no PR-time signal because desktop_linux/desktop_windows are release-only. v1.2.1 shipped `npx zeta-web` (404; the package is `@linxiraos/zeta-web`), and the desktop reused the resulting dead-Web-UI service forever. Upstream has no such job, so a merge that takes ci.yml in blocks drops the only fast detector.",
-	},
-	{
-		file: "packages/coding-agent/src/commands/web-ui-launcher.ts",
-		symbol: 'export const WEB_UI_PACKAGE = "@linxiraos/zeta-web";',
-		why: "The npm fallback's package name (v1.2.1: an unscoped `zeta-web` specifier 404s against the registry while the *bin* name stays `zeta-web`, so both roles must be spelled separately). A brand/scope sweep or an upstream merge touching this file is exactly the edit that silently breaks `zetacode serve` on any install without a local web-ui checkout.",
 	},
 	// -- Plugin surface: manifest keys + lockfile name ---------------------------
 	// These four pin the plugin activation path end to end. All of them were dead

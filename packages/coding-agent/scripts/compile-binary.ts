@@ -76,7 +76,7 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 			plugins: [createJsonParsePlugin(), await createLegacyPiVirtualModulePlugin()],
 			compile: {
 				windows: {
-					icon: path.join(options.repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico"),
+					icon: path.join(options.repoRoot, "assets", "legacy", "zetawork", "icon.ico"),
 					title: "zetacode",
 					publisher: "Linxira OS",
 				},
