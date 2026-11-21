@@ -97,6 +97,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0080](0080-repository-path-governance.md) | Repository layout: Rust Pi core, retired Zetawork and frozen web-ui | Accepted | 2026-11-20 | Owner path-governance decision | [Product surfaces](../agents/surface/surfaces.md), [Release policy](../release.md) |
 | [0081](0081-dual-rust-pi-upstreams.md) | Aggregate two Rust Pi reference upstreams; do not fork either one | Proposed | 2026-11-21 | — | [bigfish1913/pi-rust](https://github.com/bigfish1913/pi-rust), [yannelli/pi-rust](https://github.com/yannelli/pi-rust), [ADR-0080](0080-repository-path-governance.md) |
 | [0082](0082-vibe-team-configuration-scopes.md) | Vibe and Team decisions are session-scoped; model configuration is global or project | Proposed | 2026-11-21 | — | [Vibe mode](../../docs/vibe-mode.md), [Team mode](../../docs/team.md), [ADR-0038](0038-two-lane-agent-hierarchy.md) |
+| [0083](0083-studio-version-pin-compatibility.md) | Studio v0.2.4 compatibility is a Zeta Host adapter, not an OMP downgrade | Proposed | 2026-11-21 | — | [Studio v0.2.4](https://github.com/the-snowpear/omp-studio/releases/tag/v0.2.4), [OMP baseline](../upstream-baselines.md) |
 
 ## File and numbering rules
 
