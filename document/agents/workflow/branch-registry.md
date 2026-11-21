@@ -34,7 +34,7 @@
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
 | `sync/omp-release/v19.0.0` | sync | OMP v19.0.0 真 merge；worktree `temp/omp-v19.0.0`，tip `579992ddd2e`；PR #325 | main | 2026-11-19 | 用户合并/关闭后删，删前记 SHA |
-| `fix/1.5.13-hotfix` | fix | 1.5.13 热修与 Studio 同步 WIP；worktree `temp/1.5.13-hotfix`，tip `284750bb027` | main | 2026-11-21 | 验收/发布后删，删前记最终 SHA |
+| `fix/1.5.13-hotfix` | fix | 1.5.13 热修、路径治理合并与 Studio 同步 WIP；worktree `temp/1.5.13-hotfix`，tip `f1b3d55bdca` | main | 2026-11-21 | 验收/发布后删，删前记最终 SHA |
 | `chore/repo-path-governance` | chore | 仓库路径治理：ADR-0080、retired/ 边界、旧 Zetawork/web-ui 迁移；worktree `temp/repo-governance`，tip `0a6c4b6f2a7` | main | 2026-11-20 | 已并入 main；分支保留作恢复引用，删除前记 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
