@@ -1,4 +1,7 @@
-import type { StudioClient, WorkspaceFileInfo, WorkspaceFileText, WorkspaceFileSaveResult } from "@linxiraos/studio-contract"
+import type { StudioClient, WorkspaceFileInfo, WorkspaceFileText } from "@linxiraos/studio-contract";
+import { inspectFileBackend, readFileBackend, writeFileBackend } from "./fileBackend";
+import { normalizeFileIdentityPath } from "./fileTypes";
+import { pickLocale } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { previewFile, previewFileText } from "../preview/filesPreview";
 

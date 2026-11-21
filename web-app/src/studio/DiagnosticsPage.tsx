@@ -20,7 +20,7 @@ import { ProcessMemoryPanel } from "./ProcessMemoryPanel";
 import { ToastHost } from "./ToastHost";
 import { usePreviewMode } from "./preview/PreviewContext";
 import { accessFor, detectSurface } from "./surfaces";
-import { PREVIEW_DIAGNOSTICS, type PreviewDiagScenario } from "./preview/fixtures";
+import { getPreviewDiagnostics, type PreviewDiagScenario } from "./preview/fixtures";
 import { waitForCommandReceipt } from "./sessionLifecycle";
 import {
   deriveDiagnosticsView,
@@ -323,10 +323,10 @@ export function DiagnosticsPage({
 
   const previewInstallerState = previewInstaller(scenario, t, zh);
   const currentPreviewScenario = PREVIEW_CYCLE.find((item) => item.id === scenario);
-  const viewRuntime = preview ? previewRuntime(scenario) : runtime ?? env?.runtime;
-  const viewEnv = preview ? previewEnvironment(scenario, previewInstallerState) : env;
-  const viewDiag = preview ? previewDiagnostics(scenario) : diag;
-  const viewCaps = preview ? previewCapabilities() : caps;
+  const viewRuntime = preview ? previewRuntime(scenario, zh) : runtime ?? env?.runtime;
+  const viewEnv = preview ? previewEnvironment(scenario, previewInstallerState, zh) : env;
+  const viewDiag = preview ? previewDiagnostics(scenario, zh) : diag;
+  const viewCaps = preview ? previewCapabilities(zh) : caps;
   /** 重连/重启都走 `runtime.ensure`；Host 未提供时只保留「重新检查」，不发必败命令。 */
   const { install: runtimeInstallable, ensure: runtimeEnsureSupported } = preview
     ? { install: true, ensure: true }

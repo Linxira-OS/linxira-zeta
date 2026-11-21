@@ -54,6 +54,67 @@ export function formatBytes(size: number | undefined): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
 }
 export interface FileReference { path: string; line?: number; column?: number }
+
+function decodeFileUrlPath(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol.toLowerCase() !== "file:") return null;
+    const decoded = decodeURIComponent(parsed.pathname);
+    if (parsed.hostname && parsed.hostname.toLowerCase() !== "localhost") {
+      return `//${parsed.hostname}${decoded}`;
+    }
+    return /^\/[A-Za-z]:\//.test(decoded) ? decoded.slice(1) : decoded;
+  } catch {
+    let fallback = rawUrl.replace(/^file:(?:\/\/(?:localhost)?)?/i, "");
+    try { fallback = decodeURIComponent(fallback); } catch { /* Keep literal percent if malformed. */ }
+    fallback = fallback.replace(/[?#].*$/, "");
+    return /^\/[A-Za-z]:[\\/]/.test(fallback) ? fallback.slice(1) : fallback || null;
+  }
+}
+
+export function isAbsoluteFileReference(path: string): boolean {
+  return /^(?:[A-Za-z]:[\\/]|[/\\]|file:)/i.test(path.trim());
+}
+
+function splitPathRoot(slashPath: string): { root: string; rest: string } {
+  const unc = /^\/\/[^/]+\/[^/]+(?:\/|$)/.exec(slashPath);
+  if (unc) return { root: unc[0].endsWith("/") ? unc[0] : `${unc[0]}/`, rest: slashPath.slice(unc[0].length) };
+  const winSlash = /^\/([A-Za-z]:\/)/.exec(slashPath);
+  if (winSlash) return { root: `/${winSlash[1]}`, rest: slashPath.slice(winSlash[0].length) };
+  const win = /^[A-Za-z]:\//.exec(slashPath);
+  if (win) return { root: win[0], rest: slashPath.slice(win[0].length) };
+  if (slashPath.startsWith("/")) return { root: "/", rest: slashPath.slice(1) };
+  return { root: "", rest: slashPath };
+}
+
+function reduceSegments(segments: readonly string[], rooted: boolean): string[] {
+  const stack: string[] = [];
+  for (const part of segments) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (stack.length > 0 && stack[stack.length - 1] !== "..") stack.pop();
+      else if (!rooted) stack.push("..");
+      continue;
+    }
+    stack.push(part);
+  }
+  return stack;
+}
+
+export function normalizeFileIdentityPath(value: string): string {
+  let text = value.trim();
+  if (/^file:/i.test(text)) text = decodeFileUrlPath(text) ?? text;
+  const slash = text.replaceAll("\\", "/");
+  const { root, rest } = splitPathRoot(slash);
+  const canonicalRoot = /^\/[A-Za-z]:\/$/.test(root)
+    ? `${root[1]!.toUpperCase()}:/`
+    : /^[A-Za-z]:\/$/.test(root)
+      ? `${root[0]!.toUpperCase()}:/`
+      : root;
+  const reduced = reduceSegments(rest.split("/"), canonicalRoot.length > 0).join("/");
+  return canonicalRoot ? `${canonicalRoot}${reduced}` : reduced || ".";
+}
+
 export function parseFileReference(value: string, explicitLink = false): FileReference | null {
   const text = value.trim();
   if (!text || /^[#?]/.test(text) || /^(?:https?:|mailto:|data:|javascript:|tel:)/i.test(text)) return null;

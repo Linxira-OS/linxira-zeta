@@ -1,4 +1,5 @@
 import { previewFile, previewFileBlob, previewOfficeState, subscribePreviewOffice } from "../preview/filesPreview";
+import { useI18n } from "../i18n";
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { FileResource, OfficeComponentState } from "./file-viewer-shared"
 const PdfPane = lazy(() => import("./PdfPane"));

@@ -131,6 +131,7 @@ export function ArtifactLibraryPane({
 }) {
   const { preview, marks } = usePreviewMode();
   const { t, resolvedLanguage } = useI18n();
+  const tRef = useRef(t); tRef.current = t;
   const { id: targetId } = useExecutionTarget();
   const zh = resolvedLanguage === "zh";
   const [rows, setRows] = useState<readonly ArtifactRecord[]>([]);

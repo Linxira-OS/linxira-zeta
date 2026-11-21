@@ -6,7 +6,6 @@ import "@xterm/xterm/css/xterm.css";
 import { applyTheme, readTerminalTypography, readXtermTheme } from "../terminalTheme";
 import { useAppSettings } from "../settings/appSettings";
 import { useI18n } from "../i18n";
-import { useSurfaceDocument } from "../dock/SurfaceContext";
 import type { StudioClient } from "@linxiraos/studio-contract";
 import { resolveArtifactUrl } from "../media/artifactUrl";
 import {
@@ -35,7 +34,6 @@ export function RecordingPlayer({
   const document = useSurfaceDocument();
   const { resolvedLanguage } = useI18n();
   const { settings } = useAppSettings();
-  const document = useSurfaceDocument();
   const zh = resolvedLanguage === "zh";
   const [recording, setRecording] = useState<PlaybackRecording>();
   const [error, setError] = useState("");

@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { StudioClient, WorkspaceFileNode, WorkspaceId } from "@linxiraos/studio-contract"
+import type { StudioClient, WorkspaceFileNode, WorkspaceId } from "@linxiraos/studio-contract";
 import type {
   EvaluationSpec,
   EvaluationContext,
   EvaluationQuestion,
-} from "@linxiraos/studio-protocol"
+} from "@linxiraos/studio-protocol";
 import { AppSelect } from "../AppSelect";
 import { WorkspaceDialog } from "../workspaces/Workspace";
 import { hostErrorMessage } from "../hostError";
 import { useExecutionTarget } from "../workspaces/ExecutionTargets";
-import { resolveArtifactContext } from "../media/artifactUrl";
+import { useI18n } from "../i18n";
+import { BenchmarkAccountPicker, NATIVE_SERVICE_TIERS, selectorProvider } from "../models/BenchmarkAccountPicker";
 
 type T = (cn: string, en: string) => string;
 type JudgmentItem = Extract<EvaluationSpec, { kind: "judgment" }>["items"][number];
@@ -371,9 +372,8 @@ export function EvaluationConfig({
   t: T;
 }) {
   const executionTarget = useExecutionTarget();
-  const importEpoch = useRef(0);
-  useEffect(() => { importEpoch.current++; return () => { importEpoch.current++; }; }, [client, currentSessionId, executionTarget.id]);
-  const [imagePicker, setImagePicker] = useState<number>();
+  const { resolvedLanguage } = useI18n();
+  const [imagePicker, setImagePicker] = useState<string | number>();
   const [search, setSearch] = useState(""),
     [step, setStep] = useState(0),
     [error, setError] = useState("");
@@ -709,75 +709,88 @@ export function EvaluationConfig({
               </span>
             </div>
             {spec.items.length ? (
-              <details className="eval-advanced">
-                <summary>{t("样本图片", "Item images")}</summary>
-                {spec.items.map((item, i) => (
-                  <div className="eval-image-item" key={item.key}>
-                    <Field label={`${t("样本", "Item")} ${item.key}`}>
-                      <input
-                        className="input mono"
-                        placeholder={t(
-                          "图片路径，使用分号分隔",
-                          "Image paths separated by semicolons",
-                        )}
-                        value={item.images?.join("; ") ?? ""}
-                        onChange={(e) =>
-                          set(
-                            "items",
-                            spec.items.map((row, index) =>
-                              index === i
-                                ? {
-                                    ...row,
-                                    images: e.target.value
-                                      .split(";")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean),
-                                  }
-                                : row,
-                            ),
-                          )
+              <LazyDetails className="eval-advanced" summary={t("样本图片", "Item images")}>
+                {spec.items.map((item) => {
+                  const targetKey = String(item.key);
+                  return (
+                    <div className="eval-image-item" key={targetKey}>
+                      <Field label={`${t("样本", "Item")} ${item.key}`}>
+                        <input
+                          className="input mono"
+                          placeholder={t(
+                            "图片路径，使用分号分隔",
+                            "Image paths separated by semicolons",
+                          )}
+                          value={item.images?.join("; ") ?? ""}
+                          onChange={(e) =>
+                            set(
+                              "items",
+                              spec.items.map((row) =>
+                                String(row.key) === targetKey
+                                  ? {
+                                      ...row,
+                                      images: e.target.value
+                                        .split(";")
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                    }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <button
+                        className="btn small"
+                        disabled={
+                          !preview &&
+                          (!!executionTarget.id || !globalThis.zetaStudioChrome?.importArtifact)
                         }
-                      />
-                    </Field>
-                    <button
-                      className="btn small"
-                      disabled={
-                        !preview &&
-                        (!currentSessionId || !globalThis.zetaStudioChrome?.importArtifact)
-                      }
-                      onClick={() => {
-                        if (preview) {
-                          set(
-                            "items",
-                            spec.items.map((row, index) =>
-                              index === i ? { ...row, images: ["sample-image.png"] } : row,
-                            ),
-                          );
-                          return;
-                        }
-                        const generation = importEpoch.current;
-                        void (async () => {
-                          const scope = await resolveArtifactContext(client);
-                          if (generation !== importEpoch.current) return;
-                          if (scope.sessionId !== currentSessionId) throw Error("Artifact conversation changed");
-                          const result = await globalThis.zetaStudioChrome?.importArtifact?.({
-                            kind: "image", ...scope, targetId: executionTarget.id,
-                          });
-                          if (generation !== importEpoch.current || !result?.ok || result.cancelled || !result.artifact) return;
-                          const artifactId = result.artifact.artifactId;
-                          set("items", spec.items.map((row, index) => index === i
-                            ? { ...row, images: [...(row.images ?? []), `artifact://${artifactId}`] } : row));
-                        })().catch(cause => { if (generation === importEpoch.current) setError(hostErrorMessage(cause, "Cannot import image")); });
-                      }}
-                    >
-                      {t("添加本机图片", "Add local image")}
-                    </button>
-                    <button className="btn small" onClick={() => setImagePicker(i)}>
-                      {t("选择工作区图片", "Choose workspace image")}
-                    </button>
-                  </div>
-                ))}
-              </details>
+                        onClick={() => {
+                          if (preview) {
+                            set(
+                              "items",
+                              spec.items.map((row) =>
+                                String(row.key) === targetKey
+                                  ? { ...row, images: ["sample-image.png"] }
+                                  : row,
+                              ),
+                            );
+                            return;
+                          }
+                          void globalThis.zetaStudioChrome
+                            ?.importArtifact?.({
+                              kind: "image",
+                              ...(workspaceId ? { workspaceId } : {}),
+                            })
+                            .then((result) => {
+                              if (result?.ok && result.artifact)
+                                set(
+                                  "items",
+                                  spec.items.map((row) =>
+                                    String(row.key) === targetKey
+                                      ? {
+                                          ...row,
+                                          images: [
+                                            ...(row.images ?? []),
+                                            `artifact://${result.artifact!.artifactId}`,
+                                          ],
+                                        }
+                                      : row,
+                                  ),
+                                );
+                            });
+                        }}
+                      >
+                        {t("添加本机图片", "Add local image")}
+                      </button>
+                      <button className="btn small" onClick={() => setImagePicker(item.key)}>
+                        {t("选择工作区图片", "Choose workspace image")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </LazyDetails>
             ) : null}
             <LazyDetails className="eval-advanced" summary={t("结构化输入", "Structured input")}>
               <JsonField

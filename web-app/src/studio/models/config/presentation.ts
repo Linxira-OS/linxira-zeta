@@ -26,11 +26,62 @@ const BUILTIN_ROLE_DESC_KEYS: Record<string, string> = {
   task: "modelConfig.roleDescSubtask",
   advisor: "modelConfig.roleDescAdvisor",
   widget: "modelConfig.roleDescWidget",
-  taste: "modelConfig.roleDescTaste",
+  memory: "modelConfig.roleDescMemory",
+  image: "modelConfig.roleDescImage",
+  web: "modelConfig.roleDescWeb",
+  speech: "modelConfig.roleDescSpeech",
+  dictation: "modelConfig.roleDescDictation",
+  judge: "modelConfig.roleDescJudge",
 };
 
-export function formatRoleName(role: { id: string; name: string; builtin?: boolean }, t: (k: string) => string): string {
-  return role.builtin && role.id === "taste" && role.name === "Taste" ? t("modelConfig.roleNameTaste") : role.name;
+const PRESET_GROUP_EN: Record<string, string> = {
+  "官方 / 主流": "Official / Popular",
+  "Gateway / 聚合": "Gateway / Aggregators",
+  "本地": "Local",
+  "更多 Provider": "More Providers",
+};
+
+const PRESET_NAME_EN: Record<string, string> = {
+  zhipu: "Zhipu",
+};
+
+const PRESET_DESC_EN: Record<string, string> = {
+  mistral: "Mistral Vibe browser login or API key",
+  devin: "Import Devin CLI credentials or use Windsurf enterprise account",
+  "muse-code": "Muse Spark subscription, account model discovery, and quota",
+  anthropic: "Official Claude model API",
+  openai: "Official GPT model API",
+  "openai-codex": "Codex subscription quota (ChatGPT account)",
+  "google-gemini": "Official Gemini model API",
+  "gemini-cli": "Gemini Code Assist subscription",
+  xai: "Grok model family",
+  groq: "High-speed inference (Llama / Mixtral)",
+  deepseek: "DeepSeek V / R series",
+  moonshot: "Kimi K series models",
+  modular: "Modular Cloud models and native reasoning parameters",
+  commandcode: "Native OpenAI / Anthropic routing, discovery, and pricing",
+  openrouter: "Access multiple providers with one key",
+  "github-copilot": "Copilot subscription quota",
+  litellm: "Self-hosted unified model proxy",
+  ollama: "Local model server; auto-discovers pulled models",
+  "lm-studio": "Local OpenAI-compatible server",
+  "llama.cpp": "llama-server OpenAI-compatible endpoint",
+  qwen: "Official Qwen (Tongyi Qianwen) API",
+  zhipu: "GLM series models",
+  fireworks: "Fireworks AI hosted inference",
+  siliconflow: "SiliconFlow model cloud",
+};
+
+export function formatPresetGroup(group: string, zh: boolean): string {
+  return zh ? group : (PRESET_GROUP_EN[group] ?? group);
+}
+
+export function formatPresetName(id: string, name: string, zh: boolean): string {
+  return zh ? name : (PRESET_NAME_EN[id] ?? name);
+}
+
+export function formatPresetDesc(id: string, desc: string, zh: boolean): string {
+  return zh ? desc : (PRESET_DESC_EN[id] ?? desc);
 }
 
 export function formatRoleDesc(role: { id: string; desc: string; builtin?: boolean }, t: (k: string) => string): string {
@@ -42,6 +93,7 @@ export function formatRoleDesc(role: { id: string; desc: string; builtin?: boole
 }
 
 const PROVIDER_STATUS_DETAIL_KEYS: Record<string, string> = {
+  "Zeta 已解析到可用模型": "modelConfig.statusOmpResolved",
   "已从 models.yml 读取": "modelConfig.statusReadFromModelsYml",
   "已在 disabledProviders 中禁用": "modelConfig.statusDisabledInConfig",
   "已禁用": "modelConfig.statusDisabled",

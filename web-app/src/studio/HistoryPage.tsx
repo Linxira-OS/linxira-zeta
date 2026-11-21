@@ -309,6 +309,7 @@ function HostHistRow({
   const status = HOST_STATUS[entry.status];
   const archived = entry.status === "archived";
   const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const title = hostHistoryTitle(entry, t("conversation.untitledSession"));
   // IM rows show an alias/channel, never an absolute cwd; a personal row has none.
   const imLocation = entry.origin === undefined

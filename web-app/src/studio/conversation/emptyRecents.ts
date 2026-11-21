@@ -1,5 +1,5 @@
 import type { SessionHistoryEntry, WorkspaceListReadModel } from "@linxiraos/studio-contract";
-import { PREVIEW_PROJECTS, type PreviewThread } from "../preview/fixtures";
+import { PREVIEW_PROJECTS, getPreviewProjects, type PreviewThread } from "../preview/fixtures";
 
 export type EmptyRecentStatus = "running" | "approval" | "idle";
 

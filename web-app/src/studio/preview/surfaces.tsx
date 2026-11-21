@@ -478,7 +478,7 @@ export function PreviewGitPanel({ view, focusPath, focusKey }: { view?: "changes
         <button type="button" className="btn small outline" disabled={shared.busy} onClick={() => void shared.execute({ kind: "pull", strategy: "ff-only" })}>Pull</button>
         <button type="button" className="btn small outline" disabled={shared.busy} onClick={() => void shared.execute({ kind: "push" })}>Push</button>
       </div>
-      {marks ? <div className="git-notice" role="status">演示仓库状态（zeta-web / main）。预览模式下不执行任何 Git 操作。</div> : null}
+      {marks ? <div className="git-notice" role="status">{zh ? "演示仓库状态（zeta-web / main）。预览模式下不执行任何 Git 操作。" : "Demo repository status (zeta-web / main). No Git operations run in preview mode."}</div> : null}
       <div className="git-actions">
         <GitMoreActionsMenu />
         {marks ? <span className="tiny muted">{zh ? "演示" : "Demo"}</span> : null}
@@ -550,7 +550,6 @@ export function PreviewGitPanel({ view, focusPath, focusKey }: { view?: "changes
     </GitPanelSplit>
   );
 }
-
 
 const SEV = {
   error: { icon: "alert-c", tone: "red", zh: "错误", en: "Error" },

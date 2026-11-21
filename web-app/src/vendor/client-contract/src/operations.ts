@@ -1,4 +1,4 @@
-import type { RuntimeViewOperation, RuntimeViewResultMap } from "@linxiraos/studio-protocol";
+import type { RuntimeViewOperation, RuntimeViewResultMap, ModelServicesCommandInputMap, ModelServicesCommandResultMap } from "@linxiraos/studio-protocol";
 import type { TimeTravelSettings, TimeTravelTimeline, TimeTravelRestorePreview, TimeTravelRestoreInput, TimeTravelRestoreResult } from "./time-travel.js";
 type RuntimeViewQueryMap = { [K in RuntimeViewOperation["kind"]]: Omit<Extract<RuntimeViewOperation, { kind: K }>, "kind"> };
 import type { EvaluationRecord, EvaluationSpec, EvaluationPlan, EvaluationContext, EvaluationListInput, EvaluationResultPage, EvaluationStartInput, EvaluationControlInput, EvaluationExportInput, EvaluationExportResult } from "@linxiraos/studio-protocol";

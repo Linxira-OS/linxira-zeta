@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { StudioClient } from "@linxiraos/studio-contract"
-import type { ContextCategoryId, ContextEntrySummary, ContextViewIndex } from "@linxiraos/studio-protocol"
+import type { ContextCategoryId, ContextEntrySummary, ContextViewIndex, ContextViewSourceMarker } from "@linxiraos/studio-protocol"
 import { hostErrorMessage } from "../hostError";
 import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";

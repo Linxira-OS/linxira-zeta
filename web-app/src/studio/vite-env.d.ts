@@ -300,6 +300,12 @@ declare global {
         onExit(listener: (event: { id: string }) => void): () => void;
         /** Flow control: bytes written to xterm. Absent on an older preload. */
         ack?(id: string, bytes: number): void;
+        /** Desktop tmux control client; absent in browser-only installs. */
+        tmuxSessions?(input: import("../../../desktop/src/terminal-shared").TmuxSessionsInput): Promise<import("../../../desktop/src/terminal-shared").TmuxSessionsResult>;
+        tmuxAttach?(input: import("../../../desktop/src/terminal-shared").TmuxAttachInput): Promise<import("../../../desktop/src/terminal-shared").TmuxAttachResult>;
+        tmuxCommand?(input: import("../../../desktop/src/terminal-shared").TmuxCommandInput): Promise<void>;
+        tmuxDetach?(connectionId: string): Promise<void>;
+        onTmux?(listener: (topology: import("../../../desktop/src/terminal-shared").TmuxTopology) => void): () => void;
       }
     | undefined;
 }

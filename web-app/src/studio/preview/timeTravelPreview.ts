@@ -3,8 +3,9 @@ import type {
   TimeTravelSettings,
   TimeTravelTimeline,
   TimeTravelRestorePreview,
-} from "@linxiraos/studio-contract"
-import { PREVIEW_HISTORY, PREVIEW_TIME_TRAVEL } from "./fixtures";
+} from "@linxiraos/studio-contract";
+import { isZh } from "../i18n";
+import { getPreviewHistory, getPreviewTimeTravel } from "./fixtures";
 
 const sessionId = "preview-time-travel" as SessionHistoryEntry["sessionId"];
 

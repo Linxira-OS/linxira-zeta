@@ -5,54 +5,37 @@ const T0 = "2026-08-17T04:00:00.000Z";
 const T1 = "2026-08-17T04:00:08.000Z";
 const T2 = "2026-08-17T04:00:22.000Z";
 
-const DEPS_ITEMS: ConversationItem[] = [
-  {
-    kind: "message",
-    itemId: "preview-deps-user",
-    parentId: null,
-    createdAt: T0,
-    role: "user",
-    content: [{ type: "text", text: "审计 @earendil-works/pi-* 0.82.1 变更" }],
-  },
-  {
-    kind: "message",
-    itemId: "preview-deps-assistant",
-    parentId: "preview-deps-user",
-    createdAt: T1,
-    role: "assistant",
-    content: [
-      { type: "thinking", text: "先对照 lockfile 和上游 changelog，确认是否只有 patch。" },
-      { type: "text", text: "已扫过 lockfile：`pi-core` 与 `pi-agent` 升到 0.82.1，没有破坏性导出。" },
-      { type: "toolCall", toolCallId: "preview-deps-grep", toolName: "grep", arguments: { pattern: "pi-core" } },
-      {
-        type: "toolResult",
-        toolCallId: "preview-deps-grep",
-        toolName: "grep",
-        isError: false,
-        output: "4 matches in 2 files",
-      },
-    ],
-  },
-];
-
-const DOCS_ITEMS: ConversationItem[] = [
-  {
-    kind: "message",
-    itemId: "preview-docs-user",
-    parentId: null,
-    createdAt: T0,
-    role: "user",
-    content: [{ type: "text", text: "提取 v0.8.1 Release Notes 要点" }],
-  },
-  {
-    kind: "message",
-    itemId: "preview-docs-assistant",
-    parentId: "preview-docs-user",
-    createdAt: T2,
-    role: "assistant",
-    content: [{ type: "text", text: "Release Notes 里和 Z Work Studio 相关的是 conversation live projector 与 session telemetry。" }],
-  },
-];
+function buildDepsItems(zh: boolean): ConversationItem[] {
+  return [
+    {
+      kind: "message",
+      itemId: "preview-deps-user",
+      parentId: null,
+      createdAt: T0,
+      role: "user",
+      content: [{ type: "text", text: zh ? "审计 @earendil-works/pi-* 0.82.1 变更" : "Audit @earendil-works/pi-* 0.82.1 changes" }],
+    },
+    {
+      kind: "message",
+      itemId: "preview-deps-assistant",
+      parentId: "preview-deps-user",
+      createdAt: T1,
+      role: "assistant",
+      content: [
+        { type: "thinking", text: zh ? "先对照 lockfile 和上游 changelog，确认是否只有 patch。" : "Compare lockfile and upstream changelog first to verify patch-only updates." },
+        { type: "text", text: zh ? "已扫过 lockfile：`pi-core` 与 `pi-agent` 升到 0.82.1，没有破坏性导出。" : "Scanned the lockfile: `pi-core` and `pi-agent` bumped to 0.82.1 with no breaking exports." },
+        { type: "toolCall", toolCallId: "preview-deps-grep", toolName: "grep", arguments: { pattern: "pi-core" } },
+        {
+          type: "toolResult",
+          toolCallId: "preview-deps-grep",
+          toolName: "grep",
+          isError: false,
+          output: "4 matches in 2 files",
+        },
+      ],
+    },
+  ];
+}
 
 function buildDocsItems(zh: boolean): ConversationItem[] {
   return [
@@ -127,7 +110,7 @@ export function previewSubagentConversationStream(agentId: string, sessionId: Se
     ? "**兼容性检查**\n\n- `pi-core`：导出保持兼容\n- `pi-agent`：会话接口保持兼容\n\n```ts\nconst compatible = packages.every(pkg =>\n"
     : "**Compatibility check**\n\n- `pi-core`: exports remain compatible\n- `pi-agent`: session APIs remain compatible\n\n```ts\nconst compatible = packages.every(pkg =>\n";
   const textEnd = "  pkg.version === \"0.82.1\"\n);\n```\n";
-  const summary = "\n\n检查已完成，Z Work Studio Bridge 与会话目录保持一致。";
+  const summary = zh ? "\n\n检查已完成，Z Work Studio Bridge 与会话目录保持一致。" : "\n\nCheck complete: Z Work Studio Bridge stays aligned with the session catalog.";
   const output = "Checking pi-core exports…\nChecking pi-agent session API…\nTypeScript check passed.\n";
   const events: ConversationRuntimeEvent[] = [
     { kind: "conversation.message.started", sessionId, turnId, messageId, role: "assistant", createdAt: T2 },

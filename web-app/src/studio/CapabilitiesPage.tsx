@@ -243,10 +243,10 @@ export function CapabilitiesPage({
   useEffect(() => {
     if (!visibleTabs.some(([id]) => id === tab)) setTab("skills");
   }, [visibleTabs, tab]);
-  const [skills, setSkills] = useState<SkillPreview[]>(() => preview ? previewSkills() : []);
-  const [plugins, setPlugins] = useState<PluginPreview[]>(() => preview ? previewPlugins() : []);
+  const [skills, setSkills] = useState<SkillPreview[]>(() => preview ? previewSkills(zh) : []);
+  const [plugins, setPlugins] = useState<PluginPreview[]>(() => preview ? previewPlugins(zh) : []);
   const [pluginPageGroups, setPluginPageGroups] = useState<readonly PluginPageGroup[]>([]);
-  const [mcp, setMcp] = useState<PreviewMcp[]>(() => preview ? createPreviewMcp() : []);
+  const [mcp, setMcp] = useState<PreviewMcp[]>(() => preview ? createPreviewMcp(zh) : []);
   const [mcpServers, setMcpServers] = useState<McpServerRecord[]>([]);
   const [commandManifest, setCommandManifest] = useState<OperatorCommandManifest | undefined>();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -285,10 +285,10 @@ export function CapabilitiesPage({
   const refresh = useCallback(async () => {
     const epoch = ++refreshEpoch.current;
     if (preview) {
-      setSkills(previewSkills());
-      setPlugins(previewPlugins());
+      setSkills(previewSkills(zh));
+      setPlugins(previewPlugins(zh));
       setPluginPageGroups([]);
-      setMcp(createPreviewMcp());
+      setMcp(createPreviewMcp(zh));
       setMcpServers([]);
       setCommandManifest(undefined);
       setLoadError(null);

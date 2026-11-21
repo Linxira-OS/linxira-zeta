@@ -1,4 +1,6 @@
-import type { CommandName, StudioPlanSaveAndQuitResult } from "@linxiraos/studio-contract"
+import type { CommandName, SessionHistoryEntry, StudioClient, StudioPlanSaveAndQuitResult, ThreadId, WorkspaceId } from "@linxiraos/studio-contract";
+import { waitReceipt } from "../hostError";
+import { isZh } from "../i18n";
 import type { OperatorStateSnapshot } from "@linxiraos/studio-protocol"
 import type { RuntimeSettingsApi } from "../SettingsPage";
 import { type ArchivePending } from "./types";

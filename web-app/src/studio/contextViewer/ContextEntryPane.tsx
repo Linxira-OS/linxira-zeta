@@ -1,4 +1,5 @@
-import type { ContextEntrySummary } from "@linxiraos/studio-protocol"
+import { useEffect, useRef, type ReactNode } from "react";
+import type { ContextEntrySummary, ContextViewSourceMarker } from "@linxiraos/studio-protocol";
 import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { CATEGORY_GROUP, CATEGORY_TINT, compactTokens, entryTokenLabel, formatEntryTime } from "./contextViewMath";

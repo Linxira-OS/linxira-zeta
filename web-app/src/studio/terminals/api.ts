@@ -8,6 +8,7 @@
  */
 
 import type { TerminalProfileCatalog } from "./gatewayTerminal";
+import type { TmuxAttachInput, TmuxAttachResult, TmuxCommandInput, TmuxSessionsInput, TmuxSessionsResult, TmuxTopology } from "../../../../desktop/src/tmux/tmux-shared";
 
 export interface TerminalCommand {
 	readonly shell: "bash" | "sh" | "zsh" | "powershell";
@@ -40,6 +41,12 @@ export interface StudioTerminalApi {
 	write(id: string, data: string): Promise<void> | void;
 	resize(id: string, cols: number, rows: number): Promise<void> | void;
 	dispose(id: string): Promise<void> | void;
+	/** Desktop tmux control client; absent in browser-only installs. */
+	tmuxSessions?(input: TmuxSessionsInput): Promise<TmuxSessionsResult>;
+	tmuxAttach?(input: TmuxAttachInput): Promise<TmuxAttachResult>;
+	tmuxCommand?(input: TmuxCommandInput): Promise<void>;
+	tmuxDetach?(connectionId: string): Promise<void>;
+	onTmux?(listener: (topology: TmuxTopology) => void): () => void;
 	onData(listener: (event: { id: string; data: string; bytes?: number }) => void): () => void;
 	onExit(listener: (event: { id: string }) => void): () => void;
 	/** Optional local shell catalog shared by desktop and browser hosts. */
@@ -61,5 +68,10 @@ export function preloadTerminalApi(bridge: NonNullable<typeof globalThis.zetaStu
 		onExit: listener => bridge.onExit(listener),
 		...(profiles ? { profiles } : {}),
 		...(list ? { list } : {}),
+		...(bridge.tmuxSessions ? { tmuxSessions: bridge.tmuxSessions.bind(bridge) } : {}),
+		...(bridge.tmuxAttach ? { tmuxAttach: bridge.tmuxAttach.bind(bridge) } : {}),
+		...(bridge.tmuxCommand ? { tmuxCommand: bridge.tmuxCommand.bind(bridge) } : {}),
+		...(bridge.tmuxDetach ? { tmuxDetach: bridge.tmuxDetach.bind(bridge) } : {}),
+		...(bridge.onTmux ? { onTmux: bridge.onTmux.bind(bridge) } : {}),
 	};
 }

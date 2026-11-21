@@ -1,5 +1,6 @@
-import type { AgentId, Generation, StudioAgentSnapshot } from "@linxiraos/studio-protocol"
-import { PREVIEW_SIDE_AGENTS } from "./fixtures";
+import type { AgentId, Generation, StudioAgentSnapshot } from "@linxiraos/studio-protocol";
+import { getPreviewSideAgents } from "./fixtures";
+import { isZh } from "../i18n";
 import { buildPreviewHub } from "../hubPreview";
 
 /** Demo times are relative to this instant, so every view of the story agrees on "now". */

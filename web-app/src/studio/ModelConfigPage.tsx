@@ -47,11 +47,12 @@ import {
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
 import { takeModelConfigIntent as takeIntent, type McTab } from "./pageIntents";
 import { setModelConfigDirty } from "./models/modelConfigState";
+const EDITOR_PENDING_KEY = "__editor__";
 import { ROLE_ICONS, ROLE_TINTS, groupModelsByProvider, fmtK } from "./models/modelPresentation";
 import { type Draft, type ModelEditState, type ModelRoleDraft, type ModelsTab, type TestResultView } from "./models/config/types";
 import { mergeProviderOrder, permuteVisible, readProviderOrder, sameOrder, sortProviders, writeProviderOrder } from "./models/config/providerOrder";
 import { applyRoleSelector, assignedRoleIds, blankCustomForm, blankDraft, blankOverrideForm, draftFromPreset, draftFromProvider, draftsEqual, editorTestSecret, previewProviderFromDraft, providerUpsertFromDraft, readModelRoles, roleAssignDiff, roleAssignModCount, rolePrimaryUpdates, roleSelector, roleThinkingUi, rolesEqual, sameStringList, withPreviewLogin, withRoleModel, withRolePrimaryUpdates } from "./models/config/drafts";
-import { SOURCE_GROUP, STATUS_META, formatProviderStatusDetail, formatRoleDesc, formatRoleName } from "./models/config/presentation";
+import { SOURCE_GROUP, STATUS_META, formatProviderStatusDetail, formatRoleDesc, formatRoleName, formatPresetGroup, formatPresetName, formatPresetDesc } from "./models/config/presentation";
 import { runProbe, runTest, runWrite } from "./models/config/commands";
 import { AuthTypeSelect, BrandMark, DiscoveryResultBlock, ModelCaps, ProviderTestRow, confirmDiscardDirty } from "./models/config/ProviderControls";
 import { FetchedModelsPanel } from "./models/config/FetchedModelsPanel";
@@ -292,6 +293,8 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [roleAssignDraft, setRoleAssignDraft] = useState<Record<string, string[]>>({});
   const [agentIntent, setAgentIntent] = useState<string | undefined>(undefined);
   const [accountPoolsDirty, setAccountPoolsDirty] = useState(false);
+  const [systemTemplatesDirty, setSystemTemplatesDirty] = useState(false);
+  const [webSearchDirty, setWebSearchDirty] = useState(false);
   const [agentCount, setAgentCount] = useState<number | undefined>(preview ? createPreviewAgentDefinitions().agents.length : undefined);
   const [testResult, setTestResult] = useState<TestResultView | null>(null);
   const [testing, setTesting] = useState<Set<string>>(() => new Set());
@@ -1080,7 +1083,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       if (refs.length > 0) {
         setRoleDeleteBlocked({ roleId: baseline.id, agents: refs });
         toast(t("modelConfig.roleReferencedToast", { role: baseline.id, agents: refs.join(", ") }));
-        return;
+        return false;
       }
     }
     if (preview) {
@@ -1127,6 +1130,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     } finally {
       setBusy(false);
     }
+    return true;
   };
 
   const [loginFlowByProvider, setLoginFlowByProvider] = useState<Record<string, string>>({});

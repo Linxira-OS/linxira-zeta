@@ -15,7 +15,7 @@ export function ComputerFrameView({ frame, scopeSessionId, scopeKey, executionTa
   empty: [string, string]; client: StudioClient; source: ComputerWorkspaceSource;
 }) {
   const doc = useSurfaceDocument(), chrome = useSurfaceChrome();
-  const [picture, setPicture] = useState<{ key: string; url: string }>();
+  const [picture, setPicture] = useState<{ key: string; url: string; bytes?: Uint8Array }>();
   const [error, setError] = useState(""), [expanded, setExpanded] = useState(false), [pixelSize, setPixelSize] = useState(false);
   const [retry, setRetry] = useState(0), [expired, setExpired] = useState(false);
   const key = `${scopeKey}:${scopeSessionId}:${frame?.frameId ?? ""}`;

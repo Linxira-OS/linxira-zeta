@@ -48,6 +48,7 @@ import type {
   QueryName,
   QueryResult,
 } from "./operations.js";
+export type { SystemFileTarget, SystemFileInfo, SystemFileText, SystemFileChunkInput, SystemFileWrite, SystemFileSaveResult, SystemQuickKind, SystemPlaces, SystemEntry, SystemListInput, SystemDirectory, SystemFileMutationResult } from "./system-files.js";
 import type {
   ClientEvent,
   ClientInteraction,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 import type { SessionId, StudioClient, ThreadId } from "@linxiraos/studio-contract"
 import { parseSessionCompactionInput, type SessionCompactionRead, type SessionCompactionState } from "@linxiraos/studio-protocol"
 import { hostErrorMessage, waitReceipt } from "../hostError";

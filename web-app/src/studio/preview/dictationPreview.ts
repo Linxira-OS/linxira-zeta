@@ -1,4 +1,5 @@
-import type { DictationConfiguration, DictationProgress } from "@linxiraos/studio-protocol"
+import type { DictationConfiguration, DictationProgress } from "@linxiraos/studio-protocol";
+import { isZh } from "../i18n";
 
 export function getPreviewDictationConfiguration(zh = isZh()): DictationConfiguration {
   return {

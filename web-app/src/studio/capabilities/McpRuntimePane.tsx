@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { McpRuntimeStatus, McpAuthResult } from "@linxiraos/studio-protocol"
 import { useI18n } from "../i18n";
 import { Icon } from "../icons";

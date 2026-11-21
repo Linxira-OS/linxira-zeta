@@ -1,5 +1,6 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
-import type { ManagedBrowserPage } from "@linxiraos/studio-protocol"
+import type { ManagedBrowserPage } from "@linxiraos/studio-protocol";
+import { useI18n } from "../i18n";
 import "./managedBrowserDemo.css";
 
 export type DemoPick = { selector: string; tagName: string; text: string; rect: { x: number; y: number; width: number; height: number } };
@@ -40,7 +41,7 @@ export function ManagedBrowserDemoPage({ page, picking, interactive, hint, onPic
     </main>
   </div>;
   else body = <div className="mbd-app">
-    <header className="mbd-app-bar"><span className="mbd-app-logo" aria-hidden="true" /><strong>Z Work Studio Kit</strong><nav><span className="is-active">Components</span><span>Tokens</span><span>Changelog</span></nav></header>
+    <header className="mbd-app-bar"><span className="mbd-app-logo" aria-hidden="true" /><strong>Studio Kit</strong><nav><span className="is-active">Components</span><span>Tokens</span><span>Changelog</span></nav></header>
     <div className="mbd-app-body">
       <aside className="mbd-app-side"><span>Overview</span><span className="is-active">Button</span><span>Input</span><span>Select</span><span>Toast</span></aside>
       <main className="mbd-app-main">
@@ -50,7 +51,7 @@ export function ManagedBrowserDemoPage({ page, picking, interactive, hint, onPic
         <section className="mbd-app-card" {...target("section.playground", "section", "Playground")}>
           <button type="button" className="mbd-button" data-preview-counter {...target("button[data-preview-counter]", "button", `Preview button · ${count}`)} disabled={!interactive} onClick={() => setCount(value => value + 1)}>Preview button · {count}</button>
           <button type="button" className="mbd-button is-ghost" {...target("button.ghost", "button", "Cancel")} disabled={!interactive}>Cancel</button>
-          <label className="mbd-app-field" {...target("label.field", "label", "Project name")}><span>Project name</span><input readOnly value="zeta-studio" tabIndex={interactive ? 0 : -1} /></label>
+          <label className="mbd-app-field" {...target("label.field", "label", "Project name")}><span>Project name</span><input readOnly value="z-work-studio" tabIndex={interactive ? 0 : -1} /></label>
         </section>
       </main>
     </div>

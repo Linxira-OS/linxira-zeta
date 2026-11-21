@@ -1,4 +1,3 @@
-import type { BtwHistoryTurn } from "@linxiraos/studio-contract";
 import type { BtwSnapshot } from "@linxiraos/studio-contract";
 import { isZh } from "../i18n";
 
@@ -88,9 +87,13 @@ export function getPreviewBtwTopics(zh = isZh()) {
   ];
 }
 
-export const PREVIEW_BTW_INTERRUPTED_TURNS = PREVIEW_BTW_TURNS.map((turn, index) => index === 0 ? turn : { ...turn, answer: "先从重命名文件的旧路径和新路径开始检查。", status: "interrupted" as const });
-export function createBtwPreviewHistory() {
- return new Map<string, readonly BtwHistoryTurn[]>([["demo-topic", PREVIEW_BTW_TURNS], ["demo-live-topic", PREVIEW_BTW_TURNS.slice(0, 1)], ["demo-interrupted-topic", PREVIEW_BTW_INTERRUPTED_TURNS]]);
+export function getPreviewBtwTurns(zh = isZh()) {
+  const question = getPreviewBtwQuestion(zh);
+  const completed = getPreviewBtwSnapshots(zh)[1]!;
+  return [
+    { question, answer: completed.text, injection: completed.injection!, status: "complete" as const, createdAt: 1789171200000, updatedAt: 1789171201000 },
+    { question: zh ? "应该怎样验证？" : "How should this be verified?", answer: zh ? "覆盖重命名、增删文件与会话恢复后的 diff 展示。" : "Cover renames, additions/deletions, and diff display after session resume.", status: "complete" as const, createdAt: 1789171202000, updatedAt: 1789171203000 },
+  ];
 }
 
 export function getPreviewBtwInterruptedTurns(zh = isZh()) {

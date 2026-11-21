@@ -175,7 +175,7 @@ export function capsFor(
       : !viewingLive
         ? contract.historicalWrite
         : locked
-          ? lockedWhy(agent)
+          ? lockedWhy(agent, zh)
           : !dead
             ? "仅终态"
             : !hasClient

@@ -4,7 +4,8 @@ import type {
   EvaluationPlan,
   EvaluationResultRow,
   EvaluationContext,
-} from "@linxiraos/studio-protocol"
+} from "@linxiraos/studio-protocol";
+import { isZh } from "../i18n";
 import { PREVIEW_RATCHET } from "./ratchetPreview";
 import { getPreviewJudgmentSpec, PREVIEW_JUDGMENT_SPEC } from "./judgmentsPreview";
 import { PREVIEW_BENCHMARK } from "./benchmarksPreview";

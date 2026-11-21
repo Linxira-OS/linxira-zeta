@@ -290,7 +290,7 @@ export function buildPaletteGroups(input: PaletteCatalogInput): PaletteGroup[] {
   const chat = recents(input).filter((item) => matches(item, query, resolveLabel));
   if (chat.length) groups.push({ id: "chat", label: "palette.groupChat", items: chat });
   for (const group of staticGroups(input)) {
-    const items = group.items.filter((item) => matches(item, query) && offeredByHost(item, input));
+    const items = group.items.filter((item) => matches(item, query, resolveLabel) && offeredByHost(item, input));
     if (items.length) groups.push({ ...group, items });
   }
   const projects = projectItems(input).filter((item) => matches(item, query, resolveLabel));

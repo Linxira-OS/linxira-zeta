@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GitHubItem, GitHubRepository, GitLogListReadModel, StudioClient, WorkspaceId } from "@linxiraos/studio-contract"
 import { hostErrorMessage } from "../hostError";
 import { PREVIEW_GIT_LOG } from "../preview/fixtures";

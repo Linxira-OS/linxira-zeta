@@ -1,14 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
-import type { TerminalGraphic } from "./terminalGraphics";
-import type { StudioTerminalApi } from "./terminals/api";
-import { preloadTerminalApi } from "./terminals/api";
-import { createBrowserTerminalApi } from "./terminals/browserTerminalApi";
-import type { TerminalProfile } from "./terminals/gatewayTerminal";
-import type { XtermSession } from "./terminals/xtermSession";
-import { TerminalGraphicsDecoder } from "./terminalGraphics";
+import type { Terminal } from "@xterm/xterm";
+import type { FitAddon } from "@xterm/addon-fit";
 import { utf8ByteLength } from "@linxiraos/studio-contract";
-import type { TerminalCommand } from "./terminals/api";
+import { TerminalGraphicsDecoder, type TerminalGraphic } from "./terminalGraphics";
+import { isZh } from "./i18n";
+import type { TerminalCommand } from "../../../desktop/src/terminal-shared";
+import type { TmuxAction, TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
 
+type Api = NonNullable<typeof globalThis.zetaStudioTerminal>;
 export interface TerminalSession {
   readonly kind?: "shell" | "tmux-pane";
   readonly tmux?: { connectionId: string; paneId: string; windowId: string };
@@ -19,19 +18,14 @@ export interface TerminalSession {
   readonly id: string;
   readonly name: string;
   readonly cwd: string;
-  readonly profile: string | null;
-  readonly instance: string;
   readonly status: "running" | "ended";
 }
-export interface TerminalScreenHost { readonly screen: XtermSession; }
+export interface TerminalScreenHost { readonly term: Terminal; readonly fit?: FitAddon; }
 interface TerminalState {
   sessions: readonly TerminalSession[];
   graphics: Readonly<Record<string, TerminalGraphic[]>>;
   graphicsErrors: Readonly<Record<string, string>>;
-  profiles: readonly TerminalProfile[];
-  defaultProfileId: string | null;
-  profileWarnings: readonly string[];
-  profileError: string | null;  /** Explicit, user-visible loss notices per terminal — never a silent drop. */
+  /** Explicit, user-visible loss notices per terminal — never a silent drop. */
   notices: Readonly<Record<string, string>>;
   controlMode: Readonly<Record<string, boolean>>;
   tmux: Readonly<Record<string, TmuxTopology>>;
@@ -134,46 +128,6 @@ export class TerminalPendingOutput {
     this.droppedBytes = 0;
   }
 }
-const STORAGE_KEY = "studio.terminal.sessions.v1";
-const MAX_RESTORED = 4;
-
-interface StoredSession {
-  instanceId: string;
-  profileId: string | null;
-  cwd: string;
-  workspaceId?: string;
-  sessionId?: string;
-  conversationId?: string;
-  targetId: string | null;
-  name: string;
-}
-
-function readStored(): StoredSession[] {
-  try {
-    const raw = globalThis.sessionStorage?.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((entry): entry is StoredSession => {
-        if (!entry || typeof entry !== "object") return false;
-        const record = entry as Record<string, unknown>;
-        return typeof record.instanceId === "string" && typeof record.cwd === "string";
-      })
-      .slice(0, MAX_RESTORED);
-  } catch {
-    return [];
-  }
-}
-
-function writeStored(sessions: StoredSession[]): void {
-  try {
-    if (sessions.length === 0) globalThis.sessionStorage?.removeItem(STORAGE_KEY);
-    else globalThis.sessionStorage?.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, MAX_RESTORED)));
-  } catch {
-    // Private-mode storage failures must not break the terminal.
-  }
-}
 
 export class TerminalSessions {
   readonly hosts = new Map<string, TerminalScreenHost>();
@@ -203,77 +157,27 @@ export class TerminalSessions {
   readonly #removing = new Set<string>();
   readonly #forgettingTmux = new Set<string>();
   #ackScheduled = false;
-  #state: TerminalState = { sessions: [], graphics: {}, graphicsErrors: {}, notices: {}, profiles: [], defaultProfileId: null, profileWarnings: [], profileError: null };
+  #state: TerminalState = { sessions: [], graphics: {}, graphicsErrors: {}, notices: {}, controlMode: {}, tmux: {}, tmuxOwners: {}, hiddenWindows: {} };
   #off: (() => void) | undefined;
   #creating = 0;
   #closed = false;
-  #profilesRequest: Promise<void> | undefined;
-  #restoring: Promise<number> | undefined;
 
-  constructor(readonly api: StudioTerminalApi | undefined) {}
+  constructor(readonly api: Api | undefined) {}
   snapshot = (): TerminalState => this.#state;
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
 
-  /** Load the shell catalog once; failures become an honest banner. */
-  ensureProfiles(): Promise<void> {
-    if (!this.api?.profiles || this.#closed) return Promise.resolve();
-    if (this.#state.profiles.length > 0 && !this.#state.profileError) return Promise.resolve();
-    this.#profilesRequest ??= this.api
-      .profiles()
-      .then(catalog => {
-        this.#publish({
-          ...this.#state,
-          profiles: catalog.profiles,
-          defaultProfileId: catalog.defaultProfileId,
-          profileWarnings: catalog.warnings,
-          profileError: null,
-        });
-      })
-      .catch(cause => {
-        this.#publish({ ...this.#state, profileError: cause instanceof Error ? cause.message : String(cause) });
-      })
-      .finally(() => {
-        this.#profilesRequest = undefined;
-      });
-    return this.#profilesRequest;
-  }
-
-  /** Retry profile discovery after a gateway start/fix. */
-  retryProfiles(): Promise<void> {
-    this.#publish({ ...this.#state, profileError: null });
-    return this.ensureProfiles();
-  }
-
-  async create(targetId: string | null, workspaceId?: string, sessionId?: string, conversationId?: string, command?: TerminalCommand, profileId?: string): Promise<string> {
-    if (!this.api || this.#closed) throw new Error("Terminal gateway is unavailable");
+  async create(targetId: string | null, workspaceId?: string, sessionId?: string, conversationId?: string, command?: TerminalCommand): Promise<string> {
+    if (!this.api || this.#closed) throw new Error("Terminal is unavailable");
     this.#listen();
     this.#creating++;
-    const instanceId = `studio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      const info = await this.api.create({
-        cols: 80,
-        rows: 24,
-        ...(this.api.ack ? { flowControl: true } : {}),
-        ...(command ? { command } : {}),
-        ...(workspaceId ? { workspaceId } : {}),
-        instanceId,
-        ...(!command && profileId ? { profileId } : {}),
-        ...(targetId ? { targetId } : {}),
-      });
+      // `flowControl: true` is the opt-in handshake: Main then pauses the PTY
+      // when this store falls behind, and resumes on our ACKs below.
+      const info = await this.api.create({ cols: 80, rows: 24, ...(this.api.ack ? { flowControl: true } : {}), ...(workspaceId ? { workspaceId } : {}), ...(targetId ? { targetId } : {}), ...(command ? { command } : {}) });
       if (this.#closed) { await this.api.dispose(info.id); throw new Error("Terminal window has closed"); }
-      const session: TerminalSession = {
-        ...info,
-        profile: info.profile ?? profileId ?? null,
-        instance: info.instance ?? instanceId,
-        targetId,
-        ...(conversationId ? { conversationId } : {}),
-        status: this.#earlyExits.delete(info.id) ? "ended" : "running",
-        ...(workspaceId ? { workspaceId } : {}),
-        ...(sessionId ? { sessionId } : {}),
-      };
+      const session: TerminalSession = { ...info, targetId, ...(conversationId ? { conversationId } : {}), status: this.#earlyExits.delete(info.id) ? "ended" : "running", ...(workspaceId ? { workspaceId } : {}), ...(sessionId ? { sessionId } : {}) };
       this.activeIds.set(terminalOwnerKey(targetId, workspaceId, conversationId ?? sessionId), info.id);
       this.#publish({ ...this.#state, sessions: [...this.#state.sessions, session] });
-      this.#persist();
       return info.id;
     } finally {
       this.#creating--;
@@ -281,102 +185,6 @@ export class TerminalSessions {
         for (const id of this.pending.keys()) if (!this.#sessionIds.has(id)) this.pending.delete(id);
         this.#earlyExits.clear();
       }
-    }
-  }
-
-  /**
-   * Reattach the tabs stored for this browser session. `ensure` reuses a live
-   * PTY for the same `(cwd, instanceId)` slot, so a closed/reopened panel (or a
-   * reload while the gateway kept running) gets the same shell and its replay
-   * buffer instead of a new process.
-   */
-  restore(): Promise<number> {
-    if (!this.api || this.#closed || this.#state.sessions.length > 0) return Promise.resolve(0);
-    this.#restoring ??= (async () => {
-      const stored = readStored();
-      if (stored.length === 0) return 0;
-      this.#listen();
-      let restored = 0;
-      for (const entry of stored) {
-        try {
-          const info = await this.api!.create({
-            cols: 80,
-            rows: 24,
-            instanceId: entry.instanceId,
-            ...(this.api!.ack ? { flowControl: true } : {}),
-            ...(entry.targetId ? { targetId: entry.targetId } : {}),
-            ...(entry.profileId ? { profileId: entry.profileId } : {}),
-            ...(entry.workspaceId ? { workspaceId: entry.workspaceId } : {}),
-            cwd: entry.cwd,
-          });
-          const session: TerminalSession = {
-            id: info.id,
-            name: info.name,
-            cwd: info.cwd,
-            profile: info.profile ?? entry.profileId,
-            instance: info.instance ?? entry.instanceId,
-            targetId: entry.targetId,
-            status: "running",
-            ...(entry.workspaceId ? { workspaceId: entry.workspaceId } : {}),
-            ...(entry.sessionId ? { sessionId: entry.sessionId } : {}),
-            ...(entry.conversationId ? { conversationId: entry.conversationId } : {}),
-          };
-          if (this.#closed) { await this.api!.dispose(info.id); break; }
-          this.activeIds.set(terminalOwnerKey(session.targetId, session.workspaceId, session.conversationId ?? session.sessionId), session.id);
-          this.#publish({ ...this.#state, sessions: [...this.#state.sessions, session] });
-          restored++;
-        } catch (cause) {
-          this.#publish({
-            ...this.#state,
-            profileError: cause instanceof Error ? cause.message : String(cause),
-          });
-        }
-      }
-      if (restored > 0) {
-        this.#persist();
-      }
-      return restored;
-    })().finally(() => {
-      this.#restoring = undefined;
-    });
-    return this.#restoring;
-  }
-
-  /** Switch a tab's shell: end the slot's session and spawn the chosen profile. */
-  async restart(id: string, profileId: string): Promise<string> {
-    const session = this.#state.sessions.find(entry => entry.id === id);
-    if (!session || !this.api) return id;
-    await this.api.dispose(id);
-    this.#releaseScreen(id);
-    this.#publish({ ...this.#state, sessions: this.#state.sessions.filter(entry => entry.id !== id) });
-    this.#creating++;
-    try {
-      const info = await this.api.create({
-        cols: 80,
-        rows: 24,
-        ...(this.api.ack ? { flowControl: true } : {}),
-        instanceId: session.instance,
-        profileId,
-        ...(session.targetId ? { targetId: session.targetId } : {}),
-        ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
-        cwd: session.cwd,
-      });
-      if (this.#closed) { await this.api.dispose(info.id); throw new Error("Terminal window has closed"); }
-      const next: TerminalSession = {
-        ...session,
-        id: info.id,
-        name: info.name,
-        cwd: info.cwd,
-        profile: info.profile ?? profileId,
-        instance: info.instance ?? session.instance,
-        status: "running",
-      };
-      this.#publish({ ...this.#state, sessions: [...this.#state.sessions, next] });
-      this.activeIds.set(terminalOwnerKey(session.targetId, session.workspaceId, session.conversationId ?? session.sessionId), next.id);
-      this.#persist();
-      return next.id;
-    } finally {
-      this.#creating--;
     }
   }
 
@@ -396,21 +204,84 @@ export class TerminalSessions {
     const { [id]: _graphic, ...graphics } = this.#state.graphics;
     const { [id]: _error, ...graphicsErrors } = this.#state.graphicsErrors;
     const { [id]: _notice, ...notices } = this.#state.notices;
-    this.#publish({ ...this.#state, sessions: this.#state.sessions.filter(session => session.id !== id), graphics, graphicsErrors, notices });
-    this.#persist();
+    const { [id]: _control, ...controlMode } = this.#state.controlMode;
+    this.#publish({ ...this.#state, sessions: this.#state.sessions.filter(session => session.id !== id), graphics, graphicsErrors, notices, controlMode });
+  }
+
+  async disposeConversation(conversationId: string): Promise<void> {
+    if (!conversationId) return;
+    const matching = this.#state.sessions.filter(
+      session => session.kind !== "tmux-pane" && session.conversationId === conversationId,
+    );
+    const ownerSuffix = `,${JSON.stringify(conversationId)}]`;
+    for (const [connectionId, ownerKey] of Object.entries(this.#state.tmuxOwners)) {
+      if (ownerKey.endsWith(ownerSuffix)) this.forgetTmux(connectionId);
+    }
+    for (const key of [...this.activeIds.keys()]) {
+      if (key?.endsWith(ownerSuffix)) this.activeIds.delete(key);
+    }
+    await Promise.allSettled(matching.map(session => this.remove(session.id)));
+  }
+
+  listTmuxSessions(targetId: string, workspaceId: string) {
+    if (!this.api?.tmuxSessions) throw new Error("tmux is unavailable");
+    return this.api.tmuxSessions({ targetId, workspaceId });
+  }
+  async attachTmux(targetId: string, workspaceId: string, session?: string, options: { size?: { cols: number; rows: number }; replaceId?: string; ownerKey?: string } = {}): Promise<string> {
+    if (!this.api?.tmuxAttach || this.#closed) throw new Error("tmux is unavailable");
+    this.#listen(); this.#creating++;
+    try {
+      const { size = { cols: 120, rows: 32 }, replaceId, ownerKey = terminalOwnerKey(targetId, workspaceId) } = options;
+      const result = await this.api.tmuxAttach({ targetId, workspaceId, ...size, ...(session ? { session } : {}), flowControl: !!this.api.ack });
+      if (this.#closed) { await this.api.tmuxDetach?.(result.connectionId); throw new Error("Terminal window has closed"); }
+      this.#publish({ ...this.#state, tmuxOwners: { ...this.#state.tmuxOwners, [result.connectionId]: ownerKey } });
+      if (replaceId && replaceId !== result.connectionId) {
+        const replacement = this.#state.tmux[result.connectionId];
+        if (replacement) {
+          const tmux = Object.fromEntries(Object.entries(this.#state.tmux).flatMap(([id, value]) => id === replaceId ? [[result.connectionId, replacement]] : id === result.connectionId ? [] : [[id, value]]));
+          this.#publish({ ...this.#state, tmux });
+        }
+        this.forgetTmux(replaceId);
+      }
+      return result.connectionId;
+    } finally {
+      this.#creating--;
+      if (!this.#creating) for (const id of this.pending.keys()) if (!this.#sessionIds.has(id)) this.pending.delete(id);
+    }
+  }
+  async tmuxCommand(connectionId: string, action: TmuxAction): Promise<void> {
+    if (!this.api?.tmuxCommand) throw new Error("tmux is unavailable");
+    await this.api.tmuxCommand({ connectionId, action });
+  }
+  async detachTmux(connectionId: string): Promise<void> { await this.api?.tmuxDetach?.(connectionId); }
+  async hideTmuxWindow(connectionId: string, windowId: string, hidden: boolean): Promise<void> {
+    await this.tmuxCommand(connectionId, { kind: "setWindowVisible", windowId, visible: !hidden });
+    const current = this.#state.hiddenWindows[connectionId] ?? [];
+    this.#publish({ ...this.#state, hiddenWindows: { ...this.#state.hiddenWindows, [connectionId]: hidden ? [...new Set([...current, windowId])] : current.filter(id => id !== windowId) } });
+  }
+  forgetTmux(connectionId: string): void {
+    this.#forgettingTmux.add(connectionId);
+    void this.api?.tmuxDetach?.(connectionId).catch(() => {}).finally(() => this.#forgettingTmux.delete(connectionId));
+    const panes = this.#state.sessions.filter(session => session.tmux?.connectionId === connectionId);
+    for (const pane of panes) this.#releaseScreen(pane.id);
+    const { [connectionId]: _topology, ...tmux } = this.#state.tmux;
+    const { [connectionId]: _owner, ...tmuxOwners } = this.#state.tmuxOwners;
+    const { [connectionId]: _hidden, ...hiddenWindows } = this.#state.hiddenWindows;
+    const ids = new Set(panes.map(pane => pane.id));
+    const prefix = `tmux:${connectionId}:`;
+    for (const [ownerKey, activeId] of this.activeIds) {
+      if (ids.has(activeId) || activeId.startsWith(prefix)) this.activeIds.delete(ownerKey);
+    }
+    const keep = <T,>(record: Readonly<Record<string, T>>) => Object.fromEntries(Object.entries(record).filter(([id]) => !ids.has(id)));
+    this.#publish({ ...this.#state, tmux, tmuxOwners, hiddenWindows, sessions: this.#state.sessions.filter(session => !ids.has(session.id)), graphics: keep(this.#state.graphics), graphicsErrors: keep(this.#state.graphicsErrors), notices: keep(this.#state.notices), controlMode: keep(this.#state.controlMode) });
   }
 
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
     this.#off?.();
-    for (const session of this.#state.sessions) {
-      try {
-        void Promise.resolve(this.api?.dispose(session.id)).catch(() => {});
-      } catch {
-        // Already gone.
-      }
-    }
+    for (const session of this.#state.sessions) if (session.kind !== "tmux-pane") void this.api?.dispose(session.id).catch(() => {});
+    for (const id of Object.keys(this.#state.tmux)) void this.api?.tmuxDetach?.(id).catch(() => {});
     for (const id of this.hosts.keys()) this.#releaseScreen(id);
     this.activeIds.clear();
     this.pending.clear();
@@ -419,23 +290,6 @@ export class TerminalSessions {
     this.#sessionIds.clear();
     this.#decoders.clear();
     this.#listeners.clear();
-  }
-
-  #persist(): void {
-    writeStored(
-      this.#state.sessions
-        .filter(session => session.status === "running")
-        .map(session => ({
-          instanceId: session.instance,
-          profileId: session.profile,
-          cwd: session.cwd,
-          ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
-          ...(session.sessionId ? { sessionId: session.sessionId } : {}),
-          ...(session.conversationId ? { conversationId: session.conversationId } : {}),
-          targetId: session.targetId,
-          name: session.name,
-        })),
-    );
   }
 
   /**
@@ -447,15 +301,17 @@ export class TerminalSessions {
     this.hosts.set(id, host);
     this.#drain(id);
   }
+
   #listen(): void {
     if (!this.api || this.#off) return;
     const offTmux = this.api.onTmux?.(topology => {
       if (this.#forgettingTmux.has(topology.connectionId)) return;
+      const panesMap = topology.panes as Record<string, { terminalId: string; windowId: string; title: string; cwd?: string }>;
       const previous = this.#state.sessions.filter(session => session.tmux?.connectionId === topology.connectionId);
-      const liveIds = new Set(Object.values(topology.panes).map(pane => pane.terminalId));
+      const liveIds = new Set(Object.values(panesMap).map(pane => pane.terminalId));
       const removed = new Set(previous.filter(pane => !liveIds.has(pane.id)).map(pane => pane.id));
       for (const id of removed) this.#releaseScreen(id);
-      const panes: TerminalSession[] = Object.entries(topology.panes).map(([paneId, pane]) => ({
+      const panes: TerminalSession[] = Object.entries(panesMap).map(([paneId, pane]) => ({
         id: pane.terminalId, kind: "tmux-pane", tmux: { connectionId: topology.connectionId, paneId, windowId: pane.windowId },
         targetId: topology.targetId, workspaceId: topology.workspaceId, name: pane.title, cwd: pane.cwd ?? "",
         status: topology.state === "lost" || topology.state === "exited" ? "ended" : "running",
@@ -499,8 +355,8 @@ export class TerminalSessions {
       if (host !== undefined) {
         // Credited once xterm has written it, not when it was received - and
         // never after the process is gone (there is nothing left to credit).
-        if (this.#creditsClosed.has(event.id)) host.screen.term.write(text);
-        else host.screen.term.write(text, this.#consumed(event.id, bytes));
+        if (this.#creditsClosed.has(event.id)) host.term.write(text);
+        else host.term.write(text, this.#consumed(event.id, bytes));
         return;
       }
       // No xterm yet: keep it, in order, and do NOT acknowledge. The missing
@@ -520,7 +376,6 @@ export class TerminalSessions {
       this.#acked.delete(event.id);
       this.#drain(event.id);
       this.#publish({ ...this.#state, sessions: this.#state.sessions.map(session => session.id === event.id ? { ...session, status: "ended" } : session) });
-      this.#persist();
     });
     this.#off = () => { offData(); offExit(); offTmux?.(); };
   }
@@ -545,7 +400,7 @@ export class TerminalSessions {
     if (ended) this.pending.delete(id);
     for (const batch of queue.take()) {
       // xterm owns the write queue and preserves the original batch order.
-      host.screen.term.write(batch.text, ended ? undefined : this.#consumed(id, batch.bytes));
+      host.term.write(batch.text, ended ? undefined : this.#consumed(id, batch.bytes));
     }
     if (ended) queue.clear();
     else this.#creditDropped(id, queue);
@@ -618,7 +473,7 @@ export class TerminalSessions {
 
   #releaseScreen(id: string): void {
     this.#removing.add(id);
-    this.hosts.get(id)?.screen.dispose();
+    this.hosts.get(id)?.term.dispose();
     this.hosts.delete(id);
     this.pending.delete(id);
     this.#decoders.delete(id);
@@ -641,13 +496,7 @@ export class TerminalSessions {
 const Context = createContext<TerminalSessions | undefined>(undefined);
 export const terminalOwnerKey = (targetId: string | null, workspaceId?: string, sessionId?: string) => JSON.stringify([targetId, workspaceId ?? null, sessionId ?? null]);
 export function TerminalSessionsProvider({ children }: { children: ReactNode }) {
-  const store = useMemo(() => {
-    const bridge = globalThis.zetaStudioTerminal;
-    // Electron preload keeps ownership of PTYs when present; the browser path
-    // is the gateway client and needs no desktop shell.
-    const api = bridge ? preloadTerminalApi(bridge) : createBrowserTerminalApi();
-    return new TerminalSessions(api);
-  }, []);
+  const store = useMemo(() => new TerminalSessions(globalThis.zetaStudioTerminal), []);
   useEffect(() => () => store.close(), [store]);
   return <Context.Provider value={store}>{children}</Context.Provider>;
 }

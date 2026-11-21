@@ -1,9 +1,10 @@
-import type { GitHubComment, GitHubItem, GitHubRepository, QueryInput, QueryResult } from "@linxiraos/studio-contract"
+import type { GitHubComment, GitHubItem, GitHubRepository, QueryInput, QueryResult } from "@linxiraos/studio-contract";
+import { isZh } from "../i18n";
 import type { GitHubQuery, GitHubSource } from "../git/githubSource";
 
 const repositories: readonly GitHubRepository[] = [
-  { remote: "origin", host: "github.com", ownerRepo: "studio/zeta-studio", url: "https://github.com/studio/zeta-studio" },
-  { remote: "upstream", host: "github.com", ownerRepo: "upstream/zeta-studio", url: "https://github.com/upstream/zeta-studio" },
+  { remote: "origin", host: "github.com", ownerRepo: "studio/z-work-studio", url: "https://github.com/studio/z-work-studio" },
+  { remote: "upstream", host: "github.com", ownerRepo: "upstream/z-work-studio", url: "https://github.com/upstream/z-work-studio" },
 ];
 const updatedAt = "2026-11-01T10:30:00Z";
 function getItems(zh: boolean): readonly GitHubItem[] {

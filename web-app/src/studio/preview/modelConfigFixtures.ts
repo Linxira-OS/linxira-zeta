@@ -1,5 +1,3 @@
-import type { SearchCredentialStatus } from "@linxiraos/studio-protocol";
-import type { WebSearchProviderRecord } from "@linxiraos/studio-contract";
 /**
  * Preview fixtures for the model-config page, ported from
  * ui_reference/ver1/assets/js/models-data.js. Display only.
@@ -111,13 +109,17 @@ export const MODEL_API_TYPES: ReadonlyArray<{ id: ModelApiKind | string; label: 
   { id: "google-vertex", label: "Google Vertex" },
 ];
 
-export const MODEL_AUTH_TYPES: ReadonlyArray<{ id: ModelAuthType; label: string; hint: string }> = [
-  { id: "oauth", label: "Zeta Login / OAuth", hint: "用 zetacode login 写入本机凭据" },
-  { id: "api-key", label: "API Key", hint: "密钥写入 models.yml" },
-  { id: "env", label: "Environment Variable", hint: "从环境变量读取，不写密钥" },
-  { id: "command", label: "External Command", hint: "用命令取密，Secret 不落盘" },
-  { id: "none", label: "无需认证", hint: "适用于 Ollama 等本地服务" },
-];
+export function getModelAuthTypes(zh = isZh()): ReadonlyArray<{ id: ModelAuthType; label: string; hint: string }> {
+  return [
+    { id: "oauth", label: "Zeta Login / OAuth", hint: zh ? "用 omp login 写入本机凭据" : "Write local credentials with omp login" },
+    { id: "api-key", label: "API Key", hint: zh ? "密钥写入 models.yml" : "Write secret to models.yml" },
+    { id: "env", label: "Environment Variable", hint: zh ? "从环境变量读取，不写密钥" : "Read from environment variable without saving secrets" },
+    { id: "command", label: "External Command", hint: zh ? "用命令取密，Secret 不落盘" : "Fetch secret via command without writing to disk" },
+    { id: "none", label: zh ? "无需认证" : "No authentication", hint: zh ? "适用于 Ollama 等本地服务" : "For local services such as Ollama" },
+  ];
+}
+
+export const MODEL_AUTH_TYPES: ReadonlyArray<{ id: ModelAuthType; label: string; hint: string }> = getModelAuthTypes();
 
 export const MODEL_THINKING = [
   { id: "off", label: "Off" },
@@ -272,7 +274,7 @@ export function createPreviewModelConfig(zh = isZh()): ModelConfigReadModel {
     ],
     generatedModelsYml: "providers:\n  anthropic:\n    api: anthropic-messages\n",
     generatedConfigYml: "modelRoles:\n  default: anthropic/claude-sonnet-4.5\n",
-    runtimeEffectHint: "改动只作用于当前页面，尚未写入本机 Zeta 配置。",
+    runtimeEffectHint: zh ? "改动只作用于当前页面，尚未写入本机 Zeta 配置。" : "Changes apply to this view only and are not written to local Zeta config.",
     loginAvailable: true,
     ompAvailable: true,
     modelRoleStorage: "project",
@@ -282,7 +284,6 @@ export function createPreviewModelConfig(zh = isZh()): ModelConfigReadModel {
       "anthropic/claude-sonnet-4.5": ["openai/gpt-5.2", "openai/gpt-5-mini"],
     },
     fallbackRevertPolicy: "cooldown-expiry",
-    hiddenModels: [],
     webSearch: {
       routing: { primary: "web/perplexity", fallbacks: ["web/exa", "google/gemini-2.5-flash"], defaultCandidates: ["web/parallel", "web/perplexity", "google/gemini-2.5-flash"], migratedLegacy: false },
       enabled: true,
@@ -343,8 +344,8 @@ export function createPreviewFetchedModels(): ModelDiscoveryModel[] {
 }
 
 /** Credential metadata only; preview never stores entered key bytes. */
-export function previewSearchCredentials(providers: readonly WebSearchProviderRecord[]): SearchCredentialStatus[] {
-  const rows = new Map<string, SearchCredentialStatus>();
+export function previewSearchCredentials(providers: readonly import("@linxiraos/studio-contract").WebSearchProviderRecord[]): import("@linxiraos/studio-protocol").SearchCredentialStatus[] {
+  const rows = new Map<string, import("@linxiraos/studio-protocol").SearchCredentialStatus>();
   for (const provider of providers) {
     const ids = provider.credentialProviders ?? [...new Set([provider.apiKeyId, provider.loginId].filter((id): id is string => Boolean(id)))];
     for (const id of ids) {

@@ -90,32 +90,6 @@ export function preparePreviewTemplate(id: string, argumentsText: string, zh = i
 
 type Tool = NonNullable<McpRuntimeStatus["servers"][number]["toolInfo"]>[number];
 const tool = (server: string, name: string, description: string, readOnlyHint: boolean): Tool => ({ name: `mcp_${server}_${name}`, mcpServerName: server, mcpToolName: name, description, readOnlyHint });
-const filesystemTools = [
-  tool("filesystem", "read_file", "读取文件内容", true),
-  tool("filesystem", "read_multiple_files", "批量读取文件", true),
-  tool("filesystem", "write_file", "创建文件或写入内容", false),
-  tool("filesystem", "edit_file", "按文本片段编辑文件", false),
-  tool("filesystem", "create_directory", "创建目录", false),
-  tool("filesystem", "list_directory", "查看目录内容", true),
-  tool("filesystem", "directory_tree", "查看目录结构", true),
-  tool("filesystem", "move_file", "移动文件或目录", false),
-  tool("filesystem", "search_files", "按名称搜索文件", true),
-  tool("filesystem", "get_file_info", "读取文件元信息", true),
-  tool("filesystem", "list_allowed_directories", "查看已授权的目录", true),
-];
-const connectedTools: Record<string, Tool[]> = {
-  filesystem: filesystemTools,
-  github: [tool("github", "get_pull_request", "读取 Pull Request", true), tool("github", "list_issues", "查看仓库 Issue", true), tool("github", "get_file_contents", "读取仓库文件", true), tool("github", "create_issue", "创建 Issue", false)],
-  docs: [tool("docs", "search_docs", "搜索项目文档", true), tool("docs", "read_document", "读取文档正文", true)],
-};
-export const PREVIEW_MCP_RUNTIME: McpRuntimeStatus = {
-  available: true, startupTimeoutMs: 250, ready: false, settled: false, total: 3,
-  servers: [
-    { name: "filesystem", state: "ready", transport: "stdio", source: { providerName: "Zeta", level: "project" }, tools: 11, toolInfo: filesystemTools },
-    { name: "github", state: "pending", transport: "http", source: { providerName: "Zeta", level: "user" }, tools: 0 },
-    { name: "docs", state: "failed", transport: "sse", source: { providerName: "Zeta", level: "project" }, tools: 0, error: "连接超时：文档服务未在等待期限内响应。" },
-  ],
-};
 
 function buildFilesystemTools(zh: boolean): Tool[] {
   return [
