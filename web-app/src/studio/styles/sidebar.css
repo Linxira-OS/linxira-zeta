@@ -188,6 +188,7 @@
   min-width: 0;
   padding: 3px var(--sp-8);
   border-radius: var(--r-8);
+  text-align: left;
   cursor: pointer;
 }
 /* 悬停操作区：最右 +（在此项目下新建文件），其左 ⋯（更多）。功能未接入，仅占位。

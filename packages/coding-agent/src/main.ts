@@ -2041,34 +2041,20 @@ export async function runRootCommand(
 			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
 			process.exit(1);
 		}
-		// One Host per user: a bare launch starts/reuses it before transport
-		// resolution. Explicit remote URLs are never replaced by a local start.
-		if (
-			(backendEnabled || explicitBackend) &&
-			!standalone &&
-			!isProtocolMode &&
-			parsedArgs.backendUrl === undefined
-		) {
-			try {
-				const { ensureHost } = await import("./backend/ensure-host");
-				await ensureHost({ cwd, channels: true });
-			} catch (error) {
-				process.stderr.write(
-					`${chalk.red(error instanceof Error ? error.message : String(error))}\n` +
-						`${chalk.dim("Run `zetacode --standalone` for a local process, or fix the running Host.")}\n`,
-				);
-				process.exit(1);
-			}
-		}
-		// Transport is decided before any local session exists. A bare launch is
-		// local unless backend mode is enabled; explicit --attach/--backend must
-		// reach a backend or startup fails, so a client never silently forks a
-		// second session.
+		// A TUI launch is always its own process. It never starts, probes, or
+		// silently adopts the machine-wide serve daemon; only explicit
+		// --attach/--backend URL selects an existing backend. The persistent
+		// `backend.enabled` setting therefore applies to print/protocol runs,
+		// not to the interactive TUI.
+		// Transport is decided before any local session exists. A bare print or
+		// protocol run may use backend mode; the interactive TUI stays local.
+		// Explicit --attach/--backend must reach a backend or startup fails, so
+		// a client never silently forks a second session.
 		let transport: StartupTransport;
 		try {
 			transport = await resolveStartupTransport(parsedArgs, rawArgs, {
 				interactive: isInteractive,
-				backendEnabled: backendEnabled && !standalone,
+				backendEnabled: !isInteractive && backendEnabled && !standalone,
 				cwd,
 			});
 		} catch (error) {

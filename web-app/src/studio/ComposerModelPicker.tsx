@@ -100,6 +100,7 @@ export function ComposerModelMenu({
   onChooseRole,
   onChooseModel,
   onClose,
+  onManageModels,
 }: {
   data: ModelConfigReadModel | null;
   loading: boolean;
@@ -108,6 +109,8 @@ export function ComposerModelMenu({
   disabled?: boolean;
   placement?: "up" | "down";
   note?: ReactNode;
+  /** Render this callback as a model-visibility management entry. */
+  onManageModels?: () => void;
   /** 渲染在角色列表上方的模式切换行（如 Task 子代理模式）；不传则不渲染。 */
   header?: ReactNode;
   /** 列表首位的「继承」选项；不传则不渲染（SubagentsPanel 等复用方不受影响）。 */
@@ -308,6 +311,21 @@ export function ComposerModelMenu({
             )}
           </div>
         ) : null}
+        {onManageModels ? (
+          <button
+            type="button"
+            className="cmp-more cmp-manage-models"
+            onClick={() => {
+              onClose();
+              onManageModels();
+            }}
+          >
+            <Icon name="settings" extra="sm" />
+            <span>{t("composer.manageModels")}</span>
+            <span className="spacer" />
+            <Icon name="chevron-r" extra="sm" />
+          </button>
+        ) : null}
         {preview && marks ? (
           <div className="cmp-menu-note">
             <span className="chip gray xs">{t("common.demo")}</span>
@@ -330,6 +348,7 @@ export function ComposerModelPicker({
   canStartSession = false,
   onRun,
   openNonce = 0,
+  onManageModels,
 }: {
   preview: boolean;
   client: StudioClient;
@@ -344,6 +363,8 @@ export function ComposerModelPicker({
   onRun: <T extends CommandName>(name: T, input: CommandInput<T>) => Promise<boolean>;
   /** Increment to open the model menu from `/model`. */
   openNonce?: number;
+  /** Opens the model-visibility editor from the More Models flyout. */
+  onManageModels?: () => void;
 }) {
   const [menu, setMenu] = useState<MenuKind>("none");
   const [data, setData] = useState<ModelConfigReadModel | null>(null);
@@ -618,6 +639,7 @@ export function ComposerModelPicker({
                     : t("composer.modelNoteNextTurn"),
                 })}
             onClose={closeAll}
+            {...(onManageModels === undefined ? {} : { onManageModels })}
           />
         ) : null}
       </span>

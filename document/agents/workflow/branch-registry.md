@@ -33,6 +33,9 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `sync/omp-release/v19.0.0` | sync | OMP v19.0.0 真 merge；worktree `temp/omp-v19.0.0`；PR #325 | main | 2026-11-19 | 用户合并/关闭后删，删前记 SHA |
+| `chore/repo-path-governance` | chore | 仓库路径治理首步；worktree `temp/repo-governance` | main | 2026-11-20 | 审查并入 `main` 后删，删前记 SHA |
+| `fix/1.5.13-hotfix` | fix | 1.5.13 热修：serve/TUI 分家、Settings 去掉顶层 Runtime、模型可见性入口、Web 项目栏左对齐、发布说明摘要优先；worktree `temp/1.5.13-hotfix` | main | 2026-11-21 | 验证并发布后删，删前记 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/rpc-client-repair` | fix | attach/RPC连接来源逐消息标记修复，tip `8677187f0834ff797a2069e629b4e69b999b6e5d`；窄补丁已纳入main | RpcClientRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
 | `fix/saved-build-fixes` | fix | 2026-11-17 保存的 Nix/browser/release-scope 窄修复恢复；tip `9e0f70904c0284bd9bbbdf97a86ec97f4bfdfe0c`，补丁已适配主线 | SavedBuildFixes / main | 2026-11-17 | 本轮清除 worktree；分支保留作恢复引用，后续由 main 开发 |

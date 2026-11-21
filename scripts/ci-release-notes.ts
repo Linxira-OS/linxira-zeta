@@ -292,7 +292,9 @@ async function main(): Promise<void> {
 		);
 		process.exit(1);
 	}
-	const traceability = scopeEntry ? `${renderTraceability(scopeEntry)}\n\n` : "";
+	const traceability = scopeEntry
+		? `<details>\n<summary>Technical traceability (ADRs / requirements / CI)</summary>\n\n${renderTraceability(scopeEntry)}\n\n</details>\n\n`
+		: "";
 	const floor = await resolvePublishedFloorTag(version);
 	if (floor) {
 		console.log(`Aggregating CHANGELOG sections in (${floor}, ${version}].`);
@@ -301,6 +303,7 @@ async function main(): Promise<void> {
 	}
 
 	const sections: string[] = [];
+	let highlightLines: string[] = [];
 	const changelogPaths = await Array.fromAsync(changelogGlob.scan("."));
 	changelogPaths.sort();
 	for (const changelogPath of changelogPaths) {
@@ -309,6 +312,12 @@ async function main(): Promise<void> {
 		if (merged === "") continue;
 		const pkgDir = changelogPath.replace(/[/\\]CHANGELOG\.md$/, "");
 		const name = await loadPackageName(pkgDir);
+		if (name === "@linxiraos/zeta") {
+			highlightLines = merged
+				.split("\n")
+				.filter(line => /^[-*] /.test(line))
+				.slice(0, 6);
+		}
 		// Folded: a roll-forward across silent tags produces a body of 100 KB+
 		// that pushes the download links off-screen (v1.3.0 was 125 KB). The
 		// summary keeps the package and its entry count visible.
@@ -324,7 +333,11 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
-	const body = `${traceability}${buildAssetSections(version)}\n\n${sections.join("\n\n")}\n`;
+	const summary =
+		highlightLines.length > 0
+			? `## Summary\n\n${highlightLines.join("\n")}\n\n`
+			: "## Summary\n\nSee the package sections below for the changes in this release.\n\n";
+	const body = `${summary}${buildAssetSections(version)}\n\n${sections.join("\n\n")}\n\n${traceability}`;
 	await Bun.write(outputPath, body);
 	console.log(
 		`Wrote ${sections.length} package section(s) to ${outputPath} (version ${version}${floor ? `, floor ${floor}` : ""}).`,

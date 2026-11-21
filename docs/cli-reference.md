@@ -111,7 +111,7 @@ or `--fork`.
 | Flag                      | Description                                                                                                     |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `--backend`               | Route a print launch through a running `zetacode serve` backend (default: own the session in-process).           |
-| `--attach`                | Attach the TUI to the running backend's newest session in this directory (the bare `zetacode` default).         |
+| `--attach`                | Attach this explicit TUI invocation to the running backend's newest session in this directory; a bare TUI is local. |
 | `--attach-session <id>`   | Attach the TUI to this backend session id (implies `--attach`).                                                 |
 | `--attach-new`            | Force a fresh backend session in this directory instead of reusing the newest one.                              |
 | `--backend-url <url>`     | Backend gateway URL (default: `ZETA_GATEWAY_URL`, the serve registry, then `127.0.0.1:43143`).                  |

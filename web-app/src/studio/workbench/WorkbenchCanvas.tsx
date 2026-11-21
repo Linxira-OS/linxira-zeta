@@ -2774,6 +2774,14 @@ export function WorkbenchCanvas({ workbenchVisible, railMode, layoutOverlayDismi
                   busy={busy}
                   onRun={runModelPreference}
                   openNonce={modelMenuNonce}
+                  {...(preview
+                    ? {}
+                    : {
+                        onManageModels: () => {
+                          setModelConfigIntent({ tab: "visibility" });
+                          onRoute("model-config");
+                        },
+                      })}
                 />
                 {!can("session.speed.get") ? <ServiceTierPicker client={client} sessionId={composerOwner} available={can("session.tier.get")} modelKey={JSON.stringify(snapshot?.model)} /> : null}
                 <div className="cb-group">

@@ -16,8 +16,10 @@ zetacode daemon install-autostart
 zetacode daemon uninstall-autostart
 ```
 
-`zetacode` with no arguments follows `backend.enabled` (see
-[Backend mode](#backend-mode)); attaching is otherwise a separate surface.
+`zetacode` with no arguments starts a local interactive process. The TUI never
+starts, probes, or adopts the machine-wide backend; print/protocol runs may
+follow `backend.enabled` (see [Backend mode](#backend-mode)); attaching is
+otherwise a separate surface.
 `start` accepts the same exposure flags as `serve` (`--host`, `--tls`,
 `--tls-cert`, `--tls-key`, `--allow-plain-http`, `--channels`), and the same
 refusals apply: a non-loopback bind still needs `remote.token` and TLS (or an
@@ -31,14 +33,15 @@ enable a background service.
 
 - **Off** — every bare `zetacode` launch is a local process. Nothing is
   auto-started, probed, or attached.
-- **On** — a bare `zetacode` becomes a client of the one default backend. If
-  the backend is not running, startup fails with a diagnostic instead of
-  silently opening a local session.
+- **On** — a bare print/protocol `zetacode` becomes a client of the one default
+  backend. If the backend is not running, startup fails with a diagnostic
+  instead of silently opening a local session. The interactive TUI always
+  stays local.
 - **`--standalone`** — force a local process even while the switch is on. It
   never registers or listens, and may coexist with the backend.
 - Explicit `--attach`, `--attach-session`, `--attach-new`, `--backend`, and
   `--backend-url` still select backend mode on their own; the switch governs
-  the default, not an explicit request.
+  the print/protocol default, not an explicit request or the TUI.
 
 ```sh
 zetacode backend status [--json]
@@ -58,6 +61,21 @@ The backend runs detached, so closing the terminal that launched it does not
 stop it. Only one backend is expected; a second live registration is an error
 to clean up, not a candidate for automatic selection. `daemon start` remains a
 low-level explicit command; `backend on` is the normal switch.
+
+## Installation forms and autostart
+
+Serve is a machine-level process, so its autostart belongs to the installation
+form, not to `zetacode` startup:
+
+| Install form | Serve lifecycle | Autostart owner |
+| --- | --- | --- |
+| npm global (`@linxiraos/zeta`) | no OS service is registered; `serve`/`backend on` is explicit | none by default; opt in with `zetacode daemon install-autostart` |
+| Arch/pacman package | the package may register a user service; the service starts `serve`, not a TUI | package metadata / explicit `systemctl --user enable` |
+| Desktop installer | the Electron shell owns its bundled service lifecycle for that app | the installer or desktop login item |
+
+A running TUI never asks the installer, package service, or desktop shell to
+start serve on its behalf. If the machine has no autostart entry, start serve
+once with `zetacode serve` or enable the explicit autostart command.
 
 ## Lifecycle
 
@@ -256,6 +274,10 @@ The shell always says which of its two modes it is in:
   a banner across the top says *starting* / *stopping* / *stopped* / *not
   ready* (with 重试 on a failure), and the settings row names the mode plus the
   running pid and `webUrl` when ready, with 重启 and 停止 beside it.
+
+Interactive TUI tabs stay local in both modes. The backend switch governs the
+backend-hosted Work Studio surface and print/protocol runs; it never makes a
+TUI tab attach to or start serve.
 
 A probe that cannot run at all — no `zetacode` beside the shell, or one too old
 to have the `backend` subcommand — is not a backend failure: the shell stays in

@@ -10,13 +10,13 @@ import { register } from "../config/registry";
 export const cfgBackendEnabled = register({
 	id: "backend.enabled",
 	type: "boolean",
-	default: true,
+	default: false,
 	ui: {
 		tab: "interaction",
 		group: "Startup & Updates",
 		label: "Enable Backend Mode",
 		description:
-			"Use one background backend for this machine. Off: every zetacode launch is a local process. On: launches connect to the default backend.",
+			"Use one background backend for this machine. Off: every zetacode launch is a local process. On: print/protocol runs connect to the default backend; the interactive TUI always stays local.",
 	},
 });
 
