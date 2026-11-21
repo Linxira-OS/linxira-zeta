@@ -10,6 +10,16 @@
 | npm 包     | `@linxiraos/ide`(bin `zetaide`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
 | 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zetacode`/`zetaide` 作为 pane 内子进程经 PTY 组合,编辑器为进程内面板,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
 
+## 下一快照评估：0.50.0（暂缓）
+
+2026-11-21 只做评估，未同步：
+
+- 0.49.0 的 annotated tag object 是 `4cc014fbbc809395dfbeb239f468de5dfc077035`，peeled commit 是 `057eb55e0a7c4ee969982fab62dc83bde028e052`，与当前快照一致。
+- 0.50.0 的 annotated tag object 是 `10f0e1b0e676242f880ba9cf152e4162cbe62c4d`，peeled commit 是 `a4feced82e683fa74cdecec87b772fb9edb951c6`。
+- `0.49.0 → 0.50.0` 为 185 commits、300 files（GitHub compare 上限截断）；不是热修补丁。
+- 本树有 30+ 条 Zeta 偏离（编辑器入口、Windows 盘符、panic 捕获、图标/资源、clippy 修、CLI 品牌等），必须按 VENDOR 表逐条重放，不能直接 archive 覆盖。
+- 结论：**需要同步，但不能放进 1.5.13 hotfix**；应在 Studio 收口后单独开 `sync/termide-0.50.0`，按「bump 流程」验收。Draft 状态，最终由 owner 决定。
+
 ## 出局方案(选型记录)
 
 - fresh(Rust,GPL-2.0):上游 sinelaw/fresh(9k★)活跃,但 **GPL 不可 vendor**(与 editor/VENDOR.md 同一结论);其 Orchestrator(worktree 工作区、agent 会话编排、Everything 对话框)仅作 MIT 重实现的交互参考。
