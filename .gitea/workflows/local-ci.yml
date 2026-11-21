@@ -491,6 +491,8 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
+         - name: Repository layout guard
+           run: bun scripts/check-repo-layout.ts
          - name: Windows icon guard
            run: bun scripts/check-windows-icons.ts
          # 镜像 GitHub `check` job：产品标记只有一份画（SVG），其余栅格、

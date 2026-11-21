@@ -109,6 +109,7 @@ describe("planSteps", () => {
 			"scripts/check-doc-host-parity.ts",
 			"scripts/check-release-asset-names.ts",
 			"scripts/check-license-map.ts",
+			"scripts/check-repo-layout.ts",
 			"scripts/check-service-ports.ts",
 			"scripts/check-lsp-servers.ts",
 			"scripts/check-package-json-merge.ts",
