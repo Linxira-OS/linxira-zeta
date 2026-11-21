@@ -120,6 +120,7 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const pluginSessionId = selectedHistoryId === null
     ? state.clientState?.entities.snapshot?.sessionId
     : state.model.history?.entries.find(entry => entry.historyId === selectedHistoryId)?.sessionId;
+  const embed = isEmbedMode();
   const routeRef = useRef(route);
   routeRef.current = route;
   const hostRouteRef = useRef<Route | null>(null);

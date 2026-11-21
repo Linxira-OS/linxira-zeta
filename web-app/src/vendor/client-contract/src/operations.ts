@@ -294,6 +294,10 @@ export interface QueryResultMap extends TeamQueryResultMap, RuntimeViewResultMap
   "workspace.file.inspect": import("./files.js").WorkspaceFileInfo;
   "workspace.file.readText": import("./files.js").WorkspaceFileText;
   "workspace.file.readChunk": import("./files.js").WorkspaceFileChunk;
+  "fs.places": import("./system-files.js").SystemPlaces;
+  "fs.list": import("./system-files.js").SystemDirectory;
+  "fs.file.inspect": import("./system-files.js").SystemFileInfo;
+  "fs.file.readText": import("./system-files.js").SystemFileText;
   /** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
   "usage.get": TokenUsageReadModel;
   /** Loopback URL of the native statistics dashboard, for in-app embedding. */

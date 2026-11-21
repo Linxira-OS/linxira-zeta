@@ -1,4 +1,5 @@
 import type { ClientBootstrap } from "@linxiraos/studio-contract"
+import { isZh } from "../../i18n";
 import { type Caps, type HubAgent } from "./types";
 import { isAdvisor } from "./projection";
 
@@ -182,7 +183,7 @@ export function capsFor(
               : !connOnline
                 ? "未连接"
                 : releaseMissing
-                  ? CONTRACT.release
+                  ? contract.release
                   : null,
   };
 }

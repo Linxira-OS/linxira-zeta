@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
+import type { TmuxTopology } from "../../../../desktop/src/tmux/tmux-shared";
 import { TerminalSessions } from "../terminalSessions";
 import { TmuxWindowView } from "./TmuxWindowView";
 import { I18nProvider } from "../i18n";

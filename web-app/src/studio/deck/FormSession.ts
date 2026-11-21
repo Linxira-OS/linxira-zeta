@@ -4,8 +4,8 @@ import type {
   FormAnswerData, FormAnswerValue, FormChoiceField, FormOptionNote, FormSubmitValue,
   InteractionForm, InteractionFormField,
 } from "@linxiraos/studio-protocol";
-import { choiceValue, fieldError, textValue } from "@linxiraos/pi-tui/html-form/data";
-import { spansText } from "@linxiraos/pi-tui/html-form/model";
+import { choiceValue, fieldError, textValue } from "./formHelpers";
+import { spansText } from "./formHelpers";
 import { isZh, pickLocale, useI18n } from "../i18n";
 
 export type FormInteraction = Extract<ClientInteraction, { kind: "form" }>;

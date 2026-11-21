@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SessionId, StudioClient } from "@linxiraos/studio-contract"
 import type { StudioAgentSnapshot } from "@linxiraos/studio-protocol"
 import type { MentionCandidate } from "../composer/types";

@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import type { FormChoiceField, FormSpan, FormTextField, InteractionForm, InteractionFormBlock, InteractionFormField } from "@linxiraos/studio-protocol";
-import { spansText } from "@linxiraos/pi-tui/html-form/model";
-import { OTHER_LABEL } from "@linxiraos/pi-tui/html-form/data";
+import { spansText } from "./formHelpers";
+import { OTHER_LABEL } from "./formHelpers";
 import { AppSelect } from "../AppSelect";
 import { SvgFigureImage } from "../graphics/SvgFigureImage";
 import { isZh, useI18n } from "../i18n";

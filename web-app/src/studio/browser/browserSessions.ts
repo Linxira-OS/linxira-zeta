@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { BrowserElementReference, ManagedBrowserCommand, ManagedBrowserEvent, ManagedBrowserState } from "@linxiraos/studio-protocol"
+import type { StudioClient } from "@linxiraos/studio-contract";
+import type { ManagedBrowserApi } from "@linxiraos/studio-protocol";
 import { createPreviewBrowserBackend } from "../preview/managedBrowserPreview";
 import { createNativeBrowserBackend } from "./browserNativeBackend";
 
@@ -55,6 +57,17 @@ export class BrowserSession {
   #reading = false;
   #readRevision = 0;
   constructor(readonly id: string, private readonly backend: BrowserBackend, private ownerReady = true) {}
+
+  get nativeAvailable(): boolean { return this.backend.native === true; }
+  get embeddedAvailable(): boolean { return this.backend.embedded !== false; }
+  get hasSubscribers(): boolean { return this.#listeners.size > 0 || this.#reading; }
+  watch(): () => void { return this.backend.watch?.(this.id) ?? (() => {}); }
+  bindPage(pageId: string, controller: BrowserPageController): () => void {
+    return this.backend.bindPage?.(this.id, pageId, controller) ?? (() => {});
+  }
+  updatePage(pageId: string, patch: Partial<ManagedBrowserState["pages"][number]>): void {
+    this.backend.updatePage?.(this.id, pageId, patch);
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);

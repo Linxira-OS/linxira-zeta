@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import type { TmuxAction, TmuxLayoutNode, TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
-import { TERMINAL_MAX_COLS, TERMINAL_MAX_ROWS } from "../../../desktop/src/terminal-shared";
+import type { TmuxAction, TmuxLayoutNode, TmuxTopology } from "../../../../desktop/src/tmux/tmux-shared";
+import { TERMINAL_MAX_COLS, TERMINAL_MAX_ROWS } from "../../../../desktop/src/terminal-shared";
 import { readTerminalTypography, readXtermTheme, applyTheme } from "../terminalTheme";
 import { useAppSettings } from "../settings/appSettings";
 import { useSurfaceDocument } from "../dock/SurfaceContext";

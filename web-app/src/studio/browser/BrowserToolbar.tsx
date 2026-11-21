@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { ManagedBrowserPage } from "@linxiraos/studio-protocol"
+import type { BrowserCapability, ManagedBrowserPage } from "@linxiraos/studio-protocol"
 import { Icon } from "../icons";
 import { MenuItem } from "../menus";
 import { formatShortcut } from "../keyboard/shortcuts";

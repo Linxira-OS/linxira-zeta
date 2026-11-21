@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TMUX_SESSION_NAME_PATTERN, type TmuxSessionsResult } from "../../../desktop/src/tmux/tmux-shared";
+import { TMUX_SESSION_NAME_PATTERN, type TmuxSessionsResult } from "../../../../desktop/src/tmux/tmux-shared";
 import { useI18n } from "../i18n";
 import { WorkspaceDialog } from "../workspaces/Workspace";
 import { usePreviewMode } from "../preview/PreviewContext";

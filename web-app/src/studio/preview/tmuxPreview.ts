@@ -1,4 +1,4 @@
-import type { TmuxAction, TmuxLayoutNode, TmuxSessionSummary, TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
+import type { TmuxAction, TmuxLayoutNode, TmuxSessionSummary, TmuxTopology } from "../../../../desktop/src/tmux/tmux-shared";
 
 export const PREVIEW_TMUX_SESSIONS: TmuxSessionSummary[] = [
   { id: "$0", name: "studio-workbench", windows: 2, attached: 1, createdAt: 1794614400000 },

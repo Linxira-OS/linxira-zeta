@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import type { ManagedBrowserDownload } from "@linxiraos/studio-protocol"
+import { useEffect, useRef, useState } from "react";
+import type { BrowserCapability, BrowserPageInspection, ManagedBrowserDownload, ManagedBrowserPage } from "@linxiraos/studio-protocol";
+import { useSurfaceChrome } from "../dock/SurfaceContext";
+import { useI18n } from "../i18n";
+import { usePreviewMode } from "../preview/PreviewContext";
+import { previewBrowserInspection } from "../preview/browserPreview";
+import { useBrowserVisible } from "./useNativeBrowserObservation";
 import { AppSelect } from "../AppSelect";
 import { Icon } from "../icons";
 import { Switch } from "../settings/SettingRow";

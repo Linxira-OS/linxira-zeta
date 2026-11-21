@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { TmuxAction, TmuxTopology } from "../../../desktop/src/tmux/tmux-shared";
+import type { TmuxAction, TmuxTopology } from "../../../../desktop/src/tmux/tmux-shared";
 import { useTerminalSessions } from "../terminalSessions";
 import { useAppSettings } from "../settings/appSettings";
 import { usePreviewMode } from "../preview/PreviewContext";
