@@ -34,7 +34,7 @@
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
 | `sync/omp-release/v19.0.0` | sync | OMP v19.0.0 真 merge；worktree `temp/omp-v19.0.0`，tip `579992ddd2e`；PR #325 | main | 2026-11-19 | 用户合并/关闭后删，删前记 SHA |
-| `sync/studio-v0.2.4` | sync | Studio v0.2.4 机械差异 + 共享协议/包同步 WIP；worktree `temp/1.5.13-hotfix`（切换分支），tip `94d3535d53`；Host/契约适配未完成 | main | 2026-11-21 | 验收并入后删，删前记 SHA |
+| `sync/studio-v0.2.4` | sync | Studio v0.2.4 机械差异 + 共享协议/包同步 WIP；worktree `temp/1.5.13-hotfix`（切换分支），tip `03c247259d`；Host/契约适配未完成 | main | 2026-11-21 | 验收并入后删，删前记 SHA |
 | `fix/1.5.13-hotfix` | fix | 1.5.13 热修与路径治理；worktree `temp/1.5.13-hotfix`，tip `3cd96fe98cc`；Studio WIP 已隔离到 `sync/studio-v0.2.4` | main | 2026-11-21 | 验收/发布后删，删前记最终 SHA |
 | `chore/repo-path-governance` | chore | 仓库路径治理：ADR-0080、retired/ 边界、旧 Zetawork/web-ui 迁移；worktree `temp/repo-governance`，tip `0a6c4b6f2a7` | main | 2026-11-20 | 已并入 main；分支保留作恢复引用，删除前记 SHA |
 | `fix/room-wake-repair` | fix | 源会话房间唤醒origin与child-ready通知重试修复；隔离`temp/room-wake-repair` | RoomWakeRepair / main | 2026-11-17 | 本轮清除worktree；分支保留作恢复引用 |
