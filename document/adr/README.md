@@ -100,6 +100,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0083](0083-studio-version-pin-compatibility.md) | Studio v0.2.4 compatibility is a Zeta Host adapter, not an OMP downgrade | Proposed | 2026-11-21 | — | [Studio compatibility](../agents/surface/surfaces.md), [BTW runtime](../../packages/coding-agent/src/server/studio-host/services/main-btw-runtime.ts) |
 | [0084](0084-backend-mode-default-on.md) | Backend mode is on by default; clients attach when a backend is reachable | Accepted | 2026-11-21 | — | [daemon](../../docs/daemon.md), [GUI settings](../../docs/gui-settings.md) |
 | [0085](0085-btw-steering-text-injection.md) | BTW can inject an arbitrary Studio prompt into the main session | Accepted | 2026-11-21 | — | [BTW panel](../../web-app/src/studio/btw/BtwPanel.tsx) |
+| [0086](0086-plan-entry-user-intent.md) | Plan entry should follow model-confirmed user intent; keep the Ask gate for 1.5.13 | Proposed | 2026-11-22 | — | [mode tool](../../packages/coding-agent/src/tools/mode.ts) |
 
 ## File and numbering rules
 
