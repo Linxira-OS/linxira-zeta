@@ -242,6 +242,22 @@ zetacode team plan action <id> <submit|approve|reject|start|complete|cancel>
 zetacode team doctor [--root <path>] [--json]
 ```
 
+In an ordinary session inside a Team workspace, the same persona and plan
+work is available without the full CLI grammar:
+
+```text
+/team status
+/team persona list
+/team persona create reviewer code-review Reviewer
+/team persona import ./reviewer.json
+/team plan create release Ship 1.5.14
+/team plan submit release
+/team plan approve release
+/team plan reject release "needs more tests"
+```
+
+`/team on|off` changes Team mode; `/team hub` opens the live worker/room hub.
+
 - `init` creates `<root>/.zeta/team.json` plus `pms/`, `repos/`, and
   `worktrees/`, then registers the team. The team id is a slug of `<name>`.
 - `persona` stores validated role packs under `<root>/.zeta/personas/<id>.json`.

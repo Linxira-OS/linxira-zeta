@@ -1,10 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
+import { Text } from "@linxiraos/pi-tui";
 import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
 import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
 import { runTeamWorkerCommand } from "../team/engineer-worker";
+import { runTeamSessionCommand } from "../team/session-commands";
 import { createActiveTeamHubSource } from "../vibe/team-hub-data";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
@@ -111,6 +113,9 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdTeam,
 		icon: "agents",
 		subcommands: [
+			{ name: "status", description: () => "Team status, personas and plans" },
+			{ name: "persona", description: () => "List, create, import or remove Team personas" },
+			{ name: "plan", description: () => "List, create or approve TeamPlans" },
 			{ name: "hub", description: () => M.cmdTeamHub },
 			{ name: "on", description: () => M.cmdTeamOn },
 			{ name: "off", description: () => M.cmdTeamOff },
@@ -143,6 +148,11 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return commandConsumed();
 			}
 			if (subName !== "hub") {
+				if (subName !== "") {
+					const result = await runTeamSessionCommand(runtime.cwd, command.args);
+					await runtime.output(result.text);
+					return result.ok ? commandConsumed() : { consumed: true, failed: true };
+				}
 				await runtime.output(M.teamHubUsage);
 				return commandConsumed();
 			}
@@ -187,7 +197,10 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showWarning(M.teamHubUsage);
+			const result = await runTeamSessionCommand(runtime.ctx.sessionManager.getCwd(), command.args);
+			if (result.ok) runtime.ctx.presentCommandOutput(new Text(result.text, 1, 0));
+			else runtime.ctx.showWarning(result.text);
+			runtime.ctx.editor.setText("");
 			runtime.ctx.editor.setText("");
 		},
 	},
