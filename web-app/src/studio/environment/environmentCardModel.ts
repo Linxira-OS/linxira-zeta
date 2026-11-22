@@ -91,7 +91,7 @@ function runtimeTipKey(status: EnvironmentRuntimeStatus): string | undefined {
 /**
  * Parent folder of a workspace root, for the address beside the project name.
  * The name is the leaf, so the address stays complementary instead of
- * repeating it: `D:/Project/omp-web` -> `D:/Project`, `/home/me/app` ->
+ * repeating it: `D:/Project/zeta-web` -> `D:/Project`, `/home/me/app` ->
  * `/home/me`, `D:/app` -> `D:/`, `/app` -> `/`.
  */
 export function parentAddress(root: string): string | undefined {

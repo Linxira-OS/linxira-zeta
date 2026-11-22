@@ -18,6 +18,7 @@ import { workbenchBounds } from "../dock/workbenchGeometry";
 import { dragPreview } from "../dock/dragPreview";
 import { WORKBENCH_PANELS } from "../panels/registry";
 import { PreviewSurface, usePreviewMode } from "../preview/PreviewContext";
+import { useTerminalStore } from "../terminalSessions";
 import { ExecutionTargetScope, useExecutionTargets } from "../workspaces/ExecutionTargets";
 import { Icon } from "../icons";
 import { useI18n } from "../i18n";
@@ -39,6 +40,8 @@ import "./workspace.css";
 
 export function ConversationWorkspace({ client, renderDocument }: { client: StudioClient; renderDocument: (client: StudioClient) => ReactNode }) {
   const { preview } = usePreviewMode();
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const visited = useRef({ real: !preview, demo: preview });
   if (preview) visited.current.demo = true; else visited.current.real = true;
   const [real] = useState(() => new ConversationWorkspaceStore(localStorage, false, !preview));
@@ -99,7 +102,7 @@ export function ConversationWorkspace({ client, renderDocument }: { client: Stud
               {main ? <EmbeddedConversation view={main} store={store} hosts={hosts} visible={conversationVisible(main, state)} /> : !pageVisible && !snapped ? <WorkspaceEmpty store={store} /> : null}
               {snapped && state.snap ? <div className={`cw-snap-viewport${snapSize.width > store.geometry.canvas.width || snapSize.height > store.geometry.canvas.height ? " is-scrollable" : ""}`}>
                 <div className="cw-snap-surface" ref={setSnapLayer} style={{ width: snapSize.width, height: snapSize.height }}>
-                  {!pageVisible ? <><SnapDividers manager={store.manager} layout={state.snap} size={snapSize} locked={layoutLocked} onMeasure={() => { for (const record of store.manager.getSnapshot().records) store.hosts.get(record.content.documentId).tools?.hosts.flush(); }} />
+                  {!pageVisible ? <><SnapDividers manager={store.manager} layout={state.snap} size={snapSize} locked={layoutLocked} onMeasure={() => { for (const record of store.manager.getSnapshot().records) store.hosts.existing(record.content.documentId)?.tools?.hosts.flush(); }} />
                   <SnapAssist manager={store.manager} layout={state.snap} cell={state.snapAssistCell} size={snapSize} /></> : null}
                 </div>
               </div> : null}
@@ -113,7 +116,7 @@ export function ConversationWorkspace({ client, renderDocument }: { client: Stud
     </div>
     {createPortal(<div className="dock-floating-layer">{state.views.filter(view => view.placement === "float" || view.placement === "native").map((view, order) => <ConversationWindow key={view.id} view={view} store={store} hosts={hosts} bounds={bounds} order={order} snapLayer={snapLayer} />)}</div>, document.body)}
     <ConversationLayoutPreview store={store} />
-    {!windowed && state.views.some(view => view.minimized && view.placement !== "native") ? <div className="dock-pinned-capsules" role="group" aria-label="最小化的对话">{state.views.filter(view => view.minimized && view.placement !== "native").map(view => <MinimizedCapsule key={view.id} owner={store} capsuleId={view.id} locked={layoutLocked} onClick={() => store.focus(view.id)}><Icon name="message" extra="sm" /><span className="dock-capsule-title">{store.documentFor(view.id)?.title}</span><Icon name="restore" extra="sm" /></MinimizedCapsule>)}</div> : null}
+    {!pageVisible && !windowed && state.views.some(view => view.minimized && view.placement !== "native") ? <div className="dock-pinned-capsules" role="group" aria-label={zh ? "最小化的对话" : "Minimized conversations"}>{state.views.filter(view => view.minimized && view.placement !== "native").map(view => <MinimizedCapsule key={view.id} owner={store} capsuleId={view.id} locked={layoutLocked} onClick={() => store.focus(view.id)}><Icon name="message" extra="sm" /><span className="dock-capsule-title">{store.documentFor(view.id)?.title}</span><Icon name="restore" extra="sm" /></MinimizedCapsule>)}</div> : null}
     {visited.current.real && real.mountedDocuments().map(record => <PreviewSurface key={`real:${record.id}`} preview={false}><ConversationDocumentHost enabled={!preview} record={record} client={client} store={real} hosts={real.hosts} dock={dock} tabAdd={windowed ? tabAdd : null} renderDocument={renderDocument} /></PreviewSurface>)}
     {visited.current.demo && demo.mountedDocuments().map(record => <PreviewSurface key={`demo:${record.id}`} preview><ConversationDocumentHost enabled={preview} record={record} client={client} store={demo} hosts={demo.hosts} dock={dock} tabAdd={windowed ? tabAdd : null} renderDocument={renderDocument} /></PreviewSurface>)}
   </WorkspaceContext.Provider></WindowFocusContext.Provider>;
@@ -121,14 +124,17 @@ export function ConversationWorkspace({ client, renderDocument }: { client: Stud
 
 function ConversationDocumentHost({ enabled, record, client: initialClient, store, hosts, dock, tabAdd, renderDocument }: { enabled: boolean; record: ConversationDocument; client: StudioClient; store: ConversationWorkspaceStore; hosts: DocumentHosts; dock: DockStore; tabAdd: HTMLElement | null; renderDocument: (client: StudioClient) => ReactNode }) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const terminalStore = useTerminalStore();
   const { resolvedLanguage } = useI18n();
+  const zhRef = useRef(resolvedLanguage === "zh");
+  zhRef.current = resolvedLanguage === "zh";
   const registry = useExecutionTargets();
   const registryRef = useRef(registry); registryRef.current = registry;
   const [client] = useState(() => createConversationClient(async () => {
     const target = store.demo || record.ref.targetId === null ? initialClient : await registryRef.current.readyClient(record.ref.targetId);
     const workspaceId = record.ref.workspaceId ?? (!store.demo && record.ref.draftId !== "initial" ? (await initializeConversationClient(target)).selected?.workspaceId : undefined);
     if (!workspaceId || store.demo) return { client: target, owned: false };
-    if (!target.openContext) throw new Error("此 Host 需要升级后才能打开多个对话窗口。");
+    if (!target.openContext) throw new Error(zhRef.current ? "此 Host 需要升级后才能打开多个对话窗口。" : "Upgrade this Host to open multiple conversation windows.");
     const opened = await target.openContext({ workspaceId: workspaceId as WorkspaceId, ...(record.ref.sessionId ? { sessionId: record.ref.sessionId as SessionId } : {}) });
     const shared = acquireProjectReads(target, workspaceId as WorkspaceId);
     return { client: opened, owned: true, project: shared.reads, releaseProject: shared.release };
@@ -177,10 +183,11 @@ function ConversationDocumentHost({ enabled, record, client: initialClient, stor
     clearTimeout(releaseClient.current);
     return () => { releaseClient.current = setTimeout(() => {
       void client.close();
+      void terminalStore.disposeConversation(record.id);
       localDock.dispose();
       releaseHost();
     }, 0); };
-  }, [client, localDock, hosts, record.id]);
+  }, [client, localDock, hosts, record.id, terminalStore]);
   const onSelectTarget = async (targetId: string | null) => {
     const target = await registryRef.current.readyClient(targetId);
     const bootstrap = await target.bootstrap();
@@ -241,7 +248,10 @@ function HeaderSlot({ hosts, id, kind, fallback }: { hosts: DocumentHosts; id: s
 }
 
 function ConversationWindow({ view, store, hosts, bounds, order, snapLayer }: { view: ConversationView; store: ConversationWorkspaceStore; hosts: DocumentHosts; bounds: ConversationView["rect"]; order: number; snapLayer: HTMLElement | null }) {
-  const record = store.documentFor(view.id)!;
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const record = store.documentFor(view.id);
+  const windowRecord = store.manager.get(view.id);
   const dragging = useSyncExternalStore(dragPreview.subscribe, () => dragPreview.snapshot()?.conversation?.documentId === view.documentId);
   const frame = useRef<HTMLDivElement>(null);
   const native = view.placement === "native" && !!globalThis.zetaStudioChrome?.prepareFloatWindow;
@@ -254,6 +264,7 @@ function ConversationWindow({ view, store, hosts, bounds, order, snapLayer }: { 
     window.addEventListener("zeta:conversation-focus", focus);
     return () => window.removeEventListener("zeta:conversation-focus", focus);
   }, [view.id]);
+  if (!record || !windowRecord) return null;
   const content = (area: ConversationView["rect"], nativeKey?: string) => {
     const rect = snapped && snap ? snapCells(snap.template, snap.tree, store.manager.size())[cell!]! : nativeKey || view.maximized ? { x: 0, y: 0, width: area.width, height: area.height } : clampFloat({ ...view.rect, width: Math.max(MIN_VIEW.width, view.rect.width) }, { width: area.width, height: area.height }, MIN_VIEW.height);
     return <WindowOwnerContext.Provider value={record.id}><WindowFrame title={record.title} icon="message" tint={conversationWindowTint(record.id, store)} rect={rect} bounds={area} minWidth={MIN_VIEW.width} minHeight={MIN_VIEW.height}
@@ -262,10 +273,10 @@ function ConversationWindow({ view, store, hosts, bounds, order, snapLayer }: { 
       onTitleDrag={event => { if (!nativeKey) dragConversation(event, store, { viewId: view.id }); }}
       onRectChange={rect => store.setWindow(view.id, { rect })}
       onControl={action => { if (nativeKey) void globalThis.zetaStudioChrome!.controlFloatWindow!({ key: nativeKey, action }); else control(action); }}
-      onClose={() => store.close(view.id)} closeLabel="关闭对话视图"
+      onClose={() => store.close(view.id)} closeLabel={zh ? "关闭对话视图" : "Close conversation view"}
       titleContent={<HeaderSlot hosts={hosts} id={view.documentId} kind="title" fallback={record.title} />}
       titleExtra={view.pin !== "none" ? <span className="dock-pin-status"><Icon name={native ? "external" : "pin"} extra="sm" /></span> : null}
-      maximizeButton={!nativeKey ? <WindowSnapButton manager={store.manager} window={store.manager.get(view.id)!} locked={locked} onMaximize={() => control("maximize")} /> : undefined}
+      maximizeButton={!nativeKey ? <WindowSnapButton manager={store.manager} window={windowRecord} locked={locked} onMaximize={() => control("maximize")} /> : undefined}
       controls={<><HeaderSlot hosts={hosts} id={view.documentId} kind="actions" /><WindowPinButton mode={view.pin} workspaceAvailable={!!record.ref.workspaceId} onChange={pin => store.setPin(view.id, pin)} /></>}>
       <div className="dock-group-body"><DocumentSlot view={view} hosts={hosts} /></div>
     </WindowFrame></WindowOwnerContext.Provider>;

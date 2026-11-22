@@ -4,7 +4,7 @@ import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { hostErrorMessage } from "../hostError";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_TEMPLATES, getPreviewTemplateContent, preparePreviewTemplate } from "../preview/runtimeCatalogPreview";
+import { getPreviewTemplates, getPreviewTemplateContent, preparePreviewTemplate } from "../preview/runtimeCatalogPreview";
 import { CatalogEmpty, CatalogHeading, useRuntimeCatalog, type RuntimeCatalogProps } from "./RuntimeCatalogShared";
 import "./promptTemplates.css";
 
@@ -51,6 +51,10 @@ export function PromptTemplatesPane({ client, sessionId, available, visible = tr
   const selectedRef = useRef<PromptTemplateRow | undefined>(undefined);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
+  const argsRef = useRef(args);
+  argsRef.current = args;
   const invoke = useRuntimeCatalog(client, sessionId);
   const canRead = preview || (available && !!sessionId);
 
@@ -62,12 +66,12 @@ export function PromptTemplatesPane({ client, sessionId, available, visible = tr
     setPrepared(undefined);
     setSourceOpen(true);
     setArgs("");
-    const value = preview ? { template: row, content: getPreviewTemplateContent(row.id) } : await invoke("templates.get", { sessionId: sessionId!, id: row.id, version: row.version });
+    const value = preview ? { template: row, content: getPreviewTemplateContent(row.id, zhRef.current) } : await invoke("templates.get", { sessionId: sessionId!, id: row.id, version: row.version });
     if (epoch === generation.current) { selectedRef.current = value.template; setSelected(value.template); setContent(value.content); }
   }, [invoke, preview, sessionId]);
 
   const load = useCallback(async (epoch: number, after?: string) => {
-    const result = preview ? { templates: PREVIEW_TEMPLATES, nextCursor: undefined } : await invoke("templates.list", { sessionId: sessionId!, ...(after ? { cursor: after } : {}), limit: 50 });
+    const result = preview ? { templates: getPreviewTemplates(zhRef.current), nextCursor: undefined } : await invoke("templates.list", { sessionId: sessionId!, ...(after ? { cursor: after } : {}), limit: 50 });
     if (epoch !== generation.current) return;
     setRows((current) => after ? [...current, ...result.templates] : result.templates);
     setCursor(result.nextCursor);
@@ -88,9 +92,22 @@ export function PromptTemplatesPane({ client, sessionId, available, visible = tr
     setBusy(operation);
     setError("");
     try { await action(epoch); }
-    catch (cause) { if (epoch === generation.current) setError(hostErrorMessage(cause, zh ? "模板操作失败" : "Template operation failed")); }
+    catch (cause) { if (epoch === generation.current) setError(hostErrorMessage(cause, zhRef.current ? "模板操作失败" : "Template operation failed")); }
     finally { if (epoch === generation.current) { busyRef.current = false; setBusy(undefined); } }
-  }, [zh]);
+  }, []);
+
+  useEffect(() => {
+    if (!preview) return;
+    const templates = getPreviewTemplates(zh);
+    setRows(templates);
+    const current = selectedRef.current;
+    if (!current) return;
+    const next = templates.find((row) => row.id === current.id) ?? current;
+    selectedRef.current = next;
+    setSelected(next);
+    setContent(getPreviewTemplateContent(next.id, zh));
+    setPrepared((previous) => previous !== undefined ? preparePreviewTemplate(next.id, argsRef.current, zh) : undefined);
+  }, [preview, zh]);
 
   useEffect(() => {
     generation.current++;
@@ -116,7 +133,7 @@ export function PromptTemplatesPane({ client, sessionId, available, visible = tr
   const expand = () => {
     if (!selected || busy || !canRead) return;
     void run("prepare", async (epoch) => {
-      const text = preview ? preparePreviewTemplate(selected.id, args) : (await invoke("templates.prepare", { sessionId: sessionId!, id: selected.id, version: selected.version, arguments: args })).text;
+      const text = preview ? preparePreviewTemplate(selected.id, args, zh) : (await invoke("templates.prepare", { sessionId: sessionId!, id: selected.id, version: selected.version, arguments: args })).text;
       if (epoch === generation.current) { setPrepared(text); setSourceOpen(false); }
     });
   };

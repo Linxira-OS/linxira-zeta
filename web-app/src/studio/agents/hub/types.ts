@@ -2,9 +2,21 @@ import type { JobWidgetView, StudioAgentSnapshot, StudioJobSnapshot } from "@lin
 import type { PreviewMetrics } from "../../hubPreview";
 import { type HubTab } from "../../pageIntents";
 
-export type HubView = "flat" | "tree";
+/** How the Agents workspace lists the roster: cards, cards by parent, or the command deck. */
+export type HubView = "flat" | "tree" | "deck";
 
-export type HubStatus = "running" | "idle" | "parked" | "aborted";
+export type HubStatus = "running" | "idle" | "parked" | "aborted" | "released";
+
+export type HubTreeNode = {
+  agent: HubAgent;
+  children: HubTreeNode[];
+};
+
+export type HubTreeGroup = {
+  head: HubAgent;
+  nodes: HubTreeNode[];
+  kids: HubAgent[];
+};
 
 export type Notice = { kind: "ok" | "warn" | "err"; text: string };
 
@@ -83,7 +95,6 @@ export type Caps = {
 export type Persisted = {
   selectedBySession: Record<string, string>;
   tab: HubTab;
-  view: HubView;
 };
 
 export type HubIntent = { agentId: string; tab?: HubTab; chat?: boolean };

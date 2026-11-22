@@ -27,8 +27,12 @@ export function readTargetsPlan(readPath: string, planTarget: string): boolean {
  * is submitted), so the reference-based {@link readTargetsPlan} checks do not
  * recognize it yet.
  */
+export function isLocalPlanArtifact(path: string): boolean {
+	return PLAN_ARTIFACT_RE.test(InternalUrlRouter.instance().split(path).path);
+}
+
 export function readTargetsPlanArtifact(readPath: string): boolean {
-	return PLAN_ARTIFACT_RE.test(InternalUrlRouter.instance().split(readPath).path);
+	return isLocalPlanArtifact(readPath);
 }
 
 /**

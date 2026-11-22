@@ -300,6 +300,11 @@ export async function resolveStartupTransport(
 	if (!intent) return { kind: "in-process" };
 	const target = await resolveBackendTarget(intent, options);
 	if (!target) {
+		// Backend mode is on by default, but a missing backend is not a
+		// startup error for an implicit launch: keep the TUI usable by
+		// falling back to its own local process. Explicit --backend/--attach
+		// remains a contract and still fails below.
+		if (options.backendEnabled === true && !intent.explicit) return { kind: "in-process" };
 		const message =
 			options.backendEnabled === true && !intent.explicit
 				? "Backend mode is enabled but no default backend is running. Run `zetacode backend on`, or launch with `--standalone` for a local process."

@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.5.13] - 2026-11-21
+
+### Changed
+
+- Included in Zeta 1.5.13; no package-specific user-visible changes.
+
 ## [1.5.12] - 2026-11-20
 
 ### Changed

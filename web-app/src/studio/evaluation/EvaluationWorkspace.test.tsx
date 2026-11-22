@@ -153,7 +153,7 @@ it("rebinds retained history and ignores a previous session's unfinished prepare
   await act(async () => { pending.resolve({ commandName: "evaluations.prepare", requestId: "old-command", status: "local_pending" }); });
   expect(screen.queryByRole("dialog", { name: "Review evaluation" })).toBeNull();
   expect(screen.queryByText("Run a")).toBeNull();
-  expect(source.command).toHaveBeenCalledTimes(1);
+  expect(source.command.mock.calls.filter(([name]) => String(name).startsWith("evaluations."))).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: /^History/ }));
   const history = await screen.findByRole("dialog", { name: "Evaluation history" });
   expect(within(history).getByText("Run b")).toBeTruthy();
@@ -168,8 +168,9 @@ it("prepares and starts a reviewed native configuration through command receipts
   await screen.findByRole("dialog", { name: "Review evaluation" });
   fireEvent.click(screen.getByRole("button", { name: "Confirm and start" }));
   await screen.findByText("Run a");
-  expect(source.command).toHaveBeenNthCalledWith(1, "evaluations.prepare", { workspaceId: "workspace", spec: liveRecord("a").spec });
-  expect(source.command).toHaveBeenNthCalledWith(2, "evaluations.start", { workspaceId: "workspace", title: "Run a", spec: liveRecord("a").spec, sourceId: "evaluation-a" });
+  const evaluationCommands = source.command.mock.calls.filter(([name]) => String(name).startsWith("evaluations."));
+  expect(evaluationCommands[0]).toEqual(["evaluations.prepare", { workspaceId: "workspace", spec: liveRecord("a").spec }]);
+  expect(evaluationCommands[1]).toEqual(["evaluations.start", { workspaceId: "workspace", title: "Run a", spec: liveRecord("a").spec, sourceId: "evaluation-a" }]);
 });
 
 it("maps real Ask deck labels to native option ids without changing its review lease", async () => {
@@ -178,7 +179,7 @@ it("maps real Ask deck labels to native option ids without changing its review l
   const source = liveSource(record);
   render(livePage(source.client));
   fireEvent.click(await screen.findByRole("radio", { name: "Approve" }));
-  fireEvent.click(screen.getByRole("button", { name: "提交" }));
+  fireEvent.click(screen.getByRole("button", { name: "Submit" }));
   await waitFor(() => expect(source.command).toHaveBeenCalledWith("evaluations.respond", { id: record.id, interactionId: interaction.interactionId, leaseGeneration: 7, decision: "submit", value: { results: [{ id: "inputs", selectedOptions: ["0"] }] } }));
 });
 

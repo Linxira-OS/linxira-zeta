@@ -27,7 +27,7 @@ import { AgentAccountRules, AgentPoolSummary } from "./models/AgentAccountRules"
 import { useAgentAccountPools } from "./models/useAgentAccountPools";
 import type { NativePreferencesContext } from "./settings/NativePreferencesPane";
 import {
-  AGENT_THINKING,
+  getAgentThinking,
   createPreviewAgentDefinitions,
 } from "./preview/subagentsPreview";
 
@@ -269,7 +269,7 @@ export function SubagentsPanel({
   const zh = resolvedLanguage === "zh";
   const accountPools = useAgentAccountPools({ client, context, preview, visible });
   useEffect(() => { onAccountDirtyChange?.(accountPools.hasChanges); }, [accountPools.hasChanges, onAccountDirtyChange]);
-  const [data, setData] = useState<AgentDefinitionsReadModel | null>(preview ? createPreviewAgentDefinitions() : null);
+  const [data, setData] = useState<AgentDefinitionsReadModel | null>(preview ? createPreviewAgentDefinitions(undefined, zh) : null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -285,6 +285,7 @@ export function SubagentsPanel({
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const opened = useRef(false);
+  const refreshSeq = useRef(0);
   const draftRef = useRef<AgentDraft | null>(null);
   draftRef.current = draftState;
 
@@ -292,24 +293,33 @@ export function SubagentsPanel({
     setFlash(text);
   };
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<AgentDefinitionsReadModel | null> => {
+    const seq = ++refreshSeq.current;
     if (preview) {
-      setData(createPreviewAgentDefinitions());
+      const demo = createPreviewAgentDefinitions(undefined, zh);
+      setData(demo);
       setLoadError(null);
-      return;
+      return demo;
     }
     try {
       const next = await client.query("agents.definitions.get", {});
+      if (seq !== refreshSeq.current) return null;
       setData(next);
       setLoadError(next.unavailableReason ?? null);
+      return next;
     } catch (error) {
+      if (seq !== refreshSeq.current) return null;
       setLoadError(hostErrorMessage(error, "agents.definitions.get failed"));
       setData(null);
+      return null;
     }
-  }, [client, preview]);
+  }, [client, preview, zh]);
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshSeq.current += 1;
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -336,7 +346,7 @@ export function SubagentsPanel({
   }, [pendingDelete, busy]);
 
   const mutateLocal = (updater: (current: AgentDefinitionsReadModel) => AgentDefinitionsReadModel) => {
-    setData((current) => updater(current ?? createPreviewAgentDefinitions()));
+    setData((current) => updater(current ?? createPreviewAgentDefinitions(undefined, zh)));
   };
 
   const agents = data?.agents ?? [];
@@ -418,8 +428,9 @@ export function SubagentsPanel({
       return;
     }
     if (!AGENT_NAME_RE.test(name)) {
-      setSaveHint(AGENT_NAME_HINT);
-      toast(AGENT_NAME_HINT);
+      const message = t(AGENT_NAME_HINT);
+      setSaveHint(message);
+      toast(message);
       return;
     }
     setSaveHint(null);
@@ -524,10 +535,14 @@ export function SubagentsPanel({
     }
 
     setBusy(true);
+    let wroteDefinition = false;
     try {
       if (draft.editable) {
         await runWrite(client, "agents.definition.upsert", upsert);
+        wroteDefinition = true;
       }
+      const nextPrewalkOverride = draft.prewalkOverride.trim();
+      const nextAdvisorOverride = draft.advisorOverride.trim();
       const needsConfigure =
         !draft.editable
         || draft.disabled
@@ -542,6 +557,7 @@ export function SubagentsPanel({
           prewalkOverride: draft.prewalkOverride.trim() ? draft.prewalkOverride.trim() : null,
           advisorOverride: draft.advisorOverride.trim() ? draft.advisorOverride.trim() : null,
         });
+        wroteDefinition = true;
       }
       const accountOverride = await accountPools.save(name);
       toast(accountOverride
@@ -550,6 +566,21 @@ export function SubagentsPanel({
       setDraft(null);
       await refresh();
     } catch (error) {
+      if (wroteDefinition) {
+        const refreshed = await refresh();
+        const updated = refreshed?.agents.find((item) => item.name === upsert.name);
+        if (updated) {
+          setDraft((current) => {
+            if (!current || current.name.trim() !== upsert.name) return current;
+            const { contentHash: _oldHash, ...rest } = current;
+            return {
+              ...rest,
+              existing: true,
+              ...(updated.contentHash === undefined ? {} : { contentHash: updated.contentHash }),
+            };
+          });
+        }
+      }
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
       setBusy(false);
@@ -619,7 +650,7 @@ export function SubagentsPanel({
     toast(t("subagents.forkDraftToast"));
   };
 
-  const catalog = models ?? (preview ? createPreviewModelConfig() : null);
+  const catalog = models ?? (preview ? createPreviewModelConfig(zh) : null);
 
   const addModelValue = (value: string) => {
     if (!draftState || !value || draftState.models.includes(value)) {
@@ -776,7 +807,7 @@ export function SubagentsPanel({
           <div className="field" style={{ marginTop: 12 }}>
             <label>{t("subagents.thinkingLevel")}</label>
             <div className="seg sa-seg-wrap">
-              {AGENT_THINKING.map((item) => (
+              {getAgentThinking(zh).map((item) => (
                 <button type="button" key={item.id || "inherit"} className={draft.thinkingLevel === item.id ? "active" : undefined} disabled={definitionLocked} onClick={() => setDraft({ ...draft, thinkingLevel: item.id as AgentDraft["thinkingLevel"] })}>{item.label}</button>
               ))}
             </div>
@@ -1015,7 +1046,7 @@ export function SubagentsPanel({
                 void saveDraft();
               }}
             >
-              {busy ? t("common.saving") : draft.editable ? t("common.save") : t("subagents.saveOverride")}
+              {busy || accountPools.busy ? t("common.saving") : draft.editable ? t("common.save") : t("subagents.saveOverride")}
             </button>
           </div>
         </div>

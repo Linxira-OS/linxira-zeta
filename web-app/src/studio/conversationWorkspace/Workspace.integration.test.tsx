@@ -13,6 +13,13 @@ import { WORKSPACE_STORAGE_KEY } from "./store";
 import { dragPreview } from "../dock/dragPreview";
 import { createDefaultLayout, dockReducer } from "../dock/model";
 
+// Keep the real shell, dock hosts and Composer; page bodies and PTY contents
+// are outside these window flows and have their own suites.
+vi.mock("../ModelConfigPage", () => ({ ModelConfigPage: () => null }));
+vi.mock("../SettingsPage", () => ({ SettingsPage: () => null }));
+vi.mock("../HistoryPage", () => ({ HistoryPage: () => null }));
+vi.mock("../TerminalPane", () => ({ TerminalPane: () => null }));
+
 // These full workbench flows include animated moves and mounted preview panels.
 vi.setConfig({ testTimeout: 15_000 });
 
@@ -58,6 +65,8 @@ async function mount(preview = false, input = client()) {
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
   vi.stubGlobal("PointerEvent", MouseEvent);
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  // JSDOM has no hit testing; each flow can supply its own elements under the pointer.
+  Object.defineProperty(document, "elementsFromPoint", { configurable: true, value: () => [] });
   vi.stubGlobal("URL", class extends URL {
     static createObjectURL = () => "blob:content-gallery";
     static revokeObjectURL = () => {};
@@ -130,7 +139,7 @@ describe("conversation windows", () => {
       canvas.getBoundingClientRect = vi.fn(() => new DOMRect(300, 40, 1100, 800));
       document.querySelector<HTMLElement>("[data-dock-workbench]")!.getBoundingClientRect = vi.fn(() => new DOMRect(0, 40, 1400, 900));
       Object.defineProperty(document, "elementsFromPoint", { configurable: true, value: vi.fn(() => []) });
-      const titles = preview ? ["Audit and fix OSS", "修复 Git Bash"] : ["Second conversation", "Third conversation"];
+      const titles = preview ? ["Audit and fix OSS", "Fix Git Bash"] : ["Second conversation", "Third conversation"];
       for (const [index, title] of titles.entries()) {
         const row = await waitFor(() => {
           const found = [...document.querySelectorAll("#projectList .thread")].find(element => element.textContent?.includes(title));
@@ -201,6 +210,46 @@ describe("conversation windows", () => {
     expect(left.querySelector('[data-dock-card="files"]')).toBe(files);
     if (preview) expect(openContext).not.toHaveBeenCalled();
     else expect(openContext).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "second-session" }));
+  });
+  it.each([false, true])("floats over the conversation directory and drags again without docking or jumping (preview=%s)", async preview => {
+    await mount(preview);
+    const canvas = document.querySelector<HTMLElement>("[data-conversation-canvas]")!;
+    const bounds = new DOMRect(0, 40, 1400, 900);
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue(new DOMRect(300, 80, 1100, 800));
+    vi.spyOn(document.querySelector<HTMLElement>("[data-dock-workbench]")!, "getBoundingClientRect").mockReturnValue(bounds);
+    const sidebar = document.querySelector<HTMLElement>("#sidebar")!;
+    vi.spyOn(sidebar, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 40, 300, 900));
+    vi.spyOn(sidebar, "getClientRects").mockReturnValue([sidebar.getBoundingClientRect()] as unknown as DOMRectList);
+    const directory = document.querySelector<HTMLElement>("#projectList")!;
+    Object.defineProperty(document, "elementsFromPoint", { configurable: true, value: () => [directory, sidebar] });
+    const body = document.querySelector<HTMLElement>(".cw-main-conversation .cw-document")!;
+    const editor = body.querySelector<HTMLElement>("[contenteditable=true]")!;
+    editor.textContent = "列表上的浮窗草稿"; fireEvent.input(editor);
+    const leftPanels = [...document.querySelectorAll('.cw-shared-sidebar [data-dock-card]')].map(card => card.getAttribute("data-dock-card"));
+    fireEvent.pointerDown(document.querySelector(".topbar")!, { button: 0, clientX: 700, clientY: 60 });
+    fireEvent.pointerMove(window, { clientX: 200, clientY: 250 });
+    await waitFor(() => expect(dragPreview.snapshot()).not.toBeNull());
+    expect(dragPreview.snapshot()?.snapped).toBe(false);
+    expect(dragPreview.snapshot()?.target.region).toBe("float");
+    fireEvent.pointerUp(window, { clientX: 200, clientY: 250 });
+    await waitFor(() => expect(document.querySelector(".dock-drag-preview")).toBeNull());
+    const frame = document.querySelector<HTMLElement>(".dock-conversation-window")!;
+    expect(frame).not.toBeNull();
+    expect(frame.querySelector(".cw-document")).toBe(body);
+    expect([...document.querySelectorAll('.cw-shared-sidebar [data-dock-card]')].map(card => card.getAttribute("data-dock-card"))).toEqual(leftPanels);
+    const rect = { x: Number.parseFloat(frame.style.left), y: Number.parseFloat(frame.style.top), width: Number.parseFloat(frame.style.width), height: Number.parseFloat(frame.style.height) };
+    vi.spyOn(frame, "getBoundingClientRect").mockReturnValue(new DOMRect(rect.x, rect.y, rect.width, rect.height));
+    const x = rect.x + 180, y = rect.y + 18;
+    fireEvent.pointerDown(frame.querySelector(".dock-float-titlebar")!, { button: 0, clientX: x, clientY: y });
+    fireEvent.pointerMove(window, { clientX: x + 12, clientY: y + 12 });
+    await waitFor(() => expect(dragPreview.snapshot()).not.toBeNull());
+    expect(dragPreview.snapshot()?.snapped).toBe(false);
+    expect(dragPreview.snapshot()?.rect).toMatchObject({ x: rect.x + 12, y: rect.y + 12, width: rect.width, height: rect.height });
+    fireEvent.pointerUp(window, { clientX: x + 12, clientY: y + 12 });
+    await waitFor(() => expect(document.querySelector(".dock-drag-preview")).toBeNull());
+    expect(document.querySelector(".dock-conversation-window .cw-document")).toBe(body);
+    expect(body.querySelector("[contenteditable=true]")).toBe(editor);
+    expect(editor.textContent).toBe("列表上的浮窗草稿");
   });
   it("opens a sidebar conversation directly in a tool region and preserves the main conversation", async () => {
     await mount(true);
@@ -297,16 +346,23 @@ describe("conversation windows", () => {
     for (const route of ["model-config", "settings", "history"]) {
       fireEvent.click(document.querySelector(`.app-rail-btn[data-route="${route}"]`)!);
       await waitFor(() => expect(document.querySelector("#pageBody")?.getAttribute("data-route")).toBe(route));
-      await waitFor(() => expect(panels.every(panel => !panel.isConnected || isInaccessible(panel))).toBe(true));
-      expect(isInaccessible(document.querySelector(".cw-sidebar-slot")!)).toBe(true);
-      expect(isInaccessible(document.querySelector(".cw-conversation-title-row")!)).toBe(true);
+      // Wait for attachment and visibility state without recomputing styles on every mutation.
+      await waitFor(() => expect(panels.every(panel => !panel.isConnected || panel.closest("[hidden]"))).toBe(true));
+      for (const panel of panels) if (panel.isConnected) expect(isInaccessible(panel)).toBe(true);
+      for (const selector of [".cw-sidebar-slot", ".cw-conversation-title-row", ".cw-right-slot", ".cw-bottom-slot"]) {
+        const slot = document.querySelector(selector)!;
+        expect(slot.hasAttribute("hidden")).toBe(true);
+        expect(slot.hasAttribute("inert")).toBe(true);
+        expect(isInaccessible(slot)).toBe(true);
+      }
       expect(isInaccessible(document.querySelector("#pageBody")!)).toBe(false);
       expect(screen.getByRole("navigation", { name: "Primary" })).toBeDefined();
       expect(document.querySelector(".dock-conversation-window")).toBeNull();
     }
     fireEvent.click(document.querySelector('.app-rail-btn[data-route="workbench"]')!);
     await waitFor(() => expect(document.querySelector("#pageBody")).toBeNull());
-    await waitFor(() => expect(panels.every(panel => panel.isConnected && !isInaccessible(panel))).toBe(true));
+    await waitFor(() => expect(panels.every(panel => panel.isConnected && !panel.closest("[hidden], [inert]"))).toBe(true));
+    for (const panel of panels) expect(isInaccessible(panel)).toBe(false);
     expect(document.querySelectorAll("#sidebar, #sidePanel, #bottomPanel, .bp-reveal, .topbar")).toHaveLength(5);
     expect(document.querySelector("[contenteditable=true]")).toBe(editor);
     expect(editor.textContent).toBe("切换独立页面保留草稿");
@@ -561,7 +617,7 @@ describe("conversation windows", () => {
     for (const cancel of [true, false]) {
       fireEvent.pointerDown(git, { button: 0, clientX: 1880, clientY: 96 });
       fireEvent.pointerMove(window, { clientX: 1700, clientY: 400 });
-      await waitFor(() => expect(dragPreview.snapshot()?.label).toBe("停留以吸附到右侧分栏"));
+      await waitFor(() => expect(dragPreview.snapshot()?.label).toBe("Pause to snap to right split"));
       fireEvent.pointerMove(window, { clientX: 1690, clientY: 400 });
       await waitFor(() => expect(dragPreview.snapshot()?.target.region).toBe("rail"));
       expect(dragPreview.snapshot()?.snapKey).toBeUndefined();
@@ -732,7 +788,7 @@ describe("conversation windows", () => {
     expect(document.querySelector<HTMLElement>(".cw-shared-bottom")?.dataset.conversationOwner).toBe(ownedDocument);
     const tool = document.querySelector<HTMLElement>("[data-dock-float]")!;
     expect(Number(tool.style.zIndex)).toBeGreaterThan(Math.max(...[...document.querySelectorAll<HTMLElement>(".dock-conversation-window")].map(frame => Number(frame.style.zIndex))));
-    fireEvent.click(within(floating).getByRole("button", { name: "关闭对话视图" }));
+    fireEvent.click(within(floating).getByRole("button", { name: "Close conversation view" }));
     await waitFor(() => expect(floating.isConnected).toBe(false));
     await waitFor(() => expect(tool.isConnected).toBe(true));
     fireEvent.pointerDown(tool);
@@ -905,7 +961,7 @@ describe("conversation windows", () => {
     drag(document.querySelector("#projectList .thread:not(.active)")!);
     await waitFor(() => expect(document.querySelector(".cw-window-title-menu")).not.toBeNull());
     const floating = document.querySelector<HTMLElement>(".dock-conversation-window")!;
-    const title = within(floating).getByRole("button", { name: /新建对话/ });
+    const title = within(floating).getByRole("button", { name: /New chat/ });
     await new Promise(resolve => setTimeout(resolve, 0));
     fireEvent.keyDown(title, { key: "ArrowDown" });
     expect(screen.getByRole("menuitem", { name: /Fork/ }).hasAttribute("disabled")).toBe(true);
@@ -930,14 +986,14 @@ describe("conversation windows", () => {
     await waitFor(() => expect(document.querySelectorAll(".dock-conversation-window")).toHaveLength(1));
     const first = document.querySelector<HTMLElement>(".dock-conversation-window")!;
     const owner = first.querySelector<HTMLElement>(".cw-document")!.dataset.conversationDocument;
-    drag([...document.querySelectorAll<HTMLElement>("#projectList .thread")].find(row => !row.classList.contains("active") && !row.textContent?.includes("pi-web 更新"))!);
+    drag([...document.querySelectorAll<HTMLElement>("#projectList .thread")].find(row => !row.classList.contains("active") && !row.textContent?.includes("pi-web updates"))!);
     await waitFor(() => expect(document.querySelectorAll(".dock-conversation-window")).toHaveLength(2));
     const second = [...document.querySelectorAll<HTMLElement>(".dock-conversation-window")].find(frame => frame !== first)!;
     fireEvent.pointerDown(first);
     fireEvent.pointerDown(second);
     fireEvent.pointerEnter(main);
     expect(document.querySelector<HTMLElement>(".cw-shared-right")?.dataset.conversationOwner).toBe(second.querySelector<HTMLElement>(".cw-document")!.dataset.conversationDocument);
-    fireEvent.click(within(second).getByRole("button", { name: "关闭对话视图" }));
+    fireEvent.click(within(second).getByRole("button", { name: "Close conversation view" }));
     await waitFor(() => expect(document.querySelector<HTMLElement>(".cw-shared-right")?.dataset.conversationOwner).toBe(owner));
     fireEvent.click(within(first).getByRole("button", { name: "Minimize window" }));
     await waitFor(() => expect(document.querySelector<HTMLElement>(".cw-shared-right")?.dataset.conversationOwner).toBe(mainOwner));

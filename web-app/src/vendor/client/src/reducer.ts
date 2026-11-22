@@ -171,8 +171,23 @@ export function createInitialClientState(ui: ClientUiState = EMPTY_UI): ClientSt
  * listed explicitly as `false`.
  */
 const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
+  "commit.draft.select": true,
+  "commit.draft.execute": true,
+  "history.prompts.delete": true,
+  "benchmarks.accounts.read": false,
+  "models.available.refresh": true,
+  "models.auth.unpause": true,
  "timeTravel.settings.set": true, "timeTravel.restore": true, "timeTravel.cleanup": true,
+  "fs.file.writeText": true,
+  "fs.directory.create": true,
+  "fs.rename": true,
+  "fs.trash": true,
  "extensions.links.activate": true, "browser.webmcp.invoke": true,
+ "browser.native.open": true, "browser.native.close": true,
+ "models.systemTemplates.binding.set": true, "models.systemTemplates.file.write": true,
+ "models.auth.login": true, "models.auth.cancel": false,
+ "models.auth.key.set": true, "models.auth.key.remove": true,
+ "models.provider.roster.refresh": false, "models.accounts.resetPolicy.set": true,
  "session.compaction.enqueue": true, "session.compaction.cancel": false, "session.compaction.status": false,
  "session.history.rename": true, "session.history.pin": true, "session.lease.inspect": false,
  "btw.inject": true, "agent.spawn.options": false,
@@ -408,6 +423,7 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "workspace.open": true,
   "workspace.hide": true,
   "workspace.pick": true,
+  "workspace.forgetUnavailable": true,
   "workspace.file.create": true,
   "workspace.file.writeText": true,
   "workspace.directory.create": true,
@@ -676,7 +692,9 @@ function preserveHostOwnedCommand(command: CommandState): boolean {
     || command.commandName === "timeTravel.cleanup"
     || command.commandName === "runtime.ensure"
     || command.commandName === "workspace.open"
+    || command.commandName.startsWith("fs.")
     || command.commandName === "workspace.pick"
+    || command.commandName === "workspace.forgetUnavailable"
     || command.commandName === "session.archive"
     || command.commandName === "session.unarchive"
     || command.commandName === "session.delete";
@@ -964,7 +982,7 @@ function pendingAfterSnapshot(
   ) {
     return current;
   }
-  return current;
+  return null;
 }
 
 function reduceSnapshot(state: ClientState, event: Extract<ClientEvent, { readonly kind: "snapshot" }>): ClientState {

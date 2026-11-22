@@ -448,7 +448,7 @@ export async function handleSettingsGet(req: Request): Promise<Response> {
 		};
 		const globalBackendValues: Record<string, unknown> = {
 			"backend.autostart": globalBackend.backend?.autostart === true,
-			"backend.enabled": globalBackend.backend?.enabled === true,
+			"backend.enabled": globalBackend.backend?.enabled !== false,
 			"backend.workspace":
 				typeof globalBackend.backend?.workspace === "string" ? globalBackend.backend.workspace : "",
 		};

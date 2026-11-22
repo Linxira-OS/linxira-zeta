@@ -1,10 +1,10 @@
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { McpRuntimeStatus, McpAuthResult } from "@linxiraos/studio-protocol"
 import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { hostErrorMessage } from "../hostError";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_MCP_RUNTIME, applyPreviewMcpAction } from "../preview/runtimeCatalogPreview";
+import { getPreviewMcpRuntime, applyPreviewMcpAction } from "../preview/runtimeCatalogPreview";
 import { CatalogEmpty, CatalogHeading, useRuntimeCatalog, type RuntimeCatalogProps } from "./RuntimeCatalogShared";
 import { McpAuthActions } from "./McpAuthActions";
 import "./mcpRuntime.css";
@@ -94,9 +94,14 @@ export function McpRuntimePane(props: RuntimeCatalogProps & { authAvailable?: bo
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const invoke = useRuntimeCatalog(client, sessionId);
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
+  const hasLoadedRef = useRef(false);
+  const lastRevisionRef = useRef(refreshRevision);
 
   useEffect(() => {
-    setStatus(preview ? PREVIEW_MCP_RUNTIME : undefined);
+    hasLoadedRef.current = false;
+    setStatus(preview ? getPreviewMcpRuntime(zhRef.current) : undefined);
     setError("");
     setRefreshing(false);
     setFilter("all");
@@ -104,28 +109,62 @@ export function McpRuntimePane(props: RuntimeCatalogProps & { authAvailable?: bo
   }, [preview, sessionId, available, client]);
 
   useEffect(() => {
+    if (preview) setStatus(getPreviewMcpRuntime(zh));
+  }, [preview, zh]);
+
+  useEffect(() => {
     if (preview || !available || !sessionId || !visible) return;
     let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        if (!document.hidden) {
-          setRefreshing(true);
-          const value = await invoke("mcp.runtime.status", { sessionId });
-          if (active) { setStatus(value); setError(""); }
-        }
-      } catch (cause) {
-        if (active) setError(hostErrorMessage(cause, zh ? "读取会话连接失败" : "Could not read session connections"));
-      } finally {
-        if (active) { setRefreshing(false); timer = setTimeout(() => void poll(), 4000); }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clearTimer = () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
       }
     };
+    const manualRefresh = lastRevisionRef.current !== refreshRevision;
+    lastRevisionRef.current = refreshRevision;
+    let showSpinner = !hasLoadedRef.current || manualRefresh;
+    const poll = async () => {
+      clearTimer();
+      if (!active || document.hidden) return;
+      let keepPolling = true;
+      try {
+        if (showSpinner) setRefreshing(true);
+        const value = await invoke("mcp.runtime.status", { sessionId });
+        if (active) {
+          hasLoadedRef.current = true;
+          setStatus(value);
+          setError("");
+          keepPolling = !value.available || !value.settled || value.servers.some((server) => server.state === "pending");
+        }
+      } catch (cause) {
+        if (active) setError(hostErrorMessage(cause, zhRef.current ? "读取会话连接失败" : "Could not read session connections"));
+      } finally {
+        showSpinner = false;
+        if (active) {
+          setRefreshing(false);
+          if (keepPolling && !document.hidden) {
+            timer = setTimeout(() => void poll(), 4000);
+          }
+        }
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) clearTimer();
+      else void poll();
+    };
     void poll();
-    return () => { active = false; clearTimeout(timer); };
-  }, [invoke, preview, sessionId, available, visible, refreshRevision, zh]);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [invoke, preview, sessionId, available, visible, refreshRevision]);
 
   const onComplete = (result: McpAuthResult) => {
-    if (preview) setStatus((current) => current ? applyPreviewMcpAction(current, result) : current);
+    if (preview) setStatus((current) => current ? applyPreviewMcpAction(current, result, zh) : current);
     else setRefreshRevision((value) => value + 1);
   };
   const canRead = preview || (available && !!sessionId);
@@ -146,7 +185,7 @@ export function McpRuntimePane(props: RuntimeCatalogProps & { authAvailable?: bo
       <CatalogHeading title={zh ? "会话连接" : "Session connections"} scope={zh ? "MCP · 当前 Runtime" : "MCP · Current Runtime"}
         demo={preview && marks ? (zh ? "演示" : "Demo") : undefined}
         description={zh ? "查看当前会话的实际连接、工具就绪状态与授权。" : "Live connections, tool readiness, and authorization in this session."}
-        actions={<button type="button" className="btn small outline" disabled={!canRead || refreshing} onClick={() => preview ? setStatus((current) => current ?? PREVIEW_MCP_RUNTIME) : setRefreshRevision((value) => value + 1)}><Icon name="refresh" extra="xs" />{refreshing ? (zh ? "刷新中…" : "Refreshing…") : (zh ? "刷新连接状态" : "Refresh connections")}</button>} />
+        actions={<button type="button" className="btn small outline" disabled={!canRead || refreshing} onClick={() => preview ? setStatus((current) => current ?? getPreviewMcpRuntime(zh)) : setRefreshRevision((value) => value + 1)}><Icon name="refresh" extra="xs" />{refreshing ? (zh ? "刷新中…" : "Refreshing…") : (zh ? "刷新连接状态" : "Refresh connections")}</button>} />
       {error ? <p className="runtime-catalog-notice error" role="alert"><Icon name="alert-c" extra="xs" /><span>{error}{status ? (zh ? " · 下方保留上次读取的状态。" : " · The last observed status is shown below.") : ""}</span></p> : null}
       {status?.available ? <>
         <div className="runtime-mcp-overview">

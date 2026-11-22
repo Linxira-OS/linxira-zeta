@@ -1,11 +1,11 @@
 /**
- * Composer magic-keyword helpers. OMP injects a hidden notice when a
+ * Composer magic-keyword helpers. Zeta injects a hidden notice when a
  * standalone lowercase word appears in prompt prose — not inside code.
  */
 
 import { containsMagicKeyword, type MagicKeywordId } from "./magicKeywords";
 
-/** Sticky composer keywords (picker). Same three OMP magic words. */
+/** Sticky composer keywords (picker). Same three Zeta magic words. */
 export type MagicKeyword = MagicKeywordId;
 
 /** True when `keyword` appears as a standalone prose token. */

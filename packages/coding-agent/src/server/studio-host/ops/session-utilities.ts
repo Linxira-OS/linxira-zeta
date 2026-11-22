@@ -370,12 +370,15 @@ function btwHistoryRead(value: unknown): string {
 	return identifier(exact(value, ["topicId"], "BTW history read").topicId, "topicId", 128);
 }
 
-function btwInject(value: unknown): { sessionId: string; injectId: string } {
-	const row = exact(value, ["sessionId", "injectId"], "BTW inject");
-	return {
-		sessionId: identifier(row.sessionId, "sessionId"),
-		injectId: identifier(row.injectId, "injectId", 128),
-	};
+function btwInject(value: unknown): { sessionId: string; injectId?: string; text?: string } {
+	const row = exact(value, ["sessionId", "injectId", "text"], "BTW inject");
+	const sessionId = identifier(row.sessionId, "sessionId");
+	if (row.text !== undefined) {
+		if (row.injectId !== undefined) throw invalid("BTW inject accepts either injectId or text, not both");
+		const text = requiredText(row.text, "text", 65_536);
+		return { sessionId, text };
+	}
+	return { sessionId, injectId: identifier(row.injectId, "injectId", 128) };
 }
 
 function spawnOptionsRead(value: unknown): { sessionId: string; definition: string } {
@@ -401,7 +404,7 @@ function shellOperation(value: unknown, kind: "shell.view.read" | "shell.view.re
  */
 export interface SessionUtilityFeatureCommandHandlers {
 	"btw.inject": (
-		input: { sessionId: string; injectId: string },
+		input: { sessionId: string; injectId?: string; text?: string },
 		context: StudioHostContext,
 	) => Promise<{ snapshot: OperatorStateSnapshot; result: { sent: true } }>;
 	/**
@@ -422,7 +425,10 @@ export const sessionUtilitiesFeatureCommands: SessionUtilityFeatureCommandHandle
 		live.assertCurrent();
 		let result: { sent: true };
 		try {
-			result = await mainBtwRuntime(live.session).inject(operation.injectId, live.assertCurrent);
+			result =
+				operation.text !== undefined
+					? await mainBtwRuntime(live.session).injectText(operation.text, live.assertCurrent)
+					: await mainBtwRuntime(live.session).inject(operation.injectId!, live.assertCurrent);
 		} catch (error) {
 			rethrowBtw(error);
 		}

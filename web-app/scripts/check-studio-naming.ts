@@ -19,14 +19,19 @@ const STUDIO = join(ROOT, "src", "studio");
 /** Persisted formats or non-rendered implementation names; never whole lines. */
 const TECHNICAL = [
   /^omp-studio-(?:ui|backgrounds)$/,
+  /^omp-studio-embed$/,
+  /^omp:embed-set-route$/,
+  /^omp\.fileBrowser\.(?:v1|pins\.v1)$/,
+  /^omp\.(?:lastRoute|appSettings|gitGraphLayout)$/,
   /^\.?omp-(?:menu|tip|mermaid|copy)[\w-]*$/,
+  /^\.omp$/,
   /^omp$/,
   /^ompprurl$/,
   /^omp\.$/,
 ];
 
 /** Third-party product names that legitimately contain "Studio". */
-const STUDIO_ALLOW = /LM Studio|Z Work Studio|Work Studio/;
+const STUDIO_ALLOW = /LM Studio|Z Work Studio|Work Studio|Visual Studio Code/;
 
 const MIGRATION_FILES = new Set(["storageMigration.ts", "storageMigration.test.ts"]);
 

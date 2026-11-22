@@ -2,6 +2,16 @@
 
 ## 下一版本（Unreleased）
 
+### Zeta 1.5.13 热修候选
+
+- Serve 与 TUI 分家：serve 作为机器级长期后台进程，由安装形态和 autostart 管理；`zetacode` TUI 每次启动仍是独立本地进程，不启动、不探测、不接管 serve；只有显式 attach/backend URL 或 print/protocol 的 backend mode 才连接已有服务。
+- Settings：移除顶层 Runtime tab；身份与 IM 作为 Interaction 下已有入口的子页面；默认打开正常设置页；emoji 保持每个 tab 一个。
+- Web 侧栏：项目名显式左对齐，不再继承按钮默认的居中文字。
+- 模型快捷栏：More Models 增加模型可见性入口，可按 exact `provider/model` 隐藏，不按 provider 整体隐藏。
+- Windows 桌面安装器在每次安装/更新时修复开始菜单与桌面快捷方式的 AppUserModelID，使任务栏能关联运行窗口与 Zeta 图标。
+- 发布说明生成顺序改为摘要优先，技术 traceability 折叠到末尾；1.5.13 不再沿用 1.5.12 的错误自动启动 Host 描述。
+- Rust Pi 保持 `rpi` 名称；本轮只整理公开资产、安装链接、来源仓库和 MIT/Zeta 维护说明，发布仍暂缓。
+
 ### Zeta 1.5.12 发布候选
 
 - 单一 Host：`zetacode` 普通启动与 `zetacode web` 复用同一个共享 Host；不同版本的活动实例被拒绝接管，不再静默杀旧进程。跨进程 smoke 覆盖两个独立 CLI 进程和 Desktop 的同一 `serve.json` 复用/版本冲突语义。

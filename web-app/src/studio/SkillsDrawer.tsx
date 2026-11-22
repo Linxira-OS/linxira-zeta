@@ -224,9 +224,10 @@ export function SkillsDrawer({
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<DrawerCat>("all");
   const [collapsed, setCollapsed] = useState<Set<GroupKey>>(() => new Set());
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const { preview } = usePreviewMode();
-  const [items, setItems] = useState<DrawerItem[]>(() => preview ? createPreviewDrawerItems() : []);
+  const [items, setItems] = useState<DrawerItem[]>(() => preview ? createPreviewDrawerItems(zh) : []);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [slots, setSlots] = useState<FilterSlot[]>([]);
   const [filterEpoch, setFilterEpoch] = useState(0);
@@ -235,9 +236,23 @@ export function SkillsDrawer({
   const epochAppliedRef = useRef(0);
   slotsRef.current = slots;
 
+  const refreshEpoch = useRef(0);
+  const wasOpenRef = useRef(open);
+  const retryTimersRef = useRef(new Set<number>());
+
+  useEffect(() => {
+    const timers = retryTimersRef.current;
+    return () => {
+      refreshEpoch.current += 1;
+      for (const timer of timers) window.clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
+    const epoch = ++refreshEpoch.current;
     if (preview) {
-      setItems(createPreviewDrawerItems());
+      setItems(createPreviewDrawerItems(zh));
       setLoadError(null);
       return;
     }
@@ -246,18 +261,21 @@ export function SkillsDrawer({
       setItems(toDrawerItems(next));
       setLoadError(next.unavailableReason ?? null);
     } catch (error) {
+      if (epoch !== refreshEpoch.current) return;
       const message = error instanceof Error ? error.message : "skills.get failed";
       setItems([]);
       setLoadError(message);
     }
-  }, [client, preview, runtimeSessionId]);
+  }, [client, preview, runtimeSessionId, zh]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (open && !preview) void refresh();
+    const openedNow = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (openedNow && !preview) void refresh();
   }, [open, preview, refresh]);
 
   const skillAdded = (item: DrawerItem): boolean => {
@@ -378,9 +396,11 @@ export function SkillsDrawer({
   const retryItem = (item: DrawerItem) => {
     if (!preview || item.retrying) return;
     patchItem(item, { retrying: true });
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      retryTimersRef.current.delete(timer);
       patchItem(item, { retrying: false });
     }, 1600);
+    retryTimersRef.current.add(timer);
   };
 
   const toggleItem = (item: DrawerItem) => {

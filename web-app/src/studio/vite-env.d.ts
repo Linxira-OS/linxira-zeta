@@ -33,21 +33,22 @@ declare global {
   type StudioArtifactFileResult = { ok: true; cancelled: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; storage?: import("@linxiraos/studio-protocol").ArtifactStorageState } | { ok: false; message: string };
 
   var zetaStudioPerf: import("./perf/tierControl").TierControlSource | undefined;
-  var zetaStudioChrome:
-    | (Partial<import("./composer/dictation-audio-shared").DictationAudioApi> & {
+  var zetaStudioChrome: (
+    Partial<import("./composer/dictation-audio-shared").DictationAudioApi> & {
+        setLanguage?(language: "en" | "zh"): void | Promise<void>;
         files?: import("./files/file-viewer-shared").FileViewerDesktopApi;
         prepareFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowPrepare): Promise<import("./dock/floating-windows-shared").FloatWindowTicket>;
         controlFloatWindow?(input: import("./dock/floating-windows-shared").FloatWindowControl): Promise<void>;
         onFloatWindow?(listener: (event: import("./dock/floating-windows-shared").FloatWindowEvent) => void): () => void;
         revealSkillshareToken?(input: { secretId: string; sessionId: string }): Promise<{ ok: boolean; token?: string; name?: string; message?: string }>;
         attachLiveAudio?(input: { audioId: string; sessionId: string }): Promise<{ ok: boolean; message?: string }>;
-        attachPrediction?(input: import("@linxiraos/studio-protocol").PredictionChannel): Promise<{ok:boolean;message?:string}>;
-        predictionInput?(input:{channelId:string;input:Exclude<import("@linxiraos/studio-protocol").PredictionInput,{kind:"import"}>}):Promise<{ok:boolean;message?:string}>;
+        attachPrediction?(input: import("@linxiraos/studio-protocol").PredictionChannel): Promise<{ok:boolean;message?:string;channelLost?:true}>;
+        predictionInput?(input:{channelId:string;input:Exclude<import("@linxiraos/studio-protocol").PredictionInput,{kind:"import"}>}):Promise<{ok:boolean;message?:string;channelLost?:true}>;
         detachPrediction?(input:{channelId:string}):Promise<{ok:boolean;message?:string}>;
         importPredictionHistory?(input:{channelId:string}):Promise<{ok:boolean;cancelled?:boolean;message?:string;count?:number;truncated?:boolean}>;
         onPrediction?(listener:(event:import("@linxiraos/studio-protocol").PredictionEvent)=>void):()=>void;
         managedBrowser?: import("@linxiraos/studio-protocol").ManagedBrowserApi;
-        attachBrowserObservation?(input: { observationId: string; sessionId: string; tabId: string }): Promise<{ ok: boolean; message?: string }>;
+        attachBrowserObservation?(input: { observationId: string; sessionId: string; tabId: string; generation?: string }): Promise<{ ok: boolean; message?: string }>;
         readComputerCapture?(input: { captureId: string; sessionId: string; targetId: string }): Promise<{ ok: true; data: ArrayBuffer; width: number; height: number } | { ok: false; message: string }>;
         adoptComputerView?(input: { scopeSessionId: string; leaseId: string; origin: "local" }): Promise<{ ok: true } | { ok: false; message: string }>;
         releaseComputerView?(input: { scopeSessionId: string; leaseId: string; origin: "local" }): Promise<{ ok: true } | { ok: false; message: string }>;
@@ -87,7 +88,7 @@ declare global {
         requestMicrophoneAccess?(): Promise<"granted" | "denied">;
         /** Opens System Settings › Privacy & Security › Microphone (macOS only). */
         openMicrophoneSettings?(): Promise<boolean>;
-        /** App 级系统通知（固定文案；非 Host / Studio Bridge 面）。 */
+        /** App 级系统通知（固定文案；非 Host / Z Work Studio Bridge 面）。 */
         notify(payload: { title: string; body?: string }): Promise<void>;
         /** 用系统默认浏览器打开 https 链接（Main `shell.openExternal`，不是 Electron 窗）。 */
         openUrl(payload: { url: string }): Promise<void>;
@@ -139,6 +140,9 @@ declare global {
         >;
         /** 用系统默认关联程序打开工作区文件（Main 解析绝对路径并校验）。 */
         openFile(input: WorkspaceFileTargetInput): Promise<WorkspaceFileActionResult>;
+        systemFileOpen(input: { readonly path: string }): Promise<WorkspaceFileActionResult>;
+        systemFileOpenWith(input: { readonly path: string; readonly openerId: "vscode" | "cursor" | "windsurf" | "choose" }): Promise<WorkspaceFileActionResult>;
+        systemFileReveal(input: { readonly path: string }): Promise<WorkspaceFileActionResult>;
         /** 用所选编辑器 / 系统「打开方式」打开文件或目录。 */
         openFileWith(
           input: WorkspaceFileTargetInput & { readonly openerId: "vscode" | "cursor" | "windsurf" | "choose" },
@@ -279,7 +283,7 @@ declare global {
     | undefined;
 
   /**
-   * Desktop-chrome local shell (not Host / Studio Bridge). Present only
+   * Desktop-chrome local shell (not Host / Z Work Studio Bridge). Present only
    * when the Electron preload exposed `zetaStudioTerminal`.
    */
   var zetaStudioTerminal:
@@ -297,6 +301,12 @@ declare global {
         onExit(listener: (event: { id: string }) => void): () => void;
         /** Flow control: bytes written to xterm. Absent on an older preload. */
         ack?(id: string, bytes: number): void;
+        /** Desktop tmux control client; absent in browser-only installs. */
+        tmuxSessions?(input: import("../../../desktop/src/terminal-shared").TmuxSessionsInput): Promise<import("../../../desktop/src/terminal-shared").TmuxSessionsResult>;
+        tmuxAttach?(input: import("../../../desktop/src/terminal-shared").TmuxAttachInput): Promise<import("../../../desktop/src/terminal-shared").TmuxAttachResult>;
+        tmuxCommand?(input: import("../../../desktop/src/terminal-shared").TmuxCommandInput): Promise<void>;
+        tmuxDetach?(connectionId: string): Promise<void>;
+        onTmux?(listener: (topology: import("../../../desktop/src/terminal-shared").TmuxTopology) => void): () => void;
       }
     | undefined;
 }

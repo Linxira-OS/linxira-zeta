@@ -6,7 +6,7 @@ import { LIVE_AUDIO_VOICES, type LiveAudioResultMap, type LiveAudioState, type L
 import { WorkspaceStatus } from "../workspaces/Workspace";
 import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_LIVE_AUDIO } from "../preview/liveAudioPreview";
+import { getPreviewLiveAudio } from "../preview/liveAudioPreview";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { openLiveCapture } from "./liveCapture";
 import { MicrophoneDeniedError, MicrophoneSettingsButton, ensureMicrophoneAccess } from "./microphoneAccess";
@@ -17,6 +17,7 @@ export function LiveAudioPane({ client, sessionId, available, visible = true, re
   const [state, setState] = useState<LiveAudioState>(); const [voice, setVoice] = useState("sol"); const [device, setDevice] = useState(""); const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [review, setReview] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [micDenied, setMicDenied] = useState(false);
   const generation = useRef(0); const lock = useRef(false); const capture = useRef<{ stop(): void; setMuted?(muted: boolean): void } | undefined>(undefined); const abort = useRef<AbortController | undefined>(undefined); const audioId = useRef<string | undefined>(undefined); const confirm = useRef<HTMLButtonElement>(null);
+  const zhRef = useRef(zh); zhRef.current = zh;
   const desktop = !remote && !!globalThis.zetaStudioChrome?.attachLiveAudio && !!navigator.mediaDevices?.getUserMedia;
   const useWebRtc = !desktop;
   const enabled = visible && (preview || ((desktop || webrtcAvailable && typeof RTCPeerConnection === "function" && !!navigator.mediaDevices?.getUserMedia) && available && !!sessionId));
@@ -36,26 +37,59 @@ export function LiveAudioPane({ client, sessionId, available, visible = true, re
     if (id && sessionId && !useWebRtc) void invoke("live.audio.release", { sessionId, audioId: id }).catch(() => {});
   }, [invoke, sessionId, useWebRtc]);
   useEffect(() => {
-    const epoch = ++generation.current; lock.current = false; setBusy(false); setError(""); setReview(false); setState(preview ? PREVIEW_LIVE_AUDIO : undefined);
-    let alive = true; let timer: ReturnType<typeof setTimeout>;
+    if (!preview) return;
+    const localized = getPreviewLiveAudio(zh);
+    setState(previous => previous ? { ...localized, voice: previous.voice, phase: previous.phase, attached: previous.attached, muted: previous.muted, inputLevel: previous.inputLevel, outputLevel: previous.outputLevel } : localized);
+  }, [preview, zh]);
+  useEffect(() => {
+    generation.current++; lock.current = false; setBusy(false); setError(""); setReview(false); setState(preview ? getPreviewLiveAudio(zhRef.current) : undefined);
+    let alive = true;
     const hide = () => { if (document.hidden) { generation.current++; lock.current = false; setBusy(false); release(); setReview(false); setState(previous => previous ? { ...previous, phase: "off", attached: false, inputLevel: 0, outputLevel: 0 } : previous); } };
     document.addEventListener("visibilitychange", hide);
+    if (!preview && enabled && sessionId && !document.hidden) {
+      void invoke("live.audio.status", { sessionId })
+        .then(next => {
+          if (alive && !lock.current) {
+            setState(next);
+            if (capture.current && (!next.attached || ["off", "error"].includes(next.phase))) release();
+          }
+        })
+        .catch(cause => {
+          if (alive) { release(); setError(hostErrorMessage(cause, "Live disconnected")); }
+        });
+    }
+    return () => { alive = false; generation.current++; document.removeEventListener("visibilitychange", hide); release(); };
+  }, [preview, enabled, sessionId, invoke, release, visible]);
+  useEffect(() => {
+    if (preview || !enabled || !active || !sessionId) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
       try {
         if (!document.hidden) {
-          const next = await invoke("live.audio.status", { sessionId: sessionId! });
-          if (alive && !lock.current) { setState(next); if (capture.current && (!next.attached || ["off", "error"].includes(next.phase))) release(); }
+          const next = await invoke("live.audio.status", { sessionId });
+          if (!alive) return;
+          if (!lock.current) {
+            setState(next);
+            if (!next.attached || ["off", "error"].includes(next.phase)) {
+              if (capture.current) release();
+              return;
+            }
+          }
         }
-      } catch (cause) { if (alive) { release(); setError(hostErrorMessage(cause, "Live disconnected")); } }
-      finally { if (alive) timer = setTimeout(() => void poll(), 1000); }
+      } catch (cause) {
+        if (alive) { release(); setError(hostErrorMessage(cause, "Live disconnected")); }
+        return;
+      }
+      if (alive && !document.hidden) timer = setTimeout(() => void poll(), 1000);
     };
-    if (!preview && enabled) void poll();
-    return () => { alive = false; generation.current++; clearTimeout(timer); document.removeEventListener("visibilitychange", hide); release(); };
-  }, [preview, enabled, sessionId, invoke, release, visible]);
+    timer = setTimeout(() => void poll(), 1000);
+    return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
+  }, [preview, enabled, active, sessionId, invoke, release]);
   useEffect(() => { if (review) confirm.current?.focus(); }, [review]);
   const start = async () => {
     if (lock.current || !enabled) return; const epoch = generation.current; lock.current = true; setBusy(true); setError("");
-    if (preview) { setState({ ...PREVIEW_LIVE_AUDIO, voice, phase: "listening", attached: true, inputLevel: 0.2 }); setReview(false); setBusy(false); lock.current = false; return; }
+    if (preview) { setState({ ...getPreviewLiveAudio(zh), voice, phase: "listening", attached: true, inputLevel: 0.2 }); setReview(false); setBusy(false); lock.current = false; return; }
     const access = ensureMicrophoneAccess(zh);
     if (access) {
       try { await access; setMicDenied(false); }

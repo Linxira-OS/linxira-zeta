@@ -11,7 +11,9 @@ import "./dock/menus.css";
 import "./dock/integration.css";
 import { ExecutionTargets, useExecutionTarget, useTargetMemory } from "./workspaces/ExecutionTargets";
 import { RemoteScopeNotice } from "./workspaces/RemoteScopeNotice";
+import { LuxAmbient } from "./lux/LuxAmbient";
 import { modelConfigHasUnsavedChanges } from "./models/modelConfigState";
+import { EMBED_SET_ROUTE_EVENT, WEBSITE_EMBED_SOURCE, consumePendingEmbedRoute, isEmbedMode, postEmbedMessage, setCurrentEmbedRoute } from "./embed/websiteEmbed";
 import { conversationViewLeases } from "./conversation/conversationViews";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ConversationWidthProvider } from "./settings/ConversationWidthContext";
@@ -54,7 +56,7 @@ export { AppSidebar } from "./sidebar/AppSidebar";
 
 export function App({ client }: { readonly client: StudioClient }) {
   const contexts = client.supportsContexts === true || (client.supportsContexts === undefined && client.openContext !== undefined);
-  return <PreviewModeProvider><FileCloseDialog /><ConversationWidthProvider><I18nProvider><WindowControls /><TerminalSessionsProvider>{contexts ? <ExecutionTargets client={client}>{active => <ConversationWorkspace client={active} renderDocument={renderConversationDocument} />}</ExecutionTargets> : <LegacyWorkbench client={client} />}</TerminalSessionsProvider></I18nProvider></ConversationWidthProvider></PreviewModeProvider>;
+  return <PreviewModeProvider><FileCloseDialog /><ConversationWidthProvider><I18nProvider><LuxAmbient /><WindowControls /><TerminalSessionsProvider>{contexts ? <ExecutionTargets client={client}>{active => <ConversationWorkspace client={active} renderDocument={renderConversationDocument} />}</ExecutionTargets> : <LegacyWorkbench client={client} />}</TerminalSessionsProvider></I18nProvider></ConversationWidthProvider></PreviewModeProvider>;
 }
 
 function renderConversationDocument(client: StudioClient) { return <TargetApp client={client} />; }
@@ -66,7 +68,12 @@ function LegacyWorkbench({ client }: { client: StudioClient }) {
 
 function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const mdi = useConversationView();
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const tRef = useRef(t);
+  tRef.current = t;
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
   const client = inputClient as ClientStateSource;
   const executionTarget = useExecutionTarget();
   const connectionStatus = executionTarget.inventory.statuses.find(status => status.id === executionTarget.id)?.state;
@@ -78,7 +85,7 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
     previousConnectionStatus.current = connectionStatus;
     if (connectionStatus !== "connected") {
       if (connectionStatus === "synchronizing" || connectionStatus === previousStatus) return;
-      (client as StudioClient & { transportLost?(reason: string): void }).transportLost?.("SSH 连接已中断；保留对话与草稿，等待重新同步。");
+      (client as StudioClient & { transportLost?(reason: string): void }).transportLost?.(zhRef.current ? "SSH 连接已中断；保留对话与草稿，等待重新同步。" : "SSH connection lost; keeping conversation and drafts while waiting to resync.");
       return;
     }
     if (connectionRevision.current !== executionTarget.syncRevision) {
@@ -114,24 +121,58 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const pluginSessionId = selectedHistoryId === null
     ? state.clientState?.entities.snapshot?.sessionId
     : state.model.history?.entries.find(entry => entry.historyId === selectedHistoryId)?.sessionId;
+  const embed = isEmbedMode();
   const routeRef = useRef(route);
   routeRef.current = route;
+  const hostRouteRef = useRef<Route | null>(null);
+  const reportedRouteRef = useRef<Route>(route);
+  useEffect(() => {
+    if (!embed) return;
+    setCurrentEmbedRoute(route);
+    if (reportedRouteRef.current === route) return;
+    reportedRouteRef.current = route;
+    if (hostRouteRef.current === route) {
+      hostRouteRef.current = null;
+      return;
+    }
+    hostRouteRef.current = null;
+    postEmbedMessage({ source: WEBSITE_EMBED_SOURCE, type: "route-changed", route });
+  }, [embed, route]);
+  useEffect(() => {
+    if (!embed) return;
+    const apply = (next: Route) => {
+      if (next === routeRef.current) return;
+      hostRouteRef.current = next;
+      routeRef.current = next;
+      setRoute(next);
+    };
+    const pending = consumePendingEmbedRoute();
+    if (pending !== null) apply(pending);
+    const onSetRoute = (event: Event) => {
+      consumePendingEmbedRoute();
+      const next = (event as CustomEvent<{ route: Route }>).detail?.route;
+      if (next) apply(next);
+    };
+    window.addEventListener(EMBED_SET_ROUTE_EVENT, onSetRoute);
+    return () => window.removeEventListener(EMBED_SET_ROUTE_EVENT, onSetRoute);
+  }, [embed, setRoute]);
   const navigate = useCallback((next: Route) => {
-    if (next !== routeRef.current && modelConfigHasUnsavedChanges() && !window.confirm("有未保存的模型配置更改，确定离开吗？")) return false;
+    if (!embed && next !== routeRef.current && modelConfigHasUnsavedChanges() && !window.confirm(zhRef.current ? "有未保存的模型配置更改，确定离开吗？" : "You have unsaved model configuration changes. Leave anyway?")) return false;
+    hostRouteRef.current = null;
     routeRef.current = next;
     setRoute(next);
     return true;
-  }, [setRoute]);
+  }, [embed, setRoute]);
   const changeHistory = useCallback((history: SessionHistoryReadModel) => dispatch({ type: "model", model: { history } }), []);
   const changeWorkspaces = useCallback((workspaces: WorkspaceListReadModel) => dispatch({ type: "model", model: { workspaces } }), []);
   const selectHistory = useCallback((entry: SessionHistoryEntry) => { if (navigate("workbench")) setSelectedHistoryId(entry.historyId); }, [setSelectedHistoryId, navigate]);
   const newThread = useCallback(() => setSelectedHistoryId(null), [setSelectedHistoryId]);
-  const modelLoader = useMemo(() => createShellModelLoader(client), [client]);
+  const modelLoader = useMemo(() => createShellModelLoader(client, { coalesce: true }), [client]);
 
   useEffect(() => {
     let cancelled = false;
     const offEvent = client.subscribe({ scope: "all" }, (event) => {
-      if (!mdi?.store.demo || mdi.active) notifyFromEvent(event, t);
+      if (!mdi?.store.demo && (!mdi || mdi.active)) notifyFromEvent(event, tRef.current);
       if (!cancelled && shouldRecordShellEvent(event)) dispatch({ type: "event", event });
     });
     let lastShell: ClientState | undefined;
@@ -178,8 +219,8 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const workspaceScope = `${authorityScope}:${workspaceId ?? "none"}`;
   const environmentScope = `${authorityScope}:${runtimeConnection?.runtimeVersion ?? "none"}:${runtimeConnection?.upstreamCommit ?? "none"}:${runtimeStatus === "connected" ? "connected" : "unavailable"}`;
   const runtimeScope = `${environmentScope}:${runtimeConnection?.runtimeId ?? "none"}:${runtimeEpoch ?? "none"}`;
-  const modelScope = `${workspaceScope}:${runtimeScope}`;
-  const modelLoadScope = useMemo(() => ({ authority: authorityScope, workspace: workspaceScope, runtime: runtimeScope, environment: environmentScope, workspaceId, connecting: runtimeStatus === "connecting" }), [authorityScope, workspaceScope, runtimeScope, environmentScope, workspaceId, runtimeStatus]);
+  const modelScope = `${workspaceScope}:${runtimeScope}:${resolvedLanguage}`;
+  const modelLoadScope = useMemo(() => ({ authority: authorityScope, workspace: workspaceScope, runtime: runtimeScope, environment: environmentScope, locale: resolvedLanguage, workspaceId, connecting: runtimeStatus === "connecting" }), [authorityScope, workspaceScope, runtimeScope, environmentScope, resolvedLanguage, workspaceId, runtimeStatus]);
   useEffect(() => {
     if (state.loading || state.hostError) return;
     let cancelled = false;
@@ -231,8 +272,8 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
       <div className="main-col">
         <div className="empty" style={{ flex: 1, justifyContent: "center" }}>
           <span className="spinner" />
-          <h1>Connecting</h1>
-          <p className="muted">Requesting bootstrap…</p>
+          <h1>{zh ? "正在连接" : "Connecting"}</h1>
+          <p className="muted">{zh ? "正在请求启动数据…" : "Requesting bootstrap…"}</p>
         </div>
       </div>
     </div>
@@ -242,7 +283,7 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
       <div className="main-col">
         <div className="empty" style={{ flex: 1, justifyContent: "center" }}>
           <Icon name="alert" extra="lg" />
-          <h1>Bootstrap failed</h1>
+          <h1>{zh ? "启动失败" : "Bootstrap failed"}</h1>
           <p><span className="mono">{state.error.code}</span> {state.error.message}</p>
         </div>
       </div>
@@ -274,7 +315,6 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
         <RemoteScopeNotice />
         <AuthStepUpBoundary><ShellReadinessContext.Provider value={!state.loading}>{body}</ShellReadinessContext.Provider></AuthStepUpBoundary>
         {(!mdi || mdi.active) ? <OnboardingHost /> : null}
-        <TipHost />
     </>
   );
 }

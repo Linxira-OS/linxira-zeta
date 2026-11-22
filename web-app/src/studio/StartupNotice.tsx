@@ -7,8 +7,7 @@ import { usePreviewMode } from "./preview/PreviewContext";
 import {
   PROJECT_GITHUB_HOST,
   PROJECT_GITHUB_URL,
-  STARTUP_NOTICE_COPY,
-  dismissStartupNoticeForSession,
+  getStartupNoticeCopy,
   dismissStartupNoticeForever,
   shouldShowStartupNotice,
 } from "./settings/startupNotice";
@@ -20,8 +19,8 @@ export function StartupNoticeDialog({
   readonly onClose: () => void;
   readonly onDontRemind: () => void;
 }): ReactNode {
-  const copy = STARTUP_NOTICE_COPY;
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const copy = getStartupNoticeCopy(resolvedLanguage === "zh");
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -120,10 +119,7 @@ export function StartupNoticeDialog({
 export function StartupNotice(): ReactNode {
   const { marks } = usePreviewMode();
   const [open, setOpen] = useState(shouldShowStartupNotice);
-  const close = useCallback(() => {
-    dismissStartupNoticeForSession();
-    setOpen(false);
-  }, []);
+  const close = useCallback(() => setOpen(false), []);
   const dontRemind = useCallback(() => {
     dismissStartupNoticeForever();
     setOpen(false);

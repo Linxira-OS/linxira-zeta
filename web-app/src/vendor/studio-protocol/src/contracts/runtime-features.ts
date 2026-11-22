@@ -25,7 +25,12 @@ export interface JobWidgetView {
 }
 
 /** Upstream `AsyncJobInspection` for one job. */
+import type { StudioTaskStepState } from "./agents-jobs.js";
+import type { JobActionsView } from "./job-actions.js";
+
 export interface JobInspection {
+  actions?: JobActionsView;
+  taskSteps?: StudioTaskStepState;
   purpose?: string;
   caption?: string;
   jobId: string;
@@ -52,7 +57,7 @@ export interface McpAuthResult {
 
 export type RuntimeFeatureOperation =
   | { kind: "agent.spawn.options"; sessionId: string; definition: string }
-  | { kind: "btw.inject"; sessionId: string; injectId: string }
+  | { kind: "btw.inject"; sessionId: string; injectId?: string; text?: string }
   | { kind: "session.history.rename"; sessionId: string; targetSessionId: string; title: string }
   | { kind: "session.history.pin"; sessionId: string; targetSessionId: string; pinned: boolean }
   | { kind: "session.lease.inspect"; sessionId: string; targetSessionIds: string[] }
@@ -62,7 +67,7 @@ export type RuntimeFeatureOperation =
   | { kind: "mcp.auth.unauth"; sessionId: string; name: string }
   | { kind: "mcp.auth.reconnect"; sessionId: string; name: string };
 export interface RuntimeFeatureResultMap {
-  "agent.spawn.options": { fileEnabled: boolean; modelSelection: boolean; maxEffort: string; models: Array<{ selector: string; name: string; thinkingLevels: readonly string[] }> };
+  "agent.spawn.options": { stepsAdvertised: boolean; autoParallel: "off" | "suggest" | "on"; effortSelection: boolean; modelSelection: boolean; maxEffort: string; models: Array<{ selector: string; name: string; thinkingLevels: readonly string[] }> };
   "btw.inject": { sent: true };
   "session.history.rename": { targetSessionId: string; title: string };
   "session.history.pin": { targetSessionId: string; pinned: boolean };

@@ -49,6 +49,7 @@ import { usePreviewMode } from "../preview/PreviewContext";
 import { BackgroundProvider } from "../background/BackgroundProvider";
 import { AppBackgroundLayer } from "../background/AppBackgroundLayer";
 import { useAppSettings } from "../settings/appSettings";
+import { notifyInternalThemeIfChanged } from "../embed/websiteEmbed";
 import { applyTheme } from "../themeTransition";
 import { desktopNotice } from "../settings/desktopNotice";
 import { openOnboardingTour } from "../onboarding/onboardingState";
@@ -508,7 +509,6 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     client,
     preview: previewMode.preview,
     previewQuestion: PREVIEW_BTW_QUESTION,
-    mainStreaming: !previewMode.preview && snapshot?.isStreaming === true,
     canCommand: snapshot !== undefined && runtime?.status === "connected",
     onBranched: async (sessionId) => {
       await btwOnBranchedRef.current(sessionId);
@@ -733,6 +733,14 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
       setSelectedProject(null);
     }
   }, [expandProject, expandedProjects, expandedProjectsMemory, loadProjectHistory, previewMode.preview, previewProjectId, state.model.workspaces]);
+
+  const previousEmbedTheme = useRef(appSettings.theme);
+  useEffect(() => {
+    if (previousEmbedTheme.current === appSettings.theme) return;
+    const previous = previousEmbedTheme.current;
+    previousEmbedTheme.current = appSettings.theme;
+    notifyInternalThemeIfChanged(appSettings.theme, previous);
+  }, [appSettings.theme]);
 
   useEffect(() => {
     if (mdi && !mdi.active) return;
@@ -1235,7 +1243,7 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
     for (const id of sessionTitleRefreshTimers.current) window.clearTimeout(id);
   }, []);
 
-  /** 真实模式「归档」：session.archive 把会话移入 OMP 冷归档（gzip）。
+  /** 真实模式「归档」：session.archive 把会话移入 Zeta 冷归档（gzip）。
       进行中的会话由 Host 先 abort / 切走 Runtime，再移文件。
       归档的是当前选中会话时回到新对话视图。仅由确认弹窗调用。 */
   const archiveThread = async (entry: SessionHistoryEntry, workspaceId?: WorkspaceId): Promise<boolean> => {

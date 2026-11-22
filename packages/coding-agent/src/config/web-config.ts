@@ -162,7 +162,9 @@ export interface WebConfigData {
 }
 
 const DEFAULT_DATA: WebConfigData = {
-	tray: { minimizeToTray: true, autostart: false },
+	// Desktop installs own the login item; the npm form cannot install one.
+	// The Desktop app reads this preference and applies it to the OS.
+	tray: { minimizeToTray: true, autostart: true },
 	channels: { instances: [] },
 	imAgents: [],
 	remote: {},

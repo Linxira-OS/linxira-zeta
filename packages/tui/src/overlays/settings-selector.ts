@@ -67,7 +67,7 @@ import { sameItems } from "../native/memo";
 import type { KeyName } from "../key-hint-format";
 import { tuiText } from "../i18n";
 
-type SettingsPanel = SettingTab | "plugins" | "runtime";
+type SettingsPanel = SettingTab | "plugins";
 
 /** The native page id of the plugins tab. */
 const PLUGINS_PAGE = "plugins";
@@ -552,9 +552,8 @@ function settingsSidebarWidth(entries: readonly SettingsDisplayEntry[]): number 
 	return Math.min(22, nameWidth) + 4;
 }
 
-function getSettingsTabs(runtime = false): Tab[] {
+function getSettingsTabs(): Tab[] {
 	return [
-		...(runtime ? [{ id: "runtime", label: tuiText("ssTabRuntime", "Runtime"), short: "R" }] : []),
 		...SETTING_TABS.map(id => {
 			const meta = TAB_METADATA[id];
 			const icon = theme.symbol(meta.icon);
@@ -687,7 +686,7 @@ export class SettingsSelectorComponent implements Component {
 		this.#sidebarWidth = settingsSidebarWidth(context.settings.entries);
 		// No label prefix (the frame title already says Settings) and no
 		// "(tab to cycle)" hint (folded into the footer hint line).
-		const tabs = getSettingsTabs(Boolean(context.runtimePages?.length));
+		const tabs = getSettingsTabs();
 		this.#tabs = tabs;
 		this.#tabBar = new TabBar("", tabs, getTabBarTheme());
 		this.#tabBar.showHint = false;
@@ -702,7 +701,7 @@ export class SettingsSelectorComponent implements Component {
 			this.#switchToTab(tabId);
 		};
 
-		const initial = context.runtimePages?.length ? "runtime" : "appearance";
+		const initial = "appearance";
 		this.#tabBar.setActiveById(initial);
 		this.#switchToTab(initial);
 	}
@@ -731,6 +730,7 @@ export class SettingsSelectorComponent implements Component {
 	openRuntimePage(id: string, onBack?: () => void): void {
 		const page = this.#context.runtimePages?.find(candidate => candidate.id === id);
 		if (!page) return;
+		if (this.#currentTabId !== "interaction") this.#switchToTab("interaction");
 		if (this.#searchList) this.#endSearch(false);
 		this.#runtimePage?.dispose?.();
 		this.#runtimeReturn = onBack ?? this.#runtimeReturn;
@@ -906,16 +906,13 @@ export class SettingsSelectorComponent implements Component {
 		const entries = this.#context.settings.entries;
 		const plugins = this.#currentTabId === "plugins" ? this.#pluginComponent : null;
 		const pluginPage = plugins?.prefsPage();
-		const tab = this.#currentTabId === "plugins" || this.#currentTabId === "runtime" ? undefined : this.#currentTabId;
+		const tab = this.#currentTabId === "plugins" ? undefined : this.#currentTabId;
 
 		const pages: TspPrefsProps["pages"][number][] = SETTING_TABS.map(id => {
 			const changed = this.#changedCount(id);
 			return { id, label: TAB_METADATA[id].label, icon: id, changed: changed > 0 ? changed : undefined };
 		});
 		pages.push({ id: PLUGINS_PAGE, label: "Installed", icon: "plugins", group: "Plugins" });
-		if (this.#context.runtimePages?.length)
-			pages.unshift({ id: "runtime", label: tuiText("ssTabRuntime", "Runtime") });
-
 		let focus: string | null = null;
 		let editing: TspPrefsProps["editing"] = null;
 		if (pluginPage) {
@@ -1290,11 +1287,7 @@ export class SettingsSelectorComponent implements Component {
 			this.#searchCorpora = null;
 			this.#setSearchQuery(this.#searchQuery);
 		} else if (this.#currentTabId !== "plugins")
-			this.#refreshCurrentTabItems(
-				this.#currentTabId === "runtime"
-					? []
-					: getSettingsForTab(this.#context.settings.entries, this.#currentTabId),
-			);
+			this.#refreshCurrentTabItems(getSettingsForTab(this.#context.settings.entries, this.#currentTabId));
 	}
 
 	/**
@@ -1587,7 +1580,7 @@ export class SettingsSelectorComponent implements Component {
 		this.#searchCorpora = null;
 		this.#searchFirstMatch.clear();
 		this.#searchMatchCount = 0;
-		this.#tabs = getSettingsTabs(Boolean(this.#context.runtimePages?.length));
+		this.#tabs = getSettingsTabs();
 		this.#tabBar.setTabs(this.#tabs, targetTab);
 		this.#switchToTab(targetTab);
 		if (selectedDef) {
@@ -2000,13 +1993,10 @@ export class SettingsSelectorComponent implements Component {
 	/**
 	 * Show a settings tab using definitions.
 	 */
-	#showSettingsTab(tabId: SettingTab | "runtime"): void {
-		const defs = tabId === "runtime" ? [] : getSettingsForTab(this.#context.settings.entries, tabId);
+	#showSettingsTab(tabId: SettingTab): void {
+		const defs = getSettingsForTab(this.#context.settings.entries, tabId);
 
-		const items = [
-			...(tabId === "runtime" || tabId === "interaction" ? this.#runtimeItems() : []),
-			...this.#buildItemsForDefs(defs),
-		];
+		const items = [...(tabId === "interaction" ? this.#runtimeItems() : []), ...this.#buildItemsForDefs(defs)];
 		// Mirror SettingsList's section detection (leading ungrouped items form
 		// an implicit section) so the footer hint only advertises PgUp/PgDn
 		// when the jump actually changes sections.
@@ -2088,7 +2078,7 @@ export class SettingsSelectorComponent implements Component {
 		if (this.#currentTabId === "plugins" || !this.#currentList) return;
 		this.#prefsRevision += 1;
 		this.#currentList.setItems([
-			...(this.#currentTabId === "runtime" || this.#currentTabId === "interaction" ? this.#runtimeItems() : []),
+			...(this.#currentTabId === "interaction" ? this.#runtimeItems() : []),
 			...this.#buildItemsForDefs(defs),
 		]);
 	}

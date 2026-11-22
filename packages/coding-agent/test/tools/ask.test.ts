@@ -109,6 +109,45 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
+const PLAN_CONSENT_FORM = `<form><p>Enter plan mode?</p><label><input type="radio" name="plan_mode" value="yes"> Yes</label><label><input type="radio" name="plan_mode" value="no"> No</label></form>`;
+
+describe("AskTool plan-mode consent", () => {
+	it("records a one-shot consent only when the user selects the visible plan_mode yes option", async () => {
+		const record = vi.fn();
+		const session = createSession({ recordPlanModeConsent: record });
+		const result = await new AskTool(session).execute(
+			"call-plan-consent",
+			{ html: PLAN_CONSENT_FORM },
+			undefined,
+			undefined,
+			createContext({ formDialog: async () => ({ data: { plan_mode: "yes" } }) }),
+		);
+		expect(record).toHaveBeenCalledTimes(1);
+
+		const denied = await new AskTool(createSession({ recordPlanModeConsent: record })).execute(
+			"call-plan-deny",
+			{ html: PLAN_CONSENT_FORM },
+			undefined,
+			undefined,
+			createContext({ formDialog: async () => ({ data: { plan_mode: "no" } }) }),
+		);
+		expect(denied.details).toMatchObject({ answers: [{ name: "plan_mode", answer: "No" }] });
+		expect(record).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not record consent for a timeout submit", async () => {
+		const record = vi.fn();
+		await new AskTool(createSession({ recordPlanModeConsent: record })).execute(
+			"call-plan-timeout",
+			{ html: PLAN_CONSENT_FORM },
+			undefined,
+			undefined,
+			createContext({ formDialog: async () => ({ data: { plan_mode: "yes" }, timedOut: true }) }),
+		);
+		expect(record).not.toHaveBeenCalled();
+	});
+});
+
 describe("AskTool form dialog", () => {
 	it("returns the submitted form data as JSON and each field's question and answer", async () => {
 		const formDialog = vi.fn<FormDialog>(async () => ({ data: { store: "redis", ttl: 7 } }));

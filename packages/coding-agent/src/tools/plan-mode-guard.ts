@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { InternalUrlRouter } from "../internal-urls";
+import { isLocalPlanArtifact } from "../plan-mode/plan-protection";
 import { sessionResolveContext } from "../internal-urls/context";
 import type { ToolSession } from ".";
 import { unwrapHashlineHeaderPath } from "./hashline-header-path";
@@ -98,7 +99,17 @@ export async function enforcePlanModeWrite(
 	options?: { move?: string; op?: "create" | "update" | "delete"; signal?: AbortSignal },
 ): Promise<void> {
 	const state = session.getPlanModeState?.();
-	if (!state?.enabled) return;
+	if (!state?.enabled) {
+		if (
+			isLocalPlanArtifact(targetPath) ||
+			(/[/\\][^/\\]+-plan\.md$/i.test(targetPath) && (await targetsLocalSandbox(session, targetPath)))
+		) {
+			throw new ToolError(
+				"Plan files can only be written while plan mode is active. Answer inline, or ask the user to run `/plan` first.",
+			);
+		}
+		return;
+	}
 
 	if (options?.move) {
 		throw new ToolError("Plan mode: renaming files is not allowed.");

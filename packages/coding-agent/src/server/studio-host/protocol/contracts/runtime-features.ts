@@ -83,7 +83,7 @@ export type RuntimeFeatureOperation =
 	| { kind: "mcp.auth.unauth"; sessionId: string; name: string }
 	| { kind: "mcp.auth.reconnect"; sessionId: string; name: string }
 	| { kind: "agent.spawn.options"; sessionId: string; definition: string }
-	| { kind: "btw.inject"; sessionId: string; injectId: string }
+	| { kind: "btw.inject"; sessionId: string; injectId?: string; text?: string }
 	| { kind: "session.history.rename"; sessionId: string; targetSessionId: string; title: string }
 	| { kind: "session.history.pin"; sessionId: string; targetSessionId: string; pinned: boolean };
 export interface RuntimeFeatureResultMap {

@@ -804,7 +804,7 @@ describe("backend mode setting", () => {
 		);
 
 		const projectOnly = await Settings.loadReadOnly({ agentDir, cwd: project });
-		expect(await readBackendEnabledSetting({ settings: projectOnly })).toBe(false);
+		expect(await readBackendEnabledSetting({ settings: projectOnly })).toBe(true);
 		expect(await readBackendWorkspaceSetting({ settings: projectOnly })).toBe("");
 
 		const writable = await Settings.loadIsolated({ agentDir, cwd: project });

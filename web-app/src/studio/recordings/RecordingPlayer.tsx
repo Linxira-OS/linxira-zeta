@@ -1,11 +1,11 @@
 import { AppSelect } from "../AppSelect";
+import { useSurfaceDocument } from "../dock/SurfaceContext";
 import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { applyTheme, readTerminalTypography, readXtermTheme } from "../terminalTheme";
 import { useAppSettings } from "../settings/appSettings";
 import { useI18n } from "../i18n";
-import { useSurfaceDocument } from "../dock/SurfaceContext";
 import type { StudioClient } from "@linxiraos/studio-contract";
 import { resolveArtifactUrl } from "../media/artifactUrl";
 import {
@@ -31,9 +31,9 @@ export function RecordingPlayer({
   targetId?: string | null | undefined;
   visible?: boolean;
 }) {
+  const document = useSurfaceDocument();
   const { resolvedLanguage } = useI18n();
   const { settings } = useAppSettings();
-  const document = useSurfaceDocument();
   const zh = resolvedLanguage === "zh";
   const [recording, setRecording] = useState<PlaybackRecording>();
   const [error, setError] = useState("");
@@ -184,26 +184,42 @@ export function RecordingPlayer({
     let frame = 0;
     const start = performance.now();
     const initial = position;
+    let lastCommitted = initial;
+    let latestAt = initial;
     const tick = () => {
       if (!visibleRef.current || document.hidden) return;
       const at = Math.min(
         recording.durationMs,
         initial + (performance.now() - start) * speed,
       );
-      setPosition(at);
+      latestAt = at;
+      const hasDueEvent =
+        cursor.current < recording.events.length &&
+        recording.events[cursor.current]!.at <= at;
+      if (
+        at >= recording.durationMs ||
+        hasDueEvent ||
+        at - lastCommitted >= 50 * speed
+      ) {
+        lastCommitted = at;
+        setPosition(at);
+      }
       if (at >= recording.durationMs) setPlaying(false);
       else frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [recording, playing, speed, seek, visible]);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (latestAt !== lastCommitted) setPosition(latestAt);
+    };
+  }, [recording, playing, speed, seek, visible, document]);
   useEffect(() => {
     const hide = () => {
       if (document.hidden) { paintGeneration.current++; setPlaying(false); }
     };
     document.addEventListener("visibilitychange", hide);
     return () => document.removeEventListener("visibilitychange", hide);
-  }, []);
+  }, [document]);
   const paintGeneration = useRef(0);
   useEffect(() => {
     const terminal = term.current;

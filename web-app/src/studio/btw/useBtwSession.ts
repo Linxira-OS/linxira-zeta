@@ -1,7 +1,7 @@
 import { invokeUpgrade, useUpgradeAvailable } from "../runtimeUpgrade";
 import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";
-import { PREVIEW_BTW_TOPICS, PREVIEW_BTW_TURNS, createBtwPreviewHistory } from "../preview/btwPreview";
+import { createBtwPreviewHistory, getPreviewBtwTopics, getPreviewBtwTurns } from "../preview/btwPreview";
 import type { BtwTopicSummary, BtwHistoryTurn } from "@linxiraos/studio-contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -28,7 +28,6 @@ export interface BtwSessionInput {
   /** Fixture question shown while previewing; ignored outside preview mode. */
   readonly previewQuestion?: string;
   readonly canCommand: boolean;
-  readonly mainStreaming?: boolean;
   /** After a successful branch, switch the workbench to the new session. */
   readonly onBranched?: (sessionId: string) => void | Promise<void>;
 }
@@ -73,7 +72,13 @@ export interface BtwSessionApi {
   abort(): Promise<void>;
   branch(): Promise<void>;
   inject?(id?: string): Promise<void>;
+  /** Send only the latest completed answer to the main conversation. */
+  injectLatest?(): Promise<void>;
+  /** Send the whole visible conversation (questions + answers) to main. */
+  injectConversation?(mode: "full" | "selected", topicIds?: readonly string[]): Promise<void>;
+  readonly canInject?: boolean;
   copy(): Promise<void>;
+  copyConversation?(): Promise<void>;
   dismissNotice(): void;
 }
 
@@ -87,7 +92,11 @@ export interface BtwSessionApi {
  * for the old round must not be reused against the new one.
  */
 export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
+  const prevZhRef = useRef(zh);
   const { marks } = usePreviewMode();
   const [question, setQuestion] = useState("");
   const [composerDraft, setComposerDraft] = useState<ComposerSnapshot>(emptySnapshot);
@@ -122,14 +131,14 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [questionImages, setQuestionImages] = useState<readonly PromptImageInput[]>([]);
   const [demoSnapshot, setDemoSnapshot] = useState<BtwSnapshot>();
-  const demoHistory = useRef(createBtwPreviewHistory());
+  const demoHistory = useRef(createBtwPreviewHistory(zh));
   const demoSequence = useRef(0);
   const [newTopicDraft, setNewTopicDraft] = useState(false);
   const selectionGeneration = useRef(0);
   const seenRoundRef = useRef<string | null>(null);
   const expectedRoundRef = useRef<string | null>(null);
   const refreshHistory = useCallback(async (activate = true) => {
-    if (input.preview) { setTopics(rows => rows.length ? rows : PREVIEW_BTW_TOPICS); return; }
+    if (input.preview) { setTopics(rows => rows.length ? rows : getPreviewBtwTopics(zhRef.current)); return; }
     if (!input.client || !historyAvailable) return;
     if (!activate && input.targetActive === false) return;
     const generation = selectionGeneration.current;
@@ -148,7 +157,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
       if (generation !== selectionGeneration.current) return;
       const result = input.preview ? { turns: demoHistory.current.get(topicId) ?? [] } : input.client ? await invokeUpgrade(input.client, "btw.history.read", { topicId }) : null;
       if (generation !== selectionGeneration.current || !result) return;
-      setTurns(result.turns);
+      setTurns(result.turns ?? []);
       const last = result.turns[result.turns.length - 1];
       if (last) {
         setQuestion(last.question);
@@ -168,9 +177,78 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     setStartedAt(null); setBranchedId(null); setError(undefined); setNotice(undefined);
   }, []);
   useEffect(() => {
-    newTopic(); setTopics([]); setInjectionStates({}); setBranchToken(null); setTokenEphemeralId(null); setDemoSnapshot(undefined); demoHistory.current = createBtwPreviewHistory(); setNewTopicDraft(false); void refreshHistory(false);
+    newTopic(); setTopics([]); setInjectionStates({}); setBranchToken(null); setTokenEphemeralId(null); setDemoSnapshot(undefined); demoHistory.current = createBtwPreviewHistory(zhRef.current); setNewTopicDraft(false); void refreshHistory(false);
     return () => { selectionGeneration.current++; };
   }, [input.client, input.sessionId, input.preview]);
+  useEffect(() => {
+    if (prevZhRef.current === zh) return;
+    const oldZh = prevZhRef.current;
+    prevZhRef.current = zh;
+    if (!input.preview) return;
+    const prevTopicsById = new Map(getPreviewBtwTopics(oldZh).map(item => [item.topicId, item]));
+    const nextTopicsById = new Map(getPreviewBtwTopics(zh).map(item => [item.topicId, item]));
+    const prevHist = createBtwPreviewHistory(oldZh);
+    const nextHist = createBtwPreviewHistory(zh);
+    const prevDefaultAnswer = getPreviewBtwTurns(oldZh)[1]?.answer;
+    const nextDefaultAnswer = getPreviewBtwTurns(zh)[1]?.answer;
+    for (const [topicId, rows] of demoHistory.current.entries()) {
+      const prevRows = prevHist.get(topicId);
+      const nextRows = nextHist.get(topicId);
+      demoHistory.current.set(topicId, rows.map((row, index) => {
+        const prevTurn = prevRows?.[index];
+        const nextTurn = nextRows?.[index];
+        if (prevTurn && nextTurn && row.question === prevTurn.question && row.answer === prevTurn.answer) {
+          return {
+            ...row,
+            question: nextTurn.question,
+            answer: nextTurn.answer,
+            ...(nextTurn.injection ? {
+              injection: {
+                ...nextTurn.injection,
+                state: row.injection?.state ?? nextTurn.injection.state,
+              },
+            } : {}),
+          };
+        }
+        if (prevDefaultAnswer && nextDefaultAnswer && row.answer === prevDefaultAnswer) {
+          return { ...row, answer: nextDefaultAnswer };
+        }
+        return row;
+      }));
+    }
+    setTopics(current => current.length === 0
+      ? getPreviewBtwTopics(zh)
+      : current.map(topic => {
+          const prevTopic = prevTopicsById.get(topic.topicId);
+          const nextTopic = nextTopicsById.get(topic.topicId);
+          return prevTopic && nextTopic && topic.question === prevTopic.question
+            ? { ...topic, question: nextTopic.question }
+            : topic;
+        }));
+    if (selectedTopicId) {
+      const updatedRows = demoHistory.current.get(selectedTopicId);
+      if (updatedRows) {
+        setTurns(updatedRows);
+        const last = updatedRows.at(-1);
+        if (last) {
+          setQuestion(prev => prev ? last.question : prev);
+          setHistorySnapshot(prev => prev?.ephemeralId === `history:${selectedTopicId}`
+            ? {
+                ...prev,
+                question: last.question,
+                text: last.answer,
+                ...(last.injection ? { injection: last.injection } : {}),
+              }
+            : prev);
+        }
+      }
+    }
+    setDemoSnapshot(prev => (
+      prev && prevDefaultAnswer && nextDefaultAnswer && prev.text === prevDefaultAnswer
+        ? { ...prev, text: nextDefaultAnswer }
+        : prev
+    ));
+  }, [input.preview, zh, selectedTopicId]);
   useEffect(() => { void refreshHistory(false); }, [refreshHistory, input.snapshot?.status]);
   useEffect(() => {
     setDemoSnapshot(undefined);
@@ -193,7 +271,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     const generation = selectionGeneration.current;
     void invokeUpgrade(input.client, "btw.history.read", { topicId: selectedTopicId }).then(result => {
       if (generation !== selectionGeneration.current) return;
-      setTurns(result.turns);
+      setTurns(result.turns ?? []);
       setQuestionImages(result.turns.at(-1)?.images ?? []);
     }).catch(cause => { if (generation === selectionGeneration.current) setError(hostErrorMessage(cause, tRef.current("runtimeUpgrade.btwHistoryUnavailable"))); });
   }, [input.client, input.preview, historyAvailable, selectedTopicId, live?.ephemeralId, live?.status]);
@@ -225,22 +303,21 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
 
   const running = live?.status === "running" || (expectedRoundRef.current !== null && live?.ephemeralId !== expectedRoundRef.current);
   const canAbort = running && !pending;
-  const canBranch = snapshot !== null && snapshot.status === "completed" && activeToken !== null && branchedId === null && !input.mainStreaming;
+  const canBranch = snapshot !== null && snapshot.status === "completed" && activeToken !== null && branchedId === null;
   const branchBlockedReason = useMemo(() => {
     if (canBranch) return undefined;
-    if (input.mainStreaming) return t("btw.branchMainBusy");
-    if (snapshot === null) return "还没有 BTW 答案";
-    if (branchedId !== null) return "本轮已分支";
-    if (snapshot.status === "running") return "等答案写完再分支";
-    if (snapshot.status !== "completed") return "只有已完成的答案可以分支";
-    if (turns.length > 1) return t("runtimeUpgrade.btwBranchBlockedHistory");
-    return "分支凭据已失效，重新问一次";
-  }, [branchedId, canBranch, snapshot, turns.length, input.mainStreaming, t]);
+    if (snapshot === null) return zh ? "还没有 BTW 答案" : "No BTW answer yet";
+    if (branchedId !== null) return zh ? "本轮已分支" : "Already branched in this round";
+    if (snapshot.status === "running") return zh ? "等答案写完再分支" : "Wait for the answer to finish before branching";
+    if (snapshot.status !== "completed") return zh ? "只有已完成的答案可以分支" : "Only completed answers can be branched";
+    if (turns?.length > 1) return t("runtimeUpgrade.btwBranchBlockedHistory");
+    return zh ? "分支凭据已失效，重新问一次" : "Branch token expired; ask again";
+  }, [branchedId, canBranch, snapshot, turns?.length, t, zh]);
 
   const dispatch = useCallback(
     async <TResult>(name: CommandName, payload: unknown): Promise<TResult> => {
       const client = clientRef.current;
-      if (client === null) throw new Error("Host 未就绪");
+      if (client === null) throw new Error(zhRef.current ? "Host 未就绪" : "Host not ready");
       const handle = await client.command(name, payload as never);
       return await waitReceipt<TResult>(client, handle.requestId);
     },
@@ -251,24 +328,25 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     async (text: string, forceNewTopic = false, images?: import("@linxiraos/studio-contract").PromptImageInput[], command?: { name: string; arguments: string }): Promise<boolean> => {
       const trimmed = text.trim();
       if (trimmed.length === 0) {
-        setError("先写下要问的问题");
+        setError(zhRef.current ? "先写下要问的问题" : "Enter a question first");
         return false;
       }
       setQuestion(trimmed);
       if (input.preview) {
         setError(undefined);
-        if (marks) setNotice("演示：未发往 Host");
+        if (marks) setNotice(zhRef.current ? "演示：未发往 Host" : "Demo: not sent to Host");
         const topicId = !forceNewTopic && selectedTopicId ? selectedTopicId : `demo-topic-${++demoSequence.current}`;
-        const rows = [...(demoHistory.current.get(topicId) ?? []), { question: trimmed, ...(images?.length ? { images } : {}), answer: PREVIEW_BTW_TURNS[1]!.answer, status: "complete" as const, createdAt: Date.now(), updatedAt: Date.now() }];
+        const demoAnswer = getPreviewBtwTurns(zhRef.current)[1]!.answer;
+        const rows = [...(demoHistory.current.get(topicId) ?? []), { question: trimmed, ...(images?.length ? { images } : {}), answer: demoAnswer, status: "complete" as const, createdAt: Date.now(), updatedAt: Date.now() }];
         demoHistory.current.set(topicId, rows);
         setNewTopicDraft(false); setSelectedTopicId(topicId); setQuestionImages(images ?? []);
-        setDemoSnapshot({ ephemeralId: `demo-round-${++demoSequence.current}`, topicId, question: trimmed, status: "completed", turnIndex: rows.length - 1, text: PREVIEW_BTW_TURNS[1]!.answer });
+        setDemoSnapshot({ ephemeralId: `demo-round-${++demoSequence.current}`, topicId, question: trimmed, status: "completed", turnIndex: rows.length - 1, text: demoAnswer });
         setTurns(rows);
         setTopics(previous => [{ topicId, question: rows[0]!.question, status: "complete", updatedAt: Date.now(), turnCount: rows.length }, ...previous.filter(row => row.topicId !== topicId)]);
         return true;
       }
       if (!input.canCommand) {
-        setError("当前会话不支持 BTW");
+        setError(zhRef.current ? "当前会话不支持 BTW" : "BTW is not supported in this session");
         return false;
       }
       if (pendingRef.current) return false;
@@ -309,7 +387,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
         setBranchedId(null);
         return true;
       } catch (cause) {
-        if (generation === selectionGeneration.current) setError(hostErrorMessage(cause, "BTW 提问失败"));
+        if (generation === selectionGeneration.current) setError(hostErrorMessage(cause, zhRef.current ? "BTW 提问失败" : "Failed to ask BTW"));
         return false;
       } finally {
         pendingRef.current = false;
@@ -330,7 +408,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
           setTopics(topics => topics.map(topic => topic.topicId === live.topicId ? { ...topic, status: "cancelled", updatedAt: Date.now() } : topic));
         }
       }
-      if (marks) setNotice("演示：未发往 Host");
+      if (marks) setNotice(zhRef.current ? "演示：未发往 Host" : "Demo: not sent to Host");
       return;
     }
     if (pendingRef.current) return;
@@ -341,13 +419,13 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
       await dispatch("btw.abort", { ephemeralId: id });
       setError(undefined);
     } catch (cause) {
-      setError(hostErrorMessage(cause, "中止失败"));
+      setError(hostErrorMessage(cause, zhRef.current ? "中止失败" : "Failed to abort"));
     } finally { pendingRef.current = false; setPending(false); }
   }, [dispatch, input.preview, live, question, questionImages, selectedTopicId, marks]);
 
   const branch = useCallback(async () => {
     if (input.preview) {
-      if (marks) setNotice("演示：未发往 Host");
+      if (marks) setNotice(zhRef.current ? "演示：未发往 Host" : "Demo: not sent to Host");
       return;
     }
     if (activeToken === null || pendingRef.current) return;
@@ -356,13 +434,13 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     try {
       const outcome = await dispatch<BtwBranchOutcome>("btw.branch", { branchToken: activeToken });
       if (!outcome.branched) {
-        setError(outcome.reason ?? "Runtime 拒绝了分支");
+        setError(outcome.reason ?? (zhRef.current ? "Runtime 拒绝了分支" : "Runtime rejected the branch"));
         return;
       }
       // One token, one branch. Keep it from being spent twice.
       setBranchedId(roundId);
       setError(undefined);
-      setNotice("已分支为新会话");
+      setNotice(zhRef.current ? "已分支为新会话" : "Branched into a new session");
       if (outcome.newSessionId !== undefined) {
         try {
           await onBranchedRef.current?.(outcome.newSessionId);
@@ -371,7 +449,7 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
         }
       }
     } catch (cause) {
-      setError(hostErrorMessage(cause, "分支失败"));
+      setError(hostErrorMessage(cause, zhRef.current ? "分支失败" : "Failed to branch"));
     } finally {
       pendingRef.current = false;
       setPending(false);
@@ -383,9 +461,9 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     if (text.length === 0) return;
     try {
       await navigator.clipboard.writeText(text);
-      setNotice("已复制答案");
+      setNotice(zhRef.current ? "已复制答案" : "Answer copied");
     } catch {
-      setError("剪贴板不可用");
+      setError(zhRef.current ? "剪贴板不可用" : "Clipboard unavailable");
     }
   }, [snapshot?.copy, snapshot?.text, turns]);
 
@@ -405,11 +483,88 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
         setTurns(current => current.map(turn => turn.injection?.id === id ? { ...turn, injection: { ...turn.injection, state: "sent" } } : turn));
       }
     } catch (cause) {
-      if (generation === selectionGeneration.current) { setInjectionStates(current => ({ ...current, [id]: "ready" })); setError(hostErrorMessage(cause, "注入失败，请重试 / Injection failed; retry")); }
+      if (generation === selectionGeneration.current) { setInjectionStates(current => ({ ...current, [id]: "ready" })); setError(hostErrorMessage(cause, zhRef.current ? "注入失败，请重试" : "Injection failed; retry")); }
     }
   };
 
+  const injectPrompt = useCallback(async (text: string, label: string) => {
+    if (!injectionAvailable || !input.client || !input.sessionId) {
+      setError(zhRef.current ? "当前 Runtime 不支持注入主会话" : "Injection into the main session is unavailable");
+      return;
+    }
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError(undefined);
+    try {
+      await input.prepareTarget?.();
+      const handle = await input.client.command("btw.inject", { sessionId: input.sessionId, text });
+      await waitReceipt(input.client, handle.requestId);
+      setNotice(zhRef.current ? `${label}已发送到主会话` : `${label} sent to the main session`);
+    } catch (cause) {
+      setError(hostErrorMessage(cause, zhRef.current ? "注入主会话失败" : "Failed to inject into the main session"));
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }, [input.client, input.prepareTarget, input.sessionId, injectionAvailable]);
+
+  const injectLatest = useCallback(async () => {
+    const text = snapshot?.text.trim() || [...turns].reverse().find(turn => turn.answer.trim())?.answer.trim();
+    if (!text) {
+      setError(zhRef.current ? "还没有可发送的 BTW 内容" : "There is no BTW content to send yet");
+      return;
+    }
+    await injectPrompt(text, zhRef.current ? "最新回答" : "Latest answer");
+  }, [injectPrompt, snapshot?.text, turns]);
+
+  const injectConversation = useCallback(async (mode: "full" | "selected", topicIds: readonly string[] = []) => {
+    const row = (questionText: string, answerText: string) =>
+      `${zhRef.current ? "问题" : "Question"}：${questionText.trim()}\n\n${zhRef.current ? "回答" : "Answer"}：${answerText.trim()}`;
+    let sections: string[] = [];
+    if (mode === "full") {
+      sections = turns.map(turn => row(turn.question, turn.answer));
+      if (snapshot?.text.trim() && !sections.some(section => section.includes(snapshot.text.trim()))) {
+        sections.push(row(snapshot.question || question, snapshot.text));
+      }
+    } else {
+      if (!input.client || topicIds.length === 0) return;
+      await input.prepareTarget?.();
+      for (const topicId of topicIds) {
+        const result = await invokeUpgrade(input.client, "btw.history.read", { topicId });
+        const title = topics.find(topic => topic.topicId === topicId)?.title;
+        const body = result.turns.map(turn => row(turn.question, turn.answer)).join("\n\n");
+        sections.push(`${title ? `${title}\n\n` : ""}${body}`);
+      }
+    }
+    if (sections.length === 0 && snapshot?.text.trim()) sections.push(row(snapshot.question || question, snapshot.text));
+    if (sections.length === 0) {
+      setError(zhRef.current ? "还没有可发送的 BTW 内容" : "There is no BTW content to send yet");
+      return;
+    }
+    const prefix = zhRef.current ? "以下是 BTW 侧路讨论，请据此继续主任务。" : "The following is a BTW side discussion; continue the main task accordingly.";
+    await injectPrompt(`${prefix}\n\n${sections.join("\n\n---\n\n")}`, zhRef.current ? "所选讨论" : "Selected discussion");
+  }, [input.client, input.prepareTarget, injectPrompt, question, snapshot?.question, snapshot?.text, topics, turns]);
+
+  const copyConversation = useCallback(async () => {
+    const row = (questionText: string, answerText: string) =>
+      `${zhRef.current ? "问题" : "Question"}：${questionText.trim()}\n\n${zhRef.current ? "回答" : "Answer"}：${answerText.trim()}`;
+    const sections = turns.map(turn => row(turn.question, turn.answer));
+    if (snapshot?.text.trim() && !sections.some(section => section.includes(snapshot.text.trim()))) {
+      sections.push(row(snapshot.question || question, snapshot.text));
+    }
+    if (sections.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(sections.join("\n\n---\n\n"));
+      setNotice(zhRef.current ? "已复制完整对话和问题" : "Full conversation copied");
+    } catch {
+      setError(zhRef.current ? "剪贴板不可用" : "Clipboard unavailable");
+    }
+  }, [question, snapshot?.question, snapshot?.text, turns]);
+
   const dismissNotice = useCallback(() => setNotice(undefined), []);
+
+
 
   return {
     ...(!input.preview && input.client && imagePathsAvailable ? { resolveImagePaste: async (text: string) => (await invokeUpgrade(input.client!, "btw.images.resolve", { text })).images } : {}),
@@ -436,8 +591,9 @@ export function useBtwSession(input: BtwSessionInput): BtwSessionApi {
     ask,
     abort,
     branch,
-    ...(injectionAvailable ? { inject } : {}),
+    ...(injectionAvailable ? { inject, canInject: !pending, injectLatest, injectConversation } : {}),
     copy,
+    copyConversation,
     dismissNotice,
   };
 }

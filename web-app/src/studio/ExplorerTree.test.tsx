@@ -496,7 +496,7 @@ describe("RealFileTree", () => {
     fireEvent.click(moreButtons[1]!);
     const menu = screen.getByRole("menu");
     expect(menu.className).toContain("explorer-file-popover");
-    for (const label of ["打开", "打开方式", "在资源管理器中打开", "复制绝对路径", "复制相对路径", "添加上下文"]) {
+    for (const label of [/^打开$/, /打开方式/, /在.*中打开/, /复制绝对路径/, /复制相对路径/, /添加上下文/]) {
       expect(screen.getByRole("menuitem", { name: label })).toBeTruthy();
     }
 
@@ -538,7 +538,7 @@ describe("RealFileTree", () => {
     fireEvent.click(screen.getByRole("button", { name: /更多操作/ }));
     expect((screen.getByRole("menuitem", { name: "打开" }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole("menuitem", { name: "使用系统应用打开" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("menuitem", { name: "在资源管理器中打开" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("menuitem", { name: /在.*中打开/ }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("menuitem", { name: "复制绝对路径" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("menuitem", { name: "打开方式" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("menuitem", { name: "复制相对路径" }) as HTMLButtonElement).disabled).toBe(false);

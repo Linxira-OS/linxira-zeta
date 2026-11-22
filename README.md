@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.5.12-8B5CF6?style=flat-square" alt="Zeta version"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/releases"><img src="https://img.shields.io/badge/zeta-1.5.13-8B5CF6?style=flat-square" alt="Zeta version"></a>
   <img src="https://img.shields.io/badge/runtime-Bun-black?style=flat-square&logo=bun&logoColor=white" alt="Runtime: Bun">
   <img src="https://img.shields.io/badge/language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="Language: TypeScript">
   <img src="https://img.shields.io/badge/native-Rust-dea584?style=flat-square&logo=rust&logoColor=white" alt="Native: Rust">
@@ -24,8 +24,9 @@ workbench.
 Zeta is a downstream fork of [OMP](https://github.com/can1357/oh-my-pi),
 licensed MIT. The integrated runtime source is OMP **v18.22.0**. Z Work Studio
 is a maintained fork of
-[OMP Studio](https://github.com/the-snowpear/omp-studio); its **v0.2.1** source
-ancestry is integrated while full acceptance and CI are still pending.
+[OMP Studio](https://github.com/the-snowpear/omp-studio); **v0.2.4** renderer
+and shared packages are integrated through a Zeta Host adapter without
+downgrading OMP. Full final release accounting is still pending.
 `zetaide` vendors [TermIDE](https://github.com/termide/termide) **0.49.0**.
 Upstream copyright notices and licence texts remain in [`LICENSE`](./LICENSE)
 and [`NOTICE`](./NOTICE); per-tree modification records are in
@@ -42,7 +43,10 @@ zetacode serve                # serves Z Work Studio on loopback
 
 Z Work Studio ships inside that package at `dist/web-app`; `ZETA_WEB_APP_DIR`
 overrides the renderer for a custom build. `zetacode serve` is the supported
-entry point. Install the terminal IDE separately:
+entry point and owns the machine-wide backend. Backend mode is **on by
+default**: a bare `zetacode` attaches to a reachable backend and falls back to
+its own local process only when none is running; explicit `--backend` /
+`--attach` still fails closed. Install the terminal IDE separately:
 
 ```sh
 npm i -g @linxiraos/ide       # zetaide — terminal IDE

@@ -109,7 +109,13 @@ export class StudioClientImpl implements StudioClient {
       } catch (error) {
         // Events buffered without a successful snapshot cannot be trusted;
         // discard them so a later retry starts from a clean baseline.
-        if (generation === this.transportGeneration) this.bufferedEvents.length = 0;
+        if (generation === this.transportGeneration) {
+          this.bufferedEvents.length = 0;
+          if (this.state.connection.phase === "initial") {
+            this.transportUnsubscribe?.();
+            this.transportUnsubscribe = null;
+          }
+        }
         throw error;
       } finally {
         if (generation === this.transportGeneration) this.bootstrapping = false;
@@ -143,6 +149,10 @@ export class StudioClientImpl implements StudioClient {
     options?: CommandOptions,
   ): Promise<CommandHandle<TName>> {
     this.assertOpen();
+    // Workspace-wide clients can be queried without opening a conversation.
+    // Establish the event stream before a command can emit its completion.
+    // Concurrent first commands share bootstrap's in-flight initialization.
+    if (this.state.connection.phase === "initial") await this.bootstrap();
     // The handle is created before the transport acknowledgement is awaited
     // so local_pending exists in reducer state immediately.
     const requestId = this.ids.newRequestId();
@@ -248,6 +258,9 @@ export class StudioClientImpl implements StudioClient {
       this.transportUnsubscribe = this.transport.subscribe({ scope: "all" }, (event) => {
         if (this.bootstrapping) {
           this.bufferedEvents.push(event);
+          return;
+        }
+        if (this.state.connection.phase === "initial") {
           return;
         }
         this.applyAction({ type: "event", event });

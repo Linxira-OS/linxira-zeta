@@ -95,7 +95,7 @@ it("saving only account changes does not rewrite the agent definition or its oth
   render(<SubagentsPanel client={api} context={context} preview={false} models={createPreviewModelConfig()} initialAgent="reviewer" />);
   fireEvent.click(await screen.findByRole("radio", { name: "停用提供商" }));
   fireEvent.click(screen.getByRole("button", { name: "保存子代理" }));
-  await screen.findByRole("button", { name: "打开 reviewer 详情" });
+  await waitFor(() => expect(command.mock.calls.some(([kind]) => kind === "accounts.pool.set")).toBe(true));
   expect(command.mock.calls.filter(([kind]) => kind !== "accounts.pool.get" && kind !== "accounts.pool.options")).toEqual([
     ["accounts.pool.set", { sessionId: "s1", agent: "reviewer", pools: { anthropic: [] } }],
   ]);

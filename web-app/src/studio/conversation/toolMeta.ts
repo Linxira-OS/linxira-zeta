@@ -1,7 +1,11 @@
 import type { JsonValue } from "@linxiraos/studio-contract";
 import type { TreeGitStatus } from "../git/treeStatus";
+import type { JobActionsView } from "@linxiraos/studio-protocol";
+import { actionsViewFromData } from "./jobActionsModel";
 import type { IconName } from "../icons";
+import { fileTypeOf, iconNameFor, isSensitive, type FileTypeId } from "../explorer-types";
 import { jsonRecord, jsonString, type AssistantSegment, type TimelineRow, type ToolStatus, type ToolView } from "./conversationViewModel";
+import { isZh } from "../i18n";
 
 export type ToolKind = string;
 
@@ -116,6 +120,7 @@ export const KIND_ICON: Record<string, IconName> = {
   mcp: "plug",
   report_issue: "bug",
   resolve: "check",
+  propose: "file-code",
 };
 
 export const KIND_LABEL: Record<string, string> = {
@@ -159,6 +164,7 @@ export const KIND_LABEL: Record<string, string> = {
   mcp: "MCP",
   report_issue: "Report Issue",
   resolve: "Resolve",
+  propose: "Propose Plan",
 };
 
 export const NAME_TO_KIND: Record<string, string> = {
@@ -171,13 +177,13 @@ export const NAME_TO_KIND: Record<string, string> = {
 
 const PATH_KINDS = new Set(["read", "write", "edit", "inspect_image", "glob", "generate_image", "tts"]);
 
-export const STATUS_LABEL: Record<ToolStatus, string> = {
-  queued: "等待",
-  running: "运行中",
-  succeeded: "完成",
-  failed: "失败",
-  aborted: "已中止",
-  missing: "结果缺失",
+const STATUS_LABEL_PAIRS: Record<ToolStatus, readonly [string, string]> = {
+  queued: ["等待", "Queued"],
+  running: ["运行中", "Running"],
+  succeeded: ["完成", "Done"],
+  failed: ["失败", "Failed"],
+  aborted: ["已中止", "Aborted"],
+  missing: ["结果缺失", "Missing result"],
 };
 
 const MCP_NAME_PREFIX = "mcp__";
@@ -202,7 +208,7 @@ function xdevEnvelope(tool: ToolView): { readonly [key: string]: JsonValue } | u
   return jsonRecord(jsonRecord(tool.result?.data)?.xdev);
 }
 
-function xdevToolName(tool: ToolView): string | undefined {
+export function xdevToolName(tool: ToolView): string | undefined {
   return jsonString(xdevEnvelope(tool)?.tool);
 }
 
@@ -216,6 +222,18 @@ function xdevOutput(inner: { readonly [key: string]: JsonValue }): string | unde
     .filter((entry): entry is string => entry !== undefined)
     .join("\n");
   return text || undefined;
+}
+
+/** Native result fields only. Submitted arguments must not shadow applied-file or watch evidence. */
+export function toolResultFields(tool: ToolView): { readonly [key: string]: JsonValue } {
+  const data = jsonRecord(tool.result?.data) ?? {};
+  const inner = jsonRecord(jsonRecord(data.xdev)?.inner);
+  return inner === undefined ? data : { ...data, ...inner };
+}
+
+export function toolActionsView(tool: ToolView): JobActionsView | undefined {
+  const data = toolResultFields(tool);
+  return actionsViewFromData(data.watch ?? data.actions);
 }
 
 export function toolFields(tool: ToolView): { readonly [key: string]: JsonValue } {
@@ -282,14 +300,23 @@ export function hasComputerMedia(tool: ToolView): boolean {
 const PLAN_PROPOSE_PATH = /^xd:\/\/propose\/?$/i;
 
 export function isPlanProposeTool(tool: ToolView): boolean {
-  if (xdevToolName(tool) === "propose") return true;
+  if (xdevToolName(tool) === "propose") {
+    return jsonString(xdevEnvelope(tool)?.mode) !== "help";
+  }
+  const raw = tool.toolName.trim().toLowerCase();
+  if (raw !== "write" && raw !== "propose") return false;
   const fields = toolFields(tool);
-  const path = jsonString(fields.transportPath) ?? jsonString(fields.path) ?? jsonString(jsonRecord(tool.arguments)?.path);
+  const path =
+    jsonString(fields.transportPath)
+    ?? jsonString(fields.path)
+    ?? jsonString(jsonRecord(tool.arguments)?.path)
+    ?? jsonString(jsonRecord(tool.arguments)?.file_path);
   return path !== undefined && PLAN_PROPOSE_PATH.test(path.trim());
 }
 
 export type PlanProposal = {
   readonly title: string;
+  readonly body?: string;
 };
 
 export type PlanDocument = {
@@ -302,12 +329,12 @@ export function isPlanArtifactPath(path: string): boolean {
   return normalized.startsWith("local://") && normalized.endsWith("plan.md");
 }
 
-function planProposalTitle(tool: ToolView): string {
+export function planProposalRawTitle(tool: ToolView): string | undefined {
   const fields = toolFields(tool);
   const titled = jsonString(fields.title)?.trim();
   if (titled) return titled;
   const content = jsonString(fields.content)?.trim();
-  if (!content) return "Plan";
+  if (!content || content === "?") return undefined;
   if (content.startsWith("{")) {
     try {
       const parsed = JSON.parse(content) as JsonValue;
@@ -318,7 +345,20 @@ function planProposalTitle(tool: ToolView): string {
     }
   }
   if (content.length < 120 && !content.includes("\n")) return content;
-  return "Plan";
+  return undefined;
+}
+
+function planProposalTitle(tool: ToolView): string {
+  return planProposalRawTitle(tool) ?? "Plan";
+}
+
+export function planArtifactWriteContent(call: ToolView): string | undefined {
+  if (toolKind(call) !== "write") return undefined;
+  const fields = toolFields(call);
+  const path = jsonString(fields.path) ?? jsonString(jsonRecord(call.arguments)?.path) ?? "";
+  if (!isPlanArtifactPath(path)) return undefined;
+  const content = jsonString(fields.content) ?? jsonString(jsonRecord(call.arguments)?.content);
+  return content !== undefined && content.length > 0 ? content : undefined;
 }
 
 /** Latest plan markdown + propose title from the transcript, for viewing after approval. */
@@ -333,14 +373,12 @@ export function collectLatestPlanDocument(rows: readonly TimelineRow[]): PlanDoc
         if (call.status === "failed" || call.status === "aborted" || call.status === "missing") continue;
         if (isPlanProposeTool(call)) {
           title = planProposalTitle(call);
+          const proposed = jsonString(toolFields(call).planContent);
+          if (proposed !== undefined && proposed.length > 0) body = proposed;
           continue;
         }
-        if (toolKind(call) !== "write") continue;
-        const fields = toolFields(call);
-        const path = jsonString(fields.path) ?? jsonString(jsonRecord(call.arguments)?.path) ?? "";
-        if (!isPlanArtifactPath(path)) continue;
-        const content = jsonString(fields.content) ?? jsonString(jsonRecord(call.arguments)?.content);
-        if (content !== undefined && content.length > 0) body = content;
+        const written = planArtifactWriteContent(call);
+        if (written !== undefined) body = written;
       }
     }
   }
@@ -351,12 +389,23 @@ export function collectLatestPlanDocument(rows: readonly TimelineRow[]): PlanDoc
 /** Last succeeded/in-flight `xd://propose` in the slice; failed/aborted calls do not count. */
 export function collectPlanProposal(segments: readonly AssistantSegment[]): PlanProposal | undefined {
   let found: PlanProposal | undefined;
+  let body = "";
   for (const segment of segments) {
     if (segment.type !== "batch") continue;
     for (const call of segment.tools) {
-      if (!isPlanProposeTool(call)) continue;
       if (call.status === "failed" || call.status === "aborted" || call.status === "missing") continue;
-      found = { title: planProposalTitle(call) };
+      const written = planArtifactWriteContent(call);
+      if (written !== undefined) {
+        body = written;
+        continue;
+      }
+      if (!isPlanProposeTool(call)) continue;
+      const proposed = jsonString(toolFields(call).planContent);
+      const resolvedBody = proposed !== undefined && proposed.length > 0 ? proposed : body;
+      found = {
+        title: planProposalTitle(call),
+        ...(resolvedBody.length > 0 ? { body: resolvedBody } : {}),
+      };
     }
   }
   return found;
@@ -409,8 +458,8 @@ export function isPathKind(kind: ToolKind): boolean {
   return PATH_KINDS.has(kind);
 }
 
-export function statusLabel(status: ToolStatus): string {
-  return STATUS_LABEL[status];
+export function statusLabel(status: ToolStatus, zh = isZh()): string {
+  return STATUS_LABEL_PAIRS[status][zh ? 0 : 1];
 }
 
 export function fileBase(path: string): string {
@@ -491,9 +540,264 @@ export function isAskPending(tool: ToolView): boolean {
   return askAnswer(tool) === undefined;
 }
 
+export type FileIconMeta = {
+  readonly path: string;
+  readonly name: string;
+  readonly icon: IconName;
+  readonly ftype: FileTypeId | null;
+  readonly secret: boolean;
+  readonly isDirectory?: boolean;
+};
+
+const HASHLINE_TAG_RE = /#[0-9A-Fa-f]{4}$/;
+const LINE_ANCHOR_RE = /#L\d+(?:C\d+)?(?:-L?\d+)?$/i;
+const READ_SELECTOR_RE = /^(?:raw|conflicts|img|(?:-\d+|\d+(?:[-+:]\d+)?)(?:,:?(?:-\d+|\d+(?:[-+:]\d+)?))*)$/i;
+const NON_FILE_SCHEME_RE = /^(?:https?|mailto|data|javascript|ws|wss|proc|agent|omp|out|xd|cfg|issue|pr|mcp|artifact|history):/i;
+const APPLY_PATCH_DETECT_RE = /^[ \t]*\*{3}[ \t]+(?:Add|Update|Delete|Edit)[ \t]+File:/im;
+const APPLY_PATCH_FILE_RE = /^[ \t]*\*{3}[ \t]+(?:Add|Update|Delete|Edit)[ \t]+File:[ \t]*(.+)$/i;
+const APPLY_PATCH_MOVE_RE = /^[ \t]*\*{3}[ \t]+Move[ \t]+to:[ \t]*(.+)$/i;
+const MULTI_FILE_COUNT_RE = /\s+\(\+\d+\)$/;
+
+function unwrapQuotes(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === "\"" || first === "'") && first === last) return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+export function stripFileSelector(rawPath: string): string {
+  let base = unwrapQuotes(rawPath.trim())
+    .replace(HASHLINE_TAG_RE, "")
+    .replace(LINE_ANCHOR_RE, "");
+  base = unwrapQuotes(base);
+  const schemeIndex = base.indexOf("://");
+  const minColon = schemeIndex >= 0 ? schemeIndex + 3 : 1;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const colon = base.lastIndexOf(":");
+    if (colon < minColon) break;
+    if (colon === 1 && /^[A-Za-z]:/.test(base)) break;
+    const candidate = base.slice(colon + 1);
+    if (!READ_SELECTOR_RE.test(candidate)) break;
+    base = base.slice(0, colon);
+  }
+  return base;
+}
+
+export function extractEditInputPaths(input: string): {
+  readonly display: string;
+  readonly primaryPath: string;
+  readonly paths: readonly string[];
+} | undefined {
+  const stripped = input.startsWith("\uFEFF") ? input.slice(1) : input;
+  const entries: Array<{ source: string; target: string }> = [];
+  let current: { source: string; target: string } | undefined;
+  if (APPLY_PATCH_DETECT_RE.test(stripped)) {
+    for (const rawLine of stripped.split("\n")) {
+      const line = rawLine.replace(/\r$/, "");
+      const fileMatch = APPLY_PATCH_FILE_RE.exec(line);
+      if (fileMatch) {
+        const path = stripFileSelector(fileMatch[1]!);
+        if (path && !path.includes("\0")) {
+          current = { source: path, target: path };
+          entries.push(current);
+        }
+        continue;
+      }
+      const moveMatch = APPLY_PATCH_MOVE_RE.exec(line);
+      if (moveMatch && current) {
+        const dest = stripFileSelector(moveMatch[1]!);
+        if (dest && !dest.includes("\0")) current.target = dest;
+      }
+    }
+  } else {
+    for (const rawLine of stripped.split("\n")) {
+      const line = rawLine.replace(/\r$/, "").trimEnd();
+      if (line.startsWith("[")) {
+        const body = (line.endsWith("]") ? line.slice(1, -1) : line.slice(1)).trim();
+        if (body && !/[\0\r\n{}]/.test(body)) {
+          const path = stripFileSelector(body);
+          if (path) {
+            current = { source: path, target: path };
+            entries.push(current);
+          }
+        }
+        continue;
+      }
+      if (!current) continue;
+      const trimmed = line.trim();
+      if (trimmed.startsWith("MV ")) {
+        const dest = stripFileSelector(trimmed.slice(3));
+        if (dest && !dest.includes("\0")) current.target = dest;
+      }
+    }
+  }
+  if (entries.length === 0) return undefined;
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (!seen.has(entry.target)) {
+      seen.add(entry.target);
+      unique.push(entry.target);
+    }
+  }
+  const first = entries[0]!;
+  const primaryPath = first.target;
+  const display = unique.length > 1
+    ? `${primaryPath} (+${unique.length - 1})`
+    : first.source !== first.target
+      ? `${first.source} → ${first.target}`
+      : primaryPath;
+  return { display, primaryPath, paths: unique };
+}
+
+function editTargetSummary(tool: ToolView): {
+  readonly display: string;
+  readonly primaryPath: string;
+  readonly allPaths: readonly string[];
+} | undefined {
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined && applied.files.length > 0) {
+    const first = applied.files[0]!;
+    const unique = [...new Set(applied.files.map((file) => file.path))];
+    const source = jsonString(first.fields.sourcePath);
+    const display = unique.length > 1
+      ? `${first.path} (+${unique.length - 1})`
+      : source && source !== first.path
+        ? `${source} → ${first.path}`
+        : first.path;
+    return { display, primaryPath: first.path, allPaths: unique };
+  }
+  const result = toolResultFields(tool);
+  const fields = toolFields(tool);
+  const move = jsonString(result.move) ?? jsonString(fields.move) ?? jsonString(fields.rename);
+  const rawPath = jsonString(result.path)
+    ?? jsonString(result.resolvedPath)
+    ?? jsonString(fields.path)
+    ?? jsonString(fields.file_path)
+    ?? jsonString(fields.resolvedPath)
+    ?? jsonString(fields.target);
+  if (rawPath) {
+    if (rawPath.includes(" → ")) {
+      const primaryPath = rawPath.split(" → ").at(-1)!.trim();
+      return { display: rawPath, primaryPath, allPaths: [primaryPath] };
+    }
+    if (move && move !== rawPath) {
+      return { display: `${rawPath} → ${move}`, primaryPath: move, allPaths: [move] };
+    }
+    return { display: rawPath, primaryPath: rawPath, allPaths: [rawPath] };
+  }
+  if (Array.isArray(fields.edits)) {
+    const editPaths: string[] = [];
+    for (const entry of fields.edits) {
+      const rec = jsonRecord(entry);
+      const candidate = jsonString(rec?.rename) ?? jsonString(rec?.move) ?? jsonString(rec?.path);
+      if (candidate && !editPaths.includes(candidate)) editPaths.push(candidate);
+    }
+    if (editPaths.length > 0) {
+      const primaryPath = editPaths[0]!;
+      const display = editPaths.length > 1 ? `${primaryPath} (+${editPaths.length - 1})` : primaryPath;
+      return { display, primaryPath, allPaths: editPaths };
+    }
+  }
+  const input = jsonString(fields.input) ?? jsonString(fields._input);
+  if (input) {
+    const extracted = extractEditInputPaths(input);
+    if (extracted) {
+      return { display: extracted.display, primaryPath: extracted.primaryPath, allPaths: extracted.paths };
+    }
+  }
+  return undefined;
+}
+
+function stripFileScheme(value: string): string | undefined {
+  if (NON_FILE_SCHEME_RE.test(value)) return undefined;
+  if (/^file:\/\//i.test(value)) {
+    const rest = value.replace(/^file:\/\/(?:localhost)?/i, "");
+    try { return decodeURIComponent(rest); } catch { return rest; }
+  }
+  if (/^ssh:\/\//i.test(value)) {
+    const match = /^ssh:\/\/[^/]+(\/.+)$/i.exec(value);
+    return match ? match[1] : undefined;
+  }
+  if (/^(?:local|skill):\/\//i.test(value)) {
+    const rest = value.replace(/^(?:local|skill):\/\//i, "");
+    return rest || undefined;
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return undefined;
+  return value;
+}
+
+export function resolveFileIconMeta(
+  rawPath: string,
+  options?: { readonly allowBareName?: boolean; readonly allowDirectory?: boolean },
+): FileIconMeta | undefined {
+  const trimmed = rawPath.trim();
+  if (!trimmed || /[\r\n\0]/.test(trimmed)) return undefined;
+  const arrowRight = trimmed.includes(" → ") ? trimmed.split(" → ").at(-1)!.trim() : trimmed;
+  const withoutCount = arrowRight.replace(MULTI_FILE_COUNT_RE, "").trim();
+  const unschemed = stripFileScheme(withoutCount);
+  if (!unschemed) return undefined;
+  const cleaned = stripFileSelector(unschemed);
+  if (!cleaned || /[*?]/.test(cleaned)) return undefined;
+  if (/[\\/]$/.test(cleaned)) {
+    if (options?.allowDirectory !== true) return undefined;
+    const dirName = fileBase(cleaned.replace(/[\\/]+$/, "")) || cleaned;
+    return { path: cleaned, name: dirName, icon: "folder", ftype: null, secret: false, isDirectory: true };
+  }
+  const name = fileBase(cleaned);
+  if (!name || name === "." || name === "..") return undefined;
+  const ftype = fileTypeOf(name);
+  const secret = isSensitive(name);
+  const hasSeparator = cleaned.includes("/") || cleaned.includes("\\");
+  if (!hasSeparator) {
+    if (/\s/.test(name)) return undefined;
+    if (options?.allowBareName === false && ftype === null && !secret && !/\.[A-Za-z0-9]{1,10}$/.test(name)) {
+      return undefined;
+    }
+  }
+  return { path: cleaned, name, icon: iconNameFor(ftype, name), ftype, secret };
+}
+
+export function toolHeaderFileMeta(tool: ToolView): FileIconMeta | undefined {
+  const kind = toolKind(tool);
+  const fields = toolFields(tool);
+  if (kind === "read") {
+    const candidate = jsonString(fields.resolvedPath) ?? jsonString(fields.path) ?? jsonString(fields.file_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: true }) : undefined;
+  }
+  if (kind === "write") {
+    if (fields.touchesNoFiles === true || isPlanProposeTool(tool)) return undefined;
+    const candidate = jsonString(fields.resolvedPath) ?? jsonString(fields.path) ?? jsonString(fields.file_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: true }) : undefined;
+  }
+  if (kind === "edit") {
+    const summary = editTargetSummary(tool);
+    return summary ? resolveFileIconMeta(summary.primaryPath, { allowBareName: true }) : undefined;
+  }
+  if (kind === "ast_edit") {
+    const detail = chainItemDetail(tool);
+    return detail ? resolveFileIconMeta(detail, { allowBareName: false }) : undefined;
+  }
+  if (kind === "inspect_image" || kind === "generate_image" || kind === "tts") {
+    const candidate = jsonString(fields.path) ?? jsonString(fields.output_path) ?? jsonString(fields.target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: false }) : undefined;
+  }
+  if (kind === "lsp") {
+    const target = jsonString(fields.target);
+    const candidate = jsonString(fields.file)
+      ?? jsonString(jsonRecord(fields.request)?.file)
+      ?? (target?.includes(" · ") ? target.split(" · ").at(-1) : target);
+    return candidate ? resolveFileIconMeta(candidate, { allowBareName: false }) : undefined;
+  }
+  return undefined;
+}
+
 export function toolTarget(tool: ToolView): string {
   const args = jsonRecord(tool.arguments);
   const kind = toolKind(tool);
+  if (kind === "edit") return editTargetSummary(tool)?.display ?? "";
   if (kind === "bash") return jsonString(args?.command) ?? jsonString(args?.cmd) ?? "";
   if (kind === "find") return jsonString(args?.query) ?? jsonString(args?.pattern) ?? "";
   if (kind === "process" || kind === "agent_message" || kind === "documentation") return jsonString(args?.path) ?? jsonString(args?.target) ?? "";
@@ -519,6 +823,8 @@ export function toolTarget(tool: ToolView): string {
     // Single spawn form is flat: `name` / `agent` / `task`.
     return jsonString(args?.goal) ?? jsonString(spawn?.name) ?? jsonString(spawn?.agent) ?? "";
   }
+  if (kind === "lsp") return jsonString(args?.file) ?? jsonString(args?.path) ?? jsonString(args?.target) ?? "";
+  if (kind === "tts") return jsonString(args?.path) ?? jsonString(args?.target) ?? jsonString(args?.output_path) ?? "";
   return (
     jsonString(args?.path) ??
     jsonString(args?.target) ??
@@ -529,19 +835,28 @@ export function toolTarget(tool: ToolView): string {
   );
 }
 
-export function chainItemDetail(tool: ToolView): string {
+export function chainItemDetail(tool: ToolView, zh = isZh()): string {
   const kind = toolKind(tool);
   const fields = toolFields(tool);
   const target = jsonString(fields.target);
   if (kind === "think") {
-    return jsonString(fields.preview) ?? (jsonString(fields.dur) ? `思考了 ${jsonString(fields.dur)}` : "");
+    const dur = jsonString(fields.dur);
+    return jsonString(fields.preview) ?? (dur ? (zh ? `思考了 ${dur}` : `Thought for ${dur}`) : "");
+  }
+  if (kind === "edit") {
+    return editTargetSummary(tool)?.display ?? jsonString(fields.summary) ?? jsonString(fields.i) ?? "";
   }
   if (kind === "bash") return jsonString(fields.cmd) ?? jsonString(fields.command) ?? target ?? "";
   if (kind === "grep" || kind === "ast_grep" || kind === "glob") {
     return jsonString(fields.pattern) ?? jsonString(fields.pat) ?? target ?? toolTarget(tool);
   }
   if (kind === "web_search" || kind === "web") return jsonString(fields.query) ?? target ?? "";
-  if (kind === "lsp") return [jsonString(fields.action), target].filter(Boolean).join(" · ");
+  if (kind === "lsp") {
+    const action = jsonString(fields.action);
+    const subject = target ?? jsonString(fields.file) ?? jsonString(jsonRecord(fields.request)?.file);
+    if (action && subject?.startsWith(`${action} · `)) return subject;
+    return [action, subject].filter(Boolean).join(" · ");
+  }
   if (kind === "browser") return [jsonString(fields.action), jsonString(fields.url) ?? target].filter(Boolean).join(" · ");
   if (kind === "github") return jsonString(fields.op) ?? target ?? "";
   if (kind === "eval") return jsonString(fields.lang) ?? target ?? "";
@@ -577,8 +892,105 @@ export function chainItemDetail(tool: ToolView): string {
 
 export type BatchSummary = { readonly text: string; readonly add: number; readonly del: number };
 
+export type EditDiffRow = {
+  readonly mark: "+" | "-" | " ";
+  readonly oldLn: string;
+  readonly newLn: string;
+  readonly text: string;
+};
+
+/** Native numbered diff rows and legacy unified diffs; no submitted edit input is interpreted. */
+export function editDiffRows(diff: JsonValue | undefined): EditDiffRow[] {
+  const rows: EditDiffRow[] = [];
+  const push = (mark: "+" | "-" | " ", oldLn: string, newLn: string, text: string) => {
+    rows.push({ mark, oldLn: mark === "+" ? "" : oldLn, newLn: mark === "-" ? "" : newLn, text });
+  };
+  if (Array.isArray(diff)) {
+    for (const row of diff) {
+      if (!Array.isArray(row)) continue;
+      const mark = row[0] === "+" || row[0] === "-" ? row[0] : " ";
+      push(mark, String(row[1] ?? ""), String(row[2] ?? ""), String(row[3] ?? ""));
+    }
+    return rows;
+  }
+  if (typeof diff !== "string" || !diff.length) return rows;
+  let oldLine: number | undefined;
+  let newLine: number | undefined;
+  for (const line of diff.split("\n")) {
+    const hunk = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/u.exec(line);
+    if (hunk) { oldLine = Number(hunk[1]); newLine = Number(hunk[2]); continue; }
+    if (/^(?:diff --git |index |--- |\+\+\+ |\\ No newline)/u.test(line)) continue;
+    const numbered = /^([ +\-])\s*(\d*)[|│](.*)$/u.exec(line);
+    if (numbered) {
+      const mark = numbered[1] === "+" || numbered[1] === "-" ? numbered[1] : " ";
+      push(mark, numbered[2] ?? "", numbered[2] ?? "", numbered[3] ?? "");
+    } else if (/^[ +\-]/u.test(line)) {
+      const mark = line[0] === "+" || line[0] === "-" ? line[0] : " ";
+      push(mark, oldLine === undefined ? "" : String(oldLine), newLine === undefined ? "" : String(newLine), line.slice(1));
+      if (mark !== "+" && oldLine !== undefined) oldLine++;
+      if (mark !== "-" && newLine !== undefined) newLine++;
+    } else if (line.length) push(" ", "", "", line);
+  }
+  return rows;
+}
+
+export function editDiffStats(diff: JsonValue | undefined): { readonly add: number; readonly del: number } {
+  let add = 0;
+  let del = 0;
+  // The composer only needs counts; do not allocate display rows for every historical edit.
+  if (Array.isArray(diff)) {
+    for (const row of diff) {
+      if (!Array.isArray(row)) continue;
+      if (row[0] === "+") add++;
+      if (row[0] === "-") del++;
+    }
+  } else if (typeof diff === "string") {
+    for (const line of diff.split("\n")) {
+      if (line.startsWith("+++ ") || line.startsWith("--- ")) continue;
+      if (line.startsWith("+")) add++;
+      if (line.startsWith("-")) del++;
+    }
+  }
+  return { add, del };
+}
+
+export type AppliedEditFileResult = {
+  readonly path: string;
+  readonly fields: { readonly [key: string]: JsonValue };
+};
+export type AppliedEditResults = {
+  readonly files: readonly AppliedEditFileResult[];
+  readonly partial: boolean;
+};
+
+/** Presence (including an empty array) suppresses every legacy path/diff fallback. */
+export function appliedEditResults(tool: ToolView): AppliedEditResults | undefined {
+  const data = toolResultFields(tool);
+  if (!Object.hasOwn(data, "perFileResults")) return undefined;
+  const files: AppliedEditFileResult[] = [];
+  let rejected = false;
+  if (tool.status === "succeeded" || tool.status === "failed") {
+    for (const entry of Array.isArray(data.perFileResults) ? data.perFileResults : []) {
+      const fields = jsonRecord(entry);
+      if (fields === undefined) continue;
+      if (fields.isError === true || jsonString(fields.errorText) || jsonString(fields.displayErrorText)) { rejected = true; continue; }
+      const path = jsonString(fields.move) ?? jsonString(fields.path);
+      if (path !== undefined) files.push({ path, fields });
+    }
+  }
+  return { files, partial: files.length > 0 && (rejected || tool.status === "failed" || tool.result?.isError === true || data.isError === true) };
+}
+
 export function toolDiffStats(tool: ToolView): { readonly add: number; readonly del: number } {
   const kind = toolKind(tool);
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined) {
+    return applied.files.reduce((total, file) => {
+      const diff = editDiffStats(file.fields.diff);
+      return { add: total.add + diff.add, del: total.del + diff.del };
+    }, { add: 0, del: 0 });
+  }
+  if (tool.status !== "succeeded" || tool.result?.isError === true) return { add: 0, del: 0 };
   const fields = toolFields(tool);
   if (kind === "write") {
     const explicit = jsonNumber(fields.lines);
@@ -588,24 +1000,8 @@ export function toolDiffStats(tool: ToolView): { readonly add: number; readonly 
       return { add: content.length === 0 ? 0 : content.split("\n").length, del: 0 };
     }
     if (Array.isArray(content)) return { add: content.length, del: 0 };
-    return { add: 0, del: 0 };
   }
-  if (kind !== "edit") return { add: 0, del: 0 };
-  let add = 0;
-  let del = 0;
-  if (Array.isArray(fields.diff)) {
-    for (const row of fields.diff) {
-      if (!Array.isArray(row)) continue;
-      if (row[0] === "+") add += 1;
-      if (row[0] === "-") del += 1;
-    }
-  } else if (typeof fields.diff === "string") {
-    for (const line of fields.diff.split("\n")) {
-      if (/^\+\d*\|/.test(line)) add += 1;
-      if (/^-\d*\|/.test(line)) del += 1;
-    }
-  }
-  return { add, del };
+  return kind === "edit" ? editDiffStats(toolResultFields(tool).diff ?? fields.diff) : { add: 0, del: 0 };
 }
 
 export type FileEditKind = "write" | "edit" | "ast_edit";
@@ -618,6 +1014,8 @@ export type TurnFileChange = {
   readonly del: number;
   readonly status?: TreeGitStatus;
   readonly note?: string;
+  /** This file is confirmed applied, but another part of its tool call was rejected. */
+  readonly partial?: boolean;
 };
 
 export const CHANGE_NOTE: Readonly<Record<FileEditKind, string>> = {
@@ -642,12 +1040,14 @@ function changeNote(kinds: readonly FileEditKind[]): string | undefined {
   return last === undefined ? undefined : CHANGE_NOTE[last];
 }
 
-function toolFilePath(tool: ToolView): string | undefined {
+export function toolFilePath(tool: ToolView): string | undefined {
+  const result = toolResultFields(tool);
   const fields = toolFields(tool);
-  return jsonString(fields.path) ?? jsonString(fields.resolvedPath) ?? jsonString(fields.target);
+  return jsonString(result.move) ?? jsonString(result.path) ?? jsonString(result.resolvedPath)
+    ?? jsonString(fields.path) ?? jsonString(fields.resolvedPath) ?? jsonString(fields.target);
 }
 
-type FileChangeAcc = { add: number; del: number; kinds: FileEditKind[] };
+type FileChangeAcc = { add: number; del: number; kinds: FileEditKind[]; partial?: boolean; status?: TreeGitStatus };
 
 function addTurnFile(
   files: Map<string, FileChangeAcc>,
@@ -655,6 +1055,8 @@ function addTurnFile(
   add: number,
   del: number,
   kind: FileEditKind,
+  partial = false,
+  status?: TreeGitStatus,
 ): void {
   if (path === undefined) return;
   const normalized = path.replaceAll("\\", "/").trim();
@@ -662,15 +1064,30 @@ function addTurnFile(
   if(/^(?:cfg|proc|local|omp|attachment|conflict):/iu.test(normalized)||/\.(?:sqlite3?|db)\//iu.test(normalized))return;
   if (!normalized || normalized.includes(" → ") || /^[a-z][a-z0-9+.-]*:\/\//iu.test(normalized)) return;
   const previous = files.get(normalized);
-  files.set(normalized, previous === undefined
-    ? { add, del, kinds: [kind] }
-    : { add: previous.add + add, del: previous.del + del, kinds: [...previous.kinds, kind] });
+  const resultStatus = status ?? previous?.status;
+  files.set(normalized, {
+    add: (previous?.add ?? 0) + add,
+    del: (previous?.del ?? 0) + del,
+    kinds: [...(previous?.kinds ?? []), kind],
+    ...(partial || previous?.partial ? { partial: true } : {}),
+    ...(resultStatus === undefined ? {} : { status: resultStatus }),
+  });
 }
 
 function collectToolFileChanges(tool: ToolView, files: Map<string, FileChangeAcc>): void {
-  if (tool.status !== "succeeded") return;
   const kind = asFileEditKind(toolKind(tool));
   if (kind === undefined) return;
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined) {
+    for (const file of applied.files) {
+      const stats = editDiffStats(file.fields.diff);
+      const op = jsonString(file.fields.op);
+      const status = op === "create" ? "added" : op === "delete" ? "deleted" : "modified";
+      addTurnFile(files, file.path, stats.add, stats.del, kind, applied.partial, status);
+    }
+    return;
+  }
+  if (tool.status !== "succeeded" || tool.result?.isError === true) return;
   const fields = toolFields(tool);
   if (kind === "ast_edit") {
     if (Array.isArray(fields.changes)) {
@@ -717,8 +1134,9 @@ export function collectTurnFileChanges(segments: readonly AssistantSegment[]): T
       dir: display.dir,
       add: stats.add,
       del: stats.del,
-      status: changeStatus(stats.add, stats.del, stats.kinds),
+      status: stats.status ?? changeStatus(stats.add, stats.del, stats.kinds),
       ...(note === undefined ? {} : { note }),
+      ...(stats.partial ? { partial: true } : {}),
     });
   }
   return changes;
@@ -826,13 +1244,13 @@ function changePathMatches(path: string, focus: string): boolean {
 }
 
 /** 轮次菜单：最近一轮（跟随最新段）+ 有改动的历史轮 + 本会话。 */
-export function listSessionChangeTurns(rows: readonly TimelineRow[]): SessionChangeTurn[] {
+export function listSessionChangeTurns(rows: readonly TimelineRow[], zh = isZh()): SessionChangeTurn[] {
   const ranges = assistantRunRanges(rows);
   const last = ranges[ranges.length - 1];
   const items: SessionChangeTurn[] = [{
     id: SESSION_CHANGE_LAST_ID,
     kind: "last",
-    label: "最近一轮",
+    label: zh ? "最近一轮" : "Latest turn",
     files: last === undefined ? [] : filesInRange(rows, last),
   }];
   let historyIndex = 0;
@@ -844,27 +1262,27 @@ export function listSessionChangeTurns(rows: readonly TimelineRow[]): SessionCha
     items.push({
       id: rangeTurnId(rows, range),
       kind: "turn",
-      label: `第 ${historyIndex} 轮`,
+      label: zh ? `第 ${historyIndex} 轮` : `Turn ${historyIndex}`,
       files,
     });
   }
   items.push({
     id: SESSION_CHANGE_SESSION_ID,
     kind: "session",
-    label: "本会话",
+    label: zh ? "本会话" : "This session",
     files: collectTurnFileChanges(allAssistantSegments(rows)),
   });
   return items;
 }
 
 /** 选中轮次的文件清单与 patch 段。未知 id 回退到最近一轮。 */
-export function sessionChangeScope(rows: readonly TimelineRow[], turnId: string): SessionChangeScope {
+export function sessionChangeScope(rows: readonly TimelineRow[], turnId: string, zh = isZh()): SessionChangeScope {
   if (turnId === SESSION_CHANGE_SESSION_ID) {
     const segments = allAssistantSegments(rows);
     return {
       id: SESSION_CHANGE_SESSION_ID,
       kind: "session",
-      label: "本会话",
+      label: zh ? "本会话" : "This session",
       files: collectTurnFileChanges(segments),
       segments,
     };
@@ -881,7 +1299,7 @@ export function sessionChangeScope(rows: readonly TimelineRow[], turnId: string)
       return {
         id: turnId,
         kind: "turn",
-        label: `第 ${historyIndex} 轮`,
+        label: zh ? `第 ${historyIndex} 轮` : `Turn ${historyIndex}`,
         files,
         segments: segmentsInRange(rows, range),
       };
@@ -891,7 +1309,7 @@ export function sessionChangeScope(rows: readonly TimelineRow[], turnId: string)
   return {
     id: SESSION_CHANGE_LAST_ID,
     kind: "last",
-    label: "最近一轮",
+    label: zh ? "最近一轮" : "Latest turn",
     files: last === undefined ? [] : filesInRange(rows, last),
     segments: last === undefined ? [] : segmentsInRange(rows, last),
   };
@@ -910,7 +1328,7 @@ export function sessionChangeTurnIdForPath(rows: readonly TimelineRow[], path: s
 
 // --- Deleted: WeakMap segment caches, session patch tree builder, todo state machine, progress aggregation ---
 
-export function batchSummary(thinking: readonly ThinkView[], tools: readonly ToolView[]): BatchSummary {
+export function batchSummary(thinking: readonly ThinkView[], tools: readonly ToolView[], zh = isZh()): BatchSummary {
   const files = new Set<string>();
   let searches = 0;
   let commands = 0;
@@ -924,15 +1342,20 @@ export function batchSummary(thinking: readonly ThinkView[], tools: readonly Too
   let add = 0;
   let del = 0;
   for (const tool of tools) {
-    if (isAskPending(tool)) continue;
+    if (isAskPending(tool) || isPlanProposeTool(tool)) continue;
     const kind = toolKind(tool);
     const fields = toolFields(tool);
     const path = jsonString(fields.path) ?? jsonString(fields.target);
     if (kind === "think") thinkDur = jsonString(fields.dur) ?? thinkDur;
     if (kind === "read" || kind === "write" || kind === "edit") {
-      if (path) files.add(path);
+      const editSummary = kind === "edit" && !path ? editTargetSummary(tool) : undefined;
+      if (path) files.add(stripFileSelector(path));
+      else if (editSummary) {
+        for (const editPath of editSummary.allPaths) files.add(stripFileSelector(editPath));
+      }
       if (kind === "edit" || kind === "write") {
-        editing = path ?? editing;
+        const editTarget = path ?? editSummary?.primaryPath;
+        if (editTarget) editing = stripFileSelector(editTarget);
         editingRun = tool.status === "running" || tool.status === "queued";
       }
     }
@@ -955,20 +1378,43 @@ export function batchSummary(thinking: readonly ThinkView[], tools: readonly Too
     del += diff.del;
   }
   const parts: string[] = [];
-  if (editing) parts.push(`${editingRun ? "正在编辑 " : "编辑 "}${fileBase(editing)}`);
-  if (files.size) parts.push(`阅读 ${files.size} 个文件`);
-  if (searches) parts.push(`搜索 ${searches} 次`);
-  if (commands) parts.push(`运行 ${commands} 条命令`);
-  if (fetches) parts.push(`请求 ${fetches} 次`);
-  if (agents) parts.push(`${agents} 个子 Agent`);
+  if (editing) {
+    const verb = editingRun
+      ? (zh ? "正在编辑 " : "Editing ")
+      : (zh ? "编辑 " : "Edited ");
+    parts.push(`${verb}${fileBase(editing)}`);
+  }
+  if (files.size) {
+    parts.push(zh ? `阅读 ${files.size} 个文件` : `Read ${files.size} ${files.size === 1 ? "file" : "files"}`);
+  }
+  if (searches) {
+    parts.push(zh ? `搜索 ${searches} 次` : `${searches} ${searches === 1 ? "search" : "searches"}`);
+  }
+  if (commands) {
+    parts.push(zh ? `运行 ${commands} 条命令` : `Ran ${commands} ${commands === 1 ? "command" : "commands"}`);
+  }
+  if (fetches) {
+    parts.push(zh ? `请求 ${fetches} 次` : `${fetches} ${fetches === 1 ? "request" : "requests"}`);
+  }
+  if (agents) {
+    parts.push(zh ? `${agents} 个子 Agent` : `${agents} ${agents === 1 ? "subagent" : "subagents"}`);
+  }
   if (asks === 1 && askFirst && parts.length === 0) parts.push(`Ask · ${askFirst}`);
-  else if (asks) parts.push(`回答 ${asks} 次`);
-  if (parts.length === 0 && thinkDur) parts.push(`思考了 ${thinkDur}`);
+  else if (asks) {
+    parts.push(zh ? `回答 ${asks} 次` : `${asks} ${asks === 1 ? "answer" : "answers"}`);
+  }
+  if (parts.length === 0 && thinkDur) {
+    parts.push(zh ? `思考了 ${thinkDur}` : `Thought for ${thinkDur}`);
+  }
   if (parts.length === 0 && thinking.length > 0) {
     const preview = thinking[0]?.text.trim().replace(/\s+/g, " ") ?? "";
-    parts.push(preview ? `思考 · ${preview.slice(0, 36)}${preview.length > 36 ? "…" : ""}` : "思考");
+    parts.push(
+      preview
+        ? (zh ? `思考 · ${preview.slice(0, 36)}${preview.length > 36 ? "…" : ""}` : `Thinking · ${preview.slice(0, 36)}${preview.length > 36 ? "…" : ""}`)
+        : (zh ? "思考" : "Thinking"),
+    );
   }
-  if (parts.length === 0) parts.push("工具调用");
+  if (parts.length === 0) parts.push(zh ? "工具调用" : "Tool calls");
   return { text: parts.join(" · "), add, del };
 }
 
@@ -1171,6 +1617,7 @@ function lastAssistantRunRange(rows: readonly TimelineRow[]): AssistantRunRange 
   return ranges[ranges.length - 1];
 }
 
+/** `blocked` is read-only legacy transcript compatibility, not a status offered by native Todo. */
 export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
 
 export type TodoTask = {
@@ -1275,7 +1722,11 @@ function tasksFromTodoFields(fields: { readonly [key: string]: JsonValue }): Tod
 }
 
 function extractTodoSnapshot(tool: ToolView): TodoTask[] | undefined {
-  if (toolKind(tool) !== "todo") return undefined;
+  if (toolKind(tool) !== "todo" || tool.status !== "succeeded" || tool.result?.isError === true) return undefined;
+  const result = toolResultFields(tool);
+  // A native view after restore supersedes the historical blocked snapshot,
+  // including an empty list. History itself remains untouched and read-only.
+  if (Object.hasOwn(result, "phases")) return tasksFromTodoFields(result);
   const fields = toolFields(tool);
   const tasks = tasksFromTodoFields(fields);
   if (tasks.length > 0) return tasks;
@@ -1307,7 +1758,7 @@ export function todoStepProgress(todos: readonly TodoTask[]): { current: number;
   return { current: Math.min(total, completed + 1), total, completed };
 }
 
-/** OMP HUD keeps a list that still has open work; completed-only snapshots auto-clear. */
+/** Zeta HUD keeps a list that still has open work; completed-only snapshots auto-clear. */
 export function todoHudVisible(todos: readonly TodoTask[]): boolean {
   return todos.some((task) => task.status === "pending" || task.status === "in_progress" || task.status === "blocked");
 }
@@ -1320,9 +1771,9 @@ function lastUserRowIndex(rows: readonly TimelineRow[]): number {
 }
 
 /**
- * Session HUD: latest session todo snapshot (OMP live HUD) plus files from the
+ * Session HUD: latest session todo snapshot (Zeta live HUD) plus files from the
  * current turn. A new user message starts a turn — previous-turn files drop;
- * completed-only todos stay hidden, matching OMP after auto-clear / `/new`.
+ * completed-only todos stay hidden, matching Zeta after auto-clear / `/new`.
  */
 export function sessionTaskProgress(rows: readonly TimelineRow[]): TaskProgress {
   const latest = collectLatestTodos(assistantSegmentsOf(rows));

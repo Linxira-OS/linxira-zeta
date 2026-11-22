@@ -16,7 +16,7 @@ export const cfgBackendEnabled = register({
 		group: "Startup & Updates",
 		label: "Enable Backend Mode",
 		description:
-			"Use one background backend for this machine. Off: every zetacode launch is a local process. On: launches connect to the default backend.",
+			"Use one background backend for this machine. On by default: launches connect to the default backend when it is running; the interactive TUI stays local only when none is reachable. Off: every zetacode launch stays local.",
 	},
 });
 

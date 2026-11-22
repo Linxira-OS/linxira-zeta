@@ -559,6 +559,10 @@ export interface ToolSession {
 	settings: Settings;
 	/** Plan mode state (if active) */
 	getPlanModeState?: () => PlanModeState | undefined;
+	/** A visible ask confirmation selected "yes" for entering plan mode. */
+	recordPlanModeConsent?: () => void;
+	/** Consume the one-shot consent produced by {@link recordPlanModeConsent}. */
+	consumePlanModeConsent?: () => boolean;
 	/** Path of the session's active plan reference (e.g. `local://<title>.md`); defaults to `local://PLAN.md`. */
 	getPlanReferencePath?: () => string;
 	/** Goal mode state (if active or paused) */

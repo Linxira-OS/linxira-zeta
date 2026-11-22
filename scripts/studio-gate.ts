@@ -56,6 +56,12 @@ export type StudioProfile = "quick" | "behavior" | "final";
 export function studioSteps(profile: StudioProfile, report?: string, decisions?: string): GateStep[] {
 	const steps: GateStep[] = [
 		{
+			id: "assets",
+			name: "Studio brand overlay is applied",
+			phase: "guard",
+			commands: [["bun", "scripts/studio-assets.ts"]],
+		},
+		{
 			id: "naming",
 			name: "Studio product naming",
 			phase: "guard",

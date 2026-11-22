@@ -3,28 +3,45 @@ import { JsonTree } from "./JsonTree";
 import { useI18n } from "../i18n";
 import { RasterPreview, TerminalGraphicView } from "../TerminalGraphicView";
 import { TerminalGraphicsDecoder } from "../terminalGraphics";
-import { createContext, memo, useContext, useMemo, type ComponentProps, type MouseEvent } from "react";
+import { createContext, memo, useContext, useMemo, useRef, type ComponentProps, type MouseEvent } from "react";
 import type { JsonValue } from "@linxiraos/studio-contract";
 import { Icon } from "../icons";
 import { bashDisplay } from "./bashDisplay";
 import { ChunkedRows, ChunkedText } from "./textChunks";
 import { jsonRecord, jsonString, type ToolView } from "./conversationViewModel";
 import {
+  appliedEditResults,
   askAnswer,
   computerToolMedia,
+  editDiffRows,
+  extractEditInputPaths,
   hasComputerMedia,
   jsonNumber,
   jsonStringArray,
   parseTaskBrief,
+  resolveFileIconMeta,
   taskJobs,
+  toolActionsView,
   toolFields,
+  toolFilePath,
   toolKind,
+  xdevToolName,
+  type EditDiffRow,
 } from "./toolMeta";
 import { ToolCardScroll } from "./useToolCardFollowScroll";
 import { CompletionRing, JobTile, type JobTileData } from "./JobWidget";
 import { MarkdownText } from "./markdown";
 import type { JobWidgetView } from "@linxiraos/studio-protocol";
 import { ComputerToolMedia } from "../computer/ComputerToolMedia";
+import { ActionsSteps } from "./ActionsSteps";
+import {
+  languageFromFilePath,
+  normalizeHighlightLanguage,
+  renderHighlightTokens,
+  useCodeHighlight,
+  useHighlightedBatch,
+  useHighlightedLines,
+} from "../highlight/toolCodeHighlight";
 
 const ToolCardLive = createContext(false);
 
@@ -33,9 +50,10 @@ function ScrollPane(props: Omit<ComponentProps<typeof ToolCardScroll>, "follow">
 }
 
 export function TruncationMark() {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   return (
-    <span className="chip gray xs" role="note" aria-label="已截断">
-      已截断
+    <span className="chip gray xs" role="note" aria-label={zh ? "已截断" : "Truncated"}>
+      {zh ? "已截断" : "Truncated"}
     </span>
   );
 }
@@ -62,12 +80,15 @@ function Kv({ pairs }: { pairs: ReadonlyArray<readonly [string, JsonValue | stri
   );
 }
 
-function MediaList({ value, alt = "Image / 图片" }: { value: unknown; alt?: string }) {
+function MediaList({ value, alt }: { value: unknown; alt?: string }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const items = Array.isArray(value) ? value : value === undefined ? [] : [value];
-  return items.length === 0 ? null : <div className="tool-media-list">{items.slice(0, 8).map((item, i) => <RasterPreview key={i} value={item} alt={alt} />)}</div>;
+  const resolvedAlt = alt ?? (zh ? "图片" : "Image");
+  return items.length === 0 ? null : <div className="tool-media-list">{items.slice(0, 8).map((item, i) => <RasterPreview key={i} value={item} alt={resolvedAlt} />)}</div>;
 }
 
 function ToolMedia({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const data = jsonRecord(tool.result?.data);
   const computer = hasComputerMedia(tool);
   const items = useMemo(() => computer ? computerToolMedia(tool) : [], [computer, tool]);
@@ -76,7 +97,7 @@ function ToolMedia({ tool }: { tool: ToolView }) {
     {computer ? <ComputerToolMedia items={items} /> : toolKind(tool) !== "eval" ? <MediaList value={data?.media} /> : null}
     {graphics.images.map((image, index) => <TerminalGraphicView key={index} image={image} />)}
     {graphics.errors.map((error, index) => <p role="status" key={index}>{error}</p>)}
-    {typeof data?.mediaOmitted === "number" ? <p role="status">{data.mediaOmitted} image(s) omitted: unsupported format or size limit / 图片超限或格式不受支持</p> : null}
+    {typeof data?.mediaOmitted === "number" ? <p role="status">{zh ? `${data.mediaOmitted} 张图片因超出大小限制或格式不受支持已省略` : `${data.mediaOmitted} image(s) omitted: unsupported format or size limit`}</p> : null}
   </>;
 }
 
@@ -102,19 +123,41 @@ function OmittedRows({ count }: { count: number }) {
   return <div className="tc-note">\u53e6\u6709 {count} \u884c\u672a\u663e\u793a</div>;
 }
 
-function CodeLines({ lines, start = 1 }: { lines: readonly string[]; start?: number }) {
-  const capped = capRows(lines);
+function ToolFileRow({ path, suffix, allowDirectory = false }: { path: string; suffix?: string; allowDirectory?: boolean }) {
+  const meta = resolveFileIconMeta(path, { allowBareName: true, allowDirectory });
   return (
-    <ScrollPane className="tc-code tool-card-scroll" data-tool-scroll="both">
+    <div className="tt-file" data-ftype={meta?.ftype ?? undefined} data-secret={meta?.secret || undefined}>
+      {meta ? (
+        <span className="tt-file-icon" aria-hidden="true">
+          <Icon name={meta.icon} extra="sm" />
+        </span>
+      ) : null}
+      <span className="tt-file-name">{path}</span>
+      {suffix ? <span className="tt-file-meta">{suffix}</span> : null}
+    </div>
+  );
+}
+
+function CodeLines({ lines, start = 1, language }: { lines: readonly string[]; start?: number; language?: string | undefined }) {
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const capped = capRows(lines);
+  const tokenLines = useHighlightedLines(language, capped.rows, { disabled: live, rootRef });
+  return (
+    <ScrollPane containerRef={rootRef} className="tc-code tool-card-scroll" data-tool-scroll="both">
       <ChunkedRows
         count={capped.rows.length}
         chunkClassName="cv-chunk-rows"
-        renderRow={(index) => (
-          <div key={index} className="cl">
-            <span className="ln">{start + index}</span>
-            <span className="lx">{capped.rows[index] || "\u00a0"}</span>
-          </div>
-        )}
+        renderRow={(index) => {
+          const row = capped.rows[index] ?? "";
+          const tokens = tokenLines?.[index];
+          return (
+            <div key={index} className="cl">
+              <span className="ln">{start + index}</span>
+              <span className="lx">{tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : (row || "\u00a0")}</span>
+            </div>
+          );
+        }}
       />
       {capped.omitted > 0 ? <OmittedRows count={capped.omitted} /> : null}
     </ScrollPane>
@@ -132,9 +175,16 @@ function prettyJson(value: JsonValue): string {
   return JSON.stringify(value, null, 2);
 }
 
+function FormattedJsonText({ text }: { text: string }) {
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const tokens = useCodeHighlight("json", text, { disabled: live, rootRef });
+  return <ScrollPane containerRef={rootRef} className="codeblock tc-json">{tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : text}</ScrollPane>;
+}
+
 function JsonBlock({ value }: { value: JsonValue }) {
   if (value !== null && typeof value === "object") return <ScrollPane className="codeblock tc-json"><JsonTree value={value} /></ScrollPane>;
-  return <ScrollPane className="codeblock tc-json">{prettyJson(value)}</ScrollPane>;
+  return <FormattedJsonText text={prettyJson(value)} />;
 }
 
 function prettyText(value: string): string {
@@ -215,7 +265,7 @@ function DefaultBody({ tool }: { tool: ToolView }) {
   );
 }
 
-function MatchTree({ matches, count }: { matches: JsonValue | undefined; count?: string }) {
+function MatchTree({ matches, count, lang }: { matches: JsonValue | undefined; count?: string; lang?: string | undefined }) {
   const files: Array<{ file: string; count?: number; rows: Array<{ line: string; text: string }> }> = [];
   if (Array.isArray(matches)) {
     const grouped = new Map<string, { count?: number; rows: Array<{ line: string; text: string }> }>();
@@ -253,27 +303,45 @@ function MatchTree({ matches, count }: { matches: JsonValue | undefined; count?:
     omitted += file.rows.length - budget;
     budget = 0;
   }
+  const explicitLang = normalizeHighlightLanguage(lang);
+  const { batchEntries, fileOffsets } = useMemo(() => {
+    const entries: Array<{ language: string | undefined; text: string }> = [];
+    const offsets: number[] = [];
+    for (const file of shown) {
+      offsets.push(entries.length);
+      const language = explicitLang ?? languageFromFilePath(file.file);
+      for (const row of file.rows) entries.push({ language, text: row.text });
+    }
+    return { batchEntries: entries, fileOffsets: offsets };
+  }, [shown, explicitLang]);
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const highlighted = useHighlightedBatch(batchEntries, { disabled: live, rootRef });
   return (
     <>
       {count ? <div className="tc-summary">{count}</div> : null}
-      <ScrollPane className="tc-tree">
-        {shown.map((file) => (
-          <div key={file.file}>
-            <div className="tt-file">{file.file}{file.count === undefined ? null : ` · ${file.count}`}</div>
-            <ChunkedRows
-              count={file.rows.length}
-              renderRow={(index) => {
-                const row = file.rows[index]!;
-                return (
-                  <div key={`${row.line}-${index}`} className="tt-hit">
-                    <span className="m-line">{row.line}</span>
-                    <span className="m-text">{row.text}</span>
-                  </div>
-                );
-              }}
-            />
-          </div>
-        ))}
+      <ScrollPane containerRef={rootRef} className="tc-tree">
+        {shown.map((file, fileIndex) => {
+          const baseOffset = fileOffsets[fileIndex] ?? 0;
+          return (
+            <div key={file.file}>
+              <ToolFileRow path={file.file} {...(file.count === undefined ? {} : { suffix: ` · ${file.count}` })} />
+              <ChunkedRows
+                count={file.rows.length}
+                renderRow={(index) => {
+                  const row = file.rows[index]!;
+                  const tokens = highlighted[baseOffset + index];
+                  return (
+                    <div key={`${row.line}-${index}`} className="tt-hit">
+                      <span className="m-line">{row.line}</span>
+                      <span className="m-text">{tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : row.text}</span>
+                    </div>
+                  );
+                }}
+              />
+            </div>
+          );
+        })}
         {omitted > 0 ? <OmittedRows count={omitted} /> : null}
       </ScrollPane>
     </>
@@ -305,37 +373,114 @@ function RichText({ text }: { text: string }) {
 }
 
 function ReadBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
-  const offset = jsonNumber(fields.offset) ?? jsonNumber(fields.startLine);
   const displayContent = jsonRecord(fields.displayContent);
+  const offset = jsonNumber(fields.offset) ?? jsonNumber(fields.startLine) ?? jsonNumber(displayContent?.startLine);
   const preview = stringLines(fields.preview) ?? stringLines(displayContent?.text);
   const summary = jsonString(fields.summary);
+  const codeLang = languageFromFilePath(toolFilePath(tool));
   const markdownLines = fields.contentType === "text/markdown" ? (preview ?? tool.output?.split("\n")) : undefined;
   const markdown = markdownLines?.slice(0, TOOL_ROWS_MAX).join("\n");
   return (
     <>
-      <Kv pairs={[["行", fields.lines ?? fields.totalLines], ["编码", fields.encoding], ["大小", fields.size ?? fields.fileSize], ["问题", fields.q ?? fields.question]]} />
-      {markdown !== undefined ? <ScrollPane className="tc-markdown tool-card-scroll" data-tool-scroll="both"><MarkdownText text={markdown} />{markdownLines && markdownLines.length > TOOL_ROWS_MAX ? <OmittedRows count={markdownLines.length - TOOL_ROWS_MAX} /> : null}</ScrollPane> : preview ? <CodeLines lines={preview} start={offset ?? 1} /> : summary ? <div className="tc-summary">{summary}</div> : tool.output ? <CodeLines lines={tool.output.split("\n")} start={offset ?? 1} /> : null}
-      <MediaList value={fields.media ?? fields.image ?? fields.images} alt="读取结果" />
+      <Kv pairs={[[zh ? "行" : "Lines", fields.lines ?? fields.totalLines], [zh ? "编码" : "Encoding", fields.encoding], [zh ? "大小" : "Size", fields.size ?? fields.fileSize], [zh ? "问题" : "Query", fields.q ?? fields.question]]} />
+      {markdown !== undefined ? <ScrollPane className="tc-markdown tool-card-scroll" data-tool-scroll="both"><MarkdownText text={markdown} />{markdownLines && markdownLines.length > TOOL_ROWS_MAX ? <OmittedRows count={markdownLines.length - TOOL_ROWS_MAX} /> : null}</ScrollPane> : preview ? <CodeLines lines={preview} start={offset ?? 1} language={codeLang} /> : summary ? <div className="tc-summary">{summary}</div> : tool.output ? <CodeLines lines={tool.output.split("\n")} start={offset ?? 1} language={codeLang} /> : null}
+      <MediaList value={fields.media ?? fields.image ?? fields.images} alt={zh ? "读取结果" : "Read output"} />
     </>
   );
 }
 
 function WriteBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
   const preview = stringLines(fields.preview) ?? contentLines(fields.content);
   const created = fields.created === true ? true : fields.created === false ? false : undefined;
   const lines = jsonNumber(fields.lines) ?? preview?.length;
-  const operation = created === true ? "新建" : created === false ? "覆盖" : "写入";
+  const operation = created === true ? (zh ? "新建" : "Created") : created === false ? (zh ? "覆盖" : "Overwrote") : (zh ? "写入" : "Wrote");
+  const codeLang = languageFromFilePath(toolFilePath(tool));
   return (
     <>
       <Kv pairs={[
-        [operation, lines !== undefined ? `${lines} 行` : ""],
-        ["编码", fields.encoding],
+        [operation, lines !== undefined ? (zh ? `${lines} 行` : `${lines} lines`) : ""],
+        [zh ? "编码" : "Encoding", fields.encoding],
       ]} />
-      {preview ? <CodeLines lines={preview} /> : null}
-      {fields.executable === true ? <div className="tc-note">已设为可执行</div> : null}
+      {preview ? <CodeLines lines={preview} language={codeLang} /> : null}
+      {fields.executable === true ? <div className="tc-note">{zh ? "已设为可执行" : "Marked executable"}</div> : null}
     </>
+  );
+}
+
+function DiffRowsView({
+  rows,
+  omitted = 0,
+  singleGutter = false,
+  language,
+}: {
+  rows: readonly EditDiffRow[];
+  omitted?: number;
+  singleGutter?: boolean;
+  language?: string | undefined;
+}) {
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { newLines, oldLines, newIndexMap, oldIndexMap, hasDeletions } = useMemo(() => {
+    const nextLines: string[] = [];
+    const prevLines: string[] = [];
+    const nextMap: number[] = [];
+    const prevMap: number[] = [];
+    let sawDel = false;
+    for (const row of rows) {
+      if (row.mark === "-") {
+        sawDel = true;
+        nextMap.push(-1);
+        prevMap.push(prevLines.length);
+        prevLines.push(row.text);
+      } else if (row.mark === "+") {
+        nextMap.push(nextLines.length);
+        prevMap.push(-1);
+        nextLines.push(row.text);
+      } else {
+        nextMap.push(nextLines.length);
+        prevMap.push(prevLines.length);
+        nextLines.push(row.text);
+        prevLines.push(row.text);
+      }
+    }
+    return { newLines: nextLines, oldLines: prevLines, newIndexMap: nextMap, oldIndexMap: prevMap, hasDeletions: sawDel };
+  }, [rows]);
+  const newTokens = useHighlightedLines(language, newLines, { disabled: live, rootRef });
+  const oldTokens = useHighlightedLines(hasDeletions ? language : undefined, oldLines, { disabled: live, rootRef });
+  return (
+    <ScrollPane containerRef={rootRef} className="tc-diff tool-card-scroll" data-tool-scroll="both">
+      <ChunkedRows
+        count={rows.length}
+        chunkClassName="cv-chunk-rows"
+        renderRow={(index) => {
+          const row = rows[index]!;
+          const cls = row.mark === "+" ? "add" : row.mark === "-" ? "del" : "";
+          const mark = row.mark === "-" ? "−" : row.mark;
+          const tokens = row.mark === "-"
+            ? oldTokens?.[oldIndexMap[index] ?? -1]
+            : newTokens?.[newIndexMap[index] ?? -1];
+          return (
+            <div key={index} className={`dl ${cls}`}>
+              {singleGutter ? (
+                <span className="ln">{row.newLn || row.oldLn}</span>
+              ) : (
+                <>
+                  <span className="ln">{row.oldLn}</span>
+                  <span className="ln">{row.newLn}</span>
+                </>
+              )}
+              <span className="dm" aria-hidden="true">{mark}</span>
+              <span className="lc">{tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : row.text}</span>
+            </div>
+          );
+        }}
+      />
+      {omitted > 0 ? <OmittedRows count={omitted} /> : null}
+    </ScrollPane>
   );
 }
 
@@ -344,33 +489,47 @@ function EditBody({ tool }: { tool: ToolView }) {
   const diff = fields.diff;
   const summary = jsonString(fields.summary) ?? jsonString(fields.i);
   const summaryNode = summary ? <div className="tc-edit-summary">{summary}</div> : null;
-  if (typeof diff === "string" && diff.length > 0) {
-    const capped = capRows(diff.split("\n"));
+  const applied = appliedEditResults(tool);
+  if (applied !== undefined && applied.files.length > 1) {
     return (
       <>
         {summaryNode}
-        <ScrollPane className="tc-diff tool-card-scroll" data-tool-scroll="both">
-          <ChunkedRows
-            count={capped.rows.length}
-            chunkClassName="cv-chunk-rows"
-            renderRow={(index) => {
-              const line = capped.rows[index]!;
-              const match = /^([ +\-])(\d*)\|(.*)$/.exec(line);
-              const marker = match?.[1] ?? " ";
-              const cls = marker === "+" ? "add" : marker === "-" ? "del" : "";
-              return (
-                <div key={index} className={`dl ${cls}`}>
-                  <span className="ln">{match?.[2] ?? ""}</span>
-                  <span className="dm" aria-hidden="true">{marker === "-" ? "−" : marker}</span>
-                  <span className="lc">{match?.[3] ?? line}</span>
-                </div>
-              );
-            }}
-          />
-          {capped.omitted > 0 ? <OmittedRows count={capped.omitted} /> : null}
-        </ScrollPane>
+        <div className="tc-tree tc-edit-multi">
+          {applied.files.map((file) => {
+            const sourcePath = jsonString(file.fields.sourcePath);
+            const parsed = capRows(editDiffRows(file.fields.diff));
+            return (
+              <div key={file.path} className="tc-edit-file">
+                <ToolFileRow path={file.path} {...(sourcePath && sourcePath !== file.path ? { suffix: ` ← ${sourcePath}` } : {})} />
+                {parsed.rows.length > 0 ? (
+                  <DiffRowsView
+                    rows={parsed.rows}
+                    omitted={parsed.omitted}
+                    singleGutter={!Array.isArray(file.fields.diff)}
+                    language={languageFromFilePath(file.path)}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </>
     );
+  }
+  const primaryPath = applied?.files[0]?.path
+    ?? toolFilePath(tool)
+    ?? extractEditInputPaths(jsonString(fields.input) ?? jsonString(fields._input) ?? "")?.primaryPath;
+  const codeLang = languageFromFilePath(primaryPath);
+  if (typeof diff === "string" && diff.length > 0) {
+    const parsed = capRows(editDiffRows(diff));
+    if (parsed.rows.length > 0) {
+      return (
+        <>
+          {summaryNode}
+          <DiffRowsView rows={parsed.rows} omitted={parsed.omitted} singleGutter language={codeLang} />
+        </>
+      );
+    }
   }
   if (!Array.isArray(diff) || diff.length === 0) {
     return (
@@ -380,36 +539,17 @@ function EditBody({ tool }: { tool: ToolView }) {
       </>
     );
   }
-  const cappedDiff = capRows(diff);
+  const parsed = capRows(editDiffRows(diff));
   return (
     <>
       {summaryNode}
-      <ScrollPane className="tc-diff tool-card-scroll" data-tool-scroll="both">
-        <ChunkedRows
-          count={cappedDiff.rows.length}
-          chunkClassName="cv-chunk-rows"
-          renderRow={(index) => {
-            const row = cappedDiff.rows[index];
-            if (!Array.isArray(row)) return null;
-            const mark = row[0] === "+" ? "+" : row[0] === "-" ? "−" : " ";
-            const cls = row[0] === "+" ? "add" : row[0] === "-" ? "del" : "";
-            return (
-              <div key={index} className={`dl ${cls}`}>
-                <span className="ln">{String(row[1] ?? "")}</span>
-                <span className="ln">{String(row[2] ?? "")}</span>
-                <span className="dm" aria-hidden="true">{mark}</span>
-                <span className="lc">{String(row[3] ?? "")}</span>
-              </div>
-            );
-          }}
-        />
-        {cappedDiff.omitted > 0 ? <OmittedRows count={cappedDiff.omitted} /> : null}
-      </ScrollPane>
+      <DiffRowsView rows={parsed.rows} omitted={parsed.omitted} language={codeLang} />
     </>
   );
 }
 
 function BashBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
   const meta = jsonRecord(fields.meta), minimized = jsonRecord(meta?.minimized), truncation = jsonRecord(meta?.truncation), columns = jsonRecord(jsonRecord(meta?.limits)?.columnTruncated);
   const cmd = jsonString(fields.cmd) ?? jsonString(fields.command) ?? jsonString(fields.target) ?? "";
@@ -420,13 +560,17 @@ function BashBody({ tool }: { tool: ToolView }) {
   // strips ANSI, slices the retained tail and merges same-class line runs, so it
   // must not rerun while the output itself is unchanged.
   const blocks = useMemo(() => bashDisplay(fields.output).blocks, [fields.output]);
+  const live = useContext(ToolCardLive);
+  const cmdRootRef = useRef<HTMLDivElement>(null);
+  const shellLang = xdevToolName(tool) === "powershell" ? "powershell" : "bash";
+  const cmdTokens = useCodeHighlight(cmd ? shellLang : undefined, cmd, { disabled: live, rootRef: cmdRootRef });
   return (
     <>
       <Kv pairs={[["cwd", fields.cwd]]} />
       {minimized ? <Kv pairs={[["Minimized", minimized.filter], ["bytes", `${jsonNumber(minimized.inputBytes)?.toLocaleString() ?? "—"} → ${jsonNumber(minimized.outputBytes)?.toLocaleString() ?? "—"}`]]} /> : null}
       {truncation || columns ? <Kv pairs={[["elided bytes", truncation?.elidedBytes], ["elided lines", truncation?.elidedLines], ["column limit", columns?.maxColumn], ["full output", truncation?.artifactId ?? columns?.artifactId]]} /> : null}
-      <ScrollPane className="codeblock">
-        {cmd ? <div className="c-cmd">$ {cmd}</div> : null}
+      <ScrollPane containerRef={cmdRootRef} className="codeblock">
+        {cmd ? <div className="c-cmd"><span className="c-prompt">$ </span>{cmdTokens && cmdTokens.length > 0 ? renderHighlightTokens(cmdTokens) : cmd}</div> : null}
         {blocks.map((block, index) => (
           <div key={index} className={block.cls || undefined}>
             <ChunkedText text={block.text || "\u00a0"} />
@@ -436,7 +580,7 @@ function BashBody({ tool }: { tool: ToolView }) {
       <ShellView toolCallId={tool.toolCallId} running={running} maxRows={TOOL_ROWS_MAX} />
       <div className="tc-foot">
         {running ? (
-          <span className="chip blue xs">运行中</span>
+          <span className="chip blue xs">{zh ? "运行中" : "Running"}</span>
         ) : (
           <span className={`chip ${failed ? "red" : "green"} xs`}>
             {exit !== undefined ? `exit ${exit}` : failed ? "failed" : "exit 0"}
@@ -451,6 +595,7 @@ function BashBody({ tool }: { tool: ToolView }) {
 }
 
 function AskBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
   const question = jsonString(fields.question) ?? jsonString(fields.prompt) ?? jsonString(fields.target) ?? "";
   const picked = askAnswer(tool);
@@ -475,7 +620,7 @@ function AskBody({ tool }: { tool: ToolView }) {
   if (picked && !options.some((option) => option.label === picked)) {
     options.push({ label: picked, selected: true, rec: false });
   }
-  if (!options.length && !question) return <div className="tc-note">无回答</div>;
+  if (!options.length && !question) return <div className="tc-note">{zh ? "无回答" : "No answer"}</div>;
   return (
     <div className="tc-ask">
       {question ? <div className="ask-q">{question}</div> : null}
@@ -487,8 +632,8 @@ function AskBody({ tool }: { tool: ToolView }) {
                 {option.selected ? <Icon name="check" extra="sm" /> : null}
               </span>
               <span className="ask-label">{option.label}</span>
-              {option.rec ? <span className="chip purple xs">推荐</span> : null}
-              {option.selected ? <span className="ask-chosen">已选</span> : null}
+              {option.rec ? <span className="chip purple xs">{zh ? "推荐" : "Recommended"}</span> : null}
+              {option.selected ? <span className="ask-chosen">{zh ? "已选" : "Selected"}</span> : null}
             </div>
           ))}
         </div>
@@ -589,6 +734,7 @@ function GrepBody({ tool }: { tool: ToolView }) {
         <>
           <MatchTree
             matches={matches}
+            lang={jsonString(fields.lang)}
             {...(count === undefined ? {} : { count })}
           />
           {display ? <ScrollPane className="codeblock">{display}</ScrollPane> : null}
@@ -614,7 +760,7 @@ function GlobBody({ tool }: { tool: ToolView }) {
           <>
             <ChunkedRows
               count={cappedFiles.rows.length}
-              renderRow={(index) => <div key={cappedFiles.rows[index]} className="tt-file">{cappedFiles.rows[index]}</div>}
+              renderRow={(index) => <ToolFileRow key={cappedFiles.rows[index]} path={cappedFiles.rows[index]!} allowDirectory />}
             />
             {cappedFiles.omitted > 0 ? <OmittedRows count={cappedFiles.omitted} /> : null}
           </>
@@ -627,6 +773,26 @@ function GlobBody({ tool }: { tool: ToolView }) {
 function AstEditBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
   const changes = Array.isArray(fields.changes) ? fields.changes : [];
+  const { parsedChanges, batchEntries } = useMemo(() => {
+    const items: Array<{ file: string; before: string; after: string; beforeIdx: number; afterIdx: number }> = [];
+    const entries: Array<{ language: string | undefined; text: string }> = [];
+    changes.forEach((entry, index) => {
+      const record = jsonRecord(entry);
+      const file = jsonString(record?.file) ?? `change-${index}`;
+      const before = jsonString(record?.before) ?? "";
+      const after = jsonString(record?.after) ?? "";
+      const language = languageFromFilePath(file);
+      const beforeIdx = entries.length;
+      entries.push({ language, text: before });
+      const afterIdx = after ? entries.length : -1;
+      if (after) entries.push({ language, text: after });
+      items.push({ file, before, after, beforeIdx, afterIdx });
+    });
+    return { parsedChanges: items, batchEntries: entries };
+  }, [changes]);
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const highlighted = useHighlightedBatch(batchEntries, { disabled: live, rootRef });
   return (
     <>
       <Kv pairs={[
@@ -635,17 +801,23 @@ function AstEditBody({ tool }: { tool: ToolView }) {
         ["replacements", fields.replacements],
         ["files", fields.filesChanged],
       ]} />
-      <ScrollPane className="tc-tree">
-        {changes.map((entry, index) => {
-          const record = jsonRecord(entry);
-          const file = jsonString(record?.file) ?? `change-${index}`;
-          const before = jsonString(record?.before) ?? "";
-          const after = jsonString(record?.after) ?? "";
+      <ScrollPane containerRef={rootRef} className="tc-tree">
+        {parsedChanges.map((item) => {
+          const beforeTokens = highlighted[item.beforeIdx];
+          const afterTokens = item.afterIdx >= 0 ? highlighted[item.afterIdx] : undefined;
           return (
-            <div key={file}>
-              <div className="tt-file">{file}</div>
-              <div className="tt-hit del"><span className="m-text">{before}</span></div>
-              {after ? <div className="tt-hit add"><span className="m-text">{after}</span></div> : null}
+            <div key={`${item.file}:${item.beforeIdx}`}>
+              <ToolFileRow path={item.file} />
+              <div className="tt-hit del">
+                <span className="m-mark" aria-hidden="true">−</span>
+                <span className="m-text">{beforeTokens && beforeTokens.length > 0 ? renderHighlightTokens(beforeTokens) : item.before}</span>
+              </div>
+              {item.after ? (
+                <div className="tt-hit add">
+                  <span className="m-mark" aria-hidden="true">+</span>
+                  <span className="m-text">{afterTokens && afterTokens.length > 0 ? renderHighlightTokens(afterTokens) : item.after}</span>
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -778,7 +950,7 @@ function EvalBody({ tool }: { tool: ToolView }) {
   return (
     <div className="tc-eval">
       <Kv pairs={[["status", fields.status], ["id", fields.id], ["duration", fields.durationMs]]} />
-      {!hasComputerMedia(tool) ? <MediaList value={fields.media ?? fields.image ?? fields.images ?? fields.screenshot ?? (fields.screenshotData !== undefined ? { data: fields.screenshotData, mimeType: fields.mimeType } : undefined)} alt="评估结果" /> : null}
+      {!hasComputerMedia(tool) ? <MediaList value={fields.media ?? fields.image ?? fields.images ?? fields.screenshot ?? (fields.screenshotData !== undefined ? { data: fields.screenshotData, mimeType: fields.mimeType } : undefined)} alt={resolvedLanguage === "zh" ? "评估结果" : "Evaluation result"} /> : null}
       {cells.map((entry, index) => {
         const cell = jsonRecord(entry) ?? {};
         const code = jsonString(cell.code) ?? "";
@@ -787,10 +959,11 @@ function EvalBody({ tool }: { tool: ToolView }) {
         const views = Array.isArray(cell.views) ? cell.views : [];
         const progress = mcpProgressEvents(cell.statusEvents);
         const restarted = Array.isArray(cell.statusEvents) && cell.statusEvents.some(event => jsonRecord(event)?.op === "kernel_restart");
+        const cellLang = jsonString(fields.lang) ?? jsonString(cell.lang) ?? jsonString(cell.language);
         return (
           <div key={index} className="ev-cell">
-            <div className="tc-label">{jsonString(fields.lang) ?? jsonString(cell.lang) ?? jsonString(cell.language) ?? "code"}</div>
-            <CodeLines lines={code.split("\n")} />
+            <div className="tc-label">{cellLang ?? "code"}</div>
+            <CodeLines lines={code.split("\n")} language={normalizeHighlightLanguage(cellLang)} />
             {restarted ? <p className="tc-note" role="status">{resolvedLanguage === "zh" ? "内核已重启，先前的变量、导入和定义已丢失。请重新执行初始化代码。" : "The kernel restarted. Earlier variables, imports and definitions were lost; run the setup cells again."}</p> : null}
             {progress.length ? (
               <div className="ev-status" role="status">
@@ -815,9 +988,12 @@ function EvalBody({ tool }: { tool: ToolView }) {
 
 function GithubBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
+  const actions = toolActionsView(tool);
+  const { resolvedLanguage } = useI18n();
   return (
     <>
       <Kv pairs={[["op", fields.op], ["repo", fields.repo], ["pr", fields.pr]]} />
+      {actions ? <ActionsSteps view={actions} zh={resolvedLanguage === "zh"} /> : null}
       {fields.output !== undefined ? <JsonBlock value={fields.output} /> : <DefaultBody tool={tool} />}
     </>
   );
@@ -827,21 +1003,50 @@ function LspBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
   const rows = Array.isArray(fields.diagnostics) ? fields.diagnostics : Array.isArray(fields.refs) ? fields.refs : [];
   const cappedRows = capRows(rows);
+  const batchEntries = useMemo(
+    () =>
+      cappedRows.rows.map((raw) => {
+        const row = jsonRecord(raw) ?? {};
+        const isRef = jsonString(row.sev) === undefined && jsonString(row.msg) === undefined;
+        return {
+          language: isRef ? languageFromFilePath(jsonString(row.file)) : undefined,
+          text: jsonString(row.msg) ?? jsonString(row.text) ?? "",
+        };
+      }),
+    [cappedRows.rows],
+  );
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const highlighted = useHighlightedBatch(batchEntries, { disabled: live, rootRef });
   return (
     <>
       <Kv pairs={[["action", fields.action]]} />
-      <div className="tc-lsp">
+      <div ref={rootRef} className="tc-lsp">
         <ChunkedRows
           count={cappedRows.rows.length}
           renderRow={(index) => {
             const row = jsonRecord(cappedRows.rows[index]) ?? {};
             const sev = jsonString(row.sev) ?? "info";
+            const file = jsonString(row.file);
+            const meta = file ? resolveFileIconMeta(file, { allowBareName: true }) : undefined;
+            const text = jsonString(row.msg) ?? jsonString(row.text) ?? "";
+            const tokens = highlighted[index];
             return (
-              <div key={index} className={`lsp-row ${sev}`}>
+              <div
+                key={index}
+                className={`lsp-row ${sev}`}
+                data-ftype={meta?.ftype ?? undefined}
+                data-secret={meta?.secret || undefined}
+              >
                 <span className="lsp-sev">{jsonString(row.sev) ?? "ref"}</span>
-                <span className="m-file">{jsonString(row.file)}</span>
+                {meta ? (
+                  <span className="tt-file-icon" aria-hidden="true">
+                    <Icon name={meta.icon} extra="sm" />
+                  </span>
+                ) : null}
+                <span className="m-file">{file}</span>
                 <span className="m-line">{String(jsonNumber(row.line) ?? jsonString(row.line) ?? "")}</span>
-                <span className="m-text">{jsonString(row.msg) ?? jsonString(row.text) ?? ""}</span>
+                <span className="m-text">{tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : text}</span>
               </div>
             );
           }}
@@ -854,6 +1059,7 @@ function LspBody({ tool }: { tool: ToolView }) {
 }
 
 function InspectBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
   const answer = jsonString(fields.answer) ?? jsonString(fields.output);
   return (
@@ -861,7 +1067,7 @@ function InspectBody({ tool }: { tool: ToolView }) {
       <Kv pairs={[["mime", fields.mime], ["model", fields.model]]} />
       {jsonString(fields.question) ? <div className="tc-summary">{jsonString(fields.question)}</div> : null}
       {answer ? <div className="tc-answer">{answer}</div> : null}
-      <MediaList value={fields.media ?? fields.image ?? fields.images} alt="图片问题结果" />
+      <MediaList value={fields.media ?? fields.image ?? fields.images} alt={zh ? "图片问题结果" : "Image inspection result"} />
     </>
   );
 }
@@ -876,7 +1082,7 @@ function BrowserBody({ tool }: { tool: ToolView }) {
       {code ? (
         <>
           <div className="tc-label">script</div>
-          <CodeLines lines={code.split("\n")} />
+          <CodeLines lines={code.split("\n")} language="javascript" />
         </>
       ) : null}
       {output !== undefined ? <ScrollPane className="codeblock">{typeof output === "string" ? output : JSON.stringify(output)}</ScrollPane> : null}
@@ -895,7 +1101,7 @@ function ComputerBody({ tool }: { tool: ToolView }) {
       {code ? (
         <>
           <div className="tc-label">script</div>
-          <CodeLines lines={code.split("\n")} />
+          <CodeLines lines={code.split("\n")} language="javascript" />
         </>
       ) : null}
       {jsonString(fields.output) ? <ScrollPane className="codeblock">{jsonString(fields.output)}</ScrollPane> : null}
@@ -981,22 +1187,55 @@ function HubBody({ tool }: { tool: ToolView }) {
 function FindBody({ tool }: { tool: ToolView }) {
   const fields = toolFields(tool);
   const hits = Array.isArray(fields.hits) ? fields.hits : [];
-  if (!hits.length) return <DefaultBody tool={tool} />;
-  return <>
-    <Kv pairs={[["query", fields.query], ["elapsed", fields.elapsedMs], ["hits", hits.length]]} />
-    {hits.slice(0, 50).map((value, index) => {
+  const shownHits = useMemo(() => hits.slice(0, 50), [hits]);
+  const { snippetEntries, hitOffsets } = useMemo(() => {
+    const entries: Array<{ language: string | undefined; text: string }> = [];
+    const offsets: number[] = [];
+    for (const value of shownHits) {
+      offsets.push(entries.length);
       const hit = jsonRecord(value) ?? {};
-      const ranges = Array.isArray(hit.ranges) ? hit.ranges : [];
+      const language = languageFromFilePath(jsonString(hit.rel));
+      const ranges = Array.isArray(hit.ranges) ? hit.ranges.slice(0, 20) : [];
+      for (const range of ranges) {
+        const item = jsonRecord(range) ?? {};
+        entries.push({ language, text: jsonString(item.snippet) ?? "" });
+      }
+    }
+    return { snippetEntries: entries, hitOffsets: offsets };
+  }, [shownHits]);
+  const live = useContext(ToolCardLive);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const highlighted = useHighlightedBatch(snippetEntries, { disabled: live, rootRef });
+  if (!hits.length) return <DefaultBody tool={tool} />;
+  return <div ref={rootRef}>
+    <Kv pairs={[["query", fields.query], ["elapsed", fields.elapsedMs], ["hits", hits.length]]} />
+    {shownHits.map((value, index) => {
+      const hit = jsonRecord(value) ?? {};
+      const rel = jsonString(hit.rel);
+      const meta = rel ? resolveFileIconMeta(rel, { allowBareName: true }) : undefined;
+      const ranges = Array.isArray(hit.ranges) ? hit.ranges.slice(0, 20) : [];
+      const baseOffset = hitOffsets[index] ?? 0;
       const score = typeof hit.contentScore === "number" && Number.isFinite(hit.contentScore) ? `${Math.round(Math.max(0, Math.min(1, hit.contentScore)) * 100)}%` : "";
       return <details key={index} className="tc-find-hit">
-        <summary>{jsonString(hit.rel) ?? "—"} {score}</summary>
-        {ranges.slice(0, 20).map((range, rangeIndex) => {
+        <summary className="tc-find-sum" data-ftype={meta?.ftype ?? undefined} data-secret={meta?.secret || undefined}>
+          {meta ? <span className="tt-file-icon" aria-hidden="true"><Icon name={meta.icon} extra="sm" /></span> : null}
+          <span className="tc-find-path">{rel ?? "—"}</span>
+          {score ? <span className="tc-find-score">{score}</span> : null}
+        </summary>
+        {ranges.map((range, rangeIndex) => {
           const item = jsonRecord(range) ?? {};
-          return <pre key={rangeIndex}>{String(item.start ?? "")}–{String(item.end ?? "")} {jsonString(item.snippet) ?? ""}</pre>;
+          const snippet = jsonString(item.snippet) ?? "";
+          const tokens = highlighted[baseOffset + rangeIndex];
+          return (
+            <pre key={rangeIndex} className="tc-find-snippet">
+              <span className="m-line">{String(item.start ?? "")}–{String(item.end ?? "")}</span>
+              {tokens && tokens.length > 0 ? renderHighlightTokens(tokens) : snippet}
+            </pre>
+          );
         })}
       </details>;
     })}
-  </>;
+  </div>;
 }
 
 function CoordinationBody({ tool }: { tool: ToolView }) {
@@ -1045,6 +1284,7 @@ function TodoBody({ tool }: { tool: ToolView }) {
 }
 
 function WebSearchBody({ tool }: { tool: ToolView }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const fields = toolFields(tool);
   const data = jsonRecord(tool.result?.data);
   const response = jsonRecord(data?.response) ?? jsonRecord(fields.response) ?? {};
@@ -1065,7 +1305,7 @@ function WebSearchBody({ tool }: { tool: ToolView }) {
   return (
     <>
       <Kv pairs={[["provider", provider], ["sources", cites.length]]} />
-      {failures.length ? <details className="tc-note"><summary>搜索回退 / Search fallbacks · {failures.length}</summary>{failures.map((item, index) => { const failure = jsonRecord(item); return <p key={index}><strong>{jsonString(failure?.label) ?? jsonString(failure?.provider)}</strong> · {jsonNumber(failure?.status)} {jsonString(failure?.reason)}</p>; })}</details> : null}
+      {failures.length ? <details className="tc-note"><summary>{zh ? "搜索回退" : "Search fallbacks"} · {failures.length}</summary>{failures.map((item, index) => { const failure = jsonRecord(item); return <p key={index}><strong>{jsonString(failure?.label) ?? jsonString(failure?.provider)}</strong> · {jsonNumber(failure?.status)} {jsonString(failure?.reason)}</p>; })}</details> : null}
       {answer ? <div className="tc-answer">{answer}</div> : null}
       {cites.length > 0 ? <div className="tc-cites">
         {cites.map((entry, index) => {

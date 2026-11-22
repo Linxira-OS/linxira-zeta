@@ -131,6 +131,7 @@ export function ArtifactLibraryPane({
 }) {
   const { preview, marks } = usePreviewMode();
   const { t, resolvedLanguage } = useI18n();
+  const tRef = useRef(t); tRef.current = t;
   const { id: targetId } = useExecutionTarget();
   const zh = resolvedLanguage === "zh";
   const [rows, setRows] = useState<readonly ArtifactRecord[]>([]);
@@ -185,7 +186,7 @@ export function ArtifactLibraryPane({
         setCursor(page.nextCursor);
       } catch (cause) {
         if (generation.current === token)
-          setError(hostErrorMessage(cause, t("media.unavailable")));
+          setError(hostErrorMessage(cause, tRef.current("media.unavailable")));
       } finally {
         if (generation.current === token) setBusy(false);
       }

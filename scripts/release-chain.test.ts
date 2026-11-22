@@ -192,4 +192,3 @@ describe("release asset surfaces", () => {
 		expect(preflight).toContain("packages/browser-relay/dist/zeta-browser-relay-extension.zip");
 	});
 });
-

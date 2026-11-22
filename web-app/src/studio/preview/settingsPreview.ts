@@ -3,7 +3,7 @@
  *
  * 预览模式下设置页读这里：App 级设置演示值 + Runtime 设置的
  * 演示状态。演示控件只改本地 UI 状态，不写 appSettings 存储、不调
- * Host、不伪造 Studio Bridge 能力。真实模式不 import 本模块的运行态。
+ * Host、不伪造 Z Work Studio Bridge 能力。真实模式不 import 本模块的运行态。
  */
 
 import { useCallback, useState } from "react";
@@ -29,12 +29,14 @@ export const PREVIEW_APP_SETTINGS: AppSettings = {
   density: "compact",
   agentRosterDensity: "standard",
   fileTypePalette: "cat",
+  light: "standard",
   conversationWidthMode: "standard",
   conversationCustomWidth: 1024,
   uiFontFamily: "",
   uiFontSize: 14,
   terminalFontFamily: "Cascadia Code",
   terminalFontSize: 13,
+  terminalTmuxCloseAction: "ask",
   outputFontFamily: "",
   outputFontSize: 15,
   streaming: true,

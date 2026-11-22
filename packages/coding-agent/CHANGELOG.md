@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [1.5.13] - 2026-11-21
+
+### Changed
+
+- Z Work Studio advances to the Studio v0.2.4 renderer/shared packages through the Zeta Host adapter, without downgrading the OMP 18.22 runtime.
+- Plan mode is no longer armed from guessed wording. It requires a visible Ask confirmation (`plan_mode=yes`, any language) or the user's `/plan` / `/ultra plan` command; timeouts and simple proposal/方案 requests do not count. Writing `local://<slug>-plan.md` outside active plan mode is rejected.
+- Backend mode is on by default. A TUI connects to a reachable machine-wide backend without starting one, and falls back to its own local process when none is running; explicit `--backend`/`--attach` still fails closed. The Desktop install owns the login item by default; npm keeps the bundled-only OS autostart gate.
+- BTW answers can be sent back to the working main agent: `C` sends only the latest answer, the panel menu can send the full question/answer conversation or multiple space-selected topics, and the complete transcript can be copied. Escape stops only the current BTW lane; Backspace returns to the coding-agent page.
+- Settings no longer adds a top-level Runtime page; identity and IM remain child pages of the existing Interaction settings.
+- The composer's More Models flyout links to model visibility, where exact `provider/model` entries can be hidden without hiding an entire provider.
+- The Windows desktop installer now repairs the Start Menu and desktop shortcut AppUserModelID, so the taskbar associates the running window with the Zeta icon.
+- Sidebar project names are explicitly left-aligned instead of inheriting the button's centered text alignment.
+- Release notes now start with a user-facing summary; technical traceability is folded at the end.
+
 ## [1.5.12] - 2026-11-20
 
 ### Added

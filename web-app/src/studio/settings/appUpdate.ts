@@ -22,6 +22,7 @@ export interface AppUpdateState {
   readonly readyToApply?: boolean;
   readonly rollbackVersion?: string | undefined;
   readonly rollbackReady?: boolean;
+  readonly requiresSystemAuthorization?: boolean;
   readonly receivedBytes?: number | undefined;
   readonly totalBytes?: number | undefined;
   readonly updateInfo: {
@@ -31,6 +32,8 @@ export interface AppUpdateState {
     readonly plan?: "none" | "hot" | "full";
     readonly reason?: string | undefined;
     readonly blockedReason?: string | undefined;
+    readonly manualInstallUrl?: string | undefined;
+    readonly requiresSystemAuthorization?: boolean | undefined;
     readonly version?: string | undefined;
     readonly name?: string | undefined;
     readonly releaseNotes?: string | undefined;
@@ -99,7 +102,7 @@ function receiveUnifiedUpdate(snapshot: import("@linxiraos/studio-runtime-instal
   const downloading = parts.some(p => p.phase === "downloading" || p.phase === "verifying");
   const applying = applyInFlight || parts.some(p => p.phase === "applying");
   const ready = !downloading && parts.some(p => p.phase === "ready" || p.phase === "applying");
-  const current = snapshot.app.version ? snapshot.app : snapshot.runtime;
+  const current = (snapshot.app.manualInstallUrl && ready ? parts.find(part => part.phase === "ready" || part.phase === "applying") : undefined) ?? (snapshot.app.version ? snapshot.app : snapshot.runtime);
   const messages: Record<keyof typeof clearedMessages, string | null> = {
     ...clearedMessages,
     ...(sameTarget && ready && !downloading && !applying ? { applyError: currentState.applyError, applyNotice: currentState.applyNotice, cancelError: currentState.cancelError } : {}),
@@ -115,6 +118,7 @@ function receiveUnifiedUpdate(snapshot: import("@linxiraos/studio-runtime-instal
     checking: snapshot.checking, downloading, applying, readyToApply: ready,
     rollbackVersion: snapshot.rollbackAppVersion,
     rollbackReady: snapshot.rollbackAppPending === true && snapshot.app.phase === "ready",
+    requiresSystemAuthorization: snapshot.app.requiresSystemAuthorization === true,
     ...messages,
     receivedBytes: parts.reduce((n, p) => n + (p.receivedBytes ?? 0), 0),
     totalBytes: parts.reduce((n, p) => n + (p.totalBytes ?? 0), 0),

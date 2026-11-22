@@ -6,7 +6,7 @@ import type {
   CommandInput,
   CommandResult,
   StudioClient,
-} from "@linxiraos/studio-contract"
+} from "@linxiraos/studio-contract";
 import type {
   EvaluationKind,
   EvaluationSpec,
@@ -16,7 +16,7 @@ import type {
   EvaluationResultPage,
   EvaluationControlInput,
   EvaluationExportInput,
-} from "@linxiraos/studio-protocol"
+} from "@linxiraos/studio-protocol";
 import {
   WorkspaceTabs,
   WorkspaceDialog,
@@ -28,9 +28,9 @@ import { useI18n } from "../i18n";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { InteractionDeck } from "../InteractionDeck";
 import { Icon } from "../icons";
+import { evaluationResponseValue } from "./evaluationResponse";
 import { EvaluationConfig } from "./EvaluationConfig";
 import { startEvaluationPolling } from "./evaluationPolling";
-import { evaluationResponseValue } from "./evaluationResponse";
 import { EvaluationResults, EvaluationComparison } from "./EvaluationResults";
 import {
   evaluationNames,
@@ -56,6 +56,26 @@ type EvaluationCommand =
   | "evaluations.respond"
   | "evaluations.openWorkspace";
 type ViewRecord = EvaluationRecord & { clientInteraction?: ClientInteraction };
+
+function LazyJsonDetails({
+  summary,
+  getValue,
+}: {
+  summary: string;
+  getValue: () => unknown;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="eval-advanced"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>{summary}</summary>
+      {open ? <pre>{JSON.stringify(getValue(), null, 2)}</pre> : null}
+    </details>
+  );
+}
 export function EvaluationPage({
   client,
   workspaceId,
@@ -78,13 +98,14 @@ export function EvaluationPage({
   const { preview, marks } = usePreviewMode(),
     { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh",
+    previewLocale = preview ? resolvedLanguage : "",
     t = (cn: string, en: string) => (zh ? cn : en);
   const names = evaluationNames(zh),
     descriptions = evaluationDescriptions(zh);
-  const [tab, setTab] = useState<EvaluationKind>("benchmark"),
+  const [tab, setTab] = useState<EvaluationKind>(() => intent?.kind ?? "benchmark"),
     [context, setContext] = useState<EvaluationContext>();
   const [records, setRecords] = useState<EvaluationRecord[]>([]),
-    [selected, setSelected] = useState<string>();
+    [selected, setSelected] = useState<string | undefined>(() => intent?.id);
   const [record, setRecord] = useState<ViewRecord>(),
     [page, setPage] = useState<EvaluationResultPage>();
   const [offset, setOffset] = useState(0),
@@ -108,76 +129,101 @@ export function EvaluationPage({
   const [refresh, setRefresh] = useState(0),
     [filter, setFilter] = useState("");
   const epoch = useRef(0),
-    actionLock = useRef<symbol | undefined>(undefined),
-    previewRecords = useRef<EvaluationRecord[]>([]);
+    actionLock = useRef(false),
+    previewRecords = useRef<EvaluationRecord[]>([]),
+    pendingIntentRef = useRef(intent),
+    prevScopeRef = useRef<{
+      client: StudioClient;
+      workspaceId: string | undefined;
+      preview: boolean;
+    } | null>(null),
+    draftOpenRef = useRef(false),
+    workingRef = useRef(false);
+  draftOpenRef.current = draft !== undefined;
   const confirmButton = useRef<HTMLButtonElement>(null);
   const invoke = useCallback(
     async <K extends EvaluationCommand>(
       name: K,
       input: CommandInput<K>,
     ): Promise<CommandResult<K>> => {
-      const current = epoch.current;
       const handle = await client.command(name, input);
-      if (current !== epoch.current) throw new Error("Evaluation view changed");
-      const result = await waitReceipt<CommandResult<K>>(client, handle.requestId);
-      if (current !== epoch.current) throw new Error("Evaluation view changed");
-      return result;
+      return waitReceipt<CommandResult<K>>(client, handle.requestId);
     },
     [client],
   );
   useEffect(() => {
-    ++epoch.current;
+    const prev = prevScopeRef.current;
+    const isPreviewLocaleOnly =
+      prev !== null &&
+      prev.client === client &&
+      prev.workspaceId === workspaceId &&
+      prev.preview &&
+      preview;
+    const isInitialWorkspaceHydration =
+      prev !== null &&
+      prev.client === client &&
+      prev.preview === preview &&
+      prev.workspaceId === undefined &&
+      workspaceId !== undefined &&
+      pendingIntentRef.current !== undefined;
+    prevScopeRef.current = { client, workspaceId, preview };
+    if (isPreviewLocaleOnly) {
+      previewRecords.current = previewEvaluationRecords(zh);
+      setRecords(previewRecords.current);
+      return;
+    }
+    const current = ++epoch.current;
     setContext(undefined);
     setRecords([]);
     setRecord(undefined);
-    setSelected(undefined);
+    if (!isInitialWorkspaceHydration) {
+      setSelected(pendingIntentRef.current?.id);
+    }
     setDraft(undefined);
+    setRevising(false);
+    setSourceId(undefined);
     setPlan(undefined);
     setError("");
     setNotice("");
     setOffset(0);
     setCompare(undefined);
-    setPage(undefined);
-    setHistory(false);
-    setHistoryRows([]);
-    setHistoryTotal(0);
-    setHistoryOffset(0);
-    setSearch("");
-    setCompareOpen(false);
-    setSourceId(undefined);
-    setPatchText(undefined);
-    setPendingAction(undefined);
-    setRevising(false);
-    setFilter("");
-    setBusy(false);
-    actionLock.current = undefined;
+    workingRef.current = false;
     if (preview) {
-      previewRecords.current = previewEvaluationRecords();
+      previewRecords.current = previewEvaluationRecords(zh);
       setRecords(previewRecords.current);
       setContext(EVALUATION_PREVIEW_CONTEXT);
-    }
+    } else if (workspaceId)
+      void client
+        .query("evaluations.context", { workspaceId })
+        .then((value) => {
+          if (current === epoch.current) setContext(value);
+        })
+        .catch((cause) => {
+          if (current === epoch.current)
+            setError(hostErrorMessage(cause, "Evaluation workspace unavailable"));
+        });
     return () => {
       epoch.current++;
     };
-  }, [client, workspaceId, sessionId, preview, executionTarget.id]);
+  }, [client, sessionId, workspaceId, preview, previewLocale]);
   useEffect(() => {
-    if (preview || !workspaceId) return;
+    if (preview || !available || !workspaceId) return;
     let active = true;
-    const current = epoch.current;
     void client.query("evaluations.context", { workspaceId }).then(value => {
-      if (active && current === epoch.current) setContext(value);
-    }).catch(cause => {
-      if (active && current === epoch.current)
-        setError(hostErrorMessage(cause, "Evaluation workspace unavailable"));
-    });
+      if (active) setContext(value);
+    }).catch(cause => { if (active) setError(hostErrorMessage(cause, "Evaluation workspace unavailable")); });
     return () => { active = false; };
-  }, [client, workspaceId, sessionId, available, preview]);
+  }, [available, client, preview, workspaceId]);
+
   useEffect(() => {
     if (intent) {
+      pendingIntentRef.current = intent;
       setTab(intent.kind);
       setSelected(intent.id);
       setOffset(0);
       setDraft(undefined);
+      setRevising(false);
+      setSourceId(undefined);
     }
   }, [intent]);
   useEffect(() => {
@@ -196,17 +242,37 @@ export function EvaluationPage({
               })
             ).records;
         if (!active) return;
+        if (list.length > 0) pendingIntentRef.current = undefined;
         setRecords(list);
-        const id = selected ?? list.find((r) => r.spec.kind === tab)?.id;
+        const listWorking = list.some((r) =>
+          ["preparing", "running", "cancelling"].includes(r.state),
+        );
+        const tabFallback = preview
+          ? (list.find((r) => r.spec.kind === tab) ?? list[0])
+          : list.find((r) => r.spec.kind === tab);
+        const matchedPreview =
+          preview && selected ? list.find((r) => r.id === selected) : undefined;
+        const id = preview
+          ? (matchedPreview ?? tabFallback)?.id
+          : (selected ?? tabFallback?.id);
         if (!id) {
+          workingRef.current = listWorking;
           setRecord(undefined);
           setPage(undefined);
           return;
         }
         const value = preview
-          ? list.find((r) => r.id === id)!
+          ? (matchedPreview ?? tabFallback)
           : await client.query("evaluations.read", { id });
         if (!active) return;
+        if (!value) {
+          workingRef.current = listWorking;
+          setRecord(undefined);
+          setPage(undefined);
+          return;
+        }
+        workingRef.current =
+          listWorking || ["preparing", "running", "cancelling"].includes(value.state);
         setRecord(value);
         if (id !== selected) {
           setSelected(id);
@@ -228,12 +294,17 @@ export function EvaluationPage({
     };
     let stop: (() => void) | undefined;
     if (preview) void load();
-    else stop = startEvaluationPolling({ client, load, intervalMs: 1500 });
+    else
+      stop = startEvaluationPolling({
+        client,
+        load,
+        intervalMs: () => (!draftOpenRef.current && workingRef.current ? 1500 : undefined),
+      });
     return () => {
       active = false;
       stop?.();
     };
-  }, [client, workspaceId, sessionId, preview, tab, selected, offset, refresh]);
+  }, [client, workspaceId, preview, tab, selected, offset, refresh, previewLocale]);
   useEffect(() => {
     if (!history) return;
     let active = true;
@@ -267,33 +338,34 @@ export function EvaluationPage({
       active = false;
       stop();
     };
-  }, [history, search, historyOffset, tab, preview, client, workspaceId, sessionId, refresh]);
-  const action = async (run: (assertCurrent: () => void) => Promise<void>) => {
+  }, [history, search, historyOffset, tab, preview, client, workspaceId, refresh]);
+  const action = async (run: (currentEpoch: number) => Promise<void>) => {
     if (actionLock.current) return;
-    const lease = Symbol();
-    actionLock.current = lease;
+    actionLock.current = true;
     const current = epoch.current;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      await run(() => { if (epoch.current !== current) throw new Error("Evaluation view changed"); });
+      await run(current);
     } catch (cause) {
       if (epoch.current === current)
         setError(hostErrorMessage(cause, t("操作未完成", "Action did not complete")));
     } finally {
-      if (actionLock.current === lease) actionLock.current = undefined;
+      actionLock.current = false;
       if (epoch.current === current) {
         setBusy(false);
         setRefresh((n) => n + 1);
       }
     }
   };
-  const draftKey = `zeta.evaluation.draft.${JSON.stringify([preview ? "preview" : executionTarget.id ?? "local", workspaceId ?? "none", sessionId ?? "none", tab])}`;
+  const draftKey = `zeta.evaluation.draft.${preview ? "preview" : (workspaceId ?? "none")}.${tab}`;
   const editDraft = (spec: EvaluationSpec) => {
     setDraft(spec);
     setPlan(undefined);
-    sessionStorage.setItem(draftKey, JSON.stringify(spec));
+    if (!sourceId && !revising) {
+      sessionStorage.setItem(draftKey, JSON.stringify(spec));
+    }
   };
   const create = () => {
     let spec = emptyEvaluation(tab);
@@ -313,12 +385,11 @@ export function EvaluationPage({
     setError("");
   };
   const retryFailed = () =>
-    void action(async assertCurrent => {
+    void action(async () => {
       if (!record || record.spec.kind !== "judgment") return;
       const spec = preview
         ? record.spec
         : await client.query("evaluations.retrySpec", { id: record.id });
-      assertCurrent();
       setDraft(spec);
       setTitle(record.title + t(" · 失败项重试", " · Retry failures"));
       setSourceId(record.id);
@@ -358,10 +429,11 @@ export function EvaluationPage({
         setRevising(false);
         return;
       }
-      const value = preview
-        ? previewEvaluationPlan(draft)
-        : await invoke("evaluations.prepare", { workspaceId: workspaceId!, spec: draft });
-      setPlan(value);
+      setPlan(
+        preview
+          ? previewEvaluationPlan(draft)
+          : await invoke("evaluations.prepare", { workspaceId: workspaceId!, spec: draft }),
+      );
     });
   const start = () =>
     void action(async () => {
@@ -377,10 +449,13 @@ export function EvaluationPage({
       if (preview) previewRecords.current = [value, ...previewRecords.current];
       setSelected(value.id);
       setRecord(value);
+      const wasNewDraft = !sourceId && !revising;
       setDraft(undefined);
+      setRevising(false);
+      setSourceId(undefined);
       setPlan(undefined);
       setOffset(0);
-      sessionStorage.removeItem(draftKey);
+      if (wasNewDraft) sessionStorage.removeItem(draftKey);
     });
   const control = (input: Omit<EvaluationControlInput, "id">) =>
     void action(async () => {
@@ -409,7 +484,7 @@ export function EvaluationPage({
       setRecord(await invoke("evaluations.control", { id: record.id, ...input }));
     });
   const exportReport = (format: EvaluationExportInput["format"]) =>
-    void action(async assertCurrent => {
+    void action(async (currentEpoch) => {
       if (!record) return;
       if (preview) {
         if (marks)
@@ -422,18 +497,22 @@ export function EvaluationPage({
         return;
       }
       const result = await invoke("evaluations.export", { id: record.id, format });
+      if (epoch.current !== currentEpoch) return;
       const chunks: Uint8Array<ArrayBuffer>[] = [];
       let offset = 0;
       let mimeType = "application/octet-stream";
       for (;;) {
+        if (epoch.current !== currentEpoch) return;
         const part = await client.query("evaluations.exportChunk", {
           artifactId: result.artifactId,
           offset,
         });
-        assertCurrent();
-        chunks.push(Uint8Array.from(atob(part.data), char => char.charCodeAt(0)));
+        if (epoch.current !== currentEpoch) return;
+        if (part.data) {
+          chunks.push(Uint8Array.from(atob(part.data), (char) => char.charCodeAt(0)));
+        }
         mimeType = part.mimeType;
-        if (part.nextOffset >= part.total) break;
+        if (part.nextOffset >= part.total || part.nextOffset <= offset) break;
         offset = part.nextOffset;
       }
       const url = URL.createObjectURL(new Blob(chunks, { type: mimeType }));
@@ -467,10 +546,13 @@ export function EvaluationPage({
         label={t("评测工作区", "Evaluation workspace")}
         value={tab}
         onChange={(value) => {
+          pendingIntentRef.current = undefined;
           setTab(value);
           setSelected(undefined);
           setOffset(0);
           setDraft(undefined);
+          setRevising(false);
+          setSourceId(undefined);
           setPlan(undefined);
           setCompare(undefined);
           setFilter("");
@@ -519,14 +601,13 @@ export function EvaluationPage({
             <button
               className="btn small"
               onClick={() => {
-                const current = epoch.current;
                 setError("");
                 setRefresh((n) => n + 1);
                 if (!preview && workspaceId && !context?.available)
                   void client
                     .query("evaluations.context", { workspaceId })
-                    .then(value => { if (current === epoch.current) setContext(value); })
-                    .catch(cause => { if (current === epoch.current) setError(hostErrorMessage(cause, "Cannot reconnect")); });
+                    .then(setContext)
+                    .catch((cause) => setError(hostErrorMessage(cause, "Cannot reconnect")));
               }}
             >
               {t("重新读取", "Refresh")}
@@ -561,7 +642,10 @@ export function EvaluationPage({
                 className="btn small"
                 onClick={() => {
                   setDraft(undefined);
+                  setRevising(false);
+                  setSourceId(undefined);
                   setPlan(undefined);
+                  if (working) setRefresh((n) => n + 1);
                 }}
               >
                 {t("返回结果", "Back to results")}
@@ -674,7 +758,6 @@ export function EvaluationPage({
                   interaction={record.clientInteraction}
                   disabled={busy}
                   onRespond={async (decision, value) => {
-                    const current = epoch.current;
                     try {
                       await invoke("evaluations.respond", {
                         id: record.id,
@@ -686,7 +769,7 @@ export function EvaluationPage({
                       setRefresh((n) => n + 1);
                       return true;
                     } catch (cause) {
-                      if (current === epoch.current) setError(hostErrorMessage(cause, "Cannot submit review"));
+                      setError(hostErrorMessage(cause, "Cannot submit review"));
                       return false;
                     }
                   }}
@@ -850,7 +933,7 @@ export function EvaluationPage({
                     className="btn small"
                     disabled={!record.detail.patchAvailable}
                     onClick={() =>
-                      void action(async assertCurrent => {
+                      void action(async (currentEpoch) => {
                         if (preview) {
                           setPatchText(
                             [
@@ -866,16 +949,17 @@ export function EvaluationPage({
                         let offset = 0,
                           text = "";
                         for (;;) {
+                          if (epoch.current !== currentEpoch) return;
                           const part = await client.query("evaluations.patch", {
                             id: record.id,
                             offset,
                           });
-                          assertCurrent();
+                          if (epoch.current !== currentEpoch) return;
                           text += part.text;
-                          if (part.nextOffset >= part.total) break;
+                          if (part.nextOffset >= part.total || part.nextOffset <= offset) break;
                           offset = part.nextOffset;
                         }
-                        setPatchText(text);
+                        if (epoch.current === currentEpoch) setPatchText(text);
                       })
                     }
                   >
@@ -904,7 +988,7 @@ export function EvaluationPage({
                   : ""}
               </span>
             </div>
-            <EvaluationResults record={record} page={shownPage} t={t} />
+            <EvaluationResults key={record.id} record={record} page={shownPage} t={t} />
             <div className="eval-pagination">
               <button
                 className="btn small"
@@ -926,19 +1010,16 @@ export function EvaluationPage({
                 {t("下一页", "Next")}
               </button>
             </div>
-            <details className="eval-advanced">
-              <summary>{t("配置与原生详情", "Configuration and native details")}</summary>
-              <p className="mono">
-                {record.id} · Zeta {record.runtimeVersion ?? "—"}
-              </p>
-              <pre>
-                {JSON.stringify(
-                  { configuration: record.spec, plan: record.plan, details: record.detail },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
+            <LazyJsonDetails
+              summary={t("配置与原生详情", "Configuration and native details")}
+              getValue={() => ({
+                id: record.id,
+                runtimeVersion: record.runtimeVersion ?? null,
+                configuration: record.spec,
+                plan: record.plan,
+                details: record.detail,
+              })}
+            />
           </>
         ) : (
           <WorkspaceEmpty title={t("还没有评测记录", "No evaluations yet")} icon="pulse">
@@ -1041,10 +1122,10 @@ export function EvaluationPage({
               )}
             </p>
           ) : null}
-          <details className="eval-advanced">
-            <summary>{t("完整冻结配置", "Frozen configuration")}</summary>
-            <pre>{JSON.stringify(plan.spec, null, 2)}</pre>
-          </details>
+          <LazyJsonDetails
+            summary={t("完整冻结配置", "Frozen configuration")}
+            getValue={() => plan.spec}
+          />
           <div className="eval-dialog-actions">
             <button className="btn" onClick={() => setPlan(undefined)}>
               {t("返回修改", "Back")}
@@ -1075,9 +1156,12 @@ export function EvaluationPage({
               <div key={r.id}>
                 <button
                   onClick={() => {
+                    pendingIntentRef.current = undefined;
                     setSelected(r.id);
                     setOffset(0);
                     setDraft(undefined);
+                    setRevising(false);
+                    setSourceId(undefined);
                     setHistory(false);
                   }}
                 >

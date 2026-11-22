@@ -960,13 +960,13 @@ export const cfgInterruptMode = register({
 export const cfgBtwInject = register({
 	id: "btw.inject",
 	type: "boolean",
-	default: false,
+	default: true,
 	ui: {
 		tab: "interaction",
 		group: "Input",
 		label: "/btw Steering Inject",
 		description:
-			"When you ask /btw for a steering prompt, it drafts one in <inject> tags, highlighted in the answer; Alt+I (app.btw.inject) sends it to the main session",
+			"When you ask /btw for a steering prompt, it drafts one in <inject> tags, highlighted in the answer; Alt+I (app.btw.inject) sends it to the main session. Z Work Studio also sends the latest answer with C, or a full/selected discussion from the answer menu.",
 	},
 });
 

@@ -370,24 +370,23 @@ describe("backend attach transport", () => {
 		expect(probes).toBe(0);
 	});
 
-	test("backend mode makes a bare launch require the default backend", async () => {
-		await expect(
-			resolveStartupTransport(
-				{
-					messages: [],
-					fileArgs: [],
-					unrecognizedFlags: [],
-					invalidFlagValues: [],
-					unknownFlags: new Map(),
-				},
-				[],
-				{
-					interactive: true,
-					backendEnabled: true,
-					discoverAll: async () => [],
-				},
-			),
-		).rejects.toMatchObject({ code: "unavailable" });
+	test("backend mode falls back to local when no default backend is running", async () => {
+		const transport = await resolveStartupTransport(
+			{
+				messages: [],
+				fileArgs: [],
+				unrecognizedFlags: [],
+				invalidFlagValues: [],
+				unknownFlags: new Map(),
+			},
+			[],
+			{
+				interactive: true,
+				backendEnabled: true,
+				discoverAll: async () => [],
+			},
+		);
+		expect(transport.kind).toBe("in-process");
 	});
 
 	test("--standalone stays local even when backend mode is enabled", async () => {

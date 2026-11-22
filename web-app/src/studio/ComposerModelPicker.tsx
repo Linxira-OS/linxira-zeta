@@ -100,6 +100,7 @@ export function ComposerModelMenu({
   onChooseRole,
   onChooseModel,
   onClose,
+  onManageModels,
 }: {
   data: ModelConfigReadModel | null;
   loading: boolean;
@@ -108,6 +109,8 @@ export function ComposerModelMenu({
   disabled?: boolean;
   placement?: "up" | "down";
   note?: ReactNode;
+  /** Render this callback as a model-visibility management entry. */
+  onManageModels?: () => void;
   /** 渲染在角色列表上方的模式切换行（如 Task 子代理模式）；不传则不渲染。 */
   header?: ReactNode;
   /** 列表首位的「继承」选项；不传则不渲染（SubagentsPanel 等复用方不受影响）。 */
@@ -147,12 +150,18 @@ export function ComposerModelMenu({
   );
   const rolesWithModel = useMemo(
     () => (data?.roles ?? []).filter(
-      (role) => Boolean(role.primary) && !role.issue && bySelector.has(role.primary) && !roleTargetHidden(role.primary, data?.hiddenModels),
+      (role) => {
+        const model = role.primary ? bySelector.get(role.primary) : undefined;
+        const chatRunner = model?.kind === undefined || model.kind === "chat";
+        return Boolean(role.primary) && !role.issue && Boolean(model) && chatRunner && !roleTargetHidden(role.primary, data?.hiddenModels);
+      },
     ),
     [data, bySelector],
   );
+  /* Chat picker: Judge, speech, image and other role runners stay in their roles. */
   const groups = useMemo(
-    () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels), data.providers) : []),
+    () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels)
+      .filter(model => model.kind === undefined || model.kind === "chat"), data.providers) : []),
     [data],
   );
 
@@ -308,6 +317,21 @@ export function ComposerModelMenu({
             )}
           </div>
         ) : null}
+        {onManageModels ? (
+          <button
+            type="button"
+            className="cmp-more cmp-manage-models"
+            onClick={() => {
+              onClose();
+              onManageModels();
+            }}
+          >
+            <Icon name="settings" extra="sm" />
+            <span>{t("composer.manageModels")}</span>
+            <span className="spacer" />
+            <Icon name="chevron-r" extra="sm" />
+          </button>
+        ) : null}
         {preview && marks ? (
           <div className="cmp-menu-note">
             <span className="chip gray xs">{t("common.demo")}</span>
@@ -330,6 +354,7 @@ export function ComposerModelPicker({
   canStartSession = false,
   onRun,
   openNonce = 0,
+  onManageModels,
 }: {
   preview: boolean;
   client: StudioClient;
@@ -344,6 +369,8 @@ export function ComposerModelPicker({
   onRun: <T extends CommandName>(name: T, input: CommandInput<T>) => Promise<boolean>;
   /** Increment to open the model menu from `/model`. */
   openNonce?: number;
+  /** Opens the model-visibility editor from the More Models flyout. */
+  onManageModels?: () => void;
 }) {
   const [menu, setMenu] = useState<MenuKind>("none");
   const [data, setData] = useState<ModelConfigReadModel | null>(null);
@@ -354,6 +381,8 @@ export function ComposerModelPicker({
   const [taskPicking, setTaskPicking] = useState(false);
   const [previewTaskPick, setPreviewTaskPick] = useState<ComposerPick | null>(null);
   const [selecting, setSelecting] = useState(false);
+  const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
 
   useEffect(() => {
     if (openNonce > 0) setMenu("model");
@@ -365,7 +394,7 @@ export function ComposerModelPicker({
   useEffect(() => {
     let cancelled = false;
     if (preview) {
-      setData(createPreviewModelConfig());
+      setData(createPreviewModelConfig(zh));
       setLoadError(null);
       setLoading(false);
       return () => {
@@ -390,7 +419,7 @@ export function ComposerModelPicker({
     return () => {
       cancelled = true;
     };
-  }, [menuOpen, preview, client, refreshKey]);
+  }, [menuOpen, preview, client, refreshKey, zh]);
 
   // 预览：无显式选择时默认跟随 default 角色（退而求其次第一个有模型的角色）。
   useEffect(() => {
@@ -535,8 +564,6 @@ export function ComposerModelPicker({
     apply("session.taskModel.set", { selector: null });
   };
 
-  const { t } = useI18n();
-
   return (
     <>
       <span className="cmp-pill-wrap">
@@ -618,6 +645,7 @@ export function ComposerModelPicker({
                     : t("composer.modelNoteNextTurn"),
                 })}
             onClose={closeAll}
+            {...(onManageModels === undefined ? {} : { onManageModels })}
           />
         ) : null}
       </span>

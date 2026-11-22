@@ -430,6 +430,12 @@ payloads without resolved filesystem paths; a closed or disconnected view
 cannot read them. Unsupported files and image-size limits are reported by the
 Host. Ordinary pasted text remains text.
 
+BTW can steer the main agent without an `<inject>` block: `C` sends only the
+latest completed answer, the answer menu sends the complete question/answer
+history, and space-selected historical topics can be sent together. Escape
+aborts only the active BTW lane; Backspace closes the BTW page and returns to
+the coding-agent surface. The native `btw.inject` setting remains the gate.
+
 Native BTW branch promotion rekeys the resident wrapper before its receipt and
 moves only the initiating conversation's selection. A newer selection survives
 a branch that finishes later. Resources use kindless `resource.local.list`,

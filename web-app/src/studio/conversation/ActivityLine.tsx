@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { usePreviewMode } from "../preview/PreviewContext";
+import { resolveFileIconMeta } from "./toolMeta";
 import {
   formatElapsed,
   formatRetry,
@@ -159,10 +161,12 @@ export function ActivityLine({
   /** Preview mode: data comes from fixtures. */
   demo?: boolean;
 }) {
+  const { resolvedLanguage } = useI18n(), zh = resolvedLanguage === "zh";
   const { marks } = usePreviewMode();
   const elapsed = useElapsed(startedAt, status.retry?.nextRetryAt !== undefined);
   const live = isLiveActivityPhase(status.phase) && status.retry?.nextRetryAt === undefined;
   const showOperation = live || status.phase === "queued" || (status.phase === "waiting" && status.label !== WORKING_LABEL);
+  const fileMeta = status.filePath !== undefined ? resolveFileIconMeta(status.filePath, { allowBareName: true }) : undefined;
 
   return (
     <div className="activity-line" data-phase={status.retry?.nextRetryAt === undefined ? status.phase : "waiting"}>
@@ -187,11 +191,24 @@ export function ActivityLine({
           <>
             <span className="al-sep">·</span>
             <span className="al-op">{status.label}</span>
-            {status.detail === undefined ? null : <span className="al-detail mono">{status.detail}</span>}
+            {status.detail === undefined ? null : (
+              <span
+                className="al-detail mono"
+                data-ftype={fileMeta?.ftype ?? undefined}
+                data-secret={fileMeta?.secret || undefined}
+              >
+                {fileMeta ? (
+                  <span className="al-file-icon" aria-hidden="true">
+                    <Icon name={fileMeta.icon} extra="sm" />
+                  </span>
+                ) : null}
+                <span className="al-detail-text">{status.detail}</span>
+              </span>
+            )}
           </>
         ) : null}
       </span>
-      {demo === true && marks ? <span className="chip gray xs">演示</span> : null}
+      {demo === true && marks ? <span className="chip gray xs">{zh ? "演示" : "Demo"}</span> : null}
     </div>
   );
 }

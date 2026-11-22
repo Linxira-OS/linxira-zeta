@@ -1,0 +1,237 @@
+/**
+ * Desktop-chrome terminal IPC contract.
+ *
+ * Shared by Main and the sandboxed preload. No Electron Main APIs — preload
+ * may import this file. This is not a Host / Studio Bridge surface.
+ */
+
+import type { TmuxSessionsInput, TmuxSessionsResult, TmuxAttachInput, TmuxAttachResult, TmuxCommandInput, TmuxTopology } from "./tmux/tmux-shared.js";
+
+export const TERMINAL_IPC_CHANNELS = {
+  create: "omp-studio:desktop:terminal-create",
+  write: "omp-studio:desktop:terminal-write",
+  resize: "omp-studio:desktop:terminal-resize",
+  dispose: "omp-studio:desktop:terminal-dispose",
+  recordingStart: "omp-studio:desktop:terminal-recording-start",
+  recordingStop: "omp-studio:desktop:terminal-recording-stop",
+  recordingStatus: "omp-studio:desktop:terminal-recording-status",
+  data: "omp-studio:desktop:terminal-data",
+  exit: "omp-studio:desktop:terminal-exit",
+  /** Renderer -> Main: bytes written to xterm (flow-control acknowledgement). */
+  ack: "omp-studio:desktop:terminal-ack",
+} as const;
+
+export const TERMINAL_MAX_SESSIONS = 8;
+export const TERMINAL_MAX_WRITE = 65_536;
+export const TERMINAL_MIN_COLS = 2;
+export const TERMINAL_MAX_COLS = 500;
+export const TERMINAL_MIN_ROWS = 1;
+export const TERMINAL_MAX_ROWS = 200;
+export const TERMINAL_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+export interface TerminalCreateInput {
+  readonly command?: TerminalCommand;
+  readonly targetId?: string;
+  readonly workspaceId?: string;
+  readonly cols?: number;
+  readonly rows?: number;
+  /**
+   * Opt in to output flow control: Main then pauses the PTY once the Renderer
+   * has more than the high watermark of unacknowledged output, and resumes on
+   * ACKs. Only a Renderer that actually acknowledges (`api.ack`) may set this;
+   * without it the terminal still works, batched but unpaused.
+   */
+  readonly flowControl?: boolean;
+}
+
+/** A whole fenced shell script, started as its own terminal process. */
+export interface TerminalCommand {
+  readonly shell: "bash" | "sh" | "zsh" | "powershell";
+  readonly text: string;
+}
+
+export interface TerminalSize {
+  readonly cols: number;
+  readonly rows: number;
+}
+
+export interface TerminalSessionInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly cwd: string;
+}
+
+export interface TerminalWriteInput {
+  readonly id: string;
+  readonly data: string;
+}
+
+export interface TerminalResizeInput {
+  readonly id: string;
+  readonly cols: number;
+  readonly rows: number;
+}
+
+export interface TerminalDisposeInput {
+  readonly id: string;
+}
+
+export interface TerminalRecordingInput { id: string; workspaceId?: string; sessionId?: string }
+export interface TerminalRecordingStatus {
+  terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed";
+  elapsedMs: number; bytes: number; artifactId?: string; notice?: string;
+}
+export function parseRecordingInput(value: unknown): TerminalRecordingInput {
+  assertPlainObject(value, "terminal recording");
+  if (Object.keys(value).some(key => !["id", "workspaceId", "sessionId"].includes(key))) throw new TerminalIpcError("Invalid recording fields");
+  for (const field of ["workspaceId", "sessionId"]) if (value[field] !== undefined && (typeof value[field] !== "string" || !(value[field] as string).trim() || (value[field] as string).length > 512 || /[\u0000-\u001f]/u.test(value[field] as string))) throw new TerminalIpcError("Invalid recording scope");
+  return { id: parseSessionId(value.id, "recording id"), ...(value.workspaceId ? { workspaceId: value.workspaceId as string } : {}), ...(value.sessionId ? { sessionId: value.sessionId as string } : {}) };
+}
+
+export interface TerminalDataEvent {
+  readonly id: string;
+  /** One batched payload: several PTY chunks joined in one IPC message. */
+  readonly data: string;
+  /**
+   * UTF-8 byte length of `data`. Optional for compatibility: an older Main
+   * omits it and the Renderer falls back to measuring the string itself.
+   */
+  readonly bytes?: number;
+}
+
+export interface TerminalAckInput {
+  readonly id: string;
+  /** UTF-8 bytes the Renderer has written to xterm since its previous ACK. */
+  readonly bytes: number;
+}
+
+/** Upper bound on one ACK; a larger number is a bug, not a credit. */
+export const TERMINAL_MAX_ACK_BYTES = 64 * 1024 * 1024;
+
+export interface TerminalExitEvent {
+  readonly id: string;
+}
+
+export class TerminalIpcError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TerminalIpcError";
+  }
+}
+
+function assertPlainObject(value: unknown, what: string): asserts value is Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TerminalIpcError(`${what}: expected an object`);
+  }
+}
+
+function parseDimension(value: unknown, field: string, min: number, max: number, fallback: number): number {
+  if (value === undefined) return fallback;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
+    throw new TerminalIpcError(`${field}: expected an integer ${min}–${max}`);
+  }
+  return value;
+}
+
+export function parseSessionId(value: unknown, field: string): string {
+  if (typeof value !== "string" || !TERMINAL_ID_PATTERN.test(value)) {
+    throw new TerminalIpcError(`${field}: expected a terminal session id`);
+  }
+  return value;
+}
+
+export function parseCreateInput(value: unknown): TerminalSize & { targetId?: string; workspaceId?: string; flowControl: boolean; command?: TerminalCommand } {
+  const input = value === undefined ? {} : value;
+  assertPlainObject(input, "terminal create");
+  for (const key of Object.keys(input)) {
+    if (key !== "cols" && key !== "rows" && key !== "targetId" && key !== "workspaceId" && key !== "flowControl" && key !== "command") {
+      throw new TerminalIpcError(`terminal create: unexpected field ${key}`);
+    }
+  }
+  for (const key of ["targetId", "workspaceId"]) if (input[key] !== undefined && (typeof input[key] !== "string" || !input[key])) throw new TerminalIpcError(`Invalid ${key}`);
+  if (input.flowControl !== undefined && typeof input.flowControl !== "boolean") throw new TerminalIpcError("Invalid flowControl");
+  return {
+    ...(input.command === undefined ? {} : { command: input.command as TerminalCommand }),
+    ...(typeof input.targetId === "string" ? { targetId: input.targetId } : {}),
+    ...(typeof input.workspaceId === "string" ? { workspaceId: input.workspaceId } : {}),
+    flowControl: input.flowControl === true,
+    cols: parseDimension(input.cols, "terminal create: cols", TERMINAL_MIN_COLS, TERMINAL_MAX_COLS, 80),
+    rows: parseDimension(input.rows, "terminal create: rows", TERMINAL_MIN_ROWS, TERMINAL_MAX_ROWS, 24),
+  };
+}
+
+export function parseWriteInput(value: unknown): TerminalWriteInput {
+  assertPlainObject(value, "terminal write");
+  for (const key of Object.keys(value)) {
+    if (key !== "id" && key !== "data") {
+      throw new TerminalIpcError(`terminal write: unexpected field ${key}`);
+    }
+  }
+  if (typeof value.data !== "string") {
+    throw new TerminalIpcError("terminal write: data must be a string");
+  }
+  if (value.data.length > TERMINAL_MAX_WRITE) {
+    throw new TerminalIpcError(`terminal write: data exceeds ${TERMINAL_MAX_WRITE} characters`);
+  }
+  return { id: parseSessionId(value.id, "terminal write: id"), data: value.data };
+}
+
+export function parseResizeInput(value: unknown): TerminalResizeInput {
+  assertPlainObject(value, "terminal resize");
+  for (const key of Object.keys(value)) {
+    if (key !== "id" && key !== "cols" && key !== "rows") {
+      throw new TerminalIpcError(`terminal resize: unexpected field ${key}`);
+    }
+  }
+  return {
+    id: parseSessionId(value.id, "terminal resize: id"),
+    cols: parseDimension(value.cols, "terminal resize: cols", TERMINAL_MIN_COLS, TERMINAL_MAX_COLS, 80),
+    rows: parseDimension(value.rows, "terminal resize: rows", TERMINAL_MIN_ROWS, TERMINAL_MAX_ROWS, 24),
+  };
+}
+
+export function parseDisposeInput(value: unknown): TerminalDisposeInput {
+  assertPlainObject(value, "terminal dispose");
+  for (const key of Object.keys(value)) {
+    if (key !== "id") {
+      throw new TerminalIpcError(`terminal dispose: unexpected field ${key}`);
+    }
+  }
+  return { id: parseSessionId(value.id, "terminal dispose: id") };
+}
+
+export function parseAckInput(value: unknown): TerminalAckInput {
+  assertPlainObject(value, "terminal ack");
+  for (const key of Object.keys(value)) {
+    if (key !== "id" && key !== "bytes") {
+      throw new TerminalIpcError(`terminal ack: unexpected field ${key}`);
+    }
+  }
+  const bytes = value.bytes;
+  if (typeof bytes !== "number" || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > TERMINAL_MAX_ACK_BYTES) {
+    throw new TerminalIpcError(`terminal ack: bytes must be an integer 0–${TERMINAL_MAX_ACK_BYTES}`);
+  }
+  return { id: parseSessionId(value.id, "terminal ack: id"), bytes };
+}
+
+export interface OmpStudioTerminalApi {
+  tmuxSessions?(input: TmuxSessionsInput): Promise<TmuxSessionsResult>;
+  tmuxAttach?(input: TmuxAttachInput): Promise<TmuxAttachResult>;
+  tmuxCommand?(input: TmuxCommandInput): Promise<void>;
+  tmuxDetach?(connectionId: string): Promise<void>;
+  onTmux?(listener: (topology: TmuxTopology) => void): () => void;
+  create(size?: TerminalCreateInput): Promise<TerminalSessionInfo>;
+  write(id: string, data: string): Promise<void>;
+  resize(id: string, cols: number, rows: number): Promise<void>;
+  dispose(id: string): Promise<void>;
+  recordingStart(input: TerminalRecordingInput): Promise<TerminalRecordingStatus>;
+  recordingStop(id: string): Promise<TerminalRecordingStatus>;
+  recordingStatus(id: string): Promise<TerminalRecordingStatus>;
+  onData(listener: (event: TerminalDataEvent) => void): () => void;
+  onExit(listener: (event: TerminalExitEvent) => void): () => void;
+  /**
+   * Acknowledge output written to xterm (flow control). Optional so a Renderer
+   * running against an older shell degrades to batching without pausing.
+   */
+  ack?(id: string, bytes: number): void;
+}

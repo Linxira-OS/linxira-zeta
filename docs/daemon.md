@@ -16,8 +16,11 @@ zetacode daemon install-autostart
 zetacode daemon uninstall-autostart
 ```
 
-`zetacode` with no arguments follows `backend.enabled` (see
-[Backend mode](#backend-mode)); attaching is otherwise a separate surface.
+`zetacode` with no arguments starts its own interactive process. It connects to
+the live machine-wide backend when one is reachable, but never starts one; if
+none is reachable it stays local. print/protocol runs may follow
+`backend.enabled` (see [Backend mode](#backend-mode)); attaching is otherwise a
+separate surface.
 `start` accepts the same exposure flags as `serve` (`--host`, `--tls`,
 `--tls-cert`, `--tls-key`, `--allow-plain-http`, `--channels`), and the same
 refusals apply: a non-loopback bind still needs `remote.token` and TLS (or an
@@ -25,20 +28,21 @@ explicit plaintext opt-in).
 
 ## Backend mode
 
-`backend.enabled` (default `false`) is the machine-wide switch. It is a
+`backend.enabled` (default `true`) is the machine-wide switch. It is a
 **global-only** setting (`~/.zeta/agent/config.yml`); a project config cannot
 enable a background service.
 
 - **Off** — every bare `zetacode` launch is a local process. Nothing is
   auto-started, probed, or attached.
-- **On** — a bare `zetacode` becomes a client of the one default backend. If
-  the backend is not running, startup fails with a diagnostic instead of
-  silently opening a local session.
+- **On** — a bare interactive TUI connects to the one default backend when it is
+  live; with no live backend it falls back to its own local process. A bare
+  print/protocol `zetacode` becomes a backend client and reports a diagnostic
+  instead of silently opening a local session.
 - **`--standalone`** — force a local process even while the switch is on. It
   never registers or listens, and may coexist with the backend.
 - Explicit `--attach`, `--attach-session`, `--attach-new`, `--backend`, and
   `--backend-url` still select backend mode on their own; the switch governs
-  the default, not an explicit request.
+  the print/protocol default, not an explicit request or the TUI.
 
 ```sh
 zetacode backend status [--json]
@@ -58,6 +62,21 @@ The backend runs detached, so closing the terminal that launched it does not
 stop it. Only one backend is expected; a second live registration is an error
 to clean up, not a candidate for automatic selection. `daemon start` remains a
 low-level explicit command; `backend on` is the normal switch.
+
+## Installation forms and autostart
+
+Serve is a machine-level process, so its autostart belongs to the installation
+form, not to `zetacode` startup:
+
+| Install form | Serve lifecycle | Autostart owner |
+| --- | --- | --- |
+| npm global (`@linxiraos/zeta`) | no OS service is registered; `serve`/`backend on` is explicit | none by default; opt in with `zetacode daemon install-autostart` |
+| Arch/pacman package | the package may register a user service; the service starts `serve`, not a TUI | package metadata / explicit `systemctl --user enable` |
+| Desktop installer | the Electron shell owns its bundled service lifecycle for that app | the installer or desktop login item |
+
+A running TUI never asks the installer, package service, or desktop shell to
+start serve on its behalf. If the machine has no autostart entry, start serve
+once with `zetacode serve` or enable the explicit autostart command.
 
 ## Lifecycle
 
@@ -237,8 +256,8 @@ agent yourself.
 running, but it honors the same product switch as the CLI. On launch it asks
 this command surface, on a worker thread:
 
-1. `zetacode backend status --json` — when `backend.enabled` is false (the
-   default) the shell starts nothing and every `zetacode` tab is local;
+1. `zetacode backend status --json` — when `backend.enabled` is false the shell
+   starts nothing and every `zetacode` tab is local;
 2. when enabled and a backend is live (whatever its `source`), it connects to
    it as-is; nothing is started beside it;
 3. when enabled with no live backend, `zetacode backend on` starts the daemon
@@ -247,15 +266,19 @@ this command surface, on a worker thread:
 
 The shell always says which of its two modes it is in:
 
-- **独立进程模式** — the default. `backend.enabled` is false: no daemon is
+- **独立进程模式** — `backend.enabled` is false: no daemon is
   started, no banner is drawn, every terminal tab is an independent local
   process (its status line reads 本地进程), and 设置 → 常规 → 后台服务 reads
   独立进程模式（后端未启用） with one 启用后端 button. Enabling the backend is
-  always an explicit action.
-- **后端模式** — after 启用后端, or with `backend.enabled=true` already written:
+  a single explicit toggle; the default is on.
+- **后端模式** — the default, or after 启用后端:
   a banner across the top says *starting* / *stopping* / *stopped* / *not
   ready* (with 重试 on a failure), and the settings row names the mode plus the
   running pid and `webUrl` when ready, with 重启 and 停止 beside it.
+
+Interactive TUI tabs stay local in both modes. The backend switch governs the
+backend-hosted Work Studio surface and print/protocol runs; it never makes a
+TUI tab attach to or start serve.
 
 A probe that cannot run at all — no `zetacode` beside the shell, or one too old
 to have the `backend` subcommand — is not a backend failure: the shell stays in

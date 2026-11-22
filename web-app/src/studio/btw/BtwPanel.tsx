@@ -30,9 +30,12 @@ export function BtwPanel({ session, demo, onDemoNext, onClose, visible = true }:
   const followRef = useRef(true);
   const roundId = snapshot?.ephemeralId ?? null;
   const { t, resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
   const { marks } = usePreviewMode();
   const composer = useRef<ChipComposerHandle>(null);
   const [rootRef, wide] = useWideLayout<HTMLDivElement>(BTW_WIDE_MIN);
+  const [injectMenu, setInjectMenu] = useState(false);
+  const [injectTopics, setInjectTopics] = useState<readonly string[]>([]);
   const topicList = wide && (session.historyAvailable === true || demo === true);
   useEffect(() => { if (visible) void session.refreshHistory?.(); }, [visible, session.draftScope, session.historyAvailable]);
   const text = snapshot?.text ?? "";
@@ -45,16 +48,44 @@ export function BtwPanel({ session, demo, onDemoNext, onClose, visible = true }:
   useEffect(() => { followRef.current = !roundId?.startsWith("history:"); if (!followRef.current && bodyRef.current) bodyRef.current.scrollTop = 0; }, [roundId]);
   useEffect(() => { const node = bodyRef.current; if (node && followRef.current) node.scrollTop = node.scrollHeight; }, [text]);
   const onScroll = () => { const node = bodyRef.current; if (node) followRef.current = node.scrollHeight - node.scrollTop - node.clientHeight <= FOLLOW_SLACK_PX; };
+  useEffect(() => {
+    if (!visible) return;
+    // The dock can lose focus to another pane. Backspace and Escape still mean
+    // "leave this BTW page / stop this BTW lane", never the main agent.
+    const onWindowKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+      if ((event.target as Element | null)?.closest(".btw-panel")) return;
+      if ((event.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true'], [role='combobox']")) return;
+      if (event.key === "Backspace") { event.preventDefault(); event.stopPropagation(); onClose?.(); }
+      else if (event.key === "Escape") {
+        event.preventDefault(); event.stopPropagation();
+        if (session.canAbort) void session.abort(); else onClose?.();
+      }
+    };
+    window.addEventListener("keydown", onWindowKey, true);
+    return () => window.removeEventListener("keydown", onWindowKey, true);
+  }, [visible, onClose, session.canAbort, session.abort]);
   const shortcuts = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.altKey && event.key.toLowerCase() === "i" && snapshot?.injection?.state === "ready" && session.inject) { event.preventDefault(); void session.inject(snapshot.injection.id); return; }
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return;
     if ((event.target as HTMLElement).closest("input, textarea, button, [contenteditable='true'], [role='combobox']")) return;
     const key = event.key.toLowerCase();
     if ((key === "f" || key === "enter") && session.canAsk !== false) composer.current?.focus();
+    else if (key === "c" && session.canInject && session.injectLatest) void session.injectLatest();
     else if (key === "c" && session.canCopy !== false) void session.copy();
     else if (key === "x" && session.canAbort) void session.abort();
     else if (key === "b" && session.canBranch) void session.branch();
-    else if (key === "escape" && onClose) onClose();
+    else if (key === " " && injectMenu) {
+      if (session.selectedTopicId) setInjectTopics(current => current.includes(session.selectedTopicId!) ? current.filter(id => id !== session.selectedTopicId) : [...current, session.selectedTopicId!]);
+    }
+    else if (key === "escape") {
+      // Escape belongs to this BTW lane: stop its answer, never the main agent.
+      if (session.canAbort) void session.abort(); else onClose?.();
+    }
+    else if (key === "backspace") {
+      // Backspace is Back from this BTW page to the coding-agent page.
+      onClose?.();
+    }
     else return;
     event.preventDefault(); event.stopPropagation();
   };
@@ -101,6 +132,20 @@ export function BtwPanel({ session, demo, onDemoNext, onClose, visible = true }:
             {!text && running ? <div className="btw-thinking" aria-label={t("common.loading")}><span /><span /><span /></div> : <BtwAnswer text={text} injection={snapshot.injection} session={session} streaming={running} />}
             {text || session.canCopy ? <div className="ev-msg-actions">
               <button type="button" className="ev-msg-copy" aria-label={t("common.copy")} data-tip={t("common.copy")} onClick={() => void session.copy()}><Icon name="copy" extra="sm" /></button>
+              {session.canInject ? <div className="btw-inject-wrap">
+                <button type="button" className="ev-msg-copy" aria-label={zh ? "发送到主会话" : "Send to main session"} data-tip={zh ? "把 BTW 内容发送回正在工作的主 Agent（C 只发最新回答）" : "Send BTW content back to the working main agent (C sends the latest answer only)"} onClick={() => { setInjectMenu(value => !value); setInjectTopics([]); }}><Icon name="arrow-u" extra="sm" /></button>
+                {injectMenu ? <div className="btw-inject-menu" role="menu">
+                  <button type="button" role="menuitem" disabled={!session.canCopy} onClick={() => { setInjectMenu(false); void session.injectLatest?.(); }}>{zh ? "只发送最新回答 · C" : "Latest answer only · C"}</button>
+                  <button type="button" role="menuitem" disabled={!session.canCopy} onClick={() => { setInjectMenu(false); void session.injectConversation?.("full"); }}>{zh ? "发送完整对话和问题" : "Full conversation and questions"}</button>
+                  <button type="button" role="menuitem" disabled={!session.canCopy} onClick={() => { setInjectMenu(false); void session.copyConversation?.(); }}>{zh ? "复制完整对话和问题" : "Copy full conversation and questions"}</button>
+                  <span className="btw-inject-menu-label">{zh ? "空格勾选多个话题" : "Space to select topics"}</span>
+                  {topics.map(topic => <label key={topic.topicId} className="btw-inject-topic">
+                    <input type="checkbox" checked={injectTopics.includes(topic.topicId)} onChange={() => setInjectTopics(current => current.includes(topic.topicId) ? current.filter(id => id !== topic.topicId) : [...current, topic.topicId])} />
+                    <span>{topic.title ?? topic.question}</span>
+                  </label>)}
+                  <button type="button" className="btn small outline" disabled={injectTopics.length === 0} onClick={() => { setInjectMenu(false); void session.injectConversation?.("selected", injectTopics); }}>{zh ? `发送所选话题（${injectTopics.length}）` : `Send selected topics (${injectTopics.length})`}</button>
+                </div> : null}
+              </div> : null}
               <button type="button" className="ev-msg-copy" aria-label={t("runtimeUpgrade.btwFollow")} disabled={session.canAsk === false} data-tip={t("runtimeUpgrade.btwFollow")} onClick={() => composer.current?.focus()}><Icon name="message" extra="sm" /></button>
               {session.branchAvailable !== false ? <button type="button" className="ev-msg-copy" aria-label={t("btw.branchToNewSession")} disabled={!session.canBranch || session.pending} data-tip={session.branchBlockedReason ?? t("btw.branchHint")} onClick={() => void session.branch()}><Icon name="branch" extra="sm" /></button> : null}
             </div> : null}
@@ -199,7 +244,7 @@ function BtwComposer({ session, visible, composer, onCancel }: { session: BtwSes
   };
   const onSubmit = (event: FormEvent) => { event.preventDefault(); void submit(); };
   return <><form className="composer btw-composer" onSubmit={onSubmit}>
-    <ChipComposer id={inputId} ariaLabel={t("btw.questionLabel")} {...(inputStatus ? { describedBy: `${inputId}-status` } : {})} fileAccept={BTW_IMAGE_ACCEPT} resolveImagePaste={session.resolveImagePaste} ref={composer} compact disabled={session.pending || preparing} slashCatalog={[]} placeholder={running ? t("btw.draftWhileRunning") : topic ? t("btw.followPlaceholder") : t("btw.inputPlaceholder")} onChange={next => { localDraft.current = next; setInputError(undefined); setFallbackDraft(next); if (session.setComposerDraft) session.setComposerDraft(next); else session.setDraft(next.text); }} onSubmit={() => void submit()} onEscape={cancel} onError={setInputError} />
+    <ChipComposer id={inputId} ariaLabel={t("btw.questionLabel")} {...(inputStatus ? { describedBy: `${inputId}-status` } : {})} fileAccept={BTW_IMAGE_ACCEPT} resolveImagePaste={session.resolveImagePaste} ref={composer} compact disabled={session.pending || preparing} slashCatalog={[]} placeholder={running ? t("btw.draftWhileRunning") : topic ? t("btw.followPlaceholder") : t("btw.inputPlaceholder")} onChange={next => { localDraft.current = next; setInputError(undefined); setFallbackDraft(next); if (session.setComposerDraft) session.setComposerDraft(next); else session.setDraft(next.text); }} onSubmit={() => void submit()} onEscape={() => { if (session.canAbort) void session.abort(); else cancel(); }} onError={setInputError} />
     <div className="composer-bar">
       <button type="button" className="btn ghost small btw-image-button" aria-label={t("btw.attachImages")} data-tip={t("btw.imageHint")} disabled={session.pending} onClick={() => composer.current?.openFilePicker()}><Icon name="image" extra="sm" />{t("btw.images")}</button>
       <span className="spacer" />

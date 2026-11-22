@@ -21,8 +21,8 @@ import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import {
-  PREVIEW_MEDIA_DETAILS,
-  PREVIEW_MEDIA_DETAIL,
+  getPreviewMediaDetail,
+  getPreviewMediaDetails,
   PREVIEW_MEDIA_INPUTS,
   PREVIEW_MEDIA_MODELS,
 } from "../preview/mediaWorkbenchPreview";
@@ -133,7 +133,7 @@ export function MediaWorkbench({
   const [model, setModel] = useState("");
   const [inputCursor, setInputCursor] = useState<string>();
   const demos = useRef(
-    new Map(PREVIEW_MEDIA_DETAILS.map((value) => [value.job.id, value])),
+    new Map(getPreviewMediaDetails(zh).map((value) => [value.job.id, value])),
   );
   const [inputs, setInputs] = useState<ArtifactRecord[]>([]);
   const [jobs, setJobs] = useState<MediaJob[]>([]);
@@ -231,10 +231,26 @@ export function MediaWorkbench({
     },
     [client, sessionId, workspaceId, preview],
   );
+  const zhRef = useRef(zh);
+  zhRef.current = zh;
+  const typeRef = useRef(type);
+  typeRef.current = type;
+  useEffect(() => {
+    const previewDetails = getPreviewMediaDetails(zh);
+    demos.current = new Map(
+      previewDetails.map((value) => [value.job.id, value]),
+    );
+    if (!preview) return;
+    setJobs(previewDetails.map((value) => value.job));
+    setDetail((current) =>
+      current ? demos.current.get(current.job.id) ?? current : undefined,
+    );
+  }, [preview, zh]);
   useEffect(() => {
     epoch.current++;
+    const previewDetails = getPreviewMediaDetails(zhRef.current);
     demos.current = new Map(
-      PREVIEW_MEDIA_DETAILS.map((value) => [value.job.id, value]),
+      previewDetails.map((value) => [value.job.id, value]),
     );
     setInputs([]);
     setInputCursor(undefined);
@@ -242,10 +258,10 @@ export function MediaWorkbench({
     setBusy(false);
     setError("");
     setModels([]);
-    const example = PREVIEW_MEDIA_DETAILS.find(
-      (value) => value.job.type === type,
+    const example = previewDetails.find(
+      (value) => value.job.type === typeRef.current,
     );
-    setJobs(preview ? PREVIEW_MEDIA_DETAILS.map((value) => value.job) : []);
+    setJobs(preview ? previewDetails.map((value) => value.job) : []);
     setSelected(preview ? example?.job.id : undefined);
     setDetail(preview ? example : undefined);
     setFileChannel(preview);
@@ -303,26 +319,42 @@ export function MediaWorkbench({
   useEffect(() => {
     if (preview || !available || !sessionId || !visible) return;
     let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clearTimer = () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    };
     const poll = async () => {
+      clearTimer();
+      if (!alive || document.hidden) return;
+      let keepPolling = false;
       try {
-        if (!document.hidden) {
-          const value = await invoke("media.list", { sessionId });
-          if (alive) {
-            setJobs(value.jobs);
-            setFileChannel(value.available);
-          }
+        const value = await invoke("media.list", { sessionId });
+        if (alive) {
+          setJobs(value.jobs);
+          setFileChannel(value.available);
+          keepPolling = value.jobs.some(active);
         }
       } catch (cause) {
         if (alive) setError(hostErrorMessage(cause, "Cannot read media tasks"));
       } finally {
-        if (alive) timer = setTimeout(() => void poll(), 3000);
+        if (alive && keepPolling && !document.hidden) {
+          timer = setTimeout(() => void poll(), 3000);
+        }
       }
     };
+    const onVisibility = () => {
+      if (document.hidden) clearTimer();
+      else void poll();
+    };
     void poll();
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       alive = false;
-      clearTimeout(timer);
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [preview, available, sessionId, invoke, refresh, visible]);
   useEffect(() => {
@@ -404,11 +436,10 @@ export function MediaWorkbench({
                 size: size || undefined,
                 firstFrame: first || undefined,
                 lastFrame: last || undefined,
-                references: picked.map((artifactId) => ({
-                  artifactId,
-                  type: inputs.find((row) => row.artifactId === artifactId)!
-                    .kind,
-                })),
+                references: picked.flatMap((artifactId) => {
+                  const found = inputs.find((row) => row.artifactId === artifactId);
+                  return found ? [{ artifactId, type: found.kind }] : [];
+                }),
                 generateAudio: withAudio ? withAudio === "yes" : undefined,
                 seed: optionalNumber(seed),
                 creativity: optionalNumber(creativity),
@@ -461,10 +492,11 @@ export function MediaWorkbench({
     void run(async (generation) => {
       if (!review) return;
       if (preview) {
+        const baseDetail = getPreviewMediaDetail(zh);
         const value: MediaDetail = {
-          ...PREVIEW_MEDIA_DETAIL,
+          ...baseDetail,
           job: {
-            ...PREVIEW_MEDIA_DETAIL.job,
+            ...baseDetail.job,
             id: crypto.randomUUID(),
             type: review.type,
             model: review.model ?? (marks ? "demo/role" : t("角色链", "Role chain")),
@@ -475,7 +507,7 @@ export function MediaWorkbench({
           request: review,
           outputs: [],
           ...(review.type === "transcription"
-            ? { text: PREVIEW_MEDIA_DETAIL.text! }
+            ? { text: baseDetail.text! }
             : {
                 text: marks
                   ? t(

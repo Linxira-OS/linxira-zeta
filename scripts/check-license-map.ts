@@ -65,7 +65,10 @@ for (const manifest of files.filter(file => /^retired\/zetawork\/npm\/[^/]+\/pac
 }
 const workbenchSources = files.filter(file => /^retired\/zetawork\/.*\.rs$/.test(file));
 if (workbenchSources.length === 0)
-	failures.push({ where: "retired/zetawork/", what: "no Rust sources found — the licence check would pass vacuously" });
+	failures.push({
+		where: "retired/zetawork/",
+		what: "no Rust sources found — the licence check would pass vacuously",
+	});
 for (const source of workbenchSources) {
 	const head = fs.readFileSync(path.join(ROOT, source), "utf8").split("\n", 3).join("\n");
 	if (!head.includes(`SPDX-License-Identifier: ${AGPL}`))

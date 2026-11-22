@@ -97,7 +97,7 @@ export type ShellChrome = {
   onStartChatInProject: (project: SelectedProject) => void;
   /** 会话行悬停「归档」：打开确认弹窗；确认后仅预览模式本地隐藏。 */
   onArchivePreviewThread: (threadId: string) => void;
-  /** 真实模式「归档」：打开确认弹窗；确认后 session.archive，会话物理移入 OMP 冷归档（gzip）。 */
+  /** 真实模式「归档」：打开确认弹窗；确认后 session.archive，会话物理移入 Zeta 冷归档（gzip）。 */
   onArchiveThread: (entry: SessionHistoryEntry, workspaceId?: WorkspaceId) => void;
   /** Resolve and archive a submitted session whose sidebar row is still provisional. */
   onArchiveProvisionalThread: (thread: ProvisionalProjectThread) => void;

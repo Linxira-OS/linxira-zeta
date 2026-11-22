@@ -30,6 +30,14 @@ interface ModeToolDetails {
  * it may disarm exactly the plan mode it armed itself: leaving a user-armed plan
  * mode would walk out of the approval gate the user put it behind.
  */
+/** The user's own plan command, language-neutral. Natural language goes through ask consent. */
+const EXPLICIT_PLAN_COMMAND = /^(?:\/plan|\/ultra\s+plan)(?:\s|$)/i;
+
+/** True only for the user's `/plan` or `/ultra plan` command. */
+export function userAskedForPlanMode(text: string | undefined): boolean {
+	return text !== undefined && EXPLICIT_PLAN_COMMAND.test(text.trim());
+}
+
 function refusal(mode: string, op: "enter" | "exit"): ToolError {
 	return new ToolError(
 		`You cannot ${op} ${mode} mode on your own: it grants autonomy only the user can grant. ` +
@@ -46,7 +54,7 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 	/** Switching modes changes session state, so `always-ask` prompts for it. */
 	readonly approval = "write" as const;
 	readonly label = "Mode";
-	readonly summary = "Enter or leave plan mode on your own initiative";
+	readonly summary = "Enter or leave plan mode after explicit user confirmation";
 	readonly description = prompt.render(modeDescription);
 	readonly parameters = modeSchema;
 	readonly strict = true;
@@ -64,6 +72,15 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 	}
 
 	async #enter(params: ModeParams): Promise<AgentToolResult<ModeToolDetails>> {
+		const confirmedByAsk = this.#session.consumePlanModeConsent?.() === true;
+		const planCommand = userAskedForPlanMode(this.#session.getLastUserPromptText?.());
+		if (!confirmedByAsk && !planCommand) {
+			throw new ToolError(
+				"Plan mode requires explicit user consent. Ask the user with `ask` using a visible radio group " +
+					'`name="plan_mode"` and a `value="yes"` option; once they select yes, retry `mode enter`. ' +
+					"Any language is fine; a request for a proposal, a simple answer, or a 方案 does not authorize plan mode.",
+			);
+		}
 		const enterMode = this.#session.enterMode;
 		if (!enterMode) {
 			throw new ToolError("This session cannot switch modes: no mode controller is attached.");
@@ -78,7 +95,13 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 			// ("Exit goal mode first."); surface that as a tool error.
 			throw new ToolError(`Cannot enter plan mode: ${error instanceof Error ? error.message : String(error)}`);
 		}
-		const state = this.#session.getPlanModeState?.();
+		const current = this.#session.getPlanModeState?.();
+		return this.#enterResult(current);
+	}
+
+	#enterResult(
+		state: ReturnType<NonNullable<ToolSession["getPlanModeState"]>> | undefined,
+	): AgentToolResult<ModeToolDetails> {
 		const planFilePath = state?.planFilePath ?? "local://PLAN.md";
 		return {
 			content: [

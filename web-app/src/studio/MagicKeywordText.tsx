@@ -1,5 +1,5 @@
 /**
- * Paint magic keywords with OMP-style per-character HSL gradients.
+ * Paint magic keywords with Zeta-style per-character HSL gradients.
  * `animated` enables shimmer (composer focus + sent user bubbles).
  */
 

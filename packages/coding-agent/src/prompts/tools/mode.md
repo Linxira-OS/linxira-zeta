@@ -1,8 +1,17 @@
 Switch this session's mode yourself.
 
 Single `op`:
-- `enter` with `mode: "plan"`: starts plan mode — plan before executing, with the plan file as the only write target. Optional `workflow`: `parallel` (default), `iterative`, `ultra`. Use it when a task deserves a plan the user approves before any file changes.
+
+- `enter` with `mode: "plan"`: starts plan mode — plan before executing, with the plan file as the only write target. Optional `workflow`: `parallel` (default), `iterative`, `ultra`.
+
 - `exit` with `mode: "plan"`: ends plan mode **only when you started it**. If the user started it, you cannot end it — propose the plan (`write` to `xd://propose`) or ask the user.
+
+Enter plan mode only after explicit user consent:
+
+- the user's latest message is the `/plan` or `/ultra plan` command; or
+- you used `ask` with a **visible radio group** `name="plan_mode"` and a `value="yes"` option, and the user selected yes. Any language is fine: write the question in the user's language.
+
+A request for a simple proposal, a 方案, a recommendation, or a question answer does NOT authorize plan mode and must be answered inline without switching modes. Never create a `local://<slug>-plan.md` file outside plan mode.
 
 `goal` and `vibe` mode are NEVER yours to enter or leave: they grant autonomy only the user can grant (budgeted autonomous pursuit, automatic approval). Ask the user to run `/goal` or `/vibe`.
 

@@ -1,30 +1,53 @@
 import type { ComputerAction, ComputerFrame, ComputerStructureSnapshot, ComputerWorkspaceSnapshot, FeatureSettingRow, StudioComputerStatus } from "@linxiraos/studio-protocol";
+import { isZh } from "../i18n";
 
-export const COMPUTER_PREVIEW_SCENARIOS = ["running", "disabled", "observe-only", "waiting", "stopped", "history", "target-gone", "locked", "asleep", "permission-denied", "expired", "unconfirmed"] as const;
+export const COMPUTER_PREVIEW_SCENARIOS = ["running", "disabled", "observe-only", "waiting", "stopped", "history", "target-gone", "locked", "asleep", "permission-denied", "expired", "unconfirmed", "secure-input"] as const;
 export type ComputerPreviewScenario = typeof COMPUTER_PREVIEW_SCENARIOS[number];
-export const COMPUTER_PREVIEW_SCENARIO_LABELS: Record<ComputerPreviewScenario, string> = {
-  running: "执行中", disabled: "未启用", "observe-only": "仅可观察", waiting: "等待审批", stopped: "已停止", history: "历史画面", "target-gone": "目标消失", locked: "已锁屏", asleep: "休眠", "permission-denied": "权限撤销", expired: "图像过期", unconfirmed: "停止未确认",
-};
+
+export function getComputerPreviewScenarioLabels(zh = isZh()): Record<ComputerPreviewScenario, string> {
+  return {
+    running: zh ? "执行中" : "Running",
+    disabled: zh ? "未启用" : "Disabled",
+    "observe-only": zh ? "仅可观察" : "Observe-only",
+    waiting: zh ? "等待审批" : "Awaiting approval",
+    stopped: zh ? "已停止" : "Stopped",
+    history: zh ? "历史画面" : "History frame",
+    "target-gone": zh ? "目标消失" : "Target closed",
+    locked: zh ? "已锁屏" : "Screen locked",
+    asleep: zh ? "休眠" : "Display asleep",
+    "permission-denied": zh ? "权限撤销" : "Permission denied",
+    expired: zh ? "图像过期" : "Frame expired",
+    unconfirmed: zh ? "停止未确认" : "Stop unconfirmed",
+    "secure-input": zh ? "安全输入" : "Secure Input",
+  };
+}
+
+export const COMPUTER_PREVIEW_SCENARIO_LABELS: Record<ComputerPreviewScenario, string> = getComputerPreviewScenarioLabels();
 export const COMPUTER_PREVIEW_TIME = Date.parse("2026-11-05T11:24:00+08:00");
 export function previewComputerFrame(sessionId: string, index = 1): ComputerFrame {
   return { frameId: `computer-preview-frame-${index}`, sessionId, source: "execution", capturedAt: COMPUTER_PREVIEW_TIME + index * 2000,
     targetId: "demo-window", targetName: "Z Work Studio · Workspace", runId: "computer-preview-run", actionId: `computer-preview-action-${index}`,
     toolCallId: "computer-preview-eval", width: 1280, height: 800, coordinateWidth: 1280, coordinateHeight: 800, screenLocked: false, delivered: true, availability: "available" };
 }
-export function buildComputerPreview(sessionId: string, scenario: ComputerPreviewScenario = "running"): { snapshot: ComputerWorkspaceSnapshot; actions: ComputerAction[] } {
+export function buildComputerPreview(sessionId: string, scenario: ComputerPreviewScenario = "running", zh = isZh()): { snapshot: ComputerWorkspaceSnapshot; actions: ComputerAction[] } {
   const frames = [previewComputerFrame(sessionId, 1), previewComputerFrame(sessionId, 2)];
   const actions: ComputerAction[] = [
     { id: "computer-preview-action-0", sessionId, runId: "computer-preview-run", toolCallId: "computer-preview-eval", method: "windows", mode: "read", status: "completed", startedAt: COMPUTER_PREVIEW_TIME - 1000, endedAt: COMPUTER_PREVIEW_TIME, frameIds: [] },
     ...frames.map((frame, i): ComputerAction => ({ id: frame.actionId!, sessionId, runId: frame.runId!, toolCallId: frame.toolCallId!, method: i ? "observe" : "screenshot", targetId: frame.targetId, targetName: frame.targetName!, mode: "read", status: "completed", startedAt: frame.capturedAt - 800, endedAt: frame.capturedAt, frameIds: [frame.frameId] })),
   ];
-  const active: ComputerAction[] = scenario === "running" || scenario === "waiting" ? [{ id: "computer-preview-action-3", sessionId: `${sessionId}:child`, agentId: "ui-check", agentName: "界面检查", runId: "computer-preview-child", toolCallId: "computer-preview-child-eval", method: "run", targetId: "demo-window", targetName: "Z Work Studio · Workspace", mode: "unknown", status: scenario === "waiting" ? "waiting" : "running", startedAt: COMPUTER_PREVIEW_TIME + 5000, frameIds: [] }] : [];
-  const snapshot: ComputerWorkspaceSnapshot = { version: 1, sessionId, revision: 8, updatedAt: COMPUTER_PREVIEW_TIME + 5000, enabled: scenario !== "disabled", preludeAvailable: scenario !== "observe-only", backend: "win32",
-    capabilities: { capture: scenario !== "permission-denied", input: scenario !== "observe-only", accessibility: scenario !== "observe-only", globalEscape: false, observationOnly: true },
+  if (scenario === "secure-input") actions.push(
+    { id: "computer-preview-action-type", sessionId, runId: "computer-preview-run", toolCallId: "computer-preview-eval", method: "type", targetId: "demo-window", targetName: "Z Work Studio · Workspace", mode: "takeover", status: "completed", startedAt: COMPUTER_PREVIEW_TIME + 3000, endedAt: COMPUTER_PREVIEW_TIME + 3600, frameIds: [], unconfirmed: zh ? "目标窗口启用了安全输入，按键回显不可读" : "the target window has Secure Input on, so keystroke echo is unreadable", focusReturn: { handedBack: false, previousPid: 4120, frontPid: 7388 } },
+  );
+  const active: ComputerAction[] = scenario === "running" || scenario === "waiting" ? [{ id: "computer-preview-action-3", sessionId: `${sessionId}:child`, agentId: "ui-check", agentName: zh ? "界面检查" : "UI check", runId: "computer-preview-child", toolCallId: "computer-preview-child-eval", method: "run", targetId: "demo-window", targetName: "Z Work Studio · Workspace", mode: "unknown", status: scenario === "waiting" ? "waiting" : "running", startedAt: COMPUTER_PREVIEW_TIME + 5000, frameIds: [] }] : [];
+  const secure = scenario === "secure-input";
+  const snapshot: ComputerWorkspaceSnapshot = { version: 1, sessionId, revision: 8, updatedAt: COMPUTER_PREVIEW_TIME + 5000, enabled: scenario !== "disabled", preludeAvailable: scenario !== "observe-only", backend: secure ? "darwin" : "win32",
+    capabilities: { capture: scenario !== "permission-denied", input: scenario !== "observe-only", accessibility: scenario !== "observe-only", globalEscape: false, observationOnly: true, ...(secure ? { secureInput: true, secureInputApp: "1Password" } : {}) },
     permissions: { capture: scenario === "permission-denied" ? "denied" : "granted", input: scenario === "observe-only" ? "denied" : "granted", accessibility: scenario === "observe-only" ? "unavailable" : "granted" },
-    screen: { locked: scenario === "locked", asleep: scenario === "asleep", known: true },
+    // Secure-input demo also shows split knowledge: lock is reported, sleep is not.
+    screen: secure ? { locked: false, asleep: false, lockKnown: true, sleepKnown: false, known: false } : { locked: scenario === "locked", asleep: scenario === "asleep", known: true },
     control: { status: scenario === "stopped" ? "stopped" : scenario === "unconfirmed" ? "unconfirmed" : "allowed", revision: 3, updatedAt: COMPUTER_PREVIEW_TIME, foreground: scenario === "waiting" ? "requested" : "unknown" },
     targets: scenario === "target-gone" ? [] : PREVIEW_COMPUTER.targets, active, frames: scenario === "disabled" ? [] : frames,
-    ...(scenario === "target-gone" ? { reason: "所选窗口已关闭。请选择仍然存在的观察目标。" } : scenario === "permission-denied" ? { reason: "屏幕录制权限已撤销。请在系统设置中重新授权。" } : {}),
+    ...(scenario === "target-gone" ? { reason: zh ? "所选窗口已关闭。请选择仍然存在的观察目标。" : "The selected window closed. Choose a target that still exists." } : scenario === "permission-denied" ? { reason: zh ? "屏幕录制权限已撤销。请在系统设置中重新授权。" : "Screen recording permission was revoked. Re-enable it in System Settings." } : {}),
   };
   if (scenario === "expired") snapshot.frames = frames.map(frame => ({ ...frame, availability: "expired" }));
   return { snapshot, actions: [...actions, ...active] };
@@ -49,7 +72,7 @@ export const PREVIEW_COMPUTER: StudioComputerStatus = {
   capturePermission: "granted", inputPermission: "granted", axPermission: "granted", running: 1,
   targets: [
     { id: "demo-display", kind: "display", name: "Display 1", width: 1920, height: 1080 },
-    { id: "demo-window", kind: "window", name: "Zeta · Workspace", width: 960, height: 600 },
+    { id: "demo-window", kind: "window", name: "Z Work Studio · Workspace", width: 960, height: 600 },
   ],
 };
 
@@ -59,14 +82,14 @@ export const PREVIEW_COMPUTER_IMAGE = "data:image/svg+xml," + encodeURIComponent
   <path d="M0 560 720 120l560 330v350H0Z" fill="#d2d9e9"/>
   <path d="m300 800 980-590v590Z" fill="#c7d0e3"/>
   <rect width="1280" height="32" fill="#f5f6fa"/>
-  <g fill="#53596b" font-family="Segoe UI, sans-serif" font-size="12"><text x="24" y="21" font-weight="600">Zeta</text><text x="130" y="21">File</text><text x="171" y="21">Edit</text><text x="211" y="21">View</text><text x="1130" y="21">Workspace</text><text x="1224" y="21">11:24</text></g>
+  <g fill="#53596b" font-family="Segoe UI, sans-serif" font-size="12"><text x="24" y="21" font-weight="600">Z Work Studio</text><text x="130" y="21">File</text><text x="171" y="21">Edit</text><text x="211" y="21">View</text><text x="1130" y="21">Workspace</text><text x="1224" y="21">11:24</text></g>
   <rect x="82" y="91" width="1116" height="625" rx="12" fill="#a1aac2" opacity=".2"/>
   <rect x="82" y="82" width="1116" height="625" rx="12" fill="#222530"/>
   <path d="M94 82h1092a12 12 0 0 1 12 12v31H82V94a12 12 0 0 1 12-12" fill="#2a2d39"/>
   <g><circle cx="104" cy="104" r="5" fill="#e08a8d"/><circle cx="122" cy="104" r="5" fill="#debe7b"/><circle cx="140" cy="104" r="5" fill="#89ba9b"/></g>
-  <text x="641" y="109" fill="#b0b5c7" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12">zeta — Workspace</text>
+  <text x="641" y="109" fill="#b0b5c7" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12">z-work-studio — Workspace</text>
   <path d="M82 125h220v554H82" fill="#252834"/>
-  <g font-family="Segoe UI, sans-serif" font-size="12"><text x="102" y="155" fill="#9da4ba" font-weight="600" font-size="10" letter-spacing="1">EXPLORER</text><text x="102" y="190" fill="#d7dae5">⌄  zeta</text><text x="120" y="223" fill="#a8b0c6">⌄  apps</text><text x="138" y="253" fill="#a8b0c6">⌄  renderer</text><text x="155" y="283" fill="#a8b0c6">⌄  src</text><text x="172" y="313" fill="#a8b0c6">⌄  browser</text></g>
+  <g font-family="Segoe UI, sans-serif" font-size="12"><text x="102" y="155" fill="#9da4ba" font-weight="600" font-size="10" letter-spacing="1">EXPLORER</text><text x="102" y="190" fill="#d7dae5">⌄  z-work-studio</text><text x="120" y="223" fill="#a8b0c6">⌄  apps</text><text x="138" y="253" fill="#a8b0c6">⌄  renderer</text><text x="155" y="283" fill="#a8b0c6">⌄  src</text><text x="172" y="313" fill="#a8b0c6">⌄  browser</text></g>
   <rect x="94" y="326" width="199" height="28" rx="4" fill="#7160a0" opacity=".28"/>
   <g font-family="Segoe UI, sans-serif" font-size="12"><text x="185" y="344" fill="#c6b6f0">ComputerPane.tsx</text><text x="185" y="374" fill="#a8b0c6">computer.css</text><text x="172" y="414" fill="#a8b0c6">preview</text><text x="172" y="445" fill="#a8b0c6">styles</text><text x="120" y="486" fill="#a8b0c6">packages</text><text x="120" y="517" fill="#a8b0c6">package.json</text></g>
   <rect x="302" y="125" width="896" height="36" fill="#282b37"/>

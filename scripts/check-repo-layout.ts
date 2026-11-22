@@ -27,7 +27,9 @@ for (const path of retiredPaths) {
 
 const activeFiles = [...new Glob("**/*").scanSync({ cwd: root })]
 	.map(path => path.replaceAll("\\", "/"))
-	.filter(path => !path.split("/").some(segment => segment === "node_modules" || segment === "temp" || segment === ".git"))
+	.filter(
+		path => !path.split("/").some(segment => segment === "node_modules" || segment === "temp" || segment === ".git"),
+	)
 	.filter(path => !path.startsWith("retired/"));
 
 // A source/config/release file outside retired/ must never read the retired
@@ -51,4 +53,6 @@ if (problems.length > 0) {
 	for (const problem of problems) console.error(`  - ${problem}`);
 	process.exit(1);
 }
-console.log(`Repository layout guard: clean (${activeFiles.length} active paths, ${retiredPaths.length} retired trees)`);
+console.log(
+	`Repository layout guard: clean (${activeFiles.length} active paths, ${retiredPaths.length} retired trees)`,
+);

@@ -1352,7 +1352,7 @@ async function readTrayPrefs(): Promise<TrayPrefs> {
 		};
 	} catch (err) {
 		writeDesktopLog(`Could not read tray preferences: ${err instanceof Error ? err.message : String(err)}`);
-		return { minimizeToTray: true, autostart: false, desktopLabels: DEFAULT_DESKTOP_LABELS };
+		return { minimizeToTray: true, autostart: true, desktopLabels: DEFAULT_DESKTOP_LABELS };
 	}
 }
 
@@ -1392,7 +1392,7 @@ function trayIcon(): Electron.NativeImage {
 }
 
 function windowPrefs(): TrayPrefs {
-	return activePrefs ?? { minimizeToTray: true, autostart: false, desktopLabels: DEFAULT_DESKTOP_LABELS };
+	return activePrefs ?? { minimizeToTray: true, autostart: true, desktopLabels: DEFAULT_DESKTOP_LABELS };
 }
 
 /**
