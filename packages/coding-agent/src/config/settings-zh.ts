@@ -200,7 +200,8 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"backend.enabled": {
 		label: "启用后端模式",
-		description: "为本机使用一个后台后端。默认开启：启动时连接正在运行的后端，TUI 在没有可用后端时才回退本地进程；关闭时每次 zetacode 启动都是本地进程。",
+		description:
+			"为本机使用一个后台后端。默认开启：启动时连接正在运行的后端，TUI 在没有可用后端时才回退本地进程；关闭时每次 zetacode 启动都是本地进程。",
 	},
 	"backend.workspace": {
 		label: "后端默认工作区",

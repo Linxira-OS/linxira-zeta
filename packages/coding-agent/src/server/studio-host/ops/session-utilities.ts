@@ -425,9 +425,10 @@ export const sessionUtilitiesFeatureCommands: SessionUtilityFeatureCommandHandle
 		live.assertCurrent();
 		let result: { sent: true };
 		try {
-			result = operation.text !== undefined
-				? await mainBtwRuntime(live.session).injectText(operation.text, live.assertCurrent)
-				: await mainBtwRuntime(live.session).inject(operation.injectId!, live.assertCurrent);
+			result =
+				operation.text !== undefined
+					? await mainBtwRuntime(live.session).injectText(operation.text, live.assertCurrent)
+					: await mainBtwRuntime(live.session).inject(operation.injectId!, live.assertCurrent);
 		} catch (error) {
 			rethrowBtw(error);
 		}

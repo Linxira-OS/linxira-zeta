@@ -30,6 +30,15 @@ interface ModeToolDetails {
  * it may disarm exactly the plan mode it armed itself: leaving a user-armed plan
  * mode would walk out of the approval gate the user put it behind.
  */
+/** User phrasings that authorize the agent to arm plan mode on its own. */
+const EXPLICIT_PLAN_REQUEST =
+	/(?:^|\s)\/plan(?:\s|$)|plan mode|计划模式|先计划|先做计划|先规划|规划一下|计划一下|制定计划|写个计划|写一个计划|做个计划|做一个计划|出个计划|出一个计划|plan first|make (?:a|the) plan|draft (?:a|the) plan|propose (?:a|the) plan|plan before/i;
+
+/** A simple proposal, a "方案", or an inline answer does not authorize plan mode. */
+export function userAskedForPlanMode(text: string | undefined): boolean {
+	return text !== undefined && EXPLICIT_PLAN_REQUEST.test(text);
+}
+
 function refusal(mode: string, op: "enter" | "exit"): ToolError {
 	return new ToolError(
 		`You cannot ${op} ${mode} mode on your own: it grants autonomy only the user can grant. ` +
@@ -64,6 +73,13 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 	}
 
 	async #enter(params: ModeParams): Promise<AgentToolResult<ModeToolDetails>> {
+		const lastUserPrompt = this.#session.getLastUserPromptText?.();
+		if (!userAskedForPlanMode(lastUserPrompt)) {
+			throw new ToolError(
+				'Plan mode requires an explicit user request (for example `/plan`, "plan first", or "先做计划"). ' +
+					"A request for a proposal, a 方案, or a simple answer does not authorize plan mode; answer inline without entering it.",
+			);
+		}
 		const enterMode = this.#session.enterMode;
 		if (!enterMode) {
 			throw new ToolError("This session cannot switch modes: no mode controller is attached.");
@@ -78,7 +94,13 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 			// ("Exit goal mode first."); surface that as a tool error.
 			throw new ToolError(`Cannot enter plan mode: ${error instanceof Error ? error.message : String(error)}`);
 		}
-		const state = this.#session.getPlanModeState?.();
+		const current = this.#session.getPlanModeState?.();
+		return this.#enterResult(current);
+	}
+
+	#enterResult(
+		state: ReturnType<NonNullable<ToolSession["getPlanModeState"]>> | undefined,
+	): AgentToolResult<ModeToolDetails> {
 		const planFilePath = state?.planFilePath ?? "local://PLAN.md";
 		return {
 			content: [

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ModeTool } from "@linxiraos/zeta/tools/mode";
+import { ModeTool, userAskedForPlanMode } from "@linxiraos/zeta/tools/mode";
 
 function createToolSession(overrides: Partial<ToolSession>): ToolSession {
 	return overrides as ToolSession;
@@ -15,7 +15,11 @@ describe("mode tool", () => {
 	it("enters plan mode as the agent, forwarding the workflow and the provenance", async () => {
 		const enterMode = vi.fn(async () => {});
 		const tool = new ModeTool(
-			createToolSession({ enterMode, getPlanModeState: () => planState({ workflow: "ultra" }) }),
+			createToolSession({
+				enterMode,
+				getPlanModeState: () => planState({ workflow: "ultra" }),
+				getLastUserPromptText: () => "plan mode: map the auth refactor",
+			}),
 		);
 
 		const result = await tool.execute("call-1", { op: "enter", mode: "plan", workflow: "ultra" });
@@ -26,7 +30,13 @@ describe("mode tool", () => {
 
 	it("omits the workflow when none was asked for, so the session default applies", async () => {
 		const enterMode = vi.fn(async () => {});
-		const tool = new ModeTool(createToolSession({ enterMode, getPlanModeState: () => planState() }));
+		const tool = new ModeTool(
+			createToolSession({
+				enterMode,
+				getPlanModeState: () => planState(),
+				getLastUserPromptText: () => "先做一个计划",
+			}),
+		);
 
 		await tool.execute("call-1", { op: "enter", mode: "plan" });
 
@@ -35,7 +45,7 @@ describe("mode tool", () => {
 
 	it("refuses to enter goal and vibe mode without touching the controller", async () => {
 		const enterMode = vi.fn(async () => {});
-		const tool = new ModeTool(createToolSession({ enterMode }));
+		const tool = new ModeTool(createToolSession({ enterMode, getLastUserPromptText: () => "plan first" }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "goal" })).rejects.toThrow(/only the user can grant/);
 		await expect(tool.execute("call-2", { op: "enter", mode: "vibe" })).rejects.toThrow(/`\/vibe`/);
@@ -82,11 +92,28 @@ describe("mode tool", () => {
 		expect(exitMode).not.toHaveBeenCalled();
 	});
 
+	it("refuses plan mode unless the user explicitly asked to plan first", async () => {
+		const enterMode = vi.fn(async () => {});
+		const tool = new ModeTool(
+			createToolSession({ enterMode, getLastUserPromptText: () => "Just give me a simple proposal." }),
+		);
+
+		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(/explicit user request/);
+		expect(enterMode).not.toHaveBeenCalled();
+	});
+
+	it("treats a simple 方案 request and a bare question as no plan-mode authorization", () => {
+		expect(userAskedForPlanMode("只让你简单出方案给我")).toBe(false);
+		expect(userAskedForPlanMode("帮我看看这个 bug 怎么修")).toBe(false);
+		expect(userAskedForPlanMode("先做计划，再改代码")).toBe(true);
+		expect(userAskedForPlanMode("/plan auth refactor")).toBe(true);
+	});
+
 	it("surfaces the session's mutual-exclusion refusal as a tool error", async () => {
 		const enterMode = vi.fn(async () => {
 			throw new Error("Exit goal mode first.");
 		});
-		const tool = new ModeTool(createToolSession({ enterMode }));
+		const tool = new ModeTool(createToolSession({ enterMode, getLastUserPromptText: () => "plan first" }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(
 			/Cannot enter plan mode: Exit goal mode first\./,
@@ -94,7 +121,7 @@ describe("mode tool", () => {
 	});
 
 	it("refuses when the session has no mode controller attached", async () => {
-		const tool = new ModeTool(createToolSession({}));
+		const tool = new ModeTool(createToolSession({ getLastUserPromptText: () => "plan first" }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(/no mode controller/);
 	});

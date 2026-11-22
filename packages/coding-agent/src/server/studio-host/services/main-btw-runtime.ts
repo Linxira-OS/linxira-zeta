@@ -70,7 +70,8 @@ export class StudioMainBtwRuntime {
 		readonly session: AgentSession,
 		options: StudioMainBtwOptions = {},
 	) {
-		this.#sendInjection = options.sendInjection ?? ((text, sessionId) => sendStudioBtwInjection(session, text, sessionId));
+		this.#sendInjection =
+			options.sendInjection ?? ((text, sessionId) => sendStudioBtwInjection(session, text, sessionId));
 		this.#injectEnabled = options.injectEnabled ?? (() => cfgBtwInject.get(session.settings));
 		this.service = new StudioBtwService(session, {
 			injectEnabled: this.#injectEnabled,
@@ -133,9 +134,7 @@ export class StudioMainBtwRuntime {
 	 */
 	injectText(text: string, assertActive?: () => void): Promise<{ sent: true }> {
 		if (!this.#injectEnabled()) {
-			return Promise.reject(
-				new StudioBtwError("COMMAND_BLOCKED", "BTW injection is disabled in settings"),
-			);
+			return Promise.reject(new StudioBtwError("COMMAND_BLOCKED", "BTW injection is disabled in settings"));
 		}
 		return this.#queueInjection(assertActive, async () => {
 			assertActive?.();

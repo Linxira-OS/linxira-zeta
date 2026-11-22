@@ -117,6 +117,13 @@ describe("enforcePlanModeWrite (working tree read-only, local:// sandbox writabl
 		const session = makeSession({ artifactsDir: ARTIFACTS_DIR, cwd: REPO_ROOT });
 		await expect(enforcePlanModeWrite(session, "src/foo.ts", { op: "update" })).resolves.toBeUndefined();
 	});
+
+	it("rejects plan-file writes when plan mode is disabled", async () => {
+		const session = makeSession({ artifactsDir: ARTIFACTS_DIR, cwd: REPO_ROOT });
+		await expect(enforcePlanModeWrite(session, "local://auth-refactor-plan.md", { op: "create" })).rejects.toThrow(
+			/only be written while plan mode is active/,
+		);
+	});
 });
 
 describe("enforcePlanModeWrite accepts absolute local-sandbox paths", () => {
