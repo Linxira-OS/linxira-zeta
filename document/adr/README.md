@@ -117,6 +117,9 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0089](0089-omp-v19-baseline-hold.md) | OMP v19 is the target baseline; the conflicting sync is not merged | Accepted | 2026-11-22 | — | [conflict audit](../agents/merge/v19.0.0-conflict-audit.md), [PR #325](https://github.com/Linxira-OS/linxira-zeta/pull/325) |
 | [0090](0090-line-provenance-and-agent-trailers.md) | Line provenance comes from git; agent commits carry an explicit trailer | Proposed | 2026-11-22 | — | [TermIDE blame](../../termide/crates/git/src/blame.rs), [ADR skill](../../skills/official/adr/SKILL.md) |
 | [0091](0091-team-agent-roles-and-coordinator.md) | Team mode should use named roles and a confirming coordinator | Proposed | 2026-11-22 | — | [PiBot](https://github.com/w01fb0ss/PiBot), [Vibe/Team](../../docs/vibe-mode.md), [ADR-0038](0038-two-lane-agent-hierarchy.md) |
+| [0092](0092-team-identity-layers.md) | Team identity is composed from explicit scoped layers | Proposed | 2026-11-22 | — | [Team design](../team-agent-mode-design.md), [ADR-0091](0091-team-agent-roles-and-coordinator.md) |
+| [0093](0093-team-message-delivery.md) | Team messages distinguish direct turns from ambient context | Accepted | 2026-11-22 | — | [chat routing](../../packages/coding-agent/src/team/chat-routing.ts), [tests](../../packages/coding-agent/test/team/chat-routing.test.ts) |
+| [0094](0094-team-persona-plugin-packs.md) | Team personas may carry scoped plugin packs and new first-level roles | Proposed | 2026-11-22 | — | [Team design](../team-agent-mode-design.md), [ADR-0026](0026-agent-authored-plugins.md), [plugin system](../plugin-system.md) |
 
 ## File and numbering rules
 
