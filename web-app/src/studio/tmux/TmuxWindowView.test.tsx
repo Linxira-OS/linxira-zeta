@@ -25,7 +25,7 @@ it("places panes in character cells, preserves the border gap, and selects the c
   expect(right.style.left).toBe("328px"); expect(right.style.top).toBe("0px"); expect(right.style.width).toBe("312px"); expect(right.style.height).toBe("384px");
   fireEvent.mouseDown(right);
   expect(command).toHaveBeenCalledWith({ kind: "selectPane", paneId: "%1" });
-  expect(view.getByRole("status").textContent).toContain("resynchronizing");
+  expect(view.getByRole("status").textContent?.toLowerCase()).toContain("resynchronizing");
 });
 it("converts divider movement into cells before requesting resize", () => {
   vi.stubGlobal("PointerEvent", MouseEvent);

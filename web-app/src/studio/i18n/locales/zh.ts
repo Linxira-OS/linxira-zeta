@@ -1202,8 +1202,6 @@ const zhRaw = {
 		panelsDeclared: "已声明面板",
 		noPanelsDeclared: "该插件未声明面板",
 		openSourceDir: "打开来源目录",
-		openSource: "查看来源条目",
-		sourceUnavailable: "来源条目不可用",
 		createSkill: "创建 Skill",
 		mcpTesting: "正在测试 {name}…",
 		catAria: "能力分类",
@@ -3137,6 +3135,7 @@ const zhRaw = {
 		overwriteAndAsk: "覆盖本轮并提问",
 	},
 	terminal: {
+		tmux: { paused: "正在重新同步…" },
 		title: "终端",
 		clear: "清屏",
 		newTerminal: "新建终端",
@@ -3772,6 +3771,8 @@ const zhRaw = {
 			scopeAll: "搜索范围：整个类别",
 		},
 		entry: {
+			sourceUnavailable: "来源条目不可用",
+			openSource: "查看来源条目",
 			placeholder: "选择一个条目",
 			placeholderHint: "左侧条目会显示正文开头，右侧读取完整内容。",
 			path: "路径",

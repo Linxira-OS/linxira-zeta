@@ -49,6 +49,7 @@ import { usePreviewMode } from "../preview/PreviewContext";
 import { BackgroundProvider } from "../background/BackgroundProvider";
 import { AppBackgroundLayer } from "../background/AppBackgroundLayer";
 import { useAppSettings } from "../settings/appSettings";
+import { notifyInternalThemeIfChanged } from "../embed/websiteEmbed";
 import { applyTheme } from "../themeTransition";
 import { desktopNotice } from "../settings/desktopNotice";
 import { openOnboardingTour } from "../onboarding/onboardingState";
@@ -732,6 +733,14 @@ export function AppShell({ state, client, healthReady, onRoute, selectedHistoryI
       setSelectedProject(null);
     }
   }, [expandProject, expandedProjects, expandedProjectsMemory, loadProjectHistory, previewMode.preview, previewProjectId, state.model.workspaces]);
+
+  const previousEmbedTheme = useRef(appSettings.theme);
+  useEffect(() => {
+    if (previousEmbedTheme.current === appSettings.theme) return;
+    const previous = previousEmbedTheme.current;
+    previousEmbedTheme.current = appSettings.theme;
+    notifyInternalThemeIfChanged(appSettings.theme, previous);
+  }, [appSettings.theme]);
 
   useEffect(() => {
     if (mdi && !mdi.active) return;

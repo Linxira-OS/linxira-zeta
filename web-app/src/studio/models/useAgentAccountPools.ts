@@ -93,7 +93,7 @@ export function useAgentAccountPools({ client, context, preview, visible }: {
     try {
       let result: AgentAccountPoolState;
       if (preview) {
-        const global = { ...settings!.global }, effective = { ...settings!.effective };
+        const global = { ...(settings?.global ?? {}) }, effective = { ...(settings?.effective ?? {}) };
         if (Object.keys(pools).length) { global[agent] = pools; effective[agent] = pools; }
         else { delete global[agent]; delete effective[agent]; }
         result = { global, effective };

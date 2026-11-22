@@ -220,7 +220,7 @@ it("opens the requested PR and follows a subsequent remote selection for referen
   fireEvent.click(await card.findByRole("button", { name: /#47.*修复 Mermaid/ }));
   expect(await screen.findByRole("button", { name: "Add to composer" })).toBeTruthy();
   fireEvent.click(screen.getByRole("combobox", { name: "Remote repository" }));
-  fireEvent.click(await screen.findByRole("option", { name: "upstream/zeta-studio · upstream" }));
+  fireEvent.click(await screen.findByRole("option", { name: "upstream/z-work-studio · upstream" }));
   await waitFor(() => expect(screen.queryByRole("button", { name: "Add to composer" })).toBeNull());
   fireEvent.click(await card.findByRole("button", { name: "Add PR #47 to composer" }));
   await waitFor(() => expect(references[0]?.repository.remote).toBe("upstream"));

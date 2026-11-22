@@ -11,6 +11,7 @@ import "./dock/menus.css";
 import "./dock/integration.css";
 import { ExecutionTargets, useExecutionTarget, useTargetMemory } from "./workspaces/ExecutionTargets";
 import { RemoteScopeNotice } from "./workspaces/RemoteScopeNotice";
+import { LuxAmbient } from "./lux/LuxAmbient";
 import { modelConfigHasUnsavedChanges } from "./models/modelConfigState";
 import { EMBED_SET_ROUTE_EVENT, WEBSITE_EMBED_SOURCE, consumePendingEmbedRoute, isEmbedMode, postEmbedMessage, setCurrentEmbedRoute } from "./embed/websiteEmbed";
 import { conversationViewLeases } from "./conversation/conversationViews";
@@ -55,7 +56,7 @@ export { AppSidebar } from "./sidebar/AppSidebar";
 
 export function App({ client }: { readonly client: StudioClient }) {
   const contexts = client.supportsContexts === true || (client.supportsContexts === undefined && client.openContext !== undefined);
-  return <PreviewModeProvider><FileCloseDialog /><ConversationWidthProvider><I18nProvider><WindowControls /><TerminalSessionsProvider>{contexts ? <ExecutionTargets client={client}>{active => <ConversationWorkspace client={active} renderDocument={renderConversationDocument} />}</ExecutionTargets> : <LegacyWorkbench client={client} />}</TerminalSessionsProvider></I18nProvider></ConversationWidthProvider></PreviewModeProvider>;
+  return <PreviewModeProvider><FileCloseDialog /><ConversationWidthProvider><I18nProvider><LuxAmbient /><WindowControls /><TerminalSessionsProvider>{contexts ? <ExecutionTargets client={client}>{active => <ConversationWorkspace client={active} renderDocument={renderConversationDocument} />}</ExecutionTargets> : <LegacyWorkbench client={client} />}</TerminalSessionsProvider></I18nProvider></ConversationWidthProvider></PreviewModeProvider>;
 }
 
 function renderConversationDocument(client: StudioClient) { return <TargetApp client={client} />; }

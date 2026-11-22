@@ -37,7 +37,7 @@ it("queries only the selected repository and preserves a loaded list when select
   await screen.findByRole("button", { name: "Add to composer" });
   expect(query.mock.calls.filter(([name]) => name === "github.items.list")).toHaveLength(1);
   fireEvent.click(screen.getByRole("combobox", { name: "Remote repository" }));
-  fireEvent.click(await screen.findByRole("option", { name: "upstream/zeta-studio · upstream" }));
+  fireEvent.click(await screen.findByRole("option", { name: "upstream/z-work-studio · upstream" }));
   await waitFor(() => expect(query).toHaveBeenCalledWith("github.items.list", expect.objectContaining({ remote: "upstream" })));
   expect(client.command).not.toHaveBeenCalled();
 });
@@ -52,7 +52,7 @@ it("does not insert a late reference from the repository the user has left", asy
   render(<I18nProvider forcedLanguage="en"><GitHubPanel client={client} workspaceId={workspaceId} kind="issue" onReference={insert} /></I18nProvider>);
   fireEvent.click(await screen.findByRole("button", { name: "Add to composer #42" }));
   fireEvent.click(screen.getByRole("combobox", { name: "Remote repository" }));
-  fireEvent.click(await screen.findByRole("option", { name: "upstream/zeta-studio · upstream" }));
+  fireEvent.click(await screen.findByRole("option", { name: "upstream/z-work-studio · upstream" }));
   await waitFor(() => expect(query).toHaveBeenCalledWith("github.items.list", expect.objectContaining({ remote: "upstream" })));
   release(await previewGithubSource.query("github.items.get", { workspaceId, remote: "origin", kind: "issue", number: 42 }));
   await waitFor(() => expect((screen.getByRole("button", { name: "Add to composer #42" }) as HTMLButtonElement).disabled).toBe(false));

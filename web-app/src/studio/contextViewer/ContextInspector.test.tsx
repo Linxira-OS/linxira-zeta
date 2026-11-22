@@ -160,6 +160,7 @@ describe("ContextInspector", () => {
     render(<PreviewModeProvider switchEnabled={false}><ContextInspector client={client} sessionId="s" opened width={500} /></PreviewModeProvider>);
     expect(await screen.findByText("A changed source remains in System Prompt.")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /system-prompt\/0/ }));
+    await new Promise(resolve => setTimeout(resolve, 50));
     fireEvent.click(await screen.findByRole("button", { name: /查看来源条目.*target\.md/ }));
     const body = await screen.findByText("body:target-file");
     expect(screen.queryByText("body:first-file")).toBeNull();

@@ -1220,8 +1220,6 @@ export const en: LocaleDictionary = {
 		panelsDeclared: "Declared panels",
 		noPanelsDeclared: "This plugin declares no panels",
 		openSourceDir: "Open Source Directory",
-		openSource: "View source entry",
-		sourceUnavailable: "Source entry unavailable",
 		createSkill: "Create Skill",
 		mcpTesting: "Testing {name}…",
 		catAria: "Capability categories",
@@ -3210,6 +3208,7 @@ export const en: LocaleDictionary = {
 		overwriteAndAsk: "Overwrite current turn and ask",
 	},
 	terminal: {
+		tmux: { paused: "Resynchronizing…" },
 		title: "Terminal",
 		clear: "Clear",
 		newTerminal: "New Terminal",
@@ -3851,6 +3850,8 @@ export const en: LocaleDictionary = {
 			scopeAll: "Searching the whole category",
 		},
 		entry: {
+			sourceUnavailable: "Source entry unavailable",
+			openSource: "View source entry",
 			placeholder: "Select an entry",
 			placeholderHint: "Entries preview their opening lines here; the body opens on the right.",
 			path: "Path",
@@ -3949,7 +3950,7 @@ export const en: LocaleDictionary = {
     orbit: { fit: "Reset view", legendSpawn: "Spawned", legendComms: "Comms", commsPending: "Comms · unavailable" },
     comms: {
       unavailable: "Agent messages aren't available",
-      unavailableDetail: "Studio isn't connected to a Runtime, or the connected Runtime can't share agent-to-agent messages. With a current Runtime, each message, its recipients and its replies appear here in order.",
+      unavailableDetail: "Z Work Studio isn't connected to a Runtime, or the connected Runtime can't share agent-to-agent messages. With a current Runtime, each message, its recipients and its replies appear here in order.",
       loading: "Loading messages…", emptyAgent: "No messages with {name} yet", older: "Older messages aren't shown",
       people: "Filter by agent", showAll: "All", filterAgent: "Only {name}", all: "everyone", progress: "Progress", replyTo: "Reply to {name}",
       latest: "Latest", newCount: "{count} new", empty: "No messages yet", expand: "Show more", collapse: "Show less", count: "{count} messages",

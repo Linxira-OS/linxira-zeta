@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Z Work Studio advances to the Studio v0.2.4 renderer/shared packages through the Zeta Host adapter, without downgrading the OMP 18.22 runtime.
 - Backend mode is on by default. A TUI connects to a reachable machine-wide backend without starting one, and falls back to its own local process when none is running; explicit `--backend`/`--attach` still fails closed. The Desktop install owns the login item by default; npm keeps the bundled-only OS autostart gate.
 - BTW answers can be sent back to the working main agent: `C` sends only the latest answer, the panel menu can send the full question/answer conversation or multiple space-selected topics, and the complete transcript can be copied. Escape stops only the current BTW lane; Backspace returns to the coding-agent page.
 - Settings no longer adds a top-level Runtime page; identity and IM remain child pages of the existing Interaction settings.
