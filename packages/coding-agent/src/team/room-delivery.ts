@@ -24,12 +24,13 @@ import type { AgentRef } from "../registry/agent-registry";
 import { AgentRegistry } from "../registry/agent-registry";
 import { IrcBus } from "../irc/bus";
 import { resolveTeamDbPath, TeamDb, type RoomEventRecord, type RoomRecord, type RoomSubscriptionRecord } from "./db";
+import { routeTeamChat, type TeamChatDeliveryMode, type TeamChatParticipant } from "./chat-routing";
 import { TeamError } from "./errors";
 import { canonicalPath, pathWithin, resolveTeamLocation } from "./paths";
 import { resolveTeamSessionOrigin } from "./session-origin";
 import { loadContext, type TeamContext, type TeamContextOptions } from "./service";
 
-export type RoomDeliveryOutcome = "injected" | "woken" | "revived" | "queued" | "failed";
+export type RoomDeliveryOutcome = "injected" | "woken" | "revived" | "queued" | "failed" | "skipped";
 
 export interface RoomDeliveryResult {
 	roomId: string;
@@ -114,8 +115,58 @@ export function resolveRoomDeliveryTarget(db: TeamDb, memberId: string): AgentRe
 	return agent ? (AgentRegistry.global().get(agent.id) ?? undefined) : undefined;
 }
 
-function eventBody(event: RoomEventRecord, room: RoomRecord, teamId: string): string {
-	return `[Team ${teamId} #${room.name} #${event.seq}] ${event.senderAgentId}: ${event.body}`;
+function memberName(db: TeamDb, agentId: string): string {
+	return db.getPmById(agentId)?.name ?? db.getEngineerById(agentId)?.name ?? agentId;
+}
+
+function chatParticipants(db: TeamDb, room: RoomRecord): TeamChatParticipant[] {
+	return db.listRoomMembers(room.id).map(member => ({
+		id: member.agentId,
+		name: memberName(db, member.agentId),
+		kind: AgentRegistry.global().get(member.agentId)?.kind === "main" ? "main" : "worker",
+	}));
+}
+
+/** Route one room event for one recipient, including its delivery body. */
+function routeBody(
+	db: TeamDb,
+	room: RoomRecord,
+	event: RoomEventRecord,
+	teamId: string,
+	recipientId: string,
+): { readonly mode: TeamChatDeliveryMode; readonly body: string; readonly broadcast?: boolean } | undefined {
+	const participants = chatParticipants(db, room);
+	const surface = participants.length === 2 ? "dm" : "group";
+	const others = participants.filter(participant => participant.id !== event.senderAgentId);
+	const result = routeTeamChat(
+		{
+			surface,
+			senderId: event.senderAgentId,
+			text: event.body,
+			...(surface === "dm" && others[0] ? { targetId: others[0].id } : {}),
+			mentions: event.mentions,
+		},
+		participants,
+	);
+	const delivery = result.deliveries.find(entry => entry.participantId === recipientId);
+	const base = `[Team ${teamId} #${room.name} #${event.seq}] ${event.senderAgentId}:`;
+	if (!delivery) {
+		// A one-member room is a self-notebook; preserve its historical direct
+		// delivery instead of swallowing the event as a sender echo.
+		if (participants.length <= 1) return { mode: "direct", body: `${base} ${event.body}` };
+		return undefined;
+	}
+	if (delivery.mode === "assigned-elsewhere") {
+		return {
+			mode: delivery.mode,
+			body: `${base} this message was assigned to another participant; content withheld.`,
+			broadcast: true,
+		};
+	}
+	if (delivery.mode === "ambient") {
+		return { mode: delivery.mode, body: `${base} [ambient] ${event.body}`, broadcast: true };
+	}
+	return { mode: delivery.mode, body: `${base} ${event.body}` };
 }
 
 /** A registered host main is the legal sender; otherwise deliver directly. */
@@ -127,15 +178,20 @@ function hostSender(target: AgentRef): AgentRef | undefined {
 }
 
 async function deliverToRef(
+	db: TeamDb,
 	event: RoomEventRecord,
 	room: RoomRecord,
 	teamId: string,
 	ref: AgentRef,
 ): Promise<RoomDeliveryResult> {
-	const body = eventBody(event, room, teamId);
+	const routed = routeBody(db, room, event, teamId, ref.id);
+	if (!routed) {
+		return { roomId: room.id, agentId: ref.id, seq: event.seq, outcome: "skipped", accepted: true };
+	}
+	const body = routed.body;
 	const host = hostSender(ref);
 	if (host) {
-		const receipt = await IrcBus.global().send({ from: host.id, to: ref.id, body });
+		const receipt = await IrcBus.global().send({ from: host.id, to: ref.id, body, broadcast: routed.broadcast });
 		const outcome: RoomDeliveryOutcome = receipt.outcome;
 		return {
 			roomId: room.id,
@@ -163,6 +219,7 @@ async function deliverToRef(
 		to: ref.id,
 		body,
 		ts: Date.now(),
+		...(routed.broadcast ? { broadcast: true } : {}),
 	};
 	try {
 		const outcome = await session.deliverIrcMessage(message);
@@ -211,7 +268,7 @@ async function drainSubscription(
 				});
 				return results;
 			}
-			const result = await deliverToRef(event, room, teamId, target);
+			const result = await deliverToRef(db, event, room, teamId, target);
 			results.push(result);
 			if (!result.accepted) return results;
 			if (db.advanceRoomAccepted(room.id, current.agentId, event.seq)) {
