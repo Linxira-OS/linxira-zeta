@@ -86,6 +86,9 @@ export function resolveStudioWebAppDirFrom(moduleUrl: string | URL, explicitDir:
 	const candidates = explicitDir
 		? [explicitDir]
 		: [
+				// Bundled executable in a desktop/portable package: <dir>/zeta.exe
+				// beside <dir>/web-app.
+				fileURLToPath(new URL("./web-app", moduleUrl)),
 				// Published bundle: <package-root>/dist/cli.js.
 				fileURLToPath(new URL("../dist/web-app", moduleUrl)),
 				// TypeScript source: <package-root>/src/server/studio-web-app.ts.

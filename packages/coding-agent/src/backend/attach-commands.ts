@@ -1,3 +1,4 @@
+import { M } from "../i18n";
 import { lookupBuiltinSlashCommand } from "../slash-commands/builtin-registry";
 
 /**
@@ -141,11 +142,9 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "theme") return "there is no `/theme` command; change themes in `/settings`";
-	if (verb === "help")
-		return "open the shortcut sheet with `/hotkeys` (the plain `zetacode attach` client answers `/help` itself)";
-	if (verb === "2fa") return "run `/2fa` in the terminal that owns the local Serve runtime";
-	if (verb === "channels")
-		return "run `/channels` in the terminal that hosts the channel runtime, or use `zetacode channels …`";
-	return "run it from the terminal that owns the backend session";
+	if (verb === "theme") return M.attachHintTheme;
+	if (verb === "help") return M.attachHintHelp;
+	if (verb === "2fa") return M.attachHint2fa;
+	if (verb === "channels") return M.attachHintChannels;
+	return M.attachHintGeneric;
 }

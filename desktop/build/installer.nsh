@@ -18,6 +18,14 @@
   ${If} ${FileExists} "$DESKTOP\Zeta.lnk"
     WinShell::SetLnkAUMI "$DESKTOP\Zeta.lnk" "com.zeta.desktop"
   ${EndIf}
+  ; A taskbar-pinned shortcut is not Start Menu / Desktop; repair it too or
+  ; Windows groups the window under a different AUMID and shows a blank icon.
+  ${If} ${FileExists} "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Zeta.lnk"
+    WinShell::SetLnkAUMI "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Zeta.lnk" "com.zeta.desktop"
+  ${EndIf}
+  ${If} ${FileExists} "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Z Work Studio.lnk"
+    WinShell::SetLnkAUMI "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Z Work Studio.lnk" "com.zeta.desktop"
+  ${EndIf}
 !macroend
 
 !macro customUnInstall

@@ -1881,6 +1881,17 @@ export interface Messages {
 	cmdShake: string;
 	cmdHandoff: string;
 	cmdResume: string;
+	attachUnavailableFmt: string;
+	attachHintTheme: string;
+	attachHintHelp: string;
+	attachHint2fa: string;
+	attachHintChannels: string;
+	attachHintGeneric: string;
+	attachLocalExecutionUnavailable: string;
+	attachClientSideCommandFmt: string;
+	attachFullTuiFmt: string;
+	attachNewOrResumeFmt: string;
+	attachRestartAfter: string;
 	cmdBtwHistory: string;
 	cmdTan: string;
 	cmdOmfg: string;

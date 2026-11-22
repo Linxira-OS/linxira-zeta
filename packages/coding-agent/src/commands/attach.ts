@@ -345,7 +345,7 @@ export default class Attach extends Command {
 						if (!res.ok || body.accepted !== true) {
 							throw new Error(body.reason ?? `restart refused (HTTP ${res.status})`);
 						}
-						process.stdout.write("Backend restarting; re-run `zetacode attach` after it is back.\n");
+						process.stdout.write(`${M.attachRestartAfter}\n`);
 						done();
 						break;
 					}
@@ -353,25 +353,21 @@ export default class Attach extends Command {
 						if (line.startsWith("/")) {
 							const verb = line.slice(1).split(/\s+/, 1)[0] ?? "";
 							if (verb === "new" || verb === "resume") {
-								process.stderr.write(
-									`/${verb} starts another attach here: zetacode attach --new, or zetacode attach <id>\n`,
-								);
+								process.stderr.write(`${M.attachNewOrResumeFmt.replace("%s", `/${verb}`)}\n`);
 								break;
 							}
 							if (isBackendAttachRefusedCommand(verb)) {
 								process.stderr.write(
-									`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}\n`,
+									`${M.attachUnavailableFmt.replace("%s", `/${verb}`).replace("%s", backendAttachRefusalHint(verb))}\n`,
 								);
 								break;
 							}
 							if (isBackendAttachLocalCommand(verb)) {
-								process.stderr.write(
-									`/${verb} is a client-side command; run it in the full TUI (zetacode --attach)\n`,
-								);
+								process.stderr.write(`${M.attachClientSideCommandFmt.replace("%s", `/${verb}`)}\n`);
 								break;
 							}
 							if (isBackendAttachTuiOnlyBuiltin(verb)) {
-								process.stderr.write(`/${verb} needs the full TUI: zetacode --attach\n`);
+								process.stderr.write(`${M.attachFullTuiFmt.replace("%s", `/${verb}`)}\n`);
 								break;
 							}
 							// Backend-capable builtins (and custom commands) execute with the

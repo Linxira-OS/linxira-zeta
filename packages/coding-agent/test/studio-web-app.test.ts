@@ -38,6 +38,12 @@ describe("Studio renderer resolution", () => {
 		expect(resolveStudioWebAppDirFrom(pathToFileURL(path.join(root, "dist", "cli.js")).href, undefined)).toBe(build);
 	});
 
+	it("finds the renderer beside a bundled executable", async () => {
+		const root = await tempRoot();
+		const build = await makeBuild(root, "web-app");
+		expect(resolveStudioWebAppDirFrom(pathToFileURL(path.join(root, "zeta.exe")).href, undefined)).toBe(build);
+	});
+
 	it("finds the packaged build beside a source server module", async () => {
 		const root = await tempRoot();
 		const build = await makeBuild(root, "dist/web-app");

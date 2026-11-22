@@ -19,6 +19,7 @@ import { isEnoent, logger, postmortem, sanitizeText } from "@linxiraos/pi-utils"
 import { formatDoubleTap } from "@linxiraos/pi-tui/app-keybindings";
 import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { formatModelRoleAlias, roleCandidatePool } from "../../config/model-roles";
+import { M } from "../../i18n";
 import { resolveModelRoleValue } from "../../config/model-resolver";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { InternalUrlRouter, resolveLocalRoot } from "../../internal-urls";
@@ -288,6 +289,11 @@ export {
 	isBackendAttachLocalCommand,
 	isBackendAttachRefusedCommand,
 } from "../../backend/attach-commands";
+
+function formatAttachUnavailable(verb: string): string {
+	const hint = backendAttachRefusalHint(verb);
+	return M.attachUnavailableFmt.replace("%s", `/${verb}`).replace("%s", hint);
+}
 
 export class InputController {
 	constructor(
@@ -1277,6 +1283,13 @@ export class InputController {
 			if (backendAttach) {
 				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
 				const localCommand = isBackendAttachLocalCommand(verb);
+				// Attached sessions cannot move the backend's cwd. Keep the upstream
+				// `/cd` page: choose a folder, then open its resume page.
+				if (verb === "cd" && text.trim() === "/cd") {
+					this.ctx.editor.clearDraft(text);
+					await this.ctx.showDirectoryPicker({ resumeOnly: true });
+					return;
+				}
 				if (backendAttach) {
 					// Mode commands with a prompt: a local handler would enter the mode on
 					// the replica and then prompt the *local* agent. Enter the mode on the
@@ -1447,8 +1460,11 @@ export class InputController {
 					if (verb === "resume") {
 						const target = text.slice(`/${verb}`.length).trim();
 						if (!target) {
-							this.ctx.showStatus("Usage: /resume <session id> (list them with `zetacode attach --list`)");
-							this.ctx.editor.setText("");
+							this.ctx.editor.clearDraft(text);
+							// Upstream default: `/resume` with no target opens the
+							// three-level resume page. Do not substitute an attach-only
+							// session list here.
+							await this.ctx.showSessionSelector();
 							return;
 						}
 						this.ctx.editor.clearDraft(text);
@@ -1640,12 +1656,12 @@ export class InputController {
 						return;
 					}
 					if (isBackendAttachRefusedCommand(verb)) {
-						this.ctx.showStatus(`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}`);
+						this.ctx.showStatus(formatAttachUnavailable(verb));
 						this.ctx.editor.setText("");
 						return;
 					}
 					if (text.startsWith("!") || parsePythonCommandInput(text)) {
-						this.ctx.showStatus("Local execution is not available while attached to the backend");
+						this.ctx.showStatus(M.attachLocalExecutionUnavailable);
 						this.ctx.editor.setText("");
 						return;
 					}
