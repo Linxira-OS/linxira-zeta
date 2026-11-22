@@ -618,3 +618,13 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 Release 未创建、npm 仍是 `1.4.7`。用户已要求暂停发布链，先记录问题并准备上游
 `v18.16.0` 合并。CI-019 已修但仍在工作树，未提交/未推分支，因此 `main` 仍按
 旧提交判红；发布继续保持暂停。
+
+## CI-041 发布 run 的 Chromium crash 夹具偶发红
+
+- **现象**：1.5.13 发布 run `45006415933` 的 `Test coding-agent browser/Chromium (TS)` 在
+  `browser-tab-worker-startup.test.ts` 的 crash/reattach 用例首项失败；共享 headless
+  browser 随之断开，后续 5 个 crash 用例级联报 `Expected the shared headless browser`。
+- **证据**：同文件本地连续 4 次运行均 0 fail（39 pass / 1 skip，约 60s/次）；失败后对同一
+  run 执行 full rerun，browser bucket 与 release gate 全绿，发布继续完成。
+- **判断**：首项失败时 `recoverWorkerTab` 在 CI 负载下未重连，属夹具/环境竞态；未改产品代码，
+  也未降低断言。若复现，先隔离共享 headless 生命周期或给 crash/reattach 用例独立 browser。
