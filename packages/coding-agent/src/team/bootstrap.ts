@@ -1107,6 +1107,9 @@ async function compensateStep(step: BootstrapStepRecord, plan: BootstrapPlan, db
 					if (!removeEmptyTreeDirs(dir)) preserve(`${dir} is not empty; child steps did not roll back cleanly`);
 				}
 				fs.rmSync(teamMarkerPath(plan.teamRoot), { force: true });
+				// Audit rows describe the team being rolled back; they are not a
+				// reason to preserve it.
+				fs.rmSync(path.join(plan.teamRoot, ".zeta", "audit"), { recursive: true, force: true });
 				removeEmptyDir(path.dirname(teamMarkerPath(plan.teamRoot)));
 				if (!removeEmptyDir(plan.teamRoot)) {
 					preserve(`team root ${plan.teamRoot} contains files created after bootstrap`);
