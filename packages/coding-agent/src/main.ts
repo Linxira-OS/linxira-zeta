@@ -2053,6 +2053,7 @@ export async function runRootCommand(
 		validateRestoreLaunch(parsedArgs, isInteractive);
 		if (
 			isInteractive &&
+			!isBunTestRuntime() &&
 			(backendEnabled || explicitBackend) &&
 			!standalone &&
 			!isProtocolMode &&
