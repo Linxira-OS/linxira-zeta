@@ -43,6 +43,7 @@ import { settings } from "../../config/settings";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
+import { LiveResumePickerSource, loadResumePickerState } from "../resume-picker-source";
 import {
 	getInstalledPluginsRegistryPath,
 	getMarketplacesCacheDir,
@@ -2193,7 +2194,6 @@ export class SelectorController {
 		onSelect?: SessionPickHandler,
 		options?: { workspacePath?: string; initialScope?: ResumeScopeKindLike },
 	): Promise<void> {
-		void options;
 		closeActiveTeamHub(this.ctx.ui);
 		// A previous picker may still be hidden behind the observer it opened;
 		// release its subscription/timer before opening a new one.
@@ -2201,6 +2201,7 @@ export class SelectorController {
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
 		let selectorOptions: SessionSelectorOptions<SessionInfo>;
+		let resumeSource: LiveResumePickerSource | undefined;
 		let registry: AgentRegistryApi | undefined;
 		let runningAgentRows: (() => readonly SessionSelectorRunningAgent[]) | undefined;
 		/** Row object → registry generation at mapping time; a recycled id never re-focuses an old row. */
@@ -2297,6 +2298,31 @@ export class SelectorController {
 				loadPinnedSessionIds(),
 			]);
 			sessions = listing.sessions;
+			const initialState = await loadResumePickerState();
+			const initialScope = options?.initialScope ?? initialState.scope;
+			resumeSource = new LiveResumePickerSource({
+				initialScope,
+				initialState: initialScope === initialState.scope ? initialState : { ...initialState, scope: initialScope },
+				currentSessionPath: () => this.ctx.sessionManager.getSessionFile?.() ?? undefined,
+				...(options?.workspacePath ? { workspacePath: options.workspacePath } : {}),
+				deleteMode: "trash",
+				// The tree owns project grouping; list the same cross-project
+				// picker set instead of only the current workspace.
+				sessions: async () => (await SessionManager.listAllForPicker()).sessions,
+				deleteConversation: async conversation => {
+					if (!(await this.#detachActiveSessionBeforeDeletion(conversation.session.path))) return false;
+					const storage = new FileSessionStorage();
+					try {
+						await storage.deleteSessionWithArtifacts(conversation.session.path);
+						return true;
+					} catch (error) {
+						throw new Error(
+							`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`,
+							{ cause: error },
+						);
+					}
+				},
+			});
 			const historyStorage = this.ctx.historyStorage;
 			const historyMatcher = historyStorage
 				? (query: string) => historyStorage.matchingSessionIds(query)
@@ -2333,6 +2359,10 @@ export class SelectorController {
 				};
 			}
 			selectorOptions = {
+				// Live-agent rows own the flat picker section; the resume tree has no
+				// agent rows. Keep that established activation path while workers are
+				// running, and use the project-grouped tree otherwise.
+				...(resumeSource && (runningAgentRows?.().length ?? 0) === 0 ? { resumeSource } : {}),
 				onDelete: async (session: SessionInfo) => {
 					if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) {
 						return false;

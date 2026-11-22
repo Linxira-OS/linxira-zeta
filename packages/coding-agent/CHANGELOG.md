@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Fixed
+
+- A TUI launch again ensures or reuses the machine-wide Host, so `/resume`, identity/IM settings and Work Studio do not require a separately started `zetacode serve`.
+- In-session `/resume` uses Zeta's project → workspace → conversation resume tree again instead of the flat upstream session list.
+
 ## [1.5.13] - 2026-11-21
 
 ### Changed

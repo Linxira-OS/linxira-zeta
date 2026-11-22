@@ -8,7 +8,7 @@ package.
 ## Terminal attach (backend-backed sessions)
 
 `zetacode serve` hosts sessions for terminal clients that explicitly attach;
-a bare launch is still a complete local TUI and never touches a running
+a bare launch still reuses or starts the machine Host, and `--standalone` is the complete local TUI that never touches a running
 backend.
 
 - **Two explicit modes.** Bare `zetacode` owns its session in-process.

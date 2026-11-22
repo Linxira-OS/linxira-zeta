@@ -53,7 +53,8 @@ backend mode is selected explicitly and attaches to the exact workspace and
 branch it belongs to:
 
 ```bash
-zetacode                  # pure local TUI (never touches a running backend)
+zetacode                  # TUI; reuses or starts the default Host
+zetacode --standalone     # pure local TUI (never touches a running backend)
 zetacode --attach         # attach to this directory's newest backend session
 zetacode attach --list    # sessions across repositories: id, cwd @ branch, age, name
 zetacode attach <id>      # plain terminal client for one session

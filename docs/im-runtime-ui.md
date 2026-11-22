@@ -11,8 +11,8 @@
 - **TUI**：`/settings` → **运行时 / Runtime** → **身份与设备** 或 **IM 运行时**。
   `/2fa` 和 `/channels` 直接打开同一子页。鼠标点击条目、返回和提交按钮；键盘
   使用已配置的选择、确认、取消键（默认方向键、Enter、Escape），逐层返回。
-- TUI 页面需要同版本、已注册且可达的本机 `zetacode serve`。未启动或版本不匹配
-  会显示原因与重试入口；先启动或重启 serve，再重试。
+- TUI 启动时会确保本机 `zetacode serve`（复用或启动）；页面使用同版本、已注册且
+  可达的实例。若启动失败或版本不匹配，会显示原因与重试入口。
 - `/2fa status` 保留脱敏状态输出；`/channels status`、
   `/channels enable-instance <id>`、`/channels disable-instance <id>` 保留管理命令。
 

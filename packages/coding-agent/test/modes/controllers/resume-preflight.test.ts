@@ -242,6 +242,7 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 			onExit: () => void,
 			options: SessionSelector.SessionSelectorOptions<SessionInfo>,
 		) => {
+			expect(options.resumeSource).toBeDefined();
 			const pick = (selected: SessionInfo) => selectionPromises.push(onSelect(selected) as unknown as Promise<void>);
 			selectSession = pick;
 			return new OriginalSelector<SessionInfo>(sessions, pick, onCancel, onExit, options);

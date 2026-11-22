@@ -34,10 +34,9 @@ enable a background service.
 
 - **Off** — every bare `zetacode` launch is a local process. Nothing is
   auto-started, probed, or attached.
-- **On** — a bare interactive TUI connects to the one default backend when it is
-  live; with no live backend it falls back to its own local process. A bare
-  print/protocol `zetacode` becomes a backend client and reports a diagnostic
-  instead of silently opening a local session.
+- **On** — a bare interactive TUI reuses the one default backend when it is
+  live, or starts it before opening the session. A bare print/protocol
+  `zetacode` becomes a backend client when one is reachable.
 - **`--standalone`** — force a local process even while the switch is on. It
   never registers or listens, and may coexist with the backend.
 - Explicit `--attach`, `--attach-session`, `--attach-new`, `--backend`, and
@@ -70,13 +69,15 @@ form, not to `zetacode` startup:
 
 | Install form | Serve lifecycle | Autostart owner |
 | --- | --- | --- |
-| npm global (`@linxiraos/zeta`) | no OS service is registered; `serve`/`backend on` is explicit | none by default; opt in with `zetacode daemon install-autostart` |
+| npm global (`@linxiraos/zeta`) | the TUI ensures/reuses the Host on launch; no OS service is registered | none; login autostart is bundled-app only |
 | Arch/pacman package | the package may register a user service; the service starts `serve`, not a TUI | package metadata / explicit `systemctl --user enable` |
 | Desktop installer | the Electron shell owns its bundled service lifecycle for that app | the installer or desktop login item |
 
-A running TUI never asks the installer, package service, or desktop shell to
-start serve on its behalf. If the machine has no autostart entry, start serve
-once with `zetacode serve` or enable the explicit autostart command.
+A TUI launch with backend mode on reuses a healthy Host or starts one before
+opening its session; `--standalone` (or `backend.enabled: false`) keeps it local.
+It never asks the installer, package service, or desktop shell to start serve.
+On the npm form the Host therefore starts with the first TUI launch, not at
+login; only the bundled desktop install owns a login item.
 
 ## Lifecycle
 
@@ -276,9 +277,10 @@ The shell always says which of its two modes it is in:
   ready* (with 重试 on a failure), and the settings row names the mode plus the
   running pid and `webUrl` when ready, with 重启 and 停止 beside it.
 
-Interactive TUI tabs stay local in both modes. The backend switch governs the
-backend-hosted Work Studio surface and print/protocol runs; it never makes a
-TUI tab attach to or start serve.
+Those tab rules belong to the retired zetawork shell, not the current product.
+A current `zetacode` TUI ensures/reuses the Host on launch in backend mode, and
+the same switch governs its runtime settings, Work Studio and print/protocol
+access.
 
 A probe that cannot run at all — no `zetacode` beside the shell, or one too old
 to have the `backend` subcommand — is not a backend failure: the shell stays in

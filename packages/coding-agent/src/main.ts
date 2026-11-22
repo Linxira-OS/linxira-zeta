@@ -46,6 +46,7 @@ import {
 	type ResolvedBackendTarget,
 	type StartupTransport,
 } from "./backend/attach-intent";
+import { ensureHost } from "./backend/ensure-host";
 import { readBackendEnabledSetting } from "./backend/setting";
 import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
@@ -2042,11 +2043,30 @@ export async function runRootCommand(
 			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
 			process.exit(1);
 		}
-		// A TUI launch is its own process. It connects to the machine-wide
-		// backend when one is reachable, but never starts or silently adopts a
-		// daemon. With backend mode off (or no backend reachable) it stays local.
-		// Explicit --attach/--backend must reach a backend or startup fails, so
-		// a client never silently forks a second session.
+		// The TUI owns the machine-level Host: reuse a healthy serve instance,
+		// start one when backend mode is on, and fail closed on a version
+		// conflict. Explicit remote URLs are never replaced by a local start.
+		// Standalone and protocol launches keep their own transport rules.
+		if (
+			isInteractive &&
+			(backendEnabled || explicitBackend) &&
+			!standalone &&
+			!isProtocolMode &&
+			parsedArgs.backendUrl === undefined
+		) {
+			try {
+				await ensureHost({ cwd, channels: true });
+			} catch (error) {
+				process.stderr.write(
+					`${chalk.red(error instanceof Error ? error.message : String(error))}\n` +
+						`${chalk.dim("Run `zetacode --standalone` for a local process, or fix the running Host.")}\n`,
+				);
+				process.exit(1);
+			}
+		}
+		// Transport is decided before any local session exists. Explicit
+		// --attach/--backend must reach a backend or startup fails, so a client
+		// never silently forks a second session.
 		let transport: StartupTransport;
 		try {
 			transport = await resolveStartupTransport(parsedArgs, rawArgs, {
