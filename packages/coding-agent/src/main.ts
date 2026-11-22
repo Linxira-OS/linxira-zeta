@@ -41,6 +41,7 @@ import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-fla
 import { processFileArguments } from "./cli/file-processor";
 import {
 	BackendAttachError,
+	resolveBackendTarget,
 	resolveStartupTransport,
 	type ResolvedBackendTarget,
 	type StartupTransport,
@@ -2059,7 +2060,14 @@ export async function runRootCommand(
 			process.exit(1);
 		}
 		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
-		const forcedBackend = explicitBackend || (backendEnabled && !standalone && !isInteractive && !isProtocolMode);
+		// Backend mode is on by default, but an implicit headless run must remain
+		// usable on a machine where serve is not running: probe once and fall back
+		// to the in-process path instead of failing the prompt.
+		const implicitBackend =
+			backendEnabled && !standalone && !isInteractive && !isProtocolMode && !explicitBackend
+				? await resolveBackendTarget({ newSession: false, explicit: false }, { cwd })
+				: undefined;
+		const forcedBackend = explicitBackend || implicitBackend !== undefined;
 		if (forcedBackend && !isProtocolMode && !isInteractive) {
 			const fileResult = await logger.time("processFileArguments", () =>
 				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
