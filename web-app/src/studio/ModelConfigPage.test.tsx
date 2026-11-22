@@ -1,7 +1,8 @@
 import { previewModelAdaptation } from "./preview/modelAdaptationPreview";
 import { dragList } from "./test/drag-list";
 import { selectOption } from "./test/selectOption";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within, type RenderResult } from "@testing-library/react";
+import { I18nProvider } from "./i18n";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type {
   ClientEvent,
@@ -16,8 +17,10 @@ import type {
 import { ModelConfigPage } from "./ModelConfigPage";
 import { PreviewModeProvider } from "./preview/PreviewContext";
 import { PREVIEW_MODE_STORAGE_KEY } from "./preview/mode";
+import { updateAppSettings } from "./settings/appSettings";
 
 beforeAll(() => {
+  updateAppSettings({ language: "zh" });
   class ResizeObserverStub {
     observe(): void {}
     unobserve(): void {}
@@ -42,6 +45,9 @@ afterEach(() => {
 });
 
 const T0 = "2026-08-20T00:00:00.000Z";
+function renderZh(ui: Parameters<typeof render>[0]): RenderResult {
+  return render(<I18nProvider forcedLanguage="zh">{ui}</I18nProvider>);
+}
 
 /* Mounting the whole page brings the CodeMirror YAML editor with it, which is
    slow enough under a loaded parallel suite to trip the 5s default. */
@@ -117,7 +123,7 @@ it("reorders filtered provider cards while preserving hidden providers and keepi
     { ...gateway(), id: "last", name: "Visible last" },
   ] };
   const client = fakeClient(PROBE_OK, model);
-  const { container } = render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  const { container } = renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
   try {
     await screen.findAllByRole("button", { name: "编辑供应商" });
     fireEvent.change(container.querySelector(".mr-toolbar input")!, { target: { value: "Visible" } });
@@ -206,8 +212,8 @@ it("keeps an unavailable role model editable and saves its replacement through t
     availableModels: [{ provider: "gateway", id: "kept", selector: "gateway/kept", name: "Kept", reasoning: false }],
   };
   const client = fakeClient(PROBE_OK, config);
-  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
-  fireEvent.click(document.getElementById("mcTabRoles")!);
+  renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  fireEvent.click(screen.getByRole("tab", { name: /角色/ })!);
   const row = (await screen.findByRole("button", { name: "编辑 Default" })).closest(".role-row") as HTMLElement;
   expect(within(row).getByText("不可用")).toBeTruthy();
   const picker = within(row).getByRole("button", { name: "主模型" });
@@ -225,8 +231,8 @@ it("shows 写法先进 while saving model assignments under taste", async () => 
     roles: [{ id: "taste", alias: "@taste", name: "Taste", desc: "", builtin: true, primary: "", scope: "global" }],
     availableModels: [{ provider: "gateway", id: "kept", selector: "gateway/kept", name: "Kept", reasoning: false }],
   });
-  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
-  fireEvent.click(document.getElementById("mcTabRoles")!);
+  renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  fireEvent.click(screen.getByRole("tab", { name: /角色/ })!);
   const row = (await screen.findByRole("button", { name: "编辑 写法先进" })).closest(".role-row");
   if (!(row instanceof HTMLElement)) throw new Error("Missing taste role row");
   expect(within(row).getByText("@taste")).toBeTruthy();
@@ -243,8 +249,8 @@ it("clears an explicit role assignment to native auto-selection", async () => {
     availableModels: [{ provider: "gateway", id: "kept", selector: "gateway/kept", name: "Kept", reasoning: false }],
   };
   const client = fakeClient(PROBE_OK, config);
-  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
-  fireEvent.click(document.getElementById("mcTabRoles")!);
+  renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  fireEvent.click(screen.getByRole("tab", { name: /角色/ })!);
   const row = (await screen.findByRole("button", { name: "编辑 Default" })).closest(".role-row") as HTMLElement;
   fireEvent.click(within(row).getByRole("button", { name: "主模型" }));
   fireEvent.click(await screen.findByRole("option", { name: /自动选择/ }));
@@ -254,8 +260,9 @@ it("clears an explicit role assignment to native auto-selection", async () => {
 it("searches and replaces an unavailable preview model with the keyboard without writing to Host", async () => {
   window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
   const client = fakeClient();
-  const { container } = render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
-  fireEvent.click(document.getElementById("mcTabRoles")!);
+  const { container } = renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  fireEvent.click(screen.getByRole("tab", { name: /角色/ })!);
+  await waitFor(() => expect(document.getElementById("mcPanelRoles")?.hasAttribute("hidden")).toBe(false));
   const row = (await screen.findByRole("button", { name: "编辑 Designer" })).closest(".role-row") as HTMLElement;
   fireEvent.click(within(row).getByRole("button", { name: "主模型" }));
   const defaultRow = screen.getByRole("button", { name: "编辑 Default" }).closest(".role-row") as HTMLElement;
@@ -298,7 +305,7 @@ it("updates the catalog from the model navigation without a duplicate evaluation
     }
     return () => undefined;
   });
-  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
 
   expect(await screen.findByText("old-version")).toBeTruthy();
   expect(screen.queryByRole("tab", { name: "基准测试" })).toBeNull();
@@ -313,7 +320,7 @@ it("keeps catalog updates local in unmarked preview mode", async () => {
   window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
   const client = fakeClient();
   try {
-    render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+    renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
     expect(await screen.findByText("2026.10")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "检查并更新目录" }));
     expect(client.command).not.toHaveBeenCalled();
@@ -326,7 +333,7 @@ it("keeps catalog updates local in unmarked preview mode", async () => {
 it("manages search credentials only in the provider library and keeps preview local", async () => {
   window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
   const client = fakeClient();
-  render(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
+  renderZh(<PreviewModeProvider switchEnabled><ModelConfigPage client={client} /></PreviewModeProvider>);
   fireEvent.click(await screen.findByRole("tab", { name: /网络搜索/ }));
   const providerName = await screen.findByText("Exa", { selector: ".wsx-pool-row .wsx-provider-name" });
   expect(screen.queryByText("搜索凭据")).toBeNull();
@@ -574,7 +581,7 @@ describe("ModelConfigPage YAML 卡片随表单实时更新", () => {
     };
     const { container } = await openEditor({ modelConfig: config });
 
-    fireEvent.click(document.getElementById("mcTabRoles") as HTMLElement);
+    fireEvent.click(screen.getByRole("tab", { name: /角色/ }));
     fireEvent.click(await screen.findByRole("button", { name: "编辑 Fast" }));
     await waitFor(async () => expect(plainText(await yamlCardText(container, "smol"))).toContain("gateway/kept"));
 

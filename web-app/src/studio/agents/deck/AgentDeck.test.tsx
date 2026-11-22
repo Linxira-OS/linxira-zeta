@@ -8,6 +8,7 @@ import { buildLanes, concurrency, replayLanes } from "./timelineModel";
 import { __resetDeckUiForTests } from "./deckState";
 import { __resetSwarmForTests, readSwarm, recordSwarm } from "./swarmRecorder";
 import { AgentsDock } from "./AgentsDock";
+import { PREVIEW_MODE_STORAGE_KEY } from "../../preview/mode";
 import { DockProvider } from "../../dock/DockContext";
 import { DockStore } from "../../dock/store";
 import { I18nProvider } from "../../i18n";
@@ -77,7 +78,7 @@ describe("Agents deck", () => {
   });
 
   it("never sends commands from preview", () => {
-    localStorage.setItem("omp.previewMode", "1");
+    localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
     const host = client();
     render(<PreviewModeProvider switchEnabled>{deck(getPreviewDockAgents(true), { links: links(), client: host })}</PreviewModeProvider>);
     fireEvent.click(card(/deps 子 Agent/));

@@ -68,7 +68,7 @@ export function WorkspaceRecoveryPane({ client, onOpenWorkspace, onChooseRemoteW
         if (preview) { if (marks) setNotice("workspaceRecovery.chosen"); }
         else onOpenWorkspace(active);
       }}>{t("workspaceRecovery.newChat", { name: active.name })}</button></div> : null}
-      {stale.map(row => <div className="set-row" key={row.workspaceId}><div><div className="sr-label">{row.name}</div><div className="mono small wrap">{row.root}</div></div><span className="chip amber xs">{t("workspaceRecovery.unavailable")}</span><button type="button" className="btn small outline" disabled={busy} onClick={() => void submit("forget")}>{t("workspaceRecovery.forget")}</button></div>)}
+      {stale.map(row => <div className="set-row" key={row.workspaceId}><div><div className="sr-label">{row.name}</div><div className="mono small wrap">{row.root}</div></div><span className="chip amber xs">{t("workspaceRecovery.unavailable")}</span></div>)}
       {stale.length ? <div className="set-row"><span className="sr-desc">{t("workspaceRecovery.staleCount", { count: stale.length })}</span><button type="button" className="btn outline" disabled={busy} onClick={() => void submit("forget")}>{t("workspaceRecovery.forget")}</button></div> : null}
       {error ? <p className="small" role="alert">{hostErrorMessage(error, t(model ? "workspaceRecovery.actionFailed" : "workspaceRecovery.loadFailed"))}</p> : null}
       {notice && (!preview || marks) ? <p className="small" role="status">{t(notice)}</p> : null}

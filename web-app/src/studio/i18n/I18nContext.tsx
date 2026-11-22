@@ -123,7 +123,9 @@ export function I18nProvider({ children, forcedLanguage }: { children: ReactNode
     };
   }, [resolvedLanguage]);
 
-  const ready = loadedLocale === resolvedLanguage;
+  // A bundled dictionary is ready on this render; do not blank the whole
+  // workbench for one frame when the user switches zh ↔ en.
+  const ready = dictionaries[resolvedLanguage] !== undefined || loadedLocale === resolvedLanguage;
 
   useLayoutEffect(() => {
     if (typeof document !== "undefined") {

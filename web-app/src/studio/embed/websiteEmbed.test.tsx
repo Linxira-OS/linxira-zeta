@@ -78,7 +78,7 @@ it("keeps full shell chrome without preview-switch, switches routes without echo
   localStorage.setItem(STARTUP_NOTICE_STORAGE_KEY, STARTUP_NOTICE_ID);
   localStorage.setItem(ONBOARDING_STORAGE_KEY, ONBOARDING_TOUR_ID);
   localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
-  localStorage.setItem("omp.lastRoute", "home");
+  localStorage.setItem("zeta.lastRoute", "home");
   __resetAppSettingsForTests(JSON.stringify({
     language: "en",
     theme: "light",
@@ -146,7 +146,7 @@ it("forwards SettingsPage theme changes through AppShell and emits theme-changed
   localStorage.setItem(STARTUP_NOTICE_STORAGE_KEY, STARTUP_NOTICE_ID);
   localStorage.setItem(ONBOARDING_STORAGE_KEY, ONBOARDING_TOUR_ID);
   localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
-  localStorage.setItem("omp.lastRoute", "settings");
+  localStorage.setItem("zeta.lastRoute", "settings");
   __resetAppSettingsForTests(JSON.stringify({
     language: "en",
     theme: "light",

@@ -83,7 +83,7 @@ it("asks where to continue when the recorded directory is gone, then prepares ag
       : { ...stranded, requiresWorkspaceSelection: true });
   const onOpen = vi.fn();
   mount(<ResumeScopePane client={client} context={context} onOpen={onOpen} />);
-  fireEvent.click(screen.getByRole("button", { name: "Resume OMP session" }));
+  fireEvent.click(screen.getByRole("button", { name: "Resume Zeta session" }));
   await screen.findByRole("heading", { name: "Attachment recovery" });
   fireEvent.click(screen.getByRole("button", { name: "Resume session" }));
   await screen.findByText("C:/removed");
@@ -105,7 +105,7 @@ it("preserves the execution-workspace choice through live language changes", asy
   localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "0");
   const tree = (language: "zh" | "en") => <I18nProvider forcedLanguage={language}><PreviewModeProvider switchEnabled><ResumeScopePane client={client} context={context} onOpen={onOpen} /></PreviewModeProvider></I18nProvider>;
   const ui = render(tree("en"));
-  fireEvent.click(screen.getByRole("button", { name: "Resume OMP session" }));
+  fireEvent.click(screen.getByRole("button", { name: "Resume Zeta session" }));
   await screen.findByRole("heading", { name: "Attachment recovery" });
   fireEvent.click(screen.getByRole("button", { name: "Resume session" }));
   await screen.findByText("C:/missing");
@@ -127,11 +127,11 @@ it("keeps the restore dialog and native failure visible when consuming the prepa
     : { targetSessionId: "current", requestedSessionId: "current", workspaceId: "destination", threadId: "issued-handle", requiresWorkspaceSelection: false });
   const onOpen = vi.fn().mockRejectedValue(new Error("Original worker retained"));
   mount(<ResumeScopePane client={client} context={context} onOpen={onOpen} />);
-  fireEvent.click(screen.getByRole("button", { name: "Resume OMP session" }));
+  fireEvent.click(screen.getByRole("button", { name: "Resume Zeta session" }));
   await screen.findByRole("heading", { name: "Attachment recovery" });
   fireEvent.click(screen.getByRole("button", { name: "Resume session" }));
   await screen.findByText("Original worker retained");
-  expect(screen.getByRole("dialog", { name: "Resume OMP session" })).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "Resume Zeta session" })).toBeTruthy();
 });
 
 it("requires a destination for a missing import directory, then waits for an explicit open", async () => {
@@ -183,7 +183,7 @@ it("keeps both preview flows local and hides demo markings when marks are off", 
   const onOpen = vi.fn(), onImported = vi.fn(), onPreviewOpen = vi.fn();
   mount(<><ResumeScopePane client={client} context={context} onOpen={onOpen} onPreviewOpen={onPreviewOpen} /><SessionImportPanel client={client} onOpen={onOpen} onImported={onImported} onPreviewOpen={onPreviewOpen} /></>, true);
   fireEvent.click(screen.getByRole("button", { name: "Resume Zeta session" }));
-  await screen.findByRole("heading", { name: "会话恢复与附件检查" });
+  await screen.findByRole("heading", { name: "Session resume & attachment check" });
   expect(screen.queryByText("Demo")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Resume session" }));
   fireEvent.click(screen.getByRole("button", { name: "Import Claude / Codex sessions" }));

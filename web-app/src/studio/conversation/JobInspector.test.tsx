@@ -248,7 +248,7 @@ it("the foreground GitHub tool uses the same native steps and ignores a submitte
     result: { type: "toolResult", toolCallId: "foreground-watch", isError: true, data: { watch: native, output: "original native watch output" } },
   }} /></I18nProvider>);
   const actions = screen.getByRole("region", { name: "GitHub Actions 步骤" });
-  expect(within(actions).getByText("the-snowpear/omp-studio")).toBeTruthy();
+  expect(within(actions).getByText("Linxira-OS/linxira-zeta")).toBeTruthy();
   expect(within(actions).queryByText("FORGED STEP")).toBeNull();
   expect(screen.getByText(/original native watch output/)).toBeTruthy();
 });
