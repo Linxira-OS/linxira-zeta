@@ -7,6 +7,24 @@ description: "Record an architecture or contract decision in this repository as 
 
 An ADR records **why** a durable, contract-level decision was made and what it costs. It is not a design doc, a changelog, or a plan. Write one only after the user has decided; recording an unmade decision as `Accepted` is fabrication.
 
+## Who decides, who records
+
+- **The user/owner decides product, contract, security, release and owner-visible
+  behavior.** An agent may investigate, propose, and draft the ADR, but it must
+  not mark such a decision `Accepted` without an explicit user decision.
+- **An agent may decide implementation details inside an already delegated
+  scope.** Those records still name the actual decider; if the result changes a
+  public API, data model, security boundary, dependency/license obligation,
+  irreversible migration, or release scope, it is back in the owner's lane.
+- **`Deciders` names who actually decided, not who wrote the file.** Never infer
+  an owner decision from a previous ADR, a summary, or an agent's preference.
+  If the user's instruction is not explicit, keep the ADR `Proposed` and state
+  what would settle it.
+- **Owner authority overrides an ADR.** A conflict is resolved by the owner's
+  later instruction, not by treating the ADR as a higher authority. Record the
+  correction by writing a new ADR that states what it supersedes; do not rewrite
+  an Accepted body to make it look like the owner always agreed.
+
 ## When to use
 
 Write an ADR when the decision:

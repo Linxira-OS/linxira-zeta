@@ -134,6 +134,12 @@ export interface ResumeTreeConversationRow {
 
 export type ResumeTreeRow = ResumeTreeProjectRow | ResumeTreeWorkspaceRow | ResumeTreeConversationRow;
 
+/** Display caps for the initial recent-first tree; a "more" row lifts them. */
+export const RECENT_PROJECT_LIMIT = 5;
+export const RECENT_CONVERSATION_LIMIT = 5;
+export const MORE_PROJECTS_KEY = "\u0000resume:more-projects";
+export const MORE_CONVERSATIONS_KEY_PREFIX = "\u0000resume:more-conversations:";
+
 export interface ResumeTreeView {
 	scope: { kind: ResumeTreeScope; projectKey?: string; workspaceKey?: string };
 	query: { raw: string; terms?: readonly string[] };
@@ -488,6 +494,9 @@ export function renderConversationRow(
 	const selected = options.selected;
 	const cursor = selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
 	const indent = padding(CONVERSATION_INDENT);
+	if (row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+		return truncateToWidth(`${cursor}${indent}${theme.fg("muted", row.conversation.title)}`, options.width);
+	}
 	const columns = options.columns ?? conversationColumns([row], options.now);
 	const status = statusWord(row.conversation.status);
 	const flags = conversationFlags(row);
@@ -591,6 +600,9 @@ export function renderProjectRow(
 	},
 ): string {
 	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
+	if (row.key === MORE_PROJECTS_KEY) {
+		return truncateToWidth(`${cursor}${theme.fg("muted", row.project.displayName)}`, options.width);
+	}
 	const indent = padding(PROJECT_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
 	const pin = row.pinned ? `${theme.icon.pin} ` : "";
@@ -710,6 +722,10 @@ export interface ResumeTreeState {
 	collapsedProjects: Set<string>;
 	expandedProjects: Set<string>;
 	collapsedWorkspaces: Set<string>;
+	/** The user asked to see projects beyond the recent-five window. */
+	showAllProjects?: boolean;
+	/** Workspaces whose conversation list was expanded past the recent-five window. */
+	expandedConversationGroups?: Set<string>;
 }
 
 type ResumeTreeMenuKind = "workspace" | "conversation";
@@ -769,7 +785,110 @@ export function flattenResumeRows(
 		if (collapsedProject || collapsedWorkspace) continue;
 		flat.push({ row, parentKey: row.workspaceKey });
 	}
-	return flat;
+
+	// Search must expose every matching conversation. The recent-first caps below
+	// are only for browsing, never for a query's result set.
+	if (searching) return flat;
+
+	const totalByWorkspace = new Map<string, number>();
+	for (const entry of flat) {
+		if (entry.row.type !== "conversation") continue;
+		totalByWorkspace.set(entry.row.workspaceKey, (totalByWorkspace.get(entry.row.workspaceKey) ?? 0) + 1);
+	}
+
+	const visible: FlatRow[] = [];
+	let projectIndex = 0;
+	let hiddenProjects = 0;
+	let hiddenProject: ResumeTreeProjectRow | undefined;
+	let skipProject = false;
+	let currentWorkspace: string | undefined;
+	const shownByWorkspace = new Map<string, number>();
+	for (const entry of flat) {
+		const row = entry.row;
+		if (row.type === "project") {
+			projectIndex++;
+			if (!state.showAllProjects && projectIndex > RECENT_PROJECT_LIMIT) {
+				hiddenProjects++;
+				hiddenProject ??= row;
+				skipProject = true;
+				currentWorkspace = undefined;
+				continue;
+			}
+			skipProject = false;
+			visible.push(entry);
+			currentWorkspace = undefined;
+			continue;
+		}
+		if (skipProject) continue;
+		if (row.type === "workspace") {
+			visible.push(entry);
+			currentWorkspace = row.key;
+			continue;
+		}
+		if (!currentWorkspace) {
+			visible.push(entry);
+			continue;
+		}
+		const shown = shownByWorkspace.get(currentWorkspace) ?? 0;
+		const total = totalByWorkspace.get(currentWorkspace) ?? 0;
+		const expanded = state.expandedConversationGroups?.has(currentWorkspace) === true;
+		if (!expanded && shown >= RECENT_CONVERSATION_LIMIT) continue;
+		shownByWorkspace.set(currentWorkspace, shown + 1);
+		visible.push(entry);
+		if (!expanded && total > RECENT_CONVERSATION_LIMIT && shown + 1 === RECENT_CONVERSATION_LIMIT) {
+			visible.push({ row: moreConversationsRow(row, total - RECENT_CONVERSATION_LIMIT) });
+		}
+	}
+
+	if (hiddenProjects > 0 && hiddenProject) {
+		visible.push({ row: moreProjectsRow(hiddenProject, hiddenProjects) });
+	}
+	return visible;
+}
+
+function moreProjectsRow(template: ResumeTreeProjectRow, count: number): ResumeTreeProjectRow {
+	const label = tuiTextFmt("resumeMoreProjectsFmt", "+ %d more projects", count);
+	return {
+		...template,
+		key: MORE_PROJECTS_KEY,
+		project: {
+			...template.project,
+			name: label,
+			displayName: label,
+			alias: null,
+			pinned: false,
+			collapsed: false,
+			lastActivity: null,
+		},
+		pinned: false,
+		collapsed: false,
+		conversationCount: 0,
+		totalConversationCount: 0,
+		workspaceCount: 0,
+		totalWorkspaceCount: 0,
+	};
+}
+
+function moreConversationsRow(template: ResumeTreeConversationRow, count: number): ResumeTreeConversationRow {
+	const label = tuiTextFmt("resumeMoreConversationsFmt", "+ %d more conversations", count);
+	const key = `${MORE_CONVERSATIONS_KEY_PREFIX}${template.workspaceKey}`;
+	return {
+		...template,
+		key,
+		conversation: {
+			...template.conversation,
+			key,
+			id: key,
+			path: key,
+			title: label,
+			messageCount: 0,
+			current: false,
+			fork: false,
+			isSubagent: false,
+		},
+		pinned: false,
+		current: false,
+	};
 }
 
 /**
@@ -784,6 +903,8 @@ export class ResumeTreeComponent implements Component {
 		collapsedProjects: new Set(),
 		expandedProjects: new Set(),
 		collapsedWorkspaces: new Set(),
+		showAllProjects: false,
+		expandedConversationGroups: new Set(),
 	};
 	#scope: ResumeTreeScope;
 	#fullPaths = false;
@@ -1025,7 +1146,7 @@ export class ResumeTreeComponent implements Component {
 
 	/** Rendered line count for one row: a project header carries a rule under it. */
 	#rowLines(row: ResumeTreeRow): number {
-		return row.type === "project" ? 2 : 1;
+		return row.type === "project" && row.key !== MORE_PROJECTS_KEY ? 2 : 1;
 	}
 
 	/**
@@ -1036,8 +1157,9 @@ export class ResumeTreeComponent implements Component {
 	#lineCounts(flat: readonly FlatRow[]): number[] {
 		let seenProject = false;
 		return flat.map(entry => {
-			const separator = entry.row.type === "project" && seenProject ? 1 : 0;
-			if (entry.row.type === "project") seenProject = true;
+			const more = entry.row.key === MORE_PROJECTS_KEY;
+			const separator = entry.row.type === "project" && !more && seenProject ? 1 : 0;
+			if (entry.row.type === "project" && !more) seenProject = true;
 			return separator + this.#rowLines(entry.row);
 		});
 	}
@@ -1059,6 +1181,18 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	#selectRow(row: ResumeTreeRow): void {
+		if (row.key === MORE_PROJECTS_KEY) {
+			this.#state.showAllProjects = true;
+			this.#clampScroll();
+			this.onRequestRender?.();
+			return;
+		}
+		if (row.type === "conversation" && row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+			this.#state.expandedConversationGroups?.add(row.workspaceKey);
+			this.#clampScroll();
+			this.onRequestRender?.();
+			return;
+		}
 		if (row.type === "conversation") {
 			this.onSelect(row.conversation);
 			return;
@@ -1090,6 +1224,10 @@ export class ResumeTreeComponent implements Component {
 		const entry = flat[index];
 		if (!entry) return;
 		const row = entry.row;
+		if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+			this.#selectRow(row);
+			return;
+		}
 		if (row.type === "conversation") {
 			this.#selectedKey = `workspace:${row.workspaceKey}`;
 			return;
@@ -1115,6 +1253,10 @@ export class ResumeTreeComponent implements Component {
 		const entry = flat[index];
 		if (!entry) return;
 		const row = entry.row;
+		if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+			this.#selectRow(row);
+			return;
+		}
 		if (row.type === "project") {
 			if (projectCollapsed(row, this.#state)) {
 				this.#state.collapsedProjects.delete(row.key);
@@ -1614,7 +1756,9 @@ export class ResumeTreeComponent implements Component {
 		this.#clampScroll();
 		if (hit.kind === "toggle") {
 			const row = entry.row;
-			if (row.type === "project" || row.type === "workspace") this.#toggleCollapse(row);
+			if (row.key === MORE_PROJECTS_KEY || row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX)) {
+				this.#selectRow(row);
+			} else if (row.type === "project" || row.type === "workspace") this.#toggleCollapse(row);
 			return true;
 		}
 		const now = Date.now();

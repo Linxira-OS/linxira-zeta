@@ -604,6 +604,8 @@ export const zh = {
 	resumeHiddenRowsShown: "正在显示已隐藏项 · 按 v 收起",
 	resumeHiddenRowsHintFmt: "%d 项已隐藏 · 按 v 显示",
 	resumeHiddenByFilterFmt: "%d 个对话被筛选条件隐藏",
+	resumeMoreProjectsFmt: "+ %d 个更早项目",
+	resumeMoreConversationsFmt: "+ %d 条更早对话",
 	resumeLoading: "正在加载对话…",
 	resumeCurrentLabel: "当前",
 	resumePinnedLabel: "已置顶",

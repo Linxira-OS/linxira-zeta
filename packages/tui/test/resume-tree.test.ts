@@ -4,6 +4,7 @@ import { TUI } from "@linxiraos/pi-tui";
 import { plainText } from "../src/native/spans";
 import { visibleWidth } from "../src/utils";
 import {
+	MORE_PROJECTS_KEY,
 	ResumeTreeComponent,
 	absoluteResumePath,
 	flattenResumeRows,
@@ -1428,7 +1429,7 @@ describe("resume project group separators", () => {
 	});
 
 	it("counts boundary rules while scrolling to the last project", async () => {
-		const names = ["p1", "p2", "p3", "p4", "p5", "p6"];
+		const names = ["p1", "p2", "p3", "p4", "p5"];
 		const initial = groupedView({ projectNames: names });
 		const height = 24;
 		const { terminal, tui, component, scheduler } = await mount(initial, { height });
@@ -1438,10 +1439,10 @@ describe("resume project group separators", () => {
 			await scheduler.settle(terminal);
 			const lines = plainViewport(terminal);
 			expect(lines).toHaveLength(height);
-			expect(lines.join("\n")).toContain("p6 lib note");
+			expect(lines.join("\n")).toContain("p5 lib note");
 			const cursorRow = lines.findIndex(line => line.startsWith(`${theme.nav.cursor} `));
 			expect(cursorRow).toBeGreaterThanOrEqual(0);
-			expect(lines[cursorRow]).toContain("p6 lib note");
+			expect(lines[cursorRow]).toContain("p5 lib note");
 			// Every visible rule still belongs to a project header, top or bottom cut included.
 			const headers = headerIndexes(lines);
 			const boundaries = ruleIndexes(lines).filter(index => !headers.includes(index - 1));
@@ -1455,3 +1456,160 @@ describe("resume project group separators", () => {
 		}
 	});
 });
+
+describe("recent-first resume browsing", () => {
+	it("caps the initial project list at five and exposes a more row", () => {
+		const names = ["p1", "p2", "p3", "p4", "p5", "p6"];
+		const view = groupedViewForCap(names);
+		const state = {
+			collapsedProjects: new Set<string>(),
+			expandedProjects: new Set<string>(),
+			collapsedWorkspaces: new Set<string>(),
+		};
+		const flat = flattenResumeRows(view.rows, state, false);
+		const projects = flat.filter(entry => entry.row.type === "project").map(entry => entry.row);
+		expect(projects).toHaveLength(6);
+		expect(projects.at(-1)?.key).toBe(MORE_PROJECTS_KEY);
+		const expanded = flattenResumeRows(view.rows, { ...state, showAllProjects: true }, false);
+		expect(expanded.filter(entry => entry.row.type === "project").map(entry => entry.row.key)).not.toContain(
+			MORE_PROJECTS_KEY,
+		);
+	});
+
+	it("shows five recent conversations in a workspace, then expands on request", () => {
+		const root = "/work/recent";
+		const projectEntry: ResumeTreeProject = {
+			key: root,
+			root,
+			name: "recent",
+			alias: null,
+			displayName: "recent",
+			isDefault: false,
+			pinned: false,
+			collapsed: false,
+			lastActivity: new Date(T),
+			counts: { conversations: 7, workspaces: 1, pinnedConversations: 0 },
+		};
+		const workspaceEntry: ResumeTreeWorkspace = {
+			key: root,
+			path: root,
+			name: "recent",
+			projectKey: root,
+			branch: null,
+			pinned: false,
+			lastActivity: new Date(T),
+			counts: { conversations: 7, pinnedConversations: 0 },
+		};
+		const rows: ResumeTreeRow[] = [
+			{
+				type: "project",
+				key: root,
+				project: projectEntry,
+				pinned: false,
+				collapsed: false,
+				conversationCount: 7,
+				totalConversationCount: 7,
+				workspaceCount: 1,
+				totalWorkspaceCount: 1,
+			},
+			{
+				type: "workspace",
+				key: root,
+				workspace: workspaceEntry,
+				projectKey: root,
+				pinned: false,
+				conversationCount: 7,
+				totalConversationCount: 7,
+			},
+		];
+		for (let index = 1; index <= 7; index++) {
+			const entry = conversation(`c${index}`, `conversation ${index}`, T, { projectKey: root, workspaceKey: root });
+			rows.push({
+				type: "conversation",
+				key: entry.key,
+				conversation: entry,
+				projectKey: root,
+				workspaceKey: root,
+				pinned: false,
+				current: false,
+				pinnedOnly: false,
+			});
+		}
+		const view = {
+			scope: { kind: "all" },
+			query: { raw: "" },
+			rows,
+			conversations: [],
+			counts: {
+				conversations: 7,
+				workspaces: 1,
+				projects: 1,
+				pinnedConversations: 0,
+				totalConversations: 7,
+				totalWorkspaces: 1,
+				totalProjects: 1,
+			},
+		} as ResumeTreeView;
+		const state = {
+			collapsedProjects: new Set<string>(),
+			expandedProjects: new Set<string>(),
+			collapsedWorkspaces: new Set<string>(),
+		};
+		const flat = flattenResumeRows(view.rows, state, false)
+			.filter(entry => entry.row.type === "conversation")
+			.map(entry => entry.row);
+		expect(flat).toHaveLength(6);
+		expect(flat.at(-1)?.key.startsWith("\u0000resume:more-conversations:")).toBe(true);
+		const expanded = flattenResumeRows(
+			view.rows,
+			{ ...state, expandedConversationGroups: new Set([root]) },
+			false,
+		).filter(entry => entry.row.type === "conversation");
+		expect(expanded).toHaveLength(7);
+	});
+});
+
+function groupedViewForCap(names: readonly string[]): ResumeTreeView {
+	const rows: ResumeTreeRow[] = [];
+	for (const name of names) {
+		const root = `/work/${name}`;
+		const projectEntry: ResumeTreeProject = {
+			key: root,
+			root,
+			name,
+			alias: null,
+			displayName: name,
+			isDefault: false,
+			pinned: false,
+			collapsed: true,
+			lastActivity: new Date(T),
+			counts: { conversations: 1, workspaces: 1, pinnedConversations: 0 },
+		};
+		rows.push({
+			type: "project",
+			key: root,
+			project: projectEntry,
+			pinned: false,
+			collapsed: true,
+			conversationCount: 1,
+			totalConversationCount: 1,
+			workspaceCount: 1,
+			totalWorkspaceCount: 1,
+		});
+	}
+	return {
+		scope: { kind: "all" },
+		query: { raw: "" },
+		rows,
+		conversations: [],
+		counts: {
+			conversations: names.length,
+			workspaces: names.length,
+			projects: names.length,
+			pinnedConversations: 0,
+			totalConversations: names.length,
+			totalWorkspaces: names.length,
+			totalProjects: names.length,
+		},
+	} as ResumeTreeView;
+}

@@ -641,6 +641,8 @@ export interface Messages {
 	resumeHiddenRowsShown: string;
 	resumeHiddenRowsHintFmt: string; // %d hidden · v show
 	resumeHiddenByFilterFmt: string; // %d conversations hidden by filter
+	resumeMoreProjectsFmt: string; // + %d more projects
+	resumeMoreConversationsFmt: string; // + %d more conversations
 	resumeLoading: string; // Loading conversations…
 	resumeCurrentLabel: string; // current
 	resumePinnedLabel: string; // pinned

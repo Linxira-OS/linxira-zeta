@@ -601,6 +601,8 @@ export const en = {
 	resumeHiddenRowsShown: "Hidden rows shown · v hides them",
 	resumeHiddenRowsHintFmt: "%d hidden · v shows them",
 	resumeHiddenByFilterFmt: "%d conversations hidden by filter",
+	resumeMoreProjectsFmt: "+ %d more projects",
+	resumeMoreConversationsFmt: "+ %d more conversations",
 	resumeLoading: "Loading conversations…",
 	resumeCurrentLabel: "current",
 	resumePinnedLabel: "pinned",

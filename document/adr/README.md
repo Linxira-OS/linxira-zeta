@@ -18,6 +18,17 @@ An **Accepted ADR is immutable**. Do not rewrite its context or decision to matc
 a newer choice. Change the decision by writing a new ADR that supersedes it, then
 update only the old ADR's status and links.
 
+## Decision ownership
+
+`Deciders` records who actually decided. The owner decides product, contract,
+security, release and owner-visible behavior; an agent may investigate and draft
+but must not mark those decisions Accepted without an explicit owner decision.
+An agent may record an implementation decision it was delegated, naming itself
+as decider. A conflict is resolved by the owner's later instruction: write a new
+ADR that supersedes the old one, and never rewrite an Accepted body to imply the
+owner always agreed. If the old record contains a false attribution, supersede
+it with a correction ADR and keep the historical body intact.
+
 ## When an ADR is required
 
 Write one when a decision changes:
@@ -98,9 +109,10 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0081](0081-dual-rust-pi-upstreams.md) | Aggregate two Rust Pi reference upstreams; do not fork either one | Proposed | 2026-11-21 | — | [bigfish1913/pi-rust](https://github.com/bigfish1913/pi-rust), [yannelli/pi-rust](https://github.com/yannelli/pi-rust), [ADR-0080](0080-repository-path-governance.md) |
 | [0082](0082-vibe-team-configuration-scopes.md) | Vibe and Team decisions are session-scoped; model configuration is global or project | Proposed | 2026-11-21 | — | [Vibe mode](../../docs/vibe-mode.md), [Team mode](../../docs/team.md), [ADR-0038](0038-two-lane-agent-hierarchy.md) |
 | [0083](0083-studio-version-pin-compatibility.md) | Studio v0.2.4 compatibility is a Zeta Host adapter, not an OMP downgrade | Accepted | 2026-11-21 | — | [Studio compatibility](../agents/surface/surfaces.md), [BTW runtime](../../packages/coding-agent/src/server/studio-host/services/main-btw-runtime.ts) |
-| [0084](0084-backend-mode-default-on.md) | Backend mode is on by default; the TUI ensures the machine Host | Accepted | 2026-11-21 | — | [daemon](../../docs/daemon.md), [GUI settings](../../docs/gui-settings.md) |
+| [0084](0084-backend-mode-default-on.md) | Backend mode is on by default; clients attach when a backend is reachable | Superseded | 2026-11-21 | Superseded by [0087](0087-tui-ensures-machine-host.md) | [daemon](../../docs/daemon.md), [GUI settings](../../docs/gui-settings.md) |
 | [0085](0085-btw-steering-text-injection.md) | BTW can inject an arbitrary Studio prompt into the main session | Accepted | 2026-11-21 | — | [BTW panel](../../web-app/src/studio/btw/BtwPanel.tsx) |
 | [0086](0086-plan-entry-user-intent.md) | Plan entry should follow model-confirmed user intent; keep the Ask gate for 1.5.13 | Proposed | 2026-11-22 | — | [mode tool](../../packages/coding-agent/src/tools/mode.ts) |
+| [0087](0087-tui-ensures-machine-host.md) | TUI ensures the machine Host and shares it with every client | Accepted | 2026-11-22 | Supersedes [0084](0084-backend-mode-default-on.md) | [daemon](../../docs/daemon.md), [ensure-host](../../packages/coding-agent/src/backend/ensure-host.ts), [resume tree](../../packages/tui/src/overlays/resume-tree.ts) |
 
 ## File and numbering rules
 
