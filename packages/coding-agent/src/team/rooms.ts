@@ -22,6 +22,7 @@ import {
 	type RoomSummaryRecord,
 } from "./db";
 import { AgentRegistry } from "../registry/agent-registry";
+import { auditTeamQuietly } from "./audit";
 import { TeamError } from "./errors";
 import { deliverRoomEvent } from "./room-delivery";
 import { loadContext, validateSegment, type TeamContext, type TeamContextOptions } from "./service";
@@ -463,6 +464,13 @@ export async function postRoomEvent(options: PostRoomEventOptions): Promise<Post
 			body,
 			replyTo,
 			mentions: extractMentions(body),
+		});
+		await auditTeamQuietly(ctx.teamRoot, {
+			action: "room.post",
+			teamId: ctx.team.id,
+			agentId: senderAgentId,
+			roomId: room.id,
+			outcome: "ok",
 		});
 		// Delivery is best-effort: the durable event is already committed and
 		// offline subscribers keep their cursor for the next session start.

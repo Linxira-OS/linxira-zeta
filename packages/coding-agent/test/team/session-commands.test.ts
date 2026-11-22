@@ -45,6 +45,9 @@ describe("in-session /team commands", () => {
 		expect((await runTeamSessionCommand(cwd, "memory add reviewer Prefer small diffs")).ok).toBe(true);
 		expect((await runTeamSessionCommand(cwd, "memory show reviewer")).text).toContain("Prefer small diffs");
 		expect((await runTeamSessionCommand(cwd, "status")).text).toContain("Default persona · reviewer");
+		const audit = await fs.readFile(path.join(cwd, ".zeta", "audit", "team.jsonl"), "utf8");
+		expect(audit).toContain('"teamId":"demo"');
+		expect(audit).toContain('"personaId":"reviewer"');
 	});
 
 	it("rejects an invalid command and a missing Team root", async () => {

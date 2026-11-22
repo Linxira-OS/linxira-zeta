@@ -4,6 +4,7 @@
  * full `zetacode team ...` CLI grammar.
  */
 import * as path from "node:path";
+import { auditTeamQuietly } from "./audit";
 import { appendTeamMemory, listTeamMemory, readTeamMemory } from "./memory";
 import { deleteTeamPersona, listTeamPersonas, readTeamPersona, writeTeamPersona } from "./personas";
 import { readTeamProfile, writeTeamProfile, type TeamProfile } from "./profile";
@@ -28,6 +29,14 @@ function words(args: string): string[] {
 
 function fail(message: string): TeamSessionCommandResult {
 	return { ok: false, text: message };
+}
+
+function audit(
+	teamRoot: string,
+	teamId: string,
+	event: { action: string; personaId?: string; planId?: string; detail?: string },
+) {
+	return auditTeamQuietly(teamRoot, { teamId, agentId: "Main", outcome: "ok", ...event });
 }
 
 const PLAN_ACTIONS: ReadonlySet<string> = new Set(["submit", "approve", "reject", "start", "complete", "cancel"]);
@@ -97,6 +106,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 					permissions: {},
 					memoryScope: "team",
 				});
+				await audit(location.teamRoot, location.teamId, { action: "persona.create", personaId: persona.id });
 				return { ok: true, text: `Created persona ${persona.id} (${persona.role}).` };
 			} catch (error) {
 				return fail(error instanceof Error ? error.message : String(error));
@@ -108,6 +118,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 			try {
 				const value = await Bun.file(path.resolve(cwd, file)).json();
 				const persona = await writeTeamPersona(location.teamRoot, value);
+				await audit(location.teamRoot, location.teamId, { action: "persona.import", personaId: persona.id });
 				return { ok: true, text: `Imported persona ${persona.id} revision ${persona.revision}.` };
 			} catch (error) {
 				return fail(error instanceof Error ? error.message : String(error));
@@ -116,9 +127,9 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 		if (action === "remove") {
 			const id = parts[0];
 			if (!id) return fail("Usage: /team persona remove <id>");
-			return (await deleteTeamPersona(location.teamRoot, id))
-				? { ok: true, text: `Removed persona ${id}.` }
-				: fail(`Unknown Team persona "${id}"`);
+			if (!(await deleteTeamPersona(location.teamRoot, id))) return fail(`Unknown Team persona "${id}"`);
+			await audit(location.teamRoot, location.teamId, { action: "persona.remove", personaId: id });
+			return { ok: true, text: `Removed persona ${id}.` };
 		}
 		return fail("Usage: /team persona <list|show|create|import|remove>");
 	}
@@ -158,6 +169,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 					updatedAt: now,
 					items: [{ id: "main", title: title.join(" "), dependsOn: [], acceptance: [] }],
 				});
+				await audit(location.teamRoot, location.teamId, { action: "plan.create", planId: plan.id });
 				return { ok: true, text: `Created TeamPlan ${plan.id}. Submit it with /team plan submit ${plan.id}.` };
 			} catch (error) {
 				return fail(error instanceof Error ? error.message : String(error));
@@ -179,6 +191,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 					createdAt: now,
 					updatedAt: now,
 				});
+				await audit(location.teamRoot, location.teamId, { action: "plan.import", planId: plan.id });
 				return { ok: true, text: `Imported TeamPlan ${plan.id} revision ${plan.revision}.` };
 			} catch (error) {
 				return fail(error instanceof Error ? error.message : String(error));
@@ -195,6 +208,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 					...(reason ? { reason } : {}),
 				});
 				await writeTeamPlan(location.teamRoot, next);
+				await audit(location.teamRoot, location.teamId, { action: `plan.${action}`, planId: next.id });
 				return { ok: true, text: `TeamPlan ${next.id} is now ${next.status}.` };
 			} catch (error) {
 				return fail(error instanceof Error ? error.message : String(error));
@@ -214,6 +228,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 			if (!(await readTeamPersona(location.teamRoot, id))) return fail(`Unknown Team persona "${id}"`);
 			const next: TeamProfile = { ...current, defaultPersonaId: id, updatedAt: Date.now() };
 			await writeTeamProfile(location.teamRoot, next);
+			await audit(location.teamRoot, location.teamId, { action: "profile.persona", personaId: id });
 			return { ok: true, text: `Default Team persona is now ${id}.` };
 		}
 		if (action === "liaison") {
@@ -225,6 +240,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 				externalLiaison: { agentId, channels, listen: true },
 				updatedAt: Date.now(),
 			});
+			await audit(location.teamRoot, location.teamId, { action: "profile.liaison", detail: agentId });
 			return {
 				ok: true,
 				text: `External liaison ${agentId} on ${channels.join(", ") || "no channels"} (listening).`,
