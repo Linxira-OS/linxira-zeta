@@ -150,13 +150,18 @@ export function ComposerModelMenu({
   );
   const rolesWithModel = useMemo(
     () => (data?.roles ?? []).filter(
-      (role) => Boolean(role.primary) && !role.issue && bySelector.has(role.primary) && !roleTargetHidden(role.primary, data?.hiddenModels),
+      (role) => {
+        const model = role.primary ? bySelector.get(role.primary) : undefined;
+        const chatRunner = model?.kind === undefined || model.kind === "chat";
+        return Boolean(role.primary) && !role.issue && Boolean(model) && chatRunner && !roleTargetHidden(role.primary, data?.hiddenModels);
+      },
     ),
     [data, bySelector],
   );
   /* Chat picker: Judge, speech, image and other role runners stay in their roles. */
   const groups = useMemo(
-    () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels), data.providers) : []),
+    () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels)
+      .filter(model => model.kind === undefined || model.kind === "chat"), data.providers) : []),
     [data],
   );
 

@@ -2278,6 +2278,12 @@ const zhRaw = {
 			densityCompact: "紧凑",
 			densityStandard: "标准",
 			densityCozy: "宽松",
+			light: "光效",
+			lightDesc: "背景装饰光效；性能分级可能会自动降低",
+			lightOff: "关闭",
+			lightSoft: "柔和",
+			lightStandard: "标准",
+			lightVivid: "鲜艳",
 			streaming: "流式输出",
 			streamingDesc: "助手回复的流式渲染与底部运行状态",
 			toolActivity: "工具活动显示",
@@ -3784,6 +3790,20 @@ const zhRaw = {
 			filter: "筛选上下文",
 		},
 	},
+	workspaceRecovery: {
+		title: "工作区恢复",
+		description: "已保存的项目不可用。请先选择其他项目或重新找到它，再打开会话。",
+		empty: "没有可用项目，请选择一个开始。",
+		choose: "选择项目并新建对话",
+		forget: "清除失效记录",
+		newChat: "在 {name} 中开始对话",
+		unavailable: "不可用",
+		forgotten: "已清除工作区记录",
+		chosen: "已选择工作区",
+		confirmForget: "清除不可用的工作区记录？项目文件不会删除。",
+		actionFailed: "工作区操作失败",
+	},
+
 } as const;
 
 export type LocaleSchema = typeof zhRaw;
