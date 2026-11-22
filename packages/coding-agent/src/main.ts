@@ -2048,9 +2048,14 @@ export async function runRootCommand(
 		// conflict. Explicit remote URLs are never replaced by a local start.
 		// Standalone and protocol launches keep their own transport rules.
 		// Usage-shape rejection must precede implying a Host: a bad --goal
-		// combination must not start or adopt a backend first.
+		// combination or persistence flag must not start or adopt a backend first.
 		validateGoalLaunch(parsedArgs, isInteractive);
-		validateRestoreLaunch(parsedArgs, isInteractive);
+		try {
+			validateSessionPersistenceArgs(parsedArgs);
+		} catch (error) {
+			if (error instanceof SessionResolutionError) exitForSessionResolutionError(error);
+			throw error;
+		}
 		if (
 			isInteractive &&
 			!isBunTestRuntime() &&
@@ -2126,6 +2131,9 @@ export async function runRootCommand(
 		}
 		// Upstream guard: claim the terminal before browser tabs are opened for this session.
 		if (isInteractive) claimTerminal();
+		// Restore shapes are validated after transport/Host selection but before
+		// the picker; only goal has to reject before a Host could be adopted.
+		validateRestoreLaunch(parsedArgs, isInteractive);
 		// Without piped text the prompt must come from argv, which only the
 		// post-extension reparse can settle: an extension string flag's value
 		// (`--spawn-peer reviewer`) looks like a prompt here, and a boolean flag

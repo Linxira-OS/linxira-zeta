@@ -13,6 +13,7 @@ import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller"
 import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -69,6 +70,7 @@ describe("BTW session boundaries", () => {
 		previousKeybindings = getKeybindings();
 		setKeybindings(KeybindingsManager.inMemory());
 		directory = TempDir.createSync("@omp-btw-session-lifecycle-");
+		AgentRegistry.installGlobal(new AgentRegistry());
 		await Settings.init({ inMemory: true, cwd: directory.path() });
 		auth = await AuthStorage.create(path.join(directory.path(), "auth.db"));
 		const registry = new ModelRegistry(auth);
@@ -133,6 +135,7 @@ describe("BTW session boundaries", () => {
 		directory.removeSync();
 		resetSettingsForTest();
 		setKeybindings(previousKeybindings);
+		AgentRegistry.resetGlobalForTests();
 	});
 
 	async function targetSession(): Promise<string> {
