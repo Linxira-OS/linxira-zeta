@@ -25,7 +25,8 @@ import vibeWaitDescription from "../prompts/tools/vibe-wait.md" with { type: "te
 
 import { type VibeScreenSnapshot, type VibeWaitOutcome } from "@linxiraos/pi-tui/tools/vibe";
 import { readTeamPersona } from "../team/personas";
-import { renderTeamPersonaPrompt } from "../team/persona-prompt";
+import { renderTeamPersonaIdentity } from "../team/persona-prompt";
+import { readTeamIdentityLayers, renderTeamIdentityContext, resolveTeamWorkerIdentity } from "../team/identity-store";
 import { resolveTeamLocation } from "../team/paths";
 import { readTeamMemory } from "../team/memory";
 import { VibeSessionRegistry } from "../vibe/runtime";
@@ -108,14 +109,27 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 		const { persona, ...spawnParams } = params;
 		let promptText = params.prompt;
 		let model: string | undefined;
-		if (persona) {
-			const location = await resolveTeamLocation(this.session.cwd);
-			if (!location) throw new Error(`Team persona "${persona}" requires a Team root`);
-			const pack = await readTeamPersona(location.teamRoot, persona);
-			if (!pack) throw new Error(`Unknown Team persona "${persona}" in ${location.teamRoot}`);
-			const memory = pack.memoryScope === "team" ? await readTeamMemory(location.teamRoot, pack.id) : undefined;
-			promptText = renderTeamPersonaPrompt(pack, params.prompt, memory);
-			model = pack.model;
+		const location = await resolveTeamLocation(this.session.cwd);
+		if (persona && !location) throw new Error(`Team persona "${persona}" requires a Team root`);
+		if (location) {
+			let personaContent: string | undefined;
+			if (persona) {
+				const pack = await readTeamPersona(location.teamRoot, persona);
+				if (!pack) throw new Error(`Unknown Team persona "${persona}" in ${location.teamRoot}`);
+				const memory = pack.memoryScope === "team" ? await readTeamMemory(location.teamRoot, pack.id) : undefined;
+				personaContent = renderTeamPersonaIdentity(pack, memory);
+				model = pack.model;
+			}
+			const options = {
+				cwd: this.session.cwd,
+				teamRoot: location.teamRoot,
+				agentId: persona ?? params.role,
+				...(persona ? { personaId: persona } : {}),
+				assignment: params.prompt,
+				...(personaContent ? { personaContent } : {}),
+			};
+			const layers = await readTeamIdentityLayers(options);
+			promptText = renderTeamIdentityContext(resolveTeamWorkerIdentity(options, layers));
 		}
 		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, {
 			...spawnParams,

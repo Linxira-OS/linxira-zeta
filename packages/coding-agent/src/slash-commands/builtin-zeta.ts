@@ -119,6 +119,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "plan", description: () => "List, create or approve TeamPlans" },
 			{ name: "profile", description: () => "Team defaults and external liaison" },
 			{ name: "memory", description: () => "Team/persona long-term notes" },
+			{ name: "identity", description: () => "Team identity layer, separate from AGENTS.md" },
 			{ name: "hub", description: () => M.cmdTeamHub },
 			{ name: "on", description: () => M.cmdTeamOn },
 			{ name: "off", description: () => M.cmdTeamOff },

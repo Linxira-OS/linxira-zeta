@@ -3,6 +3,7 @@
  * type slash commands, so persona and TeamPlan work must not require the
  * full `zetacode team ...` CLI grammar.
  */
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { auditTeamQuietly } from "./audit";
 import { appendTeamMemory, listTeamMemory, readTeamMemory } from "./memory";
@@ -260,6 +261,27 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 		}
 		return fail("Usage: /team profile [show|persona <id>|liaison <agentId> [channel...]|listen <on|off>]");
 	}
+	if (sub === "identity") {
+		const action = parts[0]?.toLowerCase() ?? "show";
+		const file = path.join(location.teamRoot, ".zeta", "identity.md");
+		if (action === "show") {
+			try {
+				const text = await fs.readFile(file, "utf8");
+				return text.trim() ? { ok: true, text } : fail("Team identity is empty.");
+			} catch {
+				return fail("No Team identity. Add one with /team identity set <text>.");
+			}
+		}
+		if (action === "set") {
+			const text = parts.slice(1).join(" ");
+			if (!text) return fail("Usage: /team identity set <text>");
+			await fs.mkdir(path.dirname(file), { recursive: true });
+			await fs.writeFile(file, `${text.trim()}\n`, { encoding: "utf8", mode: 0o600 });
+			await audit(location.teamRoot, location.teamId, { action: "identity.set" });
+			return { ok: true, text: "Updated the Team identity layer. AGENTS.md is unchanged." };
+		}
+		return fail("Usage: /team identity [show|set <text>]");
+	}
 	if (sub === "memory") {
 		const action = parts[0]?.toLowerCase() ?? "list";
 		if (action === "list") {
@@ -285,5 +307,5 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 		}
 		return fail("Usage: /team memory <list|show|add>");
 	}
-	return fail("Usage: /team <status|persona|plan|profile|memory|hub|on|off>");
+	return fail("Usage: /team <status|persona|plan|profile|memory|identity|hub|on|off>");
 }

@@ -11,7 +11,7 @@ function permissionLines(pack: TeamPersonaPack): string[] {
 		.map(([name, value]) => `- ${name}: ${value}`);
 }
 
-export function renderTeamPersonaPrompt(persona: TeamPersonaPack, assignment: string, memory?: string): string {
+export function renderTeamPersonaIdentity(persona: TeamPersonaPack, memory?: string): string {
 	const lines = [
 		`# Team persona: ${persona.name}`,
 		`Role: ${persona.role}`,
@@ -35,12 +35,10 @@ export function renderTeamPersonaPrompt(persona: TeamPersonaPack, assignment: st
 		lines.push("", `Scoped plugin pack: ${persona.pluginPack.root}`);
 	}
 	if (memory?.trim()) lines.push("", "## Team memory", memory.trim());
-	lines.push(
-		"",
-		"Repository AGENTS.md files are repository guidance and never define this identity.",
-		"",
-		"## Assignment",
-		assignment,
-	);
+	lines.push("", "Repository AGENTS.md files are repository guidance and never define this identity.");
 	return lines.join("\n");
+}
+
+export function renderTeamPersonaPrompt(persona: TeamPersonaPack, assignment: string, memory?: string): string {
+	return `${renderTeamPersonaIdentity(persona, memory)}\n\n## Assignment\n${assignment}`;
 }

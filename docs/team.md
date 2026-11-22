@@ -256,6 +256,8 @@ work is available without the full CLI grammar:
 /team plan approve release
 /team plan reject release "needs more tests"
 /team profile persona reviewer
+/team identity set "Prefer small, reviewable diffs"
+/team identity show
 /team profile liaison main im github
 /team memory add reviewer "Prefer small diffs"
 /team memory show reviewer
@@ -265,6 +267,11 @@ work is available without the full CLI grammar:
 
 - `init` creates `<root>/.zeta/team.json` plus `pms/`, `repos/`, and
   `worktrees/`, then registers the team. The team id is a slug of `<name>`.
+- Team identity lives in `<team>/.zeta/identity.md`; a project identity may
+  live in `<repo>/.zeta/identity.md`, and a user-global one in
+  `~/.zeta/identity/global.md`. Worker prompts layer global, project, team,
+  persona and assignment separately. Repository `AGENTS.md` is still
+  repository guidance and is never read as an identity layer.
 - Room messages may carry `attachment://<path>` references. The Web renders
   images inline and other files as downloads; TUI renders a terminal hyperlink
   (Ctrl+click opens the file). References are not uploads and stay on disk.
