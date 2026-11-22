@@ -911,7 +911,7 @@ export interface SessionPersistenceNotice {
 	 * a writer without the ownership lease kept changing `from` through every
 	 * read-back-and-retry pass, so this session stops racing it.
 	 */
-	reason: "open-elsewhere" | "replaced" | "contested";
+	reason: "open-elsewhere" | "replaced" | "contested" | "compaction";
 	/** The session file this session was saving to. */
 	from: string;
 	/** The fresh sibling it saves to from now on: same directory, a new session id whose `parentSession` is the old one. */
@@ -1320,6 +1320,16 @@ export class SessionManager {
 		if (this.#diskEpoch !== epoch || this.#sessionFile !== contested) return this.#sessionFile;
 		this.#adoptForeignEntries(foreign, Buffer.byteLength(content, "utf8"));
 		return contested;
+	}
+
+	/**
+	 * Split the transcript after a committed compaction. The old file stays as
+	 * the previous segment; the new sibling points back through `continuationOf`
+	 * so resume follows the conversation. Callers invoke this at a turn boundary.
+	 */
+	segmentAfterCompaction(): string | undefined {
+		if (!this.#persist || !this.#sessionFile || this.#released) return undefined;
+		return this.#moveOffSessionFile("compaction");
 	}
 
 	/**

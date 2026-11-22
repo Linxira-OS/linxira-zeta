@@ -44,6 +44,9 @@ export function formatPersistenceNotice(notice: SessionPersistenceNotice): strin
 		case "contested":
 			message = `Another program kept writing to session ${from}; it is left to that writer and this session now saves to ${to}.`;
 			break;
+		case "compaction":
+			message = `Compaction committed; the transcript is segmented and ${from} continues in ${to}.`;
+			break;
 	}
 	return replaceTabs(sanitizeText(message)).replace(/[\r\n]+/g, " ");
 }

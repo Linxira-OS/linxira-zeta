@@ -4237,6 +4237,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		};
 		this.#maintenance = new SessionMaintenance(maintenanceHost);
 		this.addDisposer(
+			this.#maintenance.onCommit(() => {
+				this.sessionManager.segmentAfterCompaction();
+			}),
+		);
+		this.addDisposer(
 			this.agent.addBeforeModelCallHook((_signal, context) =>
 				this.#maintenance.renderArchiveForModel(context.messages),
 			),

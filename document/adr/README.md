@@ -120,6 +120,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0092](0092-team-identity-layers.md) | Team identity is composed from explicit scoped layers | Proposed | 2026-11-22 | — | [Team design](../team-agent-mode-design.md), [ADR-0091](0091-team-agent-roles-and-coordinator.md) |
 | [0093](0093-team-message-delivery.md) | Team messages distinguish direct turns from ambient context | Accepted | 2026-11-22 | — | [chat routing](../../packages/coding-agent/src/team/chat-routing.ts), [tests](../../packages/coding-agent/test/team/chat-routing.test.ts) |
 | [0094](0094-team-persona-plugin-packs.md) | Team personas may carry scoped plugin packs and new first-level roles | Proposed | 2026-11-22 | — | [Team design](../team-agent-mode-design.md), [ADR-0026](0026-agent-authored-plugins.md), [plugin system](../plugin-system.md) |
+| [0095](0095-compaction-session-segments.md) | Segment the transcript after a committed compaction | Proposed | 2026-11-23 | — | [Agent modes](../../docs/agent-modes.md), [Compaction service](../../docs/compaction-service.md) |
 
 ## File and numbering rules
 

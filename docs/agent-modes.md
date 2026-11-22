@@ -41,7 +41,7 @@ defines them so they are not used interchangeably.
 | External binding | **PARTIAL** | Runtime chat → agent (`!agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
 | Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
 | IM visibility in local lists | **IMPLEMENTED** (local surfaces) / **PLANNED** (binding-scoped mobile) | Work Studio, History, the resume picker, and `history.list` hide IM conversations by default behind an explicit IM / Bot filter; alias labels replace absolute cwds. A mobile client scoped to one binding is planned |
-| Context rotation | **PARTIAL** | JSONL is not size-capped; compaction and `/handoff` summarize in place; `/rotate` plus archive-and-link is planned |
+| Context rotation | **PARTIAL** | A committed compaction starts a new JSONL sibling linked by `continuationOf`; JSONL is still not size-capped; `/handoff` summarizes in place; `/rotate` plus archive-and-link is planned |
 | Board and calendar tools | **IMPLEMENTED** | Both are built-in and project-scoped; subagents receive them only by explicit profile opt-in. No Work Studio calendar page |
 
 ## 1. Runtime roles
@@ -311,8 +311,10 @@ not size-capped.
   compression, stale state). It requires `--apply` for destructive phases and
   is not a context-rotation mechanism.
 
-Status: **PARTIAL**. No rotation command exists yet; the no-silent-deletion
-guarantee and in-place compaction/handoff do.
+Status: **PARTIAL**. A committed compaction segments the transcript into a
+new sibling file (the old file stays; `continuationOf` links them). There is
+still no size-based `/rotate` command; the no-silent-deletion guarantee and
+in-place `/handoff` remain.
 
 ## 7. Execution policies, Advisor, and `/review`
 
