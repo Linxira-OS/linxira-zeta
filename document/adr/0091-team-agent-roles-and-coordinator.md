@@ -1,8 +1,8 @@
 # 0091. Team mode should use named roles and a confirming coordinator
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-22
-- **Deciders:** Zeta owner (direction), implementation review pending
+- **Deciders:** Zeta owner (direction and 1.5.14 scope), implementation review
 - **Links:** [Team Agent design](../team-agent-mode-design.md), [PiBot](https://github.com/w01fb0ss/PiBot), [Vibe/Team mode](../../docs/vibe-mode.md), [Team foundation](../../docs/team.md), [ADR-0037](0037-team-runtime-governance.md), [ADR-0038](0038-two-lane-agent-hierarchy.md), [ADR-0082](0082-vibe-team-configuration-scopes.md)
 
 ## Context

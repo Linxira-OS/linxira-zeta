@@ -1,8 +1,8 @@
 # 0092. Team identity is composed from explicit scoped layers
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-22
-- **Deciders:** Zeta owner (direction), implementation review pending
+- **Deciders:** Zeta owner (direction and 1.5.14 scope), implementation review
 - **Links:** [Team Agent design](../team-agent-mode-design.md), [ADR-0091](0091-team-agent-roles-and-coordinator.md), [External sources](../external-sources-and-tool-exposure.md)
 
 ## Context

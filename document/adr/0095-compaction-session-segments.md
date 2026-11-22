@@ -1,8 +1,8 @@
 # 0095. Segment the transcript after a committed compaction
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-23
-- **Deciders:** Zeta owner (direction), implementation review pending
+- **Deciders:** Zeta owner (direction and 1.5.14 scope), implementation review
 - **Links:** [Agent modes](../../docs/agent-modes.md), [session manager](../../packages/coding-agent/src/session/session-manager.ts), [compaction service](../../docs/compaction-service.md)
 
 ## Context

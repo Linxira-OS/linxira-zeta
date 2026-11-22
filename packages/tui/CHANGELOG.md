@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- `/team` opens a fullscreen Team workspace; room attachments render as Ctrl+click file links.
+
 ## [1.5.13] - 2026-11-21
 
 ### Changed

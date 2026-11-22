@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- `/team` now manages personas, identity, memory, TeamPlans and room attachments from the conversation.
+
 ## [1.5.13] - 2026-11-21
 
 ### Changed
