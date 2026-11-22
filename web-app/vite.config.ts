@@ -129,7 +129,7 @@ export default defineConfig({
 						// whole payload (3 MB of Mermaid) lands in the first load. As its
 						// own always-loaded chunk it stays out of every lazy chunk.
 						{ name: "preload-helper", test: /vite[\\/]preload-helper/, priority: 100 },
-						{ name: "pdf-viewer", test: /node_modules[\/]pdfjs-dist[\/]/, priority: 10 },
+						{ name: "pdf-viewer", test: /node_modules[/]pdfjs-dist[/]/, priority: 10 },
 						{ name: "three", test: /node_modules[\\/]three[\\/]/, priority: 10 },
 						{ name: "xterm", test: /node_modules[\\/]@xterm[\\/]/, priority: 10 },
 						{ name: "codemirror", test: /node_modules[\\/](?:@codemirror|@lezer|codemirror)[\\/]/, priority: 10 },

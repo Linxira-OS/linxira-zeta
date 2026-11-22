@@ -66,7 +66,6 @@ import type {
 	ModelProviderRecord,
 	ModelProviderTestResult,
 	ModelProviderUpsertInput,
-	ModelRoleCreateInput,
 	ModelRoleRecord,
 	QueryInput,
 	ProviderYamlDraft,
@@ -368,7 +367,7 @@ function providerYamlNode(
 		}
 	}
 
-	const base: Record<string, unknown> = { ...(previous ?? {}) };
+	const base: Record<string, unknown> = { ...previous };
 	if (auth.clearSecret) delete base.apiKey;
 
 	const draft: ProviderYamlDraft = {
@@ -746,7 +745,7 @@ async function probeProvider(input: CommandInput<"models.provider.probe">): Prom
 
 	const document = await readProviderDocument();
 	const stored = providerNode(document, providerId);
-	const provider: Record<string, unknown> = { ...(stored ?? {}) };
+	const provider: Record<string, unknown> = { ...stored };
 	delete provider.origin;
 	if (endpointUrl !== undefined && endpointUrl !== "") provider.baseUrl = endpointUrl;
 	if (api !== undefined && api !== "") provider.api = api;

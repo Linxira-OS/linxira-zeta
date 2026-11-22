@@ -529,7 +529,7 @@ async function collect(): Promise<PerfReport> {
   if (resources.cachedScripts > 0) notes.push(`${resources.cachedScripts} script(s) had transferSize 0 (cache hit); transferred bytes only cover network loads.`);
   if (resources.resourceEntries >= 250) notes.push("resource timing buffer hit its 250-entry default; scripts after the 250th entry are not counted.");
   notes.push("stream fixture uses the harness's real option name `toggleEveryFrames: 0`; there is no `toggleTailCard` option.");
-  notes.push(`the 500 \"messages\" fixture is ompPerf.reset({turns: ${FIXTURE.turns}}); the harness seeds one user + one assistant item per turn.`);
+  notes.push(`the 500 "messages" fixture is ompPerf.reset({turns: ${FIXTURE.turns}}); the harness seeds one user + one assistant item per turn.`);
 
   const loadHeap = await heapAfterGc();
   if (!loadHeap.forced) notes.push("performance.memory exists but globalThis.gc does not: heap numbers are un-GCed (launch Chromium with --js-flags=--expose-gc for comparable numbers).");

@@ -651,7 +651,7 @@ async function fetchRemote(cwd: string | undefined, remote: string | undefined):
 	const body = gitAnswer(
 		await gatewayJson<unknown>("/api/git/fetch", {
 			method: "POST",
-			body: withCwd(cwd, { ...(remote ? { remote } : {}) }),
+			body: withCwd(cwd, remote ? { remote } : {}),
 		}),
 		cwd,
 	);
