@@ -547,7 +547,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 	// it here when bazel is available; without bazel on PATH, say so loudly
 	// instead of shipping a known-stale lock (the failing CI job uploads a
 	// refreshed lockfile as an artifact - harvest it, commit, re-tag).
-	const bazel = Bun.which("bazelisk") ?? Bun.which("bazel");
+	const bazel = process.env.ZETA_SKIP_BAZEL_LOCK === "1" ? undefined : (Bun.which("bazelisk") ?? Bun.which("bazel"));
 	if (bazel) {
 		console.log("Refreshing MODULE.bazel.lock for the bumped Cargo inputs...");
 		await $`bun scripts/gen-bazel-lock.ts`;
