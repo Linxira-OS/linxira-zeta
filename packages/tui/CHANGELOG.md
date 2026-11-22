@@ -1,21 +1,10 @@
 ## [Unreleased]
 
+## [1.5.14] - 2026-11-22
+
 ### Added
 
 - `/team` opens a fullscreen Team workspace; room attachments render as Ctrl+click file links.
-
-## [1.5.13] - 2026-11-21
-
-### Changed
-
-- Included in Zeta 1.5.13; no package-specific user-visible changes.
-
-## [1.5.12] - 2026-11-20
-
-### Changed
-
-- The right rail now keeps todos and running agents visible and collapses before the main pane becomes unusable.
-- Backspace returns to the previous page outside the composer without interfering with text editing.
 
 ## [8.4.1] - 2026-01-25
 
@@ -108,6 +97,19 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.13] - 2026-11-21
+
+### Changed
+
+- Included in Zeta 1.5.13; no package-specific user-visible changes.
+
+## [1.5.12] - 2026-11-20
+
+### Changed
+
+- The right rail now keeps todos and running agents visible and collapses before the main pane becomes unusable.
+- Backspace returns to the previous page outside the composer without interfering with text editing.
 
 ## [1.5.11] - 2026-11-20
 

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.14] - 2026-11-22
+
 ### Fixed
 
 - A TUI launch again ensures or reuses the machine-wide Host, so `/resume`, identity/IM settings and Work Studio do not require a separately started `zetacode serve`.

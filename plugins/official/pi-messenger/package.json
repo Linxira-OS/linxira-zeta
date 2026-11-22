@@ -1,6 +1,6 @@
 {
 	"name": "@linxiraos/pi-messenger",
-	"version": "1.5.13",
+	"version": "1.5.14",
 	"description": "Inter-agent messaging and file reservation system for pi coding agent",
 	"keywords": [
 		"agents",

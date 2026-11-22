@@ -1,20 +1,10 @@
 ## [Unreleased]
 
+## [1.5.14] - 2026-11-22
+
 ### Added
 
 - `/team` now manages personas, identity, memory, TeamPlans and room attachments from the conversation.
-
-## [1.5.13] - 2026-11-21
-
-### Changed
-
-- Included in Zeta 1.5.13; no package-specific user-visible changes.
-
-## [1.5.12] - 2026-11-20
-
-### Changed
-
-- Included in Zeta 1.5.12; no package-specific user-visible changes.
 
 ## [9.2.2] - 2026-01-31
 
@@ -141,6 +131,18 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.13] - 2026-11-21
+
+### Changed
+
+- Included in Zeta 1.5.13; no package-specific user-visible changes.
+
+## [1.5.12] - 2026-11-20
+
+### Changed
+
+- Included in Zeta 1.5.12; no package-specific user-visible changes.
 
 ## [1.5.11] - 2026-11-20
 
