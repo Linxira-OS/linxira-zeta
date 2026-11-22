@@ -200,7 +200,7 @@ describe("BTW session boundaries", () => {
 				}
 			});
 		}
-		panel.handleInput("\n");
+		panel.handleInput("\r");
 		return { finished: done.promise };
 	}
 
@@ -285,7 +285,7 @@ describe("BTW session boundaries", () => {
 			},
 		);
 		panel.handleInput("\x1b[3~");
-		panel.handleInput("\n");
+		panel.handleInput("\r");
 		await removed.promise;
 		expect(await Bun.file(target).exists()).toBe(false);
 		expect(manager.getSessionId()).toBe(sourceId);
