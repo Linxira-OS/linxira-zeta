@@ -637,6 +637,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean,
 	console.log("Updating README version badge...");
 	await $`sd 'badge/zeta-[0-9.]+-' ${`badge/zeta-${version}-`} README.md`;
 	console.log(`  README badge: zeta-${version}`);
+	await $`bun scripts/check-release-docs.ts --version=${version}`;
 
 	// Step 5: regenerate lockfile and verify. The install runs with the
 	// canonical npmjs registry — a local mirror override (e.g. ~/.npmrc
