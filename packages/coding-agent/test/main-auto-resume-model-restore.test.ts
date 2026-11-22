@@ -340,6 +340,7 @@ describe("implicit auto-resume model restoration", () => {
 				[
 					process.execPath,
 					path.join(sourceDir, "cli.ts"),
+					"--standalone",
 					"--no-title",
 					"--no-extensions",
 					"--no-skills",
