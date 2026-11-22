@@ -1,9 +1,106 @@
 .team-workspace-page {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px 18px;
+  min-height: 0;
+  color: var(--text, #ddd);
+}
+
+.team-workspace-page > :not(.tw-rail) {
+  grid-column: 2;
+}
+
+.tw-rail {
+  grid-column: 1;
+  grid-row: 1 / span 12;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 0;
-  color: var(--text, #ddd);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #111) 88%, transparent);
+}
+
+.tw-rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tw-rail-section h3 {
+  margin: 0;
+  color: var(--muted, #8c8c8c);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tw-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tw-rail-item {
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2, #bbb);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tw-rail-item:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
+
+.tw-rail-item.active {
+  border-color: var(--accent-border, rgba(76, 154, 255, 0.4));
+  background: var(--accent-softer, rgba(76, 154, 255, 0.12));
+  color: var(--text, #eee);
+}
+
+.tw-rail-plain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2, #bbb);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.tw-rail-empty {
+  margin: 0;
+  color: var(--muted, #8c8c8c);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .team-workspace-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .team-workspace-page > :not(.tw-rail),
+  .tw-rail {
+    grid-column: 1;
+  }
+  .tw-rail {
+    grid-row: auto;
+  }
 }
 
 .tw-head {

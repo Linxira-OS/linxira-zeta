@@ -456,6 +456,48 @@ export function TeamWorkspacePage({
 
   return (
     <div className="team-workspace-page page-wide">
+      <aside className="tw-rail" aria-label={copy.title}>
+        <section className="tw-rail-section">
+          <h3>{copy.title}</h3>
+          <div className="tw-rail-list">
+            {teams.length > 0 ? teams.map(team => (
+              <button
+                key={team.id}
+                type="button"
+                aria-pressed={teamId === team.id}
+                className={`tw-rail-item${teamId === team.id ? " active" : ""}`}
+                onClick={() => setTeamId(team.id)}
+              >
+                {team.name}
+              </button>
+            )) : <p className="tw-rail-empty">{copy.noTeams}</p>}
+          </div>
+        </section>
+        {workspace ? <>
+          <section className="tw-rail-section">
+            <h3>{copy.pms}</h3>
+            <ul className="tw-rail-plain">
+              {workspace.pms.map(pm => <li key={pm.id}>{pm.name}</li>)}
+            </ul>
+          </section>
+          <section className="tw-rail-section">
+            <h3>{copy.engineers}</h3>
+            <ul className="tw-rail-plain">
+              {workspace.engineers.map(engineer => <li key={engineer.id}>{engineer.name}</li>)}
+            </ul>
+          </section>
+          <section className="tw-rail-section">
+            <h3>{copy.roomsCount}</h3>
+            <div className="tw-rail-list">
+              {workspace.rooms.map(room => (
+                <button key={room.id} type="button" className="tw-rail-item" onClick={() => setTab("rooms")}>
+                  #{room.name}
+                </button>
+              ))}
+            </div>
+          </section>
+        </> : null}
+      </aside>
       <header className="tw-head">
         <div>
           <h2 className="tw-title">
@@ -470,22 +512,6 @@ export function TeamWorkspacePage({
           <p className="tw-subtitle">{copy.subtitle}</p>
         </div>
         <div className="tw-head-actions">
-          {teams.length > 0 ? (
-            <div className="tw-team-tabs" role="tablist" aria-label={copy.title}>
-              {teams.map(team => (
-                <button
-                  key={team.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={teamId === team.id}
-                  className={`tw-team-tab${teamId === team.id ? " active" : ""}`}
-                  onClick={() => setTeamId(team.id)}
-                >
-                  {team.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
           <button type="button" className="tw-button" onClick={reload} disabled={busy}>
             {copy.refresh}
           </button>
