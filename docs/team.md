@@ -254,6 +254,10 @@ work is available without the full CLI grammar:
 /team plan submit release
 /team plan approve release
 /team plan reject release "needs more tests"
+/team profile persona reviewer
+/team profile liaison main im github
+/team memory add reviewer "Prefer small diffs"
+/team memory show reviewer
 ```
 
 `/team on|off` changes Team mode; `/team hub` opens the live worker/room hub.

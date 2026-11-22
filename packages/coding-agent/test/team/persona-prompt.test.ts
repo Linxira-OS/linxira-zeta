@@ -20,6 +20,7 @@ describe("Team persona prompt", () => {
 				pluginPack: { root: "plugins/review" },
 			},
 			"Review PR 42.",
+			"Prefer small diffs.",
 		);
 		expect(text).toContain("# Team persona: Reviewer");
 		expect(text).toContain("model: anthropic/claude-sonnet");
@@ -28,6 +29,7 @@ describe("Team persona prompt", () => {
 		expect(text).toContain("Memory scope: team");
 		expect(text).toContain("Working folder: repos/api");
 		expect(text).toContain("Scoped plugin pack: plugins/review");
+		expect(text).toContain("## Team memory\nPrefer small diffs.");
 		expect(text).toContain("## Assignment\nReview PR 42.");
 	});
 

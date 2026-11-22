@@ -27,6 +27,7 @@ import { type VibeScreenSnapshot, type VibeWaitOutcome } from "@linxiraos/pi-tui
 import { readTeamPersona } from "../team/personas";
 import { renderTeamPersonaPrompt } from "../team/persona-prompt";
 import { resolveTeamLocation } from "../team/paths";
+import { readTeamMemory } from "../team/memory";
 import { VibeSessionRegistry } from "../vibe/runtime";
 import type { Tool, ToolSession } from "./index";
 
@@ -111,7 +112,8 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 			if (!location) throw new Error(`Team persona "${persona}" requires a Team root`);
 			const pack = await readTeamPersona(location.teamRoot, persona);
 			if (!pack) throw new Error(`Unknown Team persona "${persona}" in ${location.teamRoot}`);
-			promptText = renderTeamPersonaPrompt(pack, params.prompt);
+			const memory = pack.memoryScope === "team" ? await readTeamMemory(location.teamRoot, pack.id) : undefined;
+			promptText = renderTeamPersonaPrompt(pack, params.prompt, memory);
 		}
 		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, {
 			...spawnParams,

@@ -11,29 +11,30 @@ function permissionLines(pack: TeamPersonaPack): string[] {
 		.map(([name, value]) => `- ${name}: ${value}`);
 }
 
-export function renderTeamPersonaPrompt(pack: TeamPersonaPack, assignment: string): string {
+export function renderTeamPersonaPrompt(persona: TeamPersonaPack, assignment: string, memory?: string): string {
 	const lines = [
-		`# Team persona: ${pack.name}`,
-		`Role: ${pack.role}`,
-		`Persona id: ${pack.id} (revision ${pack.revision})`,
+		`# Team persona: ${persona.name}`,
+		`Role: ${persona.role}`,
+		`Persona id: ${persona.id} (revision ${persona.revision})`,
 	];
-	if (pack.description) lines.push("", pack.description);
-	if (pack.model || pack.thinkingLevel) {
+	if (persona.description) lines.push("", persona.description);
+	if (persona.model || persona.thinkingLevel) {
 		lines.push(
 			"",
 			"Preferences:",
-			`- model: ${pack.model ?? "inherit"}`,
-			`- thinking: ${pack.thinkingLevel ?? "inherit"}`,
+			`- model: ${persona.model ?? "inherit"}`,
+			`- thinking: ${persona.thinkingLevel ?? "inherit"}`,
 		);
 	}
-	if (pack.skills?.length) lines.push("", "Skills:", ...pack.skills.map(skill => `- ${skill}`));
-	const permissions = permissionLines(pack);
+	if (persona.skills?.length) lines.push("", "Skills:", ...persona.skills.map(skill => `- ${skill}`));
+	const permissions = permissionLines(persona);
 	if (permissions.length) lines.push("", "Tool permissions:", ...permissions);
-	if (pack.memoryScope) lines.push("", `Memory scope: ${pack.memoryScope}`);
-	if (pack.workingFolder) lines.push(`Working folder: ${pack.workingFolder}`);
-	if (pack.pluginPack) {
-		lines.push("", `Scoped plugin pack: ${pack.pluginPack.root}`);
+	if (persona.memoryScope) lines.push("", `Memory scope: ${persona.memoryScope}`);
+	if (persona.workingFolder) lines.push(`Working folder: ${persona.workingFolder}`);
+	if (persona.pluginPack) {
+		lines.push("", `Scoped plugin pack: ${persona.pluginPack.root}`);
 	}
+	if (memory?.trim()) lines.push("", "## Team memory", memory.trim());
 	lines.push(
 		"",
 		"Repository AGENTS.md files are repository guidance and never define this identity.",

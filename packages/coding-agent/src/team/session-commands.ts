@@ -4,7 +4,9 @@
  * full `zetacode team ...` CLI grammar.
  */
 import * as path from "node:path";
+import { appendTeamMemory, listTeamMemory, readTeamMemory } from "./memory";
 import { deleteTeamPersona, listTeamPersonas, readTeamPersona, writeTeamPersona } from "./personas";
+import { readTeamProfile, writeTeamProfile, type TeamProfile } from "./profile";
 import { resolveTeamLocation } from "./paths";
 import {
 	advanceTeamPlan,
@@ -44,9 +46,11 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 	const location = await resolveTeamLocation(cwd);
 	if (!location) return fail("No Team root here. Run /team in a Team workspace or use `zetacode team init`.");
 	if (sub === "status") {
-		const [personas, plans] = await Promise.all([
+		const [personas, plans, profile, memory] = await Promise.all([
 			listTeamPersonas(location.teamRoot),
 			listTeamPlans(location.teamRoot),
+			readTeamProfile(location.teamRoot, location.teamId),
+			listTeamMemory(location.teamRoot),
 		]);
 		return {
 			ok: true,
@@ -54,6 +58,8 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 				`Team · ${location.teamName} (${location.teamId})`,
 				`Root · ${location.teamRoot}`,
 				`Personas · ${personas.personas.length}`,
+				`Default persona · ${profile.defaultPersonaId ?? "none"}`,
+				`Team memory · ${memory.length} scopes`,
 				`TeamPlans · ${plans.plans.length}`,
 			].join("\n"),
 		};
@@ -196,5 +202,72 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 		}
 		return fail("Usage: /team plan <list|show|create|import|submit|approve|reject|start|complete|cancel>");
 	}
-	return fail("Usage: /team <status|persona|plan|hub|on|off>");
+	if (sub === "profile") {
+		const action = parts[0]?.toLowerCase() ?? "show";
+		const current = await readTeamProfile(location.teamRoot, location.teamId);
+		if (action === "show") {
+			return { ok: true, text: JSON.stringify(current, null, 2) };
+		}
+		if (action === "persona") {
+			const id = parts[1];
+			if (!id) return fail("Usage: /team profile persona <id>");
+			if (!(await readTeamPersona(location.teamRoot, id))) return fail(`Unknown Team persona "${id}"`);
+			const next: TeamProfile = { ...current, defaultPersonaId: id, updatedAt: Date.now() };
+			await writeTeamProfile(location.teamRoot, next);
+			return { ok: true, text: `Default Team persona is now ${id}.` };
+		}
+		if (action === "liaison") {
+			const agentId = parts[1];
+			if (!agentId) return fail("Usage: /team profile liaison <agentId> [channel...]");
+			const channels = parts.slice(2);
+			await writeTeamProfile(location.teamRoot, {
+				...current,
+				externalLiaison: { agentId, channels, listen: true },
+				updatedAt: Date.now(),
+			});
+			return {
+				ok: true,
+				text: `External liaison ${agentId} on ${channels.join(", ") || "no channels"} (listening).`,
+			};
+		}
+		if (action === "listen") {
+			const mode = parts[1]?.toLowerCase();
+			if (!current.externalLiaison || (mode !== "on" && mode !== "off")) {
+				return fail("Usage: /team profile listen <on|off> (set a liaison first)");
+			}
+			await writeTeamProfile(location.teamRoot, {
+				...current,
+				externalLiaison: { ...current.externalLiaison, listen: mode === "on" },
+				updatedAt: Date.now(),
+			});
+			return { ok: true, text: `External liaison listening ${mode}.` };
+		}
+		return fail("Usage: /team profile [show|persona <id>|liaison <agentId> [channel...]|listen <on|off>]");
+	}
+	if (sub === "memory") {
+		const action = parts[0]?.toLowerCase() ?? "list";
+		if (action === "list") {
+			const keys = await listTeamMemory(location.teamRoot);
+			return { ok: true, text: [`Team memory · ${keys.length} scopes`, ...keys].join("\n") };
+		}
+		if (action === "show") {
+			const key = parts[1];
+			if (!key) return fail("Usage: /team memory show <key>");
+			const text = await readTeamMemory(location.teamRoot, key);
+			return text === undefined ? fail(`No Team memory "${key}"`) : { ok: true, text };
+		}
+		if (action === "add") {
+			const key = parts[1];
+			const text = parts.slice(2).join(" ");
+			if (!key || !text) return fail("Usage: /team memory add <key> <text>");
+			try {
+				await appendTeamMemory(location.teamRoot, key, text);
+				return { ok: true, text: `Added Team memory ${key}.` };
+			} catch (error) {
+				return fail(error instanceof Error ? error.message : String(error));
+			}
+		}
+		return fail("Usage: /team memory <list|show|add>");
+	}
+	return fail("Usage: /team <status|persona|plan|profile|memory|hub|on|off>");
 }

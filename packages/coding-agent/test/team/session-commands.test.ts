@@ -37,6 +37,16 @@ describe("in-session /team commands", () => {
 		expect((await runTeamSessionCommand(cwd, "plan complete release")).text).toContain("done");
 	});
 
+	it("stores a default persona, liaison and scoped memory", async () => {
+		const cwd = await root();
+		await runTeamSessionCommand(cwd, "persona create reviewer code-review Reviewer");
+		expect((await runTeamSessionCommand(cwd, "profile persona reviewer")).ok).toBe(true);
+		expect((await runTeamSessionCommand(cwd, "profile liaison main im")).text).toContain("listening");
+		expect((await runTeamSessionCommand(cwd, "memory add reviewer Prefer small diffs")).ok).toBe(true);
+		expect((await runTeamSessionCommand(cwd, "memory show reviewer")).text).toContain("Prefer small diffs");
+		expect((await runTeamSessionCommand(cwd, "status")).text).toContain("Default persona · reviewer");
+	});
+
 	it("rejects an invalid command and a missing Team root", async () => {
 		const cwd = await root();
 		expect((await runTeamSessionCommand(cwd, "plan approve missing")).ok).toBe(false);
