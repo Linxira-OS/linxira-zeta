@@ -18,7 +18,7 @@ describe("mode tool", () => {
 			createToolSession({
 				enterMode,
 				getPlanModeState: () => planState({ workflow: "ultra" }),
-				getLastUserPromptText: () => "plan mode: map the auth refactor",
+				consumePlanModeConsent: () => true,
 			}),
 		);
 
@@ -34,7 +34,7 @@ describe("mode tool", () => {
 			createToolSession({
 				enterMode,
 				getPlanModeState: () => planState(),
-				getLastUserPromptText: () => "先做一个计划",
+				consumePlanModeConsent: () => true,
 			}),
 		);
 
@@ -45,7 +45,7 @@ describe("mode tool", () => {
 
 	it("refuses to enter goal and vibe mode without touching the controller", async () => {
 		const enterMode = vi.fn(async () => {});
-		const tool = new ModeTool(createToolSession({ enterMode, getLastUserPromptText: () => "plan first" }));
+		const tool = new ModeTool(createToolSession({ enterMode, consumePlanModeConsent: () => true }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "goal" })).rejects.toThrow(/only the user can grant/);
 		await expect(tool.execute("call-2", { op: "enter", mode: "vibe" })).rejects.toThrow(/`\/vibe`/);
@@ -98,22 +98,31 @@ describe("mode tool", () => {
 			createToolSession({ enterMode, getLastUserPromptText: () => "Just give me a simple proposal." }),
 		);
 
-		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(/explicit user request/);
+		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(/explicit user consent/);
 		expect(enterMode).not.toHaveBeenCalled();
 	});
 
-	it("treats a simple 方案 request and a bare question as no plan-mode authorization", () => {
+	it("authorizes direct entry only for the language-neutral plan commands", () => {
 		expect(userAskedForPlanMode("只让你简单出方案给我")).toBe(false);
 		expect(userAskedForPlanMode("帮我看看这个 bug 怎么修")).toBe(false);
-		expect(userAskedForPlanMode("先做计划，再改代码")).toBe(true);
+		expect(userAskedForPlanMode("先做计划，再改代码")).toBe(false);
 		expect(userAskedForPlanMode("/plan auth refactor")).toBe(true);
+		expect(userAskedForPlanMode("/ultra plan auth refactor")).toBe(true);
+	});
+
+	it("enters after a visible ask consent token", async () => {
+		const enterMode = vi.fn(async () => {});
+		const tool = new ModeTool(createToolSession({ enterMode, consumePlanModeConsent: () => true }));
+
+		await tool.execute("call-1", { op: "enter", mode: "plan" });
+		expect(enterMode).toHaveBeenCalledWith("plan", { enteredBy: "agent" });
 	});
 
 	it("surfaces the session's mutual-exclusion refusal as a tool error", async () => {
 		const enterMode = vi.fn(async () => {
 			throw new Error("Exit goal mode first.");
 		});
-		const tool = new ModeTool(createToolSession({ enterMode, getLastUserPromptText: () => "plan first" }));
+		const tool = new ModeTool(createToolSession({ enterMode, consumePlanModeConsent: () => true }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(
 			/Cannot enter plan mode: Exit goal mode first\./,
@@ -121,7 +130,7 @@ describe("mode tool", () => {
 	});
 
 	it("refuses when the session has no mode controller attached", async () => {
-		const tool = new ModeTool(createToolSession({ getLastUserPromptText: () => "plan first" }));
+		const tool = new ModeTool(createToolSession({ consumePlanModeConsent: () => true }));
 
 		await expect(tool.execute("call-1", { op: "enter", mode: "plan" })).rejects.toThrow(/no mode controller/);
 	});

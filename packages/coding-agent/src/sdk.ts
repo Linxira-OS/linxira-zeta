@@ -2847,6 +2847,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				activeToolNames.add(name);
 			}
 		};
+		let planModeConsent = false;
 		const toolSession: ToolSession = {
 			get cwd() {
 				return sessionManager.getCwd();
@@ -2988,6 +2989,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getServiceTierByFamily: () => session?.serviceTierByFamily,
 			getImageAttachments: () => session?.getImageAttachments() ?? [],
 			getPlanModeState: () => session?.getPlanModeState(),
+			recordPlanModeConsent: () => {
+				planModeConsent = true;
+			},
+			consumePlanModeConsent: () => {
+				const value = planModeConsent;
+				planModeConsent = false;
+				return value;
+			},
 			getPlanReferencePath: () => session?.getPlanReferencePath() ?? "local://PLAN.md",
 			enterMode: (mode, options) => session?.enterMode(mode, options) ?? Promise.resolve(),
 			exitMode: (mode, options) => session?.exitMode(mode, options) ?? Promise.resolve(),

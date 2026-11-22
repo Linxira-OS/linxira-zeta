@@ -30,13 +30,12 @@ interface ModeToolDetails {
  * it may disarm exactly the plan mode it armed itself: leaving a user-armed plan
  * mode would walk out of the approval gate the user put it behind.
  */
-/** User phrasings that authorize the agent to arm plan mode on its own. */
-const EXPLICIT_PLAN_REQUEST =
-	/(?:^|\s)\/plan(?:\s|$)|plan mode|计划模式|先计划|先做计划|先规划|规划一下|计划一下|制定计划|写个计划|写一个计划|做个计划|做一个计划|出个计划|出一个计划|plan first|make (?:a|the) plan|draft (?:a|the) plan|propose (?:a|the) plan|plan before/i;
+/** The user's own plan command, language-neutral. Natural language goes through ask consent. */
+const EXPLICIT_PLAN_COMMAND = /^(?:\/plan|\/ultra\s+plan)(?:\s|$)/i;
 
-/** A simple proposal, a "方案", or an inline answer does not authorize plan mode. */
+/** True only for the user's `/plan` or `/ultra plan` command. */
 export function userAskedForPlanMode(text: string | undefined): boolean {
-	return text !== undefined && EXPLICIT_PLAN_REQUEST.test(text);
+	return text !== undefined && EXPLICIT_PLAN_COMMAND.test(text.trim());
 }
 
 function refusal(mode: string, op: "enter" | "exit"): ToolError {
@@ -55,7 +54,7 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 	/** Switching modes changes session state, so `always-ask` prompts for it. */
 	readonly approval = "write" as const;
 	readonly label = "Mode";
-	readonly summary = "Enter or leave plan mode on your own initiative";
+	readonly summary = "Enter or leave plan mode after explicit user confirmation";
 	readonly description = prompt.render(modeDescription);
 	readonly parameters = modeSchema;
 	readonly strict = true;
@@ -73,11 +72,13 @@ export class ModeTool implements AgentTool<typeof modeSchema, ModeToolDetails> {
 	}
 
 	async #enter(params: ModeParams): Promise<AgentToolResult<ModeToolDetails>> {
-		const lastUserPrompt = this.#session.getLastUserPromptText?.();
-		if (!userAskedForPlanMode(lastUserPrompt)) {
+		const confirmedByAsk = this.#session.consumePlanModeConsent?.() === true;
+		const planCommand = userAskedForPlanMode(this.#session.getLastUserPromptText?.());
+		if (!confirmedByAsk && !planCommand) {
 			throw new ToolError(
-				'Plan mode requires an explicit user request (for example `/plan`, "plan first", or "先做计划"). ' +
-					"A request for a proposal, a 方案, or a simple answer does not authorize plan mode; answer inline without entering it.",
+				"Plan mode requires explicit user consent. Ask the user with `ask` using a visible radio group " +
+					'`name="plan_mode"` and a `value="yes"` option; once they select yes, retry `mode enter`. ' +
+					"Any language is fine; a request for a proposal, a simple answer, or a 方案 does not authorize plan mode.",
 			);
 		}
 		const enterMode = this.#session.enterMode;

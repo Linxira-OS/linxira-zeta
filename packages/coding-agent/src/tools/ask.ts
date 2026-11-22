@@ -515,6 +515,13 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 			resultNotes.push({ ...note, text: shiftImageMarkers(note.text, answerImages.length, images?.length ?? 0) });
 			if (images) answerImages.push(...images);
 		}
+		if (
+			!answered.timedOut &&
+			form.fields.some(field => field.kind === "choice" && field.name === "plan_mode") &&
+			(answered.data.plan_mode === "yes" || answered.data.plan_mode === "true")
+		) {
+			this.session.recordPlanModeConsent?.();
+		}
 		const details: AskToolDetails = {
 			answers: formAnswers(form, answered.data),
 			...(notes ? { notes: resultNotes } : {}),
