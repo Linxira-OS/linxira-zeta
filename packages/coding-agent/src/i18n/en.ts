@@ -2101,7 +2101,7 @@ export const en = {
 	cmdInitZetaTeam: "Initialize a complete Team with a plan, journal, rollback, and doctor check",
 	cmdTeamWorker: "Start/stop the opt-in Team task worker for this engineer worktree session",
 	teamHubUsage:
-		"Usage: /team [status|persona|plan|on|off|hub] — Team status, personas and plans; hub opens workers and rooms.",
+		"Usage: /team [home|status|persona|plan|profile|memory|on|off|hub] — Team workspace, personas and plans.",
 	cmdFork: "Fork this session, or open it in a multiplexer pane or window",
 	cmdForkPane: "Open the fork in a new terminal pane",
 	cmdForkWindow: "Open the fork in a new multiplexer window",

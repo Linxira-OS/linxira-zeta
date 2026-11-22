@@ -150,6 +150,7 @@ import { ThinkingSelectorComponent } from "@linxiraos/pi-tui/overlays/thinking-s
 import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 import { renderUsageReports } from "./command-controller";
 import { closeActiveTeamHub, showActiveTeamHub } from "./active-team-hub";
+import { showTeamWorkspace } from "./team-workspace";
 import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createRuntimeSettingsPages } from "../components/runtime-settings";
 
@@ -3244,5 +3245,8 @@ export class SelectorController {
 	}
 	showTeamHub(): void {
 		showActiveTeamHub(this.ctx);
+	}
+	showTeamWorkspace(): void {
+		showTeamWorkspace(this.ctx);
 	}
 }

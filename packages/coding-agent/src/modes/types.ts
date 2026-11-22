@@ -662,6 +662,7 @@ export interface InteractiveModeContext {
 	applySidebar(): void;
 	showDirectoryPicker(): Promise<void>;
 	showTeamHub(): void;
+	showTeamWorkspace(): void;
 	leadModeEnabled: boolean;
 	handleLeadModeCommand(): Promise<boolean>;
 	/** Team mode (Vibe-backed worker hierarchy); distinct from the hidden legacy Lead mode. */

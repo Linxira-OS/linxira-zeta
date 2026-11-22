@@ -9964,6 +9964,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#selectorController.showTeamHub();
 	}
 
+	/** Open the multi-Team workspace: every Team, its contacts, rooms and plans. */
+	showTeamWorkspace(): void {
+		this.#selectorController.showTeamWorkspace();
+	}
+
 	/** Persistent Team breadcrumb in the status line; `undefined` hides it. */
 	setTeamBreadcrumb(label: string | undefined): void {
 		this.statusLine.setTeamBreadcrumb(label);

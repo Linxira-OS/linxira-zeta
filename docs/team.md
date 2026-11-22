@@ -246,6 +246,7 @@ In an ordinary session inside a Team workspace, the same persona and plan
 work is available without the full CLI grammar:
 
 ```text
+/team                     open the multi-Team workspace in TUI
 /team status
 /team persona list
 /team persona create reviewer code-review Reviewer

@@ -113,6 +113,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdTeam,
 		icon: "agents",
 		subcommands: [
+			{ name: "home", description: () => "Open the multi-Team workspace" },
 			{ name: "status", description: () => "Team status, personas and plans" },
 			{ name: "persona", description: () => "List, create, import or remove Team personas" },
 			{ name: "plan", description: () => "List, create or approve TeamPlans" },
@@ -150,6 +151,10 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				return commandConsumed();
 			}
 			if (subName !== "hub") {
+				if (subName === "home") {
+					await runtime.output(M.teamHubUsage);
+					return commandConsumed();
+				}
 				if (subName !== "") {
 					const result = await runTeamSessionCommand(runtime.cwd, command.args);
 					await runtime.output(result.text);
@@ -194,8 +199,13 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			if (sub === "on" || sub === "off" || sub === "") {
-				await runtime.ctx.handleTeamModeCommand(sub === "" ? undefined : sub === "on");
+			if (sub === "" || sub === "home") {
+				runtime.ctx.showTeamWorkspace();
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			if (sub === "on" || sub === "off") {
+				await runtime.ctx.handleTeamModeCommand(sub === "on");
 				runtime.ctx.editor.setText("");
 				return;
 			}

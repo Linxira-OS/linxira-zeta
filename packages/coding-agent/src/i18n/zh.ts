@@ -2073,7 +2073,7 @@ export const zh = {
 	cmdTeamHub: "打开活动 Team 源会话的 worker 与房间历史",
 	cmdInitZetaTeam: "初始化完整 Team：计划、日志、回滚与 doctor 检查",
 	cmdTeamWorker: "启动/停止此工程师工作树会话的可选 Team 任务 worker",
-	teamHubUsage: "用法：/team [status|persona|plan|on|off|hub] —— 查看人设与计划；hub 查看 worker 与房间。",
+	teamHubUsage: "用法：/team [home|status|persona|plan|profile|memory|on|off|hub] —— 打开团队工作区、人设与计划。",
 	cmdFork: "分叉此会话，或在新终端面板 / 多路复用窗口中打开",
 	cmdForkPane: "在新终端面板中打开分叉",
 	cmdForkWindow: "在新多路复用窗口中打开分叉",
