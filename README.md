@@ -26,7 +26,7 @@ licensed MIT. The integrated runtime source is OMP **v18.22.0**. Z Work Studio
 is a maintained fork of
 [OMP Studio](https://github.com/the-snowpear/omp-studio); **v0.2.4** renderer
 and shared packages are integrated through a Zeta Host adapter without
-downgrading OMP. Full final release accounting is still pending.
+downgrading OMP. The 14/14 Studio final gate and the full release CI run passed.
 `zetaide` vendors [TermIDE](https://github.com/termide/termide) **0.49.0**.
 Upstream copyright notices and licence texts remain in [`LICENSE`](./LICENSE)
 and [`NOTICE`](./NOTICE); per-tree modification records are in
@@ -123,7 +123,7 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 | Project | Integrated source | What Zeta takes from it |
 | --- | --- | --- |
 | [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.22.0` | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
-| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.1` source ancestry (acceptance and CI pending) | the web UI: renderer, client, and the host contract it speaks |
+| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted) | the web UI: renderer, client, and the host contract it speaks |
 | [TermIDE](https://github.com/termide/termide), MIT | `0.49.0` | `zetaide` and the built-in editor pane |
 
 Further upstreams shaped earlier work and stay credited:
