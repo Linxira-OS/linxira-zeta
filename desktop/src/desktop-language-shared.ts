@@ -4,12 +4,12 @@
  * Pure TypeScript (no Electron or Node runtime imports), so preload, Main
  * services, remote helpers, and headless tests can all share it safely.
  */
-export const DESKTOP_LANGUAGE_CHANNEL = "omp-studio:desktop:language";
+export const DESKTOP_LANGUAGE_CHANNEL = "zeta:desktop:language";
 
 export type DesktopLocale = "zh" | "en";
 
 let currentLocale: DesktopLocale = normalizeDesktopLocale(
-  typeof process !== "undefined" ? process.env.OMP_STUDIO_LOCALE : undefined,
+  typeof process !== "undefined" ? process.env.ZETA_DESKTOP_LOCALE : undefined,
 );
 const listeners = new Set<(locale: DesktopLocale) => void>();
 
@@ -27,9 +27,9 @@ export function parseDesktopLanguagePayload(value: unknown): DesktopLocale | und
 }
 
 export function initDesktopLanguage(osLocale: string | undefined): DesktopLocale {
-  const override = typeof process !== "undefined" ? process.env.OMP_STUDIO_LOCALE : undefined;
+  const override = typeof process !== "undefined" ? process.env.ZETA_DESKTOP_LOCALE : undefined;
   currentLocale = normalizeDesktopLocale(override && override.length > 0 ? override : osLocale);
-  if (typeof process !== "undefined" && process.env) process.env.OMP_STUDIO_LOCALE = currentLocale;
+  if (typeof process !== "undefined" && process.env) process.env.ZETA_DESKTOP_LOCALE = currentLocale;
   return currentLocale;
 }
 
@@ -47,11 +47,11 @@ export function desktopText<T>(zh: T, en: T): T {
 
 export function setDesktopLanguage(next: DesktopLocale): boolean {
   if (next === currentLocale) {
-    if (typeof process !== "undefined" && process.env) process.env.OMP_STUDIO_LOCALE = currentLocale;
+    if (typeof process !== "undefined" && process.env) process.env.ZETA_DESKTOP_LOCALE = currentLocale;
     return false;
   }
   currentLocale = next;
-  if (typeof process !== "undefined" && process.env) process.env.OMP_STUDIO_LOCALE = currentLocale;
+  if (typeof process !== "undefined" && process.env) process.env.ZETA_DESKTOP_LOCALE = currentLocale;
   for (const listener of [...listeners]) listener(currentLocale);
   return true;
 }

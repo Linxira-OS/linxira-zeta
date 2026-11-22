@@ -75,6 +75,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"CONTRIBUTING.md", // pre-existing main debt: upstream-facing contributing doc
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
 	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
+	"scripts/studio-assets.ts", // source-sync overlay: matches upstream Studio names to rewrite them
 	"scripts/merge-package-json.test.ts", // driver test: fixtures carry the upstream scope to prove the mapping
 	"scripts/check-scope-imports.ts", // the class-3 guard documents the exact upstream→Zeta leaf mappings it exists to catch
 ];
@@ -488,6 +489,7 @@ export const MUST_NOT_CONTAIN: Array<{
 			"README.md", // MIT attribution for the ported renderer names the upstream project
 			"packages/coding-agent/test/studio-protocol.test.ts", // the wire-contract test must name the rejected upstream protocol
 			"scripts/studio-sync.ts", // exact official repository and upstream package names are synchronization inputs
+			"scripts/studio-assets.ts", // source-sync overlay: upstream names are rewrite inputs, never shipped copy
 			"scripts/studio-sync.test.ts", // upstream import fixture proves the namespace mapping
 			"CONTRIBUTING.md", // upstream issue routing and attribution
 			"CONTRIBUTING.zh-CN.md",

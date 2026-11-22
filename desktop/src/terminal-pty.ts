@@ -157,7 +157,7 @@ export function terminalEnvironment(
   }
   env.TERM = env.TERM ?? "xterm-256color";
   env.COLORTERM = env.COLORTERM ?? "truecolor";
-  if (posix) env.TERM_PROGRAM = "OMP-Studio";
+  if (posix) env.TERM_PROGRAM = "Z-Work-Studio";
   return env;
 }
 

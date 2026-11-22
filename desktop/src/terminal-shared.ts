@@ -8,17 +8,17 @@
 import type { TmuxSessionsInput, TmuxSessionsResult, TmuxAttachInput, TmuxAttachResult, TmuxCommandInput, TmuxTopology } from "./tmux/tmux-shared.js";
 
 export const TERMINAL_IPC_CHANNELS = {
-  create: "omp-studio:desktop:terminal-create",
-  write: "omp-studio:desktop:terminal-write",
-  resize: "omp-studio:desktop:terminal-resize",
-  dispose: "omp-studio:desktop:terminal-dispose",
-  recordingStart: "omp-studio:desktop:terminal-recording-start",
-  recordingStop: "omp-studio:desktop:terminal-recording-stop",
-  recordingStatus: "omp-studio:desktop:terminal-recording-status",
-  data: "omp-studio:desktop:terminal-data",
-  exit: "omp-studio:desktop:terminal-exit",
+  create: "zeta:desktop:terminal-create",
+  write: "zeta:desktop:terminal-write",
+  resize: "zeta:desktop:terminal-resize",
+  dispose: "zeta:desktop:terminal-dispose",
+  recordingStart: "zeta:desktop:terminal-recording-start",
+  recordingStop: "zeta:desktop:terminal-recording-stop",
+  recordingStatus: "zeta:desktop:terminal-recording-status",
+  data: "zeta:desktop:terminal-data",
+  exit: "zeta:desktop:terminal-exit",
   /** Renderer -> Main: bytes written to xterm (flow-control acknowledgement). */
-  ack: "omp-studio:desktop:terminal-ack",
+  ack: "zeta:desktop:terminal-ack",
 } as const;
 
 export const TERMINAL_MAX_SESSIONS = 8;

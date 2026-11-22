@@ -2,11 +2,11 @@ import { TerminalIpcError, parseSessionId, TERMINAL_MIN_COLS, TERMINAL_MAX_COLS,
 import { desktopText } from "../desktop-language-shared.js";
 
 export const TMUX_IPC_CHANNELS = {
-  sessions: "omp-studio:desktop:terminal-tmux-sessions",
-  attach: "omp-studio:desktop:terminal-tmux-attach",
-  command: "omp-studio:desktop:terminal-tmux-command",
-  detach: "omp-studio:desktop:terminal-tmux-detach",
-  topology: "omp-studio:desktop:terminal-tmux-topology",
+  sessions: "zeta:desktop:terminal-tmux-sessions",
+  attach: "zeta:desktop:terminal-tmux-attach",
+  command: "zeta:desktop:terminal-tmux-command",
+  detach: "zeta:desktop:terminal-tmux-detach",
+  topology: "zeta:desktop:terminal-tmux-topology",
 } as const;
 export const TMUX_MIN_VERSION = [3, 2] as const;
 export const TMUX_MAX_CONNECTIONS_PER_WINDOW = 4;

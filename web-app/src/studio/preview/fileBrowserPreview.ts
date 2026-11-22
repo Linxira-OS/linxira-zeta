@@ -43,7 +43,7 @@ function homeTree(platform: "win32" | "darwin"): Node[] {
       file("design-review.pptx", 6.8 * MB, 4 * DAY), file("sample-voice.wav", 1.1 * MB, 6 * DAY), file("node-v24.11.0-x64.msi", 31 * MB, 11 * DAY),
     ]),
     dir("Pictures", [dir("Screenshots", [file("mermaid-dark.png", 302 * KB, 3 * DAY), file("mermaid-light.png", 298 * KB, 3 * DAY)]), file("wallpaper.jpg", 3.2 * MB, 200 * DAY)]),
-    dir(".omp", [dir("agent", [file("models.yml", 6 * KB, 50 * MIN), file("config.yml", 2 * KB, 3 * DAY), dir("sessions", [file("2026-11-14T09-12.jsonl", 820 * KB, 25 * MIN)])])], { hidden: true }),
+    dir(".zeta", [dir("agent", [file("models.yml", 6 * KB, 50 * MIN), file("config.yml", 2 * KB, 3 * DAY), dir("sessions", [file("2026-11-14T09-12.jsonl", 820 * KB, 25 * MIN)])])], { hidden: true }),
     dir(".ssh", [file("config", 1 * KB, 30 * DAY), file("known_hosts", 4 * KB, 2 * DAY), file("id_ed25519", 411, 300 * DAY), file("id_ed25519.pub", 103, 300 * DAY)], { hidden: true }),
     file(".gitconfig", 612, 60 * DAY, { hidden: true }),
     ...(win ? [dir("AppData", [dir("Local", []), dir("Roaming", [])], { hidden: true }), file("NTUSER.DAT", 6 * MB, 10 * MIN, { hidden: true })] : [dir("Library", [], { hidden: true })]),
