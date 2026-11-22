@@ -5,7 +5,7 @@
 ### Changed
 
 - Z Work Studio advances to the Studio v0.2.4 renderer/shared packages through the Zeta Host adapter, without downgrading the OMP 18.22 runtime.
-- Plan mode is no longer armed on the agent's own initiative unless the user explicitly asked for it (`/plan`, "plan first", "先做计划"). Writing `local://<slug>-plan.md` outside active plan mode is rejected; a request for a simple proposal or 方案 is answered inline.
+- Plan mode is no longer armed from guessed wording. It requires a visible Ask confirmation (`plan_mode=yes`, any language) or the user's `/plan` / `/ultra plan` command; timeouts and simple proposal/方案 requests do not count. Writing `local://<slug>-plan.md` outside active plan mode is rejected.
 - Backend mode is on by default. A TUI connects to a reachable machine-wide backend without starting one, and falls back to its own local process when none is running; explicit `--backend`/`--attach` still fails closed. The Desktop install owns the login item by default; npm keeps the bundled-only OS autostart gate.
 - BTW answers can be sent back to the working main agent: `C` sends only the latest answer, the panel menu can send the full question/answer conversation or multiple space-selected topics, and the complete transcript can be copied. Escape stops only the current BTW lane; Backspace returns to the coding-agent page.
 - Settings no longer adds a top-level Runtime page; identity and IM remain child pages of the existing Interaction settings.
