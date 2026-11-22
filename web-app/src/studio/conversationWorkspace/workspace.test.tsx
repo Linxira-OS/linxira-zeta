@@ -47,7 +47,7 @@ describe("conversation workspace", () => {
   });
   it("focuses the main, minimized and native conversation in place when selected from the sidebar", () => {
     const store = new ConversationWorkspaceStore(null);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     expect(store.openFromDirectory(a)).toBe(first);
     expect(store.getSnapshot().views.find(view => view.id === first)?.placement).toBe("main");
     store.setWindow(second, { minimized: true });
@@ -106,7 +106,7 @@ describe("conversation workspace", () => {
     const memory = new Map<string, string>();
     const storage = { getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => { memory.set(key, value); } };
     const store = new ConversationWorkspaceStore(storage);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.float(second, { x: 42, y: 50, width: 620, height: 500 }, true);
     store.close(first); store.flush();
     const restored = new ConversationWorkspaceStore(storage);
@@ -121,7 +121,7 @@ describe("conversation workspace", () => {
   });
   it("reclaims the single main area without discarding its previous conversation cache", () => {
     const store = new ConversationWorkspaceStore(null);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.dock(second);
     expect(store.getSnapshot().views).toHaveLength(1);
     expect(store.getSnapshot().views[0]?.id).toBe(second);
@@ -141,7 +141,7 @@ describe("conversation workspace", () => {
     const memory = new Map<string, string>();
     const storage = { getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => { memory.set(key, value); } };
     const store = new ConversationWorkspaceStore(storage);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.shared({ panelWidth: 600, bottomHeight: 320 });
     store.activate(first);
     expect(store.getSnapshot()).toMatchObject({ panelWidth: 600, bottomHeight: 320 });
@@ -151,7 +151,7 @@ describe("conversation workspace", () => {
   });
   it("automatically places the main conversation beside the first snapped window without duplicating identities", () => {
     const store = new ConversationWorkspaceStore(null);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     const firstDocument = store.documentFor(first), secondDocument = store.documentFor(second);
     store.snapView(second, "halves", 1);
     expect(store.getSnapshot().snapAssistCell).toBeNull();
@@ -180,7 +180,7 @@ describe("conversation workspace", () => {
   });
   it("keeps a maximized partition, frees a minimized partition and restores it only while vacant", () => {
     const store = new ConversationWorkspaceStore(null);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.snapView(first, "halves", 0); store.snapView(second, "halves", 1);
     store.setWindow(first, { maximized: true });
     expect(store.snapCell(first)).toBe(0);
@@ -200,7 +200,7 @@ describe("conversation workspace", () => {
     const memory = new Map<string, string>();
     const storage = { getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => { memory.set(key, value); } };
     const store = new ConversationWorkspaceStore(storage);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.snapView(first, "quarters", 0); store.snapView(second, "quarters", 3);
     store.resizeSnap({ columns: [0.6], row: 0.4 }); store.flush();
     const restored = new ConversationWorkspaceStore(storage);
@@ -230,7 +230,7 @@ describe("conversation workspace", () => {
   });
   it("hands the shared chrome to the latest minimized conversation and starts a new one only when none is left", () => {
     const store = new ConversationWorkspaceStore(null);
-    const first = store.open(a);
+    const first = store.open(a), second = store.open(b, "float");
     store.float(first);
     store.setWindow(first, { minimized: true });
     store.activate(second);
