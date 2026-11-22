@@ -113,6 +113,9 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0085](0085-btw-steering-text-injection.md) | BTW can inject an arbitrary Studio prompt into the main session | Accepted | 2026-11-21 | — | [BTW panel](../../web-app/src/studio/btw/BtwPanel.tsx) |
 | [0086](0086-plan-entry-user-intent.md) | Plan entry should follow model-confirmed user intent; keep the Ask gate for 1.5.13 | Proposed | 2026-11-22 | — | [mode tool](../../packages/coding-agent/src/tools/mode.ts) |
 | [0087](0087-tui-ensures-machine-host.md) | TUI ensures the machine Host and shares it with every client | Accepted | 2026-11-22 | Supersedes [0084](0084-backend-mode-default-on.md) | [daemon](../../docs/daemon.md), [ensure-host](../../packages/coding-agent/src/backend/ensure-host.ts), [resume tree](../../packages/tui/src/overlays/resume-tree.ts) |
+| [0088](0088-one-host-many-clients.md) | One machine Host serves every Zeta client and one session identity | Accepted | 2026-11-22 | — | [ensure-host](../../packages/coding-agent/src/backend/ensure-host.ts), [desktop](../../desktop/src/main.ts), [Work Studio](../../web-app/src/studio/App.tsx) |
+| [0089](0089-omp-v19-baseline-hold.md) | OMP v19 is the target baseline; the conflicting sync is not merged | Accepted | 2026-11-22 | — | [conflict audit](../agents/merge/v19.0.0-conflict-audit.md), [PR #325](https://github.com/Linxira-OS/linxira-zeta/pull/325) |
+| [0090](0090-line-provenance-and-agent-trailers.md) | Line provenance comes from git; agent commits carry an explicit trailer | Proposed | 2026-11-22 | — | [TermIDE blame](../../termide/crates/git/src/blame.rs), [ADR skill](../../skills/official/adr/SKILL.md) |
 
 ## File and numbering rules
 

@@ -32,6 +32,11 @@ Upstream copyright notices and licence texts remain in [`LICENSE`](./LICENSE)
 and [`NOTICE`](./NOTICE); per-tree modification records are in
 [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
 
+The next runtime baseline is OMP **v19.0.0**. It is **not integrated yet**:
+the v19 sync branch conflicts with `main` and is held pending the conflict and
+Studio delta audits. Studio **v0.2.8** targets OMP 19.0.1 and is likewise not
+integrated. This README states the tree that exists, not the target line.
+
 ## Quick start
 
 Install the CLI and serve the workbench in your browser (Node 18+ or Bun):
@@ -122,8 +127,8 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 
 | Project | Integrated source | What Zeta takes from it |
 | --- | --- | --- |
-| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.22.0` | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
-| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted) | the web UI: renderer, client, and the host contract it speaks |
+| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.22.0` (target v19.0.0 held) | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
+| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted; v0.2.8 held on OMP 19) | the web UI: renderer, client, and the host contract it speaks |
 | [TermIDE](https://github.com/termide/termide), MIT | `0.49.0` | `zetaide` and the built-in editor pane |
 
 Further upstreams shaped earlier work and stay credited:

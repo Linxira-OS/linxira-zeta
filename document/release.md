@@ -4,6 +4,42 @@
 
 CI/发布机制参考：唯一 workflow、trigger discipline、CI watching discipline、release tag 与 update log、版本线工具，以及上游引用卫生（远端/tag/分支保留策略）。硬性合并规则与品牌注册表见根 `AGENTS.md`；合并操作手册见 `document/merge-playbook.md`；日常编码约定见 `document/dev-conventions.md`。
 
+## Strict pre-release checklist
+
+A green build is not a release review. Every item below is a blocking gate and
+must name evidence (commit, run, file, or asset), not a promise.
+
+| Gate | Required evidence |
+| --- | --- |
+| Source identity | The source SHA is the intended `main` tip; its push run is fully green (not cancelled/skipped); the tag is created only after that run. |
+| Upstream baseline | README, `NOTICE`, `THIRD-PARTY-NOTICES.txt`, package metadata, and `document/upstream-sync.md` name the **integrated** OMP/Studio tags. A target tag is labelled target, never current. |
+| Conflict surface | An open sync PR is not a baseline. Record its conflict files and owner decisions; do not merge or retag during a release. |
+| Scope | `bun scripts/release-scope.ts check --version <version>` passes; every shipped REQ has evidence; deferrals have an owner and re-entry condition. |
+| Contracts | Every changed public API/wire/CLI/data/security/release contract has an Accepted ADR (or an explicit owner waiver). ADR `Deciders` names the actual decider. |
+| Changelogs | Every affected package `[Unreleased]` has user-visible entries; `UPDATE-LOG.md` has the release entry and baseline sync; no upstream OMP version section remains. |
+| Release text | The GitHub release draft has a summary first, then user-visible changes grouped by product surface, then compatibility/known limits, then traceability. No "TBD", "pending", "coming soon", or unsupported claims. |
+| Docs sync | README badge and upstream table, `docs/` runtime pages, `docs/zeta-features.md` index, `NOTICE`, third-party notices, and branch registry match the tree. |
+| Artifacts | Asset names and counts are checked against `scripts/check-release-asset-names.ts`; npm dist-tags resolve to this version; the desktop/IDE/native assets are the ones actually built from this SHA. |
+| Cross-client | TUI, Work Studio, and desktop share one Host and one session id; send/stop/interrupt is exercised across at least two clients. |
+| Post-release | Tag ancestry is proven; GitHub Release and npm are verified; README and `document/upstream-sync.md` are updated in the release commit or an immediate docs commit. |
+
+### Post-tag documentation sync
+
+The tag does not update prose by itself. `scripts/release-v2.ts` currently
+updates the README version badge. A release is complete only after the release
+commit (or an immediate metadata commit) also updates:
+
+- the README upstream rows for the integrated OMP/Studio tags, without claiming
+  an unmerged branch;
+- `document/upstream-sync.md` with source tag/SHA, Zeta start, conflict decisions,
+  gates, and final merge commit;
+- `document/agents/workflow/branch-registry.md` with released branch SHAs;
+- the release notes/traceability mapping (ADR → PR → tests → assets);
+- any public text that still says “pending”, “next”, or an older integrated tag.
+
+Do not hand-edit a released tag. If the tree and prose disagree, publish a new
+patch or a docs-only follow-up; never rewrite history to make the claim true.
+
 ## Version line format
 
 Zeta rides **one semver line** across every published surface (14 packages,
