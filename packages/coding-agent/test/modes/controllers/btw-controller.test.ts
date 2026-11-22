@@ -1140,7 +1140,7 @@ describe("BtwController inject", () => {
 	it("with btw.inject off, neither asks for a block nor sends one the answer contains", async () => {
 		const runEphemeralTurn = steeringTurn();
 		const session = makeInjectSession(runEphemeralTurn);
-		const controller = new BtwController(makeCtx(session));
+		const controller = new BtwController(makeCtx(session, new Container(), { "btw.inject": false }));
 
 		await controller.start("Write a steering prompt to stop it");
 		await drainBtwRequest();
@@ -1310,7 +1310,7 @@ describe("BtwController inject", () => {
 
 	it("never offers an answer asked while btw.inject was off, even after turning it on", async () => {
 		const session = makeInjectSession(steeringTurn());
-		const ctx = makeCtx(session);
+		const ctx = makeCtx(session, new Container(), { "btw.inject": false });
 		const showOverlay = vi.spyOn(ctx.ui, "showOverlay");
 		const controller = new BtwController(ctx);
 		await controller.start("Write a steering prompt to stop it");

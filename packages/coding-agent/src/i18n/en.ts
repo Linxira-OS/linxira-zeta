@@ -2,7 +2,6 @@ import type { Messages } from "./messages";
 
 /** English catalogue — the default. */
 export const en = {
-	ssTabRuntime: "Runtime",
 	welcomeBack: "Welcome back!",
 	welcomeTipsTitle: "Tips",
 	welcomePromptActionsHint: " for prompt actions",
