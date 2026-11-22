@@ -231,11 +231,21 @@ zetacode team task complete <key> --pm <pm> [--body <text>] [--req REQ-1]
 zetacode team task reject <key> --pm <pm> --body <reason>
 zetacode team task cancel <key> --pm <pm> [--body <text>]
 zetacode team task comment <key> --agent <actor> --body <text>
+zetacode team persona list --root <path> [--json]
+zetacode team persona show <id> --root <path> [--json]
+zetacode team persona import <file> --root <path>
+zetacode team persona remove <id> --root <path>
 zetacode team doctor [--root <path>] [--json]
 ```
 
 - `init` creates `<root>/.zeta/team.json` plus `pms/`, `repos/`, and
   `worktrees/`, then registers the team. The team id is a slug of `<name>`.
+- `persona` stores validated role packs under `<root>/.zeta/personas/<id>.json`.
+  A pack carries its own name, role, model/thinking preferences, skills,
+  permission map, memory scope, working folder, and optional scoped plugin
+  pack. Invalid or misnamed files are reported as Team warnings; they are never
+  loaded as an agent identity. A repository `AGENTS.md` remains repository
+  guidance and is not a persona.
 - `pm add` creates `pms/<pm>/.zeta/pm.json`, `notes/`, and `links/`.
 - `repo add` performs a real clone into `repos/<repo>` and records the default
   branch; `repo link` registers an existing repository root without moving it.

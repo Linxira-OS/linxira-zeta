@@ -7,7 +7,18 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { teamHelp as commandHelp } from "../cli/command-help";
 import { runTeamCommand } from "../cli/team-cli";
 
-const ACTIONS = ["init", "bootstrap", "pm", "repo", "engineer", "worktree", "room", "task", "doctor"] as const;
+const ACTIONS = [
+	"init",
+	"bootstrap",
+	"pm",
+	"repo",
+	"engineer",
+	"worktree",
+	"room",
+	"task",
+	"persona",
+	"doctor",
+] as const;
 
 export default class Team extends Command {
 	static description = commandHelp.description;
@@ -15,7 +26,7 @@ export default class Team extends Command {
 
 	static args = {
 		action: Args.string({
-			description: "Team command (init, pm, repo, engineer, worktree, room, doctor)",
+			description: "Team command (init, pm, repo, engineer, worktree, room, task, persona, doctor)",
 			required: false,
 			options: [...ACTIONS],
 		}),
@@ -150,6 +161,8 @@ export default class Team extends Command {
 		"zetacode team room list",
 		'zetacode team room post core --body "standup in 5"',
 		"zetacode team room show core --limit 20",
+		"zetacode team persona list --root ./acme-team",
+		"zetacode team persona import ./reviewer.json --root ./acme-team",
 		"zetacode team doctor",
 		"zetacode team doctor --root ./acme-team --json",
 	];

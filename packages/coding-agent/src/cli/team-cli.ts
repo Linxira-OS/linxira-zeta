@@ -11,6 +11,7 @@ import { runInitTeamCommand } from "../team/bootstrap-command";
 import { diagnoseTeam, type DoctorReport } from "../team/doctor";
 import type { TaskEventRecord, TaskRecord } from "../team/db";
 import { formatTeamError, TeamError } from "../team/errors";
+import { deleteTeamPersona, listTeamPersonas, writeTeamPersona } from "../team/personas";
 import {
 	addRoomMember,
 	createRoom,
@@ -126,6 +127,10 @@ Commands:
               [--engineer <name>:<pm>:<repo>[:normal|vibe]...]
               [--room <name>[=shared|pm:<pm>]...]
               [--engineer-only] [--resume <runId>] [--rollback <runId>]
+  persona list --root <path> [--json]                          List validated Team personas
+  persona show <id> --root <path> [--json]                     Show one persona
+  persona import <file> --root <path>                          Validate and store a persona pack
+  persona remove <id> --root <path>                            Remove a persona pack
   doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms, tasks
 
 Global flags: --json prints machine-readable results. ZETA_TEAM_DB overrides
@@ -691,6 +696,49 @@ async function runDoctor(options: TeamCliOptions): Promise<void> {
 	printDoctor(report);
 }
 
+async function runPersona(options: TeamCliOptions, rest: string[]): Promise<void> {
+	const root = requireFlag(
+		options.root,
+		"--root <path>",
+		`${CLI_BIN_NAME} team persona <list|show|import|remove> --root <path>`,
+	);
+	const action = rest[0];
+	if (action === "list") {
+		const result = await listTeamPersonas(root);
+		if (options.json) writeJson(result);
+		else {
+			for (const persona of result.personas)
+				process.stdout.write(`${persona.id}\t${persona.revision}\t${persona.role}\t${persona.name}\n`);
+			for (const problem of result.problems) process.stderr.write(`Warning: ${problem}\n`);
+		}
+		return;
+	}
+	if (action === "show") {
+		const id = requireRest(rest, 1, "persona id", `${CLI_BIN_NAME} team persona show <id> --root <path>`);
+		const result = await listTeamPersonas(root);
+		const persona = result.personas.find(entry => entry.id === id);
+		if (!persona) throw new TeamError(`Unknown Team persona "${id}"`);
+		if (options.json) writeJson(persona);
+		else process.stdout.write(`${JSON.stringify(persona, null, 2)}\n`);
+		return;
+	}
+	if (action === "import") {
+		const file = requireRest(rest, 1, "persona file", `${CLI_BIN_NAME} team persona import <file> --root <path>`);
+		const value = await Bun.file(file).json();
+		const persona = await writeTeamPersona(root, value);
+		if (options.json) writeJson(persona);
+		else process.stdout.write(`Imported persona ${persona.id} revision ${persona.revision}.\n`);
+		return;
+	}
+	if (action === "remove") {
+		const id = requireRest(rest, 1, "persona id", `${CLI_BIN_NAME} team persona remove <id> --root <path>`);
+		if (!(await deleteTeamPersona(root, id))) throw new TeamError(`Unknown Team persona "${id}"`);
+		process.stdout.write(`Removed persona ${id}.\n`);
+		return;
+	}
+	throw new CliUsageError("Usage: team persona <list|show|import|remove> --root <path>");
+}
+
 /** Execute one parsed `team` invocation. */
 export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 	const rest = options.rest ?? [];
@@ -717,6 +765,9 @@ export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 				return;
 			case "task":
 				await runTask(options, rest);
+				return;
+			case "persona":
+				await runPersona(options, rest);
 				return;
 			case "bootstrap":
 				await runBootstrap(options);
