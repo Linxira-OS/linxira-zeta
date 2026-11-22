@@ -2048,12 +2048,18 @@ export class ResumeTreeComponent implements Component {
 					}),
 				);
 			} else {
-				this.#hitRows.set(lineIndex, { kind: "conversation", key: rowIdentity(row) });
-				this.#menuHits.set(lineIndex, {
-					kind: "conversation",
+				const moreConversations = row.key.startsWith(MORE_CONVERSATIONS_KEY_PREFIX);
+				this.#hitRows.set(lineIndex, {
+					kind: moreConversations ? "toggle" : "conversation",
 					key: rowIdentity(row),
-					start: Math.max(0, width - 1),
 				});
+				if (!moreConversations) {
+					this.#menuHits.set(lineIndex, {
+						kind: "conversation",
+						key: rowIdentity(row),
+						start: Math.max(0, width - 1),
+					});
+				}
 				lines.push(renderConversationRow(row, { width, selected, now, columns, fullPaths }));
 			}
 		}
