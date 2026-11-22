@@ -12,6 +12,8 @@ import { diagnoseTeam, type DoctorReport } from "../team/doctor";
 import type { TaskEventRecord, TaskRecord } from "../team/db";
 import { formatTeamError, TeamError } from "../team/errors";
 import { deleteTeamPersona, listTeamPersonas, writeTeamPersona } from "../team/personas";
+import { readTeamMarker } from "../team/paths";
+import { advanceTeamPlan, listTeamPlans, readTeamPlan, writeTeamPlan, type TeamPlanAction } from "../team/team-plan";
 import {
 	addRoomMember,
 	createRoom,
@@ -131,6 +133,10 @@ Commands:
   persona show <id> --root <path> [--json]                     Show one persona
   persona import <file> --root <path>                          Validate and store a persona pack
   persona remove <id> --root <path>                            Remove a persona pack
+  plan list --root <path> [--json]                             List TeamPlans
+  plan import <file> --root <path> [--agent <id>]              Draft a TeamPlan for approval
+  plan action <id> <submit|approve|reject|start|complete|cancel> --root <path>
+              [--agent <id>] [--reason <text>]                  Advance a TeamPlan
   doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms, tasks
 
 Global flags: --json prints machine-readable results. ZETA_TEAM_DB overrides
@@ -739,6 +745,64 @@ async function runPersona(options: TeamCliOptions, rest: string[]): Promise<void
 	throw new CliUsageError("Usage: team persona <list|show|import|remove> --root <path>");
 }
 
+async function runPlan(options: TeamCliOptions, rest: string[]): Promise<void> {
+	const root = requireFlag(
+		options.root,
+		"--root <path>",
+		`${CLI_BIN_NAME} team plan <list|import|action> --root <path>`,
+	);
+	const action = rest[0];
+	if (action === "list") {
+		const result = await listTeamPlans(root);
+		if (options.json) writeJson(result);
+		else {
+			for (const plan of result.plans)
+				process.stdout.write(`${plan.id}\t${plan.status}\t${plan.title}\t${plan.items.length} items\n`);
+			for (const problem of result.problems) process.stderr.write(`Warning: ${problem}\n`);
+		}
+		return;
+	}
+	if (action === "import") {
+		const file = requireRest(rest, 1, "plan file", `${CLI_BIN_NAME} team plan import <file> --root <path>`);
+		const marker = await readTeamMarker(root);
+		if (!marker) throw new TeamError(`No Team marker in ${root}`);
+		const raw = await Bun.file(file).json();
+		const now = Date.now();
+		const plan = await writeTeamPlan(root, {
+			...(typeof raw === "object" && raw !== null ? raw : {}),
+			schemaVersion: 1,
+			teamId: marker.teamId,
+			revision: 1,
+			status: "draft",
+			createdBy: options.agent ?? "Main",
+			createdAt: now,
+			updatedAt: now,
+		});
+		if (options.json) writeJson(plan);
+		else process.stdout.write(`Imported TeamPlan ${plan.id} revision ${plan.revision}.\n`);
+		return;
+	}
+	if (action === "action") {
+		const id = requireRest(rest, 1, "plan id", `${CLI_BIN_NAME} team plan action <id> <action> --root <path>`);
+		const verb = requireRest(
+			rest,
+			2,
+			"plan action",
+			`${CLI_BIN_NAME} team plan action <id> <action> --root <path>`,
+		) as TeamPlanAction;
+		const plan = await readTeamPlan(root, id);
+		if (!plan) throw new TeamError(`Unknown TeamPlan "${id}"`);
+		const next = advanceTeamPlan(plan, verb, options.agent ?? "Main", {
+			...(options.body ? { reason: options.body } : {}),
+		});
+		await writeTeamPlan(root, next);
+		if (options.json) writeJson(next);
+		else process.stdout.write(`TeamPlan ${next.id} is now ${next.status}.\n`);
+		return;
+	}
+	throw new CliUsageError("Usage: team plan <list|import|action> --root <path>");
+}
+
 /** Execute one parsed `team` invocation. */
 export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 	const rest = options.rest ?? [];
@@ -768,6 +832,9 @@ export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 				return;
 			case "persona":
 				await runPersona(options, rest);
+				return;
+			case "plan":
+				await runPlan(options, rest);
 				return;
 			case "bootstrap":
 				await runBootstrap(options);

@@ -268,9 +268,52 @@ export interface TeamPersonaView {
 	readonly pluginPack?: { readonly root: string; readonly hash?: string };
 }
 
+export interface TeamPlanItemView {
+	readonly id: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly personaId?: string;
+	readonly assignee?: string;
+	readonly repo?: string;
+	readonly dependsOn: readonly string[];
+	readonly acceptance: readonly string[];
+}
+
+export interface TeamPlanView {
+	readonly id: string;
+	readonly revision: number;
+	readonly teamId: string;
+	readonly title: string;
+	readonly summary?: string;
+	readonly status: "draft" | "awaiting_approval" | "approved" | "rejected" | "in_progress" | "done" | "cancelled";
+	readonly createdBy: string;
+	readonly createdAt: number;
+	readonly updatedAt: number;
+	readonly approvedBy?: string;
+	readonly approvedAt?: number;
+	readonly rejectedBy?: string;
+	readonly rejectedAt?: number;
+	readonly rejectionReason?: string;
+	readonly items: readonly TeamPlanItemView[];
+}
+
+export interface TeamPlanCreateCommand {
+	readonly teamId: string;
+	readonly plan: unknown;
+}
+
+export interface TeamPlanActionCommand {
+	readonly teamId: string;
+	readonly planId: string;
+	readonly action: "submit" | "approve" | "reject" | "start" | "complete" | "cancel";
+	readonly actor: string;
+	readonly reason?: string;
+}
+
 export interface TeamWorkspaceReadModel {
 	readonly team: TeamSummary;
 	readonly personas: ReadonlyArray<TeamPersonaView>;
+	readonly plans: ReadonlyArray<TeamPlanView>;
 	readonly pms: ReadonlyArray<TeamWorkspacePm>;
 	readonly engineers: ReadonlyArray<TeamWorkspaceEngineer>;
 	readonly repos: ReadonlyArray<TeamWorkspaceRepo>;
@@ -554,6 +597,8 @@ export interface TeamCommandInputMap {
 	"team.task.reject": TeamTaskRejectCommand;
 	"team.task.cancel": TeamTaskCancelCommand;
 	"team.task.comment": TeamTaskCommentCommand;
+	"team.plan.create": TeamPlanCreateCommand;
+	"team.plan.action": TeamPlanActionCommand;
 	"team.bootstrap.apply": TeamBootstrapApplyCommand;
 	"team.bootstrap.resume": TeamBootstrapResumeCommand;
 	"team.bootstrap.rollback": TeamBootstrapRollbackCommand;
@@ -580,6 +625,8 @@ export interface TeamCommandResultMap {
 	"team.task.reject": TeamTaskView;
 	"team.task.cancel": TeamTaskView;
 	"team.task.comment": TeamTaskView;
+	"team.plan.create": TeamWorkspaceReadModel;
+	"team.plan.action": TeamWorkspaceReadModel;
 	"team.bootstrap.apply": TeamBootstrapResultView;
 	"team.bootstrap.resume": TeamBootstrapResultView;
 	"team.bootstrap.rollback": TeamBootstrapRollbackView;

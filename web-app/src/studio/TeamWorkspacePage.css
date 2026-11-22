@@ -569,6 +569,36 @@
   }
 }
 
+.tw-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tw-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface, #111) 92%, transparent);
+}
+
+.tw-plan-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tw-plan-status {
+  color: var(--accent, #4c9aff);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .tw-mail-page {
   display: flex;
   flex-direction: column;

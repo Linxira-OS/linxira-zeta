@@ -17,6 +17,7 @@ const ACTIONS = [
 	"room",
 	"task",
 	"persona",
+	"plan",
 	"doctor",
 ] as const;
 
@@ -26,7 +27,7 @@ export default class Team extends Command {
 
 	static args = {
 		action: Args.string({
-			description: "Team command (init, pm, repo, engineer, worktree, room, task, persona, doctor)",
+			description: "Team command (init, pm, repo, engineer, worktree, room, task, persona, plan, doctor)",
 			required: false,
 			options: [...ACTIONS],
 		}),
@@ -163,6 +164,8 @@ export default class Team extends Command {
 		"zetacode team room show core --limit 20",
 		"zetacode team persona list --root ./acme-team",
 		"zetacode team persona import ./reviewer.json --root ./acme-team",
+		"zetacode team plan import ./release-plan.json --root ./acme-team",
+		"zetacode team plan action release approve --root ./acme-team --agent Owner",
 		"zetacode team doctor",
 		"zetacode team doctor --root ./acme-team --json",
 	];

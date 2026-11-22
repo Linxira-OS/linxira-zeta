@@ -83,6 +83,15 @@ const COPY = {
     team: "Team",
     personas: "Personas",
     noPersonas: "No personas yet.",
+    teamPlan: "TeamPlan",
+    noTeamPlan: "No TeamPlan yet. The primary agent can submit one for approval.",
+    submitPlan: "Submit for approval",
+    approvePlan: "Approve",
+    rejectPlan: "Reject",
+    startPlan: "Start",
+    completePlan: "Complete",
+    cancelPlan: "Cancel",
+    planReason: "Rejection reason",
     pms: "PMs",
     engineers: "Engineers",
     repos: "Repos",
@@ -183,6 +192,15 @@ const COPY = {
     team: "团队",
     personas: "人设",
     noPersonas: "尚未创建人设。",
+    teamPlan: "团队计划",
+    noTeamPlan: "尚无团队计划。主代理可以提交一份计划等待批准。",
+    submitPlan: "提交批准",
+    approvePlan: "批准",
+    rejectPlan: "拒绝",
+    startPlan: "开始",
+    completePlan: "完成",
+    cancelPlan: "取消",
+    planReason: "拒绝理由",
     pms: "PM",
     engineers: "工程师",
     repos: "仓库",
@@ -969,6 +987,94 @@ function Card({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function TeamPlanPanel({
+  client,
+  copy,
+  workspace,
+  busy,
+  perform,
+}: {
+  client: StudioClient;
+  copy: Copy;
+  workspace: TeamWorkspaceReadModel;
+  busy: boolean;
+  perform: (action: () => Promise<unknown>, ok: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const action = async (
+    planId: string,
+    next: "submit" | "approve" | "reject" | "start" | "complete" | "cancel",
+  ) => {
+    await perform(async () => {
+      const handle = await client.command("team.plan.action", {
+        teamId: workspace.team.id,
+        planId,
+        action: next,
+        actor: "user",
+        ...(next === "reject" ? { reason: reason.trim() || "Rejected by user" } : {}),
+      });
+      await waitReceipt(client, handle.requestId);
+    }, `TeamPlan ${next}`);
+  };
+  return (
+    <section className="tw-panel">
+      <h3>{copy.teamPlan}</h3>
+      {workspace.plans.length === 0 ? <p className="tw-hint">{copy.noTeamPlan}</p> : null}
+      <div className="tw-plan-list">
+        {workspace.plans.map(plan => (
+          <article className="tw-plan" key={plan.id}>
+            <div className="tw-plan-head">
+              <strong>{plan.title}</strong>
+              <span className="tw-plan-status">{plan.status}</span>
+            </div>
+            <p className="tw-hint">{plan.summary ?? plan.id} · {plan.items.length} items · rev {plan.revision}</p>
+            <ul className="tw-rail-plain">
+              {plan.items.map(item => <li key={item.id}>{item.id} · {item.title}</li>)}
+            </ul>
+            <div className="tw-form-row">
+              {plan.status === "draft" ? (
+                <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "submit")}>
+                  {copy.submitPlan}
+                </button>
+              ) : null}
+              {plan.status === "awaiting_approval" ? (
+                <>
+                  <input
+                    value={reason}
+                    onChange={event => setReason(event.target.value)}
+                    placeholder={copy.planReason}
+                  />
+                  <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "approve")}>
+                    {copy.approvePlan}
+                  </button>
+                  <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "reject")}>
+                    {copy.rejectPlan}
+                  </button>
+                </>
+              ) : null}
+              {plan.status === "approved" ? (
+                <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "start")}>
+                  {copy.startPlan}
+                </button>
+              ) : null}
+              {plan.status === "in_progress" ? (
+                <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "complete")}>
+                  {copy.completePlan}
+                </button>
+              ) : null}
+              {["draft", "awaiting_approval", "approved", "in_progress"].includes(plan.status) ? (
+                <button type="button" className="tw-button" disabled={busy} onClick={() => void action(plan.id, "cancel")}>
+                  {copy.cancelPlan}
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function OverviewTab({
   client,
   copy,
@@ -1006,6 +1112,8 @@ function OverviewTab({
         <Card label={copy.tasksCount} value={workspace.tasks.length} />
         <Card label={copy.runs} value={workspace.bootstrapRuns.length} />
       </section>
+
+      <TeamPlanPanel client={client} copy={copy} workspace={workspace} busy={busy} perform={perform} />
 
       <section className="tw-panel">
         <h3>{copy.addPm}</h3>

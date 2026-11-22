@@ -271,6 +271,38 @@ function contained(root: string, target: string): boolean {
 	return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+export interface TeamPlanList {
+	readonly plans: readonly TeamPlan[];
+	readonly problems: readonly string[];
+}
+
+export async function listTeamPlans(teamRoot: string): Promise<TeamPlanList> {
+	const dir = teamPlanDir(teamRoot);
+	let names: string[];
+	try {
+		names = (await fs.readdir(dir)).filter(name => name.endsWith(".json")).sort();
+	} catch {
+		return { plans: [], problems: [] };
+	}
+	const plans: TeamPlan[] = [];
+	const problems: string[] = [];
+	for (const name of names) {
+		const file = path.join(dir, name);
+		try {
+			const parsed = parseTeamPlan(JSON.parse(await fs.readFile(file, "utf8")));
+			if (parsed.ok && parsed.plan) {
+				if (`${parsed.plan.id}.json` !== name) problems.push(`${name}: id does not match filename`);
+				else plans.push(parsed.plan);
+			} else {
+				problems.push(`${name}: ${parsed.problems.join("; ")}`);
+			}
+		} catch (error) {
+			problems.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+	return { plans, problems };
+}
+
 export async function writeTeamPlan(teamRoot: string, value: unknown): Promise<TeamPlan> {
 	const parsed = parseTeamPlan(value);
 	if (!parsed.ok || !parsed.plan) throw new Error(`Invalid Team plan: ${parsed.problems.join("; ")}`);

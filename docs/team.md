@@ -235,6 +235,10 @@ zetacode team persona list --root <path> [--json]
 zetacode team persona show <id> --root <path> [--json]
 zetacode team persona import <file> --root <path>
 zetacode team persona remove <id> --root <path>
+zetacode team plan list --root <path> [--json]
+zetacode team plan import <file> --root <path> [--agent <id>]
+zetacode team plan action <id> <submit|approve|reject|start|complete|cancel>
+  --root <path> [--agent <id>] [--reason <text>]
 zetacode team doctor [--root <path>] [--json]
 ```
 
@@ -246,6 +250,11 @@ zetacode team doctor [--root <path>] [--json]
   pack. Invalid or misnamed files are reported as Team warnings; they are never
   loaded as an agent identity. A repository `AGENTS.md` remains repository
   guidance and is not a persona.
+- `plan` stores a TeamPlan under `<root>/.zeta/team-plans/<id>.json`.
+  Import creates a `draft`; `submit` moves it to `awaiting_approval`; only
+  `approve` moves it to `approved`, and `start`/`complete` follow in order.
+  Rejection requires a reason. The Web Team overview shows the plan card and
+  sends the same actions; this is not the session Plan/Ask mode.
 - `pm add` creates `pms/<pm>/.zeta/pm.json`, `notes/`, and `links/`.
 - `repo add` performs a real clone into `repos/<repo>` and records the default
   branch; `repo link` registers an existing repository root without moving it.

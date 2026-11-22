@@ -36,6 +36,13 @@ import { invalid } from "../gateway.js";
 import { diagnoseTeam } from "../../../team/doctor.js";
 import { listTeamPersonas } from "../../../team/personas.js";
 import {
+	advanceTeamPlan,
+	listTeamPlans,
+	readTeamPlan,
+	writeTeamPlan,
+	type TeamPlanAction,
+} from "../../../team/team-plan.js";
+import {
 	TeamDb,
 	type BootstrapRunRecord,
 	type BootstrapStepRecord,
@@ -240,9 +247,10 @@ function mapMember(member: RoomMemberRecord, label: (id: string) => string): Tea
 /** One consistent Team snapshot for the workspace pane. */
 async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 	const team = teamRow(teamId);
-	const [model, personaList] = await Promise.all([
+	const [model, personaList, planList] = await Promise.all([
 		readTeamReadModel({ teamRoot: team.rootPath }),
 		listTeamPersonas(team.rootPath),
+		listTeamPlans(team.rootPath),
 	]);
 	const db = new TeamDb();
 	try {
@@ -256,6 +264,7 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 		const worktrees: WorktreeRecord[] = db.listWorktrees(teamId);
 		return {
 			team: { id: team.id, name: team.name, createdAt: team.createdAt },
+			plans: planList.plans,
 			personas: personaList.personas.map(persona => ({
 				id: persona.id,
 				revision: persona.revision,
@@ -297,7 +306,11 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 			roomMembers,
 			tasks: model.tasks.map(task => taskView(task, model.taskEvents[task.id] ?? [])),
 			bootstrapRuns: model.bootstrapRuns.map(run => mapRun(run, db.listBootstrapSteps(run.runId))),
-			warnings: [...model.warnings, ...personaList.problems.map(problem => `persona ${problem}`)],
+			warnings: [
+				...model.warnings,
+				...personaList.problems.map(problem => `persona ${problem}`),
+				...planList.problems.map(problem => `plan ${problem}`),
+			],
 		};
 	} finally {
 		db.close();
@@ -794,6 +807,39 @@ async function taskComment(input: unknown): Promise<TeamTaskView> {
 	return taskAfter(teamId, result.task.taskKey);
 }
 
+async function planCreate(input: unknown): Promise<TeamWorkspaceReadModel> {
+	const record = object(input);
+	const teamId = text(record.teamId, "teamId");
+	const team = teamRow(teamId);
+	const raw = object(record.plan);
+	const now = Date.now();
+	await writeTeamPlan(team.rootPath, {
+		...raw,
+		schemaVersion: 1,
+		teamId,
+		revision: 1,
+		status: "draft",
+		createdAt: now,
+		updatedAt: now,
+	});
+	return readTeam(teamId);
+}
+
+async function planAction(input: unknown): Promise<TeamWorkspaceReadModel> {
+	const record = object(input);
+	const teamId = text(record.teamId, "teamId");
+	const team = teamRow(teamId);
+	const planId = text(record.planId, "planId");
+	const plan = await readTeamPlan(team.rootPath, planId);
+	if (!plan) throw invalid(`Unknown Team plan "${planId}"`);
+	const action = text(record.action, "action") as TeamPlanAction;
+	const next = advanceTeamPlan(plan, action, text(record.actor, "actor"), {
+		...(record.reason === undefined ? {} : { reason: text(record.reason, "reason") }),
+	});
+	await writeTeamPlan(team.rootPath, next);
+	return readTeam(teamId);
+}
+
 async function bootstrapPlan(input: unknown): Promise<TeamBootstrapPlanResult> {
 	return plan(object(input) as unknown as TeamBootstrapInput);
 }
@@ -890,6 +936,8 @@ export const teamWorkspaceCommands = {
 	"team.task.reject": taskReject,
 	"team.task.cancel": taskCancel,
 	"team.task.comment": taskComment,
+	"team.plan.create": planCreate,
+	"team.plan.action": planAction,
 	"team.bootstrap.apply": bootstrapApply,
 	"team.bootstrap.resume": bootstrapResume,
 	"team.bootstrap.rollback": bootstrapRollback,

@@ -537,6 +537,8 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "team.task.reject": true,
   "team.task.cancel": true,
   "team.task.comment": true,
+  "team.plan.create": true,
+  "team.plan.action": true,
   "team.bootstrap.apply": true,
   "team.bootstrap.resume": true,
   "team.bootstrap.rollback": true,
