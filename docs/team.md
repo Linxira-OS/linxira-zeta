@@ -251,6 +251,8 @@ work is available without the full CLI grammar:
 /team persona list
 /team persona create reviewer code-review Reviewer
 /team persona import ./reviewer.json
+/team persona pack reviewer
+/team persona promote reviewer ./promoted-plugin
 /team plan create release Ship 1.5.14
 /team plan submit release
 /team plan approve release
@@ -280,7 +282,9 @@ work is available without the full CLI grammar:
   permission map, memory scope, working folder, and optional scoped plugin
   pack. Invalid or misnamed files are reported as Team warnings; they are never
   loaded as an agent identity. A repository `AGENTS.md` remains repository
-  guidance and is not a persona.
+  guidance and is not a persona. `persona pack` prints the scoped pack file
+  count and hash; `persona promote` copies it to an explicit empty user-chosen
+  directory. Promotion never installs globally or mutates plugin config.
 - `plan` stores a TeamPlan under `<root>/.zeta/team-plans/<id>.json`.
   Import creates a `draft`; `submit` moves it to `awaiting_approval`; only
   `approve` moves it to `approved`, and `start`/`complete` follow in order.

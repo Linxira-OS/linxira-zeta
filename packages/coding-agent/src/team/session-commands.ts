@@ -7,6 +7,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { auditTeamQuietly } from "./audit";
 import { appendTeamMemory, listTeamMemory, readTeamMemory } from "./memory";
+import { promotePersonaPluginPack, readPersonaPluginSource } from "./plugin-pack";
 import { deleteTeamPersona, listTeamPersonas, readTeamPersona, writeTeamPersona } from "./personas";
 import { readTeamProfile, writeTeamProfile, type TeamProfile } from "./profile";
 import { resolveTeamLocation } from "./paths";
@@ -125,6 +126,32 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 				return fail(error instanceof Error ? error.message : String(error));
 			}
 		}
+		if (action === "pack") {
+			const id = parts[0];
+			if (!id) return fail("Usage: /team persona pack <id>");
+			const pack = await readTeamPersona(location.teamRoot, id);
+			if (!pack) return fail(`Unknown Team persona "${id}"`);
+			try {
+				const source = await readPersonaPluginSource(location.teamRoot, pack);
+				return { ok: true, text: `Plugin pack ${source.files.length} files · ${source.hash}` };
+			} catch (error) {
+				return fail(error instanceof Error ? error.message : String(error));
+			}
+		}
+		if (action === "promote") {
+			const id = parts[0];
+			const target = parts[1];
+			if (!id || !target) return fail("Usage: /team persona promote <id> <empty target dir>");
+			const pack = await readTeamPersona(location.teamRoot, id);
+			if (!pack) return fail(`Unknown Team persona "${id}"`);
+			try {
+				const promoted = await promotePersonaPluginPack(location.teamRoot, pack, path.resolve(cwd, target));
+				await audit(location.teamRoot, location.teamId, { action: "persona.promote", personaId: id });
+				return { ok: true, text: `Promoted ${promoted.files.length} files to ${promoted.target}.` };
+			} catch (error) {
+				return fail(error instanceof Error ? error.message : String(error));
+			}
+		}
 		if (action === "remove") {
 			const id = parts[0];
 			if (!id) return fail("Usage: /team persona remove <id>");
@@ -132,7 +159,7 @@ export async function runTeamSessionCommand(cwd: string, args: string): Promise<
 			await audit(location.teamRoot, location.teamId, { action: "persona.remove", personaId: id });
 			return { ok: true, text: `Removed persona ${id}.` };
 		}
-		return fail("Usage: /team persona <list|show|create|import|remove>");
+		return fail("Usage: /team persona <list|show|create|import|pack|promote|remove>");
 	}
 	if (sub === "plan") {
 		const action = parts.shift()?.toLowerCase() ?? "list";

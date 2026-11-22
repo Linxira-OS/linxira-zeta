@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { writeTeamPersona } from "../../src/team/personas";
 import { runTeamSessionCommand } from "../../src/team/session-commands";
 
 const roots: string[] = [];
@@ -35,6 +36,26 @@ describe("in-session /team commands", () => {
 		expect((await runTeamSessionCommand(cwd, "plan approve release")).text).toContain("approved");
 		expect((await runTeamSessionCommand(cwd, "plan start release")).text).toContain("in_progress");
 		expect((await runTeamSessionCommand(cwd, "plan complete release")).text).toContain("done");
+	});
+
+	it("inspects and promotes a persona plugin pack", async () => {
+		const cwd = await root();
+		const pluginDir = path.join(cwd, ".zeta", "personas", "review", "plugin");
+		await fs.mkdir(pluginDir, { recursive: true });
+		await fs.writeFile(path.join(pluginDir, "plugin.json"), '{"name":"review"}');
+		await writeTeamPersona(cwd, {
+			schemaVersion: 1,
+			id: "reviewer",
+			revision: 1,
+			name: "Reviewer",
+			role: "code-review",
+			pluginPack: { root: "review/plugin" },
+		});
+		const inspected = await runTeamSessionCommand(cwd, "persona pack reviewer");
+		expect(inspected.text).toContain("1 files");
+		const target = path.join(cwd, "promoted");
+		expect((await runTeamSessionCommand(cwd, `persona promote reviewer ${target}`)).ok).toBe(true);
+		expect(await fs.readFile(path.join(target, "plugin.json"), "utf8")).toContain("review");
 	});
 
 	it("stores a default persona, liaison and scoped memory", async () => {
