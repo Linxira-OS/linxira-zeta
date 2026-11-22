@@ -153,6 +153,8 @@ describe("BTW session boundaries", () => {
 		if (!selected) throw new Error("Expected saved picker target");
 		const listed = [selected];
 		const listing = { sessions: listed, complete: Promise.resolve(listed) };
+		vi.spyOn(SessionManager, "list").mockResolvedValue(listed);
+		vi.spyOn(SessionManager, "listAll").mockResolvedValue(listed);
 		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue(listing);
 		vi.spyOn(SessionManager, "listAllForPicker").mockResolvedValue(listing);
 		await new SelectorController(mode).showSessionSelector();

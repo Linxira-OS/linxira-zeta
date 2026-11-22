@@ -253,7 +253,10 @@ describe("team rooms", () => {
 	}, 30_000);
 
 	test("room events never write a session transcript", () => {
-		expect(findJsonl(teamRoot)).toEqual([]);
+		// Audit rows are Team-owned JSONL, not a session transcript.
+		expect(findJsonl(teamRoot).filter(file => !file.includes(`${path.sep}.zeta${path.sep}audit${path.sep}`))).toEqual(
+			[],
+		);
 	});
 
 	test("doctor reports healthy rooms and catches missing members and bad reply links", async () => {
