@@ -1,4 +1,6 @@
 import { sanitizeText } from "@linxiraos/pi-utils";
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { Input } from "../components/input";
 import { matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";
@@ -122,6 +124,20 @@ export function moveActiveTeamSelection(
 	if (!choices.length) return undefined;
 	const index = choices.findIndex(row => row.id === selected);
 	return choices[((index < 0 ? (delta > 0 ? -1 : 0) : index) + delta + choices.length) % choices.length]?.id;
+}
+
+/** Render `attachment://path` as a terminal hyperlink; Ctrl+click opens the local file. */
+function attachmentLinks(body: string): string {
+	return body.replace(/attachment:\/\/(\S+)/g, (match, raw: string) => {
+		const target = path.isAbsolute(raw) ? raw : path.resolve(raw);
+		let href: string;
+		try {
+			href = pathToFileURL(target).href;
+		} catch {
+			return match;
+		}
+		return `\x1b]8;;${href}\x1b\\📎 ${sanitizeText(raw)}\x1b]8;;\x1b\\`;
+	});
 }
 
 /** Persistent split Hub, reusing the shared HubFrame and legacy room timeline layout. */

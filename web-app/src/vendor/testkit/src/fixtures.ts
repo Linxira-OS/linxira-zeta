@@ -331,6 +331,7 @@ const QUERY_INPUTS = {
   "team.list": {},
   "team.files.list": { teamId: "team-fixture", path: ".zeta/board" },
   "team.files.read": { teamId: "team-fixture", path: ".zeta/calendar/events/a.json" },
+  "team.files.data": { teamId: "team-fixture", path: ".zeta/attachments/fixture.png" },
   "team.read": { teamId: "team-fixture" },
   "team.doctor": { teamId: "team-fixture" },
   "team.room.events": { teamId: "team-fixture", room: "room-fixture" },
@@ -567,6 +568,11 @@ const QUERY_RESPONSES = {
     ok: true,
     queryName: "team.files.read",
     result: { path: ".zeta/calendar/events/a.json", content: "{}", size: 2 },
+  },
+  "team.files.data": {
+    ok: true,
+    queryName: "team.files.data",
+    result: { path: ".zeta/attachments/fixture.png", mimeType: "image/png", size: 1, dataBase64: "AA==" },
   },
   "team.read": {
     ok: true,

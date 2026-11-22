@@ -356,6 +356,18 @@ export interface TeamFileReadQuery {
 	readonly path: string;
 }
 
+export interface TeamFileDataQuery {
+	readonly teamId: string;
+	readonly path: string;
+}
+
+export interface TeamFileDataResult {
+	readonly path: string;
+	readonly mimeType: string;
+	readonly size: number;
+	readonly dataBase64: string;
+}
+
 export interface TeamFileReadResult {
 	readonly path: string;
 	readonly content: string;
@@ -556,6 +568,7 @@ export interface TeamQueryInputMap {
 	"team.list": Readonly<Record<string, never>>;
 	"team.files.list": TeamFilesQuery;
 	"team.files.read": TeamFileReadQuery;
+	"team.files.data": TeamFileDataQuery;
 	"team.read": { readonly teamId: string };
 	"team.doctor": { readonly teamId: string };
 	"team.room.events": TeamRoomEventsQuery;
@@ -568,6 +581,7 @@ export interface TeamQueryResultMap {
 	"team.list": TeamListResult;
 	"team.files.list": TeamFilesResult;
 	"team.files.read": TeamFileReadResult;
+	"team.files.data": TeamFileDataResult;
 	"team.read": TeamWorkspaceReadModel;
 	"team.doctor": TeamDoctorSummary;
 	"team.room.events": TeamRoomView;

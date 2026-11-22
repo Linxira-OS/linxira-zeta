@@ -467,6 +467,38 @@ async function teamFilesRead(input: unknown): Promise<TeamFileReadResult> {
 	return { path: relative, content, size: stat.size };
 }
 
+const TEAM_FILE_MIME: Readonly<Record<string, string>> = {
+	".png": "image/png",
+	".jpg": "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif": "image/gif",
+	".webp": "image/webp",
+	".svg": "image/svg+xml",
+	".pdf": "application/pdf",
+	".md": "text/markdown; charset=utf-8",
+	".txt": "text/plain; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+};
+
+async function teamFilesData(input: unknown) {
+	const record = object(input);
+	const teamId = text(record.teamId, "teamId");
+	const requested = text(record.path, "path");
+	const root = teamRoot(teamId);
+	const { target, relative } = teamFilePath(root, requested);
+	await assertExistingFileInsideRoot(root, target);
+	const stat = await fs.stat(target);
+	if (!stat.isFile()) throw invalid("path is not a file");
+	if (stat.size > MAX_TEAM_FILE_BYTES) throw invalid(`file exceeds ${MAX_TEAM_FILE_BYTES} bytes`);
+	const data = await fs.readFile(target);
+	return {
+		path: relative,
+		mimeType: TEAM_FILE_MIME[path.extname(target).toLowerCase()] ?? "application/octet-stream",
+		size: stat.size,
+		dataBase64: data.toString("base64"),
+	};
+}
+
 async function teamRead(input: unknown): Promise<TeamWorkspaceReadModel> {
 	const record = object(input);
 	return readTeam(text(record.teamId, "teamId"));
@@ -907,6 +939,7 @@ export const teamWorkspaceQueries = {
 	"team.list": teamList,
 	"team.files.list": teamFilesList,
 	"team.files.read": teamFilesRead,
+	"team.files.data": teamFilesData,
 	"team.read": teamRead,
 	"team.doctor": teamDoctor,
 	"team.room.events": roomEvents,

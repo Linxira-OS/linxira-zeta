@@ -987,6 +987,58 @@ function Card({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+const ATTACHMENT_RE = /attachment:\/\/([^\s]+)/g;
+
+function attachmentLabel(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+
+function RoomAttachment({ client, teamId, path }: { client: StudioClient; teamId: string; path: string }) {
+  const [data, setData] = useState<{ mimeType: string; dataBase64: string; size: number } | undefined>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void client
+      .query("team.files.data", { teamId, path })
+      .then(result => {
+        if (active) setData(result);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, teamId, path]);
+  const label = attachmentLabel(path);
+  if (failed) return <span className="tw-attachment tw-attachment-failed">{label}</span>;
+  if (!data) return <span className="tw-hint">loading {label}…</span>;
+  const src = `data:${data.mimeType};base64,${data.dataBase64}`;
+  if (data.mimeType.startsWith("image/")) {
+    return <img className="tw-attachment-image" src={src} alt={label} />;
+  }
+  return (
+    <a className="tw-attachment" href={src} download={label}>
+      {label} · {Math.ceil(data.size / 1024)} KiB
+    </a>
+  );
+}
+
+function RoomMessageBody({ client, teamId, body }: { client: StudioClient; teamId: string; body: string }) {
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of body.matchAll(ATTACHMENT_RE)) {
+    const start = match.index ?? 0;
+    if (start > cursor) parts.push(body.slice(cursor, start));
+    const path = match[1]!;
+    parts.push(<RoomAttachment key={`${start}:${path}`} client={client} teamId={teamId} path={path} />);
+    cursor = start + match[0].length;
+  }
+  if (cursor < body.length) parts.push(body.slice(cursor));
+  return <>{parts.length > 0 ? parts : body}</>;
+}
+
 function TeamPlanPanel({
   client,
   copy,
@@ -1798,7 +1850,7 @@ function TasksTab({
 										<span className="tw-hint">
 											#{event.seq} {new Date(event.at * 1000).toLocaleString()}
 										</span>
-                    <code>{event.kind}</code> {event.body}
+                    <code>{event.kind}</code> <RoomMessageBody client={client} teamId={workspace.team.id} body={event.body} />
                   </li>
                 ))}
               </ul>

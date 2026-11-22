@@ -265,6 +265,9 @@ work is available without the full CLI grammar:
 
 - `init` creates `<root>/.zeta/team.json` plus `pms/`, `repos/`, and
   `worktrees/`, then registers the team. The team id is a slug of `<name>`.
+- Room messages may carry `attachment://<path>` references. The Web renders
+  images inline and other files as downloads; TUI renders a terminal hyperlink
+  (Ctrl+click opens the file). References are not uploads and stay on disk.
 - `persona` stores validated role packs under `<root>/.zeta/personas/<id>.json`.
   A pack carries its own name, role, model/thinking preferences, skills,
   permission map, memory scope, working folder, and optional scoped plugin
