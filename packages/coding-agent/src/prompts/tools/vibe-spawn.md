@@ -6,6 +6,9 @@ CLI flavor by task:
 
 `prompt`: first session instruction. Worker starts with NO context beyond it; include files, constraints, acceptance criteria.
 `name`: optional session label; otherwise generated.
+`persona`: optional Team persona id. The persona's role, model/thinking preferences,
+skills, permissions, memory scope and scoped plugin pack are prepended to `prompt`.
+Repository `AGENTS.md` remains repository guidance, never the persona.
 
 Returns session id immediately. On worker completion, turn result—activity trace + worker response—delivered automatically. Do not wait unless blocked; direct other sessions.
 

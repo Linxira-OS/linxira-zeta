@@ -24,6 +24,9 @@ import vibeSpawnDescription from "../prompts/tools/vibe-spawn.md" with { type: "
 import vibeWaitDescription from "../prompts/tools/vibe-wait.md" with { type: "text" };
 
 import { type VibeScreenSnapshot, type VibeWaitOutcome } from "@linxiraos/pi-tui/tools/vibe";
+import { readTeamPersona } from "../team/personas";
+import { renderTeamPersonaPrompt } from "../team/persona-prompt";
+import { resolveTeamLocation } from "../team/paths";
 import { VibeSessionRegistry } from "../vibe/runtime";
 import type { Tool, ToolSession } from "./index";
 
@@ -36,6 +39,9 @@ const vibeSpawnSchema = type({
 	role: type("string <= 32").describe("stable lowercase module slug, separate from each assignment"),
 	"lifecycle?": type("'resident' | 'ephemeral'").describe("retention policy; defaults to resident"),
 	"name?": type("string <= 48").describe("optional display-id prefix; defaults to role-generation"),
+	"persona?": type("string > 0").describe(
+		"Team persona id from <team>/.zeta/personas; its identity precedes the assignment",
+	),
 	prompt: type("string > 0").describe("assignment brief; the worker starts with no other context"),
 });
 
@@ -98,7 +104,19 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 	}
 
 	async execute(_toolCallId: string, params: typeof vibeSpawnSchema.infer): Promise<AgentToolResult<VibeToolDetails>> {
-		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, params);
+		const { persona, ...spawnParams } = params;
+		let promptText = params.prompt;
+		if (persona) {
+			const location = await resolveTeamLocation(this.session.cwd);
+			if (!location) throw new Error(`Team persona "${persona}" requires a Team root`);
+			const pack = await readTeamPersona(location.teamRoot, persona);
+			if (!pack) throw new Error(`Unknown Team persona "${persona}" in ${location.teamRoot}`);
+			promptText = renderTeamPersonaPrompt(pack, params.prompt);
+		}
+		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, {
+			...spawnParams,
+			prompt: promptText,
+		});
 		return textResult(
 			`Spawned ${params.cli} session \`${id}\` (turn job \`${jobId}\`). The turn result will be delivered when it finishes — keep directing other sessions meanwhile. Continue this one with vibe_send \`${id}\`.`,
 			{ op: "spawn", ...wallOf(this.session), spawned: { id, cli: params.cli, jobId } },
