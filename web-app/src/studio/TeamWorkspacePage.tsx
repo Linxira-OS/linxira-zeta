@@ -81,6 +81,8 @@ const COPY = {
     imBoundary:
       "Reads the IM backend selector and the canonical gateway transcript; no second transcript store. Local single-user boundary.",
     team: "Team",
+    personas: "Personas",
+    noPersonas: "No personas yet.",
     pms: "PMs",
     engineers: "Engineers",
     repos: "Repos",
@@ -179,6 +181,8 @@ const COPY = {
     im: "IM 聊天",
     imBoundary: "读取 IM 后端选择器与 canonical 网关 transcript，不新建 transcript store；本地单用户边界。",
     team: "团队",
+    personas: "人设",
+    noPersonas: "尚未创建人设。",
     pms: "PM",
     engineers: "工程师",
     repos: "仓库",
@@ -474,6 +478,14 @@ export function TeamWorkspacePage({
           </div>
         </section>
         {workspace ? <>
+          <section className="tw-rail-section">
+            <h3>{copy.personas}</h3>
+            {workspace.personas.length > 0 ? (
+              <ul className="tw-rail-plain">
+                {workspace.personas.map(persona => <li key={persona.id}>{persona.name} <span className="tw-rail-meta">{persona.role}</span></li>)}
+              </ul>
+            ) : <p className="tw-rail-empty">{copy.noPersonas}</p>}
+          </section>
           <section className="tw-rail-section">
             <h3>{copy.pms}</h3>
             <ul className="tw-rail-plain">

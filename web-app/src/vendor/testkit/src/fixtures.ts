@@ -573,6 +573,7 @@ const QUERY_RESPONSES = {
     queryName: "team.read",
     result: {
       team: { id: "team-fixture", name: "Fixture Team", createdAt: 0 },
+      personas: [],
       pms: [],
       engineers: [],
       repos: [],

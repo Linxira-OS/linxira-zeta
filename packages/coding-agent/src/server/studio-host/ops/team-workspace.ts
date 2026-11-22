@@ -34,6 +34,7 @@ import type {
 } from "../contract/index.js";
 import { invalid } from "../gateway.js";
 import { diagnoseTeam } from "../../../team/doctor.js";
+import { listTeamPersonas } from "../../../team/personas.js";
 import {
 	TeamDb,
 	type BootstrapRunRecord,
@@ -239,7 +240,10 @@ function mapMember(member: RoomMemberRecord, label: (id: string) => string): Tea
 /** One consistent Team snapshot for the workspace pane. */
 async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 	const team = teamRow(teamId);
-	const model = await readTeamReadModel({ teamRoot: team.rootPath });
+	const [model, personaList] = await Promise.all([
+		readTeamReadModel({ teamRoot: team.rootPath }),
+		listTeamPersonas(team.rootPath),
+	]);
 	const db = new TeamDb();
 	try {
 		const label = labelMap(db, teamId);
@@ -252,6 +256,19 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 		const worktrees: WorktreeRecord[] = db.listWorktrees(teamId);
 		return {
 			team: { id: team.id, name: team.name, createdAt: team.createdAt },
+			personas: personaList.personas.map(persona => ({
+				id: persona.id,
+				revision: persona.revision,
+				name: persona.name,
+				role: persona.role,
+				...(persona.description ? { description: persona.description } : {}),
+				...(persona.model ? { model: persona.model } : {}),
+				...(persona.thinkingLevel ? { thinkingLevel: persona.thinkingLevel } : {}),
+				skills: persona.skills ?? [],
+				permissions: persona.permissions ?? {},
+				memoryScope: persona.memoryScope ?? "none",
+				...(persona.pluginPack ? { pluginPack: persona.pluginPack } : {}),
+			})),
 			pms: model.pms.map((pm: PmRecord) => ({ id: pm.id, name: pm.name })),
 			engineers: model.engineers.map((engineer: EngineerRecord) => ({
 				id: engineer.id,
@@ -280,7 +297,7 @@ async function readTeam(teamId: string): Promise<TeamWorkspaceReadModel> {
 			roomMembers,
 			tasks: model.tasks.map(task => taskView(task, model.taskEvents[task.id] ?? [])),
 			bootstrapRuns: model.bootstrapRuns.map(run => mapRun(run, db.listBootstrapSteps(run.runId))),
-			warnings: model.warnings,
+			warnings: [...model.warnings, ...personaList.problems.map(problem => `persona ${problem}`)],
 		};
 	} finally {
 		db.close();

@@ -254,8 +254,23 @@ export interface TeamDoctorSummary {
 }
 
 /** Complete Team workspace snapshot; real rows only, no fabricated agents. */
+export interface TeamPersonaView {
+	readonly id: string;
+	readonly revision: number;
+	readonly name: string;
+	readonly role: string;
+	readonly description?: string;
+	readonly model?: string;
+	readonly thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "max";
+	readonly skills: readonly string[];
+	readonly permissions: Readonly<Record<string, "allow" | "prompt" | "deny">>;
+	readonly memoryScope: "team" | "global-taste" | "none";
+	readonly pluginPack?: { readonly root: string; readonly hash?: string };
+}
+
 export interface TeamWorkspaceReadModel {
 	readonly team: TeamSummary;
+	readonly personas: ReadonlyArray<TeamPersonaView>;
 	readonly pms: ReadonlyArray<TeamWorkspacePm>;
 	readonly engineers: ReadonlyArray<TeamWorkspaceEngineer>;
 	readonly repos: ReadonlyArray<TeamWorkspaceRepo>;
