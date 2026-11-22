@@ -2098,6 +2098,13 @@ export interface Messages {
 	cmdExtensions: string;
 	cmdAgents: string;
 	cmdTeam: string;
+	cmdTeamHome: string;
+	cmdTeamStatus: string;
+	cmdTeamPersona: string;
+	cmdTeamPlan: string;
+	cmdTeamProfile: string;
+	cmdTeamMemory: string;
+	cmdTeamIdentity: string;
 	cmdTeamOn: string;
 	cmdTeamOff: string;
 	cmdTeamHub: string;

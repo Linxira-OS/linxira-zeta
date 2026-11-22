@@ -2047,6 +2047,10 @@ export async function runRootCommand(
 		// start one when backend mode is on, and fail closed on a version
 		// conflict. Explicit remote URLs are never replaced by a local start.
 		// Standalone and protocol launches keep their own transport rules.
+		// Usage-shape rejection must precede implying a Host: a bad --goal
+		// combination must not start or adopt a backend first.
+		validateGoalLaunch(parsedArgs, isInteractive);
+		validateRestoreLaunch(parsedArgs, isInteractive);
 		if (
 			isInteractive &&
 			(backendEnabled || explicitBackend) &&
@@ -2121,11 +2125,6 @@ export async function runRootCommand(
 		}
 		// Upstream guard: claim the terminal before browser tabs are opened for this session.
 		if (isInteractive) claimTerminal();
-		// Before session resolution: resume, fork, and import act on these same
-		// startup-parse flags, so rejecting later would leave forked or imported
-		// transcripts (or an opened picker) behind a usage error.
-		validateGoalLaunch(parsedArgs, isInteractive);
-		validateRestoreLaunch(parsedArgs, isInteractive);
 		// Without piped text the prompt must come from argv, which only the
 		// post-extension reparse can settle: an extension string flag's value
 		// (`--spawn-peer reviewer`) looks like a prompt here, and a boolean flag

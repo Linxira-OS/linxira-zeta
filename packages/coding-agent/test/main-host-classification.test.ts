@@ -17,6 +17,8 @@ it("classifies an interactive host before opening auth storage", async () => {
 	let observedTimeout: number | undefined;
 	const parsed = parseArgs([]);
 	parsed.noExtensions = true;
+	// This test observes auth classification, not Host adoption; keep it local.
+	parsed.standalone = true;
 	// An interactive launch needs a terminal on stdin; without one it exits 2.
 	const originalIsTTY = process.stdin.isTTY;
 	Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });

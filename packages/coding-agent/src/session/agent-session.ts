@@ -74,6 +74,7 @@ export interface LeadModeEntryOptions {
 	persistModeChange?: boolean;
 	previousTools?: string[];
 }
+import { resolveTeamLocation } from "../team/paths";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -4237,8 +4238,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		};
 		this.#maintenance = new SessionMaintenance(maintenanceHost);
 		this.addDisposer(
-			this.#maintenance.onCommit(() => {
-				this.sessionManager.segmentAfterCompaction();
+			this.#maintenance.onCommit(async commit => {
+				// Handoff is a deliberate in-place replacement; only Team context
+				// compactions start a new transcript segment.
+				if (commit.method === "handoff") return;
+				if (await resolveTeamLocation(this.sessionManager.getCwd())) {
+					this.sessionManager.segmentAfterCompaction();
+				}
 			}),
 		);
 		this.addDisposer(

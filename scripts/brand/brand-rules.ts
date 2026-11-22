@@ -489,6 +489,7 @@ export const MUST_NOT_CONTAIN: Array<{
 			"README.md", // MIT attribution for the ported renderer names the upstream project
 			"packages/coding-agent/test/studio-protocol.test.ts", // the wire-contract test must name the rejected upstream protocol
 			"scripts/studio-sync.ts", // exact official repository and upstream package names are synchronization inputs
+			"scripts/check-release-docs.ts", // matches the upstream baseline row to verify release prose
 			"scripts/studio-assets.ts", // source-sync overlay: upstream names are rewrite inputs, never shipped copy
 			"scripts/studio-sync.test.ts", // upstream import fixture proves the namespace mapping
 			"CONTRIBUTING.md", // upstream issue routing and attribution
