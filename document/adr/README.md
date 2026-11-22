@@ -116,6 +116,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0088](0088-one-host-many-clients.md) | One machine Host serves every Zeta client and one session identity | Accepted | 2026-11-22 | — | [ensure-host](../../packages/coding-agent/src/backend/ensure-host.ts), [desktop](../../desktop/src/main.ts), [Work Studio](../../web-app/src/studio/App.tsx) |
 | [0089](0089-omp-v19-baseline-hold.md) | OMP v19 is the target baseline; the conflicting sync is not merged | Accepted | 2026-11-22 | — | [conflict audit](../agents/merge/v19.0.0-conflict-audit.md), [PR #325](https://github.com/Linxira-OS/linxira-zeta/pull/325) |
 | [0090](0090-line-provenance-and-agent-trailers.md) | Line provenance comes from git; agent commits carry an explicit trailer | Proposed | 2026-11-22 | — | [TermIDE blame](../../termide/crates/git/src/blame.rs), [ADR skill](../../skills/official/adr/SKILL.md) |
+| [0091](0091-team-agent-roles-and-coordinator.md) | Team mode should use named roles and a confirming coordinator | Proposed | 2026-11-22 | — | [PiBot](https://github.com/w01fb0ss/PiBot), [Vibe/Team](../../docs/vibe-mode.md), [ADR-0038](0038-two-lane-agent-hierarchy.md) |
 
 ## File and numbering rules
 
