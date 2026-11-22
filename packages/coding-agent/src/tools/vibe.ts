@@ -107,6 +107,7 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 	async execute(_toolCallId: string, params: typeof vibeSpawnSchema.infer): Promise<AgentToolResult<VibeToolDetails>> {
 		const { persona, ...spawnParams } = params;
 		let promptText = params.prompt;
+		let model: string | undefined;
 		if (persona) {
 			const location = await resolveTeamLocation(this.session.cwd);
 			if (!location) throw new Error(`Team persona "${persona}" requires a Team root`);
@@ -114,9 +115,11 @@ export class VibeSpawnTool implements AgentTool<typeof vibeSpawnSchema, VibeTool
 			if (!pack) throw new Error(`Unknown Team persona "${persona}" in ${location.teamRoot}`);
 			const memory = pack.memoryScope === "team" ? await readTeamMemory(location.teamRoot, pack.id) : undefined;
 			promptText = renderTeamPersonaPrompt(pack, params.prompt, memory);
+			model = pack.model;
 		}
 		const { id, jobId } = await VibeSessionRegistry.global().spawn(this.session, {
 			...spawnParams,
+			...(model ? { model } : {}),
 			prompt: promptText,
 		});
 		return textResult(

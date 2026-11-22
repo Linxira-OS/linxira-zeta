@@ -642,12 +642,13 @@ export class VibeSessionRegistry {
 		}
 	}
 
-	#resolveWorker(session: VibeParentSession, cli: VibeCli): ResolvedVibeWorker {
+	#resolveWorker(session: VibeParentSession, cli: VibeCli, model?: string): ResolvedVibeWorker {
 		const agentName = VIBE_CLI_AGENT[cli];
 		const agent = getBundledAgent(agentName);
 		if (!agent) {
 			throw new ToolError(`Bundled agent "${agentName}" for vibe cli "${cli}" is unavailable.`);
 		}
+		if (model?.trim()) return { agent, modelOverride: model.trim(), modelRole: "persona" };
 		const agentModelOverrides = cfgTaskAgentModelOverrides.get(session.settings);
 		// Same contract as the task spawn path: the expansion discards the role
 		// alias (`@task`, `@smol`), so patterns and role identity come from one
@@ -1243,7 +1244,15 @@ export class VibeSessionRegistry {
 	/** Spawn a persistent worker session and start its first turn in the background. */
 	async spawn(
 		session: ToolSession,
-		args: { cli: VibeCli; role: string; lifecycle?: VibeLifecycleClass; name?: string; prompt: string },
+		args: {
+			cli: VibeCli;
+			role: string;
+			lifecycle?: VibeLifecycleClass;
+			name?: string;
+			prompt: string;
+			/** Persona-selected model pattern; overrides the bundled agent default. */
+			model?: string;
+		},
 	): Promise<VibeSpawnOutcome> {
 		const scope = this.ownerScope(session);
 		return this.#withTerminationLock(scope, () => this.#spawnLocked(session, scope, args));
@@ -1252,7 +1261,14 @@ export class VibeSessionRegistry {
 	async #spawnLocked(
 		session: ToolSession,
 		scope: VibeOwnerScope,
-		args: { cli: VibeCli; role: string; lifecycle?: VibeLifecycleClass; name?: string; prompt: string },
+		args: {
+			cli: VibeCli;
+			role: string;
+			lifecycle?: VibeLifecycleClass;
+			name?: string;
+			prompt: string;
+			model?: string;
+		},
 	): Promise<VibeSpawnOutcome> {
 		if (this.#terminatedScopes.has(scopeKey(scope, ""))) {
 			throw new ToolError("Vibe mode has exited; enter Vibe mode again before spawning a worker.");
@@ -1264,7 +1280,7 @@ export class VibeSessionRegistry {
 		}
 		const lifecycle = args.lifecycle ?? "resident";
 		const generation = this.#nextRoleGeneration(session, scope, role);
-		const { agent, modelOverride, modelRole } = this.#resolveWorker(session, args.cli);
+		const { agent, modelOverride, modelRole } = this.#resolveWorker(session, args.cli, args.model);
 		const requested = sanitizeAgentId(args.name);
 		const baseName = requested ?? (args.name ? generateTaskName() : `${role}-${generation}`);
 		if (!session.agentOutputManager) {
