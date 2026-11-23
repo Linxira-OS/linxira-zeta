@@ -33,6 +33,7 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `sync/omp-release/v19.1.0` | sync | OMP `v19.1.0` 真 merge；tip `8a92b497ceaa`；已合入 `main` | main | 2026-11-23 | 已并入 `main`；保留作恢复引用，删除前记 SHA |
 | `sync/omp-release/v19.0.0` | sync | OMP v19.0.0 真 merge；worktree `temp/omp-v19.0.0`，tip `579992ddd2e`；PR #325 | main | 2026-11-19 | 用户合并/关闭后删，删前记 SHA |
 | `sync/studio-v0.2.4` | sync | Studio v0.2.4 机械差异 + 共享协议/包同步；tip `03c247259d`；Host/契约适配已完成并随 v1.5.13 发布 | main | 2026-11-21 | 已并入 `main`；保留作恢复引用，删除前记 SHA |
 | `fix/1.5.13-hotfix` | fix | 1.5.13 热修与路径治理；worktree `temp/1.5.13-hotfix`，tip `82f054e11f`；Studio v0.2.4、plan 自启门禁均已合入；v1.5.13 发布提交 `81e18b9184`（tag `v1.5.13`） | main | 2026-11-21 | 已随 v1.5.13 发布；分支保留作恢复引用，删除前记最终 SHA |
@@ -234,6 +235,7 @@
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `sync/omp-release/19.1.1-trial` | `2451e90d1e5` | 2026-11-24 | 只做 19.1.1 真 merge 预演：133 个冲突、无自动提交；冲突清单和日志归档到 `~/.zeta/parked-evidence/2026-11-24/`；worktree 已强制移除、本地分支已删除，未推远端 |
 | `sync/omp-release/v18.22.0` | `526f9a28e74` | 2026-11-19 | OMP `v18.22.0` 真 merge 已合入 `main`（merge `f0446a56f09`，PR #324）；main push CI 44486728118 全绿；远端与本地分支已删除；worktree 注册已移除，残留目录待清理 |
 | `chore/electron-latest-stable` | `625e1d1538ddab34033227e7c87103ffd076c896` | 2026-11-11 | PR #318 已合并；cache-cleanup 确认 `temp/electron-latest` worktree/registration 与本地分支均已删除；不删除远端分支 |
 | `feat/compat-cleanup` | `b2aa276c8962bd1bf44924f0cc161de688e6e467` | 2026-11-11 | 已在 `5a2ef25974a` 登记后由 cache-cleanup 删除 `temp/compat-cleanup` worktree 与本地分支；最终 links=0；`.zeta` 工具源码与 `serve.out.log` / `serve.err.log` 保存在 `~/.zeta/parked-evidence/2026-11-11/compat-cleanup/`；不删除远端分支 |
