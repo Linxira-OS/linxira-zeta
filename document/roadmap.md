@@ -699,7 +699,7 @@ protocols and auth flows.
   Zeta 专属 issue/PR。后续按序做：① 替换资源/名称/logo；② 建立显式 zh-CN 文案目录；
   ③ 接独立 lockfile、CI、构建和独立 tag（`zeta-terminal-v*`）。完成①前 `terminal/`
   继续从品牌扫描排除，完成③前不进入任何发布链。等 OMP v19.1 CI 与 v19.1.1
-  快同步验证完成后再开工。
+  快同步验证完成后再开工。组件 tag 拆分见 ADR-0098。
 
 - **Attach 会话生命周期命令仍在 replica 上执行（2026-10-22 登记）**：附着 TUI 的控制面
   已走 RPC WebSocket（prompt/steer/follow-up/abort、对话框、plan_approve、模型/思考/
