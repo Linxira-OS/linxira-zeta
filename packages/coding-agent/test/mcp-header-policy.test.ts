@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { setGeneratedHeader } from "@linxiraos/zeta/mcp/transports/header-policy";
+import { setGeneratedHeader } from "@linxiraos/zeta/mcp/host/header-policy";
 import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";

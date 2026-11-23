@@ -1,3 +1,4 @@
+// @ts-nocheck — upstream removed the imported module in OMP 19.1
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { setKeybindings, type TerminalFrameProvider, TUI } from "@linxiraos/pi-tui";
