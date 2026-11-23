@@ -67,7 +67,7 @@ rust_binary(
         "//conditions:default": [],
     }),
     version = "1.5.13",
-    deps = all_crate_deps(normal = True) + [":pi-shell"],
+    deps = all_crate_deps(normal = True) + [":shell"],
 )
 
 # Unit tests, including the engine, host and pi-host suites under

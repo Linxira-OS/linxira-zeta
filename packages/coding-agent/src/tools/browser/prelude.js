@@ -17,8 +17,8 @@
 	};
 	// Functions and RegExps nested in plain objects and arrays (`requests({filter: /x/})`) are encoded too.
 	const encodeArg = (label, value) => {
-		if (typeof value === "function") return { __omp_fn: serializeFunction(label, value) };
-		if (value instanceof RegExp) return { __omp_re: { source: value.source, flags: value.flags } };
+		if (typeof value === "function") return { __zeta_fn: serializeFunction(label, value) };
+		if (value instanceof RegExp) return { __zeta_re: { source: value.source, flags: value.flags } };
 		if (Array.isArray(value)) return value.map(item => encodeArg(label, item));
 		if (value !== null && typeof value === "object") {
 			const prototype = Object.getPrototypeOf(value);
@@ -35,9 +35,9 @@
 	};
 	// `quiet`: the caller returns the structured value, so its listing (page URLs with tokens) is not printed.
 	const invoke = async (action, options, quiet = false) => {
-		const response = await globalThis.__omp_prelude__("browser", { ...options, action });
+		const response = await globalThis.__zeta_prelude__("browser", { ...options, action });
 		if (!quiet && response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__omp_log__("log", response.text);
+			globalThis.__zeta_log__("log", response.text);
 		}
 		return response && typeof response.details === "object" && response.details !== null ? response.details : {};
 	};

@@ -1,6 +1,6 @@
 //! Windows Projected File System backend.
 //!
-//! Ported from the original `pi_natives::projfs_overlay`; the napi-derived
+//! Ported from the original `omp_natives::projfs_overlay`; the napi-derived
 //! types and the `Result<()>` alias from `napi::bindgen_prelude` are
 //! replaced with the platform-neutral [`crate::IsoError`] /
 //! [`crate::ProbeResult`].

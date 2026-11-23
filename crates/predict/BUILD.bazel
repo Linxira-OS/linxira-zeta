@@ -5,7 +5,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["Cargo.toml"])
 
-# napi-free word-completion engines (personal n-gram, SmolLM2). pi_natives
+# napi-free word-completion engines (personal n-gram, SmolLM2). omp_natives
 # wraps them in the `TextPredictor` N-API class served by the text-prediction
 # daemon.
 rust_library(

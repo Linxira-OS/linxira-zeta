@@ -6,7 +6,7 @@
 	for (const method in spec.methods) {
 		const tool = spec.methods[method];
 		const label = `${spec.name}.${method}`;
-		namespace[method] = args => globalThis.__omp_call_tool__("__mcp__", { tool, label, args: args ?? {} });
+		namespace[method] = args => globalThis.__zeta_call_tool__("__mcp__", { tool, label, args: args ?? {} });
 	}
 	globalThis[spec.name] = Object.freeze(namespace);
 })

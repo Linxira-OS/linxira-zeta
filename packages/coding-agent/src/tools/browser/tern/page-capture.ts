@@ -48,7 +48,7 @@ export interface TernCaptureConfig {
 }
 
 /** Name of the page-world global holding the capture state. */
-export const TERN_CAPTURE_GLOBAL = "__ompTernCapture";
+export const TERN_CAPTURE_GLOBAL = "__zetaTernCapture";
 
 /**
  * Source of a page function `(config) => void` that installs the capture in
@@ -56,7 +56,7 @@ export const TERN_CAPTURE_GLOBAL = "__ompTernCapture";
  * calls). No `eval`: page CSP never applies to it.
  */
 export const TERN_CAPTURE_INSTALLER = String.raw`function (config) {
-	const KEY = "__ompTernCapture";
+	const KEY = "__zetaTernCapture";
 	const existing = globalThis[KEY];
 	if (existing) {
 		const wasOffline = !!existing.config.emulation.offline;

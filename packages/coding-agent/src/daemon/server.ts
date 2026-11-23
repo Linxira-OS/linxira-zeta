@@ -1,5 +1,5 @@
 /**
- * The single per-user omp daemon process (`__omp_worker_daemon`): one
+ * The single per-user omp daemon process (`__zeta_worker_daemon`): one
  * listener, hello/token auth, control-op dispatch into the {@link UnitTable},
  * raw tunnels after `attach`, board/completion fan-out, idle exit, and in-place
  * re-exec into a newer client's build on `upgrade`.

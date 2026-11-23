@@ -499,7 +499,7 @@ export class PageConsoleCapture {
 
 /** Page-side console capture hook used by the cmux backend. */
 export const CMUX_CONSOLE_CAPTURE_SCRIPT = String.raw`(() => {
-	if (globalThis.__ompConsoleCapture) return true;
+	if (globalThis.__zetaConsoleCapture) return true;
 	const state = { entries: [], nextSeq: 1, dropped: 0 };
 	const push = entry => {
 		state.entries.push({ seq: state.nextSeq++, ts: Date.now(), ...entry });
@@ -538,6 +538,6 @@ export const CMUX_CONSOLE_CAPTURE_SCRIPT = String.raw`(() => {
 		const reason = event.reason;
 		push({ type: "pageerror", level: "error", text: reasonText(reason).slice(0, 16384), stack: reason && reason.stack ? String(reason.stack).slice(0, 32768) : undefined });
 	});
-	globalThis.__ompConsoleCapture = state;
+	globalThis.__zetaConsoleCapture = state;
 	return true;
 })()`;

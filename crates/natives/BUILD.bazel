@@ -151,7 +151,7 @@ write_file(
 # (`bun --cwd packages/natives run build:bindings`); index.js/index.d.ts are
 # committed, so artifact builds never need the napi CLI.
 rust_shared_library(
-    name = "pi_natives",
+    name = "omp_natives",
     srcs = glob(["src/**/*.rs"]),
     aliases = aliases(),
     compile_data = [
@@ -269,7 +269,7 @@ rust_test(
 
 rust_test(
     name = "pi_natives_test",
-    crate = ":pi_natives",
+    crate = ":omp_natives",
     edition = "2024",
     proc_macro_deps = all_crate_deps(proc_macro_dev = True),
     deps = all_crate_deps(normal_dev = True) + [

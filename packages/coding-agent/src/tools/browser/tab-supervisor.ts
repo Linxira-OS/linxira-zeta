@@ -710,12 +710,12 @@ async function acquireTabImpl(
 		}
 	}
 
-	if ("client" in browser || "tern" in browser || "webkit" in browser) {
+	if ("client" in browser || "zeta" in browser || "webkit" in browser) {
 		try {
 			const result =
 				"client" in browser
 					? await acquireCmuxTab(name, browser, opts)
-					: "tern" in browser
+					: "zeta" in browser
 						? await acquireTernTab(name, browser, opts)
 						: await acquireWebKitTab(name, browser, opts);
 			if (tempHold) await releaseBrowser(browser, { kill: false });
@@ -1031,7 +1031,7 @@ export function ternBlocksTaken(except?: string): Map<number, string> {
 /** Whether reopening Tern tab `existing` with `opts.target` names the block it already adopted. */
 async function adoptsSameBlock(existing: TernTabSession, opts: AcquireTabOptions): Promise<boolean> {
 	if (!existing.ternTab.adopted || opts.target === undefined) return false;
-	const blocks = await listTernBlocks(existing.browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
+	const blocks = await listTernBlocks(existing.browser.zeta, { timeoutMs: opts.timeoutMs, signal: opts.signal });
 	return pickTernBlock(blocks, opts.target, ternBlocksTaken(existing.name))?.block === existing.ternTab.block;
 }
 
@@ -1064,17 +1064,17 @@ async function acquireTernTab(
 	};
 	let ternTab: Tern.TernTab;
 	if (opts.target === undefined) {
-		ternTab = await TernTab.open(browser.tern, {
+		ternTab = await TernTab.open(browser.zeta, {
 			...settings,
 			pane: browser.kind.pane,
 			viewport: opts.viewport ?? DEFAULT_VIEWPORT,
 		});
 	} else {
-		const blocks = await listTernBlocks(browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
+		const blocks = await listTernBlocks(browser.zeta, { timeoutMs: opts.timeoutMs, signal: opts.signal });
 		const taken = ternBlocksTaken(name);
 		const block = pickTernBlock(blocks, opts.target, taken);
 		if (!block) throw noTernBlockError(blocks, opts.target, taken);
-		ternTab = await TernTab.adopt(browser.tern, { ...settings, block, viewport: opts.viewport });
+		ternTab = await TernTab.adopt(browser.zeta, { ...settings, block, viewport: opts.viewport });
 	}
 	try {
 		const info = await ternTab.readyInfo();
@@ -3156,7 +3156,7 @@ async function spawnTabWorker(): Promise<WorkerHandle> {
 	try {
 		const hostEntry = workerHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_tab"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_tab"] })
 			: new Worker(new URL("./tab-worker-entry.ts", import.meta.url).href, { type: "module" });
 		return wrapBunWorker(worker);
 	} catch (err) {

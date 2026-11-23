@@ -22,7 +22,7 @@ export type { DaemonRestartPolicy, ProcSpec, UnitPolicy, UnitScope, UnitSnapshot
 /** Bumped only for incompatible control-protocol changes; ops are otherwise additive. */
 export const DAEMON_PROTOCOL_VERSION = 1;
 /** Hidden CLI selector that runs the daemon. */
-export const DAEMON_WORKER_ARG = "__omp_worker_daemon";
+export const DAEMON_WORKER_ARG = "__zeta_worker_daemon";
 /** `host:port`; makes the daemon listen on, and clients dial, loopback TCP instead of the local IPC endpoint. */
 export const DAEMON_TCP_ENV = "OMP_DAEMON_TCP";
 /** Runtime directory override, for smoke tests and isolated consumers. */

@@ -1,7 +1,7 @@
 /**
  * Shell process: the bash tool's shell run as a process of its own.
  *
- * `omp __omp_worker_shell_process [options] -- <command>` runs one command in
+ * `omp __zeta_worker_shell_process [options] -- <command>` runs one command in
  * the embedded engine with the tool profile (omp's utilities and tools resolve
  * ahead of `PATH`) over this process's own stdin, stdout and stderr, then
  * exits with its status. Externals stay in this process's session and group,

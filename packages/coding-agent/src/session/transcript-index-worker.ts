@@ -1,7 +1,7 @@
 /**
  * Transcript index worker thread: runs {@link syncTranscriptIndex} off its
  * host's event loop. Spawned by {@link TranscriptIndexer} through the CLI
- * host's `__omp_worker_transcript_index` selector, or loaded directly outside
+ * host's `__zeta_worker_transcript_index` selector, or loaded directly outside
  * a CLI host.
  */
 import { parentPort } from "node:worker_threads";

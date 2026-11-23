@@ -82,7 +82,7 @@ export interface EvalPreludeDefinition {
 	enabled?: () => boolean;
 	/**
 	 * Execute a host call outside the language VM. Omitted by preludes whose snippets
-	 * only call session tools (`__omp_call_tool__`), which carry their own approval.
+	 * only call session tools (`__zeta_call_tool__`), which carry their own approval.
 	 */
 	invoke?(parameters: unknown, context: EvalPreludeContext): Promise<AgentToolResult<unknown>>;
 	/**
@@ -94,7 +94,7 @@ export interface EvalPreludeDefinition {
 	status?(parameters: unknown, result: AgentToolResult<unknown>): string | undefined;
 }
 
-/** A prelude whose snippets call back into its own host handler through `__omp_prelude__`. */
+/** A prelude whose snippets call back into its own host handler through `__zeta_prelude__`. */
 export interface HostEvalPreludeDefinition extends EvalPreludeDefinition {
 	invoke(parameters: unknown, context: EvalPreludeContext): Promise<AgentToolResult<unknown>>;
 }

@@ -51,7 +51,7 @@ interface CursorPageGlobal {
 	readonly document: CursorDocument;
 	readonly innerWidth: number;
 	readonly innerHeight: number;
-	__ompRecordingCursorCleanup?: () => void;
+	__zetaRecordingCursorCleanup?: () => void;
 	addEventListener(type: string, listener: (event: CursorMouseEvent) => void, capture: boolean): void;
 	removeEventListener(type: string, listener: (event: CursorMouseEvent) => void, capture: boolean): void;
 }
@@ -226,7 +226,7 @@ function recordingError(error: unknown, action: string): BrowserRecordingError {
 export function installCursorOverlay(): void {
 	const state = globalThis as unknown as CursorPageGlobal;
 	const document = state.document;
-	state.__ompRecordingCursorCleanup?.();
+	state.__zetaRecordingCursorCleanup?.();
 	let root: CursorElement | undefined;
 	let pointer: CursorElement | undefined;
 	const onMove = (event: CursorMouseEvent): void => {
@@ -242,9 +242,9 @@ export function installCursorOverlay(): void {
 		ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
 	};
 	const mount = (): void => {
-		if (document.getElementById("__omp_recording_cursor__")) return;
+		if (document.getElementById("__zeta_recording_cursor__")) return;
 		root = document.createElement("div");
-		root.id = "__omp_recording_cursor__";
+		root.id = "__zeta_recording_cursor__";
 		root.setAttribute("aria-label", "OMP recording cursor overlay");
 		root.setAttribute("aria-hidden", "true");
 		root.setAttribute("inert", "");
@@ -262,21 +262,21 @@ export function installCursorOverlay(): void {
 	else document.addEventListener("DOMContentLoaded", mount, { once: true });
 	state.addEventListener("mousemove", onMove, true);
 	state.addEventListener("mousedown", onDown, true);
-	state.__ompRecordingCursorCleanup = () => {
+	state.__zetaRecordingCursorCleanup = () => {
 		document.removeEventListener("DOMContentLoaded", mount);
 		state.removeEventListener("mousemove", onMove, true);
 		state.removeEventListener("mousedown", onDown, true);
 		root?.remove();
-		document.getElementById("__omp_recording_cursor__")?.remove();
-		delete state.__ompRecordingCursorCleanup;
+		document.getElementById("__zeta_recording_cursor__")?.remove();
+		delete state.__zetaRecordingCursorCleanup;
 	};
 }
 
 /** Page function removing the cursor overlay `installCursorOverlay` drew, and its listeners. */
 export function removeCursorOverlay(): void {
 	const state = globalThis as unknown as CursorPageGlobal;
-	state.__ompRecordingCursorCleanup?.();
-	state.document.getElementById("__omp_recording_cursor__")?.remove();
+	state.__zetaRecordingCursorCleanup?.();
+	state.document.getElementById("__zeta_recording_cursor__")?.remove();
 }
 
 class CdpRecordingSource implements RecordingFrameSource {

@@ -2,7 +2,7 @@
 //!
 //! `AppKit`'s shared spell checker must keep a stable thread identity, so
 //! every caller in the process (the `apple` engine here, typo detection and
-//! autocorrect in `pi_natives::spelling`) submits work to this lazily spawned,
+//! autocorrect in `omp_natives::spelling`) submits work to this lazily spawned,
 //! dedicated thread. Ranges are UTF-16 offsets, the unit both `NSString` and
 //! JavaScript strings index by.
 //!

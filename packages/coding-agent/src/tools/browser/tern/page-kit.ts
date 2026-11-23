@@ -108,7 +108,7 @@ export interface TernGeometry {
 }
 
 /**
- * Methods of `globalThis.__ompTernKit`, called by omp from the isolated world as
+ * Methods of `globalThis.__zetaTernKit`, called by omp from the isolated world as
  * `kit[method](...args)`. Every argument and result is JSON; failures throw `Error`s with
  * agent-readable messages (a missing element: `No element matches <JSON selector>`).
  */
@@ -1132,7 +1132,7 @@ const kit = {
 	activeEditable: () => isTextEditable(deepActiveElement()),
 };
 
-Object.defineProperty(globalThis, "__ompTernKit", { value: kit, configurable: true });
+Object.defineProperty(globalThis, "__zetaTernKit", { value: kit, configurable: true });
 `;
 
 // Page-side frame announcement, plain JS under the same rules as KIT_BODY.
@@ -1163,7 +1163,7 @@ if (window !== window.parent) {
 
 /**
  * Script (valid both as a top-level classic script and as a function body) that installs the kit as
- * `globalThis.__ompTernKit` in the current realm if absent and, in a child frame, registers the frame's
+ * `globalThis.__zetaTernKit` in the current realm if absent and, in a child frame, registers the frame's
  * index path (`"0"`, `"1.0"`, …) via `webkit.messageHandlers.stencilFrame`. Idempotent. Embeds a private
  * instance of the Playwright ARIA bundle, the semantic query handlers and the role rules; defines no other
  * globals and uses nothing CSP-gated.
@@ -1171,7 +1171,7 @@ if (window !== window.parent) {
 export const TERN_KIT_SOURCE = [
 	"(function () {",
 	'"use strict";',
-	"if (globalThis.__ompTernKit) return;",
+	"if (globalThis.__zetaTernKit) return;",
 	"const loadAria = function () {",
 	"var module = { exports: {} };",
 	ariaBundle,

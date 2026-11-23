@@ -42,7 +42,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use pi_vfs::{BlockingFs, OpenOptions};
+use omp_vfs::{BlockingFs, OpenOptions};
 
 #[cfg(unix)]
 use crate::rsync::{consts::MAXPATHLEN, ids::effective_uid, tree::sys};
@@ -903,7 +903,7 @@ pub(crate) fn open_operator_file(
 	fs: &BlockingFs,
 	path: &Path,
 	insecure: bool,
-) -> io::Result<pi_vfs::File> {
+) -> io::Result<omp_vfs::File> {
 	open_operator_file_with(fs, path, &OperatorOpts { insecure, confine: None })
 }
 
@@ -912,7 +912,7 @@ pub(crate) fn open_operator_file_with(
 	fs: &BlockingFs,
 	path: &Path,
 	opts: &OperatorOpts<'_>,
-) -> io::Result<pi_vfs::File> {
+) -> io::Result<omp_vfs::File> {
 	operator_open(fs, path, OpenKind::Read, opts)
 }
 
@@ -963,7 +963,7 @@ pub(crate) fn create_operator_file(
 	path: &Path,
 	append: bool,
 	insecure: bool,
-) -> io::Result<pi_vfs::File> {
+) -> io::Result<omp_vfs::File> {
 	let mode = if append { 0o644 } else { 0o600 };
 	create_operator_file_with(fs, path, append, mode, &OperatorOpts { insecure, confine: None })
 }
@@ -976,14 +976,14 @@ pub(crate) fn create_operator_file_with(
 	append: bool,
 	mode: u32,
 	opts: &OperatorOpts<'_>,
-) -> io::Result<pi_vfs::File> {
+) -> io::Result<omp_vfs::File> {
 	operator_open(fs, path, OpenKind::Create { append, mode }, opts)
 }
 
 /// Whether an opened `--read-batch` input may feed the protocol: a regular
 /// file or a FIFO (process substitution). Upstream otherwise prints
 /// "Batch file %s is neither a regular file nor a FIFO" and exits RERR_FILEIO.
-pub(crate) fn batch_input_ok(file: &pi_vfs::File) -> io::Result<bool> {
+pub(crate) fn batch_input_ok(file: &omp_vfs::File) -> io::Result<bool> {
 	let kind = file.metadata()?.file_type();
 	Ok(kind.is_file() || kind.is_fifo())
 }
@@ -993,7 +993,7 @@ fn operator_open(
 	path: &Path,
 	kind: OpenKind,
 	opts: &OperatorOpts<'_>,
-) -> io::Result<pi_vfs::File> {
+) -> io::Result<omp_vfs::File> {
 	if opts.insecure {
 		return fs.open_with(path, &kind.options());
 	}
@@ -1002,11 +1002,11 @@ fn operator_open(
 		let (flags, mode) = kind.flags();
 		let walk = OwnerWalk { confine: opts.confine, trusted: &trusted_owner };
 		let fd = owner_walk_open(path.as_os_str().as_bytes(), flags, mode, &walk)?;
-		return Ok(pi_vfs::File::from(std::fs::File::from(fd)));
+		return Ok(omp_vfs::File::from(std::fs::File::from(fd)));
 	}
 	// Path-based: provider paths everywhere, and native paths on Windows.
 	// Mounted descriptors (`zeta-descriptor://N`) are neither and open as-is.
-	if fs.is_native_local(path) || pi_vfs::is_virtual_path(path) {
+	if fs.is_native_local(path) || omp_vfs::is_virtual_path(path) {
 		virtual_owner_walk(fs, path, &trusted_owner)?;
 		if let Some(confine) = opts.confine {
 			check_confined(fs, path, confine, matches!(kind, OpenKind::Create { .. }))?;
@@ -1021,8 +1021,8 @@ fn check_confined(fs: &BlockingFs, path: &Path, confine: &Path, create: bool) ->
 	let resolved = match fs.canonicalize(path) {
 		Ok(resolved) => resolved,
 		Err(err) if create && err.kind() == io::ErrorKind::NotFound => {
-			let parent = pi_vfs::parent_path(path).ok_or(err)?;
-			let name = pi_vfs::file_name(path).ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+			let parent = omp_vfs::parent_path(path).ok_or(err)?;
+			let name = omp_vfs::file_name(path).ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
 			fs.canonicalize(parent)?.join::<&OsStr>(name.as_ref())
 		},
 		Err(err) => return Err(err),
@@ -1040,7 +1040,7 @@ pub(crate) fn virtual_owner_walk(fs: &BlockingFs, path: &Path, trusted: &dyn Fn(
 	let mut current = Some(path);
 	while let Some(p) = current {
 		prefixes.push(p.to_path_buf());
-		current = pi_vfs::parent_path(p).filter(|parent| parent.as_os_str().len() < p.as_os_str().len());
+		current = omp_vfs::parent_path(p).filter(|parent| parent.as_os_str().len() < p.as_os_str().len());
 	}
 	for prefix in prefixes.iter().rev() {
 		match fs.symlink_metadata(prefix) {

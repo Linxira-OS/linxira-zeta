@@ -1515,7 +1515,7 @@ export class CustomEditor extends Editor {
 				: state.ask === "skip"
 					? keyed(
 							row([node("text", { spans: [span("skips ask", "warning")], wrap: "none" }, undefined, "label")], {
-								role: "omp.composer.mode",
+								role: "zeta.composer.mode",
 								tone: "warning",
 								gap: "xs",
 								align: "center",

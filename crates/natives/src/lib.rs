@@ -7,7 +7,7 @@
 //!
 //! # Example
 //! ```ignore
-//! use pi_natives::text::visible_width;
+//! use omp_natives::text::visible_width;
 //!
 //! let width = visible_width("hello");
 //! assert_eq!(width, 5);

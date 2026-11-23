@@ -2,14 +2,14 @@
 //!
 //! Every engine answers "what is the rest of the word being typed?" for one
 //! [`Query`] and learns from submitted prompts. Engines are napi-free;
-//! `pi_natives::predict` runs each one on a dedicated thread behind the
+//! `omp_natives::predict` runs each one on a dedicated thread behind the
 //! `TextPredictor` N-API class, which the machine-global text-prediction
 //! daemon serves to every zeta process.
 //!
 //! # Architecture
 //! ```text
 //! editor (TUI) ──JSONL/unix socket──► text-prediction daemon (Bun worker)
-//!                                        └─ TextPredictor (N-API, pi_natives::predict)
+//!                                        └─ TextPredictor (N-API, omp_natives::predict)
 //!                                             └─ Box<dyn Predictor> on an engine thread
 //!                                                  ├─ ngram::open   (`auto`)
 //!                                                  ├─ smollm::open  (SmolLM2-135M, opt-in)

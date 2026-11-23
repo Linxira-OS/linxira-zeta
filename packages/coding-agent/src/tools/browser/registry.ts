@@ -76,7 +76,7 @@ export interface CmuxBrowserHandle extends BrowserHandleCommon {
 export interface TernBrowserHandle extends BrowserHandleCommon {
 	kind: TernKind;
 	/** The daemon connection every tab of this handle drives its PiP through. */
-	tern: TernSocketClient;
+	zeta: TernSocketClient;
 }
 
 /** omp's own WebKit host process, whose headless web views (one block each) are this handle's tabs. */
@@ -148,8 +148,8 @@ export async function acquireBrowser(kind: BrowserKind, opts: AcquireBrowserOpti
 		if (existing) {
 			if ("client" in existing) return existing;
 			if (
-				"tern" in existing
-					? existing.tern.connected
+				"zeta" in existing
+					? existing.zeta.connected
 					: "webkit" in existing
 						? existing.webkit.client.connected
 						: existing.browser.connected
@@ -251,7 +251,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 	if (kind.kind === "tern") {
 		const tern = new TernSocketClient({ socketPath: kind.socketPath });
 		await tern.connect();
-		return { key: browserKey(kind), kind, tern, refCount: 0 };
+		return { key: browserKey(kind), kind, zeta: tern, refCount: 0 };
 	}
 	if (kind.kind === "webkit") {
 		return {
@@ -438,8 +438,8 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: ReleaseBrowserO
 		handle.client.close();
 		return;
 	}
-	if ("tern" in handle) {
-		handle.tern.close();
+	if ("zeta" in handle) {
+		handle.zeta.close();
 		return;
 	}
 	if ("webkit" in handle) {
