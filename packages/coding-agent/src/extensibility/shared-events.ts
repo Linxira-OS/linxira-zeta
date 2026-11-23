@@ -452,6 +452,10 @@ export interface CacheWarmingDecisionEvent {
 	missCost: number;
 	/** Estimated chance that a real request arrives before the entry expires. */
 	continuationProbability: number;
+	/** Cost of compacting instead of warming, when applicable. */
+	compactCost?: number;
+	/** Cost already spent on warming this cache window. */
+	spentCost?: number;
 	/** The warmer's own decision. */
 	action: CacheWarmingAction;
 }

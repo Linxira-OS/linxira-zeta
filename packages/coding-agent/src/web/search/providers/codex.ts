@@ -6,23 +6,22 @@
  */
 import type { Api } from "../../../../../catalog/src/types";
 import { type AuthStorage, type FetchImpl, type Model, withAuth, withOAuthAccess } from "@linxiraos/pi-ai";
+import { $env, USER_AGENT } from "@linxiraos/pi-utils";
 import { resolveCodexResponsesUrl } from "@linxiraos/pi-ai/providers/openai-codex-responses";
-import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
-	CODEX_CLIENT_VERSION,
 	getCodexAccountId,
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 } from "@linxiraos/pi-catalog/wire/codex";
-import { $env, readSseJson, USER_AGENT } from "@linxiraos/pi-utils";
-import type { ModelRegistry } from "../../../config/model-registry";
-import type { SearchResponse, SearchSource } from "../types";
-import { SearchProviderError } from "../../../web/search/types";
+import { getCodexClientVersion } from "@linxiraos/pi-catalog/wire/codex-version";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
-import { classifyProviderHttpError, withHardTimeout } from "./utils";
 import { type SearchParams, SearchProvider } from "./base";
+import { classifyProviderHttpError, searchReasoningEffort, withHardTimeout } from "./utils";
+import { readSseJson } from "@linxiraos/pi-utils";
+import { SearchProviderError, type SearchResponse, type SearchSource } from "../types";
 
 const FALLBACK_MODEL = "gpt-5.5";
 const DEFAULT_MODEL_PREFERENCES = [
@@ -429,7 +428,7 @@ function buildCodexHeaders(
 	}
 	applyCodexResidencyHeader(headers, accessToken);
 	headers.set(OPENAI_HEADERS.ORIGINATOR, OPENAI_HEADER_VALUES.ORIGINATOR_CODEX);
-	headers.set(OPENAI_HEADERS.VERSION, CODEX_CLIENT_VERSION);
+	headers.set(OPENAI_HEADERS.VERSION, getCodexClientVersion());
 	headers.set("User-Agent", USER_AGENT);
 	headers.set("Accept", "text/event-stream");
 	headers.set("Content-Type", "application/json");
@@ -483,6 +482,8 @@ async function callCodexSearch(
 		timeoutMs?: number;
 		systemPrompt?: string;
 		searchContextSize?: "low" | "medium" | "high";
+		/** Wire `reasoning.effort`; omitted when undefined so the server default applies. */
+		reasoningEffort?: string;
 		model: CodexModelCandidate;
 		fetch?: FetchImpl;
 		transport: CodexSearchTransport;
@@ -514,6 +515,7 @@ async function callCodexSearch(
 		tool_choice: { type: "web_search" },
 		instructions: options.systemPrompt ?? DEFAULT_INSTRUCTIONS,
 	};
+	if (options.reasoningEffort !== undefined) body.reasoning = { effort: options.reasoningEffort };
 
 	const fetchImpl = options.fetch ?? fetch;
 	const response = await fetchImpl(options.transport.url, {
@@ -682,6 +684,7 @@ async function runCodexSearchCandidates(options: {
 	query: string;
 	modelCandidates: CodexModelCandidate[];
 	modelWasConfigured: boolean;
+	reasoningEffort?: string;
 	transport: CodexSearchTransport;
 }): Promise<CodexSearchResult> {
 	let lastError: unknown;
@@ -695,6 +698,7 @@ async function runCodexSearchCandidates(options: {
 				timeoutMs: options.params.timeoutMs,
 				systemPrompt: options.params.systemPrompt,
 				searchContextSize: "high",
+				reasoningEffort: options.reasoningEffort,
 				model: candidate,
 				fetch: options.params.fetch,
 				transport: options.transport,
@@ -750,6 +754,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 			query,
 			modelCandidates,
 			modelWasConfigured: configuredModel !== undefined,
+			reasoningEffort: searchReasoningEffort(params.model, params.thinkingLevel),
 			transport: requestTransport,
 		});
 	};
@@ -849,6 +854,14 @@ export class CodexProvider extends SearchProvider {
 
 	isAvailable(authStorage: AuthStorage, _model?: Model): Promise<boolean> | boolean {
 		return hasCodexSearch(authStorage);
+	}
+
+	override isExplicitlyAvailable(authStorage: AuthStorage, model?: Model): Promise<boolean> | boolean {
+		return this.isAvailable(authStorage, model);
+	}
+
+	override isKeyless(): boolean {
+		return false;
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

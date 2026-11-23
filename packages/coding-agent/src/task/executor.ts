@@ -807,7 +807,7 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 				rawOutput = `{"aborted":true,"error":"${lastYield.error || "Unknown error"}"}`;
 			}
 		} else {
-			const assembled = assembleYieldResult(yieldItems, lastAssistantText, yieldSectionShapes(outputSchema));
+			const assembled = assembleYieldResult(yieldItems, yieldSectionShapes(outputSchema));
 			if (!assembled || assembled.missingData) {
 				rawOutput = rawOutput ? `${SUBAGENT_WARNING_NULL_YIELD}\n\n${rawOutput}` : SUBAGENT_WARNING_NULL_YIELD;
 				if (includeStructuredOutput) {
@@ -829,7 +829,7 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 				}
 			} else {
 				const { validator, error: schemaError, normalized } = buildOutputValidator(outputSchema);
-				const submittedData = assembled.rawText ? assembled.data : parseStringifiedJson(assembled.data ?? null);
+				const submittedData = parseStringifiedJson(assembled.data ?? null);
 				const completeData =
 					mode === "strict" ? (validator?.normalize(submittedData) ?? submittedData) : submittedData;
 				const validation = validator?.validate(completeData);
@@ -865,7 +865,7 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 				} else {
 					try {
 						rawOutput =
-							assembled.rawText && typeof completeData === "string"
+							typeof completeData === "string"
 								? completeData
 								: (JSON.stringify(completeData, null, 2) ?? "null");
 					} catch (err) {
@@ -2613,7 +2613,7 @@ function recordedYields(progress: AgentProgress): YieldItem[] {
 function stepReport(monitor: SubagentRunMonitor, structured: boolean, firstYield: number): string | undefined {
 	const lastTurn = monitor.lastReportTurnText();
 	if (!structured) return lastTurn;
-	const assembled = assembleYieldResult(recordedYields(monitor.progress).slice(firstYield), lastTurn);
+	const assembled = assembleYieldResult(recordedYields(monitor.progress).slice(firstYield));
 	if (!assembled || assembled.missingData) return undefined;
 	return typeof assembled.data === "string" ? assembled.data : JSON.stringify(assembled.data, null, 2);
 }
@@ -5823,4 +5823,14 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 		if (releaseIrcWakes && options.deferIrcWakeRelease) options.deferIrcWakeRelease(releaseIrcWakes);
 		else releaseIrcWakes?.();
 	}
+}
+
+/** Settings overlay that lets subagent LSP writes reach the workspace. */
+export function subagentLspWritethroughSettings(_settings: Settings): Record<string, unknown> {
+	return {};
+}
+
+/** Whether a subagent with this output schema must call `yield`. */
+export function usesYield(outputSchema: unknown): boolean {
+	return outputSchema !== undefined;
 }

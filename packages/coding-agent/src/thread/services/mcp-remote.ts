@@ -72,7 +72,7 @@ export class RemoteMCPManager implements MCPManagerApi {
 	}
 
 	/** `scope`'s current tools; the views cross only when main's tool views changed since this scope's last call. */
-	getTools(scope?: MCPToolScope): CustomTool<TSchema, MCPToolDetails>[] {
+	getTools(scope?: MCPToolScope): CustomTool<any, any>[] {
 		const cached = this.#toolsByScope.get(scope);
 		const reply = this.#remote.callSync("tools", cached?.version ?? 0, scope);
 		if (!reply.tools) return cached?.tools ?? [];

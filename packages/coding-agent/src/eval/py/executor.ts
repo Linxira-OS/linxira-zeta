@@ -53,6 +53,7 @@ export type PythonToolRequest =
 /** Session identity and bridge context for invoking a retained Python tool. */
 export interface PythonToolInvokeOptions {
 	outerToolCallId?: string;
+	parentToolCallId?: string;
 	cwd: string;
 	sessionId: string;
 	interpreter?: string;
@@ -63,6 +64,8 @@ export interface PythonToolInvokeOptions {
 
 export interface PythonExecutorOptions {
 	outerToolCallId?: string;
+	/** Tool call that spawned this eval cell, for nested tool attribution. */
+	parentToolCallId?: string;
 	/** Working directory for command execution */
 	cwd?: string;
 	/** Source filename for file-backed execution and tracebacks. */

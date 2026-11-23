@@ -155,7 +155,7 @@
     "lint:py": "ruff check python sdk/python && ruff format --check python sdk/python",
     "fix:py": "ruff check --fix python sdk/python && ruff format python sdk/python",
     "prepublishOnly": "bun run check",
-    "prepare": "bun run gen:export-viewer --write",
+    "prepare": "bun run gen:export-viewer && bun run gen:relay-extension",
     "publish": "bun run prepublishOnly && npm publish -ws --access public",
     "publish:dry": "bun run prepublishOnly && npm publish -ws --access public --dry-run",
     "release": "bun scripts/release.ts",
@@ -180,7 +180,8 @@
     "studio:sync": "bun scripts/studio-sync.ts",
     "studio:assets": "bun scripts/studio-assets.ts",
     "studio:gate": "bun scripts/studio-gate.ts",
-    "check:repo-layout": "bun scripts/check-repo-layout.ts"
+    "check:repo-layout": "bun scripts/check-repo-layout.ts",
+    "gen:relay-extension": "bun --cwd=packages/browser-relay run gen:embedded"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

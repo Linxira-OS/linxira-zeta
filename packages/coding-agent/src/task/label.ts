@@ -8,7 +8,7 @@ import type { ZetaLanguage } from "../i18n";
 import { resolveModelOverride } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import taskLabelSystemPrompt from "../prompts/system/task-label.md" with { type: "text" };
-import { generateSessionTitle, generatedNameLanguage } from "../utils/title-generator";
+import { generateSessionTitle, generatedNameLanguage, type TitleUsageReporter } from "../utils/title-generator";
 
 const TASK_LABEL_SYSTEM_PROMPTS = {
 	en: prompt.render(taskLabelSystemPrompt),
@@ -26,7 +26,7 @@ export function labelEchoesHandle(handle: string | undefined, label: string): bo
 	return /^\d+$/.test(suffix) && prefix.localeCompare(label, undefined, { sensitivity: "accent" }) === 0;
 }
 
-/** Compresses a delegated assignment into a one-sentence UI label via the tiny title model — fired by the executor spawn path because the task wire schema no longer carries a `description`; null on empty input or failure. */
+/** Compresses a delegated assignment into a one-sentence UI label via the tiny title model — fired by the executor spawn path because the task wire schema no longer carries a `description`; null on empty input or failure. `onUsage` receives every request that ran, for the spawning session's usage journal. */
 export async function generateTaskLabel(
 	assignment: string,
 	registry: ModelRegistry,
@@ -36,6 +36,7 @@ export async function generateTaskLabel(
 	language?: ZetaLanguage,
 	parentActiveModelPattern?: string,
 	parentActiveProvider?: string,
+	onUsage?: TitleUsageReporter,
 ): Promise<string | null> {
 	const text = assignment.trim();
 	if (!text) return null;
@@ -61,7 +62,7 @@ export async function generateTaskLabel(
 			TASK_LABEL_SYSTEM_PROMPTS[resolvedLanguage],
 			signal,
 			undefined,
-			undefined,
+			onUsage,
 			resolvedLanguage,
 		);
 		if (!label || labelEchoesHandle(sessionId, label)) return null;

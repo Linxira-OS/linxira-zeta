@@ -11,8 +11,6 @@ const JSON_OBJECT = "Record<string, unknown>";
 
 export const stateDefs = {
 	QueueMode: "'all' | 'one-at-a-time'",
-	// The three session modes the TUI and the gateway both drive (plan/goal/vibe).
-	SessionModeId: "'plan' | 'goal' | 'vibe'",
 	InterruptMode: "'immediate' | 'wait'",
 	StreamingBehavior: "'steer' | 'followUp'",
 	QueuedMessageQueue: "'steering' | 'followUp'",
@@ -21,24 +19,13 @@ export const stateDefs = {
 		"'full' | 'delta'",
 		"`set_event_filter` projection: `delta` replaces the accumulated snapshots with the block a start/end event touches.",
 	),
-	TodoStatus: "'pending' | 'in_progress' | 'completed' | 'abandoned' | 'blocked'",
-	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop' | 'budget'",
+	TodoStatus: "'pending' | 'in_progress' | 'completed' | 'abandoned'",
+	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop'",
 	GoalStatus: "'active' | 'paused' | 'budget-limited' | 'complete' | 'dropped'",
 	SlashCommandSource: "'builtin' | 'skill' | 'extension' | 'custom' | 'mcp_prompt' | 'file'",
 	SubagentSubscriptionLevel: doc(
 		"'off' | 'progress' | 'events'",
 		"Forwarded subagent frames: none, lifecycle and progress, or also raw session events.",
-	),
-	ComponentId: "'zetacode' | 'zetawork' | 'zetawork-gui' | 'zetaide'",
-	ComponentInfo: doc(
-		{
-			id: "ComponentId",
-			command: "string",
-			"path?": doc("string", "Resolved absolute executable; absent when not installed."),
-			openable: "boolean",
-			"reason?": doc("string", "Why `component_open` refuses this component."),
-		},
-		"A companion binary shipped with the product (desktop app, IDE, workbench, runtime).",
 	),
 	AgentSource: "'bundled' | 'user' | 'project'",
 	SubagentStatus: "'pending' | 'running' | 'completed' | 'failed' | 'aborted'",
@@ -46,7 +33,6 @@ export const stateDefs = {
 	TodoItem: {
 		content: "string",
 		status: "TodoStatus",
-		"blocker?": doc("string", "What a `blocked` task is waiting on."),
 		"details?": "string",
 		"notes?": "string[]",
 	},
@@ -79,22 +65,6 @@ export const stateDefs = {
 			updatedAt: "number.integer",
 		},
 		"A tracked goal: its objective, lifecycle status, and resource accounting.",
-	),
-	PlanModeState: doc(
-		{
-			enabled: "boolean",
-			planFilePath: "string",
-			"workflow?": "'parallel' | 'iterative' | 'ultra'",
-			"reentry?": "boolean",
-			"enteredBy?": "'user' | 'agent'",
-			"objective?": "string",
-		},
-		"Session plan mode: enabled, where its plan lives, and who armed it.",
-	),
-	VibeModeState: doc({ enabled: "boolean" }, "Session vibe mode."),
-	ModeStates: doc(
-		{ "plan?": "PlanModeState", "goal?": "GoalModeState", "vibe?": "VibeModeState" },
-		"Every mode's state, the snapshot a client renders its mode banners from.",
 	),
 	GoalModeState: doc(
 		{ enabled: "boolean", mode: "'active' | 'exiting'", "reason?": "'completed'", goal: "Goal" },
@@ -134,6 +104,14 @@ export const stateDefs = {
 	SessionState: {
 		"model?": "ModelInfo",
 		"thinkingLevel?": "ThinkingLevel",
+		"configuredThinkingLevel?": doc(
+			"ConfiguredThinkingLevel",
+			"The user's thinking selector: `auto` while auto mode picks the effort, else `thinkingLevel`.",
+		),
+		"thinkingLevels?": doc(
+			"ConfiguredThinkingLevel[]",
+			"Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts.",
+		),
 		isStreaming: absentAs("boolean", false),
 		isCompacting: absentAs("boolean", false),
 		steeringMode: absentAs("QueueMode", "one-at-a-time"),
@@ -175,27 +153,6 @@ export const stateDefs = {
 		dumpTools: absentAs("ToolDescriptor[]", []),
 		"contextUsage?": "ContextUsage",
 		goal: absentAs(doc("GoalModeState | null", "Current goal mode; null when the session has no goal."), null),
-		guidedGoalInterview: absentAs(
-			doc("boolean", '`/guided-goal` interview is active; the client must treat bare "c" as text.'),
-			false,
-		),
-		"modes?": "ModeStates",
-	},
-
-	PythonResult: {
-		output: "string",
-		"exitCode?": "number.integer",
-		cancelled: "boolean",
-		truncated: "boolean",
-		"artifactId?": "string",
-		"artifactElidedBytes?": "number.integer",
-		"artifactError?": JSON_OBJECT,
-		"displayOutputs?": `${JSON_OBJECT}[]`,
-		totalLines: "number.integer",
-		totalBytes: "number.integer",
-		outputLines: "number.integer",
-		outputBytes: "number.integer",
-		"stdinRequested?": "boolean",
 	},
 
 	BashResult: {
@@ -261,6 +218,42 @@ export const stateDefs = {
 		"details?": "unknown",
 		"preserveData?": JSON_OBJECT,
 		"providerReplayThroughEntryId?": "string",
+	},
+	ModelPickerRole: doc(
+		{
+			role: "string",
+			label: doc("string", "The role's display tag."),
+			"auto?": doc("boolean", "Auto-selected: the role has no configured model."),
+		},
+		"A role a model holds, as picker rows chip it.",
+	),
+	ModelPickerRow: doc(
+		{
+			provider: "string",
+			id: "string",
+			name: "string",
+			"role?": doc("string", "The quick role this row applies (`@` search); pass it to `set_model`."),
+			"roles?": doc("ModelPickerRole[]", "Visible roles the model holds, built-in order first."),
+			"thinking?": doc(
+				"ConfiguredThinkingLevel[]",
+				"Steps of the model's thinking slider, low to high: `auto`, `off`, then its efforts. Absent when it has no effort to pick.",
+			),
+			"thinkingLevel?": doc(
+				"ConfiguredThinkingLevel",
+				"Model rows: the session's level as this model would run it (the untouched slider). Quick-role rows: the role's explicit level, which `set_model` should carry.",
+			),
+			"overContext?": doc("boolean", "The session's context exceeds the model's window."),
+			"current?": doc("boolean", "The session runs this row: its model, or under `@` its active quick role."),
+		},
+		"One row of omp's session model picker.",
+	),
+	ModelPickerResult: {
+		rows: "ModelPickerRow[]",
+		recent: doc(
+			"number.integer",
+			"Leading rows that are recently used or role-held (the picker's Recent block); 0 when there is no such split.",
+		),
+		total: doc("number.integer", "Matching rows before `limit`."),
 	},
 	ModelCycleResult: { model: "ModelInfo", "thinkingLevel?": "ThinkingLevel", isScoped: "boolean" },
 	ThinkingLevelCycleResult: { level: "Effort" },
@@ -349,7 +342,7 @@ export const stateDefs = {
 	},
 	SessionEntries: doc(
 		{ entries: `${JSON_OBJECT}[]`, leafId: "string | null" },
-		"Zeta-native session entries in append order.",
+		"OMP-native session entries in append order.",
 	),
 	SessionTree: doc({ tree: `${JSON_OBJECT}[]`, leafId: "string | null" }, "Raw session tree roots."),
 	SubagentSnapshot: {

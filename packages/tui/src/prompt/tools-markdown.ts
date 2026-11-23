@@ -2,7 +2,9 @@ import { tuiText } from "../i18n";
 
 export interface ToolsMarkdownBindings {
 	tools: ReadonlyArray<{ description: string; name: string }>;
-	/** Tools mounted under `xd://` URLs, listed after the active set. */
+	/** Tools mounted as commands, listed after the active set. */
+	mountedCommands?: ReadonlyArray<{ name: string; summary: string }>;
+	/** Zeta xdev tools, rendered under the xd:// namespace. */
 	xdevTools?: ReadonlyArray<{ name: string; summary: string }>;
 }
 
@@ -14,7 +16,7 @@ function escapeTableCell(value: string): string {
 }
 
 export function buildToolsMarkdown(bindings: ToolsMarkdownBindings): string {
-	if (bindings.tools.length === 0 && !bindings.xdevTools?.length) {
+	if (bindings.tools.length === 0 && !bindings.mountedCommands?.length && !bindings.xdevTools?.length) {
 		return tuiText("toolsMarkdownNoTools", "No tools are currently visible to the agent.");
 	}
 
@@ -27,6 +29,13 @@ export function buildToolsMarkdown(bindings: ToolsMarkdownBindings): string {
 	for (const mounted of bindings.xdevTools ?? []) {
 		rows.push(
 			`| \`xd://${mounted.name}\` | ${
+				escapeTableCell(mounted.summary) || tuiText("toolsMarkdownNoDescription", "No description provided.")
+			} |`,
+		);
+	}
+	for (const mounted of bindings.mountedCommands ?? []) {
+		rows.push(
+			`| \`${mounted.name}\` | ${
 				escapeTableCell(mounted.summary) || tuiText("toolsMarkdownNoDescription", "No description provided.")
 			} |`,
 		);

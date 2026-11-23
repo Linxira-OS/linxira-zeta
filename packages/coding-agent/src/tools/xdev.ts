@@ -519,3 +519,17 @@ export async function dispatchXdevTool(
 		};
 	}
 }
+
+/** Build the `xd://` presentation state over a canonical tool registry. */
+export function createXdevState(
+	_session: unknown,
+	tools: Map<string, Tool>,
+	builtInNames: ReadonlySet<string>,
+): XdevState {
+	return {
+		tools,
+		mountedNames: new Set(tools.keys()),
+		builtInNames: new Set(builtInNames),
+		isActive: name => tools.has(name),
+	};
+}

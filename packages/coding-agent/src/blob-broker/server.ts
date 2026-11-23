@@ -131,7 +131,7 @@ export function createControlHandler(
 			const token = body.callbackToken;
 			const publication = await backend.ensureLazy(body.key, body.mimeType, async () => {
 				const response = await fetch(callback, {
-					headers: { [RENDER_CALLBACK_TOKEN_HEADER]: token },
+					headers: token ? { [RENDER_CALLBACK_TOKEN_HEADER]: token } : undefined,
 					signal: AbortSignal.timeout(CALLBACK_TIMEOUT_MS),
 				});
 				if (!response.ok) return null;

@@ -23,7 +23,7 @@ touch the worktree and does not authorize a merge.
 - 547 added, 118 deleted, 1,718 modified, 1,779 renamed files.
 - 1,776 crate renames: upstream moved `crates/pi-*` to `crates/*` and renamed
   packages from `pi-*` to `omp-*`.
-- Package namespace changed from `@linxiraos/*` to upstream `@oh-my-pi/*`.
+- Package namespace changed from `@linxiraos/*` to upstream `@linxiraos/*`.
 - **715 merge-tree conflicts** from `main`; 364 conflicts / 477 blocks from the
   old `sync/omp-release/v19.0.0` base.
 - Seven native asset files changed: `packages/natives/native/desktop.*`,

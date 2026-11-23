@@ -41,12 +41,7 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{
 		name: "prompt",
 		doc: "Submit a prompt; acknowledged once admitted, completed by its `prompt_result`.",
-		params: {
-			message: "string",
-			"images?": IMAGES,
-			"streamingBehavior?": "StreamingBehavior",
-			"loopBody?": "boolean",
-		},
+		params: { message: "string", "images?": IMAGES, "streamingBehavior?": "StreamingBehavior" },
 		result: "PromptAck",
 		completion: "prompt_result",
 	},
@@ -77,6 +72,15 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		result: "AbortAndRestoreQueueResult",
 	},
 	{
+		name: "abort_and_deliver_queue",
+		doc: "Abort the current run and continue it with the queued user input (the TUI's empty Enter); `aborted` is false when no run was streaming with queued input.",
+		result: { aborted: "boolean" },
+	},
+	{
+		name: "resume",
+		doc: "Continue the agent (the TUI's `.`/`c` shortcut), interrupting a running turn first; queued input continues the run in place of the continue directive. Acknowledged once the continuation is under way.",
+	},
+	{
 		name: "new_session",
 		doc: "Start a new session.",
 		params: { "parentSession?": "string" },
@@ -89,12 +93,6 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		result: "OpenSessionResult",
 	},
 
-	{
-		name: "change_cwd",
-		doc: "Move the session working directory.",
-		params: { cwd: "string" },
-		result: { cwd: "string" },
-	},
 	{ name: "get_state", doc: "Snapshot the session state.", result: "SessionState" },
 	{
 		name: "set_fast_mode",
@@ -108,13 +106,6 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		params: { enabled: "boolean" },
 		result: { enabled: "boolean" },
 		unwrap: "enabled",
-	},
-	{
-		name: "guided_goal",
-		doc: "Start the /guided-goal interview in this backend session (same kickoff as the TUI command).",
-		params: { "message?": "string", "images?": "ImageContent[]" },
-		result: { started: "boolean" },
-		unwrap: "started",
 	},
 	{
 		name: "goal",
@@ -240,7 +231,18 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{
 		name: "set_model",
 		doc: "Select a model by provider and id.",
-		params: { provider: "string", modelId: "string" },
+		params: {
+			provider: "string",
+			modelId: "string",
+			"thinkingLevel?": doc(
+				"ConfiguredThinkingLevel",
+				"Thinking level to run the model at, clamped to it; omitted re-applies the session's level.",
+			),
+			"role?": doc(
+				"string",
+				"Model role the switch records (a quick-role pick passes its role); default `default`. Nothing is persisted.",
+			),
+		},
 		result: "ModelInfo",
 	},
 	{ name: "cycle_model", doc: "Cycle to the next model.", result: "ModelCycleResult", nullable: true },
@@ -250,7 +252,20 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		result: { models: "ModelInfo[]" },
 		unwrap: "models",
 	},
-	{ name: "set_thinking_level", doc: "Set the thinking level.", params: { level: "ThinkingLevel" } },
+	{
+		name: "get_model_picker",
+		doc: "Model picker rows ordered and ranked as omp's session model picker shows them; a query starting with `@` lists quick roles.",
+		params: {
+			"query?": doc("string", "Search text; blank browses every model, `provider/` limits matches to a provider."),
+			"limit?": doc("number.integer", "Most rows to return; default 100."),
+		},
+		result: "ModelPickerResult",
+	},
+	{
+		name: "set_thinking_level",
+		doc: "Set the thinking level.",
+		params: { level: doc("ConfiguredThinkingLevel", "`auto` lets omp pick the effort per turn.") },
+	},
 	{
 		name: "cycle_thinking_level",
 		doc: "Cycle to the next thinking level.",
@@ -274,44 +289,6 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	},
 	{ name: "set_auto_compaction", doc: "Enable or disable auto-compaction.", params: { enabled: "boolean" } },
 	{
-		name: "mode_enter",
-		doc: "Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.",
-		params: { mode: "SessionModeId", "options?": "unknown" },
-	},
-	{
-		name: "mode_exit",
-		doc: "Leave a session mode.",
-		params: { mode: "SessionModeId", "options?": "unknown" },
-	},
-	{
-		name: "loop_start",
-		doc: "Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).",
-		params: { "args?": "string" },
-		result: { state: "unknown" },
-	},
-	{ name: "loop_stop", doc: "Disable the backend session's loop.", result: { state: "unknown" } },
-	{ name: "loop_pause", doc: "Pause a backend loop and drop its captured prompt.", result: { state: "unknown" } },
-	{ name: "loop_resume", doc: "Resume a paused backend loop with its captured prompt.", result: { state: "unknown" } },
-	{ name: "loop_status", doc: "Read the backend session's loop state.", result: { state: "unknown" } },
-	{
-		name: "get_tools",
-		doc: "List every tool the session knows and the subset that is active.",
-		result: { all: "string[]", active: "string[]" },
-	},
-	{ name: "set_tools", doc: "Replace the active tool set by name.", params: { toolNames: "string[]" } },
-	{ name: "reload", doc: "Reload the session's agent, tools and settings." },
-	{
-		name: "component_list",
-		doc: "List the companion components and whether each is installed on this host.",
-		result: { components: "ComponentInfo[]" },
-	},
-	{
-		name: "component_open",
-		doc: "Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.",
-		params: { component: "ComponentId", "args?": "string[]" },
-		result: { pid: "number.integer" },
-	},
-	{
 		name: "set_cache_warming",
 		doc: "Override cache warming for this session only; returns the effective mode.",
 		params: { mode: "CacheWarmingMode" },
@@ -325,12 +302,6 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		doc: "Run a shell command. Before excluding output, require ready.supportsBashExcludeFromContext to be true.",
 		params: { command: "string", "excludeFromContext?": "boolean" },
 		result: "BashResult",
-	},
-	{
-		name: "python",
-		doc: "Run Python code in the session kernel.",
-		params: { code: "string", "excludeFromContext?": "boolean" },
-		result: "PythonResult",
 	},
 	{ name: "abort_bash", doc: "Abort the running shell command." },
 

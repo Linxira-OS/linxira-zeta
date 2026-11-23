@@ -5,7 +5,7 @@ import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes
 import type { ToolSession } from "../sdk";
 import { enforceInlineByteCap } from "@linxiraos/pi-tui/tools/streaming-output";
 import { resolveCmuxKind } from "./browser/cmux/rpc";
-import { describeRelayTargets, listRelayTargets, resolveSpawnArgs } from "./browser/attach";
+import { describeCdpTargets, listCdpTargets, resolveSpawnArgs } from "./browser/attach";
 import {
 	acquireBrowser,
 	browserKey,
@@ -232,7 +232,7 @@ function chromiumKind(params: BrowserParams, session: ToolSession): BrowserKind 
 	return {
 		kind: "headless",
 		headless,
-		ignoreHttpsErrors: params.insecure,
+		insecure: params.insecure,
 	};
 }
 
@@ -532,7 +532,7 @@ async function openOnKind(
 					initScripts,
 					downloadsPath,
 					userAgent: params.user_agent,
-					ignoreHttpsErrors: params.insecure,
+					insecure: params.insecure,
 					signal: openSignal,
 					ownerSessionId: tabOwnerId(session),
 					// Omitted stays undefined: creation defaults it to false
@@ -606,9 +606,9 @@ async function listTargets(
 		);
 		holdBrowser(browser);
 		try {
-			const targets = await untilAborted(listSignal, () => listRelayTargets(kind.cdpUrl, listSignal));
+			const targets = await untilAborted(listSignal, () => listCdpTargets(kind.cdpUrl, listSignal));
 			details.value = targets;
-			return toolResult(details).text(describeRelayTargets(targets)).done();
+			return toolResult(details).text(describeCdpTargets(targets, "relay")).done();
 		} finally {
 			await releaseBrowser(browser, { kill: false });
 		}
@@ -729,7 +729,7 @@ async function saveBrowserOutputArtifact(session: ToolSession, fullText: string)
 function describeBrowser(tab: TabSession): string {
 	const handle = tab.browser;
 	if (!("browser" in handle)) {
-		return `cmux browser (${handle.kind.surface ?? "split"})`;
+		return `cmux browser (${(handle.kind as { surface?: string }).surface ?? "split"})`;
 	}
 	switch (handle.kind.kind) {
 		case "headless":
@@ -757,5 +757,7 @@ function describeKind(kind: BrowserKind): string {
 			return kind.studioManaged ? "Studio managed browser" : `relay:${kind.cdpUrl}`;
 		case "cmux":
 			return `cmux:${kind.surface ?? "split"}`;
+		default:
+			return kind.kind;
 	}
 }

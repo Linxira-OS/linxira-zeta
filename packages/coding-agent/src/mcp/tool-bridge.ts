@@ -342,9 +342,9 @@ function buildResult(
 		}
 	}
 	const structured = result.structuredContent;
-	if (structured !== undefined) details.structuredContent = structured;
-	if (structured !== undefined && !structuredContentAlreadyInText(structured, result.content)) {
-		const rendered = formatStructuredContent(structured);
+	if (structured !== undefined) details.structuredContent = structured as Record<string, unknown> | undefined;
+	if (structured != null && !structuredContentAlreadyInText(structured as Record<string, unknown>, result.content)) {
+		const rendered = formatStructuredContent(structured as Record<string, unknown>);
 		if (rendered.length > 0) {
 			content.push({ type: "text", text: rendered });
 		}
@@ -1101,4 +1101,9 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 			progress?.close();
 		}
 	}
+}
+
+/** Split a server/tool route into the eval namespace and method names. */
+export function mcpToolNameParts(server: string, tool: string): { server: string; tool: string } {
+	return { server, tool };
 }

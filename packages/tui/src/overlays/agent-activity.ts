@@ -11,6 +11,8 @@ export interface AgentActivityRow {
 	kind: AgentActivityKind;
 	title: string;
 	summary: string;
+	/** Whether the summary describes tool intent rather than a result. */
+	summaryIsToolIntent?: boolean;
 	status?: AgentActivityStatus;
 	entryId?: string;
 	toolCallId?: string;

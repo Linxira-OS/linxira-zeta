@@ -457,10 +457,11 @@ const LOG_LEVEL_RANK: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, d
 const IMMEDIATE_FLUSH_RANK = LOG_LEVEL_RANK.warn;
 
 /**
- * Rank of the most verbose level the file transport persists: `ZETA_LOG_LEVEL`
- * (error|warn|info|debug, case-insensitive), default `debug` (everything).
+ * Rank of the most verbose level the local transports (file and console)
+ * write: `ZETA_LOG_LEVEL` (error|warn|info|debug, case-insensitive), default
+ * `debug` (everything).
  */
-function resolveFileLevelRank(): number {
+function resolveLevelRank(): number {
 	const requested = process.env.ZETA_LOG_LEVEL?.trim().toLowerCase();
 	return requested && Object.hasOwn(LOG_LEVEL_RANK, requested)
 		? LOG_LEVEL_RANK[requested as LogLevel]
@@ -491,8 +492,8 @@ let transportOpts: { console?: boolean; file?: boolean | string } = { file: true
 interface LocalTransports {
 	readonly file: RotatingFileSink | undefined;
 	readonly console: boolean;
-	/** Rank of the most verbose level written to {@link file}. */
-	readonly fileLevelRank: number;
+	/** Rank of the most verbose level written to {@link file} and the console. */
+	readonly levelRank: number;
 }
 
 /** Local transports, constructed lazily on first log emission. */
@@ -502,7 +503,7 @@ function buildTransports(opts: { console?: boolean; file?: boolean | string }): 
 	return {
 		file: opts.file ? makeFileTransport(typeof opts.file === "string" ? opts.file : undefined) : undefined,
 		console: opts.console === true,
-		fileLevelRank: resolveFileLevelRank(),
+		levelRank: resolveLevelRank(),
 	};
 }
 
@@ -525,12 +526,11 @@ function emitLocally(
 ): void {
 	const transports = getLocalTransports();
 	const rank = LOG_LEVEL_RANK[level];
-	const file = rank <= transports.fileLevelRank ? transports.file : undefined;
-	if (!file && !transports.console) return;
+	if (rank > transports.levelRank || (!transports.file && !transports.console)) return;
 	const now = new Date();
 	const scoped = foreignTimestamp ? undefined : logContextStorage.getStore();
 	const line = formatLogRecord(level, message, context, formatLocalTimestamp(foreignTimestamp ?? now), scoped);
-	file?.write(line, rank <= IMMEDIATE_FLUSH_RANK || exiting, localDay(now));
+	transports.file?.write(line, rank <= IMMEDIATE_FLUSH_RANK || exiting, localDay(now));
 	if (transports.console) fs.writeSync(1, `${line}${os.EOL}`);
 }
 
@@ -545,7 +545,7 @@ export function setTransports(opts: { console?: boolean; file?: boolean | string
 	transportOpts = opts;
 	if (!activeTransports) return; // applied lazily when local logging is first initialized
 	const previousTransports = activeTransports;
-	activeTransports = { file: undefined, console: false, fileLevelRank: previousTransports.fileLevelRank };
+	activeTransports = { file: undefined, console: false, levelRank: previousTransports.levelRank };
 	previousTransports.file?.close();
 	activeTransports = buildTransports(opts);
 }

@@ -23,18 +23,55 @@ export interface RangeMeta {
 }
 
 const RANGE_META: Record<TimeRange, RangeMeta> = {
-	"1h": { labelKey: "common.range-1h", windowKey: "common.window-1h", spanMs: HOUR_MS, bucketMs: 5 * MINUTE_MS },
-	"24h": { labelKey: "common.range-24h", windowKey: "common.window-24h", spanMs: DAY_MS, bucketMs: HOUR_MS },
-	"7d": { labelKey: "common.range-7d", windowKey: "common.window-7d", spanMs: 7 * DAY_MS, bucketMs: DAY_MS },
-	"30d": { labelKey: "common.range-30d", windowKey: "common.window-30d", spanMs: 30 * DAY_MS, bucketMs: DAY_MS },
-	"90d": { labelKey: "common.range-90d", windowKey: "common.window-90d", spanMs: 90 * DAY_MS, bucketMs: DAY_MS },
-	all: { labelKey: "common.range-all", windowKey: "common.window-all", spanMs: null, bucketMs: DAY_MS },
+	"1h": {
+		labelKey: "common.range-1h" as any,
+		windowKey: "common.window-1h" as any,
+		spanMs: HOUR_MS,
+		bucketMs: 5 * MINUTE_MS,
+	},
+	"24h": {
+		labelKey: "common.range-24h" as any,
+		windowKey: "common.window-24h" as any,
+		spanMs: DAY_MS,
+		bucketMs: HOUR_MS,
+	},
+	"2d": {
+		labelKey: "common.range-2d" as any,
+		windowKey: "common.window-2d" as any,
+		spanMs: 2 * DAY_MS,
+		bucketMs: HOUR_MS,
+	},
+	"3d": {
+		labelKey: "common.range-3d" as any,
+		windowKey: "common.window-3d" as any,
+		spanMs: 3 * DAY_MS,
+		bucketMs: HOUR_MS,
+	},
+	"7d": {
+		labelKey: "common.range-7d" as any,
+		windowKey: "common.window-7d" as any,
+		spanMs: 7 * DAY_MS,
+		bucketMs: DAY_MS,
+	},
+	"30d": {
+		labelKey: "common.range-30d" as any,
+		windowKey: "common.window-30d" as any,
+		spanMs: 30 * DAY_MS,
+		bucketMs: DAY_MS,
+	},
+	"90d": {
+		labelKey: "common.range-90d" as any,
+		windowKey: "common.window-90d" as any,
+		spanMs: 90 * DAY_MS,
+		bucketMs: DAY_MS,
+	},
+	all: { labelKey: "common.range-all" as any, windowKey: "common.window-all" as any, spanMs: null, bucketMs: DAY_MS },
 };
 
 const MAX_BUCKETS = 1500;
 
 /** Ranges in selector order. */
-export const TIME_RANGES: readonly TimeRange[] = ["1h", "24h", "7d", "30d", "90d", "all"];
+export const TIME_RANGES: readonly TimeRange[] = ["1h", "24h", "2d", "3d", "7d", "30d", "90d", "all"];
 
 export function rangeMeta(range: TimeRange): RangeMeta {
 	return RANGE_META[range];

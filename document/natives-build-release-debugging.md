@@ -22,7 +22,7 @@ Build side:
 - `bazel/clippy.bazelrc` — generated from `[workspace.lints]` in `Cargo.toml`
 - `MODULE.bazel`, `MODULE.bazel.lock`, `.bazelrc`, `.bazelversion` (Bazel 9.2.0)
 - `scripts/bazel-natives.ts` — the canonical driver (build + locate + install)
-- `crates/pi-natives/BUILD.bazel`, `crates/pi-natives/Cargo.toml`
+- `crates/natives/BUILD.bazel`, `crates/natives/Cargo.toml`
 
 Package side (unchanged runtime/packaging):
 
@@ -58,7 +58,7 @@ Notes:
 
 ### 2) `native_addon` rule (`bazel/defs.bzl`)
 
-`native_addon` wraps `//crates/pi-natives:pi_natives` (a `rust_shared_library`) in a configuration transition that pins, per target:
+`native_addon` wraps `//crates/natives:pi_natives` (a `rust_shared_library`) in a configuration transition that pins, per target:
 
 - `--platforms=<the addon's platform>`
 - `--compilation_mode=opt`
@@ -67,7 +67,7 @@ Notes:
 
 This mirrors the old cargo `ci` profile. Because the profile lives **in the transition**, a bare `bazel build //:natives-<t>` is always release-grade regardless of `-c`, and every addon shares one cache entry per (platform, source) pair. The rule then symlinks the produced shared library to the loader's canonical `pi_natives.<platform>-<arch>[-<variant>].node` name, scoped under the rule name (`bazel-bin/natives-<t>/…`) so gnu/musl outputs with identical basenames cannot collide at the package level.
 
-Per-target codegen that is not part of the transition lives in `crates/pi-natives/BUILD.bazel` `rustc_flags` selects: `-Ctarget-cpu=x86-64-v2` (baseline) / `x86-64-v3` (modern) via `//bazel/variants`, the napi link args (`-Wl,-undefined,dynamic_lookup` on macOS, `-Wl,-z,nodelete` on linux — `build.rs`/`napi_build::setup()` is deliberately not wired in), `-Ctarget-feature=-crt-static` for musl, and `-Ctarget-feature=+crt-static` for win32 msvc, x64 and arm64 (paired with the `static_link_msvcrt` cc feature enabled in the `native_addon` transition so the C deps compile `/MT` in lock-step — the shipped `.node` then imports no `VCRUNTIME140.dll` from the VC++ Redistributable). The Cargo host path applies the same `+crt-static` policy to local Windows ARM64 builds in `build-bindings.ts`.
+Per-target codegen that is not part of the transition lives in `crates/natives/BUILD.bazel` `rustc_flags` selects: `-Ctarget-cpu=x86-64-v2` (baseline) / `x86-64-v3` (modern) via `//bazel/variants`, the napi link args (`-Wl,-undefined,dynamic_lookup` on macOS, `-Wl,-z,nodelete` on linux — `build.rs`/`napi_build::setup()` is deliberately not wired in), `-Ctarget-feature=-crt-static` for musl, and `-Ctarget-feature=+crt-static` for win32 msvc, x64 and arm64 (paired with the `static_link_msvcrt` cc feature enabled in the `native_addon` transition so the C deps compile `/MT` in lock-step — the shipped `.node` then imports no `VCRUNTIME140.dll` from the VC++ Redistributable). The Cargo host path applies the same `+crt-static` policy to local Windows ARM64 builds in `build-bindings.ts`.
 
 ### 3) Platforms and toolchains
 
@@ -81,7 +81,7 @@ Per-target codegen that is not part of the transition lives in `crates/pi-native
 
 Rust toolchains are nightly (pinned in `MODULE.bazel`), with repo-local musl re-registrations in `//bazel/toolchains` carrying an explicit `@zig_sdk//libc:musl` constraint (rules_rust's generated gnu and musl toolchains otherwise share (os, cpu) constraints).
 
-The darwin-arm64 addon embeds the Apple Foundation Models bridge (`crates/pi-natives/src/applefm/bridge.swift`, Swift 6.4 against the macOS 27 SDK), built by the `applefm_bridge` rule with the `//bazel/toolchains/swift` toolchain: on mac exec hosts the host-detected Xcode/Command Line Tools Swift (`@applefm_swift`), on linux exec hosts the pinned swift.org Swift 6.4.0 for Ubuntu 22.04 (`@swift_linux`) against `@macos_sdk`, linked by `@llvm_darwin_tools`' ld64.lld. The open-source compiler reads the SDK's `.swiftinterface`s as long as the versions match; it needs `-resource-dir` pointed away from the Linux corelibs module maps and `-I <sdk>/usr/lib/swift/shims` (see `bazel/toolchains/swift/linux.bzl`). Without a toolchain (x86_64, or a mac without Swift 6.4 + SDK 27) the bridge is an empty file the addon reports as not built. A set `OMP_APPLEFM_SWIFTC` is the only candidate on mac hosts, and an unusable one fails the build (cargo and Bazel) instead of falling back to Xcode/CLT or the empty file; `OMP_APPLEFM_DISABLE=1` skips detection entirely (no bridge, no host toolchain probing) and conflicts with `OMP_APPLEFM_SWIFTC`. The Nix build sets one of the two on Darwin: nixpkgs' wrapped Swift, or `DISABLE` for `withAppleFm = false`. The AppKit/ScreenCaptureKit helpers (`darwin_helper`) compile with whichever darwin cc toolchain resolved.
+The darwin-arm64 addon embeds the Apple Foundation Models bridge (`crates/natives/src/applefm/bridge.swift`, Swift 6.4 against the macOS 27 SDK), built by the `applefm_bridge` rule with the `//bazel/toolchains/swift` toolchain: on mac exec hosts the host-detected Xcode/Command Line Tools Swift (`@applefm_swift`), on linux exec hosts the pinned swift.org Swift 6.4.0 for Ubuntu 22.04 (`@swift_linux`) against `@macos_sdk`, linked by `@llvm_darwin_tools`' ld64.lld. The open-source compiler reads the SDK's `.swiftinterface`s as long as the versions match; it needs `-resource-dir` pointed away from the Linux corelibs module maps and `-I <sdk>/usr/lib/swift/shims` (see `bazel/toolchains/swift/linux.bzl`). Without a toolchain (x86_64, or a mac without Swift 6.4 + SDK 27) the bridge is an empty file the addon reports as not built. A set `OMP_APPLEFM_SWIFTC` is the only candidate on mac hosts, and an unusable one fails the build (cargo and Bazel) instead of falling back to Xcode/CLT or the empty file; `OMP_APPLEFM_DISABLE=1` skips detection entirely (no bridge, no host toolchain probing) and conflicts with `OMP_APPLEFM_SWIFTC`. The Nix build sets one of the two on Darwin: nixpkgs' wrapped Swift, or `DISABLE` for `withAppleFm = false`. The AppKit/ScreenCaptureKit helpers (`darwin_helper`) compile with whichever darwin cc toolchain resolved.
 
 Linux-hosted Darwin Rust links receive `SDKROOT` from `//bazel/toolchains/darwin:rustc_sdk_env`; native macOS links retain Xcode discovery. Swift's `@swift_darwin_resources` overlay exposes the compiler's Clang headers and the SDK's real Swift runtime directory without Linux module maps. Only this small cross-repository symlink overlay is uncached; the compiler and SDK downloads remain independently cached.
 
@@ -107,7 +107,7 @@ generation and dependency coverage; it does not verify compiled native addons.
 
 For this run, scratch stayed under repository `temp/`. A live directory FD
 exposed it as `/proc/<generation-shell-pid>/fd/9` (`readlink` resolved to
-`temp/omp-native-bazel-night-runtime/tmp`), with a separate config-free
+`temp/pi-native-bazel-night-runtime/tmp`), with a separate config-free
 `CARGO_HOME`. This avoids inheriting the root checkout's `.cargo/config.toml`
 through temporary splice parents without disabling cargo-bazel's parent-config
 guard or changing the explicit Cargo inputs. The shell and FD must remain alive
@@ -162,7 +162,7 @@ bazelisk build //:natives-darwin-arm64
 bazelisk build //:natives-all
 ```
 
-The driver builds `host` through the local cargo/napi-rs path (`packages/natives/scripts/build-bindings.ts`) unless Bazel is requested via `OMP_NATIVE_BUILD_BACKEND=bazel` or extra Bazel args. The Cargo path also regenerates declarations and ESM/enum exports. `OMP_NATIVE_BUILD_BACKEND=cargo` forces that host-only path; Windows hosts always use it and cannot build explicit Bazel cross targets. `OMP_NATIVE_CARGO_PROFILE` selects the Cargo profile (default `local`; `ci` is stripped). `OMP_NATIVE_FEATURES` passes extra cargo features to `napi build --features` on that path (e.g. `OMP_NATIVE_FEATURES=wayland-pipewire`); Bazel builds ignore it. For explicit targets it runs one `bazel build` for all requested targets, locates outputs via `bazel cquery --output=files` (falling back to the `bazel-bin/natives-<t>/<canonical>.node` path convention), and copies them dereferenced into `--dest` (default `packages/natives/native`). Extra args after `--` go to bazel verbatim. It resolves `bazelisk` (or `bazel`) from `PATH` and honors an `OMP_BAZEL_RC` env var as a `--bazelrc=` startup option (that's how CI injects cache wiring).
+The driver builds `host` through the local cargo/napi-rs path (`packages/natives/scripts/build-bindings.ts`) unless Bazel is requested via `OMP_NATIVE_BUILD_BACKEND=bazel` or extra Bazel args. The Cargo path also regenerates declarations and ESM/enum exports. `OMP_NATIVE_BUILD_BACKEND=cargo` forces that host-only path; Windows hosts always use it and cannot build explicit Bazel cross targets. `OMP_NATIVE_CARGO_PROFILE` selects the Cargo profile (default `local`; `ci` is stripped). For explicit targets it runs one `bazel build` for all requested targets, locates outputs via `bazel cquery --output=files` (falling back to the `bazel-bin/natives-<t>/<canonical>.node` path convention), and copies them dereferenced into `--dest` (default `packages/natives/native`). Extra args after `--` go to bazel verbatim. It resolves `bazelisk` (or `bazel`) from `PATH` and honors an `OMP_BAZEL_RC` env var as a `--bazelrc=` startup option (that's how CI injects cache wiring).
 
 Building `all` into one dest would clobber gnu addons with musl ones (shared basenames) — the driver refuses; use separate invocations with separate `--dest` dirs.
 
@@ -176,7 +176,7 @@ The driver also supports `--source <dir>` to install prebuilt outputs arranged a
 bun --cwd=packages/natives run build:bindings   # = bun scripts/build-bindings.ts
 ```
 
-This runs the napi CLI (host-only, local cargo profile) against `crates/pi-natives`, installs the regenerated `index.d.ts`, normalizes the addon filename, and re-renders the explicit ESM exports + runtime enum objects via `gen-enums.ts`. Commit the resulting `index.js`/`index.d.ts` changes.
+This runs the napi CLI (host-only, local cargo profile) against `crates/natives`, installs the regenerated `index.d.ts`, normalizes the addon filename, and re-renders the explicit ESM exports + runtime enum objects via `gen-enums.ts`. Commit the resulting `index.js`/`index.d.ts` changes.
 
 ### Opt-in remote cache (`.bazelrc.user`)
 
@@ -206,11 +206,11 @@ bazelisk --bazelrc="$rc" test //crates/...                 # full Rust suite
 # clippy scope mirrors `cargo clippy --workspace` (libraries, plus pi-shell's
 # `obash` binary in the strict set), split by
 # lint policy via a query kind filter:
-bazelisk query "kind('rust_library|rust_shared_library|rust_binary', //crates/pi-ast/... + //crates/pi-diff/... + //crates/pi-edit/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-vcs/... + //crates/pi-voice/... + //crates/pi-walker/...)" \
+bazelisk query "kind('rust_library|rust_shared_library|rust_binary', //crates/ast/... + //crates/diff/... + //crates/edit/... + //crates/iso/... + //crates/natives/... + //crates/shell/... + //crates/vcs/... + //crates/voice/... + //crates/xfs/...)" \
   | xargs bazelisk --bazelrc="$rc" build --config=clippy-strict --
-bazelisk query "kind('rust_library|rust_shared_library', //crates/... - (…strict set…) - //crates/pi-builtins/...)" \
+bazelisk query "kind('rust_library|rust_shared_library', //crates/... - (…strict set…) - //crates/builtins/...)" \
   | xargs bazelisk --bazelrc="$rc" build --config=clippy --
-bazelisk query "kind('rust_library|rust_shared_library', //crates/pi-builtins/...)" \
+bazelisk query "kind('rust_library|rust_shared_library', //crates/builtins/...)" \
   | xargs bazelisk --bazelrc="$rc" build --config=clippy-ported --
 bazelisk --bazelrc="$rc" build --config=rustfmt //crates/...
 ```
@@ -245,7 +245,7 @@ bazelisk cquery --output=files //:natives-linux-x64-baseline
 
 # What actions/flags a target produces (add the same --config flags as the build):
 bazelisk aquery 'outputs(".*\.node", deps(//:natives-linux-arm64))'
-bazelisk aquery 'mnemonic("Rustc", deps(//crates/pi-natives:pi_natives))'
+bazelisk aquery 'mnemonic("Rustc", deps(//crates/natives:pi_natives))'
 
 # Which toolchain resolved (e.g. confirm @msvc_cc, not host cc, for win32):
 bazelisk cquery 'deps(//:natives-win32-x64-baseline)' | grep msvc_cc
@@ -261,20 +261,20 @@ bazelisk build --nobuild //:natives-win32-x64-baseline
 
 ### Common failure classes (seen during bring-up — fixes already in tree, cite when they resurface)
 
-| Symptom                                                                                        | Cause                                                                                                | Fix (in tree)                                                                                                                                                                  |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| musl build "succeeds" but emits no `.node`                                                     | musl defaults to `+crt-static`; rustc silently emits no cdylib                                       | `-Ctarget-feature=-crt-static` select in `crates/pi-natives/BUILD.bazel`                                                                                                       |
-| Opus objects pull the host UBSan runtime                                                       | zig cc enables UBSan by default                                                                      | `CFLAGS=-fno-sanitize=undefined` in the `opusic-sys` annotation (`MODULE.bazel`)                                                                                              |
-| blake3 msvc: `ml64.exe` not found                                                              | cc-rs resolves MASM from build-script PATH on non-windows hosts                                      | `bin/ml64.exe → llvm-ml -m64` shim in `@msvc_cc`, prepended via the `blake3` annotation PATH                                                                                   |
-| `opusic-sys` msvc needs the cross CMake toolchain                                               | bundled Opus is configured on Linux/macOS for the Windows target                                     | `@msvc_cc`'s `toolchain.cmake` via `CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc`; the sys crate selects Ninja, static try-compile, and `/MT`                                  |
-| win32 link oddities generally                                                                  | —                                                                                                    | read `bazel/toolchains/msvc/NOTES.md` first: wrapper self-location, `lld-link` flavor/driver-link behavior, `LIB`, `/MT` static CRT choice, xwin splat caveats                        |
-| `rust_test(crate = ...)` "can't find crate" at macro expansion                                 | rmeta-only pipelined deps break macro_rules re-export harness compiles                               | rust pipelined_compilation stays OFF (`.bazelrc` note)                                                                                                                         |
-| build script can't find cmake/ninja                                                            | `--incompatible_strict_action_env` — no host env leaks                                               | explicit `PATH` in the crate annotation (`MODULE.bazel`), not host env                                                                                                         |
-| build script can't find a dependency's generated headers (`wasm.h` in tree-sitter)             | rules_rust 0.71.3 writes `DEP_<links>_*` out_dir paths with an `${out_dir}` token dependents never resolve | `bazel/patches/rules_rust-dep-env-exec-root-paths.patch` (`single_version_override` in `MODULE.bazel`) keeps them exec-root relative                                            |
+| Symptom                                                                            | Cause                                                                                                      | Fix (in tree)                                                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| musl build "succeeds" but emits no `.node`                                         | musl defaults to `+crt-static`; rustc silently emits no cdylib                                             | `-Ctarget-feature=-crt-static` select in `crates/natives/BUILD.bazel`                                                                                       |
+| Opus objects pull the host UBSan runtime                                           | zig cc enables UBSan by default                                                                            | `CFLAGS=-fno-sanitize=undefined` in the `opusic-sys` annotation (`MODULE.bazel`)                                                                               |
+| blake3 msvc: `ml64.exe` not found                                                  | cc-rs resolves MASM from build-script PATH on non-windows hosts                                            | `bin/ml64.exe → llvm-ml -m64` shim in `@msvc_cc`, prepended via the `blake3` annotation PATH                                                                   |
+| `opusic-sys` msvc needs the cross CMake toolchain                                  | bundled Opus is configured on Linux/macOS for the Windows target                                           | `@msvc_cc`'s `toolchain.cmake` via `CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc`; the sys crate selects Ninja, static try-compile, and `/MT`                   |
+| win32 link oddities generally                                                      | —                                                                                                          | read `bazel/toolchains/msvc/NOTES.md` first: wrapper self-location, `lld-link` flavor/driver-link behavior, `LIB`, `/MT` static CRT choice, xwin splat caveats |
+| `rust_test(crate = ...)` "can't find crate" at macro expansion                     | rmeta-only pipelined deps break macro_rules re-export harness compiles                                     | rust pipelined_compilation stays OFF (`.bazelrc` note)                                                                                                         |
+| build script can't find cmake/ninja                                                | `--incompatible_strict_action_env` — no host env leaks                                                     | explicit `PATH` in the crate annotation (`MODULE.bazel`), not host env                                                                                         |
+| build script can't find a dependency's generated headers (`wasm.h` in tree-sitter) | rules_rust 0.71.3 writes `DEP_<links>_*` out_dir paths with an `${out_dir}` token dependents never resolve | `bazel/patches/rules_rust-dep-env-exec-root-paths.patch` (`single_version_override` in `MODULE.bazel`) keeps them exec-root relative                           |
 
 ### Cache behavior
 
-- **Self-hosted infra (optional, upstream `omp-kata`):** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build. Engaged only where `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` are set; Zeta CI does not set them.
+- **Self-hosted infra (optional, upstream `pi-kata`):** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build. Engaged only where `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` are set; Zeta CI does not set them.
 - **GitHub-hosted (the Zeta default):** no cluster access; Bazel runs against an actions/cache-backed disk cache (see the `bazel-cache` action), and PR runs additionally restore main's linux-x64 addon pair from actions/cache.
 - **darwin repos:** `@llvm_darwin_tools` (~2 GiB LLVM 23.1.3), `@swift_linux` (~1.1 GiB Swift 6.4.0) and `@macos_sdk` (~70 MiB Command Line Tools package) are sha256-pinned, repository-cache backed and opt into the repo contents cache. The SDK input set is ~50k files, staged into every darwin compile/link sandbox.
 - **msvc repos:** the ~2 GiB LLVM download is sha256-pinned and repository-cache backed; the ~1 GiB xwin CRT/SDK splat is fetched from the Microsoft CDN inside the repo rule and is **not** repo-cache backed — a cold output base re-downloads it. Microsoft advances the VS channel payload over time, so remote-cache hit rates for win32 actions degrade gracefully after an MS bump (same property the previous cross toolchain had). Win32 link actions also don't share cache entries across host OSes (linux vs mac clang binaries).

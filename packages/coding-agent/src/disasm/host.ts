@@ -12,7 +12,19 @@ import * as fs from "node:fs";
 import { IpcConnection, IpcServer } from "@linxiraos/pi-natives";
 import { acquireFileLock, logger, postmortem, setProcessName } from "@linxiraos/pi-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { DISASM_BACKENDS } from "./backend";
+import { DISASM_BACKENDS, type DisasmBackendId } from "./backend";
+
+export { DISASM_HOST_WORKER_ARG } from "../cli/worker-selectors";
+export { DISASM_HOST_CONFIG_ENV } from "./protocol";
+export type { HostConfig } from "./protocol";
+
+const CONNECT_TIMEOUT_MS = 5_000;
+
+/** Connect to a host endpoint; undefined when nothing listens there. */
+export function connectSocket(endpoint: string): Promise<IpcConnection | undefined> {
+	return IpcConnection.connect(endpoint, { framing: "lines", timeoutMs: CONNECT_TIMEOUT_MS }).catch(() => undefined);
+}
+
 import {
 	errorMessage,
 	formatDatabaseHandle,
@@ -72,7 +84,9 @@ class DisasmHost {
 		try {
 			worker = await this.#opening;
 		} catch (error) {
-			process.stderr.write(`${DISASM_BACKENDS[this.#config.backend].label} open failed: ${errorMessage(error)}\n`);
+			process.stderr.write(
+				`${DISASM_BACKENDS[this.#config.backend as DisasmBackendId].label} open failed: ${errorMessage(error)}\n`,
+			);
 			await Bun.sleep(OPEN_FAILED_LINGER_MS);
 			await this.shutdown();
 			return 1;
@@ -102,7 +116,7 @@ class DisasmHost {
 			try {
 				await worker.close({ save: worker.needsSave });
 			} catch (error) {
-				logger.warn(`${DISASM_BACKENDS[this.#config.backend].label} host close failed`, {
+				logger.warn(`${DISASM_BACKENDS[this.#config.backend as DisasmBackendId].label} host close failed`, {
 					id: this.#config.loc.id,
 					error: errorMessage(error),
 				});
@@ -120,12 +134,18 @@ class DisasmHost {
 		if (loc.kind === "store") await fs.promises.mkdir(loc.dir, { recursive: true });
 		const lock = await acquireFileLock(loc.lockTarget, { retries: 1 }).catch(() => {
 			throw new ToolError(
-				`${DISASM_BACKENDS[backend].label} database ${loc.id} is in use by another omp process outside this project`,
+				`${DISASM_BACKENDS[backend as DisasmBackendId].label} database ${loc.id} is in use by another omp process outside this project`,
 			);
 		});
 		try {
-			await prepareStoreDir(DISASM_BACKENDS[backend], loc);
-			const worker = await DisasmWorker.start(DISASM_BACKENDS[backend], loc, runtime, lock, idleCloseMs);
+			await prepareStoreDir(DISASM_BACKENDS[backend as DisasmBackendId], loc);
+			const worker = await DisasmWorker.start(
+				DISASM_BACKENDS[backend as DisasmBackendId],
+				loc,
+				runtime,
+				lock,
+				idleCloseMs,
+			);
 			this.#worker = worker;
 			return worker;
 		} catch (error) {
@@ -179,9 +199,12 @@ class DisasmHost {
 			try {
 				request = parseHostRequest(line);
 			} catch (error) {
-				logger.warn(`${DISASM_BACKENDS[this.#config.backend].label} host received a malformed request`, {
-					error: errorMessage(error),
-				});
+				logger.warn(
+					`${DISASM_BACKENDS[this.#config.backend as DisasmBackendId].label} host received a malformed request`,
+					{
+						error: errorMessage(error),
+					},
+				);
 				return;
 			}
 			if (request.op === "cancel") {
@@ -200,7 +223,10 @@ class DisasmHost {
 			void handled.finally(() => this.#inflight.delete(handled));
 		};
 		conn.start(onLine, reason => {
-			if (reason) logger.debug(`${DISASM_BACKENDS[this.#config.backend].label} host connection closed`, { reason });
+			if (reason)
+				logger.debug(`${DISASM_BACKENDS[this.#config.backend as DisasmBackendId].label} host connection closed`, {
+					reason,
+				});
 			this.#connections.delete(conn);
 			for (const controller of calls.values()) controller.abort();
 			if (leases.size > 0) {
@@ -301,7 +327,7 @@ class DisasmHost {
 		const worker = this.#worker;
 		if (!worker || this.#stopping || this.#closing)
 			throw new ToolError(
-				`${DISASM_BACKENDS[this.#config.backend].label} database ${this.#config.loc.id} is closing`,
+				`${DISASM_BACKENDS[this.#config.backend as DisasmBackendId].label} database ${this.#config.loc.id} is closing`,
 			);
 		return worker;
 	}
@@ -322,7 +348,9 @@ export async function startDisasmHostFromEnvironment(): Promise<void> {
 			await host.listen();
 		} catch (error) {
 			// EADDRINUSE: a live host already serves this database; ours must not touch its endpoint.
-			process.stderr.write(`${DISASM_BACKENDS[config.backend].label} host listen failed: ${errorMessage(error)}\n`);
+			process.stderr.write(
+				`${DISASM_BACKENDS[config.backend as DisasmBackendId].label} host listen failed: ${errorMessage(error)}\n`,
+			);
 			await host.abandon();
 			process.exit(1);
 		}

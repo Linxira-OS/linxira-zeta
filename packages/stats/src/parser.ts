@@ -23,6 +23,8 @@ import type {
 	SessionMessageEntry,
 	SessionModelUsageEntry,
 	SessionServiceTierChangeEntry,
+	SessionTypedEntry,
+	SnapcompactCompactionStats,
 	ToolCallStats,
 	ToolResultLink,
 	UserMessageLink,
@@ -119,6 +121,24 @@ function isServiceTierChange(entry: SessionEntry): entry is SessionServiceTierCh
 function isToolResultMessage(entry: SessionEntry): entry is SessionMessageEntry {
 	if (entry.type !== "message") return false;
 	return (entry as SessionMessageEntry).message?.role === "toolResult";
+}
+
+/**
+ * Build the row for a snapcompact compaction entry. Entries of other methods,
+ * legacy entries without `tokensAfter`, and malformed ones yield null.
+ */
+function extractSnapcompactCompaction(
+	sessionFile: string,
+	folder: string,
+	entry: SessionEntry,
+): SnapcompactCompactionStats | null {
+	if (entry.type !== "compaction") return null;
+	const { id, timestamp, method, tokensBefore, tokensAfter } = entry as SessionTypedEntry;
+	if (method !== "snapcompact" || typeof id !== "string" || id.length === 0) return null;
+	if (!isFiniteCount(tokensBefore) || !isFiniteCount(tokensAfter)) return null;
+	const ts = typeof timestamp === "string" ? Date.parse(timestamp) : Number.NaN;
+	if (!Number.isFinite(ts)) return null;
+	return { sessionFile, entryId: id, folder, timestamp: ts, tokensBefore, tokensAfter };
 }
 
 /**
@@ -380,6 +400,17 @@ function extractStats(
 	};
 }
 
+/**
+ * Stored for a `model_usage` entry whose `purpose` is missing or not a string:
+ * a non-null purpose is what keeps the row off the conversation turns.
+ */
+const UNKNOWN_PURPOSE = "unknown";
+
+/**
+ * Row for a `model_usage` entry (usage of a model call that is not a
+ * conversation turn). It keeps the entry's raw `purpose`, which assistant
+ * messages lack, and the request timings newer entries carry.
+ */
 function extractModelUsageStats(
 	sessionFile: string,
 	folder: string,
@@ -387,7 +418,7 @@ function extractModelUsageStats(
 	agentType: AgentType,
 ): MessageStatsInput | null {
 	const timestamp = Date.parse(entry.timestamp);
-	return extractStats(
+	const stats = extractStats(
 		sessionFile,
 		folder,
 		{
@@ -405,11 +436,16 @@ function extractModelUsageStats(
 				stopReason: entry.stopReason ?? "stop",
 				errorMessage: entry.errorMessage,
 				timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+				duration: isFiniteCount(entry.duration) ? entry.duration : undefined,
+				ttft: isFiniteCount(entry.ttft) ? entry.ttft : undefined,
 			},
 		},
 		undefined,
 		agentType,
 	);
+	if (!stats) return null;
+	stats.purpose = typeof entry.purpose === "string" && entry.purpose.length > 0 ? entry.purpose : UNKNOWN_PURPOSE;
+	return stats;
 }
 
 /** Message timestamp, falling back to the entry's ISO timestamp, then 0. */
@@ -655,6 +691,7 @@ export interface ParseSessionResult {
 	userLinks: UserMessageLink[];
 	toolCalls: ToolCallStats[];
 	toolResults: ToolResultLink[];
+	snapcompactCompactions: SnapcompactCompactionStats[];
 	spotlight: SpotlightParseRows;
 	newOffset: number;
 	parserState?: SessionParserState;
@@ -707,6 +744,7 @@ export async function parseSessionFile(
 	const userLinks: UserMessageLink[] = [];
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
+	const snapcompactCompactions: SnapcompactCompactionStats[] = [];
 	// First call per id: the row `INSERT OR IGNORE` keeps, so it can be written with its result.
 	const callsById = new Map<string, ToolCallStats>();
 	let spotlight = new SpotlightCollector(sessionPath, folder, emptySpotlightState());
@@ -730,6 +768,11 @@ export async function parseSessionFile(
 		spotlight.visit(entry);
 		if (isServiceTierChange(entry)) {
 			currentServiceTier = coerceServiceTierByFamily(entry.serviceTier);
+			return;
+		}
+		const compaction = extractSnapcompactCompaction(sessionPath, folder, entry);
+		if (compaction) {
+			snapcompactCompactions.push(compaction);
 			return;
 		}
 		if (isUserMessage(entry)) {
@@ -843,6 +886,7 @@ export async function parseSessionFile(
 				userLinks: [],
 				toolCalls: [],
 				toolResults: [],
+				snapcompactCompactions: [],
 				spotlight: emptySpotlightRows(),
 				newOffset: fromOffset,
 			};
@@ -858,6 +902,7 @@ export async function parseSessionFile(
 		userLinks,
 		toolCalls,
 		toolResults,
+		snapcompactCompactions,
 		spotlight: spotlight.rows,
 		newOffset,
 		reset,

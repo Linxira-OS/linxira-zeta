@@ -107,6 +107,12 @@ export interface AsyncJobInspection {
 	exitCode?: number;
 	/** Output tail while running; the final result or error text once settled. */
 	output?: string;
+	/** Timestamp when the job's output last changed. */
+	outputModified?: number;
+	/** Embedded shell trace, when the job exposes one. */
+	trace?: unknown;
+	/** Live pipe streams, when the job exposes them. */
+	streams?: unknown;
 	/** Artifact holding the full output when `output` is cut. */
 	artifactId?: string;
 	/** The job's live widget (frozen once it settles). */
@@ -711,6 +717,8 @@ export type DequeuedMessage = RestoredQueuedMessage & { queue: "steering" | "fol
 /** Options for the same ephemeral side turn used by /btw. */
 export interface EphemeralTurnOptions {
 	promptText: string;
+	/** Internal purpose tag used for tracing and lifecycle bookkeeping. */
+	purpose?: string;
 	/** Images sent with `promptText`, normalized for the model like a prompt's attachments. */
 	promptImages?: ImageContent[];
 	/** Detached prior side-turn messages to prepend to this request. They are copied and never appended to the session history. */

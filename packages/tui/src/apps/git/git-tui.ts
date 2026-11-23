@@ -137,15 +137,15 @@ interface UiHit {
 function icons(): Record<"close" | "hunk" | "inline" | "split" | "file" | "ws" | "wrap" | "up" | "down", string> {
 	if (theme.getSymbolPreset() === "nerd") {
 		return {
-			close: "",
-			hunk: "",
-			inline: "",
-			split: "",
-			file: "",
-			ws: "",
-			wrap: "",
-			up: "",
-			down: "",
+			close: "",
+			hunk: "",
+			inline: "",
+			split: "",
+			file: "",
+			ws: "",
+			wrap: "",
+			up: "",
+			down: "",
 		};
 	}
 	return { close: "✕", hunk: "⊟", inline: "≡", split: "◫", file: "▤", ws: "¶", wrap: "⏎", up: "↑", down: "↓" };
@@ -944,6 +944,7 @@ class GitTuiComponent implements Component {
 				this.#pane.state,
 				this.#pane.doc,
 				this.#pane.mode,
+				this.#pane.wrap,
 				this.#contents,
 				this.#currentFile,
 				this.#pane.emptyMessage,
@@ -1108,6 +1109,7 @@ class GitTuiComponent implements Component {
 					text: unifiedDiff(doc, this.#pane.mode === "file"),
 					path: doc.filePath,
 					mode: this.#pane.mode === "split" ? "split" : "unified",
+					wrap: this.#pane.wrap,
 					role: "zeta.app.git.diff",
 				},
 				undefined,

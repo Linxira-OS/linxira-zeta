@@ -518,6 +518,8 @@ export type { ContextUsage };
 
 export interface CompactOptions {
 	onComplete?: (result: CompactionResult) => void;
+	/** Aborts the compaction request. */
+	signal?: AbortSignal;
 	onError?: (error: Error) => void;
 	/**
 	 * Force a one-off compaction mode for this invocation, replacing the

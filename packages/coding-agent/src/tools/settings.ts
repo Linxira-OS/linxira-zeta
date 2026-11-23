@@ -642,12 +642,12 @@ export const cfgFindEnabled = register({
 		group: "Available Tools",
 		label: "Find (semantic grep)",
 		description:
-			"Enable the find tool: natural-language search for files and line ranges, judged by the judge model role. Auto enables it only when the judge role resolves to a native TypeSafe jev model",
+			"Enable the find tool: natural-language search for files and line ranges, judged by the judge model role. Auto enables it when the first usable judge is native",
 		options: [
 			{
 				value: "auto",
 				label: "Auto",
-				description: "Enable when the judge role resolves to a native TypeSafe jev model",
+				description: "Enable when the first usable judge is native",
 			},
 			{ value: "on", label: "On", description: "Always enable, whichever model the judge role resolves to" },
 			{ value: "off", label: "Off", description: "Disable the find tool" },
@@ -730,7 +730,7 @@ export const cfgGenerateImageEnabled = register({
 		group: "Available Tools",
 		label: "Generate Image",
 		description:
-			"Enable the generate_image tool (text-to-image generation and editing). Exposed as an xd:// device when tools.xdev is on.",
+			"Enable the generate_image tool (text-to-image generation and editing). Mounted as a tool command when tools.commands is on.",
 	},
 });
 
@@ -1082,7 +1082,8 @@ export const cfgToolsIntentTracing = register({
 		tab: "tools",
 		group: "Execution",
 		label: "Intent Tracing",
-		description: "Ask the agent to describe the intent of each tool call before executing it",
+		description:
+			"Ask the agent to describe the intent of each tool call before executing it. Unset: on in the interactive TUI, off in print, RPC, ACP, and SDK sessions",
 	},
 });
 
@@ -1201,65 +1202,65 @@ export const cfgAsyncWidgets = register({
 	},
 });
 
-export const cfgToolsXdev = register({
-	id: "tools.xdev",
+export const cfgToolsCommands = register({
+	id: "tools.commands",
 	type: "boolean",
 	default: true,
 	ui: {
 		tab: "tools",
 		group: "Discovery & MCP",
-		label: "xd:// Tools",
+		label: "Tool Commands",
 		description:
-			"Mount rarely-used (discoverable) tools under xd:// device URLs driven via read/write instead of shipping their schemas on every request. Sessions whose explicit tool list grants read but omits write mount devices through a device-only write transport (only local:// scratch stays writable besides devices). Disable to expose every enabled tool top-level.",
+			"Mount rarely-used (discoverable) tools as bash commands with schema-derived `--help` instead of shipping their schemas on every request. Needs the bash tool: sessions without it keep every enabled tool top-level. Disable to expose every enabled tool top-level.",
 	},
 });
 
-export const cfgToolsXdevDocs = register({
-	id: "tools.xdevDocs",
+export const cfgToolsCommandDocs = register({
+	id: "tools.commandDocs",
 	type: "enum",
 	values: ["inline", "builtins", "catalog"] as const,
 	default: "catalog",
 	ui: {
 		tab: "tools",
 		group: "Discovery & MCP",
-		label: "xd:// Prompt Docs",
+		label: "Tool Command Prompt Docs",
 		description:
-			"Choose which mounted-device docs and schemas are inlined in the system prompt. Built-ins keeps core tools inline while MCP and extension tools stay on-demand.",
+			"Choose which mounted commands get their `--help` text inlined in the system prompt. Built-ins keeps core tools inline while MCP and extension tools stay on demand.",
 		options: [
-			{ value: "inline", label: "All Devices", description: "Inline docs and schemas for every mounted device." },
+			{ value: "inline", label: "All Commands", description: "Inline help for every mounted command." },
 			{
 				value: "builtins",
 				label: "Built-ins Only",
-				description: "Inline built-in docs; fetch MCP and extension docs on demand.",
+				description: "Inline built-in help; MCP and extension help on demand.",
 			},
-			{ value: "catalog", label: "Catalog Only", description: "List every device; fetch all docs on demand." },
+			{ value: "catalog", label: "Catalog Only", description: "List every command; run `--help` on demand." },
 		],
 	},
 });
 
-export const cfgToolsXdevInlineDevices = register({
-	id: "tools.xdevInlineDevices",
+export const cfgToolsCommandInline = register({
+	id: "tools.commandInline",
 	type: "array",
 	default: EMPTY_STRING_ARRAY,
 	ui: {
 		tab: "tools",
 		group: "Discovery & MCP",
-		label: "xd:// Inline Devices",
+		label: "Tool Command Inline Help",
 		description:
-			"When xd:// Prompt Docs is Built-ins Only, inline dynamic devices whose names match these glob patterns (for example mcp__context_mode_*). Catalog Only ignores this setting.",
+			"When Tool Command Prompt Docs is Built-ins Only, also inline dynamic commands whose names match these glob patterns (for example mcp__context_mode_*). Catalog Only ignores this setting.",
 	},
 });
 
-export const cfgToolsXdevNotices = register({
-	id: "tools.xdevNotices",
+export const cfgToolsCommandNotices = register({
+	id: "tools.commandNotices",
 	type: "boolean",
 	default: true,
 	ui: {
 		tab: "tools",
 		group: "Discovery & MCP",
-		label: "xd:// Mount Notices",
+		label: "Tool Command Mount Notices",
 		description:
-			"Show an `xd://: mounted …` notice when MCP or extension tools are mounted or unmounted. The model still learns of the change with its next prompt.",
+			"Show a notice when MCP or extension tools are mounted or unmounted as commands; the model still learns of the change with its next prompt.",
 	},
 });
 
@@ -1274,6 +1275,18 @@ export const cfgDevAutoqa = register({
 		label: "Auto QA",
 		description:
 			"Automated tool issue reporting (xd://report_issue). Reports are filed as GitHub issues on ZETA_ISSUE_REPO. On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
+	},
+});
+
+export const cfgDevAutoqaPushEndpoint = register({
+	id: "dev.autoqaPush.endpoint",
+	type: "string",
+	default: "https://qa.zeta.sh/v1/grievances" as const,
+	ui: {
+		tab: "tools",
+		group: "Developer",
+		label: "Auto QA Push Endpoint",
+		description: "Full URL receiving Auto QA JSON reports (default https://qa.zeta.sh/v1/grievances)",
 	},
 });
 
@@ -1396,7 +1409,7 @@ export const cfgSessionToolGates = combine({
 	builtins: cfgBuiltinToolGates,
 	generateImage: cfgGenerateImageEnabled,
 	speechgen: cfgSpeechgenEnabled,
-	xdev: cfgToolsXdev,
+	toolCommands: cfgToolsCommands,
 });
 
 /**
@@ -1483,5 +1496,83 @@ export const cfgIrcTimeoutMs = register({
 			{ value: "120000", label: "2 minutes" },
 			{ value: "300000", label: "5 minutes" },
 		],
+	},
+});
+
+/** Which mounted-device docs and schemas are inlined in the system prompt. */
+/** Mount rarely-used tools under `xd://` device URLs. */
+export const cfgToolsXdev = register({
+	id: "tools.xdev",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "tools",
+		group: "Discovery & MCP",
+		label: "xd:// Tools",
+		description:
+			"Mount rarely-used (discoverable) tools under xd:// device URLs driven via read/write instead of shipping their schemas on every request.",
+	},
+});
+
+/** Show mount/unmount notices for `xd://` devices. */
+export const cfgToolsXdevNotices = register({
+	id: "tools.xdevNotices",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "tools",
+		group: "Discovery & MCP",
+		label: "xd:// Mount Notices",
+		description: "Show a notice when MCP or extension tools are mounted or unmounted.",
+	},
+});
+
+export const cfgToolsXdevDocs = register({
+	id: "tools.xdevDocs",
+	type: "enum",
+	values: ["inline", "builtins", "catalog"] as const,
+	default: "catalog",
+	ui: {
+		tab: "tools",
+		group: "Discovery & MCP",
+		label: "xd:// Prompt Docs",
+		description:
+			"Choose which mounted-device docs and schemas are inlined in the system prompt. Built-ins keeps core tools inline while MCP and extension tools stay on-demand.",
+		options: [
+			{ value: "inline", label: "All Devices", description: "Inline docs and schemas for every mounted device." },
+			{
+				value: "builtins",
+				label: "Built-ins Only",
+				description: "Inline built-in docs; fetch MCP and extension docs on demand.",
+			},
+			{ value: "catalog", label: "Catalog Only", description: "List every device; fetch all docs on demand." },
+		],
+	},
+});
+
+/** Devices always inlined regardless of {@link cfgToolsXdevDocs}. */
+export const cfgToolsXdevInlineDevices = register({
+	id: "tools.xdevInlineDevices",
+	type: "array",
+	default: EMPTY_STRING_ARRAY,
+	ui: {
+		tab: "tools",
+		group: "Discovery & MCP",
+		label: "Inline Devices",
+		description: "Device names whose docs and schemas are always inlined in the system prompt.",
+	},
+});
+
+/** Terminal notification policy while a PTY command waits. */
+export const cfgPtyNotify = register({
+	id: "pty.notify",
+	type: "enum",
+	values: ["on", "off"] as const,
+	default: "on",
+	ui: {
+		tab: "tools",
+		group: "Execution",
+		label: "PTY Notifications",
+		description: "Send a terminal notification when a long-running PTY command is waiting.",
 	},
 });

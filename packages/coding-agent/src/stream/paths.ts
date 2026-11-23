@@ -1,5 +1,6 @@
+import * as path from "node:path";
 import { ipcEndpoint } from "@linxiraos/pi-natives";
-import { getDaemonRuntimeDir } from "@linxiraos/pi-utils";
+import { getDaemonDir } from "@linxiraos/pi-utils";
 import { canonicalProjectDir } from "../launch/paths";
 
 /**
@@ -8,5 +9,9 @@ import { canonicalProjectDir } from "../launch/paths";
  * process in the same directory agrees on the endpoint.
  */
 export async function streamSocketEndpoint(projectDir: string): Promise<string> {
-	return ipcEndpoint(getDaemonRuntimeDir(await canonicalProjectDir(projectDir)), "stream");
+	const key = Bun.hash
+		.wyhash(await canonicalProjectDir(projectDir))
+		.toString(16)
+		.padStart(16, "0");
+	return ipcEndpoint(path.join(getDaemonDir(), "streams", key), "stream");
 }

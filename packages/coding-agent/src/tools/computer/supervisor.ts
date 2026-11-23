@@ -18,7 +18,7 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	COMPUTER_WORKER_ARG,
 	type ComputerEscapeScope,
-	type ComputerRunOk,
+	type ComputerRunResult,
 	type ComputerSessionSnapshot,
 	type ComputerWorkerInbound,
 	type ComputerWorkerOutbound,
@@ -58,7 +58,7 @@ export interface ComputerController {
 		snapshot: ComputerSessionSnapshot,
 		signal?: AbortSignal,
 		context?: AgentToolContext,
-	): Promise<ComputerRunOk>;
+	): Promise<ComputerRunResult>;
 	revokeControl?(strict?: boolean): Promise<void>;
 	/** The owner's agent turn `turn` ended: let the display sleep now, keeping control, refs and the worker. */
 	releaseDisplay?(turn: number): void;
@@ -117,7 +117,7 @@ const NATIVE_ESCAPE_STOPS: ComputerEscapeStops = { read: desktopEscapeStops, for
 export type ComputerWorkerFactory = () => ComputerWorkerHandle;
 
 interface PendingRun {
-	resolve(value: ComputerRunOk): void;
+	resolve(value: ComputerRunResult): void;
 	reject(error: unknown): void;
 	signal?: AbortSignal;
 	toolCalls: Map<string, AbortController>;
@@ -288,7 +288,7 @@ export class ComputerSupervisor implements ComputerController {
 		snapshot: ComputerSessionSnapshot,
 		signal?: AbortSignal,
 		context?: AgentToolContext,
-	): Promise<ComputerRunOk> {
+	): Promise<ComputerRunResult> {
 		if (this.#closed) throw new ToolError("Computer session is closed");
 		if (this.#escapeStopped()) throw new ToolError(ESCAPE_REFUSED_MESSAGE);
 		if (signal?.aborted) throw new ToolAbortError();
@@ -319,7 +319,7 @@ export class ComputerSupervisor implements ComputerController {
 			throw new ToolAbortError();
 
 		const id = `computer-${++this.#nextId}`;
-		const { promise, resolve, reject } = Promise.withResolvers<ComputerRunOk>();
+		const { promise, resolve, reject } = Promise.withResolvers<ComputerRunResult>();
 		const pending: PendingRun = { resolve, reject, signal, context, toolCalls: new Map() };
 		this.#pending.set(id, pending);
 		const identity: ComputerRunIdentity | undefined = session.activity;
@@ -335,7 +335,7 @@ export class ComputerSupervisor implements ComputerController {
 
 		try {
 			this.#worker?.send({ type: "run", id, code, timeoutMs, session, escape: this.#escapeScope() });
-			let result: ComputerRunOk;
+			let result: ComputerRunResult;
 			try {
 				result = await this.#raceWithGrace(promise, timeoutMs);
 			} catch (error) {
@@ -351,6 +351,23 @@ export class ComputerSupervisor implements ComputerController {
 			phase = "completed";
 			// The stop landed after the script finished, its input out: keep what it did, led by the user's stop.
 			if (this.#escapeStopped()) {
+				if (result.error) {
+					const reported =
+						result.error.message.includes(ESCAPE_STOPPED_MESSAGE) ||
+						result.error.message.includes(ESCAPE_AFTER_CALL_MESSAGE);
+					if (!reported && result.error.isAbort) {
+						return {
+							...result,
+							error: { name: "ToolError", message: ESCAPE_STOPPED_MESSAGE, isToolError: true, isAbort: false },
+						};
+					}
+					return reported
+						? result
+						: {
+								...result,
+								error: { ...result.error, message: `${result.error.message}\n\n${ESCAPE_STOPPED_MESSAGE}` },
+							};
+				}
 				return { ...result, displays: [{ type: "text", text: ESCAPE_AFTER_CALL_MESSAGE }, ...result.displays] };
 			}
 			return result;
@@ -420,7 +437,9 @@ export class ComputerSupervisor implements ComputerController {
 				controller.abort(new ToolAbortError("Computer run ended"));
 			this.#pending.delete(message.id);
 			if (message.ok) pending.resolve(message.payload);
-			else pending.reject(errorFromPayload(message.error));
+			else if (message.output && (message.output.displays.length > 0 || message.output.screenshots.length > 0)) {
+				pending.resolve({ ...message.output, error: message.error });
+			} else pending.reject(errorFromPayload(message.error));
 			return;
 		}
 		if (message.type === "capabilities") {
@@ -599,7 +618,7 @@ export class ComputerSupervisor implements ComputerController {
 		}
 	}
 
-	async #raceWithGrace(promise: Promise<ComputerRunOk>, timeoutMs: number): Promise<ComputerRunOk> {
+	async #raceWithGrace(promise: Promise<ComputerRunResult>, timeoutMs: number): Promise<ComputerRunResult> {
 		const timeoutSignal = AbortSignal.timeout(timeoutMs + GRACE_MS);
 		const timeout = Promise.withResolvers<never>();
 		const onTimeout = (): void => timeout.reject(new ToolError(RESTART_MESSAGE));

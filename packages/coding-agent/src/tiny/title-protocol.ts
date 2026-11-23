@@ -4,12 +4,12 @@ import type { TinyLocalModelKey } from "./models";
  * Wire protocol between `TinyTitleClient` and a tiny-model worker.
  *
  * One worker per local model: the ONNX worker (`worker.ts`, the omp binary
- * re-entered with {@link TINY_WORKER_ARG}) or the MLX worker (`mlx-server.py`)
- * owns a Unix socket / named pipe named after the model, serves every omp
- * process on the machine over newline-delimited JSON, and exits on its own
- * once idle. Requests are message-level so both workers render the chat
- * template with their own tokenizer; the client owns prompt construction and
- * title extraction.
+ * re-entered with {@link TINY_WORKER_ARG}) or the MLX worker (`mlx-server.py`),
+ * each a child of the omp daemon's `infer` module. The worker speaks this
+ * newline-delimited JSON over stdin/stdout; clients speak the same lines over
+ * their daemon tunnel and the daemon rewrites request ids. Requests are
+ * message-level so both workers render the chat template with their own
+ * tokenizer; the client owns prompt construction and title extraction.
  */
 
 /**
@@ -28,16 +28,8 @@ export const TINY_WORKER_IDLE_MS_ENV = "ZETA_TINY_WORKER_IDLE_MS";
 /** Idle window (nothing in flight, no request received) after which a worker exits to free model memory. */
 export const TINY_WORKER_IDLE_MS = 15 * 60 * 1_000;
 
-/** Inference engine a worker runs; part of the socket name so ONNX and MLX workers for one model coexist. */
+/** Inference engine a worker runs; part of the unit key so ONNX and MLX workers for one model coexist. */
 export type TinyWorkerBackend = "onnx" | "mlx";
-
-/**
- * Shared-worker name of one (model, backend) worker under the tiny runtime dir:
- * its socket is `<name>.sock`, its log `<name>.log` (see `shared-worker.ts`).
- */
-export function tinyWorkerName(modelKey: TinyLocalModelKey, backend: TinyWorkerBackend): string {
-	return `${modelKey}-${backend}`;
-}
 
 export type TinyTitleProgressStatus =
 	| "initiate"
@@ -74,6 +66,7 @@ export interface TinyChatMessage {
 
 export type TinyWorkerRequest =
 	| { type: "ping"; id: string }
+	| { type: "shutdown"; id: string }
 	/** Download (if needed) and load the worker's model, streaming `progress` then `loaded`. */
 	| { type: "load"; id: string }
 	/** One greedy generation; loads the model first when it is not resident. Replies with generated text only. */
@@ -86,12 +79,10 @@ export type TinyWorkerRequest =
 			/** Stop once this text appears in the generated output. */
 			stop?: string;
 			maxNewTokens: number;
-	  }
-	/** Exit now (a client found a stale launch tag and will respawn). */
-	| { type: "shutdown"; id: string };
+	  };
 
 export type TinyWorkerResponse =
-	| { type: "pong"; id: string; tag: string }
+	| { type: "pong"; id: string; tag?: string }
 	| { type: "progress"; id: string; event: TinyTitleProgressEvent }
 	| { type: "loaded"; id: string }
 	| { type: "text"; id: string; text: string }

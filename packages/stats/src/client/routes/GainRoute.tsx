@@ -27,7 +27,10 @@ export interface GainRouteProps {
 
 const DAY_MS = 86_400_000;
 
-const SOURCE_LABEL: Record<GainSource, string> = { snapcompact: "Snapcompact" };
+const SOURCE_LABEL: Record<GainSource, string> = {
+	snapcompact: "Snapcompact imaged tool results",
+	compaction: "Snapcompact compaction (context freed)",
+};
 
 /** The server buckets gain by local calendar day (`YYYY-MM-DD`). */
 interface SourceRow extends GainSourceTotals {
@@ -52,7 +55,7 @@ export function GainRoute({ active, range }: GainRouteProps) {
 			points.map(p => p.timestamp),
 			DAY_MS,
 		);
-		const daily = densify(points, buckets, p => p.snapcompact);
+		const daily = densify(points, buckets, p => p.total);
 		let running = 0;
 		const cumulative = daily.map(v => (running += v));
 		return { buckets, daily, cumulative };

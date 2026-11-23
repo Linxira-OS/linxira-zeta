@@ -166,6 +166,18 @@ export async function readMcpResource(
 		throw new Error(`Server "${targetServer}" returned no content for "${uri}".`);
 	}
 
+	// A lone binary part is the resource's bytes, typed by the server's MIME type.
+	const [only] = result.contents;
+	if (result.contents.length === 1 && (only.text === undefined || only.text === null) && only.blob) {
+		const bytes = Buffer.from(only.blob, "base64");
+		return {
+			url: url.href,
+			content: bytes as unknown as string,
+			contentType: (only.mimeType ?? "application/octet-stream") as any,
+			size: bytes.length,
+			notes: [`MCP server: ${targetServer}`],
+		};
+	}
 	const textParts: string[] = [];
 	for (const item of result.contents) {
 		if (item.text !== undefined && item.text !== null) {

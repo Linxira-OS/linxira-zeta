@@ -101,7 +101,7 @@ function toMcpResult(
 		details: {
 			action: "mcp",
 			mcpTool: toolName,
-			structuredContent: result.structuredContent,
+			structuredContent: result.structuredContent as Record<string, unknown> | undefined,
 		},
 		...(result.isError ? { isError: true } : {}),
 	};

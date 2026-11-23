@@ -1,19 +1,11 @@
 /**
- * Builds the browser relay extension and its distribution artifacts:
- * - `dist/extension/` — unpacked extension (load via chrome://extensions)
- * - `dist/zeta-browser-relay-extension.zip` — packaged extension for GH releases
- * - `../coding-agent/src/tools/browser/relay/extension-assets/*.txt` —
- *   generated text assets embedded into the Zeta CLI so `zetacode browser-relay
- *   install` works from the compiled binary (same committed-generated-output
- *   pattern as export-assets/). Re-run this script after touching
- *   anything under `extension/` and commit the regenerated assets.
- *
- * Dependency-free on purpose: CI runs this without `bun install`. The asset
- * half is exported because `scripts/check-extension-assets-freshness.ts` and
- * the `--assets-only` path regenerate the committed embeds without the `zip`
- * binary the packaging half needs.
+ * Builds the omp extension. `bun scripts/build-extension.ts` writes `dist/extension/`, the GitHub release ZIP, and the
+ * CLI's embedded copy for `omp browser-relay install`; `--embedded` writes only the embedded copy. That copy is
+ * generated, not committed: `bun install` writes it for source checkouts, and binary and npm builds embed it through
+ * {@link generateEmbeddedExtension}.
  */
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { $ } from "bun";
 import {
@@ -22,120 +14,123 @@ import {
 } from "../../coding-agent/src/tools/browser/relay/protocol";
 
 const root = path.resolve(import.meta.dir, "..");
-const repoRoot = path.resolve(root, "../..");
-const extensionDir = path.join(root, "extension");
+const source = path.join(root, "extension");
 const dist = path.join(root, "dist");
-const distExtension = path.join(dist, "extension");
+/** Where the CLI reads the embedded copy in a source checkout (see extension-files.ts). */
+const embeddedFile = path.resolve(root, "../coding-agent/src/tools/browser/relay/extension.generated.json");
 
-/** The committed CLI embeds, read back by `zetacode browser-relay install`. */
-export const EMBEDDED_ASSETS_DIR = path.resolve(root, "../coding-agent/src/tools/browser/relay/extension-assets");
+if (import.meta.main) {
+	if (process.argv.includes("--embedded")) {
+		await generateEmbeddedExtension();
+		console.log(`Generated ${embeddedFile}`);
+	} else {
+		await buildRelease();
+	}
+}
 
 /**
- * Staged build file → committed asset, in copy order, with the derivation the
- * failure report names. Every derived artifact is a byte-for-byte copy of a
- * staged build file, so the committed set is exactly reproducible from
- * `extension/` + the root license files.
+ * Bundle the unstamped extension and write it to `extension.generated.json` as `{ build, files }`, binary files
+ * base64-encoded. Returns the JSON text written.
  */
-export const EMBEDDED_ASSETS: ReadonlyArray<{ staged: string; asset: string; from: string }> = [
-	{
-		staged: "background.js",
-		asset: "background.js.txt",
-		from: "bundled from packages/browser-relay/extension/background.ts",
-	},
-	...(["manifest.json", "options.html", "options.js"] as const).map(file => ({
-		staged: file,
-		asset: `${file}.txt`,
-		from: `copied from packages/browser-relay/extension/${file}`,
-	})),
-	...(
-		[
-			["LICENSE", "LICENSE.txt"],
-			["THIRD-PARTY-NOTICES.txt", "THIRD-PARTY-NOTICES.txt"],
-		] as const
-	).map(([staged, asset]) => ({ staged, asset, from: `copied from the repo-root ${staged}` })),
-];
-
-/** Bundle `extension/background.ts` into `outDir` and stage the verbatim files beside it. */
-export async function buildUnpackedExtension(outDir: string): Promise<void> {
-	// Bun labels each bundled module with its path relative to the process cwd
-	// (`// extension/background.ts`), and those labels are committed verbatim in
-	// `background.js.txt`. Pin the cwd to the package root so the same sources
-	// generate the same bytes no matter which directory the caller ran from.
-	const cwd = process.cwd();
-	process.chdir(root);
+export async function generateEmbeddedExtension(): Promise<string> {
+	const scratch = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-extension-"));
 	try {
-		const bundle = await Bun.build({
-			entrypoints: [path.join(extensionDir, "background.ts")],
-			outdir: outDir,
-			target: "browser",
-			sourcemap: "none",
-		});
-		if (!bundle.success) {
-			for (const log of bundle.logs) console.error(log);
-			throw new Error("background.ts bundle failed");
-		}
-		for (const file of ["manifest.json", "options.html", "options.js"]) {
-			await Bun.write(path.join(outDir, file), Bun.file(path.join(extensionDir, file)));
-		}
-		for (const file of ["LICENSE", "THIRD-PARTY-NOTICES.txt"]) {
-			await Bun.write(path.join(outDir, file), Bun.file(path.join(repoRoot, file)));
-		}
+		await bundleExtension(scratch);
+		return (await writeEmbedded(scratch)).json;
 	} finally {
-		process.chdir(cwd);
+		await fs.rm(scratch, { recursive: true, force: true });
 	}
 }
 
-/** Byte-copy every `EMBEDDED_ASSETS` pair from a staged build into `destinationDir`. */
-export async function copyEmbeddedAssets(fromDir: string, destinationDir: string): Promise<void> {
-	for (const { staged, asset } of EMBEDDED_ASSETS) {
-		await Bun.write(path.join(destinationDir, asset), Bun.file(path.join(fromDir, staged)));
-	}
-}
-
-/** Replace the committed asset directory with the staged build output. */
-export async function writeEmbeddedAssets(fromDir: string): Promise<void> {
-	await fs.rm(EMBEDDED_ASSETS_DIR, { recursive: true, force: true });
-	await copyEmbeddedAssets(fromDir, EMBEDDED_ASSETS_DIR);
-}
-
-async function main(): Promise<void> {
-	// `--assets-only` refreshes the committed embeds without packaging: the zip
-	// half needs the `zip` binary, the embed half does not.
-	const assetsOnly = process.argv.includes("--assets-only");
+/** `dist/extension/`, the pre-stamped release ZIP, and the embedded copy. */
+async function buildRelease(): Promise<void> {
+	const distExtension = path.join(dist, "extension");
 	await fs.rm(dist, { recursive: true, force: true });
-	await fs.mkdir(distExtension, { recursive: true });
-	await buildUnpackedExtension(distExtension);
-
-	// Committed embeds are derived from the unstamped build, so write them before
-	// the release stamps below: releases must not rewrite the embedded copies.
-	await writeEmbeddedAssets(distExtension);
-
-	// The release zip carries the Zeta version it ships with, as `zetacode browser-relay install` stamps its copy;
-	// the extension reports it to the relay. The embedded assets stay unstamped so releases do not rewrite them.
-	const sourceManifest = path.join(extensionDir, "manifest.json");
-	const distScript = path.join(distExtension, "background.js");
-	const unstampedScript = await Bun.file(distScript).text();
+	await bundleExtension(distExtension);
+	const { build } = await writeEmbedded(distExtension);
+	// Only the release ZIP is pre-stamped. CLI installs stamp their own version with this build.
+	const manifest = path.join(distExtension, "manifest.json");
+	const background = path.join(distExtension, "background.js");
 	const { version: zetaVersion } = await Bun.file(path.join(root, "../coding-agent/package.json")).json();
-	await Bun.write(distScript, stampRelayExtensionScript(unstampedScript, zetaVersion));
-	await Bun.write(
-		path.join(distExtension, "manifest.json"),
-		stampRelayExtensionManifest(await Bun.file(sourceManifest).text(), zetaVersion),
-	);
-
-	if (!assetsOnly) {
-		const zip = await $`zip -qr ../zeta-browser-relay-extension.zip .`.cwd(distExtension).nothrow();
-		if (zip.exitCode !== 0) {
-			console.error("zip failed:", zip.stderr.toString());
-			process.exit(1);
-		}
-	}
-
-	console.log("built:");
-	if (!assetsOnly) {
-		console.log(`  ${distExtension}`);
-		console.log(`  ${path.join(dist, "zeta-browser-relay-extension.zip")}`);
-	}
-	console.log(`  ${EMBEDDED_ASSETS_DIR} (embedded CLI assets — commit these)`);
+	const [unstampedManifest, unstampedScript] = await Promise.all([
+		Bun.file(manifest).text(),
+		Bun.file(background).text(),
+	]);
+	await Promise.all([
+		Bun.write(manifest, stampRelayExtensionManifest(unstampedManifest, zetaVersion)),
+		Bun.write(background, stampRelayExtensionScript(unstampedScript, zetaVersion, build)),
+	]);
+	const zipPath = path.join(dist, "omp-browser-relay-extension.zip");
+	await $`zip -qr ${zipPath} .`.cwd(distExtension);
+	console.log(`Built:\n  ${distExtension}\n  ${zipPath}\n  ${embeddedFile}`);
 }
 
-if (import.meta.main) await main();
+/** Bundle the extension's scripts and copy its static files into `outDir`, unstamped. */
+async function bundleExtension(outDir: string): Promise<void> {
+	await fs.mkdir(outDir, { recursive: true });
+	await Promise.all([
+		bundle(outDir, "background.ts", "background", "iife"),
+		bundle(outDir, "panel/main.tsx", "panel", "esm"),
+		bundle(outDir, "overlay/main.ts", "overlay", "iife"),
+		bundle(outDir, "teach/recorder.ts", "recorder", "iife"),
+		bundle(outDir, "offscreen/main.ts", "offscreen", "iife"),
+	]);
+
+	const staticFiles = [
+		"manifest.json",
+		"panel.html",
+		"offscreen.html",
+		...new Bun.Glob("icons/*.png").scanSync({ cwd: source }),
+	];
+	await Promise.all([
+		...staticFiles.map(name => Bun.write(path.join(outDir, name), Bun.file(path.join(source, name)))),
+		Bun.write(path.join(outDir, "LICENSE"), Bun.file(path.resolve(root, "../../LICENSE"))),
+	]);
+	for (const name of ["panel.css", "icons/omp-16.png", "icons/omp-32.png", "icons/omp-48.png", "icons/omp-128.png"]) {
+		if (!(await Bun.file(path.join(outDir, name)).exists())) throw new Error(`Missing extension file: ${name}`);
+	}
+}
+
+/** Write the unstamped extension in `extensionDir` to {@link embeddedFile}; returns its build id and the JSON text. */
+async function writeEmbedded(extensionDir: string): Promise<{ build: string; json: string }> {
+	const names = [...new Bun.Glob("**/*").scanSync({ cwd: extensionDir, dot: true })]
+		.map(name => name.replaceAll(path.sep, "/"))
+		.sort();
+	const files: Record<string, string | { base64: string }> = {};
+	for (const name of names) {
+		const file = Bun.file(path.join(extensionDir, name));
+		const isText = name === "LICENSE" || /\.(?:css|html|js|json|map|svg|txt)$/.test(name);
+		files[name] = isText ? await file.text() : { base64: Buffer.from(await file.arrayBuffer()).toBase64() };
+	}
+	const build = await buildId(extensionDir, names);
+	const json = JSON.stringify({ build, files });
+	await Bun.write(embeddedFile, json);
+	return { build, json };
+}
+
+/** First 16 hex chars of SHA-256 over each unstamped file's name and bytes, in `names` order. */
+async function buildId(extensionDir: string, files: readonly string[]): Promise<string> {
+	const hasher = new Bun.CryptoHasher("sha256");
+	for (const name of files) {
+		hasher.update(`${name}\0`);
+		hasher.update(new Uint8Array(await Bun.file(path.join(extensionDir, name)).arrayBuffer()));
+		hasher.update("\0");
+	}
+	return hasher.digest("hex").slice(0, 16);
+}
+
+async function bundle(outDir: string, entry: string, name: string, format: "iife" | "esm"): Promise<void> {
+	const result = await Bun.build({
+		entrypoints: [path.join(source, entry)],
+		outdir: outDir,
+		target: "browser",
+		format,
+		naming: { entry: `${name}.[ext]` },
+		minify: name === "panel",
+		define: { "process.env.NODE_ENV": JSON.stringify("production") },
+	});
+	if (!result.success) throw new AggregateError(result.logs, `Failed to bundle ${entry}`);
+	if (!(await Bun.file(path.join(outDir, `${name}.js`)).exists())) {
+		throw new Error(`Bundling ${entry} did not produce ${name}.js`);
+	}
+}

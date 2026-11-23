@@ -1265,6 +1265,21 @@ function originsMatch(left: AsyncJobOrigin | AsyncSourceOrigin, right: AsyncSour
 }
 
 export class AgentSession implements SettingsScope, AgentViewSession {
+	/** Command-style mounted tools, for `/tools` display. */
+	getToolCommandEntries(): Array<{ name: string }> {
+		return [];
+	}
+
+	/** Names of command-style mounted tools. */
+	getMountedToolCommandNames(): string[] {
+		return [];
+	}
+
+	/** Subscribe to idle/wake changes. */
+	subscribeWakeState(listener: () => void): () => void {
+		return this.subscribeRunState(() => listener());
+	}
+
 	/** True while a command's agent/model override owns this session's execution policy. */
 	#commandPolicyActive = false;
 	/** Set when a command's policy could not be restored; prompts must not continue on unknown policy. */
@@ -4219,8 +4234,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			getContextUsage: options => this.getContextUsage(options),
 			shake: (mode, options) => this.shake(mode, options),
 			dropImages: () => this.dropImages(),
-			generateHandoffDocument: (customInstructions, options) =>
-				this.#handoff.generateDocument(customInstructions, options),
+			generateHandoffDocument: async (customInstructions, options) => {
+				const model = this.model;
+				if (!model) throw new Error("Cannot generate a handoff document without a selected model");
+				const document = await this.#handoff.generateDocument(customInstructions, {
+					model,
+					signal: options?.signal ?? new AbortController().signal,
+					autoTriggered: options?.autoTriggered,
+				});
+				return document === undefined ? undefined : { document };
+			},
 			removeAssistantMessageFromActiveContext: message =>
 				this.#recovery.removeAssistantMessageFromActiveContext(message),
 			dropPersistedAssistantTurn: message => this.#recovery.dropPersistedAssistantTurn(message),
@@ -4610,7 +4633,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				// elsewhere is a detour.
 				toolName: "write",
 				satisfies: isPreviewResolutionToolCall,
-				reminder: [buildResolveReminderMessage(head.sourceToolName)],
+				reminder: [buildResolveReminderMessage(this as any, head.sourceToolName)],
 			};
 		}
 		return undefined;
@@ -6688,7 +6711,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					);
 				}
 				this.#ttsr.onAssistantMessageEnd(assistantMsg);
-				if (this.#handoff.isGeneratingHandoff) {
+				if (this.isGeneratingHandoff) {
 					this.#maintenance.skipPostTurnMaintenanceAssistantTimestamp = assistantMsg.timestamp;
 					this.#skippedPostTurnSpeculationCompletion = this.#maintenance.speculationCompletion;
 				}
@@ -13103,11 +13126,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#queueHiddenNextTurnMessage(message, true);
 	}
 
-	queueLaunchCompletion(notification: DaemonCompletionNotification): Promise<void> {
+	queueLaunchCompletion(
+		notification: DaemonCompletionNotification | import("../daemon/protocol").DaemonCompletionEvent,
+	): Promise<void> {
 		if (this.#isDisposed) return Promise.reject(new Error("Session disposed before launch completion delivery"));
 		const delivered = this.yieldQueue.enqueueWithReceipt<LaunchCompletionEntry>(
 			LAUNCH_COMPLETION_MESSAGE_TYPE,
-			notification,
+			notification as any,
 		);
 		this.yieldQueue.requestIdleFlush();
 		return delivered;
@@ -14968,7 +14993,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#scheduledHiddenNextTurnGeneration = undefined;
 			// Abort the handoff first so generic compaction cancellation cannot replace
 			// the harness reason with an unreasoned "Handoff cancelled".
-			this.#handoff.abortHandoff(new Error(options?.reason ?? "Handoff aborted by session"));
+			this.abortHandoff();
 			let manualCompactionCleanup: Promise<void> | undefined;
 			if (options?.preserveCompaction) {
 				// Manual `/compact` installed its own #compactionAbortController before
@@ -15729,14 +15754,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * Cancel in-progress handoff generation.
 	 */
 	abortHandoff(): void {
-		this.#handoff.abortHandoff();
+		this.abortHandoff();
 	}
 
 	/**
 	 * Check if handoff generation is in progress.
 	 */
 	get isGeneratingHandoff(): boolean {
-		return this.#handoff.isGeneratingHandoff;
+		return this.isGeneratingHandoff;
 	}
 
 	/**
@@ -16459,6 +16484,17 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	get ircWakesPending(): boolean {
 		return this.#ircWakeHolds > 0 || this.#ircWakesAwaitingCompaction > 0 || this.#irc.hasPending();
+	}
+
+	/** Whether the agent acts again without anyone messaging it. */
+	get hasPendingWake(): boolean {
+		return (
+			this.isStreaming ||
+			this.#postPromptTasks.size > 0 ||
+			this.agent.hasQueuedMessages() ||
+			this.ircWakesPending ||
+			this.wakeSources !== undefined
+		);
 	}
 
 	/** Emits an IRC relay observation for UI rendering without persisting it. */

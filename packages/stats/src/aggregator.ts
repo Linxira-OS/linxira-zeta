@@ -542,6 +542,7 @@ export async function getDashboardStats(range?: string | null): Promise<Dashboar
 	return {
 		overall: getOverallStats(window.cutoff),
 		byModel: getStatsByModel(window.cutoff),
+		bySideChannel: [],
 		byFolder: getStatsByFolder(window.cutoff, FOLDER_LIMIT),
 		byAgentType: getStatsByAgentType(window.cutoff),
 		timeSeries: getTimeSeries(window),

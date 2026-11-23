@@ -63,7 +63,7 @@ their observation time; current integrated and observed-only tags are indexed in
 - **Conflicts**: 218 paths at first pass — 168 content conflicts, 38
   delete/modify (Zeta-retired collab/Tern/build-service paths kept deleted),
   12 modify/delete (upstream deletions accepted). Resolution used the merge
-  driver for the 13 package manifests, scope rewrite of `@oh-my-pi/*` →
+  driver for the 13 package manifests, scope rewrite of `@linxiraos/*` →
   Zeta names, brand overlay, removal of revived Tern/WebKit/collab paths,
   and Zeta-owned restoration for mode/update/browser/agent-session surfaces.
 - **Key decisions**: Zeta keeps its release-asset self-update
@@ -3127,7 +3127,7 @@ observation points moved onto the state each assertion actually depends on.
   `"continue" | "restored"` contract and `enterMode`,
   `refreshScopedModelsAfterLogin`, scoped-model rebuild, plugin
   discovery/lockfile naming and the Zeta print-mode branch were restored.
-- **Repairs**: scope map `@oh-my-pi/* → @linxiraos/*` (138 files),
+- **Repairs**: scope map `@linxiraos/* → @linxiraos/*` (138 files),
   brand overlay (`scripts/brand/brand-overlay.ts`), relay extension assets
   (`gen:relay-assets`), system-prompt identity line, `PACKAGE_MODULE_PROVIDER`
   `zeta-plugins`, telemetry hard-off, and lockstep version `1.4.13`

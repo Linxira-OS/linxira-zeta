@@ -191,7 +191,10 @@ export class StudioManagedBrowserService {
 		operation: TabWebMcpRequest,
 		expectedDocument?: string,
 	): Promise<{ value: unknown; documentId?: string; chromiumMajor: number }> {
-		const timeoutMs = operation.action === "invoke" ? (operation.options?.timeout ?? 10000) : 10000;
+		const timeoutMs =
+			operation.action === "invoke"
+				? ((operation.options as { timeout?: number } | undefined)?.timeout ?? 10000)
+				: 10000;
 		const signal = AbortSignal.any([this.#closed.signal, AbortSignal.timeout(timeoutMs)]);
 		const release = await this.begin(signal, operation.action !== "invoke");
 		try {

@@ -699,6 +699,8 @@ export interface CreateAgentSessionOptions {
 	modelPattern?: string | string[];
 	/** Authenticated fallback selector for deferred subagent model patterns. */
 	modelPatternAuthFallback?: string;
+	/** Parent model to fall back to when a persisted model pattern cannot resolve. */
+	modelPatternParentFallback?: string;
 	/** Role name used to install retry fallbacks after deferred subagent patterns resolve. */
 	modelPatternFallbackRole?: string;
 	/** Validated inherited retry chain for a deferred singleton pattern; empty explicitly disables fallbacks. */
@@ -3044,7 +3046,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getWorkPoolYieldItems: () => session?.getWorkPoolYieldItems() ?? [],
 
 			getLastAssistantText: () => session?.getLastAssistantText(),
-			getYieldReportText: toolCallId => resolveYieldReportText(session?.messages ?? [], toolCallId),
+			getYieldReportText: (toolCallId: string) => resolveYieldReportText(session?.messages ?? [], toolCallId),
 			getToolCallIntent: toolCallId => resolveToolCallIntent(session?.messages ?? [], toolCallId),
 			getCallContext: (toolCallId, source) => {
 				const messages = session?.messages ?? [];
@@ -3077,7 +3079,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			setPlanProposalHandler: handler => session.setPlanProposalHandler(handler),
 			allocateOutputArtifact: async toolType => {
 				try {
-					return await sessionManager.allocateArtifactPath(toolType);
+					return await sessionManager.allocateArtifactPath(toolType ?? "tool");
 				} catch {
 					return {};
 				}
@@ -3109,7 +3111,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			const builtins: EvalPreludeDefinition[] = [];
 			if (cfgBrowserEnabled.get(settings)) {
 				browserPrelude ??= createBrowserPrelude(toolSession);
-				builtins.push(browserPrelude);
+				if (browserPrelude) builtins.push(browserPrelude);
 			}
 			if (cfgComputerEnabled.get(settings)) {
 				computerPrelude ??= createComputerPrelude(toolSession);
@@ -3229,7 +3231,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		if (enableMCP && !mcpManager && isMainThread()) {
 			if (deferMCPDiscoveryForUI) {
 				const cacheStorage = settings.getStorage();
-				const deferredMCPManager = new MCPManager(cwd, cacheStorage ? new MCPToolCache(cacheStorage) : null);
+				const deferredMCPManager = new MCPManager(
+					cwd,
+					(cacheStorage ? new MCPToolCache(cacheStorage) : null) as any,
+				);
 				ownedMcpManager = deferredMCPManager;
 				mcpManager = deferredMCPManager;
 				deferredMCPManager.setAuthStorage(authStorage);
@@ -5586,7 +5591,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				const call = shellCalls.get(event.toolCallId);
 				if (!call) return;
 				shellCalls.delete(event.toolCallId);
-				changeJournal()?.recordCall({ ...journalAgent, ...call, end: Date.now() });
+				changeJournal()?.recordCall({ type: "call", ...journalAgent, ...call, end: Date.now() });
 			}
 		});
 		// Catalog rows carry the registry settings' extended-window opt-ins; this

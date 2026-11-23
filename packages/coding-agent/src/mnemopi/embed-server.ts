@@ -14,7 +14,7 @@
  */
 import { setProcessName } from "@linxiraos/pi-utils";
 import { type JsonLineReply, JsonLineServer } from "../subprocess/jsonl-server";
-import { MnemopiEmbedClient, spawnMnemopiEmbedWorker } from "./embed-client";
+import { MnemopiEmbedClient } from "./embed-client";
 import {
 	MNEMOPI_EMBED_IDLE_MS,
 	MNEMOPI_EMBED_IDLE_MS_ENV,
@@ -53,7 +53,7 @@ export async function startMnemopiEmbedServerFromEnvironment(): Promise<void> {
 	if (!endpoint || !model || !tag) throw new Error("mnemopi embed server environment is incomplete");
 	setProcessName(`zetacode mnemopi embed ${model}`);
 	// Same correlation, timeout, and wedge reaping as an omp process, over the private child.
-	const runtime = new MnemopiEmbedClient(spawnMnemopiEmbedWorker);
+	const runtime = new MnemopiEmbedClient();
 	const server: JsonLineServer<MnemopiEmbedServerRequest, MnemopiEmbedServerResponse> = new JsonLineServer({
 		name: "mnemopi-embed-server",
 		cleanupLabel: "mnemopi-embed-server",

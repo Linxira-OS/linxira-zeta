@@ -1,7 +1,7 @@
 /**
  * CDP façade over `chrome.debugger`.
  *
- * Puppeteer clients (the zeta browser tool: one supervisor connection plus one
+ * Puppeteer clients (the omp browser tool: one supervisor connection plus one
  * per tab worker) connect to this bridge as if it were Chrome's browser
  * debugging endpoint. Chrome only allows a single debugger attachment per tab,
  * so the bridge owns ONE `chrome.debugger` attachment per tab (via the
@@ -23,16 +23,33 @@
  */
 import { createHash } from "node:crypto";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
+import { type CollabHostSnapshot, listCollabHosts, resolveCollabHostLink } from "../../../collab/registry";
 import { BROWSER_PAGE_PROTOCOL_TIMEOUT_MS } from "../launch";
+import { readRelayInstalls } from "./installs";
+import type {
+	ExtToRelayMessage,
+	HiddenFrame,
+	OverlayAction,
+	OverlayInput,
+	PanelCall,
+	PanelCollabHost,
+	PanelInstall,
+	RelayExtensionStamp,
+	RelayRpcRequest,
+	RelayToExtMessage,
+	TabSnapshot,
+} from "./protocol";
 import {
+	CANCELLED_RELEASE_POINT,
 	DISCARDED_TABS_PROTOCOL_VERSION,
 	DOWNLOADS_PROTOCOL_VERSION,
 	EXTENSION_RELOAD_PROTOCOL_VERSION,
 	FOREIGN_FRAME_REFUSAL,
-	isOlderZetaVersion,
+	isHiddenFrame,
+	isOlderOmpVersion,
 	isOmpVersion,
+	OVERLAY_PROTOCOL_VERSION,
 } from "./protocol";
-import type { ExtToRelayMessage, RelayRpcRequest, RelayToExtMessage, TabSnapshot } from "./protocol";
 
 /** Transport-agnostic websocket surface the bridge writes to. */
 export interface RelaySocket {
@@ -50,7 +67,7 @@ interface CdpCommand {
 /**
  * Per-pseudo-session Runtime domain state.
  * - `default`: never toggled Runtime — still receives the relay's legacy
- *   root-event fan-out, so zeta's own patched-puppeteer client (which
+ *   root-event fan-out, so omp's own patched-puppeteer client (which
  *   pull-acquires contexts and never sends `Runtime.enable`) keeps getting
  *   `Runtime.executionContextCreated`.
  * - `enabled`: ran `Runtime.enable`; gets the existing-context replay.
@@ -129,14 +146,40 @@ class CdpConnection {
 	}
 }
 
+/**
+ * Local state a side panel's calls read: the collab registry (live omp sessions it can attach to, and their control
+ * links) and the extension install registry. The bridge reads this machine's unless a test substitutes its own.
+ */
+export interface RelayBridgePanelSources {
+	/** Live local collab hosts, as {@link listCollabHosts} lists them. */
+	listHosts(): Promise<CollabHostSnapshot[]>;
+	/** A full-control browser link to the collab host with `instanceId`; throws when none can be had. */
+	controlLink(instanceId: string): Promise<string>;
+	/** Registered extension install folders, as {@link readRelayInstalls} reports them. */
+	installs(): Promise<PanelInstall[]>;
+}
+
+/** This machine's registries. */
+const LOCAL_PANEL_SOURCES: RelayBridgePanelSources = {
+	listHosts: () => listCollabHosts(),
+	controlLink: async instanceId => (await resolveCollabHostLink(instanceId, "control")).url,
+	installs: () => readRelayInstalls(),
+};
+
 /** Transport replacement is retryable and must not permanently ban a tab. */
 class ExtensionReplacedError extends Error {}
 
 /**
- * Rewrites the files of the extension Chrome knows as `extensionId` to this zeta's, when that is the copy this relay
- * may update; resolves whether the files on disk are now this zeta's (then the bridge asks the extension to reload).
+ * Rewrites the files of the extension Chrome knows as `extensionId` to this omp's, when that is the copy this relay
+ * may update; resolves whether the files on disk are now this omp's (then the bridge asks the extension to reload).
  */
 export type RelayBridgeExtensionUpdater = (extensionId: string) => Promise<boolean>;
+
+/**
+ * The stamp of the files in the folder Chrome loads as `extensionId`, or null when that folder is not one omp manages.
+ * A connected extension running another stamp is reloaded into these files once it is idle.
+ */
+export type RelayBridgeInstalledStamp = (extensionId: string) => Promise<RelayExtensionStamp | null>;
 
 /** A connected extension browser instance; one per browser/profile. */
 interface ExtInstance {
@@ -149,13 +192,18 @@ interface ExtInstance {
 		browserVersion: string;
 		discardedTabsProtocol?: number;
 		zetaVersion?: string;
+		zetaBuild?: string;
 		reloadProtocol?: number;
 		downloadsProtocol?: number;
+		overlayProtocol?: number;
+		panelProtocol?: number;
 	} | null;
 	/** Chrome extension id from the socket's `Origin`; null when the upgrade carried none. */
 	extensionId: string | null;
 	/** The relay is rewriting this extension's files to reload it: not ready meanwhile (its socket closes after). */
 	updating: boolean;
+	/** The extension reported work a reload would destroy (a panel turn, a recording); false until it says so. */
+	busy: boolean;
 	/** `Date.now()` when its socket closed; null while connected. */
 	goneSince: number | null;
 	/** Settles at its next hello; created by the first caller that waits for one. */
@@ -191,8 +239,6 @@ function parseTargetId(targetId: string): { key: string; kind: "tab" | "page" } 
 }
 
 class TabState {
-	studioPageId: string | undefined;
-	studioDocumentId: string | undefined;
 	/** Assigned in the constructor body from the owning instance. */
 	readonly tabKey: string;
 	url: string;
@@ -207,7 +253,7 @@ class TabState {
 	/** Whether `chrome.debugger` is currently attached to this tab. */
 	attached = false;
 	/**
-	 * Why Chrome refused zeta this tab (its attach error, or the user cancelling the debugger bar); while set the
+	 * Why Chrome refused omp this tab (its attach error, or the user cancelling the debugger bar); while set the
 	 * tab is not adoptable. Cleared on navigation.
 	 */
 	refusal: string | undefined;
@@ -228,14 +274,14 @@ class TabState {
 	closing = false;
 	/** Tab-wide switches whose last change never reached the extension (its socket was down or the send failed). */
 	readonly unsettledSwitches = new Set<TabWideSwitch>();
-	/** True after the relay put this tab in the zeta group; `ompGroupId` holds that group. */
+	/** True after the relay put this tab in the omp group; `ompGroupId` holds that group. */
 	grouped = false;
 	/** Group RPC in flight — suppresses duplicate requests from load-time tabUpdated bursts. */
 	grouping = false;
 	ompGroupId: number | undefined;
-	/** User pulled the tab out of the zeta group — never re-group it. */
+	/** User pulled the tab out of the omp group — never re-group it. */
 	groupOptOut = false;
-	/** The app in front of the user when zeta's input last reached this tab, and when; a window the tab opens uses it once. */
+	/** The app in front of the user when omp's input last reached this tab, and when; a window the tab opens uses it once. */
 	frontAtInput: { app: FrontApp; at: number } | null = null;
 	/**
 	 * Real Chrome sessions (OOPIF/worker children) under this tab's attachment: the child session
@@ -251,6 +297,26 @@ class TabState {
 	runtimeGeneration = 0;
 	/** Settled by the next detach Chrome reports on its own (not one the relay requested). */
 	chromeDetach = Promise.withResolvers<void>();
+	/**
+	 * Other extensions' frames the extension hid in this tab, held until a worker driving it takes them
+	 * (`OMP.takeHiddenFrames`): when it adopts the tab, or with the result of the run during which the relay told it
+	 * (`OMP.foreignFramesHidden`). Chrome's detach ends a worker's sessions on the tab, so the one that re-adopts it
+	 * takes what the last one could not.
+	 */
+	hiddenFrames: HiddenFrame[] = [];
+	/**
+	 * The relay asked the extension to mount the page overlay in this tab's document and has not unmounted it since:
+	 * a client claims the tab and its extension draws the overlay ({@link OVERLAY_PROTOCOL_VERSION}).
+	 */
+	overlayMounted = false;
+	/** This tab's overlay RPCs, run one at a time in the order sent: the extension starts RPCs concurrently. */
+	overlayQueue: Promise<void> = Promise.resolve();
+	/** `Page.captureScreenshot` commands in flight while the overlay is mounted; it stays hidden while any is. */
+	overlayCaptures = 0;
+	/** Sessions (`<conn id> <session id>`) whose screencast runs on this tab; the overlay stays hidden while any does. */
+	readonly screencasts = new Set<string>();
+	/** Settles once the overlay's latest `hide` took effect or failed; a capture waits on it, briefly. */
+	overlayHidden: Promise<void> = Promise.resolve();
 
 	constructor(
 		readonly instanceId: string,
@@ -259,8 +325,6 @@ class TabState {
 		snap: TabSnapshot,
 	) {
 		this.tabKey = tabKeyOf(extCode, tabId);
-		this.studioPageId = snap.studioPageId;
-		this.studioDocumentId = snap.studioDocumentId;
 		this.url = snap.url;
 		this.title = snap.title;
 		this.active = snap.active;
@@ -271,8 +335,6 @@ class TabState {
 	}
 
 	update(snap: TabSnapshot): void {
-		this.studioPageId = snap.studioPageId;
-		this.studioDocumentId = snap.studioDocumentId;
 		this.url = snap.url;
 		this.title = snap.title;
 		this.active = snap.active;
@@ -304,23 +366,26 @@ const CHROME_DETACH_REPORT_MS = 1_000;
 class RpcTimeoutError extends Error {}
 /**
  * Deadline for a command whose answer waits on the page itself (a promise it settles, a navigation it commits),
- * where {@link RPC_TIMEOUT_MS} is for one Chrome answers at once. zeta's own clients give up at
+ * where {@link RPC_TIMEOUT_MS} is for one Chrome answers at once. omp's own clients give up at
  * `BROWSER_PAGE_PROTOCOL_TIMEOUT_MS`, as on a launched Chrome; the relay waits a little longer so their error, not the
  * relay's, reaches the call.
  */
 const PAGE_BOUND_RPC_TIMEOUT_MS = BROWSER_PAGE_PROTOCOL_TIMEOUT_MS + 5_000;
-/** A window a tab opens this long after zeta's input reached it is still taken to be that input's doing. */
+/** A window a tab opens this long after omp's input reached it is still taken to be that input's doing. */
 const POPUP_AFTER_INPUT_MS = 1_000;
-/** How long the user's app is held in front after zeta's input opened a window; Chrome activates within milliseconds. */
+/** How long the user's app is held in front after omp's input opened a window; Chrome activates within milliseconds. */
 const KEEP_FRONT_MS = 500;
 /**
- * zeta's CDP inputs a page can open a window on, by method and event `type`: those that give the page user activation
+ * omp's CDP inputs a page can open a window on, by method and event `type`: those that give the page user activation
  * (a button or key going down, a release, a tap). Moves, wheels, key-ups and inserted text never do, so they read no
  * front app. `true`: every event of that method.
  */
 const WINDOW_OPENING_INPUT: Record<string, Record<string, true> | true> = {
 	"Input.dispatchMouseEvent": { mousePressed: true, mouseReleased: true },
-	"Input.emulateTouchFromMouseEvent": { mousePressed: true, mouseReleased: true },
+	"Input.emulateTouchFromMouseEvent": {
+		mousePressed: true,
+		mouseReleased: true,
+	},
 	"Input.dispatchKeyEvent": { keyDown: true, rawKeyDown: true },
 	"Input.dispatchTouchEvent": { touchStart: true, touchEnd: true },
 	"Input.synthesizeTapGesture": true,
@@ -331,6 +396,84 @@ function canOpenWindow(method: string, params: Record<string, unknown> | undefin
 	const types = WINDOW_OPENING_INPUT[method];
 	const type = params?.type;
 	return types === true || (typeof type === "string" && Object.hasOwn(types, type));
+}
+
+/** Overlay RPC deadline: drawing must never hold a tab's later overlay RPCs for as long as a CDP command may take. */
+const OVERLAY_RPC_TIMEOUT_MS = 5_000;
+/** Longest a capture waits for the overlay to hide before it captures anyway. */
+const OVERLAY_HIDE_WAIT_MS = 300;
+/** Overlay pointer events by `Input.dispatchMouseEvent` type. */
+const OVERLAY_MOUSE_KINDS: Record<string, "move" | "press" | "release" | "wheel"> = {
+	mouseMoved: "move",
+	mousePressed: "press",
+	mouseReleased: "release",
+	mouseWheel: "wheel",
+};
+/** A pressed button as the overlay takes it: CDP's `Input.MouseButton` names. */
+type OverlayButton = Extract<OverlayInput, { kind: "press" }>["button"];
+const OVERLAY_BUTTONS: ReadonlySet<string> = new Set<OverlayButton>([
+	"left",
+	"middle",
+	"right",
+	"back",
+	"forward",
+	"none",
+]);
+
+function isOverlayButton(value: unknown): value is OverlayButton {
+	return typeof value === "string" && OVERLAY_BUTTONS.has(value);
+}
+
+/**
+ * What the overlay draws for a root-session CDP input command, or null for one it draws nothing for: a mouse event of
+ * another type, one at {@link CANCELLED_RELEASE_POINT}, or any other method. Key events and inserted text are typing.
+ */
+function overlayInputOf(method: string, params: Record<string, unknown> | undefined): OverlayInput | null {
+	if (method === "Input.dispatchKeyEvent" || method === "Input.insertText") return { kind: "key" };
+	if (method !== "Input.dispatchMouseEvent") return null;
+	const type = params?.type;
+	const kind = typeof type === "string" && Object.hasOwn(OVERLAY_MOUSE_KINDS, type) ? OVERLAY_MOUSE_KINDS[type] : null;
+	const x = params?.x;
+	const y = params?.y;
+	if (!kind || typeof x !== "number" || typeof y !== "number") return null;
+	if (x === CANCELLED_RELEASE_POINT && y === CANCELLED_RELEASE_POINT) return null;
+	if (kind !== "press") return { kind, x, y };
+	const button = isOverlayButton(params?.button) ? params.button : "none";
+	const clickCount = typeof params?.clickCount === "number" ? params.clickCount : 1;
+	return { kind, x, y, button, clickCount };
+}
+
+/** Whether a `Page.frameNavigated` event's `frame` is a child frame: it names a parent. */
+function isChildFrame(frame: unknown): boolean {
+	return typeof frame === "object" && frame !== null && "parentId" in frame && typeof frame.parentId === "string";
+}
+
+/** The side panel's view of a registry host: everything but the relay connection and participant count. */
+function panelCollabHost(host: CollabHostSnapshot): PanelCollabHost {
+	return {
+		instanceId: host.instanceId,
+		generation: host.generation,
+		pid: host.pid,
+		sessionId: host.sessionId,
+		sessionName: host.sessionName,
+		cwd: host.cwd,
+		model: host.model,
+		startedAt: host.startedAt,
+		busy: host.busy,
+		inputRequired: host.inputRequired,
+		access: host.access,
+	};
+}
+
+/** Resolve once `promise` settles or `ms` pass, whichever is first. */
+async function settledWithin(promise: Promise<void>, ms: number): Promise<void> {
+	const elapsed = Promise.withResolvers<void>();
+	const timer = setTimeout(elapsed.resolve, ms);
+	try {
+		await Promise.race([promise, elapsed.promise]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 /** The app in front of the user, as `macOSFrontApp` from `@linxiraos/pi-natives` reads it. */
@@ -356,26 +499,30 @@ export class RelayBridge {
 	#socketInstance = new Map<RelaySocket, string>();
 	/** Chrome extension id each extension socket's upgrade named in its `Origin`. */
 	#socketExtensionId = new Map<RelaySocket, string>();
-	/** Rewrites the files of the extension with this id to this zeta's; resolves whether it did (see {@link RelayBridgeExtensionUpdater}). */
+	/** Rewrites the files of the extension with this id to this omp's; resolves whether it did (see {@link RelayBridgeExtensionUpdater}). */
 	#updateExtension: RelayBridgeExtensionUpdater | null;
-	/** Per instance, the extension versions the relay already reloaded it from: never twice from the same one. */
+	#installedStamp: RelayBridgeInstalledStamp | null;
+	/** Instances whose installed-files lookup is in flight. */
+	#stampChecks = new Set<string>();
+	/** Per instance, the extension builds the relay already reloaded it from: never twice from the same one. */
 	#updateTried = new Map<string, Set<string>>();
 	/** Instance whose hello ran last: answers browser-wide requests and owns created tabs. */
 	#lastHelloInstance: string | null = null;
-	#extensionSeen = false;
 	/**
-	 * Tabs zeta opened whose close failed while their browser was offline (see {@link #closeTab}), by tab key, with
+	 * Tabs omp opened whose close failed while their browser was offline (see {@link #closeTab}), by tab key, with
 	 * the URL the tab showed: closed at that browser's next hello, unless the tab is gone or shows another page.
 	 */
 	#closeOnHello = new Map<string, string>();
-	/** `Date.now()` when the last ready extension socket closed; null while one is ready or none ever was. */
-	#extensionGoneSince: number | null = null;
 	#pendingRpc = new Map<
 		string,
-		{ resolve: (value: unknown) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }
+		{
+			resolve: (value: unknown) => void;
+			reject: (err: Error) => void;
+			timer: NodeJS.Timeout;
+		}
 	>();
 	/**
-	 * Timed-out RPCs whose late success still needs undoing (a tab Chrome created after zeta gave up), by
+	 * Timed-out RPCs whose late success still needs undoing (a tab Chrome created after omp gave up), by
 	 * `instance:id`.
 	 */
 	#lateRpc = new Map<string, { onResult: (result: unknown) => void; timer: NodeJS.Timeout }>();
@@ -394,10 +541,12 @@ export class RelayBridge {
 	#readFrontApp: (() => FrontApp | null) | undefined;
 	/**
 	 * When the running hold on the user's app ends (`Date.now()` ms), at its deadline or once it settles, whichever is
-	 * first; 0 with none. A window opened meanwhile shares it, and zeta's input reads no front app then: the browser may
+	 * first; 0 with none. A window opened meanwhile shares it, and omp's input reads no front app then: the browser may
 	 * be in front, and a later hold would keep it there.
 	 */
 	#keepingFrontUntil = 0;
+	/** What side-panel calls read. */
+	#panelSources: RelayBridgePanelSources;
 
 	constructor(
 		opts: {
@@ -406,11 +555,17 @@ export class RelayBridge {
 			group?: { title: string; color: string } | null;
 			/** Enables extension self-update; absent, the relay never rewrites or reloads an extension. */
 			updateExtension?: RelayBridgeExtensionUpdater;
+			/** Enables reloading an extension into newer files another omp wrote to its folder (a rebuilt source checkout). */
+			installedStamp?: RelayBridgeInstalledStamp;
+			/** What side-panel calls read; this machine's registries when absent. */
+			panelSources?: RelayBridgePanelSources;
 		} = {},
 	) {
 		this.#log = opts.log ?? (() => {});
 		this.#group = opts.group ?? null;
 		this.#updateExtension = opts.updateExtension ?? null;
+		this.#installedStamp = opts.installedStamp ?? null;
+		this.#panelSources = opts.panelSources ?? LOCAL_PANEL_SOURCES;
 	}
 
 	/** True once an extension has completed its hello handshake, and the relay is not rewriting its files. */
@@ -435,7 +590,7 @@ export class RelayBridge {
 
 	/**
 	 * The browser the caller's tabs live in: the one named by `nearTargetId` (a tab the caller drives on another
-	 * connection; zeta gives every tab its own), else one holding a tab this connection drives. Offline or not.
+	 * connection; omp gives every tab its own), else one holding a tab this connection drives. Offline or not.
 	 */
 	#affineInstance(conn: CdpConnection, nearTargetId: unknown): ExtInstance | undefined {
 		const near = typeof nearTargetId === "string" ? parseTargetId(nearTargetId) : null;
@@ -479,17 +634,7 @@ export class RelayBridge {
 		return this.#lastHello();
 	}
 
-	/** True after the first hello, and stays true: separates a reaped service worker from an absent extension. */
-	get extensionSeen(): boolean {
-		return this.#extensionSeen;
-	}
-
-	/** Milliseconds since the last ready extension disconnected, or null while one is connected or none ever was. */
-	get extensionGoneForMs(): number | null {
-		return this.#extensionGoneSince === null ? null : Date.now() - this.#extensionGoneSince;
-	}
-
-	/** Downstream CDP clients (zeta browser sessions, puppeteer) connected right now. */
+	/** Downstream CDP clients (omp browser sessions, puppeteer) connected right now. */
 	get cdpClientCount(): number {
 		return this.#conns.size;
 	}
@@ -498,7 +643,7 @@ export class RelayBridge {
 	versionInfo(wsUrl: string): Record<string, string | number> {
 		const info = this.#lastHello()?.info;
 		let hasCompatibleExtension = false;
-		// The oldest connected extension's installing zeta, so a current browser cannot hide a stale one.
+		// The oldest connected extension's installing omp, so a current browser cannot hide a stale one.
 		// A stamp of unknown age yields to any other, so it cannot hide one either.
 		let oldestExtensionOmp: string | undefined;
 		for (const instance of this.#instances.values()) {
@@ -509,7 +654,7 @@ export class RelayBridge {
 			const zetaVersion = instance.info.zetaVersion ?? "";
 			if (
 				oldestExtensionOmp === undefined ||
-				isOlderZetaVersion(zetaVersion, oldestExtensionOmp) ||
+				isOlderOmpVersion(zetaVersion, oldestExtensionOmp) ||
 				(oldestExtensionOmp !== "" && !isOmpVersion(oldestExtensionOmp))
 			) {
 				oldestExtensionOmp = zetaVersion;
@@ -523,7 +668,7 @@ export class RelayBridge {
 			"V8-Version": "",
 			"WebKit-Version": "",
 			webSocketDebuggerUrl: wsUrl,
-			zetaRelayVersion: VERSION,
+			ompRelayVersion: VERSION,
 			ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 			ompExtensionDiscardedTabsProtocol: String(hasCompatibleExtension ? DISCARDED_TABS_PROTOCOL_VERSION : 0),
 			ompRelayCdpClients: this.#conns.size,
@@ -538,8 +683,6 @@ export class RelayBridge {
 			if (!this.#eligible(tab)) continue;
 			out.push({
 				id: pageTargetIdFromKey(tab.tabKey),
-				...(tab.studioPageId ? { studioPageId: tab.studioPageId } : {}),
-				...(tab.studioDocumentId ? { studioDocumentId: tab.studioDocumentId } : {}),
 				type: "page",
 				title: tab.title,
 				url: tab.url,
@@ -581,6 +724,7 @@ export class RelayBridge {
 		inst.socket = null;
 		inst.goneSince = Date.now();
 		inst.updating = false;
+		inst.busy = false;
 		this.#rejectPendingExtensionRpcs(instanceId, new Error("relay extension disconnected"));
 		// Keep the instance's tabs listed (the browser may reconnect), but drop
 		// debugger state: the attachment died with the service worker.
@@ -589,14 +733,16 @@ export class RelayBridge {
 			tab.attached = false;
 			tab.attaching = null;
 			this.#resetRuntime(tab);
-			// The extension dissolves zeta groups on disconnect (or died along
+			// The extension dissolves omp groups on disconnect (or died along
 			// with them); grouping state is unknowable until the next hello.
 			tab.grouped = false;
 			tab.grouping = false;
 			tab.ompGroupId = undefined;
+			// The screencasts ended with the attachment; the overlay is mounted again at the next hello.
+			tab.overlayMounted = false;
+			tab.screencasts.clear();
 		}
 		this.#groupQueue = this.#groupQueue.filter(tab => tab.instanceId !== instanceId);
-		if (!this.ready) this.#extensionGoneSince ??= Date.now();
 	}
 
 	extMessage(socket: RelaySocket, raw: string): void {
@@ -640,6 +786,9 @@ export class RelayBridge {
 			case "detached":
 				this.#onTabDetached(tabKeyOf(inst.code, msg.tabId), msg.reason, msg.relayInitiated === true);
 				return;
+			case "framesHidden":
+				this.#onFramesHidden(tabKeyOf(inst.code, msg.tabId), msg.frames);
+				return;
 			case "tabCreated":
 				this.#onTabUpsert(msg.tab, instanceId);
 				return;
@@ -649,9 +798,51 @@ export class RelayBridge {
 			case "tabRemoved":
 				this.#onTabRemoved(tabKeyOf(inst.code, msg.tabId));
 				return;
-			case "ping":
-				socket.send(JSON.stringify({ t: "pong" } satisfies RelayToExtMessage));
+			case "call":
+				void this.#answerCall(socket, msg.id, msg.call);
 				return;
+			case "busy": {
+				const wasBusy = inst.busy;
+				inst.busy = msg.busy === true;
+				// The update the work deferred may go ahead now, once nothing else holds it back.
+				if (wasBusy && !inst.busy && this.#conns.size === 0) void this.#updateIdleExtensions();
+				return;
+			}
+		}
+	}
+
+	/** Answer a side-panel call on the socket that made it; a failure answers with its message. */
+	async #answerCall(socket: RelaySocket, id: number, call: PanelCall): Promise<void> {
+		let reply: RelayToExtMessage;
+		try {
+			reply = {
+				t: "callResult",
+				id,
+				ok: true,
+				result: await this.#runCall(call),
+			};
+		} catch (err) {
+			reply = {
+				t: "callResult",
+				id,
+				ok: false,
+				error: err instanceof Error ? err.message : String(err),
+			};
+		}
+		socket.send(JSON.stringify(reply));
+	}
+
+	async #runCall(call: PanelCall): Promise<PanelCollabHost[] | { url: string } | PanelInstall[]> {
+		switch (call?.op) {
+			case "collabHosts":
+				return (await this.#panelSources.listHosts()).map(panelCollabHost);
+			case "collabLink":
+				if (typeof call.instanceId !== "string") throw new Error("collabLink requires the host's instanceId");
+				return { url: await this.#panelSources.controlLink(call.instanceId) };
+			case "installs":
+				return await this.#panelSources.installs();
+			default:
+				throw new Error(`unknown panel call ${JSON.stringify(call)}`);
 		}
 	}
 
@@ -671,6 +862,7 @@ export class RelayBridge {
 				reconnected: null,
 				extensionId: null,
 				updating: false,
+				busy: false,
 			};
 			this.#instances.set(instanceId, inst);
 		} else if (inst.socket && inst.socket !== socket) {
@@ -703,17 +895,20 @@ export class RelayBridge {
 		this.#socketInstance.set(socket, instanceId);
 		inst.extensionId = this.#socketExtensionId.get(socket) ?? null;
 		inst.updating = false;
+		// A new socket starts idle; a busy extension says so right after its hello.
+		inst.busy = false;
 		inst.info = {
 			userAgent: msg.userAgent,
 			browserVersion: msg.browserVersion,
 			discardedTabsProtocol: msg.discardedTabsProtocol,
 			zetaVersion: typeof msg.zetaVersion === "string" ? msg.zetaVersion : undefined,
+			zetaBuild: typeof msg.zetaBuild === "string" ? msg.zetaBuild : undefined,
 			reloadProtocol: msg.reloadProtocol,
 			downloadsProtocol: msg.downloadsProtocol,
+			overlayProtocol: msg.overlayProtocol,
+			panelProtocol: msg.panelProtocol,
 		};
 		this.#lastHelloInstance = instanceId;
-		this.#extensionSeen = true;
-		this.#extensionGoneSince = null;
 		// The hello GC is scoped to this instance: another browser's tabs are
 		// untouched, which is what lets Chrome and Edge share one relay.
 		const seen = new Set<number>();
@@ -743,6 +938,8 @@ export class RelayBridge {
 			tab.attaching = null;
 			tab.cancelAttach = null;
 			tab.attachCancelled = false;
+			// The extension took its overlays down with its socket, or this one draws none: claimed tabs mount anew below.
+			tab.overlayMounted = false;
 			if (!tab.attached) this.#forgetChildren(tab);
 			if (tab.discarded) {
 				// Retire held sessions now; revival will reannounce and attach the tab.
@@ -776,13 +973,14 @@ export class RelayBridge {
 			// A tab the hello brings that no client was told about, such as one a browser opened before its
 			// extension connected, is announced now: no later change has to happen for Puppeteer to see it.
 			if (!tab.announced && this.#eligible(tab)) this.#announceTab(tab);
+			if (this.#claimed(tab.tabKey)) this.#mountOverlay(tab);
 		}
 		this.#syncGrouping();
 		this.#log("extension connected", {
 			instanceId,
 			tabs: msg.tabs.length,
 			version: msg.browserVersion,
-			zeta: inst.info.zetaVersion,
+			omp: inst.info.zetaVersion,
 		});
 		this.#maybeUpdateExtension(inst);
 	}
@@ -790,14 +988,14 @@ export class RelayBridge {
 	// ---- extension self-update ------------------------------------------------
 
 	/**
-	 * The older Zeta version this extension runs, when the relay may replace it: the extension reloads on request,
-	 * its script carries a Zeta version older than this relay's, its socket named its Chrome id, and the relay has
+	 * The older omp version this extension runs, when the relay may replace it: the extension reloads on request,
+	 * its script carries an omp version older than this relay's, its socket named its Chrome id, and the relay has
 	 * not already reloaded it from that version (a reload that brings the same version back must not loop).
 	 */
 	#outdatedReloadable(inst: ExtInstance): string | null {
 		const zetaVersion = inst.info?.zetaVersion ?? "";
 		if (inst.info?.reloadProtocol !== EXTENSION_RELOAD_PROTOCOL_VERSION || !inst.extensionId) return null;
-		if (!isOmpVersion(zetaVersion) || !isOlderZetaVersion(zetaVersion, VERSION)) return null;
+		if (!isOmpVersion(zetaVersion) || !isOlderOmpVersion(zetaVersion, VERSION)) return null;
 		return this.#updateTried.get(inst.instanceId)?.has(zetaVersion) ? null : zetaVersion;
 	}
 
@@ -806,17 +1004,19 @@ export class RelayBridge {
 	 * socket and every debugger attachment it holds, so it waits for no CDP client to be connected (no claimed
 	 * tab, no held session) and none of the extension's tabs to be attached, attaching or detaching. It also waits
 	 * out the extension's calls in flight and the tab closes queued for its next hello: the reloaded extension
-	 * reports a new browser session, which retires the target ids they name, so a tab zeta opened would stay open.
+	 * reports a new browser session, which retires the target ids they name, so a tab omp opened would stay open. And
+	 * it waits while the extension reports itself busy: a reload would end its panel turn or recording.
 	 */
 	#reloadBlocker(inst: ExtInstance): string | null {
 		if (!inst.socket) return "disconnected";
+		if (inst.busy) return "extension busy";
 		if (this.#conns.size > 0) return "CDP clients connected";
 		for (const tab of this.#tabs.values()) {
 			if (tab.instanceId === inst.instanceId && (tab.attached || tab.attaching || tab.detaching)) {
 				return "tabs attached";
 			}
 		}
-		// A call past its timeout whose late result still closes what it made (a tab created after zeta gave up) counts.
+		// A call past its timeout whose late result still closes what it made (a tab created after omp gave up) counts.
 		for (const key of [...this.#pendingRpc.keys(), ...this.#lateRpc.keys()]) {
 			if (key.startsWith(`${inst.instanceId}:`)) return "extension calls pending";
 		}
@@ -826,15 +1026,33 @@ export class RelayBridge {
 		return null;
 	}
 
-	/** Rewrite an outdated extension's files to this zeta's and ask it to reload, when that costs nothing. */
+	/**
+	 * Re-run the update checks for every connected extension, e.g. after `omp browser-relay install` rewrote their
+	 * folders: each reloads into its folder's files once idle.
+	 */
+	recheckExtensions(): void {
+		for (const inst of this.#instances.values()) this.#maybeUpdateExtension(inst);
+	}
+
+	/**
+	 * Rewrite an outdated extension's files to this omp's and ask it to reload, when that costs nothing; otherwise
+	 * reload it into its folder when that holds another build ({@link RelayBridgeInstalledStamp}).
+	 */
 	#maybeUpdateExtension(inst: ExtInstance): void {
 		const updateExtension = this.#updateExtension;
-		if (!updateExtension || inst.updating) return;
-		const from = this.#outdatedReloadable(inst);
-		if (from === null) return;
+		if (inst.updating) return;
+		const from = updateExtension ? this.#outdatedReloadable(inst) : null;
+		if (!updateExtension || from === null) {
+			this.#maybeReloadIntoInstalled(inst);
+			return;
+		}
 		const busy = this.#reloadBlocker(inst);
 		if (busy !== null) {
-			this.#log("extension update deferred", { instanceId: inst.instanceId, from, reason: busy });
+			this.#log("extension update deferred", {
+				instanceId: inst.instanceId,
+				from,
+				reason: busy,
+			});
 			return;
 		}
 		const socket = inst.socket!;
@@ -842,7 +1060,9 @@ export class RelayBridge {
 		inst.updating = true;
 		void updateExtension(inst.extensionId!)
 			.catch(err => {
-				this.#log("extension update failed", { error: err instanceof Error ? err.message : String(err) });
+				this.#log("extension update failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
 				return false;
 			})
 			.then(updated => {
@@ -851,19 +1071,69 @@ export class RelayBridge {
 				const busy = updated ? this.#reloadBlocker(inst) : "files not rewritten";
 				if (busy !== null) {
 					inst.updating = false;
-					this.#log("extension update stopped", { instanceId: inst.instanceId, from, reason: busy });
+					this.#log("extension update stopped", {
+						instanceId: inst.instanceId,
+						from,
+						reason: busy,
+					});
 					return;
 				}
-				const tried = this.#updateTried.get(inst.instanceId) ?? new Set<string>();
-				tried.add(from);
-				this.#updateTried.set(inst.instanceId, tried);
-				socket.send(JSON.stringify({ t: "reload" } satisfies RelayToExtMessage));
-				this.#log("extension reloading into update", { instanceId: inst.instanceId, from, to: VERSION });
-				// Retire the socket now, as if the reload had closed it: nothing new may reach a browser that is
-				// about to drop its socket and attachments. An extension that ignored the request redials.
-				socket.close();
-				this.extClosed(socket);
+				this.#reload(inst, socket, from, VERSION);
 			});
+	}
+
+	/**
+	 * Reload an extension whose folder holds other files than it runs, typically a source checkout's rebuild that
+	 * `omp browser-relay install` or omp's startup sync wrote at the same omp version. Never writes files itself, so
+	 * relays from two checkouts cannot take turns rewriting a folder.
+	 */
+	#maybeReloadIntoInstalled(inst: ExtInstance): void {
+		const lookup = this.#installedStamp;
+		const { info, socket, extensionId, instanceId } = inst;
+		if (!lookup || !info || !socket || !extensionId || this.#stampChecks.has(instanceId)) return;
+		if (info.reloadProtocol !== EXTENSION_RELOAD_PROTOCOL_VERSION) return;
+		const running = `${info.zetaVersion ?? "unstamped"}+${info.zetaBuild ?? "unbuilt"}`;
+		if (this.#updateTried.get(instanceId)?.has(running) || this.#reloadBlocker(inst) !== null) return;
+		this.#stampChecks.add(instanceId);
+		void lookup(extensionId)
+			.catch(err => {
+				this.#log("installed extension lookup failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+				return null;
+			})
+			.then(installed => {
+				this.#stampChecks.delete(instanceId);
+				if (!installed || inst.socket !== socket || inst.updating) return;
+				if (installed.zetaVersion === info.zetaVersion && installed.zetaBuild === (info.zetaBuild ?? null)) return;
+				const busy = this.#reloadBlocker(inst);
+				if (busy !== null) {
+					this.#log("extension reload deferred", {
+						instanceId,
+						from: running,
+						reason: busy,
+					});
+					return;
+				}
+				this.#reload(inst, socket, running, `${installed.zetaVersion}+${installed.zetaBuild ?? "unbuilt"}`);
+			});
+	}
+
+	/** Ask an idle extension to reload into the files on disk, never twice from the same running build. */
+	#reload(inst: ExtInstance, socket: RelaySocket, from: string, to: string): void {
+		const tried = this.#updateTried.get(inst.instanceId) ?? new Set<string>();
+		tried.add(from);
+		this.#updateTried.set(inst.instanceId, tried);
+		socket.send(JSON.stringify({ t: "reload" } satisfies RelayToExtMessage));
+		this.#log("extension reloading into update", {
+			instanceId: inst.instanceId,
+			from,
+			to,
+		});
+		// Retire the socket now, as if the reload had closed it: nothing new may reach a browser that is
+		// about to drop its socket and attachments. An extension that ignored the request redials.
+		socket.close();
+		this.extClosed(socket);
 	}
 
 	/**
@@ -922,14 +1192,17 @@ export class RelayBridge {
 			if (ref.autoAttach) armedTabs.add(ref.tabKey);
 		}
 		for (const tabKey of armedTabs) this.#releaseAutoAttach(tabKey);
-		// Tabs this client claimed leave the zeta group unless another claimant
+		// Tabs this client claimed leave the omp group unless another claimant
 		// remains — session holders don't count: the long-lived registry
 		// connection holds sessions on every tab without driving any of them.
 		for (const tabId of conn.claims) {
 			const tab = this.#tabs.get(tabId);
 			if (tab) this.#syncTabGrouping(tab);
+			// The last claim on the tab went: nobody drives it, so nothing draws on it.
+			if (tab && !this.#claimed(tab.tabKey)) this.#unmountOverlay(tab);
 		}
 		conn.claims.clear();
+		for (const tab of this.#tabs.values()) this.#endScreencasts(tab, key => key.startsWith(`${conn.id} `));
 		// Drop the debugger (and its infobar) from tabs nobody drives anymore.
 		for (const tabKey of touched) this.#detachIfUnheld(tabKey);
 		this.#log("cdp client closed", { conn: connId });
@@ -1032,7 +1305,10 @@ export class RelayBridge {
 					const previous = ref.switches.has(method);
 					if (msg.params?.enabled === true) ref.switches.add(method);
 					else ref.switches.delete(method);
-					const params = { ...msg.params, enabled: this.#switchWanted(ref.tabKey, method) };
+					const params = {
+						...msg.params,
+						enabled: this.#switchWanted(ref.tabKey, method),
+					};
 					if (!(await this.#forwardToTab(conn, { ...msg, params }, ref.tabKey, undefined))) {
 						if (previous) ref.switches.add(method);
 						else ref.switches.delete(method);
@@ -1151,7 +1427,13 @@ export class RelayBridge {
 		for (const [contextId, params] of tab.runtimeContexts) {
 			if (ref.runtimeContexts.has(contextId)) continue;
 			ref.runtimeContexts.add(contextId);
-			conn.socket.send(JSON.stringify({ sessionId, method: "Runtime.executionContextCreated", params }));
+			conn.socket.send(
+				JSON.stringify({
+					sessionId,
+					method: "Runtime.executionContextCreated",
+					params,
+				}),
+			);
 		}
 	}
 
@@ -1166,7 +1448,13 @@ export class RelayBridge {
 		for (const [child, known] of tab.realSessions) {
 			if (known.parent !== parent || conn.childParents.has(child)) continue;
 			conn.childParents.set(child, sessionId);
-			conn.socket.send(JSON.stringify({ sessionId, method: "Target.attachedToTarget", params: known.event }));
+			conn.socket.send(
+				JSON.stringify({
+					sessionId,
+					method: "Target.attachedToTarget",
+					params: known.event,
+				}),
+			);
 		}
 	}
 
@@ -1187,12 +1475,19 @@ export class RelayBridge {
 			this.#reply(conn, msg, {});
 			return true;
 		}
-		// Relay-private claim the zeta tab worker sends on the page it adopted. A worker of this version claims at
+		// Relay-private claim the omp tab worker sends on the page it adopted. A worker of this version claims at
 		// connect already (`/cdp?claim=`); one of an older version, sharing this relay, claims only here. Never
 		// forwarded — real Chrome rejects the unknown method.
 		if (msg.method === "OMP.claimTarget") {
 			this.#claimTab(conn, tabKey);
 			this.#reply(conn, msg, {});
+			return true;
+		}
+		// Relay-private: what the extension hid in this tab, for the worker driving it.
+		if (msg.method === "OMP.takeHiddenFrames") {
+			this.#reply(conn, msg, {
+				frames: this.#tabs.get(tabKey)?.hiddenFrames.splice(0) ?? [],
+			});
 			return true;
 		}
 		const tab = this.#tabs.get(tabKey);
@@ -1223,7 +1518,7 @@ export class RelayBridge {
 			tab.frontAtInput = Date.now() < this.#keepingFrontUntil ? null : this.#readFrontAtInput(this.#readFrontApp);
 		}
 		try {
-			const result = await this.#send(tab, inst, msg.method, msg.params, realSessionId);
+			const result = await this.#sendAroundOverlay(conn, msg, tab, inst, realSessionId);
 			const response = (result as Record<string, unknown> | undefined) ?? {};
 			// An explicit attach grants ownership even when this connection did not arm auto-attach.
 			if (msg.method === "Target.attachToTarget" && msg.sessionId && typeof response.sessionId === "string") {
@@ -1232,6 +1527,19 @@ export class RelayBridge {
 			}
 			beforeReply?.();
 			this.#reply(conn, msg, response);
+			// Chrome acknowledged the input, so the overlay may draw it; only the client driving the tab moves omp's
+			// pointer, never one that merely holds a session on it (the registry connection, another tool).
+			if (realSessionId === undefined && tab.overlayMounted && conn.claims.has(tabKey)) {
+				const input = overlayInputOf(msg.method, msg.params);
+				if (input)
+					inst.socket?.send(
+						JSON.stringify({
+							t: "input",
+							tabId: tab.tabId,
+							input,
+						} satisfies RelayToExtMessage),
+					);
+			}
 			return true;
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -1246,7 +1554,40 @@ export class RelayBridge {
 	}
 
 	/**
-	 * Read the app in front of the user with `read` as zeta's input reaches a tab, to put it back when that input opens a
+	 * Send a client's command to the tab, keeping the page overlay out of what Chrome captures: a screenshot is taken
+	 * with the overlay hidden, and a screencast keeps it hidden from its start until it stops.
+	 */
+	async #sendAroundOverlay(
+		conn: CdpConnection,
+		msg: CdpCommand,
+		tab: TabState,
+		inst: ExtInstance,
+		realSessionId: string | undefined,
+	): Promise<unknown> {
+		const send = () => this.#send(tab, inst, msg.method, msg.params, realSessionId);
+		const screencast = `${conn.id} ${msg.sessionId}`;
+		switch (msg.method) {
+			case "Page.captureScreenshot":
+				return await this.#whileOverlayHidden(tab, send);
+			case "Page.startScreencast":
+				return await this.#whileOverlayHidden(tab, async () => {
+					const result = await send();
+					if (tab.overlayMounted) tab.screencasts.add(screencast);
+					return result;
+				});
+			case "Page.stopScreencast":
+				try {
+					return await send();
+				} finally {
+					this.#endScreencasts(tab, key => key === screencast);
+				}
+			default:
+				return await send();
+		}
+	}
+
+	/**
+	 * Read the app in front of the user with `read` as omp's input reaches a tab, to put it back when that input opens a
 	 * window and Chrome brings itself forward to show it. Only where the relay can put it back (macOS).
 	 */
 	keepFrontAppWith(read: () => FrontApp | null): void {
@@ -1254,7 +1595,7 @@ export class RelayBridge {
 	}
 
 	/**
-	 * The app in front of the user now, for zeta's input to a tab. A read that throws (a stale native addon without
+	 * The app in front of the user now, for omp's input to a tab. A read that throws (a stale native addon without
 	 * `macOSFrontApp`) turns the reads off for good, so the input itself still goes out.
 	 */
 	#readFrontAtInput(read: () => FrontApp | null): { app: FrontApp; at: number } | null {
@@ -1271,7 +1612,7 @@ export class RelayBridge {
 	}
 
 	/**
-	 * Hold the app that was in front at zeta's last input to `tab`, if that input can have opened the window the tab's
+	 * Hold the app that was in front at omp's last input to `tab`, if that input can have opened the window the tab's
 	 * page is opening: Chrome makes itself the active app to show it.
 	 */
 	#keepFrontApp(tab: TabState): void {
@@ -1307,6 +1648,83 @@ export class RelayBridge {
 			this.#log("tab claimed", { conn: conn.id, tabKey });
 		}
 		this.#syncTabGrouping(tab);
+		if (!tab.overlayMounted) this.#mountOverlay(tab);
+	}
+
+	// ---- page overlay ----------------------------------------------------------
+
+	/**
+	 * Mount the page overlay in a claimed tab whose extension draws it: at the claim, and again in each new document
+	 * the tab commits. Hidden at once while a capture or screencast runs on the tab.
+	 */
+	#mountOverlay(tab: TabState): void {
+		if (this.#instances.get(tab.instanceId)?.info?.overlayProtocol !== OVERLAY_PROTOCOL_VERSION) return;
+		tab.overlayMounted = true;
+		void this.#overlayRpc(tab, "mount");
+		if (tab.overlayCaptures > 0 || tab.screencasts.size > 0) tab.overlayHidden = this.#overlayRpc(tab, "hide");
+	}
+
+	/** Take the page overlay out of a tab nobody drives any more, or whose debugger attachment Chrome ended. */
+	#unmountOverlay(tab: TabState): void {
+		if (!tab.overlayMounted) return;
+		tab.overlayMounted = false;
+		tab.screencasts.clear();
+		void this.#overlayRpc(tab, "unmount");
+	}
+
+	/**
+	 * Run `capture` with the tab's mounted overlay hidden: it waits up to {@link OVERLAY_HIDE_WAIT_MS} for the hide to
+	 * take effect, then captures anyway, and the last of overlapping captures shows the overlay again.
+	 */
+	async #whileOverlayHidden<T>(tab: TabState, capture: () => Promise<T>): Promise<T> {
+		if (!tab.overlayMounted) return await capture();
+		if (tab.overlayCaptures++ === 0 && tab.screencasts.size === 0) tab.overlayHidden = this.#overlayRpc(tab, "hide");
+		try {
+			await settledWithin(tab.overlayHidden, OVERLAY_HIDE_WAIT_MS);
+			return await capture();
+		} finally {
+			tab.overlayCaptures--;
+			this.#showOverlayIfUncaptured(tab);
+		}
+	}
+
+	/** Forget the screencasts on `tab` whose `<conn id> <session id>` key `ended` matches, showing the overlay after the last. */
+	#endScreencasts(tab: TabState, ended: (key: string) => boolean): void {
+		let any = false;
+		for (const key of tab.screencasts) {
+			if (!ended(key)) continue;
+			tab.screencasts.delete(key);
+			any = true;
+		}
+		if (any) this.#showOverlayIfUncaptured(tab);
+	}
+
+	/** Show the mounted overlay again once no capture or screencast runs on the tab. */
+	#showOverlayIfUncaptured(tab: TabState): void {
+		if (tab.overlayMounted && tab.overlayCaptures === 0 && tab.screencasts.size === 0) {
+			void this.#overlayRpc(tab, "show");
+		}
+	}
+
+	/**
+	 * Ask the tab's extension to `action` its overlay, after the tab's earlier overlay RPCs settle. Settles either way:
+	 * a failure (a page the extension may not script, a tab that closed) is logged, and never fails a client's command.
+	 */
+	#overlayRpc(tab: TabState, action: OverlayAction): Promise<void> {
+		const run = async () => {
+			const inst = this.#instances.get(tab.instanceId);
+			if (!inst?.socket || inst.info?.overlayProtocol !== OVERLAY_PROTOCOL_VERSION) return;
+			await this.#rpc({ op: "overlay", tabId: tab.tabId, action }, inst, OVERLAY_RPC_TIMEOUT_MS);
+		};
+		const done = tab.overlayQueue.then(run).catch(err => {
+			this.#log("overlay rpc failed", {
+				tabKey: tab.tabKey,
+				action,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+		tab.overlayQueue = done;
+		return done;
 	}
 
 	/** True while any downstream connection claims the tab as its drive target. */
@@ -1385,8 +1803,12 @@ export class RelayBridge {
 				for (const tab of this.#tabs.values()) {
 					if (!this.#eligible(tab)) continue;
 					tab.announced = true;
-					this.#emit(conn, "Target.targetCreated", { targetInfo: this.#tabInfo(tab, tab.attached) });
-					this.#emit(conn, "Target.targetCreated", { targetInfo: this.#pageInfo(tab, tab.attached) });
+					this.#emit(conn, "Target.targetCreated", {
+						targetInfo: this.#tabInfo(tab, tab.attached),
+					});
+					this.#emit(conn, "Target.targetCreated", {
+						targetInfo: this.#pageInfo(tab, tab.attached),
+					});
 				}
 				this.#reply(conn, msg, {});
 				return;
@@ -1433,7 +1855,11 @@ export class RelayBridge {
 				}
 				const sessionId = this.#mintSession(conn, parsed.kind, tab);
 				const info = parsed.kind === "tab" ? this.#tabInfo(tab, true) : this.#pageInfo(tab, true);
-				this.#emit(conn, "Target.attachedToTarget", { sessionId, targetInfo: info, waitingForDebugger: false });
+				this.#emit(conn, "Target.attachedToTarget", {
+					sessionId,
+					targetInfo: info,
+					waitingForDebugger: false,
+				});
 				this.#reply(conn, msg, { sessionId });
 				return;
 			}
@@ -1471,7 +1897,7 @@ export class RelayBridge {
 					});
 				})) as { tab: TabSnapshot };
 				this.#onTabUpsert(result.tab, inst.instanceId);
-				// The client left while Chrome created the tab (zeta gave up on a slow open), so nobody
+				// The client left while Chrome created the tab (omp gave up on a slow open), so nobody
 				// can learn its id to close it later: close it now instead of leaving it in the user's browser.
 				if (this.#conns.get(conn.id) !== conn) {
 					await this.#closeTab(tabKeyOf(inst.code, result.tab.tabId), result.tab.tabId, inst);
@@ -1527,7 +1953,8 @@ export class RelayBridge {
 				if (parsed && tab) {
 					const info =
 						parsed.kind === "tab" ? this.#tabInfo(tab, tab.attached) : this.#pageInfo(tab, tab.attached);
-					this.#reply(conn, msg, { targetInfo: info });
+					// Relay-private beside the result: why the tab is withheld, so a client that cannot find it can say.
+					this.#reply(conn, msg, tab.refusal ? { targetInfo: info, refusal: tab.refusal } : { targetInfo: info });
 					return;
 				}
 				this.#reply(conn, msg, {
@@ -1544,36 +1971,16 @@ export class RelayBridge {
 			}
 			case "Browser.close":
 				// Never close the user's browser; acknowledge and ignore.
-				this.#log("refusing Browser.close from downstream client", { conn: conn.id });
+				this.#log("refusing Browser.close from downstream client", {
+					conn: conn.id,
+				});
 				this.#reply(conn, msg, {});
 				return;
 			case "Browser.setDownloadBehavior":
 				this.#reply(conn, msg, {});
 				return;
-			case "Studio.downloads.enable":
-			case "Studio.downloads.list": {
-				const targetId = typeof msg.params?.targetId === "string" ? msg.params.targetId : "";
-				const parsed = parseTargetId(targetId);
-				const tab = parsed ? this.#tabs.get(parsed.key) : undefined;
-				if (!tab?.studioPageId) {
-					this.#replyError(conn, msg, "Managed browser page is unavailable");
-					return;
-				}
-				const directory = typeof msg.params?.directory === "string" ? msg.params.directory : undefined;
-				const result = await this.#rpc(
-					{
-						op: "studioDownloads",
-						tabId: tab.tabId,
-						action: msg.method.endsWith("enable") ? "enable" : "list",
-						...(directory ? { directory } : {}),
-					},
-					this.#instanceFor(tab),
-				);
-				this.#reply(conn, msg, { downloads: result });
-				return;
-			}
 			case "Target.createBrowserContext":
-				this.#replyError(conn, msg, "Browser contexts are not supported by the zeta browser relay");
+				this.#replyError(conn, msg, "Browser contexts are not supported by the omp browser relay");
 				return;
 			default:
 				this.#replyError(conn, msg, `'${msg.method}' wasn't found`, CDP_ERROR_METHOD_NOT_FOUND);
@@ -1593,6 +2000,15 @@ export class RelayBridge {
 		// The page (or a frame in it, on a child session) is opening a tab or window; Chrome brings itself forward
 		// to show it.
 		if (method === "Page.windowOpen") this.#keepFrontApp(tab);
+		// The tab committed a new top-level document, which has no overlay yet; same-document navigations keep it.
+		if (
+			method === "Page.frameNavigated" &&
+			sourceSessionId === undefined &&
+			tab.overlayMounted &&
+			!isChildFrame(params?.frame)
+		) {
+			this.#mountOverlay(tab);
+		}
 		// Track real child sessions so downstream commands can route back.
 		if (method === "Target.attachedToTarget") {
 			const child = params?.sessionId;
@@ -1611,7 +2027,11 @@ export class RelayBridge {
 			// Event from a real child session: pass through verbatim to every
 			// connection that was told about the child, tracking nested children.
 			const nested = typeof params?.sessionId === "string" ? params.sessionId : undefined;
-			const payload = JSON.stringify({ sessionId: sourceSessionId, method, params });
+			const payload = JSON.stringify({
+				sessionId: sourceSessionId,
+				method,
+				params,
+			});
 			for (const conn of this.#conns.values()) {
 				if (!conn.childParents.has(sourceSessionId)) continue;
 				conn.socket.send(payload);
@@ -1685,6 +2105,38 @@ export class RelayBridge {
 		}
 	}
 
+	/**
+	 * The extension emptied and hid other extensions' frames in a tab omp drives. They wait on the tab for a worker to
+	 * take them; one driving the attached tab now is told to, and the next one takes them when it adopts the tab.
+	 */
+	#onFramesHidden(tabKey: string, frames: unknown): void {
+		const tab = this.#tabs.get(tabKey);
+		if (!tab || !Array.isArray(frames)) return;
+		// The report comes off a socket and its title is another extension's text: keep well-formed, single-line
+		// entries, once each, and only the latest few while no worker takes them.
+		for (const frame of frames) {
+			if (!isHiddenFrame(frame)) continue;
+			const clean = {
+				extensionId: singleLine(frame.extensionId, HIDDEN_FRAME_FIELD_MAX),
+				path: singleLine(frame.path, HIDDEN_FRAME_FIELD_MAX),
+				...(frame.title ? { title: singleLine(frame.title, HIDDEN_FRAME_FIELD_MAX) } : {}),
+			};
+			const held = tab.hiddenFrames.findIndex(
+				entry => entry.extensionId === clean.extensionId && entry.path === clean.path,
+			);
+			if (held !== -1) tab.hiddenFrames.splice(held, 1);
+			tab.hiddenFrames.push(clean);
+		}
+		if (tab.hiddenFrames.length > MAX_HIDDEN_FRAMES)
+			tab.hiddenFrames.splice(0, tab.hiddenFrames.length - MAX_HIDDEN_FRAMES);
+		for (const conn of this.#conns.values()) {
+			if (!conn.claims.has(tabKey)) continue;
+			for (const pageSession of conn.sessionsForTab(tabKey, "page")) {
+				this.#emit(conn, "OMP.foreignFramesHidden", {}, pageSession);
+			}
+		}
+	}
+
 	#onTabDetached(tabKey: string, reason: string, relayInitiated: boolean): void {
 		const tab = this.#tabs.get(tabKey);
 		if (!tab) return;
@@ -1702,12 +2154,14 @@ export class RelayBridge {
 		tab.attached = false;
 		tab.attaching = null;
 		this.#resetRuntime(tab);
+		// Its screencasts ended with the attachment; the overlay comes back when the tab is attached again.
+		this.#unmountOverlay(tab);
 		// Only the user pressing Cancel on Chrome's debugging bar is a refusal. Chrome also detaches when
 		// another extension's frame (a password manager's inline menu) starts loading in the tab: that tab
 		// stays adoptable and is announced again at once; an attach Chrome refuses still bans it (#ensureAttached).
 		const cancelledByUser = reason === "canceled_by_user";
 		if (cancelledByUser) tab.refusal = "the user cancelled Chrome's debugging bar";
-		// A user cancel releases the tab's zeta-group membership; any other detach keeps it.
+		// A user cancel releases the tab's omp-group membership; any other detach keeps it.
 		this.#syncTabGrouping(tab);
 		// Relay-private event, ahead of the sessions' detach: a client driving the tab learns that Chrome
 		// ended the attachment, not the page, and can re-adopt it instead of waiting on a dead session. A tab
@@ -1729,6 +2183,8 @@ export class RelayBridge {
 	#onTabRemoved(tabKey: string): void {
 		const tab = this.#tabs.get(tabKey);
 		if (!tab) return;
+		// The overlay went with the tab: a capture still in flight must not try to show it.
+		tab.overlayMounted = false;
 		this.#retractTab(tab);
 		this.#tabs.delete(tabKey);
 		for (const conn of this.#conns.values()) conn.claims.delete(tabKey);
@@ -1745,13 +2201,15 @@ export class RelayBridge {
 			this.#tabs.set(key, tab);
 		} else {
 			if (tab.url !== snap.url) tab.refusal = undefined;
-			// The user dragging a tab out of the zeta group is an opt-out; the
+			// The user dragging a tab out of the omp group is an opt-out; the
 			// relay never fights the user over grouping.
 			if (tab.grouped && tab.ompGroupId !== undefined && snap.groupId !== tab.ompGroupId) {
 				tab.grouped = false;
 				tab.groupOptOut = true;
 			}
 			tab.update(snap);
+			// Discarding dropped the document and its overlay; the tab mounts one again once attached after revival.
+			if (tab.discarded) tab.overlayMounted = false;
 			if (tab.discarded && tab.attaching && !tab.attachCancelled) {
 				tab.attachGeneration++;
 				tab.attachCancelled = true;
@@ -1780,8 +2238,12 @@ export class RelayBridge {
 		if (eligible && tab.announced) {
 			for (const conn of this.#conns.values()) {
 				if (!conn.discover) continue;
-				this.#emit(conn, "Target.targetInfoChanged", { targetInfo: this.#tabInfo(tab, tab.attached) });
-				this.#emit(conn, "Target.targetInfoChanged", { targetInfo: this.#pageInfo(tab, tab.attached) });
+				this.#emit(conn, "Target.targetInfoChanged", {
+					targetInfo: this.#tabInfo(tab, tab.attached),
+				});
+				this.#emit(conn, "Target.targetInfoChanged", {
+					targetInfo: this.#pageInfo(tab, tab.attached),
+				});
 			}
 		}
 	}
@@ -1791,8 +2253,12 @@ export class RelayBridge {
 		tab.announced = true;
 		for (const conn of this.#conns.values()) {
 			if (!conn.discover) continue;
-			this.#emit(conn, "Target.targetCreated", { targetInfo: this.#tabInfo(tab, tab.attached) });
-			this.#emit(conn, "Target.targetCreated", { targetInfo: this.#pageInfo(tab, tab.attached) });
+			this.#emit(conn, "Target.targetCreated", {
+				targetInfo: this.#tabInfo(tab, tab.attached),
+			});
+			this.#emit(conn, "Target.targetCreated", {
+				targetInfo: this.#pageInfo(tab, tab.attached),
+			});
 		}
 		this.#attachForAutoAttach(tab);
 	}
@@ -1826,7 +2292,7 @@ export class RelayBridge {
 
 	// ---- tab grouping -----------------------------------------------------------
 
-	/** A tab belongs in the zeta group when claimed by a client, controllable, unpinned, not user-opted-out, and not already in a user group. */
+	/** A tab belongs in the omp group when claimed by a client, controllable, unpinned, not user-opted-out, and not already in a user group. */
 	#groupWorthy(tab: TabState): boolean {
 		if (!this.#claimed(tab.tabKey) || !this.#eligible(tab) || tab.pinned || tab.groupOptOut) return false;
 		return tab.grouped || tab.groupId === -1;
@@ -1856,7 +2322,7 @@ export class RelayBridge {
 	/**
 	 * Queue tabs for grouping and drain serially. Overlapping group RPCs race
 	 * the extension's non-atomic query→create→set-title sequence and mint
-	 * duplicate zeta groups, so at most one group RPC is ever in flight.
+	 * duplicate omp groups, so at most one group RPC is ever in flight.
 	 */
 	#requestGroup(tabs: TabState[]): void {
 		if (!this.#group) return;
@@ -1908,7 +2374,9 @@ export class RelayBridge {
 						}
 						this.#log("grouped tabs", { instanceId, tabIds, grouped });
 					} catch (err) {
-						this.#log("tab grouping failed", { error: err instanceof Error ? err.message : String(err) });
+						this.#log("tab grouping failed", {
+							error: err instanceof Error ? err.message : String(err),
+						});
 					} finally {
 						for (const tab of tabs) {
 							tab.grouping = false;
@@ -1926,6 +2394,8 @@ export class RelayBridge {
 	/** Tear a tab out of every downstream connection (closed, detached, or now ineligible). */
 	#retractTab(tab: TabState): void {
 		this.#forgetChildren(tab);
+		// Every session on the tab ends here, and with them their screencasts.
+		this.#endScreencasts(tab, () => true);
 		for (const conn of this.#conns.values()) {
 			const tabSessions = conn.sessionsForTab(tab.tabKey, "tab");
 			for (const pageSession of conn.sessionsForTab(tab.tabKey, "page")) {
@@ -1945,8 +2415,12 @@ export class RelayBridge {
 				});
 			}
 			if (conn.discover && tab.announced) {
-				this.#emit(conn, "Target.targetDestroyed", { targetId: pageTargetIdFromKey(tab.tabKey) });
-				this.#emit(conn, "Target.targetDestroyed", { targetId: tabTargetIdFromKey(tab.tabKey) });
+				this.#emit(conn, "Target.targetDestroyed", {
+					targetId: pageTargetIdFromKey(tab.tabKey),
+				});
+				this.#emit(conn, "Target.targetDestroyed", {
+					targetId: tabTargetIdFromKey(tab.tabKey),
+				});
 			}
 		}
 		tab.announced = false;
@@ -1974,11 +2448,12 @@ export class RelayBridge {
 		const ref = conn.sessions.get(sessionId);
 		if (!ref) return;
 		conn.sessions.delete(sessionId);
+		const tab = this.#tabs.get(ref.tabKey);
+		if (tab) this.#endScreencasts(tab, key => key === `${conn.id} ${sessionId}`);
 		this.#releaseSwitches(ref);
 		if (ref.autoAttach) this.#releaseAutoAttach(ref.tabKey);
-		if (ref.kind === "page" && !conn.childTargetSessionForTab(ref.tabKey)) {
-			const tab = this.#tabs.get(ref.tabKey);
-			if (tab) this.#forgetConnectionChildren(conn, tab, true);
+		if (ref.kind === "page" && tab && !conn.childTargetSessionForTab(ref.tabKey)) {
+			this.#forgetConnectionChildren(conn, tab, true);
 		}
 		const targetId = ref.kind === "tab" ? tabTargetIdFromKey(ref.tabKey) : pageTargetIdFromKey(ref.tabKey);
 		this.#emit(conn, "Target.detachedFromTarget", { sessionId, targetId }, parentSessionId);
@@ -2041,7 +2516,6 @@ export class RelayBridge {
 		}
 		return out;
 	}
-
 	#autoAttaches(tabKey: string): boolean {
 		for (const conn of this.#conns.values()) {
 			if (conn.childTargetSessionForTab(tabKey)) return true;
@@ -2174,6 +2648,8 @@ export class RelayBridge {
 				tab.attached = true;
 				tab.reattachedAfterDetach = true;
 				if (tab.discarded) this.#detachIfUnheld(tab.tabKey);
+				// A claimed tab whose overlay went with Chrome's detach or a discard gets it back with the attachment.
+				else if (!tab.overlayMounted && this.#claimed(tab.tabKey)) this.#mountOverlay(tab);
 				return !tab.discarded;
 			})
 			.catch(err => {
@@ -2240,7 +2716,13 @@ export class RelayBridge {
 	}
 
 	#replyError(conn: CdpConnection, msg: CdpCommand, message: string, code = CDP_ERROR_SERVER): void {
-		conn.socket.send(JSON.stringify({ id: msg.id, sessionId: msg.sessionId, error: { code, message } }));
+		conn.socket.send(
+			JSON.stringify({
+				id: msg.id,
+				sessionId: msg.sessionId,
+				error: { code, message },
+			}),
+		);
 	}
 
 	#emit(conn: CdpConnection, method: string, params: Record<string, unknown>, sessionId?: string): void {
@@ -2265,7 +2747,7 @@ export class RelayBridge {
 			this.#replyError(
 				conn,
 				msg,
-				"the Zeta relay extension in this browser predates download tracking; run `zetacode browser-relay install` and reload the extension in chrome://extensions",
+				"the omp relay extension in this browser predates download tracking; run `omp browser-relay install` and reload the extension in chrome://extensions",
 			);
 			return false;
 		}
@@ -2314,11 +2796,18 @@ export class RelayBridge {
 			}
 			reject(new RpcTimeoutError(`extension rpc '${req.op}' timed out after ${timeoutMs}ms`));
 		}, timeoutMs);
-		this.#pendingRpc.set(`${inst.instanceId}:${id}`, { resolve, reject, timer });
+		this.#pendingRpc.set(`${inst.instanceId}:${id}`, {
+			resolve,
+			reject,
+			timer,
+		});
 		// Only in a tab omp drives may the extension empty another extension's frames to get past Chrome's refusal.
 		const sent =
 			req.op === "attach" || req.op === "send"
-				? { ...req, clearForeignFrames: this.#claimed(tabKeyOf(inst.code, req.tabId)) }
+				? {
+						...req,
+						clearForeignFrames: this.#claimed(tabKeyOf(inst.code, req.tabId)),
+					}
 				: req;
 		inst.socket.send(JSON.stringify({ t: "rpc", id, ...sent } satisfies RelayToExtMessage));
 		// A pending call defers an extension update (see #reloadBlocker): retry it once the call and its cleanup settle.
@@ -2331,7 +2820,7 @@ export class RelayBridge {
 	}
 
 	/**
-	 * Close a tab zeta opened. The extension retries a close Chrome refuses before answering, so the caller holds
+	 * Close a tab omp opened. The extension retries a close Chrome refuses before answering, so the caller holds
 	 * its relay lease through the retry. One whose close still fails (its browser offline, the socket dropping
 	 * mid-call, or Chrome refusing every try) is closed at that browser's next hello, unless the user closed it.
 	 */
@@ -2347,4 +2836,17 @@ export class RelayBridge {
 			throw err;
 		}
 	}
+}
+
+/** Most hidden frames a tab holds for its next worker; older reports give way to newer ones. */
+const MAX_HIDDEN_FRAMES = 16;
+/** Longest extension id, path or title a hidden-frame report keeps. */
+const HIDDEN_FRAME_FIELD_MAX = 100;
+
+/** `text` on one line, without control, format or line/paragraph separator characters, at most `max` characters. */
+function singleLine(text: string, max: number): string {
+	return text
+		.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, " ")
+		.trim()
+		.slice(0, max);
 }

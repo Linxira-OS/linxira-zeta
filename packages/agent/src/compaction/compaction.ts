@@ -701,6 +701,8 @@ export interface SummaryOptions {
 	remoteEndpoint?: string;
 	/** Stable system-prompt segments from the live turn, preserved for provider cache reuse. */
 	remoteSystemPrompt?: string[];
+	/** Receives the provider message that carried remote-compaction usage, for cost accounting. */
+	onRemoteUsage?: (message: AssistantMessage) => void;
 	initiatorOverride?: MessageAttribution;
 	metadata?: Record<string, unknown>;
 	convertToLlm?: ConvertToLlm;

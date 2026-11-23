@@ -10,27 +10,9 @@ const MESSAGE_ID = doc("string", "Shared by the start, updates, and end of one m
 
 export const eventDefs = {
 	AutoCompactionReason: "'threshold' | 'overflow' | 'idle' | 'incomplete'",
-	CompactionTriggerType: "'manual' | 'auto' | 'speculation'",
-	CompactionPhaseName: "'plan' | 'summarize' | 'archive' | 'commit' | 'failed' | 'aborted'",
-	CompactionPhaseMethod: "'remote' | 'snapcompact' | 'handoff' | 'shake' | 'soft' | 'experimental' | 'extension'",
-	CompactionFidelityCounts: {
-		qa: "number.integer",
-		paths: "number.integer",
-		ids: "number.integer",
-		constraints: "number.integer",
-		unfinished: "number.integer",
-	},
-	CompactionPhaseDetail: {
-		"tokensBefore?": "number.integer",
-		"tokensAfter?": "number.integer",
-		"entryId?": "string",
-		"durationMs?": "number.integer",
-		"summaryChars?": "number.integer",
-		"errorMessage?": "string",
-		"fidelity?": "CompactionFidelityCounts",
-	},
 	AutoCompactionAction: "'context-full' | 'remote' | 'handoff' | 'shake' | 'snapcompact'",
 	CacheWarmingPhase: "'streaming' | 'idle'",
+	CacheWarmingMethod: "'prewarm' | 'replay'",
 	CacheWarmingOutcome: "'hit' | 'miss' | 'error' | 'aborted'",
 	NotifyType: "'info' | 'warning' | 'error'",
 
@@ -99,22 +81,6 @@ export const eventDefs = {
 		reason: "AutoCompactionReason",
 		action: "AutoCompactionAction",
 	},
-	CompactionPhaseEvent: doc(
-		{
-			type: "'compaction_phase'",
-			passId: doc("string", "Stable per compaction pass; constant across method fallbacks."),
-			trigger: "CompactionTriggerType",
-			phase: doc(
-				"CompactionPhaseName",
-				"`plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only.",
-			),
-			"method?": "CompactionPhaseMethod",
-			"reason?": "string",
-			at: doc("number.integer", "Emission time (epoch ms)."),
-			"detail?": "CompactionPhaseDetail",
-		},
-		"Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.",
-	),
 	AutoCompactionEndEvent: {
 		type: "'auto_compaction_end'",
 		action: "AutoCompactionAction",
@@ -129,7 +95,7 @@ export const eventDefs = {
 			type: "'manual_compaction_start'",
 			"mode?": doc("string", "The `/compact <mode>` subcommand, when one was given."),
 		},
-		"A manual compaction (`compact` command, `/compact`, extension `ctx.compact()`) began; the live turn is already aborted.",
+		"A manual compaction began. Handoff mode leaves live turns running and applies between turns or when idle.",
 	),
 	ManualCompactionEndEvent: doc(
 		{
@@ -160,13 +126,20 @@ export const eventDefs = {
 		),
 	},
 	CacheWarmingStartEvent: doc(
-		{ type: "'cache_warming_start'", phase: "CacheWarmingPhase", provider: "string", model: "string" },
+		{
+			type: "'cache_warming_start'",
+			phase: "CacheWarmingPhase",
+			method: "CacheWarmingMethod",
+			provider: "string",
+			model: "string",
+		},
 		"A prompt-cache refresh was handed to the provider.",
 	),
 	CacheWarmingEndEvent: doc(
 		{
 			type: "'cache_warming_end'",
 			phase: "CacheWarmingPhase",
+			method: "CacheWarmingMethod",
 			provider: "string",
 			model: "string",
 			outcome: "CacheWarmingOutcome",
@@ -228,10 +201,6 @@ export const eventDefs = {
 		},
 		"Coalesced snapshot of the displayable steering/follow-up queue, sent whenever it changes.",
 	),
-	StateVersionChangedEvent: doc(
-		{ type: "'state_version_changed'", stateVersion: "number" },
-		"Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`).",
-	),
 
 	RpcAgentEvent: doc(
 		[
@@ -247,7 +216,6 @@ export const eventDefs = {
 			"ToolStreamUpdateEvent",
 			"ToolExecutionEndEvent",
 			"AutoCompactionStartEvent",
-			"CompactionPhaseEvent",
 			"AutoCompactionEndEvent",
 			"ManualCompactionStartEvent",
 			"ManualCompactionEndEvent",
@@ -269,7 +237,6 @@ export const eventDefs = {
 			"ThinkingLevelChangedEvent",
 			"GoalUpdatedEvent",
 			"QueueUpdateEvent",
-			"StateVersionChangedEvent",
 		].join(" | "),
 		"A session event, discriminated by `type`; `set_event_filter` selects which are sent.",
 	),

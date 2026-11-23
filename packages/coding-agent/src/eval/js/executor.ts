@@ -18,6 +18,8 @@ import { cfgEvalAutoProvision } from "../settings";
 
 export interface JsExecutorOptions {
 	outerToolCallId?: string;
+	/** Tool call that spawned this eval cell, for nested tool attribution. */
+	parentToolCallId?: string;
 	cwd?: string;
 	timeoutMs?: number;
 	deadlineMs?: number;

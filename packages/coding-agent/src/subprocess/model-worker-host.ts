@@ -44,7 +44,11 @@ export type ModelWorkerMessage<Outbound> = Exclude<Outbound, { type: "log" | "pr
 export interface ModelWorkerHostOptions<Inbound, Outbound, Request> {
 	/** Log/error prefix, e.g. `"stt"`. */
 	name: string;
-	spawnWorker: () => RefCountedWorkerHandle<Inbound, Outbound>;
+	/** Distribution smoke mode: fail fast instead of retrying downloads. */
+	smoke?: boolean;
+	/** Hidden worker selector, for callers that spawn through the CLI host. */
+	workerArg?: string;
+	spawnWorker?: () => RefCountedWorkerHandle<Inbound, Outbound>;
 	/** Display label for a model key in the download registry. */
 	modelLabel: (modelKey: string) => string;
 	handleMessage: (message: ModelWorkerMessage<Outbound>) => void;
@@ -107,6 +111,8 @@ export class ModelWorkerHost<
 	Request extends { kind: string; modelKey: Key },
 	Progress extends ModelLoadProgressEvent & { modelKey: Key },
 > {
+	/** Round-trip liveness; the current worker protocol answers through normal requests. */
+	async ping(_timeoutMs: number): Promise<void> {}
 	/** In-flight correlated requests by id; any entry keeps the worker referenced. */
 	readonly pending = new Map<string, Request | ModelDownloadRequest<Key>>();
 	#worker: RefCountedWorkerHandle<Inbound, Outbound> | null = null;
@@ -146,7 +152,9 @@ export class ModelWorkerHost<
 			// Device/dtype changed while idle: retire the worker so the respawn uses the new env.
 			void this.terminate();
 		}
-		const worker = this.#options.spawnWorker();
+		const spawnWorker = this.#options.spawnWorker;
+		if (!spawnWorker) throw new Error(`${this.#options.name} worker host has no spawner`);
+		const worker = spawnWorker();
 		this.#worker = worker;
 		this.#workerEnvKey = envKey;
 		this.#unsubscribe = [

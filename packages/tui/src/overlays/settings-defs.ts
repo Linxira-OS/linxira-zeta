@@ -146,6 +146,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Disassembler",
 		"IDA Pro",
 		"Ghidra",
+		"Binary Ninja",
 		"GitHub",
 		"SiYuan",
 		"Output Limits",

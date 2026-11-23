@@ -112,14 +112,20 @@ export const DEFAULT_MEMORY_SHED_EFFECTS: MemoryShedEffects = {
 		const brokerSession = session as unknown as ToolSession;
 		const stopped: string[] = [];
 		for (const daemon of await listServices(brokerSession)) {
-			if (daemon.persist || daemon.detached || TERMINAL_STATES[daemon.state]) continue;
+			const name = String("name" in daemon ? daemon.name : daemon.key);
+			if (
+				("persist" in daemon && daemon.persist) ||
+				("detached" in daemon && daemon.detached) ||
+				TERMINAL_STATES[daemon.state]
+			)
+				continue;
 			if (daemon.owner !== ownerId) continue;
 			try {
-				await stopService(brokerSession, daemon.name);
-				stopped.push(daemon.name);
+				await stopService(brokerSession, name);
+				stopped.push(name);
 			} catch (error) {
 				logger.warn("memory-shed: failed to stop idle broker daemon", {
-					name: daemon.name,
+					name,
 					error: error instanceof Error ? error.message : String(error),
 				});
 			}

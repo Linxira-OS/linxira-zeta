@@ -34,7 +34,7 @@ import type { TerminalMultiplexerBackgroundColorCache } from "./multiplexers/typ
 import { classifyTerminalMultiplexerModule, terminalMultiplexerSessions } from "./terminal-multiplexer";
 import { setTmuxPaneApcTitles, tmuxSessionSpeaksTsp } from "./tmux";
 import { setHangulCompatibilityJamoWidth } from "./utils";
-import { translateWindowsAltGrSequence } from "./windows-altgr";
+import { translateWindowsAltGrSequence } from "@linxiraos/pi-natives";
 import { Win32InputModeDecoder, Win32PasteMarkerNormalizer } from "./windows-input-mode";
 
 export { writeTerminalSequence, writeThroughActiveTerminal } from "./active-terminal";

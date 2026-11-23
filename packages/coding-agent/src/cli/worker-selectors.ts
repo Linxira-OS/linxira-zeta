@@ -29,3 +29,5 @@ export const STATS_ACTIVITY_WORKER_ARG = "__zeta_worker_stats_activity";
 export const TEXT_PREDICT_WORKER_ARG = "__zeta_worker_text_predict";
 /** Terminal-output selector shared by the CLI dispatcher and worker launcher. */
 export const TERMINAL_OUTPUT_WORKER_ARG = "__zeta_worker_terminal_output";
+/** Transcript-index worker selector shared by the CLI dispatcher and `transcript-index-client.ts`. */
+export const TRANSCRIPT_INDEX_WORKER_ARG = "__zeta_worker_transcript_index";

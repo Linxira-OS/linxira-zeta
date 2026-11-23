@@ -21,8 +21,8 @@ import {
 import { clampThinkingLevelForModel, resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
 import { parseCloudflareCredential } from "@linxiraos/pi-catalog/wire/cloudflare";
 import { getAntigravityHeaders, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
-import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
+import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 
 import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
@@ -435,7 +435,7 @@ async function callGeminiSearch(
 			}
 		: {
 				userAgent: USER_AGENT,
-				requestId: `omp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+				requestId: `pi-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
 			};
 
 	const normalizedSystemPrompt = systemPrompt?.toWellFormed();
@@ -495,15 +495,16 @@ async function callGeminiSearch(
 				...buildInit(),
 				fetch: fetchImpl,
 				maxAttempts: isLastEndpoint ? MAX_RETRIES + 1 : 1,
-				defaultDelayMs: attempt => BASE_DELAY_MS * 2 ** attempt,
+				defaultDelayMs: (attempt: number) => BASE_DELAY_MS * 2 ** attempt,
 				maxDelayMs: RATE_LIMIT_BUDGET_MS,
 			});
 
-			if (response.ok) {
+			if (response?.ok) {
 				break;
 			}
 
-			if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
+			const status = response?.status ?? 0;
+			if (status === 429 || (status >= 500 && status < 600)) {
 				if (!isLastEndpoint) {
 					continue;
 				}
@@ -587,7 +588,7 @@ async function callGeminiDeveloperSearch(
 		signal: withHardTimeout(signal, timeoutMs),
 		fetch: fetchImpl,
 		maxAttempts: MAX_RETRIES + 1,
-		defaultDelayMs: attempt => BASE_DELAY_MS * 2 ** attempt,
+		defaultDelayMs: (attempt: number) => BASE_DELAY_MS * 2 ** attempt,
 		maxDelayMs: RATE_LIMIT_BUDGET_MS,
 	});
 
@@ -736,11 +737,7 @@ export class GeminiProvider extends SearchProvider {
 			if (model.api === "google-generative-ai") return authStorage.keys.source(model.provider) !== undefined;
 			return false;
 		}
-		return (
-			authStorage.credentials.hasOAuth("google-antigravity") ||
-			authStorage.credentials.hasOAuth("google-gemini-cli") ||
-			authStorage.keys.source("google") !== undefined
-		);
+		return authStorage.credentials.hasOAuth("google-antigravity") || authStorage.keys.source("google") !== undefined;
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

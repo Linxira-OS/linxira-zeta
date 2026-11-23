@@ -12,6 +12,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAgentDir } from "@linxiraos/pi-utils";
+import { assertBunCanImport } from "../extensibility/module-path";
 
 export interface CustomShareResult {
 	/** URL to display/open (optional - script may handle everything itself) */
@@ -56,6 +57,7 @@ export async function loadCustomShare(): Promise<LoadedCustomShare | null> {
 
 	try {
 		// Runtime-selected path: the user's own share script, not a module known at build time.
+		await assertBunCanImport(scriptPath);
 		const module = await import(scriptPath);
 		const fn = module.default;
 

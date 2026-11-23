@@ -42,7 +42,7 @@ async function probe(): Promise<void> {
 	mock.module(loaderPath, () => ({ ...loader, loadNative: () => ({ DesktopSession: StaleSession }) }));
 	const { createDesktopSession } = await import("../native/desktop.js");
 	assert.throws(
-		() => createDesktopSession({ display: "all", observationOnly: true }),
+		() => createDesktopSession({ display: "all", observationOnly: true } as any),
 		/missing observationOnly or settle/,
 	);
 	assert.equal(constructed, 0);

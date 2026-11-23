@@ -85,6 +85,14 @@ export class RemoteAgentAwaits implements AgentAwaitsApi {
 		return this.#remote.callSync("awaitsBlocksOn", agent, target, sentAt);
 	}
 
+	blockedVia(agent: string, target: string, sentAt: number): readonly string[] | undefined {
+		return this.#remote.callSync("awaitsBlockedVia", agent, target, sentAt);
+	}
+
+	waitersOn(target: string): import("../../registry/agent-awaits").AwaitWaiter[] {
+		return this.#remote.callSync("awaitsWaitersOn", target);
+	}
+
 	onChange(listener: () => void): () => void {
 		return this.#listeners.add(listener);
 	}
@@ -264,6 +272,10 @@ export class RemoteIrcBus implements IrcBusApi {
 		return this.#remote.callSync("unansweredSends", from, sinceTs);
 	}
 
+	lastMessageAt(from: string, to: string): number | undefined {
+		return this.#remote.callSync("lastMessageAt", from, to);
+	}
+
 	wait(
 		agentId: string,
 		filter: IrcWaitFilter,
@@ -293,6 +305,10 @@ export class RemoteIrcBus implements IrcBusApi {
 
 	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
 		return this.#remote.callSync("inbox", agentId, opts);
+	}
+
+	park(msg: Omit<IrcMessage, "id" | "ts">): IrcMessage {
+		return this.#remote.callSync("park", msg);
 	}
 
 	recordReply(from: string, to: string): void {

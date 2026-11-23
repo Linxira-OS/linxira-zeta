@@ -2125,7 +2125,7 @@ export class SessionManager {
 			// An IM/bot or Team conversation keeps its stamp across `/new`; a new
 			// session created inside a resolved Team location is stamped from that
 			// location. A personal session outside a team never acquires one.
-			origin: options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd),
+			origin: (options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd)) as any,
 			memoryNamespace: options?.memoryNamespace ?? this.#header?.memoryNamespace,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
@@ -2296,6 +2296,7 @@ export class SessionManager {
 		const pendingCopy = this.#pendingArtifactCopy;
 		this.#artifactManager = new ArtifactManager(
 			sessionFile.slice(0, -JSONL_SUFFIX_LENGTH),
+			null,
 			pendingCopy?.sessionFile === sessionFile ? pendingCopy.done : undefined,
 		);
 		this.#artifactManagerSessionFile = sessionFile;
@@ -3372,13 +3373,13 @@ export class SessionManager {
 
 	async allocateArtifactPath(toolType: string): Promise<{ id?: string; path?: string }> {
 		if (this.#released) return {};
-		return (await this.#artifactManagerForSession()?.allocatePath(toolType)) ?? {};
+		return (await this.#artifactManagerForSession()?.allocatePath()) ?? {};
 	}
 
 	async saveArtifact(content: string, toolType: string): Promise<string | undefined> {
 		if (this.#released) return undefined;
 		const manager = this.#artifactManagerForSession();
-		if (manager) return manager.save(content, toolType);
+		if (manager) return manager.save(content);
 
 		// Non-persistent session: keep an in-memory copy so spill truncation works.
 		this.#inMemoryArtifacts ??= new Map();
@@ -3812,7 +3813,19 @@ export class SessionManager {
 	appendModelUsage(
 		usage: Pick<
 			ModelUsageEntry,
-			"purpose" | "role" | "api" | "provider" | "model" | "usage" | "stopReason" | "errorMessage" | "cacheRefresh"
+			| "purpose"
+			| "role"
+			| "api"
+			| "provider"
+			| "model"
+			| "usage"
+			| "stopReason"
+			| "errorMessage"
+			| "cacheRefresh"
+			| "duration"
+			| "ttft"
+			| "completion"
+			| "judgment"
 		>,
 		owner: { sessionId: string; parentId: string | null },
 	): string | undefined {
@@ -4220,7 +4233,7 @@ export class SessionManager {
 	 */
 	async setOrigin(origin: SessionOrigin | undefined): Promise<void> {
 		const current = this.#header.origin;
-		if (sameSessionOrigin(current, origin)) return;
+		if (sameSessionOrigin(current, origin as any)) return;
 		if (origin === undefined) delete this.#header.origin;
 		else this.#header.origin = { ...origin };
 		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;

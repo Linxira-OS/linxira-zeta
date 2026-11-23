@@ -232,7 +232,7 @@ class _RunnerState:
 
 
 _CURRENT_RID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "omp_current_rid", default=None
+    "pi_current_rid", default=None
 )
 _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS: contextvars.ContextVar[set[int] | None] = (
     contextvars.ContextVar(
@@ -1520,6 +1520,11 @@ def _run_pip(argv: list[str], args: str) -> None:
     if not _has_pip():
         code = _bootstrap_pip()
         if code != 0:
+            sys.stderr.write(
+                f"%pip: {sys.executable} has no pip and it could not be bootstrapped"
+                " (ensurepip failed and `uv` is not on PATH). Install `uv`, or your distribution's"
+                " python3-pip/python3-venv package, then retry.\n"
+            )
             _emit_status("pip", args=args, installed=[], exit_code=code)
             return
     installed_packages: list[str] = []
@@ -1909,7 +1914,7 @@ def _emit_image_dict(value: Any) -> bool:
     return True
 
 
-def _omp_image(value: Any) -> dict | None:
+def _pi_image(value: Any) -> dict | None:
     """Payload of an omp image dict ``{type: "image", mimeType, data, ...}``."""
     if isinstance(value, dict) and value.get("type") == "image":
         return _image_payload(value)
@@ -2300,7 +2305,7 @@ def _rich_value(value: Any, to_text: Callable[[Any], str]) -> tuple[str, list[tu
         return text, [] if view is None else [("view", view)]
     if type(value) in _PLAIN_TEXT_TYPES:
         return to_text(value), []
-    image = _omp_image(value)
+    image = _pi_image(value)
     if image is not None:
         return f"<image {image['mimeType']}>", [("image", image)]
     if not isinstance(value, type):
@@ -2404,7 +2409,9 @@ def _install_builtins(ns: dict) -> None:
     ns["__zeta_magic_async"] = __zeta_magic_async
     ns["__zeta_magic_cell"] = __zeta_magic_cell
     ns["__zeta_shell"] = __zeta_shell
-    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get()
+    # Plain threads (ThreadPoolExecutor) do not inherit the ContextVar: fall back
+    # to the request currently executing, the same target fd-1 capture uses.
+    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get() or _STATE.capture_rid
 
 
 _install_builtins(_STATE.user_ns)
@@ -2708,10 +2715,29 @@ _MANAGED_ENV_KEYS = (
 )
 
 
-def _apply_request_runtime(req: dict) -> None:
+def _apply_request_runtime(req: dict, rid: str) -> None:
     cwd = req.get("cwd")
     if isinstance(cwd, str) and cwd:
-        os.chdir(cwd)
+        try:
+            os.chdir(cwd)
+        except OSError as exc:
+            # The session cwd was moved or removed (e.g. a deleted worktree): keep running
+            # in the last valid directory instead of failing every cell.
+            try:
+                fallback = os.getcwd()
+            except OSError:
+                # The process cwd is gone too (usually the same deleted directory).
+                fallback = os.path.expanduser("~")
+                os.chdir(fallback)
+            _emit(
+                {
+                    "type": "stderr",
+                    "id": rid,
+                    "data": f"Warning: session cwd {cwd} is unavailable ({exc.strerror or exc}); this cell runs in {fallback}\n",
+                }
+            )
+            cwd = None
+    if isinstance(cwd, str) and cwd:
         try:
             sys.path.remove(cwd)
         except ValueError:
@@ -2781,7 +2807,7 @@ def _tool_loop() -> asyncio.AbstractEventLoop:
     with _TOOL_LOOP_LOCK:
         if _TOOL_LOOP is None:
             loop = asyncio.new_event_loop()
-            threading.Thread(target=loop.run_forever, name="omp-tool-loop", daemon=True).start()
+            threading.Thread(target=loop.run_forever, name="pi-tool-loop", daemon=True).start()
             _TOOL_LOOP = loop
         return _TOOL_LOOP
 
@@ -2809,7 +2835,7 @@ def _start_tool_request(req: dict) -> None:
     threading.Thread(
         target=_handle_tool_request,
         args=(req,),
-        name=f"omp-tool-{rid}",
+        name=f"pi-tool-{rid}",
         daemon=True,
     ).start()
 
@@ -2914,7 +2940,7 @@ async def _handle_request_async(req: dict) -> None:
 
     try:
         try:
-            _apply_request_runtime(req)
+            _apply_request_runtime(req, rid)
             source = req.get("code", "")
             requested_filename = req.get("filename")
             filename = (

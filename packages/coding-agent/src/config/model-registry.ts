@@ -38,7 +38,7 @@ import {
 import { getBundledModels, getBundledProviders } from "@linxiraos/pi-catalog/models";
 import {
 	googleAntigravityModelManagerOptions,
-	googleGeminiCliModelManagerOptions,
+	googleModelManagerOptions,
 	isCredentialScopedModelCacheProvider,
 	MODELS_DEV_CATALOG_PROVIDER_IDS,
 	modelsDevCatalogFallback,
@@ -2894,12 +2894,10 @@ export class ModelRegistry {
 				providerId: "google-gemini-cli",
 				resolveKey: extractGoogleOAuthToken,
 				createOptions: (oauthToken, raw) =>
-					googleGeminiCliModelManagerOptions({
-						oauthToken,
-						projectId: extractGoogleOAuthProjectId(raw) ?? this.#resolveGeminiCliDiscoveryProjectId(oauthToken),
-						endpoint: this.#descriptorBaseUrl("google-gemini-cli"),
+					googleModelManagerOptions({
+						apiKey: oauthToken,
 						fetch: this.#fetch,
-					}),
+					} as any),
 			},
 			{
 				providerId: "openai-codex",
@@ -4520,6 +4518,14 @@ export interface ProviderConfigInput {
 	apiKey?: string;
 	api?: Api;
 	streamSimple?: (model: Model<Api>, context: Context, options?: SimpleStreamOptions) => AssistantMessageEventStream;
+	/** Provider-specific streaming hook retained for worker mirrors. */
+	stream?: (...args: any[]) => any;
+	/** Provider image-generation hook retained for worker mirrors. */
+	generateImage?: (...args: any[]) => any;
+	/** Provider web-search hook retained for worker mirrors. */
+	webSearch?: (...args: any[]) => any;
+	/** Live model discovery hook retained for worker mirrors. */
+	discoverModels?: (...args: any[]) => any;
 	headers?: Record<string, string>;
 	compat?: ModelSpec<Api>["compat"];
 	remoteCompaction?: RemoteCompactionConfig<Api>;

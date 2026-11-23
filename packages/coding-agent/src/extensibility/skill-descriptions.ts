@@ -538,3 +538,47 @@ async function compressSkill(
 		logger.warn("Skill description compression failed", { skill: skill.name, error: String(error) });
 	}
 }
+
+/** A routing-hint request for MCP eval namespaces. */
+export interface RoutingHintRequest {
+	readonly key: string;
+	readonly name: string;
+	readonly description: string;
+	readonly placeholder: string;
+	/** Optional activity label shown while compression runs. */
+	readonly activity?: string;
+	render(): string;
+}
+
+/** Options shared by {@link RoutingHintCatalog}. */
+export interface RoutingHintCatalogOptions {
+	store?: SkillDescriptionStore;
+	compress?: SkillDescriptionCompressor;
+	deferCompression?: boolean;
+}
+
+/** Prompt/session snapshot of routing hints; compression is deferred to the existing skill catalog. */
+export class RoutingHintCatalog {
+	readonly #store: SkillDescriptionStore | undefined;
+	readonly #snapshot = new Map<string, string>();
+
+	constructor(options: RoutingHintCatalogOptions = {}) {
+		this.#store = options.store ?? sharedSkillDescriptionStore();
+	}
+
+	peek(key: string, placeholder: string): string {
+		return this.#snapshot.get(key) ?? this.#store?.get(key) ?? placeholder;
+	}
+
+	hints(requests: readonly RoutingHintRequest[]): string[] {
+		return requests.map(request => {
+			const hint = this.peek(request.key, request.placeholder);
+			this.#snapshot.set(request.key, hint);
+			return hint;
+		});
+	}
+
+	startCompression(): void {}
+
+	async waitForPending(): Promise<void> {}
+}

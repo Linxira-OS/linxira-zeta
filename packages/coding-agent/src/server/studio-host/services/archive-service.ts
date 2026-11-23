@@ -37,7 +37,7 @@ function sessionRow(row: ArchiveSession): NativeArchiveSession {
 		modified: row.modified,
 		messages: row.messages,
 		...(row.status ? { status: row.status } : {}),
-		...(row.recap !== undefined ? { recap: row.recap.slice(0, 512) } : {}),
+		...(row.recap != null ? { recap: row.recap.slice(0, 512) } : {}),
 		truncated: row.title.length > 256 || (row.recap?.length ?? 0) > 512,
 	};
 }

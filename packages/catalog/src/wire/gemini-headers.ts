@@ -20,7 +20,7 @@ export const getGeminiCliHeaders = (modelId?: string) => ({
 
 /**
  * Antigravity / Cloud Code Assist user agent. Lives in its own file so discovery
- * and usage code can read it without pulling the heavy google-gemini-cli provider
+ * and usage code can read it without pulling the heavy Cloud Code Assist provider
  * (and its @google/genai → google-auth-library dependency chain) into the startup
  * parse graph.
  *

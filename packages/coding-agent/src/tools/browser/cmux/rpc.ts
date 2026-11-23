@@ -2,6 +2,9 @@ import { parseFlag } from "@linxiraos/pi-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { Observation, ObservationEntry } from "../tab-protocol";
 
+/** cmux could not host a browser here: its socket refused the connection, or it opened no browser split. */
+export class CmuxUnavailableError extends ToolError {}
+
 export interface CmuxKind {
 	kind: "cmux";
 	socketPath: string;
@@ -140,10 +143,10 @@ export function serializeEvalWithEnvelope(fn: string | ((...args: unknown[]) => 
 	return `(() => {
 		try {
 			const __v = (${expr});
-			if (__v && typeof __v.then === "function") return { __zetaPromise: true };
-			return { __zetaOk: __v === undefined ? null : __v };
+			if (__v && typeof __v.then === "function") return { __ompPromise: true };
+			return { __ompOk: __v === undefined ? null : __v };
 		} catch (e) {
-			return { __zetaErr: (e && (e.stack || e.message)) || String(e) };
+			return { __ompErr: (e && (e.stack || e.message)) || String(e) };
 		}
 	})()`;
 }
@@ -156,16 +159,16 @@ export function serializeEvalWithEnvelope(fn: string | ((...args: unknown[]) => 
  */
 export function unwrapEvalEnvelope<R>(value: unknown, label: string): R {
 	if (value && typeof value === "object") {
-		if ("__zetaErr" in value && typeof value.__zetaErr === "string") {
-			throw new ToolError(`${label} threw a JavaScript exception:\n${value.__zetaErr}`);
+		if ("__ompErr" in value && typeof value.__ompErr === "string") {
+			throw new ToolError(`${label} threw a JavaScript exception:\n${value.__ompErr}`);
 		}
-		if ("__zetaPromise" in value && value.__zetaPromise === true) {
+		if ("__ompPromise" in value && value.__ompPromise === true) {
 			throw new ToolError(
 				`${label} returned a Promise, but this surface evaluates synchronously and cannot await it — return a plain value (poll with waitForFunction for async state instead)`,
 			);
 		}
-		if ("__zetaOk" in value) {
-			return value.__zetaOk as R;
+		if ("__ompOk" in value) {
+			return value.__ompOk as R;
 		}
 	}
 	return value as R;

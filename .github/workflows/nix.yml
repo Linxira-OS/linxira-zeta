@@ -1,20 +1,38 @@
 name: Zeta Nix
 
-# Nightly, on-demand, and release runs only. Releases push their `v*` tag
-# atomically with main (scripts/release.ts), so the tag push is the release
-# trigger; branch pushes and pull requests never run this workflow.
 on:
   push:
-    tags: ["v*"]
-  schedule:
-    - cron: "17 3 * * *"
-  workflow_dispatch:
+    branches: [main]
+    paths:
+      - ".github/workflows/nix.yml"
+      - ".cargo/**"
+      - "flake.nix"
+      - "flake.lock"
+      - "nix/**"
+      - "bun.lock"
+      - "package.json"
+      - "patches/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "packages/**"
+      - "crates/**"
+      - "scripts/**"
+      - "docs/**"
+  # PRs only evaluate when nix inputs change; main pushes cover every other
+  # path, and fork PRs would otherwise queue an approval each time.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/nix.yml"
+      - "flake.nix"
+      - "flake.lock"
+      - "nix/**"
+      - "bun.lock"
 
-# Each run gets its own never-cancelled group so a later run cannot cancel a
-# package build mid-way.
 concurrency:
-  group: "${{ github.workflow }}-${{ github.run_id }}"
-  cancel-in-progress: false
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
 
 permissions:
   contents: read

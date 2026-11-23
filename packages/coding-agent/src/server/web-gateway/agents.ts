@@ -1486,7 +1486,7 @@ async function openSessionManagerForAgent(
 	return SessionManager.open(filePath, undefined, undefined, {
 		suppressBreadcrumb: true,
 		initialCwd: cwd,
-		...(origin === undefined ? {} : { origin }),
+		...(origin === undefined ? {} : { origin: origin as any }),
 	});
 }
 
@@ -1530,7 +1530,7 @@ export async function startRpcSession(
 		} else {
 			manager = SessionManager.create(cwd ?? process.cwd(), undefined, undefined, {
 				client,
-				...(origin === undefined ? {} : { origin }),
+				...(origin === undefined ? {} : { origin: origin as any }),
 			});
 		}
 

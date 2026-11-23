@@ -15,8 +15,8 @@ import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { RetryFallbackRole } from "./retry-fallback-chains";
 import type { RuntimeIdentity } from "./runtime-identity";
 import type { SessionClient } from "./session-client";
-import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 import type { SessionOrigin } from "./session-origin";
+import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 
 export const CURRENT_SESSION_VERSION = 3;
 
@@ -50,6 +50,29 @@ export const EPHEMERAL_MODEL_CHANGE_ROLE = "fallback";
 /** A prewalk or plan-yolo handoff: restored on resume, passed over when looking up the assigned role. */
 export const PREWALK_MODEL_CHANGE_ROLE = "prewalk";
 
+/** A model picked for this session only (the model selector, `/model`), not through a configured role. */
+export const TEMPORARY_MODEL_CHANGE_ROLE = "temporary";
+
+/**
+ * The configured model role a `model_change` entry's `role` assigned; undefined for the markers of
+ * switches no role made (retry fallback, prewalk handoff, temporary pick). The Agent Hub labels rows with it.
+ */
+export function modelRoleOf(role: string | undefined): string | undefined {
+	return role === EPHEMERAL_MODEL_CHANGE_ROLE ||
+		role === PREWALK_MODEL_CHANGE_ROLE ||
+		role === TEMPORARY_MODEL_CHANGE_ROLE
+		? undefined
+		: role;
+}
+
+/** Client other than the terminal that started a session: `chrome` is the omp extension's side panel. */
+export type SessionClientOrigin = "chrome";
+
+/** `value` as a {@link SessionClientOrigin}; anything else (absent, unknown client) is the terminal's. */
+export function parseSessionOrigin(value: unknown): SessionClientOrigin | undefined {
+	return value === "chrome" ? value : undefined;
+}
+
 export interface SessionHeader {
 	type: "session";
 	version?: number; // v1 sessions don't have this
@@ -70,10 +93,12 @@ export interface SessionHeader {
 	 */
 	client?: SessionClient;
 	/**
-	 * Present when the conversation belongs to an IM/bot/relay channel rather
-	 * than a personal coding session. Personal sessions leave it absent; a
-	 * session written before the stamp existed reads as personal here and is
-	 * still recognised through the web.yml bot-session tag.
+	 * Set when another client started the session ({@link SessionOrigin}); only that client lists it, so the
+	 * terminal's resume picker, `--continue`, recent sessions and ACP listings skip it. An explicit
+	 * `--resume <id|path>` still opens it. Also present when the conversation belongs to an IM/bot/relay
+	 * channel rather than a personal coding session: personal sessions leave it absent, and a session
+	 * written before the stamp existed reads as personal here and is still recognised through the
+	 * web.yml bot-session tag.
 	 */
 	origin?: SessionOrigin;
 	/**
@@ -175,6 +200,43 @@ export interface ImControlEntry extends SessionEntryBase {
 	metadata: unknown;
 }
 
+/**
+ * One judgment answer as journaled: a noul's probability of yes; `[label, confidence]` for a choice;
+ * `[score, confidence]` for a score; `[top, bottom, left, right, confidence]` for a box. Full
+ * distributions stay in the judgment answer cache.
+ */
+export type JudgmentRecordAnswer =
+	| number
+	| [choice: string, confidence: number]
+	| [score: number, confidence: number]
+	| [top: number, bottom: number, left: number, right: number, confidence: number];
+
+/**
+ * A native judgment as journaled on its {@link ModelUsageEntry}. No prompt text is written: the
+ * judgment answer cache (`judgment-cache.db`) keeps the state once under `states.id` and each
+ * question's rendered instructions under `oracle(state, name)`, so `state` plus a question id
+ * recovers the whole query.
+ */
+export interface JudgmentRecord {
+	/** `sha256` of the canonical state (and image digests): the cache's `states.id`. */
+	state: string;
+	/** Answers the request produced, by question id; empty when it failed. */
+	answers: Record<string, JudgmentRecordAnswer>;
+	/** Questions of the same judgment the cache answered: not billed and not in `answers`. */
+	cached?: number;
+}
+
+/**
+ * An off-transcript text completion as journaled on its {@link ModelUsageEntry}. The entry's
+ * `purpose` names the static prompt, which is never written; text too long to journal is left out.
+ */
+export interface CompletionRecord {
+	/** User-turn text the model was sent; absent when the request read the conversation at the entry's `parentId`. */
+	prompt?: string;
+	/** Reply text as the model produced it, before parsing. */
+	reply?: string;
+}
+
 /** Usage from a model call that does not belong in the conversation transcript. */
 export interface ModelUsageEntry extends SessionEntryBase {
 	type: "model_usage";
@@ -192,7 +254,18 @@ export interface ModelUsageEntry extends SessionEntryBase {
 	 * the cache lifetime then) and whether it read the cache. Absent on a failed, replaced or outdated refresh.
 	 */
 	cacheRefresh?: { sentAt: number; hit: boolean };
+	/** Wall time of the request in milliseconds. */
+	duration?: number;
+	/** Milliseconds until the first streamed token. */
+	ttft?: number;
+	/** What a native judge was asked and answered. */
+	judgment?: JudgmentRecord;
+	/** What a text side channel (title generation) was sent and replied. */
+	completion?: CompletionRecord;
 }
+
+/** A {@link ModelUsageEntry} as its writer supplies it; the session adds identity, position, and time. */
+export type ModelUsageRecord = Omit<ModelUsageEntry, keyof SessionEntryBase>;
 
 export interface ThinkingLevelChangeEntry extends SessionEntryBase {
 	type: "thinking_level_change";
@@ -342,7 +415,7 @@ export interface SessionInitEntry extends SessionEntryBase {
 	task: string;
 	/** Tools available to the agent */
 	tools: string[];
-	/** Names in `tools` presented as `xd://` devices instead of top-level tools (absent from older files). */
+	/** Names in `tools` presented as tool commands instead of top-level tools (absent from older files). */
 	mountedTools?: string[];
 	/** Agent definition name (for example `scout` or `reviewer`). */
 	agent?: string;
@@ -412,7 +485,7 @@ export interface ModeChangeEntry extends SessionEntryBase {
  * Custom message entry for extensions to inject messages into LLM context.
  * Use customType to identify your extension's entries.
  *
- * Unlike CustomEntry, this DOES participate in LLM context.
+ * Unlike CustomEntry, this DOES participate in LLM context unless `excludeFromContext` is set.
  * The content participates in LLM context through convertToLlm().
  * Use details for extension-specific metadata (not sent to LLM).
  *
@@ -428,6 +501,8 @@ export interface CustomMessageEntry<T = unknown> extends SessionEntryBase {
 	display: boolean;
 	/** Who initiated this message for billing/attribution semantics. */
 	attribution?: MessageAttribution;
+	/** Rendered and saved, never sent to the model (like `!!` bash rows). */
+	excludeFromContext?: boolean;
 }
 
 /** Session entry - has id/parentId for tree structure (returned by "read" methods in SessionManager) */

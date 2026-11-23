@@ -340,7 +340,7 @@ export class StudioBrowserObservationService {
 		// stream cannot outlive the page they belong to.
 		cdp.on("Inspector.targetCrashed", () => this.#fail(o, new Error("Browser page crashed")));
 		cdp.on("Inspector.detached", () => this.#fail(o, new Error("Browser observation detached from the page")));
-		cdp.on("Page.frameNavigated", event => {
+		cdp.on("Page.frameNavigated", (event: any) => {
 			if (!event.frame.parentId) {
 				o.documentEpoch++;
 				o.candidate = undefined;

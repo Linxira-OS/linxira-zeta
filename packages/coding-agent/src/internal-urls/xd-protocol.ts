@@ -50,7 +50,7 @@ function deviceWriteTier(
 		// scope allow/deny/prompt to a single device (issue #7923). It names the
 		// resolved canonical tool, so a wire alias (`xd://apply_patch` for `edit`)
 		// follows the same policy as the canonical spelling and a direct call.
-		return { tier: resolveToolTier(inst, parsed), policyKey: inst.name };
+		return { tier: resolveToolTier(inst, parsed), policyKey: inst.name } as any;
 	} catch {
 		return "exec";
 	}

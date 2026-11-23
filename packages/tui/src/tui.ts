@@ -102,16 +102,18 @@ const SIDEBAR_APC_SUFFIX = "\x1b\\";
 // Bound the payload per frame: a pathological snapshot falls back to the ANSI
 // gutter instead of stalling the terminal's parser on a huge escape sequence.
 const SIDEBAR_APC_MAX = 64 * 1024;
-// Hide the hardware cursor for frames that rewrite the row it sits on (see
-// TUI#paintBegin); showing it again at the frame's end restores the IME
-// candidate anchor. Ghostty-style bar cursors can otherwise leave visual
-// afterimages while the TUI repaints the row under a visible cursor. Paint
-// writes also disable terminal autowrap: several terminals keep a "pending
-// wrap" flag after an exact-width row, so a following cursor move can first
-// wrap to the next row and produce staircase trails. The TUI emits explicit
-// CRLFs and restores autowrap before leaving the paint. Synchronized output can
-// be disabled for terminals with broken DEC 2026 implementations; autowrap
-// discipline stays on either way.
+// Hide the hardware cursor at the start of each paint/move write. Ghostty-style
+// bar cursors can otherwise leave visual afterimages while the TUI repaints the
+// row under a visible cursor. The hide goes inside the synchronized update:
+// kitty snapshots cursor visibility at ?2026h and presents that snapshot until
+// ?2026l, so a hide written before ?2026h makes a visible cursor flash on every
+// animation tick. Showing it again at the frame's end restores the IME
+// candidate anchor. Paint writes also disable terminal autowrap: several
+// terminals keep a "pending wrap" flag after an exact-width row, so a
+// following cursor move can first wrap to the next row and produce staircase
+// trails. The TUI emits explicit CRLFs and restores autowrap before leaving the
+// paint. Synchronized output can be disabled for terminals with broken DEC 2026
+// implementations; autowrap discipline stays on either way.
 const HIDE_CURSOR = "\x1b[?25l";
 const SYNC_OUTPUT_BEGIN = "\x1b[?2026h";
 const SYNC_OUTPUT_END = "\x1b[?2026l";
@@ -337,6 +339,13 @@ export interface Component {
 	 * rows never show them. Return the same array while unchanged.
 	 */
 	nativeTrailers?(): readonly Component[];
+
+	/**
+	 * Rows of the last render that are a popup over the transcript (the editor's completion
+	 * list). Below the transcript the composer keeps the rows they cover live, so they return
+	 * when the popup closes instead of going to scrollback.
+	 */
+	coveringRows?(): number;
 
 	/**
 	 * Pure preflight for focused input that must precede TUI-wide input listeners
@@ -4195,19 +4204,6 @@ export class TUI extends Container {
 			buffer += SYNC_OUTPUT_BEGIN;
 			syncBytes = 0;
 		};
-		if (destructiveReset && TERMINAL.imageProtocol === ImageProtocol.Kitty) {
-			// A reset is explicitly destructive, so remove every placement—not only
-			// the ones this TUI tracked—then resend images composed for the clean
-			// replay. ED2 below reclaims the rest, but only on terminals that treat
-			// an erase as a graphics clear; the explicit delete covers the others.
-			buffer += encodeKittyDeleteAllImages();
-			// `d=A` spares virtual placements, and erasing the placeholder text it
-			// leaves behind does not remove the prototype either. The ids this
-			// reset forgot are named explicitly here — their tracking is gone, so
-			// nothing downstream could find them again.
-			for (const id of this.#imageBudget.takeResetPurgeIds()) buffer += encodeKittyDeleteImage(id);
-			this.#screenImagePlacements.clear();
-		}
 		if (TERMINAL.imageProtocol === ImageProtocol.Kitty) {
 			for (const id of this.#imageBudget.takePurgeIds()) buffer += encodeKittyDeleteImage(id);
 		} else {
@@ -4229,6 +4225,24 @@ export class TUI extends Container {
 		// image the terminal no longer had and every inline image vanished
 		// after a settled width resize.
 		if (destructiveReset) buffer += `${LINE_TERMINATOR}\x1b[H\x1b[2J\x1b[3J`;
+		if (destructiveReset && TERMINAL.imageProtocol === ImageProtocol.Kitty) {
+			// A reset is explicitly destructive, so remove every placement—not only
+			// the ones this TUI tracked—then resend images composed for the clean
+			// replay. ED2 above reclaims the rest, but only on terminals that treat
+			// an erase as a graphics clear; the explicit delete covers the others.
+			// It MUST follow the erases: `d=A` removes only placements on screen,
+			// and terminals that keep a placement anchored in scrollback move it to
+			// the top-left when ED3 erases its row (herdr-app), so a delete sent
+			// first leaves an id-less placement (an extension's budget-less image)
+			// painted over the fresh screen.
+			buffer += encodeKittyDeleteAllImages();
+			// `d=A` spares virtual placements, and erasing the placeholder text it
+			// leaves behind does not remove the prototype either. The ids this
+			// reset forgot are named explicitly here — their tracking is gone, so
+			// nothing downstream could find them again.
+			for (const id of this.#imageBudget.takeResetPurgeIds()) buffer += encodeKittyDeleteImage(id);
+			this.#screenImagePlacements.clear();
+		}
 		const diffable =
 			anchorPull === 0 &&
 			geometryStable &&

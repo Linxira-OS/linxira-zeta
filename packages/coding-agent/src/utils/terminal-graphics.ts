@@ -1,7 +1,8 @@
 import { inflateSync } from "node:zlib";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { decodeSixelToPngAsync } from "@linxiraos/pi-natives";
-import { MAX_IMAGE_INPUT_BYTES, convertImageToPng } from "@linxiraos/pi-tui/chat/image-loading";
+import { MAX_IMAGE_INPUT_BYTES } from "@linxiraos/pi-tui/chat/image-loading";
+import { convertImageToPng } from "@linxiraos/pi-tui/png-conversion";
 import { encodeRawPng, PNG_SIGNATURE } from "./png-encode";
 
 const ESC = "\x1b";

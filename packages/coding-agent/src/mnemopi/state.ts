@@ -28,7 +28,6 @@ import {
 	persistRecall,
 	type RecalledMemory,
 } from "../memory-backend/recall-entry";
-import { memoryToolRefs } from "../memory-backend/tool-names";
 import type { MemoryPromptPreparation } from "../memory-backend/types";
 import type { MemoryLearningWindow } from "../memory-backend/window-types";
 import { cfgMemoryExtractionMode } from "../memory-backend/settings";
@@ -754,9 +753,7 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	 * that ends in "…" when it cut one.
 	 */
 	budgetRecallBlock(block: string): string {
-		const instructions = prompt.render(mnemopiInstructions, {
-			toolRefs: memoryToolRefs(this.session.getXdevToolEntries()),
-		});
+		const instructions = prompt.render(mnemopiInstructions);
 		return truncateApproxTokens(
 			[instructions, block].join("\n\n").trim(),
 			cfgMnemopiInjectionTokenLimit.get(this.session.settings),
@@ -1022,9 +1019,11 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 						error,
 					);
 				});
-			} else if (event.type === "agent_end") {
+			} else if (event.type === "agent_end" || (event.type === "agent_pause" && event.yielded)) {
+				// The run's `agent_end` waits until no job, child agent or peer can resume it;
+				// a yielded pause ends the model's turn while such work keeps the run open.
 				void this.maybeRetainOnAgentEnd(event.messages).catch(error => {
-					this.#logLifecycleFailure("agent_end retention", [this.#local().retain.bank], error);
+					this.#logLifecycleFailure("turn-end retention", [this.#local().retain.bank], error);
 				});
 			}
 		});

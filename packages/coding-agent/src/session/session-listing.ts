@@ -1863,6 +1863,8 @@ export interface RecentSessionsQuery {
 	sessionDir?: string;
 	/** Root holding one directory per project. Default: {@link getSessionsDir}. */
 	sessionsRoot?: string;
+	/** Restrict results to these indexed session files. */
+	files?: readonly string[];
 }
 
 /**
@@ -2039,4 +2041,17 @@ export async function resolveResumableSession(
 	}
 
 	return { session: globalMatch, scope: "global" };
+}
+
+/** Every `.jsonl` session file under `root`, recursively. */
+export async function listSessionFiles(
+	root: string,
+): Promise<Array<{ file: string; stat: { size: number; mtimeMs: number } }>> {
+	return Promise.all(
+		Array.from(new Bun.Glob("**/*.jsonl").scanSync({ cwd: root, dot: true })).map(async file => {
+			const full = path.join(root, file);
+			const stat = await fs.promises.stat(full);
+			return { file: full, stat: { size: Number(stat.size), mtimeMs: stat.mtimeMs } };
+		}),
+	);
 }

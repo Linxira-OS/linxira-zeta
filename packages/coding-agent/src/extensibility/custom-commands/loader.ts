@@ -20,6 +20,7 @@ import { getConfigDirs } from "../../config";
 import { execCommand } from "../../exec/exec";
 import { getCodingAgentApi } from "../host-api";
 import * as typebox from "../legacy-typebox";
+import { assertBunCanImport } from "../module-path";
 import { GreenCommand } from "./bundled/ci-green";
 import { AnnotateCommand } from "./bundled/annotate";
 import { ReviewCommand } from "./bundled/review";
@@ -65,6 +66,7 @@ async function loadCommandModule(
 	sharedApi: CustomCommandAPI,
 ): Promise<{ commands: CustomCommand[] | null; error: string | null }> {
 	try {
+		await assertBunCanImport(commandPath);
 		// Dynamic import is required: the module path is chosen at runtime from the
 		// user's command directories and its cache-buster changes with each edit.
 		const module = await import(await commandImportSpecifier(commandPath));

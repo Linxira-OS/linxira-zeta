@@ -1,6 +1,5 @@
 /**
  * Google Antigravity OAuth flow (Gemini, Claude, GPT-OSS via Google Cloud)
- * Uses different OAuth credentials than google-gemini-cli for access to additional models.
  */
 
 import { type } from "@linxiraos/zeta-schema";

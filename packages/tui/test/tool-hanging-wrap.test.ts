@@ -194,15 +194,13 @@ describe("prefixed tool rows", () => {
 		const theme = (await getThemeByName("dark"))!;
 		const label = "This detailed option label is long enough to require a second row inside the narrow card.";
 		const ask = plain(
-			askToolRenderer
-				.renderCall(
-					{
-						html: `<form><p>Pick?</p><label><input type="radio" name="pick" value="a" checked> ${label}</label></form>`,
-					},
-					{ expanded: false, isPartial: true },
-					theme,
-				)
-				.render(width),
+			(askToolRenderer.renderCall as any)(
+				{
+					html: `<form><p>Pick?</p><label><input type="radio" name="pick" value="a" checked> ${label}</label></form>`,
+				},
+				{ expanded: false, isPartial: true },
+				theme,
+			).render(width),
 		);
 		const option = ask.findIndex(row => row.includes("◉ This detailed"));
 		expect(option).toBeGreaterThan(0);

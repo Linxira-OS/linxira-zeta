@@ -23,7 +23,7 @@ export interface ShellProps {
 
 /**
  * Fixed glass topbar + naked sidebar framing one inset content panel. Owns
- * the global keyboard shortcuts: `1`–`6` pick a range, `g` then a letter jumps
+ * the global keyboard shortcuts: `1`–`8` pick a range, `g` then a letter jumps
  * to a page.
  */
 export function Shell({ section, onSectionChange, range, onRangeChange, children }: ShellProps) {

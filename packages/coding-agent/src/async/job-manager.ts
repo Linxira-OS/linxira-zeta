@@ -152,6 +152,8 @@ export interface AsyncJob {
 	structured?: StructuredSubagentOutput;
 	/** Latest progress text the running job reported (a bash job's output tail). */
 	progressText?: string;
+	/** Why the job's undelivered result was dropped, when it was. */
+	reason?: string;
 	/** Latest tool-render details reported by the running job. */
 	latestDetails?: AsyncJobDetails;
 	/**
@@ -222,6 +224,10 @@ export interface AsyncJobProcess {
 	pids(): readonly number[];
 	/** Copies of the bytes crossing the command's pipes, kept with the job row (`proc://<id>/streams`). */
 	readonly streams?: PipeStreams;
+	/** Timestamp of the last output change. */
+	outputModified?(): number | undefined;
+	/** Embedded shell trace, when the job exposes one. */
+	trace?(): unknown;
 }
 
 /** Delivery callback for a settled job's result text. */
@@ -387,6 +393,8 @@ export interface AsyncJobManagerApi {
 	recordPollWaitEnd(ownerId: string | undefined, now?: number): void;
 	/** Calls `listener` whenever a job settles; returns the unsubscribe. */
 	onJobSettled(listener: () => void): () => void;
+	/** Jobs evicted from the live table, retained for post-mortem reads. */
+	getEvictedJobs(filter?: AsyncJobFilter): EvictedJob[];
 	/** Start tracking `run` as a job; returns its id. */
 	register(type: AsyncJobType, label: string, run: AsyncJobRun, options?: AsyncJobRegisterOptions): string;
 	/** Deliver an already-completed result without consuming a running-job slot. */
@@ -439,6 +447,19 @@ export interface AsyncJobManagerApi {
 }
 
 export class AsyncJobManager implements AsyncJobManagerApi {
+	/** Eviction retention is not implemented yet; wait reports no gone jobs. */
+	getEvictedJobs(_filter?: AsyncJobFilter): EvictedJob[] {
+		return [];
+	}
+
+	getEvictedJob(_id: string, _filter?: AsyncJobFilter): EvictedJob | undefined {
+		return undefined;
+	}
+
+	onJobsChanged(_listener: () => void): () => void {
+		return () => {};
+	}
+
 	/** Per-owner adaptive-wait state; see {@link POLL_WAIT_LADDER_MS}. */
 	readonly #pollEscalation = new Map<string, PollEscalationState>();
 
@@ -1626,3 +1647,6 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		return Math.min(DELIVERY_RETRY_MAX_MS, backoffMs + jitterMs);
 	}
 }
+
+/** A job row retained after eviction for remote inspection. */
+export type EvictedJob = AsyncJob & { evictedAt: number; delivered?: boolean; reason?: string };

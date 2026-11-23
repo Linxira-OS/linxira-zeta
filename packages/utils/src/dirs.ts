@@ -698,13 +698,13 @@ export function getTestTempDir(prefix: string): string {
 
 /**
  * Get the logs directory (~/.zeta/logs). `bun test` processes get
- * `<tmpdir>/omp-test-logs-<uid>` instead, so suites never write into the
+ * `<tmpdir>/pi-test-logs-<uid>` instead, so suites never write into the
  * developer's real logs; the uid suffix (as for the test session-owners dir)
  * keeps users of a shared `/tmp` from owning each other's directory.
  */
 export function getLogsDir(): string {
 	if (isBunTestRuntime()) {
-		return getTestTempDir("omp-test-logs");
+		return getTestTempDir("pi-test-logs");
 	}
 	return dirs.rootSubdir("logs", "state");
 }
@@ -953,6 +953,11 @@ export function getBrowserRelayDir(): string {
 	return dirs.rootSubdir("browser-relay", "data");
 }
 
+/** Get the install registry shared by every zeta profile and browser. */
+export function getBrowserRelayInstallRegistryFile(): string {
+	return dirs.baseRootSubdir(path.join("browser-relay", "installs.json"));
+}
+
 /** Get the profile root for Chromium browsers the browser tool spawns via `app.path` (~/.zeta/browser-profiles). */
 export function getBrowserProfilesDir(): string {
 	return dirs.rootSubdir("browser-profiles", "state");
@@ -1032,6 +1037,15 @@ export function getAuthBrokerSnapshotCachePath(): string {
 	const override = process.env.ZETA_AUTH_BROKER_SNAPSHOT_CACHE;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "auth-broker-snapshot.enc"), "cache");
+}
+
+/**
+ * Get the cached OpenAI Codex client version record
+ * (~/.zeta/agent/codex-client-version.json; XDG default: $XDG_CACHE_HOME/zeta/codex-client-version.json).
+ * It is a refetchable cache, not config, so it belongs under the cache dir.
+ */
+export function getCodexClientVersionPath(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "codex-client-version.json", "cache");
 }
 
 /** Get the commit-author avatar cache directory (~/.zeta/cache/avatars). */
@@ -1127,6 +1141,11 @@ export function getLastChangelogVersionPath(agentDir?: string): string {
 /** Get the path to history.db (SQLite database for session history). */
 export function getHistoryDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, "history.db", "data");
+}
+
+/** Get the path to transcripts.db (full-text index of session transcripts). */
+export function getTranscriptIndexDbPath(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, "transcripts.db", "data");
 }
 
 /** Get the path to models.db (model cache database). */
@@ -1281,6 +1300,11 @@ export function getTinyWorkerRuntimeDir(): string {
 /** Directory holding the per-model mnemopi embedding server endpoints and logs (~/.zeta/run/mnemopi; XDG default: $XDG_STATE_HOME/zeta/run/mnemopi). */
 export function getMnemopiEmbedRuntimeDir(): string {
 	return dirs.rootSubdir(path.join("run", "mnemopi"), "state");
+}
+
+/** Runtime directory of the single per-user zeta daemon (~/.zeta/run/daemon; XDG default: $XDG_STATE_HOME/zeta/run/daemon). Shared across profiles; holds its socket, token, sqlite store and unit logs. */
+export function getDaemonDir(): string {
+	return dirs.baseRootSubdir(path.join("run", "daemon"), "state");
 }
 
 /** Root directory containing every per-project daemon runtime scope (~/.zeta/run/daemons; XDG default: $XDG_STATE_HOME/zeta/run/daemons). */

@@ -1,6 +1,7 @@
+import { TERMINAL_OUTPUT_WORKER_ARG } from "../cli/worker-selectors";
 import type { TerminalOutputOptions } from "./terminal-output";
 
-export { TERMINAL_OUTPUT_WORKER_ARG } from "../cli/worker-selectors";
+export { TERMINAL_OUTPUT_WORKER_ARG };
 
 export interface TerminalOutputWorkerRequest {
 	output: string;

@@ -2,7 +2,7 @@
  * Which omp the terminal env (a Tern pane, a cmux workspace) belongs to. The
  * interactive TUI claims it at startup; every command it runs (bash, eval
  * kernels, services) inherits the claim, so an omp started from one of them
- * (`zetacode -p` from a harness, a script) can tell that the pane in its env shows
+ * (`omp -p` from a harness, a script) can tell that the pane in its env shows
  * another session and keep its browser tabs out of it.
  */
 

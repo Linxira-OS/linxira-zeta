@@ -303,12 +303,12 @@ def test_build_extra_env_stages_agent_home(tmp_path: Path, settings: Settings, m
 
     agent_dir = stage_home / ".agent"
     agent_rules_dir = agent_dir / "rules"
-    omp_agent_dir = stage_home / ".zeta" / "agent"
+    pi_agent_dir = stage_home / ".zeta" / "agent"
     agent_rules_dir.mkdir(parents=True)
-    omp_agent_dir.mkdir(parents=True)
+    pi_agent_dir.mkdir(parents=True)
     (agent_dir / "AGENTS.md").write_text("agent instructions\n", encoding="utf-8")
     (agent_rules_dir / "rule.md").write_text("rule\n", encoding="utf-8")
-    (omp_agent_dir / "models.yml").write_text("models: []\n", encoding="utf-8")
+    (pi_agent_dir / "models.yml").write_text("models: []\n", encoding="utf-8")
 
     env = worker._build_extra_env(settings)
 
@@ -366,12 +366,12 @@ async def test_run_rpc_uses_workspace_xdg_dirs_without_slot(tmp_path: Path, sett
         loop.close()
 
     env = _FakeRpcClient.instances[0].kwargs["env"]
-    xdg_root = inputs.workspace.root / ".omp-xdg"
+    xdg_root = inputs.workspace.root / ".pi-xdg"
     for key in ("XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
         path = Path(env[key])
         assert path.is_relative_to(xdg_root)
         assert (path / "zeta").is_dir()
-    tmpdir = inputs.workspace.root / ".omp-tmp"
+    tmpdir = inputs.workspace.root / ".pi-tmp"
     assert env["TMPDIR"] == str(tmpdir)
     assert env["TMP"] == str(tmpdir)
     assert env["TEMP"] == str(tmpdir)
@@ -474,7 +474,7 @@ async def test_run_rpc_merges_todos_on_followup_with_resume(tmp_path: Path, sett
 
 
 @pytest.mark.asyncio
-async def test_run_rpc_passes_slot_uid_user_slot_group_and_omp_extra_group(tmp_path: Path, settings: Settings) -> None:
+async def test_run_rpc_passes_slot_uid_user_slot_group_and_pi_extra_group(tmp_path: Path, settings: Settings) -> None:
     inputs, bindings = _make_inputs(tmp_path, settings, session_has_jsonl=False, slot_uid=2001)
     loop = asyncio.new_event_loop()
     try:
@@ -785,10 +785,11 @@ async def test_run_rpc_review_pr_still_reminds_when_submit_fails(
 ) -> None:
     """An errored terminal-tool end event does not count as the terminal action.
 
-    zeta_rpc normalizes xd:// device dispatches to the host-tool name, so a
-    rejected `submit_pr_review` surfaces as an end event with `is_error=True`
-    under its real name. Counting it would end the review task silently with
-    no review submitted — the completion reminder must still fire.
+    zeta_rpc normalizes tool commands run inside a `bash` call to the host-tool
+    name, so a rejected `submit_pr_review` surfaces as an end event with
+    `is_error=True` under its real name. Counting it would end the review task
+    silently with no review submitted — the completion reminder must still
+    fire.
     """
     inputs, bindings = _make_inputs(tmp_path, settings, session_has_jsonl=False)
 

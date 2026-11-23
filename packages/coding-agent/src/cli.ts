@@ -162,7 +162,6 @@ async function runSmokeTest(): Promise<void> {
 	const { smokeTestDisasmHost } = await import("./disasm/client");
 	const { smokeTestBlobBroker } = await import("./blob-broker/daemon");
 	const { smokeTestTerminalOutputWorker } = await import("./launch/terminal-output-worker-client");
-	const { smokeTestTextPredictDaemon } = await import("./predict/client");
 	const { smokeTestSubagentWorker } = await import("./thread/subagent-worker");
 	await smokeTestSyncWorker();
 	await smokeTestSpotlightWorker();
@@ -192,7 +191,6 @@ async function runSmokeTest(): Promise<void> {
 	await smokeTestDisasmHost();
 	await smokeTestBlobBroker();
 	await smokeTestTerminalOutputWorker();
-	await smokeTestTextPredictDaemon();
 	await smokeTestSubagentWorker();
 	// Release checks read this line from the artifact itself (REQ-036). Source
 	// runs and git-less installs report `unknown`; that is allowed at runtime —

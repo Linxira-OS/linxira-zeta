@@ -166,6 +166,14 @@ export type SessionEntry =
 	| ModelChangeEntry
 	| ThinkingLevelChangeEntry;
 
+/** customType of collab guest prompts injected on the host. */
+export const COLLAB_PROMPT_MESSAGE_TYPE = "collab-prompt";
+
+/** `details` shape of `custom_message` entries with `customType === "collab-prompt"`. */
+export interface CollabPromptDetails {
+	from?: string;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Events (handled subset)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -213,8 +221,201 @@ export interface Participant {
 	readOnly?: boolean;
 }
 
+/** Debounced footer snapshot broadcast by the host. */
+export interface SessionState {
+	isStreaming: boolean;
+	queuedMessageCount: number;
+	sessionName?: string;
+	/** Host cwd — display only; the guest never chdirs. */
+	cwd: string;
+	model?: WireModel;
+	thinkingLevel?: string;
+	contextUsage?: ContextUsage;
+	participants: Participant[];
+	isAborting?: boolean;
+}
+
+export interface AgentSnapshot {
+	id: string;
+	displayName: string;
+	kind: "main" | "sub";
+	parentId?: string;
+	status: "running" | "idle" | "parked" | "aborted";
+	/** Whether the host has a transcript file for this agent (gates remote transcript fetch). */
+	hasSessionFile: boolean;
+	createdAt: number;
+	lastActivity: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Bus payloads (task subagent lifecycle/progress channels)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface AgentProgress {
+	index: number;
+	id: string;
+	agent: string;
+	status: "pending" | "running" | "completed" | "failed" | "aborted";
+	task: string;
+	description?: string;
+	lastIntent?: string;
+	currentTool?: string;
+	currentToolArgs?: string;
+	/** Argument key selected for the display preview, when known. */
+	currentToolArgsKey?: string;
+	/** Intent the model attached to the current call; undefined when that call carried none. */
+	currentToolIntent?: string;
+	currentToolStartMs?: number;
+	recentTools: { tool: string; args: string; argsKey?: string; intent?: string; isError?: boolean; endMs: number }[];
+	recentOutput: string[];
+	toolCount: number;
+	requests: number;
+	tokens: number;
+	contextTokens?: number;
+	contextWindow?: number;
+	cost: number;
+	durationMs: number;
+	resolvedModel?: string;
+}
+
+export interface SubagentProgressPayload {
+	index: number;
+	agent: string;
+	task: string;
+	parentToolCallId?: string;
+	assignment?: string;
+	progress: AgentProgress;
+	sessionFile?: string;
+}
+
+export interface SubagentLifecyclePayload {
+	id: string;
+	agent: string;
+	description?: string;
+	status: "started" | "completed" | "failed" | "aborted";
+	sessionFile?: string;
+	parentToolCallId?: string;
+	index: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Frames (JSON inside the AES-GCM seal)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type CollabUiSelectItem = string | { label: string; description?: string };
+
+export type CollabUiResponseValue = string | undefined;
+
+export type CollabUiRequestDraft =
+	| {
+			kind: "select";
+			title: string;
+			options: CollabUiSelectItem[];
+			initialIndex?: number;
+			selectionMarker?: "radio" | "checkbox";
+			checkedIndices?: number[];
+			markableCount?: number;
+			helpText?: string;
+			/** The select asks for a permission (a tool approval, a settings change), not an answer. */
+			approval?: boolean;
+	  }
+	| {
+			kind: "editor";
+			title: string;
+			prefill?: string;
+	  };
+
+export type CollabUiRequest = CollabUiRequestDraft & { reqId: number };
+
+export type GuestFrame =
+	| {
+			t: "hello";
+			proto: number;
+			name: string;
+			/**
+			 * base64url write token proving full-link possession; absent for
+			 * read-only (view) links. The host marks peers without a valid token
+			 * read-only and rejects their mutating frames.
+			 */
+			writeToken?: string;
+	  }
+	/** `followUp`: wait for the running turn to finish instead of steering it (the TUI's Ctrl+Enter). */
+	| { t: "prompt"; text: string; images?: ImageContent[]; followUp?: true }
+	| { t: "ui-response"; reqId: number; value?: CollabUiResponseValue }
+	| { t: "abort" }
+	/** The `.`/`c` continue shortcut: resume the agent, interrupting a running turn first. */
+	| { t: "resume" }
+	/** Empty Enter: interrupt a run that has queued input and continue it with that input. */
+	| { t: "deliver-queue" }
+	| { t: "agent-cmd"; cmd: "chat" | "kill" | "revive"; agentId: string; text?: string }
+	| { t: "fetch-transcript"; reqId: number; agentId: string; fromByte: number };
+
+/** EventBus channels mirrored to guests (task subagent traffic only). */
+export type BusChannel = "task:subagent:progress" | "task:subagent:lifecycle";
+
+export type HostFrame =
+	| {
+			t: "welcome";
+			proto: number;
+			header: SessionHeader;
+			state: SessionState;
+			agents: AgentSnapshot[];
+			/**
+			 * Total number of `SessionEntry` items the host will deliver in the
+			 * `snapshot-chunk` frames that follow. Guests stay in the loading
+			 * phase until they have accumulated all of them (or a chunk arrives
+			 * with `final: true`).
+			 */
+			entryCount: number;
+			/** True when this peer joined through a read-only (view) link. */
+			readOnly?: boolean;
+	  }
+	/**
+	 * Targeted snapshot fragment delivered after `welcome`. Hosts split the
+	 * transcript into chunks bounded by byte size so a multi-MB session is not
+	 * forced through one giant frame the relay may stall on. The last chunk
+	 * carries `final: true`; guests finalize the replica on that frame.
+	 */
+	| { t: "snapshot-chunk"; entries: SessionEntry[]; final: boolean }
+	| { t: "entry"; entry: SessionEntry }
+	| { t: "event"; event: AgentEvent }
+	| { t: "state"; state: SessionState }
+	/** Mirrored EventBus traffic (task subagent lifecycle/progress channels only). */
+	| { t: "bus"; channel: BusChannel; data: unknown }
+	| { t: "agents"; agents: AgentSnapshot[] }
+	| { t: "ui-request"; request: CollabUiRequest }
+	| { t: "ui-request-end"; reqId: number }
+	/** Targeted reply to fetch-transcript; `text` is decoded JSONL from `fromByte`, `newSize` the next offset base. */
+	| { t: "transcript"; reqId: number; text: string; newSize: number; error?: string }
+	| { t: "bye"; reason: string }
+	/** `resync`: the host no longer counts this guest as joined; the guest should send `hello` again. */
+	| { t: "error"; message: string; resync?: true };
+
+export type WireFrame = GuestFrame | HostFrame;
+
+/**
+ * Wire protocol version carried in `hello`; the host rejects mismatches.
+ *
+ * - `1` (legacy): `welcome` carried the full `entries` array inline.
+ * - `2`: `welcome` carries only metadata (header/state/agents/entryCount);
+ *   transcript entries follow in `snapshot-chunk` frames, so multi-MB
+ *   sessions are not gated on a single welcome frame fitting under the
+ *   guest's first-welcome timeout.
+ * - `3`: host asks guests through `ui-request`/`ui-request-end` host frames
+ *   answered by the `ui-response` guest frame. Guests that predate the
+ *   grammar would silently drop `ui-request` (asks hang forever on the
+ *   host), so they must be rejected at hello.
+ */
+export const COLLAB_PROTO = 3;
+
 /** Parameter key used for intent tracing (e.g. prompt explanation/reasoning) */
 export const INTENT_FIELD = "i";
+
+/** Activity label before the first colon-space in a tool intent; preserves bare labels and embedded URL or file:line references. */
+export function toolIntentLabel(intent: string): string {
+	const separator = intent.search(/:(?=\s|$)/);
+	return separator > 0 ? intent.slice(0, separator).trim() || intent : intent;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Envelope & link constants
@@ -279,6 +480,15 @@ export function takeAutoRejoin(history: number[], now = Date.now()): boolean {
 export const DEFAULT_RELAY_URL = "wss://my.omp.sh";
 
 /** Default share viewer/upload base; `/share` links resolve against `<base>/<id>#<key>`. */
+
+export interface ParsedCollabLink {
+	/** wss://host[:port]/r/<roomId> — no query, no fragment. */
+	wsUrl: string;
+	roomId: string;
+	key: Uint8Array;
+	/** Write token from a full link; absent for read-only (view) links. */
+	writeToken?: Uint8Array;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Relay control messages (TEXT JSON, unencrypted, no session data)

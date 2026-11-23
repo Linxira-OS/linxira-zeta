@@ -13,21 +13,27 @@ export type ServiceKind = ServiceOperation["kind"];
 type ServiceResult = WorkbenchResultMap[ServiceKind];
 
 /** Only public process facts; no command, environment or runtime directory. */
-export function projectService(daemon: DaemonSnapshot): StudioServiceRow {
+export function projectService(
+	daemon: DaemonSnapshot | import("@linxiraos/pi-tui/tools/daemon").UnitSnapshot,
+): StudioServiceRow {
+	const name = "name" in daemon ? daemon.name : daemon.key;
+	const pid = "pid" in daemon ? daemon.pid : "pids" in daemon ? daemon.pids[0] : undefined;
+	const persist = "persist" in daemon ? daemon.persist : daemon.policy.hold === "persist";
+	const detached = "detached" in daemon ? daemon.detached : daemon.policy.survive === "detached";
 	return {
-		name: daemon.name,
+		name,
 		instanceId: daemon.id + ":" + daemon.startedAt,
 		state: daemon.state,
 		startedAt: daemon.startedAt,
-		...(daemon.previewUrl === undefined ? {} : { previewUrl: daemon.previewUrl }),
-		...(daemon.pid === undefined ? {} : { pid: daemon.pid }),
+		...("previewUrl" in daemon && daemon.previewUrl !== undefined ? { previewUrl: daemon.previewUrl } : {}),
+		...(pid === undefined ? {} : { pid }),
 		...(daemon.readyAt === undefined ? {} : { readyAt: daemon.readyAt }),
 		...(daemon.exitedAt === undefined ? {} : { exitedAt: daemon.exitedAt }),
 		...(daemon.exitCode === undefined ? {} : { exitCode: daemon.exitCode }),
 		restartCount: daemon.restartCount,
 		outputBytes: daemon.outputBytes,
 		...(daemon.owner === undefined ? {} : { ownerId: daemon.owner, ownerAgentId: daemon.owner }),
-		mode: daemon.detached ? "detached" : daemon.persist ? "persist" : "session",
+		mode: detached ? "detached" : persist ? "persist" : "session",
 	};
 }
 
@@ -41,16 +47,15 @@ export async function executeProjectService(
 	if (operation.kind === "services.list") {
 		const result = await requestService(session, { op: "list" }, undefined, assertCurrent);
 		assertCurrent();
-		if (result.op !== "list") throw new Error("Unexpected service list response");
 		return {
 			enabled: cfgLaunchEnabled.get(session.settings),
-			services: result.daemons.slice(0, 500).map(projectService),
+			services: result.units.slice(0, 500).map(projectService),
 		};
 	}
 	// Older brokers discard unknown fence fields; do not send them Studio control.
 	const ping = await requestService(session, { op: "ping" }, undefined, assertCurrent);
 	assertCurrent();
-	if (ping.op !== "ping" || !ping.instanceFencing)
+	if (!(ping as any).instanceFencing)
 		throw unavailable(
 			"This project broker needs to be restarted with the updated Runtime before controlling services",
 		);
@@ -76,32 +81,30 @@ export async function executeProjectService(
 			assertCurrent,
 		);
 		assertCurrent();
-		return { service: projectService(result.daemon), readyTimedOut: result.readyTimedOut };
+		return { service: projectService(result.daemon as any), readyTimedOut: result.readyTimedOut };
 	}
-	const named = { name: operation.name, expectedInstanceId: operation.instanceId };
+	const named = { unit: operation.name, expectedInstanceId: operation.instanceId };
 	if (operation.kind === "services.logs") {
 		const result = await requestService(
 			session,
 			{
 				op: "logs",
-				...named,
+				unit: operation.name,
 				lines: operation.lines ?? 200,
 				head: false,
 				follow: false,
 				timeoutMs: 1000,
 				cursor: operation.cursor,
-				renderTerminalRows: true,
 			},
 			undefined,
 			assertCurrent,
 		);
 		assertCurrent();
-		if (result.op !== "logs") throw new Error("Unexpected service logs response");
 		return {
 			instanceId: operation.instanceId,
-			text: sanitizeText(result.terminalRows?.join("\n") ?? result.text).slice(-65536),
+			text: sanitizeText(result.text).slice(-65536),
 			cursor: result.cursor,
-			state: result.state,
+			state: (result as any).state ?? "running",
 		};
 	}
 	const result = await requestService(
@@ -118,5 +121,5 @@ export async function executeProjectService(
 	);
 	assertCurrent();
 	if (!("daemon" in result)) throw new Error("Unexpected service response");
-	return { service: projectService(result.daemon) };
+	return { service: projectService(result.daemon as any) };
 }

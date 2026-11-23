@@ -13,7 +13,7 @@ export interface StudioIdaDatabase {
 	current?: { method: string; startedAt: number };
 }
 export interface StudioIdaStatus {
-	backend: "auto" | "ghidra" | "ida" | "none";
+	backend: "auto" | "ghidra" | "ida" | "binja" | "none";
 	installDir: string;
 	python: string;
 	detectedInstall?: string;

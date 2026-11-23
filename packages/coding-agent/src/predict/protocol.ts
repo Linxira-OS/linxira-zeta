@@ -1,18 +1,20 @@
 /**
- * Cross-process contract for the machine-global text-prediction daemon.
+ * Contract between omp processes and the daemon's `predict` module
+ * (`daemon/modules/predict.ts`).
  *
  * One daemon per agent directory runs under the `text-predict` global daemon
  * broker (`zetacode ps --global text-predict`) and serves ghost-text word
  * completion to every omp process over newline-delimited JSON on a native IPC
  * endpoint (`ipcEndpoint`). Each request carries a numeric `id` echoed by its
- * response; responses may arrive out of order.
+ * response; responses may arrive out of order. The same agent directory is one
+ * `predict` unit, reachable through `call("predict", method, params, { unit })`.
  */
 import * as path from "node:path";
 import { ipcEndpoint, type PredictedWord } from "@linxiraos/pi-natives";
 export { TEXT_PREDICT_WORKER_ARG } from "../cli/worker-selectors";
 
-/** Global broker scope owning the daemon. */
-export const TEXT_PREDICT_BROKER_SCOPE = "text-predict";
+/** Daemon module kind and `call` module name. */
+export const TEXT_PREDICT_KIND = "predict";
 
 /** Environment key carrying the endpoint the daemon listens on. */
 export const TEXT_PREDICT_SOCKET_ENV = "ZETA_TEXT_PREDICT_SOCKET";
@@ -28,16 +30,37 @@ export const TEXT_PREDICT_READY_PATTERN = String.raw`zetacode text-predict liste
 /** Engines the daemon can open (`TextPredictor` methods); clients resolve `auto` before asking. */
 export type TextPredictMethod = "ngram" | "smollm" | "apple";
 
+/** Every engine, for per-method parameters. */
+export const TEXT_PREDICT_METHODS: readonly TextPredictMethod[] = ["ngram", "smollm", "apple"];
+
 /** Banner printed on stdout once the daemon accepts connections. */
 export function textPredictReadyBanner(endpoint: string): string {
 	return `zetacode text-predict listening on ${endpoint}`;
 }
 
 /**
- * Daemon identity for one agent directory: the broker daemon name and its
- * endpoint inside the broker runtime dir. Different agent directories (profiles,
- * tests) get separate daemons because history and learned state are per agent dir.
+ * Unit key for one agent directory. Different agent directories (profiles,
+ * tests) get separate units because history and learned state are per agent dir.
  */
+export function textPredictKey(agentDir: string): string {
+	return Bun.hash.wyhash(path.resolve(agentDir)).toString(16).padStart(16, "0").slice(0, 12);
+}
+
+/**
+ * `open` params. Paths are resolved by the opening client: the daemon's own
+ * environment belongs to whichever client started it.
+ */
+export interface TextPredictOpenParams {
+	agentDir: string;
+	/** `history.db` whose prompts the learning engines ingest. */
+	historyDbPath: string;
+	/** SmolLM weights directory. */
+	modelDir: string;
+	/** Persisted learned state per engine. */
+	stateDirs: Record<TextPredictMethod, string>;
+}
+
+/** Daemon identity and IPC endpoint for one agent directory (and profile). */
 export function textPredictDaemon(
 	runtimeDir: string,
 	agentDir: string,
@@ -48,7 +71,30 @@ export function textPredictDaemon(
 	return { name: `zeta.text-predict.${key}`, endpoint: ipcEndpoint(runtimeDir, `text-predict-${key}`) };
 }
 
-/** Client → daemon request. */
+/** `call` methods and their params/results. */
+export interface TextPredictCalls {
+	complete: {
+		params: { method: TextPredictMethod; before: string; prefix: string };
+		result: PredictedWord | null;
+	};
+	feedback: {
+		params: { method: TextPredictMethod; before: string; prefix: string; suggestion: string; accepted: boolean };
+		result: null;
+	};
+	/** Ingest history rows newer than each open engine's cursor. */
+	sync: { params: Record<string, never>; result: { ingested: number } };
+}
+
+export type TextPredictCallMethod = keyof TextPredictCalls;
+
+/**
+ * What every `call` resolves to. Engine and request failures come back as
+ * `{ ok: false }`, so a rejected `call` only ever means the transport or the
+ * unit is gone.
+ */
+export type TextPredictReply<R> = { ok: true; value: R } | { ok: false; error: string };
+
+/** Daemon → client request (newline-delimited JSON, numeric `id` per request). */
 export type TextPredictRequest =
 	| { id: number; op: "ping" }
 	| { id: number; op: "complete"; method: TextPredictMethod; before: string; prefix: string }

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { formatDuration } from "@linxiraos/pi-utils";
+import { formatDuration, SHELL_PROCESS_SELECTOR } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import type { DaemonSnapshot, DaemonSpec, DaemonState } from "../tools/daemon";
 
@@ -41,8 +41,10 @@ export interface PsTarget {
 export const TERMINAL_STATES: Partial<Record<DaemonState, true>> = { exited: true, failed: true };
 
 /** Combine an executable and its arguments for display. */
-export function formatCommand(spec: DaemonSpec | undefined): string | undefined {
-	return spec ? [spec.application, ...spec.args].join(" ") : undefined;
+export function formatCommand(spec: { application: string; args: readonly string[] } | undefined): string | undefined {
+	if (!spec) return undefined;
+	if (spec.args.includes(SHELL_PROCESS_SELECTOR)) return spec.args.at(-1);
+	return [spec.application, ...spec.args].join(" ");
 }
 
 /** Collapse a launch command to one display line (inline scripts embed newlines/tabs). */

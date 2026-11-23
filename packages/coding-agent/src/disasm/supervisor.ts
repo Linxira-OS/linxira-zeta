@@ -222,6 +222,32 @@ export class DisasmWorker {
 	}
 
 	/** Reference `read` and the backend tool resolve back to this database (see {@link databaseRef}). */
+	get opened(): boolean {
+		return this.#opened;
+	}
+
+	get adopted(): boolean {
+		return false;
+	}
+
+	get running(): boolean {
+		return this.#active > 0;
+	}
+
+	async open(_loc: DatabaseLocation): Promise<void> {
+		// Spawned workers open their database during construction.
+	}
+
+	async settleResume(): Promise<void> {}
+
+	async kill(): Promise<void> {
+		await this.#kill();
+	}
+
+	state(): any {
+		return {};
+	}
+
 	get ref(): string {
 		return databaseRef(this);
 	}

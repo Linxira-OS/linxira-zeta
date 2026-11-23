@@ -141,7 +141,8 @@ export class JobsSheet implements Component {
 	 */
 	#held: { job: JobsPanelJob; detail: JobsPanelDetail | undefined; agents: readonly JobTreeAgent[] } | undefined;
 
-	constructor(source: JobsSheetSource) {
+	constructor(source: JobsSheetSource, options: { selected?: string } = {}) {
+		this.#selectedId = options.selected;
 		this.#source = source;
 	}
 

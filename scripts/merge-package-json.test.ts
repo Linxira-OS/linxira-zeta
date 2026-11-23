@@ -292,7 +292,7 @@ describe("merge rules", () => {
 			"@linxiraos/pi-channels": "catalog:",
 			zod: "4.0.0",
 		});
-		expect(Object.keys(merged).some(key => key.startsWith("@oh-my-pi/"))).toBeFalse();
+		expect(Object.keys(merged).some(key => key.startsWith("@linxiraos/"))).toBeFalse();
 	});
 
 	it("keeps a Zeta-only dependency and adopts upstream's new package under its Zeta name", () => {

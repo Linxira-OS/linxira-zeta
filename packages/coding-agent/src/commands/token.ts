@@ -78,7 +78,7 @@ export default class Token extends Command {
 	static examples = [
 		"# Get API key for Anthropic\n  zetacode token anthropic",
 		"# Get raw Copilot credential JSON\n  zetacode token github-copilot --raw",
-		"# Force refresh and get Gemini CLI token\n  zetacode token google-gemini-cli --force-refresh",
+		"# Force refresh and get an Antigravity token\n  zetacode token google-antigravity --force-refresh",
 		"# List Anthropic OAuth accounts\n  zetacode token anthropic --list",
 		"# Get the 2nd Anthropic OAuth account's token\n  zetacode token anthropic --account 2",
 	];

@@ -189,6 +189,7 @@ export interface CustomMessage {
 	timestamp: number;
 	details?: unknown;
 	attribution?: Attribution;
+	excludeFromContext?: boolean;
 }
 
 export interface HookMessage {
@@ -379,8 +380,6 @@ export interface ModelInfo {
 
 export type QueueMode = "all" | "one-at-a-time";
 
-export type SessionModeId = "plan" | "goal" | "vibe";
-
 export type InterruptMode = "immediate" | "wait";
 
 export type StreamingBehavior = "steer" | "followUp";
@@ -392,9 +391,9 @@ export type CacheWarmingMode = "off" | "streaming" | "idle";
 /** `set_event_filter` projection: `delta` replaces the accumulated snapshots with the block a start/end event touches. */
 export type MessageUpdates = "full" | "delta";
 
-export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned";
 
-export type GoalOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
+export type GoalOp = "get" | "create" | "resume" | "pause" | "drop";
 
 export type GoalStatus = "active" | "paused" | "budget-limited" | "complete" | "dropped";
 
@@ -403,19 +402,6 @@ export type SlashCommandSource = "builtin" | "skill" | "extension" | "custom" | 
 /** Forwarded subagent frames: none, lifecycle and progress, or also raw session events. */
 export type SubagentSubscriptionLevel = "off" | "progress" | "events";
 
-export type ComponentId = "zetacode" | "zetawork" | "zetawork-gui" | "zetaide";
-
-/** A companion binary shipped with the product (desktop app, IDE, workbench, runtime). */
-export interface ComponentInfo {
-	id: ComponentId;
-	command: string;
-	openable: boolean;
-	/** Resolved absolute executable; absent when not installed. */
-	path?: string;
-	/** Why `component_open` refuses this component. */
-	reason?: string;
-}
-
 export type AgentSource = "bundled" | "user" | "project";
 
 export type SubagentStatus = "pending" | "running" | "completed" | "failed" | "aborted";
@@ -423,8 +409,6 @@ export type SubagentStatus = "pending" | "running" | "completed" | "failed" | "a
 export interface TodoItem {
 	content: string;
 	status: TodoStatus;
-	/** What a `blocked` task is waiting on. */
-	blocker?: string;
 	details?: string;
 	notes?: string[];
 }
@@ -465,28 +449,6 @@ export interface Goal {
 	createdAt: number;
 	updatedAt: number;
 	tokenBudget?: number;
-}
-
-/** Session plan mode: enabled, where its plan lives, and who armed it. */
-export interface PlanModeState {
-	enabled: boolean;
-	planFilePath: string;
-	workflow?: "parallel" | "iterative" | "ultra";
-	reentry?: boolean;
-	enteredBy?: "user" | "agent";
-	objective?: string;
-}
-
-/** Session vibe mode. */
-export interface VibeModeState {
-	enabled: boolean;
-}
-
-/** Every mode's state, the snapshot a client renders its mode banners from. */
-export interface ModeStates {
-	plan?: PlanModeState;
-	goal?: GoalModeState;
-	vibe?: VibeModeState;
 }
 
 /** Session goal mode; `mode` is `"exiting"` while a completed goal unwinds. */
@@ -531,6 +493,10 @@ export interface SessionState {
 	sessionId: string;
 	model?: ModelInfo;
 	thinkingLevel?: ThinkingLevel;
+	/** The user's thinking selector: `auto` while auto mode picks the effort, else `thinkingLevel`. */
+	configuredThinkingLevel?: ConfiguredThinkingLevel;
+	/** Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts. */
+	thinkingLevels?: ConfiguredThinkingLevel[];
 	isStreaming?: boolean;
 	isCompacting?: boolean;
 	steeringMode?: QueueMode;
@@ -564,25 +530,6 @@ export interface SessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal mode; null when the session has no goal. */
 	goal?: GoalModeState | null;
-	/** `/guided-goal` interview is active; the client must treat bare "c" as text. */
-	guidedGoalInterview?: boolean;
-	modes?: ModeStates;
-}
-
-export interface PythonResult {
-	output: string;
-	cancelled: boolean;
-	truncated: boolean;
-	totalLines: number;
-	totalBytes: number;
-	outputLines: number;
-	outputBytes: number;
-	exitCode?: number;
-	artifactId?: string;
-	artifactElidedBytes?: number;
-	artifactError?: Record<string, unknown>;
-	displayOutputs?: Record<string, unknown>[];
-	stdinRequested?: boolean;
 }
 
 export interface BashResult {
@@ -644,6 +591,42 @@ export interface CompactionResult {
 	details?: unknown;
 	preserveData?: Record<string, unknown>;
 	providerReplayThroughEntryId?: string;
+}
+
+/** A role a model holds, as picker rows chip it. */
+export interface ModelPickerRole {
+	role: string;
+	/** The role's display tag. */
+	label: string;
+	/** Auto-selected: the role has no configured model. */
+	auto?: boolean;
+}
+
+/** One row of omp's session model picker. */
+export interface ModelPickerRow {
+	provider: string;
+	id: string;
+	name: string;
+	/** The quick role this row applies (`@` search); pass it to `set_model`. */
+	role?: string;
+	/** Visible roles the model holds, built-in order first. */
+	roles?: ModelPickerRole[];
+	/** Steps of the model's thinking slider, low to high: `auto`, `off`, then its efforts. Absent when it has no effort to pick. */
+	thinking?: ConfiguredThinkingLevel[];
+	/** Model rows: the session's level as this model would run it (the untouched slider). Quick-role rows: the role's explicit level, which `set_model` should carry. */
+	thinkingLevel?: ConfiguredThinkingLevel;
+	/** The session's context exceeds the model's window. */
+	overContext?: boolean;
+	/** The session runs this row: its model, or under `@` its active quick role. */
+	current?: boolean;
+}
+
+export interface ModelPickerResult {
+	rows: ModelPickerRow[];
+	/** Leading rows that are recently used or role-held (the picker's Recent block); 0 when there is no such split. */
+	recent: number;
+	/** Matching rows before `limit`. */
+	total: number;
 }
 
 export interface ModelCycleResult {
@@ -773,7 +756,7 @@ export interface AvailableSlashCommand {
 	subcommands?: SlashSubcommand[];
 }
 
-/** Zeta-native session entries in append order. */
+/** OMP-native session entries in append order. */
 export interface SessionEntries {
 	entries: Record<string, unknown>[];
 	leafId: string | null;
@@ -871,33 +854,11 @@ export interface PromptAck {
 
 export type AutoCompactionReason = "threshold" | "overflow" | "idle" | "incomplete";
 
-export type CompactionTriggerType = "manual" | "auto" | "speculation";
-
-export type CompactionPhaseName = "plan" | "summarize" | "archive" | "commit" | "failed" | "aborted";
-
-export type CompactionPhaseMethod = "remote" | "snapcompact" | "handoff" | "shake" | "soft" | "experimental" | "extension";
-
-export interface CompactionFidelityCounts {
-	qa: number;
-	paths: number;
-	ids: number;
-	constraints: number;
-	unfinished: number;
-}
-
-export interface CompactionPhaseDetail {
-	tokensBefore?: number;
-	tokensAfter?: number;
-	entryId?: string;
-	durationMs?: number;
-	summaryChars?: number;
-	errorMessage?: string;
-	fidelity?: CompactionFidelityCounts;
-}
-
 export type AutoCompactionAction = "context-full" | "remote" | "handoff" | "shake" | "snapcompact";
 
 export type CacheWarmingPhase = "streaming" | "idle";
+
+export type CacheWarmingMethod = "prewarm" | "replay";
 
 export type CacheWarmingOutcome = "hit" | "miss" | "error" | "aborted";
 
@@ -994,21 +955,6 @@ export interface AutoCompactionStartEvent {
 	action: AutoCompactionAction;
 }
 
-/** Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`. */
-export interface CompactionPhaseEvent {
-	type: "compaction_phase";
-	/** Stable per compaction pass; constant across method fallbacks. */
-	passId: string;
-	trigger: CompactionTriggerType;
-	/** `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only. */
-	phase: CompactionPhaseName;
-	/** Emission time (epoch ms). */
-	at: number;
-	method?: CompactionPhaseMethod;
-	reason?: string;
-	detail?: CompactionPhaseDetail;
-}
-
 export interface AutoCompactionEndEvent {
 	type: "auto_compaction_end";
 	action: AutoCompactionAction;
@@ -1020,7 +966,7 @@ export interface AutoCompactionEndEvent {
 	skipped?: boolean;
 }
 
-/** A manual compaction (`compact` command, `/compact`, extension `ctx.compact()`) began; the live turn is already aborted. */
+/** A manual compaction began. Handoff mode leaves live turns running and applies between turns or when idle. */
 export interface ManualCompactionStartEvent {
 	type: "manual_compaction_start";
 	/** The `/compact <mode>` subcommand, when one was given. */
@@ -1061,6 +1007,7 @@ export interface AutoRetryEndEvent {
 export interface CacheWarmingStartEvent {
 	type: "cache_warming_start";
 	phase: CacheWarmingPhase;
+	method: CacheWarmingMethod;
 	provider: string;
 	model: string;
 }
@@ -1069,6 +1016,7 @@ export interface CacheWarmingStartEvent {
 export interface CacheWarmingEndEvent {
 	type: "cache_warming_end";
 	phase: CacheWarmingPhase;
+	method: CacheWarmingMethod;
 	provider: string;
 	model: string;
 	outcome: CacheWarmingOutcome;
@@ -1163,14 +1111,8 @@ export interface QueueUpdateEvent {
 	liveSteered?: number;
 }
 
-/** Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`). */
-export interface StateVersionChangedEvent {
-	type: "state_version_changed";
-	stateVersion: number;
-}
-
 /** A session event, discriminated by `type`; `set_event_filter` selects which are sent. */
-export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | CompactionPhaseEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent;
+export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent;
 
 /** First frame after startup; transport fields are absent on servers without protocol v2. */
 export interface ReadyEvent {
@@ -1188,12 +1130,12 @@ export type PromptStatus = "completed" | "aborted" | "error";
 /** Failure detail of a `prompt_result` with `status: "error"`. */
 export interface PromptError {
 	message: string;
-	/** Transient: resubmitting later may succeed (Zeta's own retries are exhausted). */
+	/** Transient: resubmitting later may succeed (omp's own retries are exhausted). */
 	retryable: boolean;
 	provider?: string;
 	model?: string;
 	httpStatus?: number;
-	/** `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and Zeta did not send the next request. */
+	/** `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request. */
 	code?: "cost_cap";
 }
 
@@ -1449,6 +1391,15 @@ export interface AskUiRequest {
 	timeout?: number;
 }
 
+/** The HTML `<form>` of one `ui.formDialog` call (the `ask` tool or an extension); no opt-in is required. */
+export interface FormUiRequest {
+	type: "extension_ui_request";
+	id: string;
+	method: "form";
+	html: string;
+	timeout?: number;
+}
+
 /** Close the dialog opened by request `targetId`; a later answer to it is ignored. */
 export interface CancelUiRequest {
 	type: "extension_ui_request";
@@ -1507,7 +1458,7 @@ export interface OpenUrlUiRequest {
 }
 
 /** Extension UI request, discriminated by `method`. */
-export type ExtensionUiRequest = SelectUiRequest | ConfirmUiRequest | InputUiRequest | EditorUiRequest | AskUiRequest | CancelUiRequest | NotifyUiRequest | SetStatusUiRequest | SetWidgetUiRequest | SetTitleUiRequest | SetEditorTextUiRequest | OpenUrlUiRequest;
+export type ExtensionUiRequest = SelectUiRequest | ConfirmUiRequest | InputUiRequest | EditorUiRequest | AskUiRequest | FormUiRequest | CancelUiRequest | NotifyUiRequest | SetStatusUiRequest | SetWidgetUiRequest | SetTitleUiRequest | SetEditorTextUiRequest | OpenUrlUiRequest;
 
 /** Answer to one `ui.askDialog` question: exact option labels, plus optional free text. */
 export interface AskAnswer {
@@ -1530,7 +1481,7 @@ export interface ConfirmUiResponse {
 	confirmed: boolean;
 }
 
-/** Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers). */
+/** Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers, a `form` its defaults). */
 export interface CancelUiResponse {
 	type: "extension_ui_response";
 	id: string;
@@ -1545,8 +1496,16 @@ export interface AnswersUiResponse {
 	answers: AskAnswer[];
 }
 
+/** Answers a `form` request with the submitted form data. */
+export interface DataUiResponse {
+	type: "extension_ui_response";
+	id: string;
+	/** Submitted values by control `name`: a string, a number, or a string array. */
+	data: Record<string, unknown>;
+}
+
 /** Host reply to an extension UI request; variants share `type` and differ by their payload key. */
-export type ExtensionUiResponse = ValueUiResponse | ConfirmUiResponse | CancelUiResponse | AnswersUiResponse;
+export type ExtensionUiResponse = ValueUiResponse | ConfirmUiResponse | CancelUiResponse | AnswersUiResponse | DataUiResponse;
 
 export interface HostToolCallRequest {
 	type: "host_tool_call";
@@ -1675,7 +1634,6 @@ export interface PromptParams {
 	/** Images attached to the message. */
 	images?: ImageContent[];
 	streamingBehavior?: StreamingBehavior;
-	loopBody?: boolean;
 }
 
 export interface SteerParams {
@@ -1705,6 +1663,10 @@ export interface AbortAndPromptParams {
 	images?: ImageContent[];
 }
 
+export interface AbortAndDeliverQueueResult {
+	aborted: boolean;
+}
+
 export interface NewSessionParams {
 	parentSession?: string;
 }
@@ -1713,14 +1675,6 @@ export interface OpenSessionParams {
 	sessionDir: string;
 	provider?: string;
 	modelId?: string;
-}
-
-export interface ChangeCwdParams {
-	cwd: string;
-}
-
-export interface ChangeCwdResult {
-	cwd: string;
 }
 
 export interface SetFastModeParams {
@@ -1733,15 +1687,6 @@ export interface SetSlowModeParams {
 
 export interface SetSlowModeResult {
 	enabled: boolean;
-}
-
-export interface GuidedGoalParams {
-	message?: string;
-	images?: ImageContent[];
-}
-
-export interface GuidedGoalResult {
-	started: boolean;
 }
 
 export interface GoalParams {
@@ -1870,14 +1815,26 @@ export interface DictationStopResult {
 export interface SetModelParams {
 	provider: string;
 	modelId: string;
+	/** Thinking level to run the model at, clamped to it; omitted re-applies the session's level. */
+	thinkingLevel?: ConfiguredThinkingLevel;
+	/** Model role the switch records (a quick-role pick passes its role); default `default`. Nothing is persisted. */
+	role?: string;
 }
 
 export interface GetAvailableModelsResult {
 	models: ModelInfo[];
 }
 
+export interface GetModelPickerParams {
+	/** Search text; blank browses every model, `provider/` limits matches to a provider. */
+	query?: string;
+	/** Most rows to return; default 100. */
+	limit?: number;
+}
+
 export interface SetThinkingLevelParams {
-	level: ThinkingLevel;
+	/** `auto` lets omp pick the effort per turn. */
+	level: ConfiguredThinkingLevel;
 }
 
 export interface GetAvailableThinkingLevelsResult {
@@ -1904,62 +1861,6 @@ export interface SetAutoCompactionParams {
 	enabled: boolean;
 }
 
-export interface ModeEnterParams {
-	mode: SessionModeId;
-	options?: unknown;
-}
-
-export interface ModeExitParams {
-	mode: SessionModeId;
-	options?: unknown;
-}
-
-export interface LoopStartParams {
-	args?: string;
-}
-
-export interface LoopStartResult {
-	state: unknown;
-}
-
-export interface LoopStopResult {
-	state: unknown;
-}
-
-export interface LoopPauseResult {
-	state: unknown;
-}
-
-export interface LoopResumeResult {
-	state: unknown;
-}
-
-export interface LoopStatusResult {
-	state: unknown;
-}
-
-export interface GetToolsResult {
-	all: string[];
-	active: string[];
-}
-
-export interface SetToolsParams {
-	toolNames: string[];
-}
-
-export interface ComponentListResult {
-	components: ComponentInfo[];
-}
-
-export interface ComponentOpenParams {
-	component: ComponentId;
-	args?: string[];
-}
-
-export interface ComponentOpenResult {
-	pid: number;
-}
-
 export interface SetCacheWarmingParams {
 	mode: CacheWarmingMode;
 }
@@ -1974,11 +1875,6 @@ export interface SetAutoRetryParams {
 
 export interface BashParams {
 	command: string;
-	excludeFromContext?: boolean;
-}
-
-export interface PythonParams {
-	code: string;
 	excludeFromContext?: boolean;
 }
 
@@ -2128,13 +2024,13 @@ export interface RpcWireCommands {
 	abort: { params: undefined; result: undefined };
 	abort_and_prompt: { params: AbortAndPromptParams; result: undefined };
 	abort_and_restore_queue: { params: undefined; result: AbortAndRestoreQueueResult };
+	abort_and_deliver_queue: { params: undefined; result: AbortAndDeliverQueueResult };
+	resume: { params: undefined; result: undefined };
 	new_session: { params: NewSessionParams; result: CancellationResult };
 	open_session: { params: OpenSessionParams; result: OpenSessionResult };
-	change_cwd: { params: ChangeCwdParams; result: ChangeCwdResult };
 	get_state: { params: undefined; result: SessionState };
 	set_fast_mode: { params: SetFastModeParams; result: FastModeResult };
 	set_slow_mode: { params: SetSlowModeParams; result: SetSlowModeResult };
-	guided_goal: { params: GuidedGoalParams; result: GuidedGoalResult };
 	goal: { params: GoalParams; result: GoalResult };
 	set_ask_dialog: { params: SetAskDialogParams; result: SetAskDialogResult };
 	get_available_commands: { params: undefined; result: GetAvailableCommandsResult };
@@ -2158,6 +2054,7 @@ export interface RpcWireCommands {
 	set_model: { params: SetModelParams; result: ModelInfo };
 	cycle_model: { params: undefined; result: ModelCycleResult | null };
 	get_available_models: { params: undefined; result: GetAvailableModelsResult };
+	get_model_picker: { params: GetModelPickerParams; result: ModelPickerResult };
 	set_thinking_level: { params: SetThinkingLevelParams; result: undefined };
 	cycle_thinking_level: { params: undefined; result: ThinkingLevelCycleResult | null };
 	get_available_thinking_levels: { params: undefined; result: GetAvailableThinkingLevelsResult };
@@ -2166,23 +2063,10 @@ export interface RpcWireCommands {
 	set_interrupt_mode: { params: SetInterruptModeParams; result: undefined };
 	compact: { params: CompactParams; result: CompactionResult };
 	set_auto_compaction: { params: SetAutoCompactionParams; result: undefined };
-	mode_enter: { params: ModeEnterParams; result: undefined };
-	mode_exit: { params: ModeExitParams; result: undefined };
-	loop_start: { params: LoopStartParams; result: LoopStartResult };
-	loop_stop: { params: undefined; result: LoopStopResult };
-	loop_pause: { params: undefined; result: LoopPauseResult };
-	loop_resume: { params: undefined; result: LoopResumeResult };
-	loop_status: { params: undefined; result: LoopStatusResult };
-	get_tools: { params: undefined; result: GetToolsResult };
-	set_tools: { params: SetToolsParams; result: undefined };
-	reload: { params: undefined; result: undefined };
-	component_list: { params: undefined; result: ComponentListResult };
-	component_open: { params: ComponentOpenParams; result: ComponentOpenResult };
 	set_cache_warming: { params: SetCacheWarmingParams; result: SetCacheWarmingResult };
 	set_auto_retry: { params: SetAutoRetryParams; result: undefined };
 	abort_retry: { params: undefined; result: undefined };
 	bash: { params: BashParams; result: BashResult };
-	python: { params: PythonParams; result: PythonResult };
 	abort_bash: { params: undefined; result: undefined };
 	get_session_stats: { params: undefined; result: SessionStats };
 	get_session_lease: { params: GetSessionLeaseParams; result: GetSessionLeaseResult };

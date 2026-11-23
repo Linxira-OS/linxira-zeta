@@ -1,5 +1,5 @@
 import { formatDuration } from "@linxiraos/pi-tui/render/render-utils";
-import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import type { DaemonSnapshot, UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 import { logger, formatBytes, sanitizeText, truncate } from "@linxiraos/pi-utils";
 import type { AsyncJob } from "../async";
 import {
@@ -172,6 +172,7 @@ export class ProcProtocolHandler implements ProtocolHandler {
 		if (ownerJobs(session).some(job => job.id === id)) return null;
 		if (runningAgentsOutsideJobs(session).some(agent => agent.id === id)) return null;
 		const logPath = await serviceLogPath(session, id);
+		if (!logPath) return null;
 		return options?.create || (await Bun.file(logPath).exists()) ? logPath : null;
 	}
 
@@ -213,7 +214,7 @@ export class ProcProtocolHandler implements ProtocolHandler {
 				daemons: services,
 			});
 		}
-		const service = services.find(item => item.name === id);
+		const service = services.find(item => ("name" in item ? item.name : item.key) === id);
 		const job = jobs.find(item => item.id === id) ?? (service ? undefined : runningJobOfAgent(jobs, id));
 		if (job && service) throw new Error(`proc://${id} is ambiguous: both job ${id} and service ${id} exist.`);
 		if (service) {
@@ -223,7 +224,7 @@ export class ProcProtocolHandler implements ProtocolHandler {
 			return textResource(
 				url,
 				`${header}${logs.text ? `\n${logs.text}` : ""}`,
-				(await Bun.file(sourcePath).exists()) ? sourcePath : undefined,
+				sourcePath && (await Bun.file(sourcePath).exists()) ? sourcePath : undefined,
 				undefined,
 				{ daemon: service, log: logs.text, ...("terminalRows" in logs ? { terminalRows: logs.terminalRows } : {}) },
 			);
@@ -285,7 +286,7 @@ export class ProcProtocolHandler implements ProtocolHandler {
 		const exactJob = jobs.find(item => item.id === id);
 		const agentJob = exactJob ? undefined : runningJobOfAgent(jobs, id);
 		const agent = runningAgentsOutsideJobs(session).find(item => item.id === id);
-		let service: DaemonSnapshot | undefined;
+		let service: DaemonSnapshot | UnitSnapshot | undefined;
 		if (cfgLaunchEnabled.get(session.settings)) {
 			try {
 				service = await findService(session, id, context?.signal);
@@ -343,7 +344,7 @@ export class ProcProtocolHandler implements ProtocolHandler {
 			return { content: result.content, details: { proc: result.details } };
 		}
 		if (agent) {
-			const outcome = await cancelAgentRegistration(session, ownerId, id);
+			const outcome = await cancelAgentRegistration(session, ownerId, id, "Stopped by parent agent");
 			return {
 				content: [{ type: "text", text: outcome.message }],
 				details: { proc: { op: "cancel", jobs: [], cancelled: [{ id, status: outcome.status }] } },

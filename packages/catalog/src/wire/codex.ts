@@ -22,8 +22,10 @@ export function isOfficialCodexApiUrl(baseUrl: string | undefined): boolean {
 }
 
 /**
- * Pinned OpenAI Codex client version (corresponds to @openai/codex package version).
- * Updated from npm by `bun run check-spoofed-versions --update`.
+ * Pinned OpenAI Codex client version (corresponds to @openai/codex package version):
+ * the floor and offline fallback for `getCodexClientVersion()` in `./codex-version`,
+ * which tracks the latest npm release at runtime. Read the version through that
+ * function, not this constant. Updated from npm by `bun run check-spoofed-versions --update`.
  *
  * The backend version-gates model availability against this value on both
  * `/models?client_version=` and `/responses`, independently of a model's
@@ -31,7 +33,7 @@ export function isOfficialCodexApiUrl(baseUrl: string | undefined): boolean {
  * omitted from `/models` at 0.155.1 and listed at 0.159.0. An older pin
  * silently hides newer SKUs from discovery.
  */
-export const CODEX_CLIENT_VERSION = "0.159.0";
+export const CODEX_CLIENT_VERSION = "0.169.0";
 
 export const OPENAI_HEADERS = {
 	BETA: "OpenAI-Beta",
@@ -40,8 +42,11 @@ export const OPENAI_HEADERS = {
 	ACCOUNT_ID: "chatgpt-account-id",
 	ORIGINATOR: "originator",
 	VERSION: "version",
-	SESSION_ID: "session_id",
+	/** Session correlation header (codex-rs `SESSION_ID_HEADER`); value is the session-id string. */
+	SESSION_ID: "session-id",
+	/** Prompt-cache conversation scope; wider than a session when a side request shares its parent. */
 	CONVERSATION_ID: "conversation_id",
+	/** Scoped session id used by subagent affinity requests. */
 	SCOPED_SESSION_ID: "session-id",
 	THREAD_ID: "thread-id",
 	INSTALLATION_ID: "x-codex-installation-id",

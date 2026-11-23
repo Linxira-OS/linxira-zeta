@@ -127,6 +127,8 @@ export interface SchemeSpec {
 	linkable?: boolean;
 	/** Transcript read cards collapse like plain files instead of expanding (xd://). */
 	compactTranscript?: boolean;
+	/** Read pages skip artifact spilling (local://). */
+	unspilledPages?: true;
 	/** `read` peels a trailing `?q=<question>` as an image question (local://, attachment://); other schemes own their query. */
 	imageQuestion?: true;
 	/** Mistyped spellings are aliases of `scheme://x`: single-slash `scheme:/x` and a path-prefixed `/cwd/scheme://x` (local://). */

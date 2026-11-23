@@ -29,7 +29,7 @@ export interface ComputerObserver {
 export function createComputerObserver(): ComputerObserver {
 	const options = { display: "all", observationOnly: true };
 	const observer = createDesktopSession(options);
-	if (observer.observationOnly !== true) {
+	if ((observer as any).observationOnly !== true) {
 		observer.cancel();
 		void observer.close().catch(() => {});
 		throw new Error("The native addon cannot provide passive observation");

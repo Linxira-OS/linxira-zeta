@@ -580,9 +580,10 @@ def _run_rpc_blocking(
         )
 
     def _on_host_tool_completed(event: HostToolCompletedEvent) -> None:
-        # Fires for every dispatch path (top-level, `write xd://X`, eval
-        # bridge) once the host tool's `execute()` returned, so a terminal
-        # action reached from inside `eval` still ends the task (#13583).
+        # Fires for every dispatch path (top-level, a tool command run inside a
+        # `bash` call, eval bridge) once the host tool's `execute()` returned,
+        # so a terminal action reached from inside `eval` still ends the task
+        # (#13583).
         tools_called.add(event.tool_name)
         log.info(
             "host_tool_completed",

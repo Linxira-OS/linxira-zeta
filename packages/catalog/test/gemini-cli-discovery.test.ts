@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { fetchGeminiCliQuotaModels } from "@linxiraos/pi-catalog/discovery/gemini-cli";
-import { googleGeminiCliModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/google";
+import { googleModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/google";
 
 const CCA = "https://cloudcode-pa.googleapis.com";
 
@@ -40,7 +40,7 @@ describe("gemini-cli quota discovery fallback", () => {
 	it("surfaces quota-listed models when Antigravity discovery is forbidden (#9315)", async () => {
 		const recorded: string[] = [];
 		const fetcher = standardTierFetcher(["gemini-3.5-flash", "gemini-2.5-pro"], { recorded });
-		const options = googleGeminiCliModelManagerOptions({ oauthToken: "t", endpoint: CCA, fetch: fetcher });
+		const options = googleModelManagerOptions({ apiKey: "t", fetch: fetcher });
 
 		const models = await options.fetchDynamicModels?.();
 

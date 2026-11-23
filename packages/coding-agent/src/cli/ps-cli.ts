@@ -30,7 +30,6 @@ import {
 	tableCells,
 } from "@linxiraos/pi-tui/apps/ps-data";
 import { runPsTop, type PsTopHost } from "@linxiraos/pi-tui/apps/ps-top";
-import { isSharedBrowserDaemonName, restartSharedBrowser } from "../tools/browser/shared-daemon";
 import { collectReports, KILL_GRACE_MS, scopeClient } from "./ps-data";
 
 export type PsAction = "list" | "info" | "logs" | "stop" | "kill" | "restart";
@@ -67,7 +66,6 @@ export interface PsCommandArgs {
  * their profile claim so Chromium does not reopen the previous process's pages.
  */
 async function restartDaemon(client: DaemonBrokerClient, name: string): Promise<DaemonSnapshot> {
-	if (isSharedBrowserDaemonName(name)) return restartSharedBrowser(client, name);
 	const result = await client.request({ op: "restart", name });
 	if (result.op !== "restart") throw new Error(`Unexpected broker response ${result.op}`);
 	return result.daemon;
