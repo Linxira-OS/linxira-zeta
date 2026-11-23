@@ -472,6 +472,19 @@ async function runTinyWorker(): Promise<void> {
 /** Resolved top-level command name (never its arguments), for the unsettled-entry report. */
 let runningCommand: string | undefined;
 
+/**
+ * `zeta` is the local-first launcher; `zetacode` is the shared-Host TUI.
+ * The basename is resolved before the command table so `zeta` never silently
+ * adopts a machine Host, while `zeta serve|daemon|...` keeps its subcommand.
+ */
+export function resolveInvokedArgv(invokedName: string, argv: readonly string[]): string[] {
+	const out = [...argv];
+	if (invokedName.replace(/\.(exe|cmd|bat|js)$/iu, "") !== "zeta") return out;
+	if (out[0]?.toLowerCase() === "help") return ["--help"];
+	if (out.length === 0) out.push("--standalone");
+	return out;
+}
+
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
 	// `zetacode zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
@@ -635,7 +648,8 @@ if (isProcessEntry || !Bun.isMainThread) {
 	// terminal lifetime; help/version/subcommand launches never start one. See #10930. The
 	// registration lives for the process — a one-shot entry exits right after runCli settles.
 	postmortem.registerStdioDisconnectHandling();
-	const entry = runCli(process.argv.slice(2));
+	const invokedName = (process.argv[1] ?? "").split(/[\\/]/).pop() ?? "";
+	const entry = runCli(resolveInvokedArgv(invokedName, process.argv.slice(2)));
 	postmortem.reportUnsettledEntry(entry, () => runningCommand);
 	entry.catch(async error => {
 		// Failure boundary: inspector/postmortem is irrelevant to successful startup.
