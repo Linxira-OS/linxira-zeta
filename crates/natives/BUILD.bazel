@@ -212,7 +212,7 @@ rust_shared_library(
         "@platforms//os:macos": [
             "-Clink-arg=-Wl,-undefined,dynamic_lookup",
             "-Clink-arg=-Wl,-adhoc_codesign",
-            "-Clink-arg=-Wl,-install_name,@rpath/libomp_natives.dylib",
+            "-Clink-arg=-Wl,-install_name,@rpath/libpi_natives.dylib",
         ],
         ":linux_system_linker": [
             "-Clink-arg=-fuse-ld=bfd",

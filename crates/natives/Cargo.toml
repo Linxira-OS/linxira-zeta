@@ -8,8 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [lib]
-# Keeps the cdylib and shipped `omp_natives.<platform>.node` addon names stable.
-name = "omp_natives"
+# Keeps the cdylib and shipped `pi_natives.<platform>.node` addon names stable.
+name = "pi_natives"
 crate-type = ["cdylib"]
 
 [lints]
