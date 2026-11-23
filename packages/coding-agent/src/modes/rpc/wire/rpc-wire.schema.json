@@ -705,6 +705,17 @@
 				"clientOmit": []
 			},
 			{
+				"name": "python",
+				"doc": "Run Python code in the session kernel.",
+				"params": "PythonParams",
+				"result": "PythonResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "abort_bash",
 				"doc": "Abort the running shell command.",
 				"params": null,
@@ -3046,6 +3057,66 @@
 			},
 			"required": [
 				"sessionId"
+			]
+		},
+		"PythonResult": {
+			"type": "object",
+			"properties": {
+				"output": {
+					"type": "string"
+				},
+				"cancelled": {
+					"type": "boolean"
+				},
+				"truncated": {
+					"type": "boolean"
+				},
+				"totalLines": {
+					"type": "integer"
+				},
+				"totalBytes": {
+					"type": "integer"
+				},
+				"outputLines": {
+					"type": "integer"
+				},
+				"outputBytes": {
+					"type": "integer"
+				},
+				"exitCode": {
+					"type": "integer"
+				},
+				"artifactId": {
+					"type": "string"
+				},
+				"artifactElidedBytes": {
+					"type": "integer"
+				},
+				"artifactError": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": {}
+				},
+				"displayOutputs": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {},
+						"additionalProperties": {}
+					}
+				},
+				"stdinRequested": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"output",
+				"cancelled",
+				"truncated",
+				"totalLines",
+				"totalBytes",
+				"outputLines",
+				"outputBytes"
 			]
 		},
 		"BashResult": {
@@ -7493,6 +7564,20 @@
 			},
 			"required": [
 				"command"
+			]
+		},
+		"PythonParams": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string"
+				},
+				"excludeFromContext": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"code"
 			]
 		},
 		"GetSessionLeaseParams": {

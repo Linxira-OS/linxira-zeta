@@ -511,6 +511,24 @@ export class BackendAttachLink {
 		return result.newSessionId;
 	}
 
+	/** Run the same `!` shell cell on the backend session. */
+	async runBash(
+		command: string,
+		excludeFromContext: boolean,
+	): Promise<{ output: string; exitCode?: number; cancelled: boolean; truncated: boolean }> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot run a shell command.");
+		return await this.#wire.bash(command, excludeFromContext);
+	}
+
+	/** Run the same Python cell on the backend session. */
+	async runPython(
+		code: string,
+		excludeFromContext: boolean,
+	): Promise<{ output: string; exitCode?: number; cancelled: boolean; truncated: boolean }> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot run Python.");
+		return await this.#wire.python(code, excludeFromContext);
+	}
+
 	/** Move the backend session and reattach the local replica to its new cwd. */
 	async changeCwd(cwd: string): Promise<void> {
 		if (!this.#wire) throw new Error("The backend has no protocol link; cannot change directory.");

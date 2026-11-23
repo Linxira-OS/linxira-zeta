@@ -145,6 +145,7 @@ export type AgentCommand =
 	| { type: "extension_ui_input"; id: string; data: string }
 	| { type: "set_auto_retry"; enabled: boolean }
 	| { type: "bash"; command: string; excludeFromContext?: boolean }
+	| { type: "python"; code: string; excludeFromContext?: boolean }
 	| { type: "abort_bash" }
 	| { type: "enter_plan_mode"; initialPrompt?: string }
 	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" }
@@ -827,6 +828,14 @@ export class AgentSessionWrapper {
 				} finally {
 					await this.#goalController.endSessionChange();
 				}
+			}
+			case "python": {
+				if (command.excludeFromContext !== undefined && typeof command.excludeFromContext !== "boolean") {
+					throw new Error("excludeFromContext must be a boolean");
+				}
+				return await this.#inner.executePython(command.code, undefined, {
+					excludeFromContext: command.excludeFromContext,
+				});
 			}
 			case "get_state":
 				return this.#getState();

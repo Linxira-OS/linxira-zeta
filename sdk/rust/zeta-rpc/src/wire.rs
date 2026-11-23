@@ -3265,6 +3265,33 @@ pub struct SessionState {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PythonResult {
+	pub output: String,
+	pub cancelled: bool,
+	pub truncated: bool,
+	#[serde(rename = "totalLines")]
+	pub total_lines: i64,
+	#[serde(rename = "totalBytes")]
+	pub total_bytes: i64,
+	#[serde(rename = "outputLines")]
+	pub output_lines: i64,
+	#[serde(rename = "outputBytes")]
+	pub output_bytes: i64,
+	#[serde(rename = "exitCode", default, skip_serializing_if = "Option::is_none")]
+	pub exit_code: Option<i64>,
+	#[serde(rename = "artifactId", default, skip_serializing_if = "Option::is_none")]
+	pub artifact_id: Option<String>,
+	#[serde(rename = "artifactElidedBytes", default, skip_serializing_if = "Option::is_none")]
+	pub artifact_elided_bytes: Option<i64>,
+	#[serde(rename = "artifactError", default, skip_serializing_if = "Option::is_none")]
+	pub artifact_error: Option<Map<String, Value>>,
+	#[serde(rename = "displayOutputs", default, skip_serializing_if = "Option::is_none")]
+	pub display_outputs: Option<Vec<Map<String, Value>>>,
+	#[serde(rename = "stdinRequested", default, skip_serializing_if = "Option::is_none")]
+	pub stdin_requested: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BashResult {
 	pub output: String,
 	pub cancelled: bool,
@@ -5918,6 +5945,13 @@ pub struct BashParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PythonParams {
+	pub code: String,
+	#[serde(rename = "excludeFromContext", default, skip_serializing_if = "Option::is_none")]
+	pub exclude_from_context: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GetSessionLeaseParams {
 	#[serde(rename = "sessionIds")]
 	pub session_ids: Vec<String>,
@@ -7654,6 +7688,24 @@ impl Command for BashCommand {
 
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		serde_json::from_value::<BashResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Run Python code in the session kernel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PythonCommand {
+	pub code: String,
+	#[serde(rename = "excludeFromContext", default, skip_serializing_if = "Option::is_none")]
+	pub exclude_from_context: Option<bool>,
+}
+
+impl Command for PythonCommand {
+	const NAME: &'static str = "python";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = PythonResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<PythonResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 

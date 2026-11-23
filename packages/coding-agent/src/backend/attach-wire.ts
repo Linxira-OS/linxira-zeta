@@ -198,6 +198,32 @@ export class AttachWire {
 		return this.#client.call("change_cwd", { cwd }) as Promise<{ cwd: string }>;
 	}
 
+	/** Run a shell command on the backend and return its recorded result. */
+	bash(
+		command: string,
+		excludeFromContext: boolean,
+	): Promise<{ output: string; exitCode?: number; cancelled: boolean; truncated: boolean }> {
+		return this.#client.call("bash", { command, excludeFromContext }) as Promise<{
+			output: string;
+			exitCode?: number;
+			cancelled: boolean;
+			truncated: boolean;
+		}>;
+	}
+
+	/** Run Python on the backend's session kernel. */
+	python(
+		code: string,
+		excludeFromContext: boolean,
+	): Promise<{ output: string; exitCode?: number; cancelled: boolean; truncated: boolean }> {
+		return this.#client.call("python", { code, excludeFromContext }) as Promise<{
+			output: string;
+			exitCode?: number;
+			cancelled: boolean;
+			truncated: boolean;
+		}>;
+	}
+
 	/** Current backend session state (model, thinking, queues, todos, plan). */
 	getState(): Promise<Record<string, unknown>> {
 		return this.#client.call("get_state", undefined) as Promise<Record<string, unknown>>;

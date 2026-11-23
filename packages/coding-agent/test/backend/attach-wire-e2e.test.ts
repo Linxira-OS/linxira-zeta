@@ -690,6 +690,15 @@ describe("attached TUI over the wire protocol", () => {
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("No todos")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("No todos"))).toBe(true);
 
+		// Native shell and Python cells execute on the Host, not in the client.
+		term.sendInput("!echo attached-shell");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("attached-shell")));
+		term.sendInput("\r");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("attached-shell")));
+		term.sendInput('$print("attached-python")');
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("attached-python")));
+		term.sendInput("\r");
+
 		// Bare `/resume` and `/cd` open their native pages, not attach usage text.
 		term.sendInput("/resume");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/resume")));

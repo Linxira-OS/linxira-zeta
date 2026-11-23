@@ -326,6 +326,12 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		params: { command: "string", "excludeFromContext?": "boolean" },
 		result: "BashResult",
 	},
+	{
+		name: "python",
+		doc: "Run Python code in the session kernel.",
+		params: { code: "string", "excludeFromContext?": "boolean" },
+		result: "PythonResult",
+	},
 	{ name: "abort_bash", doc: "Abort the running shell command." },
 
 	{ name: "get_session_stats", doc: "Session statistics.", result: "SessionStats" },

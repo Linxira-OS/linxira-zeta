@@ -2810,6 +2810,49 @@ func (v *SessionState) decodeFrom(raw map[string]json.RawMessage) error {
 	return nil
 }
 
+type PythonResult struct {
+	Output              string                       `json:"output"`
+	Cancelled           bool                         `json:"cancelled"`
+	Truncated           bool                         `json:"truncated"`
+	TotalLines          int64                        `json:"totalLines"`
+	TotalBytes          int64                        `json:"totalBytes"`
+	OutputLines         int64                        `json:"outputLines"`
+	OutputBytes         int64                        `json:"outputBytes"`
+	ExitCode            *int64                       `json:"exitCode,omitempty"`
+	ArtifactID          *string                      `json:"artifactId,omitempty"`
+	ArtifactElidedBytes *int64                       `json:"artifactElidedBytes,omitempty"`
+	ArtifactError       map[string]json.RawMessage   `json:"artifactError,omitempty"`
+	DisplayOutputs      []map[string]json.RawMessage `json:"displayOutputs,omitempty"`
+	StdinRequested      *bool                        `json:"stdinRequested,omitempty"`
+}
+
+func (v *PythonResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "PythonResult", v.decodeFrom)
+}
+
+func (v *PythonResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out PythonResult
+	d := fieldDecoder{raw: raw, owner: "PythonResult"}
+	d.required("output", &out.Output)
+	d.required("cancelled", &out.Cancelled)
+	d.required("truncated", &out.Truncated)
+	d.required("totalLines", &out.TotalLines)
+	d.required("totalBytes", &out.TotalBytes)
+	d.required("outputLines", &out.OutputLines)
+	d.required("outputBytes", &out.OutputBytes)
+	d.optional("exitCode", &out.ExitCode)
+	d.optional("artifactId", &out.ArtifactID)
+	d.optional("artifactElidedBytes", &out.ArtifactElidedBytes)
+	d.optional("artifactError", &out.ArtifactError)
+	d.optional("displayOutputs", &out.DisplayOutputs)
+	d.optional("stdinRequested", &out.StdinRequested)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type BashResult struct {
 	Output              string  `json:"output"`
 	Cancelled           bool    `json:"cancelled"`
@@ -9056,6 +9099,19 @@ type BashCommand struct {
 func (c Commands) Bash(ctx context.Context, p BashCommand) (BashResult, error) {
 	var out BashResult
 	err := c.call(ctx, "bash", p, 0, &out)
+	return out, err
+}
+
+// PythonCommand holds the parameters of "python".
+type PythonCommand struct {
+	Code               string `json:"code"`
+	ExcludeFromContext *bool  `json:"excludeFromContext,omitempty"`
+}
+
+// Python sends "python": Run Python code in the session kernel.
+func (c Commands) Python(ctx context.Context, p PythonCommand) (PythonResult, error) {
+	var out PythonResult
+	err := c.call(ctx, "python", p, 0, &out)
 	return out, err
 }
 

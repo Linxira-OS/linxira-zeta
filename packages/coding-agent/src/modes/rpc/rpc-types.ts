@@ -16,6 +16,7 @@ import type {
 	ThinkingContent,
 	ToolExample,
 } from "@linxiraos/pi-ai";
+import type { PythonResult } from "../../eval/py/executor";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ContextUsage } from "../../extensibility/extensions/types";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
@@ -169,6 +170,7 @@ export type RpcCommand =
 
 	// Bash
 	| { id?: string; type: "bash"; command: string; excludeFromContext?: boolean }
+	| { id?: string; type: "python"; code: string; excludeFromContext?: boolean }
 	| { id?: string; type: "abort_bash" }
 
 	// Session
@@ -669,6 +671,7 @@ export type RpcResponse =
 
 	// Bash
 	| { id?: string; type: "response"; command: "bash"; success: true; data: BashResult }
+	| { id?: string; type: "response"; command: "python"; success: true; data: PythonResult }
 	| { id?: string; type: "response"; command: "abort_bash"; success: true }
 
 	// Session

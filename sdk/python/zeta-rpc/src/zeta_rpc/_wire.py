@@ -748,6 +748,23 @@ class SessionState:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class PythonResult:
+    output: str
+    cancelled: bool
+    truncated: bool
+    total_lines: int
+    total_bytes: int
+    output_lines: int
+    output_bytes: int
+    exit_code: int | None = None
+    artifact_id: str | None = None
+    artifact_elided_bytes: int | None = None
+    artifact_error: JsonObject | None = None
+    display_outputs: tuple[JsonObject, ...] | None = None
+    stdin_requested: bool | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class BashResult:
     output: str
     cancelled: bool
@@ -2281,6 +2298,25 @@ def parse_session_state(value: object, path: str = "SessionState") -> SessionSta
         goal=defaulted(payload, "goal", nullable(parse_goal_mode_state), path, None),
         guided_goal_interview=defaulted(payload, "guidedGoalInterview", decode_bool, path, False),
         modes=optional(payload, "modes", parse_mode_states, path),
+    )
+
+
+def parse_python_result(value: object, path: str = "PythonResult") -> PythonResult:
+    payload = expect_object(value, path)
+    return PythonResult(
+        output=required(payload, "output", decode_str, path),
+        cancelled=required(payload, "cancelled", decode_bool, path),
+        truncated=required(payload, "truncated", decode_bool, path),
+        total_lines=required(payload, "totalLines", decode_int, path),
+        total_bytes=required(payload, "totalBytes", decode_int, path),
+        output_lines=required(payload, "outputLines", decode_int, path),
+        output_bytes=required(payload, "outputBytes", decode_int, path),
+        exit_code=optional(payload, "exitCode", decode_int, path),
+        artifact_id=optional(payload, "artifactId", decode_str, path),
+        artifact_elided_bytes=optional(payload, "artifactElidedBytes", decode_int, path),
+        artifact_error=optional(payload, "artifactError", decode_json_object, path),
+        display_outputs=optional(payload, "displayOutputs", array(decode_json_object), path),
+        stdin_requested=optional(payload, "stdinRequested", decode_bool, path),
     )
 
 
@@ -4055,6 +4091,14 @@ class WireClient:
             params["excludeFromContext"] = exclude_from_context
         return parse_bash_result(self._command("bash", params), "bash")
 
+    def python(self, code: str, *, exclude_from_context: bool | None = None) -> PythonResult:
+        """Run Python code in the session kernel."""
+        params: dict[str, object] = {}
+        params["code"] = code
+        if exclude_from_context is not None:
+            params["excludeFromContext"] = exclude_from_context
+        return parse_python_result(self._command("python", params), "python")
+
     def abort_bash(self) -> None:
         """Abort the running shell command."""
         params: dict[str, object] = {}
@@ -4594,6 +4638,7 @@ __all__ = [
     "PromptResultEvent",
     "PromptStatus",
     "PythonExecutionMessage",
+    "PythonResult",
     "QueueMode",
     "QueueUpdateEvent",
     "QueuedMessageQueue",
@@ -4796,6 +4841,7 @@ __all__ = [
     "parse_prompt_error",
     "parse_prompt_result_event",
     "parse_python_execution_message",
+    "parse_python_result",
     "parse_queue_update_event",
     "parse_queued_messages_state",
     "parse_ready_event",

@@ -27,6 +27,8 @@ import { ApprovalDialogComponent } from "@linxiraos/pi-tui/overlays/approval-dia
 import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { extractImagePathFromText } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
 import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
 import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
@@ -1672,9 +1674,37 @@ export class InputController {
 						this.ctx.editor.setText("");
 						return;
 					}
-					if (text.startsWith("!") || parsePythonCommandInput(text)) {
-						this.ctx.showStatus(M.attachLocalExecutionUnavailable);
-						this.ctx.editor.setText("");
+					if (text.startsWith("!")) {
+						const exclude = text.startsWith("!!");
+						const command = text.slice(exclude ? 2 : 1);
+						this.ctx.editor.clearDraft(text);
+						const component = new BashExecutionComponent(command, this.ctx.ui, exclude);
+						this.ctx.present(component);
+						try {
+							const result = await backendAttach.runBash(command, exclude);
+							component.setComplete(result.exitCode, result.cancelled, { output: result.output });
+						} catch (error) {
+							component.setComplete(undefined, false);
+							this.ctx.showError(
+								`Shell execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
+						return;
+					}
+					const python = parsePythonCommandInput(text);
+					if (python) {
+						this.ctx.editor.clearDraft(text);
+						const component = new EvalExecutionComponent(python.code, this.ctx.ui, python.isExcluded);
+						this.ctx.present(component);
+						try {
+							const result = await backendAttach.runPython(python.code, python.isExcluded);
+							component.setComplete(result.exitCode, result.cancelled, { output: result.output });
+						} catch (error) {
+							component.setComplete(undefined, false);
+							this.ctx.showError(
+								`Python execution failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						}
 						return;
 					}
 					const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;

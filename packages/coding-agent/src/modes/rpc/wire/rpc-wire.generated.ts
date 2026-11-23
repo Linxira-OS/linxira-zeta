@@ -569,6 +569,22 @@ export interface SessionState {
 	modes?: ModeStates;
 }
 
+export interface PythonResult {
+	output: string;
+	cancelled: boolean;
+	truncated: boolean;
+	totalLines: number;
+	totalBytes: number;
+	outputLines: number;
+	outputBytes: number;
+	exitCode?: number;
+	artifactId?: string;
+	artifactElidedBytes?: number;
+	artifactError?: Record<string, unknown>;
+	displayOutputs?: Record<string, unknown>[];
+	stdinRequested?: boolean;
+}
+
 export interface BashResult {
 	output: string;
 	cancelled: boolean;
@@ -1961,6 +1977,11 @@ export interface BashParams {
 	excludeFromContext?: boolean;
 }
 
+export interface PythonParams {
+	code: string;
+	excludeFromContext?: boolean;
+}
+
 export interface GetSessionLeaseParams {
 	sessionIds: string[];
 }
@@ -2161,6 +2182,7 @@ export interface RpcWireCommands {
 	set_auto_retry: { params: SetAutoRetryParams; result: undefined };
 	abort_retry: { params: undefined; result: undefined };
 	bash: { params: BashParams; result: BashResult };
+	python: { params: PythonParams; result: PythonResult };
 	abort_bash: { params: undefined; result: undefined };
 	get_session_stats: { params: undefined; result: SessionStats };
 	get_session_lease: { params: GetSessionLeaseParams; result: GetSessionLeaseResult };

@@ -2752,6 +2752,16 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 				return success(id, "bash", result);
 			}
 
+			case "python": {
+				if (command.excludeFromContext !== undefined && typeof command.excludeFromContext !== "boolean") {
+					return error(id, "python", "excludeFromContext must be a boolean");
+				}
+				const result = await session.executePython(command.code, undefined, {
+					excludeFromContext: command.excludeFromContext,
+				});
+				return success(id, "python", result);
+			}
+
 			case "abort_bash": {
 				session.abortBash();
 				return success(id, "abort_bash");

@@ -182,6 +182,22 @@ export const stateDefs = {
 		"modes?": "ModeStates",
 	},
 
+	PythonResult: {
+		output: "string",
+		"exitCode?": "number.integer",
+		cancelled: "boolean",
+		truncated: "boolean",
+		"artifactId?": "string",
+		"artifactElidedBytes?": "number.integer",
+		"artifactError?": JSON_OBJECT,
+		"displayOutputs?": `${JSON_OBJECT}[]`,
+		totalLines: "number.integer",
+		totalBytes: "number.integer",
+		outputLines: "number.integer",
+		outputBytes: "number.integer",
+		"stdinRequested?": "boolean",
+	},
+
 	BashResult: {
 		output: "string",
 		"exitCode?": "number.integer",
