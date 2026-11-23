@@ -66,14 +66,7 @@ import {
 	type Usage,
 } from "../types";
 import { mergeHeaders } from "./anthropic-headers";
-import {
-	resolveCopilotRequestIdentity,
-	buildCopilotDynamicHeaders,
-	getCachedCopilotIntegrationId,
-	getCopilotIntegrationCacheKey,
-	hasCopilotVisionInput,
-	resolveGitHubCopilotBaseUrl,
-} from "./github-copilot-headers";
+import { resolveCopilotRequestIdentity } from "./github-copilot-headers";
 import { resolveXaiBaseUrl } from "./xai-base-url";
 
 export type { OpenAIPromptCacheOptions } from "../types";
@@ -109,11 +102,12 @@ import type { CapturedHttpErrorResponse } from "../utils/http-inspector";
 import { getOpenRouterHeaders } from "../utils/openrouter-headers";
 import { isForcedToolChoice } from "../utils/tool-choice";
 import {
-	applyInferenceHeaders,
-	applySessionHeader,
-	resolveOpenCodeGoCacheAffinity,
-	setHeaderIfAbsent,
-} from "./inference-headers";
+	buildCopilotDynamicHeaders,
+	getCachedCopilotIntegrationId,
+	getCopilotIntegrationCacheKey,
+	hasCopilotVisionInput,
+	resolveGitHubCopilotBaseUrl,
+} from "./github-copilot-headers";
 import { servedModelFromOpenRouterReasoning } from "./anthropic-signature";
 import { getNativeFinishReasonError } from "./native-finish-reason";
 import { isOpenAIRequestValidationError } from "./openai-request-error";
@@ -137,7 +131,12 @@ import type {
 	ResponseStatus,
 	ResponseStreamEvent,
 } from "./openai-responses-wire";
-
+import {
+	applyInferenceHeaders,
+	applySessionHeader,
+	resolveOpenCodeGoCacheAffinity,
+	setHeaderIfAbsent,
+} from "./inference-headers";
 import { isMalformedToolCallName, isValidToolCallId, transformMessages } from "./transform-messages";
 import { joinTextWithImagePlaceholder, NON_VISION_IMAGE_PLACEHOLDER, partitionVisionContent } from "./vision-guard";
 
@@ -372,7 +371,7 @@ export function resolveOpenAIRequestSetup(
 	if (options.defaultBaseUrl !== undefined) {
 		baseUrl = baseUrl ?? ($env.OPENAI_BASE_URL?.trim() || options.defaultBaseUrl);
 	}
-	// Attribute xAI traffic as zeta unless a User-Agent is already set.
+	// Attribute xAI traffic as omp unless a User-Agent is already set.
 	if (model.provider === "xai" || model.provider === "xai-oauth") {
 		setHeaderIfAbsent(headers, "User-Agent", USER_AGENT);
 	}
@@ -1957,7 +1956,7 @@ export function convertResponsesInputContent(
 /**
  * Map freeform custom-tool wire names back to the internal tool name for
  * providers that only accept function_call / function_call_output.
- * Built once per request; `apply_patch` → `edit` is the ZETA default.
+ * Built once per request; `apply_patch` → `edit` is the OMP default.
  */
 function buildCustomToolWireNameMap(tools: readonly Tool[] | undefined): ReadonlyMap<string, string> | undefined {
 	if (!tools?.length) return undefined;
@@ -3492,7 +3491,7 @@ export async function processResponsesStream<TApi extends Api>(
 
 	// Multiple items (parallel function_calls in particular) can be open at the same
 	// time. OpenAI's spec routes every per-item event by `output_index`/`item_id`;
-	// see https://github.com/Linxira-OS/linxira-zeta/issues/1880 — llama.cpp emits parallel
+	// see https://github.com/can1357/oh-my-pi/issues/1880 — llama.cpp emits parallel
 	// function_call deltas interleaved, and a singleton `current` reference would
 	// fold them into the wrong block and drop arguments on every call but the last.
 	//

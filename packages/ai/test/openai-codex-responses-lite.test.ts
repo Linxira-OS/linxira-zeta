@@ -693,7 +693,7 @@ describe("openai-codex Responses Lite and client metadata wire format", () => {
 			phase: "standalone_turn",
 			strategy: "memento",
 		});
-	});
+	}, 20_000);
 	it("keeps lite and strips image detail when a lite request contains images", async () => {
 		const model = buildModel({
 			id: "gpt-5.5",

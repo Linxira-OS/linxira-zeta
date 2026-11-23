@@ -1504,6 +1504,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#branchSummaryAbortController: AbortController | undefined = undefined;
 
 	readonly #handoff: SessionHandoff;
+	#handoffAbortController: AbortController | undefined;
+	#isGeneratingHandoff = false;
 
 	// Retry state
 	readonly #recovery: TurnRecovery;
@@ -15754,14 +15756,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * Cancel in-progress handoff generation.
 	 */
 	abortHandoff(): void {
-		this.abortHandoff();
+		this.#handoffAbortController?.abort();
 	}
 
 	/**
 	 * Check if handoff generation is in progress.
 	 */
 	get isGeneratingHandoff(): boolean {
-		return this.isGeneratingHandoff;
+		return this.#isGeneratingHandoff;
 	}
 
 	/**
@@ -15773,10 +15775,19 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * @param options Handoff execution options
 	 * @returns The handoff document text, or undefined if cancelled/failed
 	 */
-	handoff(customInstructions?: string, options?: SessionHandoffOptions): Promise<HandoffResult | undefined> {
+	async handoff(customInstructions?: string, options?: SessionHandoffOptions): Promise<HandoffResult | undefined> {
 		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
 		if (this.#workspaceRestoreActive) throw new SessionBusyError("handoff during workspace restore");
-		return this.#inLogContext(() => this.#maintenance.handoff(customInstructions, options));
+		const controller = new AbortController();
+		const signal = options?.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+		this.#handoffAbortController = controller;
+		this.#isGeneratingHandoff = true;
+		try {
+			return await this.#inLogContext(() => this.#maintenance.handoff(customInstructions, { ...options, signal }));
+		} finally {
+			if (this.#handoffAbortController === controller) this.#handoffAbortController = undefined;
+			this.#isGeneratingHandoff = false;
+		}
 	}
 
 	#isTerminalYieldToolResult(event: { toolName: string; isError?: boolean; result?: { details?: unknown } }): boolean {

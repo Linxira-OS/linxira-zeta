@@ -132,6 +132,9 @@ let lockfiles = 0;
 
 for (const file of tracked) {
 	const rel = file.replaceAll("\\", "/");
+	// The Wave snapshot keeps its upstream lockfile; it is not installed by the
+	// root build and its git/codeload URLs must not be rewritten in place.
+	if (rel.startsWith("terminal/")) continue;
 	if (!LOCKFILE_RE.test(rel) || isTest(rel)) continue;
 	if (!(await Bun.file(path.join(ROOT, file)).exists())) continue;
 	lockfiles++;
