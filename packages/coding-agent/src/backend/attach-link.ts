@@ -556,14 +556,6 @@ export class BackendAttachLink {
 	 * backend session keeps running.
 	 */
 	async reattach(sessionId: string): Promise<void> {
-		// A loop belongs to the transcript it was started on: switching the
-		// client away must not leave the old backend session repeating prompts
-		// unattended. Stop it while the socket still points at that session.
-		if (this.#joined && this.#loopState?.enabled) {
-			await this.toggleLoop().catch(error => {
-				logger.warn("backend attach loop stop before reattach failed", { error: String(error) });
-			});
-		}
 		if (this.#joined) await this.detach();
 		this.#closed = false;
 		this.#joined = false;

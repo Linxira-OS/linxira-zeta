@@ -729,8 +729,10 @@ describe("attached TUI over the wire protocol", () => {
 		expect(replicaFiles).toHaveLength(1);
 		expect(await Bun.file(staleReplicaPath).exists()).toBe(false);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
-		const afterReattach = (await link.client.send(sessionId, { type: "get_state" })) as { loop?: unknown };
-		expect(afterReattach.loop).toBeNull();
+		const afterReattach = (await link.client.send(sessionId, { type: "get_state" })) as {
+			loop?: { enabled?: boolean };
+		};
+		expect(afterReattach.loop?.enabled).toBe(true);
 
 		// `/cd` moves the backend session and reattaches the replica at the new
 		// cwd, preserving the session id.

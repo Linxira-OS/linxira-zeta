@@ -820,14 +820,10 @@ export class AgentSessionWrapper {
 				} catch {
 					throw new Error(`Directory does not exist: ${command.cwd}`);
 				}
-				this.#loopController.stopForSessionChange();
-				await this.#goalController.beginSessionChange();
-				try {
-					await this.#inner.moveSession(command.cwd);
-					return { cwd: this.#inner.sessionManager.getCwd() };
-				} finally {
-					await this.#goalController.endSessionChange();
-				}
+				// A cwd move belongs to the same session. It must not abort a turn,
+				// stop a loop, or end goal/vibe state.
+				await this.#inner.moveSession(command.cwd);
+				return { cwd: this.#inner.sessionManager.getCwd() };
 			}
 			case "python": {
 				if (command.excludeFromContext !== undefined && typeof command.excludeFromContext !== "boolean") {
