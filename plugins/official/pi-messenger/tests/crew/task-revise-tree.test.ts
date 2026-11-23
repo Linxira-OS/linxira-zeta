@@ -73,7 +73,7 @@ describe("executeReviseTree", () => {
 
 	it("rejects when subtree has live workers", async () => {
 		const t1 = store.createTask(tmpDir, "Root");
-		const t2 = store.createTask(tmpDir, "Child", undefined, [t1.id]);
+		const _t2 = store.createTask(tmpDir, "Child", undefined, [t1.id]);
 		store.startTask(tmpDir, t2.id, "worker");
 		liveProgress.updateLiveWorker(tmpDir, t2.id, {
 			taskId: t2.id,
@@ -90,7 +90,7 @@ describe("executeReviseTree", () => {
 
 	it("revises subtree: updates specs and resets non-done tasks", async () => {
 		const t1 = store.createTask(tmpDir, "Root", "root spec");
-		const t2 = store.createTask(tmpDir, "Child", "child spec", [t1.id]);
+		const _t2 = store.createTask(tmpDir, "Child", "child spec", [t1.id]);
 		const t3 = store.createTask(tmpDir, "Grandchild", "gc spec", [t2.id]);
 		store.startTask(tmpDir, t1.id, "w");
 		store.completeTask(tmpDir, t1.id, "done");
@@ -123,7 +123,7 @@ describe("executeReviseTree", () => {
 
 	it("creates new tasks from entries without id", async () => {
 		const t1 = store.createTask(tmpDir, "Root", "spec");
-		const t2 = store.createTask(tmpDir, "Child", "spec", [t1.id]);
+		const _t2 = store.createTask(tmpDir, "Child", "spec", [t1.id]);
 
 		spawnAgents.mockResolvedValue([
 			{
@@ -150,7 +150,7 @@ describe("executeReviseTree", () => {
 
 	it("rejects if returned ID is outside subtree", async () => {
 		const t1 = store.createTask(tmpDir, "Root", "spec");
-		const t2 = store.createTask(tmpDir, "Child", "spec", [t1.id]);
+		const _t2 = store.createTask(tmpDir, "Child", "spec", [t1.id]);
 		const t_outside = store.createTask(tmpDir, "Outside", "spec");
 
 		spawnAgents.mockResolvedValue([

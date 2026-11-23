@@ -43,6 +43,7 @@
 		".wt/**",
 		".zeta/**",
 		"crates/**",
+		"terminal/**",
 		"docs/**",
 		"python/**",
 		"sdk/**",

@@ -753,6 +753,10 @@ export class WebConfig {
 
 	/** Load from disk, deep-merging defaults; a missing/corrupt file falls back to defaults. */
 	static async load(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
+		// The lock is created beside the config file; a fresh HOME has no
+		// `.zeta/agent` yet, and a missing parent made the native lock fail with
+		// ENOENT before the config could fall back to defaults.
+		await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
 		const { data } = await withFileLock(filePath, () => WebConfig.#read(filePath));
 		return new WebConfig(filePath, data);
 	}
