@@ -25,6 +25,7 @@
     "type": "git"
   },
   "bin": {
+    "zeta": "src/cli.ts",
     "zetacode": "src/cli.ts"
   },
   "files": [

@@ -20,6 +20,21 @@ subcommands are stripped, not applied (for example, `zetacode --cwd dir update`)
 `--profile` is applied before subcommand routing, so it also scopes commands
 such as `config`, `models`, and `update`.
 
+`zeta` and `zetacode` share the same binary and command table, with one
+deliberate launch difference:
+
+- `zeta` with no subcommand is the **local-first TUI**: it runs with
+  `--standalone` and never adopts a machine Host.
+- `zeta help` prints this help (same as `zeta --help`); it never launches a
+  session.
+- `zeta <subcommand>` keeps the ordinary subcommand behavior, so
+  `zeta serve`, `zeta models`, and `zeta update` are unchanged.
+- `zetacode` with no subcommand is the **shared-Host TUI**; it discovers or
+  starts the machine Host so TUI, Web and Desktop show the same session.
+
+Use `zeta` when you explicitly want an isolated local session; use `zetacode`
+for the shared product session.
+
 Runtime help is also available:
 
 - `zetacode --help` lists user-facing subcommands and common launch flags.

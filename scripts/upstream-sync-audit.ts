@@ -28,7 +28,10 @@ function parseArgs(argv: string[]): Args {
 		else if (arg.startsWith("--base=")) args.base = arg.slice("--base=".length);
 		else throw new Error(`Unknown argument: ${arg}`);
 	}
-	if (!args.tag) throw new Error("Usage: bun scripts/upstream-sync-audit.ts --tag <vX.Y.Z> [--base <vX.Y.Z>] [--json] [--allow-conflicts]");
+	if (!args.tag)
+		throw new Error(
+			"Usage: bun scripts/upstream-sync-audit.ts --tag <vX.Y.Z> [--base <vX.Y.Z>] [--json] [--allow-conflicts]",
+		);
 	return args;
 }
 
@@ -47,7 +50,10 @@ function main(): void {
 	const head = git(["rev-parse", "HEAD"]);
 	const mergeBase = git(["merge-base", "HEAD", `${args.tag}^{}`]);
 	const status = git(["diff", "--name-status", "--find-renames=50%", mergeBase, `${args.tag}^{}`]);
-	const rows = status.split("\n").filter(Boolean).map(line => line.split("\t"));
+	const rows = status
+		.split("\n")
+		.filter(Boolean)
+		.map(line => line.split("\t"));
 	const counts = { added: 0, deleted: 0, modified: 0, renamed: 0 };
 	for (const row of rows) {
 		const code = row[0] ?? "";
@@ -59,9 +65,15 @@ function main(): void {
 	const renamed = rows.filter(row => row[0]?.startsWith("R")).map(row => ({ from: row[1], to: row[2] }));
 	const crateRenames = renamed.filter(row => row.from?.startsWith("crates/") || row.to?.startsWith("crates/"));
 	const assetsChanged = rows
-		.filter(row => ["assets/", "desktop/build/", "editor/npm/", "termide/", "packages/natives/native/"].some(prefix => (row[1] ?? row[2] ?? "").startsWith(prefix)))
+		.filter(row =>
+			["assets/", "desktop/build/", "editor/npm/", "termide/", "packages/natives/native/"].some(prefix =>
+				(row[1] ?? row[2] ?? "").startsWith(prefix),
+			),
+		)
 		.map(row => row.slice(1));
-	const mergeTree = spawnSync("git", ["merge-tree", "--write-tree", "--messages", "HEAD", `${args.tag}^{}`], { encoding: "utf8" });
+	const mergeTree = spawnSync("git", ["merge-tree", "--write-tree", "--messages", "HEAD", `${args.tag}^{}`], {
+		encoding: "utf8",
+	});
 	const conflicts = (mergeTree.stdout.match(/^CONFLICT /gm) ?? []).length;
 	const commits = Number(git(["rev-list", "--count", `${mergeBase}..${args.tag}^{}`]));
 	const zetaCommits = Number(git(["rev-list", "--count", `${mergeBase}..HEAD`]));
