@@ -101,6 +101,7 @@
       "name": "@linxiraos/zeta",
       "version": "1.5.14",
       "bin": {
+        "zeta": "src/cli.ts",
         "zetacode": "src/cli.ts",
       },
       "dependencies": {
