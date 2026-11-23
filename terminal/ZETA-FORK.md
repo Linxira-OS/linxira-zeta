@@ -45,6 +45,16 @@ Until those land, this directory is excluded from brand scanning as a vendored
 upstream snapshot, and no root workflow builds or publishes it. See
 `document/adr/0097-wave-terminal-fork.md` and REQ-149.
 
+## Modification log
+
+| Date | File | Change |
+|---|---|---|
+| 2026-11-23 | `terminal/README.md` | Added the Zeta fork notice (`ZETA-FORK.md`, no-upstream-report policy). |
+| 2026-11-23 | `terminal/ZETA-FORK.md`, `terminal/AGENTS.md` | New Zeta fork metadata; upstream source unchanged. |
+
+No JavaScript, Go, build, or asset files have been modified yet. When they are,
+add one row per material change and keep the upstream `LICENSE`/`NOTICE` intact.
+
 ## Upstream sync
 
 - Import a fresh upstream snapshot and record its commit/version here.
