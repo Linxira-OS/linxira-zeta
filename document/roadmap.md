@@ -693,6 +693,14 @@ protocols and auth flows.
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **Terminal：Wave Apache-2.0 fork（2026-11-23 导入，ADR-0097 / REQ-149）**：
+  `terminal/` 已导入 Wave `0.14.5` 快照（上游 `9f1c967`），保留 `LICENSE`/`NOTICE`。
+  当前阶段不进入根 workspace、CI、release、npm 或安装包；也不向 Wave 上游提交任何
+  Zeta 专属 issue/PR。后续按序做：① 替换资源/名称/logo；② 建立显式 zh-CN 文案目录；
+  ③ 接独立 lockfile、CI、构建和独立 tag（`zeta-terminal-v*`）。完成①前 `terminal/`
+  继续从品牌扫描排除，完成③前不进入任何发布链。等 OMP v19.1 CI 与 v19.1.1
+  快同步验证完成后再开工。
+
 - **Attach 会话生命周期命令仍在 replica 上执行（2026-10-22 登记）**：附着 TUI 的控制面
   已走 RPC WebSocket（prompt/steer/follow-up/abort、对话框、plan_approve、模型/思考/
   plan-goal-vibe 镜像），但 `/new`、`/resume`、`/tree`、`/compact`、`/reload` 仍作用于

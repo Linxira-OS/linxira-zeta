@@ -122,6 +122,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0094](0094-team-persona-plugin-packs.md) | Team personas may carry scoped plugin packs and new first-level roles | Accepted | 2026-11-22 | — | [Team design](../team-agent-mode-design.md), [ADR-0026](0026-agent-authored-plugins.md), [plugin system](../plugin-system.md) |
 | [0095](0095-compaction-session-segments.md) | Segment the transcript after a committed compaction | Accepted | 2026-11-23 | — | [Agent modes](../../docs/agent-modes.md), [Compaction service](../../docs/compaction-service.md) |
 | [0096](0096-work-studio-terminal-scope.md) | Work Studio keeps its terminal tabs; no in-house multi-terminal manager | Accepted | 2026-11-23 | Supersedes the terminal-manager hold in [0034](0034-owner-scope-holds-2026-11-12.md) | [ADR-0045](0045-studio-command-terminal-workspace.md), [terminal](../../web-app/src/studio/TerminalPane.tsx) |
+| [0097](0097-wave-terminal-fork.md) | Wave Terminal is an Apache-2.0 Zeta fork, isolated from the current release chain | Proposed | 2026-11-23 | Extends [0096](0096-work-studio-terminal-scope.md) to a standalone terminal | [fork policy](../../terminal/ZETA-FORK.md), [REQ-149](../requirements-ledger.md) |
 
 ## File and numbering rules
 

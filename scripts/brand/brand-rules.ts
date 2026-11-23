@@ -12,6 +12,7 @@
 /** Path prefixes (repo-relative, forward slashes) never scanned. */
 export const SKIP_PREFIXES = [
 	"retired/", // one-way archive: no product/build/brand surface
+	"terminal/", // Wave Apache-2.0 snapshot: unadapted fork, ADR-0097; remove at branding milestone
 	"temp/", // local reference clones, never committed
 	"document/", // internal docs: upstream provenance lives here by design
 	"docs/", // runtime docs may reference upstream interop surfaces

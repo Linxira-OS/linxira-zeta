@@ -99,6 +99,7 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
 | zetawork（TUI / GUI，**已退役**） | `retired/zetawork/crates/zeta-main/`、`retired/zetawork/crates/zetawork-gui/`（不构建、不发布、不被产品 import） |
 | zetaide / vendored TermIDE | `termide/`（**不要**在 retired/zetawork 里重写 vendored 面板库） |
+| terminal（Wave Apache-2.0 fork，**未产品化**） | `terminal/`；独立工具链，不入根 workspace/CI/release；先读 `terminal/AGENTS.md` 与 ADR-0097 |
 | `@linxiraos/editor` npm 面 | `editor/` |
 | Work Studio 桌面壳（Electron / 无浏览器引擎两版） | `desktop/`；渲染器与内核复用 `web-app/` + `packages/coding-agent`，不新增第二套 UI 代码 |
 

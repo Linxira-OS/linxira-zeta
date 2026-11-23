@@ -65,6 +65,7 @@ desktop/ (Electron, paused) ──HTTP──▶ zeta serve
 | 自有面 | 是什么 |
 |---|---|
 | `main/` | zetawork：TUI（`main/crates/zeta-main/`）+ GUI（`main/crates/zetawork-gui/`），独立 Cargo workspace；发布暂停（`publish_zetawork`） |
+| `terminal/` | Wave Terminal Apache-2.0 fork（独立 Electron/Vite/Go 工具链）；当前不入根 workspace、CI、release/npm；ADR-0097 |
 | `termide/` | vendored TermIDE = `zetaide`（`@linxiraos/ide`），另有 Zeta 新增的 `termide-editor` bin |
 | `editor/` | `@linxiraos/editor` 的 npm 面（载荷 = `termide-editor`） |
 | `web-app/` | **产品渲染器**（Vite 7；`src/studio/`、`src/vendor/`、自己的 `package-lock.json`），2026-11-05 起取代 `web-ui` 的渲染层 |

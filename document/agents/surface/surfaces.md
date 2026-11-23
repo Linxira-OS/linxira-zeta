@@ -29,6 +29,9 @@
 
 ## 相关但不属于产品面
 
+- `terminal/`：Wave Terminal 的 Apache-2.0 fork 快照。**尚不是产品面**，不进入根
+  workspace、CI、release/npm；资源/logo、zh-CN 与 glibc-2.28 适配完成后再由 ADR-0097
+  更新发布范围。
 - `main/crates/*`（`zeta-main`、`zetawork-gui`、`workbench-projects`、`sysmon`）：暂停的
   Rust 线，不随 release 构建；恢复需要单独的裁决。
 - `packages/coding-agent/src/server/studio-host/`：Work Studio 的宿主实现（基建，归属
