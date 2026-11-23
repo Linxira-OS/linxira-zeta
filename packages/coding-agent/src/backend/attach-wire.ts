@@ -193,6 +193,11 @@ export class AttachWire {
 		return this.#client.call("goal", { op: "drop" }).then(() => undefined);
 	}
 
+	/** Move the backend session's working directory, preserving its identity. */
+	changeCwd(cwd: string): Promise<{ cwd: string }> {
+		return this.#client.call("change_cwd", { cwd }) as Promise<{ cwd: string }>;
+	}
+
 	/** Current backend session state (model, thinking, queues, todos, plan). */
 	getState(): Promise<Record<string, unknown>> {
 		return this.#client.call("get_state", undefined) as Promise<Record<string, unknown>>;

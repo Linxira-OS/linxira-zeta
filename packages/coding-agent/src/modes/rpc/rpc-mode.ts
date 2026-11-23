@@ -2279,6 +2279,18 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			// State
 			// =================================================================
 
+			case "change_cwd": {
+				if (typeof command.cwd !== "string" || command.cwd.trim() === "") {
+					return error(id, "change_cwd", "cwd must be a non-empty string");
+				}
+				try {
+					await session.moveSession(command.cwd);
+				} catch (err) {
+					return error(id, "change_cwd", err instanceof Error ? err.message : String(err));
+				}
+				return success(id, "change_cwd", { cwd: session.sessionManager.getCwd() });
+			}
+
 			case "get_state": {
 				// A goal exit triggered by the last turn restores tools asynchronously; report after it.
 				await goalController.settled();

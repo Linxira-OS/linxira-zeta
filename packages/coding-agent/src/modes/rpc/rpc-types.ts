@@ -90,6 +90,7 @@ export type RpcCommand =
 	| { id?: string; type: "open_session"; sessionDir: string; provider?: string; modelId?: string }
 
 	// State
+	| { id?: string; type: "change_cwd"; cwd: string }
 	| { id?: string; type: "get_state" }
 	| { id?: string; type: "set_fast_mode"; enabled: boolean }
 	| { id?: string; type: "set_slow_mode"; enabled: boolean }
@@ -519,6 +520,7 @@ export type RpcResponse =
 	| { id?: string; type: "response"; command: "open_session"; success: true; data: RpcOpenSessionResult }
 
 	// State
+	| { id?: string; type: "response"; command: "change_cwd"; success: true; data: { cwd: string } }
 	| { id?: string; type: "response"; command: "get_state"; success: true; data: RpcSessionState }
 	| {
 			id?: string;

@@ -1811,6 +1811,11 @@ class NegotiateProtocolResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class ChangeCwdResult:
+    cwd: str
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LiveConnectResult:
     voice: str
     sdp_answer: str
@@ -3462,6 +3467,13 @@ def parse_negotiate_protocol_result(value: object, path: str = "NegotiateProtoco
     )
 
 
+def parse_change_cwd_result(value: object, path: str = "ChangeCwdResult") -> ChangeCwdResult:
+    payload = expect_object(value, path)
+    return ChangeCwdResult(
+        cwd=required(payload, "cwd", decode_str, path),
+    )
+
+
 def parse_live_connect_result(value: object, path: str = "LiveConnectResult") -> LiveConnectResult:
     payload = expect_object(value, path)
     return LiveConnectResult(
@@ -3731,6 +3743,12 @@ class WireClient:
         if model_id is not None:
             params["modelId"] = model_id
         return parse_open_session_result(self._command("open_session", params), "open_session")
+
+    def change_cwd(self, cwd: str) -> ChangeCwdResult:
+        """Move the session working directory."""
+        params: dict[str, object] = {}
+        params["cwd"] = cwd
+        return parse_change_cwd_result(self._command("change_cwd", params), "change_cwd")
 
     def get_state(self) -> SessionState:
         """Snapshot the session state."""
@@ -4483,6 +4501,7 @@ __all__ = [
     "CacheWarmingStartEvent",
     "CancelUiRequest",
     "CancellationResult",
+    "ChangeCwdResult",
     "CommandOutputEvent",
     "CompactionFidelityCounts",
     "CompactionPhaseDetail",
@@ -4699,6 +4718,7 @@ __all__ = [
     "parse_cache_warming_start_event",
     "parse_cancel_ui_request",
     "parse_cancellation_result",
+    "parse_change_cwd_result",
     "parse_command_output_event",
     "parse_compaction_fidelity_counts",
     "parse_compaction_phase_detail",

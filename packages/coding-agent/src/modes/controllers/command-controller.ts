@@ -1631,7 +1631,9 @@ export class CommandController {
 	 * rolls the whole switch back). Ctrl+R or Ctrl+click on a row opens `/resume`
 	 * focused on that folder's conversations instead of switching.
 	 */
-	async showDirectoryPicker(options: { resumeOnly?: boolean } = {}): Promise<void> {
+	async showDirectoryPicker(
+		options: { resumeOnly?: boolean; onSelect?: (directory: string) => void | Promise<void> } = {},
+	): Promise<void> {
 		if (this.ctx.session.isStreaming) {
 			this.ctx.showWarning("Wait for the current response to finish or abort it before changing directory.");
 			return;
@@ -1666,6 +1668,10 @@ export class CommandController {
 			return;
 		}
 		if (!picked) return;
+		if (options.onSelect) {
+			await options.onSelect(picked);
+			return;
+		}
 		await this.handleMoveCommand(picked, { allowCreate: false });
 	}
 

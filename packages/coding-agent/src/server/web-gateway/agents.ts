@@ -117,6 +117,7 @@ export type AgentCommand =
 	| { type: "navigate_tree"; entryId: string }
 	| { type: "reset_context" }
 	| { type: "delete_session" }
+	| { type: "change_cwd"; cwd: string }
 	| { type: "set_thinking_level"; level: string }
 	| { type: "compact"; customInstructions?: string }
 	| { type: "set_session_name"; name: string }
@@ -810,6 +811,21 @@ export class AgentSessionWrapper {
 						return { started: false, mode: "none" };
 					}
 					throw error;
+				}
+			}
+			case "change_cwd": {
+				try {
+					if (!statSync(command.cwd).isDirectory()) throw new Error("not a directory");
+				} catch {
+					throw new Error(`Directory does not exist: ${command.cwd}`);
+				}
+				this.#loopController.stopForSessionChange();
+				await this.#goalController.beginSessionChange();
+				try {
+					await this.#inner.moveSession(command.cwd);
+					return { cwd: this.#inner.sessionManager.getCwd() };
+				} finally {
+					await this.#goalController.endSessionChange();
 				}
 			}
 			case "get_state":

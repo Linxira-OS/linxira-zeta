@@ -511,6 +511,13 @@ export class BackendAttachLink {
 		return result.newSessionId;
 	}
 
+	/** Move the backend session and reattach the local replica to its new cwd. */
+	async changeCwd(cwd: string): Promise<void> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot change directory.");
+		await this.#wire.changeCwd(cwd);
+		await this.reattach(this.#sessionId);
+	}
+
 	/** Cancel the backend's in-flight turn. */
 	sendAbort(): void {
 		if (this.#closed) return;

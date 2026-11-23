@@ -660,7 +660,10 @@ export interface InteractiveModeContext {
 	showThinkingSelector(): void;
 	refreshScopedModelsAfterLogin?(): Promise<void> | void;
 	applySidebar(): void;
-	showDirectoryPicker(options?: { resumeOnly?: boolean }): Promise<void>;
+	showDirectoryPicker(options?: {
+		resumeOnly?: boolean;
+		onSelect?: (directory: string) => void | Promise<void>;
+	}): Promise<void>;
 	showTeamHub(): void;
 	showTeamWorkspace(): void;
 	leadModeEnabled: boolean;

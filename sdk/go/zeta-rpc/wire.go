@@ -7642,6 +7642,25 @@ func (v *NegotiateProtocolResult) decodeFrom(raw map[string]json.RawMessage) err
 	return nil
 }
 
+type ChangeCwdResult struct {
+	Cwd string `json:"cwd"`
+}
+
+func (v *ChangeCwdResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "ChangeCwdResult", v.decodeFrom)
+}
+
+func (v *ChangeCwdResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out ChangeCwdResult
+	d := fieldDecoder{raw: raw, owner: "ChangeCwdResult"}
+	d.required("cwd", &out.Cwd)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type SetSlowModeResult struct {
 	Enabled bool `json:"enabled"`
 }
@@ -8517,6 +8536,18 @@ type OpenSessionCommand struct {
 func (c Commands) OpenSession(ctx context.Context, p OpenSessionCommand) (OpenSessionResult, error) {
 	var out OpenSessionResult
 	err := c.call(ctx, "open_session", p, 0, &out)
+	return out, err
+}
+
+// ChangeCwdCommand holds the parameters of "change_cwd".
+type ChangeCwdCommand struct {
+	Cwd string `json:"cwd"`
+}
+
+// ChangeCwd sends "change_cwd": Move the session working directory.
+func (c Commands) ChangeCwd(ctx context.Context, p ChangeCwdCommand) (ChangeCwdResult, error) {
+	var out ChangeCwdResult
+	err := c.call(ctx, "change_cwd", p, 0, &out)
 	return out, err
 }
 

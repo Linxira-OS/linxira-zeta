@@ -131,6 +131,17 @@
 				"clientOmit": []
 			},
 			{
+				"name": "change_cwd",
+				"doc": "Move the session working directory.",
+				"params": "ChangeCwdParams",
+				"result": "ChangeCwdResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "get_state",
 				"doc": "Snapshot the session state.",
 				"params": null,
@@ -6720,6 +6731,28 @@
 			},
 			"required": [
 				"sessionDir"
+			]
+		},
+		"ChangeCwdParams": {
+			"type": "object",
+			"properties": {
+				"cwd": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"cwd"
+			]
+		},
+		"ChangeCwdResult": {
+			"type": "object",
+			"properties": {
+				"cwd": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"cwd"
 			]
 		},
 		"SetFastModeParams": {

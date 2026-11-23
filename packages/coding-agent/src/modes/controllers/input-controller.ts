@@ -100,6 +100,7 @@ import {
 	backendAttachRefusalHint,
 	isBackendAttachLocalCommand,
 	isBackendAttachRefusedCommand,
+	isBackendAttachTuiOnlyBuiltin,
 } from "../../backend/attach-commands";
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
@@ -1287,7 +1288,18 @@ export class InputController {
 				// `/cd` page: choose a folder, then open its resume page.
 				if (verb === "cd" && text.trim() === "/cd") {
 					this.ctx.editor.clearDraft(text);
-					await this.ctx.showDirectoryPicker({ resumeOnly: true });
+					await this.ctx.showDirectoryPicker({
+						onSelect: async directory => {
+							try {
+								await backendAttach.changeCwd(directory);
+								this.ctx.showStatus(`Changed directory to ${directory}.`);
+							} catch (error) {
+								this.ctx.showError(
+									`Could not change directory: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						},
+					});
 					return;
 				}
 				if (backendAttach) {
@@ -1706,11 +1718,18 @@ export class InputController {
 					}
 					if (!text.trim() && !images) return;
 					this.ctx.editor.clearDraft(text);
-					// Slash commands execute on the backend; plain text keeps the
-					// steer/follow-up semantics of a message.
-					if (text.startsWith("/")) backendAttach.sendCommand(text, images);
-					else backendAttach.sendPrompt(text, images);
-					return;
+					// A builtin that exists only as a TUI handler has no backend
+					// counterpart. Run the same local handler a native session runs
+					// instead of forwarding it as backend text.
+					if (text.startsWith("/") && isBackendAttachTuiOnlyBuiltin(verb)) {
+						// fall through to the local slash dispatcher below
+					} else {
+						// Slash commands execute on the backend; plain text keeps the
+						// steer/follow-up semantics of a message.
+						if (text.startsWith("/")) backendAttach.sendCommand(text, images);
+						else backendAttach.sendPrompt(text, images);
+						return;
+					}
 				}
 			}
 

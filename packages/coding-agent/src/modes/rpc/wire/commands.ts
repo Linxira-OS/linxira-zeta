@@ -89,6 +89,12 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		result: "OpenSessionResult",
 	},
 
+	{
+		name: "change_cwd",
+		doc: "Move the session working directory.",
+		params: { cwd: "string" },
+		result: { cwd: "string" },
+	},
 	{ name: "get_state", doc: "Snapshot the session state.", result: "SessionState" },
 	{
 		name: "set_fast_mode",

@@ -5558,6 +5558,16 @@ pub struct OpenSessionParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChangeCwdParams {
+	pub cwd: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChangeCwdResult {
+	pub cwd: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetFastModeParams {
 	pub enabled: bool,
 }
@@ -6788,6 +6798,22 @@ impl Command for OpenSessionCommand {
 
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		serde_json::from_value::<OpenSessionResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Move the session working directory.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChangeCwdCommand {
+	pub cwd: String,
+}
+
+impl Command for ChangeCwdCommand {
+	const NAME: &'static str = "change_cwd";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ChangeCwdResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<ChangeCwdResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 

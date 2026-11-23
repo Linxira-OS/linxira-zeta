@@ -2288,6 +2288,35 @@ export class SelectorController {
 				scopeLabel: false,
 				showCwd: true,
 			};
+		} else if (this.ctx.backendAttach) {
+			// Attached TUI: the page lists the Host's sessions, not this
+			// process's replica files. Selecting one reattaches the same session id.
+			const attached = this.ctx.backendAttach;
+			const { sessions: backendSessions } = await attached.client.listSessions();
+			sessions = backendSessions.map(info => ({
+				path: `backend:${info.id}`,
+				id: info.id,
+				cwd: info.cwd,
+				title: info.name,
+				created: new Date(info.created ?? 0),
+				modified: new Date(info.modified ?? 0),
+				messageCount: info.messageCount ?? 0,
+				size: 0,
+				firstMessage: info.firstMessage ?? "",
+				allMessagesText: "",
+			}));
+			onSelectSession = async session => {
+				try {
+					await attached.reattach(session.id);
+					return true;
+				} catch (error) {
+					this.ctx.showError(
+						`Could not attach to ${session.id}: ${error instanceof Error ? error.message : String(error)}`,
+					);
+					return false;
+				}
+			};
+			selectorOptions = { title: "Resume Session", scopeLabel: false, showCwd: true };
 		} else {
 			const [listing, pinnedIds] = await Promise.all([
 				SessionManager.listForPicker(

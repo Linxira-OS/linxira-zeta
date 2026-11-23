@@ -690,6 +690,18 @@ describe("attached TUI over the wire protocol", () => {
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("No todos")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("No todos"))).toBe(true);
 
+		// Bare `/resume` and `/cd` open their native pages, not attach usage text.
+		term.sendInput("/resume");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/resume")));
+		term.sendInput("\r");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Resume Session")));
+		term.sendInput("\x1b");
+		term.sendInput("/cd");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/cd")));
+		term.sendInput("\r");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Change directory")));
+		term.sendInput("\x1b");
+
 		// `/resume <id>` re-attaches the same client to a backend session, and a
 		// loop started there is stopped before the client leaves it behind.
 		await wrapper.send({ type: "loop_start", args: "3" });
@@ -710,6 +722,15 @@ describe("attached TUI over the wire protocol", () => {
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
 		const afterReattach = (await link.client.send(sessionId, { type: "get_state" })) as { loop?: unknown };
 		expect(afterReattach.loop).toBeNull();
+
+		// `/cd` moves the backend session and reattaches the replica at the new
+		// cwd, preserving the session id.
+		const movedCwd = path.join(tempDir.path(), "moved-workspace");
+		await mkdir(movedCwd, { recursive: true });
+		await link.changeCwd(movedCwd);
+		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(movedCwd));
+		expect(link.sessionId).toBe(sessionId);
+		expect((await link.client.getSession(sessionId)).info?.cwd).toBe(path.resolve(movedCwd));
 
 		// Auth surfaces: the backend answers provider/account queries over the
 		// socket the same way the local TUI's pickers do.
