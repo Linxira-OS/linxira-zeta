@@ -73,6 +73,9 @@ function filesUnder(rel: string): string[] {
 const violations: string[] = [];
 for (const rel of SCAN_DIRS) {
 	for (const file of filesUnder(rel)) {
+		// Generated from the upstream browser extension; its source is scanned
+		// by the browser-relay package's own checks.
+		if (file.replaceAll("\\", "/").endsWith("/tools/browser/relay/extension.generated.json")) continue;
 		const text = fs.readFileSync(file, "utf8");
 		const lines = text.split(/\r?\n/);
 		for (let i = 0; i < lines.length; i++) {
