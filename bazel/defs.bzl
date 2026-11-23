@@ -1,6 +1,6 @@
 """Rules for producing release-grade, canonically named pi_natives addons.
 
-`native_addon` transitions //crates/natives:pi_natives onto a shipping
+`native_addon` transitions //crates/natives:omp_natives onto a shipping
 platform with the release codegen profile (opt, thin LTO, cgu=16, stripped —
 mirrors the cargo `ci` profile) and renames the produced shared library to the
 loader's canonical `pi_natives.<platform>-<arch>[-<variant>].node` filename.
