@@ -156,8 +156,8 @@ mod tests {
 			.duration_since(UNIX_EPOCH)
 			.expect("system clock")
 			.as_nanos();
-		let path =
-			std::env::temp_dir().join(format!("zeta-file-lock-{label}-{}-{nonce}", std::process::id()));
+		let path = std::env::temp_dir()
+			.join(format!("zeta-file-lock-{label}-{}-{nonce}", std::process::id()));
 		path.to_str().expect("utf-8 temp path").to_owned()
 	}
 

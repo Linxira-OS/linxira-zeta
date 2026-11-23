@@ -126,8 +126,7 @@ fn is_omp(word: &[u8]) -> bool {
 	name == b"zetacode"
 		|| name == b"omp"
 		|| (cfg!(windows)
-			&& (name.eq_ignore_ascii_case(b"zetacode.exe")
-				|| name.eq_ignore_ascii_case(b"omp.exe")))
+			&& (name.eq_ignore_ascii_case(b"zetacode.exe") || name.eq_ignore_ascii_case(b"omp.exe")))
 }
 
 /// Whether the environment variable `name` holds a URL to resolve. `PWD`
