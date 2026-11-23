@@ -201,16 +201,8 @@ export function isOlderOmpVersion(version: string, than: string): boolean {
 	return isOmpVersion(version) && isOmpVersion(than) && Bun.semver.order(version, than) < 0;
 }
 
-/**
- * The extension's service worker script with `zetaVersion` and `build` declared above it as `ZETA_INSTALL_VERSION` and
- * `ZETA_INSTALL_BUILD`, which the extension reports in its hello. The stamp sits in the script, not only the manifest,
- * because after the files change a Chrome restart re-reads manifest.json but keeps running the service worker it
- * registered before. `build` names the exact extension files, so a relay can tell a stale running build apart from
- * its own even when both carry the same zeta version (a source checkout between releases).
- */
-export function stampRelayExtensionScript(script: string, zetaVersion: string, build: string): string {
-	return `const ZETA_INSTALL_VERSION = ${JSON.stringify(zetaVersion)};\nconst ZETA_INSTALL_BUILD = ${JSON.stringify(build)};\n${script}`;
-}
+/** Install stamps; kept dependency-free so the extension build runs without workspace dependencies. */
+export { stampRelayExtensionManifest, stampRelayExtensionScript } from "./stamp";
 
 /** `POST` path on the relay after install folders change: connected extensions reload into the new files once idle. */
 export const RELAY_RECHECK_PATH = "/zeta/extensions/recheck";
@@ -240,11 +232,6 @@ export function readRelayExtensionStamp(script: string): RelayExtensionStamp | n
 	const zetaBuild: unknown = build === undefined ? null : JSON.parse(build);
 	if (typeof zetaVersion !== "string" || (zetaBuild !== null && typeof zetaBuild !== "string")) return null;
 	return { zetaVersion, zetaBuild };
-}
-
-/** The extension's manifest text with `zetaVersion` as its `version_name`, which chrome://extensions shows. */
-export function stampRelayExtensionManifest(manifestJson: string, zetaVersion: string): string {
-	return `${JSON.stringify({ ...JSON.parse(manifestJson), version_name: zetaVersion }, null, "\t")}\n`;
 }
 
 /** Messages sent extension → relay. */

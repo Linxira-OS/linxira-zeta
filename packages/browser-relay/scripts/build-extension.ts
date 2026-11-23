@@ -11,7 +11,7 @@ import { $ } from "bun";
 import {
 	stampRelayExtensionManifest,
 	stampRelayExtensionScript,
-} from "../../coding-agent/src/tools/browser/relay/protocol";
+} from "../../coding-agent/src/tools/browser/relay/stamp";
 
 const root = path.resolve(import.meta.dir, "..");
 const source = path.join(root, "extension");
