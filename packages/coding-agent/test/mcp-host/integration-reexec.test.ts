@@ -8,11 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
 import { daemonClient, probeDaemon } from "@linxiraos/zeta/daemon/client";
-import {
-	DAEMON_RESUME_LEASE_GRACE_MS,
-	type DaemonClient,
-	type UnitSnapshot,
-} from "@linxiraos/zeta/daemon/protocol";
+import { DAEMON_RESUME_LEASE_GRACE_MS, type DaemonClient, type UnitSnapshot } from "@linxiraos/zeta/daemon/protocol";
 import { holdSharedMcp } from "@linxiraos/zeta/mcp/host/access";
 import { MCP_MODULE_KIND } from "@linxiraos/zeta/mcp/host/contract";
 import { disposeLocalMcpHost } from "@linxiraos/zeta/mcp/host/local";

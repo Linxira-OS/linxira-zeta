@@ -3,11 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createDraft } from "@linxiraos/zeta/commit/selective/draft";
-import {
-	ChangeJournal,
-	type ChangeRecord,
-	shellChangeSnapshots,
-} from "@linxiraos/zeta/commit/selective/journal";
+import { ChangeJournal, type ChangeRecord, shellChangeSnapshots } from "@linxiraos/zeta/commit/selective/journal";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { executeBash } from "@linxiraos/zeta/exec/bash-executor";
 import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";

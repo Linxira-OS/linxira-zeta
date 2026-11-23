@@ -479,6 +479,8 @@ export function takeAutoRejoin(history: number[], now = Date.now()): boolean {
 /** Default public relay; bare `<roomId>.<key>` links resolve against it. */
 export const DEFAULT_RELAY_URL = "wss://my.omp.sh";
 
+export const DEFAULT_SHARE_URL = "https://my.omp.sh/s";
+
 /** Default share viewer/upload base; `/share` links resolve against `<base>/<id>#<key>`. */
 
 export interface ParsedCollabLink {

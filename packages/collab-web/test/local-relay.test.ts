@@ -61,6 +61,7 @@ function waitEvent<T extends Event>(
 	timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<T> {
 	const { promise, resolve, reject } = Promise.withResolvers<T>();
+	// oxlint-disable-next-line prefer-const -- assigned after cleanup closes over it
 	let timer: Timer | undefined;
 	const cleanup = (): void => {
 		ws.removeEventListener(type, onEvent);

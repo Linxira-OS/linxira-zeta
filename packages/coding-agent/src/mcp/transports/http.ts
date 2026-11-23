@@ -36,7 +36,7 @@ import {
 	type MCPTimeoutOperation,
 	resolveMCPTimeoutMs,
 } from "../timeout";
-import { type MCPFetchInit, mcpFetch, withoutHeader } from "./header-policy";
+import { type MCPFetchInit, mcpFetch, withoutHeader } from "../host/header-policy";
 
 const HTTP_SSE_CONNECT_TIMEOUT_MS = 1_000;
 const DEFAULT_SSE_RETRY_MS = 3_000;

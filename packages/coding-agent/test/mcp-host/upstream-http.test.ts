@@ -5,12 +5,7 @@ import { encodeMcpHeaderValue, HttpUpstream } from "@linxiraos/zeta/mcp/host/htt
 import type { McpPeer } from "@linxiraos/zeta/mcp/host/peer";
 import { mcpUpstreams } from "@linxiraos/zeta/mcp/host/peers";
 import { analyzeAuthError } from "@linxiraos/zeta/mcp/oauth-discovery";
-import {
-	MCP_LEGACY_PROTOCOL_VERSION,
-	MCP_PROTOCOL_VERSION,
-	MCPMeta,
-	requestMeta,
-} from "@linxiraos/zeta/mcp/protocol";
+import { MCP_LEGACY_PROTOCOL_VERSION, MCP_PROTOCOL_VERSION, MCPMeta, requestMeta } from "@linxiraos/zeta/mcp/protocol";
 import { postmortem, withTimeout } from "@linxiraos/pi-utils";
 import { rejectionOf, trackUnhandled } from "../helpers/rejection";
 import { httpSpec, realDeps } from "./upstream-support";

@@ -9,11 +9,7 @@ import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/m
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import {
-	ShellSpeechHost,
-	type ShellSpeechServices,
-	type ShellSpeechSession,
-} from "@linxiraos/zeta/tts/shell-speech";
+import { ShellSpeechHost, type ShellSpeechServices, type ShellSpeechSession } from "@linxiraos/zeta/tts/shell-speech";
 import type { TtsStreamHandle, TtsStreamOptions } from "@linxiraos/zeta/tts/tts-client";
 import type { VocalizerPlayer } from "@linxiraos/zeta/tts/vocalizer";
 import { encodeWav } from "@linxiraos/zeta/tts/wav";

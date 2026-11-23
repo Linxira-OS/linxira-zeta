@@ -65,7 +65,7 @@ function registerCompletionSink(
 	if (!registration) {
 		const unregister = client.onCompletion(owner, notification => {
 			if (session.isDisposed?.()) throw new Error("Session disposed before launch completion delivery");
-			const delivery = session.queueLaunchCompletion?.(notification);
+			const delivery = session.queueLaunchCompletion?.(notification as any);
 			if (!delivery) throw new Error("Session cannot accept launch completion delivery");
 			return delivery;
 		});

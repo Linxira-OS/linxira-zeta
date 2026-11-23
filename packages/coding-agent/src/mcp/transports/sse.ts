@@ -20,7 +20,7 @@ import {
 import { RequestIdAllocator } from "../request-id";
 import { routeProgressNotification, withProgressToken } from "../progress";
 import { createMCPTimeout, getNeverAbortSignal, resolveMCPTimeoutMs } from "../timeout";
-import { type MCPFetchInit, mcpFetch } from "./header-policy";
+import { type MCPFetchInit, mcpFetch } from "../host/header-policy";
 
 interface MCPTimeoutOperation {
 	signal?: AbortSignal;

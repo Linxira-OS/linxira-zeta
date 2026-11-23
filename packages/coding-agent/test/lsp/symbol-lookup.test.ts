@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as path from "node:path";
 import type { DocumentSymbol } from "@linxiraos/zeta/lsp/types";
-import {
-	findSymbolInFile,
-	formatMatchingDocumentSymbols,
-	resolveDiagnosticTargets,
-} from "@linxiraos/zeta/lsp/utils";
+import { findSymbolInFile, formatMatchingDocumentSymbols, resolveDiagnosticTargets } from "@linxiraos/zeta/lsp/utils";
 import { TempDir } from "@linxiraos/pi-utils";
 
 function symbol(name: string, line: number, children?: DocumentSymbol[]): DocumentSymbol {

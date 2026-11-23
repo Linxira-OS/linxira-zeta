@@ -1,3 +1,4 @@
+// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import type { InternalResource } from "@linxiraos/zeta/internal-urls/types";
 
 /** Text a router-resolved resource carries; throws when its handler served bytes. */

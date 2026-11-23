@@ -23,11 +23,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
-import {
-	dispatchToolCommand,
-	resolveToolCommand,
-	type ToolCommandState,
-} from "@linxiraos/zeta/tools/tool-commands";
+import { dispatchToolCommand, resolveToolCommand, type ToolCommandState } from "@linxiraos/zeta/tools/tool-commands";
 import { TempDir } from "@linxiraos/pi-utils";
 
 const COMMENT_TOOL = "jira_addcomment";

@@ -3,10 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import { cdpTargets, findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
-import {
-	DISCARDED_TABS_PROTOCOL_VERSION,
-	type TabSnapshot,
-} from "@linxiraos/zeta/tools/browser/relay/protocol";
+import { DISCARDED_TABS_PROTOCOL_VERSION, type TabSnapshot } from "@linxiraos/zeta/tools/browser/relay/protocol";
 import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
 import { releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";

@@ -1,4 +1,9 @@
-import type { AgentSnapshot, SessionEntry, SubagentLifecyclePayload, SubagentProgressPayload } from "@linxiraos/pi-wire";
+import type {
+	AgentSnapshot,
+	SessionEntry,
+	SubagentLifecyclePayload,
+	SubagentProgressPayload,
+} from "@linxiraos/pi-wire";
 import { OctagonX, RotateCcw, SendHorizontal, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";

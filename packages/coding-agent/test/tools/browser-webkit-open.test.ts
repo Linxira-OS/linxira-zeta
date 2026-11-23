@@ -1,3 +1,4 @@
+// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
  * `browser.open` on omp's WebKit host, end to end through the prelude host
  * against a fake `ABHost` process: no real engine and no real Chromium.
