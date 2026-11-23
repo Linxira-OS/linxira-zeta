@@ -12,8 +12,8 @@ import {
 import { composePrompt, tabContextBlock, tabViewport } from "../panel/tab-context";
 import { enqueueGroupOp, groupPanelTabs } from "./groups";
 
-const ALARM_PREFIX = "omp-shortcut:";
-const NOTICE_PREFIX = "omp-shortcut-result:";
+const ALARM_PREFIX = "zeta-shortcut:";
+const NOTICE_PREFIX = "zeta-shortcut-result:";
 
 function wallTime(year: number, month: number, day: number, hour: number, minute: number): number {
 	// Use the earlier instant on a fold, and shift forward by the gap on a skipped wall time.
@@ -120,7 +120,7 @@ function command(ctx: WorkerContext, key: string, cmd: ScheduledCommand): Promis
 		if (!isRecord(frame)) return;
 		if (frame.type === "rpc_exit") {
 			const stderr = typeof frame.stderr === "string" ? frame.stderr.trim() : "";
-			result.reject(new Error(stderr || "omp exited before the shortcut finished"));
+			result.reject(new Error(stderr || "zeta exited before the shortcut finished"));
 			return;
 		}
 		if (frame.id !== cmd.id) return;
@@ -174,8 +174,8 @@ export function installSchedules(ctx: WorkerContext): void {
 				}),
 				chrome.notifications.create(`${NOTICE_PREFIX}${tab?.id ?? "none"}:${crypto.randomUUID()}`, {
 					type: "basic",
-					iconUrl: "icons/omp-128.png",
-					title: failure === undefined ? `omp · /${shortcut.name} finished` : `omp · /${shortcut.name} failed`,
+					iconUrl: "icons/zeta-128.png",
+					title: failure === undefined ? `zetacode · /${shortcut.name} finished` : `zetacode · /${shortcut.name} failed`,
 					message: failure === undefined ? "Click to open the session." : failure.slice(0, 250),
 				}),
 			]);
@@ -184,7 +184,7 @@ export function installSchedules(ctx: WorkerContext): void {
 
 	function report(error: unknown): void {
 		// Browser diagnostics are isolated from the CLI's stdout protocol.
-		console.error("omp shortcut:", error);
+		console.error("zeta shortcut:", error);
 	}
 
 	async function run(shortcut: Shortcut): Promise<RpcSessionInfo> {
@@ -196,9 +196,9 @@ export function installSchedules(ctx: WorkerContext): void {
 			tab = await chrome.tabs.create({ url: startUrl, active: false });
 			const tabId = tab.id;
 			if (tabId === undefined) throw new Error("Chrome did not assign the shortcut tab an id");
-			await enqueueGroupOp(() => groupPanelTabs([tabId], `omp · ${shortcut.name}`));
+			await enqueueGroupOp(() => groupPanelTabs([tabId], `zetacode · ${shortcut.name}`));
 			const context = await ctx.tabContext(tabId);
-			if (!context.targetId) throw new Error("Chrome has not initialized the omp tab target");
+			if (!context.targetId) throw new Error("Chrome has not initialized the zeta tab target");
 			if (!context.url || context.url === "about:blank") context.url = tab.pendingUrl || startUrl;
 			const block = tabContextBlock(context, await tabViewport(context));
 			const message = composePrompt([block], shortcut.prompt);

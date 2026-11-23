@@ -105,7 +105,7 @@ function install(): void {
 	const delivery = new Set<Promise<unknown>>();
 
 	function send(step: Step): void {
-		const message: TeachEvent = { omp: "teach-step", step };
+		const message: TeachEvent = { zeta: "teach-step", step };
 		const sent = chrome.runtime.sendMessage(message).catch(() => undefined);
 		delivery.add(sent);
 		void sent.then(() => delivery.delete(sent));
@@ -172,7 +172,7 @@ function install(): void {
 	}
 
 	chrome.runtime.onMessage.addListener((message: TeachCommand, _sender, respond) => {
-		if (message?.omp !== "teach") return false;
+		if (message?.zeta !== "teach") return false;
 		if (message.op === "start") {
 			if (!listeners) {
 				listeners = new AbortController();

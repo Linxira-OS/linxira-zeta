@@ -149,7 +149,7 @@ export class Overlay {
 		shadow.adoptedStyleSheets = [sheet];
 
 		const presence = new Presence(op => {
-			const event: OverlayEvent = { omp: "overlay-event", op };
+			const event: OverlayEvent = { zeta: "overlay-event", op };
 			try {
 				// The worker answers `true`; a Stop it can't deliver comes back as `stopAck`, or as silence.
 				chrome.runtime.sendMessage(event).catch(() => {});

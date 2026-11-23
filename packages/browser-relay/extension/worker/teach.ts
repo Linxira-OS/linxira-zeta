@@ -21,7 +21,7 @@ async function startRecorder(tabId: number): Promise<void> {
 		injectImmediately: true,
 	});
 	if (!main) throw new Error("Could not start Teach in this tab");
-	const command: TeachCommand = { omp: "teach", op: "start" };
+	const command: TeachCommand = { zeta: "teach", op: "start" };
 	const started: unknown = await chrome.tabs.sendMessage(tabId, command, { documentId: main.documentId });
 	if (started !== true) throw new Error("Teach recorder did not start");
 }
@@ -96,7 +96,7 @@ export function installTeach(ctx: WorkerContext): void {
 		state.stop ??= (async () => {
 			await state.installation.catch(() => undefined);
 			// Keep receiving until the recorder has flushed its pending keystrokes.
-			const command: TeachCommand = { omp: "teach", op: "stop" };
+			const command: TeachCommand = { zeta: "teach", op: "stop" };
 			await chrome.tabs.sendMessage(state.tabId, command, { frameId: 0 }).catch(() => undefined);
 			try {
 				await state.captures;
@@ -113,7 +113,7 @@ export function installTeach(ctx: WorkerContext): void {
 
 	chrome.runtime.onMessage.addListener((message: TeachEvent, sender) => {
 		const state = recording;
-		if (message?.omp !== "teach-step" || !state || sender.tab?.id !== state.tabId || sender.frameId !== 0) return;
+		if (message?.zeta !== "teach-step" || !state || sender.tab?.id !== state.tabId || sender.frameId !== 0) return;
 		state.viewport = message.step.viewport;
 		append(state, message.step);
 	});

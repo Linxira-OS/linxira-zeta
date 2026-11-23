@@ -63,5 +63,5 @@ an automatic latest-tag follow.
 - [Conflict audit](../agents/merge/v19.0.0-conflict-audit.md)
 - [Studio delta](../agents/merge/studio-v0.2.8-delta.md)
 - [PR #325](https://github.com/Linxira-OS/linxira-zeta/pull/325)
-- [OMP v19.0.0 release](https://github.com/can1357/oh-my-pi/releases/tag/v19.0.0)
+- [OMP v19.0.0 release](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v19.0.0)
 - [OMP Studio v0.2.8](https://github.com/the-snowpear/omp-studio/releases/tag/v0.2.8)

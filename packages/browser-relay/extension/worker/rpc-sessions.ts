@@ -1,12 +1,12 @@
 /**
- * Worker-owned `omp --mode rpc` sessions: one native messaging port to the omp native host ({@link NATIVE_HOST}) per
+ * Worker-owned `zetacode --mode rpc` sessions: one native messaging port to the zeta native host ({@link NATIVE_HOST}) per
  * session. They outlive any panel (scheduled runs start them with no panel open); a panel drives them by key.
  */
 import { type FromNativeHost, NATIVE_HOST, type RpcSessionInfo, type ToNativeHost } from "../messages";
 import { connectChatRelay } from "./relay";
 import { SessionValue } from "./session-store";
 
-/** How long the native host may take to start omp before the open fails. */
+/** How long the native host may take to start zeta before the open fails. */
 const READY_TIMEOUT_MS = 30_000;
 
 /** The rpc command line that stops a session's running turn (`modes/rpc/rpc-mode.ts`). */
@@ -20,7 +20,7 @@ interface Live {
 
 /** Every rpc session this browser run started, with a native port for each one still running. */
 export class RpcSessions {
-	readonly #list = new SessionValue<RpcSessionInfo[]>("omp.rpcSessions", () => []);
+	readonly #list = new SessionValue<RpcSessionInfo[]>("zeta.rpcSessions", () => []);
 	readonly #live = new Map<string, Live>();
 	readonly #lineListeners = new Set<(sessionKey: string, line: string) => void>();
 	readonly #changed: (sessions: RpcSessionInfo[]) => void;
@@ -70,7 +70,7 @@ export class RpcSessions {
 		);
 	}
 
-	/** Start `omp --mode rpc` in `cwd`; resolves once the host reports it running. */
+	/** Start `zetacode --mode rpc` in `cwd`; resolves once the host reports it running. */
 	async open(options: { cwd: string; title: string; tabIds: number[] }): Promise<RpcSessionInfo> {
 		const sessions = await this.list();
 		const info: RpcSessionInfo = {
@@ -87,7 +87,7 @@ export class RpcSessions {
 		let started = false;
 		let relay: { receive(line: string): void; close(): void } | undefined;
 		const timer = setTimeout(() => {
-			ready.reject(new Error(`omp native host did not start omp within ${READY_TIMEOUT_MS / 1000}s`));
+			ready.reject(new Error(`zetacode native host did not start zeta within ${READY_TIMEOUT_MS / 1000}s`));
 			port.disconnect();
 			this.#live.delete(info.sessionKey);
 		}, READY_TIMEOUT_MS);
@@ -97,7 +97,7 @@ export class RpcSessions {
 			this.#live.delete(info.sessionKey);
 			clearTimeout(timer);
 			if (!started) {
-				ready.reject(new Error(stderr.trim() || `omp native host exited (${code ?? "disconnected"})`));
+				ready.reject(new Error(stderr.trim() || `zetacode native host exited (${code ?? "disconnected"})`));
 				return;
 			}
 			info.exited = { code, stderr };
@@ -143,7 +143,7 @@ export class RpcSessions {
 		});
 		port.onDisconnect.addListener(() => {
 			relay?.close();
-			exit(null, chrome.runtime.lastError?.message ?? "omp native host disconnected");
+			exit(null, chrome.runtime.lastError?.message ?? "zeta native host disconnected");
 		});
 		const open: ToNativeHost = { t: "open", cwd: options.cwd, extensionId: chrome.runtime.id };
 		port.postMessage(open);

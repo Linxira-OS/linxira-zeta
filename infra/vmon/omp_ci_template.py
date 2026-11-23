@@ -49,8 +49,8 @@ import sys
 import time
 import urllib.request
 
-REPO_URL = "https://github.com/can1357/oh-my-pi"
-RAW_URL = "https://raw.githubusercontent.com/can1357/oh-my-pi"
+REPO_URL = "https://github.com/Linxira-OS/linxira-zeta"
+RAW_URL = "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta"
 NAME = "omp-ci"
 CPU_COUNT = 8
 MEMORY_MB = 16384

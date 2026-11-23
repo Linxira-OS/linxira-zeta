@@ -1,9 +1,9 @@
 /**
  * Messages between the extension's contexts: side panel ↔ service worker (a `chrome.runtime` port named
  * {@link PANEL_PORT}), service worker ↔ page overlay and Teach recorder (`chrome.tabs.sendMessage` /
- * `chrome.runtime.sendMessage`), and service worker ↔ the omp native host (`chrome.runtime.connectNative`).
+ * `chrome.runtime.sendMessage`), and service worker ↔ the zeta native host (`chrome.runtime.connectNative`).
  *
- * The relay protocol (worker ↔ omp relay, carried by the native host's link port) lives in
+ * The relay protocol (worker ↔ zeta relay, carried by the native host's link port) lives in
  * `coding-agent/src/tools/browser/relay/protocol.ts`;
  * this file only re-exports the shapes the panel and overlay share with it.
  */
@@ -16,19 +16,19 @@ export type { OverlayInput, PanelCollabHost, PanelInstall };
 // ---- shared shapes -------------------------------------------------------------
 
 /** Name of the long-lived port each side panel opens to the worker. */
-export const PANEL_PORT = "omp-panel";
+export const PANEL_PORT = "zeta-panel";
 
-/** Native messaging host name registered by `omp browser-relay install`. */
-export const NATIVE_HOST = "sh.omp.browser";
+/** Native messaging host name registered by `zetacode browser-relay install`. */
+export const NATIVE_HOST = "sh.zeta.browser";
 
 /** chrome.storage.local key holding the saved {@link Shortcut} list. */
-export const SHORTCUTS_KEY = "omp.shortcuts";
+export const SHORTCUTS_KEY = "zeta.shortcuts";
 
 /** chrome.storage.local key holding per-host starter prompts: `Record<hostname, string[]>`. */
-export const SUGGESTIONS_KEY = "omp.suggestions";
+export const SUGGESTIONS_KEY = "zeta.suggestions";
 
 /** chrome.storage.local key holding {@link PanelSettings}. */
-export const SETTINGS_KEY = "omp.settings";
+export const SETTINGS_KEY = "zeta.settings";
 
 /** A rectangle in viewport CSS pixels. */
 export interface Rect {
@@ -87,11 +87,11 @@ export type TabActivity =
 export interface RelayStatus {
 	/** A relay currently listens for this browser through the native host. */
 	connected: boolean;
-	/** omp version stamped into the running worker script; undefined in an unstamped dev build. */
+	/** zeta version stamped into the running worker script; undefined in an unstamped dev build. */
 	extensionVersion: string | undefined;
 }
 
-/** A worker-owned `omp --mode rpc` session behind the native host. */
+/** A worker-owned `zetacode --mode rpc` session behind the native host. */
 export interface RpcSessionInfo {
 	sessionKey: string;
 	cwd: string;
@@ -141,7 +141,7 @@ export interface Shortcut {
 	schedule?: Schedule;
 	/** `provider/id`; the session default when absent. */
 	model?: string;
-	/** Directory the scheduled run's omp session starts in; settings default when absent. */
+	/** Directory the scheduled run's zeta session starts in; settings default when absent. */
 	cwd?: string;
 	uses: number;
 	createdAt: number;
@@ -164,7 +164,7 @@ export interface PanelSettings {
 	theme: "system" | "light" | "dark";
 	/** Directory new panel sessions start in. */
 	defaultCwd: string;
-	/** Where “New chat” goes: the newest running omp session, or a new panel session. */
+	/** Where “New chat” goes: the newest running zeta session, or a new panel session. */
 	newChat: "attach" | "panel";
 	overlay: { enabled: boolean; arrow: boolean; edge: boolean };
 }
@@ -204,7 +204,7 @@ export interface PanelRequestMap {
 	/** Group tabs under `title`, reusing `groupId` when given. */
 	groupTabs: [{ tabIds: number[]; title: string; groupId?: number }, { groupId: number }];
 	rpcOpen: [{ cwd: string; title: string; tabIds: number[] }, RpcSessionInfo];
-	/** One rpc JSON command line for the session's `omp --mode rpc` stdin. */
+	/** One rpc JSON command line for the session's `zetacode --mode rpc` stdin. */
 	rpcSend: [{ sessionKey: string; line: string }, void];
 	rpcClose: [{ sessionKey: string }, void];
 	rpcSessions: [{}, RpcSessionInfo[]];
@@ -258,35 +258,35 @@ export type PickResult =
  * {@link PickResult} or null when cancelled, everything else with `true`.
  */
 export type OverlayCommand =
-	| { omp: "overlay"; op: "mount" }
-	| { omp: "overlay"; op: "unmount" }
-	| { omp: "overlay"; op: "input"; input: OverlayInput }
+	| { zeta: "overlay"; op: "mount" }
+	| { zeta: "overlay"; op: "unmount" }
+	| { zeta: "overlay"; op: "input"; input: OverlayInput }
 	/** `role: "main"` draws edge, tag and favicon; `"secondary"` draws the group pill. */
-	| { omp: "overlay"; op: "activity"; activity: TabActivity; role: "main" | "secondary" }
-	| { omp: "overlay"; op: "hide" }
-	| { omp: "overlay"; op: "show" }
-	| { omp: "overlay"; op: "pick"; mode: "element" | "region" }
+	| { zeta: "overlay"; op: "activity"; activity: TabActivity; role: "main" | "secondary" }
+	| { zeta: "overlay"; op: "hide" }
+	| { zeta: "overlay"; op: "show" }
+	| { zeta: "overlay"; op: "pick"; mode: "element" | "region" }
 	/** End a running pick as if the user pressed Esc in the page; the pending `pick` resolves null. */
-	| { omp: "overlay"; op: "cancelPick" }
-	/** Stop reached the session (`delivered`) or not; the overlay shows “Stop didn’t reach omp” on false. */
-	| { omp: "overlay"; op: "stopAck"; delivered: boolean };
+	| { zeta: "overlay"; op: "cancelPick" }
+	/** Stop reached the session (`delivered`) or not; the overlay shows “Stop didn’t reach zeta” on false. */
+	| { zeta: "overlay"; op: "stopAck"; delivered: boolean };
 
 /** Overlay → worker (`chrome.runtime.sendMessage`); the sender tab identifies the tab. */
-export type OverlayEvent = { omp: "overlay-event"; op: "stop" | "open" | "dismiss" };
+export type OverlayEvent = { zeta: "overlay-event"; op: "stop" | "open" | "dismiss" };
 
 // ---- worker ↔ Teach recorder ------------------------------------------------------------
 
 /** Worker → recorder content script. */
-export type TeachCommand = { omp: "teach"; op: "start" | "stop" };
+export type TeachCommand = { zeta: "teach"; op: "start" | "stop" };
 
 /** Recorder → worker, one per user action; the worker adds the screenshot. */
-export type TeachEvent = { omp: "teach-step"; step: Omit<TeachStep, "screenshot" | "narration"> };
+export type TeachEvent = { zeta: "teach-step"; step: Omit<TeachStep, "screenshot" | "narration"> };
 
 // ---- worker ↔ native host -------------------------------------------------------------------
 
 /**
  * Extension → native host. The first message picks what the port is for:
- * - `open`: a chat. The host starts `omp --mode rpc` in `cwd`; then `rpc` carries its stdin lines.
+ * - `open`: a chat. The host starts `zetacode --mode rpc` in `cwd`; then `rpc` carries its stdin lines.
  * - `link`: the browser relay. The host serves the relay for this browser (or joins the one another browser's host
  *   serves); then `relay` carries the extension's relay protocol messages (`ExtToRelayMessage` JSON).
  */

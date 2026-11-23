@@ -1,5 +1,5 @@
 /**
- * Repro for https://github.com/can1357/oh-my-pi/issues/4812
+ * Repro for https://github.com/Linxira-OS/linxira-zeta/issues/4812
  *
  * A long-lived omp session that survives an in-place `bun install -g` upgrade
  * keeps the previous omp-natives NAPI addon resident in the process. A tab

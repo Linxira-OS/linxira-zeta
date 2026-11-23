@@ -313,7 +313,7 @@ export interface ResolveContext {
 	 * Required for correctness in multi-session hosts (cmux/ACP, embedded SDK
 	 * consumers) where multiple sessions are registered as `main` and the
 	 * "first one wins" lookup picks the wrong artifacts directory — see
-	 * [#1608](https://github.com/can1357/oh-my-pi/issues/1608).
+	 * [#1608](https://github.com/Linxira-OS/linxira-zeta/issues/1608).
 	 */
 	localProtocolOptions?: LocalProtocolOptions;
 	/** Calling session's loaded skills. Prefer this over process-global skill state. */

@@ -305,7 +305,7 @@ export function compactRows(
 	return rows;
 }
 
-/** omp's own one-row head: the bold title, then a muted detail (raw input, sanitized to one line). */
+/** zeta's own one-row head: the bold title, then a muted detail (raw input, sanitized to one line). */
 export function compactHead(title: string, detail?: string): string {
 	const shown = detail === undefined ? undefined : plainLine(detail);
 	return `${theme.fg("toolTitle", theme.bold(plainLine(title)))}${shown ? theme.fg("muted", ` ${shown}`) : ""}`;
@@ -415,7 +415,7 @@ function plainHead(name: string, role: string, title: string, target?: string): 
 	return { terminal: compactHead(title, target), name, role, title: plainLine(title), target: shown };
 }
 
-/** omp's own one-row summary of a wrapped block, from the block presenters see. */
+/** zeta's own one-row summary of a wrapped block, from the block presenters see. */
 function blockHead(block: WrappedTranscriptBlock): BlockHead {
 	if (block.type === "event") {
 		const { event } = block;
@@ -477,7 +477,7 @@ function blockHead(block: WrappedTranscriptBlock): BlockHead {
 			const lines = reports.reduce((sum, report) => sum + report.lines.length + report.omitted, 0);
 			const target = `${reports.map(report => report.id).join(", ")} · ${countOf(lines, "line")}`;
 			return {
-				...plainHead("job", "omp.activity", "Background output", target),
+				...plainHead("job", "zeta.activity", "Background output", target),
 				glyph: theme.fg("accent", theme.status.info),
 			};
 		}

@@ -46,7 +46,7 @@ export async function buildExportViewer(options: ExportViewerBuildOptions = {}):
 			{
 				name: "shared-export-markdown",
 				setup(build) {
-					build.onResolve({ filter: /^@oh-my-pi\/pi-utils\/marked$/ }, () => ({
+					build.onResolve({ filter: /^@linxiraos\/pi-utils\/marked$/ }, () => ({
 						path: path.join(collabDir, "src/export-markdown-bridge.ts"),
 					}));
 				},
@@ -134,7 +134,7 @@ export async function buildExportViewer(options: ExportViewerBuildOptions = {}):
 /**
  * Whether the command line asks to verify rather than update the manifest. CI=true
  * implies a check so installs in CI verify the committed manifest; `--write`
- * overrides that, since shells that export CI=true (omp's bash tool among them)
+ * overrides that, since shells that export CI=true (zeta's bash tool among them)
  * could otherwise never regenerate it. An explicit `--check` always wins.
  */
 export function isExportViewerCheck(argv: readonly string[], env: Record<string, string | undefined>): boolean {

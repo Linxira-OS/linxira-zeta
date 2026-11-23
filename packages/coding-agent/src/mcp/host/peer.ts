@@ -67,7 +67,7 @@ export interface McpPeer {
 	 *
 	 * `params` goes out as given: it carries the originating session's `_meta`
 	 * and must hold neither a progress token (the peer assigns its own when
-	 * `onProgress` is set) nor `omp/*` keys. The peer applies no deadline of its
+	 * `onProgress` is set) nor `zeta/*` keys. The peer applies no deadline of its
 	 * own; callers bound a request with `signal`.
 	 *
 	 * A handshake-era peer answers `server/discover` from its `initialize`

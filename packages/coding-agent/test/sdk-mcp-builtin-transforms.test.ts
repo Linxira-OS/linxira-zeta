@@ -31,7 +31,7 @@ describe("createAgentSession built-in MCP transforms", () => {
 
 	beforeAll(async () => {
 		isolatedHome = path.join(os.tmpdir(), `pi-sdk-mcp-transform-home-${Snowflake.next()}`);
-		const isolatedAgentDir = path.join(isolatedHome, ".omp", "agent");
+		const isolatedAgentDir = path.join(isolatedHome, ".zeta", "agent");
 		fs.mkdirSync(isolatedAgentDir, { recursive: true });
 		originalAgentDir = getAgentDir();
 		setAgentDir(isolatedAgentDir);

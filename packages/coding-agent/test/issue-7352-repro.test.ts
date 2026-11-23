@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/7352
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/7352
  *
  * A headless `zetacode --mode json --no-session -p @<file>` run with
  * `memory.backend: mnemopi` hung after its turn completed and left an

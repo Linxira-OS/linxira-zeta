@@ -94,7 +94,7 @@ function encryptedHashesOnly(node: JsonValue): Record<string, JsonValue> {
 }
 
 async function backup(file: string): Promise<void> {
-	await fs.copyFile(file, `${file}.omp-backup`).catch(() => {});
+	await fs.copyFile(file, `${file}.zeta-backup`).catch(() => {});
 }
 
 /**

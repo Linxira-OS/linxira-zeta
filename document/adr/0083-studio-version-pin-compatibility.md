@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-11-21
 - **Deciders:** Zeta owner
-- **Links:** [Studio v0.2.4](https://github.com/the-snowpear/omp-studio/releases/tag/v0.2.4), [OMP v18.22.0](https://github.com/can1357/oh-my-pi), [upstream baselines](../upstream-baselines.md), [ADR-0051](0051-studio-project-services.md)
+- **Links:** [Studio v0.2.4](https://github.com/the-snowpear/omp-studio/releases/tag/v0.2.4), [OMP v18.22.0](https://github.com/Linxira-OS/linxira-zeta), [upstream baselines](../upstream-baselines.md), [ADR-0051](0051-studio-project-services.md)
 
 ## Context
 

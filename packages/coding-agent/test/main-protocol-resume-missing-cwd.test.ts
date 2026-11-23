@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * `omp --resume <id>` of a session whose recorded directory no longer exists.
+ * `zetacode --resume <id>` of a session whose recorded directory no longer exists.
  *
  * The protocol modes (`--mode rpc`, `--mode rpc-ui`, `--mode acp`) own standard
  * input and standard output, so no question can be asked there: they open the
@@ -16,7 +16,7 @@ import * as readlinePromises from "node:readline/promises";
 import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import * as rpcInputModule from "@linxiraos/zeta/modes/rpc/rpc-input";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -59,9 +59,9 @@ const QUIET_FLAGS = ["--no-extensions", "--no-skills", "--no-rules", "--no-tools
 
 /** Variables a test or `runRootCommand` sets; each is put back after every test. */
 const ENV_KEYS = [
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"PI_PROFILE",
-	"OMP_PROFILE",
+	"ZETA_PROFILE",
 	"PI_NO_PTY",
 	"PI_NO_TITLE",
 	"GIT_CONFIG_GLOBAL",
@@ -70,7 +70,7 @@ const ENV_KEYS = [
 	"GIT_AUTHOR_EMAIL",
 	"GIT_COMMITTER_NAME",
 	"GIT_COMMITTER_EMAIL",
-	"OMP_WORKTREE_DIR",
+	"ZETA_WORKTREE_DIR",
 ] as const;
 
 let tempDir: TempDir;
@@ -94,7 +94,7 @@ beforeEach(() => {
 	originalProject = getProjectDir();
 	originalInteractiveHost = isInteractiveHost();
 	originalIsTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-	tempDir = TempDir.createSync("@omp-resume-missing-cwd-");
+	tempDir = TempDir.createSync("@zeta-resume-missing-cwd-");
 	root = fs.realpathSync(tempDir.path());
 	setAgentDir(path.join(root, "agent"));
 	answer = "n";
@@ -299,12 +299,12 @@ describe.skipIf(process.platform === "win32")("a removed worktree is still moved
 			GIT_AUTHOR_EMAIL: "test@example.com",
 			GIT_COMMITTER_NAME: "Test",
 			GIT_COMMITTER_EMAIL: "test@example.com",
-			OMP_WORKTREE_DIR: path.join(root, "wt-base"),
+			ZETA_WORKTREE_DIR: path.join(root, "wt-base"),
 		});
 		repo = path.join(root, "repo");
 		await fs.promises.mkdir(repo);
 		await $`git init -q && git commit -q --allow-empty -m init`.cwd(repo).quiet();
-		// `/wt` moves a session into a new worktree's session directory; `omp worktree clear` removes and prunes it.
+		// `/wt` moves a session into a new worktree's session directory; `zetacode worktree clear` removes and prunes it.
 		const manager = await answeredManager(repo);
 		const { path: worktree } = await createSessionWorktree(repo, Settings.isolated(), "wt/gone");
 		await manager.moveTo(worktree);

@@ -146,7 +146,7 @@ const watchedPids = new Set<number>();
 
 beforeEach(async () => {
 	restoreDaemon = await isolateDaemonForSmokeTest();
-	workspace = TempDir.createSync("@omp-lsp-module-");
+	workspace = TempDir.createSync("@zeta-lsp-module-");
 	cwd = await fs.realpath(workspace.path());
 });
 
@@ -351,7 +351,7 @@ describe("daemon lsp module", () => {
 	);
 
 	test(
-		"a server exit delivers omp/muxServerExited with the exit code and the next acquire starts a fresh server",
+		"a server exit delivers zeta/muxServerExited with the exit code and the next acquire starts a fresh server",
 		async () => {
 			const client = await daemon();
 			const server = serverParams();

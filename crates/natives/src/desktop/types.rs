@@ -166,15 +166,13 @@ impl ScreenState {
 #[napi(object)]
 #[derive(Debug, Clone, Default)]
 pub struct DesktopSessionOptions {
-	/// Passive reads: no display hold, wake-up, input listener or mutation.
-	pub observation_only: Option<bool>,
-	pub display:          Option<String>,
+	pub display:         Option<String>,
 	/// Sessions created with the same key share one physical-Escape stop
 	/// count, which `desktopEscapeStops` reads after they close.
-	pub escape_stop_key:  Option<String>,
+	pub escape_stop_key: Option<String>,
 	/// The registry id of the agent this session acts for, named to other
 	/// sessions that wait for its input/focus control.
-	pub agent_id:         Option<String>,
+	pub agent_id:        Option<String>,
 }
 
 #[napi(object)]
@@ -316,28 +314,8 @@ pub struct DesktopControlState {
 
 #[napi(object)]
 pub struct DesktopObservation {
-	pub capture:          DesktopCapture,
-	pub accessibility:    AxSnapshot,
-	/// Passive observer-local nodes from the same AX walk; never executable
-	/// refs.
-	pub nodes:            Option<Vec<DesktopObservationNode>>,
-	/// Frame pixel bounds are supplied only when native capture geometry and the
-	/// AX window agree.
-	pub coordinate_space: Option<String>,
-}
-
-#[napi(object)]
-pub struct DesktopObservationNode {
-	pub id:       String,
-	pub role:     String,
-	pub name:     String,
-	pub enabled:  bool,
-	pub bounds:   Option<CaptureRegion>,
-	#[expect(
-		clippy::use_self,
-		reason = "NAPI type generation needs the concrete recursive type name"
-	)]
-	pub children: Vec<DesktopObservationNode>,
+	pub capture:       DesktopCapture,
+	pub accessibility: AxSnapshot,
 }
 
 #[napi(object)]

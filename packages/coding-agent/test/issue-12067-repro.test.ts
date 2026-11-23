@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/12067
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/12067
  *
  * Headless `zetacode -p` could exit successfully with no output while first-turn
  * mnemopi recall awaited an embedding response. The embeddings subprocess was

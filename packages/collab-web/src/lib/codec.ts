@@ -1,6 +1,6 @@
 /**
  * AES-256-GCM sealing for collab frames (browser-safe vendored mirror of
- * `@linxiraos/pi-coding-agent/src/collab/crypto.ts` — WebCrypto only).
+ * `@linxiraos/zeta/src/collab/crypto.ts` — WebCrypto only).
  *
  * The room key lives only in the link fragment; the relay sees opaque bytes.
  * Sealed layout: `[12B IV][ciphertext+tag]`.

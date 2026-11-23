@@ -51,7 +51,7 @@ export function installPanelHandlers(ctx: WorkerContext, rpcSessions: RpcSession
 	ctx.handle("capture", ({ tabId, mode }) => captureTab(tabId, mode));
 	ctx.handle("cancelCapture", async ({ tabId }) => {
 		// No overlay listening means no pick is running.
-		await chrome.tabs.sendMessage(tabId, { omp: "overlay", op: "cancelPick" }, { frameId: 0 }).catch(() => {});
+		await chrome.tabs.sendMessage(tabId, { zeta: "overlay", op: "cancelPick" }, { frameId: 0 }).catch(() => {});
 	});
 	ctx.handle("setActivity", ({ tabId, activity }) => ctx.setActivity(tabId, activity));
 	ctx.handle("focusTab", ({ tabId }) => focusTab(tabId));

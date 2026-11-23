@@ -1,20 +1,20 @@
 /**
  * Client for the Tern session daemon: a byte stream (the daemon's Unix socket,
- * or any other {@link TernTransport}: omp's own WebKit host answers the same
+ * or any other {@link TernTransport}: zeta's own WebKit host answers the same
  * protocol over its standard streams) speaking Tern's JSON
  * script protocol (`crates/tern/src/daemon/json.rs` in the stencil
- * repository), frames of a `u32` LE length then one UTF-8 JSON object. omp
+ * repository), frames of a `u32` LE length then one UTF-8 JSON object. zeta
  * greets with `{"hello":{}}` and waits for `{"welcome":{"ops":[…]}}`, whose
  * `ops` list the request kinds this Tern answers (an older Tern lists none
  * and answers only `browser`). Requests are `{"id":N,KIND:REQUEST}`, answered
  * `{"id":N,KIND:ANSWER}` correlated by `id`, where ANSWER is `{"ok": result}`
  * or `{"error": {"kind", "message"}}`:
  * - `browser`: Tern's browser op protocol, REQUEST `{"op": …}`.
- * - `fork`: REQUEST `{"block":P,"dir":"right"|"down"}` opens `omp --fork` of
+ * - `fork`: REQUEST `{"block":P,"dir":"right"|"down"}` opens `zetacode --fork` of
  *   pane P's session in a new pane beside it; result `{"block":M}`.
  *
  * Members and message kinds either side does not know are skipped, so the
- * protocol does not tie omp to a Tern build. A Tern from before it cannot read
+ * protocol does not tie zeta to a Tern build. A Tern from before it cannot read
  * the hello and hangs up.
  */
 import * as net from "node:net";
@@ -44,7 +44,7 @@ export type TernErrorKind =
 /**
  * A failed request or connection of the Tern protocol, carrying the protocol's
  * error kind. Its `name` stays `ToolError`: page-run code can print it, and
- * omp's WebKit host raises these too, so it must not name Tern.
+ * zeta's WebKit host raises these too, so it must not name Tern.
  */
 export class TernError extends ToolError {
 	/** Why it failed (the protocol's `error.kind`, or the client's own). */
@@ -56,7 +56,7 @@ export class TernError extends ToolError {
 	}
 }
 
-/** Error kinds meaning "this Tern cannot host a browser for omp right now". */
+/** Error kinds meaning "this Tern cannot host a browser for zeta right now". */
 const UNAVAILABLE_KINDS: Partial<Record<TernErrorKind, true>> = {
 	no_window: true,
 	unsupported: true,
@@ -220,9 +220,9 @@ export interface TernRequestOptions {
 	onLateAnswer?: (value: unknown) => void;
 }
 
-/** A `fork` request: open `omp --fork` of pane `block`'s session in a new pane beside it. */
+/** A `fork` request: open `zetacode --fork` of pane `block`'s session in a new pane beside it. */
 export interface TernForkRequest {
-	/** The pane whose omp session to fork (`ZETA_PANE`). */
+	/** The pane whose zeta session to fork (`ZETA_PANE`). */
 	block: number;
 	/** Where the new pane goes (Tern's default: `right`). */
 	dir?: "right" | "down";
@@ -257,14 +257,14 @@ export interface TernTransportEvents {
 export interface TernTransport {
 	/**
 	 * The backend's display name, one word: `Tern` for the daemon, `WebKit` for
-	 * omp's own host. Every message a user or the model reads names the backend
+	 * zeta's own host. Every message a user or the model reads names the backend
 	 * by it (`WebKit browser open failed (…)`), in the client and in the tab driver.
 	 */
 	readonly product: string;
 	/** The peer as errors name it, after "the": `Tern daemon at /run/tern.sock`. */
 	readonly peer: string;
 	/**
-	 * Whether the peer holds an `events` call with `wait: true` until the block has an event after `after` (omp's
+	 * Whether the peer holds an `events` call with `wait: true` until the block has an event after `after` (zeta's
 	 * WebKit host does; the Tern daemon answers it at once, like any `events` call).
 	 */
 	readonly waitsForEvents: boolean;
@@ -285,7 +285,7 @@ class TernSocketTransport implements TernTransport {
 	readonly product = "Tern";
 	readonly waitsForEvents = false;
 	readonly peer: string;
-	readonly greetingHint = "a Tern without omp's JSON protocol cannot read its hello (update Tern)";
+	readonly greetingHint = "a Tern without zeta's JSON protocol cannot read its hello (update Tern)";
 	readonly #socketPath: string;
 	#socket: net.Socket | undefined;
 
@@ -344,7 +344,7 @@ const PROTOCOL_ERROR_KINDS: Record<string, TernErrorKind> = {
 	unsupported: "unsupported",
 	js: "js",
 	failed: "failed",
-	// omp's WebKit host: the page's web process stopped answering (a script keeps it busy).
+	// zeta's WebKit host: the page's web process stopped answering (a script keeps it busy).
 	unresponsive: "unresponsive",
 };
 
@@ -394,7 +394,7 @@ export class TernSocketClient {
 		return this.#ops.has(op);
 	}
 
-	/** Open the stream and greet; resolves once the peer welcomed omp. */
+	/** Open the stream and greet; resolves once the peer welcomed zeta. */
 	async connect(): Promise<void> {
 		if (this.#closed) throw this.#closeError ?? new TernError("closed", `${this.product} connection closed`);
 		if (this.#welcomed) return;

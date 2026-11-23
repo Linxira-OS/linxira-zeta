@@ -27,7 +27,7 @@ describe("findSymbolInFile", () => {
 	});
 
 	test("finds the Nth whole-word occurrence when no line is given", async () => {
-		tempDir = TempDir.createSync("@omp-lsp-find-symbol-");
+		tempDir = TempDir.createSync("@zeta-lsp-find-symbol-");
 		const file = path.join(tempDir.path(), "a.ts");
 		await Bun.write(file, "const targetValue = 1;\nfunction target() {}\ntarget();\n");
 		expect(await findSymbolInFile(file, "target")).toEqual({ line: 2, character: 9 });
@@ -44,7 +44,7 @@ describe("resolveDiagnosticTargets", () => {
 	});
 
 	test("accepts a ;-separated list of paths and globs", async () => {
-		tempDir = TempDir.createSync("@omp-lsp-diag-targets-");
+		tempDir = TempDir.createSync("@zeta-lsp-diag-targets-");
 		const root = tempDir.path();
 		await Bun.write(path.join(root, "a.ts"), "");
 		await Bun.write(path.join(root, "lib", "b.ts"), "");

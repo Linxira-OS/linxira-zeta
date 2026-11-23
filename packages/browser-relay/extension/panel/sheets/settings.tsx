@@ -97,8 +97,8 @@ function Connection({ relay }: { relay: RelayStatus | null }): ReactNode {
 			</div>
 			{relay !== null && !relay.connected && (
 				<p className="pn-set-note">
-					Still connecting? The omp native host may be missing: run{" "}
-					<code>omp browser-relay install</code>.
+					Still connecting? The zeta native host may be missing: run{" "}
+					<code>zeta browser-relay install</code>.
 				</p>
 			)}
 		</Section>
@@ -213,7 +213,7 @@ function KeyboardSection(): ReactNode {
 	return (
 		<Section title="Keyboard">
 			<div className="pn-set-row">
-				<span>Open omp</span>
+				<span>Open zeta</span>
 				<span className="pn-set-row-end">
 					{binding === null ? null : binding === "" ? (
 						<span className="pn-set-hint">Not set</span>
@@ -289,7 +289,7 @@ function Installs({
 							running !== undefined &&
 							install.version !== null &&
 							install.version !== running && (
-								<span className="pn-set-hint">Reloads when omp is idle</span>
+								<span className="pn-set-hint">Reloads when zeta is idle</span>
 							)}
 					</span>
 					<span className="pn-mono pn-set-version">
@@ -299,7 +299,7 @@ function Installs({
 			))}
 			{installs !== null && installs.length === 0 && (
 				<p className="pn-set-note">
-					No folders registered. Run <code>omp browser-relay install</code> to
+					No folders registered. Run <code>zeta browser-relay install</code> to
 					register this one.
 				</p>
 			)}
@@ -342,7 +342,7 @@ export function SettingsSheet(props: {
 						label="New chats"
 						value={settings.newChat}
 						options={[
-							{ value: "attach", label: "Attach to newest omp" },
+							{ value: "attach", label: "Attach to newest zeta" },
 							{ value: "panel", label: "New panel session" },
 						]}
 						onChange={(newChat) => update({ newChat })}
@@ -377,7 +377,7 @@ export function SettingsSheet(props: {
 				</div>
 				<ToggleRow
 					label="Page overlay"
-					hint="Working tag, Stop and Open omp on the page"
+					hint="Working tag, Stop and Open zeta on the page"
 					checked={settings.overlay.enabled}
 					onChange={(enabled) => overlay({ enabled })}
 				/>

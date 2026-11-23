@@ -13,16 +13,16 @@ if (!sample) throw new Error("pool lost the todo guidance line");
 const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 if (!model) throw new Error("bundled fixture model missing");
 
-const savedPerturbation = process.env.OMP_PROMPT_PERTURBATION;
+const savedPerturbation = process.env.ZETA_PROMPT_PERTURBATION;
 
 beforeEach(() => {
-	delete process.env.OMP_PROMPT_PERTURBATION;
+	delete process.env.ZETA_PROMPT_PERTURBATION;
 	resetPromptPerturbation();
 });
 
 afterEach(() => {
-	if (savedPerturbation === undefined) delete process.env.OMP_PROMPT_PERTURBATION;
-	else process.env.OMP_PROMPT_PERTURBATION = savedPerturbation;
+	if (savedPerturbation === undefined) delete process.env.ZETA_PROMPT_PERTURBATION;
+	else process.env.ZETA_PROMPT_PERTURBATION = savedPerturbation;
 	resetPromptPerturbation();
 	vi.restoreAllMocks();
 });
@@ -65,7 +65,7 @@ describe("per-install prompt perturbation", () => {
 	it("drops the system-prompt opener instead of paraphrasing it", async () => {
 		const promptUrl = new URL("../../coding-agent/src/prompts/system/system-prompt.md", import.meta.url);
 		const prompt = await Bun.file(promptUrl).text();
-		expect(prompt.startsWith("You are omp's trusted coding assistant.\n\n")).toBe(true);
+		expect(prompt.startsWith("You are zeta's trusted coding assistant.\n\n")).toBe(true);
 		expect(perturbPromptText(prompt).startsWith("# Engineering\n")).toBe(true);
 	});
 
@@ -94,12 +94,12 @@ describe("per-install prompt perturbation", () => {
 		expect(perturbContext(model, sampleContext)).toBe(sampleContext);
 	});
 
-	it("lets OMP_PROMPT_PERTURBATION override the KDL policy in both directions", () => {
+	it("lets ZETA_PROMPT_PERTURBATION override the KDL policy in both directions", () => {
 		optIn(false);
-		process.env.OMP_PROMPT_PERTURBATION = "1";
+		process.env.ZETA_PROMPT_PERTURBATION = "1";
 		expect(perturbContext(model, sampleContext).systemPrompt?.[0]).not.toBe(sample.source);
 		optIn(true);
-		process.env.OMP_PROMPT_PERTURBATION = "0";
+		process.env.ZETA_PROMPT_PERTURBATION = "0";
 		expect(perturbContext(model, sampleContext)).toBe(sampleContext);
 	});
 });

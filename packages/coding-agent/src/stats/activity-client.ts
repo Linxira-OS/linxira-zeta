@@ -92,7 +92,7 @@ export async function loadDailyActivity(
 	}
 }
 
-/** `omp --smoke-test` probe: spawn the thread through the CLI host, ping, expect `pong`. */
+/** `zetacode --smoke-test` probe: spawn the thread through the CLI host, ping, expect `pong`. */
 export async function smokeTestStatsActivityWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

@@ -8,5 +8,5 @@ Description: Zeta Coding Agent — AI-powered terminal coding assistant
  Zeta is an OMP downstream distribution that provides a terminal-based
  AI coding agent with multi-provider LLM support, tool calling, and
  state management. Includes a built-in Stats Dashboard and Web UI.
-Homepage: https://github.com/can1357/oh-my-pi
+Homepage: https://github.com/Linxira-OS/linxira-zeta
 Depends: ${DEPENDS}

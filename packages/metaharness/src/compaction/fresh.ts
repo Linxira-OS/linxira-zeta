@@ -17,7 +17,7 @@
  * Example (not runnable here):
  *   const fresh = new FreshStart({ threshold: 300_000, tailChars: 80_000, index: false });
  *   const build = await fresh.rebuild(await Bun.file(sessionPath).text());
- *   // write build.sessionJsonl + build.files, then `omp --resume <new file>`
+ *   // write build.sessionJsonl + build.files, then `zetacode --resume <new file>`
  */
 import { prompt } from "@linxiraos/pi-utils";
 import pointerPrompt from "./prompts/fresh-pointer.md" with { type: "text" };
@@ -50,7 +50,7 @@ interface SessionMessage {
 	isError?: boolean;
 }
 
-/** One line of an omp session JSONL file (fields this module reads or rewrites). */
+/** One line of an zeta session JSONL file (fields this module reads or rewrites). */
 interface SessionEntry {
 	type: string;
 	id?: string;
@@ -437,7 +437,7 @@ function groupTurns(items: SessionEntry[]): SessionEntry[][] {
 
 /**
  * Drop a trailing incomplete turn: an aborted/errored assistant message, or tool
- * calls without results (the runner interrupts omp between turns, which can cut
+ * calls without results (the runner interrupts zeta between turns, which can cut
  * one off).
  */
 function closedPrefix(items: SessionEntry[]): SessionEntry[] {

@@ -83,7 +83,7 @@ export class SttClient {
 	}
 
 	/**
-	 * Transcribe 16 kHz mono audio on the shared warm worker in the omp daemon.
+	 * Transcribe 16 kHz mono audio on the shared warm worker in the zeta daemon.
 	 * Rejects with the worker error on failure and with an `AbortError` when the
 	 * signal fires (the warm worker keeps the model loaded across calls).
 	 */
@@ -215,7 +215,7 @@ export async function shutdownSttClient(): Promise<void> {
 	await sttClient.terminate();
 }
 
-/** `omp --smoke-test` probe: start the STT worker under the daemon, ping it, and let the daemon stop it. */
+/** `zetacode --smoke-test` probe: start the STT worker under the daemon, ping it, and let the daemon stop it. */
 export async function smokeTestSttWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

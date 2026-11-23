@@ -17,7 +17,7 @@ const SCREEN_LOCKED_KEY: &str = "CGSSessionScreenIsLocked";
 /// Secure Event Input on; absent while it is off.
 const SECURE_INPUT_PID_KEY: &str = "kCGSSessionSecureInputPID";
 /// Shown by `pmset -g assertions` next to the holding process.
-const DISPLAY_AWAKE_REASON: &str = "zetacode computer tool is operating the desktop";
+const DISPLAY_AWAKE_REASON: &str = "Zeta computer tool is operating the desktop";
 const MAX_ONLINE_DISPLAYS: u32 = 32;
 
 /// `display_asleep` covers the session's displays: the selected one for a

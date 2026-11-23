@@ -21,7 +21,7 @@ export function installGifExport(ctx: WorkerContext): void {
 				});
 			}
 			try {
-				const message: EncodeGifRequest = { omp: "encode-gif", frames };
+				const message: EncodeGifRequest = { zeta: "encode-gif", frames };
 				const reply: EncodeGifResult | undefined = await chrome.runtime.sendMessage(message);
 				if (!reply) throw new Error("The GIF encoder did not reply");
 				if (!reply.ok) throw new Error(reply.error);

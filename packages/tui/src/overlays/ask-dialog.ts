@@ -794,7 +794,7 @@ export class AskDialogComponent implements Component {
 	}
 
 	/**
-	 * Inline in the transcript, as an ask card (`omp.ask.card`): every question stacked in one
+	 * Inline in the transcript, as an ask card (`zeta.ask.card`): every question stacked in one
 	 * column, the focused one open (its header, the question, its answers as radio/check rows and the
 	 * highlighted option's preview), the rest folded to their question over their answer or option
 	 * pills, then the action bar (the countdown, Note, Cancel and the primary Submit).
@@ -860,7 +860,7 @@ export class AskDialogComponent implements Component {
 		state.cursorIndex = clamp(state.cursorIndex, 0, Math.max(0, rows.length - 1));
 		const children: NativeChild[] = [];
 		const header = question.header?.trim();
-		if (header) children.push(text([span(replaceTabs(header), "muted")], { role: "omp.ask.header" }));
+		if (header) children.push(text([span(replaceTabs(header), "muted")], { role: "zeta.ask.header" }));
 		children.push(
 			node(
 				"md",

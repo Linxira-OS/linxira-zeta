@@ -41,7 +41,7 @@
 
 ### Changed
 
-- Ask result cards render saved notes beneath their matching selected answers ([#18779](https://github.com/can1357/oh-my-pi/pull/18779) by [@Shadorain](https://github.com/Shadorain))
+- Ask result cards render saved notes beneath their matching selected answers ([#18779](https://github.com/Linxira-OS/linxira-zeta/pull/18779) by [@Shadorain](https://github.com/Shadorain))
 
 ## [18.18.3] - 2026-11-09
 
@@ -53,7 +53,7 @@
 
 ### Changed
 
-- `job` tool results name each background job by the purpose the model gave for it, falling back to its command ([#17649](https://github.com/can1357/oh-my-pi/pull/17649) by [@wolfiesch](https://github.com/wolfiesch))
+- `job` tool results name each background job by the purpose the model gave for it, falling back to its command ([#17649](https://github.com/Linxira-OS/linxira-zeta/pull/17649) by [@wolfiesch](https://github.com/wolfiesch))
 
 ## [18.13.3] - 2026-10-28
 
@@ -72,14 +72,14 @@
 
 ### Fixed
 
-- Fixed long transcript paragraphs slowing Markdown rendering: a 44 KB paragraph with no blank line now parses in about 3 ms instead of 100 ms ([#13961](https://github.com/can1357/oh-my-pi/pull/13961) by [@sjawhar](https://github.com/sjawhar)).
-- Fixed transcript paragraphs with many unclosed `$`, `\(` or `\[`, slowing Markdown rendering for seconds ([#13961](https://github.com/can1357/oh-my-pi/pull/13961) by [@sjawhar](https://github.com/sjawhar)).
+- Fixed long transcript paragraphs slowing Markdown rendering: a 44 KB paragraph with no blank line now parses in about 3 ms instead of 100 ms ([#13961](https://github.com/Linxira-OS/linxira-zeta/pull/13961) by [@sjawhar](https://github.com/sjawhar)).
+- Fixed transcript paragraphs with many unclosed `$`, `\(` or `\[`, slowing Markdown rendering for seconds ([#13961](https://github.com/Linxira-OS/linxira-zeta/pull/13961) by [@sjawhar](https://github.com/sjawhar)).
 
 ## [18.4.1] - 2026-09-28
 
 ### Fixed
 
-- Prevented iOS Safari from zooming collab text fields on focus in wide touch viewports, including landscape orientation ([#13371](https://github.com/can1357/oh-my-pi/pull/13371) by [@andersennl](https://github.com/andersennl)).
+- Prevented iOS Safari from zooming collab text fields on focus in wide touch viewports, including landscape orientation ([#13371](https://github.com/Linxira-OS/linxira-zeta/pull/13371) by [@andersennl](https://github.com/andersennl)).
 
 ## [18.4.0] - 2026-09-28
 
@@ -107,13 +107,13 @@
 
 ### Fixed
 
-- Browser collab guests now automatically rejoin when a transient host network drop recreates the relay room ([#11858](https://github.com/can1357/oh-my-pi/issues/11858)).
+- Browser collab guests now automatically rejoin when a transient host network drop recreates the relay room ([#11858](https://github.com/Linxira-OS/linxira-zeta/issues/11858)).
 
 ## [18.1.17] - 2026-09-10
 
 ### Fixed
 
-- Transcript links are now allowed by the scheme the browser will actually resolve, so a destination that only becomes `javascript:` after URL normalization is dropped like any other unsafe scheme ([#11562](https://github.com/can1357/oh-my-pi/pull/11562) by [@alphastorm](https://github.com/alphastorm)).
+- Transcript links are now allowed by the scheme the browser will actually resolve, so a destination that only becomes `javascript:` after URL normalization is dropped like any other unsafe scheme ([#11562](https://github.com/Linxira-OS/linxira-zeta/pull/11562) by [@alphastorm](https://github.com/alphastorm)).
 
 ## [18.1.3] - 2026-09-02
 
@@ -169,7 +169,7 @@
 
 ### Fixed
 
-- Rendered user and host transcript messages as Markdown and separated adjacent assistant content blocks. ([#5559](https://github.com/can1357/oh-my-pi/issues/5559))
+- Rendered user and host transcript messages as Markdown and separated adjacent assistant content blocks. ([#5559](https://github.com/Linxira-OS/linxira-zeta/issues/5559))
 
 ## [17.0.0] - 2026-07-15
 
@@ -225,7 +225,7 @@
 
 ### Fixed
 
-- Hid advisory wrapper tags in collab transcript Markdown while preserving their content. ([#3559](https://github.com/can1357/oh-my-pi/issues/3559))
+- Hid advisory wrapper tags in collab transcript Markdown while preserving their content. ([#3559](https://github.com/Linxira-OS/linxira-zeta/issues/3559))
 
 ## [16.1.16] - 2026-06-23
 
@@ -253,7 +253,7 @@
 
 ### Fixed
 
-- Fixed the guest hanging in the "waiting" phase on large host sessions: the client now accumulates `snapshot-chunk` frames into the transcript snapshot and only transitions to `live` after the final chunk lands (or immediately when the host's snapshot is empty). ([#3144](https://github.com/can1357/oh-my-pi/issues/3144))
+- Fixed the guest hanging in the "waiting" phase on large host sessions: the client now accumulates `snapshot-chunk` frames into the transcript snapshot and only transitions to `live` after the final chunk lands (or immediately when the host's snapshot is empty). ([#3144](https://github.com/Linxira-OS/linxira-zeta/issues/3144))
 
 ## [16.0.10] - 2026-06-18
 

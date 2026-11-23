@@ -1,7 +1,7 @@
 /**
  * Journals off-transcript model calls (side channels: recaps, commit messages,
  * memory extraction, …) as `model_usage` entries, so their spend counts in
- * session totals and `omp stats`, and what they were sent and replied survives.
+ * session totals and `zetacode stats`, and what they were sent and replied survives.
  *
  * No static prompt is ever written: the entry's `purpose` names it. Dynamic
  * text is written only while it is small ({@link COMPLETION_TEXT_MAX_CHARS});

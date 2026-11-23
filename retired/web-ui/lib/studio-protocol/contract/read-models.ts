@@ -858,7 +858,7 @@ export interface PluginRecord {
 }
 
 /**
- * Configured skills + plugins inventory. This is a disk scan of OMP-native
+ * Configured skills + plugins inventory. This is a disk scan of Zeta-native
  * locations, not the Runtime effective/loaded set.
  */
 export interface ExtensibilityReadModel {
@@ -891,7 +891,7 @@ export interface McpLastProbe {
 }
 
 /**
- * One configured MCP server from OMP-native mcp.json discovery.
+ * One configured MCP server from Zeta-native mcp.json discovery.
  * Never includes command, args, env, url, headers, or OAuth secrets.
  */
 export interface McpServerRecord {
@@ -911,7 +911,7 @@ export interface McpServerRecord {
 }
 
 /**
- * Configured MCP server inventory. Disk scan of OMP-native mcp.json paths,
+ * Configured MCP server inventory. Disk scan of Zeta-native mcp.json paths,
  * not live MCPManager connection state.
  */
 export interface McpReadModel {

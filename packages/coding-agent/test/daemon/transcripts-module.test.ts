@@ -11,11 +11,11 @@ const CLIENT: ModuleClient = { connectionId: "transcripts-test", pid: process.pi
 // The transcripts module uses no core services.
 const CONTEXT = {} as ModuleContext;
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let root: string;
 
 beforeEach(() => {
-	root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-transcripts-module-"));
+	root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-transcripts-module-"));
 	// The daemon's own agent dir: a call must never index it.
 	setAgentDir(path.join(root, "daemon-agent"));
 });
@@ -26,7 +26,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(path.join(getConfigRootDir(), "agent"));
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	removeSyncWithRetries(root);
 });

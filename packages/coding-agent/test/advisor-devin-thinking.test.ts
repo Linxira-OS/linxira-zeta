@@ -9,7 +9,7 @@ import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-// Regression for https://github.com/can1357/oh-my-pi/issues/4579.
+// Regression for https://github.com/Linxira-OS/linxira-zeta/issues/4579.
 //
 // When the advisor role resolves to a reasoning model without a controllable
 // effort surface (Devin `devin-agent`: `reasoning: true`, `thinking: undefined`

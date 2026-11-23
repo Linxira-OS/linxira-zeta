@@ -28,12 +28,12 @@ export class RelayCalls {
 		const id = this.#nextId++;
 		const { promise, resolve, reject } = Promise.withResolvers<unknown>();
 		if (!send({ t: "call", id, call })) {
-			reject(new Error("omp relay is not connected"));
+			reject(new Error("zeta relay is not connected"));
 			return promise;
 		}
 		const timer = setTimeout(() => {
 			this.#pending.delete(id);
-			reject(new Error(`omp relay did not answer ${call.op} within ${this.#timeoutMs / 1000}s`));
+			reject(new Error(`zetacode relay did not answer ${call.op} within ${this.#timeoutMs / 1000}s`));
 		}, this.#timeoutMs);
 		this.#pending.set(id, { resolve, reject, timer });
 		return promise;
@@ -46,7 +46,7 @@ export class RelayCalls {
 		this.#pending.delete(message.id);
 		clearTimeout(pending.timer);
 		if (message.ok) pending.resolve(message.result);
-		else pending.reject(new Error(message.error ?? "omp relay call failed"));
+		else pending.reject(new Error(message.error ?? "zeta relay call failed"));
 	}
 
 	/** Fail every pending call: the epoch they went out on ended, so no answer can come. */

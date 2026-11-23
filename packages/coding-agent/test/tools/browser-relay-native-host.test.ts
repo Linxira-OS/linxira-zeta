@@ -18,7 +18,7 @@ import { RELAY_RESTART_PATH } from "@linxiraos/zeta/tools/browser/relay/protocol
 import type { FromNativeHost, ToNativeHost } from "../../../browser-relay/extension/messages";
 
 /**
- * Stand-in for `omp --mode rpc`: announces protocol v2, answers negotiation, echoes `echo` commands with the protocol
+ * Stand-in for `zetacode --mode rpc`: announces protocol v2, answers negotiation, echoes `echo` commands with the protocol
  * they were answered under, emits one oversized line (`big`) and one rpc_chunk-split frame (`chunked`), and exits 3
  * with a stderr note on `quit`.
  */
@@ -79,7 +79,7 @@ interface Harness {
 }
 
 async function startHost(relayPort = 0): Promise<Harness> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-native-host-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-native-host-"));
 	cleanups.push(() => fs.rm(dir, { recursive: true, force: true }));
 	const script = path.join(dir, "fake-rpc.ts");
 	await Bun.write(script, FAKE_RPC);
@@ -199,7 +199,7 @@ describe("native host", () => {
 
 	it("refuses a missing directory without spawning", async () => {
 		const host = await startHost();
-		const missing = path.join(os.tmpdir(), `omp-missing-${Date.now()}`);
+		const missing = path.join(os.tmpdir(), `zeta-missing-${Date.now()}`);
 		host.send({ t: "open", extensionId: "a".repeat(32), cwd: missing });
 		await host.done;
 		expect(host.spawnedIn).toEqual([]);
@@ -292,7 +292,7 @@ describe("native host relay link", () => {
 		expect(await waitForRelayExtension(cdpUrl)).toBe("unreachable");
 	}, 20_000);
 
-	it("gives way only to a newer omp's restart, and then exits so Chrome starts the next host", async () => {
+	it("gives way only to a newer zeta's restart, and then exits so Chrome starts the next host", async () => {
 		const port = await findFreeCdpPort();
 		const cdpUrl = `http://127.0.0.1:${port}`;
 		const host = await startHost(port);

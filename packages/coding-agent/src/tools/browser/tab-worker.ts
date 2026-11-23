@@ -309,7 +309,7 @@ declare module "puppeteer-core" {
 declare module "devtools-protocol/types/protocol-mapping" {
 	namespace ProtocolMapping {
 		interface Commands {
-			/** The omp relay's own command: the other extensions' frames it hid in the tab, for the worker driving it. */
+			/** The zeta relay's own command: the other extensions' frames it hid in the tab, for the worker driving it. */
 			"OMP.takeHiddenFrames": { paramsType: []; returnType: { frames?: unknown } };
 		}
 	}
@@ -626,7 +626,7 @@ function asElementHandle(handle: unknown): ElementHandle | null {
 	return handle ? (handle as ElementHandle) : null;
 }
 
-/** ElementHandle enriched with omp's additional direct interaction and query methods. */
+/** ElementHandle enriched with zeta's additional direct interaction and query methods. */
 export type ActionableHandle = InteractionHandle & ElementQueryHelpers & { fill(value: string): Promise<void> };
 
 /**
@@ -1320,12 +1320,12 @@ class PageSessionLostError extends ToolError {
 		readonly closed: boolean,
 	) {
 		super(
-			`omp lost its connection to this tab's page (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
+			`zetacode lost its connection to this tab's page (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
 		);
 	}
 }
 
-/** Chrome ended the debugger attachment the page is driven through (omp browser relay); the page itself lives on. */
+/** Chrome ended the debugger attachment the page is driven through (zeta browser relay); the page itself lives on. */
 class DebuggerDetachedError extends ToolError {
 	constructor(
 		readonly reason: string,
@@ -1333,7 +1333,7 @@ class DebuggerDetachedError extends ToolError {
 		readonly when: "during" | "before",
 	) {
 		super(
-			`Chrome detached omp from this tab (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
+			`Chrome detached zeta from this tab (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
 		);
 	}
 }
@@ -2019,9 +2019,9 @@ export class WorkerCore {
 
 	/** The renderer crashed; the supervisor recycles this worker, so it runs nothing more. */
 	#crashed = false;
-	/** The user drives this browser (connected, relay); only there can Chrome detach omp under a run. */
+	/** The user drives this browser (connected, relay); only there can Chrome detach zeta under a run. */
 	#userDriven = false;
-	/** The tab is driven through the omp browser relay (Chrome's extension debugger API). */
+	/** The tab is driven through the zeta browser relay (Chrome's extension debugger API). */
 	#relay = false;
 	/** Buttons and keys `tab.mouseDown` / `tab.keyDown` pressed and nothing released yet; a run that is cut off releases them. */
 	readonly #heldButtons = new Set<MouseButton>();
@@ -2057,7 +2057,7 @@ export class WorkerCore {
 	 * fails or stalls, so this worker runs nothing more and the supervisor re-adopts the tab on a new one.
 	 */
 	#debuggerDetached: string | undefined;
-	/** The omp browser relay's `OMP.debuggerDetached` event, sent to the page's sessions ahead of their detach. */
+	/** The zeta browser relay's `OMP.debuggerDetached` event, sent to the page's sessions ahead of their detach. */
 	readonly #onDebuggerDetached = (params: unknown): void => {
 		if (this.#debuggerDetached !== undefined) return;
 		const reason = isRecord(params) && typeof params.reason === "string" ? params.reason : "no reason given";
@@ -2065,12 +2065,12 @@ export class WorkerCore {
 		const run = this.#started ? this.#unanswered : null;
 		if (!run) return;
 		this.#unanswered = null;
-		run.ac.abort(postmortem.markExpectedCleanupError(new ToolAbortError("Chrome detached omp from this tab")));
+		run.ac.abort(postmortem.markExpectedCleanupError(new ToolAbortError("Chrome detached zeta from this tab")));
 		const error = new DebuggerDetachedError(reason, run.codeStarted ? "during" : "before");
 		this.#sendResult({ id: run.id, ok: false, error: errorPayload(error) });
 	};
 
-	/** Other extensions' frames taken from the omp relay that no ready report or run result has carried yet. */
+	/** Other extensions' frames taken from the zeta relay that no ready report or run result has carried yet. */
 	#hiddenFrames: HiddenFrame[] = [];
 	/** The relay holds more such frames for this worker to take: it sent `OMP.foreignFramesHidden` since the last take. */
 	#hiddenFramesWaiting = false;
@@ -2078,10 +2078,10 @@ export class WorkerCore {
 		this.#hiddenFramesWaiting = true;
 	};
 
-	/** Take what the omp relay hid in the tab and holds for the worker driving it (`OMP.takeHiddenFrames`). */
+	/** Take what the zeta relay hid in the tab and holds for the worker driving it (`OMP.takeHiddenFrames`). */
 	async #takeHiddenFrames(page: Page): Promise<void> {
 		this.#hiddenFramesWaiting = false;
-		// A relay of an older omp forwards the unknown method to Chrome, which rejects it. The reply crosses a socket,
+		// A relay of an older zeta forwards the unknown method to Chrome, which rejects it. The reply crosses a socket,
 		// so only well-formed frames are kept.
 		const reply = await page
 			.mainFrame()
@@ -2317,7 +2317,7 @@ export class WorkerCore {
 			this.#tracing = new BrowserTracingController(this.#page);
 			this.#network = new BrowserNetworkManager(this.#page, payload.allowedDomains);
 			await this.#network.start();
-			// A window omp does not size (visible, attached, relay) takes a viewport only when the open asks for one,
+			// A window zeta does not size (visible, attached, relay) takes a viewport only when the open asks for one,
 			// after the steps that can fail, so a failed open leaves a borrowed tab at its own size. Without `scale` it
 			// keeps the window's own device scale (0).
 			if (payload.viewport && (payload.mode === "attach" || payload.emulateViewport === false)) {
@@ -2338,7 +2338,7 @@ export class WorkerCore {
 				...(hiddenFrames.length > 0 ? { hiddenFrames } : {}),
 			};
 			this.#started = true;
-			// A page closed without omp closing it: a supervisor that cannot see the page in the browser's target list
+			// A page closed without zeta closing it: a supervisor that cannot see the page in the browser's target list
 			// learns it here. A close this worker makes itself comes after it stopped.
 			this.#page.once("close", () => {
 				if (!this.#stopped) this.#transport.send({ type: "page-closed" });
@@ -2354,7 +2354,7 @@ export class WorkerCore {
 			if (payload.mode === "headless" && page && !page.isClosed()) {
 				await page.close().catch(() => undefined);
 			}
-			// Attached browsers also own tabs created by omp, including spawned Chrome.
+			// Attached browsers also own tabs created by zeta, including spawned Chrome.
 			if (payload.mode === "attach" && payload.page.kind === "create" && page && !page.isClosed()) {
 				await page.close().catch(() => undefined);
 			}
@@ -2368,7 +2368,7 @@ export class WorkerCore {
 			if ((await targetIdForTarget(target).catch(() => "")) !== targetId) continue;
 			return target;
 		}
-		// The omp relay withholds a tab Chrome refused to attach, and says why beside `Target.getTargetInfo`. A refusal over
+		// The zeta relay withholds a tab Chrome refused to attach, and says why beside `Target.getTargetInfo`. A refusal over
 		// another extension's frame fails at once, so the supervisor can keep the tab for a later call.
 		const targetInfo = await this.#browserHasTarget(this.#browser, targetId);
 		const refusal = isRecord(targetInfo) && typeof targetInfo.refusal === "string" ? targetInfo.refusal : undefined;
@@ -2397,7 +2397,7 @@ export class WorkerCore {
 	}
 
 	/**
-	 * Tell the omp browser relay this worker drives the adopted page, so the relay adds it to the per-window "omp"
+	 * Tell the zeta browser relay this worker drives the adopted page, so the relay adds it to the per-window "zeta"
 	 * tab group. The supervisor's connect URL claims it already (`?claim=`); an older relay still serving this
 	 * machine ignores that and learns of the claim only here. Best-effort: plain CDP backends (real Chrome, cmux)
 	 * reject the relay-private method.
@@ -2411,7 +2411,7 @@ export class WorkerCore {
 			const raw = session as unknown as { send(method: string): Promise<unknown> };
 			await raw.send("OMP.claimTarget");
 		} catch {
-			// Not the omp relay; nothing to claim.
+			// Not the zeta relay; nothing to claim.
 		} finally {
 			await session?.detach().catch(() => undefined);
 		}
@@ -2691,7 +2691,7 @@ export class WorkerCore {
 			await this.#takeHiddenFrames(this.#page);
 		if (this.#unanswered !== active) return;
 		if (failure) {
-			// Chrome ends a cross-site frame's session the moment it detaches omp from a relay tab, ahead of the
+			// Chrome ends a cross-site frame's session the moment it detaches zeta from a relay tab, ahead of the
 			// relay's `OMP.debuggerDetached`. Chrome reports that detach to the relay extension before it answers a
 			// later command, so one more page command lets the report answer a run the closed frame session failed.
 			if (this.#userDriven && isPuppeteerTargetClose(failure.error)) {
@@ -2737,11 +2737,11 @@ export class WorkerCore {
 		}
 	}
 
-	/** Refuse a helper whose CDP domain Chrome's extension debugger API, which the omp relay drives tabs through, lacks. */
+	/** Refuse a helper whose CDP domain Chrome's extension debugger API, which the zeta relay drives tabs through, lacks. */
 	#refuseOnRelay(helper: string, domain: string): void {
 		if (!this.#relay) return;
 		throw new ToolError(
-			`${helper} is not supported through the omp browser relay: Chrome's extension debugger API gives it no ${domain} domain. Open the page in omp's own browser (app: "chromium") to use it.`,
+			`${helper} is not supported through the zeta browser relay: Chrome's extension debugger API gives it no ${domain} domain. Open the page in zeta's own browser (app: "chromium") to use it.`,
 		);
 	}
 
@@ -4067,7 +4067,7 @@ export class WorkerCore {
 		const changed = diff.pixelChangeRatio > threshold;
 		const diffPath = opts.output
 			? resolveToCwd(opts.output, session.cwd)
-			: path.join(os.tmpdir(), `omp-screenshot-diff-${Snowflake.next()}.png`);
+			: path.join(os.tmpdir(), `zeta-screenshot-diff-${Snowflake.next()}.png`);
 		await fs.promises.mkdir(path.dirname(diffPath), { recursive: true });
 		await Bun.write(diffPath, diff.png);
 		const resized = await resizeImage(
@@ -4092,7 +4092,7 @@ export class WorkerCore {
 	async #pdf(session: SessionSnapshot, signal: AbortSignal | undefined, opts: PdfOptions = {}): Promise<string> {
 		const dest = opts.path
 			? resolveToCwd(opts.path, session.cwd)
-			: path.join(os.tmpdir(), `omp-browser-${Snowflake.next()}.pdf`);
+			: path.join(os.tmpdir(), `zeta-browser-${Snowflake.next()}.pdf`);
 		await fs.promises.mkdir(path.dirname(dest), { recursive: true });
 		await untilAborted(signal, () =>
 			this.#requirePage().pdf({

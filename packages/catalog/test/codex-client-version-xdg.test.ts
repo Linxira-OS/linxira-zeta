@@ -13,7 +13,7 @@ import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 const ENV_KEYS = [
 	"NODE_ENV",
 	"PI_CONFIG_DIR",
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"XDG_CACHE_HOME",
 	"PI_AI_CODEX_CLIENT_VERSION",
 ] as const;
@@ -46,12 +46,12 @@ describe("Codex client version cache", () => {
 		originalEnv = {};
 		for (const key of ENV_KEYS) originalEnv[key] = process.env[key];
 		tempRoot = path.join(os.tmpdir(), "pi-catalog-codex-version", crypto.randomUUID());
-		configDir = `.omp-codex-version-${crypto.randomUUID()}`;
+		configDir = `.zeta-codex-version-${crypto.randomUUID()}`;
 		defaultAgentDir = path.join(os.homedir(), configDir, "agent");
 		const xdgCache = path.join(tempRoot, "cache");
-		await fs.mkdir(path.join(xdgCache, "omp"), { recursive: true });
+		await fs.mkdir(path.join(xdgCache, "zeta"), { recursive: true });
 		process.env.PI_CONFIG_DIR = configDir;
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 		delete process.env.PI_AI_CODEX_CLIENT_VERSION;
 		process.env.XDG_CACHE_HOME = xdgCache;
 		// bun test's NODE_ENV=test pins the version and would bypass the on-disk record.
@@ -68,16 +68,16 @@ describe("Codex client version cache", () => {
 			else process.env[key] = value;
 		}
 		setAgentDir(originalAgentDir);
-		const agentDirEnv = originalEnv.PI_CODING_AGENT_DIR;
-		if (agentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = agentDirEnv;
+		const agentDirEnv = originalEnv.ZETA_CODING_AGENT_DIR;
+		if (agentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+		else process.env.ZETA_CODING_AGENT_DIR = agentDirEnv;
 		__resetCodexClientVersionCacheForTests();
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		await fs.rm(path.join(os.homedir(), configDir), { recursive: true, force: true });
 	});
 
-	it.skipIf(!xdgPlatform)("reads the recorded version from $XDG_CACHE_HOME/omp without refetching", async () => {
-		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "omp", "codex-client-version.json");
+	it.skipIf(!xdgPlatform)("reads the recorded version from $XDG_CACHE_HOME/zeta without refetching", async () => {
+		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "zeta", "codex-client-version.json");
 		await Bun.write(recordPath, JSON.stringify({ version: "99.0.0", checkedAt: Date.now() }));
 		const fetch = stubFetch("1.0.0");
 		try {
@@ -88,8 +88,8 @@ describe("Codex client version cache", () => {
 		}
 	});
 
-	it.skipIf(!xdgPlatform)("refreshes a stale record into $XDG_CACHE_HOME/omp, not the agent dir", async () => {
-		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "omp", "codex-client-version.json");
+	it.skipIf(!xdgPlatform)("refreshes a stale record into $XDG_CACHE_HOME/zeta, not the agent dir", async () => {
+		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "zeta", "codex-client-version.json");
 		const fetch = stubFetch("98.1.2");
 		try {
 			expect(getCodexClientVersion()).toBe(CODEX_CLIENT_VERSION);

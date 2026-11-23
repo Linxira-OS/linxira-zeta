@@ -1,7 +1,7 @@
 /**
  * Client side of the browser relay: waiting for it to drive a browser, and asking an outdated one to restart.
  *
- * The relay is served by the omp extension's native host for as long as Chrome runs with the extension
+ * The relay is served by the zeta extension's native host for as long as Chrome runs with the extension
  * (`native-relay.ts`). Nothing on the port therefore means no such browser is running, except right after a
  * restart, while Chrome starts the next host. A 503 means a relay is up and its browser has not said hello yet,
  * which takes moments.
@@ -130,9 +130,9 @@ export async function waitForRelayExtension(
 }
 
 /**
- * Ask the native host serving the relay at `cdpUrl` to exit, so Chrome starts the next one from the installed omp;
+ * Ask the native host serving the relay at `cdpUrl` to exit, so Chrome starts the next one from the installed zeta;
  * with `idleOnly`, only while no CDP client uses it. Resolves true once the old server stopped answering (the caller
- * then waits with `restarted`). False when it declined (it is not older than this omp, or it is busy) or stayed.
+ * then waits with `restarted`). False when it declined (it is not older than this zeta, or it is busy) or stayed.
  */
 export async function requestRelayRestart(
 	cdpUrl: string,
@@ -160,11 +160,11 @@ export async function requestRelayRestart(
 }
 
 /** The steps that replace an out-of-date relay extension. */
-export const UPDATE_RELAY_EXTENSION = "Run `omp browser-relay install` and reload the omp extension in Chrome.";
+export const UPDATE_RELAY_EXTENSION = "Run `zetacode browser-relay install` and reload the zeta extension in Chrome.";
 
 /**
  * Notice for an open through a ready relay where a connected extension was
- * installed by an older omp, or null. The extension still speaks the relay
+ * installed by an older zeta, or null. The extension still speaks the relay
  * protocol, so the open goes ahead; relay fixes shipped since that install
  * stay inactive until the user reinstalls it. A relay too old to report the
  * extension's version gets no notice: it cannot tell.
@@ -181,6 +181,6 @@ export async function relayExtensionNotice(cdpUrl: string, signal?: AbortSignal)
 		return null;
 	}
 	if (typeof installedBy !== "string" || !isOlderOmpVersion(installedBy, VERSION)) return null;
-	const origin = installedBy === "" ? "an older omp" : `omp ${installedBy}; this is omp ${VERSION}`;
-	return `The omp extension is out of date (installed by ${origin}). ${UPDATE_RELAY_EXTENSION}`;
+	const origin = installedBy === "" ? "an older zeta" : `zetacode ${installedBy}; this is zeta ${VERSION}`;
+	return `The zeta extension is out of date (installed by ${origin}). ${UPDATE_RELAY_EXTENSION}`;
 }

@@ -1538,7 +1538,7 @@ export class UsageDashboardComponent implements Component {
 		if (this.#syncing && this.#activity) {
 			meta.push(node("spinner", { style: "dots", label: [span("Syncing", "dim")] }));
 		} else if (this.#syncError) {
-			meta.push(text([span(this.#staleNote(), "dim")], { role: "omp.usage.section.meta" }));
+			meta.push(text([span(this.#staleNote(), "dim")], { role: "zeta.usage.section.meta" }));
 		} else if (layout) {
 			const today = new Date();
 			const range = `${layout.start.getDate()} ${MONTH_NAMES[layout.start.getMonth()]} ${layout.start.getFullYear()} – ${today.getDate()} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;

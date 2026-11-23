@@ -8,7 +8,7 @@
  * `@openai/codex` instead:
  *
  *  - The first read in a process loads the cache record
- *    (`$XDG_CACHE_HOME/omp/codex-client-version.json`, else `<agent-dir>/codex-client-version.json`)
+ *    (`$XDG_CACHE_HOME/zeta/codex-client-version.json`, else `<agent-dir>/codex-client-version.json`)
  *    synchronously and keeps that value for the rest of the process. The
  *    version keys the model-cache namespace and must not move mid-process.
  *  - When the record is older than {@link REFRESH_INTERVAL_MS}, a background

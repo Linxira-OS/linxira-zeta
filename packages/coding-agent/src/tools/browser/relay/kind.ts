@@ -1,16 +1,16 @@
 export { DEFAULT_RELAY_URL } from "@linxiraos/pi-wire";
 /**
  * Browser relay mode: drive the user's own Chrome tabs through the local CDP
- * relay (sibling `server.ts`/`bridge.ts`), which the omp extension's native
+ * relay (sibling `server.ts`/`bridge.ts`), which the zeta extension's native
  * host serves while Chrome runs (`native-relay.ts`; installed via
- * `omp browser-relay install`). The relay impersonates Chrome's CDP discovery
+ * `zetacode browser-relay install`). The relay impersonates Chrome's CDP discovery
  * endpoint, so beyond kind resolution the entire connected-browser machinery
  * (registry, tab supervisor, tab workers) applies unchanged.
  */
 import { discoverRelayEndpoints } from "./discovery";
 import { parseFlag } from "@linxiraos/pi-utils";
 
-/** Browser kind selecting the omp browser relay. */
+/** Browser kind selecting the zeta browser relay. */
 export interface RelayKind {
 	kind: "relay";
 	cdpUrl: string;

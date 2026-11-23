@@ -26,6 +26,6 @@ The owner declined releasing from `v18.22.0` with model support in a later updat
 
 ## Links
 
-- [OMP v18.22.2](https://github.com/can1357/oh-my-pi/releases/tag/v18.22.2)
-- [OMP model catalog change](https://github.com/can1357/oh-my-pi/commit/2dedb850ac86e73aadc385e5b9cf08eac096e475)
+- [OMP v18.22.2](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v18.22.2)
+- [OMP model catalog change](https://github.com/Linxira-OS/linxira-zeta/commit/2dedb850ac86e73aadc385e5b9cf08eac096e475)
 - [Release scope manifest](../../release-scope.json)

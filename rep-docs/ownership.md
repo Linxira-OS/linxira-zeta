@@ -16,7 +16,7 @@ Release-tag baselines are recorded in
 
 | Surface | Upstream | Maintained by |
 | --- | --- | --- |
-| `zetacode` runtime, CLI, TUI | [OMP](https://github.com/can1357/oh-my-pi), only through named official release tags | **Zeta core maintainers** for Zeta deltas; upstream for a clean upstream defect |
+| `zetacode` runtime, CLI, TUI | [OMP](https://github.com/Linxira-OS/linxira-zeta), only through named official release tags | **Zeta core maintainers** for Zeta deltas; upstream for a clean upstream defect |
 | Z Work Studio (`web-app/`), server/Studio host, `/api/v1/*` and Web Gateway | OMP Studio renderer fork; host, contracts, gateway, and fork integration are Zeta-owned | **Zeta server maintainers** |
 | IM (`packages/channels/`, `packages/coding-agent/src/channels/`) | Zeta-originated channel runtime | **Zeta IM maintainers** |
 | `zetaide` and the editor payload (`termide/`, `editor/`) | [TermIDE](https://github.com/termide/termide), vendored fork | **Zeta IDE maintainers** for fork deviations and branding |
@@ -85,7 +85,7 @@ top. Per product surface:
 
 ### `zetacode` — coding agent and runtime (from OMP)
 
-- **Upstream**: [OMP](https://github.com/can1357/oh-my-pi), merged whole at
+- **Upstream**: [OMP](https://github.com/Linxira-OS/linxira-zeta), merged whole at
   official release tags. The integrated source is `v18.22.0`
   (`3e8cff3b7ce19a805c11a26a6dd1703066435851`): `packages/*`, `crates/*`,
   `sdk/*`, `python/*`, and the TUI.

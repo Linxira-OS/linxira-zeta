@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="https://github.com/can1357/oh-my-pi/blob/main/assets/hero.png?raw=true" alt="omp">
+  <img src="https://github.com/Linxira-OS/linxira-zeta/blob/main/assets/hero.png?raw=true" alt="zeta">
 </p>
 
 <p align="center">
   <strong>一个内置 IDE 能力的编程智能体。</strong>
-  <strong><a href="https://omp.sh">omp.sh</a></strong>
+  <strong><a href="https://zeta.sh">zeta.sh</a></strong>
 </p>
 
 <p align="center">
@@ -13,9 +13,9 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@linxiraos/pi-coding-agent"><img src="https://img.shields.io/npm/v/@linxiraos/pi-coding-agent?style=flat&colorA=222222&colorB=CB3837" alt="npm version"></a>
-  <a href="https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222" alt="Changelog"></a>
-  <a href="https://github.com/can1357/oh-my-pi/actions"><img src="https://img.shields.io/github/actions/workflow/status/can1357/oh-my-pi/ci.yml?style=flat&colorA=222222&colorB=3FB950" alt="CI"></a>
-  <a href="https://github.com/can1357/oh-my-pi/blob/main/LICENSE"><img src="https://img.shields.io/github/license/can1357/oh-my-pi?style=flat&colorA=222222&colorB=58A6FF" alt="License"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222" alt="Changelog"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/actions"><img src="https://img.shields.io/github/actions/workflow/status/Linxira-OS/linxira-zeta/ci.yml?style=flat&colorA=222222&colorB=3FB950" alt="CI"></a>
+  <a href="https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Linxira-OS/linxira-zeta?style=flat&colorA=222222&colorB=58A6FF" alt="License"></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat&colorA=222222&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-DEA584?style=flat&colorA=222222&logo=rust&logoColor=white" alt="Rust"></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/runtime-Bun-f472b6?style=flat&colorA=222222" alt="Bun"></a>
@@ -38,17 +38,17 @@
 **macOS · Linux**
 
 ```sh
-curl -fsSL https://omp.sh/install | sh
+curl -fsSL https://zeta.sh/install | sh
 ```
 
-安装脚本会从 `build.stencil.so` 下载预编译二进制，并在安装前校验其 SHA-256；如需改用 bun 安装软件包，请传入 `--source`（PowerShell：`-Source`）。可通过 `curl -fsSL https://omp.sh/install | sh -s -- --binary --ref v<version>` 固定某个版本（PowerShell：`-Binary -Ref v<version>`）。
+安装脚本会从 `build.stencil.so` 下载预编译二进制，并在安装前校验其 SHA-256；如需改用 bun 安装软件包，请传入 `--source`（PowerShell：`-Source`）。可通过 `curl -fsSL https://zeta.sh/install | sh -s -- --binary --ref v<version>` 固定某个版本（PowerShell：`-Binary -Ref v<version>`）。
 
 > **Alpine / musl：** 预编译的 musl 二进制动态链接 `libstdc++`/`libgcc`，而原生 Alpine 并不自带。请先安装：`apk add libstdc++ libgcc`。
 
 **Homebrew**
 
 ```sh
-brew install can1357/tap/omp
+brew install can1357/tap/zeta
 ```
 
 **Bun（推荐）**
@@ -61,21 +61,21 @@ bun install -g @linxiraos/pi-coding-agent
 
 ```sh
 # Run without installing
-nix run github:can1357/oh-my-pi
+nix run github:Linxira-OS/linxira-zeta
 
 # Or install into the active profile (Nix < 2.30: `nix profile install`)
-nix profile add github:can1357/oh-my-pi
+nix profile add github:Linxira-OS/linxira-zeta
 ```
 
-Flake 使用者可以使用 `packages.<system>.omp`、`overlays.default`、`nixosModules.default` 或 `homeManagerModules.default`。Home Manager 配置可以安装 OMP 并以声明式方式管理其设置：
+Flake 使用者可以使用 `packages.<system>.zeta`、`overlays.default`、`nixosModules.default` 或 `homeManagerModules.default`。Home Manager 配置可以安装 OMP 并以声明式方式管理其设置：
 
 ```nix
 {
-  inputs.omp.url = "github:can1357/oh-my-pi";
+  inputs.zeta.url = "github:Linxira-OS/linxira-zeta";
 
   # In your Home Manager module:
-  imports = [ inputs.omp.homeManagerModules.default ];
-  programs.omp = {
+  imports = [ inputs.zeta.homeManagerModules.default ];
+  programs.zeta = {
     enable = true;
     settings.startup.quiet = true;
   };
@@ -85,35 +85,35 @@ Flake 使用者可以使用 `packages.<system>.omp`、`overlays.default`、`nixo
 **Windows（PowerShell）**
 
 ```powershell
-irm https://omp.sh/install.ps1 | iex
+irm https://zeta.sh/install.ps1 | iex
 ```
 
 **固定版本（mise）**
 
 ```sh
-mise use -g github:can1357/oh-my-pi
+mise use -g github:Linxira-OS/linxira-zeta
 ```
 
 macOS · Linux · Windows · bun ≥ 1.4.4
 
 ### Shell 补全
 
-`omp` 会根据实时的命令/参数元数据，为 **bash**、**zsh** 和 **fish** 生成自己的补全脚本，因此永远不会与实际 CLI 脱节。子命令、参数和枚举值是静态补全的；模型名（`--model`、`--smol`、`--slow`、`--plan`）会根据内置模型目录解析，`--resume` 则根据磁盘上的会话解析。
+`zetacode` 会根据实时的命令/参数元数据，为 **bash**、**zsh** 和 **fish** 生成自己的补全脚本，因此永远不会与实际 CLI 脱节。子命令、参数和枚举值是静态补全的；模型名（`--model`、`--smol`、`--slow`、`--plan`）会根据内置模型目录解析，`--resume` 则根据磁盘上的会话解析。
 
 ```sh
 # zsh — add to ~/.zshrc (or write the output into a file on your $fpath)
-eval "$(omp completions zsh)"
+eval "$(zeta completions zsh)"
 
 # bash — add to ~/.bashrc
-eval "$(omp completions bash)"
+eval "$(zeta completions bash)"
 
 # fish
-omp completions fish > ~/.config/fish/completions/omp.fish
+zeta completions fish > ~/.config/fish/completions/zeta.fish
 ```
 
 ## 每个工具，都 _调校到极致_。
 
-编辑一次成功。读取时给出文件摘要，而不是把整个文件倒出来。搜索即时返回。无论选哪个模型，omp 都能让它把事做好。
+编辑一次成功。读取时给出文件摘要，而不是把整个文件倒出来。搜索即时返回。无论选哪个模型，zeta 都能让它把事做好。
 
 | 模型             | 指标         | 说明                                                 |
 | ---------------- | ------------ | ---------------------------------------------------- |
@@ -131,19 +131,19 @@ omp completions fish > ~/.config/fish/completions/omp.fish
 
 ## 你 _喜爱_ 的 Pi，如今**全副武装**。
 
-omp 最初基于 [Mario Zechner](https://github.com/mariozechner) 出色的 [Pi](https://github.com/badlogic/pi-mono) 构建，补齐了你所缺少的一切。
+zeta 最初基于 [Mario Zechner](https://github.com/mariozechner) 出色的 [Pi](https://github.com/badlogic/pi-mono) 构建，补齐了你所缺少的一切。
 
 ### 01 · 可调用工具的代码执行
 
 大多数智能体框架给智能体一个 Python 沙箱就算完事。我们运行持久化的 Python 和 Bun worker，而且两个内核都能通过本地回环桥接回调智能体自己的工具——read、search、task。智能体可以在 Python 里用 tool.read 加载 CSV，再用 JavaScript 绘图，全程不离开同一个单元格。
 
-![omp TUI 运行 Python 代码并渲染图表。](assets/python.webp)
+![zeta TUI 运行 Python 代码并渲染图表。](assets/python.webp)
 
 ### 02 · 每次写入都接入 LSP
 
 要求重命名，得到的就是真正的重命名。调用会走 workspace/willRenameFiles，因此在文件移动之前，重导出、barrel 文件和带别名的导入都会先被更新。IDE 知道的一切，智能体都知道。
 
-![启用了 TypeScript 和 Biome 语言服务器的 omp TUI。](assets/lspv.webp)
+![启用了 TypeScript 和 Biome 语言服务器的 zeta TUI。](assets/lspv.webp)
 
 _[阅读 LSP 配置文档](docs/lsp-config.md)_
 
@@ -151,25 +151,25 @@ _[阅读 LSP 配置文档](docs/lsp-config.md)_
 
 C 程序段错误：智能体挂上 lldb，单步到出错的指针，读取栈帧。Go 服务卡死：挂上 dlv，逐个查看 goroutine。Python 进程卡住：debugpy、暂停、检查、求值。而大多数智能体还在到处加 print 调试。
 
-![omp TUI：针对 /tmp/omp-native/demo 原生二进制的实时 lldb-dap 会话。Adapter=lldb-dap，Status=stopped，Frame=xorshift32，指令指针 0x10000055C，位置 demo.c:6:10。调试作用域和变量卡片显示局部变量（x = 57351），智能体验证了计算：x 从 7 变为 57351（= 7 ^ (7<<13)）。](https://omp.sh/clips/dap-poster.webp)
+![zeta TUI：针对 /tmp/zeta-native/demo 原生二进制的实时 lldb-dap 会话。Adapter=lldb-dap，Status=stopped，Frame=xorshift32，指令指针 0x10000055C，位置 demo.c:6:10。调试作用域和变量卡片显示局部变量（x = 57351），智能体验证了计算：x 从 7 变为 57351（= 7 ^ (7<<13)）。](https://zeta.sh/clips/dap-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/dap.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/dap.mp4)_
 
 ### 04 · 时间回溯式流规则
 
 规则平时处于休眠状态，直到模型开始跑偏。一旦正则匹配，就在 token 输出到一半时中止流，把规则作为系统提醒注入，并从同一位置重试。你获得了纠偏能力，却不用每一轮都为规则付出上下文开销。注入内容在上下文压缩后依然保留，修正会持续生效。
 
-![omp TUI：智能体读取 src.rs，正要写下 Box::leak 时请求被中止（红色 `Error: Request was aborted`），琥珀色的 `⚠ Injecting rule: box-leak` 卡片注入规则内容 `Don't reach for Box::leak in production code paths`，随后智能体纠偏，提出改用 `Arc<str>` 并请用户确认。](https://omp.sh/clips/ttsr-poster.webp)
+![zeta TUI：智能体读取 src.rs，正要写下 Box::leak 时请求被中止（红色 `Error: Request was aborted`），琥珀色的 `⚠ Injecting rule: box-leak` 卡片注入规则内容 `Don't reach for Box::leak in production code paths`，随后智能体纠偏，提出改用 `Arc<str>` 并请用户确认。](https://zeta.sh/clips/ttsr-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/ttsr.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/ttsr.mp4)_
 
 ### 05 · 一等公民的子智能体
 
 把任务拆给多个 worker，拿回带类型的结果。task 会把任务分发到相互隔离的 worktree，每个 worker 拥有自己的工具集，最终产出一个经过 schema 校验的对象，供父智能体直接读取。无需解析大段文字，并行的子智能体之间不会产生合并冲突，也不会留下没人管的修改。
 
-![omp TUI：`task` 派生出两个子智能体 `ComponentsExports` 和 `RoutesExports`，约束块要求两者之间通过 IRC 私信协作，每个子智能体的状态卡片显示成本与耗时，最后的 Findings 部分列出两边的导出，并如实附上一条关于单向握手的“IRC coordination note”。](https://omp.sh/clips/irc-poster.webp)
+![zeta TUI：`task` 派生出两个子智能体 `ComponentsExports` 和 `RoutesExports`，约束块要求两者之间通过 IRC 私信协作，每个子智能体的状态卡片显示成本与耗时，最后的 Findings 部分列出两边的导出，并如实附上一条关于单向握手的“IRC coordination note”。](https://zeta.sh/clips/irc-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/irc.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/irc.mp4)_
 
 在运行过程中随时查看各个子智能体：`Alt+A` 打开 [Agent Hub](docs/agent-hub.md)，列表中会显示每个子智能体的当前活动与用量。打开其中一个即可查看实时对话记录、发送引导消息、重新唤醒已挂起的 worker，或在不中止父会话的情况下结束卡住的那个。
 
@@ -177,29 +177,29 @@ _[观看录屏 ↗](https://omp.sh/clips/irc.mp4)_
 
 给 “advisor” 角色配一个审阅模型，它会读取主智能体的每一轮操作，并在行内插入注释——一句提醒、一个顾虑，或一个硬性阻断。它拥有独立的上下文和模型，因此能发现执行者匆忙略过的问题。主智能体看到注释后会纠偏，或者告诉你为什么不这么做。
 
-![omp TUI：/advisor status 显示 advisor 运行在 openai-codex/gpt-5.5 上；主智能体把 catch 范围缩小到 ENOENT 而不是吞掉所有错误后，一张琥珀色的 “Advisor 1 note (concern)” 卡片提醒该修复已不符合用户字面上的验收标准。](https://omp.sh/clips/advisor-poster.webp)
+![zeta TUI：/advisor status 显示 advisor 运行在 openai-codex/gpt-5.5 上；主智能体把 catch 范围缩小到 ENOENT 而不是吞掉所有错误后，一张琥珀色的 “Advisor 1 note (concern)” 卡片提醒该修复已不符合用户字面上的验收标准。](https://zeta.sh/clips/advisor-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/advisor.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/advisor.mp4)_
 
 ### 07 · 把链接发给别人，他们就进来了。
 
-/collab 会把你的实时会话放到中继服务器上，并返回一个链接和二维码。队友可以在另一个终端用 omp join 加入，或者直接在浏览器中打开。以读写方式共享即可结对使用同一个智能体；/collab view 则生成只读链接，任何人都能观看但无法操控。数据帧在客户端加密，中继服务器永远拿不到你的密钥。
+/collab 会把你的实时会话放到中继服务器上，并返回一个链接和二维码。队友可以在另一个终端用 zeta join 加入，或者直接在浏览器中打开。以读写方式共享即可结对使用同一个智能体；/collab view 则生成只读链接，任何人都能观看但无法操控。数据帧在客户端加密，中继服务器永远拿不到你的密钥。
 
-![omp TUI：/collab view 打印 “Collab session started!”，附带 omp join 命令、my.omp.sh 浏览器链接、提示 “Anyone with this link can watch the session but cannot prompt the agent”，以及一个可扫描的大二维码。](https://omp.sh/clips/collab-poster.webp)
+![zeta TUI：/collab view 打印 “Collab session started!”，附带 zeta join 命令、my.zeta.sh 浏览器链接、提示 “Anyone with this link can watch the session but cannot prompt the agent”，以及一个可扫描的大二维码。](https://zeta.sh/clips/collab-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/collab.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/collab.mp4)_
 
 ### 08 · 读一篇 arXiv 上的 PDF？有何不可。
 
 web_search 串联了二十五个按优先级排列的搜索提供商，并把找到的 URL 直接交给 read。arXiv PDF、GitHub 页面、Stack Overflow 帖子都会以结构化 Markdown 返回，锚点完整保留——与处理本地文件使用同一套工具。引用、跟进、摘录，永远不会丢失出处。
 
-![omp TUI：web_search 针对推理时计算扩展返回 10 个按排名排列的 Perplexity 来源，智能体挑选了一篇 arXiv 论文，调用 read https://arxiv.org/pdf/2604.10739v1，并用真实数据总结论文的核心结论。](https://omp.sh/clips/web-poster.webp)
+![zeta TUI：web_search 针对推理时计算扩展返回 10 个按排名排列的 Perplexity 来源，智能体挑选了一篇 arXiv 论文，调用 read https://arxiv.org/pdf/2604.10739v1，并用真实数据总结论文的核心结论。](https://zeta.sh/clips/web-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/web.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/web.mp4)_
 
 ### 09 · 毫不妥协的原生实现，Windows 上也一样。
 
-其他智能体会调用外部的 rg、grep、find 和 bash。很多机器上根本没有这些程序；即便有，每次调用也要付出一次 fork-exec 的往返开销。omp 把真正的实现直接链接进进程：ripgrep、glob、find 全部在进程内运行。bash 是我们自己的 bash 5.3 引擎——会话可跨调用保持，58 个命令行工具（ls、sed、sort、xargs，甚至 jq）被移植进 builtins crate 并在进程内运行，零 fork/exec。同一个 omp 二进制可运行于 macOS、Linux 和 Windows——无需 WSL 桥接。
+其他智能体会调用外部的 rg、grep、find 和 bash。很多机器上根本没有这些程序；即便有，每次调用也要付出一次 fork-exec 的往返开销。zeta 把真正的实现直接链接进进程：ripgrep、glob、find 全部在进程内运行。bash 是我们自己的 bash 5.3 引擎——会话可跨调用保持，58 个命令行工具（ls、sed、sort、xargs，甚至 jq）被移植进 builtins crate 并在进程内运行，零 fork/exec。同一个 zeta 二进制可运行于 macOS、Linux 和 Windows——无需 WSL 桥接。
 
 ### 10 · 带优先级和结论的代码评审
 
@@ -221,15 +221,15 @@ _[观看录屏 ↗](https://omp.sh/clips/web.mp4)_
 
 ### 14 · ACP：可由编辑器驱动的智能体
 
-在 Zed 中运行 omp，你得到的就是在终端里使用的同一个智能体——读取你正在看的缓冲区，通过编辑器自身的保存流程写入，在编辑器的终端里启动 shell。有破坏性的工具会先暂停并弹出权限提示，确认一次即可。无需桥接，无需插件，也不用额外维护一套需要来回同步的智能体。
+在 Zed 中运行 zeta，你得到的就是在终端里使用的同一个智能体——读取你正在看的缓冲区，通过编辑器自身的保存流程写入，在编辑器的终端里启动 shell。有破坏性的工具会先暂停并弹出权限提示，确认一次即可。无需桥接，无需插件，也不用额外维护一套需要来回同步的智能体。
 
 ### 15 · 继承你其他工具已经写好的配置
 
-其他智能体都附带一个导入器，指望你去转换。omp 直接以原生格式读取磁盘上已有的八种格式——Cursor MDC、Cline .clinerules、Codex AGENTS.md、Copilot applyTo 等等。没有迁移脚本，没有 YAML 转 TOML，也没有“仅支持部分功能”的脚注。团队上个季度写的配置，今晚照样能用。
+其他智能体都附带一个导入器，指望你去转换。zeta 直接以原生格式读取磁盘上已有的八种格式——Cursor MDC、Cline .clinerules、Codex AGENTS.md、Copilot applyTo 等等。没有迁移脚本，没有 YAML 转 TOML，也没有“仅支持部分功能”的脚注。团队上个季度写的配置，今晚照样能用。
 
-### 16 · omp commit：原子拆分，校验过的提交信息
+### 16 · zeta commit：原子拆分，校验过的提交信息
 
-omp 通过 git_overview、git_file_diff 和 git_hunk 读取工作区，然后把不相关的修改拆分成原子提交，并按依赖关系排序。存在循环依赖时会在写入任何内容前拒绝。源代码文件的权重高于测试、文档和配置，因此首个提交就是最重要的那个。锁文件完全不参与分析。
+zeta 通过 git_overview、git_file_diff 和 git_hunk 读取工作区，然后把不相关的修改拆分成原子提交，并按依赖关系排序。存在循环依赖时会在写入任何内容前拒绝。源代码文件的权重高于测试、文档和配置，因此首个提交就是最重要的那个。锁文件完全不参与分析。
 
 ### 17 · 读 PR。_遍历技能。_ 从子智能体中提取 JSON。
 
@@ -239,17 +239,17 @@ omp 通过 git_overview、git_file_diff 和 git_hunk 读取工作区，然后把
 
 每个合并冲突都对应一个 URL。智能体向 `conflict://N` 写入 `@theirs`、`@ours` 或 `@base`，冲突就干净利落地解决了。批量处理用 `conflict://*`。
 
-![omp TUI：✓ Read src/session.ts（⚠ 1 个冲突），然后 ✓ Write conflict://1 · 1 行，内容为 @theirs，最后确认 “Resolved.”](https://omp.sh/clips/conflict-poster.webp)
+![zeta TUI：✓ Read src/session.ts（⚠ 1 个冲突），然后 ✓ Write conflict://1 · 1 行，内容为 @theirs，最后确认 “Resolved.”](https://zeta.sh/clips/conflict-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/conflict.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/conflict.mp4)_
 
 ### 19 · 先预览，再接受。
 
 `ast_edit` 会返回一张带替换数量的 _（proposed）_ 卡片，修改处于暂存状态。智能体运行 `resolve "<reason>"`；TUI 将其变为 **Accept** 卡片，随后才真正写入磁盘——原子操作，要么全部成功，要么全部不做。
 
-![omp TUI：✓ AST Edit: console.log($X)（proposed）3 处替换 · 1 个文件，然后 ✓ Accept: 1 个文件中 3 处替换（AST Edit），接着是 “Applied 3 replacements in src/auth.ts.”](https://omp.sh/clips/codemod-poster.webp)
+![zeta TUI：✓ AST Edit: console.log($X)（proposed）3 处替换 · 1 个文件，然后 ✓ Accept: 1 个文件中 3 处替换（AST Edit），接着是 “Applied 3 replacements in src/auth.ts.”](https://zeta.sh/clips/codemod-poster.webp)
 
-_[观看录屏 ↗](https://omp.sh/clips/codemod.mp4)_
+_[观看录屏 ↗](https://zeta.sh/clips/codemod.mp4)_
 
 ### 20 · 驱动 _真正的浏览器_。_甚至是你的 Slack？_
 
@@ -313,7 +313,7 @@ Eval 的 `computer` 辅助方法——`computer.window(...)`、`win.screenshot()
 
 需在设置中开启、默认关闭的工具：`github`、`security_scan`、`generate_image`、`tts`、`checkpoint`、`rewind`，以及记忆工具（`retain`/`recall`/`reflect`/`memory_edit`，取决于 `memory.backend`）。
 
-[完整参考 →](https://omp.sh/docs/tools)
+[完整参考 →](https://zeta.sh/docs/tools)
 
 ### 提示词控制
 
@@ -359,7 +359,7 @@ Ollama `local` · Ollama Cloud · LM Studio `local` · llama.cpp `local` · vLLM
 
 ### 自定义 OpenAI 兼容提供商
 
-在 `~/.omp/agent/models.yml` 中定义自定义提供商：
+在 `~/.zeta/agent/models.yml` 中定义自定义提供商：
 
 ```yaml
 providers:
@@ -374,9 +374,9 @@ providers:
            maxTokens: 32000
 ```
 
-运行 `omp models spark` 确认能发现该提供商的模型。然后运行 `omp setup` 并在选择默认模型的步骤中选中它，或在会话中打开 `/model` 将其分配给 `default` 角色。
+运行 `zetacode models spark` 确认能发现该提供商的模型。然后运行 `zetacode setup` 并在选择默认模型的步骤中选中它，或在会话中打开 `/model` 将其分配给 `default` 角色。
 
-如果不想通过选择器，也可以直接在 `~/.omp/agent/config.yml` 中预先配置默认模型：
+如果不想通过选择器，也可以直接在 `~/.zeta/agent/config.yml` 中预先配置默认模型：
 
 ```yaml
 modelRoles:
@@ -385,12 +385,12 @@ modelRoles:
 
 ### 让路由真正好用的四个开关
 
-- **自定义提供商** — 在 `~/.omp/agent/models.yml` 中声明任何支持以下协议的服务：`openai-completions`、`openai-responses`、`openai-codex-responses`、`azure-openai-responses`、`anthropic-messages`、`bedrock-converse-stream`、`google-generative-ai`、`google-gemini-cli`、`google-vertex`、`typesafe`、`openrouter-decisions`、`openai-decisions` 或 `workers-ai-systemone`（后几个为评判类 API）。
+- **自定义提供商** — 在 `~/.zeta/agent/models.yml` 中声明任何支持以下协议的服务：`openai-completions`、`openai-responses`、`openai-codex-responses`、`azure-openai-responses`、`anthropic-messages`、`bedrock-converse-stream`、`google-generative-ai`、`google-gemini-cli`、`google-vertex`、`typesafe`、`openrouter-decisions`、`openai-decisions` 或 `workers-ai-systemone`（后几个为评判类 API）。
 - **回退链** — 在 `retry.fallbackChains` 下按角色或按模型配置回退链。当主模型返回 429 或触及配额上限时，链中下一项接管本轮剩余部分——冷却后自动恢复。
 - **按路径限定模型** — 给 `enabledModels` 和 `disabledProviders` 条目加上 `path:` 前缀，即可在某个仓库固定一组不同的模型，而无需改动全局配置。限定条目覆盖该路径及其下所有内容。
 - **轮换凭据** — 为每个提供商叠加多个 API 密钥，运行时会按会话亲和性轮换，并对每个凭据单独退避。适合一个密钥中午前就会把配额烧光的情况。
 
-完整的提供商与路由参考见 [omp.sh/docs/providers](https://omp.sh/docs/providers)。
+完整的提供商与路由参考见 [zeta.sh/docs/providers](https://zeta.sh/docs/providers)。
 
 ## 二十五个后端。_智能体早已用惯的一个工具_。
 
@@ -451,27 +451,27 @@ Exa 也可以通过 `/login exa` 存储 API 密钥；显式选择无密钥模式
 - **OSV** — 开源漏洞数据源
 - **CISA KEV** — 已知被利用漏洞目录
 
-[`web_search` 参考 ↗](https://omp.sh/docs/tools#web_search)
+[`web_search` 参考 ↗](https://zeta.sh/docs/tools#web_search)
 
 ## 约 **80,000** 行 Rust，干的是其他智能体框架要调用外部程序才能做的活。
 
 六个 crate，一个按平台打包的 N-API 插件。搜索、shell、AST、语法高亮、PTY、桌面控制、图像解码、BPE 计数——全部在 libuv 线程池中进程内完成。热路径上没有 fork/exec。shell 是我们自己的 bash 5.3 引擎，58 个命令行工具——coreutils、findutils、sed、jq、基于 ripgrep 的 grep、fd、diff、moreutils——被移植进 builtins crate，直接编译进 shell。
 
-- Crate：`omp-natives`、`omp-shell`、`omp-ast`、`omp-iso`、`omp-voice`、`omp-xfs`
+- Crate：`zeta-natives`、`zeta-shell`、`zeta-ast`、`zeta-iso`、`zeta-voice`、`zeta-xfs`
 - 平台：`linux-x64`、`linux-arm64`、`darwin-x64`、`darwin-arm64`、`win32-x64`、`win32-arm64`——x64 同时提供 AVX2 和基线两种二进制
 
 按 crate 统计（仅代码行）：
 
 | Crate      | 功能                                                                         | ~代码行 |
 | ---------- | ---------------------------------------------------------------------------- | ------: |
-| omp-shell   | 内嵌 bash 引擎 · 持久会话 · 进程内 coreutils 调度 · 输出精简器               |  38,000 |
-| omp-natives | N-API 接口层——下表中的所有模块                                               |  25,000 |
-| omp-xfs  | 并行遍历器 · 目录列表缓存 · glob · 为 natives 和 shell 的 rg/grep/fd 提供正则搜索 | 11,400 |
-| omp-iso     | 工作区隔离 · apfs · btrfs · zfs · reflink · overlayfs · projfs · rcopy        |   3,300 |
-| omp-ast     | tree-sitter + ast-grep 匹配、代码块解析、结构化摘要                          |   2,900 |
-| omp-voice   | 音频采集/播放 · Opus · 实时 WebRTC                                           |   1,000 |
+| zeta-shell   | 内嵌 bash 引擎 · 持久会话 · 进程内 coreutils 调度 · 输出精简器               |  38,000 |
+| zeta-natives | N-API 接口层——下表中的所有模块                                               |  25,000 |
+| zeta-xfs  | 并行遍历器 · 目录列表缓存 · glob · 为 natives 和 shell 的 rg/grep/fd 提供正则搜索 | 11,400 |
+| zeta-iso     | 工作区隔离 · apfs · btrfs · zfs · reflink · overlayfs · projfs · rcopy        |   3,300 |
+| zeta-ast     | tree-sitter + ast-grep 匹配、代码块解析、结构化摘要                          |   2,900 |
+| zeta-voice   | 音频采集/播放 · Opus · 实时 WebRTC                                           |   1,000 |
 
-`omp-natives` 内部的模块明细（省略胶水代码和测试）：
+`zeta-natives` 内部的模块明细（省略胶水代码和测试）：
 
 | 模块          | 功能                                                                  | 基于                                      | ~代码行 |
 | ------------- | --------------------------------------------------------------------- | ----------------------------------------- | ------: |
@@ -501,7 +501,7 @@ Exa 也可以通过 `/login exa` 存储 API 密钥；显式选择无密钥模式
 
 ## 四种入口：_交互式_、_单次执行_、RPC 和 ACP。
 
-同一个引擎，四种封装。`omp` 运行 TUI。`omp -p` 回答单个提示后退出。Node SDK 把会话嵌入你的进程。`omp --mode rpc` 和 `omp acp` 通过 stdio 把控制权交给另一个程序。
+同一个引擎，四种封装。`zetacode` 运行 TUI。`zetacode -p` 回答单个提示后退出。Node SDK 把会话嵌入你的进程。`zetacode --mode rpc` 和 `zetacode acp` 通过 stdio 把控制权交给另一个程序。
 
 ### 交互式——拿不准时，智能体会问你
 
@@ -509,7 +509,7 @@ TUI 是默认界面。工具调用渲染为卡片，编辑在写入磁盘前可�
 
 同样的表单也会以 elicitation 的形式通过 ACP 呈现，编辑器无需自己编写对话框。
 
-![omp TUI 显示 ask 表单中的一个多选字段。](assets/ask.webp)
+![zeta TUI 显示 ask 表单中的一个多选字段。](assets/ask.webp)
 
 ### SDK——嵌入 Node
 
@@ -534,12 +534,12 @@ await session.prompt("list .ts files");
 
 ### RPC——通过 stdio 驱动
 
-`omp --mode rpc`
+`zetacode --mode rpc`
 
 适用于非 Node 的嵌入方，或需要进程隔离的场景。输入 NDJSON 命令，输出响应帧和事件帧；每个提示以各自的 `prompt_result` 结束。`--mode rpc-ui` 会额外以 `extension_ui_request` 帧的形式发送工具卡片、选择器和对话框，宿主必须应答；`--no-ui` 则连扩展对话框也不会发送，适用于没有 UI 的宿主。
 
 ```
-$ omp --mode rpc --no-session
+$ zeta --mode rpc --no-session
 > {"id":"r1","type":"prompt","message":"list .ts files"}
 < {"id":"r1","type":"response", ...}
 > {"id":"r2","type":"set_model","provider":"anthropic","modelId":"sonnet-4.5"}
@@ -548,24 +548,24 @@ $ omp --mode rpc --no-session
 
 ### ACP——与编辑器对话
 
-`omp acp`
+`zetacode acp`
 
 基于 JSON-RPC 的 [Agent Client Protocol](https://github.com/zed-industries/agent-client-protocol)。当编辑器声明了相应能力时，工具 I/O 会经由编辑器路由，写入操作需通过 `session/request_permission` 授权。
 
-| omp 工具     | ACP 路由                            |
+| zeta 工具     | ACP 路由                            |
 | ------------ | ----------------------------------- |
 | `bash`       | `terminal/create + terminal/output` |
 | `read`       | `fs/read_text_file`                 |
 | `write`      | `fs/write_text_file`                |
 | `edit, bash` | `session/request_permission`        |
 
-完整参考：[omp.sh/docs/sdk](https://omp.sh/docs/sdk)。
+完整参考：[zeta.sh/docs/sdk](https://zeta.sh/docs/sdk)。
 
 ## 值得长期使用的智能体框架，是你 _永远_ 不会嫌它不够用的那一个。
 
-前往 **[omp.sh](https://omp.sh)** 获取。
+前往 **[zeta.sh](https://zeta.sh)** 获取。
 
-omp 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [Pi](https://github.com/badlogic/pi-mono)，并被重写为专注编程的智能体：会话、子智能体、斜杠命令、扩展——全部用 TypeScript 编写，全部采用 MIT 许可，全部开源在 [GitHub](https://github.com/can1357/oh-my-pi) 上。你可以通过配置定制它，从外部用钩子接入它，必要时直接阅读源码。
+zeta 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [Pi](https://github.com/badlogic/pi-mono)，并被重写为专注编程的智能体：会话、子智能体、斜杠命令、扩展——全部用 TypeScript 编写，全部采用 MIT 许可，全部开源在 [GitHub](https://github.com/Linxira-OS/linxira-zeta) 上。你可以通过配置定制它，从外部用钩子接入它，必要时直接阅读源码。
 
 ### 基本构件
 
@@ -573,15 +573,15 @@ omp 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [Pi](https://
 
 ### 自动发现
 
-首次运行时，omp 会继承磁盘上已有的一切：来自 `.claude`、`.cursor`、`.windsurf`、`.gemini`、`.codex`、`.cline`、`.github/copilot` 和 `.vscode` 的规则、技能和 MCP 服务器。无需迁移脚本。
+首次运行时，zeta 会继承磁盘上已有的一切：来自 `.claude`、`.cursor`、`.windsurf`、`.gemini`、`.codex`、`.cline`、`.github/copilot` 和 `.vscode` 的规则、技能和 MCP 服务器。无需迁移脚本。
 
 ### 可扩展性
 
-让 omp 写出你缺少的那部分，然后执行 `/reload-plugins`。可以只留在本地，也可以放进 `marketplace` 分发，或发布到 npm。
+让 zeta 写出你缺少的那部分，然后执行 `/reload-plugins`。可以只留在本地，也可以放进 `marketplace` 分发，或发布到 npm。
 
 ## 理念
 
-omp 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [pi-mono](https://github.com/badlogic/pi-mono)，并扩展为功能齐全的编程工作流。
+zeta 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [pi-mono](https://github.com/badlogic/pi-mono)，并扩展为功能齐全的编程工作流。
 
 核心理念：
 
@@ -591,7 +591,7 @@ omp 派生自 [Mario Zechner](https://github.com/mariozechner) 的 [pi-mono](htt
 
 ### 项目输入与信任
 
-打开一个仓库时，omp 会按设计加载该项目自带的输入：设置、扩展、钩子、工具、命令、技能、规则以及项目级 MCP 配置。若只想在某次运行中排除项目的 `.mcp.json`，可传入 `--config <file>`，指向一个使用嵌套键的 YAML 覆盖文件（扁平写法 `mcp.enableProjectConfig: false` 会被忽略）：
+打开一个仓库时，zeta 会按设计加载该项目自带的输入：设置、扩展、钩子、工具、命令、技能、规则以及项目级 MCP 配置。若只想在某次运行中排除项目的 `.mcp.json`，可传入 `--config <file>`，指向一个使用嵌套键的 YAML 覆盖文件（扁平写法 `mcp.enableProjectConfig: false` 会被忽略）：
 
 ```yaml
 mcp:
@@ -623,7 +623,7 @@ bun setup
 bun dev
 ```
 
-使用 `nix build .#omp` 构建并冒烟测试可分发的 Nix 包。Wayland 屏幕录制支持默认关闭（将 libpipewire 加入插件的库搜索路径会增加约 750 MB 的运行时闭包）；可通过 `omp.override { withWaylandScreencast = true; }` 开启。发布构建使用 fat LTO 链接 `omp-natives`；`omp.override { withFatLto = false; }` 改用 thin LTO，本地重新构建会快得多。Rust 依赖和原生插件在不同的 derivation 中构建，因此修改 Rust 代码会复用已编译的依赖，修改 TypeScript 会复用已构建的插件。`nix/bun.nix` 只在 `bun.lock` 变化时生成；发布时会自动重新生成。依赖变更后，请运行：
+使用 `nix build .#zeta` 构建并冒烟测试可分发的 Nix 包。Wayland 屏幕录制支持默认关闭（将 libpipewire 加入插件的库搜索路径会增加约 750 MB 的运行时闭包）；可通过 `zeta.override { withWaylandScreencast = true; }` 开启。发布构建使用 fat LTO 链接 `zeta-natives`；`zeta.override { withFatLto = false; }` 改用 thin LTO，本地重新构建会快得多。Rust 依赖和原生插件在不同的 derivation 中构建，因此修改 Rust 代码会复用已编译的依赖，修改 TypeScript 会复用已构建的插件。`nix/bun.nix` 只在 `bun.lock` 变化时生成；发布时会自动重新生成。依赖变更后，请运行：
 
 ```sh
 bun run gen:nix
@@ -639,7 +639,7 @@ bun dev -- --version
 
 #### Apple Silicon 上的 Nix 构建
 
-在 Apple Silicon 上，`nix build .#omp` 会使用 nixpkgs 的 Swift 编译器和 `apple-sdk_27` 编译 Apple Foundation Models bridge。构建过程不会使用宿主机的 Xcode 或 Command Line Tools。如果无法编译该 bridge，构建会直接失败，而不是发布一个缺少 bridge 的版本。这两者都只是构建期依赖。要使用这些模型，仍需要 macOS 27+、受支持的设备，并开启 Apple Intelligence。如需在不包含该 bridge 的情况下构建，请使用 `omp.override { withAppleFm = false; }`。
+在 Apple Silicon 上，`nix build .#zeta` 会使用 nixpkgs 的 Swift 编译器和 `apple-sdk_27` 编译 Apple Foundation Models bridge。构建过程不会使用宿主机的 Xcode 或 Command Line Tools。如果无法编译该 bridge，构建会直接失败，而不是发布一个缺少 bridge 的版本。这两者都只是构建期依赖。要使用这些模型，仍需要 macOS 27+、受支持的设备，并开启 Apple Intelligence。如需在不包含该 bridge 的情况下构建，请使用 `zeta.override { withAppleFm = false; }`。
 
 ### 调试命令
 
@@ -660,11 +660,11 @@ bun dev -- --version
 | **[@linxiraos/pi-coding-agent](packages/coding-agent)**                        | 交互式编程智能体 CLI 和 SDK                                |
 | **[@linxiraos/pi-tui](packages/tui)**                                          | 支持差分渲染的终端 UI 库                                   |
 | **[@linxiraos/pi-natives](packages/natives)**                                  | 用于 grep、shell、图像、文本、语法高亮等功能的 N-API 绑定  |
-| **[@linxiraos/omp-stats](packages/stats)**                                     | AI 使用统计的本地可观测性面板                              |
+| **[@linxiraos/zeta-stats](packages/stats)**                                     | AI 使用统计的本地可观测性面板                              |
 | **[@linxiraos/omptype](packages/omptype)**                                     | 兼容 ArkType、带惰性 JIT 编译的 schema 校验库              |
 | **[@linxiraos/pi-utils](packages/utils)**                                      | 共享工具库（日志、流、目录/环境/进程辅助函数）             |
 | **[@linxiraos/pi-wire](packages/wire)**                                        | 协作实时会话共享的协议类型和中继常量                       |
-| **[@linxiraos/pi-mnemopi](packages/mnemopi)**                                  | 面向 omp 智能体的本地 SQLite 记忆引擎                      |
+| **[@linxiraos/pi-mnemopi](packages/mnemopi)**                                  | 面向 zeta 智能体的本地 SQLite 记忆引擎                      |
 | **[@linxiraos/snapcompact](packages/snapcompact)**                             | 位图帧上下文压缩包及 SQuAD 评测套件                        |
 | **[@linxiraos/browser-relay](packages/browser-relay)**                         | 让 Eval 浏览器 API 驱动你现有标签页的 Chrome 扩展          |
 | **[@linxiraos/pi-metaharness](packages/metaharness)**                          | 统一的基准测试运行器、Harbor 运行存储、REST/SSE API、实时面板 |
@@ -674,14 +674,14 @@ bun dev -- --version
 
 | Crate                                      | 说明                                                                                     |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| **[omp-natives](crates/natives)**        | `@linxiraos/pi-natives` 使用的核心 Rust 原生插件（N-API `cdylib`）；聚合下列各 crate      |
-| **[omp-shell](crates/shell)**            | 内嵌的 bash 5.3 引擎（解析器、虚拟机、进程创建、会话）、PTY 和进程管理                   |
-| **[omp-ast](crates/ast)**                | 基于 tree-sitter 的代码摘要器和 AST 工具（50+ 种语言语法）                               |
-| **[omp-iso](crates/iso)**                | 任务隔离后端解析器：APFS 克隆、btrfs/zfs reflink、overlayfs、projfs、rcopy               |
-| **[omp-voice](crates/voice)**            | 音频采集/播放、Opus 编解码和实时 WebRTC 流式传输基础组件                                 |
-| **[omp-xfs](crates/xfs)**          | 为 natives 和 shell 提供并行的 ignore 感知遍历器、目录列表缓存、glob 和内容搜索          |
-| **[omp-edit](crates/edit)**              | `edit` 工具背后的编辑引擎：基于行锚点的 patch/hashline 模式、流式预览、原子化应用        |
-| **[omp-builtins](crates/builtins)**      | 67 个进程内命令行工具以及进程内建命令（ps、top、pgrep、pkill 等）                        |
+| **[zeta-natives](crates/natives)**        | `@linxiraos/pi-natives` 使用的核心 Rust 原生插件（N-API `cdylib`）；聚合下列各 crate      |
+| **[zeta-shell](crates/shell)**            | 内嵌的 bash 5.3 引擎（解析器、虚拟机、进程创建、会话）、PTY 和进程管理                   |
+| **[zeta-ast](crates/ast)**                | 基于 tree-sitter 的代码摘要器和 AST 工具（50+ 种语言语法）                               |
+| **[zeta-iso](crates/iso)**                | 任务隔离后端解析器：APFS 克隆、btrfs/zfs reflink、overlayfs、projfs、rcopy               |
+| **[zeta-voice](crates/voice)**            | 音频采集/播放、Opus 编解码和实时 WebRTC 流式传输基础组件                                 |
+| **[zeta-xfs](crates/xfs)**          | 为 natives 和 shell 提供并行的 ignore 感知遍历器、目录列表缓存、glob 和内容搜索          |
+| **[zeta-edit](crates/edit)**              | `edit` 工具背后的编辑引擎：基于行锚点的 patch/hashline 模式、流式预览、原子化应用        |
+| **[zeta-builtins](crates/builtins)**      | 67 个进程内命令行工具以及进程内建命令（ps、top、pgrep、pkill 等）                        |
 
 ## 参与贡献
 
@@ -693,7 +693,7 @@ Issue 和 Pull Request 向所有人开放。开放 PR 目前处于**试行**阶�
 
 OMP 基于 [MIT 许可证](LICENSE) 发布。
 
-第三方代码和内置（vendored）的上游代码，包括 `crates/builtins/LICENSE` 中标明的第三方部分，仍遵循各自上游的许可证。每个发布的组件都附带自己的 `THIRD-PARTY-NOTICES.txt`：CLI（`packages/coding-agent`）、原生插件（`packages/natives`）和 robomp（`python/robomp`）。`omp --license` 会打印 CLI 和原生插件的许可声明。
+第三方代码和内置（vendored）的上游代码，包括 `crates/builtins/LICENSE` 中标明的第三方部分，仍遵循各自上游的许可证。每个发布的组件都附带自己的 `THIRD-PARTY-NOTICES.txt`：CLI（`packages/coding-agent`）、原生插件（`packages/natives`）和 robomp（`python/robomp`）。`zetacode --license` 会打印 CLI 和原生插件的许可声明。
 
 © 2025 Mario Zechner  
 © 2025-2026 Can Bölük  
@@ -701,10 +701,10 @@ OMP 基于 [MIT 许可证](LICENSE) 发布。
 
 _为常开的终端而生_
 
-- [omp.sh](https://omp.sh)
+- [zeta.sh](https://zeta.sh)
 - [Stencil Labs](https://stencil.so)
-- [GitHub](https://github.com/can1357/oh-my-pi)
-- [变更日志](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/CHANGELOG.md)
+- [GitHub](https://github.com/Linxira-OS/linxira-zeta)
+- [变更日志](https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/CHANGELOG.md)
 - [npm](https://www.npmjs.com/package/@linxiraos/pi-coding-agent)
 - [Discord](https://discord.gg/4NMW9cdXZa)
-- [MIT](https://github.com/can1357/oh-my-pi/blob/main/LICENSE)
+- [MIT](https://github.com/Linxira-OS/linxira-zeta/blob/main/LICENSE)

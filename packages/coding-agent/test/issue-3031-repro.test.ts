@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/3031
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/3031
  *
  * Mnemopi's local embedding provider used to `import("onnxruntime-node")` and
  * `import("fastembed")` directly inside `fastembed-runtime.ts`. With

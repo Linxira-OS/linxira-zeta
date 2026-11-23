@@ -1,7 +1,7 @@
 /**
- * Pages omp opens in Tern for the user to look at, not for the agent to drive
- * (the `/stats` and `omp stats` dashboards). Tern's browser op `open` with
- * `how` docks a browser block by the pane omp runs in (a split beside or below
+ * Pages zeta opens in Tern for the user to look at, not for the agent to drive
+ * (the `/stats` and `zetacode stats` dashboards). Tern's browser op `open` with
+ * `how` docks a browser block by the pane zeta runs in (a split beside or below
  * it, or in its place until the page closes), then `release` hands the block
  * to the user: no agent card in other tabs, no page kept live out of sight.
  * Outside a Tern pane, or when Tern cannot open the page, callers fall back to
@@ -12,7 +12,7 @@ import { redactUrlForLog } from "../../../utils/redact-url";
 import { resolveTernPane } from "./kind";
 import { TernError, TernSocketClient } from "./wire";
 
-/** Where {@link openTernPage} docks the page by omp's pane: Tern's `how`. */
+/** Where {@link openTernPage} docks the page by zeta's pane: Tern's `how`. */
 export type TernPagePlacement = "beside" | "below" | "over";
 
 /** How long Tern gets to answer an `open`; it gives up on a page itself after 10 s. */
@@ -21,7 +21,7 @@ const OP_TIMEOUT_MS = 5_000;
 /** How often {@link TernPage.closed} asks Tern whether the block is still there. */
 const POLL_MS = 500;
 
-/** A browser block omp opened in Tern and handed to the user. */
+/** A browser block zeta opened in Tern and handed to the user. */
 export class TernPage {
 	readonly block: number;
 	readonly #socketPath: string;
@@ -83,7 +83,7 @@ export class TernPage {
 }
 
 /**
- * Open `url` in a Tern browser block docked `how` by the pane omp runs in and
+ * Open `url` in a Tern browser block docked `how` by the pane zeta runs in and
  * hand it to the user; it takes the focus. Null outside a Tern pane or when
  * this Tern cannot open it (no window, the pane in another window, Tern
  * unreachable): open the system browser then.
@@ -100,7 +100,7 @@ export async function openTernPage(url: string, how: TernPagePlacement): Promise
 		}
 		const block = opened.block;
 		await client.request({ op: "release", block }, { timeoutMs: OP_TIMEOUT_MS }).catch(error => {
-			logger.debug("Tern kept driving the page omp opened", { block, error: String(error) });
+			logger.debug("Tern kept driving the page zeta opened", { block, error: String(error) });
 		});
 		return new TernPage(client, pane.socketPath, block);
 	} catch (error) {

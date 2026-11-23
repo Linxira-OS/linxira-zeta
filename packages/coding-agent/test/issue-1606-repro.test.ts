@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1606
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/1606
  *
  * On Windows, `onnxruntime-node`'s NAPI finalizer segfaults Bun during
  * shutdown after `@huggingface/transformers` has loaded a tiny model in a

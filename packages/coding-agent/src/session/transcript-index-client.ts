@@ -1,7 +1,7 @@
 /**
  * Runs transcript index syncs on a worker thread: the first sync reads every
  * transcript, far too long for any event loop that serves others. The daemon's
- * `transcripts` module holds one {@link TranscriptIndexer} for every omp
+ * `transcripts` module holds one {@link TranscriptIndexer} for every zeta
  * process; a process the daemon cannot serve holds its own.
  */
 import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
@@ -120,7 +120,7 @@ function spawnWorker(): Worker {
 		: new Worker(new URL("./transcript-index-worker.ts", import.meta.url).href, { type: "module" });
 }
 
-/** `omp --smoke-test` probe: spawn the thread through the CLI host, ping, expect `pong`. */
+/** `zetacode --smoke-test` probe: spawn the thread through the CLI host, ping, expect `pong`. */
 export async function smokeTestTranscriptIndexWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

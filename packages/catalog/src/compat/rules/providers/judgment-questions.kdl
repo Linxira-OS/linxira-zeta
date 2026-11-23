@@ -25,7 +25,7 @@ on-api "typesafe" "openrouter-decisions" {
 	}
 	// residue: no taxonomy class covers self-hosted OpenJEV deployments. An
 	// `openjev-*` gateway answered HTTP 422 `at most 16 items`
-	// (https://github.com/can1357/oh-my-pi/issues/15081); which server that is
+	// (https://github.com/Linxira-OS/linxira-zeta/issues/15081); which server that is
 	// remains unidentified, so unknown OpenJEV ids keep the smallest cap
 	// observed. Over-splitting costs requests; under-splitting fails them.
 	models "*openjev*" {

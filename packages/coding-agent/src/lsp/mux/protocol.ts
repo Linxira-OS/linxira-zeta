@@ -6,7 +6,7 @@
  * {@link LSP_ACQUIRE_METHOD} to pick an instance key (the first instance of
  * its server identity with no attached session), `open`s that unit, and
  * `attach`es with the returned token as channel. The tunnel then carries
- * plain Content-Length-framed LSP JSON-RPC plus the private `omp/mux*`
+ * plain Content-Length-framed LSP JSON-RPC plus the private `zeta/mux*`
  * methods below.
  */
 import type { UnitScope } from "@linxiraos/pi-tui/tools/daemon";
@@ -77,10 +77,10 @@ export interface MuxConnectResult {
 	pid?: number;
 }
 
-export const MUX_PING_METHOD = "omp/muxPing";
+export const MUX_PING_METHOD = "zeta/muxPing";
 export const MUX_PING_RESULT = "pong";
 
-export const MUX_RESTART_METHOD = "omp/muxRestartServer";
+export const MUX_RESTART_METHOD = "zeta/muxRestartServer";
 
 /**
  * Last frame the module writes on each tunnel bound to a server that just
@@ -88,7 +88,7 @@ export const MUX_RESTART_METHOD = "omp/muxRestartServer";
  * which a bare close cannot. Sent as `{ jsonrpc, method, params }` (in that
  * key order) so the client finds it by prefix in the tunnel's final bytes.
  */
-export const MUX_SERVER_EXITED_METHOD = "omp/muxServerExited";
+export const MUX_SERVER_EXITED_METHOD = "zeta/muxServerExited";
 
 /** Bytes of server stderr forwarded in {@link MUX_SERVER_EXITED_METHOD}. */
 export const MUX_SERVER_EXIT_STDERR_BYTES = 4_096;

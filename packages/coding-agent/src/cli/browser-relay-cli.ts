@@ -11,7 +11,7 @@ import { runNativeHost } from "../tools/browser/relay/native-host";
 import { registerRelayNativeHost } from "../tools/browser/relay/native-host-manifest";
 import { installRelayInChrome } from "../tools/browser/relay/chrome";
 
-/** Subcommands supported by `omp browser-relay`. */
+/** Subcommands supported by `zetacode browser-relay`. */
 export const BROWSER_RELAY_ACTIONS = ["install", "sync", "native-host"] as const;
 
 /** Selected browser-relay subcommand. */
@@ -43,7 +43,7 @@ export async function runBrowserRelayCommand(args: BrowserRelayCommandArgs): Pro
 async function runSync(): Promise<void> {
 	const results = await syncRelayInstalls();
 	if (results.length === 0) {
-		console.log("No omp extension directories registered. Use `omp browser-relay install` to register one.");
+		console.log("No zeta extension directories registered. Use `zetacode browser-relay install` to register one.");
 		return;
 	}
 	let failed = false;

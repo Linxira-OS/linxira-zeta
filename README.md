@@ -21,7 +21,7 @@ use. Linux is the primary platform; Windows x64 is supported; macOS is not
 built. There is no Rust desktop UI: the desktop editions host the same browser
 workbench.
 
-Zeta is a downstream fork of [OMP](https://github.com/can1357/oh-my-pi),
+Zeta is a downstream fork of [OMP](https://github.com/Linxira-OS/linxira-zeta),
 licensed MIT. The integrated runtime source is OMP **v18.22.0**. Z Work Studio
 is a maintained fork of
 [OMP Studio](https://github.com/the-snowpear/omp-studio); **v0.2.4** renderer
@@ -127,7 +127,7 @@ Three projects make Zeta possible, and we thank their authors and contributors.
 
 | Project | Integrated source | What Zeta takes from it |
 | --- | --- | --- |
-| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | `v18.22.0` (target v19.0.0 held) | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
+| [OMP](https://github.com/Linxira-OS/linxira-zeta) (Zeta), MIT | `v18.22.0` (target v19.0.0 held) | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
 | [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | `v0.2.4` release tag (`v0.2.1` ancestry, 978 sync decisions accepted; v0.2.8 held on OMP 19) | the web UI: renderer, client, and the host contract it speaks |
 | [TermIDE](https://github.com/termide/termide), MIT | `0.49.0` | `zetaide` and the built-in editor pane |
 

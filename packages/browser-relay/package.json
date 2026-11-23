@@ -3,8 +3,8 @@
 	"name": "@linxiraos/browser-relay",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Chrome extension that lets the omp browser tool drive your existing tabs (relay server lives in the omp CLI: `omp browser-relay`)",
-	"homepage": "https://omp.sh",
+	"description": "Chrome extension that lets the zeta browser tool drive your existing tabs (relay server lives in the zeta CLI: `zetacode browser-relay`)",
+	"homepage": "https://zeta.sh",
 	"author": {
 		"name": "Stencil Labs, Inc.",
 		"url": "https://stencil.so"
@@ -12,7 +12,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/browser-relay"
 	},
 	"scripts": {

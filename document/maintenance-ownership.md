@@ -36,7 +36,7 @@ protocol authorizes.
 
 | Class | Where it goes | Sync/consumption rule |
 | --- | --- | --- |
-| **OMP runtime/tool/model/TUI defect** that reproduces without the Zeta overlay | <https://github.com/can1357/oh-my-pi/issues> | Follow the upstream report. Zeta consumes a fix only through the next **named official release tag**; never merge upstream `main` or a branch, and never cherry-pick a partial diff. |
+| **OMP runtime/tool/model/TUI defect** that reproduces without the Zeta overlay | <https://github.com/Linxira-OS/linxira-zeta/issues> | Follow the upstream report. Zeta consumes a fix only through the next **named official release tag**; never merge upstream `main` or a branch, and never cherry-pick a partial diff. |
 | **Upstream bot updates** | Upstream release notes/issues for the affected upstream project | Treat bot updates as upstream input. A fix enters Zeta only through a named official release tag; no branch merge. |
 | **OMP Studio renderer/host-contract defect** that reproduces without the Zeta fork | <https://github.com/the-snowpear/omp-studio/issues> | Zeta syncs only a **named release tag**. There is no `0.2.0` branch merge: `0.2.0` is currently untagged, so a branch is not a sync source. |
 | **TermIDE upstream defect** (terminal, editor, LSP, DAP) | <https://github.com/termide/termide/issues> | Zeta-specific deviations and branding stay **Zeta-owned**; see `termide/VENDOR.md`. The vendored fork is maintained here, not pushed upstream. |

@@ -271,12 +271,12 @@ function magicChanges(input: string): MagicChange[] {
 function describeMagicCall(input: string, streaming: boolean): NativeToolView {
 	const files = magicChanges(input);
 	const view = (file: MagicChange) =>
-		md(file.change, { role: "omp.tool.edit.change", stream: streaming && file.open });
+		md(file.change, { role: "zeta.tool.edit.change", stream: streaming && file.open });
 	const tool = editToolHead({ path: files[0]?.path, files: files.length, added: 0, removed: 0 });
 	if (files.length === 1) return { tool, body: files[0]!.change ? [view(files[0]!)] : [] };
 	return {
 		tool,
-		body: files.map(file => fileDiffSection(file, file.change ? [view(file)] : [], { role: "omp.tool.edit.file" })),
+		body: files.map(file => fileDiffSection(file, file.change ? [view(file)] : [], { role: "zeta.tool.edit.file" })),
 	};
 }
 

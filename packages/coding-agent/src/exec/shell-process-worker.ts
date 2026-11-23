@@ -1,8 +1,8 @@
 /**
  * Shell process: the bash tool's shell run as a process of its own.
  *
- * `omp __zeta_worker_shell_process [options] -- <command>` runs one command in
- * the embedded engine with the tool profile (omp's utilities and tools resolve
+ * `zetacode __zeta_worker_shell_process [options] -- <command>` runs one command in
+ * the embedded engine with the tool profile (zeta's utilities and tools resolve
  * ahead of `PATH`) over this process's own stdin, stdout and stderr, then
  * exits with its status. Externals stay in this process's session and group,
  * so a process started on a pseudo-terminal is that terminal's shell: its
@@ -29,7 +29,7 @@ const INTERRUPT_SETTLE_MS = 250;
 export async function runShellProcess(args: readonly string[]): Promise<never> {
 	const spec = parseShellProcessArgs(args);
 	if (!spec) {
-		process.stderr.write("omp: malformed shell process arguments\n");
+		process.stderr.write("zeta: malformed shell process arguments\n");
 		process.exit(2);
 	}
 	const shell = new Shell({
@@ -70,7 +70,7 @@ export async function runShellProcess(args: readonly string[]): Promise<never> {
 		const result = await shell.run({ command: spec.command, cwd: spec.cwd, signal: abort.signal });
 		status = signalStatus ?? result.exitCode ?? 1;
 	} catch (error) {
-		process.stderr.write(`omp: ${error instanceof Error ? error.message : String(error)}\n`);
+		process.stderr.write(`zeta: ${error instanceof Error ? error.message : String(error)}\n`);
 		status = 1;
 	}
 	process.exit(status);

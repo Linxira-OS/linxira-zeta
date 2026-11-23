@@ -163,7 +163,7 @@ const failedPaths = new Set<string>();
  */
 function openTranscriptIndex(dbPath?: string): Database | undefined {
 	// Tests never touch the user's index: the default store needs an agent dir the test chose.
-	if (dbPath === undefined && isBunTestRuntime() && !process.env.PI_CODING_AGENT_DIR) return undefined;
+	if (dbPath === undefined && isBunTestRuntime() && !process.env.ZETA_CODING_AGENT_DIR) return undefined;
 	const store = dbPath ?? getTranscriptIndexDbPath();
 	const open = handles.get(store);
 	if (open) {

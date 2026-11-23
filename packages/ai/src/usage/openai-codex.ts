@@ -243,7 +243,7 @@ function parseAdditionalRateLimit(payload: unknown): ParsedAdditionalUsage | nul
 /**
  * True when paid credits can still fund plan-window overage. Codex CLI never
  * gates on `/wham/usage`, so once the plan allowance is spent it keeps working
- * off this balance; omp must mirror that or it parks a perfectly usable account
+ * off this balance; zeta must mirror that or it parks a perfectly usable account
  * until the weekly reset.
  *
  * Scoped to the plan verdict on purpose. `credits` describes the account's
@@ -505,7 +505,7 @@ function buildAdditionalUsageLimit(args: {
 			accountId: args.accountId,
 			tier: args.slug,
 			// The meter is per model even when the payload names only its feature
-			// codename; `omp usage` keeps rows with a `modelId` out of the account-wide state.
+			// codename; `zetacode usage` keeps rows with a `modelId` out of the account-wide state.
 			modelId: args.limitName ?? args.meteredFeature,
 			windowId: usageWindow.id,
 			shared: true,

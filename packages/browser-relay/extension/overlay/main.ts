@@ -15,7 +15,7 @@ declare global {
 }
 
 function isOverlayCommand(message: unknown): message is OverlayCommand {
-	return typeof message === "object" && message !== null && "omp" in message && message.omp === "overlay";
+	return typeof message === "object" && message !== null && "zeta" in message && message.zeta === "overlay";
 }
 
 /** Whether this script's extension context still exists (it doesn't after the extension reloads or is removed). */

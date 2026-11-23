@@ -1,5 +1,5 @@
 /**
- * Unattended `omp browser-relay install` into real Chrome profiles: build the install record Chrome would write for
+ * Unattended `zetacode browser-relay install` into real Chrome profiles: build the install record Chrome would write for
  * "Load unpacked", write it with authenticators, and restart the browser it was taken from.
  */
 import * as path from "node:path";

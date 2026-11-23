@@ -70,7 +70,7 @@ export async function relayOverlay(tabId: number, action: OverlayAction): Promis
 	const tabs = await mounted.get();
 	switch (action) {
 		case "mount":
-			await overlay(tabId, { omp: "overlay", op: "mount" });
+			await overlay(tabId, { zeta: "overlay", op: "mount" });
 			if (!tabs.includes(tabId)) {
 				tabs.push(tabId);
 				void mounted.save();
@@ -82,13 +82,13 @@ export async function relayOverlay(tabId: number, action: OverlayAction): Promis
 				tabs.splice(index, 1);
 				void mounted.save();
 			}
-			await overlayIfPresent(tabId, { omp: "overlay", op: "unmount" }, true);
+			await overlayIfPresent(tabId, { zeta: "overlay", op: "unmount" }, true);
 			break;
 		}
 		case "hide":
 		case "show":
 			// Nothing to hide where no overlay runs.
-			await overlayIfPresent(tabId, { omp: "overlay", op: action }, true);
+			await overlayIfPresent(tabId, { zeta: "overlay", op: action }, true);
 			break;
 	}
 	return {};
@@ -98,7 +98,7 @@ export async function relayOverlay(tabId: number, action: OverlayAction): Promis
 export function relayInput(tabId: number, input: OverlayInput): void {
 	void mounted.get().then(tabs => {
 		if (!tabs.includes(tabId)) return;
-		void overlay(tabId, { omp: "overlay", op: "input", input }).catch(() => {
+		void overlay(tabId, { zeta: "overlay", op: "input", input }).catch(() => {
 			// Drawing is cosmetic; the input already happened.
 		});
 	});
@@ -109,7 +109,7 @@ export async function unmountAll(): Promise<void> {
 	const tabs = await mounted.get();
 	const released = tabs.splice(0);
 	void mounted.save();
-	await Promise.allSettled(released.map(tabId => overlayIfPresent(tabId, { omp: "overlay", op: "unmount" }, true)));
+	await Promise.allSettled(released.map(tabId => overlayIfPresent(tabId, { zeta: "overlay", op: "unmount" }, true)));
 }
 
 /**
@@ -127,11 +127,11 @@ export async function setActivity(tabId: number, activity: TabActivity): Promise
 	const deliveries: Promise<unknown>[] = [];
 	if (activity.state === "idle") {
 		delete stored[tabId];
-		deliveries.push(overlayIfPresent(tabId, { omp: "overlay", op: "activity", activity, role: "main" }, true));
+		deliveries.push(overlayIfPresent(tabId, { zeta: "overlay", op: "activity", activity, role: "main" }, true));
 		for (const peer of peers) {
 			if (stored[peer]?.role !== "secondary") continue;
 			delete stored[peer];
-			deliveries.push(overlayIfPresent(peer, { omp: "overlay", op: "activity", activity, role: "secondary" }, true));
+			deliveries.push(overlayIfPresent(peer, { zeta: "overlay", op: "activity", activity, role: "secondary" }, true));
 		}
 		// The next conversation in this group shows its pill again.
 		const index = dismissed.indexOf(tab.groupId);
@@ -141,12 +141,12 @@ export async function setActivity(tabId: number, activity: TabActivity): Promise
 		}
 	} else {
 		stored[tabId] = { activity, role: "main" };
-		deliveries.push(overlay(tabId, { omp: "overlay", op: "activity", activity, role: "main" }));
+		deliveries.push(overlay(tabId, { zeta: "overlay", op: "activity", activity, role: "main" }));
 		for (const peer of peers) {
 			if (stored[peer]?.role === "main") continue;
 			stored[peer] = { activity, role: "secondary" };
 			if (dismissed.includes(tab.groupId)) continue;
-			deliveries.push(overlay(peer, { omp: "overlay", op: "activity", activity, role: "secondary" }));
+			deliveries.push(overlay(peer, { zeta: "overlay", op: "activity", activity, role: "secondary" }));
 		}
 	}
 	void activities.save();
@@ -159,10 +159,10 @@ export async function restoreAfterNavigation(tabId: number, groupId: number): Pr
 	const [tabs, stored, dismissed] = await Promise.all([mounted.get(), activities.get(), dismissedGroups.get()]);
 	const restores: Promise<unknown>[] = [];
 	// Mounting now, not at the next input, keeps the host's insertion out of a click's delivery check.
-	if (tabs.includes(tabId)) restores.push(overlay(tabId, { omp: "overlay", op: "mount" }));
+	if (tabs.includes(tabId)) restores.push(overlay(tabId, { zeta: "overlay", op: "mount" }));
 	const shown = stored[tabId];
 	if (shown && !(shown.role === "secondary" && dismissed.includes(groupId))) {
-		restores.push(overlay(tabId, { omp: "overlay", op: "activity", activity: shown.activity, role: shown.role }));
+		restores.push(overlay(tabId, { zeta: "overlay", op: "activity", activity: shown.activity, role: shown.role }));
 	}
 	await Promise.allSettled(restores);
 }
@@ -195,8 +195,8 @@ function isOverlayEvent(message: unknown): message is OverlayEvent {
 	return (
 		typeof message === "object" &&
 		message !== null &&
-		"omp" in message &&
-		message.omp === "overlay-event" &&
+		"zeta" in message &&
+		message.zeta === "overlay-event" &&
 		"op" in message &&
 		(message.op === "stop" || message.op === "open" || message.op === "dismiss")
 	);
@@ -222,7 +222,7 @@ export function installOverlayEvents(deps: OverlayEventDeps): void {
 				const toPanel = deps.panelConnected();
 				void (toPanel ? Promise.resolve(true) : deps.abortTab(tabId))
 					.catch(() => false)
-					.then(delivered => overlayIfPresent(tabId, { omp: "overlay", op: "stopAck", delivered }, true))
+					.then(delivered => overlayIfPresent(tabId, { zeta: "overlay", op: "stopAck", delivered }, true))
 					.catch(() => {});
 				break;
 			}

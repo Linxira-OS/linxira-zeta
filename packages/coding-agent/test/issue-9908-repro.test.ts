@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/9908
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/9908
  *
  * Every zetacode process used to spawn its own `__zeta_worker_mnemopi_embed` child
  * and keep the embedding model resident for the whole process lifetime

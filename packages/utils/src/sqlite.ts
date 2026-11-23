@@ -32,7 +32,7 @@ export function ensureSqliteLockShim(): boolean {
 		if (!sqliteLockShimInstalled && process.platform === "linux") {
 			logger.warn("SQLite OFD lock shim unavailable; in-process reads of a live store can release its locks", {
 				bun: Bun.version,
-				issue: "https://github.com/can1357/oh-my-pi/issues/15586",
+				issue: "https://github.com/Linxira-OS/linxira-zeta/issues/15586",
 			});
 		}
 	}

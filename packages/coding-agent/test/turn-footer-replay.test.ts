@@ -89,12 +89,12 @@ describe("rebuilt transcript turn footers", () => {
 		} as unknown as SessionContext);
 		harness = await TspHarness.start(tui => tui.addChild(ctx.chatContainer));
 
-		const footers = harness.findAll(node => node.p?.role === "omp.turn.usage");
+		const footers = harness.findAll(node => node.p?.role === "zeta.turn.usage");
 		expect(footers.map(footer => footer.p?.title)).toEqual([
 			expect.stringContaining("3,030 tokens"),
 			expect.stringContaining("505 tokens"),
 		]);
-		for (const copy of harness.findAll(node => node.p?.role === "omp.turn.copy")) {
+		for (const copy of harness.findAll(node => node.p?.role === "zeta.turn.copy")) {
 			harness.event({ ev: "action", sf: harness.terminal.surface!, id: copy.id, act: "copy-answer" });
 		}
 		expect(actions).toEqual([

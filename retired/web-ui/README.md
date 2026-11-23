@@ -184,7 +184,7 @@ instrumentation.ts    # 初始化服务端 HTTP dispatcher
 Zeta Web 基于以下上游项目，深表感谢：
 
 - **[Pi](https://github.com/earendil-works/pi)** — 编码代理架构的奠基项目，由 [@mariozechner](https://github.com/mariozechner) 创建
-- **[Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi)** — Zeta 的直接运行时上游，由 [@can1357](https://github.com/can1357) 维护
+- **[Oh My Pi (OMP)](https://github.com/Linxira-OS/linxira-zeta)** — Zeta 的直接运行时上游，由 [@can1357](https://github.com/can1357) 维护
 - **[Pi Web](https://github.com/agegr/pi-web)** — 浏览器界面架构的原始实现，由 [@agegr](https://github.com/agegr) 创建
 - **[OMP Web](https://github.com/17380936778/omp-web)** — Web UI 的直接上游快照，由 [@17380936778](https://github.com/17380936778) 维护
 

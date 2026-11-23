@@ -1,7 +1,7 @@
 /**
  * MCP 2026-07-28 wire model: the one protocol revision a session speaks.
  *
- * Every omp session talks this stateless revision to the MCP host
+ * Every zeta session talks this stateless revision to the MCP host
  * (`mcp/host/`), which serves it for modern and handshake-era servers alike.
  * Nothing here is connection state: each request carries its own revision,
  * capabilities and identity in `_meta`, every result names its `resultType`,
@@ -52,11 +52,11 @@ export function isModernErrorCode(code: unknown): boolean {
 	);
 }
 
-/** Identity omp reports in `_meta` on every request. */
-export const MCP_CLIENT_INFO: MCPImplementation = { name: "omp-coding-agent", version: "1.0.0" };
+/** Identity zeta reports in `_meta` on every request. */
+export const MCP_CLIENT_INFO: MCPImplementation = { name: "zeta-coding-agent", version: "1.0.0" };
 
 /**
- * Capabilities omp declares on every request. Roots are the only server ask it
+ * Capabilities zeta declares on every request. Roots are the only server ask it
  * answers, so `roots/list` is the only input request a server may return.
  */
 export const MCP_CLIENT_CAPABILITIES: MCPClientCapabilities = { roots: {} };

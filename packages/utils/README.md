@@ -1,6 +1,6 @@
 # @linxiraos/pi-utils
 
-Shared utilities for [omp](https://github.com/can1357/oh-my-pi) packages. Zero ceremony, Bun-first.
+Shared utilities for [omp](https://github.com/Linxira-OS/linxira-zeta) packages. Zero ceremony, Bun-first.
 
 ## Notable modules
 

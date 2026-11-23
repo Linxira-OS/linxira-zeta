@@ -1,14 +1,14 @@
 // @ts-nocheck — merge checkpoint: pending OMP 19.1 API migration
 /**
- * `get_model_picker`: omp's session model picker (alt+p, `/switch`) served over RPC, so a remote picker such as the
+ * `get_model_picker`: zeta's session model picker (alt+p, `/switch`) served over RPC, so a remote picker such as the
  * Chrome side panel lists models exactly as the TUI does. Browsing puts the Recent block (role-held and recently used
  * models) ahead of the rest; a query ranks by relevance, then the user's role and usage affinity (`provider/` limits it
  * to a provider); a query starting with `@` lists the ctrl+p quick roles. Rows carry the roles a model holds and its
  * thinking slider. Every ordering, ranking and slider rule comes from the TUI picker's own helpers.
  */
-import type { Model } from "@oh-my-pi/pi-ai";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { fuzzyRank } from "@oh-my-pi/pi-tui/fuzzy";
+import type { Model } from "@linxiraos/pi-ai";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { fuzzyRank } from "@linxiraos/pi-tui/fuzzy";
 import {
 	buildSearchAffinity,
 	heldRoles,
@@ -20,9 +20,9 @@ import {
 	roleChipLabel,
 	type SessionModelScope,
 	SessionModelScopeCache,
-} from "@oh-my-pi/pi-tui/overlays/model-browser";
-import { thinkingSlider } from "@oh-my-pi/pi-tui/overlays/model-picker";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+} from "@linxiraos/pi-tui/overlays/model-browser";
+import { thinkingSlider } from "@linxiraos/pi-tui/overlays/model-picker";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { cfgCycleOrder } from "../../config/model-settings";
 import type { AgentSession } from "../../session/agent-session";
 import { createModelBrowserSource } from "../model-browser-source";

@@ -1,6 +1,6 @@
 /**
  * Chromium browsers on this machine and their profiles, read from their user data directories without touching them:
- * where omp registers its native messaging host, and whether a profile already loads an omp install folder.
+ * where zeta registers its native messaging host, and whether a profile already loads an zeta install folder.
  */
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -21,7 +21,7 @@ interface BrowserDefinition {
 	keychain: string;
 }
 
-/** Chromium browsers omp supports, with each platform's user data directory relative to its base. */
+/** Chromium browsers zeta supports, with each platform's user data directory relative to its base. */
 const BROWSERS: readonly BrowserDefinition[] = [
 	{
 		name: "Google Chrome",

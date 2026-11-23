@@ -19,7 +19,7 @@ function facade(diff: unknown = "patch") {
 		__omp_log__: (_level: string, text: unknown) => {
 			printed.push(text);
 		},
-		__omp_prelude__: async (_name: string, parameters: { action: string }) => {
+		__zeta_prelude__: async (_name: string, parameters: { action: string }) => {
 			calls.push(parameters);
 			if (parameters.action === "diff") return diff;
 			return { text: "summary", details: { id: "d1", remaining: { id: "d2" } } };

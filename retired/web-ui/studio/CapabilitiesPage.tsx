@@ -516,7 +516,7 @@ export function CapabilitiesPage({
 
   /**
    * Whole-package plugin toggle (`plugins.setEnabled`): preview mode only
-   * mutates local state; real mode writes the OMP-native files through the
+   * mutates local state; real mode writes the Zeta-native files through the
    * Host and re-reads `skills.get` after the receipt so the list reflects
    * the disk immediately.
    */

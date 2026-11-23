@@ -1,10 +1,10 @@
 /**
- * Chrome native messaging host behind the omp extension (`omp browser-relay native-host`): its chats and its relay.
+ * Chrome native messaging host behind the zeta extension (`zetacode browser-relay native-host`): its chats and its relay.
  *
  * Chrome starts one host per `chrome.runtime.connectNative` port and talks to it over stdio: every message is a
  * uint32 little-endian byte length followed by that many bytes of UTF-8 JSON. stdout carries only those frames; logs
  * go to stderr. The first extension message picks the port's job:
- * - `open{cwd}`: a chat. The host starts `omp --mode rpc` there and relays rpc JSON lines both ways until either side
+ * - `open{cwd}`: a chat. The host starts `zetacode --mode rpc` there and relays rpc JSON lines both ways until either side
  *   goes away. It negotiates rpc protocol v2 itself, ahead of any extension command, and reassembles its `rpc_chunk`
  *   frames, so the extension always sees whole logical lines and large responses (a transcript full of screenshots,
  *   the model list) arrive intact.
@@ -31,9 +31,9 @@ const STDERR_TAIL_BYTES = 8 * 1024;
 /** Grace between SIGTERM and SIGKILL when the extension disconnects. */
 const KILL_GRACE_MS = 3_000;
 /** Request id of the host's own protocol negotiation; its response is not forwarded. */
-const NEGOTIATE_ID = "omp-native-host:negotiate";
+const NEGOTIATE_ID = "zeta-native-host:negotiate";
 
-/** A spawned `omp --mode rpc` as the host drives it. */
+/** A spawned `zetacode --mode rpc` as the host drives it. */
 export interface RpcChild {
 	pid: number;
 	stdout: ReadableStream<Uint8Array>;
@@ -59,7 +59,7 @@ export interface NativeHostIo {
 	log(message: string): void;
 }
 
-/** Entry for `omp browser-relay native-host`: serves Chrome on this process's stdio. */
+/** Entry for `zetacode browser-relay native-host`: serves Chrome on this process's stdio. */
 export async function runNativeHost(): Promise<void> {
 	const command = [...resolveCliEntryCmd(), "--mode", "rpc"];
 	let flushed = Promise.resolve();
@@ -73,7 +73,7 @@ export async function runNativeHost(): Promise<void> {
 		spawn: (cwd, relayUrl) => spawnRpcChild(command, cwd, relayUrl),
 		relayPort: 0,
 		log: message => {
-			process.stderr.write(`omp native host: ${message}\n`);
+			process.stderr.write(`zetacode native host: ${message}\n`);
 		},
 	});
 	// Deliver the final `exit` frame, then leave: nothing else may keep the host alive once Chrome is gone.
@@ -257,7 +257,7 @@ export async function serveNativeHost(io: NativeHostIo): Promise<void> {
 			t: "exit",
 			code: null,
 			stderr:
-				"Chrome is running an older omp extension worker. Reload omp at chrome://extensions, then reopen the side panel.",
+				"Chrome is running an older zeta extension worker. Reload zeta at chrome://extensions, then reopen the side panel.",
 		});
 		return;
 	}
@@ -286,7 +286,7 @@ export async function serveNativeHost(io: NativeHostIo): Promise<void> {
 		send({
 			t: "exit",
 			code: null,
-			stderr: `failed to start omp: ${error instanceof Error ? error.message : String(error)}`,
+			stderr: `failed to start zeta: ${error instanceof Error ? error.message : String(error)}`,
 		});
 		return;
 	}

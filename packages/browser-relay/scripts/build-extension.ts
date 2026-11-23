@@ -1,6 +1,6 @@
 /**
- * Builds the omp extension. `bun scripts/build-extension.ts` writes `dist/extension/`, the GitHub release ZIP, and the
- * CLI's embedded copy for `omp browser-relay install`; `--embedded` writes only the embedded copy. That copy is
+ * Builds the zeta extension. `bun scripts/build-extension.ts` writes `dist/extension/`, the GitHub release ZIP, and the
+ * CLI's embedded copy for `zetacode browser-relay install`; `--embedded` writes only the embedded copy. That copy is
  * generated, not committed: `bun install` writes it for source checkouts, and binary and npm builds embed it through
  * {@link generateEmbeddedExtension}.
  */
@@ -33,7 +33,7 @@ if (import.meta.main) {
  * base64-encoded. Returns the JSON text written.
  */
 export async function generateEmbeddedExtension(): Promise<string> {
-	const scratch = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-extension-"));
+	const scratch = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-relay-extension-"));
 	try {
 		await bundleExtension(scratch);
 		return (await writeEmbedded(scratch)).json;
@@ -60,7 +60,7 @@ async function buildRelease(): Promise<void> {
 		Bun.write(manifest, stampRelayExtensionManifest(unstampedManifest, zetaVersion)),
 		Bun.write(background, stampRelayExtensionScript(unstampedScript, zetaVersion, build)),
 	]);
-	const zipPath = path.join(dist, "omp-browser-relay-extension.zip");
+	const zipPath = path.join(dist, "zeta-browser-relay-extension.zip");
 	await $`zip -qr ${zipPath} .`.cwd(distExtension);
 	console.log(`Built:\n  ${distExtension}\n  ${zipPath}\n  ${embeddedFile}`);
 }
@@ -86,7 +86,13 @@ async function bundleExtension(outDir: string): Promise<void> {
 		...staticFiles.map(name => Bun.write(path.join(outDir, name), Bun.file(path.join(source, name)))),
 		Bun.write(path.join(outDir, "LICENSE"), Bun.file(path.resolve(root, "../../LICENSE"))),
 	]);
-	for (const name of ["panel.css", "icons/omp-16.png", "icons/omp-32.png", "icons/omp-48.png", "icons/omp-128.png"]) {
+	for (const name of [
+		"panel.css",
+		"icons/zeta-16.png",
+		"icons/zeta-32.png",
+		"icons/zeta-48.png",
+		"icons/zeta-128.png",
+	]) {
 		if (!(await Bun.file(path.join(outDir, name)).exists())) throw new Error(`Missing extension file: ${name}`);
 	}
 }

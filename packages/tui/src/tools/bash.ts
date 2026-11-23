@@ -521,20 +521,20 @@ function describeStepOutput(step: ShellStepView, previewLines: number): NativeCh
 				: undefined;
 	const head = row(
 		compact<NativeChild>([
-			text(step.label, { role: "omp.tool.bash.step.label", wrap: "none", truncate: "end" }),
+			text(step.label, { role: "zeta.tool.bash.step.label", wrap: "none", truncate: "end" }),
 			step.note !== undefined &&
-				text([span(step.note, "mono")], { role: "omp.tool.bash.step.note", wrap: "none", truncate: "end" }),
+				text([span(step.note, "mono")], { role: "zeta.tool.bash.step.note", wrap: "none", truncate: "end" }),
 			node("spacer", { grow: 1 }),
 			step.pinned && quietButton("Show output", "unpin", "Show the command's own output"),
 		]),
-		{ role: "omp.tool.bash.step", gap: "sm", align: "center" },
+		{ role: "zeta.tool.bash.step", gap: "sm", align: "center" },
 	);
 	return [
 		keyed(head, "step"),
 		empty !== undefined
-			? keyed(text(empty, { role: "omp.tool.bash.nooutput" }), "step-empty")
+			? keyed(text(empty, { role: "zeta.tool.bash.nooutput" }), "step-empty")
 			: runOutput((step.text ?? "").trimEnd(), {
-					role: "omp.tool.bash.output",
+					role: "zeta.tool.bash.output",
 					previewLines,
 					key: `step-${stableKey(step.id)}`,
 				}),

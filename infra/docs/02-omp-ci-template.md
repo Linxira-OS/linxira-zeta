@@ -22,7 +22,7 @@
 | Bazel repository cache (+ repo contents cache) and the xwin MSVC/SDK download cache | `/opt/bazel-repo-cache`, `/opt/bazel-repo-cache/xwin` | same |
 | `RUSTUP_HOME`, `CARGO_HOME` | appended to the runner `.env` | — |
 
-All warm caches come from one **pinned checkout** of `can1357/oh-my-pi` (`--ref`, default `main`, resolved to a SHA when the build starts), cloned at the exact path actions/checkout uses (`/home/user/actions-runner/_work/oh-my-pi/oh-my-pi`) so the Bazel output base — keyed by workspace path — is the one jobs reuse. The checkout is deleted afterwards; jobs check out their own commit into an empty workspace.
+All warm caches come from one **pinned checkout** of `Linxira-OS/linxira-zeta` (`--ref`, default `main`, resolved to a SHA when the build starts), cloned at the exact path actions/checkout uses (`/home/user/actions-runner/_work/oh-my-pi/oh-my-pi`) so the Bazel output base — keyed by workspace path — is the one jobs reuse. The checkout is deleted afterwards; jobs check out their own commit into an empty workspace.
 
 The Bazel warm-up runs `bazelisk build --nobuild --config=ci --repository_cache=/opt/bazel-repo-cache --repo_env=OMP_XWIN_CACHE_DIR=/opt/bazel-repo-cache/xwin //:natives-all //crates/...`. These are exactly the cache flags `.github/actions/bazel-cache` emits on vmon runners; keep the two in sync, or the repo-contents-cache keys (the xwin repo declares `OMP_XWIN_CACHE_DIR` as an input) stop matching and jobs refetch.
 

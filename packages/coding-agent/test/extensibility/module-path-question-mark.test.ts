@@ -35,7 +35,7 @@ const LIMIT =
 
 /** A new temporary root, by its real path (macOS's tmpdir is a link). */
 async function makeRoot(): Promise<string> {
-	const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-module-path-q-")));
+	const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "zeta-module-path-q-")));
 	roots.push(root);
 	return root;
 }
@@ -199,7 +199,7 @@ describe.skipIf(process.platform === "win32")("a module under a path that contai
 		].join("\n");
 		const child = Bun.spawn([process.execPath, "-e", probe], {
 			cwd: path.join(import.meta.dir, "..", ".."),
-			env: { ...process.env, PI_CODING_AGENT_DIR: agentDir },
+			env: { ...process.env, ZETA_CODING_AGENT_DIR: agentDir },
 			stdout: "pipe",
 			stderr: "pipe",
 		});

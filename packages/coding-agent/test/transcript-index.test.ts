@@ -12,12 +12,12 @@ import {
 } from "@linxiraos/zeta/session/transcript-index";
 import { getConfigRootDir, getSessionsDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let root: string;
 let bucket: string;
 
 beforeEach(() => {
-	root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-transcripts-"));
+	root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-transcripts-"));
 	setAgentDir(path.join(root, "agent"));
 	closeTranscriptIndex();
 	bucket = path.join(getSessionsDir(), "--proj--");
@@ -30,7 +30,7 @@ afterEach(() => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(path.join(getConfigRootDir(), "agent"));
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	removeSyncWithRetries(root);
 });

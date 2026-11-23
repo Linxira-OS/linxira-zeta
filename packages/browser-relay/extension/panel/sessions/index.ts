@@ -1,6 +1,6 @@
 /**
- * Factories for the two {@link PanelSession} sources: a collab guest of a running omp, and a worker-owned
- * `omp --mode rpc` session behind the native host.
+ * Factories for the two {@link PanelSession} sources: a collab guest of a running zeta, and a worker-owned
+ * `zetacode --mode rpc` session behind the native host.
  */
 import type { RpcSessionInfo } from "../../messages";
 import type { PanelSession, PanelWorker } from "../session";

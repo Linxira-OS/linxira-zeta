@@ -383,7 +383,7 @@ export class TestLink {
 		return this.messages.filter(message => message.method === method);
 	}
 
-	/** Wait for an `omp/status` whose params contain `expected`. */
+	/** Wait for an `zeta/status` whose params contain `expected`. */
 	async status(expected: Record<string, unknown>): Promise<Message> {
 		return await this.next(
 			message => {

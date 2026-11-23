@@ -1,6 +1,6 @@
 /**
  * The conversation the side panel shows. Two implementations share it: `sessions/collab.ts` joins a running
- * interactive omp as a collab guest, `sessions/rpc.ts` drives a worker-owned `omp --mode rpc` through the native
+ * interactive zeta as a collab guest, `sessions/rpc.ts` drives a worker-owned `zetacode --mode rpc` through the native
  * host. The UI renders only this interface and never knows which one it has.
  */
 import type { GuestSnapshot } from "@linxiraos/browser-panel/src/lib/client";
@@ -28,7 +28,7 @@ export type PanelSnapshot = PanelTranscript & {
 export interface PanelThinking {
 	/** Active selector: `auto` while auto mode picks the effort per turn. */
 	level: ConfiguredThinkingLevel;
-	/** Selectors the model accepts, in omp's order (`off`, `auto`, then efforts); empty when it does not reason. */
+	/** Selectors the model accepts, in zeta's order (`off`, `auto`, then efforts); empty when it does not reason. */
 	levels: readonly ConfiguredThinkingLevel[];
 }
 
@@ -73,14 +73,14 @@ export interface PanelSession {
 	/** `useSyncExternalStore` pair: snapshots are immutable and change identity on every update. */
 	subscribe(listener: () => void): () => void;
 	getSnapshot(): PanelSnapshot;
-	/** Send a user prompt. A running turn takes it as steering, or once it finishes with `followUp` (omp's Ctrl+Enter). */
+	/** Send a user prompt. A running turn takes it as steering, or once it finishes with `followUp` (zeta's Ctrl+Enter). */
 	prompt(text: string, images: readonly ImageContent[], options?: { followUp?: boolean }): void;
-	/** omp's `.`/`c` continue shortcut: resume the agent, interrupting a running turn first. Failures become notices. */
+	/** zeta's `.`/`c` continue shortcut: resume the agent, interrupting a running turn first. Failures become notices. */
 	resume(): void;
-	/** omp's empty Enter: interrupt a running turn that has queued input and continue it with that input. */
+	/** zeta's empty Enter: interrupt a running turn that has queued input and continue it with that input. */
 	deliverQueue(): void;
 	/**
-	 * Stop the running turn, as omp's Esc: queued messages come back, oldest first, instead of running later. Resolves
+	 * Stop the running turn, as zeta's Esc: queued messages come back, oldest first, instead of running later. Resolves
 	 * once the host acknowledged, rejects when it can't reach the host. A collab host keeps its queue (it may hold the
 	 * host's own messages), so collab sessions resolve with none.
 	 */
@@ -93,7 +93,7 @@ export interface PanelSession {
 	 */
 	listModels?(): Promise<readonly PanelModel[]>;
 	/**
-	 * omp's session model picker rows for `query` (blank browses; `@` lists quick roles), ordered and ranked as the TUI
+	 * zeta's session model picker rows for `query` (blank browses; `@` lists quick roles), ordered and ranked as the TUI
 	 * picker shows them. Absent when the host doesn't allow switching.
 	 */
 	pickModels?(query: string): Promise<ModelPickerResult>;

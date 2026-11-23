@@ -9,7 +9,7 @@ import { buildCommitted, buildTimeline, isStep, liveVerb, type TimelineItem } fr
 const TAB: TabContext = {
 	tabId: 412,
 	windowId: 1,
-	url: "https://github.com/can1357/oh-my-pi/pull/42?a=1&b=2",
+	url: "https://github.com/Linxira-OS/linxira-zeta/pull/42?a=1&b=2",
 	title: 'Fix "relay" <reconnect> · PR #42',
 	groupId: -1,
 	targetId: "PAGEab12cd34.412",
@@ -20,7 +20,7 @@ describe("tab context block", () => {
 	it("starts the prompt with the tag and the authorization sentence the agent reads", () => {
 		const prompt = composePrompt([tabContextBlock(TAB, TAB.viewport)], "Merge this if CI is green");
 		expect(prompt).toBe(
-			'<chrome-tab target="PAGEab12cd34.412" url="https://github.com/can1357/oh-my-pi/pull/42?a=1&amp;b=2" ' +
+			'<chrome-tab target="PAGEab12cd34.412" url="https://github.com/Linxira-OS/linxira-zeta/pull/42?a=1&amp;b=2" ' +
 				'title="Fix &quot;relay&quot; &lt;reconnect&gt; · PR #42" viewport="1440x900"/>\n' +
 				`${TAB_AUTHORIZATION}\n\nMerge this if CI is green`,
 		);

@@ -75,7 +75,7 @@ export function createGallerySegmentContext(sessionOptions?: GallerySessionOptio
 		git: {
 			branch: "gallery/reference",
 			status: { staged: 2, unstaged: 3, untracked: 1 },
-			pr: { number: 1842, url: "https://github.com/can1357/oh-my-pi/pull/1842" },
+			pr: { number: 1842, url: "https://github.com/Linxira-OS/linxira-zeta/pull/1842" },
 		},
 		worktree: null,
 		usage: {

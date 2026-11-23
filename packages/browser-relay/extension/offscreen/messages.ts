@@ -4,7 +4,7 @@ import type { GifFrame } from "../messages";
 export const OFFSCREEN_PAGE = "offscreen.html";
 
 /** Worker → offscreen document request to compose and encode a run. */
-export type EncodeGifRequest = { omp: "encode-gif"; frames: GifFrame[] };
+export type EncodeGifRequest = { zeta: "encode-gif"; frames: GifFrame[] };
 
 /** Offscreen → worker GIF data URL or a readable error for the panel. */
 export type EncodeGifResult = { ok: true; url: string } | { ok: false; error: string };

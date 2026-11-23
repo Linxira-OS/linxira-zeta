@@ -10,13 +10,13 @@
 	],
 	"homepage": "https://omp.sh",
 	"bugs": {
-		"url": "https://github.com/can1357/oh-my-pi/issues"
+		"url": "https://github.com/Linxira-OS/linxira-zeta/issues"
 	},
 	"license": "MIT",
 	"author": { "name": "Stencil Labs, Inc.", "url": "https://stencil.so" },
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/can1357/oh-my-pi.git",
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
 		"directory": "packages/utils"
 	},
 	"files": [

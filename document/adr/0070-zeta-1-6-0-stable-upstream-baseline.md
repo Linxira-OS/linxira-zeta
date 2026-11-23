@@ -27,5 +27,5 @@ The earlier `v18.22.2` baseline adds a second complete merge and gate cycle ahea
 
 ## Links
 
-- [OMP v18.22.0](https://github.com/can1357/oh-my-pi/releases/tag/v18.22.0)
-- [OMP GPT‑6.2 catalog change](https://github.com/can1357/oh-my-pi/commit/2dedb850ac86e73aadc385e5b9cf08eac096e475)
+- [OMP v18.22.0](https://github.com/Linxira-OS/linxira-zeta/releases/tag/v18.22.0)
+- [OMP GPT‑6.2 catalog change](https://github.com/Linxira-OS/linxira-zeta/commit/2dedb850ac86e73aadc385e5b9cf08eac096e475)

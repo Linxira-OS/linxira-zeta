@@ -14,7 +14,7 @@
 **来源：`AGENTS.md`（Zeta Direction / Brand Surface Registry）、本批次 spec §13、
 `roadmap.md`（Deferred Queue TUI 套件条）。**
 
-Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运行时树、
+Zeta 是 OMP（oh-my-pi，github.com/Linxira-OS/linxira-zeta）的下游发行版：运行时树、
 包布局、Bun workflow、内部 `@linxiraos/*` 命名**刻意**跟随 OMP，唯一目标是
 上游 release tag 永远可合并。分叉的自由度只留给品牌面与产品面。
 
@@ -143,7 +143,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   为什么：观测面一旦变成数据外流通道或反向类型耦合，数据主权与包边界
   同时失守。
 - **跨面 token 只扫一面 = 事故**：同一 token 存在于 producer/consumer 两侧
-  ——worker argv 协议（源 `__omp_worker_*` ↔ cli.ts 派发侧）、env 契约
+  ——worker argv 协议（源 `__zeta_worker_*` ↔ cli.ts 派发侧）、env 契约
   （测试设 `ZETA_CODING_AGENT_DIR` ↔ 源只读 `ZETA_*`）、UA 正则、CLI 提示串、
   XDG 目录名、测试夹具写死的版本坐标。只扫一面的症状是 `check:ts` 全绿但
   运行时/CI 才炸（v18.4.3 首轮六红同根）。规则：清扫必须 producer+consumer

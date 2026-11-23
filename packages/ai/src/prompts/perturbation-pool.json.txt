@@ -192,12 +192,12 @@
 			]
 		},
 		{
-			"source": "OMP-native repository security scans: plan, start, inspect, cancel, validate.",
+			"source": "Zeta-native repository security scans: plan, start, inspect, cancel, validate.",
 			"origin": "tools/security-scan.md",
 			"variants": [
-				"OMP-native repository security scans: plan, launch, inspect, cancel, validate.",
-				"OMP-native repository security scans: plan, start, examine, cancel, validate.",
-				"OMP-native repository security scans: plan, initiate, inspect, cancel, validate."
+				"Zeta-native repository security scans: plan, launch, inspect, cancel, validate.",
+				"Zeta-native repository security scans: plan, start, examine, cancel, validate.",
+				"Zeta-native repository security scans: plan, initiate, inspect, cancel, validate."
 			]
 		},
 		{
@@ -6250,11 +6250,11 @@
 			]
 		},
 		{
-			"source": "Coordinate an OMP-native software-security scan.",
+			"source": "Coordinate an Zeta-native software-security scan.",
 			"origin": "security/scan-coordinator.md",
 			"variants": [
 				"Coordinate a software-security scan native to OMP.",
-				"Coordinate an OMP-native scan for software security.",
+				"Coordinate an Zeta-native scan for software security.",
 				"Coordinate a software-security scan built for OMP."
 			]
 		},
@@ -11276,12 +11276,12 @@
 			]
 		},
 		{
-			"source": "Publish current OMP-native security scan's canonical result.",
+			"source": "Publish current Zeta-native security scan's canonical result.",
 			"origin": "tools/security-publish.md",
 			"variants": [
-				"Publish the canonical result of the current OMP-native security scan.",
-				"Publish the OMP-native security scan's current canonical result.",
-				"Publish the current OMP-native security scan and its canonical result."
+				"Publish the canonical result of the current Zeta-native security scan.",
+				"Publish the Zeta-native security scan's current canonical result.",
+				"Publish the current Zeta-native security scan and its canonical result."
 			]
 		},
 		{

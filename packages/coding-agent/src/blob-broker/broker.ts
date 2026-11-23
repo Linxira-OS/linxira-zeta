@@ -3,9 +3,9 @@
  *
  * `LocalBlobBackend` runs everything in-process — either a loopback HTTP
  * server behind a tunnel/direct exposure (serve mode) or a push-once uploader
- * (upload mode). The omp daemon's `blob` module hosts one per project and
+ * (upload mode). The zeta daemon's `blob` module hosts one per project and
  * config, and `service.ts` reaches it through the same {@link BlobBackend}
- * contract so every omp process reuses one exposure and one URL per blob.
+ * contract so every zeta process reuses one exposure and one URL per blob.
  *
  * Design invariants:
  * - **Stable, multi-use URLs.** A blob's URL is keyed by content hash for the
@@ -76,7 +76,7 @@ const SERVE_KINDS: Readonly<Partial<Record<BlobDestinationId, true>>> = {
 	"named-cloudflared": true,
 };
 
-/** `url` without userinfo (`user:password@`), for logs and the `omp ps` label. */
+/** `url` without userinfo (`user:password@`), for logs and the `zetacode ps` label. */
 export function redactUrl(url: string): string {
 	try {
 		const parsed = new URL(url);

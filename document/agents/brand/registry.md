@@ -112,7 +112,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 
 已全量扫成 `__zeta*`（勿回退）：`__zeta_call_tool__`→`__zeta_call_tool__`（38）、`__omp_log__`→`__zeta_log__`（22）、
 `__omp_import__`/`__omp_import_from__`（19）、`__omp_helpers__`（13）、`__omp_tools__`（13）、
-`__omp_prelude__`/`__omp_session__`/`__omp_shell__`/`__omp_magic*` 等，合计 227 处。
+`__zeta_prelude__`/`__omp_session__`/`__omp_shell__`/`__omp_magic*` 等，合计 227 处。
 上游 v18.15.0 仍是 `__omp_*`——**每次同步这批行必然冲突**，属已知成本。
 ## 合并不许复活的删除项（2026-11-02）
 

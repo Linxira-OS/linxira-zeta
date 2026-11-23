@@ -612,7 +612,7 @@ interface CoreCommandInputMap {
   /**
    * Whole-package plugin enable/disable: whether the plugin enters the
    * Runtime session. Never uninstalls or touches node_modules. Writes the
-   * OMP-native files (installed_plugins.json / zeta-plugins.lock.json /
+   * Zeta-native files (installed_plugins.json / zeta-plugins.lock.json /
    * plugin-overrides.json) so `skills.get` reflects the change immediately.
    */
   "plugins.setEnabled": {
@@ -633,7 +633,7 @@ interface CoreCommandInputMap {
     readonly scope?: "user" | "project";
   };
   /**
-   * Enable/disable a configured MCP server in OMP-native mcp.json
+   * Enable/disable a configured MCP server in Zeta-native mcp.json
    * (and user-level disabledServers / enabledServers). Reflects in `mcp.get`
    * immediately; Runtime reconnect is `new-session`.
    */

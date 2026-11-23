@@ -39,7 +39,7 @@ function manifestPaths(platform: NodeJS.Platform, options: RelayNativeHostOption
 
 function launcherText(platform: NodeJS.Platform, command: readonly string[]): string {
 	const argv = [...command, "browser-relay", "native-host"];
-	// Chrome passes origin/window metadata to the launcher, not to the omp CLI.
+	// Chrome passes origin/window metadata to the launcher, not to the zeta CLI.
 	if (platform !== "win32") return `#!/bin/sh\nexec ${quotePosixArgv(argv)}\n`;
 	const line = argv.map(arg => `"${arg.replace(/%/g, "%%")}"`).join(" ");
 	return `@echo off\r\nsetlocal DisableDelayedExpansion\r\n${line}\r\nexit /b %errorlevel%\r\n`;
@@ -72,7 +72,7 @@ function resolveHost(options: RelayNativeHostOptions): {
 function manifestText(launcher: string, extensionIds: readonly string[]): string {
 	const manifest = {
 		name: NATIVE_HOST,
-		description: "omp browser native messaging host",
+		description: "zeta browser native messaging host",
 		path: launcher,
 		type: "stdio",
 		allowed_origins: [...new Set(extensionIds)].sort().map(id => `chrome-extension://${id}/`),
@@ -108,12 +108,12 @@ export async function registerRelayNativeHost(extensionIds: readonly string[]): 
 	if (process.platform !== "win32" || !manifest) return;
 	const result = await $`reg.exe add ${CHROME_REGISTRY_KEY} /ve /t REG_SZ /d ${manifest} /f`.quiet().nothrow();
 	if (result.exitCode !== 0) {
-		throw new Error(`Could not register the omp native messaging host: ${result.stderr.toString().trim()}`);
+		throw new Error(`Could not register the zeta native messaging host: ${result.stderr.toString().trim()}`);
 	}
 }
 
 /**
- * After an omp update or a new install folder: repoint an installed launcher and widen the manifests that already
+ * After an zeta update or a new install folder: repoint an installed launcher and widen the manifests that already
  * exist to `extensionIds`, without creating registrations for browsers that had none.
  */
 export async function refreshRelayNativeHost(

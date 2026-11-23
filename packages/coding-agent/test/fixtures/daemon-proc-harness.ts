@@ -1,9 +1,9 @@
 /**
- * A real omp daemon isolated in a private temp dir, plus a raw protocol
+ * A real zeta daemon isolated in a private temp dir, plus a raw protocol
  * connection to it, for tests of `proc` units, leases and the store.
  *
- * Nothing here touches `process.env` or `~/.omp`: the daemon runs as a child
- * process whose env names the temp dir (`OMP_DAEMON_DIR`), and connections dial
+ * Nothing here touches `process.env` or `~/.zeta`: the daemon runs as a child
+ * process whose env names the temp dir (`ZETA_DAEMON_DIR`), and connections dial
  * its endpoint and read its token directly. {@link TestDaemon.dispose} stops
  * every unit it saw (detached ones outlive the daemon), shuts the daemon down,
  * kills whatever survived, and deletes the dir.
@@ -198,7 +198,7 @@ export class DaemonConn {
 export class TestDaemon {
 	/** Temp root: `cwd` for units, stderr captures, and the daemon dir below it. */
 	readonly root: string;
-	/** `OMP_DAEMON_DIR` of the daemon. */
+	/** `ZETA_DAEMON_DIR` of the daemon. */
 	readonly dir: string;
 	readonly #env: Record<string, string>;
 	readonly #conns = new Set<DaemonConn>();
@@ -217,7 +217,7 @@ export class TestDaemon {
 	static async start(
 		options: { env?: Record<string, string> } = {},
 	): Promise<{ daemon: TestDaemon; conn: DaemonConn }> {
-		const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-dt-")));
+		const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "zeta-dt-")));
 		const daemon = new TestDaemon(root, options.env ?? {});
 		try {
 			const conn = await daemon.spawn();
@@ -258,7 +258,7 @@ export class TestDaemon {
 		delete env[DAEMON_RESUME_ENV];
 		env[DAEMON_DIR_ENV] = this.dir;
 		env.PI_TEST_RUNTIME = "1";
-		env.PI_CODING_AGENT_DIR = path.join(this.root, "agent");
+		env.ZETA_CODING_AGENT_DIR = path.join(this.root, "agent");
 		Object.assign(env, this.#env);
 		this.#spawns++;
 		const proc = Bun.spawn([process.execPath, CLI_ENTRY, DAEMON_WORKER_ARG], {

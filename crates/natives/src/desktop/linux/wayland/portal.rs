@@ -38,13 +38,13 @@ pub(super) fn portal_runtime() -> CoreResult<&'static Runtime> {
 /// #7884 dropped the restore-token path.
 const ORPHANED_REMOTE_DESKTOP_TOKEN: &str = "remote-desktop-token";
 
-/// Resolves the `zeta` state directory (`$XDG_STATE_HOME/zeta` or
-/// `~/.local/state/zeta`) that holds portal tokens.
-fn zeta_state_dir() -> Option<PathBuf> {
+/// Resolves the `zetacode` state directory (`$XDG_STATE_HOME/omp` or
+/// `~/.local/state/omp`) that holds portal tokens.
+fn omp_state_dir() -> Option<PathBuf> {
 	let base = std::env::var_os("XDG_STATE_HOME")
 		.map(PathBuf::from)
 		.or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/state")))?;
-	Some(base.join("zeta"))
+	Some(base.join("omp"))
 }
 
 fn remove_token_in(dir: &Path) {
@@ -55,72 +55,31 @@ fn remove_token_in(dir: &Path) {
 /// behind by pre-#7884 builds. Runs on Wayland backend construction; a missing
 /// file is success, so it is safe to call on every session.
 pub(super) fn remove_orphaned_remote_desktop_token() {
-	if let Some(dir) = zeta_state_dir() {
+	if let Some(dir) = omp_state_dir() {
 		remove_token_in(&dir);
 	}
 }
 
 fn token_path(name: &str) -> Option<PathBuf> {
-	Some(zeta_state_dir()?.join(name))
+	Some(omp_state_dir()?.join(name))
 }
 
 pub(super) fn read_token(name: &str) -> Option<String> {
-	let path = token_path(name)?;
-	let metadata = fs::symlink_metadata(&path).ok()?;
-	if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 16 * 1024 {
-		return None;
-	}
-	fs::read_to_string(path)
+	fs::read_to_string(token_path(name)?)
 		.ok()
 		.map(|token| token.trim().to_string())
 		.filter(|token| !token.is_empty())
 }
 
 pub(super) fn store_token(name: &str, token: Option<&str>) {
-	use std::{
-		io::Write,
-		os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
-	};
 	let (Some(path), Some(token)) = (token_path(name), token) else {
 		return;
 	};
 	let Some(parent) = path.parent() else {
 		return;
 	};
-	if token.len() > 16 * 1024
-		|| fs::DirBuilder::new()
-			.recursive(true)
-			.mode(0o700)
-			.create(parent)
-			.is_err()
-	{
-		return;
-	}
-	let Ok(metadata) = fs::symlink_metadata(parent) else {
-		return;
-	};
-	if !metadata.is_dir()
-		|| metadata.file_type().is_symlink()
-		|| fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).is_err()
-	{
-		return;
-	}
-	let nonce = std::time::SystemTime::now()
-		.duration_since(std::time::UNIX_EPOCH)
-		.map_or(0, |time| time.as_nanos());
-	let partial = path.with_extension(format!("{}.{}.partial", std::process::id(), nonce));
-	let result = (|| -> std::io::Result<()> {
-		let mut file = fs::OpenOptions::new()
-			.create_new(true)
-			.write(true)
-			.mode(0o600)
-			.open(&partial)?;
-		file.write_all(token.as_bytes())?;
-		file.sync_all()?;
-		fs::rename(&partial, &path)
-	})();
-	if result.is_err() {
-		let _ = fs::remove_file(partial);
+	if fs::create_dir_all(parent).is_ok() {
+		let _ = fs::write(path, token);
 	}
 }
 
@@ -179,7 +138,7 @@ mod tests {
 	/// removed, and a second removal on the now-missing file must stay a no-op.
 	#[test]
 	fn removes_orphaned_remote_desktop_token() {
-		let dir = std::env::temp_dir().join(format!("zeta-token-test-{}", std::process::id()));
+		let dir = std::env::temp_dir().join(format!("omp-token-test-{}", std::process::id()));
 		fs::create_dir_all(&dir).expect("create token test dir");
 		let token = dir.join(ORPHANED_REMOTE_DESKTOP_TOKEN);
 		fs::write(&token, "cafef00d").expect("plant orphaned token");

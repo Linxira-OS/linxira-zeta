@@ -2965,8 +2965,8 @@ export interface IpcConnectOptions {
  * Platform endpoint for `name` scoped to directory `dir`.
  *
  * Unix: `<dir>/<stem>.sock`; when that path does not fit `sun_path` (104 bytes
- * on macOS/BSD, 108 on Linux, including NUL), `/tmp/omp-<euid>/<hash16>.sock`.
- * Windows: `\\.\pipe\omp-<stem>-<hash16(lowercase(resolve(dir)))>`.
+ * on macOS/BSD, 108 on Linux, including NUL), `/tmp/zeta-<euid>/<hash16>.sock`.
+ * Windows: `\\.\pipe\zeta-<stem>-<hash16(lowercase(resolve(dir)))>`.
  * `stem` is `name` with every char outside `[A-Za-z0-9._-]` replaced by "_".
  * Pure and deterministic: every process computes the same endpoint.
  */
@@ -3355,7 +3355,7 @@ export interface MinimizerOptions {
    * Kill-switch to fall back to the pre-PR (legacy) filter behavior for
    * grep / find / pytest. When `Some(true)`, filters that opted into the
    * always-shrink Tier 1 / Tier 2 behavior skip the new code path. When
-   * `None`, defers to the `OMP_MINIMIZER_LEGACY_FILTERS` env var.
+   * `None`, defers to the `ZETA_MINIMIZER_LEGACY_FILTERS` env var.
    */
   legacyFilters?: boolean
 }
@@ -3878,8 +3878,8 @@ export declare function renderSnapcompactPng(text: string, options: SnapcompactR
 export declare function restoreConsoleInputMode(mode: number): boolean
 
 /**
- * Run the shell engine as a process shell in this process (`omp zsh`,
- * `omp bash`, `omp sh`).
+ * Run the shell engine as a process shell in this process (`zetacode zsh`,
+ * `zetacode bash`, `zetacode sh`).
  *
  * `argv` is the shell's whole command line,
  * `argv[0]` naming it (`zsh`, `bash` or `sh` pick the dialect), as a real
@@ -3947,7 +3947,7 @@ export declare function setHangulCompatJamoWidthOverride(value: number): void
  * The commands the embedded shell adds to bash's own builtins, sorted.
  *
  * For a session started with `sessionEnv` over this process's environment,
- * whose `PI_DISABLE_*` switches gate them. omp's bash tool lists them to the
+ * whose `PI_DISABLE_*` switches gate them. zeta's bash tool lists them to the
  * model.
  */
 export declare function shellBuiltins(sessionEnv?: Record<string, string>): Array<string>

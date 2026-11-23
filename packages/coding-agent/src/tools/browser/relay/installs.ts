@@ -19,12 +19,12 @@ import { discoverRelayEndpoints } from "./discovery";
 import { refreshRelayNativeHost } from "./native-host-manifest";
 import { isOlderOmpVersion, type PanelInstall, RELAY_RECHECK_PATH } from "./protocol";
 
-/** The files this omp writes: its version and extension build. A source checkout changes the build, not the version. */
+/** The files this zeta writes: its version and extension build. A source checkout changes the build, not the version. */
 async function installStamp(): Promise<string> {
 	return `${VERSION}+${(await loadRelayExtension()).build}`;
 }
 
-/** Managed extension directory and the last asset version omp wrote there. */
+/** Managed extension directory and the last asset version zeta wrote there. */
 export interface RelayInstall {
 	dir: string;
 	ompVersion: string | null;
@@ -34,7 +34,7 @@ export interface RelayInstall {
 /** Shared install records plus the version that last synchronized the registry. */
 export interface RelayInstallRegistry {
 	installs: RelayInstall[];
-	/** `<omp version>+<extension build>` of the last complete sync; startup syncs again when it differs. */
+	/** `<zeta version>+<extension build>` of the last complete sync; startup syncs again when it differs. */
 	lastSynced?: string;
 }
 
@@ -131,7 +131,7 @@ export async function readRelayInstallRegistry(
 	};
 }
 
-/** The omp version stamped in an install's manifest: null when the file is absent, "" when unstamped or unparsable. */
+/** The zeta version stamped in an install's manifest: null when the file is absent, "" when unstamped or unparsable. */
 async function readManifestVersion(file: string): Promise<string | null> {
 	try {
 		const data: unknown = await Bun.file(file).json();
@@ -222,7 +222,7 @@ export interface RelayInstallSyncOptions extends RelayInstallLocations {
 	mode?: "explicit" | "startup" | "relay";
 }
 
-/** Reconcile every known install with this omp's assets without recreating missing directories. */
+/** Reconcile every known install with this zeta's assets without recreating missing directories. */
 export async function syncRelayInstalls(options: RelayInstallSyncOptions = {}): Promise<RelayInstallSyncResult[]> {
 	const { registryFile, defaultDir, relayUrl } = resolveLocations(options);
 	const initial = await readRelayInstallRegistry(registryFile);

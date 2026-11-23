@@ -11,10 +11,7 @@ use super::{
 	backend::AxBackend,
 	control,
 	error::{CoreResult, DesktopError, ErrorCode},
-	types::{
-		AxNode, AxQuery, AxSnapshot, AxSnapshotOptions, CaptureRegion, DesktopObservationNode,
-		DesktopWindow,
-	},
+	types::{AxNode, AxQuery, AxSnapshot, AxSnapshotOptions, DesktopWindow},
 };
 
 #[derive(Clone)]
@@ -1313,72 +1310,21 @@ pub(super) fn snapshot(
 	window: &WindowRoot,
 	options: &AxSnapshotOptions,
 ) -> CoreResult<AxSnapshot> {
-	snapshot_observed(backend, registry, window, options, false).map(|(snapshot, _)| snapshot)
-}
-
-pub fn snapshot_observed(
-	backend: &mut dyn AxBackend,
-	registry: &mut AxRegistry,
-	window: &DesktopWindow,
-	options: &AxSnapshotOptions,
-	collect_nodes: bool,
-) -> CoreResult<(AxSnapshot, Option<Vec<DesktopObservationNode>>)> {
 	let target = &window.id;
 	let generation = registry.begin_read(window, true);
 	let root = &window.element;
 	let mut state = WalkState::new(
 		options.max_nodes.unwrap_or(800).max(1),
 		options.max_depth.unwrap_or(24),
-		if collect_nodes {
-			WalkBounds::Read
-		} else {
-			WalkBounds::Skip
-		},
-	);
-	if collect_nodes {
-		state.max_nodes = state.max_nodes.min(5_000);
-		state.max_depth = state.max_depth.min(64);
-		state = state.cancellable();
-	} else {
-		state = state.line_states();
-	}
+		WalkBounds::Skip,
+	)
+	.line_states();
 	let tree = walk_raw(backend, root.clone(), 0, false, &mut state)?;
 	if tree.is_some() {
 		registry.finish_visible_read(window);
 	}
 	let identities = ReadIdentities::new(root, tree.as_ref(), &state);
 	let root = tree.and_then(|node| filter_node(node, options.all.unwrap_or(false)));
-	let nodes = collect_nodes.then(|| {
-		fn observed(node: &WalkNode, next: &mut u32) -> DesktopObservationNode {
-			*next += 1;
-			DesktopObservationNode {
-				id:       format!("observer-{}", *next),
-				role:     node.props.role.clone(),
-				name:     node
-					.props
-					.title
-					.clone()
-					.or_else(|| node.props.description.clone())
-					.unwrap_or_default(),
-				enabled:  node.props.enabled,
-				bounds:   node.props.bounds.map(|b| CaptureRegion {
-					x:      b.x,
-					y:      b.y,
-					width:  b.width,
-					height: b.height,
-				}),
-				children: node
-					.children
-					.iter()
-					.map(|child| observed(child, next))
-					.collect(),
-			}
-		}
-		let mut next = 0;
-		root
-			.as_ref()
-			.map_or_default(|root| vec![observed(root, &mut next)])
-	});
 	let mut text = String::new();
 	let mut node_count = 0;
 	if let Some(root) = root {
@@ -1415,10 +1361,7 @@ pub fn snapshot_observed(
 		}
 		let _ = write!(text, "… skipped {} unreadable nodes", state.skipped);
 	}
-	Ok((
-		AxSnapshot { text, node_count, truncated: state.truncated, covered: false },
-		nodes,
-	))
+	Ok(AxSnapshot { text, node_count, truncated: state.truncated, covered: false })
 }
 
 /// How many elements `find()` reads; bounds its work.

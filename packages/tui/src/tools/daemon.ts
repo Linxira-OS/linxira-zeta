@@ -1,4 +1,4 @@
-/** Daemon unit types shared by the daemon, its clients, `proc://`, and `omp ps`. */
+/** Daemon unit types shared by the daemon, its clients, `proc://`, and `zetacode ps`. */
 
 /** Stable lifecycle states of a unit. */
 export type DaemonState = "starting" | "running" | "ready" | "restarting" | "stopping" | "exited" | "failed";

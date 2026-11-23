@@ -5,7 +5,7 @@
  * schemes itself and hands the programs it spawns the files they alias
  * (`crates/shell/src/host/urls.rs`); a named service and a pty command run
  * in that shell too, as a process of their own. Only a client terminal (ACP)
- * runs a command under a shell omp does not provide, which knows none of the
+ * runs a command under a shell zeta does not provide, which knows none of the
  * schemes. {@link hostCommandUrls} gives such a command the same result: every
  * word naming a URL the session backs with a file is rewritten to that file
  * before the shell sees it, under the rules the embedded shell applies to an
@@ -58,10 +58,10 @@ function urlStart(text: string): number | undefined {
 	return URL_ROOT.test(text.slice(at)) ? at : undefined;
 }
 
-/** Whether `word` names the `omp` program, by any path. */
+/** Whether `word` names the `zetacode` program, by any path. */
 function isOmp(word: string): boolean {
 	const name = word.slice(Math.max(word.lastIndexOf("/"), word.lastIndexOf("\\")) + 1).toLowerCase();
-	return name === "omp" || name === "omp.exe";
+	return name === "zeta" || name === "zeta.exe";
 }
 
 /** `text` as one literal shell word. */
@@ -142,26 +142,26 @@ class HostUrls {
 	async #code(text: string): Promise<string> {
 		if (!text.includes("://")) return text;
 		let out = "";
-		// `omp` resolves the URLs it is given itself (`omp read skill://x:1-20`): once a command
+		// `zetacode` resolves the URLs it is given itself (`zetacode read skill://x:1-20`): once a command
 		// names it ahead of any URL, the rest of that command is its own.
-		let omp = false;
+		let zeta = false;
 		let sawUrl = false;
 		for (const token of lexShellCommand(text)) {
 			if (token.kind === "separator") {
 				if (/[\n;&|()]/.test(token.raw)) {
-					omp = false;
+					zeta = false;
 					sawUrl = false;
 				}
 				out += token.raw;
 				continue;
 			}
 			if (!token.value.includes("://")) {
-				omp ||= !sawUrl && isOmp(token.value);
+				zeta ||= !sawUrl && isOmp(token.value);
 				out += token.raw;
 				continue;
 			}
 			sawUrl = true;
-			out += omp ? token.raw : await this.#word(token.raw, token.value);
+			out += zeta ? token.raw : await this.#word(token.raw, token.value);
 		}
 		return out;
 	}
@@ -226,7 +226,7 @@ class HostUrls {
 /**
  * `command` as `shell` should run it: every word naming a URL that `backing` resolves is rewritten
  * to the host file, attached options, redirections, variable assignments and `$(…)` included.
- * `omp` commands, here-document bodies, message text, and URLs nothing backs stay as written.
+ * `zetacode` commands, here-document bodies, message text, and URLs nothing backs stay as written.
  */
 export function hostCommandUrls(command: string, backing: UrlBacking, shell?: string): Promise<string> {
 	return new HostUrls(backing, shell !== undefined && isCmdShell(shell)).command(command);

@@ -109,7 +109,7 @@ async function openModel(spec: string, storage: AuthStorage): Promise<GeneratorM
 	const model = getBundledModel(provider as GeneratedProvider, spec.slice(slash + 1));
 	if (!model) throw new Error(`unknown model "${spec}" (not in bundled catalog)`);
 	if (!(await storage.keys.get(provider))) {
-		throw new Error(`no credentials for provider "${provider}" (check broker or run \`omp login\`)`);
+		throw new Error(`no credentials for provider "${provider}" (check broker or run \`zetacode login\`)`);
 	}
 	return { model, apiKey: storage.keys.resolver(provider) };
 }

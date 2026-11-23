@@ -30,7 +30,7 @@ async function storedRefreshToken(dbPath: string): Promise<string | undefined> {
 	}
 }
 
-describe("omp auth-broker serve shutdown", () => {
+describe("zeta auth-broker serve shutdown", () => {
 	// The broker's background refresher exchanges the expiring row at startup; the provider
 	// answers only after the broker began stopping, as when a restart lands mid-refresh.
 	// POSIX signals: on Windows `kill("SIGTERM")` terminates the child outright. The budget
@@ -38,10 +38,10 @@ describe("omp auth-broker serve shutdown", () => {
 	it.skipIf(process.platform === "win32")(
 		"saves a token the provider rotated after SIGTERM before exiting",
 		async () => {
-			using tempDir = TempDir.createSync("@omp-auth-broker-shutdown-");
+			using tempDir = TempDir.createSync("@zeta-auth-broker-shutdown-");
 			const home = tempDir.join("home");
 			fs.mkdirSync(home);
-			const dbPath = path.join(home, ".omp", "agent", "agent.db");
+			const dbPath = path.join(home, ".zeta", "agent", "agent.db");
 			fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 			const tokenRequested = Promise.withResolvers<void>();
@@ -77,16 +77,16 @@ describe("omp auth-broker serve shutdown", () => {
 				NO_COLOR: "1",
 			};
 			for (const key of [
-				"PI_CODING_AGENT_DIR",
+				"ZETA_CODING_AGENT_DIR",
 				"PI_CONFIG_DIR",
-				"OMP_PROFILE",
+				"ZETA_PROFILE",
 				"PI_PROFILE",
 				"XDG_CACHE_HOME",
 				"XDG_CONFIG_HOME",
 				"XDG_DATA_HOME",
 				"XDG_STATE_HOME",
-				// The test waits for an info-level line, which OMP_LOG_LEVEL can silence.
-				"OMP_LOG_LEVEL",
+				// The test waits for an info-level line, which ZETA_LOG_LEVEL can silence.
+				"ZETA_LOG_LEVEL",
 			]) {
 				delete env[key];
 			}

@@ -99,7 +99,7 @@ party's registry carries the string.
 | `OMP_NUM_THREADS`, `OMP_THREAD_LIMIT`, `OMP_PCRE2_JIT`, `OMP_MINIMIZER_LEGACY_FILTERS` | GNU toolchain contract — external tools read them | `pi-builtins/nproc.rs`, `grep.rs` |
 | `omp` as the Stencil OAuth client id | Registered client id at a third-party issuer; changing it breaks auth | `catalog/.../stencil.kdl` |
 | `OMP_*` (remaining product envs) | Documented user configuration in `docs/environment-variables.md`; the compat/upstream families are Zeta-named now (see AGENTS.md) | AGENTS registry |
-| `python/robomp` | OMP-native upstream bot | `SKIP_PREFIXES` |
+| `python/robomp` | Zeta-native upstream bot | `SKIP_PREFIXES` |
 | `omp_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
 | Studio IndexedDB `omp-studio-ui` / `omp-studio-backgrounds` | Existing cached user-message thumbnails and uploaded background blobs; renaming a database without copying its data orphans them | `web-app/src/studio/{conversation/userMessageThumbs,background/backgroundLibrary}.ts` |
 

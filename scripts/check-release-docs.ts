@@ -40,7 +40,9 @@ if (/Full final release accounting is still pending|acceptance and CI pending/i.
 	problems.push("README still contains a stale pending-accounting assertion");
 }
 
-const ompRow = baselines.split("\n").find(line => line.startsWith("| [OMP](https://github.com/can1357/oh-my-pi)"));
+const ompRow = baselines
+	.split("\n")
+	.find(line => line.startsWith("| [OMP](https://github.com/Linxira-OS/linxira-zeta)"));
 const studioRow = baselines
 	.split("\n")
 	.find(line => line.startsWith("| [OMP Studio](https://github.com/the-snowpear/omp-studio)"));

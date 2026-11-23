@@ -1,5 +1,5 @@
 /**
- * The daemon store as its consumers see it: the offline reader (`omp ps`
+ * The daemon store as its consumers see it: the offline reader (`zetacode ps`
  * without a daemon), env deduplication, and what a daemon restarted after a
  * crash makes of the units the dead one persisted.
  */
@@ -48,7 +48,7 @@ describe.skipIf(process.platform === "win32")("daemon store", () => {
 		"readStoredUnits gives the offline reader each unit a running daemon persisted, with its launch env restored",
 		async () => {
 			const { daemon: d, conn, root } = await startDaemon();
-			const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", OMP_STORE_MARK: "one" };
+			const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", ZETA_STORE_MARK: "one" };
 			const opened = await conn.openProc("stored", shProc("exec sleep 60", root, { env }), {
 				label: "Stored service",
 				owner: "store-owner",
@@ -73,7 +73,7 @@ describe.skipIf(process.platform === "win32")("daemon store", () => {
 	);
 
 	it("readStoredUnits returns nothing instead of throwing when no daemon ever created a store", () => {
-		const missing = path.join(os.tmpdir(), `omp-no-daemon-${crypto.randomUUID()}`, "daemon.db");
+		const missing = path.join(os.tmpdir(), `zeta-no-daemon-${crypto.randomUUID()}`, "daemon.db");
 		expect(readStoredUnits(missing)).toEqual([]);
 		expect(fs.existsSync(missing)).toBe(false);
 	});

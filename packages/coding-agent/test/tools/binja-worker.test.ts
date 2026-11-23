@@ -98,7 +98,7 @@ describe.skipIf(!runtime)("Binary Ninja worker", () => {
 	let endpoints: number;
 
 	beforeEach(() => {
-		tmp = TempDir.createSync("@omp-binja-worker-test-");
+		tmp = TempDir.createSync("@zeta-binja-worker-test-");
 		live = [];
 		endpoints = 0;
 	});
@@ -306,7 +306,11 @@ describe.skipIf(!runtime)("Binary Ninja worker", () => {
 			});
 			expect(worker.needsSave).toBe(true);
 			expect(
-				await worker.request<{ ea: string }>("comment", { target: "omp_kept", text: "omp note", repeatable: true }),
+				await worker.request<{ ea: string }>("comment", {
+					target: "omp_kept",
+					text: "zeta note",
+					repeatable: true,
+				}),
 			).toEqual({ ea: `0x${edited[0]}` });
 			const prototype = { target: "omp_kept", decl: "int omp_kept(int a, char *b);" };
 			expect(await worker.request<SetTypeResult>("set_type", prototype)).toEqual({
@@ -353,7 +357,7 @@ describe.skipIf(!runtime)("Binary Ninja worker", () => {
 			expect(failed.value).toBeNull();
 			expect(failed.error).toContain("RuntimeError: boom");
 			expect((await exec(worker, "[name for _, name in functions('^omp_')], func('omp_kept').comment")).value).toBe(
-				"(['omp_kept'], 'omp note')",
+				"(['omp_kept'], 'zeta note')",
 			);
 
 			// An interrupt ends the running exec with the interrupt error, reverts it, and the worker carries on.
@@ -390,7 +394,7 @@ describe.skipIf(!runtime)("Binary Ninja worker", () => {
 					`func(0x${inside}).start == 0x${inside}`,
 				].join(", "),
 			);
-			expect(persisted.value).toBe(`('omp note', 'uint32_t', '0x${dataStart}', True)`);
+			expect(persisted.value).toBe(`('zeta note', 'uint32_t', '0x${dataStart}', True)`);
 			// A name Binary Ninja generated has no symbol and no cached IL after a reopen; it still opens both ways.
 			const cold = await view(worker, "pseudocode", untouched[1]);
 			expect(cold).toStartWith(`// ${untouched[1]} @ 0x${untouched[0]}-0x`);
@@ -604,12 +608,12 @@ describe.skipIf(!runtime)("Binary Ninja worker", () => {
 
 			// Metadata raises neither dirty flag, yet it came from an exec: the saving close keeps it.
 			worker = await open(storeLocation(dir, false));
-			expect((await exec(worker, "bv.store_metadata('omp.note', 'kept')")).error).toBeNull();
+			expect((await exec(worker, "bv.store_metadata('zeta.note', 'kept')")).error).toBeNull();
 			await worker.close({ save: true });
 			expect(await worker.exited).toBe(0);
 			expect(await digest()).not.toBe(created);
 			worker = await open(storeLocation(dir, false));
-			expect((await exec(worker, "bv.query_metadata('omp.note')")).value).toBe("'kept'");
+			expect((await exec(worker, "bv.query_metadata('zeta.note')")).value).toBe("'kept'");
 			await worker.close({ save: false });
 		},
 		TEST_TIMEOUT_MS,

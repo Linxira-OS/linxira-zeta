@@ -1521,7 +1521,7 @@ export const cfgProvidersFetch = register({
 /**
  * Whether `web_search` and the URL reader may use third-party services the user
  * holds no credential for. Off, they stick to configured services; a per-request
- * `omp q --model` selector still runs.
+ * `zetacode q --model` selector still runs.
  */
 export const cfgProvidersWebKeyless = register({
 	id: "providers.webKeyless",

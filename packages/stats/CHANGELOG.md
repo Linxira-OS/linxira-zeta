@@ -27,17 +27,17 @@
 ## [1.5.10] - 2026-11-19
 ### Added
 
-- Added `readDailyActivity()`, which reads the stored daily activity through its own connection that never writes, so another process holding the stats database write lock cannot fail or delay it; it returns null when no stats database exists yet ([#19896](https://github.com/can1357/oh-my-pi/pull/19896) by [@Xytronix](https://github.com/Xytronix))
+- Added `readDailyActivity()`, which reads the stored daily activity through its own connection that never writes, so another process holding the stats database write lock cannot fail or delay it; it returns null when no stats database exists yet ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
 
 ### Fixed
 
-- Fixed opening an already initialized stats database taking the write lock, and daily activity trusting a rollup built by an older version instead of reading the raw rows ([#19896](https://github.com/can1357/oh-my-pi/pull/19896) by [@Xytronix](https://github.com/Xytronix))
+- Fixed opening an already initialized stats database taking the write lock, and daily activity trusting a rollup built by an older version instead of reading the raw rows ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
 
 ## [19.0.1] - 2026-11-19
 
 ### Added
 
-- Added 2d and 3d range presets with hourly buckets to the stats dashboard time selector ([#19766](https://github.com/can1357/oh-my-pi/issues/19766), [#19774](https://github.com/can1357/oh-my-pi/pull/19774) by [@thekitaev](https://github.com/thekitaev)).
+- Added 2d and 3d range presets with hourly buckets to the stats dashboard time selector ([#19766](https://github.com/Linxira-OS/linxira-zeta/issues/19766), [#19774](https://github.com/Linxira-OS/linxira-zeta/pull/19774) by [@thekitaev](https://github.com/thekitaev)).
 
 ## [19.0.0] - 2026-11-18
 
@@ -85,7 +85,7 @@
 
 ### Fixed
 
-- Spotlight stats count a `;`/`,` path `read` once with all its parts, and count a later read of any of its files as a re-read or a needed line ([#18713](https://github.com/can1357/oh-my-pi/pull/18713) by [@eggpeat](https://github.com/eggpeat))
+- Spotlight stats count a `;`/`,` path `read` once with all its parts, and count a later read of any of its files as a re-read or a needed line ([#18713](https://github.com/Linxira-OS/linxira-zeta/pull/18713) by [@eggpeat](https://github.com/eggpeat))
 
 ## [1.5.1] - 2026-11-10
 
@@ -179,9 +179,9 @@
 
 ### Fixed
 
-- Usage recorded at $0 for a model whose catalog price changes on a date (Gemini 4 Argon, Devin SWE-2) is now priced at the rate in force on the request's date, instead of staying $0 like peak/off-peak tariff usage ([#15620](https://github.com/can1357/oh-my-pi/pull/15620) by [@eggpeat](https://github.com/eggpeat))
-- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/can1357/oh-my-pi/issues/15664))
-- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/can1357/oh-my-pi/pull/16092) by [@H4vC](https://github.com/H4vC))
+- Usage recorded at $0 for a model whose catalog price changes on a date (Gemini 4 Argon, Devin SWE-2) is now priced at the rate in force on the request's date, instead of staying $0 like peak/off-peak tariff usage ([#15620](https://github.com/Linxira-OS/linxira-zeta/pull/15620) by [@eggpeat](https://github.com/eggpeat))
+- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/Linxira-OS/linxira-zeta/issues/15664))
+- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/Linxira-OS/linxira-zeta/pull/16092) by [@H4vC](https://github.com/H4vC))
 
 ## [1.2.0] - 2026-10-12
 

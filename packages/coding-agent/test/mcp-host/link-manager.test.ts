@@ -18,7 +18,7 @@ import type { MCPHttpServerConfig } from "@linxiraos/zeta/mcp/types";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { FakeHost, type FakeTunnel, type Message, paramsOf, settled, unauthorized } from "./link-fake-host";
 
-const TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";
+const TIMEOUT_ENV = "ZETA_MCP_TIMEOUT_MS";
 const SERVER = "srv";
 const URL = "https://mcp.example.test/mcp";
 const PONG = { content: [{ type: "text", text: "pong" }] };
@@ -43,7 +43,7 @@ describe("MCPManager on a scripted host", () => {
 	beforeEach(() => {
 		savedTimeout = Bun.env[TIMEOUT_ENV];
 		delete Bun.env[TIMEOUT_ENV];
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-link-manager-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-link-manager-"));
 		tokenFile = path.join(workDir, "token");
 		fs.writeFileSync(tokenFile, "Bearer token-1");
 		answers = {
@@ -224,7 +224,7 @@ describe("MCPManager on a scripted host", () => {
 	});
 
 	it("refreshes a token the era probe refuses on the first connect", async () => {
-		// The server rotated its token after omp read the old one.
+		// The server rotated its token after zeta read the old one.
 		host.onResolve = () => fs.writeFileSync(tokenFile, "Bearer token-2");
 		host.resolveFailures.push(unauthorized());
 

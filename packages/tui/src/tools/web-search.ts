@@ -310,9 +310,9 @@ function searchHead(query: string | undefined, meta?: string, badge?: { text: st
 }
 
 /**
- * One cited source (role `omp.tool.source`): domain-initial mark, linked title, muted `domain · age`,
- * then the page excerpt (role `omp.tool.excerpt`) when the search has no synthesized answer to read
- * instead. Tern draws each as a card in the `omp.tool.sources` grid and shows excerpts only while
+ * One cited source (role `zeta.tool.source`): domain-initial mark, linked title, muted `domain · age`,
+ * then the page excerpt (role `zeta.tool.excerpt`) when the search has no synthesized answer to read
+ * instead. Tern draws each as a card in the `zeta.tool.sources` grid and shows excerpts only while
  * the tool is unfolded.
  */
 function sourceRow(src: SearchResponse["sources"][number], index: number, excerpt: boolean): NativeChild {
@@ -334,7 +334,7 @@ function sourceRow(src: SearchResponse["sources"][number], index: number, excerp
 			text([span(plainText(title), "link", url ? { href: url } : undefined)], { lines: 2, truncate: "end" }),
 			meta ? text([span(plainText(meta), "muted")], { lines: 1 }) : undefined,
 			lines.length > 0
-				? text([span(lines.join("\n"), "muted")], { role: "omp.tool.excerpt", wrap: "word", lines: EXCERPT_LINES })
+				? text([span(lines.join("\n"), "muted")], { role: "zeta.tool.excerpt", wrap: "word", lines: EXCERPT_LINES })
 				: undefined,
 		]),
 		`${index}:${url}`,
@@ -394,7 +394,7 @@ function describeSearchResult(
 		sources.length > 0
 			? node(
 					"col",
-					{ role: "omp.tool.sources" },
+					{ role: "zeta.tool.sources" },
 					sources.map((src, i) => sourceRow(src, i, !answer)),
 					"sources",
 				)

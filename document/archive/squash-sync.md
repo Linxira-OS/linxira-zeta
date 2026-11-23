@@ -22,7 +22,7 @@
 4. **新 main 上位**：force 推送 squash 提交序列；首个提交 message 带
    `[skip ci]`，末个提交触发 CI。
 5. **作者信息**：上游提交折叠为统一记录，逐 commit 明细一律回上游仓库
-   （github.com/can1357/oh-my-pi）查阅——本项目是 fork，历史可溯性由上游
+   （github.com/Linxira-OS/linxira-zeta）查阅——本项目是 fork，历史可溯性由上游
    承载，符合开源协议（保留 LICENSE/NOTICE 即可）。
 6. 首个 squash 提交 message 必须注明基座 SHA 与覆盖的 tag 区间；账本
    （`document/upstream-sync.md`）照常记录决策与门禁结果。

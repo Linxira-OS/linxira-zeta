@@ -112,7 +112,7 @@ if (!fs.readFileSync(path.join(ROOT, "retired/zetawork/LICENSE"), "utf8").includ
 // 5. The attribution that makes the fork claim truthful stays present.
 try {
 	const notice = fs.readFileSync(path.join(ROOT, "NOTICE"), "utf8");
-	for (const required of ["https://github.com/can1357/oh-my-pi", "Zeta modifications", "MIT"])
+	for (const required of ["https://github.com/Linxira-OS/linxira-zeta", "Zeta modifications", "MIT"])
 		if (!notice.includes(required)) failures.push({ where: "NOTICE", what: `no longer mentions ${required}` });
 	if (!rootLicence.includes("NOTICE")) failures.push({ where: "LICENSE", what: "no longer points at NOTICE" });
 } catch {

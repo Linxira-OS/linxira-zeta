@@ -110,7 +110,7 @@ export const stateDefs = {
 		),
 		"thinkingLevels?": doc(
 			"ConfiguredThinkingLevel[]",
-			"Selectors the active model accepts, as omp's thinking selector lists them: `off`, `auto`, then its efforts.",
+			"Selectors the active model accepts, as zeta's thinking selector lists them: `off`, `auto`, then its efforts.",
 		),
 		isStreaming: absentAs("boolean", false),
 		isCompacting: absentAs("boolean", false),
@@ -245,7 +245,7 @@ export const stateDefs = {
 			"overContext?": doc("boolean", "The session's context exceeds the model's window."),
 			"current?": doc("boolean", "The session runs this row: its model, or under `@` its active quick role."),
 		},
-		"One row of omp's session model picker.",
+		"One row of zeta's session model picker.",
 	),
 	ModelPickerResult: {
 		rows: "ModelPickerRow[]",
@@ -342,7 +342,7 @@ export const stateDefs = {
 	},
 	SessionEntries: doc(
 		{ entries: `${JSON_OBJECT}[]`, leafId: "string | null" },
-		"OMP-native session entries in append order.",
+		"Zeta-native session entries in append order.",
 	),
 	SessionTree: doc({ tree: `${JSON_OBJECT}[]`, leafId: "string | null" }, "Raw session tree roots."),
 	SubagentSnapshot: {

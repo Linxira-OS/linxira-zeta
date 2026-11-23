@@ -39,7 +39,7 @@ describe("modern peer over a subprocess", () => {
 		const result = await modern.request("tools/call", call("whoami"));
 
 		expect(result.resultType).toBe("complete");
-		expect(toolJson(result)).toEqual({ pid: modern.pid, calls: 1, client: "omp-coding-agent" });
+		expect(toolJson(result)).toEqual({ pid: modern.pid, calls: 1, client: "zeta-coding-agent" });
 	});
 
 	it("delivers progress for the request that asked for it, without the token", async () => {

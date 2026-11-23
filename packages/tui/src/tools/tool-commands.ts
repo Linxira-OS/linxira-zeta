@@ -229,11 +229,11 @@ export function describeToolCommandNode(
 	const label = displayLabel(input.dispatch.tool, input.resolveMounted?.(input.dispatch.tool));
 	return node(
 		"col",
-		{ role: "omp.tool.bash.command-tool", gap: "sm" },
+		{ role: "zeta.tool.bash.command-tool", gap: "sm" },
 		compact([
 			keyed(
 				text(nestedHead(view, label, input.dispatch), {
-					role: "omp.tool.bash.command-tool.head",
+					role: "zeta.tool.bash.command-tool.head",
 					wrap: "none",
 					truncate: "end",
 				}),

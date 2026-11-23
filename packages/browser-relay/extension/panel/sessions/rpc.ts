@@ -1,5 +1,5 @@
 /**
- * Panel session over a worker-owned `omp --mode rpc` process behind the native host.
+ * Panel session over a worker-owned `zetacode --mode rpc` process behind the native host.
  *
  * The worker relays rpc JSON lines both ways (`rpcSend` request, `rpcLine` events); this adapter turns them into
  * the same {@link PanelSnapshot} collab-web's `GuestClient` builds from collab frames, so the panel renders either
@@ -272,7 +272,7 @@ export class RpcPanelSession implements PanelSession {
 			this.#rpcState?.sessionName ||
 			this.#info.title ||
 			this.#info.cwd.split(/[\\/]/).filter(Boolean).at(-1) ||
-			"omp"
+			"zeta"
 		);
 	}
 
@@ -581,7 +581,7 @@ export class RpcPanelSession implements PanelSession {
 		try {
 			this.#applyFrame(frame);
 		} catch (error) {
-			console.warn("omp panel: failed to apply rpc frame", frame.type, error);
+			console.warn("zeta panel: failed to apply rpc frame", frame.type, error);
 		}
 	}
 
@@ -830,7 +830,7 @@ export class RpcPanelSession implements PanelSession {
 	#endExited(exited: NonNullable<RpcSessionInfo["exited"]>): void {
 		const tail = exited.stderr.trim().split("\n").slice(-3).join("\n");
 		const code = exited.code === null ? "a signal" : `code ${exited.code}`;
-		this.#end(tail ? `omp exited with ${code}: ${tail}` : `omp exited with ${code}`);
+		this.#end(tail ? `zetacode exited with ${code}: ${tail}` : `zetacode exited with ${code}`);
 	}
 
 	#end(reason: string): void {

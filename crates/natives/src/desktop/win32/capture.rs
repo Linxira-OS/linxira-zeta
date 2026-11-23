@@ -112,7 +112,7 @@ pub(super) fn displays() -> CoreResult<Vec<DesktopDisplay>> {
 	Ok(displays)
 }
 
-fn hwnd_from_id(id: u32) -> *mut c_void {
+const fn hwnd_from_id(id: u32) -> *mut c_void {
 	std::ptr::with_exposed_provenance_mut(id as usize)
 }
 

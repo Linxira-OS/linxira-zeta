@@ -80,7 +80,7 @@ describe("native-window frame timeout cleanup", () => {
 });
 
 describe("front-tab sources", () => {
-	test("reads omp's own visible Chromium and the loopback relay, and leaves every other browser out", () => {
+	test("reads zeta's own visible Chromium and the loopback relay, and leaves every other browser out", () => {
 		expect(frontTabSource({ kind: "headless", headless: true })).toBeUndefined();
 		expect(frontTabSource({ kind: "headless", headless: false })).toBe("chrome");
 		expect(
@@ -206,7 +206,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE || process.platform !== "darwin")("native no
 					name: "notice",
 					code:
 						outcome === "timeout"
-							? 'await page.setRequestInterception(true); await __omp_call_tool__("timeout", {});'
+							? 'await page.setRequestInterception(true); await __zeta_call_tool__("timeout", {});'
 							: outcome === "success"
 								? 'process.stdout.write("progress");'
 								: 'throw new Error("page failed");',
@@ -572,7 +572,7 @@ describe("front tab by the browser's tab list", () => {
 		expect(await chrome("agent", { user: 1, agent: 1 }).inFront(list("user", "agent"))).toBe(false);
 	});
 
-	test("takes a tab omp opened in front for in front while no page of its window is listed before it", async () => {
+	test("takes a tab zeta opened in front for in front while no page of its window is listed before it", async () => {
 		const agent = chrome("agent", { agent: 1, blank: 1, user: 1 }, true);
 		expect(await agent.inFront(list("agent", "blank"))).toBe(true);
 		expect(await agent.inFront(list("user", "agent", "blank"))).toBe(false);
@@ -727,7 +727,7 @@ describe("front tab by the browser's tab list", () => {
 				return new Response(body, { headers: { "content-type": "application/json" } });
 			},
 		});
-		const endpoint = `ws://127.0.0.1:${server.port}/devtools/browser/omp?claim=agent`;
+		const endpoint = `ws://127.0.0.1:${server.port}/devtools/browser/zeta?claim=agent`;
 		const placement: Record<string, number> = { user: 1, agent: 2 };
 		const agent = new FrontTab("chrome", endpoint, "agent", windows(placement), false);
 		try {
@@ -746,7 +746,7 @@ describe("front tab by the browser's tab list", () => {
 	test("keeps the proof a read was given though the list could not answer it", async () => {
 		let body = "<html>starting</html>";
 		const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(body) });
-		const endpoint = `ws://127.0.0.1:${server.port}/devtools/browser/omp`;
+		const endpoint = `ws://127.0.0.1:${server.port}/devtools/browser/zeta`;
 		const agent = new FrontTab("chrome", endpoint, "agent", windows({ agent: 1, user: 1 }), false);
 		try {
 			expect(await agent.read(true)).toBeUndefined();

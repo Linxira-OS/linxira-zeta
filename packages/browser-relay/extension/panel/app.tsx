@@ -45,9 +45,9 @@ import type { WorkerClient } from "./worker-client";
 /** Name the panel joins collab rooms under; the terminal shows it next to panel prompts. */
 const GUEST_NAME = "chrome";
 /** chrome.storage.local key (panel-owned): directories recent panel sessions started in, newest first. */
-const RECENT_DIRS_KEY = "omp.recentDirs";
+const RECENT_DIRS_KEY = "zeta.recentDirs";
 /** chrome.storage.session key (panel-owned): tabs and tab group of each conversation, by session id. */
-const CONVERSATIONS_KEY = "omp.panel.conversations";
+const CONVERSATIONS_KEY = "zeta.panel.conversations";
 const TOAST_MS = 3000;
 const ERROR_TOAST_MS = 6000;
 const COMPACTION_NOTICE = /^(?:compacting context|context compacted|compaction (?:aborted|failed))/i;
@@ -100,7 +100,7 @@ function titleFrom(prompt: string): string {
 	return words.length > 40 ? `${words.slice(0, 39)}…` : words || "New chat";
 }
 
-/** The most recently started omp the panel may control. */
+/** The most recently started zeta the panel may control. */
 function newestHost(hosts: readonly PanelCollabHost[]): PanelCollabHost | undefined {
 	return hosts.filter(host => host.access === "control").sort((a, b) => b.startedAt - a.startedAt)[0];
 }
@@ -144,7 +144,7 @@ function replyAfter(session: PanelSession, from: number): Promise<string> {
 			// The turn's entries can land a beat after `working` clears; wait for them.
 			if (text !== "") finish(() => resolve(text));
 		};
-		const timer = window.setTimeout(() => finish(() => reject(new Error("omp did not answer in time"))), 300_000);
+		const timer = window.setTimeout(() => finish(() => reject(new Error("zeta did not answer in time"))), 300_000);
 		const unsubscribe = session.subscribe(check);
 	});
 }
@@ -220,7 +220,7 @@ function SecondaryTab(props: { session: RpcSessionInfo; onOpen(): void }): React
 				<div className="pn-empty-tile">
 					<OmpMark size={22} />
 				</div>
-				<div className="pn-secondary-title">omp is working in another tab</div>
+				<div className="pn-secondary-title">zeta is working in another tab</div>
 				<div className="pn-secondary-name">{props.session.title}</div>
 				<button type="button" className="sh-btn sh-btn-primary pn-btn pn-btn--open" onClick={props.onOpen}>
 					Open chat
@@ -271,7 +271,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 	const view = snapshot ?? EMPTY_SNAPSHOT;
 	const working = view.working;
 	const title =
-		session === null ? "New chat" : (view.state?.sessionName ?? view.header?.title ?? session.title) || "omp";
+		session === null ? "New chat" : (view.state?.sessionName ?? view.header?.title ?? session.title) || "zeta";
 	const conversation = session === null ? undefined : conversations[session.id];
 
 	const notify = useCallback((level: Notice["level"], message: string): void => {
@@ -375,7 +375,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 	);
 
 	const newChat = useCallback((): void => {
-		// Already on the newest omp: a new chat is then a blank panel chat, never a hop to some other terminal.
+		// Already on the newest zeta: a new chat is then a blank panel chat, never a hop to some other terminal.
 		const host = settings.value.newChat === "attach" ? newestHost(hosts) : undefined;
 		if (host !== undefined && !(attached?.kind === "collab" && attached.instanceId === host.instanceId))
 			void attachHost(host);
@@ -389,7 +389,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 				setHosts(list);
 				return list;
 			},
-			// No relay, no running omp to list.
+			// No relay, no running zeta to list.
 			() => {
 				setHosts([]);
 				return [];
@@ -448,7 +448,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 			error => {
 				setStrip({
 					tone: "error",
-					message: `Stop didn’t reach omp: ${errorText(error)}`,
+					message: `Stop didn’t reach zeta: ${errorText(error)}`,
 					action: { label: "Retry", run: stop },
 				});
 			},
@@ -572,7 +572,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 				const tabIds = [...new Set([...(before?.tabIds ?? []), ...promptTabIds])];
 				updateConversation(target.id, { tabIds, groupId: before?.groupId });
 				if (tabIds.length > 0) {
-					const groupTitle = `omp · ${target.getSnapshot().state?.sessionName ?? target.title}`;
+					const groupTitle = `zetacode · ${target.getSnapshot().state?.sessionName ?? target.title}`;
 					worker.request("groupTabs", { tabIds, title: groupTitle, groupId: before?.groupId }).then(
 						({ groupId }) => updateConversation(target.id, { tabIds, groupId }),
 						error => notify("warning", `Couldn’t group the conversation’s tabs: ${errorText(error)}`),
@@ -809,7 +809,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 			return {
 				key: `exit-${session.id}`,
 				tone: "error",
-				message: `omp exited${exited.code === null ? "" : ` (code ${exited.code})`}${detail === "" ? "." : `: ${detail}`}`,
+				message: `zetacode exited${exited.code === null ? "" : ` (code ${exited.code})`}${detail === "" ? "." : `: ${detail}`}`,
 				action: { label: "New chat", run: () => show(null, null) },
 			};
 		}
@@ -831,7 +831,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 	}, [session, exited, view.phase, view.endedReason, contextPercent, compacting, compact, show]);
 	const shownStrip = strip ?? (derivedStrip !== null && derivedStrip.key !== dismissedStrip ? derivedStrip : null);
 
-	// No relay banner: chat runs over the native host, and the relay is down whenever no omp is driving a tab.
+	// No relay banner: chat runs over the native host, and the relay is down whenever no zeta is driving a tab.
 	const banner =
 		session !== null && (view.phase === "connecting" || view.phase === "waiting")
 			? "Joining session…"
@@ -883,7 +883,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 			meta: "copy command",
 			disabled: sessionId === undefined,
 			onSelect: () => {
-				const command = `omp --resume ${sessionId}`;
+				const command = `zetacode --resume ${sessionId}`;
 				void navigator.clipboard.writeText(command).then(
 					() => notify("info", `Copied “${command}”. Paste it in a terminal.`),
 					error => notify("error", `Couldn’t copy: ${errorText(error)}`),
@@ -939,7 +939,7 @@ export function App({ worker, windowId }: { worker: WorkerClient; windowId: numb
 				onOpenRpc={openRpc}
 				onNewIn={cwd => {
 					startRpc(cwd, basename(cwd), activeTab === null ? [] : [activeTab.tabId]).catch(error =>
-						setStrip({ tone: "error", message: `Couldn’t start omp in ${cwd}: ${errorText(error)}` }),
+						setStrip({ tone: "error", message: `Couldn’t start zeta in ${cwd}: ${errorText(error)}` }),
 					);
 				}}
 				onNewChat={newChat}

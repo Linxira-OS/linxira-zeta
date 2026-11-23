@@ -71,13 +71,13 @@ async function captureCropped(windowId: number, rect: Rect, viewport: Size): Pro
 async function withOverlayHidden<T>(tabId: number, capture: () => Promise<T>): Promise<T> {
 	// Only a running overlay can show in the image; hiding injects nothing where none runs.
 	const hidden = await chrome.tabs
-		.sendMessage(tabId, { omp: "overlay", op: "hide" }, { frameId: 0 })
+		.sendMessage(tabId, { zeta: "overlay", op: "hide" }, { frameId: 0 })
 		.then(() => true)
 		.catch(() => false);
 	try {
 		return await capture();
 	} finally {
-		if (hidden) await chrome.tabs.sendMessage(tabId, { omp: "overlay", op: "show" }, { frameId: 0 }).catch(() => {});
+		if (hidden) await chrome.tabs.sendMessage(tabId, { zeta: "overlay", op: "show" }, { frameId: 0 }).catch(() => {});
 	}
 }
 
@@ -87,7 +87,7 @@ export async function captureTab(tabId: number, mode: "viewport" | "region" | "e
 	// Chrome captures only the active tab of a window.
 	if (!tab.active) await chrome.tabs.update(tabId, { active: true });
 	const pick =
-		mode === "viewport" ? null : await overlay<PickResult | null>(tabId, { omp: "overlay", op: "pick", mode });
+		mode === "viewport" ? null : await overlay<PickResult | null>(tabId, { zeta: "overlay", op: "pick", mode });
 	if (mode !== "viewport" && !pick) return null;
 	const png = await withOverlayHidden(tabId, () =>
 		pick && pick.kind !== "viewport"

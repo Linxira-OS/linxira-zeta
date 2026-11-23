@@ -158,7 +158,7 @@ describe.skipIf(!hasHostAddon)("the addon loads from a directory whose path hold
 
 		it(`${label}: a HOME the embedded addon is extracted under`, async () => {
 			const home = path.join(root, `home-${dirname}`);
-			const versionedDir = path.join(home, ".omp", "natives", packageJson.version);
+			const versionedDir = path.join(home, ".zeta", "natives", packageJson.version);
 			await fs.mkdir(versionedDir, { recursive: true });
 			const size = (await fs.stat(addon)).size;
 			try {

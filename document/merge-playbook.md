@@ -150,7 +150,7 @@ scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 |---|---|---|---|
 | **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
 | **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/zeta-plugins、`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表）。**主机名不在豁免面**：`omp.sh` 等上游 URL 由台账 + `scripts/check-shared-infra.ts` 管（2026-10-14 收窄，详见下文「共享基础设施台账」） |
-| **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
+| **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/Linxira-OS/linxira-zeta`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
 | **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
 | **test-contract** | 测试 fixture/断言编码的上游兼容契约 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训） | 阶段 4 人工逐文件 resolve |
 
@@ -189,7 +189,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 - `packages/coding-agent/src/cli/update-cli.ts` — self-update 的 REPO/MISE 回退
   （update-cli REPO 回退）
 - `scripts/fix-changelogs.ts`（+ 其测试）— `ARCHIVE_REPO` 默认
-  `can1357/oh-my-pi`
+  `Linxira-OS/linxira-zeta`
 - `scripts/ci-macos-upload-secrets.sh`
 - `package.json` — `PI_IMAGE` docker tag 默认 `oh-my-pi/pi:dev` + robomp scripts
 - `CONTRIBUTING.md` — 标题仍是 "Contributing to oh-my-pi"（upstream-facing 文档）
@@ -690,7 +690,7 @@ sweep 同化后对打坏免疫，只剩 2 个红测试是信号。修复：常�
 
 **结论 26（worker 哨兵是"前缀门 + 常量"两侧结构，partial sweep 断家族）**：
 `isWorkerHostSelector`（pi-utils）按 `__zeta_worker_` 前缀门禁，v18.3.x sweep
-改了门和多数常量，却漏了 `__omp_worker_daemon_broker`/`__omp_worker_ida_host`
+改了门和多数常量，却漏了 `__zeta_worker_daemon_broker`/`__zeta_worker_ida_host`
 两个——daemon broker 子进程 argv 不过门、落回普通 CLI 命令图、socket 永不
 绑定，**runtime/session 的 stale/cold-lease、CLI smoke、browser-relay 全家
 同根因**，而 stderr 被 `ignore` 吞掉只剩泛化 ENOENT。修复：哨兵/环境变量

@@ -1,5 +1,5 @@
 /**
- * Regression for https://github.com/can1357/oh-my-pi/issues/1832
+ * Regression for https://github.com/Linxira-OS/linxira-zeta/issues/1832
  *
  * Before the fix:
  *   - `remember()`/`rememberBatch()` never invoked `embed()`, so the
