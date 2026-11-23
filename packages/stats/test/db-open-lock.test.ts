@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import * as db from "@linxiraos/omp-stats/db";
-import { refreshRollups } from "@linxiraos/omp-stats/rollup";
-import type { MessageStats } from "@linxiraos/omp-stats/types";
+import * as db from "@linxiraos/pi-stats/db";
+import { refreshRollups } from "@linxiraos/pi-stats/rollup";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
 import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 
