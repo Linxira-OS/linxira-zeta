@@ -2208,6 +2208,13 @@ export class ToolExecutionComponent extends Container {
 			context.rawDetails = this.#rawDetails;
 		}
 		if (this.#toolName === "bash") {
+			// Tool-command dispatches resolve through the host's canonical map
+			// (`resolveToolCommand`), not a TUI-side copy of mountedNames.
+			const bashTool = this.#tool as { session?: { toolCommands?: { resolve?: unknown } } } | undefined;
+			const resolveToolCommandMounted = bashTool?.session?.toolCommands?.resolve;
+			if (typeof resolveToolCommandMounted === "function") {
+				context.resolveToolCommandMounted = resolveToolCommandMounted;
+			}
 			this.#renderState.shellTrace = this.#shellTrace;
 			this.#renderState.shellReplayEpoch = this.#shellReplayEpoch;
 			// Bash needs render context even before a result exists. The renderer uses the pending-call args

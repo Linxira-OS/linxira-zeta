@@ -757,6 +757,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 			let cachedElapsedSecond: number | undefined;
 			let cachedTraceKey: string | undefined;
 			let cachedPresentation: ShellVizPresentation | undefined;
+			let cachedToolCommands: string | undefined;
 			const dropSnapshot = () => {
 				cmdLines = undefined;
 				cachedSnapshot = undefined;
@@ -769,6 +770,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 				cachedElapsedSecond = undefined;
 				cachedTraceKey = undefined;
 				cachedPresentation = undefined;
+				cachedToolCommands = undefined;
 			};
 
 			return framedToolCard(
@@ -784,6 +786,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 					// the first trace poll) keeps the call's untraced presentation.
 					const trace = options.shellTrace ?? details?.trace;
 					const presentation = options.shellPresentation;
+					const toolCommandsKey = JSON.stringify(details?.toolCommands ?? null);
 					// Without a trace the presentation parsed the raw command, `cd` and all.
 					const scriptDetails = trace === undefined ? undefined : details;
 
@@ -817,7 +820,8 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 						cachedPreviewWindow === previewWindow &&
 						cachedElapsedSecond === elapsedSecond &&
 						cachedTraceKey === traceKey &&
-						cachedPresentation === presentation
+						cachedPresentation === presentation &&
+						cachedToolCommands === toolCommandsKey
 					) {
 						return cachedSnapshot;
 					}
@@ -925,6 +929,7 @@ export function createShellRenderer<TArgs>(config: ShellRendererConfig<TArgs>) {
 					cachedElapsedSecond = elapsedSecond;
 					cachedTraceKey = traceKey;
 					cachedPresentation = presentation;
+					cachedToolCommands = toolCommandsKey;
 					cachedSnapshot = snapshot;
 					return snapshot;
 				},
