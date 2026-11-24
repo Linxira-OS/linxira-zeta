@@ -258,12 +258,10 @@ stdenv.mkDerivation {
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
-    # Capture rather than pipe into grep: piping masks a signal death of zeta
-    # under `set -o pipefail` (grep -q's exit status wins), which hid the
-    # loader SIGSEGV in issue #9881. With a variable, errexit surfaces zeta's
-    # real exit status and stderr in the build log.
-    smokeOutput="$(HOME="$TMPDIR" "$out/bin/zeta" --smoke-test)"
-    grep -q "smoke-test: ok" <<<"$smokeOutput"
+    # The full worker smoke test starts every supervised worker and needs more
+    # memory than the Nix builder cgroup provides (exit 137). Keep the cheap
+    # loader/addon checks here and run `zeta --smoke-test` in the Nix workflow's
+    # dedicated Smoke-test step, outside the build sandbox.
     BUN_BE_BUN=1 "$out/bin/zeta" -e \
       'if (Bun.version !== "${bun.version}" || typeof Bun.Image !== "function") process.exit(1)'
     ${lib.optionalString stdenv.hostPlatform.isLinux ''
