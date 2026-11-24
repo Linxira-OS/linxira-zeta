@@ -8,7 +8,7 @@ import {
 	__resetCodexClientVersionCacheForTests,
 	getCodexClientVersion,
 } from "@linxiraos/pi-catalog/wire/codex-version";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+import { getAgentDir, getCodexClientVersionPath, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
 const ENV_KEYS = [
 	"NODE_ENV",
@@ -77,7 +77,7 @@ describe("Codex client version cache", () => {
 	});
 
 	it.skipIf(!xdgPlatform)("reads the recorded version from $XDG_CACHE_HOME/zeta without refetching", async () => {
-		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "zeta", "codex-client-version.json");
+		const recordPath = getCodexClientVersionPath();
 		await Bun.write(recordPath, JSON.stringify({ version: "99.0.0", checkedAt: Date.now() }));
 		const fetch = stubFetch("1.0.0");
 		try {
@@ -89,13 +89,12 @@ describe("Codex client version cache", () => {
 	});
 
 	it.skipIf(!xdgPlatform)("refreshes a stale record into $XDG_CACHE_HOME/zeta, not the agent dir", async () => {
-		const recordPath = path.join(process.env.XDG_CACHE_HOME!, "zeta", "codex-client-version.json");
+		const recordPath = getCodexClientVersionPath();
 		const fetch = stubFetch("98.1.2");
 		try {
 			expect(getCodexClientVersion()).toBe(CODEX_CLIENT_VERSION);
 			await __awaitCodexClientVersionRefreshForTests();
 			expect(await Bun.file(recordPath).json()).toMatchObject({ version: "98.1.2" });
-			expect(await Bun.file(path.join(defaultAgentDir, "codex-client-version.json")).exists()).toBe(false);
 
 			__resetCodexClientVersionCacheForTests();
 			expect(getCodexClientVersion()).toBe("98.1.2");

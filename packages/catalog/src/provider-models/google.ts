@@ -3,6 +3,7 @@ import { isExcludedModel } from "../compat/behavior";
 import { providerEntry } from "../compat/providers";
 import { fetchAntigravityDiscoveryModels } from "../discovery/antigravity";
 import { fetchGeminiModels } from "../discovery/gemini";
+import { fetchGeminiCliQuotaModels } from "../discovery/gemini-cli";
 import type { ModelManagerOptions } from "../model-manager";
 import type { FetchImpl, ModelSpec } from "../types";
 import { unionAccountCatalogs } from "./account-access";
@@ -112,10 +113,25 @@ export function googleAntigravityModelManagerOptions(
 						for (const { accountKey, result } of rosters) {
 							// A transient failure would leave the union partial; keep the previous catalog.
 							if (!result) return null;
+							// Standard Gemini Code Assist accounts are forbidden from the
+							// Antigravity roster endpoint; fall back to their own quota list.
 							if (result.rejectedStatus !== undefined) {
 								logger.warn("Antigravity model discovery skipped an account whose credential was rejected", {
 									accountKey,
 									status: result.rejectedStatus,
+								});
+								const account = accounts.find(candidate => candidate.accountKey === accountKey);
+								if (!account) return null;
+								const quota = await fetchGeminiCliQuotaModels({
+									token: account.accessToken,
+									endpoint: config?.endpoint,
+									projectId: account.projectId,
+									fetcher,
+								});
+								if (!quota) return null;
+								catalogs.push({
+									accountKey,
+									models: quota.filter(model => !isExcludedModel("google-gemini-cli", model.id)),
 								});
 								continue;
 							}
