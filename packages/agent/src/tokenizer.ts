@@ -3,6 +3,7 @@ import { renderDemotedThinking } from "@linxiraos/pi-ai/dialect/demotion";
 import { isFactoryDroidGeminiWire, keepsFactoryGeminiReasoning } from "@linxiraos/pi-ai/providers/factory-droid/gemini";
 import { ollamaChatDropsOwnThinking } from "@linxiraos/pi-ai/providers/ollama";
 import { completionsDropsOwnThinking, isLiteLLMThinkingSignature } from "@linxiraos/pi-ai/providers/openai-completions";
+import { replaysSignedReasoningText } from "@linxiraos/pi-ai/utils/reasoning-source";
 import {
 	getNativeResponsesHistoryItems,
 	getReplayableNativeResponsesHistoryItems,
@@ -570,7 +571,13 @@ export class Tokenizer {
 						}
 						if (this.#dropsOllamaThinking && ownOllamaTurn) continue;
 						// Chat-completions drops it unless LiteLLM replays it in `thinking_blocks`.
-						if (ownDroppedCompletionsTurn && !isLiteLLMThinkingSignature(block.thinkingSignature)) continue;
+						if (
+							ownDroppedCompletionsTurn &&
+							!isLiteLLMThinkingSignature(block.thinkingSignature) &&
+							!replaysSignedReasoningText(block.thinkingSignature)
+						) {
+							continue;
+						}
 						if (this.#filtersReasoningHistory && this.#model !== undefined) {
 							// The demoted rendering is the visible text the request carries.
 							if (block.thinking.trim()) fragments.push(renderDemotedThinking(this.#model.id, block.thinking));
