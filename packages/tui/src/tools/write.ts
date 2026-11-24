@@ -37,7 +37,14 @@ import { code, compact, md, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";
 import { describeCfgWrite, renderCfgWrite, type CfgWriteDetails } from "./cfg-render";
-import { describeXdevCall, renderXdevCall, renderXdevResult, type XdevRenderDispatch } from "./xdev";
+import {
+	describeXdevCall,
+	describeXdevResult,
+	renderXdevCall,
+	renderXdevResult,
+	type XdevMountedRenderer,
+	type XdevRenderDispatch,
+} from "./xdev";
 import type { FileDiagnosticsResult } from "./lsp";
 import type { OutputMeta } from "./output-meta";
 import type { CardToolResult } from "./result-card";
@@ -413,6 +420,8 @@ function renderContentPreview(
 export interface WriteRenderContext {
 	/** Original result metadata used only for filesystem link targets. */
 	rawDetails?: unknown;
+	/** Host resolver for a dispatched `xd://` device's own renderer. */
+	resolveXdevMounted?: (name: string) => XdevMountedRenderer | undefined;
 }
 
 /** Process id and operation named by the text after `proc://`. */
@@ -813,11 +822,10 @@ export const writeToolRenderer = {
 		const cardPath =
 			typeof args?.path === "string" ? args.path : typeof args?.file_path === "string" ? args.file_path : "";
 		if (cardPath.startsWith("xd://") && result.details?.xdev) {
-			const xdev = renderXdevResult(
+			const xdev = describeXdevResult(
 				result.details.xdev,
 				result,
 				options,
-				uiTheme,
 				options.renderContext?.resolveXdevMounted,
 			);
 			if (xdev) return xdev;

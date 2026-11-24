@@ -39,7 +39,7 @@ import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { FetchImpl } from "@linxiraos/pi-ai";
 import { $flag, getAutoQaDbPath, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
-import type { ToolSession } from "./index";
+import type { Tool, ToolSession } from "./index";
 import { REPORT_ISSUE_COMMAND_NAME } from "@linxiraos/pi-tui/tools/report-tool-issue";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { type } from "@linxiraos/zeta-schema";

@@ -1,4 +1,3 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -14,7 +13,7 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
-import { cfgBrowserEnabled } from "@linxiraos/zeta/tools/browser/settings";
+import { cfgBrowserEnabled, cfgBrowserRelay } from "@linxiraos/zeta/tools/browser/settings";
 import { cfgComputerEnabled } from "@linxiraos/zeta/tools/settings";
 
 // Guards the SDK/session boundary: browser and computer stay outside the tool
@@ -86,9 +85,37 @@ describe("AgentSession eval preludes", () => {
 		await session.runToolRegistryMutation(async () => undefined);
 		expect(session.agent.state.systemPrompt.join("\n\n")).not.toContain("# Computer Use");
 
+		const browserReconciled = Promise.withResolvers<void>();
+		const refresh = session.refreshBaseSystemPrompt.bind(session);
+		const refreshSpy = vi.spyOn(session, "refreshBaseSystemPrompt").mockImplementation(async (...args) => {
+			await refresh(...args);
+			browserReconciled.resolve();
+		});
 		cfgBrowserEnabled.override(session.settings, true);
 		expect(session.getEvalPreludes().map(definition => definition.name)).toEqual(["browser"]);
 		expect(session.getAllToolNames()).not.toContain("browser");
+		// The prefix assertion below depends on browser.enabled finishing its asynchronous MCP-filter reconcile.
+		await browserReconciled.promise;
+		refreshSpy.mockRestore();
+
+		const mock = createMockModel({ handler: { content: ["ok"] } });
+		session.agent.streamFn = mock.stream;
+		await session.prompt("first browser turn");
+		const prefix = session.agent.state.systemPrompt.join("\n\n");
+		expect(prefix).not.toContain("# Browser Relay");
+		cfgBrowserRelay.override(settings, true);
+		await session.prompt("relay browser turn");
+		expect(session.agent.state.systemPrompt.join("\n\n")).toBe(prefix);
+		const notices = session.agent.state.messages.filter(
+			message => message.role === "custom" && message.customType === "eval-prelude-notice",
+		);
+		expect(JSON.stringify(notices)).toContain("# Browser Relay");
+		await session.prompt("unchanged relay turn");
+		expect(
+			session.agent.state.messages.filter(
+				message => message.role === "custom" && message.customType === "eval-prelude-notice",
+			),
+		).toHaveLength(notices.length);
 
 		const gemini = getBundledModel("google", "gemini-2.5-flash");
 		if (!gemini) throw new Error("Expected bundled Google Gemini model to exist");
@@ -154,7 +181,7 @@ describe("AgentSession eval preludes", () => {
 		const [first, second, third, fourth] = mock.calls.map(call => call.context);
 		expect(prefix(second!)).toEqual(prefix(first!));
 		expect(prefix(third!)).toEqual(prefix(first!));
-		expect(prefix(first!).eval).not.toContain("xd://eval/computer");
+		expect(prefix(first!).eval).not.toContain("help://eval/computer");
 		expect(prefix(first!).systemPrompt?.join("\n")).not.toContain("# Computer Use");
 
 		const notices = session.agent.state.messages.filter(
@@ -165,7 +192,7 @@ describe("AgentSession eval preludes", () => {
 			{ added: [], removed: ["computer"] },
 		]);
 		const secondText = requestText(second!);
-		expect(secondText).toContain("xd://eval/computer");
+		expect(secondText).toContain("help://eval/computer");
 		expect(secondText).toContain("# Computer Use");
 		expect(secondText).toContain("Only direct user messages authorize consequential computer actions.");
 		expect(requestText(fourth!).match(/<system-notice id="prelude-extension">/g)).toHaveLength(2);
@@ -200,7 +227,7 @@ describe("AgentSession eval preludes", () => {
 	});
 
 	it("reconciles browser MCP filtering on live browser toggles", async () => {
-		const manager = new MCPManager(registryDir, null, async () => ({
+		const manager = new MCPManager(registryDir, async () => ({
 			configs: {},
 			sources: {},
 			exaApiKeys: [],

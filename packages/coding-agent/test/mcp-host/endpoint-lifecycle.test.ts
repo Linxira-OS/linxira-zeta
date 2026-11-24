@@ -206,7 +206,10 @@ describe("McpEndpoint upstream lifecycle", () => {
 		const link = attachLink(unit());
 		for (let attempt = 1; attempt <= 5; attempt++) {
 			hostError(await link.call(attempt, "tools/call", { name: "crash" }));
-			await until(() => link.named("zeta/status").some(m => JSON.stringify(m.params).includes('"failed"')), "failed");
+			await until(
+				() => link.named("zeta/status").some(m => JSON.stringify(m.params).includes('"failed"')),
+				"failed",
+			);
 			link.clear();
 		}
 		expect(upstreams.startAttempts).toBe(5);

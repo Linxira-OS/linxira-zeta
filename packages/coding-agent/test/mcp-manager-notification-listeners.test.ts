@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isRecord, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
-import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import type { MCPServerConfig, MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
+import { isRecord, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { CUSTOM_NOTIFICATION_METHOD, CUSTOM_NOTIFICATION_PAYLOAD } from "./fixtures/notifications-mcp";
 
 const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "notifications-mcp.ts");
@@ -14,8 +14,15 @@ const BUN_EXEC = process.execPath;
 
 type CapturedFrame = { server: string; method: string; params: unknown };
 
-function serverConfig(): MCPServerConfig {
-	return { type: "stdio", command: BUN_EXEC, args: [FIXTURE_PATH] };
+/**
+ * One fixture server. Configurations that are equal reach the same server
+ * process inside one manager, so a test that needs a second handshake burst
+ * names a second `instance`.
+ */
+function serverConfig(instance?: string): MCPServerConfig {
+	const config: MCPStdioServerConfig = { type: "stdio", command: BUN_EXEC, args: [FIXTURE_PATH] };
+	if (instance) config.env = { NOTIFICATIONS_FIXTURE_INSTANCE: instance };
+	return config;
 }
 
 /**
@@ -59,7 +66,7 @@ describe("MCPManager notification listeners", () => {
 	let workDir: string;
 
 	beforeEach(() => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-notif-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-notif-"));
 	});
 
 	afterEach(() => {
@@ -140,7 +147,7 @@ describe("MCPManager notification listeners", () => {
 			// resolves for a `beta` frame, any concurrent delivery to `early`
 			// would have already happened had the unsubscribe not landed.
 			manager.addNotificationListener(late.listener);
-			await manager.connectServers({ beta: serverConfig() }, {});
+			await manager.connectServers({ beta: serverConfig("beta") }, {});
 			await late.awaitFrame("beta", CUSTOM_NOTIFICATION_METHOD);
 
 			expect(early.frames.length).toBe(earlyCountBeforeUnsub);
