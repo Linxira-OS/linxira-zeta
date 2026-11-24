@@ -148,54 +148,86 @@ async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
  * Wired into `scripts/install-tests/run-ci.sh` so binary / source-link /
  * tarball installs all exercise it on every CI run.
  */
-async function runSmokeTest(): Promise<void> {
-	const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
-	const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
-	const { smokeTestSttWorker } = await import("./stt/asr-client");
-	const { smokeTestTtsWorker } = await import("./tts/tts-client");
-	const { smokeTestMnemopiEmbedWorker } = await import("./mnemopi/embed-client");
-	const { smokeTestStatsActivityWorker } = await import("./stats/activity-client");
-	const { smokeTestJsEvalWorker } = await import("./eval/js/context-manager");
-	// Other smoke dependencies stay lazy so normal CLI startup does not load their worker clients.
-	const { smokeTestDaemonBroker } = await import("./launch/client");
-	const { smokeTestLspMux } = await import("./lsp/mux/daemon");
-	const { smokeTestDisasmHost } = await import("./disasm/client");
-	const { smokeTestBlobBroker } = await import("./blob-broker/daemon");
-	const { smokeTestTerminalOutputWorker } = await import("./launch/terminal-output-worker-client");
-	const { smokeTestSubagentWorker } = await import("./thread/subagent-worker");
-	await smokeTestSyncWorker();
-	await smokeTestSpotlightWorker();
-	await smokeTestStatsActivityWorker();
+async function runSmokeTest(batch?: string): Promise<void> {
+	// Keep each batch in its own process. Starting every worker in one process
+	// exceeds the memory of the Nix builder and the GitHub runner (exit 137), so
+	// the install scripts and workflows run `--smoke-test=<n>` sequentially.
+	const batches: { id: string; run: () => Promise<void> }[] = [
+		{
+			id: "1",
+			run: async () => {
+				const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
+				const { smokeTestStatsActivityWorker } = await import("./stats/activity-client");
+				await smokeTestSyncWorker();
+				await smokeTestSpotlightWorker();
+				await smokeTestStatsActivityWorker();
+				const statsServer = await startServer(0);
+				try {
+					const response = await fetch(`http://127.0.0.1:${statsServer.port}/`);
+					if (!response.ok) throw new Error(`stats dashboard smoke failed: HTTP ${response.status}`);
+					const html = await response.text();
+					if (!html.includes('<div id="root"></div>') || !html.includes("index.js")) {
+						throw new Error("stats dashboard smoke failed: dashboard HTML was not served");
+					}
+				} finally {
+					statsServer.stop();
+				}
+			},
+		},
+		{
+			id: "2",
+			run: async () => {
+				const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
+				const { smokeTestSttWorker } = await import("./stt/asr-client");
+				const { smokeTestTtsWorker } = await import("./tts/tts-client");
+				const { smokeTestMnemopiEmbedWorker } = await import("./mnemopi/embed-client");
+				const { smokeTestJsEvalWorker } = await import("./eval/js/context-manager");
+				const { smokeTestComputerWorker } = await import("./tools/computer/supervisor");
+				await smokeTestTinyTitleWorker();
+				await smokeTestSttWorker();
+				await smokeTestJsEvalWorker();
+				await smokeTestComputerWorker();
+				await smokeTestTtsWorker();
+				await smokeTestMnemopiEmbedWorker();
+			},
+		},
+		{
+			id: "3",
+			run: async () => {
+				const { smokeTestDaemonBroker } = await import("./launch/client");
+				const { smokeTestLspMux } = await import("./lsp/mux/daemon");
+				const { smokeTestDisasmHost } = await import("./disasm/client");
+				const { smokeTestBlobBroker } = await import("./blob-broker/daemon");
+				await smokeTestDaemonBroker();
+				await smokeTestLspMux();
+				await smokeTestDisasmHost();
+				await smokeTestBlobBroker();
+			},
+		},
+		{
+			id: "4",
+			run: async () => {
+				const { smokeTestTerminalOutputWorker } = await import("./launch/terminal-output-worker-client");
+				const { smokeTestSubagentWorker } = await import("./thread/subagent-worker");
+				await smokeTestTerminalOutputWorker();
+				await smokeTestSubagentWorker();
+			},
+		},
+	];
 
-	const statsServer = await startServer(0);
-	try {
-		const response = await fetch(`http://127.0.0.1:${statsServer.port}/`);
-		if (!response.ok) throw new Error(`stats dashboard smoke failed: HTTP ${response.status}`);
-		const html = await response.text();
-		if (!html.includes('<div id="root"></div>') || !html.includes("index.js")) {
-			throw new Error("stats dashboard smoke failed: dashboard HTML was not served");
-		}
-	} finally {
-		statsServer.stop();
+	const selected = batch === undefined ? batches : batches.filter(candidate => candidate.id === batch);
+	if (selected.length === 0) {
+		throw new Error(`unknown smoke-test batch ${JSON.stringify(batch)}; expected 1, 2, 3, or 4`);
 	}
-
-	await smokeTestTinyTitleWorker();
-	await smokeTestSttWorker();
-	await smokeTestJsEvalWorker();
-	const { smokeTestComputerWorker } = await import("./tools/computer/supervisor");
-	await smokeTestComputerWorker();
-	await smokeTestTtsWorker();
-	await smokeTestMnemopiEmbedWorker();
-	await smokeTestDaemonBroker();
-	await smokeTestLspMux();
-	await smokeTestDisasmHost();
-	await smokeTestBlobBroker();
-	await smokeTestTerminalOutputWorker();
-	await smokeTestSubagentWorker();
+	for (const group of selected) {
+		await group.run();
+	}
 	// Release checks read this line from the artifact itself (REQ-036). Source
 	// runs and git-less installs report `unknown`; that is allowed at runtime —
 	// only the release check refuses an unknown/stale commit.
-	process.stdout.write(`smoke-test: ok\nbuild-commit: ${process.env.ZETA_BUILD_COMMIT ?? "unknown"}\n`);
+	process.stdout.write(
+		`smoke-test: ok${batch === undefined ? "" : ` batch=${batch}`}\nbuild-commit: ${process.env.ZETA_BUILD_COMMIT ?? "unknown"}\n`,
+	);
 }
 
 const TINY_WORKER_ARG = "__zeta_worker_tiny_inference";
@@ -602,8 +634,9 @@ export async function runCli(argv: string[]): Promise<void> {
 	// produce that frame.
 	await Promise.all([setFullProcessName(), helpOrVersion ? Promise.resolve() : installNetworkBootstrap()]);
 
-	if (resolvedArgv[0] === "--smoke-test") {
-		await runSmokeTest();
+	const smokeArg = resolvedArgv.find(arg => arg === "--smoke-test" || arg.startsWith("--smoke-test="));
+	if (smokeArg !== undefined) {
+		await runSmokeTest(smokeArg.includes("=") ? smokeArg.slice("--smoke-test=".length) : undefined);
 		return;
 	}
 

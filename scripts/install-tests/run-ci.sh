@@ -32,7 +32,9 @@ smoke_cli() {
    # Spawns bundled workers and serves the stats dashboard once. Regression
    # probe for #1011/#1027 worker loading and for npm/compiled distributions
    # missing the dashboard assets that `stats --summary` never touches.
-   XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" --smoke-test
+   for batch in 1 2 3 4; do
+      XDG_DATA_HOME="$runtime_dir/xdg" HOME="$runtime_dir/home" "$cli_bin" --smoke-test="$batch"
+   done
    bun "$ROOT_DIR/scripts/install-tests/settings-session.ts" "$cli_bin"
 }
 
