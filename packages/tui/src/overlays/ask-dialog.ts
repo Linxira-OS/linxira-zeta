@@ -633,6 +633,8 @@ export class AskDialogComponent implements Component {
 	/** The skip notice's row while it shows, under the body. */
 	readonly #skipRegion: PanelRows;
 	readonly #questions: ExtensionAskDialogQuestion[];
+	/** A parked composer draft still holds the keyboard; up/down releases it for good. */
+	#guardActive = false;
 
 	constructor(
 		questions: ExtensionAskDialogQuestion[],
@@ -672,6 +674,8 @@ export class AskDialogComponent implements Component {
 		this.#skipRegion = new PanelRows();
 		this.#panel.addChild(this.#bodyRegion);
 		this.#panel.addChild(this.#skipRegion);
+		this.#guardActive = this.options.inputGuard?.isBlocked() === true;
+		this.options.inputGuard?.syncPresentation?.(this.#guardActive);
 	}
 
 	invalidate(): void {
@@ -714,6 +718,23 @@ export class AskDialogComponent implements Component {
 
 	handleInput(keyData: string): void {
 		if (this.#closed || this.#promptActive) return;
+		const guard = this.options.inputGuard;
+		if (guard && this.#guardActive) {
+			// A parked composer draft keeps the keyboard until up/down hands it
+			// over; other keys edit the draft instead of answering the ask.
+			if (!matchesSelectUp(keyData) && !matchesSelectDown(keyData)) {
+				guard.handleInput(keyData);
+				if (!guard.isBlocked()) {
+					this.#guardActive = false;
+					guard.syncPresentation?.(false);
+				}
+				return;
+			}
+			// The releasing key itself belongs to the hand-over, not the form.
+			this.#guardActive = false;
+			guard.syncPresentation?.(false);
+			return;
+		}
 		// Reset the inactivity countdown on any key that reaches past the
 		// closed/prompt guards, matching HookSelector/HookInput semantics.
 		this.#countdown?.reset();

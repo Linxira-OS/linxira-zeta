@@ -503,6 +503,8 @@ export class HtmlFormDialog implements Component, Focusable {
 	#reveal = 0;
 	/** Collapsed to one row (`app.ask.hide`) while the form stays pending; natively a one-row card. */
 	#hidden = false;
+	/** A parked composer draft still holds the keyboard; up/down releases it for good. */
+	#guardActive = false;
 
 	constructor(form: HtmlForm, options: HtmlFormDialogOptions) {
 		this.#form = form;
@@ -543,6 +545,8 @@ export class HtmlFormDialog implements Component, Focusable {
 			}
 		}
 		this.#stops.push({ kind: "submit" });
+		this.#guardActive = this.#options.inputGuard?.isBlocked() === true;
+		this.#options.inputGuard?.syncPresentation?.(this.#guardActive);
 		this.#sole = new Set(this.#stops.flatMap(stop => (stop.kind === "submit" ? [] : [stop.field]))).size === 1;
 		// Open where the answer is, so Enter accepts a preselected choice instead of overwriting it.
 		this.#focus = this.#answerStop(this.#fieldOfStop(0));
@@ -658,6 +662,24 @@ export class HtmlFormDialog implements Component, Focusable {
 	}
 
 	handleInput(data: string): void {
+		const guard = this.#options.inputGuard;
+		if (guard && this.#guardActive) {
+			// A draft parked over the form keeps the keyboard until up/down hands
+			// it over; every other key edits the draft, never answers the form.
+			if (!matchesSelectUp(data) && !matchesSelectDown(data)) {
+				guard.handleInput(data);
+				if (!guard.isBlocked()) {
+					this.#guardActive = false;
+					guard.syncPresentation?.(false);
+				}
+				this.#changed();
+				return;
+			}
+			// The releasing key itself belongs to the hand-over, not the form.
+			this.#guardActive = false;
+			guard.syncPresentation?.(false);
+			return;
+		}
 		this.#resetCountdown();
 		this.#changed();
 		if (getKeybindings().matches(data, "app.ask.hide")) {
