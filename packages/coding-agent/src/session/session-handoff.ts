@@ -30,7 +30,11 @@ function createHandoffFileName(date = new Date()): string {
 }
 
 function throwIfHandoffAborted(signal: AbortSignal): void {
-	if (signal.aborted) throw new CompactionCancelledError(undefined, { cause: signal.reason });
+	if (!signal.aborted) return;
+	const reason = signal.reason;
+	throw new CompactionCancelledError(typeof reason === "string" && reason.length > 0 ? reason : "Handoff cancelled", {
+		cause: reason,
+	});
 }
 
 /** Request snapshot and cancellation owned by the compaction pass. */
@@ -66,6 +70,13 @@ export interface SessionHandoffHost {
 
 /** Generates handoff documents with a cache-friendly oneshot LLM call. */
 export class SessionHandoff {
+	#lastSavedPath: string | undefined;
+
+	/** Path written by the latest auto-triggered handoff, when saving is enabled. */
+	get lastSavedPath(): string | undefined {
+		return this.#lastSavedPath;
+	}
+
 	readonly #host: SessionHandoffHost;
 
 	constructor(host: SessionHandoffHost) {
@@ -85,6 +96,7 @@ export class SessionHandoff {
 		customInstructions: string | undefined,
 		{ model, signal, messages, autoTriggered, onAttempt }: HandoffGenerationOptions,
 	): Promise<string | undefined> {
+		this.#lastSavedPath = undefined;
 		try {
 			throwIfHandoffAborted(signal);
 
@@ -189,6 +201,7 @@ export class SessionHandoff {
 					const handoffFilePath = path.join(artifactsDir, createHandoffFileName());
 					try {
 						await Bun.write(handoffFilePath, `${handoffText}\n`);
+						this.#lastSavedPath = handoffFilePath;
 					} catch (error) {
 						logger.warn("Failed to save handoff document to disk", {
 							path: handoffFilePath,

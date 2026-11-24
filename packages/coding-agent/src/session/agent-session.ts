@@ -115,6 +115,7 @@ import {
 	type CompactionResult,
 	calculatePromptTokens,
 	collectEntriesForBranchSummary,
+	CompactionCancelledError,
 	generateBranchSummary,
 	type ShakeConfig,
 } from "@linxiraos/pi-agent-core/compaction";
@@ -4244,7 +4245,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					signal: options?.signal ?? new AbortController().signal,
 					autoTriggered: options?.autoTriggered,
 				});
-				return document === undefined ? undefined : { document };
+				return document === undefined
+					? undefined
+					: { document, ...(this.#handoff.lastSavedPath ? { savedPath: this.#handoff.lastSavedPath } : {}) };
 			},
 			removeAssistantMessageFromActiveContext: message =>
 				this.#recovery.removeAssistantMessageFromActiveContext(message),
@@ -14995,7 +14998,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#scheduledHiddenNextTurnGeneration = undefined;
 			// Abort the handoff first so generic compaction cancellation cannot replace
 			// the harness reason with an unreasoned "Handoff cancelled".
-			this.abortHandoff();
+			this.abortHandoff(options?.reason ?? "Handoff cancelled");
 			let manualCompactionCleanup: Promise<void> | undefined;
 			if (options?.preserveCompaction) {
 				// Manual `/compact` installed its own #compactionAbortController before
@@ -15755,8 +15758,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/**
 	 * Cancel in-progress handoff generation.
 	 */
-	abortHandoff(): void {
-		this.#handoffAbortController?.abort();
+	abortHandoff(reason: unknown = "Handoff cancelled"): void {
+		this.#handoffAbortController?.abort(reason);
 	}
 
 	/**
@@ -15778,6 +15781,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	async handoff(customInstructions?: string, options?: SessionHandoffOptions): Promise<HandoffResult | undefined> {
 		assertWorkspaceNotRestoring(this.sessionManager.getCwd());
 		if (this.#workspaceRestoreActive) throw new SessionBusyError("handoff during workspace restore");
+		if (options?.signal?.aborted) {
+			const reason = options.signal.reason;
+			throw new CompactionCancelledError(
+				typeof reason === "string" && reason.length > 0 ? reason : "Handoff cancelled",
+				{ cause: reason },
+			);
+		}
 		const controller = new AbortController();
 		const signal = options?.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
 		this.#handoffAbortController = controller;
