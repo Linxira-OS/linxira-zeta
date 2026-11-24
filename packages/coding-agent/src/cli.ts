@@ -149,18 +149,20 @@ async function showHelp(config: CliConfig<CommandMetadata>): Promise<void> {
  * tarball installs all exercise it on every CI run.
  */
 async function runSmokeTest(batch?: string): Promise<void> {
-	// Keep each batch in its own process. Starting every worker in one process
-	// exceeds the memory of the Nix builder and the GitHub runner (exit 137), so
-	// the install scripts and workflows run `--smoke-test=<n>` sequentially.
+	// One worker per fresh process: the full worker set in one process exceeds
+	// the Nix builder and GitHub runner memory (exit 137). The install scripts
+	// and workflows run every batch sequentially.
 	const batches: { id: string; run: () => Promise<void> }[] = [
+		{ id: "1", run: async () => (await import("@linxiraos/pi-stats")).smokeTestSyncWorker() },
+		{ id: "2", run: async () => (await import("@linxiraos/pi-stats")).smokeTestSpotlightWorker() },
 		{
-			id: "1",
+			id: "3",
+			run: async () => (await import("./stats/activity-client")).smokeTestStatsActivityWorker(),
+		},
+		{
+			id: "4",
 			run: async () => {
-				const { smokeTestSpotlightWorker, smokeTestSyncWorker, startServer } = await import("@linxiraos/pi-stats");
-				const { smokeTestStatsActivityWorker } = await import("./stats/activity-client");
-				await smokeTestSyncWorker();
-				await smokeTestSpotlightWorker();
-				await smokeTestStatsActivityWorker();
+				const { startServer } = await import("@linxiraos/pi-stats");
 				const statsServer = await startServer(0);
 				try {
 					const response = await fetch(`http://127.0.0.1:${statsServer.port}/`);
@@ -174,50 +176,26 @@ async function runSmokeTest(batch?: string): Promise<void> {
 				}
 			},
 		},
+		{ id: "5", run: async () => (await import("./tiny/title-client")).smokeTestTinyTitleWorker() },
+		{ id: "6", run: async () => (await import("./stt/asr-client")).smokeTestSttWorker() },
+		{ id: "7", run: async () => (await import("./eval/js/context-manager")).smokeTestJsEvalWorker() },
+		{ id: "8", run: async () => (await import("./tools/computer/supervisor")).smokeTestComputerWorker() },
+		{ id: "9", run: async () => (await import("./tts/tts-client")).smokeTestTtsWorker() },
+		{ id: "10", run: async () => (await import("./mnemopi/embed-client")).smokeTestMnemopiEmbedWorker() },
+		{ id: "11", run: async () => (await import("./launch/client")).smokeTestDaemonBroker() },
+		{ id: "12", run: async () => (await import("./lsp/mux/daemon")).smokeTestLspMux() },
+		{ id: "13", run: async () => (await import("./disasm/client")).smokeTestDisasmHost() },
+		{ id: "14", run: async () => (await import("./blob-broker/daemon")).smokeTestBlobBroker() },
 		{
-			id: "2",
-			run: async () => {
-				const { smokeTestTinyTitleWorker } = await import("./tiny/title-client");
-				const { smokeTestSttWorker } = await import("./stt/asr-client");
-				const { smokeTestTtsWorker } = await import("./tts/tts-client");
-				const { smokeTestMnemopiEmbedWorker } = await import("./mnemopi/embed-client");
-				const { smokeTestJsEvalWorker } = await import("./eval/js/context-manager");
-				const { smokeTestComputerWorker } = await import("./tools/computer/supervisor");
-				await smokeTestTinyTitleWorker();
-				await smokeTestSttWorker();
-				await smokeTestJsEvalWorker();
-				await smokeTestComputerWorker();
-				await smokeTestTtsWorker();
-				await smokeTestMnemopiEmbedWorker();
-			},
+			id: "15",
+			run: async () => (await import("./launch/terminal-output-worker-client")).smokeTestTerminalOutputWorker(),
 		},
-		{
-			id: "3",
-			run: async () => {
-				const { smokeTestDaemonBroker } = await import("./launch/client");
-				const { smokeTestLspMux } = await import("./lsp/mux/daemon");
-				const { smokeTestDisasmHost } = await import("./disasm/client");
-				const { smokeTestBlobBroker } = await import("./blob-broker/daemon");
-				await smokeTestDaemonBroker();
-				await smokeTestLspMux();
-				await smokeTestDisasmHost();
-				await smokeTestBlobBroker();
-			},
-		},
-		{
-			id: "4",
-			run: async () => {
-				const { smokeTestTerminalOutputWorker } = await import("./launch/terminal-output-worker-client");
-				const { smokeTestSubagentWorker } = await import("./thread/subagent-worker");
-				await smokeTestTerminalOutputWorker();
-				await smokeTestSubagentWorker();
-			},
-		},
+		{ id: "16", run: async () => (await import("./thread/subagent-worker")).smokeTestSubagentWorker() },
 	];
 
 	const selected = batch === undefined ? batches : batches.filter(candidate => candidate.id === batch);
 	if (selected.length === 0) {
-		throw new Error(`unknown smoke-test batch ${JSON.stringify(batch)}; expected 1, 2, 3, or 4`);
+		throw new Error(`unknown smoke-test batch ${JSON.stringify(batch)}; expected 1 through 16`);
 	}
 	for (const group of selected) {
 		await group.run();

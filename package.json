@@ -122,7 +122,7 @@
     "ci:test:coding-agent:browser": "bun scripts/ci-test-ts.ts coding-agent-browser",
     "ci:test:coding-agent:heavy": "bun scripts/ci-test-ts.ts coding-agent-heavy",
     "ci:test:host": "bun scripts/ci-host-startup-smoke.ts",
-    "ci:test:smoke": "bun scripts/ci-im-startup-smoke.ts && bun scripts/ci-host-startup-smoke.ts && bun packages/coding-agent/src/cli.ts --version && bun packages/coding-agent/src/cli.ts --help && bun packages/coding-agent/src/cli.ts stats --help && for b in 1 2 3 4; do bun packages/coding-agent/src/cli.ts --smoke-test=$b; done",
+    "ci:test:smoke": "bun scripts/ci-im-startup-smoke.ts && bun scripts/ci-host-startup-smoke.ts && bun packages/coding-agent/src/cli.ts --version && bun packages/coding-agent/src/cli.ts --help && bun packages/coding-agent/src/cli.ts stats --help && for b in $(seq 1 16); do bun packages/coding-agent/src/cli.ts --smoke-test=$b; done",
     "ci:test:install-methods": "bash scripts/install-tests/run-ci.sh",
     "ci:release:build-binaries": "bun scripts/ci-release-build-binaries.ts",
     "ci:release:checksums": "bun scripts/ci-release-checksums.ts",

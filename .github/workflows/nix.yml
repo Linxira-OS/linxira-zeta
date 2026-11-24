@@ -72,6 +72,6 @@ jobs:
       - name: Smoke-test zeta
         run: |
           "$ZETA_OUT/bin/zeta" --version
-          for batch in 1 2 3 4; do
+          for batch in $(seq 1 16); do
             "$ZETA_OUT/bin/zeta" --smoke-test="$batch"
           done
