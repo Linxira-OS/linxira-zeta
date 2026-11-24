@@ -12,11 +12,14 @@
 
 [English](../README.md) · **简体中文**
 
-Zeta 是一套 agent 工作区套件：**Z Work Studio**（由 CLI `zetacode serve` 托管的
-浏览器工作台），加上编码 Agent（`zetacode`）、终端 IDE（`zetaide`）以及两者共用
-的编辑器载荷。它是 **Agent 开发环境（ADE）**，不是“IDE 加聊天框”：会话是工作
-单元，每个面板都是 agent 可以使用的工作面。Linux 是主力平台；支持 Windows x64；
-不构建 macOS。不存在 Rust 桌面 UI：桌面版承载的是同一个浏览器工作台。
+Zeta 是**终端优先**的 agent 工作区：编码 Agent（`zetacode`）、终端 IDE
+（`zetaide`）和 TSP 终端面是主产品。**Z Work Studio**（由 `zetacode serve` 托管的
+浏览器工作台）是**可选预览**，不是推荐入口：多 Agent 场景下会卡顿，部分页面/上下文
+读取也不可靠；在 terminal/TSP 成为主路径前，它的 release 暂停。
+
+它是 **Agent 开发环境（ADE）**，不是“IDE 加聊天框”：会话是工作单元，每个面板都是
+agent 可以使用的工作面。Linux 是主力平台；支持 Windows x64；不构建 macOS。不存在
+Rust 桌面 UI。
 
 Zeta 是 [OMP](https://github.com/Linxira-OS/linxira-zeta) 的下游分支，采用 MIT 许可。
 集成的运行时源码为 OMP **v18.22.0**。Z Work Studio 是
@@ -28,15 +31,21 @@ Zeta 是 [OMP](https://github.com/Linxira-OS/linxira-zeta) 的下游分支，采
 
 ## 快速开始
 
-安装 CLI 并在浏览器里打开工作台（需要 Node 18+ 或 Bun）：
+推荐终端路径（需要 Node 18+ 或 Bun）：
 
 ```sh
 npm i -g @linxiraos/zeta      # 或：bun add -g @linxiraos/zeta
+zetacode                      # 交互式终端 agent
+```
+
+浏览器预览仍可用，但不是主要路径：
+
+```sh
 zetacode serve                # 在 loopback 上提供 Z Work Studio
 ```
 
 Z Work Studio 随该包装在 `dist/web-app`；自定义构建可用 `ZETA_WEB_APP_DIR`
-覆盖渲染器。`zetacode serve` 是受支持的入口。终端 IDE 单独安装：
+覆盖渲染器。`zetacode serve` 托管机器级后端。终端 IDE 单独安装：
 
 ```sh
 npm i -g @linxiraos/ide       # zetaide — 终端 IDE
@@ -62,12 +71,12 @@ bun run dev
 
 | 命令       | 包                 | 是什么                                             |
 | ---------- | ------------------ | -------------------------------------------------- |
-| `zetacode` | `@linxiraos/zeta`  | 编码 Agent CLI；`zetacode serve` 打开 Z Work Studio |
+| `zetacode` | `@linxiraos/zeta`  | 编码 Agent CLI；`zetacode serve` 是可选预览 |
 | `zetaide`  | `@linxiraos/ide`   | 终端 IDE（TermIDE，vendored Rust）                  |
 
-每条命令都能独立启动，各有自己的 `--help`。Z Work Studio 就是工作台：
-`zetacode serve` 提供的页面与 CLI 共用运行时、宿主契约（`/api/v1/*`）和设置，
-编码/编辑交给 `zetacode` 与 `zetaide`，不另做一套。`zetawork` / `zeta` 两个 bin
+每条命令都能独立启动，各有自己的 `--help`。终端/TSP 面是主路径；Z Work Studio
+只是可选预览，`zetacode serve` 提供的页面与 CLI 共用运行时、宿主契约（`/api/v1/*`）
+和设置，编码/编辑交给 `zetacode` 与 `zetaide`。`zetawork` / `zeta` 两个 bin
 仍在暂停的 `@linxiraos/main` 包里；名字保留给 main/super-agent 面，没有 Rust GUI
 随它出货。
 

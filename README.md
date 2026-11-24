@@ -12,14 +12,18 @@
 
 **English** · [简体中文](rep-docs/README.zh-CN.md)
 
-Zeta is an agent workspace suite: **Z Work Studio**, the browser workbench
-served by the CLI (`zetacode serve`), together with the coding agent
-(`zetacode`), the terminal IDE (`zetaide`), and the editor payload they share.
+Zeta is a **terminal-first** agent workspace: the coding agent (`zetacode`),
+the terminal IDE (`zetaide`), and the TSP terminal surface are the primary
+product. **Z Work Studio** (the browser workbench served by `zetacode serve`) is
+an **optional preview**, not the recommended entry point: in practice it can
+stutter or stall with multi-agent sessions, and some page/context reads are
+unreliable. Its release is paused while the terminal/TSP surface becomes the
+main path.
+
 It is an **agent development environment (ADE)**, not an IDE with a chat pane:
 the session is the unit of work, and every panel is a surface the agent can
 use. Linux is the primary platform; Windows x64 is supported; macOS is not
-built. There is no Rust desktop UI: the desktop editions host the same browser
-workbench.
+built. There is no Rust desktop UI.
 
 Zeta is a downstream fork of [OMP](https://github.com/Linxira-OS/linxira-zeta),
 licensed MIT. The integrated runtime source is OMP **v18.22.0**. Z Work Studio
@@ -39,19 +43,25 @@ integrated. This README states the tree that exists, not the target line.
 
 ## Quick start
 
-Install the CLI and serve the workbench in your browser (Node 18+ or Bun):
+Recommended terminal path (Node 18+ or Bun):
 
 ```sh
 npm i -g @linxiraos/zeta      # or: bun add -g @linxiraos/zeta
+zetacode                      # interactive terminal agent
+```
+
+The optional browser preview is still available, but not the primary path:
+
+```sh
 zetacode serve                # serves Z Work Studio on loopback
 ```
 
-Z Work Studio ships inside that package at `dist/web-app`; `ZETA_WEB_APP_DIR`
-overrides the renderer for a custom build. `zetacode serve` is the supported
-entry point and owns the machine-wide backend. Backend mode is **on by
-default**: a bare `zetacode` attaches to a reachable backend and falls back to
-its own local process only when none is running; explicit `--backend` /
-`--attach` still fails closed. Install the terminal IDE separately:
+Z Work Studio ships inside the package at `dist/web-app`; `ZETA_WEB_APP_DIR`
+overrides the renderer for a custom build. `zetacode serve` owns the
+machine-wide backend. Backend mode is **on by default**: a bare `zetacode`
+attaches to a reachable backend and falls back to its own local process only
+when none is running; explicit `--backend` / `--attach` still fails closed.
+Install the terminal IDE separately:
 
 ```sh
 npm i -g @linxiraos/ide       # zetaide — terminal IDE
@@ -79,13 +89,14 @@ bun run dev
 
 | Command    | Package           | What it is                                                |
 | ---------- | ----------------- | --------------------------------------------------------- |
-| `zetacode` | `@linxiraos/zeta` | Coding agent CLI; `zetacode serve` opens Z Work Studio    |
+| `zetacode` | `@linxiraos/zeta` | Coding agent CLI; `zetacode serve` is optional preview    |
 | `zetaide`  | `@linxiraos/ide`  | Terminal IDE (TermIDE, vendored Rust)                     |
 
-Every command launches standalone with its own `--help`. Z Work Studio is the
-workbench: the page served by `zetacode serve` shares the CLI's runtime, host
-contract (`/api/v1/*`), and settings, and hands coding and editing off to
-`zetacode` and `zetaide` instead of re-implementing them. The `zetawork` /
+Every command launches standalone with its own `--help`. The terminal/TSP
+surface is the primary path; Z Work Studio is an optional preview. The page
+served by `zetacode serve` shares the CLI's runtime, host contract
+(`/api/v1/*`), and settings, and hands coding and editing off to `zetacode` and
+`zetaide` instead of re-implementing them. The `zetawork` /
 `zeta` bins still exist in the paused `@linxiraos/main` package; the name is
 reserved for the main/super-agent surface, and no Rust GUI ships under it.
 
