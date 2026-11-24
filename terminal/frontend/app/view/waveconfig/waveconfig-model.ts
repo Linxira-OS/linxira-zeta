@@ -7,10 +7,12 @@ import type { TabModel } from "@/app/store/tab-model";
 import { makeORef } from "@/app/store/wos";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { SecretsContent } from "@/app/view/waveconfig/secretscontent";
+import { ShellSettings } from "@/app/view/waveconfig/shellsettings";
 import { WaveConfigView } from "@/app/view/waveconfig/waveconfig";
 import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { base64ToString, stringToBase64 } from "@/util/util";
 import { atom, type Atom, type PrimitiveAtom } from "jotai";
+import { t } from "../../../i18n";
 import type * as MonacoTypes from "monaco-editor";
 import * as React from "react";
 
@@ -58,46 +60,47 @@ function validateWaveAiJson(parsed: any): ValidationResult {
 function makeConfigFiles(isWindows: boolean): ConfigFile[] {
     return [
         {
-            name: "General",
+            name: t("settings.general"),
             path: "settings.json",
             language: "json",
-            docsUrl: "https://docs.waveterm.dev/config",
+            docsUrl: "https://linxira-os.github.io/zh/docs/",
             hasJsonView: true,
+            visualComponent: ShellSettings,
         },
         {
-            name: "Connections",
+            name: t("settings.connections"),
             path: "connections.json",
             language: "json",
-            docsUrl: "https://docs.waveterm.dev/connections",
-            description: isWindows ? "SSH hosts and WSL distros" : "SSH hosts",
+            docsUrl: "https://linxira-os.github.io/zh/docs/",
+            description: isWindows ? t("settings.sshHostsWsl") : t("settings.sshHosts"),
             hasJsonView: true,
         },
         {
-            name: "Sidebar Widgets",
+            name: t("settings.widgets"),
             path: "widgets.json",
             language: "json",
-            docsUrl: "https://docs.waveterm.dev/customwidgets",
+            docsUrl: "https://linxira-os.github.io/zh/docs/",
             hasJsonView: true,
         },
         {
-            name: "Wave AI Modes",
+            name: t("settings.aiModes"),
             path: "waveai.json",
             language: "json",
-            description: "Local models and BYOK",
-            docsUrl: "https://docs.waveterm.dev/waveai-modes",
+            description: t("settings.localModels"),
+            docsUrl: "https://linxira-os.github.io/zh/docs/",
             validator: validateWaveAiJson,
             hasJsonView: true,
             // visualComponent: WaveAIVisualContent,
         },
         {
-            name: "Tab Backgrounds",
+            name: t("settings.backgrounds"),
             path: "backgrounds.json",
             language: "json",
-            docsUrl: "https://docs.waveterm.dev/tab-backgrounds",
+            docsUrl: "https://linxira-os.github.io/zh/docs/",
             hasJsonView: true,
         },
         {
-            name: "Secrets",
+            name: t("settings.secrets"),
             path: "secrets",
             isSecrets: true,
             hasJsonView: false,
@@ -108,18 +111,18 @@ function makeConfigFiles(isWindows: boolean): ConfigFile[] {
 
 const deprecatedConfigFiles: ConfigFile[] = [
     {
-        name: "Presets",
+        name: t("settings.presets"),
         path: "presets.json",
         language: "json",
         deprecated: true,
         hasJsonView: true,
     },
     {
-        name: "AI Presets",
+        name: t("settings.aiPresets"),
         path: "presets/ai.json",
         language: "json",
         deprecated: true,
-        docsUrl: "https://docs.waveterm.dev/ai-presets",
+        docsUrl: "https://linxira-os.github.io/zh/docs/",
         validator: validateAiJson,
         hasJsonView: true,
     },
@@ -129,7 +132,7 @@ export class WaveConfigViewModel implements ViewModel {
     blockId: string;
     viewType = "waveconfig";
     viewIcon = atom("gear");
-    viewName = atom("Wave Config");
+    viewName = atom(t("settings.title"));
     viewComponent = WaveConfigView;
     noPadding = atom(true);
     nodeModel: BlockNodeModel;

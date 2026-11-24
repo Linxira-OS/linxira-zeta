@@ -70,6 +70,7 @@ const (
 	ShellType_bash    = "bash"
 	ShellType_zsh     = "zsh"
 	ShellType_fish    = "fish"
+	ShellType_nushell = "nushell"
 	ShellType_pwsh    = "pwsh"
 	ShellType_unknown = "unknown"
 )
@@ -86,13 +87,20 @@ const (
 
 func DetectLocalShellPath() string {
 	if runtime.GOOS == "windows" {
+		// Zeta policy: Nushell first, then PowerShell 7+ only. Never fall back
+		// to Windows PowerShell 5.1 or cmd.exe; callers show an install prompt.
+		if nuPath, lpErr := exec.LookPath("nu"); lpErr == nil {
+			return nuPath
+		}
 		if pwshPath, lpErr := exec.LookPath("pwsh"); lpErr == nil {
-			return pwshPath
+			if major, verErr := pwshMajorVersion(pwshPath); verErr == nil && major >= 7 {
+				return pwshPath
+			}
 		}
-		if powershellPath, lpErr := exec.LookPath("powershell"); lpErr == nil {
-			return powershellPath
-		}
-		return "powershell.exe"
+		return ""
+	}
+	if nuPath, lpErr := exec.LookPath("nu"); lpErr == nil {
+		return nuPath
 	}
 	shellPath := GetMacUserShell()
 	if shellPath == "" {
@@ -102,6 +110,25 @@ func DetectLocalShellPath() string {
 		return DefaultShellPath
 	}
 	return shellPath
+}
+
+func pwshMajorVersion(shellPath string) (int, error) {
+	version, err := getShellVersion(shellPath, ShellType_pwsh)
+	if err != nil {
+		return 0, err
+	}
+	var major int
+	if _, err := fmt.Sscanf(version, "%d", &major); err != nil {
+		return 0, fmt.Errorf("invalid PowerShell version %q: %w", version, err)
+	}
+	return major, nil
+}
+
+// IsLegacyWindowsPowerShell reports the unsupported Windows PowerShell 5.1
+// executable. The supported PowerShell is pwsh (7+).
+func IsLegacyWindowsPowerShell(shellPath string) bool {
+	base := strings.ToLower(filepath.Base(shellPath))
+	return base == "powershell.exe" || base == "powershell"
 }
 
 func GetMacUserShell() string {
@@ -463,7 +490,10 @@ func initCustomShellStartupFilesInternal() error {
 }
 
 func GetShellTypeFromShellPath(shellPath string) string {
-	shellBase := filepath.Base(shellPath)
+	shellBase := strings.ToLower(filepath.Base(shellPath))
+	if shellBase == "nu" || shellBase == "nu.exe" {
+		return ShellType_nushell
+	}
 	if strings.Contains(shellBase, "bash") {
 		return ShellType_bash
 	}
@@ -480,10 +510,11 @@ func GetShellTypeFromShellPath(shellPath string) string {
 }
 
 var (
-	bashVersionRegexp = regexp.MustCompile(`\bversion\s+(\d+\.\d+)`)
-	zshVersionRegexp  = regexp.MustCompile(`\bzsh\s+(\d+\.\d+)`)
-	fishVersionRegexp = regexp.MustCompile(`\bversion\s+(\d+\.\d+)`)
-	pwshVersionRegexp = regexp.MustCompile(`(?:PowerShell\s+)?(\d+\.\d+)`)
+	bashVersionRegexp    = regexp.MustCompile(`\bversion\s+(\d+\.\d+)`)
+	zshVersionRegexp     = regexp.MustCompile(`\bzsh\s+(\d+\.\d+)`)
+	fishVersionRegexp    = regexp.MustCompile(`\bversion\s+(\d+\.\d+)`)
+	nushellVersionRegexp = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
+	pwshVersionRegexp    = regexp.MustCompile(`(?:PowerShell\s+)?(\d+\.\d+)`)
 )
 
 func DetectShellTypeAndVersion() (string, string, error) {
@@ -497,7 +528,7 @@ func DetectShellTypeAndVersionFromPath(shellPath string) (string, string, error)
 		return shellType, "", fmt.Errorf("unknown shell type: %s", shellPath)
 	}
 
-	shellBase := filepath.Base(shellPath)
+	shellBase := strings.ToLower(filepath.Base(shellPath))
 	if shellType == ShellType_pwsh && strings.Contains(shellBase, "powershell") && !strings.Contains(shellBase, "pwsh") {
 		return "powershell", "", nil
 	}
@@ -527,6 +558,9 @@ func getShellVersion(shellPath string, shellType string) (string, error) {
 	case ShellType_fish:
 		cmd = exec.CommandContext(ctx, shellPath, "--version")
 		versionRegex = fishVersionRegexp
+	case ShellType_nushell:
+		cmd = exec.CommandContext(ctx, shellPath, "--version")
+		versionRegex = nushellVersionRegexp
 	case ShellType_pwsh:
 		cmd = exec.CommandContext(ctx, shellPath, "--version")
 		versionRegex = pwshVersionRegexp

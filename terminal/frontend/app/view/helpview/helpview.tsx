@@ -5,9 +5,10 @@ import { globalStore, WOS } from "@/app/store/global";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WebView, WebViewModel } from "@/app/view/webview/webview";
+import { t } from "../../../i18n";
 import { atom } from "jotai";
 
-const docsiteUrl = "https://docs.waveterm.dev/?ref=app";
+const docsiteUrl = "https://linxira-os.github.io/zh/docs/";
 
 class HelpViewModel extends WebViewModel {
     get viewComponent(): ViewComponent {
@@ -43,7 +44,7 @@ class HelpViewModel extends WebViewModel {
         this.homepageUrl = atom(docsiteUrl);
         this.viewType = "help";
         this.viewIcon = atom("circle-question");
-        this.viewName = atom("Help");
+        this.viewName = atom(t("help.title"));
     }
 
     setZoomFactor(factor: number | null) {

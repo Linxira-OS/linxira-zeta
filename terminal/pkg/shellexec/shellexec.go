@@ -591,6 +591,12 @@ func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdS
 	if shellPath == "" {
 		shellPath = shellutil.DetectLocalShellPath()
 	}
+	if shellPath == "" {
+		return nil, fmt.Errorf("no supported shell found; install Nushell (nu) or PowerShell 7+ (pwsh)")
+	}
+	if shellutil.IsLegacyWindowsPowerShell(shellPath) {
+		return nil, fmt.Errorf("Windows PowerShell 5.1 is not supported; install PowerShell 7+ (pwsh) or Nushell (nu)")
+	}
 	shellType := shellutil.GetShellTypeFromShellPath(shellPath)
 	shellOpts = append(shellOpts, cmdOpts.ShellOpts...)
 	var isShell bool

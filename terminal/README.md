@@ -1,120 +1,78 @@
-<!-- Zeta fork notice: read ZETA-FORK.md. All Zeta-specific issues are reported to
-Zeta maintainers first; do not open upstream issues/PRs for this fork. -->
+<!-- Zeta fork notice: read ZETA-FORK.md. Report all Zeta-specific issues to Zeta
+maintainers first; do not open upstream issues, PRs, or security reports for this fork. -->
 
 <p align="center">
-  <a href="https://www.waveterm.dev">
-	<picture>
-		<source media="(prefers-color-scheme: dark)" srcset="./assets/wave-dark.png">
-		<source media="(prefers-color-scheme: light)" srcset="./assets/wave-light.png">
-		<img alt="Wave Terminal Logo" src="./assets/wave-light.png" width="240">
-	</picture>
+  <a href="https://linxira-os.github.io/zh/">
+    <img alt="Zeta Terminal" src="./assets/zeta/zeta-terminal-256.png" width="160">
   </a>
-  <br/>
 </p>
 
-# Wave Terminal
+# Zeta Terminal
 
 <div align="center">
 
-[English](README.md) | [한국어](README.ko.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [繁體中文](README.zh-TW.md)
 
 </div>
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fwavetermdev%2Fwaveterm.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fwavetermdev%2Fwaveterm?ref=badge_shield)
+Zeta Terminal is the first-party terminal of the Zeta project, forked from
+[Wave Terminal](https://github.com/wavetermdev/waveterm) under Apache-2.0. It is
+built as part of the Zeta product family, not as a separate upstream product.
 
-Wave is an open-source, AI-integrated terminal for macOS, Linux, and Windows. It works with any AI model. Bring your own API keys for OpenAI, Claude, or Gemini, or run local models via Ollama and LM Studio. No accounts required.
+**Current platform scope: Linux and Windows.** macOS is not built or released in
+this phase; the target may return later. Linux x64 and Windows x64 are the default
+builds; arm64 is manual/nightly.
 
-Wave also supports durable SSH sessions that survive network interruptions and restarts, with automatic reconnection. Edit remote files with a built-in graphical editor and preview files inline without leaving the terminal.
+## What is different in this fork
 
-![WaveTerm Screenshot](./assets/wave-screenshot.webp)
+- Zeta branding, logo, icons, About window, and documentation links.
+- Built-in Wave AI will be disabled; the agent surface moves to Zeta Code over
+  ACP, with an optional TSP page on the right.
+- Nushell is the recommended cross-platform default shell. Bash and Fish remain
+  the common Linux choices. PowerShell 7+ is supported on Windows; Windows
+  PowerShell 5.1 and `cmd.exe` are explicitly unsupported.
+- Per-window shell selection and shell/CWD tracking are on the roadmap. The
+  current `term:localshellpath` remains the low-level override.
+- Chinese localization is being introduced through a typed i18n catalogue; the
+  settings surface is being reorganized from raw config files into usable pages.
 
-## Key Features
+See [ZETA-FORK.md](./ZETA-FORK.md) for the fork policy and the change log.
 
-- Wave AI - Context-aware terminal assistant that reads your terminal output, analyzes widgets, and performs file operations
-- Durable SSH Sessions - Remote terminal sessions survive connection interruptions, network changes, and Wave restarts with automatic reconnection
-- Flexible drag & drop interface to organize terminal blocks, editors, web browsers, and AI assistants
-- Built-in editor for editing remote files with syntax highlighting and modern editor features
-- Rich file preview system for remote files (markdown, images, video, PDFs, CSVs, directories)
-- Quick full-screen toggle for any block - expand terminals, editors, and previews for better visibility, then instantly return to multi-block view
-- AI chat widget with support for multiple models (OpenAI, Claude, Azure, Perplexity, Ollama)
-- Command Blocks for isolating and monitoring individual commands
-- One-click remote connections with full terminal and file system access
-- Secure secret storage using native system backends - store API keys and credentials locally, access them across SSH sessions
-- Rich customization including tab themes, terminal styles, and background images
-- Powerful `wsh` command system for managing your workspace from the CLI and sharing data between terminal sessions
-- Connected file management with `wsh file` - seamlessly copy and sync files between local and remote SSH hosts
+## Build
 
-## Wave AI
+```sh
+# Linux / Windows, from this directory
+go build ./cmd/wsh
+task build
+```
 
-Wave AI is your context-aware terminal assistant with access to your workspace:
+Build prerequisites and packaging details are in [BUILD.md](./BUILD.md). Zeta
+Terminal is not a member of the root Zeta workspace and does not participate in
+the root release or npm publish flows.
 
-- **Terminal Context**: Reads terminal output and scrollback for debugging and analysis
-- **File Operations**: Read, write, and edit files with automatic backups and user approval
-- **CLI Integration**: Use `wsh ai` to pipe output or attach files directly from the command line
-- **BYOK Support**: Bring your own API keys for OpenAI, Claude, Gemini, Azure, and other providers
-- **Local Models**: Run local models with Ollama, LM Studio, and other OpenAI-compatible providers
-- **Free Beta**: Included AI credits while we refine the experience
-- **Coming Soon**: Command execution (with approval)
+## Shell support
 
-Learn more in our [Wave AI documentation](https://docs.waveterm.dev/waveai) and [Wave AI Modes documentation](https://docs.waveterm.dev/waveai-modes).
+| Platform | Recommended | Also supported | Not supported |
+|---|---|---|---|
+| Linux | Nushell | Bash, Zsh, Fish | — |
+| Windows | Nushell | PowerShell 7+ (`pwsh.exe`), WSL, Git Bash | Windows PowerShell 5.1, `cmd.exe` |
 
-## Installation
-
-Wave Terminal works on macOS, Linux, and Windows.
-
-Platform-specific installation instructions can be found [here](https://docs.waveterm.dev/gettingstarted).
-
-You can also install Wave Terminal directly from: [www.waveterm.dev/download](https://www.waveterm.dev/download).
-
-### Minimum requirements
-
-Wave Terminal runs on the following platforms:
-
-- macOS 11 or later (arm64, x64)
-- Windows 10 1809 or later (x64)
-- Linux based on glibc-2.28 or later (Debian 10, RHEL 8, Ubuntu 20.04, etc.) (arm64, x64)
-
-The WSH helper runs on the following platforms:
-
-- macOS 11 or later (arm64, x64)
-- Windows 10 or later (x64)
-- Linux Kernel 2.6.32 or later (x64), Linux Kernel 3.1 or later (arm64)
-
-## Roadmap
-
-Wave is constantly improving! Our roadmap will be continuously updated with our goals for each release. You can find it [here](./ROADMAP.md).
-
-Want to provide input to our future releases? Connect with us on [Discord](https://discord.gg/XfvZ334gwU) or open a [Feature Request](https://github.com/wavetermdev/waveterm/issues/new/choose)!
+PowerShell 7 is detected as `pwsh.exe` and must report major version 7 or newer.
+If it is missing, Zeta Terminal prompts for Nushell instead of falling back to
+the legacy Windows shell.
 
 ## Links
 
-- Homepage &mdash; https://www.waveterm.dev
-- Download Page &mdash; https://www.waveterm.dev/download
-- Documentation &mdash; https://docs.waveterm.dev
-- X &mdash; https://x.com/wavetermdev
-- Discord Community &mdash; https://discord.gg/XfvZ334gwU
+- Zeta website — https://linxira-os.github.io/zh/
+- Brand assets — https://linxira-os.github.io/zh/docs/brand-assets/
+- Zeta repository — https://github.com/Linxira-OS/linxira-zeta
+- This fork — https://github.com/Linxira-OS/linxira-zeta/tree/main/terminal
 
-## Building from Source
+## License and attribution
 
-See [Building Wave Terminal](BUILD.md).
+Zeta Terminal is licensed under Apache-2.0. The original Wave Terminal copyright,
+license, and NOTICE are preserved in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+Third-party acknowledgements remain in [ACKNOWLEDGEMENTS.md](./ACKNOWLEDGEMENTS.md).
 
-## Contributing
-
-Wave uses GitHub Issues for issue tracking.
-
-Find more information in our [Contributions Guide](CONTRIBUTING.md), which includes:
-
-- [Ways to contribute](CONTRIBUTING.md#contributing-to-wave-terminal)
-- [Contribution guidelines](CONTRIBUTING.md#before-you-start)
-
-### Sponsoring Wave ❤️
-
-If Wave Terminal is useful to you or your company, consider sponsoring development.
-
-Sponsorship helps support the time spent building and maintaining the project.
-
-- https://github.com/sponsors/wavetermdev
-
-## License
-
-Wave Terminal is licensed under the Apache-2.0 License. For more information on our dependencies, see [here](./ACKNOWLEDGEMENTS.md).
+Wave Terminal is Copyright Command Line Inc. Zeta-specific changes are Copyright
+Linxira OS contributors.

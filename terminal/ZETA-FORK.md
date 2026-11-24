@@ -34,15 +34,22 @@ Because this is an Apache-2.0 fork:
 
 Planned Zeta-owned changes, in order:
 
-1. Resources and product identity: replace Wave names, icons, screenshots, and
-   links with Zeta Terminal assets while keeping the Apache-2.0 notices.
-2. Simplified Chinese localization: introduce an explicit message catalogue and
-   a `zh-CN` locale; no ad-hoc string replacement inside renderer code.
-3. Standalone CI and release: only after 1–3 land; separate workflow, lockfile,
-   artifacts, and tag namespace.
+1. Resources and product identity: Zeta Terminal logo (Zeta mark in a terminal
+   frame), icons, About/help/onboarding links to the Zeta repository and site.
+2. Simplified Chinese localization: typed `en`/`zh-CN` catalogue under
+   `frontend/i18n`, starting with About, Help, and settings entry labels.
+3. ACP-first agent surface: launch `zetacode acp`, keep a TSP page as an optional
+   right-side surface instead of porting Wave AI.
+4. Linux + Windows builds only in this phase; macOS is deferred. Separate CI,
+   lockfile, artifacts, and `zeta-terminal-v*` tag namespace.
+5. Shell policy: Nushell recommended; Bash/Fish on Linux; PowerShell 7+ on
+   Windows; Windows PowerShell 5.1, `cmd.exe`, and per-window shell UI work
+   tracked separately.
 
-Until those land, this directory is excluded from brand scanning as a vendored
-upstream snapshot, and no root workflow builds or publishes it. See
+Until release/publish work starts, this directory is excluded from brand
+scanning as a vendored upstream snapshot. It now has a root-owned CI entry
+(`.github/workflows/terminal-ci.yml`) for its frontend and Go tests, but no root
+workflow packages or publishes it. See
 `document/adr/0097-wave-terminal-fork.md` and REQ-149.
 
 ## Modification log
@@ -53,9 +60,16 @@ upstream snapshot, and no root workflow builds or publishes it. See
 | 2026-11-23 | `terminal/ZETA-FORK.md`, `terminal/AGENTS.md` | New Zeta fork metadata; upstream source unchanged. |
 | 2026-11-24 | `frontend/app/view/term/term.tsx`, `termwrap.ts` | Removed the hidden overview-ruler reservation and force a full refresh/atlas clear after resize or renderer changes; targets the right-edge stale-cell artifacts. |
 | 2026-11-24 | `frontend/app/view/term/termwrap.ts` | Do not scroll-to-bottom or serialize scrollback for alternate-screen TUIs; avoids viewport jumps and idle memory churn on large full-screen frames. |
+| 2026-11-24 | `assets/zeta/*`, `build/icons/*`, `build/icon.ico`, `assets/appicon-windows.*`, `frontend/app/asset/logo.svg` | New Zeta Terminal mark: Zeta LZ logo inside a terminal window frame; generated PNG/ICO sizes. |
+| 2026-11-24 | `frontend/i18n/*`, `frontend/app/modals/about.tsx`, `frontend/app/view/helpview/*`, `frontend/app/view/waveconfig/waveconfig-model.ts` | Typed `en`/`zh-CN` catalogue; About, Help, and settings labels/links moved to it. |
+| 2026-11-24 | `frontend/app/{modals,element,onboarding,aipanel}/*`, `README.md` | User-visible About/help/onboarding/docs links now point at the Zeta repo, Zeta docs, or Zeta website instead of Wave upstream. |
+| 2026-11-24 | `pkg/wconfig/defaultconfig/settings.json` | Default browser page points at the Zeta terminal path; telemetry defaults off; Wave AI button/cloud modes hidden. |
+| 2026-11-24 | `pkg/util/shellutil/shellutil.go`, `pkg/shellexec/shellexec.go` | Nushell detection/version; Windows prefers `nu` then `pwsh` 7+, never falls back to PowerShell 5.1; empty/legacy shell gives an actionable error. |
+| 2026-11-24 | `frontend/app/view/waveconfig/{shellsettings.tsx,waveconfig-model.ts,waveconfigenv.ts,waveconfig.tsx}` | General settings gets a visual shell picker; labels/visual/raw tabs localized. |
+| 2026-11-24 | `.github/workflows/terminal-ci.yml` (root) | Migrated Terminal's active checks out of the ignored nested `.github` tree: Linux/Windows frontend typecheck/tests, Linux Go tests/build, Windows shell-package test. Upstream release workflows remain intentionally unmigrated. |
 
-No JavaScript, Go, build, or asset files have been modified yet. When they are,
-add one row per material change and keep the upstream `LICENSE`/`NOTICE` intact.
+When further JavaScript, Go, build, or asset files are modified, add one row per
+material change and keep the upstream `LICENSE`/`NOTICE` intact.
 
 ## Upstream sync
 

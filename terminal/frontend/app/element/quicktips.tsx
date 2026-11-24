@@ -288,11 +288,11 @@ const QuickTips = () => {
                         </IconBox>
                         <a
                             target="_blank"
-                            href="https://discord.gg/XfvZ334gwU"
+                            href="https://github.com/Linxira-OS/linxira-zeta/tree/main/terminal"
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
-                            Join Our Discord
+                            Zeta Terminal on GitHub
                         </a>
                     </div>
                     <div className="flex items-center gap-3 p-3 rounded-md bg-black/20 hover:bg-black/30 transition-colors cursor-pointer">
@@ -301,7 +301,7 @@ const QuickTips = () => {
                         </IconBox>
                         <a
                             target="_blank"
-                            href="https://docs.waveterm.dev/config"
+                            href="https://linxira-os.github.io/zh/docs/"
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
@@ -314,7 +314,7 @@ const QuickTips = () => {
                         </IconBox>
                         <a
                             target="_blank"
-                            href="https://docs.waveterm.dev/keybindings"
+                            href="https://linxira-os.github.io/zh/docs/"
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >
@@ -327,7 +327,7 @@ const QuickTips = () => {
                         </IconBox>
                         <a
                             target="_blank"
-                            href="https://docs.waveterm.dev"
+                            href="https://linxira-os.github.io/zh/docs/"
                             rel="noopener"
                             className="hover:text-accent-400 hover:underline transition-colors font-medium"
                         >

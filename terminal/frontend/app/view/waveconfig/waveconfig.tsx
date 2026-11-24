@@ -8,6 +8,7 @@ import { CodeEditor } from "@/app/view/codeeditor/codeeditor";
 import type { ConfigFile, WaveConfigViewModel } from "@/app/view/waveconfig/waveconfig-model";
 import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
+import { t } from "../../../i18n";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -35,7 +36,7 @@ const ConfigSidebar = memo(({ model }: ConfigSidebarProps) => {
     return (
         <div className="flex flex-col w-48 border-r border-border @w600:h-full @max-w600:absolute @max-w600:left-0.5 @max-w600:top-0 @max-w600:bottom-0.5 @max-w600:z-10 @max-w600:bg-background @max-w600:shadow-xl @max-w600:rounded-bl">
             <div className="flex items-center justify-between px-4 py-2 border-b border-border @w600:hidden">
-                <span className="font-semibold">Config Files</span>
+                <span className="font-semibold">{t("settings.files")}</span>
                 <button
                     onClick={() => setIsMenuOpen(false)}
                     className="hover:bg-secondary/50 rounded p-1 cursor-pointer transition-colors"
@@ -210,7 +211,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                                         <>
                                             {hasChanges && (
                                                 <span className="text-xs text-warning pb-0.5 @max-w450:hidden">
-                                                    Unsaved changes
+                                                    {t("settings.unsaved")}
                                                 </span>
                                             )}
                                             <Tooltip content={saveTooltip} placement="bottom" divClassName="shrink-0">
@@ -223,7 +224,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                                                             : "bg-accent/80 text-primary hover:bg-accent cursor-pointer"
                                                     }`}
                                                 >
-                                                    {isSaving ? "Saving..." : "Save"}
+                                                    {isSaving ? t("settings.saving") : t("settings.save")}
                                                 </button>
                                             </Tooltip>
                                         </>
@@ -245,7 +246,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                                                 : "bg-transparent hover:bg-hover"
                                         )}
                                     >
-                                        Visual
+                                        {t("settings.visual")}
                                     </button>
                                     {/* No guard needed: visual tab saves changes immediately via RPC */}
                                     <button
@@ -257,7 +258,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                                                 : "bg-transparent hover:bg-hover"
                                         )}
                                     >
-                                        Raw JSON
+                                        {t("settings.rawJson")}
                                     </button>
                                 </div>
                             )}

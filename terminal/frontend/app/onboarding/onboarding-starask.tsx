@@ -28,7 +28,7 @@ export function StarAskPage({ onClose, page = "upgrade" }: StarAskPageProps) {
             oref: WOS.makeORef("client", clientId),
             meta: { "onboarding:githubstar": true },
         });
-        window.open(`https://github.com/wavetermdev/waveterm?ref=${page}`, "_blank");
+        window.open("https://github.com/Linxira-OS/linxira-zeta", "_blank");
         onClose();
     };
 
@@ -58,7 +58,7 @@ export function StarAskPage({ onClose, page = "upgrade" }: StarAskPageProps) {
             },
             { noresponse: true }
         );
-        window.open("https://github.com/wavetermdev/waveterm", "_blank");
+        window.open("https://github.com/Linxira-OS/linxira-zeta", "_blank");
     };
 
     const handleMaybeLater = async () => {
@@ -84,13 +84,13 @@ export function StarAskPage({ onClose, page = "upgrade" }: StarAskPageProps) {
                 <div className="flex justify-center">
                     <Logo />
                 </div>
-                <div className="text-center text-[25px] font-normal text-foreground">Support open-source. Star Wave. ⭐</div>
+                <div className="text-center text-[25px] font-normal text-foreground">Support open-source. Star Zeta. ⭐</div>
             </header>
             <div className="flex-1 flex flex-col items-center justify-center gap-5 unselectable">
                 <div className="flex flex-col items-center gap-4 max-w-[460px] text-center">
                     <div className="text-secondary text-sm leading-relaxed">
-                        Wave is free, open-source, and open-model. Stars help us stay visible against closed
-                        alternatives. One click makes a difference.
+                        Zeta Terminal is free and open-source. Stars help the project stay visible against
+                        closed alternatives. One click makes a difference.
                     </div>
                     <div
                         className="group flex items-center justify-center gap-2 text-secondary text-sm mt-1 cursor-pointer transition-colors"

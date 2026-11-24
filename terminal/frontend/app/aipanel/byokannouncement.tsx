@@ -53,7 +53,7 @@ const BYOKAnnouncement = () => {
                             Configure AI Modes
                         </button>
                         <a
-                            href="https://docs.waveterm.dev/waveai-modes"
+                            href="https://linxira-os.github.io/zh/docs/"
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={handleViewDocs}

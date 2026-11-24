@@ -96,7 +96,7 @@ const InitPage = ({
                         <div>
                             <a
                                 target="_blank"
-                                href="https://github.com/wavetermdev/waveterm?ref=install"
+                                href="https://github.com/Linxira-OS/linxira-zeta"
                                 rel="noopener"
                                 className="text-accent"
                                 onClick={handleStarClick}
@@ -111,12 +111,12 @@ const InitPage = ({
                                 for individual users. Please show your support by giving us a star on{" "}
                                 <a
                                     target="_blank"
-                                    href="https://github.com/wavetermdev/waveterm?ref=install"
+                                    href="https://github.com/Linxira-OS/linxira-zeta"
                                     rel="noopener"
                                     className="text-accent"
                                     onClick={handleStarClick}
                                 >
-                                    Github&nbsp;(wavetermdev/waveterm)
+                                    GitHub&nbsp;(Linxira-OS/linxira-zeta)
                                 </a>
                             </div>
                         </div>
@@ -160,7 +160,7 @@ const InitPage = ({
                                 <a
                                     className="text-secondary! hover:underline!"
                                     target="_blank"
-                                    href="https://waveterm.dev/privacy"
+                                    href="https://linxira-os.github.io/zh/"
                                     rel="noopener"
                                 >
                                     Privacy Policy
@@ -207,7 +207,7 @@ const NoTelemetryStarPage = ({ isCompact }: { isCompact: boolean }) => {
             oref: WOS.makeORef("client", clientId),
             meta: { "onboarding:githubstar": true },
         });
-        window.open("https://github.com/wavetermdev/waveterm?ref=not", "_blank");
+        window.open("https://github.com/Linxira-OS/linxira-zeta", "_blank");
         setPageName("features");
     };
 

@@ -1,0 +1,99 @@
+name: Terminal CI
+
+# The Wave fork lives in terminal/, but GitHub only discovers workflows at the
+# repository root. Keep this workflow separate from the main CI: terminal/ is
+# still not a root workspace member and has its own npm/Go toolchain.
+on:
+   push:
+      branches: [main, "dev/*"]
+      paths:
+         - "terminal/**"
+         - ".github/workflows/terminal-ci.yml"
+   pull_request:
+      branches: [main]
+      paths:
+         - "terminal/**"
+         - ".github/workflows/terminal-ci.yml"
+   workflow_dispatch:
+
+concurrency:
+   group: terminal-ci-${{ github.ref }}
+   cancel-in-progress: true
+
+permissions:
+   contents: read
+
+jobs:
+   frontend:
+      name: Terminal frontend (Linux)
+      runs-on: ubuntu-22.04
+      timeout-minutes: 30
+      env:
+         WAVETERM_SKIP_APP_DEPS: "1"
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: npm
+              cache-dependency-path: terminal/package-lock.json
+         - name: Install dependencies
+           working-directory: terminal
+           run: npm ci --no-audit --no-fund
+         - name: Type check
+           working-directory: terminal
+           run: npx tsc --noEmit
+         - name: Unit tests
+           working-directory: terminal
+           run: npm test -- --run
+
+   frontend-windows:
+      name: Terminal frontend (Windows)
+      runs-on: windows-latest
+      timeout-minutes: 30
+      env:
+         WAVETERM_SKIP_APP_DEPS: "1"
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 22
+              cache: npm
+              cache-dependency-path: terminal/package-lock.json
+         - name: Install dependencies
+           working-directory: terminal
+           run: npm ci --no-audit --no-fund
+         - name: Type check
+           working-directory: terminal
+           run: npx tsc --noEmit
+
+   go:
+      name: Terminal Go tests (Linux)
+      runs-on: ubuntu-22.04
+      timeout-minutes: 30
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-go@v5
+           with:
+              go-version-file: terminal/go.mod
+              cache-dependency-path: terminal/go.sum
+         - name: Test
+           working-directory: terminal
+           run: go test ./...
+         - name: Build server and wsh
+           working-directory: terminal
+           run: go build ./cmd/...
+
+   go-windows:
+      name: Terminal shell package (Windows)
+      runs-on: windows-latest
+      timeout-minutes: 20
+      steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-go@v5
+           with:
+              go-version-file: terminal/go.mod
+              cache-dependency-path: terminal/go.sum
+         - name: Test shell detection
+           working-directory: terminal
+           run: go test ./pkg/util/shellutil
