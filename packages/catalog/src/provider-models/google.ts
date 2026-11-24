@@ -110,18 +110,30 @@ export function googleAntigravityModelManagerOptions(
 							})),
 						);
 						const catalogs: { accountKey: string | undefined; models: ModelSpec<"google-gemini-cli">[] }[] = [];
+						const rejected: { accountKey: string | undefined; account: (typeof accounts)[number] }[] = [];
 						for (const { accountKey, result } of rosters) {
 							// A transient failure would leave the union partial; keep the previous catalog.
 							if (!result) return null;
-							// Standard Gemini Code Assist accounts are forbidden from the
-							// Antigravity roster endpoint; fall back to their own quota list.
 							if (result.rejectedStatus !== undefined) {
 								logger.warn("Antigravity model discovery skipped an account whose credential was rejected", {
 									accountKey,
 									status: result.rejectedStatus,
 								});
 								const account = accounts.find(candidate => candidate.accountKey === accountKey);
-								if (!account) return null;
+								if (account) rejected.push({ accountKey, account });
+								continue;
+							}
+							// Caches written under older rules fail the compiled-rules hash in
+							// the model cache, so filtering fresh rosters covers every source.
+							catalogs.push({
+								accountKey,
+								models: result.models.filter(model => !isExcludedModel("google-antigravity", model.id)),
+							});
+						}
+						// A standard Gemini Code Assist credential is forbidden from the
+						// Antigravity endpoint; if no healthy sibling exists, use its quota.
+						if (catalogs.length === 0 && rejected.length > 0) {
+							for (const { accountKey, account } of rejected) {
 								const quota = await fetchGeminiCliQuotaModels({
 									token: account.accessToken,
 									endpoint: config?.endpoint,
@@ -133,14 +145,7 @@ export function googleAntigravityModelManagerOptions(
 									accountKey,
 									models: quota.filter(model => !isExcludedModel("google-gemini-cli", model.id)),
 								});
-								continue;
 							}
-							// Caches written under older rules fail the compiled-rules hash in
-							// the model cache, so filtering fresh rosters covers every source.
-							catalogs.push({
-								accountKey,
-								models: result.models.filter(model => !isExcludedModel("google-antigravity", model.id)),
-							});
 						}
 						if (catalogs.length === 0) return null;
 						const tagAccess = catalogs.every(catalog => catalog.accountKey !== undefined);
