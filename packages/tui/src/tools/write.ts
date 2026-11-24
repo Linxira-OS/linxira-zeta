@@ -37,6 +37,7 @@ import { code, compact, md, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";
 import { describeCfgWrite, renderCfgWrite, type CfgWriteDetails } from "./cfg-render";
+import { renderXdevCall } from "./xdev";
 import type { FileDiagnosticsResult } from "./lsp";
 import type { OutputMeta } from "./output-meta";
 import type { CardToolResult } from "./result-card";
@@ -587,6 +588,11 @@ export const writeToolRenderer = {
 		const pathSettled = args.content !== undefined || options.argsComplete === true;
 		const hasStringPath = typeof args.file_path === "string" || typeof args.path === "string";
 		if (hasStringPath && !pathSettled && couldBecomeWriteCardUrl(rawPath.toLowerCase())) return undefined;
+		if (rawPath.startsWith("xd://")) {
+			const device = rawPath.slice("xd://".length);
+			const xdev = renderXdevCall(device, args.content, options, uiTheme, options.renderContext?.resolveXdevMounted);
+			if (xdev) return xdev;
+		}
 		const routed = writeUrlCard(rawPath);
 		if (routed)
 			return routed.card.render(rawPath, routed.target, args.content, undefined, undefined, options, uiTheme);
@@ -637,8 +643,15 @@ export const writeToolRenderer = {
 				while (bodyLines.length > 0 && bodyLines[0].trim() === "") bodyLines.shift();
 				return {
 					header,
-					// The label ends with the args: once the content is complete the write is just running.
-					footerMeta: body && !options?.argsComplete ? uiTheme.fg("dim", "streaming") : undefined,
+					// The label ends with the args. A complete call that has not
+					// begun executing is queued behind an exclusive device write.
+					footerMeta: body
+						? !options?.argsComplete
+							? uiTheme.fg("dim", "streaming")
+							: options?.executionStarted === false
+								? uiTheme.fg("dim", "queued")
+								: undefined
+						: undefined,
 					sections: bodyLines.length > 0 ? [{ content: wrapWritePreviewRows(bodyLines, contentWidth) }] : [],
 					phase: "pending",
 					borderColor: "borderMuted",

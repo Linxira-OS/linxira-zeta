@@ -1823,6 +1823,18 @@ export class EventController {
 						this.#pendingStreamPreviews.delete(content.id);
 					}
 					component.setExpanded(this.ctx.toolOutputExpanded);
+					// An exclusive device write carries its whole body in the
+					// tool-call JSON, so its args are final as soon as the path is
+					// an `xd://` device. Mark it complete but leave execution
+					// pending: the card must say `queued`, not `streaming`, while it
+					// waits behind another exclusive write.
+					if (
+						renderToolName === "write" &&
+						typeof renderArgs.path === "string" &&
+						renderArgs.path.startsWith("xd://")
+					) {
+						component.setArgsComplete(content.id);
+					}
 					this.ctx.chatContainer.addChild(component);
 					this.ctx.pendingTools.set(content.id, component);
 					this.#toolTimelineComponents.set(content.id, component);
