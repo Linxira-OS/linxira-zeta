@@ -37,7 +37,7 @@ import { code, compact, md, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";
 import { describeCfgWrite, renderCfgWrite, type CfgWriteDetails } from "./cfg-render";
-import { renderXdevCall } from "./xdev";
+import { renderXdevCall, renderXdevResult, type XdevRenderDispatch } from "./xdev";
 import type { FileDiagnosticsResult } from "./lsp";
 import type { OutputMeta } from "./output-meta";
 import type { CardToolResult } from "./result-card";
@@ -64,6 +64,8 @@ export interface WriteToolDetails {
 	message?: CoordinationDetails;
 	proc?: ProcWriteDetails;
 	cfg?: CfgWriteDetails;
+	/** Dispatch metadata for a `write xd://<device>` result. */
+	xdev?: XdevRenderDispatch;
 	/** Set when the write touched no files: a peer message, a reply, process stdin, or background-work control. */
 	touchesNoFiles?: boolean;
 }
@@ -674,6 +676,16 @@ export const writeToolRenderer = {
 		delete options[writeStreamingPreviewStateKey];
 		const cardPath =
 			typeof args?.path === "string" ? args.path : typeof args?.file_path === "string" ? args.file_path : "";
+		if (cardPath.startsWith("xd://") && result.details?.xdev) {
+			const xdev = renderXdevResult(
+				result.details.xdev,
+				result,
+				options,
+				uiTheme,
+				options.renderContext?.resolveXdevMounted,
+			);
+			if (xdev) return xdev;
+		}
 		const routed = writeUrlCard(cardPath, result.details);
 		if (routed)
 			return routed.card.render(cardPath, routed.target, args?.content, result, result.details, options, uiTheme);
@@ -791,6 +803,16 @@ export const writeToolRenderer = {
 	): NativeToolView | undefined {
 		const cardPath =
 			typeof args?.path === "string" ? args.path : typeof args?.file_path === "string" ? args.file_path : "";
+		if (cardPath.startsWith("xd://") && result.details?.xdev) {
+			const xdev = renderXdevResult(
+				result.details.xdev,
+				result,
+				options,
+				uiTheme,
+				options.renderContext?.resolveXdevMounted,
+			);
+			if (xdev) return xdev;
+		}
 		const routed = writeUrlCard(cardPath, result.details);
 		if (routed) return describeWriteUrl(routed, cardPath, args?.content, result, result.details);
 		const rawPath =
