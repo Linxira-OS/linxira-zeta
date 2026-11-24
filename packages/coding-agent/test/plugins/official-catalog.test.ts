@@ -174,54 +174,32 @@ describe("official plugin catalog", () => {
 		});
 	});
 
-	test("the repository ships pi-messenger as the bundled official plugin", async () => {
+	test("the repository ships no bundled official plugin", async () => {
 		// No override: this reads the real `plugins/official` tree next to the package.
 		delete process.env[OFFICIAL_DIR_ENV];
 		delete process.env[OFFICIAL_EMBED_ENV];
-		const pkg = (await Bun.file(
-			path.join(REPO_ROOT, "plugins", "official", "pi-messenger", "package.json"),
-		).json()) as { version: string };
 
 		const manifests = readOfficialPluginManifests();
 
-		const messenger = manifests.find(m => m.id === "pi-messenger");
-		expect(messenger).toBeDefined();
-		expect(messenger?.version).toBe(pkg.version);
-		expect(messenger?.dir).toBe(path.join(REPO_ROOT, "plugins", "official", "pi-messenger"));
-		// The teaching sample stays out of the built-in set.
-		expect(manifests.map(m => m.id)).not.toContain("example-panel");
+		// pi-messenger is optional and no longer bundled; example-panel is a template.
+		expect(manifests.map(m => m.id)).toEqual([]);
 	});
 
-	test("the shipped pi-messenger manifest seeds installed and disabled", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-pi-messenger-seed-"));
-		const shippedDir = path.join(REPO_ROOT, "plugins", "official", "pi-messenger");
-		const officialRoot = path.join(root, "official");
-		const pluginDir = path.join(officialRoot, "pi-messenger");
-		await fs.mkdir(pluginDir, { recursive: true });
-		// Copy the shipped identity/marker manifests, not the whole tree: this
-		// proves the real `distribution: bundled` + package name seed disabled
-		// without copying a developer's plugin node_modules.
-		const pluginJson = (await Bun.file(path.join(shippedDir, "plugin.json")).json()) as Record<string, unknown>;
-		const pkg = (await Bun.file(path.join(shippedDir, "package.json")).json()) as {
-			name: string;
-			version: string;
-		};
-		await Bun.write(path.join(pluginDir, "plugin.json"), JSON.stringify(pluginJson));
-		await Bun.write(path.join(pluginDir, "package.json"), JSON.stringify({ name: pkg.name, version: pkg.version }));
-		await Bun.write(path.join(pluginDir, "index.ts"), "export default {};\n");
-		process.env[OFFICIAL_DIR_ENV] = officialRoot;
-		delete process.env[OFFICIAL_EMBED_ENV];
+	test("a bundled official plugin seeds installed and disabled", async () => {
+		const fixture = await createOfficialFixture([
+			{ id: "alpha", version: "1.0.0", publish: "@zeta/alpha" },
+		]);
 		try {
-			const manager = createManager(path.join(root, "state"));
+			const manager = createManager(fixture.managerDir);
 
-			expect(await manager.ensureOfficialPluginsInstalled()).toEqual(["pi-messenger@official"]);
+			expect(await manager.ensureOfficialPluginsInstalled()).toEqual(["alpha@official"]);
 
-			const registry = await readInstalledPluginsRegistry(path.join(root, "state", "installed_plugins.json"));
-			expect(registry.plugins["pi-messenger@official"]?.[0]?.enabled).toBe(false);
-			expect((await readRuntimeState(path.join(root, "state")))["@linxiraos/pi-messenger"]?.enabled).toBe(false);
+			const registry = await readInstalledPluginsRegistry(path.join(fixture.managerDir, "installed_plugins.json"));
+			expect(registry.plugins["alpha@official"]?.[0]?.enabled).toBe(false);
+			expect((await readRuntimeState(fixture.managerDir))["@zeta/alpha"]?.enabled).toBe(false);
 		} finally {
 			restoreEnv();
-			await removeWithRetries(root);
+			await removeWithRetries(fixture.root);
 		}
 	});
 });

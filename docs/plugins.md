@@ -114,9 +114,10 @@ Flags: `--json`, `--dry-run` (install/uninstall/link), `--force` (install), `--s
 ### The built-in `official` catalog
 
 Every install ships a built-in marketplace named `official`, derived from the
-`plugin.json` manifests of the official plugins bundled with the product (a
-plugin joins it by declaring `"distribution": "bundled"`; today that is
-`pi-messenger`). Nothing has to be added or downloaded:
+`plugin.json` manifests of the plugins bundled with the product (a plugin joins
+it by declaring `"distribution": "bundled"`). The catalog can be empty; Zeta no
+longer bundles a default official plugin. `pi-messenger` and `example-panel`
+are optional/manual installs:
 
 ```
 $ zetacode plugin marketplace

@@ -22,18 +22,13 @@ this plugin owns the mesh and crew surfaces.
 
 ## Activating it
 
-Zeta ships this plugin in the built-in `official` catalog, so it arrives
-**installed and disabled**: the first `zetacode plugin list`, `discover`, or
-`enable` copies the bundled sources into the plugin cache and records the entry
-as `pi-messenger@official` with `enabled: false`. No marketplace has to be added
-and nothing is downloaded. Activating it is one explicit command:
+`pi-messenger` is optional: it is **not** bundled, not installed by default,
+and not part of the built-in `official` catalog. Install it explicitly from its
+source package or a local checkout, then enable it:
 
 ```bash
+zetacode plugin install @linxiraos/pi-messenger
 zetacode plugin enable pi-messenger
-```
-
-```
-✔ Enabled pi-messenger@official
 ```
 
 `zetacode plugin list` shows the entry on both sides of that flip:
