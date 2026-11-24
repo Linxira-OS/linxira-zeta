@@ -354,6 +354,7 @@ export class TermWrap {
             this.terminal.loadAddon(addon);
             this.webglAddon = addon;
             globalStore.set(this.webglEnabledAtom, true);
+            this.terminal.refresh(0, Math.max(0, this.terminal.rows - 1));
             if (!loggedWebGL) {
                 console.log("loaded webgl!");
                 loggedWebGL = true;
@@ -469,6 +470,7 @@ export class TermWrap {
     handleNewFileSubjectData(msg: WSFileEventData) {
         if (msg.fileop == "truncate") {
             this.terminal.clear();
+            this.terminal.refresh(0, Math.max(0, this.terminal.rows - 1));
             this.heldData = [];
         } else if (msg.fileop == "append") {
             const decodedData = base64ToArray(msg.data64);
@@ -561,6 +563,10 @@ export class TermWrap {
         const oldCols = this.terminal.cols;
         this.fitAddon.fit();
         if (oldRows !== this.terminal.rows || oldCols !== this.terminal.cols) {
+            // WebGL keeps a glyph atlas; a resize can leave stale cells at the old
+            // right edge until the texture is discarded and every row repainted.
+            (this.webglAddon as any)?.clearTextureAtlas?.();
+            this.terminal.refresh(0, Math.max(0, this.terminal.rows - 1));
             const termSize: TermSize = { rows: this.terminal.rows, cols: this.terminal.cols };
             console.log(
                 "[termwrap] resize",

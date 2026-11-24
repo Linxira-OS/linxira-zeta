@@ -51,6 +51,7 @@ upstream snapshot, and no root workflow builds or publishes it. See
 |---|---|---|
 | 2026-11-23 | `terminal/README.md` | Added the Zeta fork notice (`ZETA-FORK.md`, no-upstream-report policy). |
 | 2026-11-23 | `terminal/ZETA-FORK.md`, `terminal/AGENTS.md` | New Zeta fork metadata; upstream source unchanged. |
+| 2026-11-24 | `frontend/app/view/term/term.tsx`, `termwrap.ts` | Removed the hidden overview-ruler reservation and force a full refresh/atlas clear after resize or renderer changes; targets the right-edge stale-cell artifacts. |
 
 No JavaScript, Go, build, or asset files have been modified yet. When they are,
 add one row per material change and keep the upstream `LICENSE`/`NOTICE` intact.
