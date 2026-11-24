@@ -121,7 +121,7 @@ describe("McpEndpoint upstream lifecycle", () => {
 		const endpoint = unit({ idleMs: 20, era: "legacy" });
 		const link = attachLink(endpoint);
 		await link.call(1, "tools/list");
-		await link.call(2, "resources/read", { uri: "file:///a" }, { "omp/cache": "no-store" });
+		await link.call(2, "resources/read", { uri: "file:///a" }, { "zeta/cache": "no-store" });
 		const first = upstreams.last;
 		await until(() => first.listens.length === 1, "the host's subscription");
 		link.clear();
@@ -201,12 +201,12 @@ describe("McpEndpoint upstream lifecycle", () => {
 		expect(upstreams.peers).toHaveLength(2);
 	});
 
-	it("refuses to start after five crashes until omp/restart clears the guard", async () => {
+	it("refuses to start after five crashes until zeta/restart clears the guard", async () => {
 		scriptCrashAndSlow();
 		const link = attachLink(unit());
 		for (let attempt = 1; attempt <= 5; attempt++) {
 			hostError(await link.call(attempt, "tools/call", { name: "crash" }));
-			await until(() => link.named("omp/status").some(m => JSON.stringify(m.params).includes('"failed"')), "failed");
+			await until(() => link.named("zeta/status").some(m => JSON.stringify(m.params).includes('"failed"')), "failed");
 			link.clear();
 		}
 		expect(upstreams.startAttempts).toBe(5);
@@ -245,7 +245,7 @@ describe("McpEndpoint upstream lifecycle", () => {
 		expect(decoded.message).toContain("30 ms");
 	});
 
-	it("restarts on omp/restart: stops the process, drops stored lists, and the next request starts another", async () => {
+	it("restarts on zeta/restart: stops the process, drops stored lists, and the next request starts another", async () => {
 		const endpoint = unit();
 		const link = attachLink(endpoint);
 		await link.call(1, "tools/list");

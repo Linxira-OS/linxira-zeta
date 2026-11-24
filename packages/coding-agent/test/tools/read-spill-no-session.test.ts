@@ -29,7 +29,7 @@ describe("spills of a session without a session file", () => {
 
 	afterEach(async () => {
 		await manager.close();
-		await fs.rm(path.join(os.tmpdir(), "omp-local", manager.getSessionId()), { recursive: true, force: true });
+		await fs.rm(path.join(os.tmpdir(), "zeta-local", manager.getSessionId()), { recursive: true, force: true });
 		await fs.rm(testDir, { recursive: true, force: true });
 	});
 

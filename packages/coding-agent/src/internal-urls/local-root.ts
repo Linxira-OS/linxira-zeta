@@ -28,7 +28,7 @@ function shortLocalRoot(options: LocalProtocolOptions): string {
 	// Derive the short root from the stable session id, never the artifact path,
 	// so `SessionManager.moveTo()` and the resume-after-move flow keep finding
 	// the same `local://` directory the session wrote pre-move.
-	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "zeta-local", safeSessionId(options));
 }
 
 /** Resolve the session-scoped local:// root, shortening long Windows artifact paths before writes hit MAX_PATH. */
@@ -42,5 +42,5 @@ export function resolveLocalRoot(options: LocalProtocolOptions, platform: NodeJS
 		return candidate;
 	}
 
-	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "zeta-local", safeSessionId(options));
 }

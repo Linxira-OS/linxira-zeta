@@ -76,7 +76,7 @@ describe("modern MCP client operations", () => {
 		const connection = await connect();
 		const tunnel = host.tunnel;
 
-		expect(metaOf(await tunnel.next("server/discover"))["omp/cache"]).toBe("stale-ok");
+		expect(metaOf(await tunnel.next("server/discover"))["zeta/cache"]).toBe("stale-ok");
 		expect(paramsOf(await tunnel.next("subscriptions/listen")).notifications).toEqual({
 			toolsListChanged: true,
 			promptsListChanged: true,
@@ -125,7 +125,7 @@ describe("modern MCP client operations", () => {
 		expect((await listing).map(tool => tool.name)).toEqual(["a", "b"]);
 		expect(paramsOf(first).cursor).toBeUndefined();
 		expect(paramsOf(second).cursor).toBe("page-2");
-		expect(metaOf(second)["omp/cache"]).toBe("stale-ok");
+		expect(metaOf(second)["zeta/cache"]).toBe("stale-ok");
 		expect(await listTools(connection)).toBe(await listing);
 		expect(tunnel.sent.filter(message => message.method === "tools/list")).toHaveLength(2);
 	});
@@ -345,7 +345,7 @@ describe("modern MCP client operations", () => {
 		const asked = tunnel.sent.filter(
 			message => message.method === "server/discover" || message.method === "tools/list",
 		);
-		expect(asked.map(message => metaOf(message)["omp/cache"])).toEqual(["no-store", "no-store"]);
+		expect(asked.map(message => metaOf(message)["zeta/cache"])).toEqual(["no-store", "no-store"]);
 	});
 
 	it("follows an empty cursor to the next page", async () => {

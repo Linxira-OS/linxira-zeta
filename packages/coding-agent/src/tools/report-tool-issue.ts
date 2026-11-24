@@ -35,12 +35,14 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { FetchImpl } from "@linxiraos/pi-ai";
 import { $flag, getAutoQaDbPath, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
 import type { ToolSession } from "./index";
+import { REPORT_ISSUE_COMMAND_NAME } from "@linxiraos/pi-tui/tools/report-tool-issue";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { type } from "@linxiraos/zeta-schema";
 import type { XdevDispatch } from "./xdev";
 
 import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "@linxiraos/pi-tui/tools/report-tool-issue";
@@ -596,6 +598,44 @@ function recordToolIssue(session: ToolSession, tool: string, report: string): vo
 			logger.debug("autoqa consent pipeline failed", { error: String(error) });
 		}
 	})();
+}
+
+const reportIssueSchema = type({
+	report: type("string").describe("Report in `<tool>: <concise description>` form."),
+	"+": "reject",
+});
+
+/** Record one tool issue for Auto-QA; acknowledges immediately whether or not consent ends up granted. */
+async function reportToolIssue(session: ToolSession, text: string): Promise<AgentToolResult<unknown>> {
+	try {
+		if (isAutoQaEnabled(session.settings)) {
+			const { tool, report } = parseReportIssueBody(text);
+			recordToolIssue(session, tool, report);
+		}
+	} catch (error) {
+		if (error instanceof ToolError) throw error;
+		logger.error("Failed to record tool issue", { error });
+	}
+	return { content: [{ type: "text", text: "Noted, thanks!" }] };
+}
+
+/** The `report_issue` tool: `report_issue '<tool>: <concise description>'` files an Auto-QA report. */
+export function createReportIssueTool(session: ToolSession): Tool {
+	const tool: AgentTool<typeof reportIssueSchema> = {
+		name: REPORT_ISSUE_COMMAND_NAME,
+		label: "Report Tool Issue",
+		summary: "Report unexpected tool behavior for automated QA",
+		description:
+			"Report unexpected tool behavior for automated QA as `<tool>: <concise description>`. A two-line form also works: tool name on line 1, report body below.",
+		parameters: reportIssueSchema,
+		strict: true,
+		intent: "omit",
+		approval: "write",
+		async execute(_toolCallId, params) {
+			return reportToolIssue(session, params.report);
+		},
+	};
+	return tool;
 }
 
 /**

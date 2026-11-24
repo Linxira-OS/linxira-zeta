@@ -71,7 +71,7 @@ describe("HostLink", () => {
 	it("sends the revision, capabilities and identity on every request and keeps caller metadata", async () => {
 		const link = await connected();
 
-		const pending = link.request("tools/list", { cursor: "c1", _meta: { "omp/cache": "stale-ok" } });
+		const pending = link.request("tools/list", { cursor: "c1", _meta: { "zeta/cache": "stale-ok" } });
 		const request = await host.tunnel.next("tools/list");
 		host.tunnel.push({ id: request.id, result: { tools: [] } });
 
@@ -79,7 +79,7 @@ describe("HostLink", () => {
 		expect(request.jsonrpc).toBe("2.0");
 		expect(paramsOf(request).cursor).toBe("c1");
 		expect(metaOf(request)).toEqual({
-			"omp/cache": "stale-ok",
+			"zeta/cache": "stale-ok",
 			[MCPMeta.protocolVersion]: MCP_PROTOCOL_VERSION,
 			[MCPMeta.clientCapabilities]: { roots: {} },
 			[MCPMeta.clientInfo]: MCP_CLIENT_INFO,
@@ -346,7 +346,7 @@ describe("HostLink", () => {
 		await link.restart();
 		link.setRoots();
 
-		expect((await host.tunnel.next("omp/restart")).id).toBeUndefined();
+		expect((await host.tunnel.next("zeta/restart")).id).toBeUndefined();
 		expect(paramsOf(await host.tunnel.next(MCP_ROOTS_METHOD))).toEqual({ roots: ROOTS });
 	});
 

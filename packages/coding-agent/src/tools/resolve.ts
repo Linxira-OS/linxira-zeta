@@ -33,6 +33,7 @@ import resolveReminderPrompt from "../prompts/system/resolve-reminder.md" with {
 import type { Tool, ToolSession } from ".";
 import type { XdevDispatch } from "./xdev";
 import { toolCommandCallName, toolCommandDispatches } from "./tool-commands";
+import { createReportIssueTool, isAutoQaEnabled } from "./report-tool-issue";
 
 /**
  * Model-visible banner prepended to a staged preview's tool result text. The
@@ -414,6 +415,7 @@ function createProposeTool(session: ToolSession): AgentTool<typeof proposeSchema
  */
 export function specialToolCommands(session: ToolSession): Tool[] {
 	const tools: Tool[] = [createResolveTool(session), createRejectTool(session), createProposeTool(session)];
+	if (isAutoQaEnabled(session.settings)) tools.push(createReportIssueTool(session));
 	return tools;
 }
 
