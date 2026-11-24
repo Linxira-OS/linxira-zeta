@@ -136,11 +136,11 @@ describe("core/plugin ownership", () => {
 		expect(leaks).toEqual([]);
 	});
 
-	test("pi-messenger stays bundled and outside the root workspace", async () => {
+	test("pi-messenger stays optional and outside the root workspace", async () => {
 		const manifest = await readJsonObject(path.join(PLUGIN_DIR, "plugin.json"));
 		expect(manifest.id).toBe("pi-messenger");
 		expect(manifest.publish).toBe(PLUGIN_PACKAGE);
-		expect(manifest.distribution).toBe("bundled");
+		expect(manifest.distribution).toBeUndefined();
 
 		const rootPkg = await readJsonObject(path.join(REPO_ROOT, "package.json"));
 		const matchingPatterns = workspacePatterns(rootPkg).filter(pattern =>
