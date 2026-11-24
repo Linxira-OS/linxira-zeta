@@ -37,7 +37,7 @@ import { code, compact, md, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";
 import { describeCfgWrite, renderCfgWrite, type CfgWriteDetails } from "./cfg-render";
-import { renderXdevCall, renderXdevResult, type XdevRenderDispatch } from "./xdev";
+import { describeXdevCall, renderXdevCall, renderXdevResult, type XdevRenderDispatch } from "./xdev";
 import type { FileDiagnosticsResult } from "./lsp";
 import type { OutputMeta } from "./output-meta";
 import type { CardToolResult } from "./result-card";
@@ -784,6 +784,15 @@ export const writeToolRenderer = {
 		const pathSettled = args.content !== undefined || options.argsComplete === true;
 		const hasStringPath = typeof args.file_path === "string" || typeof args.path === "string";
 		if (hasStringPath && !pathSettled && couldBecomeWriteCardUrl(rawPath.toLowerCase())) return undefined;
+		if (rawPath.startsWith("xd://")) {
+			const xdev = describeXdevCall(
+				rawPath.slice("xd://".length),
+				args.content,
+				options,
+				options.renderContext?.resolveXdevMounted,
+			);
+			if (xdev) return xdev;
+		}
 		const routed = writeUrlCard(rawPath);
 		if (routed) return describeWriteUrl(routed, rawPath, args.content, undefined, undefined);
 		const content = normalizeDisplayText(args.content);
