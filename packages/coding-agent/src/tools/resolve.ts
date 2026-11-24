@@ -461,3 +461,7 @@ export async function dispatchResolutionDevice(
 	const result = (await invoker({ action, reason: body })) as AgentToolResult<ResolveDetails>;
 	return { result, xdev: { ...xdevBase, inner: result.details } };
 }
+
+// Compatibility surface: tests and attach clients import the device paths
+// from this module, while the wire vocabulary lives in pi-tui.
+export { PROPOSE_DEVICE_PATH, REJECT_DEVICE_PATH, RESOLVE_DEVICE_PATH };
