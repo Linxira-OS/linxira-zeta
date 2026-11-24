@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as fs from "node:fs/promises";
 import { ptree, TempDir } from "@linxiraos/pi-utils";
 import { selectShard } from "./ci-test-ts";
 
@@ -6,6 +7,8 @@ describe("test runner watchdog", () => {
 	// Parent fake timers cannot drive the real watchdog inside the isolated runner process.
 	test("kills a stalled chunk, reports failure, and continues the queue", async () => {
 		using dir = TempDir.createSync("@omp-test-runner-watchdog-");
+		const junitDir = dir.join("junit");
+		await fs.mkdir(junitDir);
 		const started = dir.join("started");
 		const completed = dir.join("completed");
 		const continued = dir.join("continued");
@@ -32,7 +35,7 @@ describe("test runner watchdog", () => {
 			`const write = process.stdout.write.bind(process.stdout);`,
 			`process.stdout.write = (chunk, ...rest) => { try { appendFileSync(${JSON.stringify(childLog)}, chunk); } catch {} return write(chunk, ...rest); };`,
 			`const { runTestCommandsInParallel } = await import(${JSON.stringify(import.meta.resolve("./ci-test-ts.ts"))});`,
-			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1);`,
+			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1, ${JSON.stringify(junitDir)}, []);`,
 		].join("\n");
 		let result: Awaited<ReturnType<typeof ptree.exec>> | undefined;
 		let failure: unknown;
@@ -71,12 +74,15 @@ describe("chunk exit classification", () => {
 	// summary and still exited 1 on three consecutive attempts. Retrying cannot help, so
 	// bun's own summary decides — which these two cases pin from both sides.
 	async function runOne(script: string): Promise<Awaited<ReturnType<typeof ptree.exec>>> {
+		using dir = TempDir.createSync("@omp-test-runner-classify-");
+		const junitDir = dir.join("junit");
+		await fs.mkdir(junitDir);
 		const commands = [{ label: "chunk under test", cwd: ".", command: [process.execPath, "-e", script] }];
 		const source = [
 			`const { runTestCommandsInParallel } = await import(${JSON.stringify(import.meta.resolve("./ci-test-ts.ts"))});`,
-			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1);`,
+			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1, ${JSON.stringify(junitDir)}, []);`,
 		].join("\n");
-		return ptree.exec([process.execPath, "-e", source], {
+		return await ptree.exec([process.execPath, "-e", source], {
 			env: { ...Bun.env, NO_COLOR: "1" },
 			timeout: 20_000,
 			detached: true,
