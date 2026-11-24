@@ -232,7 +232,11 @@ export class TermWrap {
                     this.inSyncTransaction = false;
                     const wasRepaint = this.inRepaintTransaction;
                     this.inRepaintTransaction = false;
-                    if (wasRepaint && Date.now() - this.lastClearScrollbackTs <= MaxRepaintTransactionMs) {
+                    if (
+                        wasRepaint &&
+                        this.terminal.buffer.active.type !== "alternate" &&
+                        Date.now() - this.lastClearScrollbackTs <= MaxRepaintTransactionMs
+                    ) {
                         setTimeout(() => {
                             console.log("[termwrap] repaint transaction complete, scrolling to bottom");
                             this.terminal.scrollToBottom();
@@ -584,6 +588,11 @@ export class TermWrap {
     }
 
     processAndCacheData() {
+        // Full-screen TUIs use the alternate buffer and have no scrollback worth
+        // serializing; serializing every idle tick only adds memory churn.
+        if (this.terminal.buffer.active.type === "alternate") {
+            return;
+        }
         if (this.dataBytesProcessed < MinDataProcessedForCache) {
             return;
         }
