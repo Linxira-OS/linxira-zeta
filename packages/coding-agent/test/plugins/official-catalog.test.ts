@@ -186,9 +186,7 @@ describe("official plugin catalog", () => {
 	});
 
 	test("a bundled official plugin seeds installed and disabled", async () => {
-		const fixture = await createOfficialFixture([
-			{ id: "alpha", version: "1.0.0", publish: "@zeta/alpha" },
-		]);
+		const fixture = await createOfficialFixture([{ id: "alpha", version: "1.0.0", publish: "@zeta/alpha" }]);
 		try {
 			const manager = createManager(fixture.managerDir);
 
