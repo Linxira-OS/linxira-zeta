@@ -1827,7 +1827,7 @@ export async function getSpotlightDashboardStats(
 function createSpotlightWorker(): Worker {
 	const hostEntry = workerHostEntry();
 	if (hostEntry) {
-		return new Worker(hostEntry, { type: "module", argv: ["__omp_worker_stats_spotlight"] });
+		return new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_stats_spotlight"] });
 	}
 	return new Worker(new URL("./spotlight-worker.ts", import.meta.url).href, { type: "module" });
 }
@@ -1878,7 +1878,7 @@ export async function buildSpotlightDashboardJson(
 }
 
 /**
- * Smoke test for `omp --smoke-test`: spawns a Spotlight worker, pings it, and asserts the pong, so install-method CI
+ * Smoke test for `zetacode --smoke-test`: spawns a Spotlight worker, pings it, and asserts the pong, so install-method CI
  * catches a worker that fails to load from the compiled binary or npm bundle.
  */
 export async function smokeTestSpotlightWorker({ timeoutMs = 5_000 }: { timeoutMs?: number } = {}): Promise<void> {
