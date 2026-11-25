@@ -716,9 +716,19 @@ export class AskDialogComponent implements Component {
 		);
 	}
 
+	/** Re-arm the parked-draft guard after the host remounts this dialog. */
+	refreshInputGuard(): void {
+		this.#guardActive = this.options.inputGuard?.isBlocked() === true;
+		this.options.inputGuard?.syncPresentation?.(this.#guardActive);
+	}
+
 	handleInput(keyData: string): void {
 		if (this.#closed || this.#promptActive) return;
 		const guard = this.options.inputGuard;
+		if (guard && this.#guardActive && !guard.isBlocked()) {
+			this.#guardActive = false;
+			guard.syncPresentation?.(false);
+		}
 		if (guard && this.#guardActive) {
 			// A parked composer draft keeps the keyboard until up/down hands it
 			// over; other keys edit the draft instead of answering the ask.
@@ -766,6 +776,7 @@ export class AskDialogComponent implements Component {
 	}
 
 	render(width: number): readonly string[] {
+		this.options.inputGuard?.syncPresentation?.(this.#guardActive && this.options.inputGuard.isBlocked());
 		if (this.#hidden) return this.#renderHidden(width);
 		const innerWidth = Math.max(1, width - 4);
 		this.#contentWidth = innerWidth;

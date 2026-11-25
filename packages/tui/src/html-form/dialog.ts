@@ -663,6 +663,10 @@ export class HtmlFormDialog implements Component, Focusable {
 
 	handleInput(data: string): void {
 		const guard = this.#options.inputGuard;
+		if (guard && this.#guardActive && !guard.isBlocked()) {
+			this.#guardActive = false;
+			guard.syncPresentation?.(false);
+		}
 		if (guard && this.#guardActive) {
 			// A draft parked over the form keeps the keyboard until up/down hands
 			// it over; every other key edits the draft, never answers the form.
@@ -819,6 +823,7 @@ export class HtmlFormDialog implements Component, Focusable {
 	}
 
 	render(width: number): readonly string[] {
+		this.#options.inputGuard?.syncPresentation?.(this.#guardActive && this.#options.inputGuard.isBlocked());
 		if (this.#hidden) return this.#renderHidden(width);
 		const innerWidth = Math.max(1, width - 4);
 		const skip = this.#options.skipNotice?.();

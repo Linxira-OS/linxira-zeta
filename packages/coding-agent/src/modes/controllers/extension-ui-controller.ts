@@ -798,6 +798,10 @@ export class ExtensionUiController {
 				},
 				onSubmit: data => settle({ data }),
 				onCancel: () => settle(undefined),
+				// Esc or Tab-on-Submit hands the keys back to the composer; in the
+				// controller-owned slot that ends the form, matching onCancel.
+				releaseKeys: () => settle(undefined),
+				claimKeys: () => this.ctx.ui.setFocus(dialog),
 				inputGuard: draft?.guard,
 				acceptImages: dialogOptions?.acceptImages === true,
 				onPasteImage: () => this.ctx.handleImagePaste(),
@@ -810,6 +814,9 @@ export class ExtensionUiController {
 			// The guarded draft stays visible beneath the form while typing edits it.
 			if (draft) this.ctx.editorContainer.addChild(this.ctx.editor);
 			this.ctx.ui.setFocus(dialog);
+			// The dialog owns key dispatch, but a parked draft keeps visual focus
+			// and the composerOwner guard until up/down hands input over.
+			draft?.guard.syncPresentation?.(draft.guard.isBlocked());
 			this.ctx.ui.requestRender();
 			return () => {
 				releaseComposerOwner?.();
@@ -842,6 +849,7 @@ export class ExtensionUiController {
 				// non-empty (e.g. a failed submit restored its text while a nested
 				// prompt was open), and routed input must land on a visible surface.
 				if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
+				askDialog.refreshInputGuard();
 				this.ctx.ui.setFocus(askDialog);
 				this.ctx.ui.requestRender();
 			};
@@ -922,6 +930,8 @@ export class ExtensionUiController {
 					timeout: dialogOptions?.timeout,
 					onTimeout: dialogOptions?.onTimeout,
 					tui: this.ctx.ui,
+					releaseKeys: () => settle(undefined),
+					claimKeys: () => this.ctx.ui.setFocus(askDialog),
 					inputGuard,
 				},
 			);
@@ -931,6 +941,7 @@ export class ExtensionUiController {
 			this.ctx.editorContainer.addChild(askDialog);
 			if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
 			this.ctx.ui.setFocus(askDialog);
+			inputGuard?.syncPresentation?.(inputGuard.isBlocked());
 			this.ctx.ui.requestRender();
 
 			return () => {
