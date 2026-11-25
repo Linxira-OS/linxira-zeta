@@ -34,6 +34,7 @@ import {
 import { peekFile } from "@linxiraos/pi-utils/peek-file";
 import { cfgDisasmBackend, DISASM_BACKENDS, isExecutableFile } from "../disasm";
 import { normalizeToLF } from "../edit/normalize";
+import { writeResourceBackingFile } from "../internal-urls/filesystem-resource";
 import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { extractUriScheme, InternalUrlRouter, type SchemeSpec, sessionResolveContext } from "../internal-urls";
 import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
@@ -3458,6 +3459,19 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			throw new ToolError("The ':img' selector requires a file-backed path.");
 		}
 		const resource = await InternalUrlRouter.instance().resolve(url, sessionResolveContext(this.session, { signal }));
+		if (typeof resource.content !== "string") {
+			// Bytes take the file pipeline under the URL's identity: images and documents by
+			// content/type, anything else as a binary file (`:raw` keeps it verbatim).
+			const backing = await writeResourceBackingFile(url, resource.content, resource.contentType);
+			const result = await this.#readFilesystemPath(backing, {
+				located: { url, path: backing, spec },
+				question,
+				signal,
+			});
+			const details: ReadToolDetails = result.details ?? {};
+			details.meta = { ...details.meta, source: { type: "internal", value: url } };
+			return { ...result, details };
+		}
 		if (question !== undefined) throw new ToolError(IMAGE_QUESTION_SELECTOR_ERROR);
 		const details: ReadToolDetails = {
 			resolvedPath: resource.sourcePath,
