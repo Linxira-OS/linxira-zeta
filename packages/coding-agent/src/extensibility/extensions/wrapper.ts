@@ -401,7 +401,9 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 		// `xdevPolicyKey` names the policy the outer gate used; when this tool
 		// resolves the same key, the inner gate must not ask the same question a
 		// second time (#17039). Deny and provider safety checks stay independent.
-		const outerDeviceApproval = context?.xdevPolicyKey !== undefined && resolved.policyKey === context.xdevPolicyKey;
+		const outerDeviceApproval =
+			context?.xdevPolicyKey !== undefined &&
+			(resolved.source === "mode" || resolved.policyKey === context.xdevPolicyKey);
 		const approvalCheck = {
 			required:
 				pendingSafetyChecks.length > 0 ||

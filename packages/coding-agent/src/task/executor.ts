@@ -808,7 +808,21 @@ export function finalizeSubprocessOutput(args: FinalizeSubprocessOutputArgs): Fi
 			}
 		} else {
 			const assembled = assembleYieldResult(yieldItems, yieldSectionShapes(outputSchema));
-			if (!assembled || assembled.missingData) {
+			const terminalYield = [...yieldItems]
+				.reverse()
+				.find(item => !Array.isArray(item.type) || item.type.length === 0);
+			const lastTurnOnly =
+				terminalYield?.useLastTurn === true ||
+				(typeof terminalYield?.type === "string" && terminalYield.type.trim() === "final");
+			const recoveredLastTurn =
+				lastTurnOnly &&
+				terminalYield?.data === undefined &&
+				lastAssistantText !== undefined &&
+				(!assembled || (assembled.missingData && assembled.data === undefined));
+			if (recoveredLastTurn) {
+				rawOutput = lastAssistantText!;
+				structuredOutput = undefined;
+			} else if (!assembled || assembled.missingData) {
 				rawOutput = rawOutput ? `${SUBAGENT_WARNING_NULL_YIELD}\n\n${rawOutput}` : SUBAGENT_WARNING_NULL_YIELD;
 				if (includeStructuredOutput) {
 					structuredOutput = { source, mode, status: "invalid", error: SUBAGENT_WARNING_NULL_YIELD };
