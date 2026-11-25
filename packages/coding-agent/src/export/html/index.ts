@@ -11,6 +11,7 @@ import type { ExportThemeNames } from "./args";
 import { writeBase64Json } from "./payload";
 import templateHtml from "./template.html.txt" with { type: "text" };
 import viewerAsset from "./viewer.generated.json" with { type: "json" };
+import { viewerSource } from "./viewer.generated";
 import { exportThemeStyles, webExportThemeVars } from "./web-palette";
 import { getResolvedThemeColors, getThemeExportColors } from "../../ui/theme/service";
 
@@ -46,15 +47,12 @@ export function getTemplate(): string {
 		const escaped = viewer.replace(/<\/script/gi, match => `<\\/${match.slice(2)}`);
 		viewerScript = `<script>window.addEventListener("DOMContentLoaded",function(){\n${escaped}\n});</script>`;
 	} else {
-		const viewerUrl = `https://build.stencil.so/web/omp/${encodeURIComponent(VERSION)}/${viewerAsset.file}`;
-		viewerScript = `<script defer src="${viewerUrl}" integrity="${viewerAsset.integrity}" crossorigin="anonymous" onerror="document.getElementById('viewer-status').textContent='Could not load the session viewer. Connect to the internet and reload this file.'"></script>`;
+		// Compiled installs carry the generated viewer; inline it so export never
+		// loads Stencil's upstream assets.
+		const escaped = viewerSource.replace(/<\/script/gi, match => `<\\/${match.slice(2)}`);
+		viewerScript = `<script>window.addEventListener("DOMContentLoaded",function(){\n${escaped}\n});</script>`;
 	}
-	cachedTemplate = templateHtml
-		.replace("{{MARKED_URL}}", () => "https://stencil.so/assets/omp/marked.333561b9.js")
-		.replace("{{MARKED_INTEGRITY}}", () => "sha256-MzVhuUicTTOmBQF03OgI9HBhlGcICMhDRSPIdD9aYmM=")
-		.replace("{{HIGHLIGHT_URL}}", () => "https://stencil.so/assets/omp/highlight.837a6fa5.js")
-		.replace("{{HIGHLIGHT_INTEGRITY}}", () => "sha256-g3pvpbDHNrUrveKythkPMF2j/J7UFoHbUyFQcFe1yEY=")
-		.replace("<viewer-script/>", () => viewerScript);
+	cachedTemplate = templateHtml.replace("<viewer-script/>", () => viewerScript);
 	return cachedTemplate;
 }
 

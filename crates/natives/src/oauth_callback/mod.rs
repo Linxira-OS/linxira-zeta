@@ -103,6 +103,9 @@ const CALLBACK_LIMIT: u64 = 16 * 1024;
 // flow sets the pace, so polling adds no noticeable latency and needs no
 // directory watch (whose failure modes, such as exhausted inotify instances,
 // would only cost latency anyway).
+#[cfg(test)]
+const POLL_INTERVAL: Duration = Duration::from_secs(2);
+#[cfg(not(test))]
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
 const CLEANUP_TIMEOUT_MS: u32 = 15_000;
 const SETUP_TIMEOUT_MS: u32 = 30_000;

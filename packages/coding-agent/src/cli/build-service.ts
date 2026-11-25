@@ -44,8 +44,8 @@ export type UpdateChannel = "stable" | "canary";
 
 export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-/** Build service origin used when `PI_BUILD_URL` is unset. */
-export const DEFAULT_BUILD_URL = "https://build.stencil.so";
+/** Zeta does not ship a build service; a deployment may point at its own. */
+export const DEFAULT_BUILD_URL = "";
 
 const BUILD_CHECK_TIMEOUT_MS = 30_000;
 
@@ -55,7 +55,10 @@ export const BUILD_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 /** Build service origin: `PI_BUILD_URL` without trailing slashes, else {@link DEFAULT_BUILD_URL}. */
 export function buildServiceUrl(): string {
 	const configured = ($env.PI_BUILD_URL ?? "").trim().replace(/\/+$/, "");
-	return configured || DEFAULT_BUILD_URL;
+	if (!configured) {
+		throw new Error("PI_BUILD_URL is not configured; Zeta does not use Stencil's build service");
+	}
+	return configured;
 }
 
 /** Where this host's builds live on the build service. */

@@ -1157,8 +1157,8 @@ async function projectConfigDir(root: string): Promise<string> {
 }
 
 /**
- * Builds that joined `PI_CONFIG_DIR` onto the project root wrote project plugin
- * registries and skill manifests to `<root>/<PI_CONFIG_DIR>` instead of
+ * Builds that joined `ZETA_CONFIG_DIR` onto the project root wrote project plugin
+ * registries and skill manifests to `<root>/<ZETA_CONFIG_DIR>` instead of
  * `<root>/.zeta`. Keep reading that directory while it is the only one with
  * install state, so those installs do not vanish. Only a directory inside
  * `root` that is not the user config root qualifies.

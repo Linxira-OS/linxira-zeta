@@ -117,7 +117,7 @@ export async function smokeTestStatsActivityWorker({
 	// config root relative to the real home, not the user's profile or stats DB.
 	const home = os.homedir();
 	await fs.mkdir(home, { recursive: true });
-	await using temp = await TempDir.create(path.join(home, ".omp-activity-smoke-"));
+	await using temp = await TempDir.create(path.join(home, ".zeta-activity-smoke-"));
 	const timestamp = new Date().toISOString();
 	const header: SessionHeader = {
 		type: "session",
@@ -159,7 +159,7 @@ export async function smokeTestStatsActivityWorker({
 			requests = points.reduce((sum, point) => sum + point.requests, 0);
 		},
 		signal,
-		{ HOME: home, USERPROFILE: home, PI_CONFIG_DIR: path.basename(temp.path()) },
+		{ HOME: home, USERPROFILE: home, ZETA_CONFIG_DIR: path.basename(temp.path()) },
 	);
 	if (signal.aborted) throw new Error(`stats activity worker did not finish within ${timeoutMs}ms`);
 	if (requests !== 1) throw new Error(`stats activity worker reported ${requests} requests for one fixture request`);
