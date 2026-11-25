@@ -5,6 +5,7 @@ import type { AsyncJob } from "../async";
 import {
 	agentStaleNote,
 	cancelAgentRegistration,
+	describeEvictedJob,
 	executeCancel,
 	runningAgentsOutsideJobs,
 	runningTaskProgressSuffix,
@@ -261,6 +262,8 @@ export class ProcProtocolHandler implements ProtocolHandler {
 				false,
 				{ agents: [agent] },
 			);
+		const evicted = session.asyncJobManager?.getEvictedJob(id, { ownerId: session.getAgentId?.() ?? undefined });
+		if (evicted) return textResource(url, describeEvictedJob(evicted));
 		if (servicesError)
 			throw new Error(`Background job or service not found: ${id} (services unavailable: ${servicesError})`);
 		throw new Error(`Background job or service not found: ${id}`);
@@ -348,6 +351,13 @@ export class ProcProtocolHandler implements ProtocolHandler {
 			return {
 				content: [{ type: "text", text: outcome.message }],
 				details: { proc: { op: "cancel", jobs: [], cancelled: [{ id, status: outcome.status }] } },
+			};
+		}
+		const evicted = session.asyncJobManager?.getEvictedJob(id, { ownerId });
+		if (evicted) {
+			return {
+				content: [{ type: "text", text: `Nothing to cancel: ${describeEvictedJob(evicted)}` }],
+				details: { proc: { op: "cancel", jobs: [], cancelled: [{ id, status: "already_completed" }] } },
 			};
 		}
 		throw new Error(`Background job or service not found: ${id}`);

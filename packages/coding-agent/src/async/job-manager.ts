@@ -22,6 +22,8 @@ const DEFAULT_RETENTION_MS = 5 * 60 * 1000;
  * nobody polled) keep the full {@link DEFAULT_RETENTION_MS} window.
  */
 const CONSUMED_RESULT_EVICTION_MS = 30_000;
+/** Evicted job ids remembered for post-mortem reads; the oldest go first. */
+const EVICTED_JOB_LIMIT = 256;
 /**
  * Extra delay after an `async-result` delivery settles (its `ASIDE_MESSAGE_COMMIT`
  * hook fires, resolving `enqueueWithReceipt()`) before retained artifacts are
@@ -447,17 +449,35 @@ export interface AsyncJobManagerApi {
 }
 
 export class AsyncJobManager implements AsyncJobManagerApi {
-	/** Eviction retention is not implemented yet; wait reports no gone jobs. */
-	getEvictedJobs(_filter?: AsyncJobFilter): EvictedJob[] {
-		return [];
+	getEvictedJob(id: string, filter?: AsyncJobFilter): EvictedJob | undefined {
+		const record = this.#evicted.get(id);
+		if (!record || (filter?.ownerId !== undefined && record.ownerId !== filter.ownerId)) return undefined;
+		return record;
 	}
 
-	getEvictedJob(_id: string, _filter?: AsyncJobFilter): EvictedJob | undefined {
-		return undefined;
+	getEvictedJobs(filter?: AsyncJobFilter): EvictedJob[] {
+		const records = [...this.#evicted.values()].reverse();
+		return filter?.ownerId === undefined ? records : records.filter(record => record.ownerId === filter.ownerId);
 	}
 
-	onJobsChanged(_listener: () => void): () => void {
-		return () => {};
+	onJobsChanged(listener: () => void): () => void {
+		this.#changeListeners.add(listener);
+		return () => {
+			this.#changeListeners.delete(listener);
+		};
+	}
+
+	#notifyJobsChanged(jobId: string): void {
+		for (const listener of this.#changeListeners) {
+			try {
+				listener();
+			} catch (error) {
+				logger.warn("Async job change listener failed", {
+					jobId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 	}
 
 	/** Per-owner adaptive-wait state; see {@link POLL_WAIT_LADDER_MS}. */
@@ -508,6 +528,8 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 	}
 
 	readonly #jobs = new Map<string, AsyncJob>();
+	readonly #evicted = new Map<string, EvictedJob>();
+	readonly #changeListeners = new Set<() => void>();
 	readonly #deliveries: AsyncJobDelivery[] = [];
 	readonly #inFlightDeliveries: AsyncJobDelivery[] = [];
 	readonly #suppressedDeliveries = new Set<string>();
@@ -954,7 +976,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		for (const job of this.#filterJobs(this.#jobs.values(), filter)) {
 			if (job.status !== "completed" && job.status !== "failed") continue;
 			this.acknowledgeDeliveries([job.id]);
-			if (this.#evictJob(job.id)) evicted += 1;
+			if (this.#evictJob(job.id, "cleared")) evicted += 1;
 		}
 		return evicted;
 	}
@@ -1290,17 +1312,37 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		}
 	}
 
-	#evictJob(jobId: string): boolean {
+	#evictJob(jobId: string, reason?: EvictedJob["reason"]): boolean {
 		clearTimeout(this.#evictionTimers.get(jobId));
 		this.#evictionTimers.delete(jobId);
 		this.#suppressedDeliveries.delete(jobId);
 		this.#supersededDeliveries.delete(jobId);
 		this.#watchedJobs.delete(jobId);
-		this.#consumedJobResults.delete(jobId);
+		const delivered = this.#consumedJobResults.delete(jobId);
 		const job = this.#jobs.get(jobId);
 		if (job) this.#runRetainedArtifactsCleanup(job);
+		if (job && reason && !job.foreground) {
+			this.#evicted.delete(jobId);
+			this.#evicted.set(jobId, {
+				id: jobId,
+				type: job.type,
+				label: job.label,
+				ownerId: job.ownerId,
+				status: job.status,
+				endTime: job.endTime,
+				evictedAt: Date.now(),
+				delivered,
+				reason,
+			});
+			if (this.#evicted.size > EVICTED_JOB_LIMIT) {
+				const oldest = this.#evicted.keys().next().value;
+				if (oldest !== undefined) this.#evicted.delete(oldest);
+			}
+		}
 		this.widgets?.forget(jobId);
-		return this.#jobs.delete(jobId);
+		const removed = this.#jobs.delete(jobId);
+		if (removed) this.#notifyJobsChanged(jobId);
+		return removed;
 	}
 
 	/**
@@ -1319,7 +1361,7 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 	#scheduleEviction(jobId: string, delayMs: number = this.#retentionMs): void {
 		if (this.#disposed) return;
 		if (this.#retentionMs <= 0) {
-			this.#evictJob(jobId);
+			this.#evictJob(jobId, "expired");
 			return;
 		}
 		const delay = Math.max(0, Math.min(this.#retentionMs, delayMs));
@@ -1327,13 +1369,13 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 		const timer = setTimeout(() => {
 			const inFlight = this.#inFlightDeliveries.find(delivery => delivery.jobId === jobId)?.promise;
 			if (!inFlight || !this.isDeliverySuppressed(jobId)) {
-				this.#evictJob(jobId);
+				this.#evictJob(jobId, "expired");
 				return;
 			}
 			// The settled attempt may re-arm this job's timer (consumed grace);
 			// only evict when nothing replaced this one in the meantime.
 			void inFlight.then(() => {
-				if (this.#evictionTimers.get(jobId) === timer) this.#evictJob(jobId);
+				if (this.#evictionTimers.get(jobId) === timer) this.#evictJob(jobId, "expired");
 			});
 		}, delay);
 		timer.unref();
