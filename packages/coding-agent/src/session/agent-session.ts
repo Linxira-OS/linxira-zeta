@@ -13182,8 +13182,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// existing context tail — which must itself be a valid provider tail. An injected
 		// non-conversational tail (advisor card → `developer`, bash/python execution) would make
 		// the first model call invalid, so leave the follow-up queued for the next explicit resume.
+		// A row the model never sees is not part of the provider tail. An excluded
+		// custom row recorded between turns must not strand the follow-up behind it.
 		const messages = this.agent.state.messages;
-		const last = messages[messages.length - 1];
+		const last = messages.findLast(message => !(message.role === "custom" && message.excludeFromContext === true));
 		return last?.role === "assistant" || last?.role === "toolResult";
 	}
 
