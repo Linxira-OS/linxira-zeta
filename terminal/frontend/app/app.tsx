@@ -15,6 +15,7 @@ import { getTabModelByTabId, TabModelContext } from "@/app/store/tab-model";
 import { WaveEnvContext } from "@/app/waveenv/waveenv";
 import { makeWaveEnvImpl } from "@/app/waveenv/waveenvimpl";
 import { Workspace } from "@/app/workspace/workspace";
+import { t, useI18n } from "../../i18n";
 import { getLayoutModelForStaticTab } from "@/layout/index";
 import { ContextMenuModel } from "@/store/contextmenu";
 import { atoms, createBlock, getSettingsPrefixAtom, refocusNode } from "@/store/global";
@@ -112,18 +113,18 @@ async function handleContextMenu(e: React.MouseEvent<HTMLDivElement>) {
     }
     const menu: ContextMenuItem[] = [];
     if (canCut) {
-        menu.push({ label: "Cut", role: "cut" });
+        menu.push({ label: t("common.cut"), role: "cut" });
     }
     if (canCopy) {
-        menu.push({ label: "Copy", role: "copy" });
+        menu.push({ label: t("common.copy"), role: "copy" });
     }
     if (canPaste) {
-        menu.push({ label: "Paste", role: "paste" });
+        menu.push({ label: t("common.paste"), role: "paste" });
     }
     if (clipboardURL) {
         menu.push({ type: "separator" });
         menu.push({
-            label: "Open Clipboard URL (" + clipboardURL.hostname + ")",
+            label: t("app.openClipboardUrl", { host: clipboardURL.hostname }),
             click: () => {
                 createBlock({
                     meta: {
@@ -355,6 +356,7 @@ const BadgeAutoClearing = () => {
 };
 
 const AppInner = () => {
+    const { t } = useI18n();
     const prefersReducedMotion = useAtomValue(atoms.prefersReducedMotionAtom);
     const client = useAtomValue(ClientModel.getInstance().clientAtom);
     const windowData = useAtomValue(GlobalModel.getInstance().windowDataAtom);
@@ -364,7 +366,7 @@ const AppInner = () => {
         return (
             <div className="flex flex-col w-full h-full">
                 <AppBackground />
-                <CenteredDiv>invalid configuration, client or window was not loaded</CenteredDiv>
+                <CenteredDiv>{t("app.invalidConfig")}</CenteredDiv>
             </div>
         );
     }

@@ -85,7 +85,7 @@ class HelpViewModel extends WebViewModel {
             };
         }
         zoomSubMenu.push({
-            label: "Reset",
+            label: t("help.reset"),
             click: () => {
                 model.setZoomFactor(null);
             },
@@ -105,7 +105,7 @@ class HelpViewModel extends WebViewModel {
 
         return [
             {
-                label: this.webviewRef.current?.isDevToolsOpened() ? "Close DevTools" : "Open DevTools",
+                label: this.webviewRef.current?.isDevToolsOpened() ? t("help.closeDevTools") : t("help.openDevTools"),
                 click: async () => {
                     if (this.webviewRef.current) {
                         if (this.webviewRef.current.isDevToolsOpened()) {
@@ -117,7 +117,7 @@ class HelpViewModel extends WebViewModel {
                 },
             },
             {
-                label: "Set Zoom Factor",
+                label: t("help.setZoom"),
                 submenu: zoomSubMenu,
             },
         ];

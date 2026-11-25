@@ -7,6 +7,7 @@ import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { DiffViewer } from "@/app/view/codeeditor/diffviewer";
 import type { WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 import { globalStore } from "@/store/jotaiStore";
+import { t, useI18n } from "../../../i18n";
 import { base64ToString } from "@/util/util";
 import * as jotai from "jotai";
 import { useEffect } from "react";
@@ -48,7 +49,7 @@ export class AiFileDiffViewModel implements ViewModel {
         this.errorAtom = jotai.atom(null) as jotai.PrimitiveAtom<string | null>;
         this.loadingAtom = jotai.atom<boolean>(true);
         this.viewIcon = jotai.atom("file-lines");
-        this.viewName = jotai.atom("AI Diff Viewer");
+        this.viewName = jotai.atom(t("aidiff.title"));
         this.viewText = jotai.atom((get) => {
             const diffData = get(this.diffDataAtom);
             return diffData?.fileName ?? "";
@@ -61,6 +62,7 @@ export class AiFileDiffViewModel implements ViewModel {
 }
 
 function AiFileDiffView({ blockId, model }: ViewComponentProps<AiFileDiffViewModel>) {
+    const { t } = useI18n();
     const blockData = jotai.useAtomValue(model.blockAtom);
     const diffData = jotai.useAtomValue(model.diffDataAtom);
     const error = jotai.useAtomValue(model.errorAtom);
@@ -73,13 +75,13 @@ function AiFileDiffView({ blockId, model }: ViewComponentProps<AiFileDiffViewMod
             const fileName = blockData?.meta?.file;
 
             if (!chatId || !toolCallId) {
-                globalStore.set(model.errorAtom, "Missing chatId or toolCallId in block metadata");
+                globalStore.set(model.errorAtom, t("aidiff.missingChat"));
                 globalStore.set(model.loadingAtom, false);
                 return;
             }
 
             if (!fileName) {
-                globalStore.set(model.errorAtom, "Missing file name in block metadata");
+                globalStore.set(model.errorAtom, t("aidiff.missingFile"));
                 globalStore.set(model.loadingAtom, false);
                 return;
             }
@@ -91,7 +93,7 @@ function AiFileDiffView({ blockId, model }: ViewComponentProps<AiFileDiffViewMod
                 });
 
                 if (!result) {
-                    globalStore.set(model.errorAtom, "No diff data returned from server");
+                    globalStore.set(model.errorAtom, t("aidiff.noDiffData"));
                     globalStore.set(model.loadingAtom, false);
                     return;
                 }
@@ -107,18 +109,18 @@ function AiFileDiffView({ blockId, model }: ViewComponentProps<AiFileDiffViewMod
                 globalStore.set(model.loadingAtom, false);
             } catch (e) {
                 console.error("Error loading diff data:", e);
-                globalStore.set(model.errorAtom, `Error loading diff data: ${e.message}`);
+                globalStore.set(model.errorAtom, t("aidiff.loadError", { error: e.message }));
                 globalStore.set(model.loadingAtom, false);
             }
         }
 
         loadDiffData();
-    }, [blockData?.meta?.["aifilediff:chatid"], blockData?.meta?.["aifilediff:toolcallid"], blockData?.meta?.file]);
+    }, [blockData?.meta?.["aifilediff:chatid"], blockData?.meta?.["aifilediff:toolcallid"], blockData?.meta?.file, t]);
 
     if (loading) {
         return (
             <div className="flex items-center justify-center w-full h-full">
-                <div className="text-secondary">Loading diff...</div>
+                <div className="text-secondary">{t("aidiff.loading")}</div>
             </div>
         );
     }
@@ -134,7 +136,7 @@ function AiFileDiffView({ blockId, model }: ViewComponentProps<AiFileDiffViewMod
     if (!diffData) {
         return (
             <div className="flex items-center justify-center w-full h-full">
-                <div className="text-secondary">No diff data available</div>
+                <div className="text-secondary">{t("aidiff.noData")}</div>
             </div>
         );
     }

@@ -8,6 +8,7 @@ import type { TabModel } from "@/app/store/tab-model";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { getOverrideConfigAtom, refocusNode } from "@/store/global";
 import * as WOS from "@/store/wos";
+import { t } from "../../../i18n";
 import { goHistory, goHistoryBack, goHistoryForward } from "@/util/historyutil";
 import { checkKeyPressed } from "@/util/keyutil";
 import { addOpenMenuItems } from "@/util/previewutil";
@@ -24,11 +25,11 @@ import type { PreviewEnv } from "./previewenv";
 
 // TODO drive this using config
 const BOOKMARKS: { label: string; path: string }[] = [
-    { label: "Home", path: "~" },
-    { label: "Desktop", path: "~/Desktop" },
-    { label: "Downloads", path: "~/Downloads" },
-    { label: "Documents", path: "~/Documents" },
-    { label: "Root", path: "/" },
+    { label: t("preview.bookmark.home"), path: "~" },
+    { label: t("preview.bookmark.desktop"), path: "~/Desktop" },
+    { label: t("preview.bookmark.downloads"), path: "~/Downloads" },
+    { label: t("preview.bookmark.documents"), path: "~/Documents" },
+    { label: t("preview.bookmark.root"), path: "/" },
 ];
 
 const MaxFileSize = 1024 * 1024 * 10; // 10MB
@@ -209,7 +210,7 @@ export class PreviewModel implements ViewModel {
                     icon: "folder-open",
                     longClick: (e: React.MouseEvent<any>) => {
                         const menuItems: ContextMenuItem[] = BOOKMARKS.map((bookmark) => ({
-                            label: `Go to ${bookmark.label} (${bookmark.path})`,
+                            label: t("preview.goToBookmark", { label: bookmark.label, path: bookmark.path }),
                             click: () => this.goHistory(bookmark.path),
                         }));
                         ContextMenuModel.getInstance().showContextMenu(menuItems, e);
@@ -222,7 +223,7 @@ export class PreviewModel implements ViewModel {
             const blockData = get(this.blockAtom);
             return blockData?.meta?.edit ?? false;
         });
-        this.viewName = atom("Preview");
+        this.viewName = atom(t("preview.title"));
         this.hideViewName = atom(true);
         this.viewText = atom((get) => {
             let headerPath = get(this.metaFilePath);
@@ -266,21 +267,21 @@ export class PreviewModel implements ViewModel {
                 if (fileInfo.state != "hasData") {
                     viewTextChildren.push({
                         elemtype: "textbutton",
-                        text: "Loading ...",
+                        text: t("preview.loading"),
                         className: clsx(`grey rounded-[4px] !py-[2px] !px-[10px] text-[11px] font-[500]`),
                         onClick: () => {},
                     });
                 } else if (fileInfo.data.readonly) {
                     viewTextChildren.push({
                         elemtype: "textbutton",
-                        text: "Read Only",
+                        text: t("preview.readOnly"),
                         className: clsx(`yellow rounded-[4px] !py-[2px] !px-[10px] text-[11px] font-[500]`),
                         onClick: () => {},
                     });
                 } else {
                     viewTextChildren.push({
                         elemtype: "textbutton",
-                        text: "Save",
+                        text: t("preview.save"),
                         className: clsx(`${saveClassName} rounded-[4px] !py-[2px] !px-[10px] text-[11px] font-[500]`),
                         onClick: () => fireAndForget(this.handleFileSave.bind(this)),
                     });
@@ -288,7 +289,7 @@ export class PreviewModel implements ViewModel {
                 if (get(this.canPreview)) {
                     viewTextChildren.push({
                         elemtype: "textbutton",
-                        text: "Preview",
+                        text: t("preview.title"),
                         className: "grey rounded-[4px] !py-[2px] !px-[10px] text-[11px] font-[500]",
                         onClick: () => fireAndForget(() => this.setEditMode(false)),
                     });
@@ -296,7 +297,7 @@ export class PreviewModel implements ViewModel {
             } else if (get(this.canPreview)) {
                 viewTextChildren.push({
                     elemtype: "textbutton",
-                    text: "Edit",
+                    text: t("preview.edit"),
                     className: "grey rounded-[4px] !py-[2px] !px-[10px] text-[11px] font-[500]",
                     onClick: () => fireAndForget(() => this.setEditMode(true)),
                 });
@@ -338,7 +339,7 @@ export class PreviewModel implements ViewModel {
                     {
                         elemtype: "iconbutton",
                         icon: showHiddenFiles ? "eye" : "eye-slash",
-                        title: showHiddenFiles ? "Hide Hidden Files" : "Show Hidden Files",
+                        title: showHiddenFiles ? t("preview.hideHiddenFiles") : t("preview.showHiddenFiles"),
                         click: () => {
                             globalStore.set(this.showHiddenFiles, (prev) => !prev);
                         },
@@ -354,13 +355,13 @@ export class PreviewModel implements ViewModel {
                     {
                         elemtype: "iconbutton",
                         icon: "book",
-                        title: "Table of Contents",
+                        title: t("element.tableOfContents"),
                         click: () => this.markdownShowTocToggle(),
                     },
                     {
                         elemtype: "iconbutton",
                         icon: "arrows-rotate",
-                        title: "Refresh",
+                        title: t("preview.refresh"),
                         click: () => this.refreshCallback?.(),
                     },
                 ] as IconButtonDecl[];
@@ -370,7 +371,7 @@ export class PreviewModel implements ViewModel {
                     {
                         elemtype: "iconbutton",
                         icon: "arrows-rotate",
-                        title: "Refresh",
+                        title: t("preview.refresh"),
                         click: () => this.refreshCallback?.(),
                     },
                 ] as IconButtonDecl[];
@@ -416,7 +417,7 @@ export class PreviewModel implements ViewModel {
                 return statFile;
             } catch (e) {
                 const errorStatus: ErrorMsg = {
-                    status: "File Read Failed",
+                    status: t("preview.fileReadFailed"),
                     text: `${e}`,
                 };
                 globalStore.set(this.errorMsgAtom, errorStatus);
@@ -446,7 +447,7 @@ export class PreviewModel implements ViewModel {
                 return file;
             } catch (e) {
                 const errorStatus: ErrorMsg = {
-                    status: "File Read Failed",
+                    status: t("preview.fileReadFailed"),
                     text: `${e}`,
                 };
                 globalStore.set(this.errorMsgAtom, errorStatus);
@@ -508,29 +509,29 @@ export class PreviewModel implements ViewModel {
         const genErr = getFn(this.errorMsgAtom);
 
         if (!fileInfo) {
-            return { errorStr: `Load Error: ${genErr?.text}` };
+            return { errorStr: t("preview.loadError", { error: genErr?.text }) };
         }
         if (connErr != "") {
-            return { errorStr: `Connection Error: ${connErr}` };
+            return { errorStr: t("preview.connectionError", { error: connErr }) };
         }
         if (fileInfo?.notfound) {
             return { specializedView: "codeedit" };
         }
         if (mimeType == null) {
-            return { errorStr: `Unable to determine mimetype for: ${fileInfo.path}` };
+            return { errorStr: t("preview.unknownMime", { path: fileInfo.path }) };
         }
         if (isStreamingType(mimeType)) {
             return { specializedView: "streaming" };
         }
         if (!fileInfo) {
             const fileNameStr = fileName ? " " + JSON.stringify(fileName) : "";
-            return { errorStr: "File Not Found" + fileNameStr };
+            return { errorStr: t("preview.fileNotFound", { name: fileNameStr }) };
         }
         if (fileInfo.size > MaxFileSize) {
-            return { errorStr: "File Too Large to Preview (10 MB Max)" };
+            return { errorStr: t("preview.fileTooLarge") };
         }
         if (mimeType == "text/csv" && fileInfo.size > MaxCSVSize) {
-            return { errorStr: "CSV File Too Large to Preview (1 MB Max)" };
+            return { errorStr: t("preview.csvTooLarge") };
         }
         if (mimeType == "directory") {
             return { specializedView: "directory" };
@@ -667,7 +668,7 @@ export class PreviewModel implements ViewModel {
             console.log("saved file", filePath);
         } catch (e) {
             const errorStatus: ErrorMsg = {
-                status: "Save Failed",
+                status: t("preview.saveFailed"),
                 text: `${e}`,
             };
             globalStore.set(this.errorMsgAtom, errorStatus);
@@ -706,7 +707,7 @@ export class PreviewModel implements ViewModel {
         const overrideFontSize = blockData?.meta?.["editor:fontsize"];
         const menuItems: ContextMenuItem[] = [];
         menuItems.push({
-            label: "Copy Full Path",
+            label: t("preview.copyFullPath"),
             click: () =>
                 fireAndForget(async () => {
                     const filePath = await globalStore.get(this.statFilePath);
@@ -724,7 +725,7 @@ export class PreviewModel implements ViewModel {
                 }),
         });
         menuItems.push({
-            label: "Copy File Name",
+            label: t("preview.copyFileName"),
             click: () =>
                 fireAndForget(async () => {
                     const fileInfo = await globalStore.get(this.statFile);
@@ -758,7 +759,7 @@ export class PreviewModel implements ViewModel {
                 }
             );
             fontSizeSubMenu.unshift({
-                label: "Default (" + defaultFontSize + "px)",
+                label: t("preview.defaultFontSize", { size: defaultFontSize }),
                 type: "checkbox",
                 checked: overrideFontSize == null,
                 click: () => {
@@ -769,23 +770,23 @@ export class PreviewModel implements ViewModel {
                 },
             });
             menuItems.push({
-                label: "Editor Font Size",
+                label: t("preview.editorFontSize"),
                 submenu: fontSizeSubMenu,
             });
             if (globalStore.get(this.newFileContent) != null) {
                 menuItems.push({ type: "separator" });
                 menuItems.push({
-                    label: "Save File",
+                    label: t("preview.saveFile"),
                     click: () => fireAndForget(this.handleFileSave.bind(this)),
                 });
                 menuItems.push({
-                    label: "Revert File",
+                    label: t("preview.revertFile"),
                     click: () => fireAndForget(this.handleFileRevert.bind(this)),
                 });
             }
             menuItems.push({ type: "separator" });
             menuItems.push({
-                label: "Word Wrap",
+                label: t("preview.wordWrap"),
                 type: "checkbox",
                 checked: wordWrap,
                 click: () =>
@@ -799,7 +800,7 @@ export class PreviewModel implements ViewModel {
         }
         if (loadableSV.state == "hasData" && loadableSV.data.specializedView == "directory") {
             menuItems.push({ type: "separator" });
-            menuItems.push({ label: "Default Settings", enabled: false });
+            menuItems.push({ label: t("preview.defaultSettings"), enabled: false });
             menuItems.push(...makeDirectoryDefaultMenuItems(this));
         }
         return menuItems;

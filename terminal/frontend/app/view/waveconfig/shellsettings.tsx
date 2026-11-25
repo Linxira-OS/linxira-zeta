@@ -7,7 +7,7 @@ import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { useAtomValue } from "jotai";
 import { memo, useEffect, useState } from "react";
-import { t } from "../../../i18n";
+import { t, useI18n } from "../../../i18n";
 
 const shellPresets = [
     { id: "nu", labelKey: "shell.nu" as const, path: "nu" },
@@ -18,6 +18,7 @@ const shellPresets = [
 ];
 
 const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
+    const { t } = useI18n();
     const env = useWaveEnv<WaveConfigEnv>();
     const fullConfig = useAtomValue(env.atoms.fullConfigAtom);
     const configured = fullConfig?.settings?.["term:localshellpath"] ?? "";
@@ -50,10 +51,7 @@ const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
         <div className="flex flex-col gap-5 p-5 max-w-[720px] overflow-y-auto">
             <div>
                 <div className="text-lg font-semibold">{t("shell.title")}</div>
-                <div className="text-secondary text-sm mt-1">
-                    Nushell is the recommended cross-platform default. Bash and Fish are the common Linux
-                    choices. PowerShell 7+ is supported on Windows; Windows PowerShell 5.1 and cmd.exe are not.
-                </div>
+                <div className="text-secondary text-sm mt-1">{t("settings.shellDescription")}</div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -86,9 +84,7 @@ const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
                     placeholder="nu"
                     className="w-full mt-1 px-3 py-2 rounded border border-border bg-background font-mono text-sm outline-none focus:border-accent/60"
                 />
-                <div className="text-xs text-muted-foreground">
-                    Leave empty to use Zeta Terminal's detection order: Nushell, then PowerShell 7+ on Windows.
-                </div>
+                <div className="text-xs text-muted-foreground">{t("settings.shellHint")}</div>
             </div>
 
             {error && (
@@ -102,13 +98,13 @@ const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
                     disabled={saving || shellPath === configured}
                     className="px-4 py-1.5 rounded bg-accent/80 text-primary text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? t("settings.saving") : t("settings.save")}
                 </button>
-                {saved && <span className="text-sm text-success">Saved. New terminals use this shell.</span>}
+                {saved && <span className="text-sm text-success">{t("settings.shellSaved")}</span>}
             </div>
 
             <div className="border-t border-border pt-4 flex flex-col gap-2 text-sm">
-                <div className="font-medium">Install a supported shell</div>
+                <div className="font-medium">{t("settings.installShell")}</div>
                 <a
                     className="text-accent hover:underline"
                     href="https://www.nushell.sh/"
@@ -123,7 +119,7 @@ const ShellSettings = memo(({ model }: { model: WaveConfigViewModel }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    PowerShell 7+ — Microsoft install guide
+                    {t("settings.pwshGuide")}
                 </a>
                 <div className="text-muted-foreground text-xs mt-1">{t("shell.unsupported")}</div>
             </div>

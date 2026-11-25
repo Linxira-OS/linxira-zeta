@@ -8,7 +8,7 @@ import { CodeEditor } from "@/app/view/codeeditor/codeeditor";
 import type { ConfigFile, WaveConfigViewModel } from "@/app/view/waveconfig/waveconfig-model";
 import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
-import { t } from "../../../i18n";
+import { t, useI18n } from "../../../i18n";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -20,6 +20,7 @@ interface ConfigSidebarProps {
 }
 
 const ConfigSidebar = memo(({ model }: ConfigSidebarProps) => {
+    const { t } = useI18n();
     const selectedFile = useAtomValue(model.selectedFileAtom);
     const setIsMenuOpen = useSetAtom(model.isMenuOpenAtom);
     const configFiles = model.getConfigFiles();
@@ -84,7 +85,7 @@ const ConfigSidebar = memo(({ model }: ConfigSidebarProps) => {
                                             : "text-muted-foreground/70 bg-secondary/30"
                                     }`}
                                 >
-                                    deprecated
+                                    {t("settings.deprecated")}
                                 </span>
                                 {configErrorFiles.has(file.path) && (
                                     <i className="fa fa-solid fa-circle-exclamation text-error text-[14px] ml-auto shrink-0" />
@@ -101,6 +102,7 @@ const ConfigSidebar = memo(({ model }: ConfigSidebarProps) => {
 ConfigSidebar.displayName = "ConfigSidebar";
 
 const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigViewModel>) => {
+    const { t } = useI18n();
     const env = useWaveEnv<WaveConfigEnv>();
     const selectedFile = useAtomValue(model.selectedFileAtom);
     const [fileContent, setFileContent] = useAtom(model.fileContentAtom);
@@ -162,7 +164,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [hasChanges, isSaving, model]);
 
-    const saveTooltip = `Save (${model.saveShortcut})`;
+    const saveTooltip = `${t("settings.save")} (${model.saveShortcut})`;
 
     return (
         <div className="@container flex flex-col w-full h-full">
@@ -191,7 +193,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                                         {selectedFile.name}
                                     </div>
                                     {selectedFile.docsUrl && (
-                                        <Tooltip content="View documentation">
+                                        <Tooltip content={t("settings.viewDocs")}>
                                             <a
                                                 href={`${selectedFile.docsUrl}?ref=waveconfig`}
                                                 target="_blank"
@@ -287,7 +289,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                             <div className="flex-1 min-h-0">
                                 {isLoading ? (
                                     <div className="flex items-center justify-center h-full text-muted-foreground">
-                                        Loading...
+                                        {t("common.loading")}
                                     </div>
                                 ) : selectedFile.visualComponent &&
                                   (!selectedFile.hasJsonView || activeTab === "visual") ? (
@@ -315,7 +317,7 @@ const WaveConfigView = memo(({ blockId, model }: ViewComponentProps<WaveConfigVi
                 <div className="bg-error text-primary px-4 py-1 max-h-12 overflow-y-auto border-t border-error/50 shrink-0">
                     {configErrors.map((cerr, i) => (
                         <div key={i} className="text-sm">
-                            <span className="font-semibold">Config Error: </span>
+                            <span className="font-semibold">{t("settings.configError")} </span>
                             {cerr.file}: {cerr.err}
                         </div>
                     ))}

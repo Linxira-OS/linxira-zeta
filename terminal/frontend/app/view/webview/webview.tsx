@@ -15,6 +15,7 @@ import {
 } from "@/app/suggestion/suggestion";
 import { MockBoundary } from "@/app/waveenv/mockboundary";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
+import { t, useI18n } from "../../../i18n";
 import { openLink } from "@/store/global";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed } from "@/util/keyutil";
 import { fireAndForget, useAtomValueSafe } from "@/util/util";
@@ -96,7 +97,7 @@ export class WebViewModel implements ViewModel {
         this.isLoading = atom(false);
         this.refreshIcon = atom("rotate-right");
         this.viewIcon = atom("globe");
-        this.viewName = atom("Web");
+        this.viewName = atom(t("webview.title"));
         this.hideViewName = atom(true);
         this.urlInputRef = createRef<HTMLInputElement>();
         this.webviewRef = createRef<WebviewTag>();
@@ -186,7 +187,9 @@ export class WebViewModel implements ViewModel {
             if (userAgentType === "mobile:iphone" || userAgentType === "mobile:android") {
                 const mobileIcon = userAgentType === "mobile:iphone" ? "mobile-screen" : "mobile-screen-button";
                 const mobileTitle =
-                    userAgentType === "mobile:iphone" ? "Mobile User Agent: iPhone" : "Mobile User Agent: Android";
+                    userAgentType === "mobile:iphone"
+                        ? t("webview.mobileIphoneUA")
+                        : t("webview.mobileAndroidUA");
                 buttons.push({
                     elemtype: "iconbutton",
                     icon: mobileIcon,
@@ -198,7 +201,7 @@ export class WebViewModel implements ViewModel {
             buttons.push({
                 elemtype: "iconbutton",
                 icon: "arrow-up-right-from-square",
-                title: "Open in External Browser",
+                title: t("webview.openExternal"),
                 click: () => {
                     console.log("open external", url);
                     if (url != null && url != "") {
@@ -623,7 +626,7 @@ export class WebViewModel implements ViewModel {
             };
         };
         zoomSubMenu.push({
-            label: "Reset",
+            label: t("webview.resetZoom"),
             click: () => {
                 this.setZoomFactor(null);
             },
@@ -645,7 +648,7 @@ export class WebViewModel implements ViewModel {
         const curUserAgentType = globalStore.get(this.userAgentType) || "default";
         const userAgentSubMenu: ContextMenuItem[] = [
             {
-                label: "Default",
+                label: t("webview.defaultUA"),
                 type: "checkbox",
                 click: () => {
                     fireAndForget(() => {
@@ -658,7 +661,7 @@ export class WebViewModel implements ViewModel {
                 checked: curUserAgentType === "default" || curUserAgentType === "",
             },
             {
-                label: "Mobile: iPhone",
+                label: t("webview.mobileIphone"),
                 type: "checkbox",
                 click: () => {
                     fireAndForget(() => {
@@ -671,7 +674,7 @@ export class WebViewModel implements ViewModel {
                 checked: curUserAgentType === "mobile:iphone",
             },
             {
-                label: "Mobile: Android",
+                label: t("webview.mobileAndroid"),
                 type: "checkbox",
                 click: () => {
                     fireAndForget(() => {
@@ -688,29 +691,29 @@ export class WebViewModel implements ViewModel {
         const isNavHidden = globalStore.get(this.hideNav);
         return [
             {
-                label: "Copy URL to Clipboard",
+                label: t("webview.copyUrl"),
                 click: () => this.copyUrlToClipboard(),
             },
             {
-                label: "Set Block Homepage",
+                label: t("webview.setBlockHomepage"),
                 click: () => fireAndForget(() => this.setHomepageUrl(this.getUrl(), "block")),
             },
             {
-                label: "Set Default Homepage",
+                label: t("webview.setDefaultHomepage"),
                 click: () => fireAndForget(() => this.setHomepageUrl(this.getUrl(), "global")),
             },
             {
                 type: "separator",
             },
             {
-                label: "User Agent Type",
+                label: t("webview.userAgentType"),
                 submenu: userAgentSubMenu,
             },
             {
                 type: "separator",
             },
             {
-                label: isNavHidden ? "Un-Hide Navigation" : "Hide Navigation",
+                label: isNavHidden ? t("webview.unhideNav") : t("webview.hideNav"),
                 click: () =>
                     fireAndForget(() => {
                         return this.env.rpc.SetMetaCommand(TabRpcClient, {
@@ -720,11 +723,13 @@ export class WebViewModel implements ViewModel {
                     }),
             },
             {
-                label: "Set Zoom Factor",
+                label: t("webview.setZoom"),
                 submenu: zoomSubMenu,
             },
             {
-                label: this.webviewRef.current?.isDevToolsOpened() ? "Close DevTools" : "Open DevTools",
+                label: this.webviewRef.current?.isDevToolsOpened()
+                    ? t("help.closeDevTools")
+                    : t("help.openDevTools"),
                 click: () => {
                     if (this.webviewRef.current) {
                         if (this.webviewRef.current.isDevToolsOpened()) {
@@ -739,11 +744,11 @@ export class WebViewModel implements ViewModel {
                 type: "separator",
             },
             {
-                label: "Clear History",
+                label: t("webview.clearHistory"),
                 click: () => this.clearHistory(),
             },
             {
-                label: "Clear Cookies and Storage (All Web Widgets)",
+                label: t("webview.clearCookies"),
                 click: () => fireAndForget(() => this.clearCookiesAndStorage()),
             },
         ];
@@ -752,6 +757,7 @@ export class WebViewModel implements ViewModel {
 
 const BookmarkTypeahead = memo(
     ({ model, blockRef }: { model: WebViewModel; blockRef: React.RefObject<HTMLDivElement> }) => {
+        const { t } = useI18n();
         const env = useWaveEnv<WebViewEnv>();
         const openBookmarksJson = () => {
             fireAndForget(async () => {
@@ -779,31 +785,31 @@ const BookmarkTypeahead = memo(
                     return true;
                 }}
                 fetchSuggestions={model.fetchBookmarkSuggestions}
-                placeholderText="Open Bookmark..."
+                placeholderText={t("webview.openBookmark")}
             >
                 <SuggestionControlNoData>
                     <div className="text-center">
-                        <p className="text-lg font-bold text-gray-100">No Bookmarks Configured</p>
+                        <p className="text-lg font-bold text-gray-100">{t("webview.noBookmarks")}</p>
                         <p className="text-sm text-gray-400 mt-1">
-                            Edit your <code className="font-mono">bookmarks.json</code> file to configure bookmarks.
+                            {t("webview.editBookmarksHint")}
                         </p>
                         <button
                             onClick={openBookmarksJson}
                             className="mt-3 px-4 py-2 text-sm font-medium text-black bg-accent hover:bg-accenthover rounded-lg cursor-pointer"
                         >
-                            Open bookmarks.json
+                            {t("webview.openBookmarksJson")}
                         </button>
                     </div>
                 </SuggestionControlNoData>
 
                 <SuggestionControlNoResults>
                     <div className="text-center">
-                        <p className="text-sm text-gray-400">No matching bookmarks</p>
+                        <p className="text-sm text-gray-400">{t("webview.noMatchingBookmarks")}</p>
                         <button
                             onClick={openBookmarksJson}
                             className="mt-3 px-4 py-2 text-sm font-medium text-black bg-accent hover:bg-accenthover rounded-lg cursor-pointer"
                         >
-                            Edit bookmarks.json
+                            {t("webview.editBookmarksJson")}
                         </button>
                     </div>
                 </SuggestionControlNoResults>
@@ -826,13 +832,14 @@ function getWebPreviewDisplayUrl(url?: string | null): string {
 }
 
 function WebViewPreviewFallback({ url }: { url?: string | null }) {
+    const { t } = useI18n();
     const displayUrl = getWebPreviewDisplayUrl(url);
 
     return (
         <div className="flex h-full w-full items-center justify-center bg-panel">
             <div className="mx-6 flex max-w-[720px] flex-col gap-3 rounded-lg border border-dashed border-border bg-background px-6 py-5 shadow-sm">
-                <div className="text-xs font-mono text-muted">preview mock · electron webview unavailable</div>
-                <div className="text-sm text-foreground">web widget placeholder</div>
+                <div className="text-xs font-mono text-muted">{t("webview.previewMock")}</div>
+                <div className="text-sm text-foreground">{t("webview.placeholder")}</div>
                 <div className="rounded-md border border-border bg-panel px-3 py-2 font-mono text-xs text-foreground break-all">
                     {displayUrl}
                 </div>

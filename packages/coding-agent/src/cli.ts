@@ -49,6 +49,7 @@ import {
 import type * as JsProcessEntry from "./eval/js/process-entry";
 import type { WorkerInbound as JsWorkerInbound, WorkerOutbound as JsWorkerOutbound } from "./eval/js/worker-protocol";
 import { startParentWatchdog } from "./subprocess/parent-watchdog";
+import { DAEMON_WORKER_ARG } from "./daemon/protocol";
 
 if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 	process.stderr.write(
@@ -328,6 +329,12 @@ async function runWorkerEntrypoint(arg: string | undefined): Promise<boolean> {
 		const parentPort = getWorkerParentPort();
 		if (parentPort) installWorkerInbox(parentPort);
 		await import("./subprocess/parent-watchdog-worker");
+		return true;
+	}
+	if (arg === DAEMON_WORKER_ARG) {
+		// Worker selectors must dispatch before the normal command graph loads.
+		const { startDaemonFromEnvironment } = await import("./daemon/server");
+		await startDaemonFromEnvironment();
 		return true;
 	}
 	if (arg === DAEMON_BROKER_WORKER_ARG) {

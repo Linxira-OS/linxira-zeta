@@ -7,6 +7,7 @@ import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { BlockHeaderSuggestionControl } from "@/app/suggestion/suggestion";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { isBlank, makeConnRoute } from "@/util/util";
+import { useI18n } from "../../../i18n";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { memo, useEffect } from "react";
 import { CSVView } from "./csvview";
@@ -106,6 +107,7 @@ function PreviewView({
     contentRef: React.RefObject<HTMLDivElement>;
     model: PreviewModel;
 }) {
+    const { t } = useI18n();
     const env = useWaveEnv<PreviewEnv>();
     const connStatus = useAtomValue(model.connStatus);
     const [errorMsg, setErrorMsg] = useAtom(model.errorMsgAtom);
@@ -161,7 +163,7 @@ function PreviewView({
                 onSelect={handleSelect}
                 onTab={handleTab}
                 fetchSuggestions={fetchSuggestionsFn}
-                placeholderText="Open File..."
+                placeholderText={t("preview.openFile")}
             />
         </>
     );

@@ -5,6 +5,7 @@ import { ContextMenuModel } from "@/app/store/contextmenu";
 import { globalStore } from "@/app/store/jotaiStore";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
+import { useI18n } from "../../../i18n";
 import { checkKeyPressed, isCharacterKeyEvent } from "@/util/keyutil";
 import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
 import { addOpenMenuItems } from "@/util/previewutil";
@@ -111,6 +112,7 @@ function DirectoryTable({
     newFile,
     newDirectory,
 }: DirectoryTableProps) {
+    const { t } = useI18n();
     const env = useWaveEnv<PreviewEnv>();
     const fullConfig = useAtomValue(env.atoms.fullConfigAtom);
     const defaultSort = useAtomValue(env.getSettingsKeyAtom("preview:defaultsort")) ?? "name";
@@ -148,35 +150,35 @@ function DirectoryTable({
             }),
             columnHelper.accessor("name", {
                 cell: (info) => <span className="dir-table-name ellipsis">{info.getValue()}</span>,
-                header: () => <span className="dir-table-head-name">Name</span>,
+                header: () => <span className="dir-table-head-name">{t("preview.dir.name")}</span>,
                 sortingFn: "alphanumeric",
                 size: 200,
                 minSize: 90,
             }),
             columnHelper.accessor("modestr", {
                 cell: (info) => <span className="dir-table-modestr">{info.getValue()}</span>,
-                header: () => <span>Perm</span>,
+                header: () => <span>{t("preview.dir.perm")}</span>,
                 size: 91,
                 minSize: 90,
                 sortingFn: "alphanumeric",
             }),
             columnHelper.accessor("modtime", {
                 cell: (info) => <span className="dir-table-lastmod">{getLastModifiedTime(info.getValue())}</span>,
-                header: () => <span>Last Modified</span>,
+                header: () => <span>{t("preview.dir.lastModified")}</span>,
                 size: 91,
                 minSize: 65,
                 sortingFn: "datetime",
             }),
             columnHelper.accessor("size", {
                 cell: (info) => <span className="dir-table-size">{getBestUnit(info.getValue())}</span>,
-                header: () => <span className="dir-table-head-size">Size</span>,
+                header: () => <span className="dir-table-head-size">{t("preview.dir.size")}</span>,
                 size: 55,
                 minSize: 50,
                 sortingFn: "auto",
             }),
             columnHelper.accessor("mimetype", {
                 cell: (info) => <span className="dir-table-type ellipsis">{cleanMimetype(info.getValue() ?? "")}</span>,
-                header: () => <span className="dir-table-head-type">Type</span>,
+                header: () => <span className="dir-table-head-type">{t("preview.dir.type")}</span>,
                 size: 97,
                 minSize: 97,
                 sortingFn: "alphanumeric",
@@ -370,19 +372,19 @@ function TableBody({
             const fileName = finfo.path.split("/").pop();
             const menu: ContextMenuItem[] = [
                 {
-                    label: "New File",
+                    label: t("preview.dir.newFile"),
                     click: () => {
                         table.options.meta.newFile();
                     },
                 },
                 {
-                    label: "New Folder",
+                    label: t("preview.dir.newFolder"),
                     click: () => {
                         table.options.meta.newDirectory();
                     },
                 },
                 {
-                    label: "Rename",
+                    label: t("preview.dir.rename"),
                     click: () => {
                         table.options.meta.updateName(finfo.path, finfo.isdir);
                     },
@@ -391,19 +393,19 @@ function TableBody({
                     type: "separator",
                 },
                 {
-                    label: "Copy File Name",
+                    label: t("preview.dir.copyFileName"),
                     click: () => fireAndForget(() => navigator.clipboard.writeText(fileName)),
                 },
                 {
-                    label: "Copy Full File Name",
+                    label: t("preview.dir.copyFullName"),
                     click: () => fireAndForget(() => navigator.clipboard.writeText(finfo.path)),
                 },
                 {
-                    label: "Copy File Name (Shell Quoted)",
+                    label: t("preview.dir.copyFileNameQuoted"),
                     click: () => fireAndForget(() => navigator.clipboard.writeText(shellQuote([fileName]))),
                 },
                 {
-                    label: "Copy Full File Name (Shell Quoted)",
+                    label: t("preview.dir.copyFullNameQuoted"),
                     click: () => fireAndForget(() => navigator.clipboard.writeText(shellQuote([finfo.path]))),
                 },
             ];
@@ -413,14 +415,14 @@ function TableBody({
                     type: "separator",
                 },
                 {
-                    label: "Default Settings",
+                    label: t("preview.defaultSettings"),
                     submenu: makeDirectoryDefaultMenuItems(model),
                 },
                 {
                     type: "separator",
                 },
                 {
-                    label: "Delete",
+                    label: t("preview.dir.delete"),
                     click: () => handleFileDelete(model, finfo.path, false, setErrorMsg),
                 }
             );
@@ -437,7 +439,11 @@ function TableBody({
         <div className="dir-table-body" ref={bodyRef}>
             {(searchActive || search !== "") && (
                 <div className="flex rounded-[3px] py-1 px-2 bg-warning text-black" ref={warningBoxRef}>
-                    <span>{search === "" ? "Type to search (Esc to cancel)" : `Searching for "${search}"`}</span>
+                    <span>
+                        {search === ""
+                            ? t("preview.dir.typeToSearch")
+                            : t("preview.dir.searchingFor", { term: search })}
+                    </span>
                     <div
                         className="ml-auto bg-transparent flex justify-center items-center flex-col p-0.5 rounded-md hover:bg-hoverbg focus:bg-hoverbg focus-within:bg-hoverbg cursor-pointer"
                         onClick={() => {
@@ -561,6 +567,7 @@ interface DirectoryPreviewProps {
 }
 
 function DirectoryPreview({ model }: DirectoryPreviewProps) {
+    const { t } = useI18n();
     const env = useWaveEnv<PreviewEnv>();
     const [searchText, setSearchText] = useState("");
     const [focusIndex, setFocusIndex] = useState(0);
@@ -607,7 +614,7 @@ function DirectoryPreview({ model }: DirectoryPreviewProps) {
                 } catch (e) {
                     console.error("Directory Read Error", e);
                     setErrorMsg({
-                        status: "Cannot Read Directory",
+                        status: t("preview.dir.cannotRead"),
                         text: `${e}`,
                     });
                 }
@@ -722,19 +729,19 @@ function DirectoryPreview({ model }: DirectoryPreviewProps) {
                 let errorMsg: ErrorMsg;
                 if (allowRetry) {
                     errorMsg = {
-                        status: "Confirm Overwrite File(s)",
-                        text: "This copy operation will overwrite an existing file. Would you like to continue?",
+                        status: t("preview.dir.confirmOverwrite"),
+                        text: t("preview.dir.overwriteHint"),
                         level: "warning",
                         buttons: [
                             {
-                                text: "Delete Then Copy",
+                                text: t("preview.dir.deleteThenCopy"),
                                 onClick: async () => {
                                     data.opts.overwrite = true;
                                     await handleDropCopy(data, isDir);
                                 },
                             },
                             {
-                                text: "Sync",
+                                text: t("preview.dir.sync"),
                                 onClick: async () => {
                                     data.opts.merge = true;
                                     await handleDropCopy(data, isDir);
@@ -744,7 +751,7 @@ function DirectoryPreview({ model }: DirectoryPreviewProps) {
                     };
                 } else {
                     errorMsg = {
-                        status: "Copy Failed",
+                        status: t("preview.dir.copyFailed"),
                         text: copyError,
                         level: "error",
                     };
@@ -840,13 +847,13 @@ function DirectoryPreview({ model }: DirectoryPreviewProps) {
             e.stopPropagation();
             const menu: ContextMenuItem[] = [
                 {
-                    label: "New File",
+                    label: t("preview.dir.newFile"),
                     click: () => {
                         newFile();
                     },
                 },
                 {
-                    label: "New Folder",
+                    label: t("preview.dir.newFolder"),
                     click: () => {
                         newDirectory();
                     },

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
+import { useI18n } from "../../../i18n";
 import { FloatingPortal, VirtualElement, flip, offset, shift, useFloating } from "@floating-ui/react";
 import * as React from "react";
 import type { TermWrap } from "./termwrap";
@@ -78,12 +79,14 @@ const MaxHoverTimeMs = 2200;
 const modKey = PLATFORM === PlatformMacOS ? "Cmd" : "Ctrl";
 
 export function TermLinkTooltipContent({ url }: { url?: string }) {
+    const { t } = useI18n();
+    const linkHint = t("terminal.linkTooltip", { key: modKey });
     if (!url) {
-        return <span>{modKey}-click to open link</span>;
+        return <span>{linkHint}</span>;
     }
     return (
         <div className="max-w-[min(28rem,80vw)]">
-            <div>{modKey}-click to open link</div>
+            <div>{linkHint}</div>
             <div className="break-all">{url}</div>
         </div>
     );

@@ -3,11 +3,13 @@
 
 import { Button } from "@/app/element/button";
 import { CopyButton } from "@/app/element/copybutton";
+import { useI18n } from "../../../i18n";
 import clsx from "clsx";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { memo, useCallback } from "react";
 
 export const ErrorOverlay = memo(({ errorMsg, resetOverlay }: { errorMsg: ErrorMsg; resetOverlay: () => void }) => {
+    const { t } = useI18n();
     const showDismiss = errorMsg.showDismiss ?? true;
     const buttonClassName = "outlined grey text-[11px] py-[3px] px-[7px]";
 
@@ -42,7 +44,7 @@ export const ErrorOverlay = memo(({ errorMsg, resetOverlay }: { errorMsg: ErrorM
                             <CopyButton
                                 className="invisible group-hover:visible flex absolute top-0 right-1 rounded backdrop-blur-lg p-1 items-center justify-end gap-1"
                                 onClick={handleCopyToClipboard}
-                                title="Copy"
+                                title={t("common.copy")}
                             />
                             <div>{errorMsg.text}</div>
                         </OverlayScrollbarsComponent>
