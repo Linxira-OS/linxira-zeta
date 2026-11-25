@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { buildDynamicToolNotice, isDynamicToolEnabled } from "@linxiraos/zeta/tools/dynamic-tools";
 import { sendTimestampLine, TimeTool, timeReport, wallClock } from "@linxiraos/zeta/tools/time";

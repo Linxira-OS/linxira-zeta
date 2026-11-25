@@ -44,7 +44,7 @@ import type { WorkerTabSession } from "@linxiraos/zeta/tools/browser/tab-supervi
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { rejectionOf } from "../helpers/rejection";
 
 const DAEMON_NAME = "zeta.browser.headless";

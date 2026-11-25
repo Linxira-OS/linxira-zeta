@@ -19,7 +19,7 @@ import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
 import { eligibleFile, renderTree, resolveSearchRoot } from "@linxiraos/zeta/tools/jfind/tree";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { resolveSearchResultPath } from "@linxiraos/zeta/tools/path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { rejectionOf } from "../helpers/rejection";

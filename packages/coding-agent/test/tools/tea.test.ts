@@ -34,7 +34,7 @@ import {
 	TeaTool,
 } from "@linxiraos/zeta/tools/tea";
 import { gitea } from "@linxiraos/zeta/utils/gitea";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 import { getAgentDir, hashPath, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 // Isolate every `git` invocation in this file from the developer's host

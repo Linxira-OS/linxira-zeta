@@ -13,7 +13,7 @@ import {
 	resolveBuiltinToolPlan,
 	type ToolSession,
 } from "@linxiraos/zeta/tools";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/zeta/tools/tool-errors";
 
 const roots: string[] = [];
 
