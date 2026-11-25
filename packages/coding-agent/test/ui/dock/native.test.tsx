@@ -393,12 +393,12 @@ describe("todo", () => {
 		expect(tree.p).toEqual({
 			align: "center",
 			gap: "sm",
-			role: "omp.hud.activity",
+			role: "zeta.hud.activity",
 		});
 		expect(children.map(child => `${child.k}:${child.key}`)).toEqual(["col:status", "checklist:todo"]);
 		expect(children[1]?.p).toEqual({
 			mode: "hud",
-			role: "omp.hud.todo",
+			role: "zeta.hud.todo",
 			phases: [
 				{
 					id: "0",
@@ -423,7 +423,7 @@ describe("todo", () => {
 			expect(describeTree(root.node, env)).toEqual({ k: "row", p: { align: "center", gap: "sm" } });
 			model.row.set({ kind: "working", spec: working });
 			// The node built idle is the line: the host keeps one element, and what it drew into it, as the line comes and goes.
-			expect(describeTree(root.node, env)).toMatchObject({ k: "row", p: { role: "omp.hud.activity" } });
+			expect(describeTree(root.node, env)).toMatchObject({ k: "row", p: { role: "zeta.hud.activity" } });
 		} finally {
 			root.dispose();
 		}
@@ -433,7 +433,7 @@ describe("todo", () => {
 			{
 				k: "col",
 				key: "todo",
-				p: { role: "omp.hud.todo" },
+				p: { role: "zeta.hud.todo" },
 				c: [
 					{
 						k: "row",
@@ -502,7 +502,7 @@ describe("HUD pills", () => {
 					{
 						k: "row",
 						key: "running",
-						p: { align: "center", role: "omp.hud.pill" },
+						p: { align: "center", role: "zeta.hud.pill" },
 						c: [
 							{
 								k: "row",
@@ -512,7 +512,7 @@ describe("HUD pills", () => {
 									align: "center",
 									aria: "2 agents running",
 									gap: "xs",
-									role: "omp.hud.seg",
+									role: "zeta.hud.seg",
 									title: "2 agents running  ←←",
 								},
 								c: [
@@ -536,7 +536,7 @@ describe("HUD pills", () => {
 									align: "center",
 									aria: "1 job running",
 									gap: "xs",
-									role: "omp.hud.seg",
+									role: "zeta.hud.seg",
 									title: "1 job running  /jobs",
 								},
 								c: [
@@ -568,7 +568,7 @@ describe("HUD pills", () => {
 			align: "center",
 			aria: "No agents running · 3 in this session",
 			gap: "xs",
-			role: "omp.hud.seg",
+			role: "zeta.hud.seg",
 			title: "No agents running · 3 in this session  ←←",
 		});
 		expect(segment?.c).toEqual([{ k: "icon", key: "icon", p: { name: "users", tone: "muted" } }]);

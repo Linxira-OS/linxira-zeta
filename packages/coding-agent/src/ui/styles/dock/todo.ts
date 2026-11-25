@@ -1,5 +1,5 @@
 /**
- * Terminal look of the todo HUD (`col` `omp.hud.todo`): a blank row, a bold
+ * Terminal look of the todo HUD (`col` `zeta.hud.todo`): a blank row, a bold
  * accent `TODO`, then the stage window one cell in on a spine. Each stage
  * block opens with `├─ ` and continues with `│  `; stage titles are bold
  * accent (active) or muted, with a dim ` · done/total`; tasks hang off dim
@@ -152,4 +152,4 @@ function paintTodoHud(node: UiNode, cx: PaintContext): Block {
 	return { rows: todoHudRows(cx.theme, view, cx.width) };
 }
 
-defineRolePainter("col", "omp.hud.todo", paintTodoHud);
+defineRolePainter("col", "zeta.hud.todo", paintTodoHud);

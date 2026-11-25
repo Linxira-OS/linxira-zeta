@@ -39,7 +39,7 @@ describe("disabledExtensions runtime filtering", () => {
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
 		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
@@ -66,7 +66,7 @@ describe("disabledExtensions runtime filtering", () => {
 		resetSettingsForTest();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("USERPROFILE", originalUserProfile);
@@ -218,14 +218,14 @@ describe("disabledExtensions runtime filtering", () => {
 
 		// The provider switch does not stop the loader from importing configured
 		// modules, so it must not mark their rows disabled either.
-		disableProvider("omp-plugins");
+		disableProvider("zeta-plugins");
 		try {
 			const rows = await moduleRows([]);
 			expect(rows.map(row => [row.id, row.path, row.source.provider, row.source.level, row.state])).toEqual([
-				["extension-module:hello", hello, "omp-plugins", "project", "active"],
+				["extension-module:hello", hello, "zeta-plugins", "project", "active"],
 			]);
 		} finally {
-			enableProvider("omp-plugins");
+			enableProvider("zeta-plugins");
 		}
 
 		// Toggling the row's id removes the module from the load set; the configured

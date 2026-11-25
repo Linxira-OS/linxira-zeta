@@ -325,7 +325,7 @@ describe("InteractiveMode tray", () => {
 		await traySynced();
 		const described = describeDock(mode).flatMap(nodes);
 		const roles = described.map(node => role(node));
-		const activity = roles.indexOf("omp.hud.activity");
+		const activity = roles.indexOf("zeta.hud.activity");
 		expect(activity).toBeGreaterThanOrEqual(0);
 		const trayAt = roles.indexOf("omp.tray");
 		expect(trayAt).toBeGreaterThan(activity);
@@ -388,8 +388,8 @@ describe("InteractiveMode tray", () => {
 			"omp.tray.time",
 		]);
 		expect(children(children(widgetJob)[1]).map(node => role(node) ?? node.k)).toEqual([
-			"omp.hud.glance",
-			"omp.hud.spark",
+			"zeta.hud.glance",
+			"zeta.hud.spark",
 			"omp.tray.stage",
 		]);
 
@@ -403,7 +403,7 @@ describe("InteractiveMode tray", () => {
 		await traySynced();
 		const described = describeDock(mode);
 		const holding = (test: (node: NativeNode) => boolean) => described.findIndex(top => nodes(top).some(test));
-		const activity = holding(node => role(node) === "omp.hud.activity");
+		const activity = holding(node => role(node) === "zeta.hud.activity");
 		const tray = holding(node => role(node) === "omp.tray");
 		expect(tray).toBeGreaterThanOrEqual(activity);
 		const widget = holding(node => JSON.stringify(node.p ?? {}).includes("usage: 42%"));
@@ -586,7 +586,7 @@ describe("InteractiveMode tray", () => {
 		const header = (): NativeNode | undefined =>
 			describeDock(mode)
 				.flatMap(nodes)
-				.find(node => role(node) === "omp.composer.focus");
+				.find(node => role(node) === "zeta.composer.focus");
 		const part = (name: string): NativeNode | undefined => {
 			const shown = header();
 			return shown && nodes(shown).find(node => role(node) === name);
@@ -613,10 +613,10 @@ describe("InteractiveMode tray", () => {
 			expect(header()).toBeUndefined();
 
 			await mode.focusAgentSession("TrayNext");
-			expect(part("omp.composer.agent")?.p).toMatchObject({ text: "TrayNext" });
+			expect(part("zeta.composer.agent")?.p).toMatchObject({ text: "TrayNext" });
 			// The level between the agent and the main session is a link to it.
-			expect(part("omp.composer.crumb")?.p).toMatchObject({ text: "TrayOld", actions: { click: "focus:TrayOld" } });
-			const exit = part("omp.composer.exit")?.p?.actions;
+			expect(part("zeta.composer.crumb")?.p).toMatchObject({ text: "TrayOld", actions: { click: "focus:TrayOld" } });
+			const exit = part("zeta.composer.exit")?.p?.actions;
 			expect(exit).toEqual({ click: "focus:Main" });
 
 			// The exit's click, as the tray's MAIN bar runs it: back on the main session, the header goes.
@@ -698,8 +698,8 @@ describe("InteractiveMode tray", () => {
 		// The idle status row stays, empty (no caption over a quiet tray): the host's seat for the tray.
 		const activity = describeDock(mode)
 			.flatMap(nodes)
-			.find(node => role(node) === "omp.hud.activity");
-		expect(activity).toEqual({ k: "row", p: { role: "omp.hud.activity", align: "center", gap: "sm" } });
+			.find(node => role(node) === "zeta.hud.activity");
+		expect(activity).toEqual({ k: "row", p: { role: "zeta.hud.activity", align: "center", gap: "sm" } });
 
 		// The hub key asks Tern to show it: a focus bump, not the hub.
 		mode.showAgentHub({ trayFirst: true });
@@ -800,7 +800,7 @@ describe("InteractiveMode tray", () => {
 		const statusRow = (): NativeNode | undefined =>
 			describeDock(mode)
 				.flatMap(nodes)
-				.find(node => role(node) === "omp.hud.activity");
+				.find(node => role(node) === "zeta.hud.activity");
 		// No items: no row.
 		expect(statusRow()).toBeUndefined();
 
@@ -823,9 +823,9 @@ describe("InteractiveMode tray", () => {
 		mode.clearWorking();
 		// One row throughout (same kind and role, so the host keeps it); idle over a quiet tray it is empty.
 		expect(rows.map(node => [node?.k, role(node)])).toEqual([
-			["row", "omp.hud.activity"],
-			["row", "omp.hud.activity"],
-			["row", "omp.hud.activity"],
+			["row", "zeta.hud.activity"],
+			["row", "zeta.hud.activity"],
+			["row", "zeta.hud.activity"],
 		]);
 		expect(rows[1]!.c).toBeUndefined();
 	});

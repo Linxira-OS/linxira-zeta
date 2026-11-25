@@ -17,7 +17,7 @@ def _make_browser():
                 flags += "m"
             if value.flags & re.DOTALL:
                 flags += "s"
-            return {"__omp_re": {"source": value.pattern, "flags": flags}}
+            return {"__zeta_re": {"source": value.pattern, "flags": flags}}
         # Patterns nested in dicts and lists (`requests(filter=re.compile(...))` inside options) are encoded too.
         if isinstance(value, dict):
             return {key: _encode_arg(item) for key, item in value.items()}

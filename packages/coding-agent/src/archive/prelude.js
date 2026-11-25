@@ -21,9 +21,9 @@
 			throw new TypeError(`archive.${method}() expects an options object`);
 		}
 		const { silent, ...params } = { ...options, ...required };
-		const response = await globalThis.__omp_prelude__("archive", { ...normalize(params), action });
+		const response = await globalThis.__zeta_prelude__("archive", { ...normalize(params), action });
 		if (!silent && response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__omp_log__("log", response.text);
+			globalThis.__zeta_log__("log", response.text);
 		}
 		return response && typeof response === "object" ? response.details : undefined;
 	};

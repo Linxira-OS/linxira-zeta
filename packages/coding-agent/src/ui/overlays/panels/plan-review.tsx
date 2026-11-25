@@ -104,7 +104,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 							key={`h${index}`}
 							label={section.title || "(untitled)"}
 							value={count > 0 ? [{ s: "warning", t: `✎${count}` }] : undefined}
-							role={`omp.plan.toc.depth${section.level - model.tocBaseLevel}`}
+							role={`zeta.plan.toc.depth${section.level - model.tocBaseLevel}`}
 						/>
 					);
 				});

@@ -416,7 +416,7 @@ describe("ComposerPredictionController metrics", () => {
 		failed.controller.request();
 		await failed.fail(0, new Error("overloaded"));
 
-		expect(await metrics.counts("omp.composer.prediction.requests", "omp.composer.prediction.outcome")).toEqual({
+		expect(await metrics.counts("zeta.composer.prediction.requests", "zeta.composer.prediction.outcome")).toEqual({
 			offered: 2,
 			skipped: 1,
 			stale: 1,
@@ -425,19 +425,19 @@ describe("ComposerPredictionController metrics", () => {
 			error: 1,
 		});
 		const model = "anthropic/claude-sonnet-4-5";
-		expect(await metrics.histogram("omp.composer.prediction.duration")).toEqual(
+		expect(await metrics.histogram("zeta.composer.prediction.duration")).toEqual(
 			expect.arrayContaining([
 				{
-					"omp.composer.prediction.outcome": "offered",
-					"omp.composer.prediction.model": model,
-					"omp.composer.prediction.choices": 1,
+					"zeta.composer.prediction.outcome": "offered",
+					"zeta.composer.prediction.model": model,
+					"zeta.composer.prediction.choices": 1,
 					count: 2,
 				},
-				{ "omp.composer.prediction.outcome": "timeout", "omp.composer.prediction.model": model, count: 1 },
+				{ "zeta.composer.prediction.outcome": "timeout", "zeta.composer.prediction.model": model, count: 1 },
 			]),
 		);
 		// Nothing was painted, so nothing was shown.
-		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({});
+		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({});
 		await metrics.shutdown();
 	});
 
@@ -458,7 +458,7 @@ describe("ComposerPredictionController metrics", () => {
 		stale.advance("something else");
 		stale.paint();
 
-		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({
+		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({
 			"anthropic/claude-sonnet-4-5": 1,
 		});
 		await metrics.shutdown();
@@ -527,15 +527,15 @@ describe("ComposerPredictionController metrics", () => {
 
 		const model = "anthropic/claude-sonnet-4-5";
 		// Every shown prediction resolves exactly once.
-		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({
+		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({
 			[model]: 5,
 		});
-		expect(await metrics.counts("omp.composer.prediction.resolved", "omp.composer.prediction.result")).toEqual({
+		expect(await metrics.counts("zeta.composer.prediction.resolved", "zeta.composer.prediction.result")).toEqual({
 			accepted: 2,
 			ignored: 3,
 		});
-		expect(await metrics.histogram("omp.composer.prediction.accept.delay")).toEqual([
-			{ "omp.composer.prediction.model": model, "omp.composer.prediction.choices": 1, count: 2 },
+		expect(await metrics.histogram("zeta.composer.prediction.accept.delay")).toEqual([
+			{ "zeta.composer.prediction.model": model, "zeta.composer.prediction.choices": 1, count: 2 },
 		]);
 		await metrics.shutdown();
 	});
@@ -568,34 +568,34 @@ describe("ComposerPredictionController metrics", () => {
 		ignored.paint();
 		ignored.controller.cancel();
 
-		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.choices")).toEqual({
+		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.choices")).toEqual({
 			"2": 1,
 			"3": 1,
 			"4": 1,
 		});
 		const model = "anthropic/claude-sonnet-4-5";
-		const resolved = await metrics.series("omp.composer.prediction.resolved");
+		const resolved = await metrics.series("zeta.composer.prediction.resolved");
 		expect(resolved).toHaveLength(3);
 		expect(resolved).toEqual(
 			expect.arrayContaining([
 				{
-					"omp.composer.prediction.result": "accepted",
-					"omp.composer.prediction.model": model,
-					"omp.composer.prediction.choices": 3,
-					"omp.composer.prediction.rank": 1,
+					"zeta.composer.prediction.result": "accepted",
+					"zeta.composer.prediction.model": model,
+					"zeta.composer.prediction.choices": 3,
+					"zeta.composer.prediction.rank": 1,
 					value: 1,
 				},
 				{
-					"omp.composer.prediction.result": "accepted",
-					"omp.composer.prediction.model": model,
-					"omp.composer.prediction.choices": 2,
-					"omp.composer.prediction.rank": 1,
+					"zeta.composer.prediction.result": "accepted",
+					"zeta.composer.prediction.model": model,
+					"zeta.composer.prediction.choices": 2,
+					"zeta.composer.prediction.rank": 1,
 					value: 1,
 				},
 				{
-					"omp.composer.prediction.result": "ignored",
-					"omp.composer.prediction.model": model,
-					"omp.composer.prediction.choices": 4,
+					"zeta.composer.prediction.result": "ignored",
+					"zeta.composer.prediction.model": model,
+					"zeta.composer.prediction.choices": 4,
 					value: 1,
 				},
 			]),

@@ -27,7 +27,7 @@
 				"k": "text",
 				"key": "sep",
 				"p": {
-					"role": "omp.working.sep",
+					"role": "zeta.working.sep",
 					"text": "·"
 				}
 			},
@@ -41,7 +41,7 @@
 						"low": "dim",
 						"mid": "muted"
 					},
-					"role": "omp.working.label",
+					"role": "zeta.working.label",
 					"spans": [
 						{
 							"s": "muted",
@@ -66,7 +66,7 @@
 					},
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.working.stop",
+					"role": "zeta.working.stop",
 					"title": "Stop  esc"
 				},
 				"c": [
@@ -114,7 +114,7 @@
 				"k": "text",
 				"key": "sep",
 				"p": {
-					"role": "omp.working.sep",
+					"role": "zeta.working.sep",
 					"text": "·"
 				}
 			},
@@ -128,7 +128,7 @@
 						"low": "dim",
 						"mid": "accent"
 					},
-					"role": "omp.working.label",
+					"role": "zeta.working.label",
 					"spans": [
 						{
 							"s": "accent",
@@ -153,7 +153,7 @@
 					},
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.working.stop",
+					"role": "zeta.working.stop",
 					"title": "Stop  esc"
 				},
 				"c": [
@@ -201,7 +201,7 @@
 				"k": "text",
 				"key": "sep",
 				"p": {
-					"role": "omp.working.sep",
+					"role": "zeta.working.sep",
 					"text": "·"
 				}
 			},
@@ -215,7 +215,7 @@
 						"low": "dim",
 						"mid": "muted"
 					},
-					"role": "omp.working.label",
+					"role": "zeta.working.label",
 					"spans": [
 						{
 							"s": "muted",
@@ -247,7 +247,7 @@
 					},
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.working.stop",
+					"role": "zeta.working.stop",
 					"title": "Stop  esc"
 				},
 				"c": [
@@ -296,7 +296,7 @@
 				"k": "text",
 				"key": "sep",
 				"p": {
-					"role": "omp.working.sep",
+					"role": "zeta.working.sep",
 					"text": "·"
 				}
 			},
@@ -310,7 +310,7 @@
 						"low": "dim",
 						"mid": "muted"
 					},
-					"role": "omp.working.label",
+					"role": "zeta.working.label",
 					"spans": [
 						{
 							"s": "muted",
@@ -335,7 +335,7 @@
 					},
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.working.stop",
+					"role": "zeta.working.stop",
 					"title": "Cancel  esc"
 				},
 				"c": [
@@ -383,7 +383,7 @@
 				"k": "text",
 				"key": "sep",
 				"p": {
-					"role": "omp.working.sep",
+					"role": "zeta.working.sep",
 					"text": "·"
 				}
 			},
@@ -397,7 +397,7 @@
 						"low": "dim",
 						"mid": "muted"
 					},
-					"role": "omp.working.label",
+					"role": "zeta.working.label",
 					"spans": [
 						{
 							"s": "muted",
@@ -470,7 +470,7 @@
 				"p": {
 					"align": "center",
 					"gap": "sm",
-					"role": "omp.queue.item",
+					"role": "zeta.queue.item",
 					"title": "Steering"
 				},
 				"c": [
@@ -495,7 +495,7 @@
 						"k": "badge",
 						"key": "count",
 						"p": {
-							"role": "omp.queue.count",
+							"role": "zeta.queue.count",
 							"text": "2 queued",
 							"title": "2 messages queued"
 						}
@@ -509,7 +509,7 @@
 							},
 							"align": "center",
 							"gap": "xs",
-							"role": "omp.queue.edit",
+							"role": "zeta.queue.edit",
 							"title": "Edit  ⌥↑"
 						},
 						"c": [
@@ -535,7 +535,7 @@
 				"p": {
 					"align": "center",
 					"gap": "sm",
-					"role": "omp.queue.item",
+					"role": "zeta.queue.item",
 					"title": "After yield"
 				},
 				"c": [
@@ -565,7 +565,7 @@
 							},
 							"align": "center",
 							"gap": "xs",
-							"role": "omp.queue.edit",
+							"role": "zeta.queue.edit",
 							"title": "Edit  ⌥↑"
 						},
 						"c": [
@@ -600,7 +600,7 @@
 				"p": {
 					"align": "center",
 					"gap": "sm",
-					"role": "omp.queue.item",
+					"role": "zeta.queue.item",
 					"title": "Steering"
 				},
 				"c": [
@@ -630,7 +630,7 @@
 							},
 							"align": "center",
 							"gap": "xs",
-							"role": "omp.queue.edit",
+							"role": "zeta.queue.edit",
 							"title": "Edit  ⌥↑"
 						},
 						"c": [
@@ -707,7 +707,7 @@
 	"judge": {
 		"k": "col",
 		"p": {
-			"role": "omp.hud.judge"
+			"role": "zeta.hud.judge"
 		},
 		"c": [
 			{
@@ -717,7 +717,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{
@@ -772,7 +772,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{
@@ -817,7 +817,7 @@
 	"downloads": {
 		"k": "col",
 		"p": {
-			"role": "omp.hud.downloads"
+			"role": "zeta.hud.downloads"
 		},
 		"c": [
 			{
@@ -827,7 +827,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{
@@ -874,7 +874,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{
@@ -911,7 +911,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{
@@ -947,7 +947,7 @@
 	"compactionBeside": {
 		"k": "col",
 		"p": {
-			"role": "omp.hud.compaction"
+			"role": "zeta.hud.compaction"
 		},
 		"c": [
 			{
@@ -957,7 +957,7 @@
 					"align": "center",
 					"gap": "sm",
 					"justify": "end",
-					"role": "omp.hud.progress"
+					"role": "zeta.hud.progress"
 				},
 				"c": [
 					{

@@ -34,7 +34,7 @@ const expectedFixtureSkillOrder: string[] = [
 /**
  * Disable every named built-in skill source. Used by `loadSkills` option tests
  * that need to isolate a custom directory or assert "no built-in leakage".
- * Plugin providers (`omp-plugins`, `claude-plugins`, `agent-plugins`) have no
+ * Plugin providers (`zeta-plugins`, `claude-plugins`, `agent-plugins`) have no
  * toggle; the file-wide isolated home below keeps the developer's real plugin
  * installs out of every assertion.
  */
@@ -58,7 +58,7 @@ const isolatedEnvKeys = [
 	"USERPROFILE",
 	"CLAUDE_CONFIG_DIR",
 	"PI_CODING_AGENT_DIR",
-	"OMP_PROFILE",
+	"ZETA_PROFILE",
 	"PI_PROFILE",
 ] as const;
 const originalEnv: Record<string, string | undefined> = Object.fromEntries(

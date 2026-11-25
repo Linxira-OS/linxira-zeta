@@ -97,7 +97,7 @@ describe("switch after an OpenAI remote compaction", () => {
 	const originalEnv = {
 		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 		PI_PROFILE: process.env.PI_PROFILE,
-		OMP_PROFILE: process.env.OMP_PROFILE,
+		ZETA_PROFILE: process.env.ZETA_PROFILE,
 	};
 	let tempDir: string;
 	let authStorage: AuthStorage;

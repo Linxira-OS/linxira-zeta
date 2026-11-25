@@ -48,10 +48,10 @@ describe("resolveRelayKind", () => {
 describe("browser prelude relay guidance", () => {
 	const ENV_KEYS = [
 		"PI_BROWSER_RELAY",
-		"PI_BROWSER_TERN",
+		"ZETA_BROWSER_TERN",
 		"PI_BROWSER_CMUX",
-		"TERN_PANE_SOCKET",
-		"TERN_PANE",
+		"ZETA_PANE_SOCKET",
+		"ZETA_PANE",
 		"CMUX_SOCKET_PATH",
 		// Inherited from an interactive omp when the tests run from its bash tool.
 		"PI_TERMINAL_OWNER_PID",

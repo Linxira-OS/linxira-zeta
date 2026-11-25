@@ -240,7 +240,7 @@ body { margin: 0; }
 	/** Run `body` with opens going to headless Chromium: backend overrides would send them to a relay or cmux surface. */
 	async function withoutBackendOverrides(body: () => Promise<void>): Promise<void> {
 		const savedEnv = { ...process.env };
-		for (const key of ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX", "PI_BROWSER_TERN"]) delete process.env[key];
+		for (const key of ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX", "ZETA_BROWSER_TERN"]) delete process.env[key];
 		try {
 			await body();
 		} finally {

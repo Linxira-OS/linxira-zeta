@@ -159,7 +159,7 @@ describe("turn states", () => {
 		expect(ui.node("text", "stop").p.text).toBe("Stop");
 		// The session returned without running the turn (Esc during setup): no `agent_end` follows.
 		mode.finishPendingSubmission(input);
-		expect(ui.node("kbd", "send").p.role).toBe("omp.composer.send");
+		expect(ui.node("kbd", "send").p.role).toBe("zeta.composer.send");
 		expect(() => ui.node("text", "stop")).toThrow();
 	});
 
@@ -172,7 +172,7 @@ describe("turn states", () => {
 		const line = ui.get(parentOf(editor));
 		expect(ui.get(parentOf(line)).p.role).toBe("omp.editor.btw-ask");
 		const chip = ui.get(line.c[0]!);
-		expect(chip.p).toMatchObject({ role: "omp.composer.mode", title: "Asks a /btw side question" });
+		expect(chip.p).toMatchObject({ role: "zeta.composer.mode", title: "Asks a /btw side question" });
 		expect(ui.get(chip.c[0]!).p.spans).toEqual([{ s: "btwMode", t: "btw" }]);
 		// The chip stands in for the sigil; the question stays prose.
 		expect(editor.p.decor).toEqual([{ from: 0, to: 2, s: "hide" }]);

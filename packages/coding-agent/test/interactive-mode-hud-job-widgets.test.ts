@@ -130,7 +130,7 @@ describe("InteractiveMode HUD pills", () => {
 	const jobsSegment = (): Described | undefined => {
 		mode.applyPinnedAgentsSetting();
 		return nodes(describePills(mode.hud.pills)).find(
-			node => node.key === "jobs" && prop(node, "role") === "omp.hud.seg",
+			node => node.key === "jobs" && prop(node, "role") === "zeta.hud.seg",
 		);
 	};
 
@@ -143,7 +143,7 @@ describe("InteractiveMode HUD pills", () => {
 		spyOn(session, "getRunningJobWidgets").mockImplementation(() => entries);
 
 		const segment = jobsSegment()!;
-		const glance = nodes(segment).find(node => prop(node, "role") === "omp.hud.glance");
+		const glance = nodes(segment).find(node => prop(node, "role") === "zeta.hud.glance");
 		expect(prop(glance, "spans")).toEqual([
 			{ t: "186 tok/s", s: "num strong" },
 			{ t: " ▲ 15%", s: "success" },
@@ -180,7 +180,7 @@ describe("InteractiveMode HUD pills", () => {
 		entries = [{ id: "bg_1", type: "bash", view: { ...decode, headline: { text: "171 tok/s" } } }];
 
 		const next = jobsSegment()!;
-		const glance = nodes(next).find(node => prop(node, "role") === "omp.hud.glance");
+		const glance = nodes(next).find(node => prop(node, "role") === "zeta.hud.glance");
 		expect(prop(glance, "spans")).toEqual([{ t: "171 tok/s", s: "num strong" }]);
 		expect(prop(next, "title")).toBe("1 job running  /jobs\nbg_1  loadtest · decode — 171 tok/s");
 	});
@@ -223,7 +223,7 @@ describe("InteractiveMode HUD pills", () => {
 		const agentsSegment = (): Described | undefined => {
 			mode.syncRunningSubagentBadge();
 			return nodes(describePills(mode.hud.pills)).find(
-				node => node.key === "agents" && prop(node, "role") === "omp.hud.seg",
+				node => node.key === "agents" && prop(node, "role") === "zeta.hud.seg",
 			);
 		};
 		try {

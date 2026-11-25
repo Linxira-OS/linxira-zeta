@@ -291,11 +291,11 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 		const continuationStarted = Promise.withResolvers<void>();
 		const continuationGate = Promise.withResolvers<void>();
 		const globals = globalThis as typeof globalThis & {
-			__ompLateRejectionStarted?: () => void;
-			__ompLateRejectionGate?: Promise<void>;
+			__zetaLateRejectionStarted?: () => void;
+			__zetaLateRejectionGate?: Promise<void>;
 		};
-		globals.__ompLateRejectionStarted = continuationStarted.resolve;
-		globals.__ompLateRejectionGate = continuationGate.promise;
+		globals.__zetaLateRejectionStarted = continuationStarted.resolve;
+		globals.__zetaLateRejectionGate = continuationGate.promise;
 
 		try {
 			spyOn(CmuxSocketClient.prototype, "request").mockImplementation(
@@ -329,8 +329,8 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 					const guestStarted = Promise.withResolvers();
 					void tab.title().then(async () => {
 						guestStarted.resolve();
-						globalThis.__ompLateRejectionStarted();
-						await globalThis.__ompLateRejectionGate;
+						globalThis.__zetaLateRejectionStarted();
+						await globalThis.__zetaLateRejectionGate;
 						throw new Error("late cmux continuation failed");
 					});
 					await guestStarted.promise;
@@ -350,8 +350,8 @@ describe("browser tab-supervisor — cmux tab close mid-run (#4499)", () => {
 			});
 		} finally {
 			continuationGate.resolve();
-			delete globals.__ompLateRejectionStarted;
-			delete globals.__ompLateRejectionGate;
+			delete globals.__zetaLateRejectionStarted;
+			delete globals.__zetaLateRejectionGate;
 		}
 	});
 

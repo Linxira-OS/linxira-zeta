@@ -10,14 +10,14 @@ import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 
-const EVENTS_KEY = "__ompExtensionLoaderConcurrencyEvents";
-const RELEASE_KEY = "__ompExtensionLoaderConcurrencyRelease";
-const FAST_EVALUATED_KEY = "__ompExtensionLoaderConcurrencyFastEvaluated";
+const EVENTS_KEY = "__zetaExtensionLoaderConcurrencyEvents";
+const RELEASE_KEY = "__zetaExtensionLoaderConcurrencyRelease";
+const FAST_EVALUATED_KEY = "__zetaExtensionLoaderConcurrencyFastEvaluated";
 
 interface EventsGlobal {
-	__ompExtensionLoaderConcurrencyEvents?: string[];
-	__ompExtensionLoaderConcurrencyRelease?: Promise<void>;
-	__ompExtensionLoaderConcurrencyFastEvaluated?: () => void;
+	__zetaExtensionLoaderConcurrencyEvents?: string[];
+	__zetaExtensionLoaderConcurrencyRelease?: Promise<void>;
+	__zetaExtensionLoaderConcurrencyFastEvaluated?: () => void;
 }
 
 const eventsGlobal = globalThis as EventsGlobal;

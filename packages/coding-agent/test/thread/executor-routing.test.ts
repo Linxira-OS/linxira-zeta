@@ -33,7 +33,7 @@ import { SubagentWorkerPool, setSubagentWorkerPoolForTests } from "../../src/thr
 import { EventBus } from "../../src/utils/event-bus";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 const MODEL = "fake/fake-model";
 const TEST_TIMEOUT_MS = 120_000;
 /**
@@ -238,7 +238,7 @@ beforeEach(async () => {
 	// Workers read these at start-up, so set them before the pool spawns any.
 	setEnv("HOME", home);
 	setEnv("PI_CODING_AGENT_DIR", agentDir);
-	setEnv("OMP_PROFILE", undefined);
+	setEnv("ZETA_PROFILE", undefined);
 	setEnv("PI_PROFILE", undefined);
 	__resetDirsFromEnvForTests();
 	AgentRegistry.resetGlobalForTests();

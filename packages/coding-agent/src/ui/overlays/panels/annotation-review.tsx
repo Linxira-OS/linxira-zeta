@@ -113,7 +113,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 			actions={{ click: "select", dblclick: "activate" }}
 			empty={[{ s: "muted", t: model.textSource ? "This text is empty" : "Nothing to review" }]}
 			max={() => ({ lines: model.nativeBodyRows() })}
-			role={model.textSource ? "omp.review.text" : "omp.review.diff"}
+			role={model.textSource ? "zeta.review.text" : "zeta.review.diff"}
 			selected={() => {
 				rev();
 				const count = model.textSource ? model.textLines.length : model.currentSourceRows().length;

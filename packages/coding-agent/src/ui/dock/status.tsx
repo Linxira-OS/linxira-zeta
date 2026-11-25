@@ -8,7 +8,7 @@
  * else the idle trailer (the last tok/s reading) docks right in a text
  * terminal.
  *
- * - Natively (role `omp.hud.activity`): the status row in an `omp.hud.status`
+ * - Natively (role `zeta.hud.activity`): the status row in an `zeta.hud.status`
  *   column (or, idle on a tray host, the tray's caption), then the todo HUD,
  *   so the todo keeps its place as turns start and end. Nothing to show is the
  *   same row emptied, without its role unless the tray has cards (the host's
@@ -118,12 +118,12 @@ export function StatusHud(props: { readonly model: StatusHudModel }): JSXNode {
 				model.trayCaption() !== undefined ||
 				model.todo?.window() !== undefined ||
 				model.traySeat()
-					? "omp.hud.activity"
+					? "zeta.hud.activity"
 					: undefined
 			}
 			align="center"
 			gap="sm"
-			term={{ status: model, role: "omp.hud.activity" }}
+			term={{ status: model, role: "zeta.hud.activity" }}
 		>
 			{() => model.current() !== undefined && status}
 			{caption}

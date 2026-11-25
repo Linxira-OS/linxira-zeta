@@ -6,8 +6,8 @@
  * when the work has a size, then the tail (`12/40 · $0.031 · 2 failed`,
  * `1.2 MB / 9.8 MB`, `ready`, the compaction's run time).
  *
- * - Natively: per kind an `omp.hud.judge` / `omp.hud.downloads` /
- *   `omp.hud.compaction` column of `omp.hud.progress` rows (`justify: end`):
+ * - Natively: per kind an `zeta.hud.judge` / `zeta.hud.downloads` /
+ *   `zeta.hud.compaction` column of `zeta.hud.progress` rows (`justify: end`):
  *   the label, a `progress` capped at 18ch, the tail.
  * - In a text terminal (`src/ui/styles/dock/progress.ts`) the same row,
  *   right-aligned; a tail that cannot fit falls back to its short form.

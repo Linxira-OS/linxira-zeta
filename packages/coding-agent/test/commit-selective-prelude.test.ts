@@ -16,7 +16,7 @@ function facade(diff: unknown = "patch") {
 	const calls: unknown[] = [];
 	const printed: unknown[] = [];
 	const context = createContext({
-		__omp_log__: (_level: string, text: unknown) => {
+		__zeta_log__: (_level: string, text: unknown) => {
 			printed.push(text);
 		},
 		__zeta_prelude__: async (_name: string, parameters: { action: string }) => {

@@ -380,7 +380,7 @@ const setValue = (target, value, append = false) => {
 
 const RESPONSE_OBSERVER_SCRIPT = String.raw`
 (() => {
-	const key = "__ompCmuxResponses";
+	const key = "__zetaCmuxResponses";
 	if (globalThis[key]) return true;
 	const state = { nextId: 1, records: [] };
 	Object.defineProperty(globalThis, key, { value: state, configurable: true });
@@ -601,7 +601,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async a11y(options: BrowserA11yOptions = {}): Promise<BrowserA11yResult> {
 		const context = this.#requireRunContext("tab.a11y()");
-		const stateKey = `__ompA11y${Snowflake.next()}`;
+		const stateKey = `__zetaA11y${Snowflake.next()}`;
 		const key = JSON.stringify(stateKey);
 		const audit = buildA11yPageScript(options);
 		await this.#evalScript(`(() => {
@@ -941,7 +941,7 @@ export class CmuxTab implements InProcessRunTab {
 		const to = this.#pointerSpace.toViewport({ x, y, css: opts?.css });
 		await this.#evalScript(`(() => {
 			const point = ${JSON.stringify(to)};
-			globalThis.__ompMousePoint = point;
+			globalThis.__zetaMousePoint = point;
 			const target = document.elementFromPoint(point.x, point.y) || document.body;
 			target.dispatchEvent(new MouseEvent("mousemove", {
 				clientX: point.x,
@@ -1297,7 +1297,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async clearRequests(): Promise<void> {
 		await this.#installResponseObserver();
-		await this.#evalScript("(() => { globalThis.__ompCmuxResponses.records = []; return true; })()");
+		await this.#evalScript("(() => { globalThis.__zetaCmuxResponses.records = []; return true; })()");
 	}
 
 	async harStart(_options: { content?: HarContentPolicy } = {}): Promise<void> {
@@ -1408,7 +1408,7 @@ export class CmuxTab implements InProcessRunTab {
 
 	async clearConsole(): Promise<void> {
 		await this.#evalScript(
-			`${CMUX_CONSOLE_CAPTURE_SCRIPT}; globalThis.__ompConsoleCapture.entries = []; globalThis.__ompConsoleCapture.dropped = 0; true`,
+			`${CMUX_CONSOLE_CAPTURE_SCRIPT}; globalThis.__zetaConsoleCapture.entries = []; globalThis.__zetaConsoleCapture.dropped = 0; true`,
 		);
 	}
 
@@ -1685,7 +1685,7 @@ export class CmuxTab implements InProcessRunTab {
 		const serializedOptions = JSON.stringify(options);
 		const serialized = await this.#evalScript<string>(`(() => {
 			${CMUX_CONSOLE_CAPTURE_SCRIPT};
-			const state = globalThis.__ompConsoleCapture;
+			const state = globalThis.__zetaConsoleCapture;
 			const options = ${serializedOptions};
 			const since = Number.isFinite(options.since) ? Math.floor(options.since) : 0;
 			const limit = Number.isFinite(options.limit) ? Math.max(0, Math.floor(options.limit)) : 500;
@@ -1826,7 +1826,7 @@ export class CmuxTab implements InProcessRunTab {
 	#mouseTransitionScript(type: "mousedown" | "mouseup", button = "left"): string {
 		return `(() => {
 			const args = ${JSON.stringify({ type, button })};
-			const point = globalThis.__ompMousePoint || { x: 0, y: 0 };
+			const point = globalThis.__zetaMousePoint || { x: 0, y: 0 };
 			const target = document.elementFromPoint(point.x, point.y) || document.body;
 			const button = ({ left: 0, middle: 1, right: 2, back: 3, forward: 4 })[args.button] ?? 0;
 			target.dispatchEvent(new MouseEvent(args.type, {
@@ -2088,14 +2088,14 @@ export class CmuxTab implements InProcessRunTab {
 
 	async #responseCursor(): Promise<number> {
 		const value = await this.#evalScript<unknown>(
-			"(() => Math.max(0, ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.nextId) || 1) - 1))()",
+			"(() => Math.max(0, ((globalThis.__zetaCmuxResponses && globalThis.__zetaCmuxResponses.nextId) || 1) - 1))()",
 		);
 		return numberFrom(value, 0);
 	}
 
 	async #responseRecordsAfter(id: number): Promise<CmuxResponseRecord[]> {
 		const value = await this.#evalScript<unknown>(
-			`(() => ((globalThis.__ompCmuxResponses && globalThis.__ompCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
+			`(() => ((globalThis.__zetaCmuxResponses && globalThis.__zetaCmuxResponses.records) || []).filter(record => record.id > ${JSON.stringify(id)}))()`,
 		);
 		if (!Array.isArray(value)) return [];
 		const records: CmuxResponseRecord[] = [];

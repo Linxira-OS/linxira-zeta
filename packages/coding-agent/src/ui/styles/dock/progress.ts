@@ -1,5 +1,5 @@
 /**
- * Terminal look of a progress HUD row (`row` `omp.hud.progress`), docked
+ * Terminal look of a progress HUD row (`row` `zeta.hud.progress`), docked
  * right: the dim label, an 18-cell bar (`━` accent over `─` dim) when the
  * work has a size, then the tail; a tail that cannot fit gives way to its
  * short form. A judgment batch's tail is `12/40` (bold) ` · $0.031` (dim)
@@ -93,4 +93,4 @@ function paintProgressRow(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("row", "omp.hud.progress", paintProgressRow);
+defineRolePainter("row", "zeta.hud.progress", paintProgressRow);

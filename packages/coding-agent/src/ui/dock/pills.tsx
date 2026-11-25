@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The HUD pills row (`pills` slot, native only), right-aligned above the
- * activity line: one running-work counter (`omp.hud.pill`) with an agents
+ * activity line: one running-work counter (`zeta.hud.pill`) with an agents
  * segment and a background-jobs segment, each present only while it has
  * something to count. The agents segment stays as a muted icon while the
  * session still holds agents the hub can inspect, so the click into the hub

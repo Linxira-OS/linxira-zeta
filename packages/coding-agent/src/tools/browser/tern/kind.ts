@@ -31,7 +31,7 @@ export function resolveTernPane(env: Record<string, string | undefined> = proces
 
 /** Inputs of {@link resolveTernKind}. */
 export interface ResolveTernKindOptions {
-	/** `browser.zeta` setting (default true); `PI_BROWSER_ZETA=0|1` overrides it. */
+	/** `browser.zeta` setting (default true); `ZETA_BROWSER_TERN=0|1` overrides it. */
 	settingEnabled?: boolean;
 }
 
@@ -44,7 +44,7 @@ export function resolveTernKind(
 	options?: ResolveTernKindOptions | null,
 	env: Record<string, string | undefined> = process.env,
 ): TernKind | null {
-	if (!parseFlag(env.PI_BROWSER_ZETA, options?.settingEnabled ?? true)) return null;
+	if (!parseFlag(env.ZETA_BROWSER_TERN, options?.settingEnabled ?? true)) return null;
 	const pane = resolveTernPane(env);
 	return pane && { kind: "tern", ...pane };
 }

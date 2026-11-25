@@ -420,7 +420,7 @@ describe("OMP-owned browser evaluation", () => {
 				});
 				const result = await runInTab(name, {
 					code: `
-						await tab.evaluate("globalThis.__ompPageMarker = 'main-world'");
+						await tab.evaluate("globalThis.__zetaPageMarker = 'main-world'");
 						const first = await tab.waitForSelector("#first");
 						const second = await tab.waitForSelector("#second");
 						if (!first || !second) throw new Error("Expected both buttons");
@@ -437,7 +437,7 @@ describe("OMP-owned browser evaluation", () => {
 
 						const evaluated = await tab.evaluate(
 							(firstElement, secondElement, existingMainElement, existingMainObject, data) => ({
-								marker: globalThis.__ompPageMarker,
+								marker: globalThis.__zetaPageMarker,
 								texts: [firstElement.textContent, secondElement.textContent],
 								mainText: existingMainElement.textContent,
 								mainValue: existingMainObject.value,
@@ -459,7 +459,7 @@ describe("OMP-owned browser evaluation", () => {
 							callbackFailure = error instanceof Error ? error.message : String(error);
 						}
 
-						const stringMarker = await tab.evaluate("globalThis.__ompPageMarker", first, second);
+						const stringMarker = await tab.evaluate("globalThis.__zetaPageMarker", first, second);
 						const handlesAfterward = [
 							await first.evaluate(element => element.textContent),
 							await second.evaluate(element => element.textContent),
@@ -499,7 +499,7 @@ describe("OMP-owned browser evaluation", () => {
 			getSessionFile: () => null,
 		} as unknown as ToolSession;
 		const fixture = `<script>
-			globalThis.__ompPageMarker = 47;
+			globalThis.__zetaPageMarker = 47;
 			customElements.define("x-answer", class extends HTMLElement { get answer() { return 42; } });
 		</script><x-answer id="first"></x-answer><x-answer></x-answer>`;
 		try {
@@ -517,16 +517,16 @@ describe("OMP-owned browser evaluation", () => {
 		expect(
 			await runPageContract(`
 			const first = await page.$("#first");
-			const marker = await page.evaluateHandle(() => globalThis.__ompPageMarker);
+			const marker = await page.evaluateHandle(() => globalThis.__zetaPageMarker);
 			try {
 				return {
-					evaluate: await page.evaluate(() => globalThis.__ompPageMarker),
-					evaluateString: await page.evaluate("globalThis.__ompPageMarker"),
+					evaluate: await page.evaluate(() => globalThis.__zetaPageMarker),
+					evaluateString: await page.evaluate("globalThis.__zetaPageMarker"),
 					evaluateHandle: await marker.jsonValue(),
 					elementArgument: await page.evaluate(element => element.answer, first),
 					$eval: await page.$eval("#first", (element, add) => element.answer + add, 1),
 					$$eval: await page.$$eval("x-answer", elements => elements.map(element => element.answer)),
-					chained: await page.on("console", () => {}).evaluate(() => globalThis.__ompPageMarker),
+					chained: await page.on("console", () => {}).evaluate(() => globalThis.__zetaPageMarker),
 					registry: await page.evaluate(() => String(customElements)),
 				};
 			} finally { await Promise.all([first.dispose(), marker.dispose()]); }
@@ -567,10 +567,10 @@ describe("OMP-owned browser evaluation", () => {
 		expect(
 			await runPageContract(`
 			const pending = page.waitForFunction(() => {
-				globalThis.__ompChecks = (globalThis.__ompChecks ?? 0) + 1;
+				globalThis.__zetaChecks = (globalThis.__zetaChecks ?? 0) + 1;
 				return document.querySelector("#flash")?.id;
 			}, { polling: "mutation" });
-			await page.waitForFunction(() => globalThis.__ompChecks >= 1);
+			await page.waitForFunction(() => globalThis.__zetaChecks >= 1);
 			await page.evaluate(() => {
 				const flash = document.createElement("i");
 				flash.id = "flash";
@@ -600,16 +600,16 @@ describe("OMP-owned browser evaluation", () => {
 				await elapsed.promise;
 			};
 			const pending = page.waitForFunction(() => {
-				globalThis.__ompNumericChecks = (globalThis.__ompNumericChecks ?? 0) + 1;
-				return globalThis.__ompNumericChecks === 3;
+				globalThis.__zetaNumericChecks = (globalThis.__zetaNumericChecks ?? 0) + 1;
+				return globalThis.__zetaNumericChecks === 3;
 			}, { polling: 17, timeout: 0 });
 			try {
-				const ready = await page.waitForFunction(() => globalThis.__ompNumericChecks >= 1, { polling: "mutation" });
+				const ready = await page.waitForFunction(() => globalThis.__zetaNumericChecks >= 1, { polling: "mutation" });
 				await ready.dispose();
-				const checks = [await page.evaluate(() => globalThis.__ompNumericChecks)];
+				const checks = [await page.evaluate(() => globalThis.__zetaNumericChecks)];
 				for (const budget of [16, 1, 17]) {
 					await advance(budget);
-					checks.push(await page.evaluate(() => globalThis.__ompNumericChecks));
+					checks.push(await page.evaluate(() => globalThis.__zetaNumericChecks));
 				}
 				const handle = await pending;
 				await handle.dispose();
@@ -641,13 +641,13 @@ describe("OMP-owned browser evaluation", () => {
 				.then(() => false, error => error === reason);
 			const cancelled = [];
 			for (const polling of ["raf", "mutation"]) {
-				await page.evaluate(() => { globalThis.__ompAbortChecks = 0; });
+				await page.evaluate(() => { globalThis.__zetaAbortChecks = 0; });
 				const controller = new AbortController();
 				const pending = page.waitForFunction(() => {
-					globalThis.__ompAbortChecks++;
+					globalThis.__zetaAbortChecks++;
 					return false;
 				}, { polling, timeout: 0, signal: controller.signal }).then(() => false, error => error === reason);
-				await page.waitForFunction(() => globalThis.__ompAbortChecks > 0);
+				await page.waitForFunction(() => globalThis.__zetaAbortChecks > 0);
 				controller.abort(reason);
 				const identity = await pending;
 				await page.evaluate(() => {
@@ -655,14 +655,14 @@ describe("OMP-owned browser evaluation", () => {
 					requestAnimationFrame(resolve);
 					return promise;
 				});
-				const before = await page.evaluate(() => globalThis.__ompAbortChecks);
+				const before = await page.evaluate(() => globalThis.__zetaAbortChecks);
 				await page.evaluate(() => { document.body.append(document.createElement("b")); });
 				await page.evaluate(() => {
 					const { promise, resolve } = Promise.withResolvers();
 					requestAnimationFrame(resolve);
 					return promise;
 				});
-				cancelled.push({ identity, stopped: before === await page.evaluate(() => globalThis.__ompAbortChecks) });
+				cancelled.push({ identity, stopped: before === await page.evaluate(() => globalThis.__zetaAbortChecks) });
 			}
 			return { pre, cancelled };
 		`),
@@ -751,7 +751,7 @@ describe("OMP-owned browser evaluation", () => {
 					if (cancellation === "signal") controller.abort();
 					return originalEvaluate.call(this, held => {
 						const { promise, resolve } = Promise.withResolvers();
-						globalThis.__ompTruthinessRelease = () => resolve(!!held);
+						globalThis.__zetaTruthinessRelease = () => resolve(!!held);
 						return promise;
 					}, ...args);
 				};
@@ -761,7 +761,7 @@ describe("OMP-owned browser evaluation", () => {
 					}).then(async handle => { await handle.dispose(); return "resolved"; }, error => error.name));
 				} finally {
 					realm.evaluate = originalEvaluate;
-					await originalEvaluate.call(realm, () => globalThis.__ompTruthinessRelease?.());
+					await originalEvaluate.call(realm, () => globalThis.__zetaTruthinessRelease?.());
 				}
 			}
 			return outcomes;
@@ -773,8 +773,8 @@ describe("OMP-owned browser evaluation", () => {
 		expect(
 			await runPageContract(`
 			await page.evaluate(() => {
-				globalThis.__ompOriginalPromise = Promise;
-				globalThis.__ompOriginalBoolean = Boolean;
+				globalThis.__zetaOriginalPromise = Promise;
+				globalThis.__zetaOriginalBoolean = Boolean;
 				class LegacyPromise extends Promise {}
 				Object.defineProperty(LegacyPromise, "withResolvers", { value: undefined });
 				globalThis.Promise = LegacyPromise;
@@ -784,8 +784,8 @@ describe("OMP-owned browser evaluation", () => {
 			try {
 				for (const polling of [100, "raf", "mutation"]) {
 					const method = polling === "raf"
-						? { ready() { return globalThis.__ompPageMarker; } }.ready
-						: new class { async ready() { return globalThis.__ompPageMarker; } }().ready;
+						? { ready() { return globalThis.__zetaPageMarker; } }.ready
+						: new class { async ready() { return globalThis.__zetaPageMarker; } }().ready;
 					const handle = await page.waitForFunction(method, { polling });
 					values.push(await handle.jsonValue());
 					await handle.dispose();
@@ -793,8 +793,8 @@ describe("OMP-owned browser evaluation", () => {
 				return values;
 			} finally {
 				await page.evaluate(() => {
-					globalThis.Promise = globalThis.__ompOriginalPromise;
-					globalThis.Boolean = globalThis.__ompOriginalBoolean;
+					globalThis.Promise = globalThis.__zetaOriginalPromise;
+					globalThis.Boolean = globalThis.__zetaOriginalBoolean;
 				});
 			}
 		`),
@@ -805,9 +805,9 @@ describe("OMP-owned browser evaluation", () => {
 		expect(
 			await runPageContract(`
 			await page.evaluate(() => {
-				globalThis.__ompUnhandledWaits = 0;
+				globalThis.__zetaUnhandledWaits = 0;
 				addEventListener("unhandledrejection", event => {
-					if (String(event.reason).includes("expected poller rejection")) globalThis.__ompUnhandledWaits++;
+					if (String(event.reason).includes("expected poller rejection")) globalThis.__zetaUnhandledWaits++;
 				});
 			});
 			const thrown = [];
@@ -815,7 +815,7 @@ describe("OMP-owned browser evaluation", () => {
 				thrown.push(await page.waitForFunction(() => { throw new Error("expected poller rejection"); }, { polling })
 					.then(() => "resolved", error => error.message));
 			}
-			return { thrown, unhandled: await page.evaluate(() => globalThis.__ompUnhandledWaits) };
+			return { thrown, unhandled: await page.evaluate(() => globalThis.__zetaUnhandledWaits) };
 		`),
 		).toEqual({ thrown: ["expected poller rejection", "expected poller rejection"], unhandled: 0 });
 	});
@@ -826,8 +826,8 @@ describe("OMP-owned browser evaluation", () => {
 			expect(
 				await runPageContract(`
 			const handle = await page.waitForFunction(() => {
-				if (globalThis.__ompRetriedContext) return "retried";
-				globalThis.__ompRetriedContext = true;
+				if (globalThis.__zetaRetriedContext) return "retried";
+				globalThis.__zetaRetriedContext = true;
 				throw new Error("Execution context was destroyed, most likely because of a navigation.");
 			}, { polling: 5_000, timeout: 2_000 });
 			try { return await handle.jsonValue(); } finally { await handle.dispose(); }

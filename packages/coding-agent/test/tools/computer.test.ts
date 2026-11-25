@@ -821,8 +821,8 @@ describe("computer prelude", () => {
 			"clipboard.read": "copied",
 		};
 		const realm = createContext({
-			__omp_log__: (_level: string, value: unknown) => displays.push(value),
-			__omp_prelude__: async (name: unknown, parameters: unknown) => {
+			__zeta_log__: (_level: string, value: unknown) => displays.push(value),
+			__zeta_prelude__: async (name: unknown, parameters: unknown) => {
 				expect(name).toBe("computer");
 				calls.push(parameters);
 				if (parameters === null || typeof parameters !== "object" || !("action" in parameters)) return undefined;
@@ -873,7 +873,7 @@ describe("computer prelude", () => {
 			{
 				action: "run",
 				fn: String(fn),
-				args: [7, { __omp_re: { source: "save", flags: "gi" } }, { __omp_fn: String(argFn) }],
+				args: [7, { __zeta_re: { source: "save", flags: "gi" } }, { __zeta_fn: String(argFn) }],
 				read_only: true,
 				timeout: 5,
 			},
@@ -959,8 +959,8 @@ describe("computer prelude", () => {
 		}));
 		const calls: unknown[] = [];
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: unknown, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: unknown, parameters: unknown) => {
 				calls.push(parameters);
 				return { text: "", details: { value: "ran" } };
 			},
@@ -1009,8 +1009,8 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, new GatedSession());
 		const context = { session, toolCallId: "parallel-direct-js" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -1174,8 +1174,8 @@ describe("computer prelude", () => {
 		const emitted: unknown[] = [];
 		const context = { session, toolCallId: "zoom-js" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				emitted.push(...result.content);
 				return {
@@ -1326,8 +1326,8 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "ref-chain-js" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -1375,8 +1375,8 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "element-keys-js" };
 		const realm = createContext({
-			__omp_display__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_display__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -1449,8 +1449,8 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "element-shape-js" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -3677,8 +3677,8 @@ describe("expanded computer APIs", () => {
 		const context = { session, toolCallId: "expanded-js" };
 		const images: unknown[] = [];
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				images.push(...result.content.filter(block => block.type === "image"));
 				return { details: result.details };
@@ -3788,8 +3788,8 @@ describe("expanded computer APIs", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "menu-path-js" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -3949,8 +3949,8 @@ describe("expanded computer APIs", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "argument-facade" };
 		const realm = createContext({
-			__omp_log__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
 			},
@@ -4036,8 +4036,8 @@ describe("expanded computer APIs", () => {
 		const context = { session, toolCallId: "observe-once-js" };
 		const printed: string[] = [];
 		const realm = createContext({
-			__omp_log__: (_level: string, text: string) => printed.push(text),
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_log__: (_level: string, text: string) => printed.push(text),
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				const text = result.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
 				return { text, details: result.details };

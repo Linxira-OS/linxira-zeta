@@ -1,6 +1,6 @@
 /**
- * The attachment band in the terminal (`row` role `omp.composer.chips` of
- * `card`s with role `omp.composer.chip`): cards of 12×4 cells inside a
+ * The attachment band in the terminal (`row` role `zeta.composer.chips` of
+ * `card`s with role `zeta.composer.chip`): cards of 12×4 cells inside a
  * rounded border in the chip's color, two cells apart, as many as fit. The
  * top border carries the chip's token, the bottom one its caption, both
  * bold and centred. A text chip shows its first lines muted; an image or
@@ -111,5 +111,5 @@ function paintChips(node: UiNode, cx: PaintContext): Block {
 	return x === 0 ? EMPTY_BLOCK : { rows };
 }
 
-defineRolePainter("row", "omp.composer.chips", paintChips);
-defineRolePainter("card", "omp.composer.chip", (node, cx) => ({ rows: paintCard(node, cx) }));
+defineRolePainter("row", "zeta.composer.chips", paintChips);
+defineRolePainter("card", "zeta.composer.chip", (node, cx) => ({ rows: paintCard(node, cx) }));

@@ -323,7 +323,7 @@ describe("AgentSession retry fallback", () => {
 	// Restored in afterEach after any test that redirects the agent dir.
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const originalPiProfile = process.env.PI_PROFILE;
-	const originalOmpProfile = process.env.OMP_PROFILE;
+	const originalOmpProfile = process.env.ZETA_PROFILE;
 
 	// The model registry is an immutable fixture whose construction builds a
 	// canonical index over ~2.7k bundled models (~100ms). Build it (and the
@@ -365,7 +365,7 @@ describe("AgentSession retry fallback", () => {
 		vi.restoreAllMocks();
 		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnvValue("PI_PROFILE", originalPiProfile);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfile);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
 		__resetDirsFromEnvForTests();
 	});
 

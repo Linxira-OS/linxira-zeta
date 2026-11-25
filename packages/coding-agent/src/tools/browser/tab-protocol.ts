@@ -59,7 +59,7 @@ export interface ScreenshotLimits {
 export interface SessionSnapshot {
 	cwd: string;
 	browserScreenshotDir?: string;
-	/** Force non-WebP screenshot encoding (e.g. for Ollama). Unset honors `OMP_NO_WEBP`. */
+	/** Force non-WebP screenshot encoding (e.g. for Ollama). Unset honors `ZETA_NO_WEBP`. */
 	excludeWebP?: boolean;
 	/** Image limits of the session's active model; unset without one. */
 	screenshotLimits?: ScreenshotLimits;

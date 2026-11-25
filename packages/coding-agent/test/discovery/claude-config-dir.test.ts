@@ -10,7 +10,7 @@ import { restoreEnvValue } from "../helpers/settings-test-state";
 
 describe("ZETA_CONFIG_DIR", () => {
 	const original = new Map<string, string | undefined>(
-		["ZETA_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"].map(key => [key, process.env[key]]),
+		["ZETA_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"].map(key => [key, process.env[key]]),
 	);
 	afterEach(() => {
 		for (const [key, value] of original) restoreEnvValue(key, value);
@@ -21,7 +21,7 @@ describe("ZETA_CONFIG_DIR", () => {
 	function startWith(env: { ZETA_CONFIG_DIR?: string; ZETA_CODING_AGENT_DIR?: string }): void {
 		restoreEnvValue("ZETA_CONFIG_DIR", env.ZETA_CONFIG_DIR);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", env.ZETA_CODING_AGENT_DIR);
-		restoreEnvValue("OMP_PROFILE", undefined);
+		restoreEnvValue("ZETA_PROFILE", undefined);
 		restoreEnvValue("PI_PROFILE", undefined);
 		__resetDirsFromEnvForTests();
 	}

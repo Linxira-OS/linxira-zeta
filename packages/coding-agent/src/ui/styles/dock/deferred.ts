@@ -1,5 +1,5 @@
 /**
- * Terminal look of the deferred command preview (`col` `omp.hud.deferred`):
+ * Terminal look of the deferred command preview (`col` `zeta.hud.deferred`):
  * a blank row, the queued panels as they will look in the transcript, then
  * `1 command output — repeated in the transcript when the agent pauses`
  * (dim). Past the row cap the panels are cut one row short of it and the
@@ -32,4 +32,4 @@ function paintDeferred(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("col", "omp.hud.deferred", paintDeferred);
+defineRolePainter("col", "zeta.hud.deferred", paintDeferred);

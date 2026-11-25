@@ -228,7 +228,7 @@ describe("Python runner request dispatch", () => {
 		};
 		try {
 			expect(
-				(await run("setup", "def sh(command):\n    return command.upper()\n__omp_register_sync_helpers(sh)"))
+				(await run("setup", "def sh(command):\n    return command.upper()\n__zeta_register_sync_helpers(sh)"))
 					.status,
 			).toBe("ok");
 			// JS-style `await sh(...)` used to raise "'str' object can't be awaited".

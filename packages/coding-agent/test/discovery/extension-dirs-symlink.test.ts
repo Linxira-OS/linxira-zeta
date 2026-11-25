@@ -34,7 +34,7 @@ describe("extension manifest discovery through linked directories", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-extension-symlinks-"));
 		home = path.join(root, "home");
@@ -57,7 +57,7 @@ describe("extension manifest discovery through linked directories", () => {
 		clearFsCache();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();

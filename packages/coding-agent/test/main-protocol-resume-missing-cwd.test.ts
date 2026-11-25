@@ -60,7 +60,7 @@ const QUIET_FLAGS = ["--no-extensions", "--no-skills", "--no-rules", "--no-tools
 const ENV_KEYS = [
 	"PI_CODING_AGENT_DIR",
 	"PI_PROFILE",
-	"OMP_PROFILE",
+	"ZETA_PROFILE",
 	"PI_NO_PTY",
 	"PI_NO_TITLE",
 	"GIT_CONFIG_GLOBAL",

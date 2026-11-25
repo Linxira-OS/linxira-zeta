@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The attachment band: one card per chip in the draft (`row` with role
- * `omp.composer.chips`, hidden while there is none). A card is titled with
+ * `zeta.composer.chips`, hidden while there is none). A card is titled with
  * the chip's token (`📄 #1`); a text attachment shows its first lines and a
  * `+N lines` / `N chars` caption, an image or video its picture (a video's
  * preview frame) and the pixel size its marker states. The terminal draws

@@ -5,14 +5,14 @@
  * `extensions:` in user/project settings or the `--extension`/`-e` CLI flag
  * that points to a packaged extension on disk. The package's standard
  * sub-directories (`skills/`, `hooks/`, `tools/`, `commands/`, `rules/`,
- * `prompts/`, `.mcp.json`) are wired into discovery by `omp-plugins.ts`.
+ * `prompts/`, `.mcp.json`) are wired into discovery by `zeta-plugins.ts`.
  *
  * CLI-provided paths are injected via {@link injectOmpExtensionCliRoots}
  * before discovery runs. Capability loads supply the effective `extensions`
  * setting; direct callers reconstruct its array-replacement precedence from
  * canonical YAML config and legacy `settings.json`.
  *
- * @see ./omp-plugins.ts
+ * @see ./zeta-plugins.ts
  * @see ./builtin.ts `loadExtensionModules`
  */
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -71,7 +71,7 @@ export interface InjectOmpExtensionCliRootOptions {
 	/**
 	 * `explicit-only` exposes only roots named by this CLI invocation. Use it
 	 * with `--no-extensions` so configured and installed packages cannot
-	 * contribute sibling capabilities through the `omp-plugins` provider.
+	 * contribute sibling capabilities through the `zeta-plugins` provider.
 	 */
 	mode?: OmpExtensionRootMode;
 	/** Replace roots from an earlier invocation instead of extending them. */

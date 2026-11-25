@@ -14,10 +14,10 @@ const probePath = path.join(import.meta.dir, "otel-env-window-probe.ts");
 const tempDirs: string[] = [];
 
 // Every variable `dirs.ts` consults to pick the profile, agent dir or config/state roots. A probe child
-// must not inherit any of them from the developer's shell (e.g. OMP_PROFILE beats PI_PROFILE, and a
+// must not inherit any of them from the developer's shell (e.g. ZETA_PROFILE beats PI_PROFILE, and a
 // named profile ignores ZETA_CODING_AGENT_DIR), or it would read a different agent dir than its fixture.
 const DIR_RESOLUTION_ENV_RESET = {
-	OMP_PROFILE: undefined,
+	ZETA_PROFILE: undefined,
 	PI_PROFILE: undefined,
 	PI_CONFIG_DIR: undefined,
 	XDG_DATA_HOME: undefined,

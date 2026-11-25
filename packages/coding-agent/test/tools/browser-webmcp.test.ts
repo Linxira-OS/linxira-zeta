@@ -188,7 +188,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser WebMCP helpers", () => {
 			using server = servePage(`<title>untouched</title>`);
 			// What the page itself can see of omp: an omp global, a wrapped platform method, a polyfilled context.
 			const pageView = `JSON.stringify({
-  ompGlobals: Object.getOwnPropertyNames(globalThis).filter(name => name.startsWith("__ompWebMcp")),
+  ompGlobals: Object.getOwnPropertyNames(globalThis).filter(name => name.startsWith("__zetaWebMcp")),
   nativeRegisterTool: typeof ModelContext === "undefined"
     ? null
     : /\\[native code\\]/.test(Function.prototype.toString.call(ModelContext.prototype.registerTool)),

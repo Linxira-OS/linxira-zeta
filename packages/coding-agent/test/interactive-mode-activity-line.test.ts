@@ -91,7 +91,7 @@ describe("InteractiveMode native dock activity line", () => {
 	/** The dock as the native backend describes it. */
 	const dock = (): Described[] => mode.shell.surface.dock().map(describeNode).flatMap(nodes);
 	/** The activity line (working row + todo), or undefined while it is empty. */
-	const activity = (): Described | undefined => dock().find(n => role(n) === "omp.hud.activity");
+	const activity = (): Described | undefined => dock().find(n => role(n) === "zeta.hud.activity");
 	const keys = (line: Described | undefined) => (line?.c ?? []).map(n => n.key);
 
 	it("describes no activity line when no status row runs and there is no plan", () => {
@@ -102,22 +102,22 @@ describe("InteractiveMode native dock activity line", () => {
 		mode.setTodos(PLAN);
 		const line = activity();
 		expect(keys(line)).toEqual(["todo"]);
-		expect(line?.c?.[0]).toMatchObject({ k: "checklist", p: { mode: "hud", role: "omp.hud.todo" } });
-		expect(dock().filter(n => role(n) === "omp.hud.pill")).toEqual([]);
+		expect(line?.c?.[0]).toMatchObject({ k: "checklist", p: { mode: "hud", role: "zeta.hud.todo" } });
+		expect(dock().filter(n => role(n) === "zeta.hud.pill")).toEqual([]);
 	});
 
 	it("puts the working row before the todo while a turn runs, and the status alone without a plan", () => {
 		mode.ensureWorkingRow();
 		const statusOnly = activity();
 		expect(keys(statusOnly)).toEqual(["status"]);
-		expect(role(statusOnly!.c![0]!)).toBe("omp.hud.status");
+		expect(role(statusOnly!.c![0]!)).toBe("zeta.hud.status");
 
 		mode.setTodos(PLAN);
 		expect(keys(activity())).toEqual(["status", "todo"]);
 	});
 
 	it("shows tok/s in the composer bar only with the setting on and a reading", async () => {
-		const rate = () => nodes(describeNode(mode.composer.node)).find(n => role(n) === "omp.composer.rate");
+		const rate = () => nodes(describeNode(mode.composer.node)).find(n => role(n) === "zeta.composer.rate");
 		session.tokenRate.seed(1_000, 10_000);
 		expect(rate()).toBeUndefined();
 

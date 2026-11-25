@@ -294,13 +294,13 @@ export async function discoverCustomToolPaths(
 
 	// Capability providers also expose metadata and scripts. Filter before deduplication
 	// so those entries cannot shadow executable modules with the same name.
-	// Non-ambient discovery reads only the `omp-plugins` provider, which in
+	// Non-ambient discovery reads only the `zeta-plugins` provider, which in
 	// explicit-only mode lists just the explicit extension package roots.
 	const discoveredTools = await loadCapability<CustomTool>(toolCapability.id, {
 		cwd,
 		agentDir,
 		filter: tool => /\.(ts|js|mjs|cjs)$/.test(tool.path) && !tool.path.endsWith(".d.ts"),
-		...(ambient ? {} : { providers: ["omp-plugins"] }),
+		...(ambient ? {} : { providers: ["zeta-plugins"] }),
 		...(options.extensionRoots ? { extensionRoots: options.extensionRoots } : {}),
 	});
 	for (const tool of discoveredTools.items) {

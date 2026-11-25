@@ -2,8 +2,8 @@
 /**
  * The status line's facts inside the native composer, where no status strip
  * is drawn: the context meter along the field's top edge
- * (`omp.composer.context`), the session cost (`omp.composer.usage`), every
- * other configured segment as a fact (`omp.composer.extras`, the bar's
+ * (`zeta.composer.context`), the session cost (`zeta.composer.usage`), every
+ * other configured segment as a fact (`zeta.composer.extras`, the bar's
  * flexible space), and the model chip's label and the effort level for the
  * composer's own chips.
  *
@@ -93,13 +93,13 @@ function cacheFactProps(
 ): Pick<Fact, "role" | "side" | "aria" | "title" | "hovercard"> {
 	const [head, next] = promptCacheBrief(cache, now);
 	return {
-		role: "omp.composer.cache",
+		role: "zeta.composer.cache",
 		side: "right",
 		aria: head,
 		title: `${head}\n${next}`,
 		hovercard: {
 			k: "col",
-			p: { role: "omp.composer.cache.card" },
+			p: { role: "zeta.composer.cache.card" },
 			c: [
 				{ k: "text", p: cache.state === "cold" ? { spans: [{ t: head, s: "warning" }] } : { text: head } },
 				{ k: "text", p: { spans: [{ t: next, s: "muted" }] } },
@@ -147,7 +147,7 @@ export function composerFacts(props: {
 				const cache = id === "cache" ? state.promptCache : undefined;
 				out.push({
 					key: id,
-					...(cache ? cacheFactProps(cache, state.now) : { role: "omp.composer.fact", title: view.title }),
+					...(cache ? cacheFactProps(cache, state.now) : { role: "zeta.composer.fact", title: view.title }),
 					priority: (PINNED[id] ? PINNED_PRIORITY : 0) + order,
 					spans: dim(view.spans),
 					...(view.icon !== undefined ? { icon: view.icon } : {}),
@@ -164,7 +164,7 @@ export function composerFacts(props: {
 			state.hooks.forEach((status, index) => {
 				const text = sanitizeStatusText(status);
 				if (text)
-					out.push({ key: `hook-${index}`, role: "omp.composer.fact", priority: 0, spans: dim([{ t: text }]) });
+					out.push({ key: `hook-${index}`, role: "zeta.composer.fact", priority: 0, spans: dim([{ t: text }]) });
 			});
 		}
 		return out;

@@ -53,7 +53,6 @@ describe("Eval first-call guide messages", () => {
 				"browser.enabled": true,
 				"browser.headless": true,
 				"browser.relay": false,
-				"browser.tern": false,
 				"browser.cmux": false,
 				"archive.enabled": false,
 				"async.enabled": false,

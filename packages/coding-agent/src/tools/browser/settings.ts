@@ -90,7 +90,7 @@ export const cfgBrowserTern = register({
 		group: "Grep & Browser",
 		label: "Tern Browser",
 		description:
-			'Inside a Tern pane, open browser tabs as picture-in-pictures over zeta\'s pane (native web view) instead of zeta\'s own headless browser; falls back to that browser when no Tern window can host them. Subagents skip it unless an open passes app: "tern". An explicit app, the relay and Browser CDP URL take precedence; app "own" opts one open out. Set PI_BROWSER_ZETA=0 or PI_BROWSER_ZETA=1 to override.',
+			'Inside a Tern pane, open browser tabs as picture-in-pictures over zeta\'s pane (native web view) instead of zeta\'s own headless browser; falls back to that browser when no Tern window can host them. Subagents skip it unless an open passes app: "tern". An explicit app, the relay and Browser CDP URL take precedence; app "own" opts one open out. Set ZETA_BROWSER_TERN=0 or ZETA_BROWSER_TERN=1 to override.',
 	},
 });
 

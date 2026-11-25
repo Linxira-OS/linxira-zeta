@@ -1,7 +1,7 @@
 /**
  * Contract: while an ask waits above the composer and sending the draft would skip it, the
  * composer says so natively: a `skips ask` chip leads the input and Send reads Skip & send
- * (`omp.composer.skip`). Tern styles both as a warning; without them the user skips the
+ * (`zeta.composer.skip`). Tern styles both as a warning; without them the user skips the
  * questions with a plain-looking Send.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
@@ -97,26 +97,29 @@ describe("composer under a waiting ask", () => {
 		if (!form) throw new Error("the interactive mode offers no form dialog");
 
 		// The ask alone: an empty draft sends nothing, so Send stays Send.
-		expect(composerRoles().has("omp.composer.skip")).toBe(false);
-		expect(composerRoles().has("omp.composer.send")).toBe(true);
+		expect(composerRoles().has("zeta.composer.skip")).toBe(false);
+		expect(composerRoles().has("zeta.composer.send")).toBe(true);
 
 		mode.composer.setText("never mind, just ship it");
 		const skipping = composerRoles();
-		expect(skipping.get("omp.composer.skip")?.p).toMatchObject({ text: "Skip & send", actions: { click: "submit" } });
-		expect(skipping.has("omp.composer.send")).toBe(false);
-		expect(skipping.get("omp.composer.mode")?.c?.[0]?.p).toMatchObject({ spans: [{ t: "skips ask" }] });
+		expect(skipping.get("zeta.composer.skip")?.p).toMatchObject({
+			text: "Skip & send",
+			actions: { click: "submit" },
+		});
+		expect(skipping.has("zeta.composer.send")).toBe(false);
+		expect(skipping.get("zeta.composer.mode")?.c?.[0]?.p).toMatchObject({ spans: [{ t: "skips ask" }] });
 
 		// A command is not a message to the agent: it skips nothing.
 		mode.composer.setText("/model");
-		expect(composerRoles().has("omp.composer.skip")).toBe(false);
-		expect(composerRoles().has("omp.composer.mode")).toBe(false);
+		expect(composerRoles().has("zeta.composer.skip")).toBe(false);
+		expect(composerRoles().has("zeta.composer.mode")).toBe(false);
 
 		// The ask gone, a draft is a plain message again.
 		mode.composer.setText("ship it");
-		expect(composerRoles().has("omp.composer.skip")).toBe(true);
+		expect(composerRoles().has("zeta.composer.skip")).toBe(true);
 		abort.abort();
 		await form;
-		expect(composerRoles().has("omp.composer.skip")).toBe(false);
-		expect(composerRoles().has("omp.composer.send")).toBe(true);
+		expect(composerRoles().has("zeta.composer.skip")).toBe(false);
+		expect(composerRoles().has("zeta.composer.send")).toBe(true);
 	});
 });

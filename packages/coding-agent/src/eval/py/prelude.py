@@ -873,7 +873,7 @@ if "__zeta_prelude_loaded__" not in globals():
         return results
 
     # Async in the JS prelude; the runner drops a stray `await` on direct calls.
-    __omp_register_sync_helpers(read, write, output, wait, sh)  # type: ignore[name-defined]
+    __zeta_register_sync_helpers(read, write, output, wait, sh)  # type: ignore[name-defined]
 
     def completion(prompt, *, model="default", system=None, schema=None):
         """Start a stateless completion and return its handle."""

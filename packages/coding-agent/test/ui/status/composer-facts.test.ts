@@ -59,13 +59,13 @@ test("the native composer cache fact describes the next message only when cache 
 						k: "seg",
 						key: "cache",
 						p: {
-							role: "omp.composer.cache",
+							role: "zeta.composer.cache",
 							side: "right",
 							aria: "Likely cached, no expiry",
 							actions: { click: "status.cache" },
 							hovercard: {
 								k: "col",
-								p: { role: "omp.composer.cache.card" },
+								p: { role: "zeta.composer.cache.card" },
 								c: [
 									{ k: "text", p: { text: "Likely cached, no expiry" } },
 									{ k: "text", p: { spans: [{ t: "Next message reads ~42 from cache", s: "muted" }] } },
@@ -89,7 +89,7 @@ test("the native composer cache fact describes the next message only when cache 
 							title: "Not cached — expired\nNext message re-sends ~60",
 							hovercard: {
 								k: "col",
-								p: { role: "omp.composer.cache.card" },
+								p: { role: "zeta.composer.cache.card" },
 								c: [
 									{ k: "text", p: { spans: [{ t: "Not cached — expired", s: "warning" }] } },
 									{ k: "text", p: { spans: [{ t: "Next message re-sends ~60", s: "muted" }] } },

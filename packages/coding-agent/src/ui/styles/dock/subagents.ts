@@ -1,5 +1,5 @@
 /**
- * Terminal look of the subagents HUD (`col` `omp.hud.subagents`): a blank
+ * Terminal look of the subagents HUD (`col` `zeta.hud.subagents`): a blank
  * row; inset `Subagents` (bold accent) ` · 2 running` (dim) with the
  * hub key dim at the right edge; then the agents as a dim tree, one cell
  * further in: `⟳ Id: description` in accent (the `⟳` muted while the agent
@@ -134,4 +134,4 @@ function paintSubagents(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits };
 }
 
-defineRolePainter("col", "omp.hud.subagents", paintSubagents);
+defineRolePainter("col", "zeta.hud.subagents", paintSubagents);

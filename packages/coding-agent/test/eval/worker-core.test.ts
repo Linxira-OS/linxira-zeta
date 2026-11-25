@@ -567,18 +567,18 @@ console.log(JSON.stringify(messages));
 		await Bun.write(path.join(dirA, "5.eval.log"), "from A");
 		await Bun.write(path.join(dirB, "5.eval.log"), "from B");
 		const harness = createWorkerHarness();
-		const probe = globalThis as { __omp_artifact_probe?: unknown };
+		const probe = globalThis as { __zeta_artifact_probe?: unknown };
 		const run = async (runId: string, artifacts: string) => {
 			const result = waitForMessage(harness, message => message.type === "result" && message.runId === runId);
 			harness.send({
 				type: "run",
 				runId,
-				code: `globalThis.__omp_artifact_probe = await read("artifact://5");`,
+				code: `globalThis.__zeta_artifact_probe = await read("artifact://5");`,
 				filename: `[${runId}].js`,
 				snapshot: { cwd: process.cwd(), sessionId: "artifact-roots", localRoots: { artifact: artifacts } },
 			});
 			expect(await result).toMatchObject({ type: "result", runId, ok: true });
-			return probe.__omp_artifact_probe;
+			return probe.__zeta_artifact_probe;
 		};
 		try {
 			await initializeWorker(harness, {
@@ -589,7 +589,7 @@ console.log(JSON.stringify(messages));
 			expect(await run("artifact-a", dirA)).toBe("from A");
 			expect(await run("artifact-b", dirB)).toBe("from B");
 		} finally {
-			delete probe.__omp_artifact_probe;
+			delete probe.__zeta_artifact_probe;
 			harness.send({ type: "close" });
 			await fs.rm(dirA, { recursive: true, force: true });
 			await fs.rm(dirB, { recursive: true, force: true });
@@ -605,11 +605,11 @@ console.log(JSON.stringify(messages));
 		const gate = Promise.withResolvers<void>();
 		const entered = Promise.withResolvers<void>();
 		const probe = globalThis as {
-			__omp_roots_gate?: { entered(): void; wait: Promise<void> };
-			__omp_roots_probe?: Record<string, unknown>;
+			__zeta_roots_gate?: { entered(): void; wait: Promise<void> };
+			__zeta_roots_probe?: Record<string, unknown>;
 		};
-		probe.__omp_roots_gate = { entered: () => entered.resolve(), wait: gate.promise };
-		probe.__omp_roots_probe = {};
+		probe.__zeta_roots_gate = { entered: () => entered.resolve(), wait: gate.promise };
+		probe.__zeta_roots_probe = {};
 		const snapshot = (artifacts: string): SessionSnapshot => ({
 			cwd: process.cwd(),
 			sessionId: "artifact-roots-overlap",
@@ -621,7 +621,7 @@ console.log(JSON.stringify(messages));
 			harness.send({
 				type: "run",
 				runId: "hold",
-				code: `globalThis.__omp_roots_gate.entered(); await globalThis.__omp_roots_gate.wait; globalThis.__omp_roots_probe.hold = await read("artifact://5");`,
+				code: `globalThis.__zeta_roots_gate.entered(); await globalThis.__zeta_roots_gate.wait; globalThis.__zeta_roots_probe.hold = await read("artifact://5");`,
 				filename: "[roots-hold].js",
 				snapshot: snapshot(dirA),
 			});
@@ -634,7 +634,7 @@ console.log(JSON.stringify(messages));
 			harness.send({
 				type: "run",
 				runId: "overlap",
-				code: `globalThis.__omp_roots_probe.overlap = await read("artifact://5");`,
+				code: `globalThis.__zeta_roots_probe.overlap = await read("artifact://5");`,
 				filename: "[roots-overlap].js",
 				snapshot: snapshot(dirB),
 			});
@@ -642,11 +642,11 @@ console.log(JSON.stringify(messages));
 
 			gate.resolve();
 			expect(await holdResult).toMatchObject({ type: "result", runId: "hold", ok: true });
-			expect(probe.__omp_roots_probe).toEqual({ overlap: "from B", hold: "from A" });
+			expect(probe.__zeta_roots_probe).toEqual({ overlap: "from B", hold: "from A" });
 		} finally {
 			gate.resolve();
-			delete probe.__omp_roots_gate;
-			delete probe.__omp_roots_probe;
+			delete probe.__zeta_roots_gate;
+			delete probe.__zeta_roots_probe;
 			harness.send({ type: "close" });
 			await fs.rm(dirA, { recursive: true, force: true });
 			await fs.rm(dirB, { recursive: true, force: true });

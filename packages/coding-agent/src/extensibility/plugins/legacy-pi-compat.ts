@@ -2111,7 +2111,7 @@ const commonJsFallbackModulePaths = new Map<string, string>();
 const extensionSynchronousSpecifierTargets = new Map<string, Map<string, string>>();
 const synchronousModuleSources = new Map<string, string>();
 const commonJsGraphModulePaths = new Set<string>();
-const COMMONJS_REQUIRE_GLOBAL = "__ompLegacyPiRequireGraphModule";
+const COMMONJS_REQUIRE_GLOBAL = "__zetaLegacyPiRequireGraphModule";
 const commonJsModuleDefinitions = new Map<string, { source: string; filename: string; dirname: string }>();
 const commonJsModuleCache = new Map<
 	string,
@@ -2247,7 +2247,7 @@ declare global {
 	 * is: a second instance of this module must continue the host's counts, or it
 	 * would reissue a tag the host already used and get the host's evaluated graph.
 	 */
-	var __ompLegacyPiLoadCounts: Map<string, number> | undefined;
+	var __zetaLegacyPiLoadCounts: Map<string, number> | undefined;
 }
 
 /**
@@ -2261,7 +2261,7 @@ declare global {
  * instead of storing another copy of every rewritten module on each launch.
  */
 function nextLegacyPiLoadTag(entryRealPath: string): string {
-	const counts = (globalThis.__ompLegacyPiLoadCounts ??= new Map<string, number>());
+	const counts = (globalThis.__zetaLegacyPiLoadCounts ??= new Map<string, number>());
 	const count = (counts.get(entryRealPath) ?? 0) + 1;
 	counts.set(entryRealPath, count);
 	// The fixed-width hash keeps the tag digits-only (the graph hooks match

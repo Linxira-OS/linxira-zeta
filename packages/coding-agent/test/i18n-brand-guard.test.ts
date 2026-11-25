@@ -21,7 +21,7 @@ import { zh } from "../src/i18n/zh";
  * lowercase (the CLI is zetacode, the product is Zeta), which an
  * uppercase-only pass could not see.
  */
-const OMP_INTEROP_ALLOWLIST: readonly string[] = ["__omp"];
+const OMP_INTEROP_ALLOWLIST: readonly string[] = ["__zeta"];
 
 /** The upstream project name, split so this guard file stays clean for brand-check. */
 const UPSTREAM_PROJECT = ["oh", "my", "pi"].join("-");

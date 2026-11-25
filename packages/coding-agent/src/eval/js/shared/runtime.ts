@@ -84,7 +84,7 @@ export interface RuntimeOptions {
 	initialCwd: string;
 	sessionId: string;
 	/**
-	 * Extra globals installed alongside `__omp_helpers__` / prelude. Use for stable, lifetime-
+	 * Extra globals installed alongside `__zeta_helpers__` / prelude. Use for stable, lifetime-
 	 * of-the-worker bindings (e.g. browser's `page`, `browser`). Per-run scope should be set
 	 * via `setRunScope()` instead.
 	 */
@@ -105,8 +105,8 @@ const BASE64_STRICT_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 const DECIMAL_CSV_RE = /^\d{1,3}(?:,\d{1,3})*$/;
 
 const PRELUDE_GLOBAL_KEYS = [
-	"__omp_js_prelude_loaded__",
-	"__omp_tools__",
+	"__zeta_js_prelude_loaded__",
+	"__zeta_tools__",
 	"console",
 	"print",
 	"tool",
@@ -124,7 +124,7 @@ const PRELUDE_GLOBAL_KEYS = [
 	"WorkPool",
 	"log",
 	"phase",
-	"__omp_with_call_site__",
+	"__zeta_with_call_site__",
 	"budget",
 	"read",
 	"write",
@@ -610,9 +610,9 @@ export class JsRuntime {
 		// init-failed instead of corrupting the active run.
 		assertCanUseGlobalOwner(this.#globalOwner, "initialize a JS runtime");
 		const injected: Record<string, unknown> = {
-			__omp_session__: this.#session,
-			__omp_helpers__: this.helpers,
-			__omp_with_call_site__: <T>(siteId: string, action: () => T): T => {
+			__zeta_session__: this.#session,
+			__zeta_helpers__: this.helpers,
+			__zeta_with_call_site__: <T>(siteId: string, action: () => T): T => {
 				const context = this.#als.getStore();
 				if (!context) return action();
 				const occurrence = context.callOccurrences.get(siteId) ?? 0;
@@ -624,13 +624,13 @@ export class JsRuntime {
 				if (!hooks) return undefined;
 				return surfaceBridgedToolImages(await hooks.callTool(name, args, this.#callSiteAls.getStore()), hooks);
 			},
-			__omp_prelude__: async (name: string, parameters: unknown) => {
+			__zeta_prelude__: async (name: string, parameters: unknown) => {
 				const hooks = this.#activeHooks("prelude");
 				if (!hooks) return undefined;
 				const payload = { name, parameters };
 				return surfaceBridgedToolImages(await hooks.callTool("__prelude__", payload), hooks);
 			},
-			__omp_import__: async (source: string, options?: ImportCallOptions) => {
+			__zeta_import__: async (source: string, options?: ImportCallOptions) => {
 				const filename = this.#activeFilename();
 				const baseDir = filename ? path.dirname(filename) : this.#activeCwd();
 				const resolved = await this.#moduleLoader.resolveForRun(baseDir, source);
@@ -638,24 +638,24 @@ export class JsRuntime {
 				const target = resolved.target;
 				return options !== undefined ? await import(target, options) : await import(target);
 			},
-			__omp_import_from__: async (moduleUrl: string, source: string, options?: ImportCallOptions) => {
+			__zeta_import_from__: async (moduleUrl: string, source: string, options?: ImportCallOptions) => {
 				const resolved = await this.#moduleLoader.resolveForModule(moduleUrl, source, this.#activeCwd());
 				if (resolved.mode === "local") return resolved.value;
 				const target = resolved.target;
 				return options !== undefined ? await import(target, options) : await import(target);
 			},
-			__omp_get_require__: (moduleUrl?: string) => this.#activeRequire(moduleUrl),
-			__omp_get_filename__: (moduleUrl?: string) => this.#moduleFilename(moduleUrl),
-			__omp_get_dirname__: (moduleUrl?: string) => this.#moduleDirname(moduleUrl),
-			__omp_emit_status__: (op: string, data: Record<string, unknown> = {}) => {
+			__zeta_get_require__: (moduleUrl?: string) => this.#activeRequire(moduleUrl),
+			__zeta_get_filename__: (moduleUrl?: string) => this.#moduleFilename(moduleUrl),
+			__zeta_get_dirname__: (moduleUrl?: string) => this.#moduleDirname(moduleUrl),
+			__zeta_emit_status__: (op: string, data: Record<string, unknown> = {}) => {
 				const event: JsStatusEvent = { op, ...data };
 				this.#activeHooks("emitStatus")?.onDisplay({ type: "status", event });
 			},
-			__omp_log__: (level: string, ...args: unknown[]) => {
+			__zeta_log__: (level: string, ...args: unknown[]) => {
 				const hooks = this.#activeHooks("log");
 				if (hooks) logConsoleArgs(level, args, hooks);
 			},
-			__omp_table__: (...args: unknown[]) => {
+			__zeta_table__: (...args: unknown[]) => {
 				const hooks = this.#activeHooks("table");
 				if (!hooks) return;
 				let buffer = "";
@@ -674,7 +674,7 @@ export class JsRuntime {
 				const table = parseConsoleTable(buffer);
 				if (table) hooks.onDisplay({ type: "view", text: buffer, view: table });
 			},
-			__omp_set_final_expr__: (value: unknown) => {
+			__zeta_set_final_expr__: (value: unknown) => {
 				const context = this.#als.getStore();
 				if (!context) {
 					logger.warn("js runtime final expression set outside an active run");

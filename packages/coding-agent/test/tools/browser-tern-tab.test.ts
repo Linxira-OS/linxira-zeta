@@ -14,7 +14,7 @@ import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-d
 interface FakePage {
 	/** Event batches the `events` op hands out, one per poll. */
 	eventBatches: Array<Array<Record<string, unknown>>>;
-	/** Kit method stubs (isolated-world `__ompTernKit` calls). */
+	/** Kit method stubs (isolated-world `__zetaTernKit` calls). */
 	kit: Record<string, (args: unknown[]) => unknown>;
 	/** Which `events` answer (0-based) first reports the PiP's initial about:blank load (default 0). */
 	blankLoadPoll?: number;
@@ -62,7 +62,7 @@ async function startPage(page: FakePage): Promise<FakeDaemon> {
 				};
 			case "eval": {
 				const args = Array.isArray(op.args) ? op.args : [];
-				if (String(op.function).includes("__ompTernKit") && typeof args[0] === "string") {
+				if (String(op.function).includes("__zetaTernKit") && typeof args[0] === "string") {
 					const stub = page.kit[args[0]];
 					if (!stub) return { error: { kind: "js", message: `Error: kit method ${args[0]} not stubbed` } };
 					return { ok: { value: { value: stub(Array.isArray(args[1]) ? args[1] : []) } } };

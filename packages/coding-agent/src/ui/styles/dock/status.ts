@@ -1,5 +1,5 @@
 /**
- * Terminal look of the activity line (`row` `omp.hud.activity`): the
+ * Terminal look of the activity line (`row` `zeta.hud.activity`): the
  * status row's rows (the native todo pill and tray caption stay native).
  * Idle, the trailer docks right under a blank row. On a short terminal the
  * todo folds in: `TODO 2/5 · ☐ next task` docks right on the status row's
@@ -35,7 +35,7 @@ function dockRight(left: string, right: string, width: number): string {
 function paintActivity(node: UiNode, cx: PaintContext): Block {
 	const model = termOf<{ status: StatusHudModel }>(node).status;
 	if (!model) return EMPTY_BLOCK;
-	const status = node.children().find(child => roleOf(child) === "omp.hud.status");
+	const status = node.children().find(child => roleOf(child) === "zeta.hud.status");
 	const block = status ? cx.paint(status, cx.width) : EMPTY_BLOCK;
 	const todo = model.todo;
 	const view = todo?.compact() ? todo.window() : undefined;
@@ -53,4 +53,4 @@ function paintActivity(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("row", "omp.hud.activity", paintActivity);
+defineRolePainter("row", "zeta.hud.activity", paintActivity);

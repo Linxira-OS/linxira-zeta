@@ -6,7 +6,7 @@
  * - Natively (role `omp.queue`): a stack of pills, one per message: a
  *   `corner-down-right` icon, the text on one line, the total (`2 queued`)
  *   in the first pill when several wait, and an Edit control
- *   (`omp.queue.edit`) whose click sends `queue.edit` — answered like the
+ *   (`zeta.queue.edit`) whose click sends `queue.edit` — answered like the
  *   dequeue key (the messages go back into the editor).
  * - In a text terminal (`src/ui/styles/dock/queue.ts`): a blank row, then per
  *   group a muted `Steering · 1` heading over dim numbered rows, then the dim

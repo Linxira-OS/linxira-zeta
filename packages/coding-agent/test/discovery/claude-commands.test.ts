@@ -12,7 +12,7 @@ import { loadCapability } from "@linxiraos/zeta/discovery";
 const ORIGINAL_DIR_ENV = {
 	ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 	PI_PROFILE: process.env.PI_PROFILE,
-	OMP_PROFILE: process.env.OMP_PROFILE,
+	ZETA_PROFILE: process.env.ZETA_PROFILE,
 };
 
 async function writeFile(filePath: string, content: string): Promise<void> {

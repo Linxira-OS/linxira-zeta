@@ -38,7 +38,7 @@ async function writeInstalledPackage(dir: string, name: string, marker: string =
 	// The marker is a top-level assignment so tree shaking cannot drop it.
 	await Bun.write(
 		path.join(dir, "src/index.ts"),
-		`globalThis.__ompLegacyPiMarker = ${JSON.stringify(marker)};\nexport const value = 1;\n`,
+		`globalThis.__zetaLegacyPiMarker = ${JSON.stringify(marker)};\nexport const value = 1;\n`,
 	);
 	await Bun.write(path.join(dir, "src/oauth.ts"), "export const oauth = 1;\n");
 	await Bun.write(path.join(dir, "src/sub/helper.ts"), "export const helper = 1;\n");

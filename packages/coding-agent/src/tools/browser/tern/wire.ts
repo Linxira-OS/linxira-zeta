@@ -224,7 +224,7 @@ export interface TernRequestOptions {
 
 /** A `fork` request: open `omp --fork` of pane `block`'s session in a new pane beside it, or in a tab of its own. */
 export interface TernForkRequest {
-	/** The pane whose omp session to fork (`TERN_PANE`). */
+	/** The pane whose omp session to fork (`ZETA_PANE`). */
 	block: number;
 	/** Where the new pane goes beside `block`, unless `tab` (Tern's default: `right`). */
 	dir?: "right" | "down";

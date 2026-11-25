@@ -69,7 +69,7 @@ function resolveState(
 }
 
 /** Provider that labels installed-plugin and configured-package modules; it owns their sibling skills/tools. */
-const PACKAGE_MODULE_PROVIDER = "omp-plugins";
+const PACKAGE_MODULE_PROVIDER = "zeta-plugins";
 
 /**
  * Extension modules the loader appends after native discovery — installed

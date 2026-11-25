@@ -18,7 +18,7 @@ const BLOCKS = [
 	{ block: 7, url: "https://docs.example/c", title: "Docs C", owner: null, shown: true, driven: false },
 ];
 
-const ENV_KEYS = ["TERN_PANE_SOCKET", "TERN_PANE", "PI_BROWSER_TERN", "PI_BROWSER_RELAY"] as const;
+const ENV_KEYS = ["ZETA_PANE_SOCKET", "ZETA_PANE", "ZETA_BROWSER_TERN", "PI_BROWSER_RELAY"] as const;
 let savedEnv: Map<string, string | undefined>;
 
 let daemon: FakeDaemon | undefined;
@@ -71,9 +71,9 @@ async function startWindow(blocks: readonly Record<string, unknown>[]): Promise<
 				return { ok: {} };
 		}
 	});
-	process.env.TERN_PANE_SOCKET = daemon.socketPath;
-	process.env.TERN_PANE = String(PANE);
-	delete process.env.PI_BROWSER_TERN;
+	process.env.ZETA_PANE_SOCKET = daemon.socketPath;
+	process.env.ZETA_PANE = String(PANE);
+	delete process.env.ZETA_BROWSER_TERN;
 	return daemon;
 }
 

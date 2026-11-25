@@ -59,10 +59,10 @@ describe("resolveBrowserKind with omp's WebKit host", () => {
 			resolveBrowserKind({ action: "open" }, child, {
 				PI_BROWSER_WEBKIT_PATH: engineDir,
 				PI_BROWSER_RELAY: "1",
-				PI_BROWSER_TERN: "1",
+				ZETA_BROWSER_TERN: "1",
 				PI_BROWSER_CMUX: "1",
-				TERN_PANE_SOCKET: "/tmp/tern.sock",
-				TERN_PANE: "1",
+				ZETA_PANE_SOCKET: "/tmp/tern.sock",
+				ZETA_PANE: "1",
 				CMUX_SOCKET_PATH: "/tmp/cmux.sock",
 			}),
 		).toEqual({ kind: "webkit", path: executable });
@@ -131,7 +131,7 @@ describe("resolveBrowserKind with omp's WebKit host", () => {
 
 	it('lets one open opt out with app: "chromium" and require the host with app: "webkit"', () => {
 		const env = { PI_BROWSER_WEBKIT_PATH: engineDir };
-		const pane = { TERN_PANE_SOCKET: "/tmp/tern.sock", TERN_PANE: "42" };
+		const pane = { ZETA_PANE_SOCKET: "/tmp/tern.sock", ZETA_PANE: "42" };
 		expect(resolveBrowserKind({ action: "open", app: "chromium" }, session(), env).kind).toBe("headless");
 		// Naming Chromium picks it outright, whatever Tern would have taken.
 		expect(resolveBrowserKind({ action: "open", app: "chromium" }, session(), { ...env, ...pane }).kind).toBe(
@@ -184,7 +184,7 @@ describe("resolveBrowserKind with omp's WebKit host", () => {
 
 	it("stays behind explicit app options, the relay, a CDP URL, Tern and cmux", () => {
 		const env = { PI_BROWSER_WEBKIT_PATH: engineDir };
-		const pane = { TERN_PANE_SOCKET: "/tmp/tern.sock", TERN_PANE: "42" };
+		const pane = { ZETA_PANE_SOCKET: "/tmp/tern.sock", ZETA_PANE: "42" };
 		expect(resolveBrowserKind({ action: "open", app: "http://127.0.0.1:9222" }, session(), env).kind).toBe(
 			"connected",
 		);

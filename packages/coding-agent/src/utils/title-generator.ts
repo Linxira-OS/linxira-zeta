@@ -808,7 +808,7 @@ const TERN_SESSION_FILE_VAR = "omp_session_file";
  * relaunches it after a crash with `--restore <file>` instead of
  * `--resume <file>`.
  */
-const TERN_RESTORE_VAR = "omp_restore";
+const TERN_RESTORE_VAR = "zeta_restore";
 
 /** The live session as Tern hears about it (read from the interactive session manager). */
 export interface TerminalSessionSource {

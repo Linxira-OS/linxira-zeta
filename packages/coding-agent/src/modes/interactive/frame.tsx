@@ -223,7 +223,7 @@ export class AppFrame {
 			model: (
 				<row
 					key="model"
-					role="omp.composer.model"
+					role="zeta.composer.model"
 					align="center"
 					gap="xs"
 					tone={facts.modelTone}
@@ -236,7 +236,7 @@ export class AppFrame {
 							<effort
 								key="effort"
 								level={level}
-								role="omp.composer.model.effort"
+								role="zeta.composer.model.effort"
 								title={keyedTitle(`Thinking effort: ${level}`, "app.thinking.cycle")}
 								actions={click("thinking.cycle")}
 							/>
@@ -254,7 +254,7 @@ export class AppFrame {
 				return (
 					<row
 						key="effort"
-						role="omp.composer.effort"
+						role="zeta.composer.effort"
 						align="center"
 						gap="xs"
 						title={keyedTitle("Thinking effort", "app.thinking.cycle")}
@@ -268,7 +268,7 @@ export class AppFrame {
 			rate: () => {
 				const value = live?.rate?.();
 				return value === undefined ? undefined : (
-					<rate key="rate" role="omp.composer.rate" value={value} unit="tok/s" title="Generation rate" />
+					<rate key="rate" role="zeta.composer.rate" value={value} unit="tok/s" title="Generation rate" />
 				);
 			},
 			extras: facts.extras,
@@ -280,7 +280,7 @@ export class AppFrame {
 				return (
 					<row
 						key="dictation"
-						role="omp.composer.dictation"
+						role="zeta.composer.dictation"
 						align="center"
 						gap="xs"
 						tone={state === "recording" ? "error" : busy ? "pending" : undefined}

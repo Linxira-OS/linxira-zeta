@@ -17,10 +17,10 @@ const ENV_KEYS = [
 	"PI_BROWSER_WEBKIT",
 	"PI_BROWSER_WEBKIT_PATH",
 	"PI_BROWSER_RELAY",
-	"PI_BROWSER_TERN",
+	"ZETA_BROWSER_TERN",
 	"PI_BROWSER_CMUX",
-	"TERN_PANE_SOCKET",
-	"TERN_PANE",
+	"ZETA_PANE_SOCKET",
+	"ZETA_PANE",
 	"CMUX_SOCKET_PATH",
 	// Inherited from an interactive omp when the tests run from its bash tool.
 	"PI_TERMINAL_OWNER_PID",
@@ -205,8 +205,8 @@ describe("browser.open on omp's WebKit host", () => {
 	it("opens omp's WebKit browser when Tern, chosen automatically, cannot show one", async () => {
 		const host = await useFakeHost();
 		// A Tern pane whose daemon is gone.
-		process.env.TERN_PANE_SOCKET = `${host.dir}/no-tern.sock`;
-		process.env.TERN_PANE = "3";
+		process.env.ZETA_PANE_SOCKET = `${host.dir}/no-tern.sock`;
+		process.env.ZETA_PANE = "3";
 		const text = await open(makeSession("session-tern"), "wk-after-tern");
 		expect(text).toStartWith('Opened tab "wk-after-tern" on omp\'s headless WebKit browser');
 		expect(text).toContain("Tern cannot show a browser here");
@@ -216,8 +216,8 @@ describe("browser.open on omp's WebKit host", () => {
 	it("goes on to Chromium when neither Tern nor the WebKit host can open the tab", async () => {
 		const host = await useFakeHost("exit-on-hello");
 		stubChromium();
-		process.env.TERN_PANE_SOCKET = `${host.dir}/no-tern.sock`;
-		process.env.TERN_PANE = "3";
+		process.env.ZETA_PANE_SOCKET = `${host.dir}/no-tern.sock`;
+		process.env.ZETA_PANE = "3";
 		const text = await open(makeSession("session-chain"), "wk-chain");
 		expect(text).toStartWith('Opened tab "wk-chain" on omp\'s headless Chromium');
 		// Both notes say where the tab ended up, not where the first fallback meant to go.

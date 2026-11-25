@@ -111,12 +111,12 @@ export interface ComposerState {
 	readonly btw?: boolean;
 	/**
 	 * The viewed subagent's lineage, outermost first and the viewed agent last; undefined on the main
-	 * session. Natively the viewing header (`omp.composer.focus`) names it over the draft.
+	 * session. Natively the viewing header (`zeta.composer.focus`) names it over the draft.
 	 */
 	readonly viewing?: readonly string[];
 	/**
 	 * Sending the draft skips the ask waiting above the composer: natively a `skips ask` chip leads
-	 * the input and Send reads Skip & send (`omp.composer.skip`).
+	 * the input and Send reads Skip & send (`zeta.composer.skip`).
 	 */
 	readonly skipsAsk?: boolean;
 }
@@ -1900,8 +1900,8 @@ export class Composer {
 			);
 		};
 		// The viewing header while a subagent is focused: an eye, the agent's ancestors as links
-		// (`omp.composer.crumb`), the agent itself (`omp.composer.agent`), then the way back to the
-		// main session (`omp.composer.exit`, the interrupt key's keycap: Esc on an empty draft). Tern's
+		// (`zeta.composer.crumb`), the agent itself (`zeta.composer.agent`), then the way back to the
+		// main session (`zeta.composer.exit`, the interrupt key's keycap: Esc on an empty draft). Tern's
 		// tray reads it: the named agent's card is marked as viewed, and its MAIN bar runs the exit's click.
 		const viewingHeader = (): JSXNode => {
 			const viewing = this.#state().viewing;

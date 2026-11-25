@@ -4,7 +4,7 @@
  * `/usage` and friends answer at once from the dock, and the real panels
  * enter the transcript when the agent pauses.
  *
- * - Natively (role `omp.hud.deferred`): the panels in a column capped at
+ * - Natively (role `zeta.hud.deferred`): the panels in a column capped at
  *   `maxRows` lines, then a dim note.
  * - In a text terminal (`src/ui/styles/dock/deferred.ts`): a blank row, the
  *   panels' rows, then the dim note; past `maxRows` the panels are cut and the

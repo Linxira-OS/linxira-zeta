@@ -9,7 +9,7 @@ import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader"
 import { loadHooks } from "@linxiraos/zeta/extensibility/hooks/loader";
 
 declare global {
-	var __ompHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;
+	var __zetaHostPiForLoaderIdentityTest: typeof PiCodingAgent | undefined;
 }
 
 describe("extension loader host runtime binding", () => {
@@ -17,13 +17,13 @@ describe("extension loader host runtime binding", () => {
 
 	beforeEach(() => {
 		projectDir = TempDir.createSync("@loader-host-runtime-");
-		globalThis.__ompHostPiForLoaderIdentityTest = PiCodingAgent;
+		globalThis.__zetaHostPiForLoaderIdentityTest = PiCodingAgent;
 	});
 
 	afterEach(() => {
 		projectDir?.removeSync();
 		projectDir = undefined;
-		globalThis.__ompHostPiForLoaderIdentityTest = undefined;
+		globalThis.__zetaHostPiForLoaderIdentityTest = undefined;
 	});
 
 	function writeModule(relativePath: string, source: string): string {
@@ -35,7 +35,7 @@ describe("extension loader host runtime binding", () => {
 	}
 
 	const identityGuard = `
-		const expectedPi = globalThis.__ompHostPiForLoaderIdentityTest;
+		const expectedPi = globalThis.__zetaHostPiForLoaderIdentityTest;
 		if (!expectedPi) throw new Error("missing host pi module");
 		if (api.pi !== expectedPi) throw new Error("injected pi module did not match host module");
 	`;

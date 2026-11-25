@@ -246,7 +246,7 @@ void withHostGuard(async () => {
 			// the native primitive.
 			const preload = writeModule(
 				"guard-init-preload.ts",
-				"globalThis.__ompNativeReallyExit = process.reallyExit;\n" +
+				"globalThis.__zetaNativeReallyExit = process.reallyExit;\n" +
 					'process.reallyExit = (() => { throw new Error("guarded during init"); });\n',
 			);
 			const { exitCode, stdout, stderr } = await runProbe(
@@ -254,7 +254,7 @@ void withHostGuard(async () => {
 import { postmortem } from "@linxiraos/pi-utils";
 postmortem.installProcessHandlers();
 postmortem.register("probe", reason => process.stdout.write(\`cleanup:\${reason}\\n\`));
-process.reallyExit = globalThis.__ompNativeReallyExit;
+process.reallyExit = globalThis.__zetaNativeReallyExit;
 process.stdout.write("armed\\n");
 process.kill(process.pid, "SIGHUP");
 // Keep the real child event loop alive so the platform can deliver SIGHUP;

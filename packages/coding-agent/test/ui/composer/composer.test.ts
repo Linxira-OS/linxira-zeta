@@ -502,7 +502,7 @@ describe("a composer talking to a /btw note", () => {
 		const line = composer.node.children().find(node => node.key() === "line");
 		const [chip, field] = line ? line.children() : [];
 		expect(chip?.props()).toMatchObject({
-			role: "omp.composer.mode",
+			role: "zeta.composer.mode",
 			title: "Asking the side question · back to the chat  esc",
 			actions: { click: "interrupt" },
 		});
@@ -521,7 +521,7 @@ describe("a `?` draft", () => {
 		expect(composer.node.props()).toMatchObject({ role: "omp.editor.btw-ask" });
 		const line = composer.node.children().find(node => node.key() === "line");
 		const [chip, field] = line ? line.children() : [];
-		expect(chip?.props()).toMatchObject({ role: "omp.composer.mode", title: "Asks a /btw side question" });
+		expect(chip?.props()).toMatchObject({ role: "zeta.composer.mode", title: "Asks a /btw side question" });
 		expect(chip?.children()[0]?.props()).toMatchObject({ spans: [{ s: "btwMode", t: "btw" }] });
 		expect(field?.props()).toMatchObject({ decor: [{ from: 0, to: 2, s: "hide" }] });
 		expect(field?.props()).not.toHaveProperty("lang", expect.anything());

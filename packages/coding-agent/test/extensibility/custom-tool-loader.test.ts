@@ -335,7 +335,7 @@ describe("custom tool host package imports", () => {
 	});
 
 	it("evaluates a tool's modules once and shares them between tools and loads", async () => {
-		const counterKey = `__ompToolHelperEvaluations_${crypto.randomUUID().replaceAll("-", "")}`;
+		const counterKey = `__zetaToolHelperEvaluations_${crypto.randomUUID().replaceAll("-", "")}`;
 		await writeTool(
 			"shared.ts",
 			[`globalThis.${counterKey} = (globalThis.${counterKey} ?? 0) + 1;`, "export const token = {};"].join("\n"),
