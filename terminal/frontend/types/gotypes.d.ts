@@ -799,6 +799,16 @@ declare global {
         data64: string;
     };
 
+    // acp.ConfigData
+    type ConfigData = {
+        blockid: string;
+        sessionid?: string;
+        modes?: any;
+        configoptions?: any;
+        availablecommands?: any;
+        agentinfo?: any;
+    };
+
     // wconfig.ConfigError
     type ConfigError = {
         file: string;
@@ -1145,6 +1155,9 @@ declare global {
         "ai:timeoutms"?: number;
         "aifilediff:chatid"?: string;
         "aifilediff:toolcallid"?: string;
+        "agent:*"?: boolean;
+        "agent:sessionid"?: string;
+        "agent:cwd"?: string;
         "editor:*"?: boolean;
         "editor:minimapenabled"?: boolean;
         "editor:stickyscrollenabled"?: boolean;
@@ -1257,6 +1270,22 @@ declare global {
         open: boolean;
         openexternal: boolean;
         tabid: string;
+    };
+
+    // acp.PermissionOption
+    type PermissionOption = {
+        optionId: string;
+        name: string;
+        kind: string;
+    };
+
+    // acp.PermissionRequestData
+    type PermissionRequestData = {
+        blockid: string;
+        sessionid: string;
+        requestid: string;
+        toolcall: ToolCallInfo;
+        options: PermissionOption[];
     };
 
     // waveobj.Point
@@ -1486,6 +1515,16 @@ declare global {
         "tsunami:gopath"?: string;
     };
 
+    // acp.StatusData
+    type StatusData = {
+        blockid: string;
+        sessionid?: string;
+        status: string;
+        stopreason?: string;
+        error?: string;
+        version: number;
+    };
+
     // waveobj.StickerClickOptsType
     type StickerClickOptsType = {
         sendinput?: string;
@@ -1589,6 +1628,7 @@ declare global {
         "debug:panictype"?: string;
         "block:view"?: string;
         "block:controller"?: string;
+        "block:subblock"?: boolean;
         "ai:backendtype"?: string;
         "ai:local"?: boolean;
         "wsh:cmd"?: string;
@@ -1721,6 +1761,19 @@ declare global {
     type TimeSeriesData = {
         ts: number;
         values: {[key: string]: number};
+    };
+
+    // acp.ToolCallInfo
+    type ToolCallInfo = {
+        toolCallId: string;
+        title?: string;
+        name?: string;
+        kind?: string;
+        status?: string;
+        content?: any;
+        locations?: any;
+        rawInput?: any;
+        rawOutput?: any;
     };
 
     // uctypes.UIChat

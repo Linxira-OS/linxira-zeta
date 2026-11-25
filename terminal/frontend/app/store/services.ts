@@ -13,6 +13,67 @@ function callBackendService(waveEnv: WaveEnv, service: string, method: string, a
     return WOS.callBackendService(service, method, args, noUIContext);
 }
 
+// agentservice.AgentService (agent)
+export class AgentServiceType {
+    waveEnv: WaveEnv;
+
+    constructor(waveEnv?: WaveEnv) {
+        this.waveEnv = waveEnv;
+    }
+
+    // cancel the active agent turn
+    Cancel(blockId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "Cancel", Array.from(arguments))
+    }
+
+    // get the last published agent status
+    GetStatus(blockId: string): Promise<StatusData> {
+        return callBackendService(this?.waveEnv, "agent", "GetStatus", Array.from(arguments))
+    }
+
+    // list Zeta Code models as the JSON payload of `zetacode models --json`
+    ListModels(): Promise<string> {
+        return callBackendService(this?.waveEnv, "agent", "ListModels", Array.from(arguments))
+    }
+
+    // send a prompt to the agent session (returns when the request is written)
+    Prompt(blockId: string, text: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "Prompt", Array.from(arguments))
+    }
+
+    // answer a permission request with an optionId from its options, or an empty string to deny
+    RespondPermission(blockId: string, requestId: string, optionId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "RespondPermission", Array.from(arguments))
+    }
+
+    // change any advertised agent session config option
+    SetConfigOption(blockId: string, configId: string, value: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "SetConfigOption", Array.from(arguments))
+    }
+
+    // change the agent session mode
+    SetMode(blockId: string, modeId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "SetMode", Array.from(arguments))
+    }
+
+    // change the agent session model config option
+    SetModel(blockId: string, modelId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "SetModel", Array.from(arguments))
+    }
+
+    // ensure an agent controller and ACP session are running for a block
+    Start(blockId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "Start", Array.from(arguments))
+    }
+
+    // stop the agent controller and terminate its process tree
+    Stop(blockId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "Stop", Array.from(arguments))
+    }
+}
+
+export const AgentService = new AgentServiceType();
+
 // blockservice.BlockService (block)
 export class BlockServiceType {
     waveEnv: WaveEnv;
@@ -215,6 +276,7 @@ export class WorkspaceServiceType {
 export const WorkspaceService = new WorkspaceServiceType();
 
 export const AllServiceTypes = {
+    "agent": AgentServiceType,
     "block": BlockServiceType,
     "client": ClientServiceType,
     "object": ObjectServiceType,
@@ -224,6 +286,7 @@ export const AllServiceTypes = {
 };
 
 export const AllServiceImpls = {
+    "agent": AgentService,
     "block": BlockService,
     "client": ClientService,
     "object": ObjectService,

@@ -8,6 +8,7 @@ import { makeORef } from "@/app/store/wos";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { SecretsContent } from "@/app/view/waveconfig/secretscontent";
 import { ShellSettings } from "@/app/view/waveconfig/shellsettings";
+import { ZetaModelsSettings } from "@/app/view/waveconfig/zetamodels";
 import { WaveConfigView } from "@/app/view/waveconfig/waveconfig";
 import type { WaveConfigEnv } from "@/app/view/waveconfig/waveconfigenv";
 import { base64ToString, stringToBase64 } from "@/util/util";
@@ -83,14 +84,14 @@ function makeConfigFiles(isWindows: boolean): ConfigFile[] {
             hasJsonView: true,
         },
         {
-            name: t("settings.aiModes"),
+            name: t("settings.zetaModels"),
             path: "waveai.json",
             language: "json",
-            description: t("settings.localModels"),
+            description: t("settings.zetaModelsDesc"),
             docsUrl: "https://linxira-os.github.io/zh/docs/",
             validator: validateWaveAiJson,
             hasJsonView: true,
-            // visualComponent: WaveAIVisualContent,
+            visualComponent: ZetaModelsSettings,
         },
         {
             name: t("settings.backgrounds"),
