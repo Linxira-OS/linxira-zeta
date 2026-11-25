@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as React from "react";
+import { t } from "../../../i18n";
 import Frame from "react-frame-component";
 
 type IJsonNode = {
@@ -25,7 +26,7 @@ function convertNodeToTag(node: IJsonNode | string, idx?: number): React.ReactNo
     let key = node.props?.key ?? "child-" + idx;
     let TagComp = TagMap[node.tag];
     if (!TagComp) {
-        return <div key={key}>Unknown tag:{node.tag}</div>;
+        return <div key={key}>{t("ijson.unknownTag", { tag: node.tag })}</div>;
     }
     return <TagComp key={key} node={node} />;
 }

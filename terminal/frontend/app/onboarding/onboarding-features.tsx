@@ -3,12 +3,12 @@
 
 import Logo from "@/app/asset/logo.svg";
 import { EmojiButton } from "@/app/element/emojibutton";
-import { MagnifyIcon } from "@/app/element/magnify";
 import { ClientModel } from "@/app/store/client-model";
 import * as WOS from "@/app/store/wos";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { isMacOS } from "@/util/platformutil";
+import { useI18n } from "../../i18n";
 import { useEffect, useState } from "react";
 import { FakeChat } from "./fakechat";
 import { EditBashrcCommand, ViewLogoCommand, ViewShortcutsCommand } from "./onboarding-command";
@@ -20,6 +20,7 @@ import { FakeLayout } from "./onboarding-layout";
 type FeaturePageName = "waveai" | "durable" | "magnify" | "files";
 
 export const WaveAIPage = ({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) => {
+    const { t } = useI18n();
     const isMac = isMacOS();
     const shortcutKey = isMac ? "⌘-Shift-A" : "Alt-Shift-A";
     const [fireClicked, setFireClicked] = useState(false);
@@ -43,7 +44,7 @@ export const WaveAIPage = ({ onNext, onSkip }: { onNext: () => void; onSkip: () 
                 <div>
                     <Logo />
                 </div>
-                <div className="text-[25px] font-normal text-foreground">Wave AI</div>
+                <div className="text-[25px] font-normal text-foreground">{t("onboarding.waveAiTitle")}</div>
             </header>
             <div className="flex-1 flex flex-row gap-0 min-h-0">
                 <div className="flex-1 flex flex-col items-center justify-center gap-8 pr-6 unselectable">
@@ -55,38 +56,27 @@ export const WaveAIPage = ({ onNext, onSkip }: { onNext: () => void; onSkip: () 
 
                         <div className="flex flex-col items-start gap-4 text-secondary">
                             <p>
-                                Wave AI is your terminal assistant with context. I can read your terminal output,
-                                analyze widgets, read/write files, and help you solve problems faster.
+                                {t("onboarding.waveAiDesc")}
                             </p>
 
                             <div className="flex items-start gap-3 w-full">
                                 <i className="fa fa-sparkles text-accent text-lg mt-1 flex-shrink-0" />
                                 <p>
-                                    Toggle the Wave AI panel with the{" "}
-                                    <span className="inline-flex h-[26px] px-1.5 items-center rounded-md box-border bg-hover text-accent text-[12px] align-middle">
-                                        <i className="fa fa-sparkles" />
-                                        <span className="font-bold ml-1 font-mono">AI</span>
-                                    </span>{" "}
-                                    button in the header (top left)
+                                    {t("onboarding.toggleAiHeader")}
                                 </p>
                             </div>
 
                             <div className="flex items-start gap-3 w-full">
                                 <i className="fa fa-keyboard text-accent text-lg mt-1 flex-shrink-0" />
                                 <p>
-                                    Or use the keyboard shortcut{" "}
-                                    <span className="font-mono font-semibold text-foreground whitespace-nowrap">
-                                        {shortcutKey}
-                                    </span>{" "}
-                                    to quickly toggle
+                                    {t("onboarding.orShortcut", { key: shortcutKey })}
                                 </p>
                             </div>
 
                             <div className="flex items-start gap-3 w-full">
                                 <i className="fa fa-key text-accent text-lg mt-1 flex-shrink-0" />
                                 <p>
-                                    Bring your own API keys or run local models with Ollama, LM Studio, and other
-                                    OpenAI-compatible providers
+                                    {t("onboarding.byokDesc")}
                                 </p>
                             </div>
 
@@ -115,6 +105,7 @@ export const MagnifyBlocksPage = ({
     onSkip: () => void;
     onPrev?: () => void;
 }) => {
+    const { t } = useI18n();
     const isMac = isMacOS();
     const shortcutKey = isMac ? "⌘" : "Alt";
     const [fireClicked, setFireClicked] = useState(false);
@@ -138,26 +129,21 @@ export const MagnifyBlocksPage = ({
                 <div>
                     <Logo />
                 </div>
-                <div className="text-[25px] font-normal text-foreground">Magnify Blocks</div>
+                <div className="text-[25px] font-normal text-foreground">{t("onboarding.magnifyTitle")}</div>
             </header>
             <div className="flex-1 flex flex-row gap-0 min-h-0">
                 <div className="flex-1 flex flex-col items-center justify-center gap-8 pr-6 unselectable">
                     <div className="text-6xl font-semibold text-foreground">{shortcutKey}-M</div>
                     <div className="flex flex-col items-start gap-4 text-secondary max-w-md">
                         <p>
-                            Magnify any block to focus on what matters. Expand terminals, editors, and previews for a
-                            better view.
+                            {t("onboarding.magnifyDesc1")}
                         </p>
-                        <p>Use the magnify feature to work with complex outputs and large files more efficiently.</p>
+                        <p>{t("onboarding.magnifyDesc2")}</p>
                         <div>
-                            You can also magnify a block by clicking on the{" "}
-                            <span className="inline-block align-middle [&_svg_path]:!fill-foreground">
-                                <MagnifyIcon enabled={false} />
-                            </span>{" "}
-                            icon in the block header.
+                            {t("onboarding.magnifyDesc3")}
                         </div>
                         <p>
-                            A quick {shortcutKey}-M to magnify and another {shortcutKey}-M to unmagnify
+                            {t("onboarding.magnifyDesc4", { key: shortcutKey })}
                         </p>
                         <EmojiButton emoji="🔥" isClicked={fireClicked} onClick={handleFireClick} />
                     </div>
@@ -173,6 +159,7 @@ export const MagnifyBlocksPage = ({
 };
 
 export const FilesPage = ({ onFinish, onPrev }: { onFinish: () => void; onPrev?: () => void }) => {
+    const { t } = useI18n();
     const [fireClicked, setFireClicked] = useState(false);
     const isMac = isMacOS();
     const [commandIndex, setCommandIndex] = useState(0);
@@ -208,26 +195,21 @@ export const FilesPage = ({ onFinish, onPrev }: { onFinish: () => void; onPrev?:
                 <div>
                     <Logo />
                 </div>
-                <div className="text-[25px] font-normal text-foreground">Viewing/Editing Files</div>
+                <div className="text-[25px] font-normal text-foreground">{t("onboarding.filesTitle")}</div>
             </header>
             <div className="flex-1 flex flex-row gap-0 min-h-0">
                 <div className="flex-1 flex flex-col items-center justify-center gap-8 pr-6 unselectable">
                     <div className="flex flex-col items-start gap-6 max-w-md">
                         <div className="flex flex-col items-start gap-4 text-secondary">
                             <p>
-                                Wave can preview markdown, images, and video files on both local <i>and remote</i>{" "}
-                                machines.
+                                {t("onboarding.filesDesc")}
                             </p>
 
                             <div className="flex items-start gap-3 w-full">
                                 <i className="fa fa-eye text-accent text-lg mt-1 flex-shrink-0" />
                                 <div>
                                     <p className="mb-2">
-                                        Use{" "}
-                                        <span className="font-mono font-semibold text-foreground">
-                                            wsh view [filename]
-                                        </span>{" "}
-                                        to preview files in Wave's graphical viewer
+                                        {t("onboarding.wshViewDesc")}
                                     </p>
                                 </div>
                             </div>
@@ -236,18 +218,13 @@ export const FilesPage = ({ onFinish, onPrev }: { onFinish: () => void; onPrev?:
                                 <i className="fa fa-pen-to-square text-accent text-lg mt-1 flex-shrink-0" />
                                 <div>
                                     <p className="mb-2">
-                                        Use{" "}
-                                        <span className="font-mono font-semibold text-foreground">
-                                            wsh edit [filename]
-                                        </span>{" "}
-                                        to open config files or code files in Wave's graphical editor
+                                        {t("onboarding.wshEditDesc")}
                                     </p>
                                 </div>
                             </div>
 
                             <p>
-                                These commands work seamlessly on both local and remote machines, making it easy to view
-                                and edit files wherever they are.
+                                {t("onboarding.filesBoth")}
                             </p>
 
                             <EmojiButton emoji="🔥" isClicked={fireClicked} onClick={handleFireClick} />

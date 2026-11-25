@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { t } from "../../i18n";
 import React, { ReactNode } from "react";
 
 export class ErrorBoundary extends React.Component<
@@ -24,7 +25,7 @@ export class ErrorBoundary extends React.Component<
             if (fallback != null) {
                 return React.cloneElement(fallback as any, { error });
             }
-            const errorMsg = `Error: ${error?.message}\n\n${error?.stack}`;
+            const errorMsg = `${t("common.errorLabel", { error: error?.message })}\n\n${error?.stack}`;
             return <pre className="error-boundary">{errorMsg}</pre>;
         } else {
             return <>{this.props.children}</>;

@@ -13,6 +13,7 @@ import { globalStore } from "@/app/store/jotaiStore";
 import { isBuilderWindow } from "@/app/store/windowtype";
 import * as WOS from "@/app/store/wos";
 import { RpcApi } from "@/app/store/wshclientapi";
+import { t } from "../../i18n";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import { BuilderFocusManager } from "@/builder/store/builder-focusmanager";
@@ -43,19 +44,19 @@ export interface DroppedFile {
 
 const BuilderAIModeConfigs: Record<string, AIModeConfigType> = {
     "waveaibuilder@default": {
-        "display:name": "Builder Default",
+        "display:name": t("ai.builderModeDefault"),
         "display:order": -2,
         "display:icon": "sparkles",
-        "display:description": "Good mix of speed and accuracy\n(gpt-5.4 with minimal thinking)",
+        "display:description": t("ai.builderModeDefaultDesc"),
         "ai:provider": "wave",
         "ai:switchcompat": ["wavecloud"],
         "waveai:premium": true,
     },
     "waveaibuilder@deep": {
-        "display:name": "Builder Deep",
+        "display:name": t("ai.builderModeDeep"),
         "display:order": -1,
         "display:icon": "lightbulb",
-        "display:description": "Slower but most capable\n(gpt-5.4 with full reasoning)",
+        "display:description": t("ai.builderModeDeepDesc"),
         "ai:provider": "wave",
         "ai:switchcompat": ["wavecloud"],
         "waveai:premium": true,
@@ -226,18 +227,18 @@ export class WaveAIModel {
 
     async addFileFromRemoteUri(draggedFile: DraggedFile): Promise<void> {
         if (draggedFile.isDir) {
-            this.setError("Cannot add directories to Wave AI. Please select a file.");
+            this.setError(t("ai.cannotAddDirectory"));
             return;
         }
 
         try {
             const fileInfo = await RpcApi.FileInfoCommand(TabRpcClient, { info: { path: draggedFile.uri } }, null);
             if (fileInfo.notfound) {
-                this.setError(`File not found: ${draggedFile.relName}`);
+                this.setError(t("ai.fileNotFound", { name: draggedFile.relName }));
                 return;
             }
             if (fileInfo.isdir) {
-                this.setError("Cannot add directories to Wave AI. Please select a file.");
+                this.setError(t("ai.cannotAddDirectory"));
                 return;
             }
 
@@ -251,7 +252,7 @@ export class WaveAIModel {
 
             const fileData = await RpcApi.FileReadCommand(TabRpcClient, { info: { path: draggedFile.uri } }, null);
             if (!fileData.data64) {
-                this.setError(`Failed to read file: ${draggedFile.relName}`);
+                this.setError(t("ai.failedReadFile", { name: draggedFile.relName }));
                 return;
             }
 
@@ -259,7 +260,7 @@ export class WaveAIModel {
             const file = new File([buffer], draggedFile.relName, { type: mimeType });
             if (!isAcceptableFile(file)) {
                 this.setError(
-                    `File type not supported: ${draggedFile.relName}. Supported: images, PDFs, and text/code files.`
+                    t("ai.unsupportedType", { name: draggedFile.relName })
                 );
                 return;
             }
@@ -268,7 +269,7 @@ export class WaveAIModel {
         } catch (error) {
             console.error("Error handling FILE_ITEM drop:", error);
             const errorMsg = error instanceof Error ? error.message : String(error);
-            this.setError(`Failed to add file: ${errorMsg}`);
+            this.setError(t("ai.failedAddFile", { error: errorMsg }));
         }
     }
 
@@ -498,7 +499,7 @@ export class WaveAIModel {
             return await this.reloadChatFromBackend(chatIdValue);
         } catch (error) {
             console.error("Failed to load chat:", error);
-            this.setError("Failed to load chat. Starting new chat...");
+            this.setError(t("ai.failedLoadChat"));
 
             this.clearChat();
             return [];

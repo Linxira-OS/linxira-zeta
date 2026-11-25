@@ -12,6 +12,7 @@ import { makeFeBlockRouteId } from "@/app/store/wshrouter";
 import { DefaultRouter, TabRpcClient } from "@/app/store/wshrpcutil";
 import { VDomView } from "@/app/view/vdom/vdom";
 import { applyCanvasOp, mergeBackendUpdates, restoreVDomElems } from "@/app/view/vdom/vdom-utils";
+import { t } from "../../../i18n";
 import { getWebServerEndpoint } from "@/util/endpoints";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed } from "@/util/keyutil";
 import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
@@ -148,7 +149,7 @@ export class VDomModel {
         this.contextActive = jotai.atom(false);
         this.reset();
         this.viewIcon = jotai.atom("bolt");
-        this.viewName = jotai.atom("Wave App");
+        this.viewName = jotai.atom(t("terminal.waveApp"));
         this.backendRoute = jotai.atom((get) => {
             const blockData = get(WOS.getWaveObjectAtom<Block>(makeORef("block", this.blockId)));
             return blockData?.meta?.["vdom:route"];

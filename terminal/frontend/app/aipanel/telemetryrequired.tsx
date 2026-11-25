@@ -3,6 +3,7 @@
 
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
+import { useI18n } from "../../i18n";
 import { cn } from "@/util/util";
 import { useState } from "react";
 import { WaveAIModel } from "./waveai-model";
@@ -12,6 +13,7 @@ interface TelemetryRequiredMessageProps {
 }
 
 const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) => {
+    const { t } = useI18n();
     const [isEnabling, setIsEnabling] = useState(false);
 
     const handleEnableTelemetry = async () => {
@@ -34,10 +36,9 @@ const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) 
                 <div className="max-w-md space-y-6">
                     <div className="space-y-4">
                         <i className="fa fa-sparkles text-accent text-5xl"></i>
-                        <h2 className="text-2xl font-semibold text-foreground">Wave AI</h2>
+                        <h2 className="text-2xl font-semibold text-foreground">{t("ai.telemetryTitle")}</h2>
                         <p className="text-secondary leading-relaxed">
-                            Wave AI is free to use and provides integrated AI chat that can interact with your widgets,
-                            help you with code, analyze files, and assist with your terminal workflows.
+                            {t("ai.telemetryDesc")}
                         </p>
                     </div>
 
@@ -45,23 +46,19 @@ const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) 
                         <div className="flex items-start gap-3">
                             <i className="fa fa-info-circle text-blue-400 text-lg mt-0.5"></i>
                             <div className="text-left">
-                                <div className="text-blue-400 font-medium mb-1">Telemetry keeps Wave AI free</div>
+                                <div className="text-blue-400 font-medium mb-1">{t("ai.telemetryKeepsFree")}</div>
                                 <div className="text-secondary text-sm mb-3">
                                     <p className="mb-2">
-                                        To keep Wave AI free for everyone, we require a small amount of <i>anonymous</i>{" "}
-                                        usage data (app version, feature usage, system info).
+                                        {t("ai.telemetryPrivacy")}
                                     </p>
                                     <p className="mb-2">
-                                        This helps us block abuse by automated systems and ensure it's used by real
-                                        people like you.
+                                        {t("ai.telemetryAbuse")}
                                     </p>
                                     <p className="mb-2">
-                                        We never collect your files, prompts, keystrokes, hostnames, or personally
-                                        identifying information. Wave AI is powered by OpenAI's APIs, please refer to
-                                        OpenAI's privacy policy for details on how they handle your data.
+                                        {t("ai.telemetryNoFiles")}
                                     </p>
                                     <p>
-                                        For information about BYOK and local model support, see{" "}
+                                        {t("ai.telemetryByok")}{" "}
                                         <a
                                             href="https://linxira-os.github.io/zh/docs/"
                                             target="_blank"
@@ -78,7 +75,7 @@ const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) 
                                     disabled={isEnabling}
                                     className="bg-accent/80 hover:bg-accent disabled:bg-accent/50 text-background px-4 py-2 rounded-lg font-medium cursor-pointer disabled:cursor-not-allowed"
                                 >
-                                    {isEnabling ? "Enabling..." : "Enable Telemetry and Continue"}
+                                    {isEnabling ? t("ai.enabling") : t("ai.enableTelemetry")}
                                 </button>
                             </div>
                         </div>
@@ -91,7 +88,7 @@ const TelemetryRequiredMessage = ({ className }: TelemetryRequiredMessageProps) 
                             rel="noopener noreferrer"
                             className="!text-secondary hover:!text-accent/80 cursor-pointer"
                         >
-                            Privacy Policy
+                            {t("ai.privacyPolicy")}
                         </a>
                     </div>
                 </div>

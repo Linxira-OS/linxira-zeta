@@ -214,6 +214,7 @@ export const WaveStreamdown = ({
     onClickExecute,
     codeBlockMaxWidthAtom,
 }: WaveStreamdownProps) => {
+    const { t } = useI18n();
     const components = useMemo(
         () => ({
             code: Code,
@@ -282,7 +283,7 @@ export const WaveStreamdown = ({
 
                 // Extract summary text and content
                 const summary = childArray.find((c) => c?.props?.node?.tagName === "summary");
-                const summaryText = summary?.props?.children || "Details";
+                const summaryText = summary?.props?.children || t("element.details");
                 const content = childArray.filter((c) => c?.props?.node?.tagName !== "summary");
 
                 return (
@@ -300,7 +301,7 @@ export const WaveStreamdown = ({
             ),
             em: (props: React.HTMLAttributes<HTMLElement>) => <em {...props} className="italic text-secondary" />,
         }),
-        [onClickExecute, codeBlockMaxWidthAtom]
+        [onClickExecute, codeBlockMaxWidthAtom, t]
     );
 
     return (

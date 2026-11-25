@@ -11,6 +11,7 @@ import { VTabBar } from "@/app/tab/vtabbar";
 import { Widgets } from "@/app/workspace/widgets";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import { atoms, getApi, getSettingsKeyAtom } from "@/store/global";
+import { useI18n } from "../../i18n";
 import { isMacOS } from "@/util/platformutil";
 import { useAtomValue } from "jotai";
 import { memo, useEffect, useRef } from "react";
@@ -40,6 +41,7 @@ const MacOSTabBarSpacer = memo(() => {
 MacOSTabBarSpacer.displayName = "MacOSTabBarSpacer";
 
 const WorkspaceElem = memo(() => {
+    const { t } = useI18n();
     const workspaceLayoutModel = WorkspaceLayoutModel.getInstance();
     const tabId = useAtomValue(atoms.staticTabId);
     const ws = useAtomValue(atoms.workspace);
@@ -155,7 +157,7 @@ const WorkspaceElem = memo(() => {
                         <PanelResizeHandle className={outerHandleClass} />
                         <Panel order={1} defaultSize={100 - leftGroupInitialPct}>
                             {tabId === "" ? (
-                                <CenteredDiv>No Active Tab</CenteredDiv>
+                                <CenteredDiv>{t("workspace.noActiveTab")}</CenteredDiv>
                             ) : (
                                 <div className="flex flex-row h-full">
                                     <TabContent key={tabId} tabId={tabId} noTopPadding={showLeftTabBar && isMacOS()} />

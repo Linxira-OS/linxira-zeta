@@ -1,14 +1,14 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { useI18n } from "../../i18n";
+
 const UpgradeOnboardingModal_v0_12_1_Content = () => {
+    const { t } = useI18n();
     return (
         <div className="flex flex-col items-start gap-6 w-full mb-4 unselectable">
             <div className="text-secondary leading-relaxed">
-                <p className="mb-0">
-                    Patch release focused on shell integration improvements, Wave AI enhancements, and restoring syntax
-                    highlighting in code editor blocks.
-                </p>
+                <p className="mb-0">{t("upgrade.v0121.intro")}</p>
             </div>
 
             <div className="flex w-full items-start gap-4">
@@ -17,17 +17,15 @@ const UpgradeOnboardingModal_v0_12_1_Content = () => {
                 </div>
                 <div className="flex flex-col items-start gap-2 flex-1">
                     <div className="text-foreground text-base font-semibold leading-[18px]">
-                        Shell Integration & Context
+                        {t("upgrade.v0121.shellTitle")}
                     </div>
                     <div className="text-secondary leading-5">
                         <ul className="list-disc list-outside space-y-1 pl-5">
                             <li>
-                                <strong>OSC 7 Support</strong> - Wave now automatically tracks and restores your current
-                                directory across restarts for bash, zsh, fish, and pwsh shells
+                                <strong>{t("upgrade.v0121.osc7Title")}</strong> - {t("upgrade.v0121.osc7Desc")}
                             </li>
                             <li>
-                                <strong>Shell Context Tracking</strong> - Tracks when your shell is ready, last command
-                                executed, and exit codes for better terminal management
+                                <strong>{t("upgrade.v0121.contextTitle")}</strong> - {t("upgrade.v0121.contextDesc")}
                             </li>
                         </ul>
                     </div>
@@ -40,17 +38,14 @@ const UpgradeOnboardingModal_v0_12_1_Content = () => {
                 </div>
                 <div className="flex flex-col items-start gap-2 flex-1">
                     <div className="text-foreground text-base font-semibold leading-[18px]">
-                        Wave AI Improvements
+                        {t("upgrade.v0121.aiTitle")}
                     </div>
                     <div className="text-secondary leading-5">
                         <ul className="list-disc list-outside space-y-1 pl-5">
-                            <li>Display reasoning summaries while waiting for AI responses</li>
-                            <li>
-                                Enhanced terminal context - AI now has access to shell state, current directory, command
-                                history, and exit codes
-                            </li>
-                            <li>Added feedback buttons (thumbs up/down) for AI responses</li>
-                            <li>Added copy button to easily copy AI responses to clipboard</li>
+                            <li>{t("upgrade.v0121.aiReasoning")}</li>
+                            <li>{t("upgrade.v0121.aiTerminalContext")}</li>
+                            <li>{t("upgrade.v0121.aiFeedback")}</li>
+                            <li>{t("upgrade.v0121.aiCopy")}</li>
                         </ul>
                     </div>
                 </div>
@@ -61,12 +56,14 @@ const UpgradeOnboardingModal_v0_12_1_Content = () => {
                     <i className="text-[24px] text-accent fa-solid fa-wrench"></i>
                 </div>
                 <div className="flex flex-col items-start gap-2 flex-1">
-                    <div className="text-foreground text-base font-semibold leading-[18px]">Other Changes</div>
+                    <div className="text-foreground text-base font-semibold leading-[18px]">
+                        {t("upgrade.common.otherTitle")}
+                    </div>
                     <div className="text-secondary leading-5">
                         <ul className="list-disc list-outside space-y-1 pl-5">
-                            <li>Mobile user agent emulation support for web widgets</li>
-                            <li>Fixed padding for header buttons in code editor</li>
-                            <li>Restored syntax highlighting in code editor preview blocks</li>
+                            <li>{t("upgrade.v0121.mobileUa")}</li>
+                            <li>{t("upgrade.v0121.headerPadding")}</li>
+                            <li>{t("upgrade.v0121.syntaxHighlight")}</li>
                         </ul>
                     </div>
                 </div>

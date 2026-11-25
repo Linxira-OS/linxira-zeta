@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { sortByDisplayOrder } from "@/util/util";
+import { t } from "../../i18n";
 
 const TextFileLimit = 200 * 1024; // 200KB
 const PdfLimit = 5 * 1024 * 1024; // 5MB
@@ -372,8 +373,14 @@ export const validateFileSizeFromInfo = (
 };
 
 export const formatFileSizeError = (error: FileSizeError): string => {
-    const typeLabel = error.fileType === "image" ? "Image" : error.fileType === "pdf" ? "PDF" : "Text file";
-    return `${typeLabel} "${error.fileName}" is too large (${formatFileSize(error.fileSize)}). Maximum size is ${formatFileSize(error.maxSize)}.`;
+    const typeLabel =
+        error.fileType === "image" ? t("ai.image") : error.fileType === "pdf" ? t("ai.pdf") : t("ai.textFile");
+    return t("ai.fileTooLarge", {
+        type: typeLabel,
+        name: error.fileName,
+        size: formatFileSize(error.fileSize),
+        max: formatFileSize(error.maxSize),
+    });
 };
 
 /**

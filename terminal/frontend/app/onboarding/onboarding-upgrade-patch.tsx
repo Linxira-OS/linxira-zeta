@@ -13,6 +13,7 @@ import { modalsModel } from "@/app/store/modalmodel";
 import * as WOS from "@/app/store/wos";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
+import { t, useI18n } from "../../i18n";
 import { useAtomValue } from "jotai";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { useEffect, useRef, useState } from "react";
@@ -39,6 +40,16 @@ interface UpgradeOnboardingPatchProps {
     isReleaseNotes?: boolean;
 }
 
+const localizeVersionNav = (label?: string): string | undefined => {
+    if (!label) {
+        return label;
+    }
+    const version = label.replace(/^[^(]*\(/, "").replace(/\)$/, "");
+    return label.startsWith("Next")
+        ? t("onboarding.nextVersion", { version })
+        : t("onboarding.prevVersion", { version });
+};
+
 interface UpgradeOnboardingFooterProps {
     hasPrev: boolean;
     hasNext: boolean;
@@ -58,6 +69,7 @@ export function UpgradeOnboardingFooter({
     onNext,
     onClose,
 }: UpgradeOnboardingFooterProps) {
+    const { t } = useI18n();
     return (
         <footer className="unselectable flex-shrink-0 mt-4">
             <div className="flex flex-row items-center justify-between w-full">
@@ -68,14 +80,14 @@ export function UpgradeOnboardingFooter({
                                 onClick={onPrev}
                                 className="cursor-pointer hover:text-foreground transition-colors"
                             >
-                                &lt; {prevText}
+                                {localizeVersionNav(prevText)}
                             </button>
                         </div>
                     )}
                 </div>
                 <div className="flex flex-row items-center justify-center [&>button]:!px-5 [&>button]:!py-2 [&>button]:text-sm">
                     <Button className="font-[600]" onClick={onClose}>
-                        Continue
+                        {t("onboarding.continue")}
                     </Button>
                 </div>
                 <div className="flex-1 flex justify-end">
@@ -85,7 +97,7 @@ export function UpgradeOnboardingFooter({
                                 onClick={onNext}
                                 className="cursor-pointer hover:text-foreground transition-colors"
                             >
-                                {nextText} &gt;
+                                {localizeVersionNav(nextText)} &gt;
                             </button>
                         </div>
                     )}
@@ -264,7 +276,7 @@ const UpgradeOnboardingPatch = ({ isReleaseNotes = false }: UpgradeOnboardingPat
                             <Logo />
                         </div>
                         <div className="text-center text-[25px] font-normal text-foreground">
-                            Wave {currentVersion.version} Update
+                            {t("onboarding.updateTitle", { version: currentVersion.version })}
                         </div>
                     </header>
                     <OverlayScrollbarsComponent

@@ -60,7 +60,7 @@ const SpecializedView = memo(({ parentRef, model }: SpecializedViewProps) => {
     }
     const SpecializedViewComponent = SpecializedViewMap[specializedView.specializedView];
     if (!SpecializedViewComponent) {
-        return <CenteredDiv>Invalid Specialized View Component ({specializedView.specializedView})</CenteredDiv>;
+        return <CenteredDiv>{t("preview.invalidSpecializedView", { view: specializedView.specializedView })}</CenteredDiv>;
     }
     return <SpecializedViewComponent key={path} model={model} parentRef={parentRef} />;
 });

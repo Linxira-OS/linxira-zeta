@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { boundNumber } from "@/util/util";
+import { t } from "../../i18n";
 import "./progressbar.scss";
 
 type ProgressBarProps = {
@@ -9,7 +10,7 @@ type ProgressBarProps = {
     label?: string;
 };
 
-const ProgressBar = ({ progress, label = "Progress" }: ProgressBarProps) => {
+const ProgressBar = ({ progress, label = t("common.progress") }: ProgressBarProps) => {
     const progressWidth = boundNumber(progress, 0, 100);
 
     return (

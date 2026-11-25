@@ -409,12 +409,12 @@ const Markdown = ({
                         className="toc-item toc-empty text-secondary"
                         style={{ "--indent-factor": 2 } as React.CSSProperties}
                     >
-                        No sub-headings found
+                        {t("element.noSubheadings")}
                     </div>
                 );
             }
         }
-    }, [showToc, tocRef]);
+    }, [showToc, tocRef, t]);
 
     let rehypePlugins = null;
     if (rehype) {

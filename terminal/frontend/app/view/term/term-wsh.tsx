@@ -6,6 +6,7 @@ import { makeORef, splitORef } from "@/app/store/wos";
 import { RpcResponseHelper, WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { makeFeBlockRouteId } from "@/app/store/wshrouter";
+import { t } from "../../../i18n";
 import { TermViewModel } from "@/app/view/term/term-model";
 import { bufferLinesToText } from "@/app/view/term/termutil";
 import { isBlank } from "@/util/util";
@@ -124,7 +125,7 @@ export class TermWshClient extends WshClient {
 
         if (data.lastcommand) {
             if (globalStore.get(termWrap.shellIntegrationStatusAtom) == null) {
-                throw new Error("Cannot get last command data without shell integration");
+                throw new Error(t("terminal.noLastCommand"));
             }
 
             let startBufferIndex = 0;

@@ -621,6 +621,7 @@ const ProcessRow = React.memo(function ProcessRow({
     onSelect: (pid: number) => void;
     onContextMenu: (pid: number, e: React.MouseEvent) => void;
 }) {
+    const { t } = useI18n();
     const cols = getColumns(platform);
     const visibleKeys = new Set(cols.map((c) => c.key));
     const gridTemplate = getGridTemplate(platform);
@@ -635,7 +636,7 @@ const ProcessRow = React.memo(function ProcessRow({
                 <div className="px-2 flex items-center truncate justify-end text-secondary font-mono text-[11px]">
                     {proc.pid}
                 </div>
-                <div className="px-2 flex items-center truncate text-muted italic">(gone)</div>
+                <div className="px-2 flex items-center truncate text-muted italic">{t("process.gone")}</div>
                 {visibleKeys.has("status") && <div className="px-2 flex items-center truncate" />}
                 {visibleKeys.has("user") && <div className="px-2 flex items-center truncate" />}
                 {visibleKeys.has("threads") && <div className="px-2 flex items-center truncate" />}
@@ -1018,7 +1019,7 @@ export const ProcessViewerView: React.FC<ViewComponentProps<ProcessViewerViewMod
                 <div className="flex-1 overflow-x-auto overflow-y-hidden">
                     {!connStatus?.connected ? (
                         <div className="flex items-center justify-center h-full text-secondary text-sm">
-                            Waiting for connection…
+                            {t("process.waitingConnection")}
                         </div>
                     ) : (
                         <div className="flex flex-col h-full min-w-full w-max">

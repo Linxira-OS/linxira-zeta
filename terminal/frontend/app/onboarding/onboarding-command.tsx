@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { FakeBlock } from "./onboarding-layout";
 import { FakeTermBlock } from "./onboarding-layout-term";
 import waveLogo from "/logos/wave-logo.png";
@@ -88,16 +89,9 @@ export const FakeCommand = ({ command, typeIntervalMs = 100, onComplete, childre
 };
 
 export const ViewShortcutsCommand = ({ isMac, onComplete }: { isMac: boolean; onComplete?: () => void }) => {
+    const { t } = useI18n();
     const modKey = isMac ? "⌘ Cmd" : "Alt";
-    const markdown = `### Keyboard Shortcuts
-
-**Switch Tabs**
-Press ${modKey} + Number (1-9) to quickly switch between tabs.
-
-**Navigate Blocks**
-Use Ctrl-Shift + Arrow Keys (←→↑↓) to move between blocks in the current tab.
-
-Use Ctrl-Shift + Number (1-9) to focus a specific block by its position.`;
+    const markdown = t("onboarding.shortcutsMarkdown", { key: modKey });
 
     return (
         <FakeCommand command="wsh view keyboard-shortcuts.md" onComplete={onComplete}>
