@@ -1,5 +1,5 @@
 /**
- * `omp.app.shell` (`term.role` of the inspector's `shell` or notice `canvas`
+ * `zeta.app.shell` (`term.role` of the inspector's `shell` or notice `canvas`
  * node): the bash visualizer inspector in the terminal (`term.inspector`).
  * Five header rows (title, view, layer states, key help, playback with the
  * replay clock), the presentation rows scrolled into the space left, then —
@@ -16,7 +16,7 @@ import { SHELL_VIZ_LAYERS, type ShellVisualizerModel } from "../../../apps/shell
 import { shellVizRows, shellVizText } from "../../tools/shell-viz";
 
 /** Terminal role of the inspector node. */
-export const INSPECTOR_ROLE = "omp.app.shell";
+export const INSPECTOR_ROLE = "zeta.app.shell";
 
 /** What the inspector shows without a presentation. */
 export const NO_PRESENTATION: readonly string[] = ["No complete bash command available", "Escape closes"];

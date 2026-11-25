@@ -445,7 +445,7 @@ describe("status line usage refresh", () => {
 			return path.join(noticeDir.path(), "agent.db");
 		}
 
-		/** A Codex session whose settings carry `storage`, as an interactive omp session's do. */
+		/** A Codex session whose settings carry `storage`, as an interactive zetacode session's do. */
 		function noticeSession(
 			fetchUsageReports: () => Promise<unknown>,
 			storage: AgentStorage,
@@ -548,7 +548,7 @@ describe("status line usage refresh", () => {
 			component.dispose();
 		});
 
-		it("warns about each saved reset once across conversations and omp processes", async () => {
+		it("warns about each saved reset once across conversations and zetacode processes", async () => {
 			const sevenDayResetAt = Date.now() + 80 * 3_600_000;
 			const creditExpiresAt = [Date.now() + 5 * 3_600_000];
 			const reports = async () =>
@@ -570,12 +570,12 @@ describe("status line usage refresh", () => {
 			await refreshUsage(first);
 			conversation = "conversation-2"; // /new
 			await refreshUsage(first, 5 * 60_000);
-			const second = openWindow(await AgentStorage.open(noticeDbPath())); // another omp window
+			const second = openWindow(await AgentStorage.open(noticeDbPath())); // another zetacode window
 			await refreshUsage(second);
 			first.dispose();
 			second.dispose();
 			AgentStorage.close();
-			const later = openWindow(await AgentStorage.open(noticeDbPath())); // a later omp process
+			const later = openWindow(await AgentStorage.open(noticeDbPath())); // a later zetacode process
 			await refreshUsage(later);
 
 			expect(notices).toHaveLength(1);

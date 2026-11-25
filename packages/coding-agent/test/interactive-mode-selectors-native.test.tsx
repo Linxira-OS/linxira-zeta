@@ -99,7 +99,7 @@ describe("inline selectors in a Tern terminal", () => {
 
 		const card = ui.node("card");
 		expect(card.id.startsWith("dock/")).toBe(true);
-		expect(card.p).toMatchObject({ role: "omp.overlay", head: "Debug Tools" });
+		expect(card.p).toMatchObject({ role: "zeta.overlay", head: "Debug Tools" });
 		expect(has(ui, "picker")).toBe(false);
 		expect(has(ui, "editor")).toBe(false);
 		const list = () => ui.node("list", "list");
@@ -293,7 +293,7 @@ describe("inline selectors in a Tern terminal", () => {
 		]);
 		// The selected tool result previews as what `/copy` would take: named by its tool, output as code.
 		expect(treeSheet.selected).toBe("result");
-		expect(ui.node("text").p).toMatchObject({ role: "omp.picker.title", text: "Bash result" });
+		expect(ui.node("text").p).toMatchObject({ role: "zeta.picker.title", text: "Bash result" });
 		expect(ui.node("code").p).toMatchObject({ text: "alpha\nbeta", wrap: true });
 		tree.close();
 
@@ -332,7 +332,7 @@ describe("inline selectors in a Tern terminal", () => {
 		const inline = mode.showHookSelector("Save where?", ["Project", "Global"], { inline: true });
 		const card = ui.node("card");
 		expect(card.id.startsWith("dock/")).toBe(true);
-		expect(card.p).toMatchObject({ role: "omp.overlay.hook-select", head: "Save where?" });
+		expect(card.p).toMatchObject({ role: "zeta.overlay.hook-select", head: "Save where?" });
 		expect(has(ui, "picker")).toBe(false);
 		expect(has(ui, "editor")).toBe(false);
 		ui.send({ ev: "select", sf: ui.sf, id: ui.node("list", "list").id, item: "1" });

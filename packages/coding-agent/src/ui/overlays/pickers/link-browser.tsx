@@ -11,7 +11,7 @@
  * itself: natively the browser is a card listing every extension link of the
  * replies, a pick activates it.
  *
- * The terminal look is `omp.overlay.linkBrowser` (`src/ui/styles/pickers/link-browser.ts`).
+ * The terminal look is `zeta.overlay.linkBrowser` (`src/ui/styles/pickers/link-browser.ts`).
  */
 import { computed, type JSXNode, type KeyEvent, read, type Reactive, signal, type UiNode } from "@linxiraos/pi-tui";
 import { lexMarkdown, type Token, type Tokens } from "@linxiraos/pi-tui/text/markdown/lexer";
@@ -144,7 +144,7 @@ export function LinkBrowser(props: LinkBrowserProps): JSXNode {
 	};
 
 	const term = computed((): LinkBrowserTerm => ({
-		role: "omp.overlay.linkBrowser",
+		role: "zeta.overlay.linkBrowser",
 		replies: read(props.replies).map(reply => reply.text),
 		schemes: read(props.schemes),
 		offset: offset(),

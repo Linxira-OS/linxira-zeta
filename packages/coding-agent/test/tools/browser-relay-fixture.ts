@@ -32,7 +32,7 @@ export async function prepareRelayExtension(root: string, port: number): Promise
 	if (!manifest) throw new Error("No native host manifest for this platform");
 
 	// Unlike macOS/Linux, Windows looks only in the registry, not in --user-data-dir. Give the
-	// disposable worker its own host name; never use or replace the user's omp registration.
+	// disposable worker its own host name; never use or replace the user's zetacode registration.
 	let registryKey: string | undefined;
 	if (process.platform === "win32") {
 		const host = `${NATIVE_HOST}.fixture_${id}`;

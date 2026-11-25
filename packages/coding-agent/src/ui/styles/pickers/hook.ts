@@ -3,8 +3,8 @@
  * the countdown's seconds), detail lines, the slider track, the options
  * (markers, inline markdown, descriptions; the cursor option on the
  * selection band), a search/count line once the list scrolls or filters,
- * and the key hints. Drawn for the `picker` sheet (`term.look = "omp.hook"`)
- * and for the card variant (role `omp.overlay.hook-select`).
+ * and the key hints. Drawn for the `picker` sheet (`term.look = "zeta.hook"`)
+ * and for the card variant (role `zeta.overlay.hook-select`).
  */
 import type { UiNode } from "@linxiraos/pi-tui";
 import { defineRolePainter, type Block, type PaintContext } from "@linxiraos/pi-tui/term/paint";
@@ -24,7 +24,7 @@ export interface HookLookOption {
 
 /** The look's term facts (on the picker or the card). */
 export type HookLookTerm = PickerTerm & {
-	readonly look: "omp.hook";
+	readonly look: "zeta.hook";
 	/** The heading (first title line, with the countdown's seconds). */
 	readonly title: string;
 	readonly details: readonly string[];
@@ -232,5 +232,5 @@ function paintHook(node: UiNode, cx: PaintContext): Block {
 	return { rows: paintHookPanel(cx.theme, cx.width, term) };
 }
 
-definePickerLook("omp.hook", paintHook);
-defineRolePainter("card", "omp.overlay.hook-select", paintHook);
+definePickerLook("zeta.hook", paintHook);
+defineRolePainter("card", "zeta.overlay.hook-select", paintHook);

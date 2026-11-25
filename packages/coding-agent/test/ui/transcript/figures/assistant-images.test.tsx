@@ -17,7 +17,7 @@ test("assistant images draw through the terminal's images, else as `[Image: mime
 	createRoot(dispose => {
 		const blob = registerBlob(Buffer.from(PNG_1PX, "base64"), "image/png");
 		const node = (
-			<col role="omp.assistant">
+			<col role="zeta.assistant">
 				<image key="i0" blob={blob} w={16} h={32} alt="image/png" />
 			</col>
 		) as UiNode;

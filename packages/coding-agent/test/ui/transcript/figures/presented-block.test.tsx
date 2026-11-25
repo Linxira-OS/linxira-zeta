@@ -19,7 +19,7 @@ function innerRows(node: UiNode, width: number): string[] {
 }
 
 defineRolePainter("tool", "test.inner", (node, cx) => ({ rows: innerRows(node, cx.width) }));
-defineRolePainter("card", "omp.test", (node, cx) => ({ rows: innerRows(node, cx.width) }));
+defineRolePainter("card", "zeta.test", (node, cx) => ({ rows: innerRows(node, cx.width) }));
 
 figureSuite("presented-block", (corpusCase, { env }) => {
 	const inputs = corpusCase.inputs as { inner: { face: Face }; block: TranscriptBlock };
@@ -45,7 +45,7 @@ figureSuite("presented-block", (corpusCase, { env }) => {
 		);
 	} else if (face === "card") {
 		inner = (
-			<card role="omp.test" head="Test card" collapsed={() => !expanded()} term={term}>
+			<card role="zeta.test" head="Test card" collapsed={() => !expanded()} term={term}>
 				<text text={() => (expanded() ? "body expanded" : "body")} />
 			</card>
 		);

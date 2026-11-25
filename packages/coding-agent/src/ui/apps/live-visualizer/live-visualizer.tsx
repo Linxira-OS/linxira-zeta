@@ -6,7 +6,7 @@
  * Space toggles mute.
  *
  * The terminal draws a rounded box with a two-row spectrum animated by the
- * call's frame counter (the `omp.app.live` look); natively the frame ticks
+ * call's frame counter (the `zeta.app.live` look); natively the frame ticks
  * leave the tree unchanged.
  */
 import type { JSXNode, KeyEvent } from "@linxiraos/pi-tui";

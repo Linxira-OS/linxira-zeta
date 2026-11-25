@@ -17,7 +17,7 @@ interface ReportTerm {
 /** Rows around the body: top border, blank, blank, hint, bottom border. */
 const CHROME = 5;
 
-defineRolePainter("col", "omp.report", (node, cx): Block => {
+defineRolePainter("col", "zeta.report", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 6) return EMPTY_BLOCK;
 	const term = termOf<ReportTerm>(node);

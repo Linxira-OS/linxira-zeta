@@ -247,7 +247,7 @@ function calendarLines(theme: Theme, model: UsageDashboardModel, inner: number):
 
 const DIVIDER = "\u0000";
 
-defineRolePainter("col", "omp.usage.dashboard", (node, cx): Block => {
+defineRolePainter("col", "zeta.usage.dashboard", (node, cx): Block => {
 	const model = termOf<{ model: UsageDashboardModel }>(node).model;
 	if (!model || cx.width < 6) return EMPTY_BLOCK;
 	const theme = cx.theme;
@@ -290,7 +290,7 @@ defineRolePainter("col", "omp.usage.dashboard", (node, cx): Block => {
 	return { rows, hits: [{ row: 0, col: 0, width: cx.width, height: rows.length, node }] };
 });
 
-defineRoleWidget("col", "omp.usage.dashboard", {
+defineRoleWidget("col", "zeta.usage.dashboard", {
 	mouse(node, mouse) {
 		const model = termOf<{ model: UsageDashboardModel }>(node).model;
 		if (!model || mouse.action !== "press") return false;

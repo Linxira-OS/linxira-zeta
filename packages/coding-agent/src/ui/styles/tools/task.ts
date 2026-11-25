@@ -11,7 +11,7 @@
  * the agent rows, the run footer and trailing notices; a result without
  * details shows its text.
  *
- * Also `omp.task.nested` (a `text` node's terminal role): settled child task
+ * Also `zeta.task.nested` (a `text` node's terminal role): settled child task
  * snapshots as tree rows.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
@@ -172,4 +172,4 @@ function paintNested(node: UiNode, cx: PaintContext): Block {
 	return { rows: out };
 }
 
-defineRolePainter("text", "omp.task.nested", paintNested);
+defineRolePainter("text", "zeta.task.nested", paintNested);

@@ -41,7 +41,7 @@ const site = Bun.serve({
 const origin = `http://127.0.0.1:${site.port}`;
 afterAll(() => site.stop(true));
 
-/** Opens the user's tab selected and the tab omp will drive in the background, which therefore reads hidden. */
+/** Opens the user's tab selected and the tab zetacode will drive in the background, which therefore reads hidden. */
 async function openTabs(browser: Browser, openBackground: (url: string) => Promise<unknown>): Promise<Page> {
 	const human = await browser.newPage();
 	await human.goto(`${origin}/human`);
@@ -78,7 +78,7 @@ async function driveAndRelease(kind: BrowserKind, target: Page): Promise<void> {
 		});
 		expect(result.returnValue).toEqual(["hovered", "clicked"]);
 		await releaseTab(name);
-		// The page must not stay focus-emulated once omp lets it go.
+		// The page must not stay focus-emulated once zetacode lets it go.
 		await waitHidden(target);
 	} finally {
 		await releaseTab(name).catch(() => undefined);
@@ -90,7 +90,7 @@ interface RelayFixture {
 	cdpUrl: string;
 	/** The relay extension's service worker, for reading Chrome's own tab state. */
 	extension: WebWorker;
-	/** The page omp drives, open in a background tab. */
+	/** The page zetacode drives, open in a background tab. */
 	target: Page;
 }
 
@@ -114,7 +114,7 @@ async function withRelay(run: (fixture: RelayFixture) => Promise<void>): Promise
 			pipe: true,
 			enableExtensions: true,
 			userDataDir,
-			env: { ...process.env, PI_CODING_AGENT_DIR: path.join(root, "omp") },
+			env: { ...process.env, ZETA_CODING_AGENT_DIR: path.join(root, "omp") },
 			args: ["--no-first-run", "--no-default-browser-check", "--use-mock-keychain"],
 		});
 		await browser.installExtension(install.dir);
@@ -145,7 +145,7 @@ async function withRelay(run: (fixture: RelayFixture) => Promise<void>): Promise
 describe.skipIf(!CHROMIUM_AVAILABLE)("background tab input", () => {
 	it("drives a relay tab in the background without selecting it", async () => {
 		await withRelay(async ({ cdpUrl, extension, target }) => {
-			// The relay keeps the tab's debugger session after omp lets go, so the release must end the emulation itself.
+			// The relay keeps the tab's debugger session after zetacode lets go, so the release must end the emulation itself.
 			await driveAndRelease({ kind: "relay", cdpUrl }, target);
 			expect(
 				await extension.evaluate(

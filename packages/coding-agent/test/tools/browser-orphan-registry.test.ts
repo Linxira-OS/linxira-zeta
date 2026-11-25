@@ -1,6 +1,6 @@
 /**
  * Regression tests for issue #10022: the project-shared broker-owned Chromium
- * (`zeta.browser.headless`) retains page targets created by omp processes that
+ * (`zeta.browser.headless`) retains page targets created by zetacode processes that
  * ended abnormally, because tab ownership was tracked only in per-process
  * memory. `orphan-registry` records ownership durably and reaps targets whose
  * owning process is gone.
@@ -36,7 +36,7 @@ const DAEMON_NAME = "zeta.browser.headless";
 
 /** Unique per-test scope so registry dirs never collide across the suite. */
 function makeScope(): SharedTargetScope {
-	const projectDir = path.join("/tmp", `omp-orphan-test-${crypto.randomUUID()}`);
+	const projectDir = path.join("/tmp", `zetacode-orphan-test-${crypto.randomUUID()}`);
 	return { projectDir, daemonName: DAEMON_NAME };
 }
 
@@ -464,7 +464,7 @@ describe("orphan-registry — reap", () => {
 	});
 
 	it("closes a dead owner's targets after puppeteer lost the browser target", async () => {
-		// The reap runs unawaited on attach: a browser-target session here rejected and exited omp.
+		// The reap runs unawaited on attach: a browser-target session here rejected and exited zeta.
 		const scope = trackedScope();
 		const dead = await deadPid();
 		await writeOwnershipFile(scope, { pid: dead, updatedAt: Date.now() - 60_000, targets: ["orphan-1", "orphan-2"] });

@@ -362,7 +362,7 @@ export class DebugTools {
 					) : (
 						<RawSseViewer model={model} />
 					),
-				page: { role: "omp.debug", dock: 1 },
+				page: { role: "zeta.debug", dock: 1 },
 				focus: root => root.children().at(-1) ?? root,
 				done: done.promise,
 				dispose: () => model.dispose(),

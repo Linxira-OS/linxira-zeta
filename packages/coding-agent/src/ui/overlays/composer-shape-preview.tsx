@@ -17,7 +17,7 @@ import type { StatusChrome } from "../status/status-line";
 import { composerShape } from "../styles/composer/shapes";
 
 /** Stand-in session title a preview shows while the session is unnamed. */
-export const PREVIEW_TITLE = "omp";
+export const PREVIEW_TITLE = "ζ";
 
 /** The prompt the preview shows. */
 export const PREVIEW_PROMPT = "Ask anything, edit files, run tools";

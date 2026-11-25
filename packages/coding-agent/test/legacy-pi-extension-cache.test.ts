@@ -116,7 +116,7 @@ test("legacy extension parse cache opens in WAL mode (#9549)", async () => {
 	// WAL is persisted in the db header, so a fresh connection reports it. The
 	// default delete-journal mode serialized cache writes behind per-entry
 	// journal create/delete + fsync and blocked startup for ~20s under
-	// concurrent omp processes.
+	// concurrent zetacode processes.
 	const cachePath = path.join(cacheRoot, "zeta", "cache", "legacy-pi-extension-cache.db");
 	const db = new Database(cachePath);
 	try {
@@ -143,8 +143,8 @@ test("oversized-cache eviction keeps the parse cache usable when a concurrent pr
 	seed.run("INSERT INTO extension_parse_cache VALUES ('big', 'module', ?, 0)", ["x".repeat(9 * 1024 * 1024)]);
 	seed.close();
 
-	// A concurrent omp process holds the cache open in WAL mode with
-	// uncheckpointed frames in its `-wal` (as a concurrently-starting omp does
+	// A concurrent zetacode process holds the cache open in WAL mode with
+	// uncheckpointed frames in its `-wal` (as a concurrently-starting zetacode does
 	// while writing its own parse-cache entries).
 	const concurrent = new Database(cachePath, { create: true });
 	try {

@@ -3897,8 +3897,8 @@ export declare function repairHeredocContinuations(script: string): string | nul
 export declare function restoreConsoleInputMode(mode: number): boolean
 
 /**
- * Run the shell engine as a process shell in this process (`omp zsh`,
- * `omp bash`, `omp sh`).
+ * Run the shell engine as a process shell in this process (`zetacode zsh`,
+ * `zetacode bash`, `zetacode sh`).
  *
  * `argv` is the shell's whole command line,
  * `argv[0]` naming it (`zsh`, `bash` or `sh` pick the dialect), as a real
@@ -4764,7 +4764,7 @@ export interface TranscriptCall {
   /** The last 4,000 characters of the thinking and reply before the call. */
   reasoning?: string
   model?: string
-  /** omp version that recorded the call. */
+  /** zetacode version that recorded the call. */
   version?: string
 }
 

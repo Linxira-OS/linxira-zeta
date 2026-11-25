@@ -37,7 +37,7 @@ describe("uncaught JavaScript cell errors", () => {
 		for (const frame of shown) expect(frame).toMatch(/\(js-cell-[0-9a-f-]+\.js:\d+:\d+\)$/);
 		expect(result.output).not.toContain(REPO_ROOT);
 		expect(result.output).toMatch(
-			/\n {4}\(\d+ omp frames? hidden; catch the error and print e\.stack to see them\)$/,
+			/\n {4}\(\d+ zetacode frames? hidden; catch the error and print e\.stack to see them\)$/,
 		);
 	});
 
@@ -63,7 +63,7 @@ describe("uncaught JavaScript cell errors", () => {
 		expect(result.exitCode).toBe(1);
 		expect(result.output).toContain(`Error: ${message}\n`);
 		expect(result.output).not.toContain(REPO_ROOT);
-		expect(result.output).toContain("omp frames hidden;");
+		expect(result.output).toContain("zetacode frames hidden;");
 	});
 
 	it("keeps cached multiline diagnostics after the error message changes", async () => {
@@ -74,14 +74,14 @@ describe("uncaught JavaScript cell errors", () => {
 		);
 		expect(result.exitCode).toBe(1);
 		expect(result.output).toContain(`Error: ${message}\n`);
-		expect(result.output).not.toContain("omp frames hidden");
+		expect(result.output).not.toContain("zetacode frames hidden");
 	});
 
 	it("filters decorated assertion stacks without removing their diagnostic", async () => {
 		const result = await executeJs('import assert from "node:assert"; assert.strictEqual(1, 2);', options);
 		expect(result.exitCode).toBe(1);
 		expect(result.output).toContain("AssertionError [ERR_ASSERTION]");
-		expect(result.output).toContain("omp frames hidden;");
+		expect(result.output).toContain("zetacode frames hidden;");
 		expect(result.output).not.toContain(REPO_ROOT);
 	});
 
@@ -115,7 +115,7 @@ describe("uncaught JavaScript cell errors", () => {
 		expect(result.exitCode).toBe(1);
 		expect(result.output).toContain(`Error: ${oldMessage}\n`);
 		expect(result.output).toContain(`Error: Unhandled rejection (missing await?): ${currentMessage}`);
-		expect(result.output).not.toContain("omp frames hidden");
+		expect(result.output).not.toContain("zetacode frames hidden");
 	});
 
 	it("does not rewrite a current header embedded in a stale rejection diagnostic", async () => {
@@ -142,7 +142,7 @@ console.log(formatCellError(${JSON.stringify(stack)}, { filename: "js-cell-1.js"
 		expect(code).toBe(0);
 		expect(stdout).toContain("at asset (/opt/omp/lib.ts:1:2)");
 		expect(stdout).not.toContain(ERROR_TEXT);
-		expect(stdout).toContain("(1 omp frame hidden)");
+		expect(stdout).toContain("(1 zetacode frame hidden)");
 	});
 });
 
@@ -178,7 +178,7 @@ describe("formatCellError", () => {
 				helper,
 				"    at <anonymous> (:0:43)",
 				"    at browser.call (js-cell-1d89.js)",
-				"    (7 omp frames hidden; catch the error and print e.stack to see them)",
+				"    (7 zetacode frames hidden; catch the error and print e.stack to see them)",
 			].join("\n"),
 		);
 	});
@@ -191,11 +191,11 @@ describe("formatCellError", () => {
 			`    at theirs (${at("opt/omp/node_modules/puppeteer-core/lib/b.js")}:3:4)`,
 		].join("\n");
 		expect(formatCellError(stack, { ...source, cwd: at("opt/omp/node_modules/my-project") })).toBe(
-			["Error: x", mine, "    (1 omp frame hidden)"].join("\n"),
+			["Error: x", mine, "    (1 zetacode frame hidden)"].join("\n"),
 		);
 	});
 
-	it("keeps project dependency frames when omp shares the project's node_modules", () => {
+	it("keeps project dependency frames when zetacode shares the project's node_modules", () => {
 		const parse = `at parse (${at("proj/node_modules/zod/lib/x.js")}:1:2)`;
 		const stack = [
 			"Error: x",
@@ -208,7 +208,7 @@ describe("formatCellError", () => {
 		expect(output).toContain(parse);
 		expect(output).toContain("at run (js-cell-1d89.js:1:2)");
 		expect(output).not.toContain("pi-coding-agent");
-		expect(output).toContain("(2 omp frames hidden;");
+		expect(output).toContain("(2 zetacode frames hidden;");
 	});
 
 	it("hides a global install below the working directory rather than treating it as project-local", () => {
@@ -225,6 +225,6 @@ describe("formatCellError", () => {
 		});
 		expect(output).toContain(helper);
 		expect(output).not.toContain("puppeteer-core");
-		expect(output).toContain("(1 omp frame hidden)");
+		expect(output).toContain("(1 zetacode frame hidden)");
 	});
 });

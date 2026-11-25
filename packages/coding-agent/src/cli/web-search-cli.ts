@@ -1,10 +1,10 @@
 /**
  * Web search CLI command handlers.
  *
- * Handles `omp q`/`omp web-search` subcommands for testing web search models.
+ * Handles `zetacode q`/`zetacode web-search` subcommands for testing web search models.
  */
 
-import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";
+import { APP_NAME, CLI_BIN_NAME, getProjectDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";
@@ -108,11 +108,11 @@ export async function runSearchCommand(cmd: SearchCommandArgs): Promise<void> {
 }
 
 export function printSearchHelp(): void {
-	process.stdout.write(`${chalk.bold(`${APP_NAME} q`)} - Test web search models
+	process.stdout.write(`${chalk.bold(`\${CLI_BIN_NAME} q`)} - Test web search models
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} q [options] <query>
-  ${APP_NAME} web-search [options] <query>
+  \${CLI_BIN_NAME} q [options] <query>
+  \${CLI_BIN_NAME} web-search [options] <query>
 
 ${chalk.bold("Arguments:")}
   query      Search query text
@@ -131,8 +131,8 @@ ${chalk.bold("Query directives:")}
   lenient post-filter (a constraint matching nothing is relaxed, not fatal).
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} q --model=web/duckduckgo "what's the color of the sky"
-  ${APP_NAME} q --model=openrouter/google/gemini-2.5-flash --recency=week "latest TypeScript changes"
-  ${APP_NAME} q 'transformer scaling site:arxiv.org after:2024 -site:reddit.com'
+  \${CLI_BIN_NAME} q --model=web/duckduckgo "what's the color of the sky"
+  \${CLI_BIN_NAME} q --model=openrouter/google/gemini-2.5-flash --recency=week "latest TypeScript changes"
+  \${CLI_BIN_NAME} q 'transformer scaling site:arxiv.org after:2024 -site:reddit.com'
 `);
 }

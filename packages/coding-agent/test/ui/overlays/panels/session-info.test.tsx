@@ -9,7 +9,7 @@ const kv = (k: string, v: string) => `${theme.fg("dim", `${k}:`)} ${v}`;
 const bold = (text: string) => theme.style("strong", text);
 const REPORT = [
 	kv("ID", "0193-abcd-ef"),
-	kv("File", "/home/u/.omp/sessions/2026/very-long-session-file-name-ünïcödé.jsonl"),
+	kv("File", "/home/u/.zeta/sessions/2026/very-long-session-file-name-ünïcödé.jsonl"),
 	kv("Local", "local://sessions/abc"),
 	kv("Note", "something"),
 	"a free line",

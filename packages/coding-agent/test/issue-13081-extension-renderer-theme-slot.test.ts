@@ -75,7 +75,7 @@ async function renderToolCall(
 	return Bun.stripANSI(rendered.render(80).join("\n"));
 }
 
-// Issue #13081: omp invokes renderers as `renderCall(args, options, theme)`
+// Issue #13081: zetacode invokes renderers as `renderCall(args, options, theme)`
 // while pi-era renderers are declared `renderCall(args, theme, context)`. The
 // second slot must satisfy both shapes, otherwise every pi-authored renderer
 // throws `theme.bold is not a function` and silently degrades to the plain

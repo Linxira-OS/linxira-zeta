@@ -1,5 +1,5 @@
 /**
- * The provider picker's terminal look (`term.look = "omp.oauth"`): a framed
+ * The provider picker's terminal look (`term.look = "zeta.oauth"`): a framed
  * list of providers, each `name ● logged in (source)` (a spinner while the
  * credential is checked), unavailable ones dim, the hovered row banded; the
  * search line (`Type to search` / `Search: query` with its caret), the empty
@@ -30,7 +30,7 @@ export type OAuthRowStatus = "checking" | "invalid" | "valid" | "none";
 
 /** The look's term facts. */
 export type OAuthLookTerm = PickerTerm & {
-	readonly look: "omp.oauth";
+	readonly look: "zeta.oauth";
 	readonly title: string;
 	readonly maxRows: number;
 	readonly statuses: Readonly<Record<string, OAuthRowStatus>>;
@@ -116,4 +116,4 @@ function paintOAuth(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits: [sheetHit(node, width, rows.length), ...hits] };
 }
 
-definePickerLook("omp.oauth", paintOAuth);
+definePickerLook("zeta.oauth", paintOAuth);

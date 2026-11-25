@@ -119,7 +119,7 @@ export class Dock {
 	terminalViews(): JSXNode {
 		return TERMINAL_DOCK.map(name =>
 			COVERING.includes(name)
-				? jsx("col", { role: "omp.dock.covering", children: this.slot(name).view }, name)
+				? jsx("col", { role: "zeta.dock.covering", children: this.slot(name).view }, name)
 				: this.slot(name).view,
 		);
 	}

@@ -80,7 +80,7 @@ export const NO_CREDENTIAL_NOTICE =
 
 /** The warning a session shows when Stencil Cloud refuses the account Spotlight access (`waitlisted`/`forbidden`). */
 export function accessDeniedNotice(reason: string): string {
-	return `Spotlight ranking is off: ${reason} Tool output is cut by the unranked fallback rules; omp asks again in a few hours, or as soon as you sign in to another Stencil account.`;
+	return `Spotlight ranking is off: ${reason} Tool output is cut by the unranked fallback rules; zetacode asks again in a few hours, or as soon as you sign in to another Stencil account.`;
 }
 
 /**

@@ -546,7 +546,7 @@ export class LspMuxServer {
 			}
 			return;
 		}
-		// Client-side effects such as applyEdit must reach exactly one, most recently active omp.
+		// Client-side effects such as applyEdit must reach exactly one, most recently active zeta.
 		let focus: Session | undefined;
 		for (const session of server.sessions) {
 			if (!focus || session.lastActivity > focus.lastActivity) focus = session;

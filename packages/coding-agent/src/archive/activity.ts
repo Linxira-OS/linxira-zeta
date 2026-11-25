@@ -67,7 +67,7 @@ export interface ArchiveCall extends ArchiveOrigin {
 	/** The last 4,000 characters of the thinking and reply before the call. */
 	reasoning: string | null;
 	model: string | null;
-	/** omp version that recorded the call. */
+	/** zetacode version that recorded the call. */
 	version: string | null;
 }
 

@@ -1,5 +1,5 @@
 /**
- * Contract of the daemon's `disasm` module (`src/daemon/modules/disasm.ts`) as omp processes see
+ * Contract of the daemon's `disasm` module (`src/daemon/modules/disasm.ts`) as zetacode processes see
  * it through `disasm/client.ts`: one shared worker per database, tunnel-owned references, the
  * idle/cap policies, the database file lock, and re-adoption across a daemon crash.
  *

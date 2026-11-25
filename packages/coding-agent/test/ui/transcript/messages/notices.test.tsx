@@ -213,7 +213,7 @@ screenSuite("message-notice", corpusCase => {
 	return {
 		node: single(
 			<MessageNotice
-				role="omp.notice.test"
+				role="zeta.notice.test"
 				severity={inputs.severity}
 				leadingSpace={inputs.leadingSpace}
 				background={inputs.background ? "toolPendingBg" : undefined}

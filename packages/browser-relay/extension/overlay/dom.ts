@@ -5,7 +5,7 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/** The omp π glyph, as drawn by collab-web's `OmpMark`, in a 64×64 box. */
+/** The zetacode π glyph, as drawn by collab-web's `OmpMark`, in a 64×64 box. */
 export const OMP_MARK_PATH = "M10 14h44v9H43v33h-9V23h-9v22h-9V23H10z";
 
 /** Create an HTML element with a class and children. */
@@ -53,11 +53,11 @@ export function icon(...shapes: SVGElement[]): SVGSVGElement {
 let markCount = 0;
 
 /**
- * The omp mark with its pink → violet → cyan gradient, cropped to the glyph so it fills its box at 14px. Gradient
+ * The zetacode mark with its pink → violet → cyan gradient, cropped to the glyph so it fills its box at 14px. Gradient
  * ids are unique within the shadow root.
  */
 export function ompMark(): SVGSVGElement {
-	const id = `omp-mark-${++markCount}`;
+	const id = `zetacode-mark-${++markCount}`;
 	const stop = (offset: string, color: string) => svg("stop", { offset, "stop-color": color });
 	return svg(
 		"svg",

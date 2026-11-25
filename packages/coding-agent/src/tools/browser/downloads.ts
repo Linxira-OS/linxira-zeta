@@ -53,7 +53,7 @@ export class DownloadManager {
 	readonly #defaultDirectory: string;
 	readonly #perTab: boolean;
 	/**
-	 * The omp relay, which has no browser-level target: downloads are heard as the page's own `Page.download*` events on
+	 * The zetacode relay, which has no browser-level target: downloads are heard as the page's own `Page.download*` events on
 	 * the sessions of its frames, Chrome saves them where its own settings say, and the relay names each saved file.
 	 */
 	readonly #pageEvents: boolean;
@@ -75,12 +75,12 @@ export class DownloadManager {
 	/**
 	 * `perTab` gives each tab its own folder by saving under download GUIDs and moving each tab's own files. Leave it off
 	 * for a browser the user drives (connected, relay): there the folder also receives the user's own downloads, which
-	 * would otherwise be saved under bare GUIDs nobody renames. `pageEvents` is for the omp relay.
+	 * would otherwise be saved under bare GUIDs nobody renames. `pageEvents` is for the zetacode relay.
 	 */
 	constructor(browser: Browser, page: Page, tabId: string, options: { perTab: boolean; pageEvents: boolean }) {
 		this.#browser = browser;
 		this.#page = page;
-		this.#defaultDirectory = path.join(os.tmpdir(), `omp-downloads-${tabId}`);
+		this.#defaultDirectory = path.join(os.tmpdir(), `zetacode-downloads-${tabId}`);
 		this.#perTab = options.perTab;
 		this.#pageEvents = options.pageEvents;
 	}
@@ -242,7 +242,7 @@ export class DownloadManager {
 		if (this.#progress) session.off(`${domain}.downloadProgress`, this.#progress);
 	}
 
-	/** Where Chrome saved a download its page reported, which the omp relay looks up in Chrome's download list. */
+	/** Where Chrome saved a download its page reported, which the zetacode relay looks up in Chrome's download list. */
 	async #savedPath(guid: string): Promise<string> {
 		// Puppeteer's protocol map cannot express the relay-private method; the send signature is otherwise identical.
 		const session = this.#page.mainFrame().client as unknown as {

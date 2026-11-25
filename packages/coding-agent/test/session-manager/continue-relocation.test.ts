@@ -48,7 +48,7 @@ describe("SessionManager.continueRecent relocation", () => {
 	let testAgentDir: string;
 	let cwdA: string;
 	let cwdB: string;
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const originalTmuxPane = process.env.TMUX_PANE;
 	const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
@@ -70,7 +70,7 @@ describe("SessionManager.continueRecent relocation", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		await fsp.rm(testAgentDir, { recursive: true, force: true });
 	});
@@ -175,7 +175,7 @@ describe("SessionManager.continueRecent relocation", () => {
 		writeBreadcrumb(cwdA, oldFile);
 		await renameProjectDir(cwdA, cwdB);
 
-		// The omp that was running in the renamed directory still holds the session.
+		// The zetacode that was running in the renamed directory still holds the session.
 		class OwnedElsewhereStorage extends FileSessionStorage {
 			override claimSession(sessionId: string, sessionPath: string): (() => void) | null {
 				return sessionId === ownedId ? null : super.claimSession(sessionId, sessionPath);

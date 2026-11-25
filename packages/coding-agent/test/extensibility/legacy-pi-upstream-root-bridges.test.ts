@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as caShim from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 
 // Upstream pi-coding-agent exports `parseSkillBlock` from its package root
-// (src/core/agent-session.ts). omp folds skill invocation into its own hook
+// (src/core/agent-session.ts). zetacode folds skill invocation into its own hook
 // pipeline (no parser exported), so the name is ported into the compat layer;
 // named imports of it from the aliased roots tripped Bun's static
 // "Export named X not found" check (observed consumer: `pi-optchat`, which

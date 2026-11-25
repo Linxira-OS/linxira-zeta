@@ -48,7 +48,7 @@ export type SidebarTarget =
 const control = (kind: ControlKind): SidebarTarget => ({ kind, key: kind });
 const sectionTarget = (area: SectionArea): SidebarTarget => ({ kind: "section", key: `section:${area}`, area });
 
-/** One terminal row of the sidebar (styled by the `omp.app.git.side` look). */
+/** One terminal row of the sidebar (styled by the `zeta.app.git.side` look). */
 export type SidebarRow =
 	| { readonly kind: "title"; readonly total: number; readonly branch: string | null }
 	| { readonly kind: "toggle"; readonly style: ViewStyle; readonly left: number }

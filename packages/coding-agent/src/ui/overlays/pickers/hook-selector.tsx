@@ -278,7 +278,7 @@ export function HookSelector(props: HookSelectorProps): JSXNode {
 			return { label: option.label, description: option.description, disabled: disabled.has(index), marker };
 		});
 		return {
-			look: "omp.hook",
+			look: "zeta.hook",
 			title: heading$(),
 			details,
 			slider: slider ? { caption: slider.caption, segments: slider.segments, index: sliderIndex() } : undefined,

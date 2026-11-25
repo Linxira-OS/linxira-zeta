@@ -1383,7 +1383,7 @@ fn claim_pair(
 		let Ok(pointer) = std::str::from_utf8(&info.name) else {
 			continue;
 		};
-		// `v1.` pairs belong to older omp releases, which may still remove them:
+		// `v1.` pairs belong to older zetacode releases, which may still remove them:
 		// never taken, and not counted, or two left by killed old processes
 		// would use up the cap until the X server exits.
 		if !pointer.starts_with(OWNER_PREFIX) {
@@ -1577,7 +1577,7 @@ fn write_holder(
 		.map_err(mpx_failed)
 }
 
-/// Whether a session of `current` may take a v2 pair. Older omp releases can
+/// Whether a session of `current` may take a v2 pair. Older zetacode releases can
 /// remove v1 masters even while held, so those pairs are never adopted.
 /// Holders whose death cannot be proven keep their pair.
 fn is_claimable(
@@ -1712,7 +1712,7 @@ mod tests {
 		assert_eq!(Owner::from_pointer_name(&pointer), Some(owner));
 		assert!(format!("{} uinput keyboard", owner.master_name(u16::MAX)).len() < 80);
 		assert_eq!(Owner::from_pointer_name("OMP MPX 4242.1 pointer"), None);
-		// omp versions that removed pairs reap dead creators' `v1.` masters.
+		// zetacode versions that removed pairs reap dead creators' `v1.` masters.
 		assert!(!pointer.starts_with("OMP MPX v1."), "new pairs stay out of that reaper");
 		let legacy = pointer.replacen(OWNER_PREFIX, "OMP MPX v1.", 1);
 		assert_eq!(Owner::from_pointer_name(&legacy), None, "v1 pairs are never adopted");
@@ -1757,7 +1757,7 @@ mod tests {
 			"unidentifiable holder"
 		);
 		assert!(!is_claimable(Some(peer.as_bytes()), &creator, None, gone), "we cannot prove death");
-		// An older omp can remove v1 masters even while a new session holds them.
+		// An older zetacode can remove v1 masters even while a new session holds them.
 		let legacy = creator.replacen(OWNER_PREFIX, "OMP MPX v1.", 1);
 		assert!(!is_claimable(None, &legacy, Some(&OWNER), gone), "dead v1 creator");
 		assert!(!is_claimable(Some(HOLDER_FREE), &legacy, Some(&OWNER), gone), "free v1 pair");
@@ -1778,7 +1778,7 @@ mod tests {
 	#[ignore = "needs an isolated X server"]
 	fn the_pair_pool_refuses_growth_at_its_limit_but_reuses_a_released_pair() {
 		let (conn, root, park) = display();
-		// Killed older omp processes can leave pairs that they may still reap.
+		// Killed older zetacode processes can leave pairs that they may still reap.
 		// They must neither be adopted nor consume the new pool's slots.
 		for name in ["OMP MPX v1.pool-test-1", "OMP MPX v1.pool-test-2"] {
 			if find_masters(&conn, name).is_err() {

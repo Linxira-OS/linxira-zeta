@@ -140,8 +140,8 @@ describe("the Agent Hub's transcript viewer in Tern", () => {
 		await openViewer();
 
 		const page = ui.surface();
-		expect({ mode: page.mode, role: page.role }).toEqual({ mode: "screen", role: "omp.session" });
-		expect(page.main.map(node => [node.k, node.p.role])).toEqual([["card", "omp.hub.transcript"]]);
+		expect({ mode: page.mode, role: page.role }).toEqual({ mode: "screen", role: "zeta.session" });
+		expect(page.main.map(node => [node.k, node.p.role])).toEqual([["card", "zeta.hub.transcript"]]);
 		expect(page.dock).toEqual([]);
 		expect(page.layer).toEqual([]);
 		expect(page.focus).toBe(ui.node("editor").id);
@@ -155,9 +155,9 @@ describe("the Agent Hub's transcript viewer in Tern", () => {
 		// The prompt: a hold menu, and Copy, Edit & resend and the time sent under it.
 		const tools = ui.node("row", "tools");
 		const prompt = ui.get(tools.parent!);
-		expect(prompt.p.role).toBe("omp.user");
+		expect(prompt.p.role).toBe("zeta.user");
 		expect(tools.c).toHaveLength(4);
-		expect(ui.get(tools.c[3]!).p.role).toBe("omp.user.time");
+		expect(ui.get(tools.c[3]!).p.role).toBe("zeta.user.time");
 		expect((prompt.p.actions as { hold: { id: string }[] }).hold.map(entry => entry.id)).toEqual([
 			"copy-message",
 			"edit-turn",
@@ -176,7 +176,7 @@ describe("the Agent Hub's transcript viewer in Tern", () => {
 		const usageRow = ui.node("row", "turn-usage");
 		expect(usageRow.p.title).toBe("This turn: 1,078 tokens (1,000 in · 78 out)");
 		const copy = ui.get(usageRow.c[0]!);
-		expect(copy.p.role).toBe("omp.turn.copy");
+		expect(copy.p.role).toBe("zeta.turn.copy");
 		ui.send({ ev: "action", sf: ui.sf, id: copy.id, act: "copy-answer" });
 		expect(acted.replies).toEqual([["copy-answer", "Hello from the worker."]]);
 	});

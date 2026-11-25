@@ -155,9 +155,9 @@ describe("InteractiveMode HUD pills", () => {
 			"2 jobs running  /jobs\nbg_1  eval · per model — trials 7/9 trials\nbg_2  loadtest · decode — decode 186 tok/s ▲ 15%",
 		);
 		const card = prop(segment, "hovercard") as Described;
-		expect(card).toMatchObject({ k: "col", p: { role: "omp.jobs.hovercard" } });
-		expect(card.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tiles"]);
-		expect(card.c?.[0]?.c?.map(child => prop(child, "role"))).toEqual(["omp.job.tile", "omp.job.tile"]);
+		expect(card).toMatchObject({ k: "col", p: { role: "zeta.jobs.hovercard" } });
+		expect(card.c?.map(child => prop(child, "role"))).toEqual(["zeta.job.tiles"]);
+		expect(card.c?.[0]?.c?.map(child => prop(child, "role"))).toEqual(["zeta.job.tile", "zeta.job.tile"]);
 
 		// Moved widget data re-describes the segment.
 		entries = [

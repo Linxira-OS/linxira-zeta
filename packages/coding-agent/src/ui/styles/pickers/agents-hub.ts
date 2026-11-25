@@ -4,7 +4,7 @@
  * the selected agent's summary pinned under it, the model browser, or the
  * create flow) and the footer (key hints, a chip strip or the pattern
  * input). Drawn the same whether the hub is natively a picker (look
- * `omp.agents`) or a card (role `omp.hub.agents`).
+ * `zeta.agents`) or a card (role `zeta.hub.agents`).
  *
  * Row hits name list rows (`row:<id>`), sidebar entries (`scope:<id>`) and
  * footer chips (`chip:<index>`); the hub's widget turns pointer input into
@@ -86,8 +86,8 @@ export type AgentsHubFooter =
 
 /** The hub's term facts. */
 export type AgentsHubTerm = PickerTerm & {
-	readonly look: "omp.agents";
-	readonly role: "omp.agents";
+	readonly look: "zeta.agents";
+	readonly role: "zeta.agents";
 	/** Terminal rows (at least 16). */
 	readonly height: number;
 	readonly sidebar: readonly AgentsSidebarEntry[];
@@ -404,7 +404,7 @@ const widget: Widget = {
 	},
 };
 
-definePickerLook("omp.agents", paintAgentsHub);
-defineRolePainter("card", "omp.hub.agents", paintAgentsHub);
-defineRoleWidget("picker", "omp.agents", widget);
-defineRoleWidget("card", "omp.hub.agents", widget);
+definePickerLook("zeta.agents", paintAgentsHub);
+defineRolePainter("card", "zeta.hub.agents", paintAgentsHub);
+defineRoleWidget("picker", "zeta.agents", widget);
+defineRoleWidget("card", "zeta.hub.agents", widget);

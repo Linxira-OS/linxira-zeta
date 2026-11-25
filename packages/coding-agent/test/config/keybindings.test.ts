@@ -352,7 +352,7 @@ describe("KeybindingsManager.create", () => {
 	it("merges default user keybindings when create uses the active profile with no arguments (#4867)", async () => {
 		const saved = {
 			PI_CONFIG_DIR: process.env.PI_CONFIG_DIR,
-			PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+			ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 			ZETA_PROFILE: process.env.ZETA_PROFILE,
 			PI_PROFILE: process.env.PI_PROFILE,
 		};

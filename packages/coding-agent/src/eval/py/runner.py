@@ -1941,7 +1941,7 @@ def _emit_image_dict(value: Any) -> bool:
 
 
 def _omp_image(value: Any) -> dict | None:
-    """Payload of an omp image dict ``{type: "image", mimeType, data, ...}``."""
+    """Payload of an zetacode image dict ``{type: "image", mimeType, data, ...}``."""
     if isinstance(value, dict) and value.get("type") == "image":
         return _image_payload(value)
     return None

@@ -10,7 +10,7 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus, modelsAreEqual, routedModelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { ModelKind } from "@linxiraos/pi-catalog/types";
-import { ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import { bindAgentMesh } from "./irc/mesh";
 import {
 	APP_NAME,
@@ -139,7 +139,6 @@ import {
 } from "./system-prompt";
 import type { RestoreOutcome } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
-import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
 import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "./thinking/levels";
 import type { LspStartupServerInfo } from "./tools";
@@ -273,12 +272,12 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 		return;
 	}
 	try {
-		// Checkouts update through git and a manager (Tern) updates its omp itself:
-		// "run omp update" would be wrong advice for both.
+		// Checkouts update through git and a manager (Tern) updates its zetacode itself:
+		// "run zetacode update" would be wrong advice for both.
 		if (isSourceCheckout() || (await managedInstallName(process.execPath))) return;
 		const channel = cfgUpdateChannel.get(settings);
 		// A compiled binary updates from the build service; naming the running
-		// version lets the service prepare the patch `omp update` will then use.
+		// version lets the service prepare the patch `zetacode update` will then use.
 		const { version } = isCompiledBinary()
 			? await fetchBuild({ channel }, { timeoutMs: 5_000, fromVersion: currentVersion })
 			: await getLatestRelease({ timeoutMs: 5_000, channel });
@@ -310,7 +309,7 @@ function rejectNoUiWithoutRpc(args: Pick<Args, "noUi" | "mode">): void {
 function exitWithoutTerminal(): never {
 	process.stderr.write(
 		`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
-			`Pass a prompt (\`${APP_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
+			`Pass a prompt (\`\${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
 	);
 	process.exit(2);
 }
@@ -347,6 +346,12 @@ export async function readPipedInput(): Promise<string | undefined> {
 // zero-output indefinite hangs (stuck discovery read, network wait, stdin
 // pipe) into self-diagnosing reports instead of "it just hangs" (see the
 // PI_DEBUG_STARTUP markers for the synchronous-hang counterpart).
+
+/**
+ * OTLP export is hard-off: Zeta runs no collector, so there is no switch that
+ * could turn it on. A merge must not replace this with a settings lookup.
+ */
+const TELEMETRY_EXPORT_ENABLED = false;
 
 const STARTUP_WATCHDOG_INTERVAL_MS = 10_000;
 let startupWatchdogTimer: NodeJS.Timeout | undefined;
@@ -899,7 +904,7 @@ async function runInteractiveMode(
 			await mode.maybeAutoCreateWorktree();
 		}
 
-		// `omp join <link>`: dispatch through the same builtin path as a typed
+		// `zetacode join <link>`: dispatch through the same builtin path as a typed
 		// `/join` so collab guards and error rendering stay in one place.
 		if (joinLink !== undefined) {
 			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
@@ -1103,7 +1108,7 @@ async function openRelocatedSession(
 		// Its directory is gone, so it cannot be resumed in place either.
 		throw new SessionResolutionError(
 			err.message,
-			"Close the session in the other omp process, then resume it again.",
+			"Close the session in the other zetacode process, then resume it again.",
 		);
 	}
 }
@@ -1255,7 +1260,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `zetacode models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -1368,7 +1373,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.messages.splice(messageIndex, 1);
 }
 const SESSION_NOT_FOUND_HINT =
-	"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.";
+	"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -2084,7 +2089,7 @@ export async function runRootCommand(
 		const autoPrint =
 			(pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
 		const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
-		// The TUI owns the Tern pane or cmux workspace it draws in; an omp its commands start sees the claim and
+		// The TUI owns the Tern pane or cmux workspace it draws in; an zetacode its commands start sees the claim and
 		// keeps its browser tabs out of this session's pane.
 		if (isInteractive) claimTerminal();
 		// Before session resolution: resume, fork, and import act on these same
@@ -2522,7 +2527,7 @@ export async function runRootCommand(
 		// read of a live store elsewhere in this process can corrupt it (issue #15586).
 		if (process.platform === "linux" && !ensureSqliteLockShim()) {
 			startupWarning(
-				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside omp (e.g. `grep -r ~/.zeta`, `cp ~/.zeta/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
+				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside zetacode (e.g. `grep -r ~/.zeta`, `cp ~/.zeta/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
 			);
 		}
 		const buildStartupSessionOptions = async (manager: SessionManager | undefined) => {
@@ -2557,16 +2562,9 @@ export async function runRootCommand(
 			clearPluginRootsCache: clearPluginRootsAndCaches,
 		};
 
-		// OTEL: unless `telemetry.otlpExportEnabled` is off, register global OTLP
-		// exporters when an endpoint is configured via env, then switch on the agent
-		// loop's telemetry hooks so traces, run-level metrics, and structured logs
-		// have source events to export. Content capture remains governed by
-		// OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
-		await logger.time(
-			"initTelemetryExport",
-			initTelemetryExport,
-			cfgTelemetryOtlpExportEnabled.get(settingsInstance),
-		);
+		// OTEL: export is hard-off (see TELEMETRY_EXPORT_ENABLED); Zeta never
+		// registers a collector. Content capture settings cannot turn it on.
+		await logger.time("initTelemetryExport", initTelemetryExport, TELEMETRY_EXPORT_ENABLED);
 		if (isTelemetryExportEnabled()) {
 			// Chat telemetry reports each request's provider-computed cost. A model
 			// without a known rate card reports an unavailable reason instead of $0.
@@ -2702,7 +2700,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `omp --list-models`) and invalid
+			// Fail fast on stale/typo flags (e.g. `zetacode --list-models`) and invalid
 			// built-in enum values now that we know the real extension flag set —
 			// an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
 			// neither can be judged by the pre-extension parse. Without this check
@@ -2981,7 +2979,7 @@ export async function runRootCommand(
 						for (const selector of suggestions) process.stderr.write(`  ${selector}\n`);
 					}
 					process.stderr.write(
-						`\nRun \`${APP_NAME} models find <pattern>\` to search, or \`${APP_NAME} models\` to list all.\n`,
+						`\nRun \`\${CLI_BIN_NAME} models find <pattern>\` to search, or \`\${CLI_BIN_NAME} models\` to list all.\n`,
 					);
 					process.exit(1);
 				}

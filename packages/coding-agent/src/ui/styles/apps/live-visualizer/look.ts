@@ -1,5 +1,5 @@
 /**
- * `omp.app.live`: the call panel in the terminal. A rounded border box (sharp
+ * `zeta.app.live`: the call panel in the terminal. A rounded border box (sharp
  * below four cells) around two spectrum rows and the transcript row (cut from
  * its start, in `accent`); the bottom edge carries the status and key hints
  * (` ● listening · ␣ mute · ⎋ end `, just the status when that does not fit)
@@ -39,7 +39,7 @@ function transcriptOf(card: UiNode): string {
 	return ((text?.props() as TspTextProps | undefined)?.spans ?? []).map(span => span.t).join("");
 }
 
-defineRolePainter("card", "omp.app.live", (node, cx): Block => {
+defineRolePainter("card", "zeta.app.live", (node, cx): Block => {
 	const theme = cx.theme;
 	const facts = (node.props() as { term?: LiveCardTerm }).term;
 	const phase = (facts?.phase ?? "connecting") as LivePhase;

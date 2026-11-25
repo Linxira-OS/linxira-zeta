@@ -82,7 +82,7 @@ const mainDoc = (): WatchdogConfigDoc => ({
 
 const userDoc = (): WatchdogConfigDoc => ({
 	advisors: [{ name: "User advisor", model: "ollama/llama-3.1-70b" }],
-	warnings: ["~/.omp/WATCHDOG.yml: advisor x dropped — no model"],
+	warnings: ["~/.zeta/WATCHDOG.yml: advisor x dropped — no model"],
 });
 
 /** A built overlay plus the fixture knobs steps turn. */

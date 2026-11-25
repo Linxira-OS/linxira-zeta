@@ -23,7 +23,7 @@ interface Observation {
 async function runScenario(scenario: Scenario): Promise<Observation> {
 	using temp = TempDir.createSync("@omp-auto-resume-model-");
 	const home = temp.join("home");
-	const agentDir = path.join(home, ".omp", "agent");
+	const agentDir = path.join(home, ".zeta", "agent");
 	const sourceDir = path.resolve(import.meta.dir, "../src");
 	const extension = temp.join("provider.ts");
 	await Bun.write(
@@ -150,7 +150,7 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 			PATH: process.env.PATH,
 			HOME: home,
 			USERPROFILE: home,
-			PI_CODING_AGENT_DIR: agentDir,
+			ZETA_CODING_AGENT_DIR: agentDir,
 			TMPDIR: process.env.TMPDIR,
 			TMP: process.env.TMP,
 			TEMP: process.env.TEMP,
@@ -232,13 +232,13 @@ describe("implicit auto-resume model restoration", () => {
 		async () => {
 			using temp = TempDir.createSync("@omp-auto-resume-warning-");
 			const home = temp.join("home");
-			const agentDir = path.join(home, ".omp", "agent");
+			const agentDir = path.join(home, ".zeta", "agent");
 			const sourceDir = path.resolve(import.meta.dir, "../src");
 			const env = {
 				PATH: process.env.PATH,
 				HOME: home,
 				USERPROFILE: home,
-				PI_CODING_AGENT_DIR: agentDir,
+				ZETA_CODING_AGENT_DIR: agentDir,
 				TZ: "Asia/Tokyo",
 				TERM: "xterm-256color",
 				OMP_TUI_NATIVE: "0",

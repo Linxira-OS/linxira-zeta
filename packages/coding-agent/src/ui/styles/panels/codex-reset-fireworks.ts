@@ -81,7 +81,7 @@ function sky(theme: Theme, width: number, height: number, frame: number): string
 	});
 }
 
-defineRolePainter("col", "omp.fireworks", (node, cx): Block => {
+defineRolePainter("col", "zeta.fireworks", (node, cx): Block => {
 	const theme = cx.theme;
 	const term = termOf<FireworksTerm>(node);
 	const screen = cx.height ?? term.rows ?? 36;

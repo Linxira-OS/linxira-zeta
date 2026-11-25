@@ -70,7 +70,7 @@ describe("working row session accent", () => {
 	const accent = (): string | undefined => {
 		const row = mode.shell.surface
 			.dock()
-			.map(node => find(node, "omp.working"))
+			.map(node => find(node, "zeta.working"))
 			.find(node => node !== undefined);
 		if (!row) throw new Error("expected the working row");
 		return (row.props() as { term?: { accent?: { main: string } } }).term?.accent?.main;

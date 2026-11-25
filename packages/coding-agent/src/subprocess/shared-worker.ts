@@ -6,7 +6,7 @@
  * worker ({@link SharedWorkerLaunch}); {@link connectSharedWorker} adopts a
  * live worker answering with the same launch tag, replaces a stale one, or
  * spawns one. Used by the tiny-model workers and the mnemopi embedding server
- * so their models are loaded once per machine instead of once per omp process.
+ * so their models are loaded once per machine instead of once per zetacode process.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -229,7 +229,7 @@ async function probeSharedWorker(endpoint: string, tag: string): Promise<ProbeRe
 }
 
 /**
- * Detach a worker so it outlives this omp process; its output goes to
+ * Detach a worker so it outlives this zetacode process; its output goes to
  * `logPath`, truncated first unless `append` (for a worker that may lose a
  * start race to a live one writing the same log).
  */

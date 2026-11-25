@@ -7,7 +7,7 @@
  *
  * The terminal shows the whole viewer in the bar's place: a framed,
  * scrolling stream with the counters above and the key hints below (the
- * `omp.debug.bar` look).
+ * `zeta.debug.bar` look).
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";

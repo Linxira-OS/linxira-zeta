@@ -30,7 +30,7 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
 
 - **Text/Whisper stack**: `@huggingface/transformers` (transformers.js) v4 running in a Bun
   worker, using the native `onnxruntime-node` backend by default. Phonon TTS runs
-  natively in `omp-natives` (no side install) inside an isolated worker; Parakeet uses `sherpa-onnx-node`.
+  natively in `zetacode-natives` (no side install) inside an isolated worker; Parakeet uses `sherpa-onnx-node`.
 - **Non-FHS distros (NixOS, and any host without `libstdc++.so.6` on the loader path)**: the
   on-demand `onnxruntime-node` / `sherpa-onnx-node` / `sharp` addons are prebuilt binaries that
   `dlopen` `libstdc++.so.6` and `libgcc_s.so.1`, and they carry their own `DT_RUNPATH`, so nothing in
@@ -208,9 +208,9 @@ The `speech` role accepts TTS catalog models and the `dictation` role accepts ST
 
 ### Text to speech
 
-| Selector       | Repository                            | Precision | Download | Notes                                   |
-| -------------- | ------------------------------------- | --------- | -------- | --------------------------------------- |
-| `local/phonon-31m` | `gradium/phonon-31m-en` (pinned revision) | GGUF q8 | ~68 MB (64.5 MB weights + 12 voice embeddings) | 24 kHz Phonon 31M, English only, native omp-natives TTS |
+| Selector           | Repository                                | Precision | Download                                       | Notes                                                   |
+| ------------------ | ----------------------------------------- | --------- | ---------------------------------------------- | ------------------------------------------------------- |
+| `local/phonon-31m` | `gradium/phonon-31m-en` (pinned revision) | GGUF q8   | ~68 MB (64.5 MB weights + 12 voice embeddings) | 24 kHz Phonon 31M, English only, native omp-natives TTS |
 
 Phonon voice selection remains independent of the model role. Set `tts.localVoice` for the `tts` tool and `speech.voice` for assistant-output vocalization. Available local voice ids are `harper` (default), `hadley`, `delia`, `everly` (American female), `easton`, `preston`, `miles`, `trevor` (American male), `maeve`, `bryony` (British female), `edwin`, and `hugh` (British male). Changing voices does not download another model. Speaking rate is likewise split: `tts.localSpeed` for the `tts` tool and `zetacode say`, `speech.speed` for vocalization (both default `1`, clamped to `0.8`–`1.3`). Legacy Kokoro voice settings migrate automatically (`af_*`→`harper`, `am_*`→`easton`, `bf_*`→`maeve`, `bm_*`→`edwin`).
 

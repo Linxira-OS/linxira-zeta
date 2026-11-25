@@ -37,7 +37,7 @@ export function fillRow(theme: Theme, key: string, row: string, width: number): 
 	return `${open}${padded.replace(BG_RESET, `$&${open}`)}\x1b[49m`;
 }
 
-const kResolved = Symbol("omp.messages.resolved-themes");
+const kResolved = Symbol("zeta.messages.resolved-themes");
 
 interface ResolvedHolder {
 	[kResolved]?: Map<string, Theme>;

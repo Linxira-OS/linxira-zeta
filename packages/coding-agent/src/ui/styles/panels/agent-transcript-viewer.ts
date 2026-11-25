@@ -1,5 +1,5 @@
 /**
- * The transcript viewer in the terminal (`card` role `omp.hub.transcript`),
+ * The transcript viewer in the terminal (`card` role `zeta.hub.transcript`),
  * filling the screen: a rule, the `Agent Hub · <id>` title and the agent's
  * meta, a rule, the transcript scrolled to the rows left (a scrollbar in the
  * last column when it overflows; it follows the end until scrolled up), then
@@ -174,7 +174,7 @@ function bodyWindow(
 	return out;
 }
 
-defineRolePainter("card", "omp.hub.transcript", (node, cx): Block => {
+defineRolePainter("card", "zeta.hub.transcript", (node, cx): Block => {
 	const model = termOf<{ model: AgentTranscriptViewerModel }>(node).model;
 	if (!model || cx.width <= 0) return EMPTY_BLOCK;
 	const theme = cx.theme;
@@ -193,7 +193,7 @@ defineRolePainter("card", "omp.hub.transcript", (node, cx): Block => {
 	if (stats) footer.push(stats);
 	footer.push(hintLine(theme, model));
 
-	const transcript = findNode(node, child => roleOf(child) === "omp.transcript");
+	const transcript = findNode(node, child => roleOf(child) === "zeta.transcript");
 	let lines = [` ${theme.fg("dim", sanitizeErrorLine(model.placeholder(), Math.max(10, content - 1)))}`];
 	if (transcript) {
 		const painted = transcriptRows(cx, transcript, content);
@@ -221,7 +221,7 @@ defineRolePainter("card", "omp.hub.transcript", (node, cx): Block => {
 	return { rows, hits: [{ row: 0, col: 0, width, height: rows.length, node }] };
 });
 
-defineRoleWidget("card", "omp.hub.transcript", {
+defineRoleWidget("card", "zeta.hub.transcript", {
 	mouse(node, mouse) {
 		const model = termOf<{ model: AgentTranscriptViewerModel }>(node).model;
 		if (!model || mouse.action !== "press") return false;

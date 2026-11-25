@@ -101,7 +101,7 @@ describe.skipIf(process.platform === "win32")("ssh_config ControlPath (#15974)",
 		const host = { name: "omp-test-15974-idle-host", host: "idle-host" };
 		await ensureConnection(host);
 		// The configured socket was empty at check time. Its owner later
-		// authenticates and starts a master before omp closes the host.
+		// authenticates and starts a master before zetacode closes the host.
 		await Bun.write(userMaster, "");
 		await closeConnection(host.name);
 

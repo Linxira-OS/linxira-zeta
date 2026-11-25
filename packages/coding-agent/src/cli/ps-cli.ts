@@ -1,8 +1,8 @@
 /**
- * CLI handler for `omp ps`: the board of the per-user omp daemon, inspected
+ * CLI handler for `zetacode ps`: the board of the per-user zetacode daemon, inspected
  * and controlled from outside the harness.
  *
- * A bare `omp ps` on a TTY opens the interactive alt-screen monitor
+ * A bare `zetacode ps` on a TTY opens the interactive alt-screen monitor
  * (`ui/apps/ps-top`); `--plain`, `--json`, and non-TTY outputs use the static
  * listing. Listing never starts the daemon (it reads the daemon's store when
  * none runs); actions (`info`, `logs`, `stop`, `kill`, `restart`, `send`,
@@ -160,9 +160,9 @@ function createPsTopHost(): PsTopHost {
 	};
 }
 
-/** The interactive monitor (`omp ps` on a TTY) until the user quits. */
+/** The interactive monitor (`zetacode ps` on a TTY) until the user quits. */
 function runPsTop(flags: PsCommandArgs["flags"], host: PsTopHost): Promise<void> {
-	return runStandalone({ title: "omp ps" }, screen => {
+	return runStandalone({ title: "zetacode ps" }, screen => {
 		const done = Promise.withResolvers<void>();
 		const model = new PsTopModel(host, {
 			all: flags.all,
@@ -186,7 +186,7 @@ export async function runPsCommand(cmd: PsCommandArgs): Promise<void> {
 			return;
 		}
 		if (!cmd.name) {
-			console.error(chalk.red(`${cmd.action} requires a unit name or id. Run \`omp ps\` to list units.`));
+			console.error(chalk.red(`${cmd.action} requires a unit name or id. Run \`zetacode ps\` to list units.`));
 			process.exitCode = 1;
 			return;
 		}

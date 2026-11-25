@@ -70,7 +70,7 @@ async function writeSubagent(
 	return file;
 }
 
-describe("restoreSession (omp --restore)", () => {
+describe("restoreSession (zetacode --restore)", () => {
 	const ids = ["Cut", "Done", "Killed"];
 	let tempDir: TempDir | undefined;
 	let manager: AsyncJobManager | undefined;

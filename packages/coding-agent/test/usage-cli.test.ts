@@ -1561,10 +1561,10 @@ describe("formatUsageBreakdown", () => {
 	it.each([
 		{
 			mode: "yes",
-			verdict: "→ an open interactive omp session spends it by its last 5 min if eligible then",
+			verdict: "→ an open interactive zetacode session spends it by its last 5 min if eligible then",
 			lost: false,
 		},
-		{ mode: "unset", verdict: "→ an open interactive omp session asks before spending it", lost: false },
+		{ mode: "unset", verdict: "→ an open interactive zetacode session asks before spending it", lost: false },
 		{ mode: "no", verdict: "→ not spent automatically", lost: true },
 	])(
 		"says what codexResets.autoRedeemWeekly=$mode does with a weekly-governed expiring reset",
@@ -1658,9 +1658,9 @@ describe("formatUsageBreakdown", () => {
 		expect(text).toContain(header);
 		expect(text).toContain(title);
 		expect(text).toContain(
-			`→ an open interactive omp session spends it by its last 5 min if eligible then  (claudeResets.autoRedeemWeekly: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
+			`→ an open interactive zetacode session spends it by its last 5 min if eligible then  (claudeResets.autoRedeemWeekly: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
 		);
-		// Only a reset the provider lets omp spend now gets a command that spends it.
+		// Only a reset the provider lets zetacode spend now gets a command that spends it.
 		expect(text.includes("/usage reset")).toBe(eligibleNow);
 	});
 
@@ -1705,7 +1705,7 @@ describe("formatUsageBreakdown", () => {
 		});
 		const text = stripVTControlCharacters(formatUsageBreakdown([report], [], now, undefined, [], undefined, options));
 		const verdict = text.match(
-			/→ an open interactive omp session spends it by its last 5 min if eligible then {2}\(claudeResets\.autoRedeem\w+: yes\)(.*)\n/,
+			/→ an open interactive zetacode session spends it by its last 5 min if eligible then {2}\(claudeResets\.autoRedeem\w+: yes\)(.*)\n/,
 		);
 		expect(verdict?.[1]).toBe(eligibleNow ? "" : " · not eligible now");
 		expect(text).not.toContain("will be lost");
@@ -1851,7 +1851,7 @@ describe("usage command configuration", () => {
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				PI_CODING_AGENT_DIR: tempDir.path(),
+				ZETA_CODING_AGENT_DIR: tempDir.path(),
 				PI_CONFIG_FILES: overlayPath,
 			},
 		});
@@ -1867,7 +1867,7 @@ describe("usage command configuration", () => {
 	});
 });
 
-describe("omp usage accounts", () => {
+describe("zetacode usage accounts", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -1930,7 +1930,7 @@ describe("omp usage accounts", () => {
 	});
 });
 
-describe("omp usage account policy", () => {
+describe("zetacode usage account policy", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
@@ -2099,7 +2099,7 @@ describe("omp usage account policy", () => {
 	});
 });
 
-describe("omp usage reset", () => {
+describe("zetacode usage reset", () => {
 	interface ResetRequest {
 		method: string;
 		path: string;
@@ -2130,7 +2130,7 @@ describe("omp usage reset", () => {
 	let listed: PromiseWithResolvers<void>;
 	let tempDir: TempDir;
 	const originalEnv = {
-		PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 		ZETA_PROFILE: process.env.ZETA_PROFILE,
 		PI_PROFILE: process.env.PI_PROFILE,
 	};
@@ -2275,7 +2275,7 @@ describe("omp usage reset", () => {
 		expect(text).toContain(`[Codex · openai-codex/${team}]: 2 saved, 2 usable now, expires ${soon}`);
 		expect(text).toContain(`spare@example.test [Codex · openai-codex/${spare}]: 0 saved, 0 usable now`);
 		expect(text).toContain(`dev@example.test · Acme Corp [Claude · anthropic/${claude}]: 1 saved, 1 usable now`);
-		expect(text).toContain("omp usage reset <provider>/<credential id>");
+		expect(text).toContain("zetacode usage reset <provider>/<credential id>");
 		expect(consumes()).toEqual([]);
 		expect(process.exitCode).toBe(0);
 	});
@@ -2479,7 +2479,9 @@ describe("omp usage reset", () => {
 		await run;
 
 		expect(consumes()).toEqual([]);
-		expect(stripVTControlCharacters(stderr)).toContain("another omp process spent a saved reset on this account");
+		expect(stripVTControlCharacters(stderr)).toContain(
+			"another zetacode process spent a saved reset on this account",
+		);
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -2509,7 +2511,7 @@ describe("omp usage reset", () => {
 		["codex/active", "no account is active"],
 		["gemini/1", 'Unknown reset provider "gemini"'],
 		["codex/999", 'No stored account matches "codex/999"'],
-		["codex", "Choose an account with `omp usage reset <provider>/<credential id>`"],
+		["codex", "Choose an account with `zetacode usage reset <provider>/<credential id>`"],
 	])("refuses %s without spending", async (target, message) => {
 		await runUsageCommand({ action: "reset", target, noExtensions: true });
 
@@ -2624,7 +2626,7 @@ describe("omp usage reset", () => {
 	});
 });
 
-describe("omp usage saved-reset expiry banner", () => {
+describe("zetacode usage saved-reset expiry banner", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});

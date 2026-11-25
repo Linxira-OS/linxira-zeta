@@ -6,7 +6,7 @@
  * staging wand); the commit composer docked below. A clean tree shows the
  * HEAD commit and its files instead. Text fields are live `input`/`editor`
  * nodes only while they own the keys. The terminal draws the whole sheet
- * through the `omp.app.git.side` look from the {@link SidebarModel}.
+ * through the `zeta.app.git.side` look from the {@link SidebarModel}.
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
 import type { TspSpan } from "@linxiraos/pi-wire";
@@ -66,7 +66,7 @@ function entryItem(entry: FileEntry, tree: boolean): JSXNode {
 				key={key}
 				label={[{ t: entry.name }]}
 				icon="folder"
-				role={`omp.app.git.dir-d${Math.min(entry.depth, 8)}`}
+				role={`zeta.app.git.dir-d${Math.min(entry.depth, 8)}`}
 				tone={entry.collapsed ? "muted" : undefined}
 			/>
 		);
@@ -88,7 +88,7 @@ function entryItem(entry: FileEntry, tree: boolean): JSXNode {
 			value={stats.length > 0 ? stats : undefined}
 			hint={[KIND_LETTER[file.kind]]}
 			tone={KIND_TONE[file.kind]}
-			role={`omp.app.git.file-d${tree ? Math.min(entry.depth ?? 0, 8) : 0}`}
+			role={`zeta.app.git.file-d${tree ? Math.min(entry.depth ?? 0, 8) : 0}`}
 			title={`${file.kind}: ${file.path}`}
 		/>
 	);
@@ -145,7 +145,7 @@ function Section(props: {
 			key={`${area}-head`}
 			justify="between"
 			align="center"
-			role={() => (on() ? "omp.app.git.sechead.on" : "omp.app.git.sechead")}
+			role={() => (on() ? "zeta.app.git.sechead.on" : "zeta.app.git.sechead")}
 		>
 			<row gap="xs" align="center" actions={{ click: `fold-${area}` }} title={() => (folded() ? "Show" : "Hide")}>
 				<icon name={() => (folded() ? "chev-r" : "chev")} />
@@ -279,7 +279,7 @@ function CommitForm(props: { readonly model: SidebarModel }): JSXNode {
 				<row
 					gap="xs"
 					align="center"
-					role={() => `omp.app.git.toggle${model.amend() ? ".set" : ""}${on("amend") ? ".on" : ""}`}
+					role={() => `zeta.app.git.toggle${model.amend() ? ".set" : ""}${on("amend") ? ".on" : ""}`}
 					actions={{ click: "amend" }}
 					title="Amend the previous commit"
 				>

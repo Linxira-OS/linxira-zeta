@@ -142,7 +142,7 @@ export class CleanseRun implements CleanseStatusBoard {
 					]
 				: [{ s: "success", t: "✓ " }, { t: `${check.label} ` }, { s: "success", t: "clean" }];
 		verdict.push({ s: "dim", t: ` · ${shortDuration(durationMs)}` });
-		this.#push({ spans: verdict, role: "omp.cleanse.verdict" });
+		this.#push({ spans: verdict, role: "zeta.cleanse.verdict" });
 	}
 	repairFinished(): void {
 		if (!this.#closed) this.repair$.set(undefined);
@@ -178,7 +178,7 @@ export class CleanseRun implements CleanseStatusBoard {
 				shortDuration(this.now() - (lane?.startedAt ?? this.now())),
 			];
 			this.#push({
-				role: "omp.cleanse.outcome",
+				role: "zeta.cleanse.outcome",
 				spans: [
 					{ s: "success", t: "✓ " },
 					{ t: `${outcome.name} ` },
@@ -191,7 +191,7 @@ export class CleanseRun implements CleanseStatusBoard {
 				.replace(/\s+/g, " ")
 				.trim();
 			this.#push({
-				role: "omp.cleanse.outcome",
+				role: "zeta.cleanse.outcome",
 				tone: "error",
 				spans: [
 					{ s: "error", t: "✗ " },

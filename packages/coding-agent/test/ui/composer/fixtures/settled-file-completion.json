@@ -6,13 +6,13 @@
 			"anchor": {
 				"caret": "line/input"
 			},
-			"role": "omp.autocomplete"
+			"role": "zeta.autocomplete"
 		},
 		"c": [
 			{
 				"k": "col",
 				"p": {
-					"role": "omp.select"
+					"role": "zeta.select"
 				},
 				"c": [
 					{

@@ -8,7 +8,7 @@ type UpdateMode = "auto" | "notify";
 
 export const updatesScene: SetupScene = {
 	id: "auto-update",
-	title: "Keep omp up to date",
+	title: "Keep zetacode up to date",
 	subtitle: "Choose how new releases reach you.",
 	step: "Updates",
 	minVersion: 3,
@@ -21,7 +21,7 @@ export const updatesScene: SetupScene = {
 					label: "1 Update automatically",
 					detail: "Installs in the background; the next launch runs it",
 				},
-				{ value: "notify", label: "2 Notify me", detail: "Show a notice on startup; run omp update yourself" },
+				{ value: "notify", label: "2 Notify me", detail: "Show a notice on startup; run zetacode update yourself" },
 			],
 			initial: context.host.autoUpdate ? "auto" : "notify",
 			commit: mode => context.host.saveAutoUpdate(mode === "auto"),

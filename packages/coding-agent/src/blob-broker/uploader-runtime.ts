@@ -25,7 +25,7 @@ export interface DestinationRuntimeConfig {
 
 /**
  * Environment and working directory of destination child processes (tunnels,
- * upload commands). Inside the omp daemon these come from the client that
+ * upload commands). Inside the zetacode daemon these come from the client that
  * opened the blob unit, never from the daemon's own environment.
  */
 export interface DestinationProcessContext {

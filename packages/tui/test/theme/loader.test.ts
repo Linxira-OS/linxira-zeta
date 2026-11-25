@@ -13,7 +13,7 @@ import {
 	type ThemeJson,
 } from "@linxiraos/pi-tui/theme/index";
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 let tempAgentDir: string;
 
 beforeEach(async () => {
@@ -22,8 +22,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-	if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-	else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+	if (originalAgentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+	else process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 	__resetDirsFromEnvForTests();
 	await removeWithRetries(tempAgentDir);
 });

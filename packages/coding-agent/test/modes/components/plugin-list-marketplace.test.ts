@@ -268,11 +268,11 @@ describe("marketplace plugin detail", () => {
 	it("shortens home-relative install paths to ~ before rendering", async () => {
 		spies.push(spyOn(PluginManager.prototype, "getPlugin").mockResolvedValue(undefined));
 		const home = os.homedir();
-		const installPath = `${home}/.omp/cache/plugins/sample@mkt`;
+		const installPath = `${home}/.zeta/cache/plugins/sample@mkt`;
 		const page = openPage({}, { kind: "mkt", plugin: marketplace("sample@mkt", { entry: { installPath } }) });
 		try {
-			const text = await page.until("~/.omp/cache/plugins/sample@mkt");
-			expect(text).toContain("~/.omp/cache/plugins/sample@mkt");
+			const text = await page.until("~/.zeta/cache/plugins/sample@mkt");
+			expect(text).toContain("~/.zeta/cache/plugins/sample@mkt");
 			expect(text).not.toContain(home);
 		} finally {
 			page.dispose();

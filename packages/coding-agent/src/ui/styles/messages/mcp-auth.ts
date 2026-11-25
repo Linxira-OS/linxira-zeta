@@ -1,5 +1,5 @@
 /**
- * The MCP OAuth fallback link (`col` role `omp.mcp.auth-link`): the prompt,
+ * The MCP OAuth fallback link (`col` role `zeta.mcp.auth-link`): the prompt,
  * a clickable `Click here to authorize` (OSC 8 when the terminal draws
  * hyperlinks), then the full URL as the `Copy URL:` target, and the local
  * `/launch` shortcut when there is one.
@@ -67,4 +67,4 @@ function paintAuthLink(node: UiNode, cx: PaintContext): Block {
 	return { rows: mcpAuthLinkRows(cx.theme, { url: term.url, launchUrl: term.launchUrl }, cx.width, cx.hyperlinks) };
 }
 
-defineRolePainter("col", "omp.mcp.auth-link", paintAuthLink);
+defineRolePainter("col", "zeta.mcp.auth-link", paintAuthLink);

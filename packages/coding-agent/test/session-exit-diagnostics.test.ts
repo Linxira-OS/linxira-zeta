@@ -261,7 +261,7 @@ describe("session exit diagnostics", () => {
 		if (!sessionFile) throw new Error("Expected a persisted session file");
 		await creator.close();
 
-		// Another live omp process writes the session, so it holds the ownership lease.
+		// Another live zetacode process writes the session, so it holds the ownership lease.
 		const ownerScript = tempDir.join("owner.ts");
 		await Bun.write(
 			ownerScript,

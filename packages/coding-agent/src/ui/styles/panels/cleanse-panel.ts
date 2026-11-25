@@ -35,15 +35,15 @@ function logLine(theme: Theme, spans: readonly TspSpan[]): string {
 function paintLogLine(node: UiNode, cx: PaintContext): Block {
 	return { rows: wrap(logLine(cx.theme, propsOf<TspTextProps>(node).spans ?? []), cx.width) };
 }
-defineRolePainter("text", "omp.cleanse.verdict", paintLogLine);
-defineRolePainter("text", "omp.cleanse.outcome", paintLogLine);
+defineRolePainter("text", "zeta.cleanse.verdict", paintLogLine);
+defineRolePainter("text", "zeta.cleanse.outcome", paintLogLine);
 
 function elapsedText(node: UiNode | undefined): string {
 	const age = node ? ((node.props() as { age?: number }).age ?? 0) : 0;
 	return formatDuration(age, "short");
 }
 
-defineRolePainter("col", "omp.cleanse.live", (node, cx): Block => {
+defineRolePainter("col", "zeta.cleanse.live", (node, cx): Block => {
 	const theme = cx.theme;
 	const frame = activityFrame(cx);
 	const dim = (text: string) => theme.fg("dim", text);
@@ -53,7 +53,7 @@ defineRolePainter("col", "omp.cleanse.live", (node, cx): Block => {
 			rows.push(`${theme.fg("warning", frame)} ${replaceTabs(plainText(propsOf<TspSpinnerProps>(child).label))}`);
 			continue;
 		}
-		if (roleOf(child) === "omp.cleanse.head") {
+		if (roleOf(child) === "zeta.cleanse.head") {
 			const [, meter, ...rest] = child.children();
 			const value = meter ? (propsOf<TspMeterProps>(meter).value ?? 0) : 0;
 			const filled = Math.round(value * BAR_CELLS);
@@ -70,7 +70,7 @@ defineRolePainter("col", "omp.cleanse.live", (node, cx): Block => {
 			rows.push(`${theme.fg("accent", frame)} Repairing ${bar} ${parts.join(dim(" · "))}`);
 			continue;
 		}
-		if (roleOf(child) === "omp.cleanse.lanes") {
+		if (roleOf(child) === "zeta.cleanse.lanes") {
 			for (const lane of child.children()) {
 				const props = propsOf<TspAgentProps>(lane);
 				const task = plainText(props.task);
@@ -89,4 +89,4 @@ defineRolePainter("col", "omp.cleanse.live", (node, cx): Block => {
 	return { rows: rows.flatMap(row => wrap(row, cx.width)) };
 });
 
-defineRolePainter("col", "omp.overlay.cleanse", paintSheet);
+defineRolePainter("col", "zeta.overlay.cleanse", paintSheet);

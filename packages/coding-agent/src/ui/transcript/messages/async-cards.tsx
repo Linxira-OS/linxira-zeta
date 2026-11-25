@@ -15,9 +15,9 @@
  * - `IrcMessageBlock` (`irc:*` custom messages) and `ParentIrcMessage` (a
  *   consumed parent steer): IRC cards; only the former hides with tool activity.
  *
- * Terminal looks: `omp.status-block` (`src/ui/styles/messages/notice.ts`),
- * `omp.activity` (`panel.ts`), the `omp.custom` frame (`frame.ts`) and the
- * `omp.irc.*` cards (`src/ui/styles/tools/irc.ts`).
+ * Terminal looks: `zeta.status-block` (`src/ui/styles/messages/notice.ts`),
+ * `zeta.activity` (`panel.ts`), the `zeta.custom` frame (`frame.ts`) and the
+ * `zeta.irc.*` cards (`src/ui/styles/tools/irc.ts`).
  */
 import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
 import { replaceTabs, truncate } from "@linxiraos/pi-tui/text/width";
@@ -133,7 +133,7 @@ export interface AsyncResultProps {
 
 /**
  * Finished background jobs. Without a renderer: the rows. With one: an
- * `omp.custom` frame around its output, or around the rows while it returns
+ * `zeta.custom` frame around its output, or around the rows while it returns
  * nothing or throws (the frame sets them one cell in, so they drop their own pad).
  */
 export function AsyncResult(props: AsyncResultProps): JSXNode {
@@ -291,7 +291,7 @@ const IRC_KINDS: Readonly<Record<string, IrcMessage["kind"]>> = {
 /** `details` of an `irc:*` custom message. */
 export interface IrcMessageDetails {
 	readonly from?: string;
-	/** Session title of a sender in another omp instance, shown in place of its pid `from`. */
+	/** Session title of a sender in another zetacode instance, shown in place of its pid `from`. */
 	readonly fromLabel?: string;
 	readonly to?: string;
 	/** The body of an `irc:incoming` message. */

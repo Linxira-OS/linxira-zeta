@@ -347,7 +347,7 @@ function mountScene(
 }
 
 /** The mounted scene view a body node holds (where its keyboard focus goes). */
-const kSceneView = Symbol("omp.setup.scene-view");
+const kSceneView = Symbol("zeta.setup.scene-view");
 
 interface BodyNode extends UiNode {
 	[kSceneView]?: SceneView;

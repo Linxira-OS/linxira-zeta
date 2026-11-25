@@ -1,6 +1,6 @@
 //! `combine` builtin: boolean set operations on the lines of two files.
 //!
-//! Ported from the moreutils-inspired in-process implementation in `omp-shell`.
+//! Ported from the moreutils-inspired in-process implementation in `zetacode-shell`.
 //! Keeping the utility in process lets it use the shell's scoped streams,
 //! working directory, and cancellation rather than spawning an external tool.
 //!

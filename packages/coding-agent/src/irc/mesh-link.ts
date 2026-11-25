@@ -1,7 +1,7 @@
 /**
  * Instance side of the agent mesh (see `mesh-protocol.ts`): joins the
  * project's daemon room, mirrors its roster, sends messages to agents of other
- * omp instances and hands theirs to the local {@link IrcBus}.
+ * zetacode instances and hands theirs to the local {@link IrcBus}.
  *
  * Bound to the interactive main session's settings by {@link bindAgentMesh};
  * without a daemon (or one lacking the `agents` module) the mesh stays empty
@@ -92,7 +92,7 @@ export class AgentMesh {
 			return Promise.resolve({
 				to: address,
 				outcome: "failed",
-				error: `No omp instance with pid ${to.pid} in this project.`,
+				error: `No zetacode instance with pid ${to.pid} in this project.`,
 			});
 		}
 		const id = crypto.randomUUID();

@@ -9,7 +9,7 @@ Prewalk is off by default. Its target is `prewalk.into`, which defaults to the m
 Enable prewalk persistently in the global config:
 
 ```bash
-omp config set prewalk.enabled true
+zetacode config set prewalk.enabled true
 ```
 
 The equivalent YAML in `~/.omp/agent/config.yml` or a project `.omp/config.yml` is:
@@ -38,9 +38,9 @@ The configured setting arms new sessions, not resumed/imported sessions. Explici
 For example:
 
 ```bash
-omp --prewalk
-omp --prewalk-into @smol
-omp --prewalk-into openai/gpt-5-mini
+zetacode --prewalk
+zetacode --prewalk-into @smol
+zetacode --prewalk-into openai/gpt-5-mini
 ```
 
 At startup, OMP resolves the target with the normal model-role and model-matching rules, trying configured role candidates in order for an authenticated, enabled provider. Extension-provided targets may resolve after extension registration. If no usable target remains, OMP prints a warning and starts with prewalk unarmed.
@@ -100,11 +100,11 @@ prewalk:
 
 `prewalk.autoTarget` (default `@smol`) takes a model pattern or role, resolved with the normal role and model-matching rules, including authentication.
 
-| `prewalk.auto`  | Behavior                                                                                                                                                                                             |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `off` (default) | No classification. An earlier automatic handoff is still returned from at the next task.                                                                                                             |
-| `suggest`       | Classifies each new task and reports the decision only. Never arms prewalk; an earlier automatic handoff is still returned from at the next task.                                                    |
-| `on`            | Classifies each new task. When the judge is confident the task fits and the target resolves with a usable credential, arms a handoff from the active model to the target; otherwise nothing changes. |
+| `prewalk.auto`  | Behavior                                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `off` (default) | No classification. An earlier automatic handoff is still returned from at the next task.                                                                                                                                                                     |
+| `suggest`       | Classifies each new task and reports the decision only. Never arms prewalk; an earlier automatic handoff is still returned from at the next task.                                                                                                            |
+| `on`            | Classifies each new task. When the judge is confident the task fits and the target resolves with a usable credential, arms a handoff from the active model to the target; otherwise nothing changes.                                                         |
 | `escalate`      | Like `on`, but a task the judge is confident about first moves to `prewalk.from` to plan, then hands off from it. When `prewalk.from` already is the active model and thinking level, this is `on`, except that `@initial` then has nothing to hand back to. |
 
 Run `suggest` for a while to see how it judges your prompts, then set `auto: on`. To plan on a stronger model, either make it your active (`@default`) model, or set it as `prewalk.from` and use `escalate`. The planning model does not have to be stronger; `escalate` plans on whatever `prewalk.from` names.

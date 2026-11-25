@@ -176,7 +176,7 @@ describe("/fork terminal placement", () => {
 		expect(request).toMatchObject({ multiplexer: "tmux", placement: "pane" });
 		const command = request?.command ?? [];
 		expect(command[0]).toBe("env");
-		expect(command).toContain("PI_CODING_AGENT_DIR=/user/agent");
+		expect(command).toContain("ZETA_CODING_AGENT_DIR=/user/agent");
 		expect(command).toContain("ZETA_PROFILE=active-profile");
 		expect(command).toContain("PI_PROFILE=active-profile");
 		expect(command.slice(command.indexOf("omp-entry") + 1)).toEqual([
@@ -275,7 +275,7 @@ describe("/fork terminal placement", () => {
 					TMUX_PANE: "%1",
 					ZETA_PROFILE: "stale-server-profile",
 					PI_PROFILE: "stale-server-profile",
-					PI_CODING_AGENT_DIR: "/stale/server/agent",
+					ZETA_CODING_AGENT_DIR: "/stale/server/agent",
 					PI_CONFIG_FILES: configFiles,
 					XDG_DATA_HOME: dataDir,
 					XDG_STATE_HOME: stateDir,
@@ -297,7 +297,7 @@ describe("/fork terminal placement", () => {
 		await controller.handleForkCommand("pane");
 
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
-		expect(command).toContain(`PI_CODING_AGENT_DIR=${agentDir}`);
+		expect(command).toContain(`ZETA_CODING_AGENT_DIR=${agentDir}`);
 		expect(command).toContain(`PI_CONFIG_FILES=${configFiles}`);
 		expect(command).toContain(`XDG_DATA_HOME=${dataDir}`);
 		expect(command).toContain(`XDG_STATE_HOME=${stateDir}`);

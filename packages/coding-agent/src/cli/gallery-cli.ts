@@ -1,5 +1,5 @@
 /**
- * `omp gallery` — render every built-in tool presenter across its lifecycle.
+ * `zetacode gallery` — render every built-in tool presenter across its lifecycle.
  *
  * For each tool with a registered presenter, the gallery drives the
  * transcript's real tool block ({@link ToolCall} + {@link ToolBlock}) through

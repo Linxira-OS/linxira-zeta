@@ -5,7 +5,7 @@
  * without a chart draw nothing; neither does a chart without room for
  * {@link CHART_MIN_ROWS} rows.
  *
- * Terminal look: `src/ui/styles/figures/figure.ts` (`omp.figure.chart`).
+ * Terminal look: `src/ui/styles/figures/figure.ts` (`zeta.figure.chart`).
  */
 import { computed, effect, type JSXNode, type Reactive, read, untrack } from "@linxiraos/pi-tui";
 import { lexMarkdown, type Tokens } from "@linxiraos/pi-tui/text/markdown/lexer";

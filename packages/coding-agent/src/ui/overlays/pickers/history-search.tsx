@@ -177,7 +177,7 @@ export function HistorySearch(props: HistorySearchProps): JSXNode {
 		for (const entry of results()) prompts[entryKey(entry)] = entry.prompt.replace(/\s+/g, " ").trim();
 		const query = resultsQuery();
 		return {
-			look: "omp.history",
+			look: "zeta.history",
 			title: "History",
 			field: line(),
 			prompts,

@@ -161,7 +161,7 @@ describe("worker model registry mirror", () => {
 	let probe: MirrorProbe;
 
 	beforeEach(async () => {
-		dir = path.join(os.tmpdir(), `omp-registry-mirror-${Snowflake.next()}`);
+		dir = path.join(os.tmpdir(), `zetacode-registry-mirror-${Snowflake.next()}`);
 		fs.mkdirSync(dir, { recursive: true });
 		authStorage = createInMemoryAuthStorage();
 		const modelsPath = path.join(dir, "models.yml");

@@ -10,7 +10,7 @@
  * collapsed card's note rows are capped at `collapsedLines`
  * (`display.advisorCollapsedLines`; 0 keeps the whole preview).
  *
- * Terminal look: `omp.advisor` (`src/ui/styles/messages/advisor.ts`): an
+ * Terminal look: `zeta.advisor` (`src/ui/styles/messages/advisor.ts`): an
  * `ⓘ Advisor` tag with the note count, then each note on a rail tinted by
  * its severity.
  */

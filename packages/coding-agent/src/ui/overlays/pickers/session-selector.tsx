@@ -73,7 +73,7 @@ export interface SessionSelectorProps {
 	readonly terminalRows?: Reactive<number>;
 	/** Stretch the terminal frame to `terminalRows`, its key hints pinned at the bottom (the fullscreen picker). */
 	readonly fillHeight?: boolean;
-	/** The picker is the whole program (`omp --resume`): Tern draws it filling the screen, not as a sheet. */
+	/** The picker is the whole program (`zetacode --resume`): Tern draws it filling the screen, not as a sheet. */
 	readonly standalone?: boolean;
 	/** Host lock while a picked session resumes (input is ignored). */
 	readonly locked?: () => boolean;
@@ -629,7 +629,7 @@ export function SessionSelector(props: SessionSelectorProps): JSXNode {
 		const choice = confirmDelete();
 		const dialog = rename();
 		return {
-			look: "omp.sessions",
+			look: "zeta.sessions",
 			title:
 				props.title ??
 				`Resume Session (${props.scopeLabel ?? (scope() === "all" ? "all projects" : "current folder")})`,

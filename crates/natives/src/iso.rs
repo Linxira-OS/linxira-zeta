@@ -1,4 +1,4 @@
-//! napi shim for the `omp-iso` PAL.
+//! napi shim for the `zetacode-iso` PAL.
 //!
 //! Mirrors [`omp_iso::IsolationBackend`] across the FFI boundary:
 //!

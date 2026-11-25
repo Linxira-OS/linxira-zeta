@@ -5,7 +5,7 @@
  */
 export const DOWNLOAD_PAIRING_MS = 5_000;
 /**
- * How long a pair outlives its completed download. omp looks the file up as soon as the page reports the completion, so
+ * How long a pair outlives its completed download. zetacode looks the file up as soon as the page reports the completion, so
  * a pair still here after this belongs to a tab that went away first.
  */
 export const DOWNLOAD_LOOKUP_MS = 60_000;
@@ -14,7 +14,7 @@ export const DOWNLOAD_LOOKUP_MS = 60_000;
  * Pairs a driven page's download reports (`Page.downloadWillBegin`, named by guid) with Chrome's download items
  * (`chrome.downloads.onCreated`, named by id). Neither names the other, but Chrome reports a download to the page's
  * debugger right before it announces the item, so an item pairs with the oldest recent report of its URL. A download
- * in a tab omp does not drive has no report and pairs with nothing; if Chrome ever announced an item first, its lookup
+ * in a tab zetacode does not drive has no report and pairs with nothing; if Chrome ever announced an item first, its lookup
  * would find no pair and fail rather than name another download's file.
  */
 export class DownloadPairing {

@@ -1,5 +1,5 @@
 /**
- * omp settings every metaharness launch path pins, so a run measures the model on
+ * Zeta settings every metaharness launch path pins, so a run measures the model on
  * its task alone: no messaging with other omp instances, no `report_issue` tool,
  * no marketplace update checks, and no model name in the system prompt.
  *

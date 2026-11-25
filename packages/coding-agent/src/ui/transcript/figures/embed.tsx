@@ -10,7 +10,7 @@
  * (with why it is not shown where the terminal draws images). With images
  * off nothing is loaded.
  *
- * Terminal look: `src/ui/styles/figures/figure.ts` (`omp.embed`).
+ * Terminal look: `src/ui/styles/figures/figure.ts` (`zeta.embed`).
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

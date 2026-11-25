@@ -1,9 +1,9 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The status line: a `status` bar (`omp.status`) of the configured segments
+ * The status line: a `status` bar (`zeta.status`) of the configured segments
  * — preset or custom, each a `seg` keyed by its id with its side and drop
- * priority — and the extension statuses under it (`omp.status.hook`), in an
- * `omp.status.panel` column.
+ * priority — and the extension statuses under it (`zeta.status.hook`), in an
+ * `zeta.status.panel` column.
  *
  * Drop order follows the bar's terminal behaviour: the right group yields
  * before the left, each from its outer end; the session title truncates
@@ -153,7 +153,7 @@ export interface StatusChrome {
 	bottomBar(cx: PaintContext, groups: "full" | "left", width: number): string;
 }
 
-/** Terminal look facts of a top attachment (`omp.status.top`). */
+/** Terminal look facts of a top attachment (`zeta.status.top`). */
 export type StatusTopLook = {
 	readonly attachment: StatusAttachment;
 	/** The bar's segments. */
@@ -171,7 +171,7 @@ export type StatusTopLook = {
 	readonly faint: boolean;
 };
 
-/** Terminal look facts of a bar (`omp.status`). */
+/** Terminal look facts of a bar (`zeta.status`). */
 export type StatusBarLook = {
 	readonly groups: "both" | "left";
 	/** Segments of another bar to draw (the chrome's bars borrow the panel's). */
@@ -271,7 +271,7 @@ export function createStatusLine(props: StatusLineProps): {
 						return (
 							<seg
 								key={key}
-								role={`omp.status.${key}`}
+								role={`zeta.status.${key}`}
 								side={() => seg()?.side}
 								priority={() => seg()?.priority}
 								min={() => {

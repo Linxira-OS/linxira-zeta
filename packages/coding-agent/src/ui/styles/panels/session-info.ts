@@ -17,7 +17,7 @@ interface InfoTerm {
 /** Rows around the body: top border, rule, hint, bottom border. */
 const CHROME = 4;
 
-defineRolePainter("col", "omp.info", (node, cx): Block => {
+defineRolePainter("col", "zeta.info", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 6) return EMPTY_BLOCK;
 	const term = termOf<InfoTerm>(node);

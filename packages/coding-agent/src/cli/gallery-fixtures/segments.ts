@@ -1,5 +1,5 @@
 /**
- * `omp gallery --surface segment`: every status-line segment alone on a bar,
+ * `zetacode gallery --surface segment`: every status-line segment alone on a bar,
  * in the variants that change how it reads, over the gallery session's
  * status facts.
  */
@@ -91,12 +91,12 @@ function variantsFor(id: StatusLineSegmentId): readonly SegmentVariantSpec[] {
 		}
 		case "path":
 			return [
-				{ label: "workspace path", facts: { activeRepoRoot: "oh-my-pi" } },
+				{ label: "workspace path", facts: { activeRepoRoot: "zeta" } },
 				{
 					label: "linked worktree",
 					options: { path: { stripWorkPrefix: true } },
 					facts: {
-						worktree: { projectName: "oh-my-pi", worktreeName: "gallery-reference" },
+						worktree: { projectName: "zeta", worktreeName: "gallery-reference" },
 						git: { branch: "gallery-reference", status: null, pr: null },
 					},
 				},

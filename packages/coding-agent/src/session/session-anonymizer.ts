@@ -2,9 +2,9 @@
  * Allowlist anonymizer for session JSONL files.
  *
  * Every field is exported by an explicit rule in {@link FIELD_RULES}: usage, timing, models, ids,
- * tool names, and other metadata omp writes are kept; turn contents become size-annotated markers;
+ * tool names, and other metadata zetacode writes are kept; turn contents become size-annotated markers;
  * paths become mock paths; shell commands keep program names and flags. A field without a rule —
- * and every payload omp does not define (extension/MCP data, non-built-in tool details or args,
+ * and every payload zetacode does not define (extension/MCP data, non-built-in tool details or args,
  * `eval` display output) — becomes an opaque marker under a tokenized key. Nothing is kept because
  * of how a value looks.
  *
@@ -27,7 +27,7 @@ export const ANONYMIZED_REVIEW_NOTE =
 	"Turn contents and error text are redacted and paths/literals replaced; metadata such as model names is kept — review before sharing.";
 
 /**
- * Export rule for a field omp writes. Numbers, booleans, and null under any rule except `opaque`
+ * Export rule for a field zetacode writes. Numbers, booleans, and null under any rule except `opaque`
  * and `label` are kept (counts, sizes, timings, flags).
  * - `num`: numeric/flag field; a string there is redacted.
  * - `time`: ISO timestamp or epoch ms.
@@ -37,7 +37,7 @@ export const ANONYMIZED_REVIEW_NOTE =
  * - `path`/`cmd`: mock paths / shell rewrite. `text`: redaction marker. `label`: placeholder.
  * - `error`: redacted except a leading HTTP status.
  * - `tool`/`name`/`customType`: code-chosen identifiers kept; MCP (user-configured) names tokenized.
- * - `content`: string or content blocks. `struct`: nested omp structure.
+ * - `content`: string or content blocks. `struct`: nested zetacode structure.
  * - `args`/`details`/`data`: tool-call args, tool-result details, custom-entry data — walked only
  *   for built-in tools / omp's own entries, otherwise opaque.
  * - `runtime`: the build stamp; version and commit kept, branch/diff/label tokenized.
@@ -81,7 +81,7 @@ function fields(rule: Rule, keys: readonly string[]): Record<string, Rule> {
 	return Object.fromEntries(keys.map(key => [key, rule]));
 }
 
-/** Every field omp writes in session records, messages, content blocks, and built-in tool details. */
+/** Every field zetacode writes in session records, messages, content blocks, and built-in tool details. */
 const FIELD_RULES: Record<string, Rule> = {
 	...fields("num", [
 		"version",
@@ -1626,7 +1626,7 @@ export class SessionAnonymizer {
 							.map(part => this.#string("agent", part.trim(), key, fromTool))
 							.join(",");
 			case "id":
-				// Machine-minted ids omp writes stay joinable with provider logs; tool-written and named
+				// Machine-minted ids zetacode writes stay joinable with provider logs; tool-written and named
 				// ids (subagent names) are mapped like the `agent://` segment they mirror.
 				return !fromTool && RANDOM_ID.test(value) ? value : this.segment(value);
 			case "path":

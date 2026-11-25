@@ -443,10 +443,10 @@ export const getModelsConfigSchemaBundle = once(() => {
 		 */
 		"requestMetadata?": { "[string]": "string" },
 		/**
-		 * Streaming transport override. When set to `"pi-native"`, omp dispatches
+		 * Streaming transport override. When set to `"pi-native"`, zetacode dispatches
 		 * every model under this provider via the auth-gateway's
 		 * `POST /v1/pi/stream` endpoint instead of the per-provider SDK. The
-		 * provider's `baseUrl` must point at a compatible `omp auth-gateway`
+		 * provider's `baseUrl` must point at a compatible `zetacode auth-gateway`
 		 * and `apiKey` must carry the gateway bearer. The provider's model list
 		 * comes from the gateway's `GET /v1/pi/models`.
 		 */

@@ -127,7 +127,7 @@ function paintWrite(node: UiNode, cx: PaintContext): Block {
 	const children = node.children();
 	const lines: string[] = [];
 	if (failed) {
-		const error = children.find(child => (child.props() as { role?: string }).role === "omp.tool.error");
+		const error = children.find(child => (child.props() as { role?: string }).role === "zeta.tool.error");
 		lines.push(errorDetail(theme, error ? nodePlain(error) : ""));
 	} else {
 		const source = children.find(child => child.kind === "code");
@@ -320,12 +320,12 @@ function paintCard(node: UiNode, cx: PaintContext): Block {
 			role?: string;
 			spans?: readonly TspSpan[];
 		};
-		if (child.kind === "list" && childProps.role === "omp.tool.proc.cancelled")
+		if (child.kind === "list" && childProps.role === "zeta.tool.proc.cancelled")
 			rows.push(...cancelledRows(cx, child));
 		else if (child.kind === "list") rows.push(...receiptRows(theme, child, expanded));
-		else if (childProps.role === "omp.tool.proc.preview")
+		else if (childProps.role === "zeta.tool.proc.preview")
 			rows.push(...quoteRows(theme, nodePlain(child), expanded, message ? cx.width : undefined));
-		else if (childProps.role === "omp.tool.error") rows.push(errorDetail(theme, nodePlain(child)));
+		else if (childProps.role === "zeta.tool.error") rows.push(errorDetail(theme, nodePlain(child)));
 		else if (nodeStyle(child) === "muted" && childProps.spans?.length === 1)
 			rows.push(theme.fg("muted", nodePlain(child)));
 		else rows.push(`  ${looseSpans(theme, childProps.spans ?? [])}`);

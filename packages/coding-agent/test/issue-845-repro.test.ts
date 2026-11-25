@@ -6,7 +6,7 @@ import { removeSyncWithRetries, symlinkDirectorySync } from "@linxiraos/pi-utils
 import { resolveUpdateMethodForTest } from "@linxiraos/zeta/cli/update-cli";
 
 // Issue #845: on Windows with Bun installed via Scoop, ~/.bun is a junction
-// to scoop\persist\Oven-sh.Bun\.bun. `bun pm bin -g` and the omp path that
+// to scoop\persist\Oven-sh.Bun\.bun. `bun pm bin -g` and the zetacode path that
 // $which finds may end up referring to the same directory through different
 // path strings (one through the junction, one through the real target).
 // `isPathInDirectory` did purely lexical comparison via path.resolve, which
@@ -38,14 +38,14 @@ describe("issue-845: resolveUpdateMethod follows symlinks/junctions", () => {
 		removeSyncWithRetries(tmpRoot);
 	});
 
-	it("classifies omp reached through a symlinked bin dir as bun-managed", () => {
+	it("classifies zetacode reached through a symlinked bin dir as bun-managed", () => {
 		// $which resolves through the symlink, `bun pm bin -g` returns the real path
 		// (or vice versa). Either direction must be recognized.
 		const method = resolveUpdateMethodForTest(ompPathViaLink, realBinDir);
 		expect(method).toBe("bun");
 	});
 
-	it("classifies omp at the real bin dir as bun-managed when bunBinDir is symlinked", () => {
+	it("classifies zetacode at the real bin dir as bun-managed when bunBinDir is symlinked", () => {
 		const ompAtReal = path.join(realBinDir, "omp");
 		const method = resolveUpdateMethodForTest(ompAtReal, linkedBinDir);
 		expect(method).toBe("bun");

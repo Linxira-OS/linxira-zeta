@@ -3,14 +3,14 @@
  *
  * An interactive launch hands its update check to {@link runAutoUpdate}. When
  * the check finds a newer release, the launch spawns a detached worker
- * (`__zeta_worker_auto_update`) that installs it exactly as `omp update` would,
+ * (`__zeta_worker_auto_update`) that installs it exactly as `zetacode update` would,
  * through whatever owns the install (build-service binary, bun, npm, Homebrew,
  * mise), while the launch shows the progress after the welcome banner's version
  * label. The worker outlives the session, so quitting mid-download never
  * strands a half-run package manager; the next launch simply starts the new
  * build.
  *
- * One status file (`~/.omp/update/auto-update.json`) connects them. Only the
+ * One status file (`~/.zeta/update/auto-update.json`) connects them. Only the
  * worker holding its lock writes it, and the OS drops that lock when the worker
  * exits, so "lock held" is how any launch knows a worker is running: it follows
  * that worker instead of starting another, and reads the outcome once the lock
@@ -19,9 +19,9 @@
  * notice.
  *
  * Running sessions keep their files: a binary install renames the running
- * `omp.exe` aside (Windows permits that for a mapped image, not an overwrite)
+ * `zeta.exe` aside (Windows permits that for a mapped image, not an overwrite)
  * and leaves the backup to a later sweep, and the natives loader runs each
- * release's `.node` from a per-version copy under `~/.omp/natives/`, so bun and
+ * release's `.node` from a per-version copy under `~/.zeta/natives/`, so bun and
  * npm can replace the `node_modules` copy an old session would otherwise lock.
  */
 import * as fs from "node:fs/promises";
@@ -102,7 +102,7 @@ type StateUpdate = Omit<AutoUpdateState, "at" | "target">;
 export interface AutoUpdateSinks {
 	/** Show, or with `null` clear, the indicator after the welcome banner's version. */
 	show(update: VersionUpdate | null): void;
-	/** Fall back to the startup notice that tells the user to run `omp update`. */
+	/** Fall back to the startup notice that tells the user to run `zetacode update`. */
 	notify(version: string): void;
 }
 
@@ -190,7 +190,7 @@ export function shouldStartWorker(last: AutoUpdateState | undefined, target: str
  * Launch side of auto-update. Follows a worker another launch already runs;
  * otherwise, once `check` resolves to a newer version, starts a worker, unless
  * a recent attempt at that version finished: then it shows that attempt's
- * install as ready, or after a failure the startup notice. Where omp cannot
+ * install as ready, or after a failure the startup notice. Where zetacode cannot
  * update itself (Tern, Nix, a source checkout) the check only feeds the notice.
  * Resolves when the worker ends or nothing needs doing; never throws.
  */
@@ -344,7 +344,7 @@ async function settle(outcome: UpdateOutcome): Promise<StateUpdate> {
 
 /**
  * Worker entry (`__zeta_worker_auto_update`): install the newest release the
- * way `omp update` would, mirroring progress into the status file, and record
+ * way `zetacode update` would, mirroring progress into the status file, and record
  * the outcome. Exits at once when another worker holds the status lock.
  */
 export async function runAutoUpdateWorker(): Promise<never> {
@@ -357,7 +357,7 @@ export async function runAutoUpdateWorker(): Promise<never> {
 	const writer = new StatusWriter(file, process.env[TARGET_ENV] || undefined);
 	const finish = async (update: StateUpdate): Promise<never> => {
 		await writer.put(update);
-		// stdout is the worker log (`auto-update.log`), after `omp update`'s own output.
+		// stdout is the worker log (`auto-update.log`), after `zetacode update`'s own output.
 		console.log(["auto-update:", update.phase, update.version, update.error].filter(Boolean).join(" "));
 		lock.release();
 		process.exit(update.phase === "failed" ? 1 : 0);

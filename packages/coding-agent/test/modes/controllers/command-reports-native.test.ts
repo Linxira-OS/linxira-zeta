@@ -69,7 +69,7 @@ describe("command reports in Tern", () => {
 
 		const { overlay, content } = app.sheet();
 		expect(overlay.p).toEqual({
-			role: "omp.overlay.report",
+			role: "zeta.overlay.report",
 			head: "Available Tools",
 			anchor: "center",
 			size: "lg",
@@ -79,7 +79,7 @@ describe("command reports in Tern", () => {
 		expect(content.p).toEqual({ gap: "md" });
 		const body = ui.node("col", "body");
 		expect(body.parent).toBe(content.id);
-		expect(body.p.role).toBe("omp.report.body");
+		expect(body.p.role).toBe("zeta.report.body");
 		const markdown = ui.get(body.c[0]!);
 		expect(markdown.k).toBe("md");
 		expect(String(markdown.p.text)).toContain("| `read` | Reads a file |");
@@ -98,7 +98,7 @@ describe("command reports in Tern", () => {
 		app.controller().showCommandReport({ title: "MCP Server Management", body: () => reportTextView(text) });
 
 		const { overlay } = app.sheet();
-		expect(overlay.p).toMatchObject({ role: "omp.overlay.report", head: "MCP Server Management" });
+		expect(overlay.p).toMatchObject({ role: "zeta.overlay.report", head: "MCP Server Management" });
 		const report = ui.get(ui.node("col", "body").c[0]!);
 		expect(report.k).toBe("text");
 		expect(report.p).toEqual({
@@ -117,7 +117,7 @@ describe("command reports in Tern", () => {
 		const { ui } = app;
 		await app.controller().handleChangelogCommand("last");
 
-		expect(app.sheet().overlay.p).toMatchObject({ role: "omp.overlay.report", head: "Last Release" });
+		expect(app.sheet().overlay.p).toMatchObject({ role: "zeta.overlay.report", head: "Last Release" });
 		const markdown = String(ui.get(ui.node("col", "body").c[0]!).p.text);
 		expect(markdown).not.toContain("\x1b");
 		expect(markdown.endsWith("Use /changelog full to view the complete changelog.")).toBe(true);
@@ -132,7 +132,7 @@ describe("command reports in Tern", () => {
 		const { overlay, content } = app.sheet();
 		// The peer is a narrow pane (under 100 columns): a centered sheet this tall fills it.
 		expect(overlay.p).toEqual({
-			role: "omp.overlay.hotkeys",
+			role: "zeta.overlay.hotkeys",
 			head: "Keyboard shortcuts",
 			anchor: "center",
 			size: "full",
@@ -144,12 +144,12 @@ describe("command reports in Tern", () => {
 			["section", "Navigation"],
 			["section", "Editing"],
 			["section", "Other"],
-			["row", "omp.actions"],
+			["row", "zeta.actions"],
 		]);
 		const navigation = ui.get(groups[0]!.c[0]!);
 		expect(navigation.k).toBe("table");
 		expect(navigation.p).toMatchObject({
-			role: "omp.hotkeys.table",
+			role: "zeta.hotkeys.table",
 			cols: [
 				{ id: "keys", head: "Key" },
 				{ id: "action", head: "Action", grow: 1 },
@@ -186,7 +186,7 @@ describe("command reports in Tern", () => {
 		ui.click("button", "close");
 		expect(ui.shell.overlays.open()).toBe(false);
 		command.handleHotkeysCommand();
-		expect(ui.node("overlay").p.role).toBe("omp.overlay.hotkeys");
+		expect(ui.node("overlay").p.role).toBe("zeta.overlay.hotkeys");
 		pressKey(ui.shell, "escape");
 		expect(ui.shell.overlays.open()).toBe(false);
 		ui.type("next");
@@ -232,7 +232,7 @@ describe("command reports in Tern", () => {
 
 			const { overlay, content } = app.sheet();
 			expect(overlay.p).toEqual({
-				role: "omp.overlay.report",
+				role: "zeta.overlay.report",
 				head: [
 					{ t: "Context", s: "strong" },
 					{ t: ` · ${session.model?.name}`, s: "muted" },
@@ -242,7 +242,7 @@ describe("command reports in Tern", () => {
 				size: "full",
 				modal: true,
 			});
-			expect(content.p.role).toBe("omp.context");
+			expect(content.p.role).toBe("zeta.context");
 
 			// The system prompt holds one block: activating it opens that entry, titled by its category.
 			const categories = ui.node("list", "categories");

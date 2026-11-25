@@ -1,5 +1,5 @@
 /**
- * Terminal look of the composer-shape preview (`omp.preview.composer-shape`):
+ * Terminal look of the composer-shape preview (`zeta.preview.composer-shape`):
  * a blank row, a muted `Preview:`, then the shape's chrome around the prompt
  * (caret at its end) at the width given (at least 24 cells) — the status in
  * its top chrome as the shape attaches it — and the shape's bottom status
@@ -108,4 +108,4 @@ function paintPreview(node: UiNode, cx: PaintContext): Block {
 	return { rows: ["", cx.theme.style("muted", "Preview:"), ...rows] };
 }
 
-defineRolePainter("col", "omp.preview.composer-shape", paintPreview);
+defineRolePainter("col", "zeta.preview.composer-shape", paintPreview);

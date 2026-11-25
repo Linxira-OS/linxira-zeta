@@ -4,7 +4,7 @@
 //! One `ProcInfo` per platform, each exposing the same accessors so the
 //! builtins above stay platform-agnostic. The platform queries themselves —
 //! procfs parsing, pidfds, libproc, Toolhelp, process handles — live in
-//! [`sys`], which `omp-shell`'s identity-pinned process references
+//! [`sys`], which `zetacode-shell`'s identity-pinned process references
 //! (`omp_shell::proctree`) are built on too, so each query has one
 //! implementation and a platform fix lands once.
 
@@ -17,7 +17,7 @@ use std::time::Duration;
 
 /// Whether a process reference is still live.
 ///
-/// Shared by the process-table snapshots here and by `omp-shell`'s own
+/// Shared by the process-table snapshots here and by `zetacode-shell`'s own
 /// session/teardown process management, which re-exports this type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProcessStatus {

@@ -443,10 +443,10 @@ describe("tray items", () => {
 		model.items.set([restored as TrayAgentItem]);
 		const card = children(describeTray(model))[0];
 		expect(children(children(card)[0]).map(role)).toEqual([
-			"omp.tray.dot",
-			"omp.tray.name",
-			"omp.tray.time",
-			"omp.tray.tools",
+			"zeta.tray.dot",
+			"zeta.tray.name",
+			"zeta.tray.time",
+			"zeta.tray.tools",
 		]);
 		expect(children(children(card)[0])[2]!.p).toMatchObject({
 			age: 95_000,
@@ -749,7 +749,7 @@ describe("TrayFeed", () => {
 
 	const refs = (root: NativeNode): unknown[] =>
 		children(root)
-			.filter(node => role(node) === "omp.tray.card")
+			.filter(node => role(node) === "zeta.tray.card")
 			.map(node => node.p && Reflect.get(node.p, "ref"));
 
 	it("routes each event: open, stop, dismiss and the jobs sheet; the done card and `agents.open` open nothing", () => {
@@ -805,16 +805,16 @@ describe("TrayFeed", () => {
 		const { tray } = setup(f);
 		tray.describe();
 		tray.act("tray.peek", "nobody");
-		expect(children(tray.describe()).some(node => role(node) === "omp.tray.peek")).toBe(false);
+		expect(children(tray.describe()).some(node => role(node) === "zeta.tray.peek")).toBe(false);
 
 		tray.act("tray.peek", "bg_2");
 		const look = children(tray.describe()).at(-1);
-		expect(look?.p).toMatchObject({ role: "omp.tray.peek", ref: "bg_2" });
+		expect(look?.p).toMatchObject({ role: "zeta.tray.peek", ref: "bg_2" });
 		expect(JSON.stringify(look)).toContain('"tray.dismiss=bg_2"');
 
 		f.consumed.add("bg_2");
 		const root = tray.describe();
-		expect(children(root).some(node => role(node) === "omp.tray.peek")).toBe(false);
+		expect(children(root).some(node => role(node) === "zeta.tray.peek")).toBe(false);
 		expect(root.p && Reflect.get(root.p, "peek")).toBeUndefined();
 	});
 
@@ -835,7 +835,7 @@ describe("TrayFeed", () => {
 			resultText: "ok",
 		});
 		expect(tray.describe().p).toMatchObject({
-			role: "omp.tray",
+			role: "zeta.tray",
 			quiet: true,
 			main: "working",
 		});
@@ -874,7 +874,7 @@ describe("TrayFeed", () => {
 
 		tray.act("tray.peek", "Openable");
 		const look = children(tray.describe()).at(-1)!;
-		expect(look.p).toMatchObject({ role: "omp.tray.peek", ref: "Openable" });
+		expect(look.p).toMatchObject({ role: "zeta.tray.peek", ref: "Openable" });
 		expect(
 			children(children(look)[0])
 				.filter(node => node.k === "button")
@@ -940,7 +940,7 @@ describe("TrayFeed", () => {
 			bg_3: undefined,
 		});
 		tray.act("tray.peek", "bg_2");
-		expect(children(tray.describe()).some(node => role(node) === "omp.tray.peek")).toBe(false);
+		expect(children(tray.describe()).some(node => role(node) === "zeta.tray.peek")).toBe(false);
 		// Its menu works without a closer look.
 		tray.act("tray.stop", "bg_2");
 		expect(host.cancelJob).toHaveBeenCalledWith("bg_2");
@@ -990,7 +990,7 @@ describe("TrayFeed", () => {
 		tray.describe();
 		tray.act("tray.peek", "done");
 		const look = children(tray.describe()).at(-1)!;
-		expect(look.p).toMatchObject({ role: "omp.tray.peek", ref: "done" });
+		expect(look.p).toMatchObject({ role: "zeta.tray.peek", ref: "done" });
 		// Only the close button: the rows open agents, nothing opens the done card.
 		const head = children(look)[0]!;
 		expect(
@@ -1000,18 +1000,18 @@ describe("TrayFeed", () => {
 		).toEqual([{ click: "tray.peek=" }]);
 
 		const list = children(look)[1]!;
-		expect(list.p).toMatchObject({ role: "omp.tray.done" });
+		expect(list.p).toMatchObject({ role: "zeta.tray.done" });
 		const rows = children(list);
 		expect(rows).toHaveLength(51);
 		expect(rows.slice(0, 3).map(row => row.p && Reflect.get(row.p, "ref"))).toEqual(["Fresh", "Restored", "Old52"]);
 		expect(rows.at(-1)!.p).toMatchObject({
-			role: "omp.tray.done.more",
+			role: "zeta.tray.done.more",
 			text: "+5 earlier",
 		});
 
 		const [fresh, restored, old] = rows;
 		expect(fresh!.p).toMatchObject({
-			role: "omp.tray.done.item",
+			role: "zeta.tray.done.item",
 			status: "failed",
 			actions: { click: "tray.open=Fresh" },
 			aria: "Fresh, failed, claude-opus-4-5 · high · 4m12s · 38 tools · $0.120, Tests fail in auth",
@@ -1022,13 +1022,18 @@ describe("TrayFeed", () => {
 				node.p && (Reflect.get(node.p, "text") ?? Reflect.get(node.p, "spans")),
 			]),
 		).toEqual([
-			["omp.tray.dot", [{ t: "●", s: "error" }]],
-			["omp.tray.name", "Fresh"],
-			["omp.tray.meta", [{ t: "claude-opus-4-5 · high · 4m12s · 38 tools · $0.120", s: "dim" }]],
-			["omp.tray.line", "Tests fail in auth"],
+			["zeta.tray.dot", [{ t: "●", s: "error" }]],
+			["zeta.tray.name", "Fresh"],
+			["zeta.tray.meta", [{ t: "claude-opus-4-5 · high · 4m12s · 38 tools · $0.120", s: "dim" }]],
+			["zeta.tray.line", "Tests fail in auth"],
 		]);
 		// Unknown numbers are left out rather than printed as zeros.
-		expect(children(restored).map(role)).toEqual(["omp.tray.dot", "omp.tray.name", "omp.tray.meta", "omp.tray.line"]);
+		expect(children(restored).map(role)).toEqual([
+			"zeta.tray.dot",
+			"zeta.tray.name",
+			"zeta.tray.meta",
+			"zeta.tray.line",
+		]);
 		expect(JSON.stringify(children(restored)[2]!.p)).toContain('"4 tools"');
 		expect(children(restored)[0]!.p).toMatchObject({
 			spans: [{ t: "●", s: "muted" }],
@@ -1046,13 +1051,13 @@ describe("TrayFeed", () => {
 	it("says what the main agent is doing on the tray node while it has cards, and nothing without", () => {
 		const f = fixture();
 		const { tray } = setup(f);
-		expect(tray.describe().p).toEqual({ role: "omp.tray", hidden: true });
+		expect(tray.describe().p).toEqual({ role: "zeta.tray", hidden: true });
 		f.main = "waiting";
 		expect(tray.feed.syncMain()).toBe(false);
 
 		f.jobs.push(job("bg_1"));
 		expect(tray.describe().p).toMatchObject({
-			role: "omp.tray",
+			role: "zeta.tray",
 			main: "waiting",
 		});
 		f.main = "idle";

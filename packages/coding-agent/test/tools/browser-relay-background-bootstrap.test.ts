@@ -116,7 +116,7 @@ it("forwards panel calls to the relay, answers them by id, and fails them when t
 		kind: "response",
 		id: 2,
 		ok: false,
-		error: "omp relay went away",
+		error: "zetacode relay went away",
 	});
 	// Each request is answered once; the stray callResult answered nothing.
 	expect(responses.map(frame => frame.id).sort()).toEqual([1, 2, 3]);

@@ -9,7 +9,7 @@
  * embeds still show as notes. Where a terminal cannot draw a figure, an SVG
  * fence shows its code and a chart nothing (see the terminal look).
  *
- * Terminal look: `src/ui/styles/figures/figure.ts` (`omp.figures`).
+ * Terminal look: `src/ui/styles/figures/figure.ts` (`zeta.figures`).
  */
 import { computed, For, type JSXNode, type Reactive, read, Show, untrack } from "@linxiraos/pi-tui";
 import { lexMarkdown } from "@linxiraos/pi-tui/text/markdown/lexer";

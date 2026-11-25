@@ -250,7 +250,7 @@ function NumberedCode(props: { readonly lines: readonly NumberedLine[]; readonly
 	);
 }
 
-/** A file's path row (`omp.tool.file`): icon, path cut in the middle, the header's note or match count as a badge. */
+/** A file's path row (`zeta.tool.file`): icon, path cut in the middle, the header's note or match count as a badge. */
 function GroupedFileRow(props: {
 	readonly path: string;
 	readonly badge?: { readonly text: string; readonly title?: string };
@@ -265,7 +265,7 @@ function GroupedFileRow(props: {
 }
 
 /**
- * Grouped output by file (`omp.tool.search.file`): its path row, then its
+ * Grouped output by file (`zeta.tool.search.file`): its path row, then its
  * rows as numbered code (match lines marked, gaps from jumps in the numbers);
  * unnumbered rows stay plain `code`. Rows before any header are loose, unless
  * `file` owns them (a single-file search prints no header, yet its rows get the

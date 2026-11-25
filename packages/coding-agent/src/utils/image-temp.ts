@@ -14,7 +14,7 @@ export async function saveImagesToTemp(images: readonly { data: string; mimeType
 	for (const image of images) {
 		const bytes = Buffer.from(image.data, "base64");
 		const extension = IMAGE_EXTENSIONS[image.mimeType] ?? "png";
-		const filepath = path.join(os.tmpdir(), `omp-image-${Bun.hash(bytes).toString(16)}.${extension}`);
+		const filepath = path.join(os.tmpdir(), `zetacode-image-${Bun.hash(bytes).toString(16)}.${extension}`);
 		await Bun.write(filepath, bytes);
 		paths.push(filepath);
 	}

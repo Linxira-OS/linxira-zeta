@@ -238,7 +238,7 @@ async function spawnUrlTunnel(
 	extract: (line: string) => string | null,
 	readyPattern?: RegExp,
 ): Promise<{ proc: Bun.Subprocess; baseUrl: string }> {
-	const logPath = path.join(os.tmpdir(), `omp-blob-tunnel-${Date.now().toString(36)}-${process.pid}.log`);
+	const logPath = path.join(os.tmpdir(), `zetacode-blob-tunnel-${Date.now().toString(36)}-${process.pid}.log`);
 	const fd = fs.openSync(logPath, "w");
 	let proc: Bun.Subprocess;
 	try {

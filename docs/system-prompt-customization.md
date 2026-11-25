@@ -19,14 +19,14 @@ On Anthropic, the system cache breakpoint lands on the last block before the fir
 
 ## Inputs and precedence
 
-| Input                                   | Source                 | Effect                                                                                                                             |
-| --------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `--system-prompt-template <path>`       | CLI                    | Strictly reads `<path>` as Handlebars source and replaces the bundled default instruction block. Highest custom-prompt precedence. |
-| `--system-prompt <text-or-file>`        | CLI                    | Existing plain-text custom route. Highest custom-prompt precedence. Mutually exclusive with the template flag.                     |
-| `SYSTEM_TEMPLATE.md`                    | Discovered config file | Raw Handlebars source. Used only when no explicit override and no discovered `SYSTEM.md` is supplied.                              |
-| `SYSTEM.md`                             | Discovered config file | Existing plain-text custom route. Used only when no explicit override is supplied.                                                 |
-| `--append-system-prompt <text-or-file>` | CLI                    | Adds plain text to the rendered prompt. Highest append precedence.                                                                 |
-| `APPEND_SYSTEM.md`                      | Discovered config file | Existing plain-text append route; used when the append flag is absent.                                                             |
+| Input                                   | Source                 | Effect                                                                                                                              |
+| --------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `--system-prompt-template <path>`       | CLI                    | Strictly reads `<path>` as Handlebars source and replaces the bundled default instruction block. Highest custom-prompt precedence.  |
+| `--system-prompt <text-or-file>`        | CLI                    | Existing plain-text custom route. Highest custom-prompt precedence. Mutually exclusive with the template flag.                      |
+| `SYSTEM_TEMPLATE.md`                    | Discovered config file | Raw Handlebars source. Used only when no explicit override and no discovered `SYSTEM.md` is supplied.                               |
+| `SYSTEM.md`                             | Discovered config file | Existing plain-text custom route. Used only when no explicit override is supplied.                                                  |
+| `--append-system-prompt <text-or-file>` | CLI                    | Adds plain text to the rendered prompt. Highest append precedence.                                                                  |
+| `APPEND_SYSTEM.md`                      | Discovered config file | Existing plain-text append route; used when the append flag is absent.                                                              |
 | `systemPromptTemplates`                 | `config.yml` setting   | Per-model Handlebars template file. Used only when no custom prompt above applies. See [Per-model templates](#per-model-templates). |
 
 **CLI precedence:** An explicit `--system-prompt` or `--system-prompt-template` flag wins over discovered `SYSTEM_TEMPLATE.md` and `SYSTEM.md`; an explicit `--append-system-prompt` wins over discovered `APPEND_SYSTEM.md`. The two custom-prompt flags are mutually exclusive, and supplying both fails clearly. An explicitly supplied empty `--system-prompt` literal still counts as explicit and suppresses custom-prompt discovery.
@@ -37,7 +37,7 @@ That empty literal suppresses discovered `SYSTEM.md` and `SYSTEM_TEMPLATE.md`, b
 
 Without an explicit custom source, discovery is project-first, then user-level. Within each scope a literal beats a template: project `SYSTEM.md` beats project `SYSTEM_TEMPLATE.md`, which beats user `SYSTEM.md`, which beats user `SYSTEM_TEMPLATE.md`. `SYSTEM.md` is the long-established override, so an existing literal keeps working until its author deliberately removes it in favor of a template. Both filenames resolve through the same capability providers, so ancestor walk-up (repo-root `.omp` from a nested cwd) and `.agent` / `.agents` directories apply to templates exactly as they do to literals. `.claude`, `.codex`, and `.gemini` project bases resolve at the launch cwd. Foreign user bases require `enabledProviders` opt-in; `CLAUDE_CONFIG_DIR` also opts in and relocates the Claude user base.
 
-The native user path follows the active profile: with `omp --profile work`, `~/.omp/agent` becomes `~/.omp/profiles/work/agent`. `PI_CONFIG_DIR` changes the native config-directory name. Both capability discovery (`SYSTEM.md`, `SYSTEM_TEMPLATE.md`) and the shared config-base lookup (`APPEND_SYSTEM.md`, `TITLE_SYSTEM.md`) resolve the native user base through `getAgentDir()`, so in the default profile `PI_CODING_AGENT_DIR` relocates all four; named profiles ignore it. An explicit CLI flag or programmatic API option still wins over every discovered file. See [Configuration usage](./config-usage.md) for the shared config-directory contract.
+The native user path follows the active profile: with `zetacode --profile work`, `~/.omp/agent` becomes `~/.omp/profiles/work/agent`. `PI_CONFIG_DIR` changes the native config-directory name. Both capability discovery (`SYSTEM.md`, `SYSTEM_TEMPLATE.md`) and the shared config-base lookup (`APPEND_SYSTEM.md`, `TITLE_SYSTEM.md`) resolve the native user base through `getAgentDir()`, so in the default profile `ZETA_CODING_AGENT_DIR` relocates all four; named profiles ignore it. An explicit CLI flag or programmatic API option still wins over every discovered file. See [Configuration usage](./config-usage.md) for the shared config-directory contract.
 
 `--system-prompt-template <path>` is a strict file path: a missing, unreadable, empty, or malformed template is an error, never a literal prompt. An empty discovered `SYSTEM_TEMPLATE.md` is skipped (the discovered literal, if any, already won discovery). Malformed templates discovered directly by `buildSystemPrompt()` warn and render the bundled prompt. CLI discovery forwards the loaded source as an explicit SDK template, so a malformed discovered template fails CLI startup. A same-scope literal always wins discovery, so a malformed template beside a literal is never rendered. Discovered templates are read once through capability discovery; later runtime rebuilds re-render that in-memory source.
 
@@ -194,8 +194,8 @@ This is a complete, runnable Handlebars Markdown template. It uses only built-in
 
 ```yaml
 systemPromptTemplates:
-  "openrouter/qwen": ~/.omp/agent/prompts/qwen-openrouter.md
-  "qwen": ~/.omp/agent/prompts/qwen.md
+   "openrouter/qwen": ~/.omp/agent/prompts/qwen-openrouter.md
+   "qwen": ~/.omp/agent/prompts/qwen.md
 ```
 
 #### Start from the bundled template
@@ -257,18 +257,18 @@ The CLI flags and files do **not** set `systemPrompt`: they select the plain/tem
 
 ## Quick reference
 
-| Goal                                                                       | Use                                                                                                                    |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Add instructions while keeping the complete default prompt                 | `APPEND_SYSTEM.md` or `--append-system-prompt`                                                                         |
-| Replace the default instruction block with plain text                      | `SYSTEM.md` or `--system-prompt`                                                                                       |
-| Replace the default instruction block with Handlebars                      | `SYSTEM_TEMPLATE.md` or `--system-prompt-template <path>`                                                              |
-| Replace the default instruction block for specific models                  | `systemPromptTemplates` setting, starting from a copy of [`system-prompt.md`](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) |
-| Supply raw Handlebars through the programmatic API                         | `CreateAgentSessionOptions.systemPromptTemplate` or `buildSystemPrompt({ systemPromptTemplate })`                      |
-| Replace every provider-facing system block                                 | `CreateAgentSessionOptions.systemPrompt`                                                                               |
-| Customize automatic session titles                                         | `TITLE_SYSTEM.md`                                                                                                      |
-| Replace the personality block while keeping the rest of the default prompt | `PERSONALITY.md`                                                                                                       |
-| Use `{{cwd}}` or other internal variables in a plain user file             | Not supported; plain user content is inserted verbatim                                                                 |
-| Include live settings, tool inventory, or mounted tool command docs in a template          | Reference the corresponding Handlebars fields, such as `{{eagerTasks}}`, `{{toolInventory}}`, and `{{toolCommandDocs}}`       |
-| Inherit selected default-template sections automatically                   | Not supported; a template must reference the data it needs                                                             |
-| Per-directory override                                                     | A supported project config base; native `.omp` and `.agent` / `.agents` custom prompts also support ancestor discovery |
-| Global override                                                            | The active native agent directory, or another supported user config base                                               |
+| Goal                                                                              | Use                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add instructions while keeping the complete default prompt                        | `APPEND_SYSTEM.md` or `--append-system-prompt`                                                                                                                                         |
+| Replace the default instruction block with plain text                             | `SYSTEM.md` or `--system-prompt`                                                                                                                                                       |
+| Replace the default instruction block with Handlebars                             | `SYSTEM_TEMPLATE.md` or `--system-prompt-template <path>`                                                                                                                              |
+| Replace the default instruction block for specific models                         | `systemPromptTemplates` setting, starting from a copy of [`system-prompt.md`](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) |
+| Supply raw Handlebars through the programmatic API                                | `CreateAgentSessionOptions.systemPromptTemplate` or `buildSystemPrompt({ systemPromptTemplate })`                                                                                      |
+| Replace every provider-facing system block                                        | `CreateAgentSessionOptions.systemPrompt`                                                                                                                                               |
+| Customize automatic session titles                                                | `TITLE_SYSTEM.md`                                                                                                                                                                      |
+| Replace the personality block while keeping the rest of the default prompt        | `PERSONALITY.md`                                                                                                                                                                       |
+| Use `{{cwd}}` or other internal variables in a plain user file                    | Not supported; plain user content is inserted verbatim                                                                                                                                 |
+| Include live settings, tool inventory, or mounted tool command docs in a template | Reference the corresponding Handlebars fields, such as `{{eagerTasks}}`, `{{toolInventory}}`, and `{{toolCommandDocs}}`                                                                |
+| Inherit selected default-template sections automatically                          | Not supported; a template must reference the data it needs                                                                                                                             |
+| Per-directory override                                                            | A supported project config base; native `.omp` and `.agent` / `.agents` custom prompts also support ancestor discovery                                                                 |
+| Global override                                                                   | The active native agent directory, or another supported user config base                                                                                                               |

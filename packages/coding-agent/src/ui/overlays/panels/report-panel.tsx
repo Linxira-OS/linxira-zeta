@@ -3,7 +3,7 @@
  * A titled report (changelog, stats, diagnostics) over the transcript: a
  * scrolling body and a Close button. Scroll keys (page, line, home/end) move
  * the body; natively they are forwarded to the body's scroller, and the sheet
- * around the panel is the frame and carries the title (the `omp.report` role
+ * around the panel is the frame and carries the title (the `zeta.report` role
  * is the terminal box, so it is not sent).
  */
 import { type Accessor, type JSXNode, nativeRendering, type ScrollRequest, signal, untrack } from "@linxiraos/pi-tui";
@@ -58,7 +58,7 @@ export function ReportPanel(props: ReportPanelProps): JSXNode {
 	};
 	return (
 		<col
-			role={() => (nativeRendering() ? undefined : "omp.report")}
+			role={() => (nativeRendering() ? undefined : "zeta.report")}
 			gap="md"
 			term={() => ({
 				title: props.title,

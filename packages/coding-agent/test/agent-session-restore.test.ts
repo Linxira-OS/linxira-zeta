@@ -75,7 +75,7 @@ function closedByExitRecovery(persisted: Message[]): Message[] {
 	return [...persisted, ...createInterruptedToolResults(branch), abort];
 }
 
-describe("AgentSession.restoreInterruptedTurn (omp --restore)", () => {
+describe("AgentSession.restoreInterruptedTurn (zetacode --restore)", () => {
 	let tempDir: TempDir;
 	let authStorage: AuthStorage;
 	let modelRegistry: ModelRegistry;
@@ -693,7 +693,7 @@ describe("AgentSession.restoreInterruptedTurn (omp --restore)", () => {
 		if (!model) throw new Error("Expected bundled Anthropic test model to exist");
 		const signalExit = { reason: "sighup", kind: "signal", recordedAt: new Date().toISOString() };
 		// What a session daemon restart finds after an idle compaction: the rebuild
-		// persisted an eval snapshot after the finished turn, then omp got SIGHUP.
+		// persisted an eval snapshot after the finished turn, then zetacode got SIGHUP.
 		const idleCompacted = () => {
 			const sessionManager = SessionManager.inMemory();
 			sessionManager.appendMessage({ role: "user", content: "say hi", timestamp: Date.now() });

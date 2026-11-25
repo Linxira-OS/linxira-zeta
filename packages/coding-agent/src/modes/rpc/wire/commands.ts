@@ -270,7 +270,7 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{
 		name: "set_thinking_level",
 		doc: "Set the thinking level.",
-		params: { level: doc("ConfiguredThinkingLevel", "`auto` lets omp pick the effort per turn.") },
+		params: { level: doc("ConfiguredThinkingLevel", "`auto` lets zetacode pick the effort per turn.") },
 	},
 	{
 		name: "cycle_thinking_level",

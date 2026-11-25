@@ -1,5 +1,5 @@
 /**
- * Built-in MCP transforms: what omp does, unasked, to MCP servers it recognizes.
+ * Built-in MCP transforms: what zetacode does, unasked, to MCP servers it recognizes.
  *
  * {@link BUILTIN_MCP_TRANSFORMS} is the whole policy, one entry per recognized
  * server. The only kind so far is `drop`: a server whose job one of omp's own

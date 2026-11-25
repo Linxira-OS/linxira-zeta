@@ -28,7 +28,7 @@ export interface BashInteractiveResult extends OutputSummary {
  * shell's exports. Those carry the guards unattended commands run under
  * (pagers and editors off, `CI`, `NO_COLOR`, a dumb `TERM`, a pinned locale):
  * each one still at its guard value is left out, which hands the command the
- * value omp itself was launched with, and a `TERM` left out that way names the
+ * value zetacode itself was launched with, and a `TERM` left out that way names the
  * terminal the command gets. A value the session set itself stays.
  */
 function terminalEnv(exports: Record<string, string>): Record<string, string> {

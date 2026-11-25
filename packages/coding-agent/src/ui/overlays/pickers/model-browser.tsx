@@ -9,7 +9,7 @@
  * perf) and the callbacks; keys reach the state through the column's
  * `onKey`, native list picks through `select`/`activate` (both pick: a
  * native list highlights on the way), query edits through the field's
- * `edit` events. The terminal look is `omp.model-browser`
+ * `edit` events. The terminal look is `zeta.model-browser`
  * (`styles/pickers/model-browser`).
  */
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
@@ -126,10 +126,10 @@ function detailChildren(browser: ModelBrowserState): JSXNode[] {
 	return children;
 }
 
-/** The browser's native tree, drawn in the terminal by the `omp.model-browser` look. */
+/** The browser's native tree, drawn in the terminal by the `zeta.model-browser` look. */
 export function ModelBrowser(props: { browser: ModelBrowserState }): JSXNode {
 	const browser = props.browser;
-	const term: ModelBrowserTerm = { role: "omp.model-browser", browser };
+	const term: ModelBrowserTerm = { role: "zeta.model-browser", browser };
 	return (
 		<col gap="sm" term={term} onKey={key => browser.handleKey(key)}>
 			<row align="center" gap="sm">

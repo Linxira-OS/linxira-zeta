@@ -42,11 +42,11 @@ test("a source card sends a muted excerpt to the native host only without a synt
 				c: [
 					{
 						k: "col",
-						p: { role: "omp.tool.sources" },
+						p: { role: "zeta.tool.sources" },
 						c: [
 							{
 								k: "row",
-								p: { role: "omp.tool.source", href: URL },
+								p: { role: "zeta.tool.source", href: URL },
 								c: [
 									{ k: "badge" },
 									{ k: "text", p: { spans: [{ t: URL, s: "link", href: URL }] } },
@@ -54,7 +54,7 @@ test("a source card sends a muted excerpt to the native host only without a synt
 									{
 										k: "text",
 										p: {
-											role: "omp.tool.excerpt",
+											role: "zeta.tool.excerpt",
 											wrap: "word",
 											lines: 3,
 											spans: [{ t: EXCERPT.join("\n"), s: "muted" }],

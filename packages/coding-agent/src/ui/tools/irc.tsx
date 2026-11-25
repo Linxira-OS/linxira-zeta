@@ -5,7 +5,7 @@
  * (`IRC ➤ Ben auto`), relayed traffic between other agents and workpool
  * fan-outs — with the message's age and its Markdown body.
  *
- * Terminal look: `omp.irc.*` cards (`src/ui/styles/tools/irc.ts`); the
+ * Terminal look: `zeta.irc.*` cards (`src/ui/styles/tools/irc.ts`); the
  * transcript's expand state reaches it as `term.expanded`.
  */
 import type { TspSpan } from "@linxiraos/pi-wire";
@@ -53,7 +53,7 @@ export function IrcMessageCard(props: { readonly message: IrcMessage; readonly e
 	const expanded = props.expanded;
 	return (
 		<card
-			role={`omp.irc.${card.kind}`}
+			role={`zeta.irc.${card.kind}`}
 			tone="info"
 			head={() => [{ s: "toolTitle strong", t: ircTitle(card, currentTheme()) }, ...tail]}
 			collapsible={body.trim().length > 0}

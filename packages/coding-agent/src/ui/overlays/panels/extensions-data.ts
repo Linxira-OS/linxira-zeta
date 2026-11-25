@@ -226,12 +226,12 @@ function pathParts(filePath: string): string[] {
 		.filter(part => part.length > 0 && part !== ".");
 }
 
-/** For project items: the directory holding their `.omp`. */
+/** For project items: the directory holding their `.zeta`. */
 function projectHint(ext: Extension): string | undefined {
 	if (ext.source.level !== "project") return undefined;
 	const parts = pathParts(ext.path);
-	const omp = parts.lastIndexOf(".omp");
-	const parent = omp > 0 ? parts[omp - 1] : undefined;
+	const zetacode = parts.lastIndexOf(".zeta");
+	const parent = zetacode > 0 ? parts[zetacode - 1] : undefined;
 	return parent && parent !== "." ? parent : undefined;
 }
 

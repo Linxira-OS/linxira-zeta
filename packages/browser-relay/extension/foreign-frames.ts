@@ -6,7 +6,7 @@
  * Chrome checks before running the request, so a refused one is retried once every such frame is pointed at an
  * empty document (`srcdoc` outranks `src`, so a vendor that re-points the same frame later loads nothing) and
  * hidden: an inline menu sits over the controls below its field, and emptied it would cover them as a blank box.
- * The relay asks for this only in a tab omp drives, so the user's other tabs keep their menus.
+ * The relay asks for this only in a tab zetacode drives, so the user's other tabs keep their menus.
  */
 
 import { FOREIGN_FRAME_REFUSAL, type HiddenFrame } from "../../coding-agent/src/tools/browser/relay/protocol";

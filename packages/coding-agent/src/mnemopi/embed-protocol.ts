@@ -1,6 +1,6 @@
 /**
  * Wire types for local mnemopi embeddings. The onnxruntime worker
- * (`embed-worker.ts`) is a child of the omp daemon's `infer` module and reads
+ * (`embed-worker.ts`) is a child of the zetacode daemon's `infer` module and reads
  * {@link MnemopiEmbedWorkerInbound} lines on stdin, writing
  * {@link MnemopiEmbedWorkerOutbound} lines on stdout; clients speak the same
  * lines over their daemon tunnel. The daemon SIGKILLs the worker (on wedge,

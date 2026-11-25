@@ -130,16 +130,16 @@ describe("native rewind page and session reset", () => {
 		mode.showUserMessageSelector();
 
 		const page = ui.surface("screen");
-		expect(page?.role).toBe("omp.rewind");
+		expect(page?.role).toBe("zeta.rewind");
 		expect(page?.main.map(sig)).toEqual([
-			"card:omp.user",
-			"col:omp.assistant",
-			"card:omp.user",
-			"text:omp.rewind.here",
-			"col:omp.assistant [pick]",
+			"card:zeta.user",
+			"col:zeta.assistant",
+			"card:zeta.user",
+			"text:zeta.rewind.here",
+			"col:zeta.assistant [pick]",
 		]);
 		expect(textOf(ui, page!.main[3]!)).toContain("Continue from here · nothing below to drop");
-		expect(page?.dock.map(sig)).toEqual(["row:omp.rewind.bar"]);
+		expect(page?.dock.map(sig)).toEqual(["row:zeta.rewind.bar"]);
 		expect(textOf(ui, page!.dock[0]!)).toContain("4/4");
 		// The page is no sheet of the session.
 		expect(ui.surface("inline")?.layer).toEqual([]);
@@ -152,11 +152,11 @@ describe("native rewind page and session reset", () => {
 
 		const page = ui.surface("screen")!;
 		expect(page.main.map(sig)).toEqual([
-			"card:omp.user",
-			"col:omp.assistant",
-			"text:omp.rewind.here",
-			"card:omp.user [pick]",
-			"col:omp.assistant [drop]",
+			"card:zeta.user",
+			"col:zeta.assistant",
+			"text:zeta.rewind.here",
+			"card:zeta.user [pick]",
+			"col:zeta.assistant [drop]",
 		]);
 		expect(textOf(ui, page.main[2]!)).toContain(
 			"Rewind to here · the prompt returns to the editor · 1 turn below dropped",
@@ -173,11 +173,11 @@ describe("native rewind page and session reset", () => {
 
 		const page = ui.surface("screen")!;
 		expect(page.main.map(sig)).toEqual([
-			"text:omp.rewind.here",
-			"card:omp.user [pick]",
-			"col:omp.assistant [drop]",
-			"card:omp.user [drop]",
-			"col:omp.assistant [drop]",
+			"text:zeta.rewind.here",
+			"card:zeta.user [pick]",
+			"col:zeta.assistant [drop]",
+			"card:zeta.user [drop]",
+			"col:zeta.assistant [drop]",
 		]);
 		expect(textOf(ui, page.dock[0]!)).toContain("1/4");
 	});
@@ -191,13 +191,13 @@ describe("native rewind page and session reset", () => {
 		ui.send({ ev: "edit", sf: ui.sf, id: field.id, from: 0, to: 0, text: "second", cursor: 6, len: 0 });
 
 		let page = ui.surface("screen")!;
-		expect(page.main.map(sig)).toEqual(["card:omp.user", "text:omp.rewind.here", "col:omp.assistant [pick]"]);
+		expect(page.main.map(sig)).toEqual(["card:zeta.user", "text:zeta.rewind.here", "col:zeta.assistant [pick]"]);
 		expect(textOf(ui, page.dock[0]!)).toContain("2/2");
 		expect(textOf(ui, page.dock[0]!)).toContain("Show all");
 
 		ui.send({ ev: "edit", sf: ui.sf, id: field.id, from: 6, to: 6, text: " zzz", cursor: 10, len: 6 });
 		page = ui.surface("screen")!;
-		expect(page.main.map(sig)).toEqual(["text:omp.rewind.empty"]);
+		expect(page.main.map(sig)).toEqual(["text:zeta.rewind.empty"]);
 		expect(textOf(ui, page.main[0]!)).toBe('No turns match "second zzz"');
 		expect(textOf(ui, page.dock[0]!)).toContain("no matches");
 
@@ -218,18 +218,18 @@ describe("native rewind page and session reset", () => {
 		mode.showUserMessageSelector();
 
 		let page = ui.surface("screen")!;
-		expect(sig(page.main[0]!)).toBe("row:omp.rewind.earlier");
+		expect(sig(page.main[0]!)).toBe("row:zeta.rewind.earlier");
 		expect(textOf(ui, page.main[0]!)).toBe("load earlier turns");
 		expect(textOf(ui, page.dock[0]!)).toContain("600/600");
 		expect(textOf(ui, page.dock[0]!)).toContain("earlier turns");
 
 		ui.type("a");
 		page = ui.surface("screen")!;
-		expect(sig(page.main[0]!)).toBe("card:omp.user");
+		expect(sig(page.main[0]!)).toBe("card:zeta.user");
 		expect(textOf(ui, page.main[0]!)).toContain("first prompt");
 		// The outline stays on the turn it was on.
 		expect(textOf(ui, page.dock[0]!)).toContain("644/644");
-		expect(sig(page.main.at(-1)!)).toBe("card:omp.user [pick]");
+		expect(sig(page.main.at(-1)!)).toBe("card:zeta.user [pick]");
 	});
 
 	it("shows the welcome card again over the first line of a new session", async () => {
@@ -238,11 +238,11 @@ describe("native rewind page and session reset", () => {
 		mode = new InteractiveMode(session, "test");
 		await using ui = await nativeShell(mode.shell);
 		mode.present(() => "an old line");
-		expect(ui.surface("inline")?.main.map(sig)).toEqual(["spacer", "card:omp.welcome", "spacer", "text"]);
+		expect(ui.surface("inline")?.main.map(sig)).toEqual(["spacer", "card:zeta.welcome", "spacer", "text"]);
 		await mode.handleClearCommand();
 
 		const main = ui.surface("inline")!.main;
-		expect(main.map(sig)).toEqual(["spacer", "card:omp.welcome", "spacer", "spacer", "text"]);
+		expect(main.map(sig)).toEqual(["spacer", "card:zeta.welcome", "spacer", "spacer", "text"]);
 		expect(textOf(ui, main[4]!)).toContain("New session started");
 	});
 });

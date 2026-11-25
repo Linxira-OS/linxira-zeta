@@ -79,7 +79,7 @@ describe("print mode builtin exit codes", () => {
 	});
 
 	test("never dispatches the merged stdin/@file message as a command", async () => {
-		// Security: `curl … | omp "summarize"` merges the pipe into
+		// Security: `curl … | zetacode "summarize"` merges the pipe into
 		// `initialMessage`; a slash-shaped payload there (e.g. a persisted
 		// `/mcp add`) must reach the model as text, never run as a command.
 		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-print-stdin-"));

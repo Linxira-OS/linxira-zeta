@@ -98,7 +98,7 @@ export interface SpotlightClientOptions {
 
 /**
  * `POST /v1/spotlight` with the session's Stencil credential (`STENCIL_API_KEY`, else the stencil.so login, the
- * token `omp token stencil` prints). No retries: callers are inside a tool call and fall back to a rule instead.
+ * token `zetacode token stencil` prints). No retries: callers are inside a tool call and fall back to a rule instead.
  */
 export class SpotlightClient {
 	readonly url: string;
@@ -265,7 +265,7 @@ export class SpotlightClient {
 
 	/**
 	 * Releases the auth store the client's own credential opened: its broker snapshot stream otherwise keeps a
-	 * one-shot process such as `omp find` alive until the store idles out (20 s). The client must not be used after.
+	 * one-shot process such as `zetacode find` alive until the store idles out (20 s). The client must not be used after.
 	 */
 	close(): void {
 		if (this.#ownsCredential) this.#credential.close();

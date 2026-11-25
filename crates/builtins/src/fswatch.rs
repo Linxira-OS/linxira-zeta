@@ -1,5 +1,5 @@
 //! The `fswatch` builtin: fswatch 1.22's command line and output on the
-//! shared watcher (`omp-xfs`), so it behaves alike wherever the shell runs.
+//! shared watcher (`zetacode-xfs`), so it behaves alike wherever the shell runs.
 //!
 //! The watcher delivers batches on a thread of its own, where they are
 //! filtered and formatted; the body only writes what arrives, fires idle

@@ -1,4 +1,4 @@
-//! `pkill` process-signalling builtin moved from `omp-shell`.
+//! `pkill` process-signalling builtin moved from `zetacode-shell`.
 
 use clap::Parser;
 

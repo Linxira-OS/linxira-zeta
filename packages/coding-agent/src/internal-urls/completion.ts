@@ -1,5 +1,5 @@
 /**
- * Prompt completion for internal-url schemes (skill://, rule://, omp://,
+ * Prompt completion for internal-url schemes (skill://, rule://, zeta://,
  * local://, memory://, agent://): the composer's provider asks for candidates
  * of the `scheme://` token before the caret and applies the picked one.
  */

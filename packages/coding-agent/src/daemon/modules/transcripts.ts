@@ -1,6 +1,6 @@
 /**
  * `transcripts` daemon module: keeps the full-text transcript index of every
- * omp process current (`session/transcript-index.ts`), so no process indexes
+ * zetacode process current (`session/transcript-index.ts`), so no process indexes
  * on its own thread and concurrent searches share one sync.
  *
  * Call-only: {@link TRANSCRIPTS_SYNC_METHOD} syncs the store a client names
@@ -39,7 +39,7 @@ function noUnits(): never {
 	throw new Error("the transcripts module serves calls only");
 }
 
-/** Syncs transcript index stores for every omp process on one shared worker thread. */
+/** Syncs transcript index stores for every zetacode process on one shared worker thread. */
 export const transcriptsModule: DaemonModule = {
 	kind: TRANSCRIPTS_KIND,
 	version: TRANSCRIPTS_VERSION,

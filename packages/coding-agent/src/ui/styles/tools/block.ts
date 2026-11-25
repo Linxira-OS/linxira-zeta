@@ -1,5 +1,5 @@
 /**
- * The transcript's tool block (`tool` nodes with role `omp.tool.*`): what
+ * The transcript's tool block (`tool` nodes with role `zeta.tool.*`): what
  * every tool shares around its look.
  *
  * - Hidden activity paints nothing (handled by the paint cache).
@@ -202,4 +202,4 @@ function paintLookRows(node: UiNode, cx: PaintContext): Block {
 	return look.paint(node, still);
 }
 
-defineRolePainter("tool", "omp.tool", paintToolBlock, { prefix: true });
+defineRolePainter("tool", "zeta.tool", paintToolBlock, { prefix: true });

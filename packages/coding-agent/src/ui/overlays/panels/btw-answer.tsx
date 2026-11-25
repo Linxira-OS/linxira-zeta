@@ -2,7 +2,7 @@
 /**
  * A side answer's body: markdown, with its `<inject>` block (the steering
  * prompt the answer drafted for the main session) shown apart as an
- * `omp.btw.inject` card: `Inject into main session` while sendable,
+ * `zeta.btw.inject` card: `Inject into main session` while sendable,
  * `➤ Injected into main session` once sent.
  */
 import type { JSXNode } from "@linxiraos/pi-tui";

@@ -1,10 +1,10 @@
 /**
- * Shared automation Chromium supervised by the omp daemon.
+ * Shared automation Chromium supervised by the zetacode daemon.
  *
- * Instead of every omp process launching (and sometimes orphaning) a private
+ * Instead of every zetacode process launching (and sometimes orphaning) a private
  * Chromium, the headless browser kind attaches to one daemon-supervised Chrome
  * per project directory — sessions and subagents each open their own tabs in
- * it. Every attached omp process holds a lease on the unit; the daemon stops
+ * it. Every attached zetacode process holds a lease on the unit; the daemon stops
  * Chrome shortly after the last lease is released (or its connection closes),
  * so Chrome never outlives omp, while a daemon crash or upgrade keeps it.
  * `open` is find-or-start in the daemon, so concurrent
@@ -39,7 +39,7 @@ const PROBE_TIMEOUT_MS = 1_500;
 /** Lines of Chrome's output a failed start reports. */
 const OUTPUT_TAIL_LINES = 6;
 /**
- * Chrome dies shortly after the last omp client in the project lets go
+ * Chrome dies shortly after the last zetacode client in the project lets go
  * (`hold: "leases"`). It runs in its own session with output to its unit log
  * (`survive: "detached"`), so a daemon crash or upgrade leaves it running: the
  * next daemon re-adopts it and stops it once no returning client retakes a
@@ -59,7 +59,7 @@ const SHARED_BROWSER_POLICY: Partial<UnitPolicy> = {
  */
 const PROFILE_CLAIM_WAIT_MS = READY_TIMEOUT_MS + 15_000;
 const PROFILE_CLAIM_RETRY_MS = 100;
-/** Grace given to Chrome to exit before the daemon kills it; matches `omp ps stop`. */
+/** Grace given to Chrome to exit before the daemon kills it; matches `zetacode ps stop`. */
 const STOP_TIMEOUT_MS = 5_000;
 /**
  * Hard bound on one post-cleanup reachability check, covering both probes and
@@ -77,12 +77,12 @@ const PROBE_ATTEMPT_CAP_MS = PROBE_TIMEOUT_MS + 1_500;
 /** Marker for a probe the cap abandoned, as opposed to a probe that failed on its own terms. */
 const PROBE_STALLED = "Shared browser probe did not settle";
 
-/** Daemon-supervised browser endpoint one omp process attached to. */
+/** Daemon-supervised browser endpoint one zetacode process attached to. */
 export interface SharedBrowserEndpoint {
 	wsEndpoint: string;
 	/** The daemon-launched Chrome's process, which owns its windows on screen. */
 	pid?: number;
-	/** Unit key (`omp.browser.headless`/`omp.browser.headed`). */
+	/** Unit key (`zeta.browser.headless`/`zeta.browser.headed`). */
 	daemonName: string;
 	/** Canonical project directory of the unit's scope. */
 	projectDir: string;
@@ -92,7 +92,7 @@ export interface SharedBrowserEndpoint {
 
 /** Stable unit key of the shared automation browser. */
 export function sharedBrowserDaemonName(headless: boolean): string {
-	return headless ? "omp.browser.headless" : "omp.browser.headed";
+	return headless ? "zeta.browser.headless" : "zeta.browser.headed";
 }
 
 /** True for the project-shared browser units. */
@@ -193,7 +193,7 @@ export async function ensureSharedBrowser(opts: {
 		// start restores the stale session; the claim holder starts Chrome instead.
 		if (!claim) {
 			throw new ToolError(
-				`Shared browser daemon unavailable: ${reason ? `${reason}, and ` : ""}another omp process held the shared browser profile while starting Chrome. \`omp ps\` lists the ${name} unit.`,
+				`Shared browser daemon unavailable: ${reason ? `${reason}, and ` : ""}another zetacode process held the shared browser profile while starting Chrome. \`zetacode ps\` lists the ${name} unit.`,
 			);
 		}
 		await seedOwnedProfilePreferences(userDataDir);
@@ -208,7 +208,7 @@ export async function ensureSharedBrowser(opts: {
 		);
 		if (typeof started !== "string") return started;
 		throw new ToolError(
-			`Shared browser daemon unavailable: ${reason ? `${reason}; its replacement failed: ` : ""}${started}. \`omp ps\` lists the ${name} unit.`,
+			`Shared browser daemon unavailable: ${reason ? `${reason}; its replacement failed: ` : ""}${started}. \`zetacode ps\` lists the ${name} unit.`,
 		);
 	} finally {
 		claim?.release();
@@ -295,7 +295,7 @@ async function stopUnit(
 }
 
 /**
- * Restart a project-shared browser for `omp ps`. The daemon's own restart
+ * Restart a project-shared browser for `zetacode ps`. The daemon's own restart
  * relaunches the retained spec on the same profile, where Chromium would
  * reopen every page the stopped process had open. This holds the profile
  * claim throughout, so no other client starts Chrome in between, stops the
@@ -307,7 +307,7 @@ export async function restartSharedBrowser(unit: UnitSnapshot, signal?: AbortSig
 	const userDataDir = sharedBrowserProfileDir(unit.scope.dir, unit.key);
 	const client = await daemonClient();
 	const claim = await claimProfile(userDataDir, signal);
-	if (!claim) throw new Error(`${unit.key} is being started by another omp process; try again shortly`);
+	if (!claim) throw new Error(`${unit.key} is being started by another zetacode process; try again shortly`);
 	try {
 		const stopped = (await client.request({ op: "stop", unit: unit.id, timeoutMs: STOP_TIMEOUT_MS }, signal)).unit;
 		if (isLiveUnit(stopped)) {
@@ -356,7 +356,7 @@ const reachabilityChecks = new Map<string, Promise<boolean>>();
  *
  * `ensureSharedBrowser` makes this decision only while attaching, so a Chromium
  * that wedges *after* a session attached kept its whole process tree — and
- * every target whose close timed out — alive until the last omp client in the
+ * every target whose close timed out — alive until the last zetacode client in the
  * project exited (a 9.1 GB, 44-process browser survived 19 h in the
  * 2026-09-27 incident). Cleanup failures re-run the same decision off the
  * acquire path: stop the unit, so the next attach launches a fresh Chromium

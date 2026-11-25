@@ -20,7 +20,7 @@ export default class Update extends Command {
 		stable: Flags.boolean({ description: "Switch back to the stable channel", default: false }),
 	};
 
-	static examples = ["omp update", "omp update --check", "omp update --canary"];
+	static examples = ["zetacode update", "zetacode update --check", "zetacode update --canary"];
 
 	async run(): Promise<void> {
 		const { flags } = await this.parse(Update);

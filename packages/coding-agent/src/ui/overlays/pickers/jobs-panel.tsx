@@ -16,7 +16,7 @@
  * job the session evicts stays listed until the selection moves.
  *
  * The terminal draws the list and the selected job's facts as plain rows
- * (look `omp.jobs.sheet`, `src/ui/styles/pickers/jobs.ts`).
+ * (look `zeta.jobs.sheet`, `src/ui/styles/pickers/jobs.ts`).
  */
 import { type Accessor, computed, type JSXNode, type KeyEvent, signal, untrack } from "@linxiraos/pi-tui";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
@@ -232,7 +232,7 @@ interface JobsView {
 
 /** Tern's sheet: a large centered one titled Background jobs. */
 export const JOBS_SHEET: SheetAttributes = {
-	role: "omp.overlay.jobs",
+	role: "zeta.overlay.jobs",
 	size: "lg",
 	anchor: "center",
 	head: "Background jobs",
@@ -357,7 +357,7 @@ export function JobsPanel(props: JobsPanelProps): JSXNode {
 			};
 		});
 		return {
-			role: "omp.jobs.sheet",
+			role: "zeta.jobs.sheet",
 			running,
 			rows: termRows,
 			selected: selected ? jobs.indexOf(selected) : -1,

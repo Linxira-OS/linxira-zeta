@@ -32,7 +32,7 @@ interface Frame {
  * The tab list that says whether a call's tab is the one in front of its window. The page cannot say: omp
  * focus-emulates every tab it drives, which keeps a background tab's `document.visibilityState` "visible".
  * - `chrome`: Chrome's own `/json/list`, which ranks pages by when each was last shown, or created if never shown.
- * - `relay`: the omp relay's `/json/list`, whose `active` marks the extension's selected tab of each window.
+ * - `relay`: the zetacode relay's `/json/list`, whose `active` marks the extension's selected tab of each window.
  */
 export type FrontTabSource = "chrome" | "relay";
 
@@ -77,7 +77,7 @@ export async function readBrowserPageFrames(browser: Pick<Browser, "pages">): Pr
  * alone, so focus emulation and captures of a background tab do not move it. A tab listed after another page of its
  * window is behind it. One listed before every other page of its window is in front only if it has been shown, since
  * a tab never shown ranks by its creation: a tab opened in the background itself reads first until another tab of its
- * window is shown. omp knows a tab was shown when it opened the tab in front of its window, when its page reports a
+ * window is shown. zetacode knows a tab was shown when it opened the tab in front of its window, when its page reports a
  * browser window's place (see {@link NativeWindowWatch}), or once the list places the tab ahead of a page a read saw
  * listed before it, which it cannot pass without being shown. A tab alone in its window is in front of it.
  */
@@ -91,7 +91,7 @@ export class FrontTab {
 	/** Pages of the tab's window that some read listed before it, while it was not known to have been shown. */
 	#ahead = new Set<string>();
 
-	/** `openedInFront`: omp opened the tab in front of its window, which shows it. */
+	/** `openedInFront`: zetacode opened the tab in front of its window, which shows it. */
 	constructor(
 		source: FrontTabSource,
 		endpoint: string,

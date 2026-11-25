@@ -1,5 +1,5 @@
 /**
- * `omp.app.git` / `omp.app.git-narrow`: the git app in the terminal, at full
+ * `zeta.app.git` / `zeta.app.git-narrow`: the git app in the terminal, at full
  * screen size. Row 0 is the header (the shown file and its `+a −d`, key hints
  * or the latest status centered in the free space, the content kind, the
  * Stage/Unstage File pill, close); row 1 the toolbar (scope chip, change
@@ -220,7 +220,7 @@ const widget = {
 	},
 };
 
-defineRolePainter("row", "omp.app.git", paint);
-defineRolePainter("col", "omp.app.git-narrow", paint);
-defineRoleWidget("row", "omp.app.git", widget);
-defineRoleWidget("col", "omp.app.git-narrow", widget);
+defineRolePainter("row", "zeta.app.git", paint);
+defineRolePainter("col", "zeta.app.git-narrow", paint);
+defineRoleWidget("row", "zeta.app.git", widget);
+defineRoleWidget("col", "zeta.app.git-narrow", widget);

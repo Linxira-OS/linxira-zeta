@@ -103,7 +103,7 @@ function paintLine(node: UiNode, props: ToolProps, term: VibeTerm, cx: PaintCont
 function paintComposer(node: UiNode, props: ToolProps, term: VibeTerm, cx: PaintContext): string[] {
 	const theme = cx.theme;
 	const children = node.children();
-	const composer = children.find(child => (child.props() as { role?: string }).role === "omp.vibe.composer");
+	const composer = children.find(child => (child.props() as { role?: string }).role === "zeta.vibe.composer");
 	const spinner = children.find(child => child.kind === "spinner");
 	const outcome = children.find(child => child !== composer && child.kind === "text");
 	let head: string;

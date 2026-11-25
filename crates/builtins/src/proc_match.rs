@@ -5,7 +5,7 @@
 //! parsing, and help rendering all live here, and each command is a thin front
 //! end over [`run`].
 //!
-//! Ported from `omp-shell`, which previously defined all three inline.
+//! Ported from `zetacode-shell`, which previously defined all three inline.
 
 // The three front ends are each feature-gated, so a build with only some of
 // them enabled legitimately uses only part of this module.

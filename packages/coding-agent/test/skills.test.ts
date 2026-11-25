@@ -50,14 +50,14 @@ const DISABLE_ALL_BUILTIN_SKILLS = {
 
 // Every provider resolves user-level roots from `os.homedir()` (HOME on POSIX,
 // USERPROFILE on Windows) and the agent dir; point both at an empty temp home
-// so real `~/.omp/plugins`, `~/.claude/plugins`, and `~/.agents/skills`
+// so real `~/.zeta/plugins`, `~/.claude/plugins`, and `~/.agents/skills`
 // installs never leak into these tests. On POSIX, Bun fixes `os.homedir()` at
 // process start, so setting HOME alone is not enough; spy on it as well.
 const isolatedEnvKeys = [
 	"HOME",
 	"USERPROFILE",
 	"CLAUDE_CONFIG_DIR",
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"ZETA_PROFILE",
 	"PI_PROFILE",
 ] as const;
@@ -78,7 +78,7 @@ beforeAll(async () => {
 	}
 	delete process.env.CLAUDE_CONFIG_DIR;
 	delete Bun.env.CLAUDE_CONFIG_DIR;
-	setAgentDir(path.join(isolatedHome, ".omp", "agent"));
+	setAgentDir(path.join(isolatedHome, ".zeta", "agent"));
 });
 
 beforeEach(() => {
@@ -199,7 +199,7 @@ describe("skills", () => {
 
 		// Regression for issue #2401: a user who disables the named third-party
 		// CLI toggles (codex/claude/native) MUST still see skills from the
-		// canonical OMP-native `~/.agent[s]/skills` (the `agents` provider).
+		// canonical Zeta-native `~/.agent[s]/skills` (the `agents` provider).
 		// Pre-fix `loadSkills` gated `agents` on `anyBuiltInSkillSourceEnabled`,
 		// so flipping the five third-party toggles off silently disabled it.
 		it("should still load ~/.agents/skills when codex/claude/native toggles are off (#2401)", async () => {
@@ -342,7 +342,7 @@ describe("skills", () => {
 
 		// Regression for PR #2405 review: the fall-through gate used by
 		// unknown third-party providers (opencode/github/claude-plugins/...)
-		// MUST NOT consider the OMP-native `enableAgentsUser`/`...Project`
+		// MUST NOT consider the Zeta-native `enableAgentsUser`/`...Project`
 		// toggles. Otherwise a user who disables Codex/Claude/Pi to silence
 		// third-party CLI noise but keeps the default agents toggles on still
 		// sees opencode skills resurface via the fallback branch.

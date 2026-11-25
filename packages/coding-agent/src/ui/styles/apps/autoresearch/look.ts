@@ -2,12 +2,12 @@
  * The autoresearch dashboard in the terminal: text dashboards painted from
  * the runtime (the `term` facts of the widget and sheet nodes).
  *
- * - `omp.widget.autoresearch` (row, card or text): the collapsed line
+ * - `zeta.widget.autoresearch` (row, card or text): the collapsed line
  *   (`autoresearch 5 runs 2 kept … | ⌃X expand`), the running line, or the
  *   expanded dashboard (a ruled title, the summary lines, a fixed-column run
  *   table of the latest eight runs), laid out for `term.columns` (default:
  *   the width) and word-wrapped to the width.
- * - `omp.app.autoresearch` (col): the sheet: the ruled title, every run of
+ * - `zeta.app.autoresearch` (col): the sheet: the ruled title, every run of
  *   the segment (plus the running benchmark) in a viewport `term.viewport`
  *   rows tall scrolled to `term.offset` with a scrollbar while it overflows,
  *   and the key-hint rule.
@@ -322,7 +322,7 @@ function widgetPainter(node: { props(): unknown }, cx: PaintContext): Block {
 	return { rows: lines.flatMap(line => (line === "" ? [""] : wrap(line, cx.width))) };
 }
 
-for (const kind of ["row", "card", "text"] as const) defineRolePainter(kind, "omp.widget.autoresearch", widgetPainter);
+for (const kind of ["row", "card", "text"] as const) defineRolePainter(kind, "zeta.widget.autoresearch", widgetPainter);
 
 // ─── Sheet ──────────────────────────────────────────────────────────────────
 
@@ -336,7 +336,7 @@ function scrollbar(theme: Theme, height: number, total: number, offset: number):
 	);
 }
 
-defineRolePainter("col", "omp.app.autoresearch", (node, cx): Block => {
+defineRolePainter("col", "zeta.app.autoresearch", (node, cx): Block => {
 	const facts = (node.props() as { term?: AutoresearchTerm }).term;
 	if (!facts) return { rows: [] };
 	const runtime = facts.runtime;

@@ -1,6 +1,6 @@
 /**
- * The composer in the terminal (`col` nodes with role `omp.editor` and
- * `omp.editor.<state>`): its text field inside the chrome of the composer's
+ * The composer in the terminal (`col` nodes with role `zeta.editor` and
+ * `zeta.editor.<state>`): its text field inside the chrome of the composer's
  * shape, the completion popup under it.
  *
  * The field (`line` row → `editor`) is painted at the wrap width the shape
@@ -130,5 +130,5 @@ function paintComposer(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("col", "omp.editor", paintComposer);
-defineRolePainter("col", "omp.editor", paintComposer, { prefix: true });
+defineRolePainter("col", "zeta.editor", paintComposer);
+defineRolePainter("col", "zeta.editor", paintComposer, { prefix: true });

@@ -24,7 +24,7 @@ interface ApprovalTerm {
 	readonly offset: number;
 }
 
-defineRolePainter("col", "omp.editor.ask.approval", (node, cx): Block => {
+defineRolePainter("col", "zeta.editor.ask.approval", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 8) return EMPTY_BLOCK;
 	const inner = cx.width - 4;

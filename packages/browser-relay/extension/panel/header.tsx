@@ -126,7 +126,7 @@ function SessionSwitcher(props: {
 			<div className="pn-switcher-caption">Running omp</div>
 			{hosts.length === 0 && (
 				<div className="pn-switcher-empty">
-					No omp is sharing a session. Run <code>/collab</code> in a terminal session to attach to it here.
+					No zetacode is sharing a session. Run <code>/collab</code> in a terminal session to attach to it here.
 				</div>
 			)}
 			{hosts.map(row => (

@@ -61,7 +61,7 @@ describe("status segment gallery", () => {
 
 	test("shows the selected child repository beside the workspace path", async () => {
 		const { symbols } = loadThemeSync("dark", { symbolPreset: "nerd" });
-		expect(await rows("path", 0, "nerd")).toEqual([`${symbols.icon("folder")} /workspace/oh-my-pi ↳ oh-my-pi`]);
+		expect(await rows("path", 0, "nerd")).toEqual([`${symbols.icon("folder")} /workspace/zeta ↳ zeta`]);
 	});
 
 	test("shows extension statuses only in the isolated segment", async () => {

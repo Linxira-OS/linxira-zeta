@@ -47,7 +47,7 @@ interface SpawnLog {
 
 /** Kitty's answer to the driver's OSC 99 capability query, listing title and body payloads. */
 function confirmOsc99(probes: string): string {
-	const id = /\x1b\]99;i=(omp-probe-\d+):p=\?;\x1b\\/u.exec(probes)?.[1];
+	const id = /\x1b\]99;i=(zeta-probe-\d+):p=\?;\x1b\\/u.exec(probes)?.[1];
 	if (!id) throw new Error("no OSC 99 capability query");
 	return `\x1b]99;i=${id}:p=?;p=title,body:a=focus,report:s=system,silent:w=1\x1b\\`;
 }
@@ -95,23 +95,23 @@ describe("notification formatting", () => {
 			true,
 		);
 		expect(out).toBe(
-			"\x1b]99;i=complete-1:f=b21w:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\" +
+			"\x1b]99;i=complete-1:f=emV0YQ:a=focus:u=1:t=Y29tcGxldGlvbg==:n=aW5mbw==:s=aW5mbw==:w=5000:d=0;Session\x1b\\" +
 				"\x1b]99;i=complete-1:p=body;Complete\x1b\\",
 		);
 	});
 
 	it("base64-encodes unsafe OSC 99 payload controls", () => {
 		expect(formatNotification({ title: "Line 1\nLine 2", id: "unsafe" }, "osc99", true)).toBe(
-			"\x1b]99;i=unsafe:f=b21w:e=1;TGluZSAxCkxpbmUgMg==\x1b\\",
+			"\x1b]99;i=unsafe:f=emV0YQ:e=1;TGluZSAxCkxpbmUgMg==\x1b\\",
 		);
 	});
 
 	it("generates OSC 99 ids that differ between notifications and between processes", () => {
-		// Kitty tracks ids per terminal process, so two omp processes in one kitty
+		// Kitty tracks ids per terminal process, so two zetacode processes in one kitty
 		// instance must never reuse each other's ids.
 		const script = `
 			import { formatNotification } from "${new URL("../../src/driver/notify.ts", import.meta.url).pathname}";
-			for (let i = 0; i < 2; i++) console.log(formatNotification({ title: "omp", body: "Complete" }, "osc99", true));
+			for (let i = 0; i < 2; i++) console.log(formatNotification({ title: "Zeta", body: "Complete" }, "osc99", true));
 		`;
 		const idsFromProcess = () => {
 			const result = Bun.spawnSync([process.execPath, "-e", script], { cwd: import.meta.dir });
@@ -346,7 +346,7 @@ describe("OSC 99 capability probe", () => {
 	it("queries and confirms OSC 99 support before rich notifications", async () => {
 		const term = await startProcessDriver({ env: { KITTY_WINDOW_ID: "1" } });
 		try {
-			const query = term.output.join("").match(/\x1b\]99;i=(omp-probe-\d+):p=\?;\x1b\\/u);
+			const query = term.output.join("").match(/\x1b\]99;i=(zeta-probe-\d+):p=\?;\x1b\\/u);
 			expect(query).not.toBeNull();
 			expect(term.driver.identity.richNotifications).toBe(false);
 		} finally {
@@ -377,7 +377,7 @@ describe("OSC 99 capability probe", () => {
 	it("never probes under tmux (the reply cannot route back to the pane)", async () => {
 		const term = await startProcessDriver({ env: { KITTY_WINDOW_ID: "1", TMUX } });
 		try {
-			expect(term.output.join("")).not.toContain("]99;i=omp-probe-");
+			expect(term.output.join("")).not.toContain("]99;i=zeta-probe-");
 		} finally {
 			await term.driver.stop();
 		}
@@ -400,7 +400,7 @@ describe("notifyTerminal", () => {
 		try {
 			term.output.length = 0;
 			notifyTerminal({ title: "Session", body: "Complete", id: "n1" });
-			expect(term.output).toEqual(["\x1b]99;i=n1:f=b21w:d=0;Session\x1b\\\x1b]99;i=n1:p=body;Complete\x1b\\"]);
+			expect(term.output).toEqual(["\x1b]99;i=n1:f=emV0YQ:d=0;Session\x1b\\\x1b]99;i=n1:p=body;Complete\x1b\\"]);
 		} finally {
 			await term.driver.stop();
 		}

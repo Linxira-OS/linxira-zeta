@@ -8,11 +8,11 @@ import type { TspTextProps } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import { activityFrame, findNode, hintText, plainText, propsOf, roleOf, rule } from "./common";
 
-defineRolePainter("card", "omp.hook.loader", (node, cx): Block => {
+defineRolePainter("card", "zeta.hook.loader", (node, cx): Block => {
 	const theme = cx.theme;
 	const message = findNode(node, child => child.kind === "text" && child.key() === "message");
 	const text = message ? plainText(propsOf<TspTextProps>(message).spans) : "";
-	const hints = findNode(node, child => roleOf(child) === "omp.overlay.hints");
+	const hints = findNode(node, child => roleOf(child) === "zeta.overlay.hints");
 	const paddingX = terminalPaddingX();
 	const pad = " ".repeat(paddingX);
 	const inner = Math.max(1, cx.width - 2 * paddingX);

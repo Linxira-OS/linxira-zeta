@@ -46,7 +46,7 @@ import {
 import { type RemoteHost, shq } from "./remote";
 
 const OMP_PATH = "/opt/omp/omp";
-/** Read-only bind mount holding prompts, the relay, and omp config. */
+/** Read-only bind mount holding prompts, the relay, and Zeta config. */
 const SUPPORT_DIR = "/opt/cbench";
 const GATEWAY_SOCKET_DIR = "/run/omp-gw";
 const RELAY_PORT = 4000;
@@ -58,7 +58,7 @@ const KILL_GRACE_MS = 60_000;
 const IDLE_SEGMENT_LIMIT = 3;
 
 /**
- * omp settings for a trial: the shared harness config ({@link benchSettingsYaml}
+ * Zeta settings for a trial: the shared harness config ({@link benchSettingsYaml}
  * included) plus a `compaction:` block.
  * Baseline and the control/fresh arms pass `{ enabled: false }`.
  */
@@ -97,7 +97,7 @@ export interface TrialConfig {
 	gatewayToken: string;
 	/** Image the container starts from: the cleanroom task image or a baseline's fork image. */
 	image: string;
-	/** omp settings installed as `~/.omp/agent/config.yml` ({@link agentConfigYaml}). */
+	/** Zeta settings installed as `~/.zeta/agent/config.yml` ({@link agentConfigYaml}). */
 	configYaml: string;
 	/** Session file inside the image to resume; absent starts a new session on the task prompt. */
 	resumeSession?: string;
@@ -596,7 +596,7 @@ async function runSegment(
 	return outcome;
 }
 
-/** Start the offline task container, install omp config, and wait for the gateway relay. */
+/** Start the offline task container, install Zeta config, and wait for the gateway relay. */
 async function startContainer(
 	config: TrialConfig,
 	container: string,
@@ -630,10 +630,10 @@ async function startContainer(
 	// A fork image carries the baseline's /logs (its segment logs would be re-read as ours)
 	// and the stale single-writer lock of the session it captured mid-run.
 	await host.sh(
-		`docker exec -u root ${shq(container)} sh -c ${shq(`rm -rf /logs ${SESSION_DIR}/.*.lock*; mkdir -p /logs ${AGENT_HOME}/.omp/agent && chown -R ${AGENT_USER}: /logs ${AGENT_HOME}`)}`,
+		`docker exec -u root ${shq(container)} sh -c ${shq(`rm -rf /logs ${SESSION_DIR}/.*.lock*; mkdir -p /logs ${AGENT_HOME}/.zeta/agent && chown -R ${AGENT_USER}: /logs ${AGENT_HOME}`)}`,
 	);
 	await host.sh(
-		`docker exec ${shq(container)} cp ${SUPPORT_DIR}/config.yml ${SUPPORT_DIR}/models.yml ${AGENT_HOME}/.omp/agent/`,
+		`docker exec ${shq(container)} cp ${SUPPORT_DIR}/config.yml ${SUPPORT_DIR}/models.yml ${AGENT_HOME}/.zeta/agent/`,
 	);
 	await host.sh(
 		`docker exec -d ${shq(container)} python3 ${SUPPORT_DIR}/gw-relay.py ${GATEWAY_SOCKET_DIR}/gw.sock ${RELAY_PORT}`,

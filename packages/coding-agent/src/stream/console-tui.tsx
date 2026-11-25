@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * `omp stream`'s console: the link status and channel, the viewer URL,
+ * `zetacode stream`'s console: the link status and channel, the viewer URL,
  * audience and attached panes, the event log (chat, link and pane events;
  * the newest at the bottom), the chat input and the key hints.
  *
@@ -258,10 +258,10 @@ function ConsoleView(props: {
 		];
 	};
 	return (
-		<col role="omp.stream.console" onKey={key => c.key(key)}>
+		<col role="zeta.stream.console" onKey={key => c.key(key)}>
 			<text key="header" spans={header} wrap="none" truncate="end" />
 			<text key="details" spans={details} wrap="none" truncate="end" />
-			<col key="log" grow={1} role="omp.stream.log">
+			<col key="log" grow={1} role="zeta.stream.log">
 				{logRows}
 			</col>
 			<input
@@ -278,7 +278,7 @@ function ConsoleView(props: {
 			/>
 			{() =>
 				props.native() ? (
-					<row key="hint" gap="xs" align="center" role="omp.hint">
+					<row key="hint" gap="xs" align="center" role="zeta.hint">
 						<text spans={[{ s: "dim", t: "/title <text> · /quit ·" }]} />
 						<kbd keys={["up"]} />
 						<kbd keys={["down"]} />

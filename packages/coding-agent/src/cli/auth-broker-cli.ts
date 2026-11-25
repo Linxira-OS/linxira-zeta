@@ -316,7 +316,7 @@ async function runList(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 // ─── CLIProxyAPI import ─────────────────────────────────────────────────
 
 /**
- * Maps the `type` field of a CLIProxyAPI credential JSON to the omp provider id.
+ * Maps the `type` field of a CLIProxyAPI credential JSON to the zetacode provider id.
  * The filename also encodes the type (e.g. `claude-foo@bar.json`), but the
  * in-file `type` is authoritative — we only fall back to filename if absent.
  */

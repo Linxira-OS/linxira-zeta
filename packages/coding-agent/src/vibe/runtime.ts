@@ -1863,7 +1863,7 @@ export class VibeSessionRegistry {
 		const parent = this.#parentForRecord(record, session);
 		const sessionFile = parent.getSessionFile();
 		const sessionArtifactsDir = sessionFile ? sessionFile.slice(0, -6) : null;
-		const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `omp-vibe-${Snowflake.next()}`);
+		const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `zetacode-vibe-${Snowflake.next()}`);
 		await fs.mkdir(artifactsDir, { recursive: true });
 		if (!sessionArtifactsDir) registerArtifactsDir(artifactsDir);
 		const sourceSession: ToolSession = {

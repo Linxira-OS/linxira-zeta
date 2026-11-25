@@ -3,9 +3,9 @@ import type { TinyLocalModelKey } from "./models";
 /**
  * Wire protocol between `TinyTitleClient` and a tiny-model worker.
  *
- * One worker per local model: the ONNX worker (`worker.ts`, the omp binary
+ * One worker per local model: the ONNX worker (`worker.ts`, the zetacode binary
  * re-entered with {@link TINY_WORKER_ARG}) or the MLX worker (`mlx-server.py`),
- * each a child of the omp daemon's `infer` module. The worker speaks this
+ * each a child of the zetacode daemon's `infer` module. The worker speaks this
  * newline-delimited JSON over stdin/stdout; clients speak the same lines over
  * their daemon tunnel and the daemon rewrites request ids. Requests are
  * message-level so both workers render the chat template with their own

@@ -1,4 +1,4 @@
-//! The `sleep` builtin, moved from `omp-shell`.
+//! The `sleep` builtin, moved from `zetacode-shell`.
 
 use std::{future::Future, io::Write, time::Duration};
 

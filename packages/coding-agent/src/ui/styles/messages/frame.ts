@@ -1,6 +1,6 @@
 /**
- * Framed extension and hook messages (`card` roles `omp.custom`,
- * `omp.custom.delegation`, `omp.hook`): a rounded outline in the border
+ * Framed extension and hook messages (`card` roles `zeta.custom`,
+ * `zeta.custom.delegation`, `zeta.hook`): a rounded outline in the border
  * color around a `customMessageBg` fill, one row and one cell of padding
  * inside; the bold `customMessageLabel` type tag (with its glyph) and a blank
  * row, then the body as Markdown in `customMessageText`, folded to its first
@@ -91,7 +91,7 @@ function paintFrameCustom(node: UiNode, cx: PaintContext): Block {
 	return { rows: block.rows };
 }
 
-for (const role of ["omp.custom", "omp.custom.delegation", "omp.hook"]) {
+for (const role of ["zeta.custom", "zeta.custom.delegation", "zeta.hook"]) {
 	defineRolePainter("card", role, paintFrameCard);
 	defineRolePainter("col", role, paintFrameCustom);
 }

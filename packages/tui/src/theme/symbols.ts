@@ -3,7 +3,7 @@
  * `SymbolSet` a theme hands painters.
  */
 // The logger subpath, not the `@linxiraos/pi-utils` barrel (which loads the native addon):
-// key-hint formatting reads these tables on addon-free CLI paths (`omp --help`).
+// key-hint formatting reads these tables on addon-free CLI paths (`zetacode --help`).
 import * as logger from "@linxiraos/pi-utils/logger";
 import type { BoxGlyphs, SymbolSet } from "./contract";
 import SYMBOL_DATA from "./data/symbols.json" with { type: "json" };

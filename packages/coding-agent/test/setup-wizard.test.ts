@@ -144,7 +144,7 @@ describe("setup wizard scene selection", () => {
 		).toEqual([]);
 	});
 
-	it("skips the auto-update question where omp cannot update itself (Tern, Nix, a source checkout)", async () => {
+	it("skips the auto-update question where zetacode cannot update itself (Tern, Nix, a source checkout)", async () => {
 		vi.spyOn(updateCli, "canSelfUpdate").mockResolvedValue(false);
 		const scenes = await selectSetupScenes(0, ALL_SCENES, fakeContextWithConfiguredModel(), { isTTY: true });
 		expect(scenes.map(scene => scene.id)).toEqual(
@@ -404,7 +404,7 @@ describe("setup wizard glyph scene", () => {
 	});
 });
 
-describe("omp setup onboarding trigger", () => {
+describe("zetacode setup onboarding trigger", () => {
 	it("starts the normal interactive command with forced setup wizard", async () => {
 		let forceSetupWizard: boolean | undefined;
 		await runOnboardingSetup({

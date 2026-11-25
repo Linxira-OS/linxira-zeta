@@ -1,6 +1,6 @@
 /**
- * `omp.app.ps`: the `omp ps` monitor in the terminal (`term.ps`), btop
- * style, filling the screen: a head line (`omp ps · 4 units in 2 scopes`
+ * `zeta.app.ps`: the `zetacode ps` monitor in the terminal (`term.ps`), btop
+ * style, filling the screen: a head line (`zetacode ps · 4 units in 2 scopes`
  * with the refresh age at the right), the view's body in a scrolling window
  * (a scrollbar in the last column while it overflows), the status line and
  * the key hints.
@@ -97,7 +97,7 @@ const padRight = (text: string, width: number) => `${text}${" ".repeat(Math.max(
 
 const clampTop = (top: number, total: number, height: number) => Math.max(0, Math.min(top, total - height));
 
-defineRolePainter("col", "omp.app.ps", (node, cx): Block => {
+defineRolePainter("col", "zeta.app.ps", (node, cx): Block => {
 	const model = (node.props() as { term?: { ps?: PsTopModel } }).term?.ps;
 	if (!model) return { rows: [] };
 	const theme = cx.theme;
@@ -109,7 +109,7 @@ defineRolePainter("col", "omp.app.ps", (node, cx): Block => {
 	const last = model.lastRefresh();
 
 	const header = (title: string): string => {
-		const left = ` ${pen.bold("omp ps")} ${pen.dim("·")} ${title}`;
+		const left = ` ${pen.bold("zetacode ps")} ${pen.dim("·")} ${title}`;
 		const right = pen.dim(last ? `updated ${formatDuration(now - last)} ago` : "updating…");
 		const pad = Math.max(1, width - visibleWidth(left) - visibleWidth(right) - 1);
 		return truncate(`${left}${" ".repeat(pad)}${right}`, width);

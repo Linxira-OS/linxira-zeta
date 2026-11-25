@@ -2,7 +2,7 @@
  * Client for Stencil's build service, the source of omp's standalone binaries
  * ({@link ZETA_BUILD}) and of the engine its WebKit browser downloads (ABKit).
  *
- * `omp update` on a standalone binary install, the binary takeover of a
+ * `zetacode update` on a standalone binary install, the binary takeover of a
  * package-manager install, and the startup update check of a compiled binary
  * all ask the service which build to install ({@link fetchBuild}), as does the
  * browser's engine install:
@@ -31,7 +31,7 @@
 import * as fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, APP_NAME, isEnoent, isRecord, VERSION } from "@linxiraos/pi-utils";
+import { $env, APP_NAME, CLI_BIN_NAME, isEnoent, isRecord, VERSION } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 import {
 	isTimeoutError,
@@ -70,13 +70,13 @@ export interface BuildHost {
 
 /** A product the build service publishes, and what its file for a host is called. */
 export interface BuildProduct {
-	/** Product id in the service's routes, e.g. `omp`. */
+	/** Product id in the service's routes, e.g. `zetacode`. */
 	id: string;
 	/** The file name a build of `version` has for `host`; an answer naming another file is refused. */
 	fileName(host: BuildHost, version: string): string;
 }
 
-/** omp's standalone binary, named like its GitHub release asset: `omp-darwin-arm64`, `omp-windows-x64.exe`. */
+/** omp's standalone binary, named like its GitHub release asset: `zetacode-darwin-arm64`, `zetacode-windows-x64.exe`. */
 export const ZETA_BUILD: BuildProduct = {
 	id: "omp",
 	fileName: host => `${APP_NAME}-${host.asset}${host.windows ? ".exe" : ""}`,
@@ -322,7 +322,7 @@ export async function fetchBuild(selector: BuildSelector, options: FetchBuildOpt
 	if (response.status === 404 && isRecord(body) && body.error === "no_build") {
 		const hint =
 			product === ZETA_BUILD && "channel" in selector && selector.channel === "canary"
-				? ` Try \`${APP_NAME} update --stable\`.`
+				? ` Try \`\${CLI_BIN_NAME} update --stable\`.`
 				: "";
 		throw new Error(`No ${what} is published on ${origin} yet.${hint}`);
 	}

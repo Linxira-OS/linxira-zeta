@@ -5,7 +5,7 @@
  * text terminal draws a slim labeled rule with the expansion hint and,
  * expanded, the summary in a filled box below it.
  *
- * Terminal look: `omp.compaction` / `omp.handoff` / `omp.branch`
+ * Terminal look: `zeta.compaction` / `zeta.handoff` / `zeta.branch`
  * (`src/ui/styles/messages/summary.ts`).
  */
 import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";

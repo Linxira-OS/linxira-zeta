@@ -1,8 +1,8 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * Building blocks the overlay panels share: buttons (`omp.btn`, `omp.app.ibtn`, `omp.app.qbtn`),
+ * Building blocks the overlay panels share: buttons (`zeta.btn`, `zeta.app.ibtn`, `zeta.app.qbtn`),
  * key hints (a `kbd` beside a muted label) and the hint strip
- * (`omp.overlay.hints`).
+ * (`zeta.overlay.hints`).
  */
 import {
 	type JSXNode,
@@ -44,7 +44,7 @@ export interface ActionButtonProps {
 }
 
 /**
- * A clickable action (role `omp.btn`): a `button` where the terminal draws
+ * A clickable action (role `zeta.btn`): a `button` where the terminal draws
  * that kind, else the `row` (label, icon, keycap) older terminals style by role.
  */
 export function ActionButton(props: ActionButtonProps): JSXNode {
@@ -109,7 +109,7 @@ export function EscCloseButton(props: { readonly act?: string; readonly nodeKey?
 }
 
 /**
- * A quiet icon-only button (role `omp.app.ibtn`, `.set` while a toggle is on):
+ * A quiet icon-only button (role `zeta.app.ibtn`, `.set` while a toggle is on):
  * a `button` where the terminal draws that kind, else an `icon` with a click action.
  */
 export function IconButton(props: {
@@ -122,7 +122,7 @@ export function IconButton(props: {
 	readonly on?: boolean;
 	readonly nodeKey?: string;
 }): JSXNode {
-	const role = props.on ? "omp.app.ibtn.set" : "omp.app.ibtn";
+	const role = props.on ? "zeta.app.ibtn.set" : "zeta.app.ibtn";
 	const aria = props.aria ?? props.title;
 	const actions = { click: props.act };
 	return () =>
@@ -143,7 +143,7 @@ export function IconButton(props: {
 }
 
 /**
- * A quiet text button (role `omp.app.qbtn`) keyed by its action: a small quiet
+ * A quiet text button (role `zeta.app.qbtn`) keyed by its action: a small quiet
  * `button` where the terminal draws that kind, else `children` (default: a row of the label).
  */
 export function QuietButton(props: {
@@ -239,7 +239,7 @@ export interface KeycapHint {
 	readonly label: string;
 }
 
-/** A hint strip (`omp.overlay.hints`) of {@link KeycapHint}s. */
+/** A hint strip (`zeta.overlay.hints`) of {@link KeycapHint}s. */
 export function KeycapHints(props: { readonly nodeKey: string; readonly hints: () => readonly KeycapHint[] }): JSXNode {
 	return (
 		<row key={props.nodeKey} role="zeta.overlay.hints" gap="md" wrap>

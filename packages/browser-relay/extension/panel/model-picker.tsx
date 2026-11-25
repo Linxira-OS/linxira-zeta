@@ -67,7 +67,7 @@ const LEVEL_LABELS: Readonly<Record<string, string>> = {
 };
 /** What each selector does, for the thinking menu. */
 const LEVEL_DESCRIPTIONS: Readonly<Record<string, string>> = {
-	auto: "omp picks the effort each turn",
+	auto: "zetacode picks the effort each turn",
 	off: "No reasoning",
 	minimal: "Very brief reasoning",
 	low: "Light reasoning",

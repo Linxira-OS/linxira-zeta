@@ -2,7 +2,7 @@
  * Settings window looks for the children a `prefs` node places by role:
  * the status-line preview (drawn from the ANSI-free spans in `term.line`,
  * which may differ from the native bar it describes) and editors without a
- * page control. Their form fields (`omp.form.field`) are drawn by the forms
+ * page control. Their form fields (`zeta.form.field`) are drawn by the forms
  * looks.
  */
 import "../forms";
@@ -16,7 +16,7 @@ interface PreviewTerm {
 	readonly line?: readonly TspSpan[];
 }
 
-defineRolePainter("col", "omp.prefs.preview.status", (node, cx): Block => {
+defineRolePainter("col", "zeta.prefs.preview.status", (node, cx): Block => {
 	const line = (node.props() as { term?: PreviewTerm }).term?.line;
 	if (line) return { rows: [truncate(styledText(cx.theme, line), cx.width)] };
 	const rows: string[] = [];
@@ -24,7 +24,7 @@ defineRolePainter("col", "omp.prefs.preview.status", (node, cx): Block => {
 	return { rows };
 });
 
-defineRolePainter("col", "omp.prefs.editor", (node, cx): Block => {
+defineRolePainter("col", "zeta.prefs.editor", (node, cx): Block => {
 	const rows: string[] = [];
 	for (const child of node.children()) rows.push(...cx.paint(child, cx.width).rows);
 	return { rows };

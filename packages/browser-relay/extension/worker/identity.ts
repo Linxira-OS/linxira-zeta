@@ -29,7 +29,7 @@ export function ensureInstanceId(): Promise<string> {
 /**
  * Identity of this browser run, in `chrome.storage.session`. Chrome clears it on restart, when it also reuses tab
  * ids, so the relay retires the previous run's targets instead of resolving an old target id to a new tab. An
- * extension reload clears it too: omp then loses its handles to the tabs it opened, which stay open.
+ * extension reload clears it too: zetacode then loses its handles to the tabs it opened, which stay open.
  */
 let browserSession: Promise<string> | null = null;
 

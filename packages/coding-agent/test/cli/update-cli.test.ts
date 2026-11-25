@@ -39,7 +39,7 @@ describe("runUpdateCommand version source", () => {
 
 	/**
 	 * Make PATH a fresh directory holding only what the test puts there, so no
-	 * brew, mise, bun, npm, or omp of the host takes part in target resolution.
+	 * brew, mise, bun, npm, or zetacode of the host takes part in target resolution.
 	 */
 	async function isolatePath(): Promise<string> {
 		const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-update-path-")));

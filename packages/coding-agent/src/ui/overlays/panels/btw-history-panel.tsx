@@ -37,7 +37,7 @@ import { rowsRole, type SheetAttributes } from "../sheet";
 /** Tern's sheet: a large centered one (the list beside the reader), palette-sized while there is nothing to list. */
 export function btwHistorySheet(model: BtwHistoryModel): SheetAttributes {
 	return {
-		role: "omp.overlay.btwHistory",
+		role: "zeta.overlay.btwHistory",
 		anchor: "center",
 		size: () => (model.rev(), model.records.length > 0 ? "lg" : "md"),
 		head: "BTW history",
@@ -89,7 +89,7 @@ function HistoryList(props: { readonly model: BtwHistoryModel }): JSXNode {
 		<col key="history" role="zeta.btw.history" shrink={0}>
 			<list
 				key="records"
-				role={model.focus === "list" ? "omp.btw.list" : "omp.btw.list.idle"}
+				role={model.focus === "list" ? "zeta.btw.list" : "zeta.btw.list.idle"}
 				selected={model.selectedId ?? null}
 			>
 				{model.records.map(record => {
@@ -151,7 +151,7 @@ function Turn(props: {
 	}
 	return (
 		<col key={`turn-${index}`} role="zeta.btw.turn">
-			<md text={sanitizeDisplayText(turn.question)} role={index === 0 ? "omp.btw.question" : "omp.btw.followup"} />
+			<md text={sanitizeDisplayText(turn.question)} role={index === 0 ? "zeta.btw.question" : "zeta.btw.followup"} />
 			<text role="zeta.btw.meta" spans={meta} truncate="end" lines={1} />
 			{answer && (
 				<col key="answer" role="zeta.btw.answer">
@@ -257,7 +257,7 @@ export function BtwHistoryPanel(props: { readonly model: BtwHistoryModel }): JSX
 			return (
 				<col
 					gap="none"
-					role={rowsRole("omp.btw.sheet")}
+					role={rowsRole("zeta.btw.sheet")}
 					// The mic glyph moves alone (every animation frame), without rebuilding the sheet.
 					term={() => ({ model, rev: untrack(model.rev), caretGlyph: model.caretGlyph() })}
 					onKey={key => model.key(key)}

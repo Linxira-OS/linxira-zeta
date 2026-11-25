@@ -8,7 +8,7 @@
  * {@link ToolBlock} wraps that view in the `tool` node: head facts become the
  * node's props, the body its children, the call state its status/age/took.
  * A Tern terminal draws the node natively; the terminal backend paints it
- * with the `omp.tool.*` looks (`src/ui/styles/tools`).
+ * with the `zeta.tool.*` looks (`src/ui/styles/tools`).
  *
  * Merged presenters (`merge`) show the result view in place of the call's;
  * others stack the result body under the call body.
@@ -682,7 +682,7 @@ export function toolNodeProps(input: ToolNodeInput): ToolNodeProps {
 		frame: inline ? "inline" : "card",
 		collapsible,
 		...(input.id !== undefined ? { propKey: input.id } : {}),
-		role: `omp.tool.${input.name}`,
+		role: `zeta.tool.${input.name}`,
 		...(compactSpec?.label !== undefined
 			? { target: compactSpec.label, targetKind: "text" as const }
 			: {

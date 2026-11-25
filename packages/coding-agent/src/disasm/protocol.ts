@@ -1,11 +1,11 @@
 /**
- * Contract between omp processes and the daemon's `disasm` module (`daemon/modules/disasm.ts`).
+ * Contract between zetacode processes and the daemon's `disasm` module (`daemon/modules/disasm.ts`).
  *
  * Each open database runs in one daemon named {@link daemonName} under the project's daemon
  * broker (so it shows up in `zetacode ps`). The daemon is a Zeta worker (`host.ts`) that owns the
  * database lock and one Python worker, and serves NDJSON requests on {@link hostEndpoint}.
  * Each database is also addressable as a global-scope `disasm` unit keyed {@link disasmUnitKey};
- * omp processes speak NDJSON {@link HostRequest}s to it over an attached daemon tunnel.
+ * zetacode processes speak NDJSON {@link HostRequest}s to it over an attached daemon tunnel.
  */
 import { type } from "@linxiraos/zeta-schema";
 import { ToolError } from "../tools/tool-errors";
@@ -106,7 +106,7 @@ export function parseDatabaseHandle(value: string): DatabaseHandle | undefined {
 	return { backend, id: parts[1], instance: parts[2] };
 }
 
-/** RPC methods an omp process may forward to the worker through `call`. */
+/** RPC methods an zetacode process may forward to the worker through `call`. */
 export const HOST_CALL_METHODS = [
 	"view",
 	"exec",
@@ -191,7 +191,7 @@ const hostStatusSchema = type({
 
 /**
  * A unit's database as reported by `open`/`status`. `busy` counts queued and running requests
- * from every omp process; `references` pins against idle/LRU close; `handle` identifies this
+ * from every zetacode process; `references` pins against idle/LRU close; `handle` identifies this
  * incarnation; `lastUsed` is when it last ran a request (or started opening); `dirty` means a
  * close would save.
  */
@@ -234,7 +234,7 @@ const unitParamsSchema = type({
 	maxOpen: "number",
 });
 
-/** `open` params of a `disasm` unit; built by the omp process that opens it (worker runtime included). */
+/** `open` params of a `disasm` unit; built by the zetacode process that opens it (worker runtime included). */
 export type DisasmUnitParams = typeof unitParamsSchema.infer;
 
 /** Validate `disasm` unit params; throws on a malformed value. */

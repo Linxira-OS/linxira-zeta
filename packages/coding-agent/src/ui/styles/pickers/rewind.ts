@@ -1,5 +1,5 @@
 /**
- * Rewind's terminal look (the `omp.rewind.bar` row): the transcript
+ * Rewind's terminal look (the `zeta.rewind.bar` row): the transcript
  * selectors' screen (`./transcript-view`) headed `↶ Rewind · pick the point
  * to continue from`, the outlined turn boxed in the accent, then the counter
  * and key hints (after the filter field while filtering).
@@ -97,4 +97,4 @@ function paintRewind(node: UiNode, cx: PaintContext): Block {
 	return transcriptScreen(node, cx, { head, body, footer, rows: term.rows });
 }
 
-defineRolePainter("row", "omp.rewind.bar", paintRewind);
+defineRolePainter("row", "zeta.rewind.bar", paintRewind);

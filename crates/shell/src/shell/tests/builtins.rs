@@ -279,7 +279,7 @@ async fn command_v_iterates_all_operands() {
 	let _ = std::fs::remove_dir_all(&tmp);
 }
 
-/// Every utility `omp-builtins` offers must actually be dispatchable in
+/// Every utility `zetacode-builtins` offers must actually be dispatchable in
 /// process, under the name it is registered as.
 ///
 /// The registry (`omp_builtins::extras::extras()`, its
@@ -464,7 +464,7 @@ async fn every_utility_builtin_is_registered_under_its_own_name() {
 }
 
 /// Every process builtin pi offers must be installed and dispatch in
-/// process: `omp-builtins`' process extras and the engine tools `nohup` and
+/// process: `zetacode-builtins`' process extras and the engine tools `nohup` and
 /// `timeout` (`src/tools`).
 ///
 /// `omp_builtins::extras` maps each name to a struct by hand, so a mis-wire

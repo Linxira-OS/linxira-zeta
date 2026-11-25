@@ -201,7 +201,7 @@ export async function registerProviders(signalConfig: TelemetrySignalConfig): Pr
 					event.level,
 					event.message,
 					logAttributesFromContext(event.context),
-					"omp.log",
+					"zeta.log",
 					event.timestamp,
 				);
 			});

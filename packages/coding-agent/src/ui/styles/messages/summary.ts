@@ -1,6 +1,6 @@
 /**
- * History-collapse summaries (`section` roles `omp.compaction`,
- * `omp.handoff`, `omp.branch`): a blank row, the label and expansion hint
+ * History-collapse summaries (`section` roles `zeta.compaction`,
+ * `zeta.handoff`, `zeta.branch`): a blank row, the label and expansion hint
  * centered between dim rules (the bare muted label when the width leaves
  * fewer than four rule cells), a blank row; expanded, the detail Markdown in
  * a `customMessageBg` box one row and one cell in.
@@ -44,4 +44,4 @@ function paintSummary(node: UiNode, cx: PaintContext): Block {
 	return { rows };
 }
 
-for (const role of ["omp.compaction", "omp.handoff", "omp.branch"]) defineRolePainter("section", role, paintSummary);
+for (const role of ["zeta.compaction", "zeta.handoff", "zeta.branch"]) defineRolePainter("section", role, paintSummary);

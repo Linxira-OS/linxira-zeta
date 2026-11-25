@@ -3,7 +3,7 @@
  * The working row: what the agent is doing while a turn runs, in the dock's
  * `status` slot.
  *
- * - Natively (role `omp.working`): a `starburst` spinner (a countdown ring
+ * - Natively (role `zeta.working`): a `starburst` spinner (a countdown ring
  *   while a retry waits), the elapsed time, a `·`, the label shimmering, a
  *   spacer, an indeterminate bar while compacting, and the stop control
  *   (`kbd` + Stop/Cancel) whose click sends `interrupt`.
@@ -123,7 +123,7 @@ export function WorkingRow(props: WorkingRowProps): JSXNode {
 	const now = props.now ?? Date.now;
 	const variant = spec.variant;
 	const shimmer = spec.shimmer ?? "classic";
-	// Natively the terminal clocks spinner, elapsed and shimmer; omp only moves a retry ring and a live label.
+	// Natively the terminal clocks spinner, elapsed and shimmer; zetacode only moves a retry ring and a live label.
 	const tick = signal(0);
 	const live = typeof spec.label === "function";
 	if (live || variant?.kind === "retry") {

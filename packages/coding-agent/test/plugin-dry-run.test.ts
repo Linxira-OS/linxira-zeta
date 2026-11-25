@@ -1,5 +1,5 @@
 /**
- * Regression tests for `--dry-run` on `omp plugin` actions beyond install/uninstall/link.
+ * Regression tests for `--dry-run` on `zetacode plugin` actions beyond install/uninstall/link.
  *
  * These actions used to accept `--dry-run` and silently apply their change:
  * `upgrade --dry-run` rewrote installed_plugins.json and replaced the plugin's
@@ -81,7 +81,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 		spyOn(piUtils, "getMarketplacesRegistryPath").mockReturnValue(path.join(root, "state", "marketplaces.json"));
 		spyOn(piUtils, "getProjectDir").mockReturnValue(projectDir);
 		spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(
-			path.join(projectDir, ".omp", "plugin-overrides.json"),
+			path.join(projectDir, ".zeta", "plugin-overrides.json"),
 		);
 		output = [];
 		spyOn(console, "log").mockImplementation((...args: unknown[]) => {

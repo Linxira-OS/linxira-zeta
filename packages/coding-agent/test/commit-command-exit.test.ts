@@ -4,7 +4,7 @@ import * as commitModule from "@linxiraos/zeta/commit";
 import * as themeService from "../src/ui/theme/service";
 import { postmortem } from "@linxiraos/pi-utils";
 
-describe("omp commit command lifecycle (issue #1041)", () => {
+describe("zetacode commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});

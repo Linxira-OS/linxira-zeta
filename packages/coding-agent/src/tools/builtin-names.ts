@@ -159,7 +159,7 @@ export function normalizeToolName(name: string): string {
 }
 
 /**
- * Claude Code tool names (lowercased) and the omp built-in that covers each. Only names with a real
+ * Claude Code tool names (lowercased) and the zetacode built-in that covers each. Only names with a real
  * equivalent are listed; Claude-only tools such as `ExitPlanMode` or `KillShell` have none.
  */
 export const CLAUDE_CODE_TOOL_NAMES: ReadonlyMap<string, BuiltinToolName> = new Map([

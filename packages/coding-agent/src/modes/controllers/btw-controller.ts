@@ -807,7 +807,7 @@ export class BtwController {
 		const handle = this.ctx.shell.overlays.show(
 			() =>
 				jsx("overlay", {
-					...(this.ctx.shell.native() ? btwHistorySheet(panel) : { size: "full", role: "omp.app.screen" }),
+					...(this.ctx.shell.native() ? btwHistorySheet(panel) : { size: "full", role: "zeta.app.screen" }),
 					onKey: (key: KeyEvent) => panel.key(key),
 					onPaste: (paste: PasteEvent) => {
 						if (!panel.composer) return false;

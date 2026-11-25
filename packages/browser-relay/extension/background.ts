@@ -1,5 +1,5 @@
 /**
- * omp — MV3 service worker.
+ * zetacode — MV3 service worker.
  *
  * Wires the extension's parts together: the relay link through the native host (`worker/relay.ts`) whose RPCs drive
  * tabs through `chrome.debugger`, the page overlay host, the side panel hub and its request handlers, the

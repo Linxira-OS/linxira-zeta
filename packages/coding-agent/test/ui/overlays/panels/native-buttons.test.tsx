@@ -48,7 +48,7 @@ function controls(acts: string[], tab: { set(value: string): void; (): string })
 			<QuietButton label="Stage all" act="stage-all" title="Stage every change" />
 			<tabs
 				key="views"
-				role="omp.app.seg"
+				role="zeta.app.seg"
 				variant={segmentedVariant}
 				items={[
 					{ id: "a", label: "A" },
@@ -69,13 +69,13 @@ describe("button-like controls in Tern", () => {
 		ui.shell.dock.slot("ask").set(() => controls(acts, tab));
 
 		expect(ui.node("button", "plain").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Plain",
 			title: "Plain",
 			actions: { click: "plain" },
 		});
 		expect(ui.node("button", "save").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Save",
 			title: "Save  ⏎",
 			keys: ["enter"],
@@ -86,7 +86,7 @@ describe("button-like controls in Tern", () => {
 		expect(ui.node("button", "kill").p).toMatchObject({ variant: "danger", tone: "error", keys: ["ctrl", "c"] });
 		// A disabled button is muted, loses its variant and says why; the reason is the tooltip Tern shows.
 		expect(ui.node("button", "commit").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Commit",
 			title: "Commit the staged changes",
 			tone: "muted",
@@ -95,7 +95,7 @@ describe("button-like controls in Tern", () => {
 		});
 		expect(ui.node("button", "generate").p).toMatchObject({ busy: true, disabled: true, tone: "muted" });
 		expect(ui.node("button", "openLink").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Open",
 			title: "Open example.com",
 			icon: "open",
@@ -103,14 +103,14 @@ describe("button-like controls in Tern", () => {
 			actions: { click: "open" },
 		});
 		expect(ui.node("button", "esc-close").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			keys: ["escape"],
 			title: "Close  esc",
 			aria: "Close",
 			actions: { click: "close" },
 		});
 		expect(ui.node("button", "wrap").p).toEqual({
-			role: "omp.app.ibtn.set",
+			role: "zeta.app.ibtn.set",
 			variant: "quiet",
 			icon: "corner-down-right",
 			title: "Wrap lines (W)",
@@ -119,7 +119,7 @@ describe("button-like controls in Tern", () => {
 			actions: { click: "wrap" },
 		});
 		expect(ui.node("button", "quit").p).toEqual({
-			role: "omp.app.ibtn",
+			role: "zeta.app.ibtn",
 			variant: "quiet",
 			icon: "x",
 			title: "Quit  q",
@@ -127,14 +127,14 @@ describe("button-like controls in Tern", () => {
 			actions: { click: "quit" },
 		});
 		expect(ui.node("button", "stage-all").p).toEqual({
-			role: "omp.app.qbtn",
+			role: "zeta.app.qbtn",
 			variant: "quiet",
 			size: "sm",
 			text: "Stage all",
 			title: "Stage every change",
 			actions: { click: "stage-all" },
 		});
-		expect(ui.node("tabs", "views").p).toMatchObject({ role: "omp.app.seg", variant: "segmented", active: "a" });
+		expect(ui.node("tabs", "views").p).toMatchObject({ role: "zeta.app.seg", variant: "segmented", active: "a" });
 
 		for (const key of ["plain", "save", "openLink", "esc-close", "wrap", "quit", "stage-all"])
 			ui.click("button", key);
@@ -146,7 +146,7 @@ describe("button-like controls in Tern", () => {
 	it("keeps the row and icon composition where no terminal draws buttons", async () => {
 		const term = memoryTerminal({ columns: 100, rows: 30 });
 		const shell = new Shell();
-		await shell.start({ theme: currentTheme, driver: term.options, role: "omp.session" });
+		await shell.start({ theme: currentTheme, driver: term.options, role: "zeta.session" });
 		try {
 			const tab = signal("a");
 			const root = controls([], tab);
@@ -154,17 +154,17 @@ describe("button-like controls in Tern", () => {
 			if (typeof root !== "object" || root === null || !("children" in root)) throw new Error("no controls");
 			const kinds = root.children().map(child => `${child.kind}:${String(child.props().role ?? "")}`);
 			expect(kinds).toEqual([
-				"row:omp.btn",
-				"row:omp.btn",
-				"row:omp.btn",
-				"row:omp.btn",
-				"row:omp.btn",
-				"row:omp.btn",
-				"row:omp.btn",
-				"icon:omp.app.ibtn.set",
-				"icon:omp.app.ibtn",
-				"row:omp.app.qbtn",
-				"tabs:omp.app.seg",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"row:zeta.btn",
+				"icon:zeta.app.ibtn.set",
+				"icon:zeta.app.ibtn",
+				"row:zeta.app.qbtn",
+				"tabs:zeta.app.seg",
 			]);
 			const commit = root.children()[3]!;
 			// A disabled row sends no click at all.
@@ -188,7 +188,7 @@ describe("button-like controls in Tern", () => {
 				ReportPanel({ title: "Tools", body: <text text="body" />, closeKey: "Esc", onClose: () => closed++ }),
 			);
 		expect(ui.node("button", "close").p).toEqual({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Close",
 			title: "Close  esc",
 			keys: ["escape"],
@@ -209,7 +209,7 @@ describe("button-like controls in Tern", () => {
 			}),
 		);
 		expect(ui.node("button", "resume").p).toMatchObject({
-			role: "omp.btn",
+			role: "zeta.btn",
 			text: "Resume",
 			variant: "primary",
 			tone: "accent",

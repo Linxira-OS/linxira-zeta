@@ -6,7 +6,7 @@
  * metric per run and every run of the segment.
  *
  * The terminal shows both as text dashboards painted from the runtime (the
- * `omp.widget.autoresearch` and `omp.app.autoresearch` looks); the sheet
+ * `zeta.widget.autoresearch` and `zeta.app.autoresearch` looks); the sheet
  * scrolls with ↑/↓ j/k PgUp PgDn g G and closes with Esc or q.
  */
 import { type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
@@ -39,7 +39,7 @@ import {
 	statusCounts,
 } from "./model";
 
-const WIDGET_ROLE = "omp.widget.autoresearch";
+const WIDGET_ROLE = "zeta.widget.autoresearch";
 
 const STATUS_LABEL: Record<ExperimentResult["status"], string> = {
 	keep: "kept",
@@ -323,7 +323,7 @@ function widgetDashboard(runtime: AutoresearchDashboardRuntime, maxRows: number)
 /** Tern's sheet: a large one titled by the experiment's name, then what the sheet is. */
 export function autoresearchSheet(runtime: AutoresearchDashboardRuntime, revision: () => number): SheetAttributes {
 	return {
-		role: "omp.overlay.autoresearch",
+		role: "zeta.overlay.autoresearch",
 		anchor: "bottom",
 		size: "lg",
 		head: (): TspSpan[] => {

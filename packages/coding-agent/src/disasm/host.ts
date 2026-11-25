@@ -134,7 +134,7 @@ class DisasmHost {
 		if (loc.kind === "store") await fs.promises.mkdir(loc.dir, { recursive: true });
 		const lock = await acquireFileLock(loc.lockTarget, { retries: 1 }).catch(() => {
 			throw new ToolError(
-				`${DISASM_BACKENDS[backend as DisasmBackendId].label} database ${loc.id} is in use by another omp process outside this project`,
+				`${DISASM_BACKENDS[backend as DisasmBackendId].label} database ${loc.id} is in use by another zetacode process outside this project`,
 			);
 		});
 		try {

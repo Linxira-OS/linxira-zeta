@@ -4,7 +4,7 @@
  * provider list (each with its cap, plus "Clear all limits" once any is set)
  * and, for the picked provider, a number field. The settings page has no
  * control for a per-provider map, so the window shows this as an
- * `omp.prefs.editor` child; its keys are the program's.
+ * `zeta.prefs.editor` child; its keys are the program's.
  */
 import { type JSXNode, type KeyEvent, signal } from "@linxiraos/pi-tui";
 import type { SettingsHost } from "../../../config/settings-defs";

@@ -626,10 +626,10 @@ fn busy() -> DesktopError {
 	DesktopError::input_busy("another desktop operation owns input/focus control; no input was sent")
 }
 
-/// `InputBusy` naming the agent whose session in omp `pid` owns control.
+/// `InputBusy` naming the agent whose session in zetacode `pid` owns control.
 fn held_by(agent: &str, pid: u32) -> DesktopError {
 	DesktopError::input_busy(format!(
-		"agent {agent:?} (omp pid {pid}) owns input/focus control; no input was sent"
+		"agent {agent:?} (zetacode pid {pid}) owns input/focus control; no input was sent"
 	))
 }
 
@@ -1182,7 +1182,7 @@ impl KernelLease {
 			.write_all_at(format!("{}\n{agent}", std::process::id()).as_bytes(), 0);
 	}
 
-	/// The omp pid and agent a live host recorded in the locked `file`; `None`
+	/// The zetacode pid and agent a live host recorded in the locked `file`; `None`
 	/// for no record, an unreadable one or one whose process is gone.
 	fn holder(file: &std::fs::File) -> Option<(u32, String)> {
 		use std::os::unix::fs::FileExt;
@@ -1571,8 +1571,8 @@ mod tests {
 			Some(Arc::from("CursorChecks.Scout")),
 		);
 		let held = InputLease::acquire(&holder.token(), false).expect("the holder takes control");
-		let named = format!("agent \"CursorChecks.Scout\" (omp pid {})", std::process::id());
-		// Another session of this omp.
+		let named = format!("agent \"CursorChecks.Scout\" (zetacode pid {})", std::process::id());
+		// Another session of this zeta.
 		let waiter = CancellationSource::default();
 		let (refused, _) = acquire_on_test_clock(&waiter.token(), Instant::now(), |_| {});
 		let Err(refused) = refused else {

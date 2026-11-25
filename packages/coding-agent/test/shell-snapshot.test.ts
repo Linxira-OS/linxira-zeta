@@ -24,7 +24,7 @@ const HELPER_BASH = process.platform === "win32" ? procmgr.resolveWindowsShell()
 /** Mirrors the per-uid snapshot dir name computed in `getOrCreateSnapshot`. */
 function snapshotDirIn(tmpRoot: string): string {
 	const uid = process.getuid?.();
-	return path.join(tmpRoot, uid === undefined ? "omp-shell-snapshots" : `omp-shell-snapshots-${uid}`);
+	return path.join(tmpRoot, uid === undefined ? "omp-shell-snapshots" : `zetacode-shell-snapshots-${uid}`);
 }
 
 // `__zeta_emit_referenced_exports` (shell-snapshot-fn-env.sh) re-exports env
@@ -467,7 +467,7 @@ describe("getOrCreateSnapshot", () => {
 	});
 
 	it.skipIf(onWindows)("keeps snapshots in a uid-scoped dir so accounts sharing /tmp cannot collide", async () => {
-		// Regression: the dir used to be a single fixed `omp-shell-snapshots` name
+		// Regression: the dir used to be a single fixed `zetacode-shell-snapshots` name
 		// under the shared `os.tmpdir()`, created 0700. The first account to run omp
 		// owned it and every other account's pre-create write died with EACCES.
 		const realBash = REAL_BASH;

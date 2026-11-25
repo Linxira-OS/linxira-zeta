@@ -41,7 +41,7 @@ Color values accept:
 
 ## Required and optional color tokens
 
-All tokens below are required in `colors` except `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset/empty keeps the terminal default foreground), `mdExtensionLink` (unset derives a muted `mdLink`) and `subagent1`–`subagent6` (unset lets omp pick agent colors from the theme).
+All tokens below are required in `colors` except `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset/empty keeps the terminal default foreground), `mdExtensionLink` (unset derives a muted `mdLink`) and `subagent1`–`subagent6` (unset lets zetacode pick agent colors from the theme).
 
 ### Core text and borders (11)
 
@@ -61,7 +61,7 @@ All tokens below are required in `colors` except `thinkingMax` (falls back to `t
 
 `mdHeading`, `mdLink`, `mdLinkUrl`, `mdCode`, `mdCodeBlock`, `mdCodeBlockBorder`, `mdQuote`, `mdQuoteBorder`, `mdHr`, `mdListBullet`, optional `mdExtensionLink`
 
-`mdExtensionLink` colors the label of a link whose scheme an extension registered (for example a link that expands text in place). Such a link opens nothing in the browser, so its color sets it apart from `mdLink`, which colors links that open a URL. When it is omitted, omp blends `mdLink` with `text` (45% link, 55% text). A `""` in either token blends as the theme's `terminal.foreground` and a palette index 0–15 as its `terminal.ansi` slot. A theme that declares neither gets approximations: a stock palette for indices 0–15 and a guessed default foreground for `""`. Set the token explicitly when the guess looks wrong. `tui.colorfulMarkdown` does not change either link color.
+`mdExtensionLink` colors the label of a link whose scheme an extension registered (for example a link that expands text in place). Such a link opens nothing in the browser, so its color sets it apart from `mdLink`, which colors links that open a URL. When it is omitted, zetacode blends `mdLink` with `text` (45% link, 55% text). A `""` in either token blends as the theme's `terminal.foreground` and a palette index 0–15 as its `terminal.ansi` slot. A theme that declares neither gets approximations: a stock palette for indices 0–15 and a guessed default foreground for `""`. Set the token explicitly when the guess looks wrong. `tui.colorfulMarkdown` does not change either link color.
 
 With the `tui.colorfulMarkdown` setting on (the default), headings, `**strong**`, `*emphasis*`, inline code and table headers take their colors from the theme's `terminal.ansi` palette instead of `mdHeading`/`mdCode` and plain bold/italic: H1 magenta, H2 yellow, H3–H6 blue, strong/emphasis magenta, inline code green, table headers yellow. All hues come from one palette so they stay distinct. Turning the setting off restores `mdHeading` for every level, `mdCode`, and uncolored bold/italic.
 
@@ -98,7 +98,7 @@ If omitted, export code derives defaults from resolved theme colors.
 
 ### `terminal` section (optional)
 
-Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); omp never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors. Agent name colors draw on `terminal.ansi` first and check contrast against `terminal.background`.
+Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); zetacode never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors. Agent name colors draw on `terminal.ansi` first and check contrast against `terminal.background`.
 
 ### `symbols` section (optional)
 
@@ -136,7 +136,7 @@ Theme lookup order (`loadThemeJson`):
 Custom themes directory comes from `getCustomThemesDir()`:
 
 - default: `~/.omp/agent/themes`
-- default-profile override: `PI_CODING_AGENT_DIR` (`$PI_CODING_AGENT_DIR/themes`)
+- default-profile override: `ZETA_CODING_AGENT_DIR` (`$ZETA_CODING_AGENT_DIR/themes`)
 - named profile: `~/.omp/profiles/<name>/agent/themes` (under the configured root); named profiles derive their own agent directory
 
 `listThemes()` (`@linxiraos/pi-tui/theme/loader`) returns merged built-in + custom names, sorted, with built-ins taking precedence on name collision. `getAvailableThemesWithPaths()` in the theme service adds each custom theme's file path.
@@ -190,19 +190,19 @@ const renderStatus = () => {
 
 Theme API at a glance (`Theme` in `@linxiraos/pi-tui/theme/contract`, implemented by `ResolvedTheme`):
 
-| Need | Call |
-|---|---|
-| color text | `theme.fg("accent", text)`, `theme.bg("selectedBg", text)` |
-| span tokens (colors, tones, attributes, semantics) | `theme.style("accent strong", text)` |
-| bold/italic/underline/strikethrough/inverse/faint | `bold(text)` … from `@linxiraos/pi-tui/theme/theme` |
-| a glyph | `theme.symbols.symbol("status.success")`, `"tree.branch"`, `"sep.dot"`, `"icon.pin"`, … |
-| a named or slash-command icon | `theme.symbols.icon("model")` |
-| box glyphs | `theme.symbols.box` (rounded), `theme.symbols.sharp` |
-| spinners | `theme.symbols.spinnerFrames`, `theme.symbols.activityFrames` |
-| symbol preset | `theme.symbols.preset` |
-| light or dark | `theme.dark` |
-| a color as hex / raw SGR | `theme.hex(key)`, `theme.fgSgr(key)` |
-| thinking-level color | `theme.fg(thinkingColor(level), text)` (`thinkingColor` from `@linxiraos/pi-tui/theme/schema`) |
+| Need                                               | Call                                                                                           |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| color text                                         | `theme.fg("accent", text)`, `theme.bg("selectedBg", text)`                                     |
+| span tokens (colors, tones, attributes, semantics) | `theme.style("accent strong", text)`                                                           |
+| bold/italic/underline/strikethrough/inverse/faint  | `bold(text)` … from `@linxiraos/pi-tui/theme/theme`                                            |
+| a glyph                                            | `theme.symbols.symbol("status.success")`, `"tree.branch"`, `"sep.dot"`, `"icon.pin"`, …        |
+| a named or slash-command icon                      | `theme.symbols.icon("model")`                                                                  |
+| box glyphs                                         | `theme.symbols.box` (rounded), `theme.symbols.sharp`                                           |
+| spinners                                           | `theme.symbols.spinnerFrames`, `theme.symbols.activityFrames`                                  |
+| symbol preset                                      | `theme.symbols.preset`                                                                         |
+| light or dark                                      | `theme.dark`                                                                                   |
+| a color as hex / raw SGR                           | `theme.hex(key)`, `theme.fgSgr(key)`                                                           |
+| thinking-level color                               | `theme.fg(thinkingColor(level), text)` (`thinkingColor` from `@linxiraos/pi-tui/theme/schema`) |
 
 ### Starting the service (`initTheme`)
 
@@ -402,7 +402,7 @@ Use this workflow:
 
 ## Real constraints and caveats
 
-- All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset keeps the terminal default foreground), `mdExtensionLink` (unset blends `mdLink` with `text`) and `subagent1`–`subagent6` (unset lets omp pick agent colors from the theme).
+- All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`), `assistantMessageText` (unset keeps the terminal default foreground), `mdExtensionLink` (unset blends `mdLink` with `text`) and `subagent1`–`subagent6` (unset lets zetacode pick agent colors from the theme).
 - `export` and `symbols` are optional.
 - `$schema` in theme JSON is informational; custom-theme runtime validation is `validateThemeJson()` in `packages/tui/src/theme/schema.ts`.
 - `setTheme` failure falls back to `dark`; `previewTheme` failure does not replace current theme.

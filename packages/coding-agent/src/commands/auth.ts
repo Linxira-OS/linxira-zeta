@@ -201,7 +201,7 @@ export default class Auth extends Command {
 		const broker = await resolveAuthBrokerConfig();
 		if (broker) {
 			process.stderr.write(
-				`${chalk.red(`error: omp uses the auth broker at ${broker.url}; credentials live there, not in this machine's agent.db.`)}\n` +
+				`${chalk.red(`error: zetacode uses the auth broker at ${broker.url}; credentials live there, not in this machine's agent.db.`)}\n` +
 					"Run this on the broker host, or disable the broker (`zetacode config reset auth.broker.url`) first.\n",
 			);
 			process.exitCode = 1;

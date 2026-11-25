@@ -1,6 +1,6 @@
 /**
  * The extension link browser in the terminal (role
- * `omp.overlay.linkBrowser`): a fullscreen frame of rules around a head
+ * `zeta.overlay.linkBrowser`): a fullscreen frame of rules around a head
  * (`Extension links · pick one anywhere in the transcript`), the replies'
  * prose (indented like the transcript, a scrollbar in the last column when
  * it overflows) and the key hint.
@@ -24,7 +24,7 @@ import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** The browser's term facts. */
 export type LinkBrowserTerm = {
-	readonly role: "omp.overlay.linkBrowser";
+	readonly role: "zeta.overlay.linkBrowser";
 	/** Each reply's prose. */
 	readonly replies: readonly string[];
 	/** Registered extension link schemes (lowercase, without `:`). */
@@ -249,7 +249,7 @@ function scrollbar(theme: Theme, total: number, start: number, visible: number):
 	);
 }
 
-defineRolePainter("card", "omp.overlay.linkBrowser", (node, cx): Block => {
+defineRolePainter("card", "zeta.overlay.linkBrowser", (node, cx): Block => {
 	const term = (node.props() as { term?: LinkBrowserTerm }).term;
 	const width = cx.width;
 	if (!term || width < 2) return { rows: [] };
@@ -352,7 +352,7 @@ defineRolePainter("card", "omp.overlay.linkBrowser", (node, cx): Block => {
 });
 
 /** The pointer: the wheel scrolls three rows, a click on a label picks its link. */
-defineRoleWidget("card", "omp.overlay.linkBrowser", {
+defineRoleWidget("card", "zeta.overlay.linkBrowser", {
 	mouse(_node, mouse, _at, cx, hit) {
 		if (mouse.action !== "press") return true;
 		if (mouse.button === "wheel-up" || mouse.button === "wheel-down") {

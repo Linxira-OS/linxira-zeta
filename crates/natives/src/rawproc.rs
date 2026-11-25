@@ -1,4 +1,4 @@
-//! Raw child processes for the omp daemon.
+//! Raw child processes for the zetacode daemon.
 //!
 //! # Overview
 //! The daemon supervises children through plain OS pipe fds so they can be

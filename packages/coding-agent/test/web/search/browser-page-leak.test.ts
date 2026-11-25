@@ -24,7 +24,7 @@ import type { PuppeteerBrowserHandle } from "@linxiraos/zeta/tools/browser/regis
 import { browserFetch } from "@linxiraos/zeta/web/search/providers/browser-page";
 import type { Page } from "puppeteer-core";
 
-const DAEMON_NAME = "omp.browser.headless";
+const DAEMON_NAME = "zeta.browser.headless";
 const SEARCH_URL = "https://search.example/html?q=leak";
 const FINAL_URL = "https://search.example/html?q=leak&page=1";
 const RESULT_HTML = "<html><body><a class='result'>hit</a></body></html>";
@@ -36,7 +36,7 @@ const scopes: SharedTargetScope[] = [];
 /** Unique per-test scope; `afterEach` removes its registry dir even when a test fails. */
 function trackedScope(): SharedTargetScope {
 	const scope = {
-		projectDir: path.join("/tmp", `omp-search-leak-test-${crypto.randomUUID()}`),
+		projectDir: path.join("/tmp", `zetacode-search-leak-test-${crypto.randomUUID()}`),
 		daemonName: DAEMON_NAME,
 	};
 	scopes.push(scope);

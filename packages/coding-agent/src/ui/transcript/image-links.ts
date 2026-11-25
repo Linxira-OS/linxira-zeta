@@ -14,10 +14,10 @@ import { blobExtensionForImageMimeType } from "../../utils/image-format";
  * Terminal role (`term.role`) of the result images a tool block appends under its view's body
  * (while images are on); the tool block draws them under the card.
  */
-export const RESULT_IMAGE_ROLE = "omp.tool.image";
+export const RESULT_IMAGE_ROLE = "zeta.tool.image";
 
 /** Wire role of the fallback image in a file read's body. */
-export const READ_IMAGE_ROLE = "omp.tool.read.image";
+export const READ_IMAGE_ROLE = "zeta.tool.read.image";
 
 /** Writes `data` to the host's blob store; `hash` is its SHA-256 hex when known. */
 export type ImageBlobWriter = (

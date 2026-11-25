@@ -4,7 +4,7 @@
  * its body (the field, a status, the review), its choices, and a footer
  * whose buttons run what Escape (Back), Enter (Continue) and Ctrl+C
  * (Cancel) run. The terminal draws the step in a box (role look
- * `omp.mcpAddWizard`); see {@link MCPAddWizardModel}.
+ * `zeta.mcpAddWizard`); see {@link MCPAddWizardModel}.
  */
 import { computed, type JSXNode, type UiNode, untrack } from "@linxiraos/pi-tui";
 import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
@@ -219,7 +219,7 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 	const head = () => {
 		const view = model.view;
 		const title = view.kind === "confirm" ? "Review and save" : view.title;
-		const lead = view.kind === "confirm" ? "omp connects to the server as soon as it is saved." : view.lead;
+		const lead = view.kind === "confirm" ? "zetacode connects to the server as soon as it is saved." : view.lead;
 		return (
 			<col key="head" role="zeta.mcpAdd.head" gap="xs">
 				<row gap="sm" align="center">
@@ -236,7 +236,7 @@ export function MCPAddWizard(props: { readonly model: MCPAddWizardModel }): JSXN
 
 	const root = (
 		<col
-			term={() => ({ role: "omp.mcpAddWizard", wizard: model, rev: rev() })}
+			term={() => ({ role: "zeta.mcpAddWizard", wizard: model, rev: rev() })}
 			onKey={key => {
 				if (model.key(key.id)) return true;
 				const field = fieldNode();

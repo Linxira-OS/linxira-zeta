@@ -48,7 +48,7 @@ export async function nativeShell(shell = new Shell(), options?: { readonly kind
 		if (event.type === "tsp" && (event.verb === "r" || event.verb === "e"))
 			term.feed(encodeTsp(event.verb, event.body, event.params));
 	});
-	await shell.start({ theme: currentTheme, driver: term.options, role: "omp.session" });
+	await shell.start({ theme: currentTheme, driver: term.options, role: "zeta.session" });
 	const sf = tern.frames[0]?.sf;
 	if (!shell.native() || !sf || !shell.host?.feature("aside")) throw new Error("The shell did not negotiate Tern");
 	const flush = () => {

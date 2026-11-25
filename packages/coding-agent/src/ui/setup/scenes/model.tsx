@@ -169,7 +169,7 @@ export const modelScene: SetupScene = {
 			saving() === undefined &&
 			(discovery().kind === "failed" || (discovery().kind === "idle" && saveError() !== undefined));
 		const term = (): ModelSceneTerm => ({
-			role: "omp.setup.model",
+			role: "zeta.setup.model",
 			head: head(),
 			error: failed(),
 			maxLines: context.maxLines(),
@@ -215,7 +215,7 @@ export const modelScene: SetupScene = {
 						selected={() => rows().selected}
 						current={() => rows().current}
 						total={() => rows().total}
-						term={{ look: "omp.setup.model", browser }}
+						term={{ look: "zeta.setup.model", browser }}
 						onKey={onKey}
 						onSelect={item => void browser.selectSelector(item)}
 						onActivate={item => {

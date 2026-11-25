@@ -279,7 +279,7 @@ async function runJq(
 	const { signal, stopAfterLines } = options;
 	throwIfAborted(signal);
 
-	const stderrPath = path.join(os.tmpdir(), `omp-jq-${crypto.randomUUID()}.err`);
+	const stderrPath = path.join(os.tmpdir(), `zetacode-jq-${crypto.randomUUID()}.err`);
 	// `--` keeps filters such as `-.price` positional, even where jq would
 	// read them as options.
 	const command = `jq ${flags.join(" ")} -- ${quotePosixArgument(query)} ${quotePosixArgument(filePath)} 2>${quotePosixArgument(stderrPath)}`;

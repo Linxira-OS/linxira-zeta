@@ -7,7 +7,7 @@ import { type Block, defineRolePainter } from "@linxiraos/pi-tui/term/paint";
 import type { AnnotationReviewModel } from "../../overlays/panels/annotation-review-model";
 import { termOf } from "./common";
 
-defineRolePainter("col", "omp.annotationReview", (node, cx): Block => {
+defineRolePainter("col", "zeta.annotationReview", (node, cx): Block => {
 	const review = termOf<{ review: AnnotationReviewModel }>(node).review;
 	if (!review || cx.width <= 0) return { rows: [] };
 	review.rev();

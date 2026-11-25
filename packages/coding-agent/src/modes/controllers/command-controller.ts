@@ -1006,7 +1006,7 @@ export class CommandController {
 		}));
 		this.#showSheet(node, dispose, {
 			page: false,
-			role: "omp.overlay.hotkeys",
+			role: "zeta.overlay.hotkeys",
 			head: "Keyboard shortcuts",
 			focus: node,
 		});
@@ -1597,7 +1597,7 @@ export class CommandController {
 			// Pin only non-secret scope variables.
 			const command = [
 				...forkScopeEnvCommand({
-					PI_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
+					ZETA_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
 					PI_CONFIG_DIR: getConfigDirName(),
 					ZETA_PROFILE: activeProfile,
 					PI_CONFIG_FILES: this.ctx.settings.getConfigFiles().join(path.delimiter),
@@ -1642,7 +1642,7 @@ export class CommandController {
 	}
 
 	/**
-	 * `/fork` inside Tern pane `tern`: ask Tern to run `omp --fork` of this session in a new pane beside
+	 * `/fork` inside Tern pane `tern`: ask Tern to run `zetacode --fork` of this session in a new pane beside
 	 * this one, or for `window` in a new tab after this one's, which keeps the original session (a Tern
 	 * from before fork tabs opens a pane). Resolves undefined once the fork is Tern's, else why Tern did
 	 * not take it (an unsaved session, Tern unreachable or without `fork`, or Tern refusing it) for bare
@@ -1662,7 +1662,7 @@ export class CommandController {
 				return message;
 			}
 			if (!client.supports("fork")) return "this Tern build cannot open forks; update Tern";
-			// The new pane's omp reads the session file as it starts.
+			// The new pane's zetacode reads the session file as it starts.
 			await this.ctx.session.flushToDisk();
 			try {
 				forked = await client.fork(

@@ -256,7 +256,7 @@ describe("SelectorController model selector writes", () => {
 	it("switches the session to the project default when its already-assigned chip is picked", async () => {
 		const agentDir = tempDir.join("agent");
 		await Bun.write(
-			tempDir.join(".omp", "config.yml"),
+			tempDir.join(".zeta", "config.yml"),
 			YAML.stringify({ modelRoles: { default: "anthropic/claude-opus-4-5" } }),
 		);
 		const settings = await Settings.init({ agentDir, cwd: tempDir.path() });
@@ -272,7 +272,7 @@ describe("SelectorController model selector writes", () => {
 
 	it("ignores a stale settings-derived scope when falling back to the persisted default", async () => {
 		await Bun.write(
-			tempDir.join(".omp", "config.yml"),
+			tempDir.join(".zeta", "config.yml"),
 			YAML.stringify({ modelRoles: { default: "anthropic/claude-opus-4-5" } }),
 		);
 		const settings = await Settings.init({ agentDir: tempDir.join("agent"), cwd: tempDir.path() });
@@ -293,7 +293,7 @@ describe("SelectorController model selector writes", () => {
 		const base = "openrouter/z-ai/glm-4.7";
 		const allowed = `${base}@cerebras`;
 		await Bun.write(
-			tempDir.join(".omp", "config.yml"),
+			tempDir.join(".zeta", "config.yml"),
 			YAML.stringify({
 				modelRoles: { default: `${base}@sambanova` },
 				enabledModels: scope === "settings" ? [allowed] : [],
@@ -318,7 +318,7 @@ describe("SelectorController model selector writes", () => {
 		authStorage.keys.setRuntime("openrouter", "test-key");
 		const base = "openrouter/z-ai/glm-4.7";
 		const fallback = `${base}@sambanova`;
-		await Bun.write(tempDir.join(".omp", "config.yml"), YAML.stringify({ modelRoles: { default: fallback } }));
+		await Bun.write(tempDir.join(".zeta", "config.yml"), YAML.stringify({ modelRoles: { default: fallback } }));
 		const settings = await Settings.init({ agentDir: tempDir.join("agent"), cwd: tempDir.path() });
 		const { model: initial } = parseModelPattern(`${base}@cerebras`, [
 			getBundledModel("openrouter", "z-ai/glm-4.7") as Model,

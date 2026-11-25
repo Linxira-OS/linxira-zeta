@@ -48,7 +48,7 @@ function settlementLines(theme: Theme, term: Partial<PauseTerm>): string[] {
 	];
 }
 
-defineRolePainter("col", "omp.pause", (node, cx): Block => {
+defineRolePainter("col", "zeta.pause", (node, cx): Block => {
 	const theme = cx.theme;
 	const width = cx.width;
 	const height = cx.height ?? 24;

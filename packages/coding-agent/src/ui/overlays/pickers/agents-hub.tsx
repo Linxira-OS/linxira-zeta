@@ -7,10 +7,10 @@
  * agent's prompt as preview; Enter opens a chip strip: enable/disable and the
  * model/prewalk/advisor knobs, each opening its value chips). The pattern
  * input, the model browser ("pick model…") and the create flow need a body
- * the picker has no slot for: then the hub is a card (`omp.hub.agents`):
+ * the picker has no slot for: then the hub is a card (`zeta.hub.agents`):
  * the scope sidebar beside the body, a rule and the footer.
  *
- * The terminal draws the fullscreen hub frame for both (`omp.agents` look,
+ * The terminal draws the fullscreen hub frame for both (`zeta.agents` look,
  * `src/ui/styles/pickers/agents-hub.ts`): sidebar, status row, the list with
  * the selected agent's summary pinned under it (or the browser / the create
  * flow), and the footer's hints or chip strip.
@@ -1374,8 +1374,8 @@ export function AgentsHub(props: AgentsHubProps): JSXNode {
 	const term = computed((): AgentsHubTerm => {
 		revision();
 		return {
-			look: "omp.agents",
-			role: "omp.agents",
+			look: "zeta.agents",
+			role: "zeta.agents",
 			height: Math.max(16, props.rows()),
 			sidebar,
 			activeEntryId,

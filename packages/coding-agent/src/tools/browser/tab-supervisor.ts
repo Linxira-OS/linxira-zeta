@@ -150,10 +150,10 @@ interface TabSessionBase<TBrowser extends BrowserHandle = BrowserHandle> {
 export interface WorkerTabSession extends TabSessionBase<PuppeteerBrowserHandle> {
 	backend: "worker";
 	worker: WorkerHandle;
-	/** omp created this page (headless, or a relay open without a target): closing the tab closes it. */
+	/** zetacode created this page (headless, or a relay open without a target): closing the tab closes it. */
 	ownsPage: boolean;
 	/**
-	 * omp created this page on a CDP endpoint that keeps pages per connection (Lightpanda): the page closes with its
+	 * zetacode created this page on a CDP endpoint that keeps pages per connection (Lightpanda): the page closes with its
 	 * worker's connection, so a replacement worker opens a new page and loads the last URL instead of re-adopting it.
 	 */
 	connectionScoped?: boolean;
@@ -163,7 +163,7 @@ export interface WorkerTabSession extends TabSessionBase<PuppeteerBrowserHandle>
 	openOptions?: Pick<AcquireTabOptions, "viewport" | "initScripts" | "downloadsPath" | "userAgent">;
 	/**
 	 * The tab's upload staging folder. It outlives the tab's workers, since Chrome reads a picked file only when the page
-	 * does, and goes with the page when omp closes it; a page left open in the user's browser keeps it until the sweep.
+	 * does, and goes with the page when zetacode closes it; a page left open in the user's browser keeps it until the sweep.
 	 */
 	uploadDir: string;
 	/** In flight while a worker that exited on its own is replaced; runs wait for it before driving the tab. */
@@ -177,7 +177,7 @@ export interface WorkerTabSession extends TabSessionBase<PuppeteerBrowserHandle>
 	 * it, and the next call on it re-adopts it first.
 	 */
 	heldOut?: boolean;
-	/** Other extensions' frames the omp relay hid in the tab that no call has reported yet. */
+	/** Other extensions' frames the zetacode relay hid in the tab that no call has reported yet. */
 	hiddenFrames?: HiddenFrame[];
 	/** The tab was opened with `insecure`; a replacement worker re-applies it. */
 	insecure?: boolean;
@@ -274,7 +274,7 @@ export interface RunInTabOptions {
 
 export interface ReleaseTabOptions {
 	kill?: boolean;
-	/** Leave a page omp opened open in its browser and let go of it, instead of closing it. */
+	/** Leave a page zetacode opened open in its browser and let go of it, instead of closing it. */
 	keepPage?: boolean;
 	/** Maximum time for each asynchronous cleanup resource before close fails with diagnostics. */
 	timeoutMs?: number;
@@ -339,7 +339,7 @@ function recreatedPageNote(tab: WorkerTabSession): string {
 			: tab.info.url === from
 				? `and loaded ${from} again`
 				: `but could not load ${from} again; it is on ${tab.info.url}`;
-	return `This CDP endpoint keeps each page on the connection that opened it, so the tab's page closed with its old worker: omp opened a new page for the tab on a new worker, ${landed}. The old page's JavaScript state, and the cookies and storage its connection held, are gone.`;
+	return `This CDP endpoint keeps each page on the connection that opened it, so the tab's page closed with its old worker: zetacode opened a new page for the tab on a new worker, ${landed}. The old page's JavaScript state, and the cookies and storage its connection held, are gone.`;
 }
 const DEBUGGER_DETACH_CAUSE =
 	"Chrome does this when another extension's frame loads in the tab, such as a password manager's inline autofill menu";
@@ -349,13 +349,13 @@ const DEBUGGER_DETACH_REFUSAL =
 /** Most hidden frames one notice names; the rest are counted. */
 const MAX_HIDDEN_FRAMES_NAMED = 5;
 
-/** Record frames the omp relay reports it hid in `tab`, for the next call on it to report. */
+/** Record frames the zetacode relay reports it hid in `tab`, for the next call on it to report. */
 function noteHiddenFrames(tab: WorkerTabSession, frames: HiddenFrame[] | undefined): void {
 	if (frames && frames.length > 0) (tab.hiddenFrames ??= []).push(...frames);
 }
 
 /**
- * What the omp relay hid in `tab` since a call last said so, worded for the agent to pass on to the user, who lost
+ * What the zetacode relay hid in `tab` since a call last said so, worded for the agent to pass on to the user, who lost
  * the frame too; `undefined` when nothing was hidden. Clears the record.
  */
 function takeHiddenFramesNotice(tab: TabSession | undefined): string | undefined {
@@ -427,7 +427,7 @@ class PageSessionLostError extends ToolError {
 class TabHeldOutError extends ToolError {
 	constructor(context?: string) {
 		super(
-			`${context ? `${context}. ` : ""}omp could not reattach to the tab: ${DEBUGGER_DETACH_REFUSAL}, and that frame was still there after omp cleared it. omp kept the tab open as it is, and the next call on it reattaches to it; if that call fails the same way, the frame stays until the user closes it in Chrome (Escape, or a click elsewhere on the page)`,
+			`${context ? `${context}. ` : ""}zetacode could not reattach to the tab: ${DEBUGGER_DETACH_REFUSAL}, and that frame was still there after zetacode cleared it. zetacode kept the tab open as it is, and the next call on it reattaches to it; if that call fails the same way, the frame stays until the user closes it in Chrome (Escape, or a click elsewhere on the page)`,
 		);
 	}
 }
@@ -838,7 +838,7 @@ async function acquireTabImpl(
 	noteHiddenFrames(tab, info.hiddenFrames);
 	tabs.set(name, tab);
 	sweepClosedTabUploads();
-	// Durably record ownership so another live omp process can reap this page if
+	// Durably record ownership so another live zetacode process can reap this page if
 	// this process dies abnormally before its own teardown closes the tab.
 	const scope = sharedTargetScopeOf(browser);
 	if (scope) void recordSharedTarget(scope, info.targetId);
@@ -1211,7 +1211,7 @@ const WEBKIT_NO_TLS = /TLS support is not available/i;
 
 /** The title of a WebKit tab's window: the tab's name, which is how the user and the agent both know it. */
 function webKitWindowTitle(name: string): string {
-	return `${name} — omp browser`;
+	return `${name} — zetacode browser`;
 }
 
 /** Give a live WebKit tab its window, or take it away; the page goes on either way. */
@@ -1502,7 +1502,7 @@ async function dispatchRun(
 			// Bun throws `InvalidStateError` once the worker is gone, which can precede its exit event.
 			if (!(error instanceof DOMException && error.name === "InvalidStateError")) throw error;
 			throw new ToolError(
-				`Tab ${JSON.stringify(name)}'s worker exited before this call reached it; omp reattaches the tab to a new worker, so retry the call.`,
+				`Tab ${JSON.stringify(name)}'s worker exited before this call reached it; zetacode reattaches the tab to a new worker, so retry the call.`,
 			);
 		}
 		const hungReason = `Browser code execution hung past its ${opts.timeoutMs}ms budget`;
@@ -1538,7 +1538,7 @@ async function dispatchRun(
 		} catch (error) {
 			if (error instanceof ToolError && error.message === hungReason) {
 				throw new ToolError(
-					`${hungReason}, so omp released tab ${JSON.stringify(name)} (closing its page if omp opened it); open it again with browser.open().${longerBudgetHint(opts.timeoutMs)}`,
+					`${hungReason}, so zetacode released tab ${JSON.stringify(name)} (closing its page if zetacode opened it); open it again with browser.open().${longerBudgetHint(opts.timeoutMs)}`,
 				);
 			}
 			if (error instanceof RendererCrashedError) {
@@ -1569,10 +1569,10 @@ async function dispatchRun(
 				}
 				if (error.reason === USER_CANCELLED_DEBUGGER) {
 					// The relay hides a tab whose debugging bar the user cancelled, so a re-adoption cannot succeed. The kill
-					// below attempts to close a tab omp opened; only a borrowed one is deliberately kept open.
+					// below attempts to close a tab zetacode opened; only a borrowed one is deliberately kept open.
 					const cancelled = tab.ownsPage
-						? `${error.message}. The user cancelled Chrome's debugging bar${landed}. omp tried to close the tab it had opened; open a new one to continue`
-						: `${error.message}. The user cancelled Chrome's debugging bar${landed}. omp released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
+						? `${error.message}. The user cancelled Chrome's debugging bar${landed}. zetacode tried to close the tab it had opened; open a new one to continue`
+						: `${error.message}. The user cancelled Chrome's debugging bar${landed}. zetacode released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
 					if (tabs.get(name) === tab && tab.state === "alive") await forceKillTab(name, cancelled);
 					if (opts.signal?.aborted) throw new ToolAbortError();
 					throw new ToolError(cancelled);
@@ -1583,8 +1583,8 @@ async function dispatchRun(
 				// is then kept), names another extension's frame as the cause.
 				const detached = `${error.message}. ${DEBUGGER_DETACH_CAUSE}${landed}`;
 				const lost = tab.ownsPage
-					? `${error.message}${landed}. omp could not reattach to the tab it had opened, so it tried to close it: either the tab had closed, or ${DEBUGGER_DETACH_REFUSAL}. Open a new tab to continue; if another extension's frame was the cause, it can detach omp there again`
-					: `${error.message}${landed}. omp could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
+					? `${error.message}${landed}. zetacode could not reattach to the tab it had opened, so it tried to close it: either the tab had closed, or ${DEBUGGER_DETACH_REFUSAL}. Open a new tab to continue; if another extension's frame was the cause, it can detach zetacode there again`
+					: `${error.message}${landed}. zetacode could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
 				const reattached = await recoverWorkerTab(tab, name, opts.timeoutMs, lost, {
 					recover: false,
 					failedReason: lost,
@@ -1596,7 +1596,7 @@ async function dispatchRun(
 				if (error.when === "during" || opts.readopted) {
 					const hidden = takeHiddenFramesNotice(tab);
 					throw new DebuggerReattachedError(
-						`${detached}. ${hidden ? `${hidden} ` : ""}omp reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
+						`${detached}. ${hidden ? `${hidden} ` : ""}zetacode reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
 						error.when,
 					);
 				}
@@ -1605,7 +1605,7 @@ async function dispatchRun(
 				if (remainingMs <= 0) {
 					const hidden = takeHiddenFramesNotice(tab);
 					throw new DebuggerReattachedError(
-						`${detached}. ${hidden ? `${hidden} ` : ""}omp reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
+						`${detached}. ${hidden ? `${hidden} ` : ""}zetacode reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
 						error.when,
 					);
 				}
@@ -1618,7 +1618,7 @@ async function dispatchRun(
 				);
 				result.displays.unshift({
 					type: "text",
-					text: `Chrome had detached omp from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); omp reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
+					text: `Chrome had detached zetacode from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); zetacode reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
 				});
 				return result;
 			}
@@ -1630,10 +1630,10 @@ async function dispatchRun(
 					const closedOutside = `Tab ${JSON.stringify(name)}'s page closed outside omp`;
 					if (tabs.get(name) === tab && tab.state === "alive") await forceKillTab(name, closedOutside);
 					throw new ToolError(
-						`${error.message}. ${closedOutside}, so omp released the tab; open it again with browser.open()`,
+						`${error.message}. ${closedOutside}, so zetacode released the tab; open it again with browser.open()`,
 					);
 				}
-				const lost = `${error.message}. omp could not reattach to the tab's page (it may have closed), so it released the tab. Open it again with browser.open()`;
+				const lost = `${error.message}. zetacode could not reattach to the tab's page (it may have closed), so it released the tab. Open it again with browser.open()`;
 				// A new worker connects afresh and adopts the same target, page untouched (a connection-scoped page is
 				// re-created instead); a target that is gone kills the tab.
 				const reattached = await recoverWorkerTab(tab, name, opts.timeoutMs, lost, {
@@ -1646,7 +1646,7 @@ async function dispatchRun(
 				const remainingMs = Math.floor(opts.timeoutMs - (performance.now() - startedAt));
 				if (error.when === "during" || opts.readopted || remainingMs <= 0) {
 					throw new ToolError(
-						`${error.message}. ${tab.connectionScoped ? `${recreatedPageNote(tab)} The next call works` : "omp reattached to the same page on a new worker without reloading it, so the next call works"}; ${error.when === "during" ? "check the page before repeating this one" : "repeat this call"}. ${WORKER_RESETS}.`,
+						`${error.message}. ${tab.connectionScoped ? `${recreatedPageNote(tab)} The next call works` : "zetacode reattached to the same page on a new worker without reloading it, so the next call works"}; ${error.when === "during" ? "check the page before repeating this one" : "repeat this call"}. ${WORKER_RESETS}.`,
 					);
 				}
 				// Nothing ran: run the call on the new worker, within what the reattach left of its budget.
@@ -1659,8 +1659,8 @@ async function dispatchRun(
 				result.displays.unshift({
 					type: "text",
 					text: tab.connectionScoped
-						? `omp had lost its connection to this tab's page since the last call. ${recreatedPageNote(tab)} It then ran this call. ${WORKER_RESETS}.`
-						: `omp had lost its connection to this tab's page since the last call; it reattached to the same page on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
+						? `zetacode had lost its connection to this tab's page since the last call. ${recreatedPageNote(tab)} It then ran this call. ${WORKER_RESETS}.`
+						: `zetacode had lost its connection to this tab's page since the last call; it reattached to the same page on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
 				});
 				return result;
 			}
@@ -1679,7 +1679,7 @@ async function dispatchRun(
 				if (runTimedOut) {
 					throw new ToolError(
 						reattached
-							? `${error.message}. ${tab.connectionScoped ? `${recreatedPageNote(tab)} ${WORKER_RESETS}.` : `omp reattached the tab to a new worker without reloading its page. ${RECYCLE_RESETS}`}${longerBudgetHint(opts.timeoutMs)}`
+							? `${error.message}. ${tab.connectionScoped ? `${recreatedPageNote(tab)} ${WORKER_RESETS}.` : `zetacode reattached the tab to a new worker without reloading its page. ${RECYCLE_RESETS}`}${longerBudgetHint(opts.timeoutMs)}`
 							: `${error.message}. The tab could not be reattached and was released; open it again with browser.open().${longerBudgetHint(opts.timeoutMs)}`,
 					);
 				}
@@ -1951,7 +1951,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 	// kept open stays the user's: its staged uploads wait for the sweep like a borrowed page's. A connection-scoped
 	// page cannot be kept: it closed with its worker's connection.
 	const closesPage = tab.ownsPage && (!opts.keepPage || tab.connectionScoped === true);
-	// omp closes the pages it owns, and with them goes the last reader of their staged uploads.
+	// zetacode closes the pages it owns, and with them goes the last reader of their staged uploads.
 	if (closesPage) await removeUploadStaging(tab.uploadDir);
 	// Close a live tab's owned page by id as well, which confirms it is gone: a worker's own
 	// close can fail and still report `closed` (its CDP socket broke), and the relay retracts a
@@ -1993,14 +1993,14 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 				// that was never closed, and re-check the browser itself: a
 				// Chromium that stopped answering its CDP endpoint holds every
 				// unclosable target and must be replaced, not left to grow until
-				// the last omp client in the project exits.
+				// the last zetacode client in the project exits.
 				recheckSharedBrowser(scope);
 			} else {
 				void forgetSharedTarget(scope, tab.targetId);
 			}
 		} else if (targetCloseFailed) {
 			// Nothing here can retry it; a relay closes a tab of an offline browser once that browser reconnects.
-			logger.warn("Could not confirm a browser tab omp opened was closed; it may still be open", {
+			logger.warn("Could not confirm a browser tab zetacode opened was closed; it may still be open", {
 				name,
 				targetId: tab.targetId,
 			});
@@ -2037,9 +2037,9 @@ export async function dropHeadlessTabs(): Promise<void> {
  * creator. Tabs opened with no owner (e.g. from an SDK caller that doesn't
  * identify a session) are skipped and must be released explicitly.
  *
- * A `persist` tab omp opened in the user's Chrome through the relay, which
+ * A `persist` tab zetacode opened in the user's Chrome through the relay, which
  * outlives omp, is let go instead of closed: the page stays open for the
- * user. Tabs in browsers omp launched stay omp's to close, persist or not.
+ * user. Tabs in browsers zetacode launched stay omp's to close, persist or not.
  */
 export async function releaseTabsForOwner(ownerId: string, opts: ReleaseTabOptions = {}): Promise<number> {
 	if (!ownerId) return 0;
@@ -2409,7 +2409,7 @@ function sweepClosedTabUploads(): void {
 /**
  * The tab list that says whether a call's tab is the one in front of its window, for a browser that draws its windows
  * on the user's screen; undefined names no native window. omp's own Chromium (the managed launch, or a Chromium browser
- * omp spawned) ranks its `/json/list` by when each tab was last shown; the loopback relay's marks the extension's active
+ * zetacode spawned) ranks its `/json/list` by when each tab was last shown; the loopback relay's marks the extension's active
  * tab of each window. A headless browser keeps that through a tab's recycle. A connected endpoint may be remote,
  * headless or a build whose list was never measured, and a spawned app's windows are not browser tabs.
  */
@@ -2454,7 +2454,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 	let page: AttachPage;
 	if (browser.kind.kind === "relay" && !opts.target) {
 		// A relay open without a target gets its own background tab, leaving the user's
-		// selected tab alone, in the browser of the tab omp used last on this relay.
+		// selected tab alone, in the browser of the tab zetacode used last on this relay.
 		page = { kind: "create", nearTargetId: lastUsedTargetOn(browser) };
 	} else if (
 		!opts.target &&
@@ -2500,8 +2500,8 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 }
 
 /**
- * `endpoint` of `browser` for a worker adopting `targetId`. Through the omp relay the worker claims the tab as it
- * connects, before puppeteer sends the tab anything: only in a tab omp drives does the relay's extension empty
+ * `endpoint` of `browser` for a worker adopting `targetId`. Through the zetacode relay the worker claims the tab as it
+ * connects, before puppeteer sends the tab anything: only in a tab zetacode drives does the relay's extension empty
  * another extension's frame (a password manager's inline menu) that makes Chrome refuse the debugger.
  */
 function adoptEndpoint(endpoint: string, browser: PuppeteerBrowserHandle, targetId: string): string {
@@ -2614,16 +2614,16 @@ function readoptHeldOutTab(name: string, timeoutMs: number): void {
 		{
 			// The page is as the user left it; stopping its loading would cancel a navigation they started.
 			recover: false,
-			failedReason: "omp could not reattach to the tab after Chrome had refused it, so the tab was released",
+			failedReason: "zetacode could not reattach to the tab after Chrome had refused it, so the tab was released",
 		},
 	)
 		.then(reattached => {
 			if (reattached) {
-				tab.workerExitNotice = `Chrome had kept omp out of this tab since an earlier call (${DEBUGGER_DETACH_REFUSAL}); omp reattached to it on a new worker before this call, without reloading it. ${WORKER_RESETS}.`;
+				tab.workerExitNotice = `Chrome had kept zetacode out of this tab since an earlier call (${DEBUGGER_DETACH_REFUSAL}); zetacode reattached to it on a new worker before this call, without reloading it. ${WORKER_RESETS}.`;
 			}
 			return reattached;
 		})
-		.catch(heldOutWith(`Chrome still keeps omp out of tab ${JSON.stringify(tab.name)}`))
+		.catch(heldOutWith(`Chrome still keeps zetacode out of tab ${JSON.stringify(tab.name)}`))
 		.finally(() => {
 			if (tab.workerRecovery === readoption) tab.workerRecovery = undefined;
 		});
@@ -2710,7 +2710,7 @@ function attachTabWorker(tab: WorkerTabSession, worker: WorkerHandle): void {
 		const reason = looping
 			? `${exited} again right after being replaced; tab closed`
 			: tab.connectionScoped
-				? `${exited}; the tab's page closed with it, so omp is opening a new page for the tab on a new worker. ${WORKER_RESETS}.`
+				? `${exited}; the tab's page closed with it, so zetacode is opening a new page for the tab on a new worker. ${WORKER_RESETS}.`
 				: `${exited}; the tab is being reattached to a new worker on the same page. ${WORKER_RESETS}.`;
 		const error = postmortem.markExpectedCleanupError(new ToolError(reason));
 		// Host tool calls the dead run started would otherwise keep running, and reply to a replacement worker.
@@ -2733,7 +2733,7 @@ function attachTabWorker(tab: WorkerTabSession, worker: WorkerHandle): void {
 				if (reattached && idle) {
 					tab.workerExitNotice = tab.connectionScoped
 						? `${exited} since the last call. ${recreatedPageNote(tab)} ${WORKER_RESETS}.`
-						: `${exited} since the last call; omp reattached the tab to a new worker on the same page, without reloading it. ${WORKER_RESETS}.`;
+						: `${exited} since the last call; zetacode reattached the tab to a new worker on the same page, without reloading it. ${WORKER_RESETS}.`;
 				}
 				return reattached;
 			})
@@ -3108,7 +3108,7 @@ async function boundInProcessRun(
 	let timer = setTimeout(() => {
 		expire(
 			new ToolError(
-				`Browser code execution did not stop at its ${timeoutMs}ms budget, so omp ended the call; tab ${JSON.stringify(name)} takes new calls, but what the call started in the page may still be running.${longerBudgetHint(timeoutMs)}`,
+				`Browser code execution did not stop at its ${timeoutMs}ms budget, so zetacode ended the call; tab ${JSON.stringify(name)} takes new calls, but what the call started in the page may still be running.${longerBudgetHint(timeoutMs)}`,
 			),
 		);
 	}, timeoutMs + GRACE_MS);

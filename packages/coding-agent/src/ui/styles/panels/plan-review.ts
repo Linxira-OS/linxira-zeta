@@ -11,7 +11,7 @@ import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { PlanReviewModel } from "../../overlays/panels/plan-review-model";
 import { termOf } from "./common";
 
-const ROLE = "omp.planReview";
+const ROLE = "zeta.planReview";
 
 function reviewOf(node: UiNode): PlanReviewModel | undefined {
 	return termOf<{ review: PlanReviewModel }>(node).review;

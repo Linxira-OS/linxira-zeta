@@ -315,7 +315,7 @@ describe("InteractiveMode tray", () => {
 	function trayOf(): NativeNode {
 		const tray = describeDock(mode)
 			.flatMap(nodes)
-			.find(node => role(node) === "omp.tray");
+			.find(node => role(node) === "zeta.tray");
 		if (!tray) throw new Error("no tray in the dock");
 		return tray;
 	}
@@ -327,12 +327,12 @@ describe("InteractiveMode tray", () => {
 		const roles = described.map(node => role(node));
 		const activity = roles.indexOf("zeta.hud.activity");
 		expect(activity).toBeGreaterThanOrEqual(0);
-		const trayAt = roles.indexOf("omp.tray");
+		const trayAt = roles.indexOf("zeta.tray");
 		expect(trayAt).toBeGreaterThan(activity);
 		// The pill gives way to the tray.
 		expect(mode.hud.pills.trayHost()).toBe(true);
 		// Idle main agent: the caption stands in for the status rows.
-		const caption = children(described[activity]).find(node => role(node) === "omp.tray.caption");
+		const caption = children(described[activity]).find(node => role(node) === "zeta.tray.caption");
 		expect(caption?.p).toMatchObject({ text: "1 agent, 2 jobs in the background" });
 
 		const cards = children(described[trayAt]);
@@ -346,20 +346,20 @@ describe("InteractiveMode tray", () => {
 		const [scan, review, widgetJob, bareJob, done] = cards;
 
 		expect(scan!.p).toMatchObject({
-			role: "omp.tray.card",
+			role: "zeta.tray.card",
 			status: "running",
 			tone: "accent",
 			acted: callStart,
 			aria: "TrayScan, m2, running, Read app.toml, 3 tools",
 		});
-		expect(children(scan).map(role)).toEqual(["omp.tray.head", "omp.tray.doing", "omp.tray.meta"]);
+		expect(children(scan).map(role)).toEqual(["zeta.tray.head", "zeta.tray.doing", "zeta.tray.meta"]);
 		const scanHead = children(children(scan)[0]);
 		// Its own name, not its type; the tool count beside the clock.
-		expect(scanHead.map(role)).toEqual(["omp.tray.dot", "omp.tray.name", "omp.tray.time", "omp.tray.tools"]);
+		expect(scanHead.map(role)).toEqual(["zeta.tray.dot", "zeta.tray.name", "zeta.tray.time", "zeta.tray.tools"]);
 		expect(scanHead[1]!.p).toMatchObject({ text: "TrayScan" });
 		expect(scanHead[3]).toEqual({
 			k: "row",
-			p: { role: "omp.tray.tools", align: "center" },
+			p: { role: "zeta.tray.tools", align: "center" },
 			c: [
 				{ k: "text", p: { spans: [{ t: "/", s: "dim" }, { t: "3" }], wrap: "none" }, key: "count" },
 				{ k: "icon", p: { name: "gear", tone: "muted" }, key: "icon" },
@@ -368,11 +368,11 @@ describe("InteractiveMode tray", () => {
 		});
 		// The call's verb and file name, no intent; nothing changed yet.
 		expect(children(children(scan)[1]).map(node => [role(node), node.p?.spans])).toEqual([
-			["omp.tray.call", [{ t: "Read", s: "strong" }, { t: " app.toml" }]],
+			["zeta.tray.call", [{ t: "Read", s: "strong" }, { t: " app.toml" }]],
 		]);
 		expect(children(children(scan)[2]).map(node => node.p?.text)).toEqual(["claude-sonnet-4-5 · low", "22%"]);
 		// The status row carries only the caption: no counts.
-		expect(children(described[activity]).map(role)).toEqual(["omp.tray.caption"]);
+		expect(children(described[activity]).map(role)).toEqual(["zeta.tray.caption"]);
 
 		expect(review!.p).toMatchObject({ status: "done", tone: "success" });
 		expect(children(children(review)[1])[0]!.p).toMatchObject({ spans: [{ t: "Cross-check regressions" }] });
@@ -380,20 +380,20 @@ describe("InteractiveMode tray", () => {
 		expect(done!.p).toMatchObject({ status: "done" });
 		expect(JSON.stringify(children(done)[1]!.p)).toContain("TrayOld");
 
-		expect(children(widgetJob).map(role)).toEqual(["omp.tray.head", "omp.tray.glance"]);
+		expect(children(widgetJob).map(role)).toEqual(["zeta.tray.head", "zeta.tray.glance"]);
 		expect(children(children(widgetJob)[0]).map(role)).toEqual([
-			"omp.tray.dot",
-			"omp.tray.name",
-			"omp.tray.id",
-			"omp.tray.time",
+			"zeta.tray.dot",
+			"zeta.tray.name",
+			"zeta.tray.id",
+			"zeta.tray.time",
 		]);
 		expect(children(children(widgetJob)[1]).map(node => role(node) ?? node.k)).toEqual([
 			"zeta.hud.glance",
 			"zeta.hud.spark",
-			"omp.tray.stage",
+			"zeta.tray.stage",
 		]);
 
-		expect(children(bareJob).map(role)).toEqual(["omp.tray.head", "omp.tray.out"]);
+		expect(children(bareJob).map(role)).toEqual(["zeta.tray.head", "zeta.tray.out"]);
 		expect(children(bareJob)[1]!.p).toMatchObject({ text: "two\nthree", wrap: "none" });
 	});
 
@@ -404,12 +404,12 @@ describe("InteractiveMode tray", () => {
 		const described = describeDock(mode);
 		const holding = (test: (node: NativeNode) => boolean) => described.findIndex(top => nodes(top).some(test));
 		const activity = holding(node => role(node) === "zeta.hud.activity");
-		const tray = holding(node => role(node) === "omp.tray");
+		const tray = holding(node => role(node) === "zeta.tray");
 		expect(tray).toBeGreaterThanOrEqual(activity);
 		const widget = holding(node => JSON.stringify(node.p ?? {}).includes("usage: 42%"));
 		expect(widget).toBeGreaterThanOrEqual(0);
 		expect(widget).toBeLessThanOrEqual(activity);
-		const editor = holding(node => role(node) === "omp.editor" || String(role(node)).startsWith("omp.editor."));
+		const editor = holding(node => role(node) === "zeta.editor" || String(role(node)).startsWith("zeta.editor."));
 		expect(editor).toBeGreaterThanOrEqual(tray);
 		const between = described.slice(widget, editor + 1);
 		expect(between.some(top => nodes(top).some(node => node.k === "spacer"))).toBe(false);
@@ -443,27 +443,27 @@ describe("InteractiveMode tray", () => {
 		const open = peek("TrayScan");
 		expect(open.p).toMatchObject({ peek: "TrayScan" });
 		const look = children(open).at(-1)!;
-		expect(look.p).toMatchObject({ role: "omp.tray.peek", ref: "TrayScan" });
+		expect(look.p).toMatchObject({ role: "zeta.tray.peek", ref: "TrayScan" });
 		const head = children(look)[0]!;
 		// Dot, name, meta, then the free space (the meta takes it), then the clock and the buttons.
 		expect(children(head).map(node => role(node) ?? node.k)).toEqual([
-			"omp.tray.dot",
-			"omp.tray.name",
-			"omp.tray.peek.meta",
-			"omp.tray.time",
+			"zeta.tray.dot",
+			"zeta.tray.name",
+			"zeta.tray.peek.meta",
+			"zeta.tray.time",
 			"button",
 			"button",
 			"button",
 		]);
 		expect(children(head)[1]!.p).toEqual({
-			role: "omp.tray.name",
+			role: "zeta.tray.name",
 			text: "TrayScan",
 			wrap: "none",
 			truncate: "end",
 			shrink: 1,
 		});
 		expect(children(head)[2]!.p).toEqual({
-			role: "omp.tray.peek.meta",
+			role: "zeta.tray.peek.meta",
 			text: "m2 · claude-sonnet-4-5 · low · 3 tools · 22%",
 			wrap: "none",
 			truncate: "end",
@@ -475,12 +475,12 @@ describe("InteractiveMode tray", () => {
 				.filter(node => node.k === "button")
 				.map(node => node.p?.actions),
 		).toEqual([{ click: "tray.open=TrayScan" }, { click: "tray.stop=TrayScan" }, { click: "tray.peek=" }]);
-		const tail = children(look).find(node => role(node) === "omp.tray.tail");
+		const tail = children(look).find(node => role(node) === "zeta.tray.tail");
 		expect(children(tail).map(node => node.p?.state)).toEqual(["run"]);
 
 		const closed = peek("");
 		expect(closed.p?.peek).toBeUndefined();
-		expect(nodes(closed).some(node => role(node) === "omp.tray.peek")).toBe(false);
+		expect(nodes(closed).some(node => role(node) === "zeta.tray.peek")).toBe(false);
 	});
 
 	it("keeps unchanged cards and moves `acted` only when a new call starts", async () => {
@@ -558,7 +558,7 @@ describe("InteractiveMode tray", () => {
 			await traySynced();
 			const model = (): unknown => {
 				const card = children(trayOf()).find(node => node.p?.ref === "TrayNext");
-				const label = nodes(card!).find(node => role(node) === "omp.tray.model");
+				const label = nodes(card!).find(node => role(node) === "zeta.tray.model");
 				return label?.p?.text;
 			};
 			expect(model()).toBe("claude-sonnet-4-5 · low");
@@ -636,7 +636,7 @@ describe("InteractiveMode tray", () => {
 		await seed();
 		await traySynced();
 		const all = describeDock(mode).flatMap(nodes);
-		expect(all.some(node => String(role(node)).startsWith("omp.tray.") && node.p?.hidden !== true)).toBe(false);
+		expect(all.some(node => String(role(node)).startsWith("zeta.tray.") && node.p?.hidden !== true)).toBe(false);
 		expect(mode.hud.tray.items()).toEqual([]);
 		expect(mode.hud.pills.trayHost()).toBe(false);
 	});
@@ -686,7 +686,7 @@ describe("InteractiveMode tray", () => {
 		registry.setStatus("TrayScan", "idle");
 		await traySynced();
 		const quiet = trayOf();
-		expect(quiet.p).toEqual({ role: "omp.tray", quiet: true, main: "idle" });
+		expect(quiet.p).toEqual({ role: "zeta.tray", quiet: true, main: "idle" });
 		// Nothing grouped: each finished agent is its own card, in spawn order, no done card.
 		const cards = children(quiet);
 		expect(cards.map(card => [card.p?.item, card.p?.ref])).toEqual([
@@ -956,7 +956,7 @@ describe("InteractiveMode tray: the main agent across a real turn", () => {
 		const tray = (): NativeNode => {
 			const node = describeDock(mode)
 				.flatMap(nodes)
-				.find(candidate => role(candidate) === "omp.tray");
+				.find(candidate => role(candidate) === "zeta.tray");
 			if (!node) throw new Error("no tray in the dock");
 			return node;
 		};

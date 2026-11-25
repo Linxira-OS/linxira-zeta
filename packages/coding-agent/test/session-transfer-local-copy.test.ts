@@ -41,7 +41,7 @@ async function appendTurn(sessionFile: string, text: string): Promise<void> {
 	await session.close();
 }
 
-describe("omp session unpack against a local copy", () => {
+describe("zetacode session unpack against a local copy", () => {
 	let root: string;
 	let laptopAgent: string;
 	let cloudAgent: string;

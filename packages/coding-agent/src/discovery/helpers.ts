@@ -446,7 +446,7 @@ export interface ScanSkillsFromDirOptions {
 	/**
 	 * Registry/CLI origin of the plugin root supplying these skills, forwarded
 	 * to {@link SourceMeta.origin} so user-scope gating can tell omp's own
-	 * installs (`omp`, `plugin-dir`) from the foreign Claude tree (`claude`).
+	 * installs (`zetacode`, `plugin-dir`) from the foreign Claude tree (`claude`).
 	 */
 	origin?: string;
 	/**
@@ -831,8 +831,8 @@ async function readExtensionModuleManifest(
 	const content = await readFile(packageJsonPath);
 	if (!content) return null;
 
-	const pkg = tryParseJson<{ omp?: ExtensionModuleManifest; pi?: ExtensionModuleManifest }>(content);
-	const manifest = pkg?.omp ?? pkg?.pi;
+	const pkg = tryParseJson<{ zeta?: ExtensionModuleManifest; pi?: ExtensionModuleManifest }>(content);
+	const manifest = pkg?.zeta ?? pkg?.pi;
 	if (manifest && typeof manifest === "object") {
 		return manifest;
 	}
@@ -1080,13 +1080,13 @@ export async function isForeignUserConfigRoot(root: string, configDirName: strin
  * Resolve the active project registry path by walking up from `cwd`.
  *
  * Walk order:
- * 1. Walk up from `cwd` looking for the nearest directory containing `.omp/`.
- *    The first match returns `<dir>/.omp/plugins/installed_plugins.json`.
- * 2. If no `.omp/` is found, rescan from `cwd` upward looking for `.git`.
- *    The git root is used as an anchor: `<gitRoot>/.omp/plugins/installed_plugins.json`.
+ * 1. Walk up from `cwd` looking for the nearest directory containing `.zeta/`.
+ *    The first match returns `<dir>/.zeta/plugins/installed_plugins.json`.
+ * 2. If no `.zeta/` is found, rescan from `cwd` upward looking for `.git`.
+ *    The git root is used as an anchor: `<gitRoot>/.zeta/plugins/installed_plugins.json`.
  * 3. Stop before home or a temporary root in either pass. If neither anchor is
  *    found below that ceiling, return `null` — no project context is active.
- * Inactive `.omp/agent/` layouts are skipped only above the nearest git root,
+ * Inactive `.zeta/agent/` layouts are skipped only above the nearest git root,
  * or throughout an unanchored walk, so repo-local agent directories stay project scope.
  *
  * This is the single source of truth for "active project root" used by install,
@@ -1117,7 +1117,7 @@ async function resolveProjectRegistryPath(cwd: string, ceilings: ReadonlySet<str
 		dir = parent;
 	}
 
-	// Existing .omp/ directories still win, even above the git root, except foreign user roots.
+	// Existing .zeta/ directories still win, even above the git root, except foreign user roots.
 	const configDirName = SOURCE_PATHS.native.projectDir;
 	let aboveGitRoot = nearestGitRoot === null;
 	dir = path.resolve(cwd);
@@ -1149,7 +1149,7 @@ function projectRegistryIn(configDir: string): string {
 	return path.join(configDir, "plugins", "installed_plugins.json");
 }
 
-/** `<root>/.omp`, unless only a pre-relocation project config dir holds install state (see {@link legacyProjectConfigDir}). */
+/** `<root>/.zeta`, unless only a pre-relocation project config dir holds install state (see {@link legacyProjectConfigDir}). */
 async function projectConfigDir(root: string): Promise<string> {
 	const current = path.join(root, SOURCE_PATHS.native.projectDir);
 	if (await hasProjectInstallState(current)) return current;
@@ -1159,7 +1159,7 @@ async function projectConfigDir(root: string): Promise<string> {
 /**
  * Builds that joined `PI_CONFIG_DIR` onto the project root wrote project plugin
  * registries and skill manifests to `<root>/<PI_CONFIG_DIR>` instead of
- * `<root>/.omp`. Keep reading that directory while it is the only one with
+ * `<root>/.zeta`. Keep reading that directory while it is the only one with
  * install state, so those installs do not vanish. Only a directory inside
  * `root` that is not the user config root qualifies.
  */
@@ -1182,11 +1182,11 @@ async function hasProjectInstallState(configDir: string): Promise<boolean> {
 }
 
 /**
- * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.omp/plugins/installed_plugins.json`
- * when no project anchor (.omp/ or .git/) is found.
+ * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.zeta/plugins/installed_plugins.json`
+ * when no project anchor (.zeta/ or .git/) is found.
  *
  * Use this when the caller accepts an explicit --scope project so that installing into a freshly
- * bootstrapped directory (no .omp/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
+ * bootstrapped directory (no .zeta/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
  * the directory tree on first write.
  *
  * Returns undefined when cwd is a discovery ceiling or user config root, so the
@@ -1197,7 +1197,7 @@ export async function resolveOrDefaultProjectRegistryPath(cwd: string): Promise<
 	const resolved = await resolveProjectRegistryPath(cwd, ceilings);
 	if (resolved) return resolved;
 	const configDirName = SOURCE_PATHS.native.projectDir;
-	// A cwd containing .omp/ at or below a git root already resolved above.
+	// A cwd containing .zeta/ at or below a git root already resolved above.
 	if (
 		ceilings.has(normalizePathForComparison(cwd)) ||
 		isUserConfigRoot(cwd) ||
@@ -1355,7 +1355,7 @@ export async function isSupersededPluginPath(filePath: string, home: string, cwd
 
 /**
  * List all installed Claude Code plugin roots from its active plugin cache and
- * ~/.omp/plugins/installed_plugins.json, plus the nearest project registry when present.
+ * ~/.zeta/plugins/installed_plugins.json, plus the nearest project registry when present.
  *
  * Results are cached per Claude and OMP config directories, project registry, and canonical active project.
  */
@@ -1540,7 +1540,7 @@ async function loadClaudePluginRoots({
 	}
 
 	// ── Project-scoped OMP registry ────────────────────────────────────────
-	// Loaded from the nearest .omp/plugins/installed_plugins.json relative to cwd.
+	// Loaded from the nearest .zeta/plugins/installed_plugins.json relative to cwd.
 	// Project entries take precedence over user entries for the same plugin ID.
 	if (resolvedProjectPath) {
 		const projectContent = await readFile(resolvedProjectPath);

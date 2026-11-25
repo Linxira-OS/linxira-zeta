@@ -5,7 +5,7 @@ import { generateLiveCompletion } from "../../src/commands/completions";
 
 const SHELLS = ["zsh", "bash", "sh"] as const;
 
-describe("omp zsh|bash|sh", () => {
+describe("zetacode zsh|bash|sh", () => {
 	it("dispatches exactly the three shell words", () => {
 		for (const shell of SHELLS) expect(isNativeShell(shell)).toBe(true);
 		for (const other of [undefined, "shell", "fish", "-c", "launch"]) expect(isNativeShell(other)).toBe(false);

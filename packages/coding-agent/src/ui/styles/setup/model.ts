@@ -1,5 +1,5 @@
 /**
- * Terminal look of the setup model scene (`term.role` `omp.setup.model`):
+ * Terminal look of the setup model scene (`term.role` `zeta.setup.model`):
  * the status line (search hint, discovery, saving, the last error), a blank
  * row, then the model browser (search, list, detail rows) cut to the rows
  * the wizard gives the scene. The browser is drawn from its state (the
@@ -13,7 +13,7 @@ import { modelBrowserRows } from "../pickers/model-browser";
 
 /** Terminal facts of the scene body. */
 export type ModelSceneTerm = {
-	readonly role: "omp.setup.model";
+	readonly role: "zeta.setup.model";
 	/** The status line over the browser. */
 	readonly head: string;
 	/** The status line reports a failure. */
@@ -32,7 +32,7 @@ function fitWindow(view: ModelBrowserView, rows: number): ModelBrowserView {
 	return { ...view, rows: view.rows.slice(lead, lead + rows), start, maxVisible: rows };
 }
 
-defineRolePainter("col", "omp.setup.model", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup.model", (node, cx): Block => {
 	const term = (node.props() as { term?: ModelSceneTerm }).term;
 	const picker = node.children()[0];
 	if (!term || !picker) return { rows: [] };
@@ -54,7 +54,7 @@ defineRolePainter("col", "omp.setup.model", (node, cx): Block => {
 });
 
 /** The picker is drawn by the scene body (above); on its own it draws the browser. */
-definePickerLook("omp.setup.model", (node, cx): Block => {
+definePickerLook("zeta.setup.model", (node, cx): Block => {
 	const browser = (pickerTerm(node) as { browser?: ModelBrowserState }).browser;
 	if (!browser) return { rows: [] };
 	return {

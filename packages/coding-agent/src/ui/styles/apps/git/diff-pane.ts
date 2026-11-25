@@ -44,7 +44,7 @@ interface Palette {
 	readonly text: string;
 }
 
-const kPalette = Symbol("omp.git.diff-palette");
+const kPalette = Symbol("zeta.git.diff-palette");
 
 interface PaletteHolder {
 	[kPalette]?: Palette;
@@ -538,7 +538,7 @@ export function paintDiffPane(
 	return documentRows(model, theme, doc, width, height);
 }
 
-defineRolePainter("diff", "omp.app.git.diff", (node: UiNode, cx) => {
+defineRolePainter("diff", "zeta.app.git.diff", (node: UiNode, cx) => {
 	const pane = (node.props() as { term?: { pane?: DiffPaneModel } }).term?.pane;
 	return { rows: pane ? paintDiffPane(pane, cx.theme, cx.width, cx.height ?? 24, cx.images) : [] };
 });

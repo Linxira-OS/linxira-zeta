@@ -116,7 +116,7 @@ describe("/usage activity load", () => {
 			await initDb();
 			insertMessageStats([request(Date.now() - 60 * 60_000)]);
 			closeDb();
-			// Strip the rollup back out, as a stats.db last opened by an omp release
+			// Strip the rollup back out, as a stats.db last opened by an zetacode release
 			// without it has none of its tables, triggers or version marks.
 			const legacy = new Database(getStatsDbPath());
 			const triggers = legacy

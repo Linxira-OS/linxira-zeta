@@ -2,4 +2,4 @@
 import { defineRolePainter } from "@linxiraos/pi-tui/term/paint";
 import { paintSheet } from "./btw";
 
-defineRolePainter("col", "omp.overlay.omfg", paintSheet);
+defineRolePainter("col", "zeta.overlay.omfg", paintSheet);

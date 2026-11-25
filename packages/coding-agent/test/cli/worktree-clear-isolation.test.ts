@@ -15,7 +15,7 @@ import { setWorktreesDir } from "@linxiraos/pi-utils";
 /**
  * Regression for #6761: `zetacode worktree clear` (no `--all`) must delete only
  * task-isolation sandboxes whose owner process is gone. A sandbox owned by a
- * live omp process holds a running subagent's uncaptured work and must survive.
+ * live zetacode process holds a running subagent's uncaptured work and must survive.
  */
 describe("worktree clear task-isolation ownership", () => {
 	let base: string;

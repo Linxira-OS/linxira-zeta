@@ -1,5 +1,5 @@
 /**
- * `omp.app.git.side`: the git sidebar in the terminal. A scrolling list (the
+ * `zeta.app.git.side`: the git sidebar in the terminal. A scrolling list (the
  * change count and branch, the Path/Tree toggle, the unstaged and staged
  * sections with their files, or the HEAD commit on a clean tree) above the
  * commit form pinned to the bottom (amend, summary with its countdown,
@@ -217,7 +217,7 @@ export function paintSidebar(theme: Theme, layout: SidebarLayout, width: number)
 	return layout.rows.map(row => truncate(rowText(theme, row, width), width, theme.symbols.ellipsis));
 }
 
-defineRolePainter("col", "omp.app.git.side", (node: UiNode, cx) => {
+defineRolePainter("col", "zeta.app.git.side", (node: UiNode, cx) => {
 	const sidebar = (node.props() as { term?: { sidebar?: SidebarModel } }).term?.sidebar;
 	if (!sidebar) return { rows: [] };
 	const height = cx.height ?? 24;

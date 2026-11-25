@@ -1,7 +1,7 @@
 /**
  * Terminal look of form controls (`src/ui/forms`): a field frame
- * (`omp.form.field`), the select list inside one (`omp.select`), a form of
- * fields (`omp.form`) and a plain select field drawn from its `picker`.
+ * (`zeta.form.field`), the select list inside one (`zeta.select`), a form of
+ * fields (`zeta.form`) and a plain select field drawn from its `picker`.
  *
  * A field's children say what they are through `term.slot`; children
  * without one (fields other screens build) read by position: a strong text
@@ -44,7 +44,7 @@ export type FieldSlot =
 	| "hint"
 	| "footer";
 
-/** Terminal facts of a field (`term` of the `omp.form.field` col). */
+/** Terminal facts of a field (`term` of the `zeta.form.field` col). */
 export type FieldTerm = {
 	/** A blank row above the field. */
 	readonly leadingSpace?: boolean;
@@ -62,7 +62,7 @@ type InputTerm = { readonly promptStyle?: string };
 /** Terminal facts of a plain select field's picker: the error under the list. */
 export type SelectLookTerm = PickerTerm & { readonly error?: string };
 
-/** Terminal facts of an `omp.select` col. */
+/** Terminal facts of an `zeta.select` col. */
 export type SelectTerm = {
 	/** Selection pointer glyph, when the list keeps the one it was built with (glyph previews change the theme's). */
 	readonly pointer?: string;
@@ -88,7 +88,7 @@ function withPointer(theme: Theme, pointer: string): Theme {
 }
 
 /** The picker look of a plain select field. */
-export const SELECT_LOOK = "omp.form.select";
+export const SELECT_LOOK = "zeta.form.select";
 
 function termOf<T>(node: UiNode): Partial<T> {
 	return ((node.props() as { term?: Partial<T> }).term ?? {}) as Partial<T>;
@@ -117,7 +117,7 @@ function statusRow(theme: Theme, status: string, width: number): string {
 }
 
 /**
- * An `omp.select` list: options with a pointer and detail column, scrollbar
+ * An `zeta.select` list: options with a pointer and detail column, scrollbar
  * past `max` rows (the list's, unless the caller fits it to fewer), then the
  * search status ("Type to search" whenever the list scrolls).
  */
@@ -151,7 +151,7 @@ export function selectRows(theme: Theme, node: UiNode, width: number, maxRows?: 
 
 function controlRows(theme: Theme, node: UiNode, cx: PaintContext): string[] {
 	if (node.kind === "input") return inputRows(theme, node, cx.width);
-	if (roleOf(node) === "omp.select") return selectRows(theme, node, cx.width);
+	if (roleOf(node) === "zeta.select") return selectRows(theme, node, cx.width);
 	return [...cx.paint(node, cx.width).rows];
 }
 
@@ -229,10 +229,10 @@ function paintField(node: UiNode, cx: PaintContext): Block {
 	return { rows: rows.map(row => (visibleWidth(row) > cx.width ? truncate(row, cx.width, "") : row)), hits };
 }
 
-defineRolePainter("col", "omp.form.field", paintField);
+defineRolePainter("col", "zeta.form.field", paintField);
 
 /** Clicking a field's control moves the form's focus there. */
-defineRoleWidget("col", "omp.form.field", {
+defineRoleWidget("col", "zeta.form.field", {
 	mouse(_node, mouse, _at, cx) {
 		if (mouse.action !== "press" || mouse.button !== "left") return false;
 		cx.emit({ type: "focus", key: cx.keypath });
@@ -241,7 +241,7 @@ defineRoleWidget("col", "omp.form.field", {
 });
 
 /** A form: its fields stacked (each field ends on its own blank row). */
-defineRolePainter("col", "omp.form", (node, cx): Block => {
+defineRolePainter("col", "zeta.form", (node, cx): Block => {
 	const rows: string[] = [];
 	const hits: Hit[] = [];
 	for (const child of node.children()) {

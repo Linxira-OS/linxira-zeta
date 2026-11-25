@@ -65,7 +65,7 @@ interface ProcessOptions {
 	model?: Model;
 }
 
-/** One omp process: a session over `sessionManager` with its own Mnemopi state on the store in `storeDir`. */
+/** One zetacode process: a session over `sessionManager` with its own Mnemopi state on the store in `storeDir`. */
 function startProcess(
 	storeDir: TempDir,
 	sessionManager: SessionManager,

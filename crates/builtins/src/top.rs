@@ -1,4 +1,4 @@
-//! `top` builtin, moved from `omp-shell`.
+//! `top` builtin, moved from `zetacode-shell`.
 
 use std::{
 	borrow::Cow,

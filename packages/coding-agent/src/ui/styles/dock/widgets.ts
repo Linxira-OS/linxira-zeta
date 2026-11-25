@@ -1,9 +1,9 @@
 /**
  * Terminal looks of the editor's surroundings.
  *
- * - `text` with `term.role` `omp.widget.line`: an extension widget's line one
+ * - `text` with `term.role` `zeta.widget.line`: an extension widget's line one
  *   cell in, word-wrapped, its own SGR kept (the truncation notice muted).
- * - `col` with `term.role` `omp.editor-gap`: one blank row while open.
+ * - `col` with `term.role` `zeta.editor-gap`: one blank row while open.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
 import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
@@ -22,5 +22,5 @@ function paintEditorGap(node: UiNode): Block {
 	return open?.() === false ? EMPTY_BLOCK : { rows: [""] };
 }
 
-defineRolePainter("text", "omp.widget.line", paintWidgetLine);
-defineRolePainter("col", "omp.editor-gap", paintEditorGap);
+defineRolePainter("text", "zeta.widget.line", paintWidgetLine);
+defineRolePainter("col", "zeta.editor-gap", paintEditorGap);

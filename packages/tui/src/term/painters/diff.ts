@@ -3,7 +3,7 @@
  * `+13│added`, context in the muted diff color, syntax-highlighted from
  * `lang` or `path`), a dim `…` row between hunks. Long lines wrap under their
  * gutter unless `wrap` is false, which cuts them at the width instead.
- * `text` (unified or omp compact diff text) stands in for `hunks`.
+ * `text` (unified or zetacode compact diff text) stands in for `hunks`.
  */
 import type { TspDiffHunk, TspDiffProps } from "@linxiraos/pi-wire";
 import { compactDiffText, parseCompactDiff, parseUnifiedDiff, renderDiff, renderDiffHunks } from "../../text/diff";

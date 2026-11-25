@@ -143,7 +143,7 @@ interface ThemeSurfaces {
 	paletteHex?(slot: number): string | undefined;
 }
 
-const kPalette = Symbol("omp.agent-palette");
+const kPalette = Symbol("zeta.agent-palette");
 
 /** The agent palette of `theme`, resolved once per theme instance. */
 export function agentPalette(theme: Theme): AgentPalette {

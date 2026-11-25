@@ -599,7 +599,7 @@ FROM model_usage_legacy
 
 	/**
 	 * Claims a one-time notice: true only for the first claim of `key` among every
-	 * process sharing this database, so concurrent omp windows show it once. The
+	 * process sharing this database, so concurrent zetacode windows show it once. The
 	 * claim lasts until `expiresAtMs`, when the notice no longer applies.
 	 * Failures are logged and return false: a notice that cannot be recorded
 	 * stays unshown rather than repeating on every check.

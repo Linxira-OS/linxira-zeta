@@ -212,7 +212,7 @@ async function requireSessionId(file: string): Promise<string> {
 
 /**
  * Take this process's ownership lease on session `id` at `file` — the check
- * {@link SessionManager.moveTo} uses — or refuse while another live omp process
+ * {@link SessionManager.moveTo} uses — or refuse while another live zetacode process
  * writes it.
  */
 function claimSessionOrRefuse(id: string, file: string, action: string): () => void {
@@ -268,7 +268,7 @@ async function writeArchiveAtomically(
 
 /**
  * Pack `sessionFile` with its artifacts and referenced blobs into the tar
- * `outPath` (written atomically). Refuses a session another live omp process
+ * `outPath` (written atomically). Refuses a session another live zetacode process
  * is writing; the ownership lease is held while the files are read.
  */
 export async function packSession(sessionFile: string, outPath: string): Promise<PackSessionResult> {
@@ -372,7 +372,7 @@ function parseManifest(bytes: Uint8Array, archive: string): SessionArchiveManife
 		);
 	}
 	if (typeof id !== "string" || typeof cwd !== "string" || typeof omp !== "string") {
-		throw new SessionTransferError(`Bad session archive ${archive}: manifest.json needs string id, cwd, and omp.`);
+		throw new SessionTransferError(`Bad session archive ${archive}: manifest.json needs string id, cwd, and zeta.`);
 	}
 	return { version, id, cwd, omp };
 }
@@ -676,7 +676,7 @@ export async function unpackSession(archivePath: string, options: UnpackSessionO
 
 /**
  * Append a `departed` marker to `sessionFile`: the session moved to `label`
- * and this copy is stale. Refuses a session another live omp process writes.
+ * and this copy is stale. Refuses a session another live zetacode process writes.
  */
 export async function markSessionMoved(sessionFile: string, label: string): Promise<void> {
 	const target = path.resolve(sessionFile);

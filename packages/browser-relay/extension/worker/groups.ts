@@ -1,8 +1,8 @@
 /**
- * Tab groups: the relay's per-window omp group (found by title) and the panel's titled conversation groups.
+ * Tab groups: the relay's per-window zetacode group (found by title) and the panel's titled conversation groups.
  */
 
-/** Title of the relay's omp tab group; mirrored to session storage so a restarted service worker can still dissolve it. */
+/** Title of the relay's zetacode tab group; mirrored to session storage so a restarted service worker can still dissolve it. */
 let relayGroupTitle: string | null = null;
 
 /**
@@ -116,7 +116,7 @@ export function ungroupRelayTab(tabId: number): Promise<void> {
 
 /**
  * Group a panel conversation's tabs under `title`, into `groupId` when given and still open. Never reuses a group by
- * title, and never the relay's omp group: dissolving that one on disconnect would scatter the conversation.
+ * title, and never the relay's zetacode group: dissolving that one on disconnect would scatter the conversation.
  */
 export async function groupPanelTabs(tabIds: number[], title: string, groupId?: number): Promise<{ groupId: number }> {
 	const ids = [...(await groupableByWindow(tabIds)).values()].flat();

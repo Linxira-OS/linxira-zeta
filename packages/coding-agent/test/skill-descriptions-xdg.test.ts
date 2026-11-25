@@ -24,7 +24,7 @@ import type { AuthStorage } from "../src/session/auth-storage";
 import { CostCapError, type CostGateApi } from "../src/session/cost-gate";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-const ENV_KEYS = ["PI_CONFIG_DIR", "PI_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["PI_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -44,12 +44,12 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			// `os.homedir()`; a temp home keeps the suite off the real (possibly read-only) HOME.
 			const home = path.join(tempRoot, "home");
 			spyOn(os, "homedir").mockReturnValue(home);
-			agentDir = path.join(home, ".omp", "agent");
+			agentDir = path.join(home, ".zeta", "agent");
 			xdgData = path.join(tempRoot, "data");
 			await fs.promises.mkdir(path.join(xdgData, "omp"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.PI_CONFIG_DIR = ".omp";
-			delete process.env.PI_CODING_AGENT_DIR;
+			process.env.PI_CONFIG_DIR = ".zeta";
+			delete process.env.ZETA_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});
 
@@ -65,7 +65,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 		});
 
 		it("adopts a legacy database, including uncheckpointed WAL rows, when XDG relocates it", () => {
-			// An older omp still holds the legacy db open: its latest row lives only in the WAL.
+			// An older zetacode still holds the legacy db open: its latest row lives only in the WAL.
 			using legacy = SkillDescriptionStore.open(path.join(agentDir, "skill-descriptions.db"));
 			legacy.put("k", "compressed description");
 
@@ -550,7 +550,7 @@ describe("skill description compressor model selection", () => {
 		const settings = Settings.isolated({ modelRoles });
 		const registry = new ModelRegistry(
 			authStorage,
-			path.join(os.tmpdir(), `omp-skill-models-${Snowflake.next()}.yml`),
+			path.join(os.tmpdir(), `zetacode-skill-models-${Snowflake.next()}.yml`),
 			{
 				settings,
 			},
@@ -709,7 +709,7 @@ describe("skill description compressor cost gate", () => {
 		const settings = Settings.isolated({ modelRoles: { smol: "skill-gate/probe" } });
 		const registry = new ModelRegistry(
 			authStorage,
-			path.join(os.tmpdir(), `omp-skill-models-${Snowflake.next()}.yml`),
+			path.join(os.tmpdir(), `zetacode-skill-models-${Snowflake.next()}.yml`),
 			{ settings },
 		);
 		registry.registerProvider("skill-gate", {

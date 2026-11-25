@@ -441,7 +441,7 @@ export interface ExtensionUIContext {
 
 	/**
 	 * Ask the transcript presenters again for the blocks with these ids (`TranscriptBlock.id`)
-	 * and redraw those whose display changed. omp re-asks on its own only when a block's data
+	 * and redraw those whose display changed. zetacode re-asks on its own only when a block's data
 	 * changes; call this when the presenter's own state changes (an `agent_end` handler marking a
 	 * run's calls done, say). A changed block with rows already in terminal scrollback replays the
 	 * transcript once. Interactive mode only; a no-op elsewhere.
@@ -981,7 +981,7 @@ export interface ExtensionContext {
 	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
 	 * decide whether project-local config is safe to load, and warn when it is absent.
 	 *
-	 * OMP has no equivalent per-directory trust gate: `.omp/extensions`, `.omp/config.yml`, and
+	 * OMP has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
 	 * other project-local inputs are already discovered and loaded unconditionally (see
 	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
 	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
@@ -1878,7 +1878,7 @@ export interface RegisteredCommand {
 }
 
 /**
- * A todo backend registered with `pi.registerTodoBackend()`. omp keeps the todo list; the backend
+ * A todo backend registered with `pi.registerTodoBackend()`. zetacode keeps the todo list; the backend
  * the `todo.backend` setting selects is told about every change to it.
  */
 export interface TodoBackendDefinition {
@@ -1889,16 +1889,16 @@ export interface TodoBackendDefinition {
 	/** One line shown beside the label in Settings. */
 	description?: string;
 	/**
-	 * Called in the main session with the whole todo list after omp committed a change to it:
+	 * Called in the main session with the whole todo list after zetacode committed a change to it:
 	 * a `todo` call, a `/todo` edit, RPC `set_todos`, `/new`, or a resume, rewind, branch, fork or
 	 * move to another session file that left another list or session id. An empty list is sent
-	 * only once omp has called a todo backend for this session; `/new`, a resume, a branch and a
+	 * only once zetacode has called a todo backend for this session; `/new`, a resume, a branch and a
 	 * fork carry that over. Tasks carry `content` and `status` only.
 	 * A backend the user picks in Settings is sent the current list then, without a change.
 	 * One call runs at a time, and lists that change meanwhile collapse into the newest. A throw,
 	 * or no answer within the extension handler timeout, is reported as an extension error and
 	 * leaves omp's list as it is; the next change sends the whole list again, even while a call
-	 * omp gave up on is still running. A call still running when the session is disposed is given
+	 * zetacode gave up on is still running. A call still running when the session is disposed is given
 	 * up after the `session_shutdown` handler timeout, without an error.
 	 */
 	replace(phases: TodoPhase[], ctx: ExtensionContext): void | Promise<void>;
@@ -1921,7 +1921,7 @@ export type ExtensionServiceTier<Family extends ServiceTierFamily> = Family exte
 /**
  * What holds a keyboard chord, as reported by {@link ExtensionAPI.getShortcutConflict}.
  *
- * - `reserved`: omp keeps the chord; a shortcut on it is never bound.
+ * - `reserved`: zetacode keeps the chord; a shortcut on it is never bound.
  * - `keybinding`: these keymap actions are bound to it in the main editor: `app.*` actions, which
  *   usually take the key first where they apply, and `tui.editor.*` / `tui.input.*` editing keys,
  *   which a shortcut on the chord would take over.
@@ -2180,7 +2180,7 @@ export interface ExtensionAPI {
 	 * Presenters are asked in extension load order, the first answer other than `undefined` wins;
 	 * a suspended extension's presenter is skipped. One that throws or answers anything but a
 	 * {@link TranscriptPresentation} (a Promise included) is reported once and draws the block in
-	 * full. Never mutate the block's `args` or `result`: they are omp's live objects. omp may ask
+	 * full. Never mutate the block's `args` or `result`: they are omp's live objects. zetacode may ask
 	 * again at any time (a transcript rebuild, a data change) and keeps no earlier answer: answer
 	 * from the block and the extension's own state only, keyed by block id rather than by run. A
 	 * block the user expanded is always drawn in full, and `display.hideToolActivity` still hides

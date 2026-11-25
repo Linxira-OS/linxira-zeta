@@ -1,5 +1,5 @@
 /**
- * The history search's terminal look (`term.look = "omp.history"`): a framed
+ * The history search's terminal look (`term.look = "zeta.history"`): a framed
  * sheet with the query field, the prompts (whole prompt on one row, query
  * words marked, age flush right; the selected row bold on the selection
  * band) and the key hints, set apart by blank rows.
@@ -28,7 +28,7 @@ import { caretField, highlightRanges, keyHintRows, tokenHits } from "./common";
 
 /** The look's term facts. */
 export type HistoryLookTerm = PickerTerm & {
-	readonly look: "omp.history";
+	readonly look: "zeta.history";
 	readonly title: string;
 	readonly field: { readonly text: string; readonly cursor: number };
 	/** Each result's whole prompt on one line, by item id. */
@@ -99,4 +99,4 @@ function paintHistory(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits: [sheetHit(node, width, rows.length), ...hits] };
 }
 
-definePickerLook("omp.history", paintHistory);
+definePickerLook("zeta.history", paintHistory);

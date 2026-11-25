@@ -78,7 +78,7 @@ describe("text-predict client against a daemon from another zetacode version", (
 		expect(received).toEqual(["ping", "complete"]);
 	});
 
-	it("shuts down a daemon from an older omp so this version's can start", async () => {
+	it("shuts down a daemon from an older zetacode so this version's can start", async () => {
 		const received = await serveDaemon("0.0.1");
 
 		const error = await rejectionOf(requestTextPrediction("ngram", "please ", "re"));

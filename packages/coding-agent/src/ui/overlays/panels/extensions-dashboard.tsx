@@ -4,7 +4,7 @@
  * inventory as rows grouped by kind (a kind column once filtered or scoped
  * to a provider), the inspector as the side preview, and Toggle / Expand /
  * Close actions. The terminal draws it as a box (role look
- * `omp.extensions`); the list and the inspector also draw alone.
+ * `zeta.extensions`); the list and the inspector also draw alone.
  */
 import * as os from "node:os";
 import type { JSXNode, UiNode } from "@linxiraos/pi-tui";
@@ -414,7 +414,7 @@ export function ExtensionDashboard(props: { readonly model: ExtensionDashboardMo
 	const view = () => (rev(), model.list.rev(), model.inspector.rev(), model.list.pickerView());
 	const root = (
 		<picker
-			term={() => ({ role: "omp.extensions", dashboard: model, rev: rev() })}
+			term={() => ({ role: "zeta.extensions", dashboard: model, rev: rev() })}
 			title="Extension Control Center"
 			icon="extension"
 			noun="extensions"
@@ -501,7 +501,7 @@ export function ExtensionDashboard(props: { readonly model: ExtensionDashboardMo
 export function ExtensionListView(props: { readonly list: ExtensionListModel }): JSXNode {
 	return (
 		<col
-			term={() => ({ role: "omp.extensions.list", list: props.list, rev: props.list.rev() })}
+			term={() => ({ role: "zeta.extensions.list", list: props.list, rev: props.list.rev() })}
 			onKey={key => {
 				props.list.key(key.id, key.text);
 				return true;
@@ -514,7 +514,7 @@ export function ExtensionListView(props: { readonly list: ExtensionListModel }):
 export function ExtensionInspectorView(props: { readonly inspector: ExtensionInspectorModel }): JSXNode {
 	return (
 		<col
-			term={() => ({ role: "omp.extensions.inspector", inspector: props.inspector, rev: props.inspector.rev() })}
+			term={() => ({ role: "zeta.extensions.inspector", inspector: props.inspector, rev: props.inspector.rev() })}
 		/>
 	);
 }

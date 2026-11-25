@@ -67,7 +67,7 @@ export class CollabController {
 
 	constructor(ctx: InteractiveModeContext) {
 		this.#ctx = ctx;
-		// 64 random bits: unique per process on one machine, short enough for `omp collab link <id>` and socket paths.
+		// 64 random bits: unique per process on one machine, short enough for `zetacode collab link <id>` and socket paths.
 		this.instanceId = randomBytes(8).toString("hex");
 	}
 
@@ -99,7 +99,7 @@ export class CollabController {
 	autoStart(): void {
 		// Observe session changes from now on even when auto-start is currently
 		// off: the setting is read live, so enabling it later applies to the
-		// next `/new`, `/resume`, or branch without restarting omp.
+		// next `/new`, `/resume`, or branch without restarting zeta.
 		this.#observeSessionChanges();
 		const access = this.autoStartMode;
 		if (access === "off" || this.#shutdown || this.host || this.#ctx.collabGuest) return;
@@ -136,7 +136,7 @@ export class CollabController {
 		this.#unsubscribeSessionChange ??= this.#ctx.session.registerSessionChangeCallback(() =>
 			this.#onSessionChanged(),
 		);
-		// A write that finds the session file open in another omp process (or
+		// A write that finds the session file open in another zetacode process (or
 		// replaced/contested on disk) moves the session to a sibling file under a
 		// new id without an AgentSession transition; rotate the room for it too.
 		// Moves replayed at subscription predate every room this controller hosts.

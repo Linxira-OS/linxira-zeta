@@ -1,6 +1,6 @@
 /**
- * The session picker's terminal look (`term.look = "omp.sessions"`; the
- * rename card `omp.overlay.sessions` too): a frame holding the load status or
+ * The session picker's terminal look (`term.look = "zeta.sessions"`; the
+ * rename card `zeta.overlay.sessions` too): a frame holding the load status or
  * error, the search field, and the sessions that fit the terminal, each a
  * heading row (bold behind a `❯` when selected), its first message under a
  * title, and a dim facts row (age, size, current, status, fork, folder), with
@@ -45,7 +45,7 @@ export type SessionsLookRow = {
 
 /** The look's term facts. */
 export type SessionsLookTerm = PickerTerm & {
-	readonly look: "omp.sessions";
+	readonly look: "zeta.sessions";
 	readonly title: string;
 	readonly field: { readonly text: string; readonly cursor: number };
 	readonly sessions: readonly SessionsLookRow[];
@@ -186,7 +186,7 @@ function listRows(
 /** The delete question in place of the list: the session's name and a Yes/No choice. */
 function confirmRows(cx: PaintContext, width: number, confirm: NonNullable<SessionsLookTerm["confirm"]>): string[] {
 	return paintHookPanel(cx.theme, width, {
-		look: "omp.hook",
+		look: "zeta.hook",
 		title: "Delete session?",
 		details: [confirm.name],
 		outline: false,
@@ -268,7 +268,7 @@ function paintSessions(node: UiNode, cx: PaintContext): Block {
 	return paintFrame(node, cx, props.term, props.selected);
 }
 
-definePickerLook("omp.sessions", paintSessions);
+definePickerLook("zeta.sessions", paintSessions);
 
 /** The sheet while a session is renamed (the picker gives way to the session card holding the form). */
 function paintRename(node: UiNode, cx: PaintContext): Block {
@@ -277,4 +277,4 @@ function paintRename(node: UiNode, cx: PaintContext): Block {
 	return paintFrame(node, cx, term, undefined);
 }
 
-defineRolePainter("card", "omp.overlay.sessions", paintRename);
+defineRolePainter("card", "zeta.overlay.sessions", paintRename);

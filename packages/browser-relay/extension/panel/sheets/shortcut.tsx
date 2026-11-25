@@ -251,7 +251,7 @@ export function ShortcutSheet(props: {
 					ref={promptRef}
 					className={`pn-field pn-prompt-area${tried && promptError !== null ? " pn-field--invalid" : ""}`}
 					value={prompt}
-					placeholder="What should omp do?"
+					placeholder="What should zetacode do?"
 					onChange={event => setPrompt(event.target.value)}
 				/>
 				{tried && promptError !== null && <span className="pn-form-error">{promptError}</span>}

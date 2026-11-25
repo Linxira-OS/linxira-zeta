@@ -21,7 +21,7 @@ import { keyLabel } from "./choice";
 import { actionKeyId } from "../../keys/hints";
 
 const SCENE_TITLE = "Sign in to your providers";
-const SHEET_ROLE = "omp.setup.sheet";
+const SHEET_ROLE = "zeta.setup.sheet";
 
 /** How the last sign-in ended (`provider` is the display name). */
 type Outcome =
@@ -162,7 +162,7 @@ export const signInScene: SetupScene = {
 		) as JSXNode;
 
 		const term = (): SignInTerm => ({
-			role: "omp.setup.sign-in",
+			role: "zeta.setup.sign-in",
 			maxLines: context.maxLines(),
 			intro: dialog() === undefined && showIntro(),
 			lines: dialog() === undefined ? lines() : [],
@@ -181,7 +181,7 @@ export const signInScene: SetupScene = {
 				findNode(body, node => {
 					if (node.kind === "picker") return true;
 					const role = (node.props() as { role?: string }).role;
-					return role === "omp.login" || role === "omp.overlay.login";
+					return role === "zeta.login" || role === "zeta.overlay.login";
 				}),
 			dispose: () => lifetime.abort(),
 		};

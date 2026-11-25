@@ -84,7 +84,7 @@ function ContextLine(props: { readonly args: Partial<TaskParams> | undefined }):
 /** A brief as markdown (an agent's first child and its row's hover card); undefined when empty. */
 function assignmentNode(raw: string | undefined): TspPropNode | undefined {
 	const text = raw ? sanitizeText(repairDoubleEncodedJsonString(raw)).trim() : "";
-	return text ? { k: "md", p: { role: "omp.task.assignment", text } } : undefined;
+	return text ? { k: "md", p: { role: "zeta.task.assignment", text } } : undefined;
 }
 
 function Assignment(props: { readonly node: TspPropNode | undefined }): JSXNode {
@@ -431,7 +431,7 @@ const UNICODE_SYMBOLS = presetSymbols("unicode");
 /**
  * Settled child task snapshots as a tree of agent rows (the task card's
  * nested results; the `task` subprocess view): one `text` node, its rows as
- * spans; the terminal look (`omp.task.nested`) redraws them with the theme's
+ * spans; the terminal look (`zeta.task.nested`) redraws them with the theme's
  * glyphs and agent identity colours.
  */
 export function NestedTaskResults(props: {
@@ -450,7 +450,7 @@ export function NestedTaskResults(props: {
 		<text
 			spans={linesToSpans(lines)}
 			wrap="word"
-			term={{ role: "omp.task.nested", snapshots: props.snapshots, expanded: props.expanded }}
+			term={{ role: "zeta.task.nested", snapshots: props.snapshots, expanded: props.expanded }}
 		/>
 	);
 }

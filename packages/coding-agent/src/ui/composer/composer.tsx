@@ -2,7 +2,7 @@
 /**
  * The composer: the prompt field and its state.
  *
- * One `col` node (role `omp.editor`, `omp.editor.bash|python|btw-ask` in
+ * One `col` node (role `zeta.editor`, `zeta.editor.bash|python|btw-ask` in
  * a draft mode, tone `pending` while a turn runs) holding the `focus` row
  * (the viewing header, while a subagent is viewed), the `line` row (mode
  * chip and the `editor` field), the `bar` row (status facts the app slots
@@ -104,10 +104,10 @@ export interface ComposerState {
 	/**
 	 * The draft's mode: code for a shell (`!` bash, `$` python) or a `/btw` side question (`?`).
 	 * Natively a chip stands in for the sigil and the composer's role names the mode
-	 * (`omp.editor.<kind>`; btw's is `omp.editor.btw-ask`).
+	 * (`zeta.editor.<kind>`; btw's is `zeta.editor.btw-ask`).
 	 */
 	readonly shell?: { readonly kind: "bash" | "python" | "btw"; readonly excluded?: boolean };
-	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `omp.editor.btw`, a `btw` chip that leads back to the chat. */
+	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `zeta.editor.btw`, a `btw` chip that leads back to the chat. */
 	readonly btw?: boolean;
 	/**
 	 * The viewed subagent's lineage, outermost first and the viewed agent last; undefined on the main
@@ -2077,8 +2077,8 @@ export class Composer {
 			<col
 				role={() => {
 					const kind = shell()?.kind;
-					if (kind) return `omp.editor.${kind === "btw" ? "btw-ask" : kind}`;
-					return this.#state().btw ? "omp.editor.btw" : "omp.editor";
+					if (kind) return `zeta.editor.${kind === "btw" ? "btw-ask" : kind}`;
+					return this.#state().btw ? "zeta.editor.btw" : "zeta.editor";
 				}}
 				tone={() => (this.#state().running ? "pending" : undefined)}
 				folded={() => (this.#faint() ? true : undefined)}

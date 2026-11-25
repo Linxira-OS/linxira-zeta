@@ -12,7 +12,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 function freshSession(): SessionManager {
-	const cwd = join("/tmp", `omp-on-disk-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const cwd = join("/tmp", `zetacode-on-disk-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 	return SessionManager.create(cwd, join(cwd, "sessions"), new MemorySessionStorage());
 }
 

@@ -109,7 +109,7 @@ describe("IRC tool activity visibility", () => {
 		const [block] = helpers.addMessageToChat(steer);
 		if (!block) throw new Error("the steer drew no block");
 		const tree = JSON.stringify(describeTree(block.node, corpusEnvironment("dark"), 120));
-		expect(tree).toContain('"role":"omp.irc.incoming"');
+		expect(tree).toContain('"role":"zeta.irc.incoming"');
 		expect(tree).toContain("Main");
 		expect(tree).toContain(body);
 		expect(renderTranscript(ctx).join("\n")).toContain(body);

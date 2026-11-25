@@ -1,4 +1,4 @@
-/** The Spotlight notice (`text` role `omp.tool.spotlight`) is native-only: the terminal draws nothing. */
+/** The Spotlight notice (`text` role `zeta.tool.spotlight`) is native-only: the terminal draws nothing. */
 import { defineRolePainter, EMPTY_BLOCK } from "@linxiraos/pi-tui/term/paint";
 
-defineRolePainter("text", "omp.tool.spotlight", () => EMPTY_BLOCK);
+defineRolePainter("text", "zeta.tool.spotlight", () => EMPTY_BLOCK);

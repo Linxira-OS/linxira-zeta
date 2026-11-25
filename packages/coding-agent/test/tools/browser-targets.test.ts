@@ -101,7 +101,7 @@ async function invoke(tool: ToolSession, parameters: Record<string, unknown>) {
 }
 
 describe("browser targets in Tern", () => {
-	it("lists the window's browser blocks and names the omp tab holding an adopted one", async () => {
+	it("lists the window's browser blocks and names the zetacode tab holding an adopted one", async () => {
 		await startWindow(BLOCKS);
 		const tool = session();
 		opened.push("docs");
@@ -122,7 +122,7 @@ describe("browser targets in Tern", () => {
 		]);
 		expect(text).toStartWith("Tern browser blocks (adopt one with target set to its id):\n");
 		expect(text).toContain('- 5 "Docs A" https://docs.example/a (docked, not on screen)');
-		expect(text).toContain('- 7 "Docs C" https://docs.example/c (docked, on screen, driven by omp tab "docs")');
+		expect(text).toContain('- 7 "Docs C" https://docs.example/c (docked, on screen, driven by zetacode tab "docs")');
 	});
 
 	it("omits shown and driven an older Tern does not report", async () => {

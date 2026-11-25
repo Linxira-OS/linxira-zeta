@@ -5,8 +5,8 @@ import { isVideoPath } from "../../../utils/video-preview";
 export interface ComposerNativeState {
 	/**
 	 * The draft runs as a shell command (`!`, `!!`), Python (`$`, `$$`) or a `/btw` side question (`?`);
-	 * `excluded` keeps it from the model. Role `omp.editor.<kind>`, except btw's `omp.editor.btw-ask`
-	 * (`omp.editor.btw` is the focused note's).
+	 * `excluded` keeps it from the model. Role `zeta.editor.<kind>`, except btw's `zeta.editor.btw-ask`
+	 * (`zeta.editor.btw` is the focused note's).
 	 */
 	readonly shell?: {
 		readonly kind: "bash" | "python" | "btw";
@@ -24,7 +24,7 @@ export interface ComposerNativeState {
 	readonly dictation?: "idle" | "starting" | "recording" | "transcribing";
 	/** The viewed subagent's lineage, outermost first and the viewed agent last; undefined on the main session. */
 	readonly viewing?: readonly string[];
-	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `omp.editor.btw`, a `btw` chip. */
+	/** Drafts go to the `/btw` note the user clicked, as its follow-ups: role `zeta.editor.btw`, a `btw` chip. */
 	readonly btw?: boolean;
 	/**
 	 * An ask waits inline above the composer (Tern). `pending`: the placeholder says typing here skips it, and

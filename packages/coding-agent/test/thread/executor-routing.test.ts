@@ -33,7 +33,7 @@ import { SubagentWorkerPool, setSubagentWorkerPoolForTests } from "../../src/thr
 import { EventBus } from "../../src/utils/event-bus";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 const MODEL = "fake/fake-model";
 const TEST_TIMEOUT_MS = 120_000;
 /**
@@ -43,10 +43,10 @@ const TEST_TIMEOUT_MS = 120_000;
  * plain word like "hang" identifies the run's turn.
  */
 const SCRIPT_ID = Bun.randomUUIDv7("hex");
-const HANG_TASK = `omp-test-scripted-hang-${SCRIPT_ID}`;
-const BG_JOB_TASK = `omp-test-scripted-bg-job-${SCRIPT_ID}`;
+const HANG_TASK = `zetacode-test-scripted-hang-${SCRIPT_ID}`;
+const BG_JOB_TASK = `zetacode-test-scripted-bg-job-${SCRIPT_ID}`;
 /** In the routed agent's system prompt only, so a request without it is never the run's own turn. */
-const AGENT_MARKER = `omp-test-agent-${SCRIPT_ID}`;
+const AGENT_MARKER = `zetacode-test-agent-${SCRIPT_ID}`;
 
 interface ChatMessage {
 	role: string;
@@ -231,13 +231,13 @@ beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
 	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-executor-routing-"));
 	const home = path.join(root, "home");
-	const agentDir = path.join(home, ".omp", "agent");
+	const agentDir = path.join(home, ".zeta", "agent");
 	cwd = path.join(root, "work");
 	await fs.mkdir(agentDir, { recursive: true });
 	await fs.mkdir(cwd, { recursive: true });
 	// Workers read these at start-up, so set them before the pool spawns any.
 	setEnv("HOME", home);
-	setEnv("PI_CODING_AGENT_DIR", agentDir);
+	setEnv("ZETA_CODING_AGENT_DIR", agentDir);
 	setEnv("ZETA_PROFILE", undefined);
 	setEnv("PI_PROFILE", undefined);
 	__resetDirsFromEnvForTests();

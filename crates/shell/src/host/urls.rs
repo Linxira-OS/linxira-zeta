@@ -109,7 +109,7 @@ pub(super) fn names_url(spec: &SpawnSpec<'_>) -> bool {
 }
 
 /// Whether `argv` runs `zetacode`: as the program, or as the command a wrapper
-/// (`nice omp …`, `npx omp …`) is given ahead of any URL.
+/// (`nice zetacode …`, `npx zetacode …`) is given ahead of any URL.
 fn runs_omp(argv: &[BString]) -> bool {
 	argv
 		.iter()
@@ -126,7 +126,7 @@ fn is_omp(word: &[u8]) -> bool {
 	name == b"zetacode"
 		|| name == b"omp"
 		|| (cfg!(windows)
-			&& (name.eq_ignore_ascii_case(b"zetacode.exe") || name.eq_ignore_ascii_case(b"omp.exe")))
+			&& (name.eq_ignore_ascii_case(b"zetacode.exe") || name.eq_ignore_ascii_case(b"zeta.exe")))
 }
 
 /// Whether the environment variable `name` holds a URL to resolve. `PWD`

@@ -675,7 +675,7 @@ fn refuse_split(map: &Keymap, other: Option<&Keymap>, marks: &[Mark]) -> CoreRes
 		return Ok(());
 	};
 	Err(DesktopError::input_failed(format!(
-		"the core and XTest keymaps disagree on keycode {}, a row another omp session's text uses; \
+		"the core and XTest keymaps disagree on keycode {}, a row another zetacode session's text uses; \
 		 no input was sent. Retry after the layout settles, or reload it with setxkbmap",
 		mark.code
 	)))

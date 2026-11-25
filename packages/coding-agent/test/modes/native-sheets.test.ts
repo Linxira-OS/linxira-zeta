@@ -124,7 +124,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.sessionInfo",
+			role: "zeta.overlay.sessionInfo",
 			size: "md",
 			anchor: "center",
 			head: "Session info",
@@ -136,7 +136,7 @@ describe("sheets Tern draws", () => {
 		const [identity] = ui.children(screen);
 		expect(ui.children(identity!).map(field => field.id.split("/").at(-1))).toEqual(["id", "file"]);
 		expect(ui.node("kv").p).toMatchObject({
-			role: "omp.info.kv",
+			role: "zeta.info.kv",
 			items: [
 				{ k: "Name", v: [{ s: "mono", t: "parity" }] },
 				{ k: "Append-only", v: [{ s: "mono", t: "on" }] },
@@ -146,7 +146,7 @@ describe("sheets Tern draws", () => {
 		const servers = ui.children(screen).at(-2)!;
 		expect(servers.p.head).toBe("MCP servers");
 		expect(ui.children(servers).map(note => [note.k, note.p.role, note.p.spans])).toEqual([
-			["text", "omp.info.note", [{ s: "dim", t: "None connected" }]],
+			["text", "zeta.info.note", [{ s: "dim", t: "None connected" }]],
 		]);
 
 		ui.type(ESCAPE);
@@ -160,7 +160,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.jobs",
+			role: "zeta.overlay.jobs",
 			size: "lg",
 			anchor: "center",
 			head: "Background jobs",
@@ -187,7 +187,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.planReview",
+			role: "zeta.overlay.planReview",
 			size: "lg",
 			anchor: "center",
 			head: "Ship the sheets",
@@ -228,7 +228,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.planSave",
+			role: "zeta.overlay.planSave",
 			size: "sm",
 			anchor: "bottom",
 			head: "Save plan",
@@ -275,7 +275,7 @@ describe("sheets Tern draws", () => {
 		});
 
 		const { props, screen } = sheetOf(ui);
-		expect(props).toMatchObject({ role: "omp.overlay.spotlight", size: "lg", anchor: "center", modal: true });
+		expect(props).toMatchObject({ role: "zeta.overlay.spotlight", size: "lg", anchor: "center", modal: true });
 		expect(props.head).toStartWith("⭐ Spotlight · bash · ");
 		expect(screen.p.role).toBeUndefined();
 
@@ -296,7 +296,7 @@ describe("sheets Tern draws", () => {
 		});
 
 		const { props, screen } = sheetOf(ui);
-		expect(props).toEqual({ role: "omp.overlay.fireworks", anchor: "top", size: "md", modal: true });
+		expect(props).toEqual({ role: "zeta.overlay.fireworks", anchor: "top", size: "md", modal: true });
 		expect(screen.p.role).toBeUndefined();
 		expect(ui.node("shimmer").p.text).toBe("OpenAI reset");
 
@@ -323,7 +323,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.pause",
+			role: "zeta.overlay.pause",
 			size: "md",
 			anchor: "center",
 			head: "Paused",
@@ -412,7 +412,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.console",
+			role: "zeta.overlay.console",
 			anchor: "bottom",
 			size: "full",
 			head: "Console",
@@ -457,13 +457,13 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.autoresearch",
+			role: "zeta.overlay.autoresearch",
 			anchor: "bottom",
 			size: "lg",
 			head: [{ t: "Speed up the parser" }, { s: "muted", t: " · Autoresearch" }],
 			modal: true,
 		});
-		expect(screen.p.role).toBe("omp.app.autoresearch");
+		expect(screen.p.role).toBe("zeta.app.autoresearch");
 
 		ui.type("q");
 		await shown;
@@ -512,7 +512,7 @@ describe("sheets Tern draws", () => {
 
 		const { props, screen } = sheetOf(ui);
 		expect(props).toEqual({
-			role: "omp.overlay.codeReview",
+			role: "zeta.overlay.codeReview",
 			anchor: "center",
 			size: "full",
 			head: [{ t: "Code review" }, { s: "muted", t: "Uncommitted changes against " }, { s: "code", t: "main" }],
@@ -543,13 +543,13 @@ describe("sheets Tern draws", () => {
 		const { props, screen } = sheetOf(ui);
 		// A large sheet whose shortcut tables are taller than this narrow pane fills it.
 		expect(props).toEqual({
-			role: "omp.overlay.hotkeys",
+			role: "zeta.overlay.hotkeys",
 			head: "Keyboard shortcuts",
 			anchor: "center",
 			size: "full",
 			modal: true,
 		});
-		expect(screen.p.role).toBe("omp.app.git.help");
+		expect(screen.p.role).toBe("zeta.app.git.help");
 
 		ui.type("q");
 		closed();

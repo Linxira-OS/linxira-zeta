@@ -4,7 +4,7 @@
  * `tray`, a row of live cards over the composer — one per subagent and
  * background job, and a done card standing for finished agents without a
  * card of their own — in place of the HUD pills. Tern owns selection, order,
- * paging and motion; omp owns the words and which card is looked at closer
+ * paging and motion; zetacode owns the words and which card is looked at closer
  * (the peek).
  *
  * The cards are flat faces ({@link TrayItem}) the controller builds from the
@@ -212,7 +212,7 @@ function Clock(props: {
 
 function cardProps(item: TrayItem) {
 	return {
-		role: "omp.tray.card",
+		role: "zeta.tray.card",
 		item: item.item,
 		propRef: item.ref,
 		status: item.status,

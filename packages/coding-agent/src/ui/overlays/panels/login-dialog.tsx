@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The OAuth sign-in sheet (`omp.overlay.login`): a modal glass sheet over the
+ * The OAuth sign-in sheet (`zeta.overlay.login`): a modal glass sheet over the
  * composer. Top to bottom: one sentence saying what to do, the device code
  * (click to copy), the sign-in link with Copy, the questions (answered ones as
  * label/value lines, the live one as a field), and the flow's status —
@@ -337,7 +337,7 @@ export function LoginDialog(props: { readonly state: LoginDialogState }): JSXNod
 				caret: state.focused() && !state.terminalCursor(),
 			})}
 			// The terminal's dialog box; Tern draws the sheet alone and gets a bare column where it is mounted.
-			role={() => (nativeRendering() ? undefined : "omp.login")}
+			role={() => (nativeRendering() ? undefined : "zeta.login")}
 			onKey={key => {
 				if (matchesSelectCancel(key)) state.cancel();
 				else if (getKeybindings().matches(key, "tui.input.submit")) state.submit();

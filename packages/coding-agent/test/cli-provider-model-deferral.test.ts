@@ -115,7 +115,7 @@ describe("print mode with a stale configured default", () => {
 const DEAD_PROXY = "http://127.0.0.1:9";
 
 /**
- * `omp -p` in an isolated `home`. A missed selector or stale default awaits one
+ * `zetacode -p` in an isolated `home`. A missed selector or stale default awaits one
  * online discovery pass over every provider catalog before it reports; routing
  * all requests through a dead proxy fails that pass at once, so resolution runs
  * against the bundled catalog instead of waiting on the network.

@@ -298,7 +298,7 @@ function unchangedSinceSelection(candidate: CompressCandidate): boolean {
 /**
  * Rename `copyPath` over `candidate.path` if the original is unchanged, checked
  * immediately before the rename. Transcripts swap under the session publish
- * lock, which serializes them against appends from any omp binary.
+ * lock, which serializes them against appends from any zetacode binary.
  */
 function swapIfUnchanged(
 	storage: FileSessionStorage,

@@ -12,7 +12,7 @@ import * as supervisor from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { createFakeHost, type FakeHost, type FakeHostMode, isProcessAlive } from "./webkit-fake-host";
 
-// Ambient browser env of the developer's shell (and of an omp running the suite) must not pick the backend.
+// Ambient browser env of the developer's shell (and of an zetacode running the suite) must not pick the backend.
 const ENV_KEYS = [
 	"PI_BROWSER_WEBKIT",
 	"PI_BROWSER_WEBKIT_PATH",
@@ -22,7 +22,7 @@ const ENV_KEYS = [
 	"ZETA_PANE_SOCKET",
 	"ZETA_PANE",
 	"CMUX_SOCKET_PATH",
-	// Inherited from an interactive omp when the tests run from its bash tool.
+	// Inherited from an interactive zetacode when the tests run from its bash tool.
 	"PI_TERMINAL_OWNER_PID",
 ];
 

@@ -1181,7 +1181,7 @@ export interface PromptError {
 	provider?: string;
 	model?: string;
 	httpStatus?: number;
-	/** `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and omp did not send the next request. */
+	/** `cost_cap`: the session reached `session.maxCost` (`--max-cost`) and zetacode did not send the next request. */
 	code?: "cost_cap";
 }
 
@@ -1888,7 +1888,7 @@ export interface GetModelPickerParams {
 }
 
 export interface SetThinkingLevelParams {
-	/** `auto` lets omp pick the effort per turn. */
+	/** `auto` lets zetacode pick the effort per turn. */
 	level: ConfiguredThinkingLevel;
 }
 

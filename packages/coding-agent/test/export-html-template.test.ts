@@ -19,7 +19,7 @@ let bundlePath: string;
 const dependencyStubs: Record<string, string> = {
 	"@linxiraos/pi-stats/trace":
 		'export const buildSessionTraceFromSnapshots = () => { throw new Error("Trace assembly is outside the template probe"); };',
-	"@linxiraos/pi-utils": `export const APP_NAME = "omp"; export const VERSION = ${JSON.stringify(VERSION)}; export const isEnoent = err => err?.code === "ENOENT"; export const isCompiledBinary = () => false;`,
+	"@linxiraos/pi-utils": `export const APP_NAME = "zeta"; export const VERSION = ${JSON.stringify(VERSION)}; export const isEnoent = err => err?.code === "ENOENT"; export const isCompiledBinary = () => false;`,
 	"../../ui/theme/service":
 		"export const getResolvedThemeColors = async () => ({}); export const getThemeExportColors = async () => ({});",
 	"../../session/sub-sessions": "export const collectSubSessions = async () => ({});",

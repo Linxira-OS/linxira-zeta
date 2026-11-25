@@ -28,14 +28,14 @@
 
 The package exports five entrypoints:
 
-| Import                           | Runtime               | Types                   | Load behavior                                                                           |
-| -------------------------------- | --------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
-| `@linxiraos/pi-natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object. |
+| Import                            | Runtime               | Types                   | Load behavior                                                                                                                                                                                            |
+| --------------------------------- | --------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@linxiraos/pi-natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object.                                                                                                                  |
 | `@linxiraos/pi-natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)`, `desktopEscapeStops(key)`, `forgetDesktopEscapeStops(key)`, `closeDesktopEventTaps()`, and `desktopWindowRoster()`; addon loading is deferred until invocation. |
-| `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
-| `@linxiraos/pi-natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object. |
+| `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                                                                                                                                    |
+| `@linxiraos/pi-natives`           | `native/index.js`     | `native/index.d.ts`     | Loads the addon immediately, then binds every generated class/function and enum object.                                                                                                                  |
 | `@linxiraos/pi-natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)`, `desktopEscapeStops(key)`, `forgetDesktopEscapeStops(key)`, `closeDesktopEventTaps()`, and `desktopWindowRoster()`; addon loading is deferred until invocation. |
-| `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
+| `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                                                                                                                                    |
 
 The other lazy entrypoints are `@linxiraos/pi-natives/path` (`native/path.js` / `path.d.ts`) and `@linxiraos/pi-natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
 
@@ -103,7 +103,7 @@ Rust `#[napi]` functions, classes, objects, and enums generate the declaration s
 ## Ownership boundaries
 
 - **Package/scripts** own binary selection, CPU variants, optional leaf resolution, embedded extraction, Windows staging, desktop ABI validation, declarations, and explicit ESM exports.
-- **`omp-natives` and supporting crates** own algorithms, native resources, platform behavior, cancellation, and N-API conversion.
+- **`zetacode-natives` and supporting crates** own algorithms, native resources, platform behavior, cancellation, and N-API conversion.
 - **Consumers** own higher-level tool policy, rendering, artifacts, and user-facing fallbacks not encoded in a primitive.
 
 For the supporting-crate map, see [`native-crates.md`](./native-crates.md). For the loader runtime and diagnostics, see [`natives-architecture.md`](./natives-architecture.md#loader-runtime-details) (merged from the former loader doc).

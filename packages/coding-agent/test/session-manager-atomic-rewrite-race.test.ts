@@ -335,7 +335,7 @@ describe("SessionManager cross-process rewrite freshness", () => {
 		);
 	const ourTurnsAfter = Array.from({ length: 5 }, (_, turn) => `our turn ${turn} after the conflict`);
 
-	/** Reports session `ownedElsewhere` as held by another live process, as `claimSession` does for a session a second omp writes. */
+	/** Reports session `ownedElsewhere` as held by another live process, as `claimSession` does for a session a second zetacode writes. */
 	class OwnedElsewhereStorage extends FileSessionStorage {
 		readonly #ownedElsewhere: string;
 

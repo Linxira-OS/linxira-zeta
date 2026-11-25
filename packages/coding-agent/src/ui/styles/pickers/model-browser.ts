@@ -15,7 +15,7 @@
  * The detail rows: the selection's facts (muted, cut at the width), then the
  * over-context warning or the current mark and the roles it holds.
  *
- * The standalone browser is a `col` with `term.role = "omp.model-browser"`
+ * The standalone browser is a `col` with `term.role = "zeta.model-browser"`
  * whose `term.browser` is its {@link ModelBrowserState}; its widget routes
  * the pointer (wheel pans, motion hovers, a press selects then activates).
  */
@@ -270,7 +270,7 @@ export function modelBrowserRows(theme: Theme, view: ModelBrowserView, width: nu
 
 /** What a standalone browser `col` carries in `term`. */
 export type ModelBrowserTerm = {
-	readonly role: "omp.model-browser";
+	readonly role: "zeta.model-browser";
 	readonly browser: ModelBrowserState;
 };
 
@@ -280,7 +280,7 @@ function browserOf(node: UiNode): ModelBrowserState {
 	return props.term.browser;
 }
 
-defineRolePainter("col", "omp.model-browser", (node, cx) => {
+defineRolePainter("col", "zeta.model-browser", (node, cx) => {
 	const theme = cx.theme;
 	const rows = modelBrowserRows(
 		theme,
@@ -291,7 +291,7 @@ defineRolePainter("col", "omp.model-browser", (node, cx) => {
 	return { rows, hits };
 });
 
-defineRoleWidget("col", "omp.model-browser", {
+defineRoleWidget("col", "zeta.model-browser", {
 	mouse(node, mouse, at) {
 		const browser = browserOf(node);
 		const line = at.row - MODEL_LIST_TOP;

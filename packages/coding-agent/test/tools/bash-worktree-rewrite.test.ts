@@ -1,18 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import { rewriteGitWorktreeAdd } from "@linxiraos/zeta/tools/bash-worktree-rewrite";
 
-const OMP = ["bun", "/opt/omp cli.ts"] as const;
+const OMP = ["bun", "/opt/zetacode cli.ts"] as const;
 
 describe("rewriteGitWorktreeAdd", () => {
-	it("routes supported branch creation through omp with an option terminator", () => {
+	it("routes supported branch creation through zetacode with an option terminator", () => {
 		expect(rewriteGitWorktreeAdd("git worktree add -b feat ../wt origin/main", OMP)).toBe(
-			"bun '/opt/omp cli.ts' worktree add -b feat -- ../wt origin/main",
+			"bun '/opt/zetacode cli.ts' worktree add -b feat -- ../wt origin/main",
 		);
 	});
 
 	it("preserves surrounding shell structure while rewriting a -C segment", () => {
 		expect(rewriteGitWorktreeAdd("cd x && git -C repo worktree add ../wt && ls", OMP)).toBe(
-			"cd x && bun '/opt/omp cli.ts' worktree add -C repo -- ../wt && ls",
+			"cd x && bun '/opt/zetacode cli.ts' worktree add -C repo -- ../wt && ls",
 		);
 	});
 
@@ -30,7 +30,7 @@ describe("rewriteGitWorktreeAdd", () => {
 
 	it("quotes rewritten argv containing spaces", () => {
 		expect(rewriteGitWorktreeAdd("git worktree add 'path with spaces'", OMP)).toBe(
-			"bun '/opt/omp cli.ts' worktree add -- 'path with spaces'",
+			"bun '/opt/zetacode cli.ts' worktree add -- 'path with spaces'",
 		);
 	});
 });

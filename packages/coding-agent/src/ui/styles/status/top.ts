@@ -1,5 +1,5 @@
 /**
- * The status line in a composer's top chrome (`omp.status.top`, see
+ * The status line in a composer's top chrome (`zeta.status.top`, see
  * `createStatusLine`), one row at the cells the chrome offers:
  *
  * - `top-border` (box): the left and right groups on the status background,
@@ -248,4 +248,4 @@ function paintTop(node: UiNode, cx: PaintContext): Block {
 	return { rows: [row] };
 }
 
-defineRolePainter("status", "omp.status.top", paintTop);
+defineRolePainter("status", "zeta.status.top", paintTop);

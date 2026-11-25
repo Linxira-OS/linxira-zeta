@@ -1,12 +1,12 @@
 /**
- * Terminal look of the setup wizard (`omp.setup`), a full-screen frame:
+ * Terminal look of the setup wizard (`zeta.setup`), a full-screen frame:
  *
- * - a scene (`omp.setup.scene`): the logo, `omp`, "Setup step N of M", the
+ * - a scene (`zeta.setup.scene`): the logo, `zetacode`, "Setup step N of M", the
  *   title and subtitle, the body (indented four cells, at least 20 wide,
  *   cut with an ellipsis where the screen is narrower), and the key hints on
  *   the last row. Too few rows for a body: the head alone, cut to the screen.
  *   Right after the splash the frame dissolves in over it, top to bottom.
- * - the outro (`omp.setup.outro`): the logo, "Setup saved", and a bar
+ * - the outro (`zeta.setup.outro`): the logo, "Setup saved", and a bar
  *   filling over the outro's length, on a starfield.
  * - done: blank rows.
  */
@@ -95,10 +95,10 @@ function paintScene(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits: [{ row: 0, col: 0, width: cx.width, height, node }, ...frameHits] };
 }
 
-defineRolePainter("col", "omp.setup.scene", paintScene);
+defineRolePainter("col", "zeta.setup.scene", paintScene);
 
 /** The body col: the scene body as it paints itself. */
-defineRolePainter("col", "omp.setup.body", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup.body", (node, cx): Block => {
 	const child = node.children()[0];
 	return child ? cx.paint(child, cx.width) : { rows: [] };
 });
@@ -129,10 +129,10 @@ function paintOutro(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits: [{ row: 0, col: 0, width, height, node, act: "continue" }] };
 }
 
-defineRolePainter("col", "omp.setup.outro", paintOutro);
+defineRolePainter("col", "zeta.setup.outro", paintOutro);
 
 /** The wizard root: its phase's frame at the screen's size. */
-defineRolePainter("col", "omp.setup", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup", (node, cx): Block => {
 	const term = termOf<WizardTerm>(node);
 	const height = term?.rows ?? cx.height ?? 30;
 	const child = node.children()[0];
@@ -143,7 +143,7 @@ defineRolePainter("col", "omp.setup", (node, cx): Block => {
 });
 
 /** The wheel over a scene frame goes to the wizard (which scrolls the scene). */
-defineRoleWidget("col", "omp.setup.scene", {
+defineRoleWidget("col", "zeta.setup.scene", {
 	mouse(_node, mouse, _at, cx) {
 		if (mouse.action !== "press" || (mouse.button !== "wheel-up" && mouse.button !== "wheel-down")) return false;
 		cx.emit({ type: "action", key: cx.keypath, act: mouse.button, mods: [] });

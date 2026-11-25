@@ -1,16 +1,16 @@
 /**
  * Terminal looks of transcript notices.
  *
- * - `row` `omp.notice.*`: a line notice is a blank row, then `Warning: …` /
+ * - `row` `zeta.notice.*`: a line notice is a blank row, then `Warning: …` /
  *   `Error: …` with the standard inset, wrapped, in the tone's color; a notice with its
  *   own terminal rows (`term.alt`) draws those.
- * - `col` `omp.status-block`: each status row's parts joined by spaces,
+ * - `col` `zeta.status-block`: each status row's parts joined by spaces,
  *   wrapped under the row's indent.
- * - `toast` / `col` `omp.toast.status`: a blank row, then the inset message (the `col` is a
+ * - `toast` / `col` `zeta.toast.status`: a blank row, then the inset message (the `col` is a
  *   status kept out of native toasts).
- * - `row` `omp.recap`: a blank row, then a dim italic `※ recap: …`.
- * - `text` `omp.tool.elided`: the dim italic note with the standard inset.
- * - `card` / `section` / `checklist` `omp.notice.*` boxed notices: a blank
+ * - `row` `zeta.recap`: a blank row, then a dim italic `※ recap: …`.
+ * - `text` `zeta.tool.elided`: the dim italic note with the standard inset.
+ * - `card` / `section` / `checklist` `zeta.notice.*` boxed notices: a blank
  *   row (unless `leadingSpace` is off), then a box one row and one cell in on
  *   every side, filled inverse in the severity color (or on a background):
  *   the glyph and header, then a blank row and the body texts.
@@ -118,13 +118,13 @@ function paintNoticeBox(node: UiNode, cx: PaintContext): Block {
 	return { rows: noticeBoxRows(cx, termOf<BoxTerm>(node)) };
 }
 
-defineRolePainter("row", "omp.notice", paintNoticeRow, { prefix: true });
-defineRolePainter("col", "omp.status-block", paintStatusBlock);
-defineRolePainter("toast", "omp.toast.status", paintStatusToast);
+defineRolePainter("row", "zeta.notice", paintNoticeRow, { prefix: true });
+defineRolePainter("col", "zeta.status-block", paintStatusBlock);
+defineRolePainter("toast", "zeta.toast.status", paintStatusToast);
 // A status kept out of native toasts (`col`, hidden natively) draws as the toast would.
-defineRolePainter("col", "omp.toast.status", paintStatusToast);
-defineRolePainter("row", "omp.recap", paintRecap);
-defineRolePainter("text", "omp.tool.elided", paintElided);
-defineRolePainter("card", "omp.notice", paintNoticeBox, { prefix: true });
-defineRolePainter("section", "omp.notice", paintNoticeBox, { prefix: true });
-defineRolePainter("checklist", "omp.notice", paintNoticeBox, { prefix: true });
+defineRolePainter("col", "zeta.toast.status", paintStatusToast);
+defineRolePainter("row", "zeta.recap", paintRecap);
+defineRolePainter("text", "zeta.tool.elided", paintElided);
+defineRolePainter("card", "zeta.notice", paintNoticeBox, { prefix: true });
+defineRolePainter("section", "zeta.notice", paintNoticeBox, { prefix: true });
+defineRolePainter("checklist", "zeta.notice", paintNoticeBox, { prefix: true });

@@ -1860,10 +1860,10 @@ export class InputController {
 					// SIGSTOP cannot be caught, blocked, or ignored, so the kernel stops
 					// the process regardless of installed handlers.
 					//
-					// pid=0 (foreground process group, not just our PID): omp is not
+					// pid=0 (foreground process group, not just our PID): zetacode is not
 					// always the shell's direct child. Package-manager launchers (`npx`,
 					// `pnpm exec`, `bunx`, …) wait on the real CLI from a parent shim
-					// that shares omp's process group, and a `omp … | tee log` style
+					// that shares omp's process group, and a `zetacode … | tee log` style
 					// pipeline puts a sibling foreground job member in the same group
 					// too. The shell sees the job as stopped only when its direct
 					// child / pipeline leader is stopped, so suspending only our PID
@@ -3249,7 +3249,7 @@ export class InputController {
 
 		const currentText = this.ctx.composer.expandedText();
 		try {
-			const result = await this.ctx.suspend(() => openInEditor(editorCmd, currentText, { extension: ".omp.md" }));
+			const result = await this.ctx.suspend(() => openInEditor(editorCmd, currentText, { extension: ".zeta.md" }));
 			if (result !== null) this.ctx.composer.setText(result);
 		} catch (error) {
 			this.ctx.showWarning(

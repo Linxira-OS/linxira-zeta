@@ -5,7 +5,7 @@
  *
  * {@link createPluginSettings} owns the navigation (list → detail → back),
  * the async loads, every value write and the keys. Each view is a panel card
- * (`omp.overlay.plugin-settings`): its native children describe it to a Tern
+ * (`zeta.overlay.plugin-settings`): its native children describe it to a Tern
  * terminal; `term.blocks` carry its terminal look. The settings window shows
  * the same views as its Plugins page (`prefs` rows natively).
  */
@@ -38,7 +38,7 @@ import { getKeybindings } from "../../../config/keybindings/keybindings";
 import { formatKeyHint } from "../../keys/hints";
 import { bindingGlyph } from "../../styles/panels/common";
 
-const ROLE = "omp.overlay.plugin-settings";
+const ROLE = "zeta.overlay.plugin-settings";
 const FIELD_ROLE = `${ROLE}.field`;
 const CONFIGURE: TspPrefsControl = { k: "action", label: "Configure", act: "open" };
 /** The confirm and cancel keys as hints show them (`⏎`, `⎋`). */
@@ -203,7 +203,7 @@ async function configItems(plugin: InstalledPlugin, host: PluginSettingsHost): P
 	return items;
 }
 
-/** The settings list of a detail view as a native `omp.settings` column, or its open editor. */
+/** The settings list of a detail view as a native `zeta.settings` column, or its open editor. */
 function DetailList(props: { detail: Detail; visible: readonly DetailItem[] }): JSXNode {
 	const { detail, visible } = props;
 	const editor = detail.editor;
@@ -327,10 +327,10 @@ function ListPanel(props: { entries: readonly PluginListEntry[]; selected: numbe
 			{ k: "gap" },
 			{ k: "text", spans: [{ s: "muted", t: "No plugins installed" }] },
 			{ k: "gap" },
-			{ k: "text", spans: [{ s: "dim", t: "Install npm plugins:        omp plugin install <package>" }] },
+			{ k: "text", spans: [{ s: "dim", t: "Install npm plugins:        zetacode plugin install <package>" }] },
 			{
 				k: "text",
-				spans: [{ s: "dim", t: "Install marketplace plugins: omp plugin install <name>@<marketplace>" }],
+				spans: [{ s: "dim", t: "Install marketplace plugins: zetacode plugin install <name>@<marketplace>" }],
 			},
 			{ k: "gap" },
 		];
@@ -339,10 +339,10 @@ function ListPanel(props: { entries: readonly PluginListEntry[]; selected: numbe
 				<text spans={[{ s: "muted", t: "No plugins installed" }]} />
 				<kv
 					items={[
-						{ k: "Install npm plugins", v: [{ s: "code", t: "omp plugin install <package>" }] },
+						{ k: "Install npm plugins", v: [{ s: "code", t: "zetacode plugin install <package>" }] },
 						{
 							k: "Install marketplace plugins",
-							v: [{ s: "code", t: "omp plugin install <name>@<marketplace>" }],
+							v: [{ s: "code", t: "zetacode plugin install <name>@<marketplace>" }],
 						},
 					]}
 				/>
@@ -902,7 +902,7 @@ export function createPluginSettings(
 				lead:
 					rows.length > 0
 						? "Plugins installed for you and this project. Configure one to turn it or its features on and off."
-						: "No plugins installed. Install one with omp plugin install <package>, or <name>@<marketplace>.",
+						: "No plugins installed. Install one with zetacode plugin install <package>, or <name>@<marketplace>.",
 				sections: rows.length > 0 ? [{ id: "installed", title: "Installed", rows }] : [],
 				focus: current.entries[current.selected] ? entryValue(current.entries[current.selected]!) : null,
 				editing: null,

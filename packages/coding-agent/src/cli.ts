@@ -20,6 +20,7 @@ import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {
 	APP_NAME,
+	CLI_BIN_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
 	resolveProfileEnv,
@@ -60,7 +61,7 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 // On Windows `process.title` is the shared console title, not a process name
-// (see `setProcessName`): every omp child would retitle the pane's tab.
+// (see `setProcessName`): every zetacode child would retitle the pane's tab.
 if (process.platform !== "win32") {
 	try {
 		process.title = APP_NAME;
@@ -458,7 +459,7 @@ async function runIpcSubprocessWorker<In, Out>(
  * Hidden subcommand that boots the ONNX tiny-model worker for one model over
  * stdin/stdout; the daemon's `infer` units host it, shared by every omp
  * process on the machine. It exists so `onnxruntime-node` (loaded transitively by
- * `@huggingface/transformers`) never runs in an omp address space — its NAPI
+ * `@huggingface/transformers`) never runs in an zetacode address space — its NAPI
  * finalizer segfaults Bun on Windows (issue #1606).
  */
 async function runTinyWorker(): Promise<void> {
@@ -484,7 +485,7 @@ export function resolveInvokedArgv(invokedName: string, argv: readonly string[])
 
 /** Run the CLI with the given argv (no `process.argv` prefix). */
 export async function runCli(argv: string[]): Promise<void> {
-	// `omp zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
+	// `zetacode zsh|bash|sh [args...]`: the whole argv belongs to the shell (`--help`,
 	// `--profile`, `-c` included), so it dispatches before profile bootstrap,
 	// prepaint, network setup and the command table.
 	if (isNativeShell(argv[0])) {
@@ -510,7 +511,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// value to avoid an uncaught throw before this try/catch is in scope
 			// (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
 			// ZETA_PROFILE after importing this module (profile aliases/tests).
-			// Surfacing validation here turns `ZETA_PROFILE=.. omp --version` into a
+			// Surfacing validation here turns `ZETA_PROFILE=.. zetacode --version` into a
 			// clean error; calling setProfile keeps every later path helper on the
 			// env-selected profile instead of the default agent directory.
 			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));
@@ -628,7 +629,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			return;
 		}
 		runningCommand = resolved.argv[0];
-		await run({ bin: APP_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
+		await run({ bin: CLI_BIN_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
 	} finally {
 		stopStartupComposer?.();
 	}
@@ -648,7 +649,7 @@ export async function runCli(argv: string[]): Promise<void> {
 if (isProcessEntry || !Bun.isMainThread) {
 	const postmortem: typeof Postmortem = require("@linxiraos/pi-utils/postmortem.js");
 	postmortem.installProcessHandlers();
-	// A one-shot CLI run (`omp --help | head`, `omp --version | true`, `omp <sub> | grep -m1`)
+	// A one-shot CLI run (`zetacode --help | head`, `zetacode --version | true`, `zetacode <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
 	// an unhandled rejection. Treat a vanished stdout peer as an ordinary Unix disconnect
 	// (graceful exit) rather than the fatal path. Interactive launches register their own

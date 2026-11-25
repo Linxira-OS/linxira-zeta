@@ -513,7 +513,7 @@ impl Stream {
 		}
 		// SAFETY: the label is NUL-terminated; a null attribute makes the queue
 		// serial.
-		let queue = unsafe { dispatch_queue_create(c"sh.omp.watch".as_ptr(), ptr::null()) };
+		let queue = unsafe { dispatch_queue_create(c"sh.zeta.watch".as_ptr(), ptr::null()) };
 		let mut this = Self { raw: stream, queue, context, started: false };
 		// SAFETY: `stream` and `queue` are live; the stream is scheduled before
 		// it starts.

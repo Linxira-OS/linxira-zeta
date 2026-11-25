@@ -668,8 +668,8 @@ mod tests {
 		assert!(printed.is_file());
 		assert_eq!(printed.parent(), Some(root.as_path()));
 		let name = printed.file_name().unwrap().to_str().unwrap();
-		assert!(name.starts_with("omp."));
-		assert_eq!(name.len(), "omp.".len() + 10);
+		assert!(name.starts_with("zeta."));
+		assert_eq!(name.len(), "zeta.".len() + 10);
 	}
 
 	#[test]

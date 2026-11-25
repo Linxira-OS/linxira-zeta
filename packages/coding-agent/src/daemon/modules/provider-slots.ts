@@ -1,6 +1,6 @@
 /**
  * `provider-slots` daemon module: the per-provider in-flight request limits
- * (`providers.maxInFlightRequests`) shared by every omp process of a config
+ * (`providers.maxInFlightRequests`) shared by every zetacode process of a config
  * root, served to pi-ai as its {@link ProviderSlotBroker}.
  *
  * One unit per config root. A process attaches one tunnel (LF-delimited JSON)

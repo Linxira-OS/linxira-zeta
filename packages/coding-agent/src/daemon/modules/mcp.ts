@@ -1,5 +1,5 @@
 /**
- * `mcp` daemon module: the MCP host shared by every omp session.
+ * `mcp` daemon module: the MCP host shared by every zetacode session.
  *
  * One unit is one upstream MCP server ({@link McpEndpoint}), keyed by
  * `mcpUnitKey`: a modern server is a single unit for all sessions, a

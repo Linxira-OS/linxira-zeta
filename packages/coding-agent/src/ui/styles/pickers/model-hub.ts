@@ -1,6 +1,6 @@
 /**
  * The /models hub's terminal look (`picker` with `term.role =
- * "omp.model-hub"`): the hub frame (`hub-frame`) with the scope sidebar, a
+ * "zeta.model-hub"`): the hub frame (`hub-frame`) with the scope sidebar, a
  * body showing a status row over the Roles view, a signed-out provider's
  * pane or the kind tabs and the model list, and a footer of key hints or the
  * open strip (role chips, thinking levels, a name field).
@@ -40,7 +40,7 @@ import { modelBrowserRows, segmentTrack, themeThinkingGlyph } from "./model-brow
 
 /** What the hub's picker carries in `term`. */
 export type ModelHubTerm = {
-	readonly role: "omp.model-hub";
+	readonly role: "zeta.model-hub";
 	readonly hub: ModelHubState;
 };
 
@@ -479,9 +479,9 @@ function paintHub(node: UiNode, cx: PaintContext) {
 	return { rows: out, hits };
 }
 
-defineRolePainter("picker", "omp.model-hub", paintHub);
+defineRolePainter("picker", "zeta.model-hub", paintHub);
 
-defineRoleWidget("picker", "omp.model-hub", {
+defineRoleWidget("picker", "zeta.model-hub", {
 	mouse(node, mouse, at, _cx, hit) {
 		const hub = hubOf(node);
 		const strip = hub.strip;

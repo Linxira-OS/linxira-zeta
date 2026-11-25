@@ -1,5 +1,5 @@
 /**
- * What tells you omp is in this tab: the gradient edge, the working tag with its Stop and Open controls, the
+ * What tells you zetacode is in this tab: the gradient edge, the working tag with its Stop and Open controls, the
  * needs-input tag, the group pill for a conversation's other tabs, and the toast for a Stop that went nowhere.
  */
 import type { OverlayEvent, TabActivity } from "../messages";
@@ -23,7 +23,7 @@ const LABEL_EXIT_MS = 150;
 const LABEL_ENTER_DELAY_MS = 210;
 const LABEL_ENTER_MS = 250;
 
-const STOP_FAILED = "Stop didn’t reach omp — open the panel";
+const STOP_FAILED = "Stop didn’t reach zetacode — open the panel";
 
 function button(className: string, label: string, ...children: (Node | string)[]): HTMLButtonElement {
 	const node = el("button", className, ...children);
@@ -101,7 +101,7 @@ export class Presence {
 		this.#tag.setAttribute("aria-label", "omp");
 		this.#tag.append(
 			ompMark(),
-			el("span", "tag-label", el("span", "tag-title", "omp is working"), this.#live),
+			el("span", "tag-label", el("span", "tag-title", "zetacode is working"), this.#live),
 			this.#move,
 			this.#openButton(),
 			this.#stop,
@@ -111,7 +111,7 @@ export class Presence {
 		dot.setAttribute("aria-hidden", "true");
 		this.#ask.setAttribute("role", "group");
 		this.#ask.setAttribute("aria-label", "omp");
-		this.#ask.append(dot, "omp needs you", this.#openButton());
+		this.#ask.append(dot, "zetacode needs you", this.#openButton());
 
 		const open = button("", "Open omp", panelIcon(), el("span", "tip", "Open omp"));
 		open.addEventListener("click", () => this.#emit("open"));
@@ -213,7 +213,7 @@ export class Presence {
 			lead.setAttribute("aria-hidden", "true");
 			this.#pillLead.classList.toggle("on", !working);
 			this.#pillLead.replaceChildren(lead);
-			this.#pillText.textContent = working ? "omp is working in this group" : "omp needs you in this group";
+			this.#pillText.textContent = working ? "zetacode is working in this group" : "zetacode needs you in this group";
 		}
 	}
 
@@ -251,7 +251,7 @@ export class Presence {
 		this.#moveTip.textContent = label;
 	}
 
-	/** Swap the live verb after “omp is working”, resizing the tag smoothly around it. */
+	/** Swap the live verb after “zetacode is working”, resizing the tag smoothly around it. */
 	#setLabel(label: string | undefined, animate: boolean): void {
 		if (label === this.#label) return;
 		this.#label = label;

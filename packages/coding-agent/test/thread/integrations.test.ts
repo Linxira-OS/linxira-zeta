@@ -58,7 +58,7 @@ describe("integrations thread service", () => {
 	let probe: IntegrationsProbe;
 
 	beforeEach(async () => {
-		dir = path.join(os.tmpdir(), `omp-integrations-thread-${Snowflake.next()}`);
+		dir = path.join(os.tmpdir(), `zetacode-integrations-thread-${Snowflake.next()}`);
 		fs.mkdirSync(dir, { recursive: true });
 		frameLog = path.join(dir, "frames.log");
 		authStorage = createInMemoryAuthStorage();

@@ -5,12 +5,13 @@
  * command to run).
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
 import { bold } from "@linxiraos/pi-tui/theme/theme";
 import { AnsiText } from "../../ui/transcript/ansi-text";
 import { Notice } from "../../ui/transcript/messages/notices";
 
-const UPDATE_COMMAND = "omp update";
+const UPDATE_COMMAND = `${CLI_BIN_NAME} update`;
 
 export function UpdateNotice(props: { readonly version: string }): JSXNode {
 	const prefix = `New version ${props.version} is available. Run: `;

@@ -562,9 +562,9 @@ export function TreeSelector(props: TreeSelectorProps): JSXNode {
 			let role: string | undefined;
 			if (isUserRequestEntry(entry)) kind = "user";
 			else if (message?.role === "assistant") kind = "assistant";
-			else if (message?.role === "toolResult") [kind, role] = ["tool", `omp.tool.${message.toolName}`];
-			else if (message?.role === "bashExecution") [kind, role] = ["tool", "omp.tool.bash"];
-			else if (message?.role === "pythonExecution") [kind, role] = ["tool", "omp.tool.eval"];
+			else if (message?.role === "toolResult") [kind, role] = ["tool", `zeta.tool.${message.toolName}`];
+			else if (message?.role === "bashExecution") [kind, role] = ["tool", "zeta.tool.bash"];
+			else if (message?.role === "pythonExecution") [kind, role] = ["tool", "zeta.tool.eval"];
 			const label = labels().get(entry.id);
 			return {
 				id: entry.id,
@@ -649,7 +649,7 @@ export function TreeSelector(props: TreeSelectorProps): JSXNode {
 		});
 		const editor = labelEditor();
 		return {
-			look: "omp.tree",
+			look: "zeta.tree",
 			entries: lookRows,
 			field: search(),
 			maxRows: maxVisible,

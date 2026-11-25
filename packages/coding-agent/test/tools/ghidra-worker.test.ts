@@ -187,7 +187,7 @@ describe("Ghidra worker protocol from a hidden managed store", () => {
 			kind: "store",
 			openPath: binary,
 			isNew: true,
-			lockTarget: path.join(databaseDir, "omp.gpr"),
+			lockTarget: path.join(databaseDir, "zeta.gpr"),
 		};
 		const lock = await acquireFileLock(loc.lockTarget);
 		try {

@@ -1,6 +1,6 @@
 /**
  * The advisor-configuration overlay's terminal look, drawn for its `prefs`
- * node (`term.role = "omp.advisor-config"`; natively the node stays a plain
+ * node (`term.role = "zeta.advisor-config"`; natively the node stays a plain
  * settings page): a fullscreen frame whose body is, on the roster, a sidebar
  * list beside the highlighted entry's preview (scrolled by the wheel), and on
  * every other screen the screen's editor alone — a select list, a one-line
@@ -23,7 +23,7 @@ import { bindingGlyph, keyGlyph } from "../panels/common";
 import { appExternalEditorKeys, appFollowUpKeys } from "../../../config/keybindings/matchers";
 import { canonicalKeyId } from "../../../config/keybindings/key-id";
 
-export const ADVISOR_CONFIG_ROLE = "omp.advisor-config";
+export const ADVISOR_CONFIG_ROLE = "zeta.advisor-config";
 
 /** The pointer action the look's widget emits. */
 export const ADVISOR_POINTER_ACT = "pointer";
@@ -101,7 +101,7 @@ function editorHint(): string {
 	const glyphs = (keys: readonly string[]): string => keys.map(key => keyGlyph(canonicalKeyId(key))).join("/");
 	return `${glyphs(appFollowUpKeys())} submit  ${bindingGlyph("tui.select.cancel", "escape")} cancel  ${glyphs(appExternalEditorKeys())} external editor`;
 }
-const PREVIEW_SCROLL = "omp.advisor-config.preview";
+const PREVIEW_SCROLL = "zeta.advisor-config.preview";
 
 interface PreviewScroll {
 	readonly key: string;

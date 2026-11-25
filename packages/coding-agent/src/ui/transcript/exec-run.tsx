@@ -279,7 +279,7 @@ export function ExecRunBlock(props: { readonly run: ExecRun }): JSXNode {
 	}));
 	return (
 		<tool
-			role={shell ? "omp.bash" : "omp.eval"}
+			role={shell ? "zeta.bash" : "zeta.eval"}
 			name={run.kind}
 			title={title}
 			command={run.source}
@@ -304,14 +304,14 @@ export function ExecRunBlock(props: { readonly run: ExecRun }): JSXNode {
 					<RunBox nodeKey="run" tone={state === "failed" ? "error" : undefined}>
 						<RunInput
 							source={run.source}
-							role={shell ? "omp.tool.bash.command" : "omp.tool.eval.input"}
+							role={shell ? "zeta.tool.bash.command" : "zeta.tool.eval.input"}
 							lang={lang}
 							wrap={shell}
 						/>
 						{text.length > 0 && (
 							<RunOutput
 								output={text}
-								role={shell ? "omp.tool.bash.output" : "omp.tool.eval.output"}
+								role={shell ? "zeta.tool.bash.output" : "zeta.tool.eval.output"}
 								previewLines={OUTPUT_PREVIEW_LINES}
 							/>
 						)}

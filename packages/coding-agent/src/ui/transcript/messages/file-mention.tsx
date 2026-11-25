@@ -5,7 +5,7 @@
  * why it was skipped (`skipped: 5MB`, `skipped: binary, 2KB`) in the
  * parentheses; natively a `read` notice row each.
  *
- * Terminal look: `omp.status-block` (`src/ui/styles/messages/notice.ts`).
+ * Terminal look: `zeta.status-block` (`src/ui/styles/messages/notice.ts`).
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";

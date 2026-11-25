@@ -8,7 +8,7 @@ import { terminalPaddingX } from "../terminal-padding";
 import type { UsageMetric } from "../../overlays/panels/usage-row";
 import { termOf } from "./common";
 
-defineRolePainter("row", "omp.usage.turn", (node, cx): Block => {
+defineRolePainter("row", "zeta.usage.turn", (node, cx): Block => {
 	const metrics = termOf<{ metrics: readonly UsageMetric[] }>(node).metrics ?? [];
 	const theme = cx.theme;
 	const strip = metrics

@@ -752,7 +752,7 @@ export class Settings {
 	#global: RawSettings = {};
 	/** Project settings from .claude/settings.yml etc */
 	#project: RawSettings = {};
-	/** Last successfully loaded native .omp/config.yml contents. */
+	/** Last successfully loaded native .zeta/config.yml contents. */
 	#projectFileSettings: RawSettings = {};
 	/** Logical config paths whose malformed targets were moved aside. */
 	#quarantinedYamlTargets = new Map<string, string>();
@@ -1762,7 +1762,7 @@ export class Settings {
 
 	/**
 	 * Keeps, in a re-read layer `fresh`, the value the `live` layer holds for each setting whose new
-	 * on-disk value this build cannot read (an enum value a newer omp added, a wrong type) while its
+	 * on-disk value this build cannot read (an enum value a newer zetacode added, a wrong type) while its
 	 * old value was readable. Reading an unreadable value falls back to the default, so a config
 	 * written for another version would otherwise move a running session to a value neither config
 	 * chose — and rebuild every tool description and prompt derived from it, losing the session's
@@ -1913,7 +1913,7 @@ export class Settings {
 	}
 
 	/**
-	 * Raw project settings layer (`.claude/settings.yml`, `.omp/config.yml`,
+	 * Raw project settings layer (`.claude/settings.yml`, `.zeta/config.yml`,
 	 * etc.), deep-cloned. Companion to {@link getGlobalSettings} for the legacy
 	 * pi `SettingsManager` shim's `getProjectSettings()`; an {@link overlay}
 	 * likewise reports its parent's layer under its own.
@@ -1950,7 +1950,7 @@ export class Settings {
 	/**
 	 * Provenance of the effective `extensions` array for extension-root
 	 * sub-discovery. `"project"` only when a project settings provider owns it
-	 * (any of `.omp/config.yml`, `.omp/settings.json`, `.claude/settings.json`,
+	 * (any of `.zeta/config.yml`, `.zeta/settings.json`, `.claude/settings.json`,
 	 * … — all merged into the project layer) and no higher user-level layer (a
 	 * `--config` overlay or a runtime override) replaces it; otherwise `"user"`.
 	 * Callers pass this into {@link EffectiveExtensionRoots.configuredLevel} so

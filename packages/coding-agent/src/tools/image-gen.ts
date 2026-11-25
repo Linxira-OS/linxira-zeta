@@ -161,7 +161,10 @@ function imageExtension(mimeType: string): string {
 async function saveImagesToTemp(images: ImageGenerationResult["images"]): Promise<string[]> {
 	return Promise.all(
 		images.map(async image => {
-			const filepath = path.join(os.tmpdir(), `omp-image-${Snowflake.next()}.${imageExtension(image.mimeType)}`);
+			const filepath = path.join(
+				os.tmpdir(),
+				`zetacode-image-${Snowflake.next()}.${imageExtension(image.mimeType)}`,
+			);
 			await Bun.write(filepath, Buffer.from(image.data, "base64"));
 			return filepath;
 		}),

@@ -11,7 +11,7 @@ import { ActionButton } from "./common";
 import { rowsRole, type SheetAttributes } from "../sheet";
 
 /** Tern's sheet: glass at the pane's top edge (it bursts confetti for this role). */
-export const FIREWORKS_SHEET: SheetAttributes = { role: "omp.overlay.fireworks", anchor: "top", size: "md" };
+export const FIREWORKS_SHEET: SheetAttributes = { role: "zeta.overlay.fireworks", anchor: "top", size: "md" };
 
 export interface CodexResetFireworksProps {
 	readonly event: CodexResetFireworksEvent;
@@ -31,7 +31,7 @@ export function CodexResetFireworks(props: CodexResetFireworksProps): JSXNode {
 	const { title, line } = fireworksText(props.event);
 	return (
 		<col
-			role={rowsRole("omp.fireworks")}
+			role={rowsRole("zeta.fireworks")}
 			align="center"
 			gap="sm"
 			term={{ title, line, startedAt: props.startedAt }}

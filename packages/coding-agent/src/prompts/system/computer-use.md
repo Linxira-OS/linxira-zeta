@@ -8,7 +8,7 @@ The `computer` eval prelude is enabled.
 - Use AX for exposed semantic controls; use window screenshots and pixels for canvas/custom-drawn surfaces. Group predictable actions with verification in `computer.run`.
 - After UI change, gather fresh evidence with `win.observe()`, AX, or a screenshot. Zoom preserves the last full screenshot's click coordinates; native menu commands avoid guessed shortcuts.
   {{#if ompTakeover}}
-- omp decides from the user's setting when input takes over their pointer and keyboard; you never choose it and need not ask the user about it.
+- zetacode decides from the user's setting when input takes over their pointer and keyboard; you never choose it and need not ask the user about it.
   {{/if}}
 - Task-scoped control requires live human confirmation; release it when finished.
 

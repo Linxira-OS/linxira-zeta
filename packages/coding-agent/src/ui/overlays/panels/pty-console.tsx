@@ -212,7 +212,7 @@ function stateSpan(state: PtyConsoleState, exitCode: number | undefined): TspSpa
 
 /** Tern's sheet: a full-pane one titled Console, anchored where `ctx.ui.custom` overlays dock. */
 export const CONSOLE_SHEET: SheetAttributes = {
-	role: "omp.overlay.console",
+	role: "zeta.overlay.console",
 	anchor: "bottom",
 	size: "full",
 	head: "Console",
@@ -225,7 +225,7 @@ export function PtyConsole(props: { readonly model: PtyConsoleModel }): JSXNode 
 	const native = nativeRendering();
 	return (
 		<col
-			role={rowsRole("omp.overlay.console")}
+			role={rowsRole("zeta.overlay.console")}
 			gap="sm"
 			term={(): PtyConsoleTerm => ({
 				command: model.command,

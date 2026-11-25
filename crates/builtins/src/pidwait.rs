@@ -1,4 +1,4 @@
-//! `pidwait` process-waiting builtin, moved from `omp-shell`.
+//! `pidwait` process-waiting builtin, moved from `zetacode-shell`.
 
 use clap::Parser;
 

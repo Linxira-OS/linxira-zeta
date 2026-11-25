@@ -375,7 +375,7 @@ describe("transcript OSC 8 links", () => {
 	});
 
 	it("links a user prompt's skill chip and attachment chip, and a skill message's pill", () => {
-		const skill = path.join(PROJECT, ".omp/skills/demo/SKILL.md");
+		const skill = path.join(PROJECT, ".zeta/skills/demo/SKILL.md");
 		const image = path.join(PROJECT, "image.png");
 		const user = printRows(
 			() =>
@@ -400,7 +400,7 @@ describe("transcript OSC 8 links", () => {
 	});
 
 	it("draws a skill message's inline chip in the symbol preset's glyph, still linked to its SKILL.md", () => {
-		const skill = path.join(PROJECT, ".omp/skills/demo/SKILL.md");
+		const skill = path.join(PROJECT, ".zeta/skills/demo/SKILL.md");
 		const glyph = presetSymbols("nerd")["icon.extensionSkill"];
 		setCurrentTheme(loadThemeSync("dark", { symbolPreset: "nerd" }));
 		try {

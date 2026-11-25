@@ -1,6 +1,6 @@
 // @ts-nocheck — merge checkpoint: pending OMP 19.1 API migration
 /**
- * `disasm` daemon module: one unit per open disassembler database, shared by every omp process.
+ * `disasm` daemon module: one unit per open disassembler database, shared by every zetacode process.
  *
  * A unit (global scope, key `<backend>:<db id>`) holds the database file lock, one detached
  * Python worker (`disasm/supervisor.ts`), the tunnel-owned retain references, and the dirty/save

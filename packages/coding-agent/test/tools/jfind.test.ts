@@ -556,7 +556,7 @@ describe("jfind cascade", () => {
 		);
 	});
 
-	it("searches a single omp doc in place and reports hits as its URL", async () => {
+	it("searches a single zetacode doc in place and reports hits as its URL", async () => {
 		const filesystem = urlFs(process.cwd());
 		const root = await resolveSearchRoot(filesystem, "zeta://tools/read.md", process.cwd());
 		const result = await runCascade({
@@ -571,7 +571,7 @@ describe("jfind cascade", () => {
 		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["zeta://tools/read.md"]);
 	});
 
-	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
+	it("walks the zetacode root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
 		const completions = (await InternalUrlRouter.instance().complete("zeta", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());

@@ -1,7 +1,7 @@
 //! N-API wrappers and streaming support for jsdiff-compatible diff primitives.
 //!
 //! The Myers, line, word, and structured-patch implementation lives in
-//! `omp-diff`. This module preserves JavaScript's UTF-16 code units at the
+//! `zetacode-diff`. This module preserves JavaScript's UTF-16 code units at the
 //! N-API boundary and owns the incremental [`DiffStream`] state.
 //!
 //! # Example

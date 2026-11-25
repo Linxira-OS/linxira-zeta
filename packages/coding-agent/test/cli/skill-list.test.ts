@@ -75,7 +75,7 @@ describe("runSkillsCommand", () => {
 	});
 
 	test("resolves relative custom directories against the requested directory", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skills-rel-${Snowflake.next()}-`));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skills-rel-${Snowflake.next()}-`));
 		await fs.mkdir(path.join(directory, "rel-root", "calendar"), { recursive: true });
 		await Bun.write(
 			path.join(directory, "rel-root", "calendar", "SKILL.md"),
@@ -97,7 +97,7 @@ describe("runSkillsCommand", () => {
 	});
 
 	test("expands a tilde custom directory against the home directory", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skills-tilde-${Snowflake.next()}-`));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skills-tilde-${Snowflake.next()}-`));
 		// `os.homedir()` is stubbed to `tempHome` above, so `~/example-skills`
 		// names this fixture directory.
 		const skillsRoot = path.join(tempHome, "example-skills");
@@ -138,7 +138,7 @@ describe("handleSkillList", () => {
 	});
 
 	test("keeps stdout to TSV rows and sends warnings to stderr", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skills-list-${Snowflake.next()}-`));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skills-list-${Snowflake.next()}-`));
 		for (const root of ["first", "second"]) {
 			await fs.mkdir(path.join(directory, root, "calendar"), { recursive: true });
 			await Bun.write(
@@ -179,7 +179,7 @@ describe("handleSkillList", () => {
 	});
 
 	test("applies global manualSkills from config and lets a project list clear it", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skills-layer-${Snowflake.next()}-`));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skills-layer-${Snowflake.next()}-`));
 		const projectDir = path.join(directory, "project");
 		const skillsRoot = path.join(directory, "skills");
 		const agentDir = getAgentDir();
@@ -237,7 +237,7 @@ describe("handleSkillList", () => {
 	});
 
 	test("rejects a target that is not a directory", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skills-list-${Snowflake.next()}-`));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skills-list-${Snowflake.next()}-`));
 		const file = path.join(directory, "file.txt");
 		await Bun.write(file, "not a directory");
 		try {

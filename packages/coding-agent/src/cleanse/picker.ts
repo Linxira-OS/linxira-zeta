@@ -1,5 +1,5 @@
 /**
- * One-shot standalone prompts for `omp cleanse`: resolved on select/submit/
+ * One-shot standalone prompts for `zetacode cleanse`: resolved on select/submit/
  * cancel so the command keeps writing plain stdout afterwards.
  */
 import type { CleanseTargetChoice } from "../modes/view-model/apps/cleanse-picker";

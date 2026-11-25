@@ -49,7 +49,7 @@ export function isDirectory(path: string): boolean {
 	return path.endsWith("/");
 }
 
-/** A file's row (`omp.tool.file`): icon, path (cut in the middle), optional count badge. */
+/** A file's row (`zeta.tool.file`): icon, path (cut in the middle), optional count badge. */
 export function FileRow(props: {
 	readonly id?: string;
 	readonly path: string;
@@ -73,7 +73,7 @@ export function FileRow(props: {
 	);
 }
 
-/** A file chip (`omp.tool.chip`) for wrapped file lists: icon and name (linked under `cwd`), the full path as its title. */
+/** A file chip (`zeta.tool.chip`) for wrapped file lists: icon and name (linked under `cwd`), the full path as its title. */
 export function FileChip(props: { readonly path: string; readonly cwd?: string }): JSXNode {
 	const href = listedFileHref(props.cwd, props.path);
 	const name = splitPath(props.path).name;
@@ -108,7 +108,7 @@ export function inlineErrorView(head: ToolHead, message: string, extra?: Partial
 
 /**
  * The muted foot joining notes with ` · `, then the output's truncation / artifact notices
- * (`omp.tool.notice` with one, else `omp.tool.stats`); nothing without notes.
+ * (`zeta.tool.notice` with one, else `zeta.tool.stats`); nothing without notes.
  */
 export function StatsFoot(props: {
 	readonly notes: readonly (string | undefined)[];
@@ -123,7 +123,7 @@ export function StatsFoot(props: {
 	return (
 		<text
 			key="foot"
-			role={notice ? "omp.tool.notice" : "omp.tool.stats"}
+			role={notice ? "zeta.tool.notice" : "zeta.tool.stats"}
 			spans={[{ s: "muted", t: all.join(" · ") }]}
 			wrap="word"
 		/>

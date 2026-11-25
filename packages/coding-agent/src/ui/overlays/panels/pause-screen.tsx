@@ -20,7 +20,7 @@ import { rowsRole, type SheetAttributes } from "../sheet";
 
 /** Tern's sheet: a centered medium one titled Paused (the transcript stays visible, frozen, behind it). */
 export const PAUSE_SHEET: SheetAttributes = {
-	role: "omp.overlay.pause",
+	role: "zeta.overlay.pause",
 	size: "md",
 	anchor: "center",
 	head: "Paused",
@@ -60,7 +60,7 @@ export function PauseScreen(props: PauseScreenProps): JSXNode {
 		: { s: "warning", t: "Pausing — waiting for work to settle" };
 	return (
 		<col
-			role={rowsRole("omp.pause")}
+			role={rowsRole("zeta.pause")}
 			gap="md"
 			term={() => ({ since: props.since(), session: props.sessionName, work: props.work() })}
 			onKey={key => {

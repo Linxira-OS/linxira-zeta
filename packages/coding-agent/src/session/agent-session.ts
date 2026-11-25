@@ -8921,7 +8921,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#cancelExitRecorder = undefined;
 		this.#cancelFatalRecoveryHint?.();
 		this.#cancelFatalRecoveryHint = undefined;
-		// The last todo change may still be on its way to the backend: `omp -p` exits right after its final tool call.
+		// The last todo change may still be on its way to the backend: `zetacode -p` exits right after its final tool call.
 		// From here on a backend gets no further list: its extension releases state on `session_shutdown`. Not asked
 		// of the setting: a list can still be queued for a backend the user has since switched away from. As with
 		// the shutdown event below, a failure here must not keep the session from being torn down.
@@ -19098,7 +19098,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			entries.push([`subagents/${key}.md`, `${text}\n`]);
 			subagentCount++;
 		}
-		const filePath = path.join(os.tmpdir(), `omp-dump-${Snowflake.next()}.zip`);
+		const filePath = path.join(os.tmpdir(), `zetacode-dump-${Snowflake.next()}.zip`);
 		await writeArchive(filePath, "zip", entries);
 		return { path: filePath, files: entries.map(([name]) => name), subagentCount, subagentError };
 	}
@@ -19119,7 +19119,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			sessionFile: this.sessionManager.getSessionFile(),
 			malformedRecords: this.sessionManager.loadedMalformedRecords,
 		});
-		const filePath = path.join(os.tmpdir(), `omp-dump-anon-${Snowflake.next()}.zip`);
+		const filePath = path.join(os.tmpdir(), `zetacode-dump-anon-${Snowflake.next()}.zip`);
 		await writeArchive(filePath, "zip", result.files);
 		return {
 			path: filePath,
@@ -19147,7 +19147,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	async dumpLlmRequestToTmpDir(): Promise<string | undefined> {
 		const messages = this.messages;
 		if (messages.length === 0) return undefined;
-		const filePath = path.join(os.tmpdir(), `omp-llm-request-${Snowflake.next()}.json`);
+		const filePath = path.join(os.tmpdir(), `zetacode-llm-request-${Snowflake.next()}.json`);
 		await Bun.write(filePath, await this.#formatLlmRequestJson(messages));
 		return filePath;
 	}

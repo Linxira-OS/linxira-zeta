@@ -48,7 +48,7 @@ afterEach(async () => {
 });
 
 describe("browser relay install registry", () => {
-	it("uses the same registry path across omp profiles", () => {
+	it("uses the same registry path across zetacode profiles", () => {
 		const previous = getActiveProfile();
 		try {
 			setProfile(undefined);
@@ -310,7 +310,7 @@ describe("Chrome native host install", () => {
 it.skipIf(process.platform === "win32")(
 	"invokes the verified new executable to sync and does not fail the update on a nonzero sync exit",
 	async () => {
-		const launcher = home.join("new omp launcher");
+		const launcher = home.join("new zetacode launcher");
 		await Bun.write(launcher, '#!/bin/sh\nprintf "%s\\n" "$@" > "$0.args"\nexit 7\n');
 		await fs.chmod(launcher, 0o700);
 		await syncRelayAfterVerifiedUpdate(launcher);

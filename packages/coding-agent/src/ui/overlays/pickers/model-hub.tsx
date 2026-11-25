@@ -4,7 +4,7 @@
  * picker's scopes (Roles, All models, providers), the model list or the
  * Roles view its rows, the open chip strip or name field its `strip`, the
  * selection's facts its side preview. State and behaviour live in
- * {@link ModelHubState}; the terminal look is `omp.model-hub`.
+ * {@link ModelHubState}; the terminal look is `zeta.model-hub`.
  */
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
@@ -638,7 +638,7 @@ export function ModelHub(props: ModelHubProps): JSXNode {
 	props.onState?.(hub);
 	onCleanup(() => hub.dispose());
 	effect(() => hub.browser.setMaxVisible(hub.contentRows() - 7));
-	const term: ModelHubTerm = { role: "omp.model-hub", hub };
+	const term: ModelHubTerm = { role: "zeta.model-hub", hub };
 	// One computation per change: `pickerItems` tracks which rows went out whole.
 	const shown = computed(() => hubProps(hub));
 	const prop =

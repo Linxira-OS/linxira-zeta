@@ -75,7 +75,7 @@ export function historySheet(shell: Shell): HistorySheet {
 	const handle = shell.overlays.top();
 	if (!handle) throw new Error("Expected the BTW history sheet");
 	const current = () => {
-		const node = find(handle.node, candidate => roleOf(candidate) === "omp.btw.sheet");
+		const node = find(handle.node, candidate => roleOf(candidate) === "zeta.btw.sheet");
 		if (!node) throw new Error("Expected the BTW history sheet");
 		return node;
 	};
@@ -109,7 +109,7 @@ export interface NoteView {
 }
 
 function noteNode(block: TranscriptBlock): UiNode | undefined {
-	return find(block.node, node => roleOf(node)?.startsWith("omp.btw.note") === true);
+	return find(block.node, node => roleOf(node)?.startsWith("zeta.btw.note") === true);
 }
 
 /** Whether `block` holds a /btw note. */
@@ -132,7 +132,7 @@ function noteView(block: TranscriptBlock): NoteView {
 			return roleOf(current());
 		},
 		get folded() {
-			return roleOf(current()) === "omp.btw.note.folded";
+			return roleOf(current()) === "zeta.btw.note.folded";
 		},
 		get menu() {
 			const menu = propsOf<{ actions?: { menu?: readonly TspMenuEntry[] } }>(current()).actions?.menu ?? [];

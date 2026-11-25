@@ -190,7 +190,7 @@ describe("startHost optimistic native start in a Tern pane", () => {
 
 describe("startHost in a plain terminal", () => {
 	it("keeps keys typed while the terminal is probed for the focused editor", async () => {
-		// A user typing as soon as omp starts: the keys arrive before any renderer listens.
+		// A user typing as soon as zetacode starts: the keys arrive before any renderer listens.
 		const stdin = new Stdin();
 		const text = signal("");
 		let field: UiNode | undefined;

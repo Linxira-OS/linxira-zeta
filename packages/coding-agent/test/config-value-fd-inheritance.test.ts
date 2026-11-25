@@ -2,7 +2,7 @@
  * `!command` config values must not leak inherited file descriptors into the
  * credential-resolving child.
  *
- * A launcher can legitimately hand omp an open descriptor (for example a
+ * A launcher can legitimately hand zetacode an open descriptor (for example a
  * credential bundle) that is meant to stay single-consumer. The child spawned
  * for `auth.broker.url` / header `!command` resolution used to run through the
  * natives embedded shell (executeShell), whose children inherit every inheritable

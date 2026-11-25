@@ -118,7 +118,7 @@ function createTestContext(): TestContext {
 	return { manager, tmpDir, clearCount: () => count };
 }
 
-/** Shares `ctx`'s user-level paths but has no project registry, like running omp outside the project. */
+/** Shares `ctx`'s user-level paths but has no project registry, like running zetacode outside the project. */
 function createOutsideProjectManager(tmpDir: string): MarketplaceManager {
 	return new MarketplaceManager({
 		marketplacesRegistryPath: path.join(tmpDir, "marketplaces.json"),

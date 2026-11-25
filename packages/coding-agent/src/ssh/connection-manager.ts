@@ -83,7 +83,7 @@ export function sshControlFallbackDir(canonicalDir: string, uid: number, tmpBase
 		.digest("hex")
 		.slice(0, 20);
 	// Only ControlMaster (POSIX) platforms reach this, so the socket dir is a POSIX path.
-	return path.posix.join(tmpBase, `omp-${key}`);
+	return path.posix.join(tmpBase, `zetacode-${key}`);
 }
 
 interface ControlDirChoice {
@@ -272,9 +272,9 @@ const controlPathOwners = new Map<string, Promise<ControlPathOwner>>();
  * Decide whose ControlPath socket `host` uses.
  *
  * When the user's ssh_config resolves a `ControlPath` (`ssh -G` reports one
- * other than `none`), omp defers to it instead of injecting its own, so a
+ * other than `none`), zetacode defers to it instead of injecting its own, so a
  * master the user already authenticated — e.g. interactively on an MFA host
- * that `BatchMode=yes` can never reach — serves omp too (#15974). Cached per
+ * that `BatchMode=yes` can never reach — serves zetacode too (#15974). Cached per
  * destination for the process lifetime; a failed lookup keeps omp's socket.
  *
  * Throws when the username or host would be parsed as an ssh option.
@@ -296,7 +296,7 @@ async function lookupControlPathOwner(target: string, port?: number): Promise<Co
 	try {
 		const { exitCode, stdout, stderr } = await runSshCaptureSync(args);
 		if (exitCode !== 0) {
-			logger.debug("ssh -G failed; using omp ControlPath", { target, error: stderr });
+			logger.debug("ssh -G failed; using zetacode ControlPath", { target, error: stderr });
 			return "omp";
 		}
 		for (const line of stdout.split("\n")) {
@@ -306,7 +306,7 @@ async function lookupControlPathOwner(target: string, port?: number): Promise<Co
 		}
 		return "omp";
 	} catch (err) {
-		logger.debug("ssh -G failed; using omp ControlPath", { target, error: String(err) });
+		logger.debug("ssh -G failed; using zetacode ControlPath", { target, error: String(err) });
 		return "omp";
 	}
 }
@@ -822,7 +822,7 @@ async function closeConnectionInternal(host: SSHConnectionTarget): Promise<void>
 	const target = buildSshTarget(host.username, host.host);
 	const owner = await resolveControlPathOwner(host);
 	// Configured sockets may have been replaced by a user's master since the
-	// last check. Never exit a socket that omp doesn't own.
+	// last check. Never exit a socket that zetacode doesn't own.
 	if (owner === "config") return;
 	await runSshSync(["-O", "exit", ...buildCommonArgs(host, owner), target]);
 }

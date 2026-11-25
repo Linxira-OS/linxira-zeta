@@ -131,7 +131,7 @@ describe("IrcBridge broadcast legs reaching a streaming recipient", () => {
 			const blocks = ctx.shell.transcript.blocks();
 			expect(blocks).toHaveLength(1);
 			const card = nativeJson(blocks[0]);
-			expect(card).toContain('"role":"omp.irc.incoming"');
+			expect(card).toContain('"role":"zeta.irc.incoming"');
 			expect(card).toContain("Main");
 			expect(card).toContain("Review the parser");
 		} finally {
@@ -154,7 +154,7 @@ describe("IrcBridge broadcast legs reaching a streaming recipient", () => {
 		const helpers = new UiHelpers(ctx);
 		const [block] = helpers.addMessageToChat(steer);
 		const card = nativeJson(block);
-		expect(card).toContain('"role":"omp.irc.incoming"');
+		expect(card).toContain('"role":"zeta.irc.incoming"');
 		expect(card).toContain("Main");
 		expect(card).toContain(JSON.stringify(body).slice(1, -1));
 		expect(card).not.toContain("[Wait interrupted by message]");

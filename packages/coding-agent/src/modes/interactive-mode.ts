@@ -2270,7 +2270,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// custom messages, branch summaries, and compaction summaries) and the user
 		// set no explicit `mode_change` (which #reconcileModeFromSession just
 		// restored). SDK startup metadata and extension `custom` state entries are
-		// ignored. This way `omp --continue` (or auto-resume) that finds no recent
+		// ignored. This way `zetacode --continue` (or auto-resume) that finds no recent
 		// session and creates a fresh one still honors the default, while a session
 		// with restored context or an explicit mode keeps its reconciled mode. Not
 		// part of the switch reconciler above: the plan-approval → execution handoff
@@ -7717,7 +7717,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				: (): JSXNode => jsx("md", { text: selection.markdown?.trim() ?? "" });
 		this.#headerAfter = () =>
 			jsx("col", {
-				role: "omp.changelog",
+				role: "zeta.changelog",
 				children: [
 					jsx("rule", {}),
 					jsx(AnsiText, { text: `${bold(currentTheme().fg("accent", "What's New"))}\n`, padX: 1 }),
@@ -8108,7 +8108,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			await active.stop();
 			this.statusLine.setModes({ recording: false });
 			this.showStatus(
-				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: omp play · share: omp clip`,
+				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: zetacode play · share: zetacode clip`,
 			);
 			return;
 		}

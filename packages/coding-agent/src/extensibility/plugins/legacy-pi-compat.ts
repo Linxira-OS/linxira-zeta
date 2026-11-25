@@ -30,7 +30,7 @@ const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUND
 // imports inside runtime-loaded extensions.
 //
 // Compiled binaries and npm bundles retain lazy loaders for host packages and
-// serve requested surfaces through `omp-legacy-pi-bundled:<key>` synthetic modules.
+// serve requested surfaces through `zetacode-legacy-pi-bundled:<key>` synthetic modules.
 // `scripts/legacy-pi-virtual-module.ts` derives literal dynamic-import edges
 // from current package exports inside a Bun build plugin: no generated source
 // or duplicate key list exists on disk. Deferring each host module evaluation
@@ -579,9 +579,9 @@ function getExtensionParseCacheDb(): Database | null {
 		try {
 			if (fs.statSync(cachePath).size > EXTENSION_PARSE_CACHE_MAX_BYTES) {
 				// Remove the full WAL set, not just the main db. A leftover
-				// `-wal`/`-shm` pair still owned by a concurrent omp process is
+				// `-wal`/`-shm` pair still owned by a concurrent zetacode process is
 				// adopted by this fresh connection; when that `-wal` has
-				// uncheckpointed frames (the normal case while another omp is
+				// uncheckpointed frames (the normal case while another zetacode is
 				// writing its own cache entries), `journal_mode=WAL` fails with
 				// SQLITE_IOERR — disabling the parse cache for the whole process
 				// and forcing a reparse of every extension on startup. See #9549.
@@ -598,7 +598,7 @@ function getExtensionParseCacheDb(): Database | null {
 		// `PRAGMA journal_mode=WAL`, which takes an exclusive lock during WAL
 		// recovery). See #2421. WAL + synchronous=NORMAL avoids the per-entry
 		// journal create/delete + fsync churn that serialized this cache behind
-		// concurrent omp startups and blocked the event loop for ~20s (#9549).
+		// concurrent zetacode startups and blocked the event loop for ~20s (#9549).
 		db.run(`PRAGMA busy_timeout = ${getDbBusyTimeoutMs()}`);
 		db.run("PRAGMA journal_mode=WAL");
 		db.run("PRAGMA synchronous=NORMAL");
@@ -772,7 +772,7 @@ async function loadBundledModule(moduleKey: string): Promise<BundledModule> {
 	const loaders = await ensureBundledModuleLoadersLoaded();
 	const loader = loaders[moduleKey];
 	if (!loader) {
-		throw new Error(`omp:legacy-pi-shim: no bundled module registered for ${moduleKey}`);
+		throw new Error(`zetacode:legacy-pi-shim: no bundled module registered for ${moduleKey}`);
 	}
 	const module = await loader();
 	loadedBundledModules[moduleKey] = module;
@@ -809,7 +809,7 @@ function resolveBundledVirtualSpecifier(specifier: string): BundledVirtualResolv
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
 // fork, or the canonical @linxiraos scope itself) are remapped to this scope and
-// resolved against the bundled copy that ships inside the omp binary. This
+// resolved against the bundled copy that ships inside the zetacode binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
@@ -821,7 +821,7 @@ const CANONICAL_PI_SCOPE = "@linxiraos";
 // path instead of pulling a duplicate copy from plugin node_modules.
 const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
 
-// Internal host package basenames bundled inside the omp binary.
+// Internal host package basenames bundled inside the zetacode binary.
 const PI_PACKAGE_NAMES = [
 	"pi-agent-core",
 	"pi-ai",
@@ -845,14 +845,14 @@ const PI_TUI_SPECIFIER = new RegExp(
 /** Docs section describing the pi-tui → pi-tui migration. */
 export const PI_TUI_MIGRATION_DOC = "docs/extensions.md#migrating-from-pi-tui";
 
-/** An extension module imports upstream pi-tui, whose API omp no longer provides. */
+/** An extension module imports upstream pi-tui, whose API zetacode no longer provides. */
 export class PiTuiImportError extends Error {
 	constructor(
 		readonly specifier: string,
 		readonly importerPath: string,
 	) {
 		super(
-			`${importerPath} imports "${specifier}", which omp no longer provides: its component API was ` +
+			`${importerPath} imports "${specifier}", which zetacode no longer provides: its component API was ` +
 				`replaced by the reactive @linxiraos/pi-tui. Return pi-tui nodes (JSX from "@linxiraos/pi-tui") or a { render(width): string[] } ` +
 				`rows object from renderers, ctx.ui.custom and ctx.ui.setWidget; replace ctx.ui.setEditorComponent ` +
 				`with the ctx.ui.composer hooks; import Theme types from "@linxiraos/zeta". ` +
@@ -944,7 +944,7 @@ const PACKAGE_IMPORT_EXCLUDED = Symbol("packageImportExcluded");
 const TYPEBOX_SPECIFIER_FILTER = /^(?:@sinclair\/typebox|typebox)$/;
 
 // Compat-shim path resolution. In compiled-binary mode every bundled surface
-// is served through the `omp-legacy-pi-bundled:` virtual namespace (see the
+// is served through the `zetacode-legacy-pi-bundled:` virtual namespace (see the
 // bundled-module block above) — bunfs paths are unreachable on Bun 1.3.14+, so the
 // pre-#3423 helpers that derived `/$bunfs/root/...` paths from
 // `import.meta.dir` are gone. Dev / source-link / installed-package modes
@@ -993,7 +993,7 @@ function sourceShimPath(file: string): string {
  * entrypoint is missing.
  *
  * In compiled binaries and npm bundles the surface is served through the
- * `omp-legacy-pi-bundled:` virtual namespace (issue #3423). Dev and source SDK
+ * `zetacode-legacy-pi-bundled:` virtual namespace (issue #3423). Dev and source SDK
  * imports use the shipped source module.
  *
  * Exported for tests; production callers use `TYPEBOX_SHIM_PATH`.
@@ -1043,14 +1043,14 @@ const LEGACY_PI_CODING_AGENT_SHIM_PATH = USE_BUNDLED_PI_MODULES
 // source-tree path would miss installs where bundled packages live at
 // `node_modules/@linxiraos/pi-*`.
 //
-// Bundled entries are `omp-legacy-pi-bundled:<key>` specifiers handed to the
+// Bundled entries are `zetacode-legacy-pi-bundled:<key>` specifiers handed to the
 // synthetic onLoad in `installLegacyPiSpecifierShim()`. Filesystem-shaped
 // overrides are still validated against on-disk presence so a missing dev-mode
 // shim falls through to `getResolvedSpecifier`.
 
 /**
  * Drop overrides whose filesystem targets are missing so they can fall
- * through to the canonical-resolution path. Virtual `omp-legacy-pi-bundled:`
+ * through to the canonical-resolution path. Virtual `zetacode-legacy-pi-bundled:`
  * entries always pass because live bundled module references are the source of
  * truth.
  *
@@ -1159,7 +1159,7 @@ function resolveCanonicalPiSpecifier(remappedSpecifier: string): string {
 }
 
 function toImportSpecifier(resolvedPath: string): string {
-	// Virtual `omp-legacy-pi-bundled:` specifiers are served by the synthetic
+	// Virtual `zetacode-legacy-pi-bundled:` specifiers are served by the synthetic
 	// onLoad in `installLegacyPiSpecifierShim()`; wrapping them as `file://`
 	// would corrupt the scheme.
 	if (isBundledVirtualSpecifier(resolvedPath)) {
@@ -2612,7 +2612,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0async\0${[...asyncModules.keys()].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `omp:legacy-pi-ext:${hookId}`,
+			name: `zetacode:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");
@@ -2653,7 +2653,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0commonjs\0${[...commonJsPaths].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `omp:legacy-pi-ext:${hookId}`,
+			name: `zetacode:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");
@@ -2682,7 +2682,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0sync-source\0${[...synchronousSourcePaths].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `omp:legacy-pi-ext:${hookId}`,
+			name: `zetacode:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");

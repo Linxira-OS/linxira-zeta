@@ -12,7 +12,7 @@
  *   or its subtree: `s`), filtered by kind (`f`) and searched (`/`); it
  *   follows the newest row until the selection moves (space resumes).
  *
- * The terminal draws its own boxed look (`term.look = "omp.hub"`,
+ * The terminal draws its own boxed look (`term.look = "zeta.hub"`,
  * `src/ui/styles/pickers/agent-hub.ts`): a roster beside the inspector on a
  * wide terminal, the roster alone (Tab swaps in the inspector) on a narrow
  * one, and the activity table.
@@ -1317,7 +1317,7 @@ export function AgentHub<T extends AgentRecordLike>(
 				rows: activityRows.map(activityLine),
 				selected: selectedActivity,
 			};
-			return { look: "omp.hub", role: "omp.hub", hub: { section: "activity", height, activity: view } };
+			return { look: "zeta.hub", role: "zeta.hub", hub: { section: "activity", height, activity: view } };
 		}
 		const selected = rows[selectedRow];
 		const view: HubAgentsView = {
@@ -1333,7 +1333,7 @@ export function AgentHub<T extends AgentRecordLike>(
 			narrowDetails,
 			detail: selected ? detailOf(selected, at) : undefined,
 		};
-		return { look: "omp.hub", role: "omp.hub", hub: { section: "agents", height, agents: view } };
+		return { look: "zeta.hub", role: "zeta.hub", hub: { section: "agents", height, agents: view } };
 	});
 
 	return (

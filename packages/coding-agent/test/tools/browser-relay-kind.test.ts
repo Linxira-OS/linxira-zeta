@@ -53,7 +53,7 @@ describe("browser prelude relay guidance", () => {
 		"ZETA_PANE_SOCKET",
 		"ZETA_PANE",
 		"CMUX_SOCKET_PATH",
-		// Inherited from an interactive omp when the tests run from its bash tool.
+		// Inherited from an interactive zetacode when the tests run from its bash tool.
 		"PI_TERMINAL_OWNER_PID",
 	] as const;
 	const savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));

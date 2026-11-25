@@ -5,7 +5,7 @@
  * and its result to a {@link ToolView}: the head facts of the `tool` node and
  * a body of TSP nodes. The transcript's tool block wraps that in one `tool`
  * node; a Tern terminal draws it natively and the terminal backend paints it
- * with the `omp.tool.*` styles (`src/ui/styles/tools/*`). A presenter never
+ * with the `zeta.tool.*` styles (`src/ui/styles/tools/*`). A presenter never
  * draws rows, measures widths or picks colors.
  */
 import type { TspPickerAction, TspPreview, TspText, TspTone, TspToolProps } from "@linxiraos/pi-wire";

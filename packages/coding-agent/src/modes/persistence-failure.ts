@@ -37,7 +37,7 @@ export function formatPersistenceNotice(notice: SessionPersistenceNotice): strin
 	let message = `Session ${from} changed on disk; this session now saves to ${to}.`;
 	switch (notice.reason) {
 		case "open-elsewhere":
-			message = `Session ${from} is open for writing in another omp process, so this session now saves to ${to} instead of mixing its entries into that file.`;
+			message = `Session ${from} is open for writing in another zetacode process, so this session now saves to ${to} instead of mixing its entries into that file.`;
 			break;
 		case "replaced":
 			message = `Session ${from} changed on disk and no longer reads as this session; it is left untouched and this session now saves to ${to}.`;

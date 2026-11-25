@@ -1,6 +1,6 @@
 import { loadLegacyPiModule } from "../../src/extensibility/plugins/legacy-pi-compat";
 
-// Loads one extension entry the way a fresh omp process does at startup.
+// Loads one extension entry the way a fresh zetacode process does at startup.
 const entry = process.argv[2];
 if (!entry) throw new Error("Usage: legacy-pi-transpiler-cache-probe.ts <extension entry>");
 const extension = await loadLegacyPiModule(entry);

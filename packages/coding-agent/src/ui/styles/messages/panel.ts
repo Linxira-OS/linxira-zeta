@@ -1,11 +1,11 @@
 /**
  * Transcript containers.
  *
- * - `col` `omp.transcript`: the blocks, each without its blank edge rows,
+ * - `col` `zeta.transcript`: the blocks, each without its blank edge rows,
  *   set off by one blank row (blocks drawing nothing take none; blocks marked
  *   `term.compact` pack against each other).
- * - `col` `omp.activity`: its blocks stacked.
- * - `col` `omp.panel`: a blank row, each section followed by a blank row,
+ * - `col` `zeta.activity`: its blocks stacked.
+ * - `col` `zeta.panel`: a blank row, each section followed by a blank row,
  *   then the footer line as styled.
  *
  * Bare `text` and `md` blocks sit one cell in, like the transcript's prose.
@@ -58,7 +58,7 @@ function paintActivity(node: UiNode, cx: PaintContext): Block {
 function paintPanel(node: UiNode, cx: PaintContext): Block {
 	const rows: string[] = [""];
 	for (const child of node.children()) {
-		if (propsOf<{ role: string }>(child).role === "omp.panel.footer") {
+		if (propsOf<{ role: string }>(child).role === "zeta.panel.footer") {
 			const footer = termOf<{ footer: string }>(child).footer ?? "";
 			rows.push(...wrap(replaceTabs(footer), cx.width));
 			continue;
@@ -73,6 +73,6 @@ function paintPanel(node: UiNode, cx: PaintContext): Block {
 	return { rows };
 }
 
-defineRolePainter("col", "omp.transcript", paintTranscript);
-defineRolePainter("col", "omp.activity", paintActivity);
-defineRolePainter("col", "omp.panel", paintPanel);
+defineRolePainter("col", "zeta.transcript", paintTranscript);
+defineRolePainter("col", "zeta.activity", paintActivity);
+defineRolePainter("col", "zeta.panel", paintPanel);

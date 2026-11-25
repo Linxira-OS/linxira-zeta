@@ -249,12 +249,12 @@ export class App {
 		const settings = await Settings.init({
 			inMemory: true,
 			cwd: APP_PROJECT,
-			agentDir: path.join(APP_HOME, ".omp", "agent"),
+			agentDir: path.join(APP_HOME, ".zeta", "agent"),
 			overrides: { ...BASE_SETTINGS, ...options.settings },
 		});
 		const authStorage = await AuthStorage.create(path.join(APP_ROOT, "auth.db"));
 		authStorage.keys.setRuntime("anthropic", "corpus-key");
-		const modelRegistry = new ModelRegistry(authStorage, path.join(APP_HOME, ".omp", "agent", "models.yml"));
+		const modelRegistry = new ModelRegistry(authStorage, path.join(APP_HOME, ".zeta", "agent", "models.yml"));
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
 		if (!model) throw new Error("claude-sonnet-4-5 missing from the registry");
 
@@ -281,7 +281,7 @@ export class App {
 		});
 		const session = new AgentSession({
 			agent,
-			sessionManager: SessionManager.create(APP_PROJECT, path.join(APP_HOME, ".omp", "agent", "sessions")),
+			sessionManager: SessionManager.create(APP_PROJECT, path.join(APP_HOME, ".zeta", "agent", "sessions")),
 			settings,
 			modelRegistry,
 			toolRegistry: toolSession.toolRegistry,

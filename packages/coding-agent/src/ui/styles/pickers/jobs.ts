@@ -1,5 +1,5 @@
 /**
- * The jobs sheet in the terminal (`term.role = "omp.jobs.sheet"`): a heading
+ * The jobs sheet in the terminal (`term.role = "zeta.jobs.sheet"`): a heading
  * with the running count, the job tree (`>` marks the selected job), then
  * the selected job's caption or command, its facts on one line, its widget
  * and the tail of the output it shows.
@@ -34,7 +34,7 @@ export interface JobsTermDetail {
 
 /** The sheet's term facts. */
 export type JobsSheetTerm = {
-	readonly role: "omp.jobs.sheet";
+	readonly role: "zeta.jobs.sheet";
 	readonly running: number;
 	readonly rows: readonly JobsTermRow[];
 	/** Index of the selected job, not counting headings (-1: none). */
@@ -51,7 +51,7 @@ const DETAIL_INDENT = "   ";
 /** The widget never draws wider. */
 const WIDGET_MAX_WIDTH = 80;
 
-defineRolePainter("col", "omp.jobs.sheet", (node, cx): Block => {
+defineRolePainter("col", "zeta.jobs.sheet", (node, cx): Block => {
 	const term = termOf<JobsSheetTerm>(node);
 	const width = cx.width;
 	const theme = cx.theme;

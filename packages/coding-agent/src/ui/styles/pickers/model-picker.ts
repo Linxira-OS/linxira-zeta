@@ -1,5 +1,5 @@
 /**
- * The model switcher's terminal look (`term.look = "omp.model-picker"`): a
+ * The model switcher's terminal look (`term.look = "zeta.model-picker"`): a
  * framed sheet titled "Switch Model" (red frame and "Switch Task Model" in
  * task mode) over a status row (what a pick does, or the catalog error, then
  * the highlighted model's thinking level in its color), the model list
@@ -15,7 +15,7 @@ import { MODEL_LIST_TOP, modelBrowserRows } from "./model-browser";
 
 /** The switcher's term facts. */
 export type ModelPickerLookTerm = PickerTerm & {
-	readonly look: "omp.model-picker";
+	readonly look: "zeta.model-picker";
 	readonly browser: ModelBrowserState;
 	readonly heading: string;
 	/** Frame and title color (task mode: `error`); absent: the border and accent colors. */
@@ -75,4 +75,4 @@ function paintModelPicker(node: UiNode, cx: PaintContext) {
 	return { rows, hits };
 }
 
-definePickerLook("omp.model-picker", paintModelPicker);
+definePickerLook("zeta.model-picker", paintModelPicker);

@@ -169,7 +169,7 @@ function pageId(tabId: number, instanceId = "anon"): string {
 	return `PAGE${instanceCode(instanceId)}.${tabId}`;
 }
 
-/** Emulate the omp tab worker adopting a tab: connect claiming it (`/cdp?claim=`), then attach to its page. */
+/** Emulate the zetacode tab worker adopting a tab: connect claiming it (`/cdp?claim=`), then attach to its page. */
 async function driveTab(bridge: RelayBridge, ext: FakeExtSocket, cdp: FakeCdpSocket, tabId: number): Promise<number> {
 	const connId = bridge.cdpConnected(cdp, pageId(tabId));
 	await attachPage(bridge, ext, cdp, connId, tabId);
@@ -206,7 +206,7 @@ describe("RelayBridge target discovery", () => {
 });
 
 describe("RelayBridge tab grouping", () => {
-	it("groups nothing on hello or tab lifecycle events — only claimed tabs join the omp group", () => {
+	it("groups nothing on hello or tab lifecycle events — only claimed tabs join the zetacode group", () => {
 		const bridge = new RelayBridge({ group: { title: "omp", color: "cyan" } });
 		const socket = new FakeExtSocket();
 		connect(bridge, socket, [tab({ tabId: 1 }), tab({ tabId: 2 }), tab({ tabId: 3, url: "about:blank" })]);
@@ -352,7 +352,7 @@ describe("RelayBridge tab grouping", () => {
 		expect(create).not.toHaveProperty("active");
 	});
 
-	it("never re-groups a tab the user pulled out of the omp group", async () => {
+	it("never re-groups a tab the user pulled out of the zetacode group", async () => {
 		const bridge = new RelayBridge({ group: { title: "omp", color: "cyan" } });
 		const ext = new FakeExtSocket();
 		connect(bridge, ext, [tab({ tabId: 1 })]);
@@ -431,7 +431,7 @@ describe("RelayBridge tab grouping", () => {
 		await driveTab(bridge, ext, cdp, 1);
 		ack(bridge, ext, "group", { grouped: { "1": 42 } });
 		await flush();
-		// Relay/extension link drops: the extension dissolves the omp group on
+		// Relay/extension link drops: the extension dissolves the zetacode group on
 		// disconnect, so the next hello reports groupId -1 for every tab.
 		bridge.extClosed(ext);
 		const ext2 = new FakeExtSocket();
@@ -2749,7 +2749,7 @@ describe("RelayBridge front app on a window omp's input opens", () => {
 		windowOpen(bridge, ext, 1);
 		await flush();
 		expect(holds).toEqual([2]);
-		// The browser is in front while the hold runs; omp clicks again, and that click's window comes during the
+		// The browser is in front while the hold runs; zetacode clicks again, and that click's window comes during the
 		// hold and once more after it.
 		await sendInput(bridge, ext, connId, sessionId);
 		windowOpen(bridge, ext, 1);
@@ -3167,7 +3167,7 @@ describe("RelayBridge foreign extension frames", () => {
 		expect(flags(2)).toEqual(new Set([false]));
 	});
 
-	it("takes the claim an older omp worker sends on its page session", async () => {
+	it("takes the claim an older zetacode worker sends on its page session", async () => {
 		const bridge = new RelayBridge({});
 		const ext = new FakeExtSocket();
 		connect(bridge, ext, [tab({ tabId: 1 })]);

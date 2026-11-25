@@ -23,7 +23,7 @@ describe("canonicalProjectDir permission fallback", () => {
 		["EACCES", -13],
 	] as const) {
 		it(`resolves the normalized absolute path when realpath throws ${code}`, async () => {
-			const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-${code.toLowerCase()}-fallback-`));
+			const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-${code.toLowerCase()}-fallback-`));
 			const resolvedProjectDir = path.resolve(projectDir);
 
 			vi.spyOn(fs, "realpath").mockImplementation((async (p: PathLike) => {
@@ -43,7 +43,7 @@ describe("canonicalProjectDir permission fallback", () => {
 
 	it("still resolves symlinks to their real target when realpath succeeds", async () => {
 		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-canonical-target-"));
-		const linkDir = path.join(os.tmpdir(), `omp-canonical-link-${Date.now()}-${process.pid}`);
+		const linkDir = path.join(os.tmpdir(), `zetacode-canonical-link-${Date.now()}-${process.pid}`);
 		await fs.symlink(targetDir, linkDir, "dir");
 
 		try {

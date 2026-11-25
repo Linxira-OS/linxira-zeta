@@ -4,7 +4,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.working"
+			"role": "zeta.working"
 		},
 		"c": [
 			{
@@ -91,7 +91,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.working"
+			"role": "zeta.working"
 		},
 		"c": [
 			{
@@ -178,7 +178,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.working"
+			"role": "zeta.working"
 		},
 		"c": [
 			{
@@ -272,7 +272,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.working"
+			"role": "zeta.working"
 		},
 		"c": [
 			{
@@ -360,7 +360,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.working"
+			"role": "zeta.working"
 		},
 		"c": [
 			{
@@ -427,7 +427,7 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.hint.retry"
+			"role": "zeta.hint.retry"
 		},
 		"c": [
 			{
@@ -461,7 +461,7 @@
 		"k": "col",
 		"p": {
 			"gap": "xs",
-			"role": "omp.queue"
+			"role": "zeta.queue"
 		},
 		"c": [
 			{
@@ -591,7 +591,7 @@
 		"k": "col",
 		"p": {
 			"gap": "xs",
-			"role": "omp.queue"
+			"role": "zeta.queue"
 		},
 		"c": [
 			{
@@ -657,14 +657,14 @@
 		"p": {
 			"align": "center",
 			"gap": "sm",
-			"role": "omp.track"
+			"role": "zeta.track"
 		},
 		"c": [
 			{
 				"k": "text",
 				"key": "0",
 				"p": {
-					"role": "omp.track.item",
+					"role": "zeta.track.item",
 					"spans": [
 						{
 							"s": "accent",
@@ -678,7 +678,7 @@
 				"k": "text",
 				"key": "1",
 				"p": {
-					"role": "omp.track.item",
+					"role": "zeta.track.item",
 					"spans": [
 						{
 							"s": "success",
@@ -692,7 +692,7 @@
 				"k": "text",
 				"key": "2",
 				"p": {
-					"role": "omp.track.active",
+					"role": "zeta.track.active",
 					"spans": [
 						{
 							"s": "warning",
@@ -1002,7 +1002,7 @@
 			"aria": "Anna, running",
 			"item": "agent",
 			"ref": "Anna",
-			"role": "omp.tray.card",
+			"role": "zeta.tray.card",
 			"status": "running",
 			"tone": "accent"
 		},
@@ -1013,14 +1013,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.head"
+					"role": "zeta.tray.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"fx": "pulse",
@@ -1036,7 +1036,7 @@
 						"key": "name",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"text": "Anna",
 							"truncate": "end",
 							"wrap": "none"
@@ -1046,7 +1046,7 @@
 						"k": "badge",
 						"key": "unread",
 						"p": {
-							"role": "omp.tray.unread",
+							"role": "zeta.tray.unread",
 							"text": "2",
 							"tone": "warning"
 						}
@@ -1057,7 +1057,7 @@
 						"p": {
 							"age": 65000,
 							"format": "short",
-							"role": "omp.tray.time"
+							"role": "zeta.tray.time"
 						}
 					},
 					{
@@ -1065,7 +1065,7 @@
 						"key": "tools",
 						"p": {
 							"align": "center",
-							"role": "omp.tray.tools"
+							"role": "zeta.tray.tools"
 						},
 						"c": [
 							{
@@ -1102,7 +1102,7 @@
 				"p": {
 					"align": "center",
 					"gap": "sm",
-					"role": "omp.tray.doing"
+					"role": "zeta.tray.doing"
 				},
 				"c": [
 					{
@@ -1110,7 +1110,7 @@
 						"key": "call",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.call",
+							"role": "zeta.tray.call",
 							"shrink": 1,
 							"spans": [
 								{
@@ -1129,7 +1129,7 @@
 						"k": "text",
 						"key": "outcome",
 						"p": {
-							"role": "omp.tray.outcome",
+							"role": "zeta.tray.outcome",
 							"shrink": 0,
 							"spans": [
 								{
@@ -1155,7 +1155,7 @@
 				"p": {
 					"align": "center",
 					"gap": "sm",
-					"role": "omp.tray.meta"
+					"role": "zeta.tray.meta"
 				},
 				"c": [
 					{
@@ -1163,7 +1163,7 @@
 						"key": "model",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.model",
+							"role": "zeta.tray.model",
 							"shrink": 1,
 							"text": "opus-4.5",
 							"truncate": "end",
@@ -1174,7 +1174,7 @@
 						"k": "text",
 						"key": "stats",
 						"p": {
-							"role": "omp.tray.stats",
+							"role": "zeta.tray.stats",
 							"text": "22%",
 							"wrap": "none"
 						}
@@ -1191,7 +1191,7 @@
 			"item": "job",
 			"look": false,
 			"ref": "j1",
-			"role": "omp.tray.card",
+			"role": "zeta.tray.card",
 			"status": "failed",
 			"tone": "error"
 		},
@@ -1202,14 +1202,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.head"
+					"role": "zeta.tray.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"s": "error",
@@ -1224,7 +1224,7 @@
 						"key": "name",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"text": "bun test",
 							"truncate": "end",
 							"wrap": "none"
@@ -1234,7 +1234,7 @@
 						"k": "text",
 						"key": "id",
 						"p": {
-							"role": "omp.tray.id",
+							"role": "zeta.tray.id",
 							"text": "j1",
 							"wrap": "none"
 						}
@@ -1245,7 +1245,7 @@
 						"p": {
 							"age": 9000,
 							"format": "short",
-							"role": "omp.tray.time",
+							"role": "zeta.tray.time",
 							"stopped": 9000
 						}
 					}
@@ -1255,7 +1255,7 @@
 				"k": "text",
 				"key": "out",
 				"p": {
-					"role": "omp.tray.out",
+					"role": "zeta.tray.out",
 					"text": "b\nc",
 					"tone": "error",
 					"wrap": "none"
@@ -1270,7 +1270,7 @@
 			"aria": "2 finished agents",
 			"item": "done",
 			"ref": "done",
-			"role": "omp.tray.card",
+			"role": "zeta.tray.card",
 			"status": "done",
 			"tone": "success"
 		},
@@ -1281,14 +1281,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.head"
+					"role": "zeta.tray.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"s": "success",
@@ -1303,7 +1303,7 @@
 						"key": "name",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"text": "2 done",
 							"truncate": "end",
 							"wrap": "none"
@@ -1315,7 +1315,7 @@
 				"k": "text",
 				"key": "doing",
 				"p": {
-					"role": "omp.tray.doing",
+					"role": "zeta.tray.doing",
 					"spans": [
 						{
 							"t": "Bob, Cy"
@@ -1332,7 +1332,7 @@
 		"key": "peek",
 		"p": {
 			"ref": "Anna",
-			"role": "omp.tray.peek"
+			"role": "zeta.tray.peek"
 		},
 		"c": [
 			{
@@ -1341,14 +1341,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.peek.head"
+					"role": "zeta.tray.peek.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"fx": "pulse",
@@ -1363,7 +1363,7 @@
 						"k": "text",
 						"key": "name",
 						"p": {
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"shrink": 1,
 							"text": "Anna",
 							"truncate": "end",
@@ -1375,7 +1375,7 @@
 						"key": "meta",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.peek.meta",
+							"role": "zeta.tray.peek.meta",
 							"shrink": 1,
 							"text": "explore · opus-4.5 · 6 tools · 22%",
 							"truncate": "end",
@@ -1388,7 +1388,7 @@
 						"p": {
 							"age": 65000,
 							"format": "short",
-							"role": "omp.tray.time"
+							"role": "zeta.tray.time"
 						}
 					},
 					{
@@ -1435,7 +1435,7 @@
 				"k": "text",
 				"key": "task",
 				"p": {
-					"role": "omp.tray.peek.task",
+					"role": "zeta.tray.peek.task",
 					"text": "Audit callers",
 					"truncate": "end",
 					"wrap": "none"
@@ -1445,7 +1445,7 @@
 				"k": "col",
 				"key": "tail",
 				"p": {
-					"role": "omp.tray.tail"
+					"role": "zeta.tray.tail"
 				},
 				"c": [
 					{
@@ -1454,7 +1454,7 @@
 						"p": {
 							"align": "center",
 							"gap": "xs",
-							"role": "omp.tray.ev",
+							"role": "zeta.tray.ev",
 							"state": "ok"
 						},
 						"c": [
@@ -1462,7 +1462,7 @@
 								"k": "text",
 								"key": "tool",
 								"p": {
-									"role": "omp.tray.ev.tool",
+									"role": "zeta.tray.ev.tool",
 									"text": "read",
 									"wrap": "none"
 								}
@@ -1472,7 +1472,7 @@
 								"key": "text",
 								"p": {
 									"grow": 1,
-									"role": "omp.tray.ev.text",
+									"role": "zeta.tray.ev.text",
 									"text": "src/a.ts",
 									"truncate": "end",
 									"wrap": "none"
@@ -1486,7 +1486,7 @@
 						"p": {
 							"align": "center",
 							"gap": "xs",
-							"role": "omp.tray.ev",
+							"role": "zeta.tray.ev",
 							"state": "run"
 						},
 						"c": [
@@ -1494,7 +1494,7 @@
 								"k": "text",
 								"key": "tool",
 								"p": {
-									"role": "omp.tray.ev.tool",
+									"role": "zeta.tray.ev.tool",
 									"text": "grep",
 									"wrap": "none"
 								}
@@ -1504,7 +1504,7 @@
 								"key": "text",
 								"p": {
 									"grow": 1,
-									"role": "omp.tray.ev.text",
+									"role": "zeta.tray.ev.text",
 									"text": "greet(",
 									"truncate": "end",
 									"wrap": "none"
@@ -1516,7 +1516,7 @@
 								"p": {
 									"age": 6200,
 									"format": "short",
-									"role": "omp.tray.time"
+									"role": "zeta.tray.time"
 								}
 							}
 						]
@@ -1530,7 +1530,7 @@
 		"key": "peek",
 		"p": {
 			"ref": "j1",
-			"role": "omp.tray.peek"
+			"role": "zeta.tray.peek"
 		},
 		"c": [
 			{
@@ -1539,14 +1539,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.peek.head"
+					"role": "zeta.tray.peek.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"s": "error",
@@ -1560,7 +1560,7 @@
 						"k": "text",
 						"key": "name",
 						"p": {
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"shrink": 1,
 							"text": "bun test",
 							"truncate": "end",
@@ -1572,7 +1572,7 @@
 						"key": "meta",
 						"p": {
 							"grow": 1,
-							"role": "omp.tray.peek.meta",
+							"role": "zeta.tray.peek.meta",
 							"shrink": 1,
 							"text": "bun test --watch",
 							"truncate": "end",
@@ -1585,7 +1585,7 @@
 						"p": {
 							"age": 9000,
 							"format": "short",
-							"role": "omp.tray.time",
+							"role": "zeta.tray.time",
 							"stopped": 9000
 						}
 					},
@@ -1632,7 +1632,7 @@
 				"k": "text",
 				"key": "out",
 				"p": {
-					"role": "omp.tray.out",
+					"role": "zeta.tray.out",
 					"text": "a\nb\nc",
 					"tone": "error",
 					"wrap": "none"
@@ -1645,7 +1645,7 @@
 		"key": "peek",
 		"p": {
 			"ref": "done",
-			"role": "omp.tray.peek"
+			"role": "zeta.tray.peek"
 		},
 		"c": [
 			{
@@ -1654,14 +1654,14 @@
 				"p": {
 					"align": "center",
 					"gap": "xs",
-					"role": "omp.tray.peek.head"
+					"role": "zeta.tray.peek.head"
 				},
 				"c": [
 					{
 						"k": "text",
 						"key": "dot",
 						"p": {
-							"role": "omp.tray.dot",
+							"role": "zeta.tray.dot",
 							"spans": [
 								{
 									"s": "success",
@@ -1675,7 +1675,7 @@
 						"k": "text",
 						"key": "name",
 						"p": {
-							"role": "omp.tray.name",
+							"role": "zeta.tray.name",
 							"shrink": 1,
 							"text": "2 done",
 							"truncate": "end",
@@ -1702,7 +1702,7 @@
 				"k": "col",
 				"key": "done",
 				"p": {
-					"role": "omp.tray.done"
+					"role": "zeta.tray.done"
 				},
 				"c": [
 					{
@@ -1716,7 +1716,7 @@
 							"aria": "Bob, done, opus · 4m, All good",
 							"gap": "xs",
 							"ref": "Bob",
-							"role": "omp.tray.done.item",
+							"role": "zeta.tray.done.item",
 							"status": "done"
 						},
 						"c": [
@@ -1724,7 +1724,7 @@
 								"k": "text",
 								"key": "dot",
 								"p": {
-									"role": "omp.tray.dot",
+									"role": "zeta.tray.dot",
 									"spans": [
 										{
 											"s": "success",
@@ -1738,7 +1738,7 @@
 								"k": "text",
 								"key": "name",
 								"p": {
-									"role": "omp.tray.name",
+									"role": "zeta.tray.name",
 									"shrink": 1,
 									"text": "Bob",
 									"truncate": "end",
@@ -1749,7 +1749,7 @@
 								"k": "text",
 								"key": "meta",
 								"p": {
-									"role": "omp.tray.meta",
+									"role": "zeta.tray.meta",
 									"spans": [
 										{
 											"s": "dim",
@@ -1764,7 +1764,7 @@
 								"key": "line",
 								"p": {
 									"grow": 1,
-									"role": "omp.tray.line",
+									"role": "zeta.tray.line",
 									"shrink": 1,
 									"text": "All good",
 									"truncate": "end",
@@ -1781,7 +1781,7 @@
 							"aria": "Cy, failed",
 							"gap": "xs",
 							"ref": "Cy",
-							"role": "omp.tray.done.item",
+							"role": "zeta.tray.done.item",
 							"status": "failed"
 						},
 						"c": [
@@ -1789,7 +1789,7 @@
 								"k": "text",
 								"key": "dot",
 								"p": {
-									"role": "omp.tray.dot",
+									"role": "zeta.tray.dot",
 									"spans": [
 										{
 											"s": "error",
@@ -1803,7 +1803,7 @@
 								"k": "text",
 								"key": "name",
 								"p": {
-									"role": "omp.tray.name",
+									"role": "zeta.tray.name",
 									"shrink": 1,
 									"text": "Cy",
 									"truncate": "end",
@@ -1816,7 +1816,7 @@
 						"k": "text",
 						"key": "more",
 						"p": {
-							"role": "omp.tray.done.more",
+							"role": "zeta.tray.done.more",
 							"text": "+1 earlier",
 							"wrap": "none"
 						}

@@ -1,5 +1,5 @@
 /**
- * Wire protocol of the agent mesh: omp instances in one project directory
+ * Wire protocol of the agent mesh: zetacode instances in one project directory
  * messaging each other's agents through the daemon's `agents` room unit.
  *
  * Each instance attaches one tunnel (LF-delimited JSON) to its project's room.

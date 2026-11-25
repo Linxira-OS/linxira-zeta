@@ -559,7 +559,7 @@ fn takeover_user_choice(
 	}
 }
 
-/// Pointer presses omp posted to the HID event tap ([`note_hid_post`]).
+/// Pointer presses zetacode posted to the HID event tap ([`note_hid_post`]).
 static OWN_POINTER_PRESSES: AtomicU32 = AtomicU32::new(0);
 
 /// Counts `event_type` as omp's own pointer press when it is one; called just

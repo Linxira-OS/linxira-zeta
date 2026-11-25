@@ -255,7 +255,7 @@ export function OAuthSelector(props: OAuthSelectorProps): JSXNode {
 					: "No stored provider credentials to log out"
 				: "No matching providers";
 		return {
-			look: "omp.oauth",
+			look: "zeta.oauth",
 			title: login ? "Select provider to login" : "Select provider to logout",
 			maxRows: rows(),
 			statuses,

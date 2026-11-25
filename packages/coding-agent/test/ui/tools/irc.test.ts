@@ -25,7 +25,7 @@ test("IRC message cards use the active preset's directional glyphs in native and
 			if (!isUiNode(node)) throw new Error("Expected an IRC message card");
 			expect(describeTree(node, env)).toMatchObject({
 				k: "card",
-				p: { role: "omp.irc.relay", head: [{ s: "toolTitle strong", t: "IRC Anna  Ben" }] },
+				p: { role: "zeta.irc.relay", head: [{ s: "toolTitle strong", t: "IRC Anna  Ben" }] },
 			});
 			const ascii = staticEnvironment(loadThemeSync("dark", { symbolPreset: "ascii" }));
 			expect(paintNode(ascii, node, 100).rows.map(row => Bun.stripANSI(row))).toEqual(["# IRC Anna -> Ben"]);

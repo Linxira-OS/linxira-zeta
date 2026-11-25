@@ -123,7 +123,7 @@ function setWindowsConsoleTitle(title: string): boolean {
 }
 
 /**
- * Whether the live console title differs from `title`, the one omp last set.
+ * Whether the live console title differs from `title`, the one zetacode last set.
  * The console title is shared by every process attached to the console, so a
  * child (a worker, `browser-relay`, an npm `.cmd` shim's `title`) can replace
  * it behind the dedupe cache. Unreadable titles and the latched OSC fallback
@@ -1198,7 +1198,7 @@ export function initTerminalTitleState(): void {
 	// state — a frozen spinner frame. Mirror the enable path and re-arm.
 	if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
 	// A TSP terminal takes the plain native title while it renders; the
-	// classic `π > label` (and its spinner) comes back when it stops.
+	// classic `ζ > label` (and its spinner) comes back when it stops.
 	terminalTitleRuntime.unwatchNative ??= createRoot(dispose => {
 		let previous = untrack(nativeRendering);
 		effect(() => {

@@ -90,8 +90,8 @@ export async function showGitOverlay(shell: FullscreenShell, options: GitTuiOpti
 	await presentGitApp(shell, await createHost(options));
 }
 
-/** Run standalone repository review (`omp git`) until the user quits. */
+/** Run standalone repository review (`zetacode git`) until the user quits. */
 export async function runGitTui(options: GitTuiOptions = {}): Promise<void> {
 	const host = await createHost(options);
-	await withStandaloneShell({ title: "omp git" }, shell => presentGitApp(shell, host));
+	await withStandaloneShell({ title: "zetacode git" }, shell => presentGitApp(shell, host));
 }

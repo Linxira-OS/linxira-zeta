@@ -185,7 +185,7 @@ const BASH_PATTERN_APPROVAL_VALUES = new Set(["allow", "deny", "prompt"]);
  * preserves `bash` tool semantics (`$VAR`, `$(...)`, `source`, POSIX quoting,
  * `-l`) wherever a POSIX shell is available. The agent host's shell path is
  * used as a proxy for the client's, matching the near-universal ACP
- * deployment shape of an editor spawning omp as a co-hosted subprocess.
+ * deployment shape of an editor spawning zetacode as a co-hosted subprocess.
  */
 export function wrapShellLineForClientTerminal(
 	line: string,
@@ -1125,7 +1125,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 	 * id this call runs under: the agent's call in the transcript, or the eval
 	 * tool bridge's own id for a call made from an eval cell. Always
 	 * set every key: an empty value replaces a stale one inherited from a parent
-	 * omp process, since an env overlay cannot unset.
+	 * zetacode process, since an env overlay cannot unset.
 	 */
 	#sessionEnv(toolCallId: string): Record<string, string> {
 		return {
@@ -1147,7 +1147,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		cwd: string,
 		signal: AbortSignal | undefined,
 	): Promise<{ env: Record<string, string>; script: string }> {
-		const dumpPath = path.join(os.tmpdir(), `omp-shell-env-${crypto.randomUUID()}`);
+		const dumpPath = path.join(os.tmpdir(), `zetacode-shell-env-${crypto.randomUUID()}`);
 		const scriptPath = `${dumpPath}.sh`;
 		const quote = (file: string): string => `'${file.replaceAll("'", `'\\''`)}'`;
 		try {
@@ -1208,7 +1208,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 	): Promise<BashInteractiveResult> {
 		const seed = await this.#sessionSeed(run.sessionId, run.hostCwd, run.signal);
 		const script = run.mounts + seed.script;
-		const source = script ? path.join(os.tmpdir(), `omp-shell-seed-${crypto.randomUUID()}.sh`) : undefined;
+		const source = script ? path.join(os.tmpdir(), `zetacode-shell-seed-${crypto.randomUUID()}.sh`) : undefined;
 		// Set from the pty's start callback; a holder keeps the type from narrowing to `undefined`.
 		const board: { entry?: BoardEntry } = {};
 		try {
@@ -1916,7 +1916,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				`\`${invokedCommand}\` is a session tool command and cannot run in a PTY; run it without \`pty\`.`,
 			);
 		}
-		// Models trained on Codex call the apply_patch tool as a shell command; omp ships no such
+		// Models trained on Codex call the apply_patch tool as a shell command; zetacode ships no such
 		// program, so a patch given that way goes to the tool (through its own approval).
 		const shellPatch = applyPatchShellInput(command);
 		if (shellPatch !== undefined && !$which("apply_patch")) {
@@ -1942,7 +1942,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			const rewritten = rewriteGitWorktreeAdd(command, resolveCliEntryCmd());
 			if (rewritten !== command) {
 				pendingNotices.push(
-					"Ran `git worktree add` as `omp worktree add`: a copy-on-write clone of the checkout without .git, other worktrees, or untracked .env files. Set worktree.clone=false for plain git.",
+					"Ran `git worktree add` as `zetacode worktree add`: a copy-on-write clone of the checkout without .git, other worktrees, or untracked .env files. Set worktree.clone=false for plain git.",
 				);
 				command = rewritten;
 			}

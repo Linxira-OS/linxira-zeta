@@ -1,7 +1,7 @@
 /**
  * Tool looks: how the terminal backend paints one tool's `tool` node.
  *
- * The transcript's tool block (`omp.tool.*`, see `./block.ts`) handles what
+ * The transcript's tool block (`zeta.tool.*`, see `./block.ts`) handles what
  * every tool shares: transcript margins, hidden activity, compact presenter
  * lines and viewport allocations. Everything inside is the look's: the frame,
  * the head, the sections, the footer. A look is chosen by the node's

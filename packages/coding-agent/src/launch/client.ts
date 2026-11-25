@@ -23,7 +23,7 @@ const CONNECT_TIMEOUT_MS = 10_000;
 const CONNECT_RETRY_MS = 50;
 const TOKEN_FILE = "broker.token";
 /**
- * The broker must outlive whichever omp process happened to spawn it: other
+ * The broker must outlive whichever zetacode process happened to spawn it: other
  * clients (and persistent daemons) still hold its lease. Bun on Windows puts
  * every non-detached child in a kill-on-close job object owned by the parent,
  * so an undetached broker died with its spawner and took the scope's daemons
@@ -496,7 +496,7 @@ export async function daemonClientForGlobal(service: string): Promise<DaemonBrok
 	);
 }
 
-/** Close every project and machine-global broker connection held by this omp process. */
+/** Close every project and machine-global broker connection held by this zetacode process. */
 export async function closeDaemonClients(): Promise<void> {
 	const pending = [...sharedClients.values()];
 	sharedClients.clear();

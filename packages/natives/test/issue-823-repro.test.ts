@@ -313,7 +313,7 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 		// A file there may come from any build of this version and passes the
 		// release-version check, so falling back to it after a failed
 		// extraction would load another build's addon.
-		const versionedDir = "/home/u/.omp/natives/18.20.2";
+		const versionedDir = "/home/u/.zeta/natives/18.20.2";
 		const shared = path.join(versionedDir, "pi_natives.linux-x64-modern.node");
 		const userData = "/home/u/.local/bin/pi_natives.linux-x64-modern.node";
 		const own = path.join(versionedDir, "embedded-aaaa", "pi_natives.linux-x64-modern.node");

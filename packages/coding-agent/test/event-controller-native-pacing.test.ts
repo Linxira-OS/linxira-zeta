@@ -44,9 +44,9 @@ describe("EventController streaming into a terminal that paces text itself", () 
 	});
 
 	it("draws each delta whole only on a native surface, which types streamed text out itself", async () => {
-		// A text terminal: omp types the reply out, so the delta waits for reveal ticks.
+		// A text terminal: zetacode types the reply out, so the delta waits for reveal ticks.
 		expect(await drawnAfterOneDelta(false)).not.toBe(FULL);
-		// Tern renders natively and paces streamed `md`: omp hands over the text as it arrives.
+		// Tern renders natively and paces streamed `md`: zetacode hands over the text as it arrives.
 		expect(await drawnAfterOneDelta(true)).toBe(FULL);
 	});
 });

@@ -1,7 +1,7 @@
 /**
  * `agents` module: the switchboard of the agent mesh (`irc/mesh-protocol.ts`).
  *
- * One unit per project scope is the room. Every omp instance in that project
+ * One unit per project scope is the room. Every zetacode instance in that project
  * attaches one tunnel. The room fans out peer status to its members and
  * forwards `send`s to the recipient instance and its receipt back.
  * It holds no mailbox: an absent recipient fails the send at once.
@@ -105,7 +105,7 @@ class RoomUnit implements ModuleUnit {
 						receipt: {
 							to,
 							outcome: "failed",
-							error: `No omp instance with pid ${message.toPid} in this project.`,
+							error: `No zetacode instance with pid ${message.toPid} in this project.`,
 						},
 					});
 					return;

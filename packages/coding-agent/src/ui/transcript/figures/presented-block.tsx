@@ -31,18 +31,18 @@ export interface PresentedFacts {
 
 /** Roles a compact presented row can carry (each has the compact terminal look). */
 export const PRESENTED_ROLES = [
-	"omp.presented",
-	"omp.notice.ttsr",
-	"omp.notice.todo",
-	"omp.advisor",
-	"omp.skill",
-	"omp.diagnostics.late",
-	"omp.notice.async",
+	"zeta.presented",
+	"zeta.notice.ttsr",
+	"zeta.notice.todo",
+	"zeta.advisor",
+	"zeta.skill",
+	"zeta.diagnostics.late",
+	"zeta.notice.async",
 ] as const;
 
 /** Terminal facts of a compact presented row. */
 export type PresentedTerm = {
-	readonly role: "omp.presented";
+	readonly role: "zeta.presented";
 	/** The summary row (omp's), or undefined when the presenter gave a label. */
 	readonly summary?: readonly TspSpan[];
 };
@@ -87,11 +87,11 @@ export function presentedFacts(block: TranscriptBlock): PresentedFacts | undefin
 		const event = block.event;
 		if (event.type === "ttsr_triggered") {
 			const target = event.rules.map(rule => oneLine(rule.name)).join(", ");
-			return { name: "ttsr", title: "Rule", role: "omp.notice.ttsr", target, summary: titled("Rule", target) };
+			return { name: "ttsr", title: "Rule", role: "zeta.notice.ttsr", target, summary: titled("Rule", target) };
 		}
 		const open = event.todos.filter(todo => todo.status !== "completed").length;
 		const target = `${plural(open, "open todo")} · attempt ${event.attempt}/${event.maxAttempts}`;
-		return { name: "todo", title: "Todos", role: "omp.notice.todo", target, summary: titled("Todos", target) };
+		return { name: "todo", title: "Todos", role: "zeta.notice.todo", target, summary: titled("Todos", target) };
 	}
 	if (block.type !== "message") return undefined;
 	const message = block.message;
@@ -107,24 +107,24 @@ export function presentedFacts(block: TranscriptBlock): PresentedFacts | undefin
 			const target = [plural(notes.length, "note"), ...(blockers > 0 ? [plural(blockers, "blocker")] : [])].join(
 				" · ",
 			);
-			return { name: "advisor", title: "Advisor", role: "omp.advisor", target, summary: titled("Advisor", target) };
+			return { name: "advisor", title: "Advisor", role: "zeta.advisor", target, summary: titled("Advisor", target) };
 		}
 		case "skill-prompt": {
 			const target = oneLine(typeof details.name === "string" ? details.name : "");
-			return { name: "skill", title: "Skill", role: "omp.skill", target, summary: titled("Skill", target) };
+			return { name: "skill", title: "Skill", role: "zeta.skill", target, summary: titled("Skill", target) };
 		}
 		case "lsp-late-diagnostic":
 			return {
 				name: "diagnostics",
 				title: "Diagnostics",
-				role: "omp.diagnostics.late",
+				role: "zeta.diagnostics.late",
 				summary: titled("Diagnostics", undefined),
 			};
 		default:
 			return {
 				name: message.customType,
 				title: message.customType,
-				role: "omp.notice.async",
+				role: "zeta.notice.async",
 				summary: titled(message.customType, undefined),
 			};
 	}
@@ -203,7 +203,7 @@ function compactNode(
 		};
 	});
 	const term: PresentedTerm = {
-		role: "omp.presented",
+		role: "zeta.presented",
 		...(spec?.label === undefined ? { summary: facts.summary } : {}),
 	};
 	const rows = spec?.rows ?? [];

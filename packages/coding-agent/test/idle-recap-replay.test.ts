@@ -15,7 +15,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let root: string;
 
 beforeAll(async () => {
@@ -31,8 +31,8 @@ beforeEach(() => {
 
 afterEach(() => {
 	closeSessionIndex();
-	if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-	else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+	if (originalAgentDir === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+	else process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
 	__resetDirsFromEnvForTests();
 	removeSyncWithRetries(root);
 });

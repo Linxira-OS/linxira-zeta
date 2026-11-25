@@ -33,7 +33,7 @@ export function restoreSettingsTestState(state: SettingsTestState | undefined): 
 	restoreEnv(state.env);
 	setProjectDir(state.projectDir);
 	setAgentDir(state.agentDir);
-	restoreEnvValue("PI_CODING_AGENT_DIR", state.env.PI_CODING_AGENT_DIR);
+	restoreEnvValue("ZETA_CODING_AGENT_DIR", state.env.ZETA_CODING_AGENT_DIR);
 }
 
 function restoreEnv(snapshot: Record<string, string | undefined>): void {

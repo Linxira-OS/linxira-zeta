@@ -62,7 +62,7 @@ describe("the bash card's shell inspector in Tern", () => {
 		const page = ui.surface();
 		expect({ mode: page.mode, role: page.role, focus: page.focus }).toEqual({
 			mode: "screen",
-			role: "omp.session",
+			role: "zeta.session",
 			focus: null,
 		});
 		expect(page.main.map(node => node.k)).toEqual(["shell"]);

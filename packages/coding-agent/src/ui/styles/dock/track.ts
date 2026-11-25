@@ -1,7 +1,7 @@
 /**
- * Terminal look of the role-cycle track (`row` `omp.track`): a blank row,
+ * Terminal look of the role-cycle track (`row` `zeta.track`): a blank row,
  * then the inset labels in their colors joined by a thin `┆`
- * (`statusLineSep`); the active one (`omp.track.active`) is a powerline chip:
+ * (`statusLineSep`); the active one (`zeta.track.active`) is a powerline chip:
  * caps in its color around ` label ` filled with it, the label bold in black
  * or white by the fill's luma. Two spaces part the chip from its neighbours.
  */
@@ -32,7 +32,7 @@ function paintTrack(node: UiNode, cx: PaintContext): Block {
 		return {
 			label: span?.t ?? "",
 			color: span?.s ?? "accent",
-			active: props.role === "omp.track.active",
+			active: props.role === "zeta.track.active",
 		};
 	});
 	let track = "";
@@ -49,4 +49,4 @@ function paintTrack(node: UiNode, cx: PaintContext): Block {
 	return { rows: ["", " ".repeat(paddingX) + truncate(track, Math.max(1, cx.width - 2 * paddingX))] };
 }
 
-defineRolePainter("row", "omp.track", paintTrack);
+defineRolePainter("row", "zeta.track", paintTrack);

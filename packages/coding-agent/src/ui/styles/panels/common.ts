@@ -100,7 +100,7 @@ export function findNode(node: UiNode, test: (node: UiNode) => boolean): UiNode 
 	return undefined;
 }
 
-/** The text of a key hint strip (`omp.overlay.hints`): `⎋ cancel  ⏎ submit`. */
+/** The text of a key hint strip (`zeta.overlay.hints`): `⎋ cancel  ⏎ submit`. */
 export function hintText(hints: UiNode, separator = "  "): string {
 	const parts: string[] = [];
 	for (const hint of hints.children()) {

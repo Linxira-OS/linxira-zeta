@@ -182,7 +182,7 @@ const STEP_PHASE: Readonly<Record<WizardStepId, number>> = {
 const TRANSPORTS: readonly TransportType[] = ["stdio", "http", "sse"];
 export const TRANSPORT_CHOICES: Readonly<Record<TransportType, { icon: string; label: string; description: string }>> =
 	{
-		stdio: { icon: "terminal", label: "Local command", description: "omp starts it on this machine" },
+		stdio: { icon: "terminal", label: "Local command", description: "zetacode starts it on this machine" },
 		http: { icon: "globe", label: "Remote server", description: "Streamable HTTP endpoint" },
 		sse: { icon: "broadcast", label: "Server-sent events", description: "Older HTTP servers" },
 	};
@@ -430,15 +430,15 @@ export class MCPAddWizardModel {
 				});
 			case "transport":
 				return this.#choice({
-					title: "How does omp reach it?",
-					lead: `Pick how ${s.name} talks to omp.`,
+					title: "How does zetacode reach it?",
+					lead: `Pick how ${s.name} talks to zeta.`,
 					choices: TRANSPORTS.map(transport => ({ ...TRANSPORT_CHOICES[transport], tag: transport })),
 					escape: "go back",
 				});
 			case "command":
 				return this.#input({
 					title: "Command",
-					lead: "The program omp starts for this server.",
+					lead: "The program zetacode starts for this server.",
 					initial: s.command,
 					placeholder: "npx",
 					escape: "go back",
@@ -447,7 +447,7 @@ export class MCPAddWizardModel {
 			case "args":
 				return this.#input({
 					title: "Arguments",
-					lead: `Passed to ${s.command}, separated by spaces. omp tries the connection next.`,
+					lead: `Passed to ${s.command}, separated by spaces. zetacode tries the connection next.`,
 					initial: s.args,
 					placeholder: "-y @modelcontextprotocol/server-github",
 					optional: true,
@@ -455,7 +455,7 @@ export class MCPAddWizardModel {
 			case "url":
 				return this.#input({
 					title: "Server URL",
-					lead: `Where ${s.name} listens. omp tries the connection next.`,
+					lead: `Where ${s.name} listens. zetacode tries the connection next.`,
 					initial: s.url,
 					placeholder: "https://mcp.example.com/mcp",
 					note: "Starts with http:// or https://",
@@ -466,7 +466,7 @@ export class MCPAddWizardModel {
 			case "auth-method":
 				return this.#choice({
 					title: "How does it authenticate?",
-					lead: `${s.name} needs credentials before omp can use it.`,
+					lead: `${s.name} needs credentials before zetacode can use it.`,
 					choices: [
 						{ icon: "log-in", label: "Sign in with OAuth", description: "Opens your browser" },
 						{ icon: "key", label: "API key or token", description: "Paste it, or run a command that prints it" },
@@ -535,7 +535,7 @@ export class MCPAddWizardModel {
 			case "oauth-scopes":
 				return this.#input({
 					title: "Scopes",
-					lead: "What omp may access, separated by spaces. Sign-in starts next.",
+					lead: "What zetacode may access, separated by spaces. Sign-in starts next.",
 					initial: s.oauthScopes,
 					placeholder: "read write",
 					escape: "go back",
@@ -970,7 +970,7 @@ export class MCPAddWizardModel {
 			phase: 2,
 			title: "Trying the connection",
 			tone: "accent",
-			lead: "omp connects once to see whether the server needs credentials.",
+			lead: "zetacode connects once to see whether the server needs credentials.",
 			lines: [{ text: `Connecting to ${displayText(target)}…`, tone: "muted" }],
 			statuses: [{ key: "status", state: "busy", label: ["Connecting to ", replaceTabs(target)] }],
 		});
@@ -1000,7 +1000,7 @@ export class MCPAddWizardModel {
 					phase: 2,
 					title: "Couldn't connect",
 					tone: "warning",
-					lead: "omp saves the server anyway; fix it later with /mcp.",
+					lead: "zetacode saves the server anyway; fix it later with /mcp.",
 					lines: [
 						{ text: displayText(error instanceof Error ? error.message : String(error)) },
 						{ text: "" },
@@ -1149,7 +1149,7 @@ export class MCPAddWizardModel {
 			phase: PHASE_AUTH,
 			title: "Checking the server",
 			tone: "success" as const,
-			lead: "omp tries the new credentials before saving.",
+			lead: "zetacode tries the new credentials before saving.",
 			checks: true,
 		};
 		this.ticks = 0;
@@ -1195,7 +1195,7 @@ export class MCPAddWizardModel {
 						],
 						statuses: [
 							signedIn,
-							{ key: "health", state: "warn", label: "The server didn't answer; omp saves it anyway" },
+							{ key: "health", state: "warn", label: "The server didn't answer; zetacode saves it anyway" },
 						],
 						error: errorText(failure),
 					}

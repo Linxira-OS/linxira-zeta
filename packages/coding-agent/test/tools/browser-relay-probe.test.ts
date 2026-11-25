@@ -309,7 +309,7 @@ describe("relayExtensionNotice", () => {
 		expect(notice).toContain(UPDATE_RELAY_EXTENSION);
 	});
 
-	it("flags an extension installed before omp stamped its version", async () => {
+	it("flags an extension installed before zetacode stamped its version", async () => {
 		const port = await startRelay();
 		await connectExtension(port, EXTENSION_HELLO);
 		const notice = await relayExtensionNotice(`http://127.0.0.1:${port}`);

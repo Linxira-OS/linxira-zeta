@@ -18,7 +18,7 @@ export interface ErrorBannerTerm {
 	readonly message: string;
 }
 
-defineRolePainter("row", "omp.errorBanner", (node, cx): Block => {
+defineRolePainter("row", "zeta.errorBanner", (node, cx): Block => {
 	const theme = cx.theme;
 	const term = (node.props() as { term?: ErrorBannerTerm }).term;
 	const lines = (term?.message ?? "")

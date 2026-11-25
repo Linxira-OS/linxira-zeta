@@ -60,7 +60,7 @@ describe("ModelRegistry runtime discovery", () => {
 		delete Bun.env.OLLAMA_HOST;
 		delete Bun.env.OLLAMA_CONTEXT_LENGTH;
 		delete Bun.env.ANTHROPIC_API_KEY;
-		// The developer's shell or ~/.omp/agent/.env must not redirect llama.cpp discovery probes.
+		// The developer's shell or ~/.zeta/agent/.env must not redirect llama.cpp discovery probes.
 		originalLlamaCppBaseUrl = Bun.env.LLAMA_CPP_BASE_URL;
 		delete Bun.env.LLAMA_CPP_BASE_URL;
 		tempDir = path.join(os.tmpdir(), `pi-test-model-registry-${Snowflake.next()}`);
@@ -343,7 +343,7 @@ describe("ModelRegistry runtime discovery", () => {
 			const session = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
 			await session.refresh("online-if-uncached");
 
-			// A later process (`omp models refresh`, a new session) sees the provider's new model.
+			// A later process (`zetacode models refresh`, a new session) sees the provider's new model.
 			served = ["old-model", "new-model"];
 			await new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock }).refresh("online");
 

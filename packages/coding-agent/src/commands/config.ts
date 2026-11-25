@@ -32,7 +32,7 @@ export default class Config extends Command {
 		json: Flags.boolean({ description: "Output JSON" }),
 		scope: Flags.string({
 			description:
-				'With list: only the keys the "global" (config.yml in the agent dir) or "project" (<cwd>/.omp) layer sets, as written',
+				'With list: only the keys the "global" (config.yml in the agent dir) or "project" (<cwd>/.zeta) layer sets, as written',
 			options: ["global", "project"],
 		}),
 	};

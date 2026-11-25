@@ -271,7 +271,7 @@ export function toolNode(
 }
 
 /** Role of harness tool nodes: painted by the tool's look alone, without the block's margins (what a `tools/<name>` stage records). */
-const LOOK_ONLY_ROLE = "omp.test.tool-look";
+const LOOK_ONLY_ROLE = "zeta.test.tool-look";
 defineRolePainter("tool", LOOK_ONLY_ROLE, paintToolLook);
 
 /** Paints a view with its tool look. */

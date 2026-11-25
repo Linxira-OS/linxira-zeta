@@ -46,7 +46,7 @@ export function holdSharedMcp(enabled: boolean): { set(enabled: boolean): void; 
 	};
 }
 
-/** Units in the daemon's `mcp` module, shared with every omp process of this user. */
+/** Units in the daemon's `mcp` module, shared with every zetacode process of this user. */
 class DaemonMcpAccess implements McpHostAccess {
 	readonly shared = true;
 	readonly #daemon: DaemonClient;

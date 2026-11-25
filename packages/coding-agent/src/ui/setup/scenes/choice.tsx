@@ -112,7 +112,7 @@ export class ChoiceModel<T extends string> {
 	}
 }
 
-/** The choices as an `omp.select` list. */
+/** The choices as an `zeta.select` list. */
 export function ChoiceList<T extends string>(props: { readonly model: ChoiceModel<T> }): JSXNode {
 	const model = props.model;
 	return (

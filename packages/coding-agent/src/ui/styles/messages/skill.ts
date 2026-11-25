@@ -1,5 +1,5 @@
 /**
- * Skill invocations (`card` role `omp.skill`).
+ * Skill invocations (`card` role `zeta.skill`).
  *
  * - Callout (the skill led the draft): a `userMessageBg` box one row and one
  *   cell in, behind a `customMessageLabel` rail (`▎`) down its left edge; the
@@ -64,4 +64,4 @@ function paintSkill(node: UiNode, cx: PaintContext): Block {
 	return { rows: term.expanded ? [...bubble, ...callout] : bubble };
 }
 
-defineRolePainter("card", "omp.skill", paintSkill);
+defineRolePainter("card", "zeta.skill", paintSkill);

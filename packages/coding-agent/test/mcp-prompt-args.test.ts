@@ -5,7 +5,7 @@
  * server that declares prompt `arguments` received a bare trailing word as a no-argument call: the
  * user typed `/server:prompt value`, the prompt got `{}`, and a prompt that reasonably refuses to
  * guess its subject answered by asking for the value the user had just typed. Claude Code already
- * maps leftover tokens onto the declared arguments in order; `mapPromptArguments` gives omp the same
+ * maps leftover tokens onto the declared arguments in order; `mapPromptArguments` gives zetacode the same
  * behavior while keeping `key=value` spellings intact.
  */
 import { describe, expect, it } from "bun:test";

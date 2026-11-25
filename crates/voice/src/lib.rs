@@ -1,7 +1,7 @@
 //! Native voice engine: microphone capture, speaker playback, and the WebRTC
 //! live-conversation peer.
 //!
-//! napi-free by design. `omp-natives` wraps these types in thin `#[napi]`
+//! napi-free by design. `zetacode-natives` wraps these types in thin `#[napi]`
 //! adapters, so the webrtc/opus dependency graph compiles once into this
 //! rlib and rebuilds only when voice code changes — never when the N-API
 //! surface elsewhere in the addon does.

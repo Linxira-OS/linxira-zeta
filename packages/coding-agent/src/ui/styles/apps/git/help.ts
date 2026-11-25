@@ -1,5 +1,5 @@
 /**
- * `omp.app.git.help`: the git app's shortcuts sheet in the terminal. A bold
+ * `zeta.app.git.help`: the git app's shortcuts sheet in the terminal. A bold
  * title, then per group a blank row, the muted group title and one
  * `  keys  description` row per shortcut (keys in `accent`, all in one
  * column), then a blank row and the dim close hint. Every row is indented one
@@ -11,7 +11,7 @@ import type { GitShortcutGroup } from "../../../apps/git/help";
 import { keyLabel } from "../../../keys/hints";
 import { termOf } from "../../panels/common";
 
-defineRolePainter("col", "omp.app.git.help", (node, cx) => {
+defineRolePainter("col", "zeta.app.git.help", (node, cx) => {
 	const theme = cx.theme;
 	const source = termOf<{ groups: readonly GitShortcutGroup[] }>(node).groups ?? [];
 	const groups = source.map(group => ({

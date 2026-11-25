@@ -5,7 +5,7 @@
  * the terminal draws the same diagnostics tree the edit and write tools do.
  * Tool activity: hidden with it.
  *
- * Terminal look: `omp.diagnostics.late` (`src/ui/styles/messages/diagnostics.ts`).
+ * Terminal look: `zeta.diagnostics.late` (`src/ui/styles/messages/diagnostics.ts`).
  */
 import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
 import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";

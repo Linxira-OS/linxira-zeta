@@ -545,7 +545,7 @@ export async function installScreenshotAnnotations(
 	targets: readonly ScreenshotAnnotationTarget[],
 	signal: AbortSignal | undefined,
 ): Promise<() => Promise<void>> {
-	const token = `omp-screenshot-${crypto.randomUUID()}`;
+	const token = `zetacode-screenshot-${crypto.randomUUID()}`;
 	await untilAborted(signal, () => page.evaluate(installAnnotationOverlayInPage, { token, targets: [...targets] }));
 	return async () => {
 		await page.evaluate(removeAnnotationOverlayInPage, token).catch(() => undefined);

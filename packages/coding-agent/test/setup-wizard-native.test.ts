@@ -46,9 +46,9 @@ function names(nodes: readonly Shape[] | undefined): string[] {
 	return (nodes ?? []).map(node => (node.p?.role ? `${node.k}:${String(node.p.role)}` : node.k));
 }
 
-/** Which wizard screen `page` shows: what stands under `omp.setup`. */
+/** Which wizard screen `page` shows: what stands under `zeta.setup`. */
 function screen(page: NativePage | undefined): string[] {
-	return names(byRole(region(page, "main"), "omp.setup")?.c);
+	return names(byRole(region(page, "main"), "zeta.setup")?.c);
 }
 
 /** Let promise continuations and queued microtasks of the last input run. */
@@ -123,21 +123,21 @@ describe("the setup page in Tern", () => {
 		await using ui = await nativeShell();
 		const done = runProviderSetupWizard(setupContext(ui.shell).ctx);
 
-		expect(ui.page()?.role).toBe("omp.app.setup");
-		expect(names(region(ui.page(), "main"))).toEqual(["col:omp.setup"]);
-		expect(screen(ui.page())).toEqual(["col:omp.setup.splash"]);
+		expect(ui.page()?.role).toBe("zeta.app.setup");
+		expect(names(region(ui.page(), "main"))).toEqual(["col:zeta.setup"]);
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.splash"]);
 		expect(region(ui.page(), "dock")).toEqual([]);
 		expect(region(ui.page(), "layer")).toEqual([]);
 
 		ui.type(ESCAPE);
 		await settle();
 		// The step is the scene under the setup header; its provider sheet sits in the page's layer.
-		expect(screen(ui.page())).toEqual(["col:omp.setup.scene"]);
-		expect(names(byRole(region(ui.page(), "main"), "omp.setup.scene")?.c)).toEqual([
-			"row:omp.setup.head",
-			"col:omp.setup.body",
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.scene"]);
+		expect(names(byRole(region(ui.page(), "main"), "zeta.setup.scene")?.c)).toEqual([
+			"row:zeta.setup.head",
+			"col:zeta.setup.body",
 		]);
-		expect(names(region(ui.page(), "layer"))).toEqual(["picker:omp.setup.sheet"]);
+		expect(names(region(ui.page(), "layer"))).toEqual(["picker:zeta.setup.sheet"]);
 		expect(region(ui.page(), "layer")[0]?.p?.title).toBe("Sign in to your providers");
 
 		ui.type(CTRL_C);
@@ -156,11 +156,11 @@ describe("the setup page in Tern", () => {
 
 		ui.type(ESCAPE);
 		await settle();
-		expect(names(region(ui.page(), "layer"))).toEqual(["picker:omp.setup.sheet"]);
+		expect(names(region(ui.page(), "layer"))).toEqual(["picker:zeta.setup.sheet"]);
 
 		ui.type(ESCAPE);
 		await settle();
-		expect(screen(ui.page())).toEqual(["col:omp.setup.outro"]);
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.outro"]);
 		expect(region(ui.page(), "layer")).toEqual([]);
 		expect(closed).toBe(false);
 
@@ -180,7 +180,7 @@ describe("the setup page in Tern", () => {
 
 		ui.type(CTRL_C);
 		await settle();
-		expect(screen(ui.page())).toEqual(["col:omp.setup.outro"]);
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.outro"]);
 
 		ui.type(SPACE);
 		await done;
@@ -193,7 +193,7 @@ describe("the setup page in Tern", () => {
 
 		ui.click("col", "splash");
 		await settle();
-		expect(screen(ui.page())).toEqual(["col:omp.setup.scene"]);
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.scene"]);
 
 		ui.type(CTRL_C);
 		await settle();
@@ -210,17 +210,17 @@ describe("the setup page in Tern", () => {
 
 		ui.type(ENTER);
 		await settle();
-		expect(names(region(ui.page(), "layer"))).toEqual(["overlay:omp.overlay.login"]);
+		expect(names(region(ui.page(), "layer"))).toEqual(["overlay:zeta.overlay.login"]);
 		// Where the dialog is mounted the page keeps bare columns: the sheet is all Tern draws of it.
-		expect(byRole(region(ui.page(), "main"), "omp.setup.body")?.c).toEqual([{ k: "col", c: [{ k: "col" }] }]);
+		expect(byRole(region(ui.page(), "main"), "zeta.setup.body")?.c).toEqual([{ k: "col", c: [{ k: "col" }] }]);
 
 		ui.type("sk");
 		expect(ui.node("input").p.text).toBe("sk");
 
 		ui.type(ESCAPE);
 		await settle();
-		expect(names(region(ui.page(), "layer"))).toEqual(["picker:omp.setup.sheet"]);
-		expect(screen(ui.page())).toEqual(["col:omp.setup.scene"]);
+		expect(names(region(ui.page(), "layer"))).toEqual(["picker:zeta.setup.sheet"]);
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.scene"]);
 
 		ui.type(ESCAPE);
 		ui.type(ESCAPE);
@@ -243,23 +243,23 @@ describe("the setup page in Tern", () => {
 		const sheet = region(ui.page(), "layer")[0];
 		expect(sheet?.k).toBe("picker");
 		expect(sheet?.p).toMatchObject({
-			role: "omp.setup.sheet",
+			role: "zeta.setup.sheet",
 			title: "Choose your default model",
 			selected: "parity/alpha",
 			total: 2,
 		});
 		// The stepper marks the finished step and the current one.
-		expect(names(byRole(region(ui.page(), "main"), "omp.setup.steps")?.c)).toEqual([
-			"row:omp.setup.step",
-			"rule:omp.setup.step.line",
-			"row:omp.setup.step",
+		expect(names(byRole(region(ui.page(), "main"), "zeta.setup.steps")?.c)).toEqual([
+			"row:zeta.setup.step",
+			"rule:zeta.setup.step.line",
+			"row:zeta.setup.step",
 		]);
 
 		ui.type(ENTER);
 		await settle();
 		expect(events).toEqual(["setModel parity/alpha"]);
-		expect(screen(ui.page())).toEqual(["col:omp.setup.outro"]);
-		expect(byRole(region(ui.page(), "main"), "omp.setup.outro.model")?.p?.spans).toEqual([
+		expect(screen(ui.page())).toEqual(["col:zeta.setup.outro"]);
+		expect(byRole(region(ui.page(), "main"), "zeta.setup.outro.model")?.p?.spans).toEqual([
 			{ s: "muted", t: "Default model" },
 			{ s: "dim", t: " · " },
 			{ s: "muted", t: "Alpha Local" },
@@ -276,8 +276,8 @@ describe("the setup page in Tern", () => {
 		await using ui = await nativeShell();
 		const done = runStartupSplash(setupContext(ui.shell).ctx);
 
-		expect(ui.page()?.role).toBe("omp.app.setup");
-		expect(names(region(ui.page(), "main"))).toEqual(["col:omp.setup.splash"]);
+		expect(ui.page()?.role).toBe("zeta.app.setup");
+		expect(names(region(ui.page(), "main"))).toEqual(["col:zeta.setup.splash"]);
 		expect(region(ui.page(), "dock")).toEqual([]);
 
 		ui.type(ENTER);

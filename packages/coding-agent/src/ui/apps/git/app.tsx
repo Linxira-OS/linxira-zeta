@@ -1,11 +1,11 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The `omp git` app (see {@link GitAppModel}): natively the diff pane under a
+ * The `zetacode git` app (see {@link GitAppModel}): natively the diff pane under a
  * toolbar (file, `+a −d`, scope, change navigation, the view switch,
  * whitespace and wrap toggles, Stage file, help, close) beside the changes
  * sheet, which narrow terminals stack under the diff. The terminal draws the
  * whole screen (header, toolbar, diff, divider, sidebar) through the
- * `omp.app.git` look. Mount it full size (`<overlay size="full">`), with
+ * `zeta.app.git` look. Mount it full size (`<overlay size="full">`), with
  * {@link GitHelpOverlay} above it for the `?` sheet.
  */
 import { type JSXNode, nativeRendering, type PasteEvent, type UiNode } from "@linxiraos/pi-tui";

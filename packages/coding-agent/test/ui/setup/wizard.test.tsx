@@ -32,7 +32,7 @@ import { corpusModel, fakeHost } from "./host";
 const restoreTheme = currentTheme();
 afterAll(() => setCurrentTheme(restoreTheme));
 
-setAgentDir("/corpus-home/.omp/agent");
+setAgentDir("/corpus-home/.zeta/agent");
 
 const VERSION = "19.1.1";
 

@@ -4,7 +4,7 @@
  * transcript shows: natively a `shell` node in inspector mode; without a
  * presentation, the plain notice.
  *
- * The terminal shows the classic inspector (the `omp.app.shell` look): the
+ * The terminal shows the classic inspector (the `zeta.app.shell` look): the
  * key help and layer states, the presentation rows, and the selected node's
  * details in a pane under them.
  */

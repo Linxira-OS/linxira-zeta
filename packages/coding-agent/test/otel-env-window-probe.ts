@@ -12,7 +12,7 @@
  *   metric with each signal's `.env` endpoint and headers plus the resource
  *   attributes, and leaves no `OTEL_*` behind in `process.env`.
  * - `init-log-none` / `init-disabled`: the same path with `OTEL_LOG_LEVEL=none`
- *   or `OTEL_SDK_DISABLED=true` in the agent `.env`, which omp itself must
+ *   or `OTEL_SDK_DISABLED=true` in the agent `.env`, which zetacode itself must
  *   honor through `$otelEnv`.
  */
 import { flushTelemetryExport, initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";

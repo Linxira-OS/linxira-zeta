@@ -38,7 +38,7 @@ export const cfgMcpShared = register({
 		group: "Discovery & MCP",
 		label: "Shared MCP Servers",
 		description:
-			"Run MCP servers through the daemon so every omp instance shares one process per server and a cached tool catalog. Servers that hold a session keep one process per instance (falls back to private servers when unavailable)",
+			"Run MCP servers through the daemon so every zetacode instance shares one process per server and a cached tool catalog. Servers that hold a session keep one process per instance (falls back to private servers when unavailable)",
 	},
 });
 

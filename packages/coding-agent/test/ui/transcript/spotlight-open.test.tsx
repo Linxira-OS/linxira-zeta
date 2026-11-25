@@ -60,11 +60,11 @@ describe("transcript Spotlight notices", () => {
 			cwd: "/",
 		});
 		pending.updateResult({ content: [{ type: "text", text: "a\nb" }], details: {} }, false, "c1");
-		expect(find(pending.block.node, "omp.tool.spotlight")).toBeUndefined();
+		expect(find(pending.block.node, "zeta.tool.spotlight")).toBeUndefined();
 		const plain = renderTranscript(ctx);
 
 		pending.updateResult({ content: [{ type: "text", text: "a\nb" }], details: { spotlight: SHAPED } }, false, "c1");
-		expect(find(pending.block.node, "omp.tool.spotlight")).toBeDefined();
+		expect(find(pending.block.node, "zeta.tool.spotlight")).toBeDefined();
 		expect(renderTranscript(ctx)).toEqual(plain);
 	});
 });

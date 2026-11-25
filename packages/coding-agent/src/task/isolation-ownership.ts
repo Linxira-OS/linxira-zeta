@@ -79,7 +79,7 @@ export async function writeIsolationOwner(baseDir: string, id: string): Promise<
 }
 
 /**
- * Whether a live omp process still owns the sandbox at `baseDir`.
+ * Whether a live zetacode process still owns the sandbox at `baseDir`.
  *
  * A missing or malformed marker means no verifiable owner — a crashed run or a
  * sandbox from before markers existed, both safe to reclaim. `process.kill(pid,

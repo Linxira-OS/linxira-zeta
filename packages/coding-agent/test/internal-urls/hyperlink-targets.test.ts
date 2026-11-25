@@ -126,14 +126,14 @@ describe("resource links in assistant replies", () => {
 		);
 	});
 
-	it("links omp:// docs to the file the active corpus was read from", async () => {
-		// `omp://` docs are embedded in the shipped build, so a link only exists
+	it("links zeta:// docs to the file the active corpus was read from", async () => {
+		// `zeta://` docs are embedded in the shipped build, so a link only exists
 		// where the corpus is read from the repo `docs/` tree.
 		const docPath = "tools/read.md";
-		const href = `omp://${docPath}`;
+		const href = `zeta://${docPath}`;
 		const root = getDocsDiskRoot();
 		const onDisk = root === null ? undefined : path.join(root, docPath);
-		const targets = await replyLinkTargets(`[read docs](${href}) and [missing docs](omp://no-such-doc.md)`);
+		const targets = await replyLinkTargets(`[read docs](${href}) and [missing docs](zeta://no-such-doc.md)`);
 		// The unknown doc keeps its plain URL instead of gaining a file link.
 		expect([...targets]).toEqual(onDisk === undefined ? [] : [[href, url.pathToFileURL(onDisk).href]]);
 	});

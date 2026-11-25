@@ -15,7 +15,7 @@
  *
  * Compact blocks (one-row notices, markers) pack against compact neighbours:
  * the terminal draws no blank row between them and Tern shows the run as one
- * gapless block (a `col` with role `omp.compact`).
+ * gapless block (a `col` with role `zeta.compact`).
  */
 import {
 	type Accessor,
@@ -89,7 +89,7 @@ export interface TranscriptHost {
 const NOT_COMPACT: Accessor<boolean> = () => false;
 
 /** Registers a settle hold with the block being built. */
-const SettleHolds = createContext<((pending: Accessor<boolean>) => void) | undefined>(undefined, "omp.settleHolds");
+const SettleHolds = createContext<((pending: Accessor<boolean>) => void) | undefined>(undefined, "zeta.settleHolds");
 
 /**
  * Keep the transcript block being built live while `pending` is true, even
@@ -102,7 +102,7 @@ export function holdSettle(pending: Accessor<boolean>): void {
 }
 
 /** Describes the block being built again once it is settled (see {@link settledRevision}). */
-const SettledRevision = createContext<(() => void) | undefined>(undefined, "omp.settledRevision");
+const SettledRevision = createContext<(() => void) | undefined>(undefined, "zeta.settledRevision");
 
 /**
  * How content of the transcript block being built says it changed after the
@@ -468,7 +468,7 @@ function paintBlock(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("col", "omp.block", paintBlock);
+defineRolePainter("col", "zeta.block", paintBlock);
 
 /** The native wrapper of a compact run: a gapless column over the run's members. */
 interface CompactRun {

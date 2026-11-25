@@ -321,7 +321,7 @@ describe("AgentSession retry fallback", () => {
 	let session: AgentSession | undefined;
 
 	// Restored in afterEach after any test that redirects the agent dir.
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const originalPiProfile = process.env.PI_PROFILE;
 	const originalOmpProfile = process.env.ZETA_PROFILE;
 
@@ -363,7 +363,7 @@ describe("AgentSession retry fallback", () => {
 			session = undefined;
 		}
 		vi.restoreAllMocks();
-		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnvValue("PI_PROFILE", originalPiProfile);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
 		__resetDirsFromEnvForTests();

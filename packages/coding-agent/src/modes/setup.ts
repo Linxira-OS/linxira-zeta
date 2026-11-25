@@ -46,7 +46,7 @@ export type { SetupScene } from "../ui/setup/types";
 export { ALL_SCENES, CURRENT_SETUP_VERSION, setupWizardAllowed };
 
 /** The setup page (wizard and startup splash) as Tern draws it: a screen of its own role, all `main`. */
-const SETUP_PAGE: PageProps = { role: "omp.app.setup" };
+const SETUP_PAGE: PageProps = { role: "zeta.app.setup" };
 
 /** Animation clock of the setup screens (ms). */
 const SETUP_FRAME_MS = 33;

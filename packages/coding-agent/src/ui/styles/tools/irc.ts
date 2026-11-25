@@ -1,5 +1,5 @@
 /**
- * `omp.irc.*` cards: `✉ IRC Anna ➤ Ben reply · 1m ago`, then the message's
+ * `zeta.irc.*` cards: `✉ IRC Anna ➤ Ben reply · 1m ago`, then the message's
  * non-blank lines behind a dim quote rail — three (cut to the row) and an
  * expand hint while collapsed, every line wrapped once expanded.
  */
@@ -70,4 +70,4 @@ function paintIrcCard(node: UiNode, cx: PaintContext): Block {
 	return { rows: rows.map(row => truncate(row, cx.width)) };
 }
 
-defineRolePainter("card", "omp.irc", paintIrcCard, { prefix: true });
+defineRolePainter("card", "zeta.irc", paintIrcCard, { prefix: true });

@@ -585,7 +585,7 @@ describe("builtin-defaults rule provider", () => {
 			" * intact: anything that cited the preview's lines can still resolve.",
 			" * (`tallyStep`'s `items`): any of them fails the phase.",
 			"/** `posts.raw_json`, as far as anything reads it back. */",
-			"// The debugging bar shows while omp has any one attached.",
+			"// The debugging bar shows while zetacode has any one attached.",
 			"return any?.newest ? { date: any.newest } : {};",
 			"// mapping: any\nconst flag = true;",
 			"const flag = true; // as far as any\nreturn flag;",

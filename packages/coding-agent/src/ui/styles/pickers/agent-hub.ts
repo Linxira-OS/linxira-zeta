@@ -1,5 +1,5 @@
 /**
- * The Agent Hub in the terminal (`term.look = "omp.hub"`): a rounded box
+ * The Agent Hub in the terminal (`term.look = "zeta.hub"`): a rounded box
  * filling the terminal's rows.
  *
  * - Agents, wide (≥ 96 columns): the roster beside the selected agent's
@@ -152,9 +152,9 @@ export interface HubActivityView {
 
 /** The look's term facts. */
 export type HubLookTerm = PickerTerm & {
-	readonly look: "omp.hub";
+	readonly look: "zeta.hub";
 	/** Routes the terminal's pointer through the hub's widget (hover, wheel, click-to-open). */
-	readonly role: "omp.hub";
+	readonly role: "zeta.hub";
 	readonly hub:
 		| { readonly section: "agents"; readonly height: number; readonly agents: HubAgentsView }
 		| { readonly section: "activity"; readonly height: number; readonly activity: HubActivityView };
@@ -763,7 +763,7 @@ function paintActivity(pen: Pen, view: HubActivityView, width: number, height: n
 	return { lines, hits };
 }
 
-definePickerLook("omp.hub", (node, cx: PaintContext) => {
+definePickerLook("zeta.hub", (node, cx: PaintContext) => {
 	const term = (node.props() as { term?: HubLookTerm }).term;
 	const width = cx.width;
 	if (!term?.hub || width < 1) return { rows: [] };
@@ -818,7 +818,7 @@ export function clearHubHover(node: UiNode): void {
  * (and drops the hover), a click on an agent selects and opens it (an
  * activity row: the first click selects, a second opens).
  */
-defineRoleWidget("picker", "omp.hub", {
+defineRoleWidget("picker", "zeta.hub", {
 	/** PgUp/PgDn scroll the inspector by five rows (the screen leaves them to the terminal). */
 	key(node, key) {
 		if (key.kind === "release" || (key.id !== "pageUp" && key.id !== "pageDown")) return false;

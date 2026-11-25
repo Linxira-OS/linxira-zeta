@@ -39,7 +39,7 @@ function deps(variant: "normal" | "empty" | "error"): AgentsHubDeps {
 			systemPrompt: "Do dev things",
 			source: "project",
 			disabled: false,
-			filePath: "/home/u/.omp/agents/dev.md",
+			filePath: "/home/u/.zeta/agents/dev.md",
 		},
 		{
 			name: "scout",
@@ -90,7 +90,7 @@ function deps(variant: "normal" | "empty" | "error"): AgentsHubDeps {
 			onText(' "code-reviewer" …');
 			return SPEC;
 		},
-		saveAgent: async () => "/home/u/.omp/agents/code-reviewer.md",
+		saveAgent: async () => "/home/u/.zeta/agents/code-reviewer.md",
 	};
 }
 

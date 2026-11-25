@@ -178,7 +178,7 @@ describe("live routing config files", () => {
 	});
 
 	it("keeps a value this build cannot read at its last good value while the rest of the edit applies", async () => {
-		// A newer omp wrote an `edit.mode` this build lacks. Reading it would fall back to the
+		// A newer zetacode wrote an `edit.mode` this build lacks. Reading it would fall back to the
 		// default and switch every running session's edit tool, rewriting its cached tool prefix.
 		delete process.env.PI_EDIT_VARIANT;
 		const file = tempDir.join("routing.yml");

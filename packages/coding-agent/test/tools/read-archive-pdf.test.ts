@@ -71,7 +71,7 @@ describe("PDF archive members", () => {
 	beforeEach(async () => {
 		temp = await TempDir.create("@read-archive-pdf-");
 		pdf = textPdf();
-		originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfile = process.env.ZETA_PROFILE;
 		originalPiProfile = process.env.PI_PROFILE;
 		setAgentDir(temp.join("agent"));
@@ -79,7 +79,7 @@ describe("PDF archive members", () => {
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
-		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
 		restoreEnvValue("PI_PROFILE", originalPiProfile);
 		__resetDirsFromEnvForTests();

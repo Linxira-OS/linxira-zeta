@@ -11,12 +11,12 @@
  * or `{"error": {"kind", "message"}}`:
  * - `browser`: Tern's browser op protocol, REQUEST `{"op": …}`.
  * - `fork`: REQUEST `{"block":P,"dir":"right"|"down","tab":true}` opens
- *   `omp --fork` of pane P's session in a new pane beside it, or with
+ *   `zetacode --fork` of pane P's session in a new pane beside it, or with
  *   `"tab":true` in a tab of its own after P's (a Tern from before `tab`
  *   splits instead); result `{"block":M}`, plus `"tab":T` when it opened tab T.
  *
  * Members and message kinds either side does not know are skipped, so the
- * protocol does not tie omp to a Tern build. A Tern from before it cannot read
+ * protocol does not tie zetacode to a Tern build. A Tern from before it cannot read
  * the hello and hangs up.
  */
 import * as net from "node:net";
@@ -58,7 +58,7 @@ export class TernError extends ToolError {
 	}
 }
 
-/** Error kinds meaning "this Tern cannot host a browser for omp right now". */
+/** Error kinds meaning "this Tern cannot host a browser for zetacode right now". */
 const UNAVAILABLE_KINDS: Partial<Record<TernErrorKind, true>> = {
 	no_window: true,
 	unsupported: true,
@@ -222,9 +222,9 @@ export interface TernRequestOptions {
 	onLateAnswer?: (value: unknown) => void;
 }
 
-/** A `fork` request: open `omp --fork` of pane `block`'s session in a new pane beside it, or in a tab of its own. */
+/** A `fork` request: open `zetacode --fork` of pane `block`'s session in a new pane beside it, or in a tab of its own. */
 export interface TernForkRequest {
-	/** The pane whose omp session to fork (`ZETA_PANE`). */
+	/** The pane whose zetacode session to fork (`ZETA_PANE`). */
 	block: number;
 	/** Where the new pane goes beside `block`, unless `tab` (Tern's default: `right`). */
 	dir?: "right" | "down";
@@ -406,7 +406,7 @@ export class TernSocketClient {
 		return this.#ops.has(op);
 	}
 
-	/** Open the stream and greet; resolves once the peer welcomed omp. */
+	/** Open the stream and greet; resolves once the peer welcomed zeta. */
 	async connect(): Promise<void> {
 		if (this.#closed) throw this.#closeError ?? new TernError("closed", `${this.product} connection closed`);
 		if (this.#welcomed) return;

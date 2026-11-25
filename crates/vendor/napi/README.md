@@ -35,7 +35,7 @@ dependency here through `[patch.crates-io]`. MIT licensed; see `LICENSE`.
 - `src/bindgen_runtime/mod.rs`, `src/bindgen_runtime/js_values/arraybuffer.rs`:
   `set_external_release_hook` registers a callback that the external
   `Buffer`/typed-array GC finalizers run after freeing the Rust allocation.
-  The exact diff is `patches/0002-external-release-hook.patch`. `omp-natives`
+  The exact diff is `patches/0002-external-release-hook.patch`. `zetacode-natives`
   uses it to trim freed heap pages after the JS GC releases a native result
   (`crates/natives/src/memory.rs`); without a registered hook the
   finalizers behave as upstream.

@@ -23,7 +23,7 @@ export function sceneChildRows(node: UiNode, cx: PaintContext): string[] {
 		const props = node.props() as TspTextProps;
 		return wrap(styledText(cx.theme, props.spans ?? props.text ?? ""), cx.width).map(row => padTo(row, cx.width));
 	}
-	if (roleOf(node) === "omp.select") return selectRows(cx.theme, node, cx.width);
+	if (roleOf(node) === "zeta.select") return selectRows(cx.theme, node, cx.width);
 	return [...cx.paint(node, cx.width).rows];
 }
 
@@ -48,8 +48,8 @@ function paintChoiceScene(node: UiNode, cx: PaintContext): Block {
 	return { rows: clip(rows, node) };
 }
 
-defineRolePainter("col", "omp.setup.glyph", paintChoiceScene);
-defineRolePainter("col", "omp.setup.updates", paintChoiceScene);
+defineRolePainter("col", "zeta.setup.glyph", paintChoiceScene);
+defineRolePainter("col", "zeta.setup.updates", paintChoiceScene);
 
 /** Terminal facts of the composer scene's preview. */
 type PreviewTerm = { readonly shape?: string };
@@ -58,7 +58,7 @@ type PreviewTerm = { readonly shape?: string };
  * Composer scene: intro, the live preview (the shape at the paint width), then
  * the list. The preview is the first thing given up when the rows run short.
  */
-defineRolePainter("col", "omp.setup.composer", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup.composer", (node, cx): Block => {
 	const [intro, list, preview] = node.children();
 	const introRows = intro ? sceneChildRows(intro, cx) : [];
 	const listRows = list ? sceneChildRows(list, cx) : [];
@@ -168,7 +168,7 @@ const MIN_LIST_ROWS = 5;
  * Theme scene: intro and hint, the live preview, then the list (or the
  * loading line). Short of rows, the preview goes first, then the list shrinks.
  */
-defineRolePainter("col", "omp.setup.theme", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup.theme", (node, cx): Block => {
 	const [intro, preview, ...rest] = node.children();
 	const introRows: string[] = [];
 	for (const line of intro?.children() ?? []) introRows.push(...sceneChildRows(line, cx));
@@ -180,7 +180,7 @@ defineRolePainter("col", "omp.setup.theme", (node, cx): Block => {
 			if (child.kind === "spinner") {
 				const label = (child.props() as { label?: TspText }).label;
 				tail.push(truncate(styledText(cx.theme, label), cx.width));
-			} else if (roleOf(child) === "omp.select") tail.push(...fittedListRows(child, cx, room));
+			} else if (roleOf(child) === "zeta.select") tail.push(...fittedListRows(child, cx, room));
 			else tail.push(...sceneChildRows(child, cx));
 		}
 		return tail;
@@ -188,7 +188,7 @@ defineRolePainter("col", "omp.setup.theme", (node, cx): Block => {
 	const max = ((node.props() as { term?: SceneTerm }).term ?? {}).maxLines;
 	const full = [...introRows, "", ...previewRows, "", ...tailRows(undefined)];
 	if (max === undefined || full.length <= max) return { rows: clip(full, node) };
-	const select = rest.find(child => roleOf(child) === "omp.select");
+	const select = rest.find(child => roleOf(child) === "zeta.select");
 	const withPreview = introRows.length + 1 + previewRows.length + 1;
 	const rows =
 		select && max - withPreview >= Math.min(listCount(select), MIN_LIST_ROWS)

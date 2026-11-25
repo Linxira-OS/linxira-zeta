@@ -21,7 +21,7 @@ export function fullscreenMenuView(
 	page: PageProps = SESSION_PAGE,
 ): JSXNode {
 	return (
-		<overlay key={key} size="full" role="omp.app.screen" page={page} onKey={onKey}>
+		<overlay key={key} size="full" role="zeta.app.screen" page={page} onKey={onKey}>
 			{content}
 		</overlay>
 	);
@@ -33,7 +33,7 @@ export function usageDashboardView(native: boolean, content: JSXNode, onKey: (ke
 	return (
 		<overlay
 			key="usage-dashboard"
-			role="omp.overlay.usage"
+			role="zeta.overlay.usage"
 			anchor="center"
 			size="lg"
 			modal
@@ -48,7 +48,7 @@ export function usageDashboardView(native: boolean, content: JSXNode, onKey: (ke
 /** A sheet across the foot of the screen over the transcript (the session model picker). */
 export function bottomSheetView(key: string, content: JSXNode): JSXNode {
 	return (
-		<overlay key={key} anchor="bottom" size="lg" role="omp.app.screen" term={{ width: "full" }}>
+		<overlay key={key} anchor="bottom" size="lg" role="zeta.app.screen" term={{ width: "full" }}>
 			{content}
 		</overlay>
 	);
@@ -82,7 +82,7 @@ export function firstOfKind(root: UiNode, ...kinds: string[]): UiNode {
 }
 
 /** Tern's rewind page: the replayed turns are its `main`, the bar (the last child) docks under them. */
-export const REWIND_PAGE: PageProps = { role: "omp.rewind", dock: 1 };
+export const REWIND_PAGE: PageProps = { role: "zeta.rewind", dock: 1 };
 
 /** The bar a page layer docks (its last child), else the layer. */
 export function layerDock(root: UiNode): UiNode {

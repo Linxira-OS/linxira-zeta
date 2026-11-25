@@ -3,7 +3,7 @@ import { type ReactNode, useState } from "react";
 import type { Point } from "./describe";
 import { useEscape } from "./ui";
 
-/** What the lightbox shows: an image and, for pointer steps, where omp clicked or dragged in image pixels. */
+/** What the lightbox shows: an image and, for pointer steps, where zetacode clicked or dragged in image pixels. */
 export interface LightboxImage {
 	src: string;
 	alt: string;
@@ -19,7 +19,7 @@ interface Natural {
 const THUMB_W = 36;
 const THUMB_H = 28;
 
-/** 36×28 step thumbnail; the dot sits on the pixel omp clicked, following the image's cover crop. */
+/** 36×28 step thumbnail; the dot sits on the pixel zetacode clicked, following the image's cover crop. */
 export function Thumb(props: { image: LightboxImage; onOpen(image: LightboxImage): void }): ReactNode {
 	const { image } = props;
 	const [natural, setNatural] = useState<Natural | null>(null);

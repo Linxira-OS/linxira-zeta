@@ -1,6 +1,6 @@
 //! `cmp` builtin: compare two files byte by byte.
 //!
-//! Ported from the `omp-shell` in-process implementation.
+//! Ported from the `zetacode-shell` in-process implementation.
 
 use std::{
 	ffi::{OsStr, OsString},

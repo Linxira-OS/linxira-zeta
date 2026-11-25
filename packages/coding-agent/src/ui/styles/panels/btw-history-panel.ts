@@ -117,8 +117,8 @@ function readerLines(cx: PaintContext, model: BtwHistoryModel, sheet: UiNode, in
 	if (!record) return wrap(theme.fg("muted", "No side questions yet. Use /btw QUESTION to start one."), inner);
 	const lines: string[] = [];
 	if (model.isCopied(record)) lines.push(...wrap(theme.fg("success", "✓ Copied to clipboard"), inner), "");
-	const thread = findNode(sheet, node => roleOf(node) === "omp.btw.thread");
-	const turnNodes = thread?.children().filter(node => roleOf(node) === "omp.btw.turn") ?? [];
+	const thread = findNode(sheet, node => roleOf(node) === "zeta.btw.thread");
+	const turnNodes = thread?.children().filter(node => roleOf(node) === "zeta.btw.turn") ?? [];
 	displayTurns(record).forEach((turn, index) => {
 		if (index > 0) lines.push("", theme.fg("dim", theme.symbols.box.horizontal.repeat(inner)), "");
 		const status = BTW_STATUS[turn.status];
@@ -126,7 +126,7 @@ function readerLines(cx: PaintContext, model: BtwHistoryModel, sheet: UiNode, in
 		const question = node?.children()[0];
 		const answerNode = node
 			?.children()
-			.find(child => roleOf(child) === "omp.btw.answer")
+			.find(child => roleOf(child) === "zeta.btw.answer")
 			?.children()[0];
 		lines.push(
 			...wrap(theme.fg(status.color, `${status.label} · ${DATE_FORMAT.format(turn.createdAt)}`), inner),
@@ -210,7 +210,7 @@ function hints(theme: Theme, model: BtwHistoryModel, inner: number): string {
 	return parts.join(" · ");
 }
 
-defineRolePainter("col", "omp.btw.sheet", (node, cx): Block => {
+defineRolePainter("col", "zeta.btw.sheet", (node, cx): Block => {
 	const { model, caretGlyph } = termOf<{ model: BtwHistoryModel; caretGlyph?: string }>(node);
 	const theme = cx.theme;
 	const width = Math.max(0, Math.floor(cx.width));
@@ -307,7 +307,7 @@ defineRolePainter("col", "omp.btw.sheet", (node, cx): Block => {
 	return { rows: lines.slice(0, height).map(line => truncate(line, width)), hits };
 });
 
-defineRoleWidget("col", "omp.btw.sheet", {
+defineRoleWidget("col", "zeta.btw.sheet", {
 	mouse(node, mouse, _at, _cx, hit) {
 		const model = termOf<{ model: BtwHistoryModel }>(node).model;
 		if (!model || mouse.action !== "press") return false;

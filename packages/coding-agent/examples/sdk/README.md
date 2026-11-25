@@ -1,6 +1,6 @@
 # SDK Examples
 
-Programmatic usage of omp-coding-agent via `createAgentSession()`.
+Programmatic usage of zeta-coding-agent via `createAgentSession()`.
 
 ## Examples
 
@@ -132,7 +132,7 @@ await resolveTool.execute("call-1", {
 | `authStorage`              | `discoverAuthStorage()`       | Credential storage                         |
 | `modelRegistry`            | From `<agentDir>/models.yml`  | Model registry                             |
 | `cwd`                      | `process.cwd()`               | Working directory                          |
-| `agentDir`                 | `~/.omp/agent`                | Config directory                           |
+| `agentDir`                 | `~/.zeta/agent`               | Config directory                           |
 | `model`                    | From settings/first available | Model to use                               |
 | `thinkingLevel`            | From settings/"off"           | off, low, medium, high                     |
 | `systemPrompt`             | Discovered                    | Strings or `(default) => modified strings` |

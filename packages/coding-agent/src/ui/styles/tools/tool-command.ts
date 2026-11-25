@@ -7,7 +7,7 @@
  * nested card inside the bash frame ({@link toolCommandRows}).
  *
  * Reads {@link ToolCommandTerm} (on the `tool` node, or on the nested
- * `omp.tool.bash.command-tool` column).
+ * `zeta.tool.bash.command-tool` column).
  */
 import type { UiNode } from "@linxiraos/pi-tui";
 import type { Block, PaintContext } from "@linxiraos/pi-tui/term/paint";

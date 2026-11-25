@@ -1,10 +1,10 @@
 /**
- * Contract between omp processes and the daemon's `predict` module
+ * Contract between zetacode processes and the daemon's `predict` module
  * (`daemon/modules/predict.ts`).
  *
  * One daemon per agent directory runs under the `text-predict` global daemon
  * broker (`zetacode ps --global text-predict`) and serves ghost-text word
- * completion to every omp process over newline-delimited JSON on a native IPC
+ * completion to every zetacode process over newline-delimited JSON on a native IPC
  * endpoint (`ipcEndpoint`). Each request carries a numeric `id` echoed by its
  * response; responses may arrive out of order. The same agent directory is one
  * `predict` unit, reachable through `call("predict", method, params, { unit })`.

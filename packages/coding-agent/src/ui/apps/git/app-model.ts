@@ -1,5 +1,5 @@
 /**
- * The `omp git` app: repository review in one screen. A header (the shown
+ * The `zetacode git` app: repository review in one screen. A header (the shown
  * file, its `+a −d`, key hints or the latest status, the content kind, Stage
  * file, close), a toolbar (scope chip, change navigation, the view switch,
  * whitespace and wrap toggles), the diff pane, and the sidebar (the change

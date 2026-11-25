@@ -135,7 +135,7 @@ describe("BtwController under Tern", () => {
 		expect(overlay.parent).toBe("layer");
 		// Nothing to list yet: the palette-sized sheet.
 		expect(overlay.p).toEqual({
-			role: "omp.overlay.btwHistory",
+			role: "zeta.overlay.btwHistory",
 			anchor: "center",
 			size: "md",
 			head: "BTW history",
@@ -156,7 +156,7 @@ describe("BtwController", () => {
 	it("returns input to the pending prompt after BTW history closes", async () => {
 		const ctx = makeCtx(makeFakeSession(vi.fn()));
 		const mountAsk = (): UiNode => {
-			ctx.shell.dock.slot("ask").set(() => jsx("col", { role: "omp.overlay.approval" }));
+			ctx.shell.dock.slot("ask").set(() => jsx("col", { role: "zeta.overlay.approval" }));
 			const node = ctx.shell.dock.slot("ask").view();
 			if (!node || typeof node !== "object" || !("kind" in node)) throw new Error("expected the ask node");
 			return node;
@@ -245,11 +245,11 @@ describe("BtwController", () => {
 		expect(controller.hasActiveRequest()).toBe(false);
 		note.press("btw-focus");
 		expect(controller.isFocused()).toBe(true);
-		expect(note.role).toBe("omp.btw.note.active");
+		expect(note.role).toBe("zeta.btw.note.active");
 		expect(controller.hasActiveRequest()).toBe(true);
 		expect(controller.handleEscape()).toBe(true);
 		expect(controller.isFocused()).toBe(false);
-		expect(note.role).toBe("omp.btw.note");
+		expect(note.role).toBe("zeta.btw.note");
 		expect(runEphemeralTurn.mock.calls[0]?.[0].signal?.aborted).toBe(false);
 
 		// Folding the note it talks to points the composer back too; a click on the line reopens both.

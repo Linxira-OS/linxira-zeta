@@ -260,7 +260,7 @@ export function decodeTspReply(body: string): TspReply | null {
 
 /** What the program advertises in its `hello` query. */
 export interface TspHelloOptions {
-	/** Program name. Default `omp`. */
+	/** Program name. Default `zetacode`. */
 	readonly app?: string;
 	readonly ver?: string;
 	/** Program features. Default `edit`, `undo`, `send`. */

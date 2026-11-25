@@ -10,7 +10,7 @@
 /**
  * Agent id passed to the third-party `skills` CLI (`--agent`) when the web
  * panel installs or updates a skill. The value selects the install layout and
- * the CLI validates it against its own registry: omp is not a member (the CLI
+ * the CLI validates it against its own registry: zetacode is not a member (the CLI
  * answers "Invalid agents: omp" and installs nothing), while pi — this
  * project's upstream agent — targets `.agents/skills` (project) and
  * `~/.agents/skills` (global). Those are exactly the directories the `agents`

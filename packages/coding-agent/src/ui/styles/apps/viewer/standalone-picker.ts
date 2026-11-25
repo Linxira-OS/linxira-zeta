@@ -1,5 +1,5 @@
 /**
- * `omp.standalone`: the standalone select prompt in the terminal. The list
+ * `zeta.standalone`: the standalone select prompt in the terminal. The list
  * rows alone (no frame, no title, no hints); a list longer than its visible
  * rows gets the scrollbar and, under the rows, the search line: muted
  * `  Type to search`, or `  Search: ` and the query with a block caret.
@@ -9,7 +9,7 @@ import { truncate } from "@linxiraos/pi-tui/text/width";
 import type { TspPickerProps } from "@linxiraos/pi-wire";
 
 /** The look id of the standalone select prompt. */
-export const STANDALONE_LOOK = "omp.standalone";
+export const STANDALONE_LOOK = "zeta.standalone";
 
 definePickerLook(STANDALONE_LOOK, (node, cx) => {
 	const theme = cx.theme;

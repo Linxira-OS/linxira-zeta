@@ -1,5 +1,5 @@
 /**
- * `omp render` — draw a session's entire thread through the production
+ * `zetacode render` — draw a session's entire thread through the production
  * transcript pipeline, headlessly.
  *
  * Replays the session into a real `InteractiveMode` rendering on an in-memory
@@ -91,7 +91,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 
 	// Copy before opening: SessionManager.open takes the single-writer lock and
 	// session teardown appends a session_exit entry — neither may touch a live
-	// session file the user has open in another omp.
+	// session file the user has open in another zeta.
 	const tempDir = TempDir.createSync("@omp-render-");
 	const workingCopy = path.join(tempDir.path(), path.basename(sourcePath));
 
@@ -191,7 +191,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 			await mode?.shell.stop();
 			await session?.dispose();
 		} catch (err) {
-			logger.debug("omp render teardown failed", { error: String(err) });
+			logger.debug("zetacode render teardown failed", { error: String(err) });
 		}
 		tempDir.removeSync();
 	}

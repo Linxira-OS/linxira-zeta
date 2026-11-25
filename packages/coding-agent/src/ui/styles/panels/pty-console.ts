@@ -1,5 +1,5 @@
 /**
- * `omp.overlay.console`: the interactive console in the terminal. One rounded
+ * `zeta.overlay.console`: the interactive console in the terminal. One rounded
  * box at the screen's width: the status glyph, `Console`, the command and
  * the run's state; the PTY screen on the tool-output color; then what Escape
  * does while the program runs, or that the session finished.
@@ -33,7 +33,7 @@ export function consoleStateLabel(
 	return { tone: "error", text: `exit ${exitCode}` };
 }
 
-defineRolePainter("col", "omp.overlay.console", (node, cx): Block => {
+defineRolePainter("col", "zeta.overlay.console", (node, cx): Block => {
 	const theme = cx.theme;
 	const term = termOf<PtyConsoleTerm>(node);
 	const state = term.state ?? "running";

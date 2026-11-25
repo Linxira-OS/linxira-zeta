@@ -1,8 +1,8 @@
 /**
  * The canonical welcome/splash brand art, rendered by the FIGlet standard tool.
  *
- * The three arrays in `packages/tui/src/prompt/welcome.ts` — `ZETA_LOGO`
- * (mark), `ZETA_WORDMARK` (primary product name) and `ZETA_SUBLINE` (the
+ * The three arrays in `packages/coding-agent/src/ui/welcome/logo.ts` — `LOGO`
+ * (mark), `WORDMARK` (primary product name) and `SUBLINE` (the
  * `Linxira-Zeta` identity line) — are **generated, never hand-drawn**:
  *
  *   mark      `Z`             ANSI Shadow   (FIGlet standard font)
@@ -41,7 +41,7 @@ const FONT_DIR = path.join(import.meta.dir, "fonts");
  * uses on a system install).
  */
 export interface BrandArtSpec {
-	/** Name of the exported constant in `packages/tui/src/prompt/welcome.ts`. */
+	/** Name of the exported constant in `packages/coding-agent/src/ui/welcome/logo.ts`. */
 	readonly constant: string;
 	/** Text handed to FIGlet. */
 	readonly text: string;
@@ -51,9 +51,9 @@ export interface BrandArtSpec {
 
 /** The mark, wordmark and identity subline, in lockup order. */
 export const BRAND_ART_SPEC: readonly BrandArtSpec[] = [
-	{ constant: "ZETA_LOGO", text: "Z", font: "ANSI Shadow" },
-	{ constant: "ZETA_WORDMARK", text: "Zeta", font: "ANSI Shadow" },
-	{ constant: "ZETA_SUBLINE", text: "Linxira-Zeta", font: "mini" },
+	{ constant: "LOGO", text: "Z", font: "ANSI Shadow" },
+	{ constant: "WORDMARK", text: "Zeta", font: "ANSI Shadow" },
+	{ constant: "SUBLINE", text: "Linxira-Zeta", font: "mini" },
 ];
 
 /** FIGlet registers fonts by an internal name; map each vendored font to one. */

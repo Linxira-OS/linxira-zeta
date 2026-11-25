@@ -20,7 +20,7 @@ afterAll(() => setCurrentTheme(restoreTheme));
 //
 // Follow-up (issue #3423): on Bun 1.3.14 the compiled binary's
 // `/$bunfs/...` paths are unreachable via every filesystem API, so
-// compiled-binary mode now routes through `omp-legacy-pi-bundled:` virtual
+// compiled-binary mode now routes through `zetacode-legacy-pi-bundled:` virtual
 // specifiers instead. Those entries must always pass validation because
 // the bundled registry — not the filesystem — is the source of truth.
 describe("legacy pi compat package-root override validation (issue #2168)", () => {

@@ -176,7 +176,7 @@ async function launchRelayFixture(
 			pipe: true,
 			userDataDir,
 			enableExtensions: true,
-			env: { ...process.env, PI_CODING_AGENT_DIR: path.join(root, "omp") },
+			env: { ...process.env, ZETA_CODING_AGENT_DIR: path.join(root, "omp") },
 			args: ["--no-first-run", "--no-default-browser-check", "--use-mock-keychain", ...RENDERER_PRIORITY_ARGS],
 		});
 		browsers.push(browser);
@@ -495,7 +495,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 		}
 	}, 60_000);
 
-	it("opens a default tab in the browser of the tab omp used last, not the first selected one", async () => {
+	it("opens a default tab in the browser of the tab zetacode used last, not the first selected one", async () => {
 		const secondHello = Promise.withResolvers<void>();
 		let hellos = 0;
 		const fixture = await launchRelayFixture(message => {
@@ -649,7 +649,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 		}
 	}, 60_000);
 
-	it("empties a password manager's menu only in the tab omp drives", async () => {
+	it("empties a password manager's menu only in the tab zetacode drives", async () => {
 		// A stand-in password manager: a focused password field opens its inline menu, a chrome-extension:// frame in
 		// a closed shadow root, the way 1Password draws it.
 		const vaultDir = await writeStandInVault(
@@ -666,7 +666,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 		const menuOpen = (page: Page) => page.frames().some(frame => frame.url().startsWith("chrome-extension://"));
 		const driven = await fixture.browser.newPage();
 		await driven.goto(`${fixture.origin}/login?who=driven`);
-		// The user's own tab has its menu open when omp connects.
+		// The user's own tab has its menu open when zetacode connects.
 		const user = await fixture.browser.newPage();
 		await user.goto(`${fixture.origin}/login?who=user`);
 		await user.focus("#pw");
@@ -683,12 +683,12 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 				target: "Login driven",
 				timeoutMs: 20_000,
 			});
-			// Focusing the field opens the menu, and Chrome detaches omp from the tab during the call.
+			// Focusing the field opens the menu, and Chrome detaches zetacode from the tab during the call.
 			const failed = await runInTab(name, fill).then(shown, (error: unknown) => String(error));
 			const filled = await runInTab(name, fill);
 			expect(filled.returnValue).toBe("secret");
-			// A call names what omp hid, once: that call, the next or a later one, as the relay reports it. Chrome can
-			// also drop omp as the menu starts loading and that load then never commit: omp hid nothing, and says nothing.
+			// A call names what zetacode hid, once: that call, the next or a later one, as the relay reports it. Chrome can
+			// also drop zetacode as the menu starts loading and that load then never commit: zetacode hid nothing, and says nothing.
 			const vaultId = await unpackedExtensionId(vaultDir);
 			if (!vaultId) throw new Error("Missing stand-in vault directory");
 			if ((await emptiedFrames(driven)) > 0) {
@@ -748,7 +748,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 		document.body.append(frame);
 	}
 });`);
-			// The card starts loading as the click submits, so Chrome may drop omp during this call.
+			// The card starts loading as the click submits, so Chrome may drop zetacode during this call.
 			const submitted = await runInTab(name, {
 				code: "await tab.click('#go');",
 				timeoutMs: 10_000,

@@ -956,7 +956,7 @@ impl X11Input {
 				.conn
 				.grab_keyboard(false, window, CURRENT_TIME, GrabMode::ASYNC, GrabMode::ASYNC)
 				.map_err(input_failed)?;
-			// Sent with the grab, so the user's own keys go to omp for one
+			// Sent with the grab, so the user's own keys go to zetacode for one
 			// round trip at most; it does nothing when the grab failed.
 			let ungrab = self
 				.conn

@@ -352,7 +352,7 @@ mod tests {
 				r#"<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>probe</string>
-<key>CFBundleIdentifier</key><string>dev.omp.open-test.p{}</string>
+<key>CFBundleIdentifier</key><string>dev.zeta.open-test.p{}</string>
 <key>CFBundleName</key><string>Probe</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>LSUIElement</key><true/>
@@ -414,10 +414,10 @@ mod tests {
 	fn an_unknown_application_is_reported() {
 		let (code, err) = run_open(&["-a", "No Such Application 5f3a", "/"], &[], Path::new("/"));
 		assert_eq!((code, err.as_str()), (1, "open: Unable to find application named 'No Such Application 5f3a'\n"));
-		let (code, err) = run_open(&["-b", "dev.omp.no-such-bundle-5f3a"], &[], Path::new("/"));
+		let (code, err) = run_open(&["-b", "dev.zeta.no-such-bundle-5f3a"], &[], Path::new("/"));
 		assert_eq!(
 			(code, err.as_str()),
-			(1, "open: Unable to find application with bundle identifier 'dev.omp.no-such-bundle-5f3a'\n")
+			(1, "open: Unable to find application with bundle identifier 'dev.zeta.no-such-bundle-5f3a'\n")
 		);
 	}
 }

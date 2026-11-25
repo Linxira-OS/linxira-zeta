@@ -16,7 +16,7 @@ import { AnsiText } from "../../ui/transcript/ansi-text";
 export interface ReportSheetOptions {
 	/** A full-screen page on the terminal's alternate screen; else a centered modal sheet (a native terminal). */
 	readonly page: boolean;
-	/** The sheet's role (Tern styles it by role). Default `omp.overlay.report`. */
+	/** The sheet's role (Tern styles it by role). Default `zeta.overlay.report`. */
 	readonly role?: string;
 	/** The sheet's title. */
 	readonly head?: Reactive<TspText | undefined>;
@@ -27,13 +27,13 @@ export interface ReportSheetOptions {
 /** A focused report sheet around `content`; see {@link ReportSheetOptions}. */
 export function reportSheetView(content: JSXNode, options: ReportSheetOptions): JSXNode {
 	return options.page ? (
-		<overlay key="report" size="full" role="omp.app.screen" onKey={options.onKey}>
+		<overlay key="report" size="full" role="zeta.app.screen" onKey={options.onKey}>
 			{content}
 		</overlay>
 	) : (
 		<overlay
 			key="report"
-			role={options.role ?? "omp.overlay.report"}
+			role={options.role ?? "zeta.overlay.report"}
 			anchor="center"
 			size="lg"
 			modal

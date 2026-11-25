@@ -1,7 +1,7 @@
 /**
  * Client for the per-model tiny-model workers.
  *
- * Each (model, backend, device, dtype) is one `infer` unit in the omp daemon
+ * Each (model, backend, device, dtype) is one `infer` unit in the zetacode daemon
  * (`daemon/modules/infer.ts`), backed by the ONNX worker (`worker.ts`) or,
  * with `PI_TINY_DEVICE=mlx`, the MLX worker (`mlx-server.py`). This client
  * opens the unit, attaches a tunnel, and speaks the worker protocol over it;
@@ -554,7 +554,7 @@ export const tinyTitleClient = new TinyTitleClient();
 /** Alias for the shared tiny-model worker client (titles + generic chat completions). */
 export const tinyModelClient = tinyTitleClient;
 
-/** Drop this process's tunnels; the daemon keeps the workers for other omp processes until idle. */
+/** Drop this process's tunnels; the daemon keeps the workers for other zetacode processes until idle. */
 export async function shutdownTinyTitleClient(): Promise<void> {
 	await tinyTitleClient.terminate();
 }

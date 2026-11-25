@@ -1,5 +1,5 @@
 /**
- * Corpus checks for `tools/<name>` screens painted by the `omp.tool.*` looks.
+ * Corpus checks for `tools/<name>` screens painted by the `zeta.tool.*` looks.
  *
  * A case records one renderer hook (call or result) driven through display
  * steps. Each stage is replayed as a {@link ToolViewState}; the presenter's
@@ -254,7 +254,7 @@ function stageStatus(inputs: ToolCaseInputs, stage: ToolStage): TspCardStatus {
 }
 
 /** Role whose painter paints a node's look without margins. */
-const LOOK_ROLE = "omp.test.tool-look";
+const LOOK_ROLE = "zeta.test.tool-look";
 defineRolePainter("tool", LOOK_ROLE, paintToolLook);
 
 /** The tool node the block builds for a stage's view, painted as its look alone. */

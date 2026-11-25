@@ -1,4 +1,4 @@
-//! The `pgrep` process-matching command, moved from `omp-shell`.
+//! The `pgrep` process-matching command, moved from `zetacode-shell`.
 
 use clap::Parser;
 

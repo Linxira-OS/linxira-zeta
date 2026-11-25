@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The assistant's turn: a `col` (role `omp.assistant`) of the reply's blocks
+ * The assistant's turn: a `col` (role `zeta.assistant`) of the reply's blocks
  * in order, keyed by content index so streamed deltas reach a native terminal
  * as appends to the same node.
  *
@@ -19,7 +19,7 @@
  * - A reply that opens with an emoji reacts on the prompt before it: the
  *   emoji leaves the prose (`onReaction`).
  *
- * Terminal look: `omp.assistant` (`src/ui/styles/messages/assistant.ts`).
+ * Terminal look: `zeta.assistant` (`src/ui/styles/messages/assistant.ts`).
  */
 import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import { presentNarrationAsAnswer } from "@linxiraos/pi-ai/utils/narration";
@@ -503,7 +503,7 @@ export function AssistantMessageBlock(props: { model: AssistantMessageModel }): 
 
 	return (
 		<col
-			role={() => (rewound() ? "omp.assistant.rewound" : "omp.assistant")}
+			role={() => (rewound() ? "zeta.assistant.rewound" : "zeta.assistant")}
 			actions={() => {
 				const at = reply()?.answer.timestamp;
 				return usage() && answered() && at !== undefined && !rewound() && actions()
@@ -660,7 +660,7 @@ function ReplyPart(props: {
 		return (
 			<section
 				key={slot}
-				role={() => (live() ? "omp.thinking.live" : "omp.thinking")}
+				role={() => (live() ? "zeta.thinking.live" : "zeta.thinking")}
 				collapsible
 				collapsed={() => thinking()?.collapsed ?? true}
 				took={() => {

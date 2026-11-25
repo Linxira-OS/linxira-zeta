@@ -24,7 +24,7 @@ auth "anthropic" {
 			refresh "refresh_token"
 			// The server's own expiry; `refresh window-ms` decides when to renew.
 			expires "seconds" path="expires_in" skew-ms=0
-			// When the grant ends; `omp usage` estimates ~30d after login without it.
+			// When the grant ends; `zetacode usage` estimates ~30d after login without it.
 			refresh-expires-in "refresh_token_expires_in"
 			account-id "account.uuid"
 			email "account.email_address"

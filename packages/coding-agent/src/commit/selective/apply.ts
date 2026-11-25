@@ -148,7 +148,7 @@ export async function commitSelection(
 	const joined = vcs.joinPatches(patches.map(entry => entry.patch));
 	const indexPath = path.join(
 		gitDir,
-		`omp-commit-${draft.id}-${Math.floor(Math.random() * 46656).toString(36)}.index`,
+		`zetacode-commit-${draft.id}-${Math.floor(Math.random() * 46656).toString(36)}.index`,
 	);
 	let committed: VcsReconciledCommit | undefined;
 	/** HEAD the commit was built on; on amend, the commit it replaced. */

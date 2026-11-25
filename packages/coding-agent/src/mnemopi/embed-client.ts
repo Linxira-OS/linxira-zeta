@@ -1,9 +1,9 @@
 /**
  * Client for local mnemopi embeddings. Each (model, cache dir) is one `infer`
- * unit in the omp daemon (`daemon/modules/infer.ts`), backed by an
+ * unit in the zetacode daemon (`daemon/modules/infer.ts`), backed by an
  * onnxruntime child (`embed-worker.ts`); this process holds a lease and a
  * tunnel per pair and correlates `init`/`embed` requests over it. The daemon
- * shares the unit with every omp process, reaps a wedged child (120 s embed
+ * shares the unit with every zetacode process, reaps a wedged child (120 s embed
  * bound), and stops it once idle.
  */
 import * as path from "node:path";
@@ -219,7 +219,7 @@ function settle(pending: PendingRequest, reason: string): void {
 /** This process's embedding client. */
 export const mnemopiEmbedClient = new MnemopiEmbedClient();
 
-/** Drop this process's tunnels; the daemon keeps the units for other omp processes until idle. */
+/** Drop this process's tunnels; the daemon keeps the units for other zetacode processes until idle. */
 export async function shutdownMnemopiEmbedClient(): Promise<void> {
 	await mnemopiEmbedClient.terminate();
 }

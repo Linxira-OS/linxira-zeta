@@ -121,7 +121,7 @@ export interface CoordinationDetails {
 	op: CoordinationOp;
 	from?: string;
 	to?: string;
-	/** Session title of a recipient in another omp instance, shown in place of its pid `to`. */
+	/** Session title of a recipient in another zetacode instance, shown in place of its pid `to`. */
 	toLabel?: string;
 	receipts?: IrcDeliveryReceipt[];
 	jobs?: JobSnapshot[];

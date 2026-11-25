@@ -1,9 +1,9 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The footer: a `status` bar (`omp.footer`) — the working directory (and
+ * The footer: a `status` bar (`zeta.footer`) — the working directory (and
  * branch), the usage counters, billing and context on the left, the model
  * and thinking level on the right — and, while extensions report any, their
- * statuses as one line (`omp.footer.extensions`) in an `omp.footer.panel`.
+ * statuses as one line (`zeta.footer.extensions`) in an `zeta.footer.panel`.
  *
  * Terminal look: `src/ui/styles/status/footer.ts` (path row, then the stats
  * row with the model right-aligned).
@@ -115,7 +115,7 @@ export function Footer(props: FooterProps): JSXNode {
 					return (
 						<seg
 							key={key}
-							role={`omp.footer.${key}`}
+							role={`zeta.footer.${key}`}
 							side={() => seg()?.side}
 							priority={() => seg()?.priority}
 							icon={() => seg()?.icon}

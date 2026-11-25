@@ -365,7 +365,7 @@ describe("browser open options CDP helpers", () => {
 		const asked = Promise.withResolvers<void>();
 		const { downloads, main } = fakePageDownloads(async () => {
 			asked.resolve();
-			throw new Error("the omp relay extension in this browser predates download tracking");
+			throw new Error("the zetacode relay extension in this browser predates download tracking");
 		});
 		await downloads.start();
 		const guid = crypto.randomUUID();

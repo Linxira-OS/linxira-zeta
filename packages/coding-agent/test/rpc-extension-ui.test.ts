@@ -42,7 +42,7 @@ const featuresQuestion: ExtensionAskDialogQuestion = {
 };
 
 /**
- * Scripted model: a user message ending in ask arguments as JSON becomes an ask call (omp may prepend
+ * Scripted model: a user message ending in ask arguments as JSON becomes an ask call (zetacode may prepend
  * context to the first user message); a tool result ends the turn.
  */
 const scriptedAskProvider = `
@@ -134,7 +134,7 @@ await runRpcMode(session, {
 			env: {
 				PATH: Bun.env.PATH,
 				HOME: temp.join("home"),
-				PI_CODING_AGENT_DIR: temp.join("agent"),
+				ZETA_CODING_AGENT_DIR: temp.join("agent"),
 				XDG_CONFIG_HOME: temp.join("config"),
 				XDG_DATA_HOME: temp.join("data"),
 				XDG_CACHE_HOME: temp.join("cache"),
@@ -213,7 +213,7 @@ await runRpcMode(session);
 			env: {
 				PATH: Bun.env.PATH,
 				HOME: temp.join("home"),
-				PI_CODING_AGENT_DIR: temp.join("agent"),
+				ZETA_CODING_AGENT_DIR: temp.join("agent"),
 				XDG_CONFIG_HOME: temp.join("config"),
 				XDG_DATA_HOME: temp.join("data"),
 				XDG_CACHE_HOME: temp.join("cache"),
@@ -484,7 +484,7 @@ export default function(pi) {
 				env: {
 					PATH: Bun.env.PATH,
 					HOME: temp.join("home"),
-					PI_CODING_AGENT_DIR: temp.join("agent"),
+					ZETA_CODING_AGENT_DIR: temp.join("agent"),
 					XDG_CONFIG_HOME: temp.join("config"),
 					XDG_DATA_HOME: temp.join("data"),
 					XDG_CACHE_HOME: temp.join("cache"),
@@ -630,7 +630,7 @@ export default function(pi) {
 				env: {
 					PATH: Bun.env.PATH,
 					HOME: temp.join("home"),
-					PI_CODING_AGENT_DIR: temp.join("agent"),
+					ZETA_CODING_AGENT_DIR: temp.join("agent"),
 					XDG_CONFIG_HOME: temp.join("config"),
 					XDG_DATA_HOME: temp.join("data"),
 					XDG_CACHE_HOME: temp.join("cache"),
@@ -1057,7 +1057,7 @@ describe("RPC ask dialog", () => {
 			],
 		});
 		expect(onTimeout).toHaveBeenCalledTimes(1);
-		// omp settled the dialog; only its own timer must tell the host to close it.
+		// zetacode settled the dialog; only its own timer must tell the host to close it.
 		const request = requireRequest(output.mock.calls[0]?.[0]);
 		const cancels = output.mock.calls
 			.map(([frame]) => frame)
@@ -1098,7 +1098,7 @@ describe("RPC ask dialog", () => {
 				env: {
 					PATH: Bun.env.PATH,
 					HOME: temp.join("home"),
-					PI_CODING_AGENT_DIR: temp.join("agent"),
+					ZETA_CODING_AGENT_DIR: temp.join("agent"),
 					XDG_CONFIG_HOME: temp.join("config"),
 					XDG_DATA_HOME: temp.join("data"),
 					XDG_CACHE_HOME: temp.join("cache"),

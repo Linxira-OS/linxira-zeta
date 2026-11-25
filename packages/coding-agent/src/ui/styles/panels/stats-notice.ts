@@ -5,7 +5,7 @@ import type { TspTextProps } from "@linxiraos/pi-wire";
 import { terminalPaddingX } from "../terminal-padding";
 import { plainText, propsOf } from "./common";
 
-defineRolePainter("row", "omp.statsNotice", (node, cx): Block => {
+defineRolePainter("row", "zeta.statsNotice", (node, cx): Block => {
 	const message = node.children().find(child => child.kind === "text");
 	const text = message ? plainText(propsOf<TspTextProps>(message).spans) : "";
 	if (text === "") return { rows: [""] };

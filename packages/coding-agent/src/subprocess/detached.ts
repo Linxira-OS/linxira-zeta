@@ -8,7 +8,7 @@ export interface SpawnedDetached {
 }
 
 /**
- * Start `cmd` in its own session so it outlives this omp process; its output
+ * Start `cmd` in its own session so it outlives this zetacode process; its output
  * goes to `logPath`, truncated first unless `append`.
  */
 export function spawnDetached(

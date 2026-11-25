@@ -105,9 +105,9 @@ export function captureSessionState(session: AgentSession): SessionMirrorState {
 }
 
 /** Id main knows a queued message by (see the module doc). */
-const kQueuedMessageId = Symbol("omp.queuedMessageId");
+const kQueuedMessageId = Symbol("zeta.queuedMessageId");
 /** Set on a queued message the gate let through for delivery. */
-const kQueuedMessageClaimed = Symbol("omp.queuedMessageClaimed");
+const kQueuedMessageClaimed = Symbol("zeta.queuedMessageClaimed");
 let queuedMessageSeq = 0;
 
 /** The id `message` was published under, if it was. */

@@ -1,5 +1,5 @@
 /**
- * The worker's link to the omp relay: one long-lived native messaging port to the omp native host
+ * The worker's link to the zetacode relay: one long-lived native messaging port to the zetacode native host
  * ({@link NATIVE_HOST}), which serves the relay for this browser or joins the one another browser's host serves. Over
  * it run the hello, RPC dispatch, `input` pushes, and extension → relay calls.
  *
@@ -35,7 +35,7 @@ import { ensureBrowserSession, ensureInstanceId } from "./identity";
 import { snapshot } from "./tabs";
 
 /**
- * The omp version that installed this script, declared by the line the installer puts above it
+ * The zetacode version that installed this script, declared by the line the installer puts above it
  * (`stampRelayExtensionScript`); undeclared in an unstamped build. Read from the script, not the manifest:
  * after the files change, a Chrome restart re-reads manifest.json but keeps running the old service worker.
  */
@@ -122,7 +122,7 @@ export function setBusy(reason: string, busy: boolean): void {
 
 /** Ask the relay for something the side panel needs; rejects when the link ends or the relay takes too long. */
 export function callRelay(call: PanelCall): Promise<unknown> {
-	if (!link) return Promise.reject(new Error("omp relay is not connected"));
+	if (!link) return Promise.reject(new Error("zetacode relay is not connected"));
 	return link.calls.start(call, post);
 }
 
@@ -139,7 +139,7 @@ export function relayStatus(): RelayStatus {
 async function setBadge(connected: boolean): Promise<void> {
 	try {
 		await chrome.action.setBadgeText({ text: connected ? "on" : "" });
-		await chrome.action.setTitle({ title: connected ? "omp · Terminal browser relay connected" : "omp · Terminal browser relay disconnected" });
+		await chrome.action.setTitle({ title: connected ? "zetacode · Terminal browser relay connected" : "zetacode · Terminal browser relay disconnected" });
 		await chrome.action.setBadgeBackgroundColor({
 			color: connected ? "#1a7f37" : "#8b8b8b",
 		});
@@ -262,7 +262,7 @@ export function connectChatRelay(port: chrome.runtime.Port): { receive(line: str
 
 /** A relay listens for this browser: start a new epoch and say hello. */
 function linked(): void {
-	if (link) unlinked("omp relay changed");
+	if (link) unlinked("zetacode relay changed");
 	clearLinkDeadline();
 	reconnectDelay = RECONNECT_MIN_MS;
 	hostError = undefined;
@@ -357,8 +357,8 @@ export function connectRelay(): void {
 		const hadLink = link !== null;
 		unlinked(
 			detail
-				? `omp native host disconnected: ${detail}`
-				: "omp native host disconnected",
+				? `zetacode native host disconnected: ${detail}`
+				: "zetacode native host disconnected",
 		);
 		// A port that never linked was refused by the browser (host missing, blocked by policy): `unlinked` reported
 		// nothing, so publish the browser's reason. A linked host's exit ("Native host has exited.") is no such refusal.

@@ -133,7 +133,7 @@ panelSuite({
 						};
 					},
 				},
-				configPathLabel: scope => (scope === "user" ? "~/.omp/agent/mcp.json" : ".omp/mcp.json"),
+				configPathLabel: scope => (scope === "user" ? "~/.zeta/agent/mcp.json" : ".zeta/mcp.json"),
 			},
 		);
 		const run = (act: (d: Driver) => void) => async (d: Driver) => {

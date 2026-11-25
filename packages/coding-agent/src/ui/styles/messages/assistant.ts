@@ -1,5 +1,5 @@
 /**
- * `omp.assistant` / `omp.assistant.rewound` columns: the assistant's reply
+ * `zeta.assistant` / `zeta.assistant.rewound` columns: the assistant's reply
  * as transcript rows.
  *
  * - Text: Markdown with the standard inset, code fences drawn literally at column 0;
@@ -93,7 +93,7 @@ interface ReplyFrame {
 
 // The markdown renderer already reuses the settled paragraphs of the open block. Earlier message
 // blocks (often the entire thinking trace) are *not* streams: keep their final render with the node.
-const kCompleted = Symbol("omp.assistant.completed-markdown");
+const kCompleted = Symbol("zeta.assistant.completed-markdown");
 
 interface MarkdownNode extends UiNode {
 	[kCompleted]?: {
@@ -227,7 +227,7 @@ function paintAssistant(node: UiNode, cx: PaintContext): Block {
 			for (const hit of frame.hits ?? []) hits.push({ ...hit, row: rows.length + hit.row });
 			streamed(frame, propsOf<{ stream: boolean }>(child).stream === true);
 			rendered ||= frame.rows.length > 0;
-		} else if (child.kind === "section" && role.startsWith("omp.thinking")) {
+		} else if (child.kind === "section" && role.startsWith("zeta.thinking")) {
 			const term = termOf<SectionTerm>(child);
 			if (term.hidden) continue;
 			const body = child.children().find(c => c.kind === "md");
@@ -237,7 +237,7 @@ function paintAssistant(node: UiNode, cx: PaintContext): Block {
 				rendered ||= frame.rows.length > 0;
 			}
 			if (term.spaceAfter) rows.push("");
-		} else if (role === "omp.thinking.extension") {
+		} else if (role === "zeta.thinking.extension") {
 			// Extension thinking renderers draw under their thinking block.
 			const extension = cx.paint(child, cx.width).rows;
 			rows.push(...extension);
@@ -251,24 +251,24 @@ function paintAssistant(node: UiNode, cx: PaintContext): Block {
 			if (!toolImages) rows.push("");
 			toolImages = true;
 			rows.push(...imageRows(cx, child));
-		} else if (role === "omp.assistant.abort") {
+		} else if (role === "zeta.assistant.abort") {
 			pulse();
 			const text =
 				propsOf<{ spans: readonly { t: string }[] }>(child)
 					.spans?.map(span => span.t)
 					.join("") ?? "";
 			rows.push("", ...paddedText(theme.fg("error", text), cx.width));
-		} else if (role === "omp.assistant.recovered") {
+		} else if (role === "zeta.assistant.recovered") {
 			pulse();
 			rows.push("", ...paddedText(theme.fg("dim", termOf<{ note: string }>(child).note ?? ""), cx.width));
-		} else if (role === "omp.error") {
+		} else if (role === "zeta.error") {
 			pulse();
 			const term = termOf<ErrorTerm>(child);
 			if (term.hidden) continue;
-			const message = child.children().find(c => propsOf<{ role: string }>(c).role === "omp.error.message");
+			const message = child.children().find(c => propsOf<{ role: string }>(c).role === "zeta.error.message");
 			const lines = message ? propsOf<{ lines: number }>(message).lines : undefined;
 			rows.push("", ...errorRows(theme, term.preview ?? "", cx.width, lines ?? Number.POSITIVE_INFINITY));
-		} else if (role.startsWith("omp.marker.")) {
+		} else if (role.startsWith("zeta.marker.")) {
 			pulse();
 			rows.push(...cx.paint(child, cx.width).rows);
 		}
@@ -277,5 +277,5 @@ function paintAssistant(node: UiNode, cx: PaintContext): Block {
 	return { rows, ...(stable > 0 ? { stable } : {}), ...(hits.length > 0 ? { hits } : {}) };
 }
 
-defineRolePainter("col", "omp.assistant", paintAssistant);
-defineRolePainter("col", "omp.assistant.rewound", paintAssistant);
+defineRolePainter("col", "zeta.assistant", paintAssistant);
+defineRolePainter("col", "zeta.assistant.rewound", paintAssistant);

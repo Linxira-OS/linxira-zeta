@@ -33,7 +33,7 @@ const auth = (signedIn: string[], env: Record<string, string> = {}): OAuthSelect
 const sheet = (status?: string): OAuthSelectorSheet => ({
 	title: "Connect a provider",
 	subtitle: "Step 2 of 4",
-	role: "omp.setup.sheet",
+	role: "zeta.setup.sheet",
 	size: "lg",
 	status,
 	leave: { id: "skip", label: "Skip" },

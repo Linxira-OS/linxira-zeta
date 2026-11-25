@@ -52,7 +52,7 @@ describe("McpEndpoint requests", () => {
 		expect(endpoint.pids()).toEqual([pid]);
 	});
 
-	it("sends upstream neither the link's progress token nor omp keys, and keeps the rest of _meta", async () => {
+	it("sends upstream neither the link's progress token nor zetacode keys, and keeps the rest of _meta", async () => {
 		const link = attachLink(endpoint);
 		await link.call(1, "tools/call", { name: "alpha" }, { progressToken: 7, ...STALE_OK, traceparent: "00-ab" });
 		const sent = upstreams.last.calls.find(call => call.method === "tools/call");

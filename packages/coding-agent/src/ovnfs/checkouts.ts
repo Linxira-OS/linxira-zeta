@@ -10,7 +10,7 @@
 import { callSocket, OvnfsError } from "./client";
 import { forgetDaemon, startDaemon } from "./daemon";
 
-/** The parts of ovnfs's `new` reply omp reads. */
+/** The parts of ovnfs's `new` reply zetacode reads. */
 export interface NewReply {
 	checkout: { name: string; path: string; base: string; created: string };
 	/** How the folder was captured; absent for a checkout from a snapshot. */

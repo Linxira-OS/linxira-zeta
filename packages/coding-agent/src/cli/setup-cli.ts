@@ -1,10 +1,10 @@
 /**
  * Setup CLI command handler.
  *
- * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
+ * Handles `zetacode setup` for onboarding and `zetacode setup <component>` for optional dependencies.
  */
 import * as path from "node:path";
-import { APP_NAME, getProjectDir, getPythonEnvDir } from "@linxiraos/pi-utils";
+import { APP_NAME, CLI_BIN_NAME, getProjectDir, getPythonEnvDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { formatKeyHint } from "../ui/keys/hints";
 import { Settings } from "../config/settings";
@@ -45,7 +45,7 @@ export function parseSetupArgs(args: string[]): SetupCommandArgs | undefined {
 	}
 
 	if (args.length < 2) {
-		console.error(chalk.red(`Usage: ${APP_NAME} setup <component>`));
+		console.error(chalk.red(`Usage: \${CLI_BIN_NAME} setup <component>`));
 		console.error(`Valid components: ${VALID_COMPONENTS.join(", ")}`);
 		process.exit(1);
 	}
@@ -103,7 +103,7 @@ export async function checkPythonSetup(cwd: string, interpreter?: string): Promi
  * Install Python packages using uv (preferred) or pip.
  */
 // Python installation helper removed: the subprocess runner has no Python
-// package dependencies beyond a working interpreter. `omp setup python --check`
+// package dependencies beyond a working interpreter. `zetacode setup python --check`
 // remains as a probe; users install optional libs (pandas, matplotlib, ...)
 // directly via pip or the in-process `%pip` magic.
 
@@ -243,7 +243,7 @@ function buildSpeechComponents(settings: Settings, registry: ModelRegistry): Spe
 }
 
 /**
- * Unified `omp setup speech` flow. Drives every {@link SpeechComponent} through
+ * Unified `zetacode setup speech` flow. Drives every {@link SpeechComponent} through
  * one path: report (`--json`/`--check`) or install (interactive pick + ensure
  * with single-line progress; non-TTY skips pickers and installs configured
  * values).
@@ -316,11 +316,11 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
  * Print setup command help.
  */
 export function printSetupHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} setup`)} - Run onboarding or install dependencies for optional features
+	console.log(`${chalk.bold(`\${CLI_BIN_NAME} setup`)} - Run onboarding or install dependencies for optional features
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} setup                     Run the onboarding wizard
-  ${APP_NAME} setup <component> [options]
+  \${CLI_BIN_NAME} setup                     Run the onboarding wizard
+  \${CLI_BIN_NAME} setup <component> [options]
 
 ${chalk.bold("Components:")}
   python    Verify a Python 3 interpreter is reachable for code execution
@@ -331,10 +331,10 @@ ${chalk.bold("Options:")}
   --json        Output status as JSON
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} setup                  Run the onboarding wizard
-  ${APP_NAME} setup python           Check Python execution dependencies
-  ${APP_NAME} setup speech           Pick and download the STT and TTS models
-  ${APP_NAME} setup speech --check   Check if speech dependencies are available
-  ${APP_NAME} setup python --check   Check if Python execution is available
+  \${CLI_BIN_NAME} setup                  Run the onboarding wizard
+  \${CLI_BIN_NAME} setup python           Check Python execution dependencies
+  \${CLI_BIN_NAME} setup speech           Pick and download the STT and TTS models
+  \${CLI_BIN_NAME} setup speech --check   Check if speech dependencies are available
+  \${CLI_BIN_NAME} setup python --check   Check if Python execution is available
 `);
 }

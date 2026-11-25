@@ -1,7 +1,7 @@
-"""omp Ghidra worker: drives one PyGhidra program over an NDJSON socket protocol.
+"""zetacode Ghidra worker: drives one PyGhidra program over an NDJSON socket protocol.
 
 Launched as `worker.py --socket PATH` (Unix socket) or `worker.py --port-file PATH` (loopback TCP;
-the bound port is written to PATH). The omp daemon connects, sends `{"token": $OMP_DISASM_WORKER_TOKEN}`
+the bound port is written to PATH). The zetacode daemon connects, sends `{"token": $OMP_DISASM_WORKER_TOKEN}`
 as its first line, then speaks:
 
 Request:  {"id": int, "method": str, "params": dict}
@@ -374,7 +374,7 @@ def rename(t, name):
     table = program.getSymbolTable()
     symbol = table.getPrimarySymbol(address)
     old = str(symbol.getName()) if symbol is not None else ""
-    with pyghidra.transaction(program, "omp rename"):
+    with pyghidra.transaction(program, "zetacode rename"):
         f = program.getFunctionManager().getFunctionAt(address)
         if f is not None:
             f.setName(name, SourceType.USER_DEFINED)
@@ -390,7 +390,7 @@ def comment(t, text, repeatable=False):
     ea = resolve(t)
     program = _program()
     address = _address(ea)
-    with pyghidra.transaction(program, "omp comment"):
+    with pyghidra.transaction(program, "zetacode comment"):
         kind = CommentType.REPEATABLE if repeatable else CommentType.EOL
         program.getListing().setComment(address, kind, text)
         f = program.getFunctionManager().getFunctionAt(address)
@@ -409,7 +409,7 @@ def set_type(t, decl):
     address = _address(ea)
     dtm = program.getDataTypeManager()
     declaration = decl.rstrip("; ")
-    with pyghidra.transaction(program, "omp set_type"):
+    with pyghidra.transaction(program, "zetacode set_type"):
         f = program.getFunctionManager().getFunctionAt(address)
         if f is not None:
             signature = FunctionSignatureParser(dtm, None).parse(f.getSignature(), declaration)
@@ -429,7 +429,7 @@ def make_function(t):
     ea = resolve(t)
     program = _program()
     address = _address(ea)
-    with pyghidra.transaction(program, "omp make_function"):
+    with pyghidra.transaction(program, "zetacode make_function"):
         if program.getListing().getInstructionAt(address) is None:
             cmd = DisassembleCommand(address, None, True)
             if not cmd.applyTo(program):
@@ -605,7 +605,7 @@ def _rpc_open(params):
     directory = os.path.dirname(binary)
     project_directory = params["project"]
     name = os.path.basename(binary)
-    # The omp daemon already holds its OS database lock, so only stale project locks
+    # The zetacode daemon already holds its OS database lock, so only stale project locks
     # can remain here (e.g. after a worker crash).
     lock_path = str(ProjectLocator(project_directory, "omp").getProjectLockFile())
     for stale in (lock_path, lock_path + "~"):
@@ -680,7 +680,7 @@ def _rpc_exec(params):
     error = None
     tid = None
     try:
-        tid = program.startTransaction("omp exec")
+        tid = program.startTransaction("zetacode exec")
         tree = ast.parse(code, _EXEC_FILE, "exec")
         last = None
         if tree.body and isinstance(tree.body[-1], ast.Expr):

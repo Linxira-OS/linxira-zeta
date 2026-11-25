@@ -60,7 +60,7 @@ interface Process {
 	requests: Message[][];
 }
 
-/** One omp process on the session file: reopen it and wire an eval-capable session. */
+/** One zetacode process on the session file: reopen it and wire an eval-capable session. */
 async function openProcess(file: string, sessionDir: string, registry: ModelRegistry, label: string): Promise<Process> {
 	const bundled = getBundledModel("anthropic", "claude-sonnet-4-5");
 	if (!bundled) throw new Error("Expected bundled model");

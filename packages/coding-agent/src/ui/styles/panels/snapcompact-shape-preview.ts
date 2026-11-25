@@ -14,7 +14,7 @@ const NOTICES: Readonly<Record<string, string>> = {
 	ready: "(graphic sample needs a Kitty-graphics terminal)",
 };
 
-defineRolePainter("col", "omp.preview.snapcompact-shape", (node, cx): Block => {
+defineRolePainter("col", "zeta.preview.snapcompact-shape", (node, cx): Block => {
 	const theme = cx.theme;
 	const term = termOf<{ graphics: boolean; state: string }>(node);
 	const caption = node.children()[0];

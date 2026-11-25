@@ -76,7 +76,7 @@ export const statusLineHost: StatusLineHost<StatusLineHostSession> = {
 	limitMatchesActiveAccount,
 	classifyResetExpiry,
 	resetExpiryNotice: (session, reports, nowMs) => {
-		// agent.db records which resets were warned about across omp processes; without it, stay quiet
+		// agent.db records which resets were warned about across zetacode processes; without it, stay quiet
 		// rather than repeat the warning on every refresh.
 		const storage = (session.settings ?? settings).getStorage();
 		return storage

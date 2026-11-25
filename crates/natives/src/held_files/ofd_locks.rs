@@ -5,7 +5,7 @@
 //! APIs close with raw syscalls, and extension or eval code runs through them.
 //! An open-file-description (OFD) lock belongs to one open file description and
 //! survives every other close. OFD and POSIX locks conflict with each other, so
-//! omp processes on either kind still exclude one another.
+//! zetacode processes on either kind still exclude one another.
 //!
 //! SQLite's unix VFS calls `fcntl` and `close` through its `aSyscall` table,
 //! the table `xSetSystemCall` overrides. Bun links SQLite statically and

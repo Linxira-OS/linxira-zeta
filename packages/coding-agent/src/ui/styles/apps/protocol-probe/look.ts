@@ -1,5 +1,5 @@
 /**
- * `omp.app.probe`: the protocol probe in the terminal. A border-colored rule
+ * `zeta.app.probe`: the protocol probe in the terminal. A border-colored rule
  * above and below (the hidden first and last columns); every text indented
  * one cell and word-wrapped, its rows filled to the width (an open style,
  * like the inverse sample's, runs to the edge); spacers as blank rows; the
@@ -70,7 +70,7 @@ function paintProbe(node: UiNode, cx: PaintContext): Block {
 }
 
 /** The terminal role of the other debug tools' transcript output, laid out like the probe. */
-export const DEBUG_BLOCK_ROLE = "omp.debug.block";
+export const DEBUG_BLOCK_ROLE = "zeta.debug.block";
 
-defineRolePainter("col", "omp.app.probe", paintProbe);
+defineRolePainter("col", "zeta.app.probe", paintProbe);
 defineRolePainter("col", DEBUG_BLOCK_ROLE, paintProbe);

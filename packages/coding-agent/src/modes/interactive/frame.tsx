@@ -172,8 +172,8 @@ export class AppFrame {
 		this.shell.setHome(this.composer.field);
 		await this.shell.start({
 			theme: currentTheme,
-			// Tern draws omp's session (its composer, omp roles) for this role.
-			role: "omp.session",
+			// Tern draws omp's session (its composer, zetacode roles) for this role.
+			role: "zeta.session",
 			...(options.title ? { title: options.title } : {}),
 			version: this.welcome.version.peek(),
 			driver: { resizeScrollback: options.resizeScrollback, ...this.#terminal?.driver, ...options.driver },
@@ -344,7 +344,7 @@ export class AppFrame {
 				// The intro repaints the card on the terminal clock: it settles once the intro is over.
 				holdSettle(this.welcome.live);
 				return (
-					<col role="omp.welcome.block">
+					<col role="zeta.welcome.block">
 						<spacer size="sm" />
 						<Welcome
 							version={this.welcome.version}

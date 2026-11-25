@@ -57,7 +57,7 @@ function startupMarker(text) {
 
 function getNativesDir() {
 	// Match pi-utils directory overrides without depending on pi-utils.
-	const override = process.env.PI_NATIVES_DIR?.trim();
+	const override = process.env.ZETA_NATIVES_DIR?.trim();
 	if (override) {
 		let dir = override;
 		if (dir === "~") dir = os.homedir();
@@ -65,10 +65,10 @@ function getNativesDir() {
 		if (path.isAbsolute(dir)) return path.normalize(dir);
 	}
 	const xdgDataHome = process.env.XDG_DATA_HOME;
-	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "omp"))) {
-		return path.join(xdgDataHome, "omp", "natives");
+	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "zeta"))) {
+		return path.join(xdgDataHome, "zeta", "natives");
 	}
-	return path.join(os.homedir(), ".omp", "natives");
+	return path.join(os.homedir(), ".zeta", "natives");
 }
 
 /**
@@ -143,7 +143,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
 
 /**
  * Decide whether the loader should mirror the package's `native/<filename>.node`
- * into the per-version cache directory (`~/.omp/natives/<version>/`) before loading.
+ * into the per-version cache directory (`~/.zeta/natives/<version>/`) before loading.
  *
  * Windows-only safety net for `bun install -g` updates: when a previous `omp`
  * process is running, bun cannot overwrite the locked `.node` inside
@@ -1036,7 +1036,7 @@ const openedAddons = new Map();
  * Open one `.node` addon and return its exports, as `require` does for a
  * `.node` file. `process.dlopen` rather than `require`: Bun's `require` cannot
  * load any module from a path that contains `?` (it reads the path cut at the
- * `?`), and the addon's directory follows `HOME`, `PI_NATIVES_DIR` or the
+ * `?`), and the addon's directory follows `HOME`, `ZETA_NATIVES_DIR` or the
  * install location, so it can hold one. `dlopen` takes the path as it is.
  *
  * Like `require`, it opens a file once and then returns the same exports:

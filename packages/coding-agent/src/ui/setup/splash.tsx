@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The startup splash: the omp lockup over a starfield, "Press ⏎ to begin".
+ * The startup splash: the zetacode lockup over a starfield, "Press ⏎ to begin".
  * The setup wizard opens on it; first launches show it alone before the
  * app. Natively it is the lockup and the hint; the terminal draws the
  * animated backdrop (`../styles/setup/splash.ts`).
@@ -45,13 +45,13 @@ export function SplashView(props: {
 				<image key="logo" role="zeta.welcome.logo" builtin="zeta" alt="Zeta" w={128} />
 				<col key="mark" role="zeta.welcome.mark">
 					<text
-						key="omp.welcome.wordmark"
+						key="zeta.welcome.wordmark"
 						role="zeta.welcome.wordmark"
 						wrap="none"
 						spans={[{ s: "strong", t: "omp" }]}
 					/>
 					<text
-						key="omp.welcome.version"
+						key="zeta.welcome.version"
 						role="zeta.welcome.version"
 						wrap="none"
 						spans={[{ s: "dim mono", t: `v${props.version}` }]}

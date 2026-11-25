@@ -9,7 +9,7 @@
  * `f` opens a word filter (whole Latin words, substrings in other scripts);
  * stepping then visits only matching turns.
  *
- * The node is the bar (`omp.rewind.bar`): the counter, the filter field, the
+ * The node is the bar (`zeta.rewind.bar`): the counter, the filter field, the
  * key hints and the Cancel / Rewind buttons. A terminal fills the screen
  * with the branch above it, drawn by the transcript's own blocks (prompt
  * bubbles, replies, tool cards; ^O expands them) with the outlined turn boxed.
@@ -258,7 +258,7 @@ function turnIndex(replica: TranscriptReplica): Map<TranscriptBlock, number> {
 	return turnOf;
 }
 
-const kMarked = Symbol("omp.rewind.marked");
+const kMarked = Symbol("zeta.rewind.marked");
 
 /** A replayed block's node tagged with its marked view, so stepping reuses one view per block. */
 interface MarkTagged extends UiNode {

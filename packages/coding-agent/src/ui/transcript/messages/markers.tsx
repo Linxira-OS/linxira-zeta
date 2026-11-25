@@ -9,7 +9,7 @@
  *   and the served-model marker (the provider served another model than the
  *   one requested).
  *
- * Terminal look: `omp.divider` / `omp.marker.*` (`src/ui/styles/messages/divider.ts`).
+ * Terminal look: `zeta.divider` / `zeta.marker.*` (`src/ui/styles/messages/divider.ts`).
  */
 import { type JSXNode, type Reactive, read } from "@linxiraos/pi-tui";
 import { stripEscapes } from "@linxiraos/pi-tui/text/ansi";
@@ -28,7 +28,7 @@ export interface DividerProps {
 	readonly ruleColor?: string;
 	/** Rule cells before the label (default 10). */
 	readonly ruleWidth?: number;
-	/** Role of the native node (default `omp.divider`). */
+	/** Role of the native node (default `zeta.divider`). */
 	readonly role?: string;
 	/** Native presentation: an icon and a label instead of a rule. */
 	readonly native?: { readonly icon: string; readonly label: Reactive<string> };
@@ -57,7 +57,7 @@ export function MessageDivider(props: DividerProps): JSXNode {
 	}
 	return (
 		<rule
-			role={props.role ?? "omp.divider"}
+			role={props.role ?? "zeta.divider"}
 			label={() => {
 				// The label reads as the terminal draws it, glyph included (in the active symbol preset).
 				const glyph = props.glyph ? currentTheme().symbols.icon(props.glyph) : "";

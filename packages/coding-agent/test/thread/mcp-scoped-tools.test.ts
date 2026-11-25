@@ -21,7 +21,7 @@ let manager: MCPManager;
 let fixture: ServiceWorker<IntegrationsProbe>;
 
 beforeEach(async () => {
-	dir = path.join(os.tmpdir(), `omp-mcp-scoped-tools-${Snowflake.next()}`);
+	dir = path.join(os.tmpdir(), `zetacode-mcp-scoped-tools-${Snowflake.next()}`);
 	fs.mkdirSync(dir, { recursive: true });
 	manager = new MCPManager(dir, null, async () => ({ configs: {}, sources: {}, exaApiKeys: [] }));
 	await manager.connectServers(

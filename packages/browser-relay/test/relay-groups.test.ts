@@ -122,7 +122,7 @@ describe("relay tab groups under Chrome's saved groups", () => {
 		else Reflect.deleteProperty(globalThis, "chrome");
 	});
 
-	it("leaves no saved omp group behind after the relay closes its tabs, session after session", async () => {
+	it("leaves no saved zetacode group behind after the relay closes its tabs, session after session", async () => {
 		for (const tabId of [1, 2, 3]) {
 			browser.addTab(tabId);
 			await groupRelayTabs([tabId], "omp", "cyan");
@@ -132,7 +132,7 @@ describe("relay tab groups under Chrome's saved groups", () => {
 		expect(browser.tabs.size).toBe(0);
 	});
 
-	it("keeps the omp group while another relay tab remains in it", async () => {
+	it("keeps the zetacode group while another relay tab remains in it", async () => {
 		browser.addTab(1);
 		browser.addTab(2);
 		const { grouped } = await groupRelayTabs([1, 2], "omp", "cyan");

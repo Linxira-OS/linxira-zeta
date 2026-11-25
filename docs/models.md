@@ -24,7 +24,7 @@ Default-profile config paths, in precedence order:
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
 `~/.omp/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
-`PI_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
 Legacy behavior still present:
@@ -136,7 +136,7 @@ endpoint. To opt in from OMP, set this in `config.yml`:
 
 ```yaml
 providers:
-  openaiResponsesWebsockets: true
+   openaiResponsesWebsockets: true
 ```
 
 The catalog's `supports-websockets` KDL rule marks capability, not enablement.
@@ -155,12 +155,12 @@ and disable WS for the affected model:
 
 ```yaml
 providers:
-  openai:
-    api: openai-responses
-    baseUrl: https://gateway.example.com/v1
-    modelOverrides:
-      gpt-5:
-        preferWebsockets: false
+   openai:
+      api: openai-responses
+      baseUrl: https://gateway.example.com/v1
+      modelOverrides:
+         gpt-5:
+            preferWebsockets: false
 ```
 
 Custom `models` entries accept the same boolean. WS uses the existing `/responses`
@@ -180,7 +180,7 @@ When handshake headers are available, `onResponse` reports the physical WS
 handshake once, marked with `metadata.transport="websocket"` and
 `metadata.phase="handshake"`. Reusing the socket does not emit another handshake.
 These are not per-generation headers; no generation request ID is invented.
-`omp bench --json` includes the transport when response metadata makes it
+`zetacode bench --json` includes the transport when response metadata makes it
 observable. Standard WS cache benchmarks still measure generation usage, but
 cannot claim per-generation request IDs or HTTP response-cache headers.
 
@@ -325,7 +325,7 @@ Loading models.yml checks a `modelOverrides` `kind` only against an api the file
 - `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, `litellm`, `openrouter`, or `apple-foundation-models`. Apple's transport is registered implicitly on supported Macs; `apple-foundation-models` is not an allowed `api` value in this YAML schema.
 - `discovery.injectV1`: optional boolean, default `true`, for `openai-models-list`. Set `false` to fetch the model list from `{baseUrl}/models` without injecting `/v1` — for gateways that root their OpenAI-compatible surface at a versioned path (e.g. `https://api.opper.ai/v3/compat`) where the forced `/v1/models` returns a different, smaller model list. Query strings in `baseUrl` are ignored, matching the default mode.
 - `discovery.advertisedReasoning`: optional boolean, default `true`, for `openai-models-list`, `lm-studio`, and `proxy`. Discovery reads what a `/v1/models` row states about its own reasoning surface (`supported_reasoning_levels` / `default_reasoning_level` / `reasoning`, top-level or under `metadata`) and lets it outrank the bundled-reference guess, so a gateway that dispatches with its own catalog offers exactly the tiers its route accepts. A row that lists `none` gets `reasoningDisableMode: none-effort`, so a thinking-off request sends the off-switch instead of being clamped to the lowest tier. An advertised ladder also pins `defaultLevel` inside itself, so catalog policy cannot inject a tier the row omits. A row reporting `reasoning: false` overrides a reasoning-enabled reference for that id. Set the flag to `false` when an endpoint advertises levels its route rejects: discovery then builds each model's thinking surface from the bundled reference alone. A row that says nothing about reasoning is unaffected either way. Explicit `modelOverrides.<id>.thinking` and `compat.supportsReasoningEffort` still win over both. `litellm` does not accept the flag: its authoritative reasoning metadata comes from `/model_group/info`, so the setting would only apply to its `/v1/models` fallback.
-- `transport`: `pi-native` only. When set, every model under that provider is sent to an `omp auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer. The provider's model list is the gateway's: omp reads it from `GET /v1/pi/models`, so models the gateway discovered at runtime are selectable and models it cannot route disappear. A gateway without that route leaves the provider on the bundled list.
+- `transport`: `pi-native` only. When set, every model under that provider is sent to an `zetacode auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer. The provider's model list is the gateway's: zetacode reads it from `GET /v1/pi/models`, so models the gateway discovered at runtime are selectable and models it cannot route disappear. A gateway without that route leaves the provider on the bundled list.
 - `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; OMP converts attached and historical WebP images before provider dispatch.
 - `imageCountBudget`: positive integer. Set this on a custom model or `modelOverrides` entry to state how many images one request to its host may carry. It replaces the catalog budget, which is 5 for a provider no catalog rule names. A gateway in front of a vendor with a higher limit needs it: once a session holds more images than the budget, OMP drops the oldest ones, which changes the cached prompt prefix.
 - `snapcompactShape`: `{ variant, frameSize? }`. Set this on a custom model or `modelOverrides` entry to choose the snapcompact frame shape its archive pages use, in place of the shape OMP picks for the model line. `variant` is a `snapcompact.shape` value other than `auto` (for example `11on16-bw`); `frameSize` is the frame edge in px, an integer from 64 to 2576, and defaults to the variant's own. The `snapcompact.shape` setting, when not `auto`, still wins, the frame is still shrunk to the host's `image-max-edge`, and billing estimates still follow the model.
@@ -515,7 +515,7 @@ For the first-party `deepseek` provider, the catalog follows [DeepSeek's officia
 - Flash pricing covers `deepseek-flash` and the retired-but-still-accepted `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` ids, all billed at the Flash card. Peak rates per million tokens are $0.30 uncached input, $0.006 cached input, and $1.20 output.
 - `deepseek-v4-pro` initially uses peak rates of $1.32 uncached input, $0.044 cached input, and $3.96 output per million tokens. From **2026-09-14 04:00 UTC**, its estimates use the Flash rate card, with the same peak/off-peak schedule.
 
-Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `omp models --json` show the price in force.
+Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `zetacode models --json` show the price in force.
 
 Local estimates use the assistant message's **request-start timestamp** to choose both the rate card and tariff for the whole request. This is OMP's estimation convention: DeepSeek's pricing page does not specify how its server bills a request spanning a boundary. When importing historical usage without recorded cost, the stats importer leaves scheduled pricing unpriced if no request timestamp can be recovered, rather than choosing a wall-clock tariff.
 
@@ -670,7 +670,7 @@ and `transcription` an `stt` runner on `openai-transcriptions`. Outputs come fro
 modality arrays or OpenRouter's `architecture.modality` summary
 (`text->speech`). Mixed outputs, a bare `audio` output (Poe lists TTS voices and music generators
 alike as `text->audio`), and rows that declare no modalities remain chat models. These runners are
-visible with `omp models --kind all`, not the default chat listing.
+visible with `zetacode models --kind all`, not the default chat listing.
 
 ### Explicit provider discovery
 
@@ -935,13 +935,13 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for either provider setting, or `values` for any of them.
 
-## `/model` and `omp models`
+## `/model` and `zetacode models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
 
 - `/model` / `/models` opens the model hub with role assignments and provider catalogs; the session-only picker changes the active model without saving a role assignment.
-- `omp models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
-- `omp models find <substring>` filters by provider, id, or name; `omp models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `omp models openai-codex`).
+- `zetacode models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
+- `zetacode models find <substring>` filters by provider, id, or name; `zetacode models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `zetacode models openai-codex`).
 - Other flags: `--json`, `-e <path>` / `--extension <path>` (repeatable), `--no-extensions` (skip ambient discovery; explicit `-e` still loads), and `--config <overlay>` (repeatable).
 
 JSON includes `provider`, `kind`, `id`, `selector`, `name`, limits, reasoning/thinking metadata,

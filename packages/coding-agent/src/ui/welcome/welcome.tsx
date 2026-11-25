@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The welcome card (`omp.welcome`): the lockup — the omp mark beside the
- * `omp` wordmark with the version (and any self-update activity) under it —
+ * The welcome card (`zeta.welcome`): the lockup — the zetacode mark beside the
+ * `zetacode` wordmark with the version (and any self-update activity) under it —
  * and the session's tip.
  *
  * Terminal look (`src/ui/styles/welcome/welcome.ts`): the gradient logo and
@@ -82,13 +82,13 @@ export function Welcome(props: WelcomeProps): JSXNode {
 				<image key="logo" role="zeta.welcome.logo" builtin="zeta" alt="Zeta" w={128} />
 				<col key="mark" role="zeta.welcome.mark">
 					<text
-						key="omp.welcome.wordmark"
+						key="zeta.welcome.wordmark"
 						role="zeta.welcome.wordmark"
 						spans={[{ t: "omp", s: "strong" }]}
 						wrap="none"
 					/>
 					<text
-						key="omp.welcome.version"
+						key="zeta.welcome.version"
 						role="zeta.welcome.version"
 						spans={() => {
 							const update = props.update();

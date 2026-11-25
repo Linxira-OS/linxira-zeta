@@ -2,7 +2,7 @@
 /**
  * The git app's diff pane as a node: natively a `diff` of the selected file
  * (its hunks as unified text, the view mode, wrapping); the terminal draws
- * the pane from its {@link DiffPaneModel} (`omp.app.git.diff` look).
+ * the pane from its {@link DiffPaneModel} (`zeta.app.git.diff` look).
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
 import "../../styles/apps/git/diff-pane";

@@ -65,7 +65,7 @@ export function Notice(props: NoticeProps): JSXNode {
 	return (
 		<row
 			key={props.nodeKey}
-			role={`omp.notice.${tone}`}
+			role={`zeta.notice.${tone}`}
 			tone={tone}
 			gap="sm"
 			align="start"
@@ -262,7 +262,7 @@ export interface NoticeNative {
 
 /** A boxed transcript notice (tool activity: hidden with it). */
 export interface MessageNoticeProps {
-	/** `omp.notice.<name>`. */
+	/** `zeta.notice.<name>`. */
 	readonly role: string;
 	/** Theme color of the box (default `warning`). */
 	readonly severity?: string;

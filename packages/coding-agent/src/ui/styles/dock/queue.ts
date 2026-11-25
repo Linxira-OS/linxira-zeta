@@ -1,5 +1,5 @@
 /**
- * Terminal look of the queued-messages band (`col` `omp.queue`): a blank
+ * Terminal look of the queued-messages band (`col` `zeta.queue`): a blank
  * row, then one cell in, each cut to one line: per group a muted
  * `Steering · 1` over dim `  1. message` rows, then the dim hint
  * `  └ ⌥↑ to edit`.
@@ -31,4 +31,4 @@ function paintQueue(node: UiNode, cx: PaintContext): Block {
 	return { rows };
 }
 
-defineRolePainter("col", "omp.queue", paintQueue);
+defineRolePainter("col", "zeta.queue", paintQueue);

@@ -72,14 +72,14 @@ describe("run status OSC 7501 reporting", () => {
 		setRunStatus({ state: "error", msg: " \n " });
 
 		expect(writes).toEqual([
-			report("state=working:app=omp"),
+			report("state=working:app=zeta"),
 			report(
-				`state=blocked:kind=question:app=omp:msg=${Buffer.from("Which branch? main or dev?").toString("base64")}`,
+				`state=blocked:kind=question:app=zeta:msg=${Buffer.from("Which branch? main or dev?").toString("base64")}`,
 			),
-			report("state=working:app=omp"),
-			report("state=done:app=omp"),
-			report(`state=error:app=omp:msg=${Buffer.from("boom").toString("base64")}`),
-			report("state=error:app=omp"),
+			report("state=working:app=zeta"),
+			report("state=done:app=zeta"),
+			report(`state=error:app=zeta:msg=${Buffer.from("boom").toString("base64")}`),
+			report("state=error:app=zeta"),
 		]);
 	});
 
@@ -105,7 +105,7 @@ describe("run status OSC 7501 reporting", () => {
 		writes.length = 0;
 		initProgramStatus();
 		setRunStatus({ state: "idle" });
-		expect(writes).toEqual([report("state=idle:app=omp")]);
+		expect(writes).toEqual([report("state=idle:app=zeta")]);
 	});
 
 	it("clears the record when turned off and reports the current status when turned back on", () => {
@@ -116,7 +116,7 @@ describe("run status OSC 7501 reporting", () => {
 		holdBlockedStatus({ state: "blocked", kind: "permission" });
 		setProgramStatusEnabled(true);
 
-		expect(writes).toEqual([CLEAR, report("state=blocked:kind=permission:app=omp")]);
+		expect(writes).toEqual([CLEAR, report("state=blocked:kind=permission:app=zeta")]);
 	});
 
 	it("re-sends prompt-invalidated working and blocked records but never repeats a done result", () => {
@@ -133,18 +133,18 @@ describe("run status OSC 7501 reporting", () => {
 		resendProgramStatus();
 
 		expect(writes).toEqual([
-			report("state=working:app=omp"),
-			report("state=working:app=omp"),
-			report(`state=blocked:kind=permission:app=omp:msg=${Buffer.from("Approve the command?").toString("base64")}`),
-			report(`state=blocked:kind=permission:app=omp:msg=${Buffer.from("Approve the command?").toString("base64")}`),
-			report("state=working:app=omp"),
-			report("state=done:app=omp"),
+			report("state=working:app=zeta"),
+			report("state=working:app=zeta"),
+			report(`state=blocked:kind=permission:app=zeta:msg=${Buffer.from("Approve the command?").toString("base64")}`),
+			report(`state=blocked:kind=permission:app=zeta:msg=${Buffer.from("Approve the command?").toString("base64")}`),
+			report("state=working:app=zeta"),
+			report("state=done:app=zeta"),
 		]);
 	});
 
 	it("reports the newest open wait over the run's own transitions, then the run's current status", () => {
 		const blocked = (msg: string) =>
-			report(`state=blocked:kind=question:app=omp:msg=${Buffer.from(msg).toString("base64")}`);
+			report(`state=blocked:kind=question:app=zeta:msg=${Buffer.from(msg).toString("base64")}`);
 		setRunStatus({ state: "working" });
 		const first = holdBlockedStatus({
 			state: "blocked",
@@ -162,11 +162,11 @@ describe("run status OSC 7501 reporting", () => {
 		first();
 
 		expect(writes).toEqual([
-			report("state=working:app=omp"),
+			report("state=working:app=zeta"),
 			blocked("Use Postgres?"),
 			blocked("Deploy now?"),
 			blocked("Use Postgres?"),
-			report("state=done:app=omp"),
+			report("state=done:app=zeta"),
 		]);
 	});
 
@@ -180,7 +180,7 @@ describe("run status OSC 7501 reporting", () => {
 		setRunStatus({ state: "working" });
 		setRunStatus({ state: "done" });
 		settleStartupRun();
-		expect(writes).toEqual([report("state=working:app=omp"), report("state=done:app=omp")]);
+		expect(writes).toEqual([report("state=working:app=zeta"), report("state=done:app=zeta")]);
 
 		disposeProgramStatus();
 		writes.length = 0;
@@ -191,7 +191,7 @@ describe("run status OSC 7501 reporting", () => {
 		expect(titleGenerator.setTerminalTitleState).toHaveBeenLastCalledWith("working");
 		setProgramStatusEnabled(true);
 		settleStartupRun();
-		expect(writes).toEqual([report("state=working:app=omp"), report("state=idle:app=omp")]);
+		expect(writes).toEqual([report("state=working:app=zeta"), report("state=idle:app=zeta")]);
 	});
 
 	it("keeps prompt navigation before negotiation and suppresses redraws only after confirmation", () => {

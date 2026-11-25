@@ -330,7 +330,7 @@ try {
 	await manual.stdout.getReader().read();
 	const owned = await restartRelayDaemon({ cdpUrl: ownedUrl });
 	const ownedVersionIsCurrent = (await versionAt(ownedPort)) === VERSION;
-	// Another omp of this version is still starting its replacement when this one decides to restart.
+	// Another zetacode of this version is still starting its replacement when this one decides to restart.
 	await client.request({ op: "stop", name, timeoutMs: 5_000 });
 	const starting = start([ownedPort, "1000", VERSION]);
 	let snapshot = await describe();
@@ -339,7 +339,7 @@ try {
 	const startingRestarted = await restartRelayDaemon({ cdpUrl: ownedUrl });
 	await starting;
 	const startingKeptPid = (await describe())?.pid;
-	// Another omp stopped the outdated relay and has not registered its replacement yet.
+	// Another zetacode stopped the outdated relay and has not registered its replacement yet.
 	await client.request({ op: "stop", name, timeoutMs: 5_000 });
 	const exitedRestarted = await restartRelayDaemon({ cdpUrl: ownedUrl });
 	const exitedVersionIsCurrent = (await versionAt(ownedPort)) === VERSION;
@@ -353,7 +353,7 @@ try {
 	const ownedRecordState = (await describe())?.state;
 	manualOnOwnedPort.kill();
 	await manualOnOwnedPort.exited;
-	// A concurrently running newer omp owns a newer relay; replacing it would only start a tug of war.
+	// A concurrently running newer zetacode owns a newer relay; replacing it would only start a tug of war.
 	await start([ownedPort, "0", "999.0.0"]);
 	const newerPid = (await describe())?.pid;
 	const newerRestarted = await restartRelayDaemon({ cdpUrl: ownedUrl });
@@ -510,7 +510,7 @@ try {
 		});
 	}, 60_000);
 
-	it("keeps a replacement another omp started while this one was about to stop the outdated relay", async () => {
+	it("keeps a replacement another zetacode started while this one was about to stop the outdated relay", async () => {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-restart-race-"));
 		const port = String(await findFreeCdpPort());
 		const standIn = path.join(home, "stand-in-relay.ts");
@@ -546,7 +546,7 @@ try {
 			detached: false,
 		},
 	});
-	// The late omp has judged the relay outdated; its stop reaches the broker only after another omp replaced it.
+	// The late zetacode has judged the relay outdated; its stop reaches the broker only after another zetacode replaced it.
 	const request = client.request.bind(client);
 	const stopHeld = Promise.withResolvers<void>();
 	const stopReleased = Promise.withResolvers<void>();
@@ -650,7 +650,7 @@ try {
 			standIn,
 			`import { DISCARDED_TABS_PROTOCOL_VERSION } from ${source("tools/browser/relay/protocol.ts")};
 const port = Number(process.argv[2]);
-// A compatible relay from an older omp with no CDP client; it never accepts an extension.
+// A compatible relay from an older zetacode with no CDP client; it never accepts an extension.
 Bun.serve({
 	hostname: "127.0.0.1",
 	port,
@@ -665,7 +665,7 @@ Bun.serve({
 console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 `,
 		);
-		// The acquiring omp is also the worker host the registry spawns its replacement relay through.
+		// The acquiring zetacode is also the worker host the registry spawns its replacement relay through.
 		const host = path.join(home, "host.ts");
 		await Bun.write(
 			host,
@@ -748,7 +748,7 @@ if (process.argv[2] === "browser-relay") {
 		expect(result).toEqual({ connected: true, replaced: true, versionIsCurrent: true, cdpClients: 1 });
 	}, 60_000);
 
-	it("probes again when another omp replaced the idle older relay with an incompatible newer one before the restart", async () => {
+	it("probes again when another zetacode replaced the idle older relay with an incompatible newer one before the restart", async () => {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-idle-raced-"));
 		const result = await runWithIsolatedBroker(
 			home,
@@ -756,7 +756,7 @@ if (process.argv[2] === "browser-relay") {
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { acquireBrowser } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/registry.ts"))};
 import { DISCARDED_TABS_PROTOCOL_VERSION } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/protocol.ts"))};
-// A compatible relay from an older omp that nobody is connected to, until a newer omp with another protocol replaces it.
+// A compatible relay from an older zetacode that nobody is connected to, until a newer zetacode with another protocol replaces it.
 let served = {
 	zetaRelayVersion: "${OLDER_RELAY_VERSION}",
 	ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),

@@ -1,5 +1,5 @@
 /**
- * Shared pieces of the `omp.tool.*` terminal looks: the rounded frame with a
+ * Shared pieces of the `zeta.tool.*` terminal looks: the rounded frame with a
  * head in its top edge, labelled section dividers and a footer in its bottom
  * edge; status glyphs (spinner while running); the expand hints collapsed
  * bodies end with.

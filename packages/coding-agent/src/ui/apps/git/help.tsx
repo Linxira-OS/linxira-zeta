@@ -3,7 +3,7 @@
  * The git app's keyboard-shortcuts sheet (`?`): one `section` per group with
  * a two-column hotkeys `table` (key cells carry the `key` span token so a Tern
  * terminal draws keycaps), then a `Close esc` action. The terminal draws it
- * as a titled list of `keys  description` rows (`omp.app.git.help` look).
+ * as a titled list of `keys  description` rows (`zeta.app.git.help` look).
  */
 import type { Accessor, JSXNode, KeyEvent } from "@linxiraos/pi-tui";
 import type { TspSpan } from "@linxiraos/pi-wire";
@@ -84,11 +84,11 @@ export function closesGitHelp(key: KeyEvent): boolean {
  */
 export function gitHelpSheet(native: boolean, columns: Accessor<number>): SheetAttributes {
 	return native
-		? { anchor: "center", size: "lg", modal: true, role: "omp.overlay.hotkeys", head: "Keyboard shortcuts" }
+		? { anchor: "center", size: "lg", modal: true, role: "zeta.overlay.hotkeys", head: "Keyboard shortcuts" }
 		: {
 				anchor: "center",
 				modal: true,
-				role: "omp.sheet.bare",
+				role: "zeta.sheet.bare",
 				term: () => ({ width: Math.floor(columns() * 0.8) }),
 			};
 }

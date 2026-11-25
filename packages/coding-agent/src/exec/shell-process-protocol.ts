@@ -1,5 +1,5 @@
 /**
- * What a shell process and the omp process that started it agree on: the
+ * What a shell process and the zetacode process that started it agree on: the
  * worker's command line.
  *
  * A shell process (`exec/shell-process-worker.ts`) is the bash tool's shell

@@ -10,7 +10,7 @@
  * the anchor or the body height changes, and draws a scrollbar beside the
  * body while it overflows. The frame is terminal chrome: a `canvas` node
  * (natively its rows in the active theme; the terminal paints it in its own
- * theme through the `omp.viewer.frame` look).
+ * theme through the `zeta.viewer.frame` look).
  */
 import { type Accessor, type JSXNode, read, type Reactive, type Signal, signal, untrack } from "@linxiraos/pi-tui";
 import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";

@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * One run of a command or code cell as one box (`omp.run`): its input, its
+ * One run of a command or code cell as one box (`zeta.run`): its input, its
  * output, and a foot naming the state with the run time. Shared by the
  * shell and eval presenters; the terminal looks paint the box as a framed
  * card (`src/ui/styles/tools/run.ts`).

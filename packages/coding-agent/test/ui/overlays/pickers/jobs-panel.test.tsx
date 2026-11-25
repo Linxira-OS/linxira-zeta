@@ -142,7 +142,7 @@ test("describes subagents without task jobs as plain headings in tree order", ()
 				{
 					k: "text",
 					key: expect.any(String),
-					p: { role: "omp.jobs.group", spans: [{ t: "Audit" }], wrap: "none" },
+					p: { role: "zeta.jobs.group", spans: [{ t: "Audit" }], wrap: "none" },
 				},
 				expect.objectContaining({
 					k: "item",
@@ -158,7 +158,7 @@ test("describes subagents without task jobs as plain headings in tree order", ()
 				{
 					k: "text",
 					key: expect.any(String),
-					p: { role: "omp.jobs.group", spans: [{ t: "Verify" }], wrap: "none" },
+					p: { role: "zeta.jobs.group", spans: [{ t: "Verify" }], wrap: "none" },
 				},
 				expect.objectContaining({
 					k: "item",

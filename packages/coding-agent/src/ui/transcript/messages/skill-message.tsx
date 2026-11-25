@@ -10,7 +10,7 @@
  * draft as a plain user bubble with the chip inline when it sat mid-prompt
  * (the callout then only holds the expanded prompt).
  *
- * Terminal look: `omp.skill` (`src/ui/styles/messages/skill.ts`).
+ * Terminal look: `zeta.skill` (`src/ui/styles/messages/skill.ts`).
  */
 import type { JSXNode, Reactive } from "@linxiraos/pi-tui";
 import type { TspSpan } from "@linxiraos/pi-wire";

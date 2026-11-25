@@ -460,7 +460,7 @@ export function ModelPicker(props: ModelPickerProps): JSXNode {
 		const shown = slider();
 		const theme = currentTheme();
 		return {
-			look: "omp.model-picker",
+			look: "zeta.model-picker",
 			browser,
 			heading: taskMode() ? "Switch Task Model" : "Switch Model",
 			...(taskMode() ? { tone: "error" } : {}),

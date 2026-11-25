@@ -33,7 +33,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("Compaction hooks", () => {
 	let capturedEvents: SessionEvent[];
 
 	beforeEach(() => {
-		tempDir = path.join(os.tmpdir(), `omp-compaction-hooks-test-${Snowflake.next()}`);
+		tempDir = path.join(os.tmpdir(), `zetacode-compaction-hooks-test-${Snowflake.next()}`);
 		fs.mkdirSync(tempDir, { recursive: true });
 		capturedEvents = [];
 	});

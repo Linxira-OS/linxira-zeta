@@ -3,7 +3,7 @@
  * composer-owned part of every stage. The dock's tail — the attachment band
  * (while the stage shows it) and the composer — must match the viewport's
  * last rows and the cursor; their native nodes must match the dock's
- * `zeta.composer.chips` row and `omp.editor` column. The status facts the
+ * `zeta.composer.chips` row and `zeta.editor` column. The status facts the
  * app slots into the composer are rebuilt from the stage's native tree (the
  * status line owns them); welcome, transcript and queued messages belong to
  * their own screens.
@@ -94,7 +94,7 @@ describe.skipIf(!fs.existsSync(path.join(CORPUS_DIR, SCREEN)))(SCREEN, async () 
 					await settle();
 
 					const docked = dock(corpusCase, i);
-					const expectedComposer = docked.find(n => String(n.p?.role ?? "").startsWith("omp.editor"));
+					const expectedComposer = docked.find(n => String(n.p?.role ?? "").startsWith("zeta.editor"));
 					composer.setSlots(slots(expectedComposer));
 					const native = subsetDiff(expectedComposer, describeTree(composer.node, env), "$");
 					if (native) problems.push(`[${i}] ${label}: native ${native}`);

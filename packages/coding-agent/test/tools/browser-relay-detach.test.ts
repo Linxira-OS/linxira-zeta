@@ -199,7 +199,7 @@ class ChromeBackedExtension {
 	}
 
 	/**
-	 * Resolves once the relay forwards the evaluation of {@link HANG}. omp itself also evaluates in the page between
+	 * Resolves once the relay forwards the evaluation of {@link HANG}. zetacode itself also evaluates in the page between
 	 * and before calls (holding the page's `print()`), so any `Runtime.callFunctionOn` is not yet the call's code.
 	 */
 	hanging(): Promise<void> {
@@ -252,7 +252,7 @@ class ChromeBackedExtension {
 	}
 }
 
-describe("relay tabs Chrome detaches omp from", () => {
+describe("relay tabs Chrome detaches zetacode from", () => {
 	let chromium: Browser | undefined;
 	let site: Bun.Server<undefined> | undefined;
 	let relay: RelayServer | undefined;

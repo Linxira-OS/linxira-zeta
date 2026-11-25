@@ -1,6 +1,6 @@
 /**
  * The composer's completion popup in the terminal (`overlay` with role
- * `omp.autocomplete` → `col omp.select` → `list` of `item`s), drawn under
+ * `zeta.autocomplete` → `col zeta.select` → `list` of `item`s), drawn under
  * the field as a select list:
  *
  * - the selected row in the accent, the others indented; when any item has a
@@ -171,4 +171,4 @@ function paintPopup(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("overlay", "omp.autocomplete", paintPopup);
+defineRolePainter("overlay", "zeta.autocomplete", paintPopup);

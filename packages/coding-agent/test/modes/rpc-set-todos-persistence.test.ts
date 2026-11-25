@@ -10,11 +10,11 @@ let client: RpcClient;
 let directory: string;
 
 beforeEach(async () => {
-	directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-todos-"));
+	directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-rpc-todos-"));
 	client = new RpcClient({
 		command: [process.execPath, path.join(import.meta.dir, "..", "fixtures", "fork-rpc-agent.ts"), directory],
 		cwd: directory,
-		env: { PI_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
+		env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 	});
 });
 

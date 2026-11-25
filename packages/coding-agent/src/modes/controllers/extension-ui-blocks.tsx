@@ -14,11 +14,11 @@ export function extensionOverlay(view: UiNode, fullscreen: boolean, native: bool
 	if (!native) {
 		// The view draws its own look: no frame, the screen's width, at the bottom edge.
 		return fullscreen ? (
-			<overlay key="extension" size="full" role="omp.sheet.bare">
+			<overlay key="extension" size="full" role="zeta.sheet.bare">
 				{view}
 			</overlay>
 		) : (
-			<overlay key="extension" anchor="bottom" role="omp.sheet.bare" term={{ width: "full" }}>
+			<overlay key="extension" anchor="bottom" role="zeta.sheet.bare" term={{ width: "full" }}>
 				{view}
 			</overlay>
 		);
@@ -26,7 +26,7 @@ export function extensionOverlay(view: UiNode, fullscreen: boolean, native: bool
 	if (view.kind === "overlay") return view;
 	if (fullscreen) {
 		return (
-			<overlay key="extension" size="full" role="omp.app.screen" page={SESSION_PAGE}>
+			<overlay key="extension" size="full" role="zeta.app.screen" page={SESSION_PAGE}>
 				{view}
 			</overlay>
 		);

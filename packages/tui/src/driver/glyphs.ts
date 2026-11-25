@@ -24,7 +24,7 @@ interface GlyphBundle {
 
 const GLYPHS: GlyphBundle = bundle;
 
-/** The omp mark (the status line always shows it): its coverage confirms the registration. */
+/** The zetacode mark (the status line always shows it): its coverage confirms the registration. */
 export const GLYPH_CONFIRMATION_CODEPOINT = 0xf0d57;
 
 /** A decoded Glyph Protocol reply. */

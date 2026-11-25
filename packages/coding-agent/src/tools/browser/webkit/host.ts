@@ -4,7 +4,7 @@
  * streams. Requests go to its stdin and answers come from its stdout in the
  * framing and JSON protocol of the Tern daemon (`../tern/wire.ts`), so the
  * same client and tab driver work against it; its stderr carries diagnostics
- * only. The host exits when its stdin closes, so it never outlives omp.
+ * only. The host exits when its stdin closes, so it never outlives zeta.
  *
  * The host has no window. Where the engine ships its viewer program
  * (`viewer.ts`), a tab is shown by presenting its block to the viewer and
@@ -65,7 +65,7 @@ class HostProcessTransport implements TernTransport {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
-		// A host nobody closed must not hold omp open; it exits with omp's end of its stdin.
+		// A host nobody closed must not hold zetacode open; it exits with omp's end of its stdin.
 		child.unref();
 		this.#child = child;
 		const drained = (async () => {

@@ -142,25 +142,25 @@ If the requested memory role is not configured, memory model resolution falls ba
 
 ## Configuration
 
-| Setting                               | Default | Description                                                                                                                              |
-| ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `memory.backend`                      | `off`   | Select `local` for this pipeline; legacy `memories.enabled: true` is migrated to `memory.backend: local` when no explicit backend is set |
+| Setting                               | Default | Description                                                                                                                                               |
+| ------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `memory.backend`                      | `off`   | Select `local` for this pipeline; legacy `memories.enabled: true` is migrated to `memory.backend: local` when no explicit backend is set                  |
 | `memory.extractionMode`               | `auto`  | `auto` keeps backend cadence, `window` learns only committed discarded regions, `manual` leaves explicit tools and `/memory enqueue` as the only triggers |
-| `memories.maxRolloutAgeDays`          | `30`    | Sessions older than this are not processed                                                                                               |
-| `memories.minRolloutIdleHours`        | `12`    | Sessions active more recently than this are skipped                                                                                      |
-| `memories.maxRolloutsPerStartup`      | `64`    | Cap on sessions processed in a single startup                                                                                            |
-| `memories.threadScanLimit`            | `300`   | Maximum recent session records scanned at startup                                                                                        |
-| `memories.maxRawMemoriesForGlobal`    | `200`   | Maximum per-session extractions supplied to global consolidation                                                                         |
-| `memories.stage1Concurrency`          | `8`     | Concurrent per-session extraction jobs                                                                                                   |
-| `memories.stage1LeaseSeconds`         | `120`   | Extraction job lease duration                                                                                                            |
-| `memories.stage1RetryDelaySeconds`    | `120`   | Delay before a failed extraction becomes claimable again                                                                                 |
-| `memories.phase2LeaseSeconds`         | `180`   | Consolidation lease duration                                                                                                             |
-| `memories.phase2RetryDelaySeconds`    | `180`   | Delay before failed consolidation is retried                                                                                             |
-| `memories.phase2HeartbeatSeconds`     | `30`    | Consolidation lease heartbeat interval                                                                                                   |
-| `memories.rolloutPayloadPercent`      | `0.7`   | Fraction of the selected model's context budget available to rollout payloads                                                            |
-| `memories.phase1InputTokenLimit`      | `4000`  | Per-session extraction input cap                                                                                                         |
-| `memories.fallbackTokenLimit`         | `16000` | Model token budget used when the model has no finite declared context window                                                             |
-| `memories.summaryInjectionTokenLimit` | `5000`  | Shared approximate token cap for the summary and captured lessons injected into the system prompt                                        |
+| `memories.maxRolloutAgeDays`          | `30`    | Sessions older than this are not processed                                                                                                                |
+| `memories.minRolloutIdleHours`        | `12`    | Sessions active more recently than this are skipped                                                                                                       |
+| `memories.maxRolloutsPerStartup`      | `64`    | Cap on sessions processed in a single startup                                                                                                             |
+| `memories.threadScanLimit`            | `300`   | Maximum recent session records scanned at startup                                                                                                         |
+| `memories.maxRawMemoriesForGlobal`    | `200`   | Maximum per-session extractions supplied to global consolidation                                                                                          |
+| `memories.stage1Concurrency`          | `8`     | Concurrent per-session extraction jobs                                                                                                                    |
+| `memories.stage1LeaseSeconds`         | `120`   | Extraction job lease duration                                                                                                                             |
+| `memories.stage1RetryDelaySeconds`    | `120`   | Delay before a failed extraction becomes claimable again                                                                                                  |
+| `memories.phase2LeaseSeconds`         | `180`   | Consolidation lease duration                                                                                                                              |
+| `memories.phase2RetryDelaySeconds`    | `180`   | Delay before failed consolidation is retried                                                                                                              |
+| `memories.phase2HeartbeatSeconds`     | `30`    | Consolidation lease heartbeat interval                                                                                                                    |
+| `memories.rolloutPayloadPercent`      | `0.7`   | Fraction of the selected model's context budget available to rollout payloads                                                                             |
+| `memories.phase1InputTokenLimit`      | `4000`  | Per-session extraction input cap                                                                                                                          |
+| `memories.fallbackTokenLimit`         | `16000` | Model token budget used when the model has no finite declared context window                                                                              |
+| `memories.summaryInjectionTokenLimit` | `5000`  | Shared approximate token cap for the summary and captured lessons injected into the system prompt                                                         |
 
 ## Hindsight remote backend
 
@@ -178,7 +178,7 @@ hindsight:
 
 By default, Hindsight uses `per-project-tagged` scoping: writes go to a shared bank with a project tag, while recall includes project-tagged and untagged global memories. With `hindsight.globalScope: true` (off by default), `retain` and `learn` accept `scope: "global"` to write such an untagged memory, so a preference or lesson that holds everywhere reaches every project. Recall finds the global fact itself in every project. Per-project mental models refresh with strict project-tag matching, so they never include global memories; the untagged `user-preferences` model does. Consolidation may also fold a global fact into an existing project-tagged observation, so observation results in other projects can miss that consolidated form. A bank configuration that tags extracted facts (an `entity_labels` group with `tag: true`) adds a tag to every fact carrying such a label, and a global fact tagged that way no longer surfaces in other projects. `per-project` isolates each working-directory project in its own bank and does not offer `scope: "global"`; `global` uses one shared bank. An explicit `hindsight.bankId` selects the bank base. Changes to the bank ID, prefix, or scoping rebuild the primary session state so later operations use the new scope.
 
-The default bank base is `zeta`; it was upstream's `omp` before the 2026-10 brand cut. Memories are addressed by bank, so a deployment that already retained content under the old default keeps those memories only by pointing at them again: set `hindsight.bankId: omp` (or `HINDSIGHT_BANK_ID=omp`) to keep recalling them, or re-retain into the new bank.
+The default bank base is `zeta`; it was upstream's `zetacode` before the 2026-10 brand cut. Memories are addressed by bank, so a deployment that already retained content under the old default keeps those memories only by pointing at them again: set `hindsight.bankId: omp` (or `HINDSIGHT_BANK_ID=omp`) to keep recalling them, or re-retain into the new bank.
 
 Both project-scoped modes name the project the same way: take the repository's primary checkout root (so every linked worktree of one repository resolves to the same directory), then lowercase its basename. A checkout at `~/code/General` therefore tags `project:general`. Tags are matched literally, so this fold is what keeps one repository in one memory scope no matter how the path is capitalised.
 
@@ -216,7 +216,7 @@ sharpshooter:
 
 ## Taste layer
 
-The taste layer learns durable *preferences* — how you want code written — separately from project facts. It is off by default, needs a memory backend, and is the only memory layer that stores its data in Command Code's `taste.md` format, so an existing `.commandcode/taste/taste.md` is imported on first use and a store this layer writes stays readable by that tool.
+The taste layer learns durable _preferences_ — how you want code written — separately from project facts. It is off by default, needs a memory backend, and is the only memory layer that stores its data in Command Code's `taste.md` format, so an existing `.commandcode/taste/taste.md` is imported on first use and a store this layer writes stays readable by that tool.
 
 In Simplified Chinese settings, this feature is called **写法先进**. Existing `taste.*` settings and `taste.md` stores continue to work.
 
@@ -251,30 +251,34 @@ The visible file carries the statement and one confidence; evidence, mentions, c
 - Deletion only for: a manual forget, a conflict unresolved for 30 days, an idle unprotected entry older than a year whose decayed retention fell below 0.5, and the per-category cap of 12 (weakest retention first). Every deletion leaves a tombstone.
 - At `p ≥ 0.8` with at least five mentions an entry becomes protected: age never deletes it again.
 
-**Judgment.** The optional semantic step picks a model from `modelRoles.taste`, then `judge`, then `@smol`. A judgment model (TypeSafe Jev, OpenRouter/OpenAI Decisions, Workers AI System One) contributes a *calibrated* posterior with pseudo-counts (T2). A chat model only classifies — category and polarity — and any confidence it emits is discarded (T1). With no model, the layer runs entirely on the host's evidence math (T0), which is the default.
+**Judgment.** The optional semantic step picks a model from `modelRoles.taste`, then `judge`, then `@smol`. A judgment model (TypeSafe Jev, OpenRouter/OpenAI Decisions, Workers AI System One) contributes a _calibrated_ posterior with pseudo-counts (T2). A chat model only classifies — category and polarity — and any confidence it emits is discarded (T1). With no model, the layer runs entirely on the host's evidence math (T0), which is the default.
 
 **Injection.** The block is rebuilt with the base system prompt (session start, model/tool/settings change, branch, backend refresh), never per turn, and capped at `taste.injectionTokenLimit` approximate tokens:
 
 ```markdown
 These preferences are the current store and take precedence over any conflicting statement …
+
 ## Preferences
+
 - Prefers explicit return types on exported functions. Confidence: 0.62
+
 ## Retracted
+
 - Do not follow (retracted 2026-10-30): Prefers barrel files everywhere
 ```
 
 The precedence line matters because a compacted history keeps quoting preferences the store has since forgotten; `## Retracted` names those for 30 days so the model stops following them instead of trusting the older quote.
 
-| Setting                      | Default | Description                                                                                              |
-| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
-| `taste.enabled`              | `false` | Master flag: no extraction, consolidation, tool, or injection while off                                 |
-| `taste.extractionMode`       | `prompt` | `prompt` extracts per user prompt, `window` batches committed discarded regions, `off` stops extraction |
-| `taste.scoping`              | `per-project` | `global`, `per-project`, or `per-project-tagged`                                                   |
-| `taste.minPromptLength`      | `16`    | Prompts shorter than this many characters are not extracted                                             |
-| `taste.intervalMinutes`      | `5`     | Minimum minutes between consolidation runs                                                              |
-| `taste.injectionTokenLimit`  | `600`   | Approximate token cap for the injected block                                                             |
-| `taste.confidenceFloor`      | `0.6`   | Minimum injection score; below it an entry is cold-stored and not injected                              |
-| `modelRoles.taste`           | unset   | Judge model; unset falls through `judge` to `@smol`, and no model leaves the layer at T0                |
+| Setting                     | Default       | Description                                                                                             |
+| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------------- |
+| `taste.enabled`             | `false`       | Master flag: no extraction, consolidation, tool, or injection while off                                 |
+| `taste.extractionMode`      | `prompt`      | `prompt` extracts per user prompt, `window` batches committed discarded regions, `off` stops extraction |
+| `taste.scoping`             | `per-project` | `global`, `per-project`, or `per-project-tagged`                                                        |
+| `taste.minPromptLength`     | `16`          | Prompts shorter than this many characters are not extracted                                             |
+| `taste.intervalMinutes`     | `5`           | Minimum minutes between consolidation runs                                                              |
+| `taste.injectionTokenLimit` | `600`         | Approximate token cap for the injected block                                                            |
+| `taste.confidenceFloor`     | `0.6`         | Minimum injection score; below it an entry is cold-stored and not injected                              |
+| `modelRoles.taste`          | unset         | Judge model; unset falls through `judge` to `@smol`, and no model leaves the layer at T0                |
 
 The `/memory` command covers backend stores only; inspect and edit taste with the `super_memory` tool (`query`, `stats`, `resolve`, `forget`) or the file itself.
 
@@ -284,15 +288,15 @@ Compaction is the only automatic learning boundary in window mode. When a compac
 
 ```yaml
 taste:
-   extractionMode: window   # prompt | window | off (default prompt)
+   extractionMode: window # prompt | window | off (default prompt)
 memory:
-   extractionMode: window   # auto | window | manual (default auto)
+   extractionMode: window # auto | window | manual (default auto)
 ```
 
-| Setting                   | Modes                        | Behavior                                                                                                      |
-| ------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `taste.extractionMode`    | `prompt` / `window` / `off`  | `prompt` extracts per user prompt as before; `window` stops per-prompt extraction and batches after commits; `off` stops extraction entirely, while existing preferences stay injectable |
-| `memory.extractionMode`   | `auto` / `window` / `manual` | `auto` keeps each backend's cadence; `window` learns only committed discarded regions plus one session-stop flush; `manual` leaves explicit tools and `/memory enqueue` as the only triggers |
+| Setting                 | Modes                        | Behavior                                                                                                                                                                                     |
+| ----------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `taste.extractionMode`  | `prompt` / `window` / `off`  | `prompt` extracts per user prompt as before; `window` stops per-prompt extraction and batches after commits; `off` stops extraction entirely, while existing preferences stay injectable     |
+| `memory.extractionMode` | `auto` / `window` / `manual` | `auto` keeps each backend's cadence; `window` learns only committed discarded regions plus one session-stop flush; `manual` leaves explicit tools and `/memory enqueue` as the only triggers |
 
 The journal lives under `<agentDir>/memories/window-learning/<namespace>/<session>.json` and holds pending windows, processed window ids, processed entry ids, attempts, and the last error. The namespace is the SDK-resolved memory namespace: an `im:` binding scope or the canonical repository scope, never a cwd concatenation. A restart replays pending windows without re-extracting completed ones; a compaction commit listener only copies the discarded entries and advances the cursor, so it never runs a model or delays compaction.
 

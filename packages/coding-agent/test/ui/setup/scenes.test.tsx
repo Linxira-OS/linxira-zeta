@@ -80,7 +80,7 @@ corpusSuite({
 		})),
 });
 
-setAgentDir("/corpus-home/.omp/agent");
+setAgentDir("/corpus-home/.zeta/agent");
 
 type Login = NonNullable<FakeHostOptions["login"]>;
 

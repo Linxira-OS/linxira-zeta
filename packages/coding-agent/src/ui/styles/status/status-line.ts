@@ -4,12 +4,12 @@
  * status separator, the groups at the row's edges — and the extension
  * statuses under it, each cut to the width with its own colors kept.
  *
- * - `omp.status.panel` (`col`): a blank row above the bar when the placement
+ * - `zeta.status.panel` (`col`): a blank row above the bar when the placement
  *   asks for it, the bar unless the composer keeps it (`none`) or the
  *   completion menu has its row, then the hook rows.
- * - `omp.status` (`status`): the bar, its left group only for `left`.
- * - `omp.status.*` (`seg`): a segment drawn from its look pieces.
- * - `omp.status.hook` (`text`): one extension status.
+ * - `zeta.status` (`status`): the bar, its left group only for `left`.
+ * - `zeta.status.*` (`seg`): a segment drawn from its look pieces.
+ * - `zeta.status.hook` (`text`): one extension status.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
 import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
@@ -222,7 +222,7 @@ function paintHook(node: UiNode, cx: PaintContext): Block {
 	return text ? { rows: [truncate(text, cx.width, cx.theme.symbols.ellipsis)] } : EMPTY_BLOCK;
 }
 
-defineRolePainter("seg", "omp.status", paintSegLook, { prefix: true });
-defineRolePainter("status", "omp.status", paintBar);
-defineRolePainter("col", "omp.status.panel", paintPanel);
-defineRolePainter("text", "omp.status.hook", paintHook);
+defineRolePainter("seg", "zeta.status", paintSegLook, { prefix: true });
+defineRolePainter("status", "zeta.status", paintBar);
+defineRolePainter("col", "zeta.status.panel", paintPanel);
+defineRolePainter("text", "zeta.status.hook", paintHook);

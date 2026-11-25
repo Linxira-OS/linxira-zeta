@@ -34,7 +34,7 @@ function snippet(theme: Theme, text: string, file: string): string {
 	return lang && supportsLanguage(lang) ? highlightCode(line, lang, theme)[0]! : theme.fg("muted", line);
 }
 
-/** A hit (`omp.tool.find.hit` col) as a tree item; its path and passages link to the file under `cwd`. */
+/** A hit (`zeta.tool.find.hit` col) as a tree item; its path and passages link to the file under `cwd`. */
 function hitItem(cx: PaintContext, hit: UiNode, cwd: string | undefined): TreeItem {
 	const theme = cx.theme;
 	const [row, ...ranges] = hit.children();
@@ -112,7 +112,7 @@ function paintFind(node: UiNode, cx: PaintContext): Block {
 	}
 	const items = node
 		.children()
-		.filter(child => (child.props() as { role?: string }).role === "omp.tool.find.hit")
+		.filter(child => (child.props() as { role?: string }).role === "zeta.tool.find.hit")
 		.map(hit => hitItem(cx, hit, term.cwd));
 	if (term.more) items.push(moreItem(theme, term.more, "hits"));
 	rows.push(...treeRows(theme, items, cx.width));

@@ -1131,7 +1131,7 @@ function advisoryEffortEntries(value: unknown): string[] {
 
 /**
  * A row's requested → served aliases (`{"medium": "high"}` for a low/high/max
- * route). Any omp effort may be requested; served values must be ladder tiers.
+ * route). Any zetacode effort may be requested; served values must be ladder tiers.
  */
 function extractReasoningEffortMap(value: unknown): Partial<Record<Effort, Effort>> | undefined {
 	if (!isRecord(value)) return undefined;

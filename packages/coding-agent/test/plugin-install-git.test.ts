@@ -849,7 +849,7 @@ describe("PluginManager.install with git sources", () => {
 			await fs.mkdir(gitOnlyBin, { recursive: true });
 			await fs.mkdir(home, { recursive: true });
 			await fs.symlink(git, path.join(gitOnlyBin, "git"));
-			const omp = async (...args: string[]) => {
+			const zetacode = async (...args: string[]) => {
 				const proc = Bun.spawn([process.execPath, cliEntry, ...args], {
 					cwd: home,
 					env: { HOME: home, PATH: gitOnlyBin, NO_COLOR: "1" },
@@ -874,15 +874,15 @@ describe("PluginManager.install with git sources", () => {
 				"package.json",
 			);
 			try {
-				await omp("install", remote.spec);
+				await zetacode("install", remote.spec);
 				expect((await Bun.file(installedManifest).json()).version).toBe("1.0.0");
 
 				// Re-install of an existing git plugin goes through `bun pm cache` + `bun update`.
 				await remote.publish("2.0.0");
-				await omp("install", remote.spec);
+				await zetacode("install", remote.spec);
 				expect((await Bun.file(installedManifest).json()).version).toBe("2.0.0");
 
-				await omp("plugin", "uninstall", "@test/pi-package");
+				await zetacode("plugin", "uninstall", "@test/pi-package");
 				expect(await Bun.file(installedManifest).exists()).toBe(false);
 			} finally {
 				await remote.stop();

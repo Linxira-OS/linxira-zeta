@@ -6,7 +6,7 @@ Terminology follows `docs/natives-architecture.md`:
 
 - **Generated binding**: public API in `packages/natives/native/index.d.ts`.
 - **Rust module layer**: N-API exports in `crates/natives/src/*`.
-- **Shared listing cache**: `omp-xfs`'s process-wide per-directory listing cache (`crates/xfs/src/walk/cache.rs`) used by discovery flows; N-API filesystem DTOs/conversions live in `crates/natives/src/glob.rs`. See `docs/fs-scan-cache-architecture.md`.
+- **Shared listing cache**: `zetacode-xfs`'s process-wide per-directory listing cache (`crates/xfs/src/walk/cache.rs`) used by discovery flows; N-API filesystem DTOs/conversions live in `crates/natives/src/glob.rs`. See `docs/fs-scan-cache-architecture.md`.
 
 ## Implementation files
 
@@ -129,7 +129,7 @@ Batches flow through a bounded `tokio::sync::mpsc::Sender<Vec<Match>>` (each bat
 
 ## 2) File discovery (`glob`) and fuzzy path search (`fuzzyFind`)
 
-`glob` and `fuzzyFind` share the optional `omp-xfs` listing cache; matching logic differs. Cache use defaults to `false` for both APIs.
+`glob` and `fuzzyFind` share the optional `zetacode-xfs` listing cache; matching logic differs. Cache use defaults to `false` for both APIs.
 
 ### `glob` flow
 
@@ -173,19 +173,19 @@ Batches flow through a bounded `tokio::sync::mpsc::Sender<Vec<Match>>` (each bat
 
 `ast.rs` exposes syntax-aware code search and rewrite operations.
 
-- `astGrep`/`astEdit` run under `task::filesystem_future` with the resolved `omp_vfs::Fs`; `omp-ast`'s `discover`, `find`, `find_page`, and `rewrite` are async, with per-file work in `tokio::spawn` tasks kept in candidate order. `astMatch` uses the sync `find_source` on `task::blocking` with a `CancellationToken`.
+- `astGrep`/`astEdit` run under `task::filesystem_future` with the resolved `omp_vfs::Fs`; `zetacode-ast`'s `discover`, `find`, `find_page`, and `rewrite` are async, with per-file work in `tokio::spawn` tasks kept in candidate order. `astMatch` uses the sync `find_source` on `task::blocking` with a `CancellationToken`.
 - `astGrep(options)` returns matches with byte/line/column coordinates and optional metavariable bindings.
 - `astMatch(options)` runs the same patterns against an in-memory `source` string instead of files; `lang` is required (there is no path to infer it from), and the result keeps matches, `totalMatches`, `limitReached`, and parse errors but omits the file-count fields.
 - `astEdit(options)` returns replacement changes, per-file counts, searched/touched file counts, parse errors, and whether edits were applied.
-- `dryRun` defaults to `true` in the implementation. Exact duplicate edits are coalesced. When applying (`dryRun=false`), rewritten files are staged before writes and overlapping edits reject through `omp-ast`'s edit application; dry-run previews do not perform that apply-time validation. File writes are sequential, not a multi-file transaction.
+- `dryRun` defaults to `true` in the implementation. Exact duplicate edits are coalesced. When applying (`dryRun=false`), rewritten files are staged before writes and overlapping edits reject through `zetacode-ast`'s edit application; dry-run previews do not perform that apply-time validation. File writes are sequential, not a multi-file transaction.
 - Options include language override, path/glob/selector, strictness, limits, parse-error policy, `signal`, and `timeoutMs`. `astGrep`/`astEdit` also accept `filesystem`; `astMatch` is in-memory. Find limits default to 50 (and are clamped to at least one); strictness defaults to `"smart"`. Find `context` is reserved and currently unused.
 - For `astGrep` and `astEdit`, a directory `path` requests the shared listing cache on native filesystems, and an optional glob compiles to `Selector::scope`; injected providers bypass that cache. A direct file returns that candidate without traversal or cache access. `astMatch` remains in-memory.
 
 These exports are direct native APIs used by tooling; they are not mediated by a TS wrapper in `packages/natives`.
 
-## 4) Shared walk/cache lifecycle (`omp-xfs`)
+## 4) Shared walk/cache lifecycle (`zetacode-xfs`)
 
-`omp-xfs` owns traversal, native/provider root resolution (`omp_xfs::fs`), and cache policy. The N-API modules keep only JavaScript-facing DTO conversion and error mapping (`glob.rs` holds `FileType`/`GlobMatch`; `task::walk_failure` maps walk errors).
+`zetacode-xfs` owns traversal, native/provider root resolution (`omp_xfs::fs`), and cache policy. The N-API modules keep only JavaScript-facing DTO conversion and error mapping (`glob.rs` holds `FileType`/`GlobMatch`; `task::walk_failure` maps walk errors).
 
 The cache is process-wide and stores per-directory listings, not per-root entry lists: every walk that enables caching shares them regardless of root or traversal options, and the walker re-applies hidden/ignore policy, pruning, and filters on each walk. Only native-filesystem walks with `Detail::Minimal` and `walk::Options::cache = true` participate, and only on filesystems with stable stamps (APFS; ext4/XFS/Btrfs/tmpfs/F2FS/ZFS/bcachefs; NTFS/ReFS). Any injected filesystem provider disables caching, even if its root redirects to a host path.
 
@@ -281,7 +281,7 @@ The palette requires nine core semantic colors (`comment`, `keyword`, `function`
 
 1. Caller invokes generated native export with typed options.
 2. Rust validates/normalizes options and builds matcher/search config.
-3. For filesystem flows, `omp-xfs` walks the tree (reusing unchanged directory listings where caching applies), then entries are filtered/scored/searched.
+3. For filesystem flows, `zetacode-xfs` walks the tree (reusing unchanged directory listings where caching applies), then entries are filtered/scored/searched.
 4. Timeout/abort drops the omp-xfs future, cancelling its tasks.
 5. Rust shapes outputs into N-API objects (`lineNumber`, `matchCount`, `limitReached`, etc.).
 6. Generated bindings return typed JS objects. `glob` emits returned matches after ordering; `grep` supports post-aggregation positional directory callbacks or batched `onMatches` delivery during scanning.

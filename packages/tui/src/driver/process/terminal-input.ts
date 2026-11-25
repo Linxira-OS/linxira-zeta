@@ -767,7 +767,7 @@ export class ProcessTerminalInput implements TerminalInput {
 		// Never behind a multiplexer: it forwards the query but cannot route the reply back to the
 		// pane, so the reply would leak into the pane as text.
 		if (this.#identity.notify === "osc99" && !insideMultiplexer(this.#env)) {
-			this.#notifyProbe = `omp-probe-${nextNotifyProbe++}`;
+			this.#notifyProbe = `zetacode-probe-${nextNotifyProbe++}`;
 			out += `\x1b]99;i=${this.#notifyProbe}:p=?;\x1b\\`;
 		}
 		// Glyph Protocol support; never behind a multiplexer (the APC reply cannot route back to the pane).

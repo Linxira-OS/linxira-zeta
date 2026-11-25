@@ -1,9 +1,9 @@
 /**
  * Collaboration blocks.
  *
- * - `card` `omp.user.collab`: ` «sender» ›` (accent, the sender bold) over
+ * - `card` `zeta.user.collab`: ` «sender» ›` (accent, the sender bold) over
  *   the prompt as a user bubble.
- * - `col` `omp.collab.qrcode`: the symbol in black on white, one cell in;
+ * - `col` `zeta.collab.qrcode`: the symbol in black on white, one cell in;
  *   when the width or the viewport allocation cannot hold it whole, one row
  *   instead: the `Join` link and why the code is hidden (warning), cut to
  *   the width.
@@ -43,5 +43,5 @@ function paintQrCode(node: UiNode, cx: PaintContext): Block {
 	return { rows: [truncate(`${join} ${theme.fg("warning", `QR code hidden: ${reason}.`)}`, cx.width, "")] };
 }
 
-defineRolePainter("card", "omp.user.collab", paintCollabPrompt);
-defineRolePainter("col", "omp.collab.qrcode", paintQrCode);
+defineRolePainter("card", "zeta.user.collab", paintCollabPrompt);
+defineRolePainter("col", "zeta.collab.qrcode", paintQrCode);

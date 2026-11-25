@@ -56,7 +56,7 @@ import { Transcript } from "./transcript";
 export interface ShellStartOptions {
 	readonly theme: Accessor<Theme>;
 	readonly title?: string;
-	/** The native surface's role (Tern treats `omp.session` as omp's chat session). */
+	/** The native surface's role (Tern treats `zeta.session` as omp's chat session). */
 	readonly role?: string;
 	readonly version?: string;
 	/** Keys nothing on the focus path consumed: the app's global bindings. Return true when handled. */
@@ -150,7 +150,7 @@ export class Shell {
 			theme: options.theme,
 			separator: this.transcript.separator,
 			...(options.title ? { title: options.title } : {}),
-			// Tern names every omp surface "omp"; the terminal title is the session's own business.
+			// Tern names every zetacode surface "omp"; the terminal title is the session's own business.
 			surfaceTitle: "omp",
 			...(options.role ? { role: options.role } : {}),
 			...(options.version ? { version: options.version } : {}),

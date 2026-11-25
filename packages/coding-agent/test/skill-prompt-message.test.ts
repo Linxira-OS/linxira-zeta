@@ -6,7 +6,7 @@ import { removeWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { buildSkillPromptMessage, type Skill } from "@linxiraos/zeta/extensibility/skills";
 
 async function createSkill(body: string): Promise<{ dir: string; skill: Skill }> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), `omp-skill-prompt-${Snowflake.next()}-`));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-skill-prompt-${Snowflake.next()}-`));
 	const filePath = path.join(dir, "SKILL.md");
 	await Bun.write(filePath, `---\nname: reviewer\ndescription: Review code\n---\n\n${body}\n`);
 	return {

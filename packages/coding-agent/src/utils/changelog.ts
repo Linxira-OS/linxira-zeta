@@ -332,7 +332,7 @@ function compareChangelogEntries(v1: ChangelogEntry, v2: ChangelogEntry): number
 }
 
 /**
- * Parse an omp changelog marker version into comparable parts.
+ * Parse an zetacode changelog marker version into comparable parts.
  */
 export function parseChangelogVersion(version: string | undefined): ChangelogEntry | undefined {
 	const match = version?.match(/^(\d+)\.(\d+)\.(\d+)$/);

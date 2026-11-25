@@ -1,5 +1,5 @@
 /**
- * `omp --resume <id>` of a session whose recorded directory no longer exists.
+ * `zetacode --resume <id>` of a session whose recorded directory no longer exists.
  *
  * The protocol modes (`--mode rpc`, `--mode rpc-ui`, `--mode acp`) own standard
  * input and standard output, so no question can be asked there: they open the
@@ -58,7 +58,7 @@ const QUIET_FLAGS = ["--no-extensions", "--no-skills", "--no-rules", "--no-tools
 
 /** Variables a test or `runRootCommand` sets; each is put back after every test. */
 const ENV_KEYS = [
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"PI_PROFILE",
 	"ZETA_PROFILE",
 	"PI_NO_PTY",
@@ -303,7 +303,7 @@ describe.skipIf(process.platform === "win32")("a removed worktree is still moved
 		repo = path.join(root, "repo");
 		await fs.promises.mkdir(repo);
 		await $`git init -q && git commit -q --allow-empty -m init`.cwd(repo).quiet();
-		// `/wt` moves a session into a new worktree's session directory; `omp worktree clear` removes and prunes it.
+		// `/wt` moves a session into a new worktree's session directory; `zetacode worktree clear` removes and prunes it.
 		const manager = await answeredManager(repo);
 		// Pin the git backend: an installed ovnfs would otherwise create a checkout `git worktree remove` cannot see.
 		const { path: worktree } = await createSessionWorktree(

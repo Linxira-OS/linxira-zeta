@@ -68,7 +68,7 @@ async function commitsAcrossRelease(
 	vi.spyOn(worktreeModule, "captureDeltaPatch").mockResolvedValue({ rootPatch: releasePatch, nestedPatches: [] });
 	const commitSpy = vi.spyOn(worktreeModule, "commitToBranch").mockImplementation(async () => {
 		events.push("commit");
-		return { branchName: `omp/task/${id}`, baseSha: "base", rootPatch: runEndPatch, nestedPatches: [] };
+		return { branchName: `zetacode/task/${id}`, baseSha: "base", rootPatch: runEndPatch, nestedPatches: [] };
 	});
 	const session = {
 		prepareForHeadlessAdvisorDrain: () => {},

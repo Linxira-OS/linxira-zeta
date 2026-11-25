@@ -28,7 +28,7 @@ const MOCK_API_SOURCE = "test/executor-prewalk-auto";
 const PLANNER = "mock-model";
 const TARGET = "mock-handoff";
 const ASSIGNMENT = "trace the sync engine, then fix the stale cursor";
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 
 /** The mock carries no effort ladder; without one every configured effort clamps away. */
 const thinking = { mode: "effort", efforts: [Effort.Medium, Effort.High] } as const;
@@ -202,7 +202,7 @@ describe("runSubprocess auto-prewalk through a real child session", () => {
 		await fs.mkdir(home, { recursive: true });
 		restoreEnvValue("HOME", home);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
-		setAgentDir(path.join(home, ".omp", "agent"));
+		setAgentDir(path.join(home, ".zeta", "agent"));
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();
 		registerMockApi(MOCK_API_SOURCE);

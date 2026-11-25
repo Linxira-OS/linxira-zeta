@@ -15,7 +15,7 @@ import { rowsRole, type SheetAttributes } from "../sheet";
 
 /** Tern's sheet: a small one at the bottom edge, where the plan review's dock is. */
 export const PLAN_SAVE_SHEET: SheetAttributes = {
-	role: "omp.overlay.planSave",
+	role: "zeta.overlay.planSave",
 	anchor: "bottom",
 	size: "sm",
 	head: "Save plan",
@@ -37,7 +37,7 @@ export function PlanSave(props: PlanSaveProps): JSXNode {
 	const cancel = () => props.onDone(undefined);
 	return (
 		<col
-			role={rowsRole("omp.planSave")}
+			role={rowsRole("zeta.planSave")}
 			gap="md"
 			term={() => ({ suggested: props.suggestedPath() })}
 			onKey={key => {

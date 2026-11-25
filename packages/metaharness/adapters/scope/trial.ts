@@ -42,7 +42,7 @@ const SCOPE_FAILURE = "changed outside scope: ";
 const NO_CHECK_FAILURE = "ran no check";
 const VERIFY_TIMEOUT_MS = 120_000;
 /** Tool installs and harness state, not the agent's edits. */
-const IGNORED_DIRS = ["node_modules/", ".git/", ".omp/"];
+const IGNORED_DIRS = ["node_modules/", ".git/", ".zeta/"];
 
 /** Content hash per workspace-relative file. */
 async function snapshot(root: string): Promise<Map<string, number | bigint>> {

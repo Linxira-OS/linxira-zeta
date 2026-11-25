@@ -69,7 +69,7 @@ const CHIP_TEXT = "\x1b[38;2;0;0;0m";
 
 // ─── Section text ───────────────────────────────────────────────────────────
 
-const kRendered = Symbol("omp.planReview.sectionRows");
+const kRendered = Symbol("zeta.planReview.sectionRows");
 
 interface ThemeWithRows {
 	[kRendered]?: Map<string, string[]>;

@@ -55,15 +55,15 @@ process.stdin.on("data", chunk => {
 
 /** One project with its own agent, extension tool, custom tool, and MCP server, all named `<label>`. */
 function writeProject(root: string, label: string, mcpServerScript: string): void {
-	const omp = path.join(root, ".omp");
-	fs.mkdirSync(path.join(omp, "agents"), { recursive: true });
+	const zetacode = path.join(root, ".zeta");
+	fs.mkdirSync(path.join(zetacode, "agents"), { recursive: true });
 	fs.writeFileSync(
-		path.join(omp, "agents", `${label}-agent.md`),
+		path.join(zetacode, "agents", `${label}-agent.md`),
 		`---\nname: ${label}-agent\ndescription: ${label} project agent\n---\nHandle the assigned task.\n`,
 	);
-	fs.mkdirSync(path.join(omp, "extensions"), { recursive: true });
+	fs.mkdirSync(path.join(zetacode, "extensions"), { recursive: true });
 	fs.writeFileSync(
-		path.join(omp, "extensions", `${label}-ext.ts`),
+		path.join(zetacode, "extensions", `${label}-ext.ts`),
 		[
 			"export default function (pi) {",
 			"  pi.registerTool({",
@@ -76,9 +76,9 @@ function writeProject(root: string, label: string, mcpServerScript: string): voi
 			"}",
 		].join("\n"),
 	);
-	fs.mkdirSync(path.join(omp, "tools"), { recursive: true });
+	fs.mkdirSync(path.join(zetacode, "tools"), { recursive: true });
 	fs.writeFileSync(
-		path.join(omp, "tools", `${label}-tool.ts`),
+		path.join(zetacode, "tools", `${label}-tool.ts`),
 		[
 			"export default function (api) {",
 			"  return {",
@@ -126,7 +126,7 @@ describe("/move re-scopes project-discovered capabilities", () => {
 		const cwdA = path.join(tempDir, "alpha");
 		const cwdB = path.join(tempDir, "beta");
 		// MCP discovery also reads the machine's own config under the home directory (the plugins
-		// installed in ~/.omp/plugins, among others): a test-local home keeps their servers out.
+		// installed in ~/.zeta/plugins, among others): a test-local home keeps their servers out.
 		// Set it before setAgentDir, which reads the home for omp's other paths (its caches, among others).
 		const home = path.join(tempDir, "home");
 		fs.mkdirSync(home);
@@ -134,7 +134,7 @@ describe("/move re-scopes project-discovered capabilities", () => {
 		const agentDir = path.join(tempDir, "agent");
 		fs.mkdirSync(agentDir, { recursive: true });
 		setAgentDir(agentDir);
-		// Shared MCP servers run in an omp daemon: a daemon of the test's own keeps the user's daemon out.
+		// Shared MCP servers run in an zetacode daemon: a daemon of the test's own keeps the user's daemon out.
 		daemon = await IsolatedDaemon.create();
 		const mcpServerScript = path.join(tempDir, "mcp-server.js");
 		fs.writeFileSync(mcpServerScript, MCP_SERVER_SOURCE);

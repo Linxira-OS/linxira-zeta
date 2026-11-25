@@ -72,7 +72,7 @@ function isRows(content: WidgetContent): content is WidgetRows {
 /** One line of a line widget: a text row (natively spans, word wrap), one cell in on a terminal. */
 function WidgetLine(props: { readonly line: string; readonly color?: string }): JSXNode {
 	const spans = props.line.trim() === "" ? [] : ansiSpans(props.line);
-	if (spans.length === 0) return <col hidden={true} term={{ role: "omp.widget.line", line: "" }} />;
+	if (spans.length === 0) return <col hidden={true} term={{ role: "zeta.widget.line", line: "" }} />;
 	const color = props.color;
 	return (
 		<text
@@ -85,7 +85,7 @@ function WidgetLine(props: { readonly line: string; readonly color?: string }): 
 					: spans
 			}
 			wrap="word"
-			term={{ role: "omp.widget.line", line: props.line, color }}
+			term={{ role: "zeta.widget.line", line: props.line, color }}
 		/>
 	);
 }
@@ -131,5 +131,5 @@ export interface EditorGapProps {
 /** See the module docs. */
 export function EditorGap(props: EditorGapProps): JSXNode {
 	const open = (): boolean => props.widgets.above().length > 0 || !props.band() || !props.statusOccupied();
-	return <col term={{ role: "omp.editor-gap", open }} />;
+	return <col term={{ role: "zeta.editor-gap", open }} />;
 }

@@ -106,6 +106,7 @@ Capabilities the shell owns (paths never cross into the renderer):
   `openFile`, `openFileWith`, `revealFileInFileManager`,
   `resolveFileAbsolutePath`, `listFileOpeners`, `getPathForFile`,
   `resolveDroppedPaths`, `pickPlanSavePath`;
+
 * app chrome — `getAppVersion`, `checkUpdates`, `openUrl`, `notify`,
   `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`;
 * SSH execution targets — `window.zetaStudioRemote` (`list`/`save`/`connect`/
@@ -188,7 +189,7 @@ Electron bundle itself updates through the released installer asset
 The shell and renderer display **Z Work Studio**; the runtime identifies as
 **Zeta**. Project names come from the registered folder and may contain any
 user-chosen text. Browser preferences use `zeta.*`; startup migrates earlier
-`omp.*` keys without overwriting an existing Zeta preference. Existing image
+`zetacode.*` keys without overwriting an existing Zeta preference. Existing image
 thumbnail/background databases and old recording files remain readable.
 
 ## Private browser and file views

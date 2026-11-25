@@ -33,7 +33,7 @@ const tempDirs: string[] = [];
 
 /**
  * Environment for a probe subprocess that must not read the developer's real
- * omp dotenv files (omp keeps `OTEL_*` from them in a private map that the SDK
+ * zetacode dotenv files (zetacode keeps `OTEL_*` from them in a private map that the SDK
  * window exposes): an empty HOME and agent dir, with every variable `dirs.ts`
  * uses to locate them cleared.
  */

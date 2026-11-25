@@ -100,7 +100,7 @@ function stepParts(model: MCPAddWizardModel, theme: Theme, width: number): strin
 	}
 }
 
-defineRolePainter("col", "omp.mcpAddWizard", (node, cx): Block => {
+defineRolePainter("col", "zeta.mcpAddWizard", (node, cx): Block => {
 	const model = termOf<{ wizard: MCPAddWizardModel }>(node).wizard;
 	if (!model || cx.width <= 0) return { rows: [] };
 	model.rev();

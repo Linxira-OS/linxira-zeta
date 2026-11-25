@@ -12,7 +12,7 @@ import { boxRows, termOf } from "./common";
 
 const link = (url: string, text: string) => `\x1b]8;;${url}\x07${text}\x1b]8;;\x07`;
 
-defineRolePainter("col", "omp.login", (node, cx): Block => {
+defineRolePainter("col", "zeta.login", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 6) return EMPTY_BLOCK;
 	const inner = cx.width - 4;

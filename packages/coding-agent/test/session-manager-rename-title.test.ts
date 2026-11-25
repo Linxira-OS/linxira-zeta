@@ -35,7 +35,7 @@ async function reopen(sessionFile: string, tempDir: TempDir): Promise<SessionMan
 const SESSION_MANAGER_MODULE = path.join(import.meta.dir, "../src/session/session-manager.ts");
 
 /**
- * Another live omp process: it opens the session, writes (claiming the
+ * Another live zetacode process: it opens the session, writes (claiming the
  * cross-process ownership lease), signals readiness, and holds the lease
  * until killed. Managers in one process share a lease per session, so only a
  * real second process contends.

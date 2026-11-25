@@ -249,7 +249,7 @@ it("sends Tern the toolbar and sidebar as buttons whose clicks stage and close",
 	});
 	await settle();
 	expect(ui.node("button", "prev-hunk").p).toEqual({
-		role: "omp.app.ibtn",
+		role: "zeta.app.ibtn",
 		variant: "quiet",
 		icon: "chev-up",
 		title: "Previous change (⌥↑)",
@@ -257,21 +257,21 @@ it("sends Tern the toolbar and sidebar as buttons whose clicks stage and close",
 		actions: { click: "prev-hunk" },
 	});
 	expect(ui.node("button", "stage-file").p).toEqual({
-		role: "omp.btn",
+		role: "zeta.btn",
 		text: "Stage file",
 		title: "Stage fixture.txt",
 		keys: ["s"],
 		actions: { click: "stage-file" },
 	});
-	expect(ui.node("button", "stage-all").p).toMatchObject({ role: "omp.app.qbtn", variant: "quiet", size: "sm" });
+	expect(ui.node("button", "stage-all").p).toMatchObject({ role: "zeta.app.qbtn", variant: "quiet", size: "sm" });
 	expect(ui.node("button", "ai").p).toMatchObject({
-		role: "omp.app.ibtn",
+		role: "zeta.app.ibtn",
 		icon: "wand",
 		aria: "Stage by description",
 	});
 	expect(ui.node("tabs", "views").p.variant).toBe("segmented");
 	expect(ui.node("tabs", "style").p.variant).toBe("segmented");
-	expect(ui.node("button", "commit").p).toMatchObject({ role: "omp.btn", text: "Generate message" });
+	expect(ui.node("button", "commit").p).toMatchObject({ role: "zeta.btn", text: "Generate message" });
 
 	ui.click("button", "stage-file");
 	await settle();

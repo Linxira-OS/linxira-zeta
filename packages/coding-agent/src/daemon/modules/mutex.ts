@@ -1,5 +1,5 @@
 /**
- * `mutex` daemon module: named locks shared by every omp process, so work
+ * `mutex` daemon module: named locks shared by every zetacode process, so work
  * whose result all of them share (a cached model answer) is done by one.
  *
  * One unit per namespace. A process that takes locks attaches one tunnel
@@ -146,7 +146,7 @@ const unheld = (): void => {};
 
 /**
  * This process's side of one mutex namespace: {@link lock} takes a key that
- * every omp process on the machine contends for. Attaches to the unit on the
+ * every zetacode process on the machine contends for. Attaches to the unit on the
  * first lock and detaches when the last one is released.
  */
 export class DaemonMutex {

@@ -25,7 +25,7 @@ export function installGifExport(ctx: WorkerContext): void {
 				const reply: EncodeGifResult | undefined = await chrome.runtime.sendMessage(message);
 				if (!reply) throw new Error("The GIF encoder did not reply");
 				if (!reply.ok) throw new Error(reply.error);
-				const filename = `omp-run-${new Date().toISOString()}.gif`;
+				const filename = `zetacode-run-${new Date().toISOString()}.gif`;
 				await chrome.downloads.download({ url: reply.url, filename });
 				return { filename };
 			} finally {

@@ -291,7 +291,7 @@ const Reply = memo(function Reply(props: {
 		}
 		const link = event.target.closest<HTMLAnchorElement>("a[href]");
 		if (link !== null) {
-			// Links open beside the page omp is working in, never over it and never stealing focus.
+			// Links open beside the page zetacode is working in, never over it and never stealing focus.
 			event.preventDefault();
 			void chrome.tabs.create({ url: link.href, active: false });
 		}
@@ -748,7 +748,7 @@ export function Transcript(props: TranscriptProps): ReactNode {
 	);
 }
 
-/** Every screenshot of the latest turn with what omp did on it, for GIF export. */
+/** Every screenshot of the latest turn with what zetacode did on it, for GIF export. */
 export function latestRunShots(items: readonly TimelineItem[]): { image: ImageContent; step: Step }[] {
 	let from = 0;
 	for (let i = items.length - 1; i >= 0; i--) {

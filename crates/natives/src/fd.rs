@@ -1,7 +1,7 @@
 //! Fuzzy file path discovery for autocomplete and @-mention resolution.
 //!
 //! Searches for files and directories whose paths match a query string via
-//! subsequence scoring. Uses `omp-xfs` for directory traversal and caching.
+//! subsequence scoring. Uses `zetacode-xfs` for directory traversal and caching.
 
 use std::{cmp::Ordering, collections::BinaryHeap, path::Path};
 

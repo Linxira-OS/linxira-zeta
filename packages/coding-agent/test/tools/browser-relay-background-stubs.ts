@@ -39,7 +39,7 @@ export const probe = {
 /** Tabs whose page runs a content script that answers `chrome.tabs.sendMessage`. */
 const scripted = new Set<number>();
 
-/** A native messaging port to the omp host; the probe plays the host behind it. */
+/** A native messaging port to the zetacode host; the probe plays the host behind it. */
 export class FakeNativePort {
 	readonly host: string;
 	/** Every frame the worker posted, in order. */

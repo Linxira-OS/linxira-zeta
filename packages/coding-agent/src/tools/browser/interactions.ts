@@ -1403,7 +1403,7 @@ export async function highlightElement(
 	const duration = options.duration ?? 2_000;
 	if (!Number.isFinite(duration) || duration < 0)
 		throw new ToolError("highlight duration must be a non-negative number");
-	const id = `omp-highlight-${crypto.randomUUID()}`;
+	const id = `zetacode-highlight-${crypto.randomUUID()}`;
 	await untilAborted(signal, () =>
 		handle.evaluate((el, overlayId) => {
 			const element = el as unknown as PageElement;
@@ -1703,7 +1703,7 @@ async function dropRead(
 	drop: (watch: string) => Promise<void>,
 	signal: AbortSignal | undefined,
 ): Promise<boolean> {
-	const type = `omp-upload-drop-${crypto.randomUUID()}`;
+	const type = `zetacode-upload-drop-${crypto.randomUUID()}`;
 	const frame = zone.frame;
 	const realm = frame.mainRealm();
 	const target = await untilAbortedOrReleased(signal, realm.adoptHandle(zone), late => late.dispose());
@@ -1814,7 +1814,7 @@ async function deliverToInput(
 	if (route === "paths") {
 		const staged = await staging.stage(sources, signal);
 		// Chrome expands a folder for a `webkitdirectory` input only on the front tab, as when a person picks one; a
-		// tab omp opened in the background is brought forward for this upload alone.
+		// tab zetacode opened in the background is brought forward for this upload alone.
 		if (sources.some(source => source.directory)) {
 			await untilAborted(signal, () => input.frame.page().bringToFront());
 		}
@@ -2091,7 +2091,7 @@ async function releaseKeys(page: Page, keys: readonly KeyInput[], signal?: Abort
  * document, however many workers attach.
  */
 const CANCELLED_RELEASE_GUARD = `(() => {
-	const installed = Symbol.for("omp.cancelledReleaseGuard");
+	const installed = Symbol.for("zeta.cancelledReleaseGuard");
 	if (globalThis[installed]) return;
 	Object.defineProperty(globalThis, installed, { value: true });
 	let cancelled = false;
@@ -2249,7 +2249,7 @@ export async function clickAt(
 
 /**
  * Click at viewport coordinates, one press and release per click. puppeteer's `mouse.click` keeps sending its
- * steps after the call gave up, so a click on a page that answers late landed after omp reported it failed;
+ * steps after the call gave up, so a click on a page that answers late landed after zetacode reported it failed;
  * here an aborted click sends no further press. `firstDown` runs once the first press is acknowledged, and its
  * release waits for it.
  */

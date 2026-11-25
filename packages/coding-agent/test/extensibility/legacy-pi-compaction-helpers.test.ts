@@ -96,7 +96,7 @@ describe("legacy shim findCutPoint", () => {
 });
 
 // Issue #11796: SoL-Pi's online-context-compact also imports
-// `sessionEntryToContextMessages`, absent from omp entirely, so it would fail the
+// `sessionEntryToContextMessages`, absent from zetacode entirely, so it would fail the
 // same static check right after `findCutPoint`. The shim ports upstream Pi's
 // per-entry projector.
 describe("legacy shim sessionEntryToContextMessages", () => {

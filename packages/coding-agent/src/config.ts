@@ -92,7 +92,7 @@ export function getChangelogPath(): string | undefined {
 // =============================================================================
 
 /**
- * User-level: the omp agent dir (~/.zeta/agent), Claude's active config directory, ~/.codex, ~/.gemini
+ * User-level: the zetacode agent dir (~/.zeta/agent), Claude's active config directory, ~/.codex, ~/.gemini
  * Project-level: .zeta, .claude, .codex, .gemini
  */
 const USER_CONFIG_BASES = priorityList.map(({ dir, userBase }) => ({

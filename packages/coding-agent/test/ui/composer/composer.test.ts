@@ -498,7 +498,7 @@ describe("a composer talking to a /btw note", () => {
 	test("says so in its role and leads the line with a chip that goes back to the chat", () => {
 		const { composer } = make();
 		composer.setState({ btw: true });
-		expect(composer.node.props()).toMatchObject({ role: "omp.editor.btw" });
+		expect(composer.node.props()).toMatchObject({ role: "zeta.editor.btw" });
 		const line = composer.node.children().find(node => node.key() === "line");
 		const [chip, field] = line ? line.children() : [];
 		expect(chip?.props()).toMatchObject({
@@ -509,7 +509,7 @@ describe("a composer talking to a /btw note", () => {
 		expect(chip?.children()[0]?.props()).toMatchObject({ spans: [{ s: "accent", t: "btw" }] });
 		expect(field?.kind).toBe("editor");
 		composer.setState({});
-		expect(composer.node.props()).toMatchObject({ role: "omp.editor" });
+		expect(composer.node.props()).toMatchObject({ role: "zeta.editor" });
 		expect(line?.children()).toHaveLength(1);
 	});
 });
@@ -518,7 +518,7 @@ describe("a `?` draft", () => {
 	test("is a btw question: the composer's role says so, the chip stands in for the sigil, the text stays prose", () => {
 		const { composer } = make({ text: "? what is this" });
 		composer.setState({ shell: { kind: "btw", excluded: false } });
-		expect(composer.node.props()).toMatchObject({ role: "omp.editor.btw-ask" });
+		expect(composer.node.props()).toMatchObject({ role: "zeta.editor.btw-ask" });
 		const line = composer.node.children().find(node => node.key() === "line");
 		const [chip, field] = line ? line.children() : [];
 		expect(chip?.props()).toMatchObject({ role: "zeta.composer.mode", title: "Asks a /btw side question" });

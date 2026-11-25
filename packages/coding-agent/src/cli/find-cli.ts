@@ -1,5 +1,5 @@
 /**
- * `omp find`: run the semantic `find` tool's cascade from the shell. Same
+ * `zetacode find`: run the semantic `find` tool's cascade from the shell. Same
  * search as the tool, printed as a ranked, colored digest (or JSON).
  */
 import { ToolError } from "../tools/tool-errors";
@@ -96,7 +96,7 @@ export async function runFindCommand(cmd: FindCommandArgs): Promise<void> {
 	}
 	const log = cmd.quiet ? () => {} : (message: string) => console.error(chalk.dim(message));
 	const cwd = process.cwd();
-	// Internal URLs (`omp://`, `local://`, …) are searched in place; `find` only reads.
+	// Internal URLs (`zeta://`, `local://`, …) are searched in place; `find` only reads.
 	const filesystem = new InternalUrlFilesystem({ context: { cwd }, tier: "read" });
 	let root: SearchRoot;
 	try {

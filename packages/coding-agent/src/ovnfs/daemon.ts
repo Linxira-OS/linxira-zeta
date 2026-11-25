@@ -26,7 +26,7 @@ const daemons = new Map<string, Promise<Daemon>>();
 async function start(command: string): Promise<Daemon> {
 	let child: Bun.Subprocess<"ignore", "pipe", "pipe">;
 	try {
-		// windowsHide: a console-less omp host (background, IDE) would otherwise
+		// windowsHide: a console-less zetacode host (background, IDE) would otherwise
 		// flash a fresh conhost window.
 		child = Bun.spawn([command, "--json", "start"], {
 			stdin: "ignore",
@@ -48,7 +48,7 @@ async function start(command: string): Promise<Daemon> {
 	const status: unknown = JSON.parse(stdout);
 	const version = isRecord(status) ? status.version : undefined;
 	if (!isRecord(status) || version !== PROTOCOL_VERSION || typeof status.socket !== "string") {
-		throw new Error(`${command} speaks admin protocol ${version}; omp needs ${PROTOCOL_VERSION}: update ovnfs`);
+		throw new Error(`${command} speaks admin protocol ${version}; zetacode needs ${PROTOCOL_VERSION}: update ovnfs`);
 	}
 	return { socket: status.socket };
 }

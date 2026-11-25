@@ -1,6 +1,6 @@
 /**
- * `card` `omp.overlay` in the terminal: the inline panel a selector draws in the composer's place.
- * A rounded frame titled by the card's head; inside it a spacer is a blank row and an `omp.select`
+ * `card` `zeta.overlay` in the terminal: the inline panel a selector draws in the composer's place.
+ * A rounded frame titled by the card's head; inside it a spacer is a blank row and an `zeta.select`
  * column is the option list (pointer, detail column, scrollbar past the visible rows) over its
  * search status; with nothing to list, the status stands above the list's `empty` text. A press
  * on an option row picks it.
@@ -12,7 +12,7 @@ import { windowStart } from "@linxiraos/pi-tui/term/painters/prefs";
 import type { TspCardProps, TspListProps } from "@linxiraos/pi-wire";
 import { selectRows } from "../forms/field";
 
-/** Rows of an `omp.select` column at `width`, and the option each of its leading rows shows. */
+/** Rows of an `zeta.select` column at `width`, and the option each of its leading rows shows. */
 function selectBlock(
 	select: UiNode,
 	cx: PaintContext,
@@ -47,7 +47,7 @@ function paintPanel(node: UiNode, cx: PaintContext): Block {
 	const rows = [boxTop(theme, width, typeof head === "string" ? head : null)];
 	const hits: Hit[] = [];
 	for (const child of node.children()) {
-		if (roleOf(child) !== "omp.select") {
+		if (roleOf(child) !== "zeta.select") {
 			for (const row of cx.paint(child, inner).rows) rows.push(boxRow(theme, width, row));
 			continue;
 		}
@@ -65,4 +65,4 @@ function paintPanel(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits };
 }
 
-defineRolePainter("card", "omp.overlay", paintPanel);
+defineRolePainter("card", "zeta.overlay", paintPanel);

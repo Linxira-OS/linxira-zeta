@@ -22,7 +22,7 @@ If your extension/tool can run headless, guard with `ctx.hasUI` / `pi.hasUI`. RP
 ## Project-local TUI debug tool
 
 `.omp/tools/tui.ts` provides the repository's `tui` debug tool. `start` accepts
-either a TypeScript/JavaScript `file` (run with Bun; under the compiled `omp`
+either a TypeScript/JavaScript `file` (run with Bun; under the compiled `zetacode`
 binary, the `bun` on `PATH`) or an executable `bin` with separate `args`.
 Windows uses native ConPTY without requiring a POSIX shell; macOS/Linux use
 Bun's PTY.
@@ -39,17 +39,17 @@ the server in `packages/tui/src/debug/server.ts` when `OMP_TUI_DEBUG` is set.
 
 The server answers one JSON object per line:
 
-| Op | Answer |
-| --- | --- |
-| `text` | `lines` on screen in the last presented frame (the fullscreen layer's rows on the alternate screen), `window_top` (history rows above the viewport), `alt_screen`, `cursor` (`{x, y, visible}`, absent when hidden). `no frame painted yet` before the first frame. |
-| `frame` | `lines`: every history row the terminal acknowledged writing, then the screen rows. |
-| `tree` | `root`: a `surface` node holding `main` and `dock` region nodes; `overlays`: one entry per `layer` node with `band` (its `anchor`/`size`) and `hidden`. Nodes carry `kind`, `id` (the node key), `hidden`, `focused`, and `focusable` (the terminal renderer routes keys to the kind's widget). |
-| `values` | For each node with a terminal widget, and the focused node: its wire props (without `term` and function props) and widget state, keyed `kind#key` or `kind[region:index.index…]`. |
-| `info` | `columns`, `rows`, `pid`, `native`, `overlays` (layer nodes), `focused` (kind), `focus` (`region:keypath`), `alt_screen`, `cursor`. |
-| `doc` | `doc`: each region described as its native (TSP) tree (`describeTree`), plus the focus keypath. Served in both renderers. |
-| `tsp` | `native`, and `frames`: the last TSP frames a native surface sent (64 kept; `n` limits). |
-| `keys`, `bytes`, `paste`, `mouse` | Inject input: chords and literals are encoded as terminal bytes, decoded by the driver's input decoder, and delivered to the driver's input listeners, so interceptors, focus routing, and `onKey` see them as real input. `paste` delivers one paste event. |
-| `quit` | Answers, stops the host, exits 0. |
+| Op                                | Answer                                                                                                                                                                                                                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text`                            | `lines` on screen in the last presented frame (the fullscreen layer's rows on the alternate screen), `window_top` (history rows above the viewport), `alt_screen`, `cursor` (`{x, y, visible}`, absent when hidden). `no frame painted yet` before the first frame.                             |
+| `frame`                           | `lines`: every history row the terminal acknowledged writing, then the screen rows.                                                                                                                                                                                                             |
+| `tree`                            | `root`: a `surface` node holding `main` and `dock` region nodes; `overlays`: one entry per `layer` node with `band` (its `anchor`/`size`) and `hidden`. Nodes carry `kind`, `id` (the node key), `hidden`, `focused`, and `focusable` (the terminal renderer routes keys to the kind's widget). |
+| `values`                          | For each node with a terminal widget, and the focused node: its wire props (without `term` and function props) and widget state, keyed `kind#key` or `kind[region:index.index…]`.                                                                                                               |
+| `info`                            | `columns`, `rows`, `pid`, `native`, `overlays` (layer nodes), `focused` (kind), `focus` (`region:keypath`), `alt_screen`, `cursor`.                                                                                                                                                             |
+| `doc`                             | `doc`: each region described as its native (TSP) tree (`describeTree`), plus the focus keypath. Served in both renderers.                                                                                                                                                                       |
+| `tsp`                             | `native`, and `frames`: the last TSP frames a native surface sent (64 kept; `n` limits).                                                                                                                                                                                                        |
+| `keys`, `bytes`, `paste`, `mouse` | Inject input: chords and literals are encoded as terminal bytes, decoded by the driver's input decoder, and delivered to the driver's input listeners, so interceptors, focus routing, and `onKey` see them as real input. `paste` delivers one paste event.                                    |
+| `quit`                            | Answers, stops the host, exits 0.                                                                                                                                                                                                                                                               |
 
 There are no component rects: overlay `band`s are the layer node's
 `anchor`/`size` props, `values` reports props and widget state, and `doc`
@@ -118,7 +118,7 @@ Extension UI factories receive a `KeybindingsManager` (interactive mode; an in-m
 
 ### Built-in widgets follow the keymap
 
-pi-tui's terminal widgets (`picker`, `prefs`, `menu`, `button`/`buttons`, `editor`/`input`) read their keys from a widget keymap instead of fixed key ids: `select.up`/`down`/`pageUp`/`pageDown`/`confirm`/`cancel` and the `editor.*` motions and edits (`@linxiraos/pi-tui/term/keymap`). omp fills it from the user's `tui.select.*`, `tui.editor.*` and `tui.input.newLine` bindings when the keymap loads or reloads (`setWidgetKeymap`), so a list or text field in your UI honours remaps without matching keys itself. A picker action keyed `esc` (or `enter`) also runs on the other `select.cancel` (`select.confirm`) keys.
+pi-tui's terminal widgets (`picker`, `prefs`, `menu`, `button`/`buttons`, `editor`/`input`) read their keys from a widget keymap instead of fixed key ids: `select.up`/`down`/`pageUp`/`pageDown`/`confirm`/`cancel` and the `editor.*` motions and edits (`@linxiraos/pi-tui/term/keymap`). zetacode fills it from the user's `tui.select.*`, `tui.editor.*` and `tui.input.newLine` bindings when the keymap loads or reloads (`setWidgetKeymap`), so a list or text field in your UI honours remaps without matching keys itself. A picker action keyed `esc` (or `enter`) also runs on the other `select.cancel` (`select.confirm`) keys.
 
 ## Focus, overlays, and cursor
 

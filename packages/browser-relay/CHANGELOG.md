@@ -18,17 +18,17 @@
 
 ### Breaking Changes
 
-- The omp extension now uses a pinned Chrome extension ID and connects to the browser relay through its native host. Reinstall the extension using Chrome’s “Load unpacked” flow; the relay port and token options have been removed.
+- The zetacode extension now uses a pinned Chrome extension ID and connects to the browser relay through its native host. Reinstall the extension using Chrome’s “Load unpacked” flow; the relay port and token options have been removed.
 
 ### Added
 
-- Added an omp Chrome side panel with session model selection, role shortcuts, thinking controls, input shortcuts, message queuing, and run interruption controls.
+- Added an zetacode Chrome side panel with session model selection, role shortcuts, thinking controls, input shortcuts, message queuing, and run interruption controls.
 - Added browser interaction features including page overlays, image and element picking, Teach, scheduled shortcuts, and GIF export.
 
 ### Changed
 
 - The Chrome side panel shows brief labels for tool steps with structured intents.
-- The extension now keeps registered installations up to date across omp upgrades and reloads when idle.
+- The extension now keeps registered installations up to date across zetacode upgrades and reloads when idle.
 - Browser relay ports are assigned automatically and discovered locally by terminal clients, while sidebar chats continue using their existing connection.
 - Side panel sessions now control the connected Chrome browser directly instead of opening a separate headless browser.
 
@@ -58,11 +58,11 @@
 
 ### Changed
 
-- The extension now requests `scripting` and access to all sites (Chrome lists "Read and change all your data on all websites"); it uses them only to empty another extension's frames in a tab omp is driving, when Chrome refuses it the debugger there ([#16908](https://github.com/Linxira-OS/linxira-zeta/pull/16908) by [@will-bogusz](https://github.com/will-bogusz))
+- The extension now requests `scripting` and access to all sites (Chrome lists "Read and change all your data on all websites"); it uses them only to empty another extension's frames in a tab zetacode is driving, when Chrome refuses it the debugger there ([#16908](https://github.com/Linxira-OS/linxira-zeta/pull/16908) by [@will-bogusz](https://github.com/will-bogusz))
 
 ### Fixed
 
-- Fixed a password manager's inline autofill menu locking omp out of a tab it drives: the extension empties and hides such frames in that tab and retries the attach or command Chrome refused ([#16908](https://github.com/Linxira-OS/linxira-zeta/pull/16908) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed a password manager's inline autofill menu locking zetacode out of a tab it drives: the extension empties and hides such frames in that tab and retries the attach or command Chrome refused ([#16908](https://github.com/Linxira-OS/linxira-zeta/pull/16908) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [18.13.3] - 2026-10-28
 
@@ -74,7 +74,7 @@
 
 ### Added
 
-- The extension reports the omp version that installed it, and reloads itself when the relay updates its files after an omp upgrade ([#15105](https://github.com/Linxira-OS/linxira-zeta/pull/15105) by [@will-bogusz](https://github.com/will-bogusz))
+- The extension reports the zetacode version that installed it, and reloads itself when the relay updates its files after an zetacode upgrade ([#15105](https://github.com/Linxira-OS/linxira-zeta/pull/15105) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [18.12.2] - 2026-10-18
 
@@ -118,5 +118,5 @@
 
 ### Added
 
-- Initial release of the Chrome MV3 extension, enabling the omp browser tool to attach to and drive existing browser tabs via chrome.debugger.
+- Initial release of the Chrome MV3 extension, enabling the zetacode browser tool to attach to and drive existing browser tabs via chrome.debugger.
 - Added automatic, robust tab management that groups active agent-driven tabs into a dedicated per-window "omp" tab group and ensures clean dissolution upon disconnect.

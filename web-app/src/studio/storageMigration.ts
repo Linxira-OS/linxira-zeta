@@ -2,12 +2,12 @@
  * Browser-storage keys.
  *
  * Every renderer preference lives under `zeta.*` (the product namespace). The
- * previous namespace was `omp.*`; `migrateLegacyStorageKeys()` copies those
+ * previous namespace was `zeta.*`; `migrateLegacyStorageKeys()` copies those
  * forward once at boot so an existing install keeps its layout, language and
  * theme instead of silently resetting.
  */
 
-const LEGACY_PREFIX = "omp.";
+const LEGACY_PREFIX = "zeta.";
 export const STORAGE_PREFIX = "zeta.";
 
 /** Minimal surface of `localStorage`, so the migration is testable without a DOM. */
@@ -20,7 +20,7 @@ export interface StorageLike {
 }
 
 /**
- * Copy `omp.*` entries to their `zeta.*` names and drop the legacy copies.
+ * Copy `zeta.*` entries to their `zeta.*` names and drop the legacy copies.
  * A `zeta.*` value always wins, so a partially-migrated profile is not
  * overwritten by stale data. Returns the number of keys moved.
  */

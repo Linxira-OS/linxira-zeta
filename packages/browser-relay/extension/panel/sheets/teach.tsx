@@ -343,7 +343,7 @@ export function TeachSheet(props: {
 			{phase === "start" ? (
 				<div className="pn-teach-start">
 					<p>
-						Do the task once on this tab. omp records each click and keystroke with a screenshot, then writes a
+						Do the task once on this tab. zetacode records each click and keystroke with a screenshot, then writes a
 						shortcut that repeats it.
 					</p>
 					<button

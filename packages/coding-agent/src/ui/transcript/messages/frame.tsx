@@ -9,7 +9,7 @@
  * - With `collapseAfterLines`, the card is collapsible and clamps the body
  *   while collapsed.
  *
- * Terminal look: `omp.custom*` / `omp.hook` (`src/ui/styles/messages/frame.ts`).
+ * Terminal look: `zeta.custom*` / `zeta.hook` (`src/ui/styles/messages/frame.ts`).
  */
 import { computed, type JSXNode, type Reactive, read, untrack } from "@linxiraos/pi-tui";
 import type { TspTone } from "@linxiraos/pi-wire";
@@ -128,7 +128,7 @@ export function CustomMessageBlock(props: {
 	return (
 		<MessageFrame
 			message={props.message}
-			role={hook ? "omp.hook" : delegation ? "omp.custom.delegation" : "omp.custom"}
+			role={hook ? "zeta.hook" : delegation ? "zeta.custom.delegation" : "zeta.custom"}
 			icon={hook ? "icon.extensionHook" : "icon.package"}
 			hideHeader={delegation}
 			borderColor={delegation ? "borderAccent" : undefined}

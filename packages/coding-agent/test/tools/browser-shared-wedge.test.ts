@@ -1,7 +1,7 @@
 // @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
  * Regression tests for the wedged shared browser (field incident 2026-09-27,
- * omp 18.3.1): under memory pressure the project-shared broker-owned Chromium
+ * zetacode 18.3.1): under memory pressure the project-shared broker-owned Chromium
  * stopped answering CDP, so every tab close ended at the bounded
  * `orphan CDP target … (Page.close)` timeout.
  *
@@ -14,7 +14,7 @@
  *   (`ensureSharedBrowser`), and `acquireBrowser` reuses a cached handle while
  *   `browser.connected` is still true — so nothing re-probed an unreachable
  *   browser while a session lived. The 9.1 GB / 44-process tree survived 19 h
- *   until the last omp client in the project exited.
+ *   until the last zetacode client in the project exited.
  *
  * Contract pinned here: a timed-out target close keeps the ownership record and
  * re-checks the shared browser, and that check stops the daemon only when the
@@ -53,7 +53,7 @@ const TARGET_ID = "D6895F960DB1F4D842FD7B0286F3F818";
 
 /** Unique per-test scope so registry dirs never collide across the suite. */
 function makeScope(): SharedTargetScope {
-	return { projectDir: path.join("/tmp", `omp-wedge-test-${crypto.randomUUID()}`), daemonName: DAEMON_NAME };
+	return { projectDir: path.join("/tmp", `zetacode-wedge-test-${crypto.randomUUID()}`), daemonName: DAEMON_NAME };
 }
 
 /** Scopes created since the last sweep; `afterEach` removes them even when a test fails. */
@@ -293,7 +293,7 @@ describe("browser cleanup — timed-out target close in a shared browser", () =>
 
 		await expect(
 			runInTab("logos-b2b", { code: "await wait(60_000);", timeoutMs: 20, session: makeSession() }),
-		).rejects.toThrow('hung past its 20ms budget, so omp released tab "logos-b2b"');
+		).rejects.toThrow('hung past its 20ms budget, so zetacode released tab "logos-b2b"');
 
 		expect(getTabsMapForTest().has("logos-b2b")).toBe(false);
 		// The next call names the kill once, without the advice the failed call already gave.

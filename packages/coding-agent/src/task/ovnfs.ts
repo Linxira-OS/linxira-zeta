@@ -90,7 +90,7 @@ function checkoutName(agentId: string): string {
 	const suffix = Math.floor(Math.random() * 2 ** 24)
 		.toString(16)
 		.padStart(6, "0");
-	return `omp-${stem || "task"}-${suffix}`;
+	return `zetacode-${stem || "task"}-${suffix}`;
 }
 
 /** Remove a checkout; one already gone counts as removed. */

@@ -6,7 +6,7 @@ use std::{
 	},
 };
 
-/// Whether an older omp build holds `path` by binding its abstract-socket
+/// Whether an older zetacode build holds `path` by binding its abstract-socket
 /// name. `connect(2)` resolves the name without binding it. An LSM or seccomp
 /// policy can refuse that connect (`EACCES`/`EPERM`); the probe then cannot
 /// tell, and reads the name as not bound so a sandboxed process can still take

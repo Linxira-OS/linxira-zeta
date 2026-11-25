@@ -300,7 +300,7 @@ const KIT_CALL =
 	"async function (method, args) { const kit = globalThis.__zetaTernKit; if (!kit) return { missing: true }; return { value: await kit[method](...args) }; }";
 /** Rendering updates an element's rect must hold still for before a native action aims at it. */
 const RESOLVE_STABLE_UPDATES = 2;
-/** How long one native `resolve` waits for a stable rect before omp asks again. */
+/** How long one native `resolve` waits for a stable rect before zetacode asks again. */
 const RESOLVE_SETTLE_MS = 1_000;
 /** Wheels one native target may spend bringing its element into view. */
 const SCROLL_WHEEL_LIMIT = 8;
@@ -532,7 +532,7 @@ export class TernTab implements InProcessRunTab {
 	/** Whether the server reports every resource load itself (its welcome lists `network`); such loads keep no body. */
 	readonly nativeNetwork: boolean;
 	/**
-	 * Whether a page of this tab is observed without any omp script in its
+	 * Whether a page of this tab is observed without any zetacode script in its
 	 * world (both of the above): the capture and vitals scripts are then
 	 * installed only once a helper needs them ({@link #captureNeeded}, `vitals`).
 	 */
@@ -683,7 +683,7 @@ export class TernTab implements InProcessRunTab {
 
 	/**
 	 * Why the tab's block is gone (closed or moved out of the window without
-	 * omp closing it), once an op answered `not_found` for it and the window's
+	 * zetacode closing it), once an op answered `not_found` for it and the window's
 	 * `blocks` no longer list it; undefined while the block is there.
 	 */
 	get gone(): string | undefined {
@@ -735,7 +735,7 @@ export class TernTab implements InProcessRunTab {
 
 	/**
 	 * Close omp's PiP (its page goes), or release an adopted block: Tern stops
-	 * driving it and resets what omp set, the user's page stays. A Tern without
+	 * driving it and resets what zetacode set, the user's page stays. A Tern without
 	 * `release` (answers `invalid`) only gets omp's scripts cleared, best-effort.
 	 * A block already gone is no error.
 	 */
@@ -914,7 +914,7 @@ export class TernTab implements InProcessRunTab {
 		const block = `its ${this.product} browser block ${this.block}${this.adopted ? " (the user's)" : ""}`;
 		const reason =
 			this.product === "Tern"
-				? `${block} is no longer in this Tern window (the user closed it, or its tab or window closed; omp did not close it)`
+				? `${block} is no longer in this Tern window (the user closed it, or its tab or window closed; zetacode did not close it)`
 				: `${block} is no longer in omp's WebKit host`;
 		const reopen =
 			this.product === "Tern"
@@ -922,7 +922,9 @@ export class TernTab implements InProcessRunTab {
 				: `Reopen it with browser.open({ name: ${quoted}, app: "own", url }).`;
 		this.#gone = {
 			reason,
-			error: new ToolError(`Tab ${quoted} is gone: ${reason}. omp closed the tab. ${reopen}\n(${error.message})`),
+			error: new ToolError(
+				`Tab ${quoted} is gone: ${reason}. zetacode closed the tab. ${reopen}\n(${error.message})`,
+			),
 		};
 		return this.#gone.error;
 	}
@@ -1128,7 +1130,7 @@ export class TernTab implements InProcessRunTab {
 		}
 		if (this.#events.length > EVENT_LOG_LIMIT) this.#events.splice(0, this.#events.length - EVENT_LOG_LIMIT);
 		if (typeof answer.dropped === "number" && answer.dropped > 0) {
-			logger.debug("Tern dropped browser events before omp read them", { dropped: answer.dropped });
+			logger.debug("Tern dropped browser events before zetacode read them", { dropped: answer.dropped });
 			this.#network.forgetInflight();
 		}
 	}
@@ -1237,7 +1239,7 @@ export class TernTab implements InProcessRunTab {
 		} catch {
 			return;
 		}
-		if (!isRecord(message) || message.omp !== "tern") return;
+		if (!isRecord(message) || message.zeta !== "tern") return;
 		if (typeof message.dropped === "number") this.#consoleDropped += message.dropped;
 		const ts = numberOr(message.ts, Date.now());
 		const location = typeof message.location === "string" ? message.location : undefined;
@@ -1784,7 +1786,7 @@ export class TernTab implements InProcessRunTab {
 		const now = `${Math.round(this.#viewport.width)}x${Math.round(this.#viewport.height)}`;
 		const how = this.adopted
 			? "It is the user's block, docked in their layout"
-			: "omp opened it as a picture-in-picture; it was docked since (by the user, or by Tern when the pane it floated over closed, was parked or moved)";
+			: "zetacode opened it as a picture-in-picture; it was docked since (by the user, or by Tern when the pane it floated over closed, was parked or moved)";
 		return new ToolError(
 			`${this.product} browser block ${this.block} of tab ${JSON.stringify(this.#name)} is docked, so its page takes the block's size (${now} now) and cannot be set to ${width}x${height}. ${how}. ` +
 				`For a fixed viewport, open a tab with browser.open({ name, app: "own", url, viewport: { width: ${width}, height: ${height} } }), or ask the user to pop the block out as a picture-in-picture, then call emulate({ viewport }) again.`,
@@ -1991,7 +1993,7 @@ export class TernTab implements InProcessRunTab {
 					read: "resolve",
 					ref: found.ref,
 					action: resolveAction,
-					// A wheel omp just sent may still be moving the page under a read that checks nothing else.
+					// A wheel zetacode just sent may still be moving the page under a read that checks nothing else.
 					stable: resolveAction !== "none" || wheels > 0 ? RESOLVE_STABLE_UPDATES : 0,
 					timeout: Math.max(1, Math.min(RESOLVE_SETTLE_MS, timeoutMs - (Date.now() - started))),
 				});
@@ -2513,7 +2515,7 @@ export class TernTab implements InProcessRunTab {
 			throw new ToolError("highlight duration must be a non-negative number");
 		const spec = this.#spec(selector);
 		await this.#target(`tab.highlight(${describe(selector)})`, spec, "point", null);
-		const id = `omp-highlight-${crypto.randomUUID()}`;
+		const id = `zetacode-highlight-${crypto.randomUUID()}`;
 		const overlayFrame = await this.#onKit(spec, null, async (kitSpec, kitFrame) => {
 			await this.#kit("highlight", [kitSpec, id], kitFrame);
 			return kitFrame;
@@ -3161,7 +3163,7 @@ export class TernTab implements InProcessRunTab {
 		const changed = diff.pixelChangeRatio > screenshotThreshold(opts.threshold);
 		const diffPath = opts.output
 			? resolveToCwd(opts.output, context.session.cwd)
-			: path.join(os.tmpdir(), `omp-screenshot-diff-${Snowflake.next()}.png`);
+			: path.join(os.tmpdir(), `zetacode-screenshot-diff-${Snowflake.next()}.png`);
 		await Bun.write(diffPath, diff.png);
 		const resized = await resizeImage(
 			{ type: "image", data: diff.png.toString("base64"), mimeType: "image/png" },
@@ -3206,7 +3208,7 @@ export class TernTab implements InProcessRunTab {
 		}
 		const dest = opts.path
 			? resolveToCwd(opts.path, context.session.cwd)
-			: path.join(os.tmpdir(), `omp-browser-${Snowflake.next()}.pdf`);
+			: path.join(os.tmpdir(), `zetacode-browser-${Snowflake.next()}.pdf`);
 		await Bun.write(dest, Buffer.from(answer.data, "base64"));
 		return dest;
 	}
@@ -3579,7 +3581,7 @@ export class TernTab implements InProcessRunTab {
 	}
 
 	async #enableDownloads(dir?: string): Promise<void> {
-		const resolved = path.resolve(dir ?? path.join(os.tmpdir(), `omp-downloads-tern-${this.block}`));
+		const resolved = path.resolve(dir ?? path.join(os.tmpdir(), `zetacode-downloads-tern-${this.block}`));
 		if (this.#downloadDir === resolved) return;
 		await fs.promises.mkdir(resolved, { recursive: true });
 		await this.#op("downloads", { dir: resolved });
@@ -3754,7 +3756,7 @@ export class TernTab implements InProcessRunTab {
 		const har = await this.#network.harStop(this.loadBody);
 		const destination = options.path
 			? resolveToCwd(options.path, context.session.cwd)
-			: path.join(os.tmpdir(), `omp-browser-${Snowflake.next()}.har`);
+			: path.join(os.tmpdir(), `zetacode-browser-${Snowflake.next()}.har`);
 		await Bun.write(destination, `${JSON.stringify(har, null, 2)}\n`);
 		return destination;
 	}

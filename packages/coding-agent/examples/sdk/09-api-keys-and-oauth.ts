@@ -5,8 +5,8 @@
  */
 import { AuthStorage, createAgentSession, discoverAuthStorage, ModelRegistry, SessionManager } from "@linxiraos/zeta";
 
-// Default: discoverAuthStorage() uses ~/.omp/agent/agent.db
-// ModelRegistry loads built-in + custom models from ~/.omp/agent/models.yml
+// Default: discoverAuthStorage() uses ~/.zeta/agent/agent.db
+// ModelRegistry loads built-in + custom models from ~/.zeta/agent/models.yml
 const authStorage = await discoverAuthStorage();
 const modelRegistry = new ModelRegistry(authStorage);
 

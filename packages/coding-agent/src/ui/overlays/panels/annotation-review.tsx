@@ -6,7 +6,7 @@
  * whole-text notes leading); the note composer or the note chooser docked
  * under the lines; a footer of key hints, Cancel and the actions.
  *
- * The terminal draws it as one box (role look `omp.annotationReview`)
+ * The terminal draws it as one box (role look `zeta.annotationReview`)
  * driven by keys: see {@link AnnotationReviewModel}.
  */
 import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@linxiraos/pi-tui";
@@ -95,7 +95,7 @@ export function annotationReviewSheet(model: AnnotationReviewModel): SheetAttrib
 				.split("`")
 				.flatMap((part, index) => (part ? [{ s: index % 2 === 1 ? "code" : "muted", t: part }] : []));
 	return {
-		role: source ? "omp.overlay.annotateText" : "omp.overlay.codeReview",
+		role: source ? "zeta.overlay.annotateText" : "zeta.overlay.codeReview",
 		anchor: "center",
 		size: "full",
 		head: [{ t: source ? "Annotate text" : "Code review" }, ...subtitle],
@@ -538,7 +538,7 @@ export function AnnotationReview(props: { readonly model: AnnotationReviewModel 
 
 	const root = (
 		<col
-			term={() => ({ role: "omp.annotationReview", review: model, rev: rev() })}
+			term={() => ({ role: "zeta.annotationReview", review: model, rev: rev() })}
 			onKey={onKey}
 			onPaste={paste => {
 				const field = editorNode();

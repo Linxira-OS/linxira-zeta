@@ -157,7 +157,7 @@ describe("plugin config", () => {
 				settings: {},
 			}),
 		);
-		const projectPluginsDir = path.join(tmpRoot, ".omp", "plugins");
+		const projectPluginsDir = path.join(tmpRoot, ".zeta", "plugins");
 		const projectInstallPath = path.join(tmpRoot, "project-cache", pluginName);
 		const projectPluginPath = path.join(projectPluginsDir, "node_modules", pluginName);
 		await Bun.write(
@@ -202,14 +202,14 @@ describe("plugin config", () => {
 	}
 
 	async function installProjectMarketplacePlugin(schemaDefault: string, enabled = true): Promise<string> {
-		const installPath = path.join(tmpRoot, "cache", `omp-commit-project-${schemaDefault}`);
+		const installPath = path.join(tmpRoot, "cache", `zetacode-commit-project-${schemaDefault}`);
 		await writeManifest(installPath, {
 			omp: {
 				version: "2.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: schemaDefault } },
 			},
 		});
-		const projectRoot = path.join(tmpRoot, ".omp", "plugins");
+		const projectRoot = path.join(tmpRoot, ".zeta", "plugins");
 		await fs.mkdir(path.join(projectRoot, "node_modules"), { recursive: true });
 		await fs.symlink(installPath, path.join(projectRoot, "node_modules", "omp-commit"), "dir");
 		await Bun.write(

@@ -373,7 +373,7 @@ export interface ServerConfig {
 	isLinter?: boolean;
 	/**
 	 * Advertise `workspace/didChangeWatchedFiles` dynamic registration, so the
-	 * server hands file watching to omp instead of running its own watcher.
+	 * server hands file watching to zetacode instead of running its own watcher.
 	 * On unless `false`.
 	 */
 	watchFiles?: boolean;

@@ -35,7 +35,7 @@ const server = Bun.serve({
 });
 const baseUrl = `http://127.0.0.1:${server.port}`;
 const crossHostUrl = `http://localhost:${server.port}`;
-const harPath = path.join(os.tmpdir(), `omp-browser-network-${process.pid}-${Date.now()}.har`);
+const harPath = path.join(os.tmpdir(), `zetacode-browser-network-${process.pid}-${Date.now()}.har`);
 
 function createHost() {
 	const session: ToolSession = {

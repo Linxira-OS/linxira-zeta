@@ -693,7 +693,7 @@ export function UsageDashboard(props: { readonly model: UsageDashboardModel }): 
 			return (
 				<col
 					gap="lg"
-					role={rowsRole("omp.usage.dashboard")}
+					role={rowsRole("zeta.usage.dashboard")}
 					term={{ model, rev: untrack(model.rev) }}
 					onKey={key => model.key(key.id)}
 					onAction={act => {

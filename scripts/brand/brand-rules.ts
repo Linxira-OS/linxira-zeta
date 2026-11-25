@@ -127,7 +127,8 @@ export const OMP_PATH_ALLOW = [
  */
 export const PI_FREE_FILES = [
 	"packages/coding-agent/src/utils/title-generator.ts",
-	"packages/tui/src/prompt/welcome.ts",
+	"packages/coding-agent/src/ui/welcome/logo.ts",
+	"packages/coding-agent/src/ui/welcome/welcome.tsx",
 	"packages/tui/src/setup/scenes/splash.ts",
 	"packages/tui/src/setup/scenes/outro.ts",
 	"packages/tui/src/setup/wizard-overlay.ts",
@@ -159,67 +160,57 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "app name identity",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		needle: "ZETA_LOGO",
-		why: "the brand mark is the product logo surface (v18.0.3 lesson); it stays the named constant of the welcome/splash lockup, now FIGlet-generated (see the row pins below)",
+		file: "packages/coding-agent/src/ui/welcome/logo.ts",
+		needle: "export const LOGO",
+		why: "the brand mark is the product logo surface (v18.0.3 lesson); it stays the named constant of the welcome/splash lockup, FIGlet-generated (see the row pins below)",
 	},
 	{
-		file: "packages/tui/src/prompt/composer.ts",
-		needle: "new WelcomeComponent(",
-		why: "welcome entry liveness: the composer must construct the Zeta welcome component — an upstream reroute that renders a different welcome is the v18.6.0 structural blind-spot class (guards checked welcome.ts while the runtime could have been fed another entry)",
+		file: "packages/coding-agent/src/modes/interactive/frame.tsx",
+		needle: "new WelcomeModel(",
+		why: "welcome entry liveness: the frame must construct the Zeta welcome model — an upstream reroute that renders a different welcome is the v18.6.0 structural blind-spot class",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		needle: 'builtin: "zeta"',
-		why: "the native-rendered welcome logo must be the terminal's builtin zeta mark, never an inline upstream asset",
+		file: "packages/coding-agent/src/ui/welcome/welcome.tsx",
+		needle: 'role="zeta.welcome.version"',
+		why: "the welcome card keeps the Zeta semantic role; upstream's omp.* role is residue",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		needle: "alt: APP_NAME,",
-		why: "the welcome hero is the terminal's built-in mark with the APP_NAME alt (registry: welcome/splash); the wordmark beside it is the generated `Zeta` art below, not upstream's `omp` wordmark",
-	},
-	{
-		file: "packages/tui/src/prompt/welcome.ts",
+		file: "packages/coding-agent/src/ui/welcome/logo.ts",
 		needle: '"╚══███╔╝"',
 		why: "mark row 1 of the FIGlet-generated `Z` (ANSI Shadow). Rows, not the whole array, are pinned so oxfmt's line splitting cannot break the needle",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
+		file: "packages/coding-agent/src/ui/welcome/logo.ts",
 		needle: '"███████╗███████╗████████╗ █████╗ "',
 		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow) — the 2026-10-14 brand spec's primary name, never a hand-drawn or upstream lockup",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
+		file: "packages/coding-agent/src/ui/welcome/logo.ts",
 		needle: '" |_ | | | >< | | (_|   /_ (/_ |_ (_| "',
 		why: "last row of the FIGlet-generated `Linxira-Zeta` subline (mini font) — the 2026-10-14 brand spec's full product identity line",
 	},
 	{
-		file: "packages/tui/src/prompt/welcome.ts",
-		needle: "`v${this.version}`",
+		file: "packages/coding-agent/src/ui/welcome/welcome.tsx",
+		needle: "`v${props.version()}`",
 		why: "the version renders under the wordmark (upstream lockup geometry), never back in a box title or an info column",
 	},
 	{
-		file: "packages/tui/src/setup/scenes/splash.ts",
-		needle: '"Zeta"',
+		file: "packages/coding-agent/src/ui/setup/splash.tsx",
+		needle: 'builtin="zeta"',
 		why: "the setup splash carries the product name `Zeta` (2026-10-14 brand spec), never upstream's `O h M y P i` lockup",
 	},
 	{
-		file: "packages/tui/src/setup/scenes/splash.ts",
-		needle: '"Linxira-Zeta"',
-		why: "the setup splash carries the full `Linxira-Zeta` identity line under the product name",
+		file: "packages/coding-agent/src/ui/setup/splash.tsx",
+		needle: 'alt="Zeta"',
+		why: "the setup splash carries the full Zeta identity under the product name",
 	},
 	{
-		file: "packages/tui/src/status-line/segments.ts",
-		needle: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
-		why: "the ultra plan workflow keeps its own status-line label; the upstream status-line refactor (v18.8.8) dropped it because only the plain `Plan` string survived, so the exact form is pinned",
-	},
-	{
-		file: "packages/tui/src/theme/symbols.ts",
+		file: "packages/tui/src/theme/data/symbols.json",
 		needle: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ; nerd U+F0D57 preserved separately)",
 	},
 	{
-		file: "packages/tui/src/theme/symbols.ts",
+		file: "packages/tui/src/theme/data/symbols.json",
 		needle: '"icon.omp": "zeta",',
 		why: "the ascii preset of the same icon — on terminals that cannot draw ζ this literal word is what users see, and upstream's ascii fallback is `pi` (their brand), so a merge re-introduces it silently unless the exact form is pinned (registry: icon.omp ascii preset `zeta`)",
 	},
@@ -333,8 +324,8 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "ACP terminal-auth method name is Zeta-branded (upstream is 'Set up omp in terminal')",
 	},
 	{
-		file: "packages/coding-agent/src/modes/utils/ui-helpers.ts",
-		needle: "const command = `${CLI_BIN_NAME} update`;",
+		file: "packages/coding-agent/src/modes/interactive/update-notice.tsx",
+		needle: "const UPDATE_COMMAND = `${CLI_BIN_NAME} update`;",
 		why: "the update hint must interpolate CLI_BIN_NAME; a literal 'omp update' is upstream residue (theme-lazy-status-color asserts the rendered line)",
 	},
 	{
@@ -347,11 +338,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: "the `zeta-plugins` discovery provider",
 		why: "main.ts's trusted-extension comment names our discovery provider id; `zeta-plugins` is the only provider id and the pre-rename alias is gone, so this line must not drift",
 	},
-	{
-		file: "packages/tui/src/prompt/attachment-chips.ts",
-		needle: 'Symbol("zeta.imagePng")',
-		why: 'the PNG-cache symbol description is zeta-branded (upstream Symbol("omp.imagePng"))',
-	},
+
 	{
 		file: "packages/coding-agent/src/server/web-gateway/dto.ts",
 		needle: 'export const SKILLS_CLI_AGENT = "pi";',
@@ -1009,7 +996,7 @@ export const USER_SURFACE_FILES: Array<{ file: string; forbid: RegExp; why: stri
 		why: "generated copy of the browser-relay extension: the chrome.storage key family and keepalive alarm were renamed to zeta*, so a copy still carrying ompGroupTitle/omp-relay-keepalive predates the source (the drift that reached main was caught only by packages/coding-agent/test/cli-license.test.ts; `bun run gen:relay-assets` refreshes the copy)",
 	})),
 	{
-		file: "packages/tui/src/prompt/tips.txt",
+		file: "packages/coding-agent/src/ui/welcome/tips.txt",
 		forbid: /\bomp\b|PI_DIALECT|clanker|scl\.so/,
 		why: "the welcome Tip row renders this file verbatim: the binary is zeta, and upstream env/slang tokens (PI_DIALECT, clanker) never surface (v18.6.0 shipped 7 omp tips + a PI_DIALECT tip here). scl.so is upstream's Tern promo short-link — the [NO-TERN] tern tip that carried it was removed by user ruling 2026-10-14; a hit means the promo tip returned (its i18n tip copy is caught by the MUST_NOT_CONTAIN scl.so rule)",
 	},

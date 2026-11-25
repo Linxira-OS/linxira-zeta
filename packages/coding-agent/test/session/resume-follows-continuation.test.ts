@@ -20,7 +20,7 @@ const EXIT_DIAGNOSTICS_MODULE = path.join(import.meta.dir, "../../src/session/ex
 const stubSettings = { get: () => undefined } as unknown as Settings;
 
 // Resume writes breadcrumbs and the custom-session-file registry under the agent dir.
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let agentDir: TempDir | undefined;
 
 beforeEach(() => {
@@ -29,8 +29,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-	else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+	if (originalAgentDir === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+	else process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
 	__resetDirsFromEnvForTests();
 	agentDir?.removeSync();
 	agentDir = undefined;
@@ -40,12 +40,12 @@ afterEach(() => {
 type IdleWrite = "warm" | "compact";
 
 /**
- * Another live omp process that resumed `sessionFile`. Commands, one per line:
+ * Another live zetacode process that resumed `sessionFile`. Commands, one per line:
  * `append <text>` writes a user turn (the first write makes it the file's
  * owner); `warm` records the usage of an idle cache refresh; `compact` writes
  * an idle compaction and the eval-state snapshot that follows it; `clear`
  * records the reset boundary `/clear` leaves; `exit` records the
- * `session_exit` marker every omp process appends on its way out, then closes.
+ * `session_exit` marker every zetacode process appends on its way out, then closes.
  */
 class Holder {
 	readonly #child: Bun.Subprocess<"pipe", "pipe", "pipe">;

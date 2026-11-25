@@ -35,7 +35,7 @@ Extensions can combine all of the following in one module:
 - custom message rendering
 - session/message injection APIs (`sendMessage`, `sendUserMessage`, `appendEntry`)
 
-Import host values from the package root, `@linxiraos/zeta`, and UI from `@linxiraos/pi-tui` (nodes, JSX, signals). Both resolve to the host's own copy inside the omp binary. Deeper coding-agent paths also resolve, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. `@linxiraos/pi-tui` is gone; an extension importing it does not load (see [Migrating from pi-tui](#migrating-from-pi-tui)). Besides the extension types and the theme service (`getThemeByName`, `onThemeChange`, …), the root exports these helpers:
+Import host values from the package root, `@linxiraos/zeta`, and UI from `@linxiraos/pi-tui` (nodes, JSX, signals). Both resolve to the host's own copy inside the zetacode binary. Deeper coding-agent paths also resolve, but they name internal files: when a file moves, a static import of it stops the whole extension from loading. `@linxiraos/pi-tui` is gone; an extension importing it does not load (see [Migrating from pi-tui](#migrating-from-pi-tui)). Besides the extension types and the theme service (`getThemeByName`, `onThemeChange`, …), the root exports these helpers:
 
 - `formatKeyHint` and `formatKeyHints` for key hints
 - `ansiSpans` to turn ANSI-styled text into `TspText` spans, such as a transcript presenter's `{ compact: { label, rows } }`
@@ -149,11 +149,11 @@ labeling action. `getAllTools()` returns tool schemas and source metadata, while
 
 ### Keyboard shortcuts
 
-Register shortcuts in the extension factory; omp binds them before `session_start`, so a later registration applies on the next start.
+Register shortcuts in the extension factory; zetacode binds them before `session_start`, so a later registration applies on the next start.
 
 `getShortcutConflict(chord)` returns `undefined` for a free chord, otherwise the first holder of:
 
-- `{ kind: "reserved" }`: omp keeps the chord (see [Constraints and pitfalls](#constraints-and-pitfalls)); a shortcut on it is never bound.
+- `{ kind: "reserved" }`: zetacode keeps the chord (see [Constraints and pitfalls](#constraints-and-pitfalls)); a shortcut on it is never bound.
 - `{ kind: "keybinding", keybindings }`: keymap actions bound to it in the editor (Ctrl+Enter counts for approve and follow-up when their bindings are emptied). `app.*` actions usually take the key first where they apply; editing keys (`tui.editor.*`, `tui.input.*`, e.g. `alt+y` yank-pop) lose it to the shortcut.
 - `{ kind: "extension", extensionPath }`: another extension's shortcut. When several extensions register one chord, in any spelling, only the last one loaded is bound.
 
@@ -335,7 +335,7 @@ Also exposed:
 
 ### Todo backends (`registerTodoBackend`)
 
-A todo backend copies the session's todo list into an external store: a task tracker, a file, a dashboard. omp keeps the list and its own `todo` tool, HUD, `/todo` and reminders. The backend the `todo.backend` setting names (default `native`: none) is handed the whole list after every change.
+A todo backend copies the session's todo list into an external store: a task tracker, a file, a dashboard. zetacode keeps the list and its own `todo` tool, HUD, `/todo` and reminders. The backend the `todo.backend` setting names (default `native`: none) is handed the whole list after every change.
 
 ```ts
 import type { ExtensionAPI } from "@linxiraos/zeta";
@@ -352,9 +352,9 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-- **What.** The whole list after every committed change to the main session's list, never an operation; tasks carry `content` and `status` only. While a call runs, later lists collapse into the newest. Two calls are skipped: an unchanged list for the backend that just took it, and an empty list while omp has not called a backend yet (`/new` does not start that over).
+- **What.** The whole list after every committed change to the main session's list, never an operation; tasks carry `content` and `status` only. While a call runs, later lists collapse into the newest. Two calls are skipped: an unchanged list for the backend that just took it, and an empty list while zetacode has not called a backend yet (`/new` does not start that over).
 - **Sessions.** Key your store by `ctx.sessionManager.getSessionId()`, read before the first `await`. After `/new` the id is new and the empty list follows under it. Calls are not ordered against `session_*` events, and there is no per-session instance: release state on `session_shutdown`.
-- **Failure.** A backend cannot refuse a change and gets no abort signal. A throw, or no answer within the extension handler timeout, is reported as an extension error; omp's list stays as committed and the next change sends the whole list again. After a timeout that next call can start while the old one still runs: a late write must not overwrite a newer list. On exit omp waits for a call still running for as long as a `session_shutdown` handler may take.
+- **Failure.** A backend cannot refuse a change and gets no abort signal. A throw, or no answer within the extension handler timeout, is reported as an extension error; omp's list stays as committed and the next change sends the whole list again. After a timeout that next call can start while the old one still runs: a late write must not overwrite a newer list. On exit zetacode waits for a call still running for as long as a `session_shutdown` handler may take.
 - **Selection.** `todo.backend` holds a registered `id` (letters, digits, `.`, `_`, `-`; `native` is reserved). When several extensions register the selected id, the first one loaded keeps it and the others are reported as extension errors. A selected id no enabled extension registers is reported once as an extension error (again if it is selected again after another id), and todos work as with `native`. A backend selected mid-session gets the list with the next change, or at once when picked in `/settings`.
 - **Scope.** Main session only: subagents and `/tan` clones are not mirrored.
 - **Settings.** `/settings` → Tools → Todos → "Todo Backend" lists `Native` and every backend an enabled extension registers, with its `label` (the `id` when omitted) and `description`. Both are optional; a blank one throws at registration.
@@ -494,7 +494,7 @@ Use `history` only for detached prior side-turn messages; it is cloned with `str
 
 ### Live voice on your own peer (`ctx.startLive`)
 
-Start a `/live` session whose audio runs on a WebRTC peer the extension owns, for example a browser on a phone, instead of the host's microphone and speakers. omp keeps everything else: signaling (Codex with the session's OpenAI Codex sign-in, or the [custom live endpoint](./rpc.md#custom-live-endpoint) when `live.endpoint` is set), the bundled live prompt, delegations into this session as ordinary turns, and transcripts. The TUI shows its live visualizer, and `/live` or the stop key ends the call.
+Start a `/live` session whose audio runs on a WebRTC peer the extension owns, for example a browser on a phone, instead of the host's microphone and speakers. zetacode keeps everything else: signaling (Codex with the session's OpenAI Codex sign-in, or the [custom live endpoint](./rpc.md#custom-live-endpoint) when `live.endpoint` is set), the bundled live prompt, delegations into this session as ordinary turns, and transcripts. The TUI shows its live visualizer, and `/live` or the stop key ends the call.
 
 ```ts
 if (!ctx.startLive) throw new Error("This host does not run live sessions");
@@ -508,9 +508,9 @@ await peer.setRemoteDescription({ type: "answer", sdp: live.sdpAnswer });
 // later: await live.stop();
 ```
 
-The promise resolves once the call is signaled and its control socket is open; apply `sdpAnswer` right away. It rejects without a non-empty `sdpOffer` and while another live session is active. `voice` and `instructions` work as for RPC `live_start`. The peer does its own echo cancellation and mute: the TUI mute key only moves the phase to `muted`, so silence the peer's microphone track while that phase lasts. omp reports no audio levels and no `speaking` phase for these calls. `onEnd` is called exactly once, including when the call fails to start (before the promise rejects). Observer callbacks that throw are logged and do not end the call.
+The promise resolves once the call is signaled and its control socket is open; apply `sdpAnswer` right away. It rejects without a non-empty `sdpOffer` and while another live session is active. `voice` and `instructions` work as for RPC `live_start`. The peer does its own echo cancellation and mute: the TUI mute key only moves the phase to `muted`, so silence the peer's microphone track while that phase lasts. zetacode reports no audio levels and no `speaking` phase for these calls. `onEnd` is called exactly once, including when the call fails to start (before the promise rejects). Observer callbacks that throw are logged and do not end the call.
 
-omp has no media peer for these calls, so it cannot tell when yours goes away. Call `live.stop()` when the peer disconnects (`connectionstatechange` to `failed` or `closed`, or your relay socket closing); otherwise the call stays open and the TUI keeps the live visualizer up.
+zetacode has no media peer for these calls, so it cannot tell when yours goes away. Call `live.stop()` when the peer disconnects (`connectionstatechange` to `failed` or `closed`, or your relay socket closing); otherwise the call stays open and the TUI keeps the live visualizer up.
 
 Whoever holds the peer steers this session by voice, including delegated work that runs tools, so authenticate the page or relay that hands you the offer.
 
@@ -586,7 +586,7 @@ source. Its `session_start` still runs (it is delivered when the extension
 binds), and the first submitted message and every model turn wait until it is
 loaded, so its tools, commands, and `input`/`before_agent_start` hooks apply from
 the first request. Events emitted before it binds are not replayed. Resumed
-sessions, `--tools`, and launches with flags omp does not recognize load every
+sessions, `--tools`, and launches with flags zetacode does not recognize load every
 extension before the session starts.
 
 `session_clear` receives `{ type: "session_clear" }` after a successful in-place
@@ -1496,18 +1496,19 @@ pi.registerTranscriptPresenter(block => {
 Chooses how each block of the main session's transcript is drawn, in the plain terminal and in Tern's native view. It is display only: the session, `/export` and the model context are unchanged. It works in interactive mode with the setting on; elsewhere the presenter is registered but never asked.
 
 - **Blocks.** A presenter receives a read-only `TranscriptBlock`. Later versions add block types: return `undefined` for a `type` you do not know.
-  - `{ type: "toolCall", id, toolName, args, result?, isError, isPartial }` for a model tool call, `id` its `toolCallId`; the reads of a grouped read card are asked one by one.
-  - `{ type: "message", id, message }` for a session message drawn as its own block: `custom` messages with `customType` `advisor`, `skill-prompt`, `lsp-late-diagnostic`, `async-result` (background job completions), `async-notify` (output a running background job or service reports) and `launch-completion` (supervised process exits), and user `!`/`$` runs (`bashExecution`, `pythonExecution`). `id` is `String(message.timestamp)`, the same live and after a resume; messages recorded in the same millisecond share it, as they share `rerenderMessage`'s timestamp. A `!`/`$` run still going has a provisional message and id; it is asked again with the recorded message once the session records the run.
-  - `{ type: "event", id, event }` for a TTSR rule hit (`ttsr_triggered`) or an incomplete-todo reminder (`todo_reminder`), shaped like the extension event of the same type. These exist only in the session that raised them; `id` is unique within the process.
+   - `{ type: "toolCall", id, toolName, args, result?, isError, isPartial }` for a model tool call, `id` its `toolCallId`; the reads of a grouped read card are asked one by one.
+   - `{ type: "message", id, message }` for a session message drawn as its own block: `custom` messages with `customType` `advisor`, `skill-prompt`, `lsp-late-diagnostic`, `async-result` (background job completions), `async-notify` (output a running background job or service reports) and `launch-completion` (supervised process exits), and user `!`/`$` runs (`bashExecution`, `pythonExecution`). `id` is `String(message.timestamp)`, the same live and after a resume; messages recorded in the same millisecond share it, as they share `rerenderMessage`'s timestamp. A `!`/`$` run still going has a provisional message and id; it is asked again with the recorded message once the session records the run.
+   - `{ type: "event", id, event }` for a TTSR rule hit (`ttsr_triggered`) or an incomplete-todo reminder (`todo_reminder`), shaped like the extension event of the same type. These exist only in the session that raised them; `id` is unique within the process.
 
-  `args`, `result`, `message` and `event` are not copies: they are the live objects omp draws the block from, often the session's own message data, so never mutate them.
+   `args`, `result`, `message` and `event` are not copies: they are the live objects zetacode draws the block from, often the session's own message data, so never mutate them.
+
 - **Answers.** `undefined` defers to the next presenter. `"full"` is omp's own drawing. `"hidden"` draws nothing, as `display.hideToolActivity` does. `"compact"` is one row of omp's own summary. `{ compact: { label, rows } }` replaces that row's text with `label` and adds one row per entry of `rows` below it; both take `TspText` (a string or theme-token spans). Presenters answer synchronously and run while the transcript draws, so keep them cheap: any other value (a misspelt mode, the Promise of an `async` presenter) draws the block in full and is reported like a throw.
 - **Precedence.** Presenters are asked in extension load order and the first answer that is not `undefined` wins. A suspended extension's presenter is skipped. A presenter that throws answers `"full"` for that block: the block is drawn in full and later presenters are not asked for it. Its first failure (a throw or an unknown answer) is reported once through the extension error channel (event `transcript_presenter`). A block the user expanded, with `Ctrl+O` or its own toggle in Tern, is always drawn in full, and `display.hideToolActivity` still hides tool activity.
 - **Tern.** A compact tool call keeps its `tool` node as one inline, collapsed row; with `rows`, its body is one text node of those rows, all shown. Other blocks become an inline row with their full drawing folded below it. The row's toggle opens the full block.
 - **Spacing.** Consecutive compact blocks draw as tight rows, with no blank row between them in the terminal and no gap in Tern; blocks that draw nothing between them (hidden ones, a reply holding only tool calls) don't break the run. A block drawn in full keeps its blank row or gap on both sides. Extension message renderers can join a run too (see [Compact rows](#compact-rows)).
-- **When omp asks.** Whenever a block's data changes (arguments stream, a result lands). Call `ctx.ui.refreshTranscript(ids)` when the presenter's own state changes, as the `agent_end` handler above does. Registering a presenter, disposing it (`registerTranscriptPresenter` returns the disposer) and suspending or resuming its extension redraw every block.
-- **Same block, same answer.** omp may ask again at any time, for example when a setting change rebuilds the transcript, and keeps no earlier answer. Make the answer a function of the block and the extension's own state only, and key that state by block `id` as above: state reset per run (on `agent_start`) would redraw earlier runs' blocks with the new run's answer once a rebuild asks again.
-- **Scrollback.** In a plain terminal, settled blocks stay in the live viewport until the screen fills (or more than 256 blocks are live, hidden ones included), so a turn that fits on screen just repaints when its blocks change. If a changed block already has rows in terminal scrollback, omp erases and replays the scrollback once for the whole batch of changes (as toggling thinking visibility does). Late results that change such blocks (a presenter answering from `isPartial`, say, with background jobs finishing) share one replay per frame, but each replay still redraws the whole transcript, so its cost grows with the session. Tern never replays. Avoid changing old blocks often.
+- **When zetacode asks.** Whenever a block's data changes (arguments stream, a result lands). Call `ctx.ui.refreshTranscript(ids)` when the presenter's own state changes, as the `agent_end` handler above does. Registering a presenter, disposing it (`registerTranscriptPresenter` returns the disposer) and suspending or resuming its extension redraw every block.
+- **Same block, same answer.** zetacode may ask again at any time, for example when a setting change rebuilds the transcript, and keeps no earlier answer. Make the answer a function of the block and the extension's own state only, and key that state by block `id` as above: state reset per run (on `agent_start`) would redraw earlier runs' blocks with the new run's answer once a rebuild asks again.
+- **Scrollback.** In a plain terminal, settled blocks stay in the live viewport until the screen fills (or more than 256 blocks are live, hidden ones included), so a turn that fits on screen just repaints when its blocks change. If a changed block already has rows in terminal scrollback, zetacode erases and replays the scrollback once for the whole batch of changes (as toggling thinking visibility does). Late results that change such blocks (a presenter answering from `isPartial`, say, with background jobs finishing) share one replay per frame, but each replay still redraws the whole transcript, so its cost grows with the session. Tern never replays. Avoid changing old blocks often.
 - **Main transcript only.** A focused subagent's transcript, a collab guest's view of the host's session, and the overlays that replay a transcript (link browser, rewind and `/copy` pickers, agent transcript viewer) draw stock cards, as if no presenter were registered.
 - **Late diagnostics.** In Tern, late LSP diagnostics join the edit/write card they belong to and are drawn with it; while a presenter draws that card compact or hidden, they show as a block of their own right after it. Late diagnostics no card takes (all of them in a plain terminal) are `lsp-late-diagnostic` message blocks, asked like any other.
 
@@ -1528,7 +1529,7 @@ pi.on("link_activate", ({ url }) => {
 - **Untrusted input.** `url` comes from whatever drew the link, not only from your renderer: the model, or tool output it repeats, can write `[Continue](cc-stretch:delete/all)`, and since the URL is hidden the user sees only `Continue`. Validate `url` and treat it like user input: parse it strictly, reject unknown operations, and confirm before anything destructive.
 - **Handler.** A `link_activate` handler runs like a command, without the event-handler timeout, so it may await a dialog (`ctx.ui.confirm`, `ctx.ui.select`, …). A handler that throws is reported as an extension error.
 - **Fallback.** `ctx.ui.getLinkClicksAvailable()` is true only while claimed links can be picked: interactive mode, a plain terminal, `extensionRenderers.assistantText` on, and the hint key bound or `tui.mouse` on. A subagent's copy of the extension gets the same answer, since its links are picked on the same screen. Changing the setting, `tui.mouse` while the hint key is unbound, Tern's native view opening or closing, or suspending or resuming an extension (a live `disabledExtensions` edit) re-runs the assistant text renderers, so a renderer can check it on each call and draw content inline instead of behind a link nobody can pick.
-- **Ownership.** Scheme names are case-insensitive and at least two characters long, so no scheme captures a Windows drive path such as `C:/notes.md`. When two extensions claim one scheme, the first loaded gets its clicks; a suspended extension's schemes are released until it resumes. Web, file and mail schemes (`http`, `https`, `file`, `mailto`, …) and omp's internal URL schemes (`local`, `skill`, `agent`, …) are reserved: claiming one throws and fails the extension's load. Only links omp draws itself are picked: a raw terminal hyperlink of a claimed scheme in tool output stays an ordinary hyperlink.
+- **Ownership.** Scheme names are case-insensitive and at least two characters long, so no scheme captures a Windows drive path such as `C:/notes.md`. When two extensions claim one scheme, the first loaded gets its clicks; a suspended extension's schemes are released until it resumes. Web, file and mail schemes (`http`, `https`, `file`, `mailto`, …) and omp's internal URL schemes (`local`, `skill`, `agent`, …) are reserved: claiming one throws and fails the extension's load. Only links zetacode draws itself are picked: a raw terminal hyperlink of a claimed scheme in tool output stays an ordinary hyperlink.
 - **Registration.** Claim schemes in the extension's factory. A scheme claimed later (from `session_start` or another handler) is ignored until `extensionRenderers.assistantText` changes or an extension is suspended or resumed.
 - **Tern.** Tern's native view draws such links as its own links and does not route their clicks back to omp; handle them there with a Tern plugin.
 
@@ -1564,22 +1565,22 @@ Nodes are drawn by the terminal and by Tern. Rows objects are drawn by the termi
 
 `@linxiraos/pi-tui` was replaced by `@linxiraos/pi-tui`. This is a breaking change: an extension, hook or custom tool that imports `@linxiraos/pi-tui` (or the upstream `@mariozechner/pi-tui` / `@earendil-works/pi-tui`) fails to load with an error naming the import and this section. To port it:
 
-| pi-tui | now |
-| --- | --- |
-| `Text`, `Container`, `Box`, `Spacer`, `Markdown` components | JSX nodes: `<text spans={…} />`, `<col>`, `<row>`, `<md text={…} />`, or a `{ render(width) }` rows object |
-| a `Component` class (`render(width)`, `handleInput(data)`, `invalidate()`) | keep it as a rows object: drop the `implements Component` and the import |
-| `tui.requestRender()` | `ui.requestRender()` for rows objects; nodes repaint from signals |
-| `tui.terminal.columns` / `rows` | `ui.size()` |
-| `tui.stop()` … `tui.start()` around an external program | `await ui.suspend(() => run())` |
-| `ctx.ui.custom(…, { overlayOptions })` | `{ overlay: true, fullscreen? }`; positioning options are gone |
-| `OverlayHandle` (`hide`, `setHidden`) | `{ closed, close() }` |
-| `ctx.ui.setEditorComponent(factory)` / `CustomEditor` subclasses | `ctx.ui.composer` hooks: `addKeyHandler`, `addDecorator`, `setSubmitTransform`, `setShape` |
-| `registerComposerShape({ label, style: ComposerStyle })` | `registerComposerShape(shape: ComposerShape)` |
-| `describeCall` / `describeResult` (`NativeToolView`) | return nodes from `renderCall` / `renderResult` |
-| `matchesKey(data, "ctrl+c")`, `Key.shift("p")` | key ids: `key.id === "ctrl+c"` in `onKey`, `"shift+p"` for shortcuts |
-| `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi` | `truncate`, `visibleWidth`, `wrap` from `@linxiraos/pi-tui/text/width` |
-| `theme` from `@linxiraos/pi-tui/theme` | the `theme` argument, `ctx.ui.theme`, or `currentTheme()` from `@linxiraos/pi-tui/theme/runtime` |
-| `styledSpans`, `compactText`, `rowsText`, `formTheme`, `getSettingsListTheme` and the pi-tui component re-exports of the package root | `ansiSpans` for spans; draw the rest with nodes |
+| pi-tui                                                                                                                                | now                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `Text`, `Container`, `Box`, `Spacer`, `Markdown` components                                                                           | JSX nodes: `<text spans={…} />`, `<col>`, `<row>`, `<md text={…} />`, or a `{ render(width) }` rows object |
+| a `Component` class (`render(width)`, `handleInput(data)`, `invalidate()`)                                                            | keep it as a rows object: drop the `implements Component` and the import                                   |
+| `tui.requestRender()`                                                                                                                 | `ui.requestRender()` for rows objects; nodes repaint from signals                                          |
+| `tui.terminal.columns` / `rows`                                                                                                       | `ui.size()`                                                                                                |
+| `tui.stop()` … `tui.start()` around an external program                                                                               | `await ui.suspend(() => run())`                                                                            |
+| `ctx.ui.custom(…, { overlayOptions })`                                                                                                | `{ overlay: true, fullscreen? }`; positioning options are gone                                             |
+| `OverlayHandle` (`hide`, `setHidden`)                                                                                                 | `{ closed, close() }`                                                                                      |
+| `ctx.ui.setEditorComponent(factory)` / `CustomEditor` subclasses                                                                      | `ctx.ui.composer` hooks: `addKeyHandler`, `addDecorator`, `setSubmitTransform`, `setShape`                 |
+| `registerComposerShape({ label, style: ComposerStyle })`                                                                              | `registerComposerShape(shape: ComposerShape)`                                                              |
+| `describeCall` / `describeResult` (`NativeToolView`)                                                                                  | return nodes from `renderCall` / `renderResult`                                                            |
+| `matchesKey(data, "ctrl+c")`, `Key.shift("p")`                                                                                        | key ids: `key.id === "ctrl+c"` in `onKey`, `"shift+p"` for shortcuts                                       |
+| `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi`                                                                                 | `truncate`, `visibleWidth`, `wrap` from `@linxiraos/pi-tui/text/width`                                     |
+| `theme` from `@linxiraos/pi-tui/theme`                                                                                                | the `theme` argument, `ctx.ui.theme`, or `currentTheme()` from `@linxiraos/pi-tui/theme/runtime`           |
+| `styledSpans`, `compactText`, `rowsText`, `formTheme`, `getSettingsListTheme` and the pi-tui component re-exports of the package root | `ansiSpans` for spans; draw the rest with nodes                                                            |
 
 ## Constraints and pitfalls
 

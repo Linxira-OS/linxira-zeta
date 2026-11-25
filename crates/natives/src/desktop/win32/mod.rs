@@ -264,8 +264,8 @@ mod tests {
 		text.encode_utf16().chain(Some(0)).collect()
 	}
 
-	const USER: &str = "omp test: user window";
-	const TARGET: &str = "omp test: takeover target";
+	const USER: &str = "zetacode test: user window";
+	const TARGET: &str = "zetacode test: takeover target";
 	/// Set for the copy of this test binary that hosts the windows.
 	const HOST: &str = "OMP_TAKEOVER_TEST_WINDOWS";
 
@@ -446,7 +446,7 @@ mod tests {
 			let target = parent.parse::<usize>().unwrap() as HWND;
 			// SAFETY: the class and layout strings outlive their calls.
 			unsafe {
-				let class = wide("omp layout receiver");
+				let class = wide("zetacode layout receiver");
 				let definition = WNDCLASSW {
 					lpfnWndProc: Some(layout_receiver),
 					lpszClassName: class.as_ptr(),

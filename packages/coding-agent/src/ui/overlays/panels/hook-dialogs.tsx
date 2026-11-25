@@ -379,7 +379,7 @@ export function HookEditor(props: HookEditorProps & { readonly ref?: (handle: Ho
 							detail && <text key="detail" role="zeta.hook-editor.detail" wrap="word" spans={[{ t: detail }]} />,
 						]}
 			</col>
-			<col role={prompt ? "omp.hook-editor.line" : "omp.hook-editor.field"}>
+			<col role={prompt ? "zeta.hook-editor.line" : "zeta.hook-editor.field"}>
 				<editor
 					key="input"
 					text={() => line().text}

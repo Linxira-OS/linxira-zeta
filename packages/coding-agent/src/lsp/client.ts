@@ -106,7 +106,7 @@ let idleTimeoutMs: number | null = null;
 let idleCheckInterval: NodeJS.Timeout | null = null;
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000;
 
-// Shared server mode: language servers hosted by the omp daemon's `lsp` module, one
+// Shared server mode: language servers hosted by the zetacode daemon's `lsp` module, one
 // per attached client; a released server lingers for reuse until its idle policy stops it.
 // The newest hold decides; with none it is off, so embedders and tests that drive
 // getOrCreateClient directly never touch the daemon. Each process-binding SDK

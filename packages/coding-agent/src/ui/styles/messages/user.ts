@@ -1,5 +1,5 @@
 /**
- * `omp.user` / `omp.user.synthetic` cards: the user's prompt as a filled
+ * `zeta.user` / `zeta.user.synthetic` cards: the user's prompt as a filled
  * bubble.
  *
  * - The prompt is Markdown one cell in from both sides with a blank fill
@@ -158,5 +158,5 @@ function paintSynthetic(node: UiNode, cx: PaintContext): Block {
 	return { rows };
 }
 
-defineRolePainter("card", "omp.user", paintUser);
-defineRolePainter("card", "omp.user.synthetic", paintSynthetic);
+defineRolePainter("card", "zeta.user", paintUser);
+defineRolePainter("card", "zeta.user.synthetic", paintSynthetic);

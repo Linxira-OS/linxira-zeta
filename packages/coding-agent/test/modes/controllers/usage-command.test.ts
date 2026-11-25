@@ -466,7 +466,7 @@ describe("interactive /usage account visibility", () => {
 		const sheet = ui.node("overlay");
 		expect(sheet.parent).toBe("layer");
 		expect(sheet.p).toMatchObject({
-			role: "omp.overlay.usage",
+			role: "zeta.overlay.usage",
 			head: "Usage",
 			anchor: "center",
 			size: "lg",
@@ -477,9 +477,9 @@ describe("interactive /usage account visibility", () => {
 		// The renderer pads the direct content column and pins its last action row.
 		expect(sheet.c).toHaveLength(1);
 		expect(body.parent).toBe(sheet.c[0] ?? null);
-		expect(body.p.role).toBe("omp.usage.body");
+		expect(body.p.role).toBe("zeta.usage.body");
 		expect(footer.parent).toBe(body.parent);
-		expect(footer.p.role).toBe("omp.actions");
+		expect(footer.p.role).toBe("zeta.actions");
 		expect(mounted()?.children()[0]?.children().at(-1)?.key()).toBe("actions");
 		expect(ui.node("button", "close").parent).toBe(footer.id);
 
@@ -508,7 +508,7 @@ describe("interactive /usage account visibility", () => {
 		};
 		await command(async () => [report]).handleUsageCommand();
 
-		expect(mounted()?.props()).toMatchObject({ size: "full", role: "omp.app.screen" });
+		expect(mounted()?.props()).toMatchObject({ size: "full", role: "zeta.app.screen" });
 		const overview = display();
 		expect(overview).toContain("2 accts");
 		expect(overview).toContain(email);

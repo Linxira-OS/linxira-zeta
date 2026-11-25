@@ -1,21 +1,35 @@
 /**
- * The omp brand mark for terminals: a block-grid logo painted with a diagonal
- * pink → violet → cyan gradient, the half-block `omp` wordmark, and the
- * intro animation (the gradient sweeping round while a highlight crosses it).
+ * The Zeta brand mark for terminals: a block-grid logo painted with a diagonal
+ * pink → violet → cyan gradient, the FIGlet `Zeta` wordmark, and the intro
+ * animation (the gradient sweeping round while a highlight crosses it).
  */
 import type { ColorDepth } from "@linxiraos/pi-tui/theme/color";
 
 /** The block-grid logo. */
-export const LOGO: readonly string[] = ["████████████", "   ██  ██   ", "   ██  ██   ", "   ▒▒  ██   ", "       ██   "];
+export const LOGO = ["███████╗", "╚══███╔╝", "  ███╔╝ ", " ███╔╝  ", "███████╗", "╚══════╝"];
 
 /** Columns of {@link LOGO}. */
-export const LOGO_WIDTH = 12;
+export const LOGO_WIDTH = 8;
 
-/** The `omp` wordmark in half-blocks, set beside the logo from its second row (the `p` descends a row). */
-export const WORDMARK: readonly string[] = ["▄▀▀▄ █▀▄▀▄ █▀▀▄", "▀▄▄▀ █ █ █ █▄▄▀", "           █"];
+/** Primary product name: FIGlet `ANSI Shadow` render of `Zeta` (generated). */
+export const WORDMARK = [
+	"███████╗███████╗████████╗ █████╗ ",
+	"╚══███╔╝██╔════╝╚══██╔══╝██╔══██╗",
+	"  ███╔╝ █████╗     ██║   ███████║",
+	" ███╔╝  ██╔══╝     ██║   ██╔══██║",
+	"███████╗███████╗   ██║   ██║  ██║",
+	"╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝",
+];
 
 /** Columns of {@link WORDMARK}. */
-export const WORDMARK_WIDTH = 15;
+export const WORDMARK_WIDTH = 32;
+
+/** FIGlet `mini` identity line (generated; kept for the brand-art gate). */
+export const SUBLINE = [
+	"                       __            ",
+	" |  o ._     o ._ _. __ /  _ _|_  _. ",
+	" |_ | | | >< | | (_|   /_ (/_ |_ (_| ",
+];
 
 /** Gradient stops along the diagonal (truecolor). */
 const STOPS: readonly (readonly [number, number, number])[] = [

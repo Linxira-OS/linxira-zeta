@@ -395,7 +395,7 @@ async function runSessionTool(
 				}
 			: undefined;
 	try {
-		// An omp session tool bounds its own work (bash/task/wait carry timeouts), so it pauses the cell's
+		// An zetacode session tool bounds its own work (bash/task/wait carry timeouts), so it pauses the cell's
 		// runtime-work watchdog instead of letting a slow call kill the VM; an external MCP server may never
 		// answer, so its calls stay charged to the cell. The turn's signal reaches both. Without a status
 		// sink the pause wrapper is a no-op.

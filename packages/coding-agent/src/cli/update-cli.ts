@@ -1,8 +1,8 @@
 /**
  * Update CLI command handler.
  *
- * Handles `omp update` to check for and install updates.
- * Uses the installer that owns the active omp executable when it can be detected.
+ * Handles `zetacode update` to check for and install updates.
+ * Uses the installer that owns the active zetacode executable when it can be detected.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -12,6 +12,7 @@ import {
 	$which,
 	APP_NAME,
 	compareVersions,
+	CLI_BIN_NAME,
 	formatBytes,
 	getProjectDir,
 	getUpdateStateDir,
@@ -107,7 +108,7 @@ export interface ReleasePackages {
 	natives: string;
 }
 
-/** Parsed `omp.rename` pointer: the new agent package name and optional new natives name. */
+/** Parsed `zetacode.rename` pointer: the new agent package name and optional new natives name. */
 export interface ReleaseRename {
 	pkg: string;
 	natives?: string;
@@ -118,9 +119,9 @@ const CURRENT_PACKAGES: ReleasePackages = { pkg: PACKAGE, natives: NATIVES_PACKA
 export interface ReleaseInfo {
 	tag: string;
 	version: string;
-	/** Parsed `omp.dist` from the registry manifest; undefined when absent. */
+	/** Parsed `zetacode.dist` from the registry manifest; undefined when absent. */
 	dist?: ReleaseDist;
-	/** npm names to install, resolved after following any `omp.rename` pointers. */
+	/** npm names to install, resolved after following any `zetacode.rename` pointers. */
 	packages: ReleasePackages;
 	/**
 	 * Registry URL the version was resolved from; bun/npm installs pin to it
@@ -134,7 +135,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse the `omp.dist` field from a published package manifest.
+ * Parse the `zetacode.dist` field from a published package manifest.
  *
  * Forward-compatibility contract with future releases: a release that is not
  * installable as an npm package (e.g. a native rewrite) publishes
@@ -151,7 +152,7 @@ export function resolveReleaseDist(manifest: unknown): ReleaseDist | undefined {
 }
 
 /**
- * Parse the `omp.rename` pointer from a published package manifest.
+ * Parse the `zetacode.rename` pointer from a published package manifest.
  *
  * Forward-compatibility contract for renaming the npm package: the final
  * version published under an old name is a stub whose manifest carries
@@ -186,7 +187,7 @@ function majorVersion(version: string): number {
 /**
  * Whether the update must bypass bun/npm and install the release binary.
  *
- * An explicit `omp.dist` wins in both directions. Without one, a release with
+ * An explicit `zetacode.dist` wins in both directions. Without one, a release with
  * a higher major than the running build is assumed not npm-installable: the
  * runtime may have changed out from under the package layout, and the pinned
  * `@linxiraos/pi-natives*` companions ({@link buildBunInstallArgs}) may not
@@ -321,7 +322,7 @@ function tryRealpath(p: string): string | undefined {
 }
 
 /**
- * Whether this omp runs from a source checkout (the dev launcher or a `bun link` of
+ * Whether this zetacode runs from a source checkout (the dev launcher or a `bun link` of
  * `src/cli.ts`) rather than a compiled binary or a package-manager install, which
  * always lives under `node_modules`. Checkouts update through git, so update
  * prompts are noise there.
@@ -331,10 +332,10 @@ export function isSourceCheckout(): boolean {
 }
 
 /**
- * Whether the running omp may install its own updates: not a source checkout
- * (git updates it), not kept by a managing app (Tern updates its omp itself),
+ * Whether the running zetacode may install its own updates: not a source checkout
+ * (git updates it), not kept by a managing app (Tern updates its zetacode itself),
  * and not in the Nix store. Judged from the running build alone, without the
- * package-manager probes `omp update` runs.
+ * package-manager probes `zetacode update` runs.
  */
 export async function canSelfUpdate(): Promise<boolean> {
 	if (isSourceCheckout()) return false;
@@ -376,10 +377,10 @@ function isPathInDirectory(filePath: string, directoryPath: string): boolean {
 	if (isPathInDirectoryLexical(filePath, directoryPath)) return true;
 	// Layer realpath resolution on top of the lexical guard. On Windows, ~/.bun
 	// is a junction when Bun is installed via Scoop, so `bun pm bin -g` and the
-	// PATH-resolved omp path can refer to the same directory through different
+	// PATH-resolved zetacode path can refer to the same directory through different
 	// strings. path.resolve does not traverse junctions/symlinks; realpath does.
 	// Resolve both the file and its parent directory: the file catches manager
-	// links like Homebrew's `bin/omp -> Cellar/.../bin/omp`; the parent fallback
+	// links like Homebrew's `bin/zetacode -> Cellar/.../bin/omp`; the parent fallback
 	// still tolerates fresh install paths where the file does not exist yet.
 	const dirReal = tryRealpath(path.resolve(directoryPath));
 	if (!dirReal) return false;
@@ -422,7 +423,7 @@ interface UpdateMethodResolutionOptions {
 	/** Bun's configured global package directory, independent of its bin directory. */
 	bunGlobalDir?: string;
 	/**
-	 * Whether the resolved omp path is a plain file (the standalone binary)
+	 * Whether the resolved zetacode path is a plain file (the standalone binary)
 	 * rather than a package-manager symlink. Stops a binary install from being
 	 * misrouted to npm/bun when the global bin dir overlaps the installer's
 	 * target directory.
@@ -487,8 +488,8 @@ function resolveUpdateMethod(
 	// a binary install through npm/bun, whose reinstall then collides with the
 	// existing file (npm EEXIST). Fall through to binary replacement instead.
 	// On Windows every launcher is a regular file, so ownership keys off the
-	// manager's own artifacts instead: npm's script shims (`omp`, `omp.cmd`,
-	// `omp.ps1`) and bun's `omp.bunx` sidecar. A bare `.exe` with neither is the
+	// manager's own artifacts instead: npm's script shims (`zetacode`, `zetacode.cmd`,
+	// `zetacode.ps1`) and bun's `zeta.bunx` sidecar. A bare `.exe` with neither is the
 	// standalone binary a binary-only release installed over the launcher —
 	// routing that back through bun reinstalls a package which no longer owns
 	// the launcher, and bun silently tolerates failing to overwrite the running
@@ -631,10 +632,10 @@ async function resolveUpdateTarget(options: { allowPackageManagers: boolean }): 
 
 	if (bunBinDir) return { method: "bun" };
 
-	throw new Error(`Could not resolve ${APP_NAME} binary path in PATH`);
+	throw new Error(`Could not resolve \${CLI_BIN_NAME} binary path in PATH`);
 }
 
-/** Bound on `omp.rename` hops so a broken pointer chain cannot loop forever. */
+/** Bound on `zetacode.rename` hops so a broken pointer chain cannot loop forever. */
 const MAX_RENAME_HOPS = 3;
 
 async function fetchLatestManifest(
@@ -662,7 +663,7 @@ async function fetchLatestManifest(
 		}
 	};
 	const noCanary = () =>
-		new Error(`No canary release has been published for ${pkg} yet. Try \`${APP_NAME} update --stable\`.`);
+		new Error(`No canary release has been published for ${pkg} yet. Try \`\${CLI_BIN_NAME} update --stable\`.`);
 
 	const fromPackument = (packument: unknown): Record<string, unknown> => {
 		const distTags = isRecord(packument) ? packument["dist-tags"] : undefined;
@@ -728,7 +729,7 @@ async function fetchLatestManifest(
 }
 
 /**
- * Get the latest release info from the npm registry, following `omp.rename`
+ * Get the latest release info from the npm registry, following `zetacode.rename`
  * pointers ({@link resolveReleaseRename}) when the package has moved to a new
  * npm name. Version, dist, and install names all come from the final manifest
  * in the chain. This is the version source of package-manager installs (bun,
@@ -890,7 +891,7 @@ async function removeCacheEntries(paths: string[]): Promise<number> {
  *
  * Bun stores package cache entries as both a package marker directory
  * (`react/19.2.6@@@1`) and a materialized package directory
- * (`react@19.2.6@@@1`). Global `omp` updates can leave one full copy per
+ * (`react@19.2.6@@@1`). Global `zetacode` updates can leave one full copy per
  * release. The marker and materialized entries are removed together so the
  * cache stays internally consistent.
  */
@@ -996,15 +997,15 @@ async function pruneBunCacheAfterGlobalInstall(): Promise<BunInstallCachePruneRe
 }
 
 /**
- * Resolve the path that `omp` maps to in the user's PATH.
+ * Resolve the path that `zetacode` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
 	return $which(APP_NAME) ?? undefined;
 }
 
 /**
- * Parse the version a launcher reports from `omp --version` output
- * (`omp/X.Y.Z`, or a prerelease such as `omp/X.Y.Z-canary.1`).
+ * Parse the version a launcher reports from `zetacode --version` output
+ * (`zetacode/X.Y.Z`, or a prerelease such as `zetacode/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
  * verifies as up to date instead of appearing to report a stale `X.Y.Z` and
@@ -1074,18 +1075,18 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 
 	const reason = hasShebang
 		? "is a shebang script, not an OMP binary"
-		: "does not report an OMP version when run directly";
+		: `does not report a ${CLI_BIN_NAME} version when run directly`;
 	throw new Error(
 		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
 	);
 }
 
 /**
- * Run the PATH-resolved omp binary and check if it reports the expected version.
+ * Run the PATH-resolved zetacode binary and check if it reports the expected version.
  */
 export async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	// A fresh lookup: the install may have moved what PATH resolves to (a Windows
-	// shim takeover retires `omp.cmd` for `omp.exe`) since the target was resolved.
+	// shim takeover retires `zetacode.cmd` for `zeta.exe`) since the target was resolved.
 	const ompPath = $which(APP_NAME, { cache: WhichCachePolicy.Fresh }) ?? undefined;
 	if (!ompPath) return { ok: false };
 	const binaryPath = tryRealpath(ompPath) ?? ompPath;
@@ -1100,7 +1101,7 @@ function printVerifiedVersion(expectedVersion: string, binaryPath?: string): voi
 
 function formatVerificationFailure(result: InstalledVersionVerification, expectedVersion: string): string {
 	if (result.actual) {
-		return `${APP_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
+		return `\${CLI_BIN_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
 	}
 	return `could not verify updated version${result.path ? ` at ${result.path}` : ""}`;
 }
@@ -1266,7 +1267,7 @@ export async function replaceBinaryForUpdate(options: BinaryReplacementOptions):
 		const verification = await options.verifyInstalledVersion(options.expectedVersion);
 		if (!verification.ok) {
 			throw new Error(
-				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${APP_NAME} binary`,
+				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous \${CLI_BIN_NAME} binary`,
 			);
 		}
 
@@ -1301,7 +1302,7 @@ function buildVersionedPackageInstallArgs(
 }
 
 /**
- * Build the bun argv used to globally install a specific omp version.
+ * Build the bun argv used to globally install a specific zetacode version.
  *
  * The version is selected by querying the resolved registry in
  * {@link getLatestRelease} ({@link ReleaseInfo.registry}), so the install
@@ -1315,7 +1316,7 @@ function buildVersionedPackageInstallArgs(
  * - `--no-cache` tells bun to ignore its on-disk manifest snapshot so it
  *   re-fetches metadata from that registry on every invocation.
  *
- * Together these two flags make `omp update` produce exactly the registry
+ * Together these two flags make `zetacode update` produce exactly the registry
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
@@ -1360,10 +1361,10 @@ export function buildBunInstallArgs(
  * Pins `--registry` to the checked registry for the same reason as
  * {@link buildBunInstallArgs}.
  *
- * `force` is set only for rename migrations: npm refuses to write the `omp`
+ * `force` is set only for rename migrations: npm refuses to write the `zetacode`
  * bin while the old package still owns it (`EEXIST`), and the migration
  * installs the new package BEFORE removing the old one so a failed install
- * never leaves the user without a working `omp`.
+ * never leaves the user without a working `zetacode`.
  */
 export function buildNpmInstallArgs(
 	expectedVersion: string,
@@ -1470,11 +1471,11 @@ export function buildRenameCleanupPackages(
 
 /** Injectable shell steps for {@link migrateRenamedInstall}; commands return process exit codes. */
 export interface RenameMigrationSteps {
-	/** Globally install the new package names. MUST be idempotent: re-running re-links the `omp` bin. */
+	/** Globally install the new package names. MUST be idempotent: re-running re-links the `zetacode` bin. */
 	install(): Promise<number>;
 	/** Remove the old-name globals. */
 	removeOld(): Promise<number>;
-	/** Check the PATH-resolved `omp` against the expected version. */
+	/** Check the PATH-resolved `zetacode` against the expected version. */
 	verify(): Promise<InstalledVersionVerification>;
 }
 
@@ -1518,14 +1519,14 @@ function packageManagerMigrationSteps(manager: "bun" | "npm", release: ReleaseIn
 }
 
 /**
- * Migrate a package-manager install across an `omp.rename` hop without a
- * window where no working `omp` exists:
+ * Migrate a package-manager install across an `zetacode.rename` hop without a
+ * window where no working `zetacode` exists:
  *
  * 1. Install the new package FIRST. Nothing has been removed yet, so a
  *    failure here leaves the old install fully functional.
  * 2. Remove the old-name globals. Failure is non-fatal: a stale package
  *    wastes disk, but the bin already points at the new install.
- * 3. Verify the PATH-resolved `omp`. If the removal deleted the shared bin
+ * 3. Verify the PATH-resolved `zetacode`. If the removal deleted the shared bin
  *    link (manager-dependent), re-run the idempotent install to restore it
  *    and verify again; only a repeated failure aborts, with a recovery hint.
  */
@@ -1719,7 +1720,7 @@ export async function updateViaManager(
 	}
 	console.log(
 		chalk.yellow(
-			`\n${steps.manager} did not install a working ${APP_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
+			`\n${steps.manager} did not install a working \${CLI_BIN_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
 		),
 	);
 	try {
@@ -1900,7 +1901,7 @@ export async function updateViaBinaryAt(
 	} = {},
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
-	// Unique per attempt so two overlapping `omp update` runs never share a temp
+	// Unique per attempt so two overlapping `zetacode update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
 	// first kept writing to its open fd (size + digest still passed), then chmod
@@ -1916,7 +1917,7 @@ export async function updateViaBinaryAt(
 	options.onProgress?.({ phase: "installing", version: build.version });
 
 	// Serialize the target swap and stale-artifact sweep per target so two
-	// overlapping `omp update` runs never replace the same binary concurrently
+	// overlapping `zetacode update` runs never replace the same binary concurrently
 	// or reclaim each other's live backup/temp files. The download above writes
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {
@@ -1943,13 +1944,13 @@ export async function updateViaBinaryAt(
 		return result;
 	});
 	await finishVerifiedUpdate({ ...verification, path: verification.path ?? targetPath }, build.version);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart \${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
  * renamed aside during a script-shim takeover; each execs the sibling
- * `omp.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * `zeta.exe`. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
@@ -1965,8 +1966,8 @@ const SHIM_FORWARDERS: Record<string, string> = {
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`omp`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `omp.exe` beside them and
+ * (`zetacode`/`zetacode.cmd`/`zetacode.ps1`) that cannot be overwritten with a native
+ * executable. The release binary is installed as `zeta.exe` beside them and
  * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every
@@ -2038,7 +2039,7 @@ export async function updateViaShimTakeover(
 			}
 			await unlinkIfExists(exePath);
 			throw new Error(
-				`${formatVerificationFailure(verification, build.version)}; restored previous ${APP_NAME} launcher`,
+				`${formatVerificationFailure(verification, build.version)}; restored previous \${CLI_BIN_NAME} launcher`,
 			);
 		}
 		for (const { backup } of retired) {
@@ -2061,7 +2062,7 @@ export async function updateViaShimTakeover(
 		);
 	}
 	await finishVerifiedUpdate({ ...verification, path: exePath }, build.version);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart \${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
@@ -2098,7 +2099,7 @@ function persistChannel(channel: UpdateChannel): void {
 type BinaryUpdateTarget = Extract<UpdateTarget, { method: "binary" }>;
 type ManagedUpdateTarget = Exclude<UpdateTarget, { method: "binary" }>;
 
-/** What `omp update` was asked to do, after resolving the channel. */
+/** What `zetacode update` was asked to do, after resolving the channel. */
 interface UpdateRequest {
 	force: boolean;
 	check: boolean;
@@ -2110,7 +2111,7 @@ interface UpdateRequest {
 	onProgress?: UpdateProgressListener;
 }
 
-/** Options for {@link runUpdateCommand}: the `omp update` flags, plus a progress listener for background runs. */
+/** Options for {@link runUpdateCommand}: the `zetacode update` flags, plus a progress listener for background runs. */
 export interface UpdateOptions {
 	force: boolean;
 	check: boolean;
@@ -2136,7 +2137,7 @@ function updateError(what: string, err: unknown): Error {
 }
 
 /**
- * Lock held while an update installs, so `omp update` and the background
+ * Lock held while an update installs, so `zetacode update` and the background
  * auto-update never run two installers (two `bun install -g`, or a package
  * manager racing a binary swap) against the same install.
  */
@@ -2144,7 +2145,7 @@ function acquireInstallLock(): FileLockHandle {
 	const dir = getUpdateStateDir();
 	fs.mkdirSync(dir, { recursive: true });
 	const lock = tryAcquireFileLock(path.join(dir, "install"));
-	if (!lock) throw new Error(`Another ${APP_NAME} update is already running; try again once it finishes.`);
+	if (!lock) throw new Error(`Another \${CLI_BIN_NAME} update is already running; try again once it finishes.`);
 	return lock;
 }
 
@@ -2212,7 +2213,7 @@ async function runBinaryUpdate(
  * release is binary-only ({@link shouldForceBinaryUpdate}).
  *
  * The launcher is resolved again without package-manager routing: a manager
- * symlink is taken over in place, a Windows script launcher gets `omp.exe`
+ * symlink is taken over in place, a Windows script launcher gets `zeta.exe`
  * beside it. The binary is the build service's newest on the channel. A build
  * older than npm's release that would not move the install forward means the
  * release is still uploading, so the update stops instead of reinstalling or
@@ -2249,7 +2250,8 @@ async function updateToStandaloneBinary(
 	}
 	// Without package-manager routing only a Windows script launcher resolves
 	// to a manager (the bun/npm bin-dir probes are skipped), so its path is known.
-	if (target.method !== "npm" || !target.path) throw new Error(`Could not resolve ${APP_NAME} launcher path in PATH`);
+	if (target.method !== "npm" || !target.path)
+		throw new Error(`Could not resolve \${CLI_BIN_NAME} launcher path in PATH`);
 	console.log(chalk.dim("This release ships as a standalone binary; replacing the script launcher."));
 	await updateViaShimTakeover(target.path, build, { onProgress });
 	console.log(chalk.yellow(unmanaged));
@@ -2321,7 +2323,7 @@ async function runManagedUpdate(
 /**
  * Run the update command.
  *
- * The installer that owns the PATH `omp` decides where the version comes
+ * The installer that owns the PATH `zetacode` decides where the version comes
  * from: a standalone binary asks the build service, a package-manager install
  * asks npm. When no target resolves, the running build's kind decides, so
  * `--check` still answers; installing then fails on the unresolved target.
@@ -2373,10 +2375,10 @@ export async function runUpdateCommand(opts: UpdateOptions): Promise<UpdateOutco
  * Print update command help.
  */
 export function printUpdateHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} update`)} - Check for and install updates
+	console.log(`${chalk.bold(`\${CLI_BIN_NAME} update`)} - Check for and install updates
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} update [options]
+  \${CLI_BIN_NAME} update [options]
 
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
@@ -2386,10 +2388,10 @@ ${chalk.bold("Options:")}
   --stable        Switch back to the stable channel
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} update              Update to latest version
-  ${APP_NAME} update --check      Check if updates are available
-  ${APP_NAME} update --force      Force reinstall
-  ${APP_NAME} update -l           Update installed plugins
-  ${APP_NAME} update --canary    Switch to the canary channel and update
+  \${CLI_BIN_NAME} update              Update to latest version
+  \${CLI_BIN_NAME} update --check      Check if updates are available
+  \${CLI_BIN_NAME} update --force      Force reinstall
+  \${CLI_BIN_NAME} update -l           Update installed plugins
+  \${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
 `);
 }

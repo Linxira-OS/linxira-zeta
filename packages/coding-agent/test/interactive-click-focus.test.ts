@@ -564,7 +564,7 @@ describe("inline click-to-focus geometry", () => {
 	it("browses to a link scrolled off the screen, picks it by tag, and redraws its reply", async () => {
 		cfgExtensionAssistantTextRenderers.set(mode.settings, true);
 		const { activated, extension } = installDemoLinkExtension();
-		// Opening the early link expands its reply; the handler asks omp to redraw it.
+		// Opening the early link expands its reply; the handler asks zetacode to redraw it.
 		let expanded = false;
 		extension.assistantTextRenderers.push(({ text, message }) =>
 			expanded && message.timestamp === 1

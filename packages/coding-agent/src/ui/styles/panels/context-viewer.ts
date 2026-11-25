@@ -233,7 +233,7 @@ function hints(model: ContextViewerModel): string {
 		.join(" · ");
 }
 
-defineRolePainter("col", "omp.context", (node, cx): Block => {
+defineRolePainter("col", "zeta.context", (node, cx): Block => {
 	const theme = cx.theme;
 	const model = termOf<{ model: ContextViewerModel }>(node).model;
 	if (!model || cx.width < 6) return EMPTY_BLOCK;

@@ -3428,7 +3428,7 @@ export class SessionManager {
 	}
 
 	/**
-	 * Whether another live omp process owns this session, so this process's
+	 * Whether another live zetacode process owns this session, so this process's
 	 * next write would move it to a sibling (`"open-elsewhere"`) instead of
 	 * appending. Claims the session when it is free, as a write would.
 	 * `AgentSession` checks it before writing its exit record: a process that
@@ -4930,7 +4930,7 @@ export class SessionManager {
 	}
 	/**
 	 * Continue the most recent session, or create a new one if none exists.
-	 * A session another live omp process writes
+	 * A session another live zetacode process writes
 	 * ({@link SessionStorage.isSessionOwnedElsewhere}) is passed over for the
 	 * newest one in the directory nobody else writes; resuming it would
 	 * duplicate the running conversation into a sibling on the first write.
@@ -5056,7 +5056,7 @@ export class SessionManager {
 			}
 		}
 
-		/** The copy of `picked` to resume, or undefined while another omp process writes it. */
+		/** The copy of `picked` to resume, or undefined while another zetacode process writes it. */
 		const resumableCopy = async (picked: string): Promise<string | undefined> => {
 			const fromBreadcrumb = !!breadcrumb && path.resolve(picked) === path.resolve(breadcrumb.sessionFile);
 			const continuation = fromBreadcrumb
@@ -5064,7 +5064,7 @@ export class SessionManager {
 				: await findRecentSessionContinuation(picked, storage);
 			const resumable = continuation?.session.path ?? picked;
 			if (storage.isSessionOwnedElsewhere?.(resumable)) {
-				logger.debug("Not continuing a session another omp process writes", { sessionFile: resumable });
+				logger.debug("Not continuing a session another zetacode process writes", { sessionFile: resumable });
 				return undefined;
 			}
 			if (continuation) options.onSessionContinuation?.(continuation);

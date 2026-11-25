@@ -104,7 +104,7 @@ interface MarkdownBlock {
 /** The `md` nodes a transcript draws, in order (collapsed sections draw none). */
 function markdownBlocks(node: NativeNode, thinking = false, out: MarkdownBlock[] = []): MarkdownBlock[] {
 	if (node.k === "md") out.push({ text: node.p?.text ?? "", stream: node.p?.stream === true, thinking });
-	const inThinking = thinking || node.p?.role === "omp.thinking";
+	const inThinking = thinking || node.p?.role === "zeta.thinking";
 	for (const child of node.c ?? []) markdownBlocks(child, inThinking, out);
 	return out;
 }

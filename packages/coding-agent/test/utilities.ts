@@ -80,7 +80,7 @@ export function assistantMsg(text: string) {
  * Use this for e2e tests that need real LLM calls.
  */
 export async function createTestSession(options: TestSessionOptions = {}): Promise<TestSessionContext> {
-	const tempDir = path.join(os.tmpdir(), `omp-test-${Snowflake.next()}`);
+	const tempDir = path.join(os.tmpdir(), `zetacode-test-${Snowflake.next()}`);
 	// Interactive editor input must not contact the developer's global text-predict daemon.
 	const settingsOverrides = { "spelling.autocomplete": "off", ...options.settingsOverrides };
 	fs.mkdirSync(tempDir, { recursive: true });

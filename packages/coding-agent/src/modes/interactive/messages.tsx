@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * Transcript faces of the session's non-assistant messages: prompts, summaries,
- * file mentions, and the custom messages extensions and omp itself persist
+ * file mentions, and the custom messages extensions and zetacode itself persist
  * (background job events, IRC traffic, advisor notes, skill prompts, collab
  * prompts, handoffs). Assistant replies and `!`/`$` runs have their own
  * presenters.

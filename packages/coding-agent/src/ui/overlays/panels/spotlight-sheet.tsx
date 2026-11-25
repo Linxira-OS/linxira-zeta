@@ -129,7 +129,7 @@ export function spotlightOverlay(spotlight: SpotlightDetails): {
 			? "kept whole for editing (the model saw the original) · "
 			: "";
 	return {
-		role: "omp.overlay.spotlight",
+		role: "zeta.overlay.spotlight",
 		head: `⭐ Spotlight · ${kept}${spotlight.tool} · ${formatNumber(spotlight.inChars)} → ${formatNumber(spotlight.outChars)} chars · ${saved}`,
 		size: "lg",
 		anchor: "center",
@@ -354,7 +354,7 @@ function hotCard(sheet: Sheet, window: SpotlightWindow, i: number): TspPropNode 
 		children.push({ k: "text", p: { spans: [{ s: "muted", t }] } });
 	}
 	if (why !== undefined) children.push({ k: "text", p: { spans: [{ s: "error", t: why }] } });
-	return { k: "col", p: { gap: "xs", role: "omp.spotlight.card" }, c: children } as TspPropNode;
+	return { k: "col", p: { gap: "xs", role: "zeta.spotlight.card" }, c: children } as TspPropNode;
 }
 
 function foldOf(sheet: Sheet, window: SpotlightWindow, from: number, to: number): TspCodeFold {
@@ -510,7 +510,7 @@ export function SpotlightSheet(props: SpotlightSheetProps): JSXNode {
 	const legends = [...new Set(windows.flatMap(window => (window.rank ? [rankLabel(window.rank)] : [])))];
 	return (
 		<col
-			role={rowsRole("omp.spotlight")}
+			role={rowsRole("zeta.spotlight")}
 			gap="md"
 			term={{ head: spotlightOverlay(spotlight).head }}
 			onKey={key => {

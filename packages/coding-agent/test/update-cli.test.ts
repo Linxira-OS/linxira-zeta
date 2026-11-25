@@ -38,7 +38,7 @@ import {
 	verifyInstalledVersion,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import { $which, CLI_BIN_NAME, removeWithRetries } from "@linxiraos/pi-utils";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
 
 const miseBinary = Bun.env.MISE_BIN ?? $which("mise");
@@ -205,13 +205,13 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("nix");
 	});
 
-	it("uses bun update when prioritized omp is inside bun global bin", () => {
+	it("uses bun update when prioritized zetacode is inside bun global bin", () => {
 		const method = resolveUpdateMethodForTest("/Users/test/.bun/bin/omp", "/Users/test/.bun/bin");
 
 		expect(method).toBe("bun");
 	});
 
-	it("uses npm update when prioritized omp is inside an npm global bin", () => {
+	it("uses npm update when prioritized zetacode is inside an npm global bin", () => {
 		const method = resolveUpdateMethodForTest("/Users/test/.npm-global/bin/omp", undefined, {
 			npmBinDir: "/Users/test/.npm-global/bin",
 		});
@@ -220,7 +220,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses npm update for Windows npm command shims even when no package-manager bin dirs were detected", () => {
-		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\omp.cmd", undefined);
+		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\zetacode.cmd", undefined);
 
 		expect(method).toBe("npm");
 	});
@@ -258,7 +258,7 @@ describe("update-cli install target detection", () => {
 		// only a bun-managed launcher has. Paths use forward slashes so the
 		// lexical containment check works on the POSIX host running this suite.
 		const method = withPlatform("win32", () =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/omp.exe", "C:/Users/test/.bun/bin", {
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 				bunShimMarker: true,
 			}),
@@ -274,7 +274,7 @@ describe("update-cli install target detection", () => {
 		// running .exe — bun tolerates that EBUSY — so the install stayed pinned
 		// to the old version with no way forward.
 		const method = withPlatform("win32", () =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/omp.exe", "C:/Users/test/.bun/bin", {
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 			}),
 		);
@@ -418,7 +418,7 @@ describe("update-cli install target detection", () => {
 	);
 
 	it.skipIf(process.platform === "win32")(
-		"refuses a foreign native target that does not report an OMP version",
+		"refuses a foreign native target that does not report a zetacode version",
 		async () => {
 			const dir = await makeTempDir();
 			const foreignPath = path.join(dir, "foreign");
@@ -437,7 +437,7 @@ describe("update-cli install target detection", () => {
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
-			).rejects.toThrow("does not report an OMP version when run directly");
+			).rejects.toThrow(`does not report a ${CLI_BIN_NAME} version when run directly`);
 			expect(fetchImpl).not.toHaveBeenCalled();
 		},
 	);
@@ -493,7 +493,7 @@ describe("update-cli install target detection", () => {
 		expect(await Bun.file(checkoutCli).text()).toBe("linked checkout");
 	});
 
-	it("uses binary update when prioritized omp is outside bun global bin", () => {
+	it("uses binary update when prioritized zetacode is outside bun global bin", () => {
 		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/omp", "/Users/test/.bun/bin");
 
 		expect(method).toBe("binary");
@@ -505,7 +505,7 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("binary");
 	});
 
-	it("uses Homebrew update when prioritized omp resolves into the Homebrew formula", async () => {
+	it("uses Homebrew update when prioritized zetacode resolves into the Homebrew formula", async () => {
 		const dir = await makeTempDir();
 		const prefix = path.join(dir, "opt", "omp");
 		const linkedBin = path.join(dir, "bin");
@@ -521,7 +521,7 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("brew");
 	});
 
-	it("uses mise update when prioritized omp is in an active mise bin path", () => {
+	it("uses mise update when prioritized zetacode is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
 			"/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin/omp",
 			undefined,
@@ -533,7 +533,7 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("mise");
 	});
 
-	it("uses mise update when prioritized omp is a mise shim", () => {
+	it("uses mise update when prioritized zetacode is a mise shim", () => {
 		const method = resolveUpdateMethodForTest("/Users/test/.local/share/mise/shims/omp", undefined, {
 			miseDataDir: "/Users/test/.local/share/mise",
 		});
@@ -891,7 +891,7 @@ describe("migrateRenamedInstall transaction", () => {
 
 describe("update-cli bun install command", () => {
 	it("pins the official npm registry and bypasses the manifest cache so a stale mirror or snapshot cannot mask a freshly published version", () => {
-		// Regression: omp queries https://registry.npmjs.org/<pkg>/latest directly.
+		// Regression: zetacode queries https://registry.npmjs.org/<pkg>/latest directly.
 		// The install MUST hit the same registry, otherwise:
 		//   - a lagging mirror (corp proxy, Taobao, …) rejects the version with
 		//     `No version matching "X" (but package exists)`,
@@ -1090,8 +1090,8 @@ describe("update-cli release binary integrity", () => {
 });
 
 describe("update-cli build patches", () => {
-	const installed = "installed omp 18.8.8";
-	const next = "omp 18.8.9, rebuilt from the patch";
+	const installed = "installed zetacode 18.8.8";
+	const next = "zetacode 18.8.9, rebuilt from the patch";
 	const patchBytes = "HDIFFSF20 patch from 18.8.8 to 18.8.9";
 	const patchUrl = "https://r2.test/patches/18.8.8-18.8.9";
 
@@ -1206,7 +1206,7 @@ describe("update-cli binary replacement", () => {
 				expectedVersion: "15.1.8",
 				verifyInstalledVersion: async () => ({ ok: false, path: targetPath }),
 			}),
-		).rejects.toThrow("restored previous omp binary");
+		).rejects.toThrow("restored previous zetacode binary");
 
 		expect(await Bun.file(targetPath).text()).toBe("old binary");
 		expect(await Bun.file(tempPath).exists()).toBe(false);
@@ -1263,7 +1263,7 @@ describe("update-cli binary replacement on locked backups", () => {
 		// the running process image, so unlinking it throws EPERM. That cleanup
 		// failure must not turn a verified swap into "Update failed" (issue #845).
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "omp.exe");
+		const targetPath = path.join(dir, "zeta.exe");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.1700000000000.4242.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1302,7 +1302,7 @@ describe("update-cli binary replacement on locked backups", () => {
 describe("update-cli stale update artifact sweep", () => {
 	it("reclaims timestamped and legacy backups and orphaned temps while sparing in-progress temps and unrelated files", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "omp.exe");
+		const targetPath = path.join(dir, "zeta.exe");
 		await Bun.write(targetPath, "current binary");
 		await Bun.write(`${targetPath}.bak`, "legacy backup");
 		await Bun.write(`${targetPath}.1700000000000.4242.bak`, "timestamped backup");
@@ -1456,9 +1456,9 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		omp: "#!/bin/sh\nnode omp.js\n",
-		"omp.cmd": "@node omp.js %*\n",
-		"omp.ps1": "node omp.js @args\n",
+		omp: "#!/bin/sh\nnode zeta.js\n",
+		"zetacode.cmd": "@node zeta.js %*\n",
+		"zetacode.ps1": "node zeta.js @args\n",
 	};
 
 	async function writeShims(dir: string): Promise<void> {
@@ -1469,7 +1469,7 @@ describe("update-cli script-shim takeover", () => {
 
 	/**
 	 * The fake release binaries are `#!/bin/sh` scripts, which Windows cannot
-	 * launch as `omp.exe`. There, "run" the explicit path the takeover verifies
+	 * launch as `zeta.exe`. There, "run" the explicit path the takeover verifies
 	 * by reading the version the script echoes; POSIX hosts execute it for real.
 	 */
 	const verifyBinary =
@@ -1481,7 +1481,7 @@ describe("update-cli script-shim takeover", () => {
 				}
 			: undefined;
 
-	it("installs omp.exe beside the shims and retires them", async () => {
+	it("installs zeta.exe beside the shims and retires them", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Real executable, no injected verifier: the takeover must verify the
@@ -1491,9 +1491,9 @@ describe("update-cli script-shim takeover", () => {
 
 		const { build, fetchImpl } = offer(exe);
 
-		await updateViaShimTakeover(path.join(dir, "omp.cmd"), build, { fetchImpl, verifyBinary });
+		await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary });
 
-		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).exists()).toBe(false);
 		}
@@ -1503,12 +1503,12 @@ describe("update-cli script-shim takeover", () => {
 
 	it("drops bun's launcher metadata when the standalone binary takes the .exe over", async () => {
 		// After the takeover the launcher is no longer bun-managed. A leftover
-		// `omp.bunx` would keep classifying the install as bun-managed and send
+		// `zeta.bunx` would keep classifying the install as bun-managed and send
 		// the next update through `bun install -g`, which cannot overwrite the
 		// running `.exe` and would pin the install to the old version.
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "omp.exe");
-		const marker = path.join(dir, "omp.bunx");
+		const targetPath = path.join(dir, "zeta.exe");
+		const marker = path.join(dir, "zeta.bunx");
 		await Bun.write(targetPath, "bun shim");
 		await Bun.write(marker, "bun launcher metadata");
 		const exe = `#!/bin/sh\necho omp/${version}\n`;
@@ -1549,10 +1549,10 @@ describe("update-cli script-shim takeover", () => {
 		const { build, fetchImpl } = offer(exe);
 
 		await expect(
-			updateViaShimTakeover(path.join(dir, "omp.cmd"), build, { fetchImpl, verifyBinary }),
-		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous omp launcher/);
+			updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary }),
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zetacode launcher/);
 
-		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1563,7 +1563,7 @@ describe("update-cli script-shim takeover", () => {
 	function renameLockingPs1(): Mock<typeof nodeFs.promises.rename> {
 		const realRename = nodeFs.promises.rename;
 		return spyOn(nodeFs.promises, "rename").mockImplementation(async (from, to) => {
-			if (path.basename(String(from)) === "omp.ps1") {
+			if (path.basename(String(from)) === "zetacode.ps1") {
 				throw Object.assign(new Error("EPERM: file is locked"), { code: "EPERM" });
 			}
 			return await realRename(from, to);
@@ -1577,17 +1577,17 @@ describe("update-cli script-shim takeover", () => {
 		const renameSpy = renameLockingPs1();
 		const { build, fetchImpl } = offer(exe);
 		try {
-			await updateViaShimTakeover(path.join(dir, "omp.cmd"), build, { fetchImpl, verifyBinary });
+			await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary });
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
 		expect(await Bun.file(path.join(dir, "omp")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "omp.cmd")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "omp.ps1")).text()).toContain('& "$PSScriptRoot\\omp.exe" @args');
+		expect(await Bun.file(path.join(dir, "zetacode.ps1")).text()).toContain('& "$PSScriptRoot\\zeta.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
@@ -1598,13 +1598,13 @@ describe("update-cli script-shim takeover", () => {
 		const { build, fetchImpl } = offer(exe);
 		try {
 			await expect(
-				updateViaShimTakeover(path.join(dir, "omp.cmd"), build, { fetchImpl, verifyBinary }),
-			).rejects.toThrow("restored previous omp launcher");
+				updateViaShimTakeover(path.join(dir, "zetacode.cmd"), build, { fetchImpl, verifyBinary }),
+			).rejects.toThrow("restored previous zetacode launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1627,7 +1627,7 @@ describe("update-cli concurrent binary updates", () => {
 		return { dir, targetPath };
 	}
 
-	// Regression for #8434: two overlapping `omp update` runs must not share a
+	// Regression for #8434: two overlapping `zetacode update` runs must not share a
 	// temp path. Run A downloads slowly and only finishes after run B has fully
 	// installed. With the old fixed `<binary>.new` temp name, B's pre-download
 	// unlink deleted A's temp file, so A's chmod failed with ENOENT even though
@@ -1707,8 +1707,8 @@ describe("update-cli concurrent binary updates", () => {
 });
 
 describe("verifyInstalledVersion", () => {
-	// A Windows shim takeover retires the launcher PATH first resolved (`omp.cmd`)
-	// for one later on PATH (`omp.exe`); the check must follow it, not a cached path.
+	// A Windows shim takeover retires the launcher PATH first resolved (`zetacode.cmd`)
+	// for one later on PATH (`zeta.exe`); the check must follow it, not a cached path.
 	it.skipIf(process.platform === "win32")("re-resolves PATH after an install moves the launcher", async () => {
 		const [first, second] = [await makeTempDir(), await makeTempDir()];
 		await Bun.write(path.join(first, "omp"), "#!/bin/sh\necho omp/1.0.0\n");
@@ -1738,7 +1738,7 @@ describe("update-cli manager update recovery", () => {
 		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 		registry: "https://registry.npmjs.org/",
 	};
-	const launcherPath = "C:/Users/test/AppData/Roaming/npm/omp.cmd";
+	const launcherPath = "C:/Users/test/AppData/Roaming/npm/zetacode.cmd";
 
 	function scriptedSteps(script: {
 		install: InstalledVersionVerification | Error | undefined;
@@ -1770,7 +1770,7 @@ describe("update-cli manager update recovery", () => {
 	it("takes the launcher over when the manager install left nothing on PATH", async () => {
 		// npm retires the global bin shims before unpacking and restores them
 		// only if its own rollback succeeds; a locked file (the loaded native
-		// addon on Windows) can leave the user with no `omp` at all.
+		// addon on Windows) can leave the user with no `zetacode` at all.
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: new Error("npm install failed with exit code 1") });
 

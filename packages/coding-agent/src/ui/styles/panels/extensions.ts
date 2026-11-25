@@ -2,7 +2,7 @@
  * The extension control center's terminal look: a box titled "Extension
  * Control Center" holding the provider tabs, the inventory list beside the
  * inspector, and the key hints; the list and the inspector also draw alone
- * (roles `omp.extensions.list`, `omp.extensions.inspector`).
+ * (roles `zeta.extensions.list`, `zeta.extensions.inspector`).
  */
 import * as os from "node:os";
 import type { UiNode } from "@linxiraos/pi-tui";
@@ -732,14 +732,14 @@ export function dashboardLayout(
 
 // ─── Registration ───────────────────────────────────────────────────────────
 
-defineRolePainter("col", "omp.extensions.list", (node, cx): Block => {
+defineRolePainter("col", "zeta.extensions.list", (node, cx): Block => {
 	const list = termOf<{ list: ExtensionListModel }>(node).list;
 	if (!list) return { rows: [] };
 	list.rev();
 	return { rows: listRows(list, cx.width, cx.theme) };
 });
 
-defineRolePainter("col", "omp.extensions.inspector", (node, cx): Block => {
+defineRolePainter("col", "zeta.extensions.inspector", (node, cx): Block => {
 	const inspector = termOf<{ inspector: ExtensionInspectorModel }>(node).inspector;
 	if (!inspector) return { rows: [] };
 	inspector.rev();
@@ -750,7 +750,7 @@ function dashboardOf(node: UiNode): ExtensionDashboardModel | undefined {
 	return termOf<{ dashboard: ExtensionDashboardModel }>(node).dashboard;
 }
 
-defineRolePainter("picker", "omp.extensions", (node, cx): Block => {
+defineRolePainter("picker", "zeta.extensions", (node, cx): Block => {
 	const model = dashboardOf(node);
 	if (!model || cx.width <= 0) return { rows: [] };
 	model.rev();
@@ -758,7 +758,7 @@ defineRolePainter("picker", "omp.extensions", (node, cx): Block => {
 	return { rows: layout.rows, hits: [{ row: 0, col: 0, width: cx.width, height: layout.rows.length, node }] };
 });
 
-defineRoleWidget("picker", "omp.extensions", {
+defineRoleWidget("picker", "zeta.extensions", {
 	mouse(node, mouse, at, _cx, hit) {
 		const model = dashboardOf(node);
 		if (!model) return false;

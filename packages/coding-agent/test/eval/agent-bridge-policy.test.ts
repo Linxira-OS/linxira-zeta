@@ -1412,7 +1412,7 @@ describe("runEvalAgent isolation", () => {
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async opts =>
 			singleResult(opts.baseOptions, {
 				output: "ran",
-				branchName: `omp/task/${opts.agentId}`,
+				branchName: `zetacode/task/${opts.agentId}`,
 			}),
 		);
 		vi.spyOn(isolationRunner, "mergeIsolatedChanges").mockResolvedValue({
@@ -1531,7 +1531,7 @@ describe("runEvalAgent isolation", () => {
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async opts =>
 			singleResult(opts.baseOptions, {
 				output: "branched",
-				branchName: `omp/task/${opts.agentId}`,
+				branchName: `zetacode/task/${opts.agentId}`,
 			}),
 		);
 		const mergeSpy = vi.spyOn(isolationRunner, "mergeIsolatedChanges");

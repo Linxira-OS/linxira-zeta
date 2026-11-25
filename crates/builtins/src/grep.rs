@@ -1,7 +1,7 @@
 //! `grep` builtin implemented on top of the ripgrep libraries.
 //!
 //! Matching uses `grep-regex`/`grep-searcher`; recursive searches walk
-//! through `omp-xfs` and search the files inline, moving to parallel
+//! through `zetacode-xfs` and search the files inline, moving to parallel
 //! workers once the search runs long, printing files in path order. Also hosts
 //! the plumbing `rg` shares with it: exit status, record layout, and the
 //! line-length bound.

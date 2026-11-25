@@ -17,7 +17,7 @@ import {
 } from "./helpers/interactive-mode-context";
 
 const originalProjectDir = getProjectDir();
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 /** Resolves once the controller mounts command output (the `/mcp test` hint). */
@@ -96,7 +96,7 @@ describe("interactive /mcp test", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		await removeWithRetries(projectDir);
 		await removeWithRetries(agentDir);

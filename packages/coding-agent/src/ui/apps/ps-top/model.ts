@@ -1,5 +1,5 @@
 /**
- * State of the `omp ps` monitor: the board (units grouped by scope, refreshed
+ * State of the `zetacode ps` monitor: the board (units grouped by scope, refreshed
  * by a poll and by daemon unit events), the selected unit, the open view
  * (table, info, logs), the transient status line and the pointer kill
  * confirmation. Keys and native events run through here.

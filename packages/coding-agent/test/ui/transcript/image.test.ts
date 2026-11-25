@@ -204,7 +204,7 @@ test("a native file preview has a height limit but its fallback blob has no max 
 			if (!image) throw new Error("expected a fallback image");
 			expect(describeTree(image, env)).toEqual({
 				k: "image",
-				p: { role: "omp.tool.read.image", alt: expect.any(String), blob: expect.any(String), w: 1, h: 1 },
+				p: { role: "zeta.tool.read.image", alt: expect.any(String), blob: expect.any(String), w: 1, h: 1 },
 			});
 		} finally {
 			dispose();

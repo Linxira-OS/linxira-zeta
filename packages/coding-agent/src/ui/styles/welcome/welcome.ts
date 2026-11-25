@@ -1,8 +1,8 @@
 /**
- * Terminal look of the welcome card (`omp.welcome`, `src/ui/welcome/welcome.tsx`).
+ * Terminal look of the welcome card (`zeta.welcome`, `src/ui/welcome/welcome.tsx`).
  *
  * Content keeps a column clear on each side and centers in the full width:
- * - the gradient logo with the bold `omp` wordmark beside it and the dim
+ * - the gradient logo with the bold `zetacode` wordmark beside it and the dim
  *   version under the wordmark — the logo alone when the lockup does not fit,
  *   nothing below four columns; centered as one block;
  * - after the version, the widest form of any self-update activity that
@@ -138,4 +138,4 @@ function paintWelcome(node: UiNode, cx: PaintContext): Block {
 	return rows.length > 0 ? { rows } : EMPTY_BLOCK;
 }
 
-defineRolePainter("card", "omp.welcome", paintWelcome);
+defineRolePainter("card", "zeta.welcome", paintWelcome);

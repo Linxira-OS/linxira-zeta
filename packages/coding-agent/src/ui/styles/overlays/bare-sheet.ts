@@ -1,5 +1,5 @@
 /**
- * `omp.sheet.bare`: a sheet whose content draws its own look in the terminal
+ * `zetacode.sheet.bare`: a sheet whose content draws its own look in the terminal
  * (an extension's `ctx.ui.custom` overlay, the git shortcuts). The overlay
  * adds no frame: its children stack at its width. On the whole screen a
  * single child is offered the screen's height, and the rows it leaves are
@@ -8,7 +8,7 @@
 import { type Block, defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
 import { padTo } from "@linxiraos/pi-tui/text/width";
 
-defineRolePainter("overlay", "omp.sheet.bare", (node, cx): Block => {
+defineRolePainter("overlay", "zeta.sheet.bare", (node, cx): Block => {
 	const rows: string[] = [];
 	const hits: Hit[] = [];
 	let cursor: Block["cursor"];

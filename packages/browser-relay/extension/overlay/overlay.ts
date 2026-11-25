@@ -165,7 +165,7 @@ export class Overlay {
 		const listeners = new AbortController();
 		const { signal } = listeners;
 		window.addEventListener("resize", () => pointer.relayout(), { passive: true, signal });
-		// A page kept in the back/forward cache must not come back still claiming omp is working.
+		// A page kept in the back/forward cache must not come back still claiming zetacode is working.
 		window.addEventListener("pagehide", () => this.#quiet(), { signal });
 
 		const mounted: Mounted = {

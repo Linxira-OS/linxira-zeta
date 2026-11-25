@@ -44,7 +44,7 @@ export interface RenderOutputOptions {
 	readonly input?: boolean;
 }
 
-const kExtensionTheme = Symbol("omp.extensionTheme");
+const kExtensionTheme = Symbol("zeta.extensionTheme");
 
 /** pi-tui theme helpers extensions call on their theme. */
 const THEME_HELPERS = new Map<PropertyKey, (text: string) => string>([

@@ -10,7 +10,7 @@ Config sources (.zeta/.claude/.cursor/.vscode/mcp.json, mcp.json, etc.)
   -> loadAllMCPConfigs supplies scope filters and user enablement suppression
   -> capability loader dedupes by server name and equivalent connection (higher priority wins)
   -> MCPManager attaches to the MCP host for each server (auth/header/env resolved first) and lists tools
-  -> the host (omp daemon, or in-process) owns the server process or connection and shares it between sessions
+  -> the host (zetacode daemon, or in-process) owns the server process or connection and shares it between sessions
   -> manager best-effort loads resources/prompts and subscribes to resource updates when enabled
   -> MCPTool bridge exposes tools as mcp__<server>_<tool>
   -> AgentSession.refreshMCPTools replaces live MCP tools immediately

@@ -1,5 +1,5 @@
 /**
- * Advisor notes (`card` role `omp.advisor`), one cell in:
+ * Advisor notes (`card` role `zeta.advisor`), one cell in:
  *
  * - `ⓘ Advisor` (bold, `customMessageLabel`) and a dim `N notes · K blockers`.
  * - Each note on a rail tinted by its severity (`error` blocker, `warning`
@@ -85,4 +85,4 @@ function paintAdvisor(node: UiNode, cx: PaintContext): Block {
 	return { rows: rows.map(row => ` ${row}`) };
 }
 
-defineRolePainter("card", "omp.advisor", paintAdvisor);
+defineRolePainter("card", "zeta.advisor", paintAdvisor);

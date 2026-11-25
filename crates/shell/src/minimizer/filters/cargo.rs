@@ -1159,7 +1159,7 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 			"running 18 tests\n",
 			"test c ... ok\n",
 			"test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n",
-			"warning: `omp-shell` (test \"integration\") generated 2 warnings\n",
+			"warning: `zetacode-shell` (test \"integration\") generated 2 warnings\n",
 		);
 
 		let out = filter(&ctx, input, 0);
@@ -1192,7 +1192,7 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 			"running 1 tests\n",
 			"test it_works ... ok\n",
 			"test result: ok. 1 passed; 0 failed\n",
-			"error: could not compile `omp-shell` due to 1 previous error\n",
+			"error: could not compile `zetacode-shell` due to 1 previous error\n",
 		);
 
 		let out = filter(&ctx, input, 1);

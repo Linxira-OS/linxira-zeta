@@ -14,7 +14,7 @@ import * as path from "node:path";
 
 /**
  * This process's own temp directory (`TMPDIR` below): concurrent replays (other test runs) never
- * share the scratch tree, and the app still shows it as `omp-corpus-app/home/project`, relative to
+ * share the scratch tree, and the app still shows it as `zetacode-corpus-app/home/project`, relative to
  * the temp root as captured. `TMPDIR` keeps the form the app standardizes its project dir to
  * (macOS: `/var/…`); the tree itself is used by its realpath (`/private/var/…`) so cwd and HOME agree.
  */

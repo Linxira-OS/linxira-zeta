@@ -348,14 +348,16 @@ describe("shared Chromium session-restore state", () => {
 		const warnSpy = spyOn(piUtils.logger, "warn").mockImplementation(() => {});
 		let lockSpy: { mockRestore(): void } | undefined;
 		const holdClaimElsewhere = () => {
-			lockSpy = spyOn(piUtils, "acquireFileLock").mockRejectedValue(new Error("lock held by another omp process"));
+			lockSpy = spyOn(piUtils, "acquireFileLock").mockRejectedValue(
+				new Error("lock held by another zetacode process"),
+			);
 		};
 		const releaseClaim = () => {
 			lockSpy?.mockRestore();
 			lockSpy = undefined;
 		};
 		try {
-			// Another omp process holds the claim past the wait, so this client
+			// Another zetacode process holds the claim past the wait, so this client
 			// cannot prepare the profile and must not launch Chrome on it.
 			await Bun.write(path.join(sessionsDir, "Session_13435785841408923"), "previous chrome");
 			holdClaimElsewhere();

@@ -128,7 +128,7 @@ switch (Bun.env.PROBE_SCENARIO) {
 		port.deliver({ kind: "request", id: 3, request: { op: "tabContext", tabId: 5 } });
 		await settleUntil(() => answered(port, 3), "the panel's tabContext answer");
 		// The relay goes away with the collabLink call unanswered.
-		host().hostSays({ t: "unlinked", reason: "omp relay went away" });
+		host().hostSays({ t: "unlinked", reason: "zetacode relay went away" });
 		await settle();
 		report.panelReceived = port.received;
 		break;
@@ -148,7 +148,7 @@ switch (Bun.env.PROBE_SCENARIO) {
 	case "epoch": {
 		relaySays({ t: "rpc", id: 1, op: "findDownload", guid: "g" });
 		// The relay goes away and the next one links before the RPC settles: its answer must not reach the new relay.
-		host().hostSays({ t: "unlinked", reason: "omp relay went away" });
+		host().hostSays({ t: "unlinked", reason: "zetacode relay went away" });
 		host().hostSays({ t: "linked" });
 		await settle();
 		relaySays({ t: "rpc", id: 2, op: "findDownload", guid: "g" });

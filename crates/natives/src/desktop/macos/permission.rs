@@ -1,5 +1,5 @@
 //! macOS privacy permissions. TCC charges each grant to the responsible
-//! process: the app that launched omp (a terminal or IDE), or omp itself when
+//! process: the app that launched zetacode (a terminal or IDE), or zetacode itself when
 //! no app did.
 
 use std::{
@@ -47,7 +47,7 @@ pub(super) fn screen_recording_pane() -> &'static str {
 }
 
 /// A denial naming the app to enable in the Privacy & Security `pane`: the
-/// terminal or IDE that launched omp, or omp itself when nothing did.
+/// terminal or IDE that launched omp, or zetacode itself when nothing did.
 pub(super) fn denied(pane: &str) -> DesktopError {
 	let message = match responsible_app(RESPONSIBLE_PID) {
 		Some(app) => format!(

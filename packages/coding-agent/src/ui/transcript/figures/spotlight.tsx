@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The Spotlight notice under a shaped tool result: one native line (role
- * `omp.tool.spotlight`, key `spotlight:<toolCallId>`) saying what shaping
+ * `zeta.tool.spotlight`, key `spotlight:<toolCallId>`) saying what shaping
  * saved, with a hover card charting the original's heat. Muted for a cut
  * that was held back (held out, or kept whole for editing) or carries no
  * original, accent with a pulsing star for an applied one. The terminal

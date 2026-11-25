@@ -174,7 +174,7 @@ describe("legacy pi-ai shim root exports", () => {
 });
 
 // Upstream pi-ai 1.x exposes the transcript-replay module from its package
-// root (present since at least 1.0.2). omp forked before it existed and has
+// root (present since at least 1.0.2). zetacode forked before it existed and has
 // no equivalent, so `export *` could not satisfy named imports of e.g.
 // `getCurrentSystemMessage` (observed consumer: `pi-optchat`, which replays
 // tool state when rebuilding the system prompt of its bounded memory view).

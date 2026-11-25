@@ -54,7 +54,7 @@ export interface WriteDetails {
 	readonly resolvedPath?: string;
 	readonly message?: {
 		readonly to?: string;
-		/** Session title of a recipient in another omp instance, shown in place of its pid `to`. */
+		/** Session title of a recipient in another zetacode instance, shown in place of its pid `to`. */
 		readonly toLabel?: string;
 		readonly receipts?: readonly Receipt[];
 	};

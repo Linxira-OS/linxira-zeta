@@ -25,11 +25,14 @@ import { migrateLegacyStorageKeys } from "./storageMigration";
 
 const stopPerformanceReporter = createRendererPerformanceReporter(globalThis.zetaStudioChrome);
 window.addEventListener("pagehide", stopPerformanceReporter, { once: true });
-import.meta.hot?.dispose(() => { window.removeEventListener("pagehide", stopPerformanceReporter); stopPerformanceReporter(); });
+import.meta.hot?.dispose(() => {
+	window.removeEventListener("pagehide", stopPerformanceReporter);
+	stopPerformanceReporter();
+});
 
 /* 首屏预应用主题 / 密度 / 语言：打包 CSP 是 script-src 'self'，不能靠 index.html
    内联脚本；这里在 React 挂载前同步 DOM 属性，避免首帧闪回默认主题。 */
-/* `omp.*` storage keys predate the product name; copy them to `zeta.*` once,
+/* `zeta.*` storage keys predate the product name; copy them to `zeta.*` once,
    before anything reads a preference. */
 migrateLegacyStorageKeys();
 
@@ -54,22 +57,23 @@ document.documentElement.setAttribute("lang", resolveLanguage(initialSettings.la
  * 「减少动效」是用户能收紧的下限（L0 → L1），绝不会把 L2/L3 抬回去；系统的
  * `prefers-reduced-motion` 与显式 `zeta.perf.motion=off` 走同一条路径。
  */
-const reducedMotionQuery = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : undefined;
+const reducedMotionQuery =
+	typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : undefined;
 const stopTierControl = startTierControl({
-  root: document.documentElement,
-  source: globalThis.zetaStudioPerf,
-  motionOff: () => {
-    try {
-      if (window.localStorage.getItem("zeta.perf.motion") === "off") return true;
-    } catch {
-      /* storage blocked: fall through to the OS preference */
-    }
-    return reducedMotionQuery?.matches === true;
-  },
-  onMotionPreferenceChange: listener => {
-    reducedMotionQuery?.addEventListener?.("change", listener);
-    return () => reducedMotionQuery?.removeEventListener?.("change", listener);
-  },
+	root: document.documentElement,
+	source: globalThis.zetaStudioPerf,
+	motionOff: () => {
+		try {
+			if (window.localStorage.getItem("zeta.perf.motion") === "off") return true;
+		} catch {
+			/* storage blocked: fall through to the OS preference */
+		}
+		return reducedMotionQuery?.matches === true;
+	},
+	onMotionPreferenceChange: listener => {
+		reducedMotionQuery?.addEventListener?.("change", listener);
+		return () => reducedMotionQuery?.removeEventListener?.("change", listener);
+	},
 });
 // One wiring per document: a hot reload must not stack a second set of listeners
 // on the old module instance, and a page hide tears them down.
@@ -91,19 +95,19 @@ import "./styles/typography.css";
 import "./styles/tabs.css";
 
 if (import.meta.env.DEV) {
-  const disposePerformanceTimelineCleanup = initPerformanceTimelineCleanup();
-  import.meta.hot?.dispose(() => {
-    disposePerformanceTimelineCleanup();
-  });
+	const disposePerformanceTimelineCleanup = initPerformanceTimelineCleanup();
+	import.meta.hot?.dispose(() => {
+		disposePerformanceTimelineCleanup();
+	});
 }
 
 /** Mount the renderer into `element` with an injected semantic client. */
 export function mountRenderer(element: Element, client: StudioClient): void {
-  createRoot(element).render(
-    <ErrorBoundary>
-      <App client={client} />
-    </ErrorBoundary>,
-  );
+	createRoot(element).render(
+		<ErrorBoundary>
+			<App client={client} />
+		</ErrorBoundary>,
+	);
 }
 
 /*

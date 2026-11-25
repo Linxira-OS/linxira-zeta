@@ -26,7 +26,7 @@ export interface CleanseAgentOutcome {
 	resolvedModel?: string;
 }
 
-/** Rendering surface for one `omp cleanse` run. */
+/** Rendering surface for one `zetacode cleanse` run. */
 export interface CleanseStatusBoard {
 	readonly interactive: boolean;
 	/** Print a permanent line above the live area (plain write when non-TTY). */

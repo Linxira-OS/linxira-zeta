@@ -278,7 +278,7 @@ pub use host::{panic_scope_active, rayon_global_pool_available, set_rayon_global
 /// same snapshot its `ps`/`pgrep` builtins use.
 #[cfg(feature = "util.procs")]
 pub use proc_snapshot::{ProcInfo, ProcessStatus};
-/// The OS process primitives under those snapshots. `omp-shell` builds its
+/// The OS process primitives under those snapshots. `zetacode-shell` builds its
 /// identity-pinned process references on them, so each platform query has one
 /// implementation.
 #[cfg(all(

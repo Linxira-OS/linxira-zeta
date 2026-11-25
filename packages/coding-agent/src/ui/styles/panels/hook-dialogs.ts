@@ -23,7 +23,7 @@ function interruptGlyph(theme: Theme): string {
 	return keyLabel(theme, appInterruptKeys()[0] ?? "escape");
 }
 
-defineRolePainter("col", "omp.overlay.hook-input", (node, cx): Block => {
+defineRolePainter("col", "zeta.overlay.hook-input", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 6) return EMPTY_BLOCK;
 	const inner = cx.width - 4;
@@ -64,7 +64,7 @@ function editorRows(editor: UiNode | undefined, width: number, caret: boolean, v
 	return rows.slice(start, start + visible).map(row => row.replace("\u0000", caret ? "▏" : ""));
 }
 
-defineRolePainter("col", "omp.overlay.hook-editor", (node, cx): Block => {
+defineRolePainter("col", "zeta.overlay.hook-editor", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 8) return EMPTY_BLOCK;
 	const inner = cx.width - 4;

@@ -1,5 +1,5 @@
 /**
- * The ask card in the terminal (`omp.ask.card`): a box titled `Ask` (the
+ * The ask card in the terminal (`zeta.ask.card`): a box titled `Ask` (the
  * countdown, how many questions are answered) holding every question in one
  * scrolling column — the open one whole (header, mark and question capped at
  * four rows, its answer rows with descriptions, previews and notes), the rest
@@ -232,7 +232,7 @@ function title(model: AskDialogModel): string {
 const looks = new Map<string, Painter>();
 
 /**
- * Register another card drawn on the `omp.ask.card` role (an HTML form uses
+ * Register another card drawn on the `zeta.ask.card` role (an HTML form uses
  * the ask card's native roles): a card whose `term.look` is `look` paints
  * with `painter`.
  */
@@ -240,7 +240,7 @@ export function defineAskCardLook(look: string, painter: Painter): void {
 	looks.set(look, painter);
 }
 
-defineRolePainter("col", "omp.ask.card", (node: UiNode, cx): Block => {
+defineRolePainter("col", "zeta.ask.card", (node: UiNode, cx): Block => {
 	const theme = cx.theme;
 	const term = termOf<{ model: AskDialogModel; look: string }>(node);
 	const look = term.look === undefined ? undefined : looks.get(term.look);

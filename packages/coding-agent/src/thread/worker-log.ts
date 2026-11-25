@@ -1,7 +1,7 @@
 /**
  * The single path of a subagent worker's log records to the main thread.
  *
- * The main thread owns the process log file (`omp.<DATE>.<PID>.log`, shared by
+ * The main thread owns the process log file (`zeta.<DATE>.<PID>.log`, shared by
  * every thread) and the out-of-band sinks (`registerLogSink`, e.g. the OTLP
  * exporter). A worker never opens the file: from the first module its entry
  * evaluates ({@link installWorkerLogPort}), the worker's logger posts every

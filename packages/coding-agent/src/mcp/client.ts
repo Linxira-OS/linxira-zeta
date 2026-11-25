@@ -66,7 +66,7 @@ export const CLIENT_INFO = {
 /** Round trips one logical call may take before the server is considered stuck asking for input. */
 const MCP_MAX_ROUND_TRIPS = 8;
 
-/** The single root omp exposes for a working directory. */
+/** The single root zetacode exposes for a working directory. */
 export function projectRoots(cwd: string): MCPRoot[] {
 	return [{ uri: url.pathToFileURL(cwd).href, name: path.basename(cwd) }];
 }
@@ -76,7 +76,7 @@ export function projectRoots(cwd: string): MCPRoot[] {
  * `headers` must already be resolved. A relative or absent `cwd` resolves
  * against `cwd`, else the project directory.
  *
- * @throws on a server type omp does not know.
+ * @throws on a server type zetacode does not know.
  */
 export function buildServerSpec(config: MCPServerConfig, cwd?: string): McpServerSpec {
 	const timeoutMs = resolveMCPTimeoutMs(config.timeout);
@@ -549,7 +549,7 @@ async function listAll<R extends { nextCursor?: string }, T>(
 /**
  * Send a request a server may answer with `input_required`, supplying the
  * input and retrying until the result is complete. Roots are the only input
- * omp declares, so they are the only one it supplies.
+ * zetacode declares, so they are the only one it supplies.
  *
  * @throws when the server asks for anything else, sends an empty ask, or keeps asking past {@link MCP_MAX_ROUND_TRIPS} round trips.
  */

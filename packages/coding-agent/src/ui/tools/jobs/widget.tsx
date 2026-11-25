@@ -346,7 +346,7 @@ function WidgetBlock(props: { readonly block: JobWidgetBlock; readonly nodeKey?:
 }
 
 /**
- * A job's whole widget (role `omp.job.widget`): a head row (title, stage,
+ * A job's whole widget (role `zeta.job.widget`): a head row (title, stage,
  * headline) over every block. The view rides on `term.widget` for the
  * terminal (`jobWidgetRows`).
  */
@@ -463,17 +463,17 @@ function tileNotes(tile: JobTile, view: JobWidgetView | undefined, lead: boolean
 	const notes: { role: string; spans: TspSpan[]; wrap: "none" | "word" }[] = [];
 	for (const block of view?.blocks ?? []) {
 		if (block.kind === "stat" && block.items.length > 0)
-			notes.push({ role: "omp.job.tile.stats", spans: statSpans(block), wrap: "none" });
+			notes.push({ role: "zeta.job.tile.stats", spans: statSpans(block), wrap: "none" });
 		else if (block.kind === "text" && plainLine(block.text) && plainLine(block.text) !== stage)
-			notes.push({ role: "omp.job.tile.note", spans: [{ s: "dim", t: plainLine(block.text) }], wrap: "none" });
+			notes.push({ role: "zeta.job.tile.note", spans: [{ s: "dim", t: plainLine(block.text) }], wrap: "none" });
 	}
 	if (stage || failed) {
 		const spans: TspSpan[] = [];
 		if (failed) spans.push({ s: "error", t: failed });
 		if (failed && stage) spans.push({ s: "dim", t: " · " });
 		if (stage) spans.push(lead ? { t: truncate(stage, TILE_LEAD_CELLS) } : { s: "dim", t: stage });
-		if (lead) notes.unshift({ role: "omp.job.tile.lead", spans, wrap: "word" });
-		else notes.push({ role: "omp.job.tile.stage", spans, wrap: "none" });
+		if (lead) notes.unshift({ role: "zeta.job.tile.lead", spans, wrap: "word" });
+		else notes.push({ role: "zeta.job.tile.stage", spans, wrap: "none" });
 	}
 	return notes.map((note, index) =>
 		note.wrap === "word" ? (
@@ -485,7 +485,7 @@ function tileNotes(tile: JobTile, view: JobWidgetView | undefined, lead: boolean
 }
 
 /**
- * One job as a tile (role `omp.job.tile`): a head line (status dot, name,
+ * One job as a tile (role `zeta.job.tile`): a head line (status dot, name,
  * id, completion ring, clock), then what a live widget shows (its figure,
  * primary block and notes) and the stage.
  */
@@ -541,7 +541,7 @@ export function JobTileNode(props: { readonly tile: JobTile; readonly nodeKey?: 
 	);
 }
 
-/** Jobs as one wrapping row of equal tiles (role `omp.job.tiles`), keyed by job id. */
+/** Jobs as one wrapping row of equal tiles (role `zeta.job.tiles`), keyed by job id. */
 export function JobTiles(props: { readonly tiles: readonly JobTile[]; readonly nodeKey?: string }): JSXNode {
 	return (
 		<row key={props.nodeKey} role="zeta.job.tiles" gap="none" wrap>

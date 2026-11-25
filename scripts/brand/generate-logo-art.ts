@@ -20,7 +20,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { applyBrandArt, BRAND_ART_SPEC, diffBrandArt } from "./logo-art";
 
-const WELCOME = path.resolve(import.meta.dir, "../../packages/tui/src/prompt/welcome.ts");
+const WELCOME = path.resolve(import.meta.dir, "../../packages/coding-agent/src/ui/welcome/logo.ts");
 const checkOnly = process.argv.includes("--check");
 
 const source = fs.readFileSync(WELCOME, "utf8");

@@ -1893,7 +1893,7 @@ async function renderUrlJsonQuery(
 	parsed.search = pairs.length > 0 ? `?${pairs.join("&")}` : "";
 	const result = await render(parsed.href);
 	if (!result.contentType.includes("json")) return null;
-	const scratch = path.join(os.tmpdir(), `omp-url-json-${crypto.randomUUID()}.json`);
+	const scratch = path.join(os.tmpdir(), `zetacode-url-json-${crypto.randomUUID()}.json`);
 	await Bun.write(scratch, result.content);
 	try {
 		const content = await executeJsonQuery(scratch, { query, raw: false, compact: false }, signal);

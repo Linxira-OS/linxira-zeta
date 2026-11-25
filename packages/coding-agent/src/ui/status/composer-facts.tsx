@@ -314,7 +314,7 @@ export function StatusBarPreview(props: {
 			segs.push(
 				<seg
 					key={key}
-					role={`omp.status.${key}`}
+					role={`zeta.status.${key}`}
 					side={side}
 					priority={(PINNED[key as StatusLineSegmentId] ? PINNED_PRIORITY : 0) + order}
 					// The path truncates before anything drops.

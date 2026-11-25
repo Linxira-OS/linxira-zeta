@@ -5,7 +5,7 @@
  * notification) with whether the terminal supports it.
  *
  * The terminal frames the panel between two rules and draws the underline
- * and 24-bit sweep of the styling sample (see the `omp.app.probe` look).
+ * and 24-bit sweep of the styling sample (see the `zeta.app.probe` look).
  */
 import { type JSXNode, nativeRendering } from "@linxiraos/pi-tui";
 import { registerBlob } from "@linxiraos/pi-tui/native/blobs";
@@ -91,7 +91,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): JSXNode {
 		{ t: ")" },
 	];
 	return (
-		<col term={{ role: "omp.app.probe" }}>
+		<col term={{ role: "zeta.app.probe" }}>
 			<col hidden />
 			<text wrap="word" spans={[{ s: "accent strong", t: "Terminal Protocol Test" }]} />
 			<text wrap="word" spans={styling} term={{ sample: true }} />
@@ -103,7 +103,7 @@ export function ProtocolProbe(props: ProtocolProbeProps): JSXNode {
 					{ t: " — " },
 					support(caps.hyperlinks),
 					{ t: "\n  " },
-					{ t: "omp repo", href: REPO_URL },
+					{ t: "zetacode repo", href: REPO_URL },
 				]}
 			/>
 			<spacer size="sm" />

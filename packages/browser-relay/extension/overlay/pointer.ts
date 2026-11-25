@@ -1,13 +1,13 @@
 /**
  * The agent arrow with its press ring and action chip. It draws only what the relay reports as acknowledged input,
- * so a ring always means “omp pressed here”, and it never waits on or delays that input.
+ * so a ring always means “zetacode pressed here”, and it never waits on or delays that input.
  */
 import type { OverlayInput } from "../messages";
 import { type Gesture, NO_GESTURE, nameInput, placeChip, type Verb } from "./chip";
 import { el, skipMotion, svg } from "./dom";
 import { type Point, planTrip, TRIP, type Trip, tripPointAt } from "./motion";
 
-/** The notched omp pointer in a 26×30 box; its tip, the hotspot, is at (1.5, 1.5). */
+/** The notched zetacode pointer in a 26×30 box; its tip, the hotspot, is at (1.5, 1.5). */
 const ARROW_PATH = "M1.5 1.5 L7 28 L12.5 19.5 L20.5 27.5 L24 24 L16 16 L25 13.5 Z";
 
 /** The chip stays this long after the last input, then fades. */

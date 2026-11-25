@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The ask dialog: the ask tool's questions as one card (`omp.ask.card`).
+ * The ask dialog: the ask tool's questions as one card (`zeta.ask.card`).
  *
  * Every question stacks in one column; the focused one is open (its header,
  * the question, its answers as radio or check rows, the highlighted option's
@@ -761,11 +761,11 @@ function OpenQuestion(props: { readonly model: AskDialogModel; readonly index: n
 					const role =
 						row.kind === "other"
 							? question.multi
-								? "omp.ask.other.check"
-								: "omp.ask.other"
+								? "zeta.ask.other.check"
+								: "zeta.ask.other"
 							: question.multi
-								? "omp.ask.check"
-								: "omp.ask.option";
+								? "zeta.ask.check"
+								: "zeta.ask.option";
 					return (
 						<item
 							key={row.key}

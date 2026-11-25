@@ -108,7 +108,7 @@ export interface TernGeometry {
 }
 
 /**
- * Methods of `globalThis.__zetaTernKit`, called by omp from the isolated world as
+ * Methods of `globalThis.__zetaTernKit`, called by zetacode from the isolated world as
  * `kit[method](...args)`. Every argument and result is JSON; failures throw `Error`s with
  * agent-readable messages (a missing element: `No element matches <JSON selector>`).
  */
@@ -122,7 +122,7 @@ export interface TernKitApi {
 	/** Focus the first match without scrolling. */
 	focus(sel: TernSelector): void;
 	/**
-	 * Prepare a fill: text-like controls are focused with their content selected (`insert`: omp types
+	 * Prepare a fill: text-like controls are focused with their content selected (`insert`: zetacode types
 	 * the value); selects and date/time/color/range inputs are set directly (`done`).
 	 */
 	prepareFill(sel: TernSelector, value: string): { mode: "insert" } | { mode: "done" };
@@ -155,7 +155,7 @@ export interface TernKitApi {
 		urls: boolean,
 	): AriaSnapshotPayload;
 	/**
-	 * Install numbered overlays over connected, non-empty registry ids, or over boxes omp measured
+	 * Install numbered overlays over connected, non-empty registry ids, or over boxes zetacode measured
 	 * itself (viewport CSS px, labelled with their `id`).
 	 */
 	annotate(targets: Array<number | TernAnnotation["boxes"][number]>): TernAnnotation;
@@ -1137,7 +1137,7 @@ Object.defineProperty(globalThis, "__zetaTernKit", { value: kit, configurable: t
 
 // Page-side frame announcement, plain JS under the same rules as KIT_BODY.
 const FRAME_ANNOUNCE_BODY = String.raw`
-// Child frames announce their index path so omp can address them by name.
+// Child frames announce their index path so zetacode can address them by name.
 if (window !== window.parent) {
 	const path = [];
 	try {

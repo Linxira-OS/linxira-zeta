@@ -308,7 +308,7 @@ mod tests {
 /// Tokio runtime and panics when called from inside Tokio contexts).
 ///
 /// Reuses the caller's Tokio runtime via `block_in_place` when running inside a
-/// `MultiThread` runtime (including `omp-shell`'s `spawn_blocking` utilities),
+/// `MultiThread` runtime (including `zetacode-shell`'s `spawn_blocking` utilities),
 /// escapes via a bounded scoped thread only on `CurrentThread` runtimes where
 /// `block_in_place` panics, and uses a local `current_thread` runtime outside
 /// Tokio.

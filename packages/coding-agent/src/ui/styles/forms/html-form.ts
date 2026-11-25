@@ -1,6 +1,6 @@
 /**
- * Terminal look of the HTML form dialog (`omp.ask.card`, look
- * `omp.html-form`): a box titled `Ask · N of M answered` (or the form's
+ * Terminal look of the HTML form dialog (`zeta.ask.card`, look
+ * `zeta.html-form`): a box titled `Ask · N of M answered` (or the form's
  * title; the countdown in parentheses) holding one column — every group in
  * order, the open field's group whole (legend, text, the open field's
  * controls, its other fields folded), the rest folded to their answers —
@@ -31,7 +31,7 @@ import { actionKey, formatKeyHint } from "../../keys/hints";
 
 /** Terminal facts of the dialog card. */
 export type HtmlFormLook = {
-	readonly look: "omp.html-form";
+	readonly look: "zeta.html-form";
 	readonly model: HtmlFormModel;
 	/** Box title in place of "Ask · N of M answered". */
 	readonly title?: string;
@@ -669,4 +669,4 @@ function paintHtmlForm(node: UiNode, cx: PaintContext): Block {
 	return { rows: boxRows(theme, title(look), content, cx.width) };
 }
 
-defineAskCardLook("omp.html-form", paintHtmlForm);
+defineAskCardLook("zeta.html-form", paintHtmlForm);

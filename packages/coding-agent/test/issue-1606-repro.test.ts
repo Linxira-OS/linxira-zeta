@@ -12,7 +12,7 @@
  * `process.execPath … __zeta_worker_tiny_inference` (detached, owning a
  * per-model IPC endpoint), `cli.ts` dispatches that flag into `runTinyWorker`,
  * and the Zeta process only ever holds a connection to it — the native finalizer never
- * runs in an omp address space. These tests pin that contract so a future
+ * runs in an zetacode address space. These tests pin that contract so a future
  * refactor cannot quietly land the original crash again.
  */
 import { describe, expect, it } from "bun:test";

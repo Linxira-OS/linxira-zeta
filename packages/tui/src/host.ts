@@ -42,7 +42,7 @@ export interface HostOptions {
 	readonly title?: string;
 	/** The title native surfaces open with (Tern names the surface by it). Default: {@link title}. */
 	readonly surfaceTitle?: string;
-	/** The native surface's role (Tern treats `omp.session` as omp's chat session). */
+	/** The native surface's role (Tern treats `zeta.session` as omp's chat session). */
 	readonly role?: string;
 	/** Program version sent in the TSP hello. */
 	readonly version?: string;

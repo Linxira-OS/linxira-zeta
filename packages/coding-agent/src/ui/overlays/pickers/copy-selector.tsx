@@ -347,11 +347,11 @@ function timelineItem(target: Target): TspPickerItem {
 			id,
 			label: calls.map(call => toolCallLabel(call.name, call.arguments)).join(" · "),
 			node: "tool",
-			role: `omp.tool.${calls[0]!.name}`,
+			role: `zeta.tool.${calls[0]!.name}`,
 		};
 	}
 	if (message?.role === "toolResult")
-		return { id, label: `${message.toolName} result`, node: "tool", role: `omp.tool.${message.toolName}` };
+		return { id, label: `${message.toolName} result`, node: "tool", role: `zeta.tool.${message.toolName}` };
 	return { id, label: id, node: "marker" };
 }
 
@@ -404,7 +404,7 @@ function previewSection(
 		<section
 			key={key}
 			head={head}
-			role={focused ? "omp.picker.block.focused" : "omp.picker.block"}
+			role={focused ? "zeta.picker.block.focused" : "zeta.picker.block"}
 			tone={focused ? "accent" : undefined}
 			href={href}
 			actions={{ click: whole ? "copy" : "pick", ...(href ? { menu: ["copy", "open"] } : {}) }}
@@ -639,8 +639,8 @@ export function CopySelector(props: CopySelectorProps): JSXNode {
 		const current = target();
 		const blocks = current ? blocksOf(current) : [];
 		return {
-			look: "omp.copy",
-			role: "omp.copy",
+			look: "zeta.copy",
+			role: "zeta.copy",
 			heading: props.title,
 			turns: targets().map((t, index) => ({
 				blocks: views.blocks(t.turnId, messagesOf(t)),

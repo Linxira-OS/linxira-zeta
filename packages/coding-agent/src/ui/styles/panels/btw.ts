@@ -11,7 +11,7 @@ import { wrap } from "@linxiraos/pi-tui/text/width";
 import type { TspTextProps } from "@linxiraos/pi-wire";
 import { boxRows, hintText, plainText, propsOf, roleOf, termOf } from "./common";
 
-defineRolePainter("card", "omp.btw.inject", (node, cx): Block => {
+defineRolePainter("card", "zeta.btw.inject", (node, cx): Block => {
 	const theme = cx.theme;
 	const sent = (node.props() as { tone?: string }).tone === "success";
 	const color = sent ? "success" : "customMessageLabel";
@@ -70,11 +70,11 @@ export function paintSheet(node: UiNode, cx: PaintContext): Block {
 	return { rows: boxRows(theme, title, content, width) };
 }
 
-defineRolePainter("col", "omp.overlay.btw", paintSheet);
+defineRolePainter("col", "zeta.overlay.btw", paintSheet);
 
 function footerText(sheet: UiNode, footer: UiNode, theme: Theme): string {
 	if (footer.kind === "text") return styledText(theme, propsOf<TspTextProps>(footer).spans);
-	if (roleOf(footer) === "omp.overlay.hints") return theme.fg("muted", hintText(footer, " · "));
+	if (roleOf(footer) === "zeta.overlay.hints") return theme.fg("muted", hintText(footer, " · "));
 	const [status, hints] = footer.children();
 	const statusProps = status ? propsOf<TspTextProps>(status) : {};
 	const hintLine = hints ? ` · ${hintText(hints, " · ")}` : "";

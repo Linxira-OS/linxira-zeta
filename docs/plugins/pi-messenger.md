@@ -4,7 +4,7 @@
 
 This page is the activation and usage record for that plugin. Read [`plugins.md`](./plugins.md) first for the general model; this page only states what was actually run and what happened.
 
-> **Status: activates end to end.** `zetacode plugin link` installs it, `zetacode plugin list`/`doctor` show it healthy, its `skills/` loads, and its extension module imports and registers the `pi_messenger` tool plus the `/editor`, `/teamagent`, and `/messenger` commands. The last section records what is *not* verified.
+> **Status: activates end to end.** `zetacode plugin link` installs it, `zetacode plugin list`/`doctor` show it healthy, its `skills/` loads, and its extension module imports and registers the `pi_messenger` tool plus the `/editor`, `/teamagent`, and `/messenger` commands. The last section records what is _not_ verified.
 
 ## What it does
 
@@ -54,14 +54,14 @@ at the cached copy:
 
 ```json
 {
-  "plugins": {
-    "@linxiraos/pi-messenger": {
-      "version": "1.4.7",
-      "enabledFeatures": null,
-      "enabled": true
-    }
-  },
-  "settings": {}
+	"plugins": {
+		"@linxiraos/pi-messenger": {
+			"version": "1.4.7",
+			"enabledFeatures": null,
+			"enabled": true
+		}
+	},
+	"settings": {}
 }
 ```
 
@@ -208,18 +208,18 @@ instead of a user's session.
 
 ## Troubleshooting: failure modes actually observed
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `✘ Failed to enable pi-messenger: Error: Plugin pi-messenger not found in runtime config` | `enable`/`disable` key off the recorded package name, not the short plugin name | use `@linxiraos/pi-messenger` (npm/link) or `name@marketplace`; `zetacode plugin list` prints the exact token |
-| `✘ Failed to install plugins/official/pi-messenger: Error: Invalid package name: plugins/official/pi-messenger` | a relative path without `./` is classified as an npm package | `zetacode plugin install ./plugins/official/pi-messenger`, or use `zetacode plugin link plugins/official/pi-messenger` |
-| `Warning: --scope is only supported for marketplace installs (name@marketplace). Ignoring …` | `--scope` only applies to `name@marketplace` | project-scope npm/link plugins do not exist; use `<project>/.zeta/plugin-overrides.json` to disable one per project |
-| Plugin is listed and `doctor` is happy, but no skill/tool appears in a session | the plugin's extension module failed to import (a missing host export, a broken dependency, a syntax error) — the plugin stays listed, and only the extension-error list names the reason | read the extension error for that path; `plugin doctor` checks that entries exist on disk, not that they import |
-| `zetacode plugin list` says `No plugins installed` on an install that predates the lockfile rename | fixed: both lockfile spellings are read, and the pre-rename file is migrated on read | none needed; see [the lockfile name](./plugins.md#the-lockfile-name) |
+| Symptom                                                                                                         | Cause                                                                                                                                                                                     | Fix                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `✘ Failed to enable pi-messenger: Error: Plugin pi-messenger not found in runtime config`                       | `enable`/`disable` key off the recorded package name, not the short plugin name                                                                                                           | use `@linxiraos/pi-messenger` (npm/link) or `name@marketplace`; `zetacode plugin list` prints the exact token          |
+| `✘ Failed to install plugins/official/pi-messenger: Error: Invalid package name: plugins/official/pi-messenger` | a relative path without `./` is classified as an npm package                                                                                                                              | `zetacode plugin install ./plugins/official/pi-messenger`, or use `zetacode plugin link plugins/official/pi-messenger` |
+| `Warning: --scope is only supported for marketplace installs (name@marketplace). Ignoring …`                    | `--scope` only applies to `name@marketplace`                                                                                                                                              | project-scope npm/link plugins do not exist; use `<project>/.zeta/plugin-overrides.json` to disable one per project    |
+| Plugin is listed and `doctor` is happy, but no skill/tool appears in a session                                  | the plugin's extension module failed to import (a missing host export, a broken dependency, a syntax error) — the plugin stays listed, and only the extension-error list names the reason | read the extension error for that path; `plugin doctor` checks that entries exist on disk, not that they import        |
+| `zetacode plugin list` says `No plugins installed` on an install that predates the lockfile rename              | fixed: both lockfile spellings are read, and the pre-rename file is migrated on read                                                                                                      | none needed; see [the lockfile name](./plugins.md#the-lockfile-name)                                                   |
 
 ### The lockfile name
 
 The lockfile is `zeta-plugins.lock.json`; `zeta-plugins.lock.json` is the
-pre-rename spelling that is still *read* and migrated. A plugin root holding
+pre-rename spelling that is still _read_ and migrated. A plugin root holding
 either file lists and loads its plugins, so the earlier "rename the file back by
 hand" recovery step no longer applies. `zetacode plugin disable`/`enable` on a
 pre-rename root writes the canonical file, and the stale legacy copy is dropped
@@ -227,12 +227,12 @@ by the next session's migrating read.
 
 ### Related: a plugin installed under a different manifest key
 
-A plugin directory whose `package.json` declares its manifest under `zeta`, `omp`,
+A plugin directory whose `package.json` declares its manifest under `zeta`, `zetacode`,
 or `pi` loads either way: all three keys are read, `zeta` first. This used to be
 a real trap — a `zeta`-only package was listed by `zetacode plugin list` and
 `doctor` while the session loader read only the upstream keys, so no skill and no
 extension module loaded. `packages/coding-agent/test/plugin-extensions-discovery.test.ts`
-now installs a `zeta`-only fixture and requires both halves: listed *and* loaded.
+now installs a `zeta`-only fixture and requires both halves: listed _and_ loaded.
 
 ## What is not verified
 

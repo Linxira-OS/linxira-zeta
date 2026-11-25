@@ -25,7 +25,7 @@ describe("WatchedFilesForwarder", () => {
 	});
 
 	function setup(budget?: InotifyBudget): { root: string; sent: FileEvent[]; forwarder: WatchedFilesForwarder } {
-		const tempDir = TempDir.createSync("@omp-lsp-watched-files-");
+		const tempDir = TempDir.createSync("@zeta-lsp-watched-files-");
 		const root = tempDir.path();
 		const sent: FileEvent[] = [];
 		const forwarder = new WatchedFilesForwarder({

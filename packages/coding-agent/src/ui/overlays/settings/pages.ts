@@ -12,7 +12,7 @@ export const SETTINGS_PAGES: Readonly<Record<SettingTab, SettingsPage>> = {
 	model: { label: "Model", lead: "Thinking, sampling, the system prompt, retries and the helper models." },
 	interaction: { label: "Interaction", lead: "Input, approvals, notifications, speech and what happens at startup." },
 	context: { label: "Context", lead: "What the model sees, and when and how the conversation compacts." },
-	memory: { label: "Memory", lead: "What omp remembers across sessions and where it keeps it." },
+	memory: { label: "Memory", lead: "What zetacode remembers across sessions and where it keeps it." },
 	files: { label: "Files", lead: "How files are read, summarized and edited, and the language servers." },
 	shell: { label: "Shell", lead: "The bash tool and the eval runtimes." },
 	tools: { label: "Tools", lead: "Which tools the model has, their limits and the external integrations." },

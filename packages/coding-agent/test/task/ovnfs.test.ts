@@ -1,5 +1,5 @@
 /**
- * A failed ovnfs checkout removal must not erase the record `omp worktree clear`
+ * A failed ovnfs checkout removal must not erase the record `zetacode worktree clear`
  * needs. Reusing the slot moves that record aside; a lost creation reply keeps it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
@@ -396,7 +396,7 @@ describe("ovnfs checkout recovery", () => {
 		};
 		const captured = vi.spyOn(worktreeModule, "captureIsolationBaseline").mockResolvedValue(baseline);
 		const committed = vi.spyOn(worktreeModule, "commitToBranch").mockResolvedValue({
-			branchName: `omp/task/${agentId}`,
+			branchName: `zetacode/task/${agentId}`,
 			baseSha: "base",
 			rootPatch: patch,
 			nestedPatches: [],

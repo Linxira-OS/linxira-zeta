@@ -118,7 +118,7 @@ export function BtwNote(props: BtwNoteProps): JSXNode {
 			const status = turnStatusSpans(latest);
 			return (
 				<col
-					role={active ? "omp.btw.note.active" : "omp.btw.note"}
+					role={active ? "zeta.btw.note.active" : "zeta.btw.note"}
 					gap="sm"
 					actions={{ click: "btw-focus", menu, hold: menu }}
 					onAction={run}

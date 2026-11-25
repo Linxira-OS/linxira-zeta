@@ -116,7 +116,7 @@ export interface PresenterHost {
 	readonly messages: MessageFaceEnv;
 }
 
-const kEntry = Symbol("omp.transcriptEntry");
+const kEntry = Symbol("zeta.transcriptEntry");
 
 /** A block tagged with what it shows. */
 interface EntryTagged extends TranscriptBlock {
@@ -620,7 +620,7 @@ export class TranscriptPresenter {
 			this.#pendingRuns.push({ run, message });
 			this.#host.pendingShellRuns.push(
 				mountNode(
-					() => <col role="omp.pending-run">{this.#runFace(run, message, () => undefined)}</col>,
+					() => <col role="zeta.pending-run">{this.#runFace(run, message, () => undefined)}</col>,
 					"A shell run",
 				),
 			);

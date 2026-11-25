@@ -33,17 +33,17 @@ export function installPanelHandlers(ctx: WorkerContext, rpcSessions: RpcSession
 	ctx.handle("relayStatus", async () => relayStatus());
 	ctx.handle("collabHosts", async () => {
 		const hosts = await callRelay({ op: "collabHosts" });
-		if (!isCollabHosts(hosts)) throw new Error("omp relay answered collabHosts with an unexpected shape");
+		if (!isCollabHosts(hosts)) throw new Error("zetacode relay answered collabHosts with an unexpected shape");
 		return hosts;
 	});
 	ctx.handle("collabLink", async ({ instanceId }) => {
 		const link = await callRelay({ op: "collabLink", instanceId });
-		if (!hasString(link, "url")) throw new Error("omp relay answered collabLink without a url");
+		if (!hasString(link, "url")) throw new Error("zetacode relay answered collabLink without a url");
 		return { url: link.url };
 	});
 	ctx.handle("installs", async () => {
 		const installs = await callRelay({ op: "installs" });
-		if (!isInstalls(installs)) throw new Error("omp relay answered installs with an unexpected shape");
+		if (!isInstalls(installs)) throw new Error("zetacode relay answered installs with an unexpected shape");
 		return installs;
 	});
 	ctx.handle("activeTab", ({ windowId }) => activeTabContext(windowId));

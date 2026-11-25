@@ -1,5 +1,5 @@
 /**
- * The session tree's terminal look (`term.look = "omp.tree"`): a framed
+ * The session tree's terminal look (`term.look = "zeta.tree"`): a framed
  * panel with the key help, the search field, a divider, then the visible
  * entries drawn with tree guides (`├─`/`└─` at forks, `│` down an open
  * branch), the active path bulleted, labels in brackets; the selected row
@@ -45,7 +45,7 @@ export type TreeLookRow = {
 
 /** The look's term facts. */
 export type TreeLookTerm = PickerTerm & {
-	readonly look: "omp.tree";
+	readonly look: "zeta.tree";
 	readonly entries: readonly TreeLookRow[];
 	readonly field: { readonly text: string; readonly cursor: number };
 	readonly maxRows: number;
@@ -180,4 +180,4 @@ function paintTree(node: UiNode, cx: PaintContext): Block {
 	return { rows, hits: [sheetHit(node, width, rows.length), ...hits] };
 }
 
-definePickerLook("omp.tree", paintTree);
+definePickerLook("zeta.tree", paintTree);

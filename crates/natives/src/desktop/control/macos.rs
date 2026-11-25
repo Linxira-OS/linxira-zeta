@@ -282,7 +282,7 @@ const fn monitor_mask() -> u64 {
 static SEEN: [AtomicU32; 5] = [const { AtomicU32::new(0) }; 5];
 
 /// Where an event the tap sees goes in [`SEEN`]: only hardware input (no
-/// source pid) and omp's own tagged events, which omp posts only to the HID
+/// source pid) and omp's own tagged events, which zetacode posts only to the HID
 /// event tap, so every seen event is one the HID counters count too. Another
 /// process's event may have been posted to the session, which the tap sees
 /// but the HID counters skip; counting it would let it stand in for a user
@@ -421,7 +421,7 @@ const fn foreign(tag: i64, source_pid: i64, own_pid: i64) -> bool {
 }
 
 const fn foreign_input(tag: i64, source_pid: i64, own_pid: i64, kind: u32, point: CGPoint) -> bool {
-	// Raw make-key records have no tag; another omp process posts them as
+	// Raw make-key records have no tag; another zetacode process posts them as
 	// left presses at the origin. Releases never reach this check: they only
 	// place the click their press began. Hardware input still has source pid
 	// zero. A foreign tool's untagged origin press is indistinguishable from
@@ -896,7 +896,7 @@ mod tests {
 		assert!(!foreign_input(SYNTHETIC_EVENT_TAG, 4242, own, LEFT_MOUSE_DOWN, CGPoint::ZERO));
 		// An untagged event this process posted is still its own.
 		assert!(!foreign_input(0, own, own, LEFT_MOUSE_DOWN, CGPoint::ZERO));
-		// Another omp process's raw make-key records cannot carry the tag.
+		// Another zetacode process's raw make-key records cannot carry the tag.
 		assert!(!foreign_input(0, 4242, own, LEFT_MOUSE_DOWN, CGPoint::ZERO));
 		assert!(foreign_input(0, 4242, own, LEFT_MOUSE_DOWN, CGPoint::new(0.0, 1.0)));
 		assert!(foreign_input(0, 4242, own, LEFT_MOUSE_DOWN, CGPoint::new(1.0, 0.0)));
@@ -963,12 +963,12 @@ mod tests {
 		// its own process id and tag (RustDesk's is 100).
 		assert_eq!(button_record(0, 0, own, window), ButtonRecord::User);
 		assert_eq!(button_record(100, 4242, own, window), ButtonRecord::User);
-		// Any omp process's tagged post to the HID event tap, and this one's
+		// Any zetacode process's tagged post to the HID event tap, and this one's
 		// untagged.
 		assert_eq!(button_record(SYNTHETIC_EVENT_TAG, own, own, window), ButtonRecord::Counted);
 		assert_eq!(button_record(SYNTHETIC_EVENT_TAG, 4242, own, window), ButtonRecord::Counted);
 		assert_eq!(button_record(0, own, own, window), ButtonRecord::Counted);
-		// A post to a process, no window under it: another omp process's
+		// A post to a process, no window under it: another zetacode process's
 		// untagged make-key record, or anyone's background click.
 		assert_eq!(button_record(0, 4242, own, 0), ButtonRecord::Skipped);
 		assert_eq!(button_record(SYNTHETIC_EVENT_TAG, own, own, 0), ButtonRecord::Skipped);

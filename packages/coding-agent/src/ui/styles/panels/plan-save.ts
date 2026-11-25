@@ -8,7 +8,7 @@ import { truncate, visibleWidth } from "@linxiraos/pi-tui/text/width";
 import type { TspInputProps } from "@linxiraos/pi-wire";
 import { bindingGlyph, boxRows, propsOf, termOf } from "./common";
 
-defineRolePainter("col", "omp.planSave", (node, cx): Block => {
+defineRolePainter("col", "zeta.planSave", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 5) return EMPTY_BLOCK;
 	const inner = cx.width - 4;

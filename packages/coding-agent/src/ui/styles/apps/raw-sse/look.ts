@@ -1,5 +1,5 @@
 /**
- * `omp.debug.bar`: the raw provider stream viewer in the terminal. The bar's
+ * `zeta.debug.bar`: the raw provider stream viewer in the terminal. The bar's
  * place shows the whole viewer frame (`term.viewer`): the counters, the
  * scrolling wire text, the copy status and key hints. Mouse events anywhere
  * on it go to the viewer (wheel scrolls, a click on the counters toggles
@@ -11,7 +11,7 @@ import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { RawSseViewerModel } from "../../../apps/raw-sse/model";
 import { paintViewerFrame } from "../viewer/frame";
 
-const ROLE = "omp.debug.bar";
+const ROLE = "zeta.debug.bar";
 
 function viewerOf(node: UiNode): RawSseViewerModel | undefined {
 	return (node.props() as { term?: { viewer?: RawSseViewerModel } }).term?.viewer;

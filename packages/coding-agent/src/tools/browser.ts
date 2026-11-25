@@ -153,7 +153,7 @@ const browserSchema = type({
 	"all?": type("boolean").describe("release every managed tab this agent opened"),
 	"kill?": type("boolean").describe("also kill spawned-app browsers"),
 	"persist?": type("boolean").describe(
-		"keep tab live across turn settle and idle close; on a relay tab omp opened, keep it open after the session ends",
+		"keep tab live across turn settle and idle close; on a relay tab zetacode opened, keep it open after the session ends",
 	),
 });
 
@@ -177,7 +177,7 @@ interface BrowserPreludeDetails {
  * over the `browser["tern"]` setting to adopt a block; `headed` does not opt out),
  * a cmux surface, then omp's own browser ({@link ownBrowserKind}). `app: "auto"`
  * is that chain without the relay. Tern and cmux are automatic only while no
- * other omp owns the terminal, and none of the user's own surfaces (relay, Tern,
+ * other zetacode owns the terminal, and none of the user's own surfaces (relay, Tern,
  * cmux) is automatic for a subagent. With `PI_BROWSER_RELAY=only` (a session
  * started from the extension's side panel) every open, a subagent's included,
  * goes to the relay, and any `app` but `"relay"` throws. `app: "tern"` and `app: "webkit"` are explicit:
@@ -192,7 +192,7 @@ export function resolveBrowserKind(
 	if (isRelayOnly(env)) {
 		if (app !== undefined && app !== "relay") {
 			throw new ToolError(
-				`This session drives the user's Chrome through the omp extension and has no other browser; app: ${JSON.stringify(app)} is unavailable. Omit app or pass app: "relay".`,
+				`This session drives the user's Chrome through the zetacode extension and has no other browser; app: ${JSON.stringify(app)} is unavailable. Omit app or pass app: "relay".`,
 			);
 		}
 		const relayKind = resolveRelayKind(
@@ -264,8 +264,8 @@ export function resolveBrowserKind(
 	if (configuredCdpUrl) {
 		return { kind: "connected", cdpUrl: configuredCdpUrl.replace(/\/+$/, "") };
 	}
-	// Tern and cmux show the tab beside the omp drawn in that terminal. An omp started from that
-	// session's commands (`omp -p` from its bash tool, a script an eval cell runs) inherited the
+	// Tern and cmux show the tab beside the zetacode drawn in that terminal. An zetacode started from that
+	// session's commands (`zetacode -p` from its bash tool, a script an eval cell runs) inherited the
 	// pane env, and its tabs would float over the other session's work. A subagent has no pane of
 	// its own either: its tabs would pile up over the parent's, so it skips both even when
 	// ZETA_BROWSER_TERN=1 or PI_BROWSER_CMUX=1 forces them for the parent.
@@ -584,7 +584,7 @@ async function openBrowser(
 				? `Tern cannot show a browser here (${failure.reason}); opened ${opened} instead. Pass app: "own" to skip Tern, or app: "tern" to require it.`
 				: failure.backend === "cmux"
 					? `cmux could not open a browser surface here (${failure.reason}); opened ${opened} instead. Pass app: "own" to skip cmux.`
-					: `omp's WebKit browser could not take this open (${failure.reason}); opened Chromium instead. Pass app: "chromium" to skip it, or app: "webkit" to require it.`,
+					: `zetacode's WebKit browser could not take this open (${failure.reason}); opened Chromium instead. Pass app: "chromium" to skip it, or app: "webkit" to require it.`,
 		);
 		const remainingMs = Math.max(1, timeoutMs - (performance.now() - startedAt));
 		try {
@@ -642,7 +642,7 @@ async function installWebKitForOpen(
 	params: BrowserParams,
 	signal?: AbortSignal,
 ): Promise<string | undefined> {
-	// The relay is the only browser: nothing omp runs itself needs installing (an explicit app throws at resolve).
+	// The relay is the only browser: nothing zetacode runs itself needs installing (an explicit app throws at resolve).
 	if (isRelayOnly()) return undefined;
 	const explicit = params.app === "webkit";
 	const pending = await webKitEngineToInstall({
@@ -713,7 +713,7 @@ async function openOnKind(
 	// Chrome never lets an extension choose where downloads go. Refused here, before an existing tab is closed to reopen.
 	if (params.downloads !== undefined && kind.kind === "relay") {
 		throw new ToolError(
-			"The omp browser relay cannot choose where Chrome saves downloads: open the tab without `downloads`, and tab.waitForDownload() and tab.downloads() report where Chrome saved each file.",
+			"The zetacode browser relay cannot choose where Chrome saves downloads: open the tab without `downloads`, and tab.waitForDownload() and tab.downloads() report where Chrome saved each file.",
 		);
 	}
 
@@ -864,7 +864,7 @@ async function listTargets(
 	const kind = resolveBrowserKind({ ...params, target: params.target ?? "" }, session);
 	if (kind.kind !== "tern" && kind.kind !== "relay" && kind.kind !== "connected") {
 		throw new ToolError(
-			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only inside a Tern pane (its browser blocks), with the omp relay (app: "relay" or the browser.relay setting), or at a CDP endpoint (app: "http://127.0.0.1:9222" or the browser.cdpUrl setting).`,
+			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only inside a Tern pane (its browser blocks), with the zetacode relay (app: "relay" or the browser.relay setting), or at a CDP endpoint (app: "http://127.0.0.1:9222" or the browser.cdpUrl setting).`,
 		);
 	}
 	details.browser = kind.kind;
@@ -1022,8 +1022,8 @@ function describeBrowser(tab: TabSession): string {
 	switch (handle.kind.kind) {
 		case "headless":
 			return handle.kind.headless
-				? `omp's headless Chromium${handle.sharedDaemon ? " (shared)" : ""}`
-				: `omp's Chromium (in a window${handle.sharedDaemon ? ", shared" : ""})`;
+				? `zetacode's headless Chromium${handle.sharedDaemon ? " (shared)" : ""}`
+				: `zetacode's Chromium (in a window${handle.sharedDaemon ? ", shared" : ""})`;
 		case "spawned":
 			return `spawned ${handle.kind.path} (pid ${handle.pid ?? "?"})`;
 		case "connected":
@@ -1058,7 +1058,7 @@ function ternNotes(tab: TernTabSession, requested: { width: number; height: numb
 		notes.push(
 			adopted
 				? `Not on screen: the user is viewing another Tern tab or session. Block ${adopted.block} shows once they switch to the tab holding it; tell them where it is.`
-				: `Not on screen: the user hid pictures in picture (⌃⌥⌘P), or this Tern shows them only in the tab holding this omp pane (block ${tab.browser.kind.pane}); tell them where it is.`,
+				: `Not on screen: the user hid pictures in picture (⌃⌥⌘P), or this Tern shows them only in the tab holding this zetacode pane (block ${tab.browser.kind.pane}); tell them where it is.`,
 		);
 	}
 	return notes;

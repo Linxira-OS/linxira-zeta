@@ -7,7 +7,7 @@
  * `Select ⏎` / `Close esc`; the program owns the selection and the search:
  * once the list overflows its visible rows, typed text filters it (fuzzy over
  * label, value and description) and the terminal draws the search line under
- * the rows (`omp.standalone` look). The text prompt is a one-field form.
+ * the rows (`zeta.standalone` look). The text prompt is a one-field form.
  * {@link selectStandaloneItem} and {@link promptStandaloneText} run either
  * once, below the command's output, on a shell of their own.
  */

@@ -83,7 +83,7 @@ Control the host desktop from JavaScript or Python Eval with the global `compute
     - `"unanswered"`: nobody answered before the confirmation expired, shortly before the call's timeout.
       Tell the user the step is waiting on their approval before asking again.
 {{#if ompTakeover}}
-  - It does not change delivery, which omp decides from the user's setting (below).
+  - It does not change delivery, which zetacode decides from the user's setting (below).
 {{else}}
   - It does not change delivery: omitted takeover stays background; only `takeover: true` takes over.
 {{/if}}
@@ -121,7 +121,7 @@ Control the host desktop from JavaScript or Python Eval with the global `compute
   Window handles, screenshot frames, and AX refs persist across calls until `computer.close()`, which ends the session; the next call opens a new one.
 - `computer.capabilities()` reports native permissions and `applications`, `menus`, `heldInput`, `spaces`, and `globalEscape` support;
   unsupported operations fail explicitly.
-  - `globalEscape` means physical Escape anywhere stops takeover input ({{#if ompTakeover}}input omp runs in takeover{{else}}`takeover: true`{{/if}}, held control, desktop-level input, raises, activating launches);
+  - `globalEscape` means physical Escape anywhere stops takeover input ({{#if ompTakeover}}input zetacode runs in takeover{{else}}`takeover: true`{{/if}}, held control, desktop-level input, raises, activating launches);
     without held control, background window input ignores the user's Escape, so they can keep working in their own app, and only the host interrupt stops it.
   - Once the user's Escape stops a call, every later `computer` call you make that turn fails before sending anything:
     stop using the computer and tell the user what you did and what remains.
@@ -186,7 +186,7 @@ await win.click(120, 48, button="right")
   input helpers take no `takeover` option, and passing one throws with nothing sent. Never ask the user whether to take over.
   - The user's setting takes over input to a window in front of them, or every window and element input call;
     other input runs in the background without moving the user's pointer or activating the target.
-  - When a background route is unavailable, omp reruns that call in takeover, hands the keyboard back to the user's window and says what it did in the output
+  - When a background route is unavailable, zetacode reruns that call in takeover, hands the keyboard back to the user's window and says what it did in the output
     (`… ran in takeover because …; the input was delivered, and handed the keyboard back to …'s window`).
   - When a screenshot proves background input to a window did nothing and AX cannot do it, tell the user the step needs that window in front of them.
   - OS acceptance alone does not prove the application acted.

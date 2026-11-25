@@ -112,7 +112,7 @@ export interface LiveState {
 	deviceId?: string;
 }
 
-/** Upstream `RuntimeIdentity`: the omp build that wrote session entries. */
+/** Upstream `RuntimeIdentity`: the zetacode build that wrote session entries. */
 export interface SessionBuildIdentity {
 	version: string;
 	/** Source checkout commit; absent for installed builds. */
@@ -187,7 +187,7 @@ export interface OperatorStateSnapshot {
 	 * has run, and on Runtime versions that predate the field.
 	 */
 	lastTurnOutcome?: "completed" | "interrupted";
-	/** omp builds that wrote this session, ending with the running one. */
+	/** zetacode builds that wrote this session, ending with the running one. */
 	runtimeIdentity?: SessionBuildProvenance;
 	telemetry?: SessionTelemetrySnapshot;
 	/** Optional on older Runtime versions; present when the settings seam is available. */

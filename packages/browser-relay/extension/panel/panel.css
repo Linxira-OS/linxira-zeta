@@ -1,4 +1,4 @@
-/* omp side panel (pn-*). Colors come from collab-web's tokens.css; the only literals are the black scrims the
+/* zetacode side panel (pn-*). Colors come from collab-web's tokens.css; the only literals are the black scrims the
  * design fixes (lightbox 30%, sheets 20%) and mask stops.
  * One narrow column at every width: fixed glass header, scrolling transcript, docked composer. */
 

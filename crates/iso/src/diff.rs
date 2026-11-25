@@ -8,7 +8,7 @@
 //!   file. Binary entries surface as `diff: None`.
 //! - **Plain mode.** No `.git`; we walk both trees in parallel, short-circuit
 //!   on `(size, mtime-truncated-to-seconds)` equality, and emit a unified diff
-//!   for each surviving pair via `omp-diff`. NUL within the first 8 KiB
+//!   for each surviving pair via `zetacode-diff`. NUL within the first 8 KiB
 //!   classifies the file as binary → `diff: None`.
 //!
 //! Per the PAL contract: for binary files we don't materialize the bytes

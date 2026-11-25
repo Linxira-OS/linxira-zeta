@@ -1,5 +1,5 @@
 /**
- * `/copy`'s terminal look (`term.look = "omp.copy"`): the transcript
+ * `/copy`'s terminal look (`term.look = "zeta.copy"`): the transcript
  * selectors' screen (`./transcript-view`) headed `⧉ Copy · pick what to put
  * on the clipboard` (or the caller's title), the outlined turn boxed in green
  * with `N blocks →` on its top edge when it has blocks, then the key hints.
@@ -39,7 +39,7 @@ export type CopyLookBlock = {
 
 /** The look's term facts. */
 export type CopyLookTerm = PickerTerm & {
-	/** Terminal role (`omp.copy`): the wheel widget. */
+	/** Terminal role (`zeta.copy`): the wheel widget. */
 	readonly role: string;
 	/** The caller's heading (default `⧉ Copy · pick what to put on the clipboard`). */
 	readonly heading?: string;
@@ -133,10 +133,10 @@ function paintCopy(node: UiNode, cx: PaintContext): Block {
 	return { ...screen, hits: [sheetHit(node, width, screen.rows.length)] };
 }
 
-definePickerLook("omp.copy", paintCopy);
+definePickerLook("zeta.copy", paintCopy);
 
 /** The wheel scrolls the view (the selection stays). */
-defineRoleWidget("picker", "omp.copy", {
+defineRoleWidget("picker", "zeta.copy", {
 	mouse(node, mouse) {
 		if (mouse.action !== "press" || (mouse.button !== "wheel-up" && mouse.button !== "wheel-down")) return false;
 		wheelTranscriptView(node, mouse.button === "wheel-up" ? -1 : 1);

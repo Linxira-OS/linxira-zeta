@@ -13,7 +13,7 @@ const tempDirs: string[] = [];
 
 async function tempDir(tag: string): Promise<string> {
 	// Real path: the shell reports paths as the kernel resolves the working directory.
-	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), `omp-shell-journal-${tag}-`)));
+	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), `zetacode-shell-journal-${tag}-`)));
 	tempDirs.push(dir);
 	return dir;
 }

@@ -6,7 +6,7 @@
  * beside them when the window is wide), the selected row's warning and hint,
  * previews placed by role, and a footer naming the keys. An open row editor
  * (choice menu, text field, multi-select) replaces the rows; editors the
- * page has no control for arrive as `omp.prefs.editor` children and are
+ * page has no control for arrive as `zeta.prefs.editor` children and are
  * drawn in their place. While the program searches (`query`), the strip
  * lists the pages with matches first and the rows are the results.
  *
@@ -44,11 +44,11 @@ import { keyCaps } from "./picker";
 import { type TabStripItem, tabBar } from "./tabs";
 
 /** Role of the child previewing the status line (drawn under the Appearance rows). */
-export const PREFS_PREVIEW_ROLE = "omp.prefs.preview.status";
+export const PREFS_PREVIEW_ROLE = "zeta.prefs.preview.status";
 /** Role of a child editor drawn in place of the rows (editors without a page control). */
-export const PREFS_EDITOR_ROLE = "omp.prefs.editor";
+export const PREFS_EDITOR_ROLE = "zeta.prefs.editor";
 /** A child drawn under an open choice menu (a preview of the highlighted option). */
-export const PREFS_MENU_FOOTER_ROLE = "omp.prefs.menu.footer";
+export const PREFS_MENU_FOOTER_ROLE = "zeta.prefs.menu.footer";
 
 /** Fallback window height when the parent does not fix one. */
 const DEFAULT_HEIGHT = 40;

@@ -1465,7 +1465,7 @@ export function requestRpcDialog<T>(
 		opts?.signal?.removeEventListener("abort", onAbort);
 		pendingRequests.delete(id);
 	};
-	// Tells the host to close a dialog omp has already settled, so a late answer
+	// Tells the host to close a dialog zetacode has already settled, so a late answer
 	// cannot look actionable after abort or timeout.
 	const cancelHostDialog = () =>
 		output({

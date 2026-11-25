@@ -1,7 +1,7 @@
 /**
  * Stats CLI command handlers.
  *
- * Handles `omp stats` subcommand for viewing AI usage statistics.
+ * Handles `zetacode stats` subcommand for viewing AI usage statistics.
  */
 
 import { formatKeyHint } from "../ui/keys/hints";

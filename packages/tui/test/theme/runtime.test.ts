@@ -17,7 +17,7 @@ const TRUECOLOR_DARK = { truecolor: true, colors: 16_777_216, dark: true } as co
 const TRUECOLOR_LIGHT = { truecolor: true, colors: 16_777_216, dark: false } as const;
 const PALETTE_DARK = { truecolor: false, colors: 256, dark: true } as const;
 
-const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 let tempAgentDir: string;
 let published: ResolvedTheme[];
 let onPublish: ((theme: ResolvedTheme) => void) | undefined;
@@ -37,8 +37,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-	if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-	else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+	if (originalAgentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+	else process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 	__resetDirsFromEnvForTests();
 	await removeWithRetries(tempAgentDir);
 });

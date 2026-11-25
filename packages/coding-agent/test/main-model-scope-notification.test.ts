@@ -69,7 +69,7 @@ describe("buildModelScopeNotification", () => {
 
 const NO_MODEL_WARNING = "No default model selected. Use /login.";
 const FALLBACK_NOTICE = "Model claude-missing not found. Using anthropic/claude-3-5-haiku";
-const ENV_KEYS = ["PI_CODING_AGENT_DIR", "PI_PROFILE", "ZETA_PROFILE"] as const;
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "PI_PROFILE", "ZETA_PROFILE"] as const;
 
 // The startup model fallback notice is computed before the first-run setup runs; the setup
 // may select a model before the startup notices are shown (issue #8053).

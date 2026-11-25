@@ -156,7 +156,7 @@ describe("relay extension self-update decisions", () => {
 		expect(bridge.ready).toBe(true);
 	});
 
-	it("leaves an extension installed by this omp or a newer one alone", () => {
+	it("leaves an extension installed by this zetacode or a newer one alone", () => {
 		const { bridge, calls } = bridgeWithUpdater();
 		hello(bridge, new FakeExtSocket(), { zetaVersion: VERSION });
 		hello(bridge, new FakeExtSocket(), { zetaVersion: "999.0.0" });
@@ -290,7 +290,7 @@ describe("relay extension self-update decisions", () => {
 		expect(socket.reloads).toBe(1);
 	});
 
-	it("waits out a tab create and its close when the client left mid-create, so the tab omp opened is closed", async () => {
+	it("waits out a tab create and its close when the client left mid-create, so the tab zetacode opened is closed", async () => {
 		const { bridge, calls, finish } = bridgeWithUpdater();
 		const conn = bridge.cdpConnected(FAKE_CDP);
 		const socket = new FakeExtSocket();
@@ -482,7 +482,7 @@ describe("relay extension self-update on a real relay", () => {
 		expect(await installedRelayExtensionVersion(elsewhere)).toBe(OLD);
 	});
 
-	it("leaves files a newer omp installed for that omp's relay", async () => {
+	it("leaves files a newer zetacode installed for that omp's relay", async () => {
 		const dir = home.join("extension");
 		await writeRelayExtension(dir, "999.0.0");
 		const { port, events, settled } = await startRelay(dir);

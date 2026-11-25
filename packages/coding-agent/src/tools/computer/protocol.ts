@@ -38,13 +38,13 @@ export interface ComputerSessionSnapshot {
 /**
  * The user's `computer.takeover` setting. `fallback` (the default) reruns a call whose background route is
  * unavailable in takeover, and the model may pass `takeover` on a call; `refuse` never takes over, refusing the
- * model's `takeover: true`. Under `foreground` and `always` omp alone decides, and the model has no `takeover`
+ * model's `takeover: true`. Under `foreground` and `always` zetacode alone decides, and the model has no `takeover`
  * option: `foreground` takes over a target window already in front, `always` every window and element input
  * call, and both rerun a call whose background route is unavailable in takeover.
  */
 export type ComputerTakeoverMode = "fallback" | "foreground" | "always" | "refuse";
 
-/** Whether the model may pass `takeover` on an input call: only in the modes that predate omp deciding. */
+/** Whether the model may pass `takeover` on an input call: only in the modes that predate zetacode deciding. */
 export function modelChoosesTakeover(mode: ComputerTakeoverMode): boolean {
 	return mode === "fallback" || mode === "refuse";
 }
@@ -91,7 +91,7 @@ export type ComputerWorkerInbound =
 
 /**
  * Tells the model a run ended with macOS secure input on, when the user's
- * Escape and typing never reach omp. While locked, the lock note already says
+ * Escape and typing never reach zeta. While locked, the lock note already says
  * keys fail (the lock screen's own field may be the holder).
  */
 export function secureInputNotice(capabilities: DesktopCapabilities | undefined): string | undefined {

@@ -5,7 +5,7 @@
  * `sessionManager.buildSessionContext()` — the LLM-context builder — must not be
  * consulted for display.
  *
- * Also guards the cold-launch terminal cleanup: `omp` / `omp -c` leave the
+ * Also guards the cold-launch terminal cleanup: `zetacode` / `zetacode -c` leave the
  * previous run's transcript in native scrollback, so the cold-launch render
  * must commit with a scrollback-clearing repaint (`clearTerminalHistory`).
  */

@@ -357,7 +357,7 @@ export class BrowserEmulationController {
 	}
 
 	/**
-	 * Grant where the browser allows it. The omp relay's extension debugger has no `Browser.grantPermissions`, and
+	 * Grant where the browser allows it. The zetacode relay's extension debugger has no `Browser.grantPermissions`, and
 	 * trusted copy/paste shortcuts work without the grant.
 	 */
 	async #grantPermissionsBestEffort(permissions: Permission[]): Promise<void> {

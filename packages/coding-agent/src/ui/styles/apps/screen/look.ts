@@ -1,11 +1,11 @@
 /**
- * `omp.app.screen`: a fullscreen app's overlay in the terminal. The app owns
+ * `zeta.app.screen`: a fullscreen app's overlay in the terminal. The app owns
  * every cell, so the overlay draws no frame: its children stack at the full
  * width, padded to the screen's height.
  */
 import { type Block, defineRolePainter, type Hit } from "@linxiraos/pi-tui/term/paint";
 
-defineRolePainter("overlay", "omp.app.screen", (node, cx): Block => {
+defineRolePainter("overlay", "zeta.app.screen", (node, cx): Block => {
 	const rows: string[] = [];
 	const hits: Hit[] = [];
 	let cursor: Block["cursor"];

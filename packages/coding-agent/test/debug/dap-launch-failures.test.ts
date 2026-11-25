@@ -606,7 +606,7 @@ describe("connectSocket unix transport", () => {
 		// so `await connectSocket(...)` hung the launch forever.
 		const deadSocket = path.join(
 			os.tmpdir(),
-			`omp-dap-dead-${Date.now()}-${Math.random().toString(36).slice(2)}.sock`,
+			`zetacode-dap-dead-${Date.now()}-${Math.random().toString(36).slice(2)}.sock`,
 		);
 		const start = Date.now();
 		await expect(connectSocket({ unix: deadSocket }, 5_000)).rejects.toThrow();

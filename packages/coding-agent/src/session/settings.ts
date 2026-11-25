@@ -232,7 +232,7 @@ export const cfgProvidersMaxInFlightRequests = register({
 effect(cfgProvidersMaxInFlightRequests, limits =>
 	configureProviderMaxInFlightRequests(normalizeProviderMaxInFlightRequests(limits)),
 );
-// The limits bind every omp process of this config root, through the daemon.
+// The limits bind every zetacode process of this config root, through the daemon.
 configureProviderSlotBroker(new DaemonProviderSlots());
 
 export const cfgImagesDescribeForTextModels = register({

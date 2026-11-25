@@ -1,6 +1,6 @@
 /**
  * The `/debug` viewers as Tern receives them: the raw SSE stream is a page of
- * its own (`omp.debug`) with the bar docked under it, the log viewer a bare
+ * its own (`zeta.debug`) with the bar docked under it, the log viewer a bare
  * picker over the session, and the system, terminal and protocol reports
  * transcript blocks. Closing a viewer brings the debug menu back.
  */
@@ -151,25 +151,25 @@ describe("debug viewers in a Tern terminal", () => {
 		ui.send({ ev: "action", sf: ui.sf, id: control.id, act });
 	};
 
-	it("opens the raw SSE stream as an omp.debug page with the bar docked, and Escape returns to the menu", async () => {
+	it("opens the raw SSE stream as an zeta.debug page with the bar docked, and Escape returns to the menu", async () => {
 		await using ui = await nativeShell(mode.shell);
 		await pick(ui, "raw-sse");
 		await until(() => surfaceOf(ui, "screen") !== undefined);
 
 		const page = surfaceOf(ui, "screen")!;
-		expect(page.role).toBe("omp.debug");
-		expect(page.main.map(sig)).toEqual(["row:omp.app.head", "col:omp.app.empty"]);
+		expect(page.role).toBe("zeta.debug");
+		expect(page.main.map(sig)).toEqual(["row:zeta.app.head", "col:zeta.app.empty"]);
 		expect(textOf(page.main[0]!)).toBe("Raw provider stream 0 events · 0 records · waiting for first frame");
 		expect(textOf(page.main[1]!)).toContain("No raw SSE frames captured yet");
-		expect(page.dock.map(sig)).toEqual(["col:omp.debug.bar"]);
-		expect(page.dock[0]!.c!.map(sig)).toEqual(["row:omp.actions"]);
+		expect(page.dock.map(sig)).toEqual(["col:zeta.debug.bar"]);
+		expect(page.dock[0]!.c!.map(sig)).toEqual(["row:zeta.actions"]);
 		expect(page.layer).toEqual([]);
 		// The page is no sheet of the session, and the menu is gone while it is up.
 		expect(surfaceOf(ui, "inline")?.layer).toEqual([]);
 
 		ui.type(CTRL_C);
 		const bar = surfaceOf(ui, "screen")!.dock[0]!;
-		expect(bar.c!.map(sig)).toEqual(["text:omp.app.status", "row:omp.actions"]);
+		expect(bar.c!.map(sig)).toEqual(["text:zeta.app.status", "row:zeta.actions"]);
 		expect(propsOf(bar.c![0]!)).toMatchObject({ spans: [{ s: "error", t: "No raw SSE frames to copy" }] });
 
 		ui.type(ESCAPE);
@@ -187,7 +187,7 @@ describe("debug viewers in a Tern terminal", () => {
 		await until(() => surfaceOf(ui, "screen") !== undefined);
 
 		const page = () => surfaceOf(ui, "screen")!;
-		expect(page().main.map(sig)).toEqual(["row:omp.app.head", "ansi:omp.debug.stream"]);
+		expect(page().main.map(sig)).toEqual(["row:zeta.app.head", "ansi:zeta.debug.stream"]);
 		expect(textOf(page().main[0]!)).toStartWith("Raw provider stream 1 events · 1 records · last ");
 		expect(propsOf(page().main[1]!)).toMatchObject({
 			text: 'event: message\ndata: {"n":1}\n\n',

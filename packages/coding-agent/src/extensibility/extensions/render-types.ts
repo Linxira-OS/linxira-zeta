@@ -120,7 +120,7 @@ export interface AssistantTextRenderContext {
 export type AssistantTextRenderer = (context: AssistantTextRenderContext) => string | undefined;
 
 /**
- * One transcript block a {@link TranscriptPresenter} decides the display of. Later omp versions
+ * One transcript block a {@link TranscriptPresenter} decides the display of. Later zetacode versions
  * add block types; answer `undefined` for a `type` you do not know.
  *
  * - `toolCall`: a model tool call, `id` its `toolCallId`. `result` arrives with the call's first
@@ -137,7 +137,7 @@ export type AssistantTextRenderer = (context: AssistantTextRenderContext) => str
  *   the same `type`. These exist only in the session that raised them; `id` is unique per process.
  *
  * Read-only, and not a copy: `args`, `result`'s `content` and `details`, `message` and `event`
- * are the live objects omp draws the block from, often the session's own message data. Never
+ * are the live objects zetacode draws the block from, often the session's own message data. Never
  * mutate them: the change would reach the block and possibly the session.
  */
 export type TranscriptBlock =

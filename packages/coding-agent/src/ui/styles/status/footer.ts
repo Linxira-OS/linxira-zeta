@@ -1,13 +1,13 @@
 /**
  * Terminal look of the footer (`src/ui/status/footer.tsx`), all dim:
  *
- * - `omp.footer` (`status`): the path (and branch) on its own row, cut in the
+ * - `zeta.footer` (`status`): the path (and branch) on its own row, cut in the
  *   middle when too long; then the counters, billing and context joined by
  *   spaces (the context in its level color once past normal), with the model
  *   right-aligned at least two cells away — cut to fit, or left off when no
  *   more than three cells remain for it; the left part itself is cut first.
- * - `omp.footer.panel` (`col`): the bar, then the extension statuses.
- * - `omp.footer.extensions` (`text`): one row, cut to the width.
+ * - `zeta.footer.panel` (`col`): the bar, then the extension statuses.
+ * - `zeta.footer.extensions` (`text`): one row, cut to the width.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
 import { type Block, defineRolePainter, EMPTY_BLOCK, type PaintContext } from "@linxiraos/pi-tui/term/paint";
@@ -79,6 +79,6 @@ function paintExtensions(node: UiNode, cx: PaintContext): Block {
 	return props.text ? { rows: [truncate(props.text, cx.width, cx.theme.symbols.ellipsis)] } : EMPTY_BLOCK;
 }
 
-defineRolePainter("status", "omp.footer", paintFooterBar);
-defineRolePainter("col", "omp.footer.panel", paintFooterPanel);
-defineRolePainter("text", "omp.footer.extensions", paintExtensions);
+defineRolePainter("status", "zeta.footer", paintFooterBar);
+defineRolePainter("col", "zeta.footer.panel", paintFooterPanel);
+defineRolePainter("text", "zeta.footer.extensions", paintExtensions);

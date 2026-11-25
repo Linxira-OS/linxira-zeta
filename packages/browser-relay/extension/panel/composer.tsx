@@ -366,7 +366,7 @@ export function Composer(props: ComposerProps): ReactNode {
 		},
 		restoreQueued(drafts) {
 			const text = drafts
-				// omp lists a message of images alone as `[Image]`; its images come back as attachments.
+				// zetacode lists a message of images alone as `[Image]`; its images come back as attachments.
 				.map(draft => (draft.images.length > 0 && draft.text === "[Image]" ? "" : parsePrompt(draft.text).text))
 				.filter(part => part !== "")
 				.join("\n\n");

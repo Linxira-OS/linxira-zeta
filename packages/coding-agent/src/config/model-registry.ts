@@ -475,7 +475,7 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * Online discovery (`strategy: "online"`) is independent of credential minting:
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
- * refresh (`omp models refresh`, TUI F5).
+ * refresh (`zetacode models refresh`, TUI F5).
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
@@ -1655,7 +1655,7 @@ export class ModelRegistry {
 	#publishModelsFileWarnings(result: LoadResult<ModelsConfig>): void {
 		// The same cached load is what every registry in the process reads.
 		// Publish when that object changes, and replace the findings copied
-		// from the previous one: `omp models refresh` force-reparses before
+		// from the previous one: `zetacode models refresh` force-reparses before
 		// anything drains #configWarnings, and a second registry must still
 		// see the modality warning the first one already published.
 		if (result === this.#publishedModelsLoad) return;
@@ -4561,7 +4561,7 @@ export class ModelRegistry {
 	 * Whether an unresolved selector on `provider` may still be supplied by
 	 * discovery this process has not finished. Two states qualify:
 	 * - `idle`: a config-declared provider with a cold cache has no catalog yet
-	 *   (e.g. after `omp update` bumps the cache namespace, #10048).
+	 *   (e.g. after `zetacode update` bumps the cache namespace, #10048).
 	 * - `cached`/`unavailable` while the initial background refresh is in
 	 *   flight: startup replayed a cache row or fell back to the bundled
 	 *   catalog, and that refresh may still add ids (a cold namespace after an
@@ -4610,7 +4610,7 @@ export class ModelRegistry {
 	 * discovered model that defines one.
 	 *
 	 * The overrides lead because a model-derived answer is only available once
-	 * discovery has populated the registry. `omp usage` builds a `ModelRegistry`
+	 * discovery has populated the registry. `zetacode usage` builds a `ModelRegistry`
 	 * and probes credentials immediately, and providers whose roster is
 	 * discovery-only (no bundled rows) have no model to read a URL from at that
 	 * point — so deriving solely from models returned `undefined` cache-cold and

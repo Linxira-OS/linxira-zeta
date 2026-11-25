@@ -45,7 +45,7 @@ describe("subagent session MCP tools follow the shared manager", () => {
 	const sessions: AgentSession[] = [];
 
 	beforeEach(async () => {
-		dir = path.join(os.tmpdir(), `omp-subagent-mcp-follow-${Snowflake.next()}`);
+		dir = path.join(os.tmpdir(), `zetacode-subagent-mcp-follow-${Snowflake.next()}`);
 		fs.mkdirSync(dir, { recursive: true });
 		authStorage = await AuthStorage.create(path.join(dir, "auth.db"));
 		authStorage.keys.setRuntime("openai", "test-key");

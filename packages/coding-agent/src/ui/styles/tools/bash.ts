@@ -129,7 +129,7 @@ function paintBash(node: UiNode, cx: PaintContext): Block {
 	const run = node.children()[0];
 	const cards: string[] = [];
 	for (const child of run?.children() ?? []) {
-		if ((child.props() as { role?: string }).role !== "omp.tool.bash.command-tool") continue;
+		if ((child.props() as { role?: string }).role !== "zeta.tool.bash.command-tool") continue;
 		cards.push(...toolCommandRows(child, cx, frameInner(width), expanded));
 	}
 	// Images the block draws as pictures under the card leave their placeholders out of the output.

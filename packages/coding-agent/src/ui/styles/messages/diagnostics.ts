@@ -1,5 +1,5 @@
 /**
- * Late diagnostics (`card` role `omp.diagnostics.late`): the edit/write
+ * Late diagnostics (`card` role `zeta.diagnostics.late`): the edit/write
  * diagnostics tree titled "Late diagnostics", one cell in (five diagnostics
  * and a `… N more` row while collapsed).
  */
@@ -25,4 +25,4 @@ function paintLateDiagnostics(node: UiNode, cx: PaintContext): Block {
 	return { rows: paddedText(tree.join("\n"), cx.width) };
 }
 
-defineRolePainter("card", "omp.diagnostics.late", paintLateDiagnostics);
+defineRolePainter("card", "zeta.diagnostics.late", paintLateDiagnostics);

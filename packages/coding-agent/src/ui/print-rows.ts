@@ -1,6 +1,6 @@
 /**
  * Static output: paint a node tree once to terminal rows, for CLI commands
- * that print a view and exit (`omp q`, `omp gallery`) instead of running a
+ * that print a view and exit (`zetacode q`, `zetacode gallery`) instead of running a
  * live surface.
  */
 import { createRoot, type JSXNode, resolveChildren } from "@linxiraos/pi-tui";

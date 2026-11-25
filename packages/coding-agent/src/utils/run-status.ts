@@ -6,7 +6,7 @@
  * scraping the title.
  *
  * A report replaces the terminal's record whole, so each one carries `app` and
- * the full status. omp only writes the root record; teardown and opting out
+ * the full status. zetacode only writes the root record; teardown and opting out
  * send `state=clear` so no stale record outlives the session.
  */
 import { truncateLineBytes } from "../tools/streaming-output";

@@ -1,5 +1,5 @@
 /**
- * Swaps the tab's icon for the omp mark while a conversation works in it, by rewriting the page's own icon links
+ * Swaps the tab's icon for the zetacode mark while a conversation works in it, by rewriting the page's own icon links
  * and putting every one back afterwards. It only touches `<head>` when the working state changes or the page
  * navigates in place, never in response to input.
  */
@@ -49,7 +49,7 @@ export class Favicon {
 		);
 	}
 
-	/** Show the omp mark (`true`) or the page's own icon. */
+	/** Show the zetacode mark (`true`) or the page's own icon. */
 	set(working: boolean): void {
 		if (working === this.#wanted) return;
 		this.#wanted = working;

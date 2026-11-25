@@ -1,5 +1,5 @@
 /**
- * Terminal look of the sign-in scene (`term.role` `omp.setup.sign-in`): the
+ * Terminal look of the sign-in scene (`term.role` `zeta.setup.sign-in`): the
  * intro over the provider sheet and the last sign-in's outcome under it,
  * the sheet cut to the rows left; or the login dialog, whose middle gives
  * way on short screens (the head keeps its title and first link row, the
@@ -16,7 +16,7 @@ export interface SignInLine {
 
 /** Terminal facts of the sign-in scene body. */
 export type SignInTerm = {
-	readonly role: "omp.setup.sign-in";
+	readonly role: "zeta.setup.sign-in";
 	readonly maxLines?: number;
 	/** Show the intro over the sheet. */
 	readonly intro: boolean;
@@ -28,13 +28,13 @@ const LIST_LEAD = "Pick a provider to sign in — you can connect more than one.
 /** Login dialog rows kept above a cut: top border, spacer, first link row. */
 const DIALOG_HEAD_ROWS = 3;
 
-defineRolePainter("col", "omp.setup.sign-in", (node, cx): Block => {
+defineRolePainter("col", "zeta.setup.sign-in", (node, cx): Block => {
 	const term = (node.props() as { term?: SignInTerm }).term;
 	const child = node.children()[0];
 	if (!term || !child) return { rows: [] };
 	const max = term.maxLines;
 	const content = cx.paint(child, cx.width).rows;
-	if (child.kind !== "col" || (child.props() as { role?: string }).role === "omp.login") {
+	if (child.kind !== "col" || (child.props() as { role?: string }).role === "zeta.login") {
 		if (max === undefined || content.length <= max) return { rows: content };
 		const head = max >= DIALOG_HEAD_ROWS * 2 ? DIALOG_HEAD_ROWS : 0;
 		return { rows: [...content.slice(0, head), ...content.slice(content.length - (max - head))] };

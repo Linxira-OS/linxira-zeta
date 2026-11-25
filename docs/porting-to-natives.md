@@ -1,4 +1,4 @@
-# Porting Hot Paths to `omp-natives`
+# Porting Hot Paths to `zetacode-natives`
 
 This is the contributor path for moving a measured JS/TS hot path into `crates/natives` and exposing it through `@linxiraos/pi-natives`.
 This is the contributor path for moving a measured JS/TS hot path into `crates/natives` and exposing it through `@linxiraos/pi-natives`.

@@ -3,11 +3,11 @@
 A Zeta plugin is a directory. It can contribute three kinds of things, and you
 choose per thing — not per language, not per front end:
 
-| What you are adding | Where it goes | Who runs it |
-| --- | --- | --- |
-| An action the model or the user can trigger | a **tool** or a **command** in your extension module | the session process, whatever front end is attached |
-| Structured data you want in the desktop's plugin column | a **declarative panel** in `plugin.json` (`list` / `form` / `chart`) | the Rust GUI draws it natively — no webview, no extra service |
-| A page of your own HTML/JS/CSS | an **`.html` file** in your package | the GUI's plugin column in a webview (the Web UI's plugin host is deferred with the rest of the Web UI) |
+| What you are adding                                     | Where it goes                                                        | Who runs it                                                                                             |
+| ------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| An action the model or the user can trigger             | a **tool** or a **command** in your extension module                 | the session process, whatever front end is attached                                                     |
+| Structured data you want in the desktop's plugin column | a **declarative panel** in `plugin.json` (`list` / `form` / `chart`) | the Rust GUI draws it natively — no webview, no extra service                                           |
+| A page of your own HTML/JS/CSS                          | an **`.html` file** in your package                                  | the GUI's plugin column in a webview (the Web UI's plugin host is deferred with the rest of the Web UI) |
 
 The rule that decides the second and third rows: **a panel can be drawn natively
 when it is declarative**, not when the plugin is written in any particular
@@ -44,7 +44,7 @@ my-plugin/
 }
 ```
 
-Declare `zeta` (or the upstream spellings `omp` / `pi`, which are still read).
+Declare `zeta` (or the upstream spellings `zetacode` / `pi`, which are still read).
 Relative paths are resolved from the plugin root. A plugin without `zeta` is not
 a plugin package — it will be listed only if it is an extension package.
 
@@ -77,7 +77,7 @@ export default function myPlugin(pi: ExtensionAPI): void {
 Rules that matter:
 
 - **Registration happens at load time.** A tool registered later does not exist
-  for the session; a module that throws while importing contributes *nothing*
+  for the session; a module that throws while importing contributes _nothing_
   while the plugin still lists as installed. `zetacode plugin doctor` checks the
   declared entries exist, not that they import.
 - **`ctx.t(key, fallback?)`** resolves current host language → `en` →
@@ -110,12 +110,12 @@ In `plugin.json`:
 }
 ```
 
-| `kind` | Needs | Your tool returns as `details` |
-| --- | --- | --- |
-| `list` | `source` (and usually `columns`) | `{ "rows": [{ "<column>": … }] }` |
-| `form` | `source` | `{ "fields": [{ "key", "label", "value" }] }` |
-| `chart` | `source` | `{ "points": [{ "label", "value": number }] }` |
-| `html` | `entry` (an `.html` file in your package) | — (the host opens the page) |
+| `kind`  | Needs                                     | Your tool returns as `details`                 |
+| ------- | ----------------------------------------- | ---------------------------------------------- |
+| `list`  | `source` (and usually `columns`)          | `{ "rows": [{ "<column>": … }] }`              |
+| `form`  | `source`                                  | `{ "fields": [{ "key", "label", "value" }] }`  |
+| `chart` | `source`                                  | `{ "points": [{ "label", "value": number }] }` |
+| `html`  | `entry` (an `.html` file in your package) | — (the host opens the page)                    |
 
 - `source` is **a tool call**, not an HTTP route. The data producer is already a
   tool, and a panel has to draw even when `zetacode serve` is not running.
@@ -175,15 +175,15 @@ or submit forms.
 The host injects `window.__zetaPage` after the page loads. It is the only
 host API a page gets; there is no ambient Node access or arbitrary HTTP server.
 
-| Method | Result |
-| --- | --- |
-| `ready(capabilities?)` | announces protocol v1; host replies `init` + `context` |
-| `callTool(tool, args?)` | runs one tool registered by **this plugin**, through the session's normal tool wrapper/approval; resolves to `{ content, details? }` or rejects |
-| `getContext()` | read-only `{ theme, language, cwd, plugin }` |
-| `subscribe(events)` | requests host event projection; unsupported scopes reject |
-| `notify(level, message)` | host-local notice (`info`/`warning`/`error`) |
-| `on(type, listener)` | listens for host `event` messages |
-| `resize(height?)` | sets the iframe height; a `ResizeObserver` sends it automatically |
+| Method                   | Result                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ready(capabilities?)`   | announces protocol v1; host replies `init` + `context`                                                                                          |
+| `callTool(tool, args?)`  | runs one tool registered by **this plugin**, through the session's normal tool wrapper/approval; resolves to `{ content, details? }` or rejects |
+| `getContext()`           | read-only `{ theme, language, cwd, plugin }`                                                                                                    |
+| `subscribe(events)`      | requests host event projection; unsupported scopes reject                                                                                       |
+| `notify(level, message)` | host-local notice (`info`/`warning`/`error`)                                                                                                    |
+| `on(type, listener)`     | listens for host `event` messages                                                                                                               |
+| `resize(height?)`        | sets the iframe height; a `ResizeObserver` sends it automatically                                                                               |
 
 Messages are `postMessage` envelopes with `__zetaPage: 1`, protocol `v: 1`, and
 a request `id`; the host answers `result` / `error` (`{ code, message }`).

@@ -7,7 +7,7 @@
  * the note editor or the note chooser. Once a choice is committed the dock
  * gives way to a "submitting" spinner while the owner works.
  *
- * The terminal draws it as one fullscreen box (role look `omp.planReview`)
+ * The terminal draws it as one fullscreen box (role look `zeta.planReview`)
  * and drives it with keys: see {@link PlanReviewModel}.
  */
 import { computed, type JSXNode, type KeyEvent, type UiNode, untrack } from "@linxiraos/pi-tui";
@@ -27,7 +27,7 @@ const keysOf = (id: string): string[] => id.split("+");
 /** Tern's sheet: a large centered one titled by the plan's own title heading (the body never repeats it). */
 export function planReviewSheet(model: PlanReviewModel): SheetAttributes {
 	return {
-		role: "omp.overlay.planReview",
+		role: "zeta.overlay.planReview",
 		size: "lg",
 		anchor: "center",
 		head: () => {
@@ -270,7 +270,7 @@ export function PlanReview(props: { readonly model: PlanReviewModel }): JSXNode 
 	const root = (
 		<col
 			gap="md"
-			term={() => ({ role: "omp.planReview", review: model, rev: rev() })}
+			term={() => ({ role: "zeta.planReview", review: model, rev: rev() })}
 			onKey={onKey}
 			onPaste={paste => {
 				const field = editorNode();

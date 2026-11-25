@@ -17,7 +17,7 @@
  *   manager gets its own unit ({@link mcpUnitKey}), started on its first real
  *   request and stopped when that manager lets go.
  *
- * Beyond standard MCP the tunnel carries the `omp/*` methods and `_meta` keys
+ * Beyond standard MCP the tunnel carries the `zetacode/*` methods and `_meta` keys
  * declared here.
  */
 import { type } from "@linxiraos/zeta-schema";
@@ -379,7 +379,7 @@ export interface McpAttachment {
 
 /** Where the units live. One implementation fronts the daemon, the other runs them in this process. */
 export interface McpHostAccess {
-	/** True when units are shared with other omp processes. */
+	/** True when units are shared with other zetacode processes. */
 	readonly shared: boolean;
 	/** The server's era, probing it once when unknown. */
 	resolve(spec: McpServerSpec, signal?: AbortSignal): Promise<McpResolveResult>;

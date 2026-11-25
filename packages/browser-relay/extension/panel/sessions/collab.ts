@@ -1,5 +1,5 @@
 /**
- * Panel session that joins a running interactive omp as a collab guest. collab-web's `GuestClient` already keeps
+ * Panel session that joins a running interactive zetacode as a collab guest. collab-web's `GuestClient` already keeps
  * the replica; this adapter only narrows it to {@link PanelSession}. Guests can prompt, continue, stop and answer, but not
  * switch models or compact, so those members are absent.
  */

@@ -81,7 +81,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
 		autoUpdate: options.autoUpdate ?? true,
 		disabledProviders: [],
 		authStorage,
-		agentDir: "/corpus-home/.omp/agent",
+		agentDir: "/corpus-home/.zeta/agent",
 		previewSymbolPreset: options.previewSymbolPreset,
 		saveSymbolPreset: preset => void events.push(`saveSymbolPreset ${preset}`),
 		saveComposerShape: async shape => void events.push(`saveComposerShape ${shape}`),

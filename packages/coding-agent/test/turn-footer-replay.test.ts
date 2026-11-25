@@ -106,7 +106,7 @@ describe("rebuilt transcript turn footers", () => {
 
 		// Each footer sits in the block of the answer that ended its turn, carrying the whole turn's totals.
 		const footers = ctx.shell.transcript.blocks().flatMap(block =>
-			withRole(block.node, "omp.turn.usage").map(footer => ({
+			withRole(block.node, "zeta.turn.usage").map(footer => ({
 				title: (footer.props() as { title?: unknown }).title,
 				answer: texts(block.node),
 			})),

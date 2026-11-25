@@ -1558,7 +1558,7 @@ export function getPackageDir(): string {
 
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, `serializeConversation`, and `calculateContextTokens` from its
-// package root (via `./core/compaction/index.ts`). In omp these live in
+// package root (via `./core/compaction/index.ts`). In zetacode these live in
 // `@linxiraos/pi-agent-core/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403, #10278).
@@ -1579,7 +1579,7 @@ export function estimateTokens(message: AgentMessage, tokenizer?: Tokenizer, opt
 
 // Legacy pi's `@earendil-works/pi-coding-agent` also exported `findCutPoint` and
 // `sessionEntryToContextMessages` from its package root (upstream Pi 0.84.2
-// public API). In omp `findCutPoint` moved to `@linxiraos/pi-agent-core/compaction`
+// public API). In zetacode `findCutPoint` moved to `@linxiraos/pi-agent-core/compaction`
 // AND grew a required `Tokenizer` parameter, and `sessionEntryToContextMessages`
 // has no canonical equivalent, so neither reaches the barrel below and legacy
 // extensions importing them (e.g. NVlabs/SoL-Pi's online-context-compact) fail
@@ -1667,7 +1667,7 @@ export { Type } from "./legacy-typebox";
 
 // Legacy pi's `@earendil-works/pi-coding-agent` root exported an `is<Tool>ToolResult`
 // family of type guards that narrow a `tool_result` event (`ToolResultEvent`) by
-// tool name. omp removed them from the public API in 10.2.3, and the barrel above
+// tool name. zetacode removed them from the public API in 10.2.3, and the barrel above
 // does not forward them, so legacy extensions importing them (e.g.
 // `pi-lean-ctx@3.9.18`, which uses `isEditToolResult`/`isWriteToolResult` to
 // invalidate its read cache after a native edit/write) fail Bun's static export
@@ -1726,7 +1726,7 @@ export interface ParsedSkillBlock {
 
 /**
  * Parse a skill block from message text, ported verbatim from upstream
- * pi-coding-agent 1.0.2+ (`src/core/agent-session.ts`). omp folds skill
+ * pi-coding-agent 1.0.2+ (`src/core/agent-session.ts`). zetacode folds skill
  * invocation into its own hook pipeline and never exports the parser, so
  * legacy extensions importing it from the package root fail Bun's static
  * named-export check (observed consumer: `pi-optchat`, which matches journaled
@@ -1747,7 +1747,7 @@ export function parseSkillBlock(text: string): ParsedSkillBlock | null {
 
 /**
  * Render the `<available_skills>` system-prompt block, ported from upstream
- * pi-coding-agent 1.x (`src/core/skills.ts`). omp renders skills through its
+ * pi-coding-agent 1.x (`src/core/skills.ts`). zetacode renders skills through its
  * own prompt templates and never exports the formatter, so legacy extensions
  * importing it from the package root fail Bun's static named-export check
  * (observed consumer: `pi-claude-bridge`, which forwards the block to Claude

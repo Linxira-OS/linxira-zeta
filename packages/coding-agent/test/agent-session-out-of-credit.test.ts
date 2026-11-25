@@ -120,7 +120,7 @@ describe("AgentSession out-of-credit handling", () => {
 		expect(assistant).toHaveLength(1);
 		expect(assistant[0]).toMatchObject({ stopReason: "error" });
 		// A surfaced error is never marked as a recovered retry: the empty
-		// balance was fixed by the user, not by an attempt omp made.
+		// balance was fixed by the user, not by an attempt zetacode made.
 		expect(assistant[0]?.retryRecovery).toBeUndefined();
 
 		// Topped up: the error frame's Retry re-attempts immediately.

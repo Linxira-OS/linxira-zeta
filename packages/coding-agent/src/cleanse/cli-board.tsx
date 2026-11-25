@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The stdout board of `omp cleanse`.
+ * The stdout board of `zetacode cleanse`.
  *
  * Interactive terminals get a transient live area repainted in place (the
  * `/cleanse` sheet's live rows: phase and checker spinners, the repair head

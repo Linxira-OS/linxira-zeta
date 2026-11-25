@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * The HTML form dialog: an agent-written form asked as a card of questions
- * (the ask card's vocabulary, `omp.ask.*`). The open field's group shows its
+ * (the ask card's vocabulary, `zeta.ask.*`). The open field's group shows its
  * legend, text and controls; the other fields fold to their answers. The
  * terminal draws the card from the model (`../../styles/forms/html-form.ts`).
  */
@@ -83,7 +83,7 @@ function Block(props: {
 				<text
 					key={key}
 					motionKey={key}
-					role={block.heading ? "omp.ask.heading" : "omp.ask.text"}
+					role={block.heading ? "zeta.ask.heading" : "zeta.ask.text"}
 					wrap="word"
 					spans={tspSpans(block.spans)}
 				/>
@@ -200,7 +200,7 @@ function choiceControls(model: HtmlFormModel, index: number, field: ChoiceField)
 	const answer = model.answer(index);
 	const row = model.row();
 	const dropdown = isDropdown(field);
-	const role = field.multi ? "omp.ask.check" : "omp.ask.option";
+	const role = field.multi ? "zeta.ask.check" : "zeta.ask.option";
 	// The highlight: the row the keys are on; a dropdown's is its current option, when it has one.
 	const chosen = dropdown ? [...answer.checked][0] : row;
 	const items = field.options.map((option, i) => {
@@ -511,7 +511,7 @@ export function HtmlFormDialog(props: HtmlFormProps): JSXNode {
 		if (timeout !== undefined && !untrack(timedOut)) deadline.set(untrack(now) + timeout);
 	};
 	const look = (): HtmlFormLook => ({
-		look: "omp.html-form",
+		look: "zeta.html-form",
 		model,
 		...(props.title ? { title: props.title } : {}),
 		terminalRows: props.terminalRows?.() ?? 40,

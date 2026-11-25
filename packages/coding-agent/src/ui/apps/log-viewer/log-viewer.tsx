@@ -5,7 +5,7 @@
  * session boundary as a group head, the range selection checked, the entry
  * under the cursor pretty-printed below, and the keys' actions in the bar.
  *
- * The terminal shows the classic framed viewer instead (the `omp.app.logs`
+ * The terminal shows the classic framed viewer instead (the `zeta.app.logs`
  * look): raw lines with fold markers, a summary and filter line above, the
  * status and key hints below. Keys behave the same on both.
  */
@@ -187,7 +187,7 @@ export function LogViewer(props: { readonly model: LogViewerModel }): JSXNode {
 			empty={() => p().empty}
 			message={() => p().message}
 			actions={() => p().actions}
-			term={{ role: "omp.app.logs", viewer: model }}
+			term={{ role: "zeta.app.logs", viewer: model }}
 			onKey={key => model.key(key.id, key.text)}
 			onSelect={item => model.select(item, false)}
 			onActivate={item => model.select(item, true)}

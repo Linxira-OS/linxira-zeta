@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * Fullscreen apps (`omp git`, `omp ps`, the debug viewers, the console
+ * Fullscreen apps (`zetacode git`, `zetacode ps`, the debug viewers, the console
  * monitor): one app view in a full-size overlay over a {@link Shell}, which
  * the terminal renderer draws on the alternate screen and Tern as a
  * fullscreen sheet.
@@ -105,7 +105,7 @@ export async function withStandaloneShell<T>(
 	ensureTheme();
 	const shell = new Shell();
 	// Every program's surface is a session surface to Tern, as its styles expect.
-	await shell.start({ theme: currentTheme, role: "omp.session", ...(options.title ? { title: options.title } : {}) });
+	await shell.start({ theme: currentTheme, role: "zeta.session", ...(options.title ? { title: options.title } : {}) });
 	try {
 		return await run(shell);
 	} finally {

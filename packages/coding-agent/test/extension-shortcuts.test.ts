@@ -112,7 +112,7 @@ describe("extension shortcuts", () => {
 	});
 
 	it("matches an uppercase-letter chord the way it is bound, lowercased", async () => {
-		// A JavaScript extension can pass what the `KeyId` type rejects; omp binds `ctrl+C` as `ctrl+c`.
+		// A JavaScript extension can pass what the `KeyId` type rejects; zetacode binds `ctrl+C` as `ctrl+c`.
 		const {
 			runner,
 			apis: [, second],

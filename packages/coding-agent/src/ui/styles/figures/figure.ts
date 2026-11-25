@@ -1,18 +1,18 @@
 /**
  * Figures.
  *
- * - `image` `omp.figure` (an SVG figure, a fenced SVG): the raster, at most
+ * - `image` `zeta.figure` (an SVG figure, a fenced SVG): the raster, at most
  *   two cells short of the width; its `[Image: …]` label where it cannot be
  *   drawn.
- * - `image` `omp.figure.svg` (an SVG fence inside a reply): the raster, else
+ * - `image` `zeta.figure.svg` (an SVG fence inside a reply): the raster, else
  *   the fence's code as the reply's Markdown draws it.
- * - `image` `omp.figure.chart`: a table's chart under a blank row (inside a
+ * - `image` `zeta.figure.chart`: a table's chart under a blank row (inside a
  *   reply: no blank row, and nothing where images cannot be drawn).
- * - `md` `omp.figure.code`: a fence's Markdown with the standard inset.
- * - `text` `omp.figure.pending`: `Drawing SVG…`, one cell in.
- * - `image`/`web` `omp.embed`: the picture (a frame's captured still), else
+ * - `md` `zeta.figure.code`: a fence's Markdown with the standard inset.
+ * - `text` `zeta.figure.pending`: `Drawing SVG…`, one cell in.
+ * - `image`/`web` `zeta.embed`: the picture (a frame's captured still), else
  *   ` ▣ <name>` dim, with why it is not shown where images can be drawn.
- * - `col` `omp.figures` (a reply with figures): its runs set off by blank
+ * - `col` `zeta.figures` (a reply with figures): its runs set off by blank
  *   rows, prose Markdown with the standard inset.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
@@ -52,26 +52,26 @@ function drawable(node: UiNode, cx: PaintContext): boolean {
 	return cx.images !== undefined && propsOf<{ blob: string }>(node).blob !== undefined;
 }
 
-defineRolePainter("image", "omp.figure", (node, cx) => paintImage(node, figureRoom(cx)));
+defineRolePainter("image", "zeta.figure", (node, cx) => paintImage(node, figureRoom(cx)));
 
-defineRolePainter("image", "omp.figure.svg", (node, cx): Block => {
+defineRolePainter("image", "zeta.figure.svg", (node, cx): Block => {
 	if (drawable(node, cx)) return paintImage(node, figureRoom(cx));
 	const code = termOf<FigureTerm>(node).code;
 	return code ? { rows: paddedMarkdown(cx, code) } : EMPTY_BLOCK;
 });
 
-defineRolePainter("image", "omp.figure.chart", (node, cx): Block => {
+defineRolePainter("image", "zeta.figure.chart", (node, cx): Block => {
 	const inline = termOf<ChartTerm>(node).inline === true;
 	if (inline) return drawable(node, cx) ? paintImage(node, figureRoom(cx)) : EMPTY_BLOCK;
 	return { rows: ["", ...paintImage(node, figureRoom(cx)).rows] };
 });
 
-defineRolePainter("md", "omp.figure.code", (node, cx) => {
+defineRolePainter("md", "zeta.figure.code", (node, cx) => {
 	const text = propsOf<{ text: string }>(node).text ?? "";
 	return text.trim() ? { rows: paddedMarkdown(cx, text) } : EMPTY_BLOCK;
 });
 
-defineRolePainter("text", "omp.figure.pending", (node, cx) => {
+defineRolePainter("text", "zeta.figure.pending", (node, cx) => {
 	const spans = propsOf<{ spans: readonly TspSpan[] }>(node).spans ?? [];
 	return { rows: [truncate(` ${styledText(cx.theme, spans)}`, cx.width)] };
 });
@@ -117,10 +117,10 @@ function paintEmbed(node: UiNode, cx: PaintContext): Block {
 	return { rows: [` ${linked}`] };
 }
 
-defineRolePainter("image", "omp.embed", paintEmbed);
-defineRolePainter("web", "omp.embed", paintEmbed);
+defineRolePainter("image", "zeta.embed", paintEmbed);
+defineRolePainter("web", "zeta.embed", paintEmbed);
 
-defineRolePainter("col", "omp.figures", (node, cx) => {
+defineRolePainter("col", "zeta.figures", (node, cx) => {
 	const paddingX = terminalPaddingX();
 	const pad = " ".repeat(paddingX);
 	const blocks = node.children().map((child): Block => {

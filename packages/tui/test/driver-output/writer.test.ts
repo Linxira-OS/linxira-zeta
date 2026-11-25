@@ -238,7 +238,7 @@ describe("unsynchronized frames", () => {
 				t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
 				return ((t ^ (t >>> 14)) >>> 0) % n;
 			};
-			const vt = new Vt({ columns: 30, rows, sync: false, shell: lines("$ omp ", 1, shell) });
+			const vt = new Vt({ columns: 30, rows, sync: false, shell: lines("$ zetacode ", 1, shell) });
 			const transcript: string[] = [];
 			let live: string[] = [];
 			let next = 1;

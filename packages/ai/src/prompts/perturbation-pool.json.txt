@@ -128,12 +128,12 @@
 			]
 		},
 		{
-			"source": "Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, omp://**/*.md); default workspace root.",
+			"source": "Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); default workspace root.",
 			"origin": "tools/glob.md",
 			"variants": [
-				"Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, omp://**/*.md); workspace root by default.",
-				"Glob for files/dirs: `;`-separated paths or internal URLs (local://*.md, omp://**/*.md); default is workspace root.",
-				"Match files/dirs by glob: `;`-separated paths or internal URLs (local://*.md, omp://**/*.md); default workspace root."
+				"Glob files/dirs: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); workspace root by default.",
+				"Glob for files/dirs: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); default is workspace root.",
+				"Match files/dirs by glob: `;`-separated paths or internal URLs (local://*.md, zeta://**/*.md); default workspace root."
 			]
 		},
 		{
@@ -1211,11 +1211,11 @@
 			]
 		},
 		{
-			"source": "omp://: harness docs, AVOID unless asked.",
+			"source": "zeta://: harness docs, AVOID unless asked.",
 			"origin": "internal-urls/omp.md",
 			"variants": [
-				"omp://: docs for the harness, AVOID unless asked.",
-				"omp://: harness documentation, AVOID unless asked."
+				"zeta://: docs for the harness, AVOID unless asked.",
+				"zeta://: harness documentation, AVOID unless asked."
 			]
 		},
 		{
@@ -6717,12 +6717,12 @@
 			]
 		},
 		{
-			"source": "`path`: one directory or file, host path or internal URL (omp://, omp://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
+			"source": "`path`: one directory or file, host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
 			"origin": "tools/find.md",
 			"variants": [
-				"`path`: a single directory or file, host path or internal URL (omp://, omp://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope the known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
-				"`path`: one directory or file, a host path or internal URL (omp://, omp://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope to the known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
-				"`path`: one directory or file — host path or internal URL (omp://, omp://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope the known subsystem; batch related questions. Searches live files with no index; no :start-end selector (judges whole files)."
+				"`path`: a single directory or file, host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope the known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
+				"`path`: one directory or file, a host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope to the known subsystem; batch related questions. Searches live files, no index; no :start-end selector (judges whole files).",
+				"`path`: one directory or file — host path or internal URL (zeta://, zeta://<file>.md, skill://<name>, local://…); omitted = workspace root. Scope the known subsystem; batch related questions. Searches live files with no index; no :start-end selector (judges whole files)."
 			]
 		},
 		{

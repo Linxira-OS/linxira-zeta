@@ -1,6 +1,6 @@
 /**
  * Terminal look of a status-bar segment (`seg`'s `term` prop): the pieces its
- * row is drawn from, which the `omp.status.*` look paints. Native terminals
+ * row is drawn from, which the `zeta.status.*` look paints. Native terminals
  * draw the `seg`'s own spans and icon instead.
  *
  * Style tokens are theme tokens plus `sessionAccent`: the session accent when
@@ -36,7 +36,7 @@ export interface StatusesPiece {
 }
 
 /**
- * The brand: the `omp` glyph while idle (`brand: null`); while a turn runs, a
+ * The brand: the `zetacode` glyph while idle (`brand: null`); while a turn runs, a
  * spinner frame (`?` while awaiting an answer) and the turn timer since
  * `brand` (terminal-clock ms). `profile` tags the glyph (`π-work`).
  */

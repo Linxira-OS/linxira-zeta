@@ -5,7 +5,7 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { BROWSER_RELAY_ACTIONS, runBrowserRelayCommand } from "../cli/browser-relay-cli";
 import { browserRelayHelp } from "../cli/command-help";
 
-/** Install or sync the omp Chrome extension; Chrome launches its native host. */
+/** Install or sync the zetacode Chrome extension; Chrome launches its native host. */
 export default class BrowserRelay extends Command {
 	static description = browserRelayHelp.description;
 

@@ -128,7 +128,7 @@ pub struct TranscriptCall {
 	/// The last 4,000 characters of the thinking and reply before the call.
 	pub reasoning:    Option<String>,
 	pub model:        Option<String>,
-	/// omp version that recorded the call.
+	/// zetacode version that recorded the call.
 	pub version:      Option<String>,
 }
 

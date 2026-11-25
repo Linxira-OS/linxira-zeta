@@ -12,25 +12,25 @@
 
 /** The rhythm ladder `--dur-tactile` … `--dur-hero`, and `--dur-flash`. */
 export const MOTION_MS = {
-  tactile: 80,
-  fast: 120,
-  base: 180,
-  slow: 250,
-  slower: 320,
-  hero: 480,
-  flash: 900,
+	tactile: 80,
+	fast: 120,
+	base: 180,
+	slow: 250,
+	slower: 320,
+	hero: 480,
+	flash: 900,
 } as const;
 
 export type MotionStep = keyof typeof MOTION_MS;
 
 /** The curves `--ease` … `--ease-emphasis` (the spring and the loop curve are CSS-only). */
 export const MOTION_EASE = {
-  standard: "cubic-bezier(0.25, 0.1, 0.25, 1)",
-  out: "cubic-bezier(0.16, 0.84, 0.44, 1)",
-  in: "cubic-bezier(0.5, 0, 0.75, 0)",
-  nav: "cubic-bezier(0.32, 0.72, 0, 1)",
-  ios: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-  emphasis: "cubic-bezier(0.38, 0, 0.08, 1)",
+	standard: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+	out: "cubic-bezier(0.16, 0.84, 0.44, 1)",
+	in: "cubic-bezier(0.5, 0, 0.75, 0)",
+	nav: "cubic-bezier(0.32, 0.72, 0, 1)",
+	ios: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+	emphasis: "cubic-bezier(0.38, 0, 0.08, 1)",
 } as const;
 
 export type MotionCurve = keyof typeof MOTION_EASE;
@@ -52,29 +52,31 @@ export const INSTANT_MS = 20;
 
 /**
  * True when motion is off: the reduced tier (`data-perf-tier~="L1"`, which the
- * renderer entry sets for the OS preference, the `omp.perf.motion` switch and
+ * renderer entry sets for the OS preference, the `zeta.perf.motion` switch and
  * low machine tiers alike) or the OS preference itself in a document that never
  * ran tier control. It is the same pair of triggers as the "Reduced motion"
  * block in `styles/motion.css`, so a timer can never outlast the animation it
  * waits for.
  */
 export function motionReduced(): boolean {
-  if (typeof document !== "undefined" && document.documentElement.matches('[data-perf-tier~="L1"]')) return true;
-  return typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	if (typeof document !== "undefined" && document.documentElement.matches('[data-perf-tier~="L1"]')) return true;
+	return (
+		typeof window !== "undefined" &&
+		typeof window.matchMedia === "function" &&
+		window.matchMedia("(prefers-reduced-motion: reduce)").matches
+	);
 }
 
 /** How long to wait for a step of the ladder: 0 when motion is off. */
 export function motionMs(step: MotionStep): number {
-  return motionReduced() ? 0 : MOTION_MS[step];
+	return motionReduced() ? 0 : MOTION_MS[step];
 }
 
 function firstTime(value: string, fallback: number): number {
-  const raw = value.split(",")[0]?.trim() ?? "";
-  const parsed = Number.parseFloat(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return raw.endsWith("ms") ? parsed : parsed * 1000;
+	const raw = value.split(",")[0]?.trim() ?? "";
+	const parsed = Number.parseFloat(raw);
+	if (!Number.isFinite(parsed)) return fallback;
+	return raw.endsWith("ms") ? parsed : parsed * 1000;
 }
 
 /**
@@ -86,10 +88,10 @@ function firstTime(value: string, fallback: number): number {
  * take the "just swap" path (compare with {@link INSTANT_MS}).
  */
 export function transitionMs(element: HTMLElement): number {
-  return firstTime(getComputedStyle(element).transitionDuration, MOTION_MS.slow);
+	return firstTime(getComputedStyle(element).transitionDuration, MOTION_MS.slow);
 }
 
 /** The delay of the element's first transition, for unmount timers that must cover it. */
 export function transitionDelayMs(element: HTMLElement): number {
-  return firstTime(getComputedStyle(element).transitionDelay, 0);
+	return firstTime(getComputedStyle(element).transitionDelay, 0);
 }

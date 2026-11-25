@@ -7,7 +7,7 @@ This document was verified against the model card, the official `docs/tool_call_
 The upstream template/tokenizer reference below is distinct from Zeta's
 prompt-driven implementation. Zeta does not run that template or inject its
 default system prompt; its current behavior is described in
-[omp / pi converter behavior](#omp--pi-converter-behavior).
+[zetacode / pi converter behavior](#omp--pi-converter-behavior).
 
 ## Special tokens
 

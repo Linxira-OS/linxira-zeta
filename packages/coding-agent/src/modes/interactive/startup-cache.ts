@@ -1,6 +1,6 @@
 /**
  * Speculative state for the next launch's first frame, kept in one SQLite store
- * (`~/.omp/agent/cache/composer.db`): the resolved theme inputs and the
+ * (`~/.zeta/agent/cache/composer.db`): the resolved theme inputs and the
  * composer preferences the prepaint frame is built with before settings load
  * (kind `ui`), the background the terminal last reported (kind `terminal`), and
  * the status bar a fresh session will show (kind `status`, see

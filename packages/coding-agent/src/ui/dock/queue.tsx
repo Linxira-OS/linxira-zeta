@@ -3,7 +3,7 @@
  * Messages queued while the agent works (`pendingMessages` slot): steering
  * messages (Enter) and those waiting for the turn to yield (Ctrl+Q).
  *
- * - Natively (role `omp.queue`): a stack of pills, one per message: a
+ * - Natively (role `zeta.queue`): a stack of pills, one per message: a
  *   `corner-down-right` icon, the text on one line, the total (`2 queued`)
  *   in the first pill when several wait, and an Edit control
  *   (`zeta.queue.edit`) whose click sends `queue.edit` — answered like the

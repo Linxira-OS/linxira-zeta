@@ -1,6 +1,6 @@
 /**
- * Terminal look of the startup splash (`omp.setup.splash`): a twinkling
- * starfield, the omp logo at double size in its gradient, a drifting nebula
+ * Terminal look of the startup splash (`zeta.setup.splash`): a twinkling
+ * starfield, the zetacode logo at double size in its gradient, a drifting nebula
  * under it, and "press ⏎ to skip" on the last row. The frame fills the
  * rows the screen gives it and animates on the terminal clock.
  */
@@ -118,4 +118,4 @@ function paintSplash(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("col", "omp.setup.splash", paintSplash);
+defineRolePainter("col", "zeta.setup.splash", paintSplash);

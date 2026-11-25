@@ -152,7 +152,7 @@ describe("BashTool ACP terminal routing", () => {
 			PI_SESSION_FILE: fileA,
 			PI_TOOL_CALL_ID: "call-env-a",
 		});
-		// Empty, not absent: an env overlay cannot unset a stale value inherited from a parent omp.
+		// Empty, not absent: an env overlay cannot unset a stale value inherited from a parent zeta.
 		expect(sessionEnvOf(1)).toEqual({
 			PI_SESSION_ID: "session-b",
 			PI_SESSION_FILE: "",

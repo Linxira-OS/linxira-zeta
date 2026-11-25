@@ -11,7 +11,7 @@ import type { TspCardProps, TspInputProps, TspItemProps, TspListProps } from "@l
 import { keyLabel } from "../../keys/hints";
 import { bindingGlyph, boxRows, findNode, plainText, propsOf, selectNavGlyphs } from "./common";
 
-defineRolePainter("card", "omp.dialog.move", (node, cx): Block => {
+defineRolePainter("card", "zeta.dialog.move", (node, cx): Block => {
 	const theme = cx.theme;
 	if (cx.width < 6) return EMPTY_BLOCK;
 	const inner = cx.width - 4;

@@ -84,7 +84,7 @@ export function galleryStatusFacts(overrides: Partial<StatusFacts> = {}): Status
 		autoCompact: true,
 		compaction: { thresholdPercent: 90, speculationPercent: null },
 		speculation: "idle",
-		cwd: "/workspace/oh-my-pi",
+		cwd: "/workspace/zeta",
 		git: {
 			branch: "gallery/reference",
 			status: { staged: 2, unstaged: 3, untracked: 1 },

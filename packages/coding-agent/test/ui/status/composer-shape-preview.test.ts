@@ -1,7 +1,7 @@
 /**
  * `overlays/composer-shape-preview` corpus: every composer shape's chrome
  * with and without a status line. The capture's status stand-in names what
- * the shape asked for (`top omp 74`, `band omp`, `chip omp`, `bar left omp 80`),
+ * the shape asked for (`top zetacode 74`, `band omp`, `chip omp`, `bar left zetacode 80`),
  * so the stages pin where each shape attaches the status and at what width.
  */
 import { jsx, signal } from "@linxiraos/pi-tui";

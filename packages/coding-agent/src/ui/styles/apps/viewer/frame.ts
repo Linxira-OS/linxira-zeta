@@ -1,5 +1,5 @@
 /**
- * `omp.viewer.frame`: a debug viewer's frame in the terminal. A rounded box
+ * `zeta.viewer.frame`: a debug viewer's frame in the terminal. A rounded box
  * titled with the viewer's name: header rows, a rule, the body window (a
  * scrollbar in its last column while the body overflows), a rule, footer
  * rows. Header and footer rows are cut with an ellipsis at the inner width;
@@ -12,7 +12,7 @@ import { padTo, truncate } from "@linxiraos/pi-tui/text/width";
 import type { Theme } from "@linxiraos/pi-tui/theme/contract";
 
 /** The terminal role of a viewer frame's `canvas`. */
-export const FRAME_ROLE = "omp.viewer.frame";
+export const FRAME_ROLE = "zeta.viewer.frame";
 
 /** One resolved frame: content rows and the body window. */
 export interface ViewerFrameLayout {

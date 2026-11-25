@@ -6,7 +6,7 @@
  * viewer is told about a block on its stdin and reports on its stdout, one
  * JSON object a line: what the user did in a window, as the host's `input`
  * steps, and windows that went away. It exits when its stdin closes, so it
- * never outlives omp.
+ * never outlives zeta.
  */
 import { ToolError } from "../../tool-errors";
 import { isRecord, logger, readLines } from "@linxiraos/pi-utils";
@@ -48,7 +48,7 @@ export class WebKitViewer {
 		} catch (error) {
 			throw new ToolError(`The WebKit browser's window program did not start: ${String(error)}`);
 		}
-		// Windows nobody closed must not hold omp open; the viewer exits with omp's end of its stdin.
+		// Windows nobody closed must not hold zetacode open; the viewer exits with omp's end of its stdin.
 		child.unref();
 		const ready = Promise.withResolvers<string>();
 		const decoder = new TextDecoder();

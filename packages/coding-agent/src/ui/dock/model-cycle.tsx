@@ -4,9 +4,9 @@
  * each in its position's theme color, the active one filled as a chip. It
  * clears itself four seconds after the last cycle.
  *
- * - Natively (role `omp.track`): one `text` per role, the active one roled
- *   `omp.track.active` (the terminal fills it as a chip), the rest
- *   `omp.track.item`; no caps or separators travel.
+ * - Natively (role `zeta.track`): one `text` per role, the active one roled
+ *   `zeta.track.active` (the terminal fills it as a chip), the rest
+ *   `zeta.track.item`; no caps or separators travel.
  * - In a text terminal (`src/ui/styles/dock/track.ts`): a blank row, then one
  *   cell in: plain labels joined by a thin `┆`, the active one a powerline
  *   chip (`◀ slow ▶`) in its color with a contrasting bold label, padded by
@@ -95,7 +95,7 @@ export function ModelCycleTrack(props: { readonly model: ModelCycleModel }): JSX
 						key={`${index}`}
 						spans={[{ t: label, s: colors[index % colors.length]! }]}
 						wrap="none"
-						role={index === track.active ? "omp.track.active" : "omp.track.item"}
+						role={index === track.active ? "zeta.track.active" : "zeta.track.item"}
 					/>
 				))}
 			</row>

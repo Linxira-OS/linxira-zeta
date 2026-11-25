@@ -157,7 +157,7 @@ export function TextField(
 	);
 }
 
-/** The list of a select field (`omp.select`): options, and the search status once it overflows. */
+/** The list of a select field (`zeta.select`): options, and the search status once it overflows. */
 export function SelectList(props: { readonly model: SelectFieldModel }) {
 	const model = props.model;
 	const status = (): TspSpan[] => {

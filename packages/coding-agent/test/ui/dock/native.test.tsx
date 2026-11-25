@@ -366,9 +366,9 @@ describe("tray", () => {
 		model.peek.set(undefined);
 		model.main.set("working");
 		model.quiet.set(false);
-		expect(described(tray).p).toEqual({ main: "working", role: "omp.tray" });
+		expect(described(tray).p).toEqual({ main: "working", role: "zeta.tray" });
 		model.items.set([]);
-		expect(described(tray).p).toEqual({ hidden: true, role: "omp.tray" });
+		expect(described(tray).p).toEqual({ hidden: true, role: "zeta.tray" });
 	});
 });
 
@@ -497,7 +497,7 @@ describe("HUD pills", () => {
 		expectTree(
 			{
 				k: "row",
-				p: { justify: "end", role: "omp.hud" },
+				p: { justify: "end", role: "zeta.hud" },
 				c: [
 					{
 						k: "row",
@@ -575,13 +575,13 @@ describe("HUD pills", () => {
 		model.agentsInSession.set(0);
 		expect(described(() => <HudPills model={model} />)).toEqual({
 			k: "row",
-			p: { hidden: true, justify: "end", role: "omp.hud" },
+			p: { hidden: true, justify: "end", role: "zeta.hud" },
 		});
 		model.trayHost.set(true);
 		model.agentsRunning.set(1);
 		expect(described(() => <HudPills model={model} />)).toEqual({
 			k: "row",
-			p: { hidden: true, justify: "end", role: "omp.hud" },
+			p: { hidden: true, justify: "end", role: "zeta.hud" },
 		});
 	});
 });

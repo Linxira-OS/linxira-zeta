@@ -41,7 +41,7 @@ describe("managedInstallName", () => {
 
 	it("names the manager of a copied launcher (Windows layout)", async () => {
 		const root = await managedRoot();
-		const copy = path.join(root, "bin", "omp.exe");
+		const copy = path.join(root, "bin", "zeta.exe");
 		await Bun.write(copy, "omp");
 
 		expect(await managedInstallName(copy)).toBe("Tern");

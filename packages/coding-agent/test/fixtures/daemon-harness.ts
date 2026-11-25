@@ -1,5 +1,5 @@
 /**
- * Runs a real omp daemon in a private runtime dir for one test.
+ * Runs a real zetacode daemon in a private runtime dir for one test.
  *
  * `OMP_DAEMON_DIR` is the only seam the client and server share, so it is set
  * (and `OMP_DAEMON_TCP` cleared) for the duration of one test and restored by

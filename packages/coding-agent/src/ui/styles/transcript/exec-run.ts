@@ -1,6 +1,6 @@
 /**
- * User-run commands and cells (`tool` nodes with role `omp.bash` /
- * `omp.eval`): between two full-width rules in the run's mode color (dim
+ * User-run commands and cells (`tool` nodes with role `zeta.bash` /
+ * `zeta.eval`): between two full-width rules in the run's mode color (dim
  * when excluded from context), the bold `$ command` or `>>> code` prompt,
  * a blank row and the output's tail (20 rows collapsed), then inline pictures
  * (or their linked placeholders). Once settled, the hidden-row count and notices.
@@ -93,5 +93,5 @@ function paintExecRun(node: UiNode, cx: PaintContext): Block {
 	return { rows };
 }
 
-defineRolePainter("tool", "omp.bash", paintExecRun);
-defineRolePainter("tool", "omp.eval", paintExecRun);
+defineRolePainter("tool", "zeta.bash", paintExecRun);
+defineRolePainter("tool", "zeta.eval", paintExecRun);

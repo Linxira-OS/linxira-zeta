@@ -1,5 +1,5 @@
 /**
- * Plugin settings panels (`card` roles `omp.overlay.plugin-settings` and
+ * Plugin settings panels (`card` roles `zeta.overlay.plugin-settings` and
  * `….field`): a rounded frame titled by the card's `head`, its body drawn
  * from the panel blocks the view puts in `term.blocks` (the terminal look of
  * the list, detail and editor panels, whose native children describe the
@@ -170,5 +170,5 @@ function fit(text: string, width: number): string {
 	return padTo(truncate(text, width), width);
 }
 
-defineRolePainter("card", "omp.overlay.plugin-settings", panel);
-defineRolePainter("card", "omp.overlay.plugin-settings.field", panel);
+defineRolePainter("card", "zeta.overlay.plugin-settings", panel);
+defineRolePainter("card", "zeta.overlay.plugin-settings.field", panel);

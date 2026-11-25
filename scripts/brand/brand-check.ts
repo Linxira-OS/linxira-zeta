@@ -195,7 +195,7 @@ for (const rule of MUST_CONTAIN) {
 // rows must equal the render exactly. A hand-edited glyph, a hand-drawn
 // replacement, an upstream `zetacode`/π lockup and a stale render after a font bump
 // all fail here; `bun scripts/brand/generate-logo-art.ts` rewrites the rows.
-const WELCOME_TS = "packages/tui/src/prompt/welcome.ts";
+const WELCOME_TS = "packages/coding-agent/src/ui/welcome/logo.ts";
 const welcomeSource = fs.readFileSync(path.resolve(ROOT, WELCOME_TS), "utf8");
 for (const drift of diffBrandArt(welcomeSource)) {
 	missing.push({

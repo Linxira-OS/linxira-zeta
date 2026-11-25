@@ -1,4 +1,4 @@
-//! The `ps` process-status builtin, moved from `omp-shell`.
+//! The `ps` process-status builtin, moved from `zetacode-shell`.
 
 #[cfg(unix)]
 use std::collections::HashSet;

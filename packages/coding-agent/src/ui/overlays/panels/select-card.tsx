@@ -1,7 +1,7 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
  * A titled card over a list of options, shown in the composer's place (the
- * debug tools menu): `card` > `spacer`, `omp.select` (`list` of `item`s, then
+ * debug tools menu): `card` > `spacer`, `zeta.select` (`list` of `item`s, then
  * the search status once the options outgrow the visible rows). The terminal
  * look: `../../styles/panels/select-card`.
  *
@@ -28,7 +28,7 @@ export interface SelectCardItem {
 /** What a {@link SelectCard} shows. */
 export interface SelectCardProps {
 	readonly title: string;
-	/** The card's `role` (default `omp.overlay`). */
+	/** The card's `role` (default `zeta.overlay`). */
 	readonly role?: string;
 	readonly items: readonly SelectCardItem[];
 	/** Rows of the list before it scrolls and type-to-search turns on. */
@@ -133,7 +133,7 @@ export function SelectCard(props: SelectCardProps): JSXNode {
 	};
 
 	return (
-		<card role={props.role ?? "omp.overlay"} head={sanitizeStatusText(props.title)} onKey={onKey}>
+		<card role={props.role ?? "zeta.overlay"} head={sanitizeStatusText(props.title)} onKey={onKey}>
 			<spacer size="sm" />
 			<col role="zeta.select">
 				<list

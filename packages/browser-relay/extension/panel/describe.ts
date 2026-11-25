@@ -1,6 +1,6 @@
 /**
  * Claude-style step labels: turn a tool call's arguments into “Clicked “Merge pull request””, “Typed in Search”,
- * “Ran `bun test`”. Browser steps are read out of the eval/browser code the agent wrote, since omp drives tabs
+ * “Ran `bun test`”. Browser steps are read out of the eval/browser code the agent wrote, since zetacode drives tabs
  * through `tab.click(…)`-style helpers rather than one tool per action.
  */
 import { INTENT_FIELD, toolIntentLabel } from "@linxiraos/pi-wire";

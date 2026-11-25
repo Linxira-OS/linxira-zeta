@@ -2,7 +2,7 @@
  * Regression tests for sticky `RULES.md` reload on in-process session reset.
  *
  * `RULES.md` is a sticky always-apply rule rendered into the system prompt's
- * generic-rules section. Creating or editing it while omp runs and then
+ * generic-rules section. Creating or editing it while zetacode runs and then
  * resetting the context (`/clear`) or starting a new session (`/new`) MUST make
  * the next prompt observe the current file — otherwise the rule set stays frozen
  * at session creation until the process restarts (issue #10940).

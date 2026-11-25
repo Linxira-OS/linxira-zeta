@@ -1,5 +1,5 @@
 /**
- * Descriptors omp holds for its own lifetime — session/advisor transcripts and
+ * Descriptors zetacode holds for its own lifetime — session/advisor transcripts and
  * the rotating log — must not reach the commands the bash tool runs.
  *
  * The bash tool executes through the natives embedded shell, which spawns
@@ -10,7 +10,7 @@
  * session it was launched from for its whole life.
  *
  * Oracle: list the child's descriptor table. `sh -c` is required — a bare `ls`
- * resolves to an in-process builtin, whose `$$` is omp itself. The scenario runs
+ * resolves to an in-process builtin, whose `$$` is zetacode itself. The scenario runs
  * in a spawned bun that receives a control descriptor as fd 3 the way a
  * launcher passes one: an extra stdio entry, `dup2`'d in without close-on-exec
  * whatever the Bun version's `fs.open` defaults are. It must reach the listed

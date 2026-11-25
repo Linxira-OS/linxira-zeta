@@ -1,5 +1,5 @@
 /**
- * `omp.app.logs` (`term.role` of the log viewer's picker): the log viewer in
+ * `zeta.app.logs` (`term.role` of the log viewer's picker): the log viewer in
  * the terminal, a framed list of raw log lines (`term.viewer`): the summary
  * and filter lines, the entries with cursor, selection and fold markers, the
  * status and key hints. Pointer events anywhere on it go to the viewer.
@@ -10,7 +10,7 @@ import { defineRoleWidget } from "@linxiraos/pi-tui/term/widgets";
 import type { LogViewerModel } from "../../../apps/log-viewer/model";
 import { paintViewerFrame } from "../viewer/frame";
 
-const ROLE = "omp.app.logs";
+const ROLE = "zeta.app.logs";
 
 function viewerOf(node: UiNode): LogViewerModel | undefined {
 	return (node.props() as { term?: { viewer?: LogViewerModel } }).term?.viewer;

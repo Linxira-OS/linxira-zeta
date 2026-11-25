@@ -155,7 +155,7 @@ A session can own more than one shell cache entry: surfaces that need their own 
 
 ## Native shell visualization
 
-`omp-shell` owns Raw/Pseudo generation, static analysis, source mapping, replay reduction and last-setter annotations. It retains the actual parser's `List`, `Command` and `Word` nodes as units compile; arithmetic formatting uses the engine's existing arithmetic parser. There is no second TypeScript AST or shfmt conversion in this path.
+`zetacode-shell` owns Raw/Pseudo generation, static analysis, source mapping, replay reduction and last-setter annotations. It retains the actual parser's `List`, `Command` and `Word` nodes as units compile; arithmetic formatting uses the engine's existing arithmetic parser. There is no second TypeScript AST or shfmt conversion in this path.
 
 - **Incremental:** only engine-announced syntax is presented as Pseudo. Uncompiled source remains literal; creating or presenting a pending `RunTrace` does not parse ahead.
 - **Live:** the executor attaches each immutable snapshot to its actual native `RunTrace` before publishing it. `RunTrace.present(options)` borrows native syntax/history; the UI does not serialize and reload an AST on each update.

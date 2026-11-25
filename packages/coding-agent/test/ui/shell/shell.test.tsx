@@ -20,7 +20,7 @@ describe("Transcript", () => {
 			expect(nodes[0]!.kind).toBe("text");
 			const run = nodes[1]!;
 			expect(run.kind).toBe("col");
-			expect(run.props()).toMatchObject({ role: "omp.compact", gap: "none" });
+			expect(run.props()).toMatchObject({ role: "zeta.compact", gap: "none" });
 			expect(run.children()).toEqual([content(c1), content(c2)]);
 
 			// The run keeps its wrapper while it grows, and settles with its last member.
@@ -43,9 +43,9 @@ describe("Transcript", () => {
 		const transcript = new Transcript();
 		transcript.append(
 			() => (
-				<col role="omp.welcome.block">
+				<col role="zeta.welcome.block">
 					<spacer size="sm" />
-					<card role="omp.welcome" />
+					<card role="zeta.welcome" />
 					<spacer size="sm" />
 				</col>
 			),

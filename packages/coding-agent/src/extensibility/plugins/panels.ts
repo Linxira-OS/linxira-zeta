@@ -79,7 +79,7 @@ export function readCatalogue(pluginRoot: string): PluginCatalogue {
 
 /**
  * A `package.json` as far as a panel host reads it: the npm name and the
- * zeta / legacy omp / pi manifest block.
+ * zeta / legacy zetacode / pi manifest block.
  *
  * This is the one JSON boundary in the module; everything below narrows on it
  * with `in`/`typeof` instead of re-asserting shapes.

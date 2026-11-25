@@ -103,7 +103,7 @@ Extension packages can also bundle sibling capability directories. When a packag
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `omp` field to `package.json`:
+To package an extension as an installable plugin, add an `zetacode` field to `package.json`:
 
 ```json
 {
@@ -253,13 +253,13 @@ Details: [transcript presenter](../extensions.md#transcript-presenter).
 
 ## Extension vs hook — when to use which
 
-| Need                                          | Use                                                                       |
-| --------------------------------------------- | ------------------------------------------------------------------------- |
-| Tools + commands + events in one module       | **Extension** (`ExtensionAPI`)                                            |
-| Pure event interception (policy, redaction)   | **Extension** or **Hook** (both work; extension is preferred)             |
+| Need                                          | Use                                                             |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| Tools + commands + events in one module       | **Extension** (`ExtensionAPI`)                                  |
+| Pure event interception (policy, redaction)   | **Extension** or **Hook** (both work; extension is preferred)   |
 | Legacy hook module already exists             | **Hook** (`HookAPI` from `@linxiraos/zeta/extensibility/hooks`) |
-| Registering a provider, shortcut, or CLI flag | **Extension only**                                                        |
-| Shipping as a marketplace plugin              | **Extension** (use `package.json` manifest)                               |
+| Registering a provider, shortcut, or CLI flag | **Extension only**                                              |
+| Shipping as a marketplace plugin              | **Extension** (use `package.json` manifest)                     |
 
 New authoring should use `ExtensionAPI`. Discovered JS/TS hook factories are loaded through this API in normal sessions; the standalone `HookRunner` remains for legacy SDK consumers. Shared event names do not imply identical result-chaining behavior in both runners.
 

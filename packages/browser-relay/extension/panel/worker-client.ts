@@ -68,7 +68,7 @@ export class WorkerClient implements PanelWorker {
 	request<Op extends PanelRequestOp>(op: Op, fields: PanelRequestMap[Op][0]): Promise<PanelResult<Op>> {
 		if (this.#port === null && !this.#closed) this.#dial();
 		const port = this.#port;
-		if (port === null) return Promise.reject(new WorkerRequestError(op, "The omp extension worker is not running"));
+		if (port === null) return Promise.reject(new WorkerRequestError(op, "The zetacode extension worker is not running"));
 		const id = ++this.#seq;
 		const timeout = TIMEOUT_MS[op] ?? DEFAULT_TIMEOUT_MS;
 		const promise = new Promise<unknown>((resolve, reject) => {
@@ -136,7 +136,7 @@ export class WorkerClient implements PanelWorker {
 			// Reading lastError marks a refused connection as handled.
 			void chrome.runtime.lastError;
 			if (this.#port !== port) return;
-			this.#drop("The omp extension worker restarted");
+			this.#drop("The zetacode extension worker restarted");
 			if (this.#closed) return;
 			this.#redialTimer = window.setTimeout(() => this.#dial(), this.#redialDelay);
 			this.#redialDelay = Math.min(this.#redialDelay * 2, REDIAL_MAX_MS);

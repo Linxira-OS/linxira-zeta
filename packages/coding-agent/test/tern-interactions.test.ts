@@ -113,7 +113,7 @@ test.skipIf(!available && Bun.env.OMP_REQUIRE_TERN !== "1")(
 					`PATH=${env.PATH}`,
 					`HOME=${home}`,
 					`LANG=${env.LANG}`,
-					`PI_CODING_AGENT_DIR=${agent}`,
+					`ZETA_CODING_AGENT_DIR=${agent}`,
 					"TERM=xterm-256color",
 					"TERM_PROGRAM=tern",
 					"OMP_SKIP_SETUP=1",

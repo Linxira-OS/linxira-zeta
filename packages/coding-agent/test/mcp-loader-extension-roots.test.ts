@@ -32,7 +32,7 @@ describe("discoverAndLoadMCPTools extension roots", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
@@ -44,7 +44,7 @@ describe("discoverAndLoadMCPTools extension roots", () => {
 		await fs.mkdir(path.join(projectDir, ".git"), { recursive: true });
 		restoreEnvValue("HOME", tempHome);
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".omp", "agent"));
+		setAgentDir(path.join(tempHome, ".zeta", "agent"));
 		await Bun.write(
 			path.join(extensionDir, ".mcp.json"),
 			JSON.stringify({ mcpServers: { extensionserver: { command: "extension-mcp" } } }),
@@ -64,7 +64,7 @@ describe("discoverAndLoadMCPTools extension roots", () => {
 		restoreEnvValue("HOME", originalHome);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
-		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		__resetDirsFromEnvForTests();
 		clearClaudePluginRootsCache();

@@ -1,7 +1,7 @@
 /**
  * The `OMP_TUI_DEBUG` server: an NDJSON request/response socket (a Unix
  * socket, or a named pipe on Windows) through which the repository's `tui`
- * debug tool (`.omp/tools/tui.ts`) queries a running host and injects input.
+ * debug tool (`.zeta/tools/tui.ts`) queries a running host and injects input.
  *
  * {@link startHost} loads this module only when `OMP_TUI_DEBUG` names an
  * endpoint. Queries read what the host last rendered: the terminal

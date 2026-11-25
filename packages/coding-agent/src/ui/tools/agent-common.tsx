@@ -13,7 +13,7 @@ export function cleanText(text: string): string {
 	return replaceTabs(stripControl(text));
 }
 
-/** A failure message (`omp.tool.error`): JSON-looking multi-line errors as code, others as error text. */
+/** A failure message (`zeta.tool.error`): JSON-looking multi-line errors as code, others as error text. */
 export function ErrorText(props: { readonly message: string }): JSXNode {
 	const body = cleanText(props.message).trim();
 	if (body.includes("\n") && /^[{[]/.test(body))

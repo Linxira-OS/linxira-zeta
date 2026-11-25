@@ -11,7 +11,7 @@ export const REQUEST_LOG_LIMIT = 200;
 export const RESPONSE_BODY_LIMIT_BYTES = 1024 * 1024;
 const ROUTE_INTERCEPT_PRIORITY = 10;
 const PASS_THROUGH_INTERCEPT_PRIORITY = 0;
-const REQUEST_RECORD = Symbol("omp.browser.requestRecord");
+const REQUEST_RECORD = Symbol("zeta.browser.requestRecord");
 /** Request types a look waits for after an action; long-lived streams and subresources are excluded. */
 const SETTLE_RESOURCE_TYPES: Record<string, true> = { document: true, fetch: true, xhr: true };
 
@@ -68,7 +68,7 @@ export interface NetworkRequestRecord {
 	/** Requested URL. */
 	url: string;
 	/**
-	 * Puppeteer resource type. omp's WebKit host names none and omp derives it from the request: there `fetch` stands
+	 * Puppeteer resource type. omp's WebKit host names none and zetacode derives it from the request: there `fetch` stands
 	 * for `xhr` too, and `document`/`subdocument` only for a frame's navigation.
 	 */
 	resourceType: string;

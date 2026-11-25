@@ -67,7 +67,7 @@ export function modelRoleOf(role: string | undefined): string | undefined {
 		: role;
 }
 
-/** Client other than the terminal that started a session: `chrome` is the omp extension's side panel. */
+/** Client other than the terminal that started a session: `chrome` is the zetacode extension's side panel. */
 export type SessionClientOrigin = "chrome";
 
 /** `value` as a {@link SessionClientOrigin}; anything else (absent, unknown client) is the terminal's. */
@@ -166,7 +166,7 @@ export interface SessionEntryBase {
 	parentId: string | null;
 	timestamp: string;
 	/**
-	 * omp build that wrote this entry, set on every entry this session's process authors. Copies
+	 * zetacode build that wrote this entry, set on every entry this session's process authors. Copies
 	 * (forks, branches, collab replicas) keep the original writer. Absent on older entries.
 	 */
 	runtime?: RuntimeIdentity;

@@ -153,7 +153,7 @@ function spendableNow(
 }
 
 /**
- * What an open interactive omp session does with an account's soonest expiring saved
+ * What an open interactive zetacode session does with an account's soonest expiring saved
  * reset, from the consent of the window that governs it: `auto` spends it by its
  * last five minutes if the provider still allows it then, `ask` prompts first,
  * `off` leaves it. `eligibleNow` is the salvage planner's answer for this report

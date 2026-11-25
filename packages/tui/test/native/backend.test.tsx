@@ -1363,7 +1363,7 @@ describe("native events", () => {
 	});
 
 	it("edits a focused editor from raw keys and pastes, as Tern forwards them", async () => {
-		// Tern leaves an omp editor's editing to the program: typed keys arrive raw, not as `edit` events.
+		// Tern leaves an zetacode editor's editing to the program: typed keys arrive raw, not as `edit` events.
 		const text = signal("");
 		let field: UiNode | undefined;
 		const h = await mount(() => ({

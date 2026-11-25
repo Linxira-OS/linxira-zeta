@@ -3,7 +3,7 @@
  *
  * Owns policy and session state — provider gating, quarantine, and the
  * lazy-frame producer registry — and delegates URL minting to a
- * {@link BlobBackend}: a `blob` unit in the omp daemon per configured
+ * {@link BlobBackend}: a `blob` unit in the zetacode daemon per configured
  * destination when the daemon is reachable, in-process backends otherwise.
  * Every failure at any layer degrades to inline base64.
  */
@@ -376,12 +376,12 @@ async function blobDaemon(): Promise<DaemonClient | null> {
 	try {
 		const client = await daemonClient();
 		if (client.welcome.caps[BLOB_BROKER_KIND] !== BLOB_MODULE_VERSION) {
-			logger.debug("omp daemon has no compatible blob module; using in-process image URL backends");
+			logger.debug("zetacode daemon has no compatible blob module; using in-process image URL backends");
 			return null;
 		}
 		return client;
 	} catch (error) {
-		logger.debug("omp daemon unreachable; using in-process image URL backends", { error: errorMessage(error) });
+		logger.debug("zetacode daemon unreachable; using in-process image URL backends", { error: errorMessage(error) });
 		return null;
 	}
 }

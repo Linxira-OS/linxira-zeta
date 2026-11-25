@@ -4719,7 +4719,7 @@ describe("menu.items beneath a named menu", () => {
 	});
 });
 
-describe("computer.takeover opt-in modes, where omp decides", () => {
+describe("computer.takeover opt-in modes, where zetacode decides", () => {
 	/** Records each input call as `method:target:delivery`; window 42 holds input focus while `front` is set. */
 	class DecidingSession extends FakeNativeSession {
 		readonly sent: string[] = [];
@@ -4886,7 +4886,7 @@ describe("computer.takeover opt-in modes, where omp decides", () => {
 				expect(result.ok, `${mode}: ${code}`).toBe(false);
 				if (result.ok) continue;
 				expect(result.error.message, code).toContain(`computer.takeover setting is "${mode}"`);
-				expect(result.error.message, code).toContain("omp decides when input takes over; nothing was sent");
+				expect(result.error.message, code).toContain("zetacode decides when input takes over; nothing was sent");
 				expect(native.sent, code).toEqual([]);
 			}
 		}
@@ -4920,7 +4920,7 @@ describe("computer.takeover opt-in modes, where omp decides", () => {
 		if (!result.ok) throw new Error(result.error.message);
 		const [note] = result.payload.displays.flatMap(block => (block.type === "text" ? [block.text] : []));
 		expect(note).toStartWith("move ran in the background, which gives the app no hover");
-		expect(note).toEndWith("where omp takes over its input so a click reaches the control");
+		expect(note).toEndWith("where zetacode takes over its input so a click reaches the control");
 		expect(note).not.toContain("takeover: true");
 	});
 });

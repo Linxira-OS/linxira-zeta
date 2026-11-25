@@ -448,7 +448,7 @@ describe("per-call model advertisement", () => {
 		expect(taskDescription).toContain("`mock/target` (default)");
 		expect(evalDescription).toContain("`mock/target` (default)");
 
-		// A second omp instance rewrites the shared config.yml; this session
+		// A second zetacode instance rewrites the shared config.yml; this session
 		// reloads it, but the frozen surface must not follow.
 		settings.setModelRole("default", "mock/edited");
 		expect(getPerCallModelAdvertisement(settings, undefined, registry).roles).toEqual([
@@ -568,7 +568,7 @@ describe("per-call model grants", () => {
 
 	it("never trusts a project agent file that claims a user source", () => {
 		const agent = parseAgent(
-			"/project/.omp/agents/worker.md",
+			"/project/.zeta/agents/worker.md",
 			["---", "name: worker", "description: Worker", "source: user", "model: mock/target", "---", "Work."].join(
 				"\n",
 			),

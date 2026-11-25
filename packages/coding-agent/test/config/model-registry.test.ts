@@ -243,7 +243,7 @@ describe("ModelRegistry", () => {
 		await registry.refreshProvider("auth-ext", "online");
 		expect(registry.find("auth-ext", "auth-model")).toBeDefined();
 
-		// Each step runs in a fresh registry, as separate `omp` invocations do.
+		// Each step runs in a fresh registry, as separate `zetacode` invocations do.
 		fail = true;
 		const failedRefresh = new ModelRegistry(authStorage, modelsPath);
 		register(failedRefresh);

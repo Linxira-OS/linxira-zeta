@@ -1,4 +1,4 @@
-//! `omp-shell`: pi's embedded bash.
+//! `zetacode-shell`: pi's embedded bash.
 //!
 //! One crate, in layers:
 //!
@@ -8,11 +8,11 @@
 //!   through the [`bash::Host`] seam.
 //! - [`sys`]: the OS pieces of a host (process spawning and groups, the
 //!   `std::fs` filesystem, readiness, parking).
-//! - pi's host: [`vfs::VfsFs`] (the engine's filesystem over `omp-vfs`),
+//! - pi's host: [`vfs::VfsFs`] (the engine's filesystem over `zetacode-vfs`),
 //!   [`host::PiHost`], [`session::Session`] (a persistent shell driven by a
 //!   task on the caller's runtime), [`commands`] (the host's session commands
 //!   of a run), [`tools`] (`timeout`, `nohup`, `git` and the command-running
-//!   extras as host callouts), [`extras`] (pi's utilities from `omp-builtins`
+//!   extras as host callouts), [`extras`] (pi's utilities from `zetacode-builtins`
 //!   as engine commands) and [`git`] (the guard and in-process worktree
 //!   layers).
 //! - The API omp-natives uses: [`Shell`], [`execute_shell`],
@@ -68,7 +68,7 @@ pub use commands::{
 	SessionCommandFuture, SessionCommandHandler, SessionCommandRequest, SessionCommandResult,
 	SessionCommands, reserved_command_names,
 };
-// Re-exported for `omp-natives`: the builtins live in `omp-builtins`,
+// Re-exported for `zetacode-natives`: the builtins live in `zetacode-builtins`,
 // but the native layer only ever depends on the shell.
 pub use omp_builtins::{
 	extras::{SpeechAudio, SpeechHost, SpeechOutcome, SpeechRequest, SpeechVoice},

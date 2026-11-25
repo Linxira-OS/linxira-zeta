@@ -375,7 +375,7 @@ describe("pickElectronTarget", () => {
 	}, 10_000);
 
 	test("rejects a user-data-dir already used by the running executable", async () => {
-		const profile = path.join(os.tmpdir(), `omp-browser-profile-${process.pid}-${Date.now()}`);
+		const profile = path.join(os.tmpdir(), `zetacode-browser-profile-${process.pid}-${Date.now()}`);
 		const existing = await spawnDisposableExecutable([`--user-data-dir=${profile}`]);
 		try {
 			await expect(
@@ -441,7 +441,7 @@ describe("pickElectronTarget", () => {
 
 	test("does not reuse a live CDP endpoint belonging to a different profile", async () => {
 		const cdp = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("{}") });
-		const profile = path.join(os.tmpdir(), `omp-cdp-profile-${crypto.randomUUID()}`);
+		const profile = path.join(os.tmpdir(), `zetacode-cdp-profile-${crypto.randomUUID()}`);
 		const existing = await spawnDisposableExecutable([
 			`--user-data-dir=${profile}`,
 			`--remote-debugging-port=${cdp.port}`,

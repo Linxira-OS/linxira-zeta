@@ -31,7 +31,7 @@ async function runRegistryProbe(entries: BundledPiEntry[], source: string): Prom
 // `rewriteLegacyPiImports` catch left the original specifier in place and
 // Bun's native resolver couldn't find a peer install. The build plugin now
 // derives every module key from current package exports, so subpaths route to
-// the same `omp-legacy-pi-bundled:` virtual namespace as package roots without
+// the same `zetacode-legacy-pi-bundled:` virtual namespace as package roots without
 // a generated registry or duplicate key list.
 describe("legacy pi compat compiled-mode subpath overrides (issue #3442)", () => {
 	it("does not evaluate unrelated host modules while loading the registry", async () => {
@@ -104,7 +104,7 @@ export const observed = {
 			link: [{ type: "link", text: "photo.png", href: "file:///tmp/photo.png" }],
 		});
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 
 	it("loads exported .js utility aliases from the same host modules", async () => {
@@ -133,7 +133,7 @@ export const observed = {
 		);
 		expect(observed).toEqual({ sharedLexer: true, sharedCache: true, text: "photo.png" });
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 
 	it("expands wildcard exports for concrete on-disk targets (issue #3442 follow-up)", () => {
@@ -174,7 +174,7 @@ export const observed = [mod.piEscapeRegexLiteral("a.b*c"), mod.piJoinPath("src"
 		).toEqual(["a\\.b\\*c", path.join("src", "*.ts")]);
 
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 
 	it("loads catalog root and provider-model exports from the bundled graph", async () => {
@@ -215,7 +215,7 @@ export const observed = buildModel({
 		);
 		expect(observed).toBe("Sample");
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 
 	it("expands web search provider wildcard exports for compiled plugin imports", () => {
@@ -229,7 +229,7 @@ export const observed = buildModel({
 
 		for (const key of providerKeys) {
 			expect(bundledModuleKeys.has(key)).toBe(true);
-			expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+			expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 		}
 	});
 
@@ -237,7 +237,7 @@ export const observed = buildModel({
 		const key = "@linxiraos/zeta/registry/agent-registry";
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(bundledModuleKeys.has(key)).toBe(true);
-		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 
 	it("keeps coding-agent's root catch-all wildcards (./* / ./*.js) out of the bundle", () => {
@@ -265,7 +265,7 @@ export const observed = buildModel({
 			// (they re-attach `Type`, `defineTool`, etc. dropped from the canonical
 			// package surfaces); typebox is served via TYPEBOX_SHIM_PATH.
 			if (key === "@linxiraos/pi-ai" || key === "@linxiraos/zeta" || key === "typebox") continue;
-			if (overrides[key] !== `omp-legacy-pi-bundled:${key}`) {
+			if (overrides[key] !== `zetacode-legacy-pi-bundled:${key}`) {
 				missing.push(key);
 			}
 		}
@@ -324,6 +324,6 @@ export const observed = {
 		);
 		expect(observed).toEqual({ node: true, theme: "function" });
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zetacode-legacy-pi-bundled:${key}`);
 	});
 });

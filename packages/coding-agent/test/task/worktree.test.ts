@@ -131,7 +131,7 @@ describe("worktree isolation helpers", () => {
 	// Regression: the staged and unstaged diffs were rendered in full before the
 	// #8939 gate ran, so a working tree whose index-vs-HEAD diff was enormous
 	// (a jj conflict commit exported to git materialises every side as a
-	// `.jjconflict-*` subtree) grew one omp process to 141 GB and took the host
+	// `.jjconflict-*` subtree) grew one zetacode process to 141 GB and took the host
 	// down. The renderer now stops at the budget; the caller sees the same typed
 	// refusal it gets for oversized untracked content, with no measured total.
 	it("refuses to snapshot a working tree whose staged diff exceeds the isolation budget", async () => {

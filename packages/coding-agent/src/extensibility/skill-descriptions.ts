@@ -280,7 +280,7 @@ function resolveSkillDescriptionsDbPath(agentDir?: string): string {
  * atomically and never clobbers a database another process adopted or created
  * first. Where hard links are unsupported (some FUSE, exFAT, or network
  * mounts) an exclusive copy keeps the no-clobber guarantee. The legacy file
- * stays for older omp versions sharing the profile.
+ * stays for older zetacode versions sharing the profile.
  */
 function adoptLegacyDatabase(legacyPath: string, dbPath: string): void {
 	if (legacyPath === dbPath || fs.existsSync(dbPath) || !fs.existsSync(legacyPath)) return;
@@ -429,7 +429,7 @@ export interface RoutingHintRequest {
 
 /**
  * Takes the machine-wide lock of one compression job (`<store path>:<hint key>`) and resolves with
- * its release, so one omp process asks the model for a hint and the others read its answer from
+ * its release, so one zetacode process asks the model for a hint and the others read its answer from
  * the store.
  */
 export type RoutingHintLock = (job: string) => Promise<() => void>;
@@ -444,7 +444,7 @@ export interface RoutingHintCatalogOptions {
 	 * cost gate exists, and off a startup path (resolving the compression model composes the catalog).
 	 */
 	deferCompression?: boolean;
-	/** Without one, every omp process compresses its own misses. */
+	/** Without one, every zetacode process compresses its own misses. */
 	lock?: RoutingHintLock;
 }
 
@@ -596,7 +596,7 @@ export class SkillDescriptionCatalog {
 /**
  * Compress one routing hint into `store`. `batchModel` filters out requests that model already
  * answered unusably (and everything when no model is available) before taking a slot. `lock` makes
- * the request wait its turn among omp processes; a hint one of them stored meanwhile is not requested.
+ * the request wait its turn among zetacode processes; a hint one of them stored meanwhile is not requested.
  */
 async function compressHint(
 	store: SkillDescriptionStore,

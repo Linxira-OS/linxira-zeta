@@ -1,11 +1,11 @@
 /**
  * Terminal looks of the dock's status rows.
  *
- * - `row` `omp.working`: a blank row, then the inset interrupt key
+ * - `row` `zeta.working`: a blank row, then the inset interrupt key
  *   (muted, or the accent's dim hue) and the label shimmering — or, for a
  *   maintenance run, a spinner frame (accent; warning for a retry) and the
  *   muted line. A trailer docks right when two cells stay free.
- * - `row` `omp.hint.retry`: a blank row, then `F5` (dim) ` to retry`
+ * - `row` `zeta.hint.retry`: a blank row, then `F5` (dim) ` to retry`
  *   (muted) where the working row's interrupt key stood.
  */
 import type { UiNode } from "@linxiraos/pi-tui";
@@ -18,7 +18,7 @@ import { terminalPaddingX } from "../terminal-padding";
 import { keyLabel } from "../../keys/hints";
 import { termOf } from "../messages/fill";
 
-/** What the working row's terminal look reads (`term` of the `omp.working` row). */
+/** What the working row's terminal look reads (`term` of the `zeta.working` row). */
 export type WorkingTerm = {
 	readonly look: "working" | "maintenance";
 	/** The interrupt key: the working row's glyph. */
@@ -99,5 +99,5 @@ function paintRetryHint(node: UiNode, cx: PaintContext): Block {
 	};
 }
 
-defineRolePainter("row", "omp.working", paintWorking);
-defineRolePainter("row", "omp.hint.retry", paintRetryHint);
+defineRolePainter("row", "zeta.working", paintWorking);
+defineRolePainter("row", "zeta.hint.retry", paintRetryHint);

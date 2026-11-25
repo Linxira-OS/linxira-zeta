@@ -1,11 +1,11 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * `omp ps` as a live monitor: a head (title, counts, the scope control,
+ * `zetacode ps` as a live monitor: a head (title, counts, the scope control,
  * freshness, quit), one section per unit scope with a selectable process
  * list, the transient status, and an action bar that mirrors the keys. Info
  * and logs replace the list.
  *
- * The terminal shows the classic btop-style table (the `omp.app.ps` look).
+ * The terminal shows the classic btop-style table (the `zeta.app.ps` look).
  */
 import type { JSXNode } from "@linxiraos/pi-tui";
 import { formatDuration } from "@linxiraos/pi-utils";
@@ -188,7 +188,9 @@ function table(model: PsTopModel): JSXNode {
 		const hint: TspSpan[] = [
 			{
 				s: "muted",
-				t: model.board()?.daemon ? "The omp daemon runs nothing here. " : "The omp daemon is not running. ",
+				t: model.board()?.daemon
+					? "The zetacode daemon runs nothing here. "
+					: "The zetacode daemon is not running. ",
 			},
 			{ s: "muted", t: all ? "Nothing runs anywhere." : "Show every scope with " },
 		];

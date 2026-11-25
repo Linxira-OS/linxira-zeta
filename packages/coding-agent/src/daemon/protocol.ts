@@ -1,7 +1,7 @@
 /**
- * Wire protocol and client surface of the single per-user omp daemon.
+ * Wire protocol and client surface of the single per-user zetacode daemon.
  *
- * One daemon owns every background process omp shares between sessions. It
+ * One daemon owns every background process zetacode shares between sessions. It
  * listens on one endpoint (Unix socket / named pipe, or TCP when
  * {@link DAEMON_TCP_ENV} is set). Every connection starts in control mode:
  * LF-delimited JSON, first line a {@link DaemonHello}. A successful `attach`
@@ -48,7 +48,7 @@ export interface DaemonHello {
 	token: string;
 	client: {
 		pid: number;
-		/** omp `VERSION` of the client. */
+		/** zetacode `VERSION` of the client. */
 		build: string;
 		/** Command that re-enters the client's build (`resolveCliEntryCmd()`); the daemon re-execs it on `upgrade`. */
 		exe: string[];

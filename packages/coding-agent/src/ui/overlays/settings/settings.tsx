@@ -57,9 +57,9 @@ import { SnapcompactSamples, SnapcompactShapePreview } from "../panels/snapcompa
 /** The plugins page id. */
 const PLUGINS_PAGE = "plugins";
 /** Role of the status-line preview child. */
-const PREVIEW_ROLE = "omp.prefs.preview.status";
+const PREVIEW_ROLE = "zeta.prefs.preview.status";
 /** Role of an editor drawn in place of the rows. */
-const EDITOR_ROLE = "omp.prefs.editor";
+const EDITOR_ROLE = "zeta.prefs.editor";
 /** Text settings whose values are paths, ids or commands (drawn in mono). */
 const MONO_TEXT_SETTING = /(path|dir|url|endpoint|host|command|model|id)$/i;
 /** Settings whose menus preview the highlighted choice live. */
@@ -1268,7 +1268,7 @@ export function SettingsWindow(props: {
 
 	return (
 		<prefs
-			title="omp settings"
+			title="zetacode settings"
 			pages={pages}
 			page={() => (searching() ? preSearchTab() : tab())}
 			lead={() => {

@@ -1,6 +1,6 @@
 /**
- * Dividers and turn markers (`rule` role `omp.divider`, `row`/`rule` roles
- * `omp.marker.*`): a blank row, then a short rule in the rule color and the
+ * Dividers and turn markers (`rule` role `zeta.divider`, `row`/`rule` roles
+ * `zeta.marker.*`): a blank row, then a short rule in the rule color and the
  * label in its color, then a blank row.
  *
  * The rule is at most `ruleWidth` cells (10) and gives way to the label;
@@ -38,6 +38,6 @@ function paintDivider(node: UiNode, cx: PaintContext): Block {
 	return { rows: ["", dividerLine(cx, termOf<DividerTerm>(node)), ""] };
 }
 
-defineRolePainter("rule", "omp.divider", paintDivider);
-defineRolePainter("rule", "omp.marker", paintDivider, { prefix: true });
-defineRolePainter("row", "omp.marker", paintDivider, { prefix: true });
+defineRolePainter("rule", "zeta.divider", paintDivider);
+defineRolePainter("rule", "zeta.marker", paintDivider, { prefix: true });
+defineRolePainter("row", "zeta.marker", paintDivider, { prefix: true });

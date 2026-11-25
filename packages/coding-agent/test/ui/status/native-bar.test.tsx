@@ -29,7 +29,7 @@ describe("status bar preview for Tern", () => {
 		const { root, dispose } = preview(corpusStatusFacts());
 		try {
 			expect(root.kind).toBe("status");
-			expect((root.props() as { role?: string }).role).toBe("omp.status");
+			expect((root.props() as { role?: string }).role).toBe("zeta.status");
 			const segs = new Map(root.children().map(seg => [seg.key(), seg.props() as Record<string, unknown>]));
 			expect(segs.get("pi")).toMatchObject({ side: "left", priority: 11 });
 			expect(segs.get("pi")?.actions).toBeUndefined();
@@ -45,10 +45,10 @@ describe("status bar preview for Tern", () => {
 		const { root, dispose } = preview({ ...corpusStatusFacts(), hooks: ["lint ok"] });
 		try {
 			expect(root.kind).toBe("col");
-			expect((root.props() as { role?: string }).role).toBe("omp.status.panel");
+			expect((root.props() as { role?: string }).role).toBe("zeta.status.panel");
 			const [bar, hook] = root.children();
 			expect(bar?.kind).toBe("status");
-			expect(hook?.props()).toMatchObject({ role: "omp.status.hook", text: "lint ok" });
+			expect(hook?.props()).toMatchObject({ role: "zeta.status.hook", text: "lint ok" });
 		} finally {
 			dispose();
 		}

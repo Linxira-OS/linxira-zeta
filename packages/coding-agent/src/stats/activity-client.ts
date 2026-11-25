@@ -107,7 +107,7 @@ async function loadActivity(
 	}
 }
 
-/** `omp --smoke-test` probe: sync a fresh transcript and check the resulting heatmap. */
+/** `zetacode --smoke-test` probe: sync a fresh transcript and check the resulting heatmap. */
 export async function smokeTestStatsActivityWorker({
 	timeoutMs = SMOKE_TEST_TIMEOUT_MS,
 }: {

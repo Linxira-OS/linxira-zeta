@@ -21,7 +21,7 @@ let manager: MCPManager;
 let fixture: ServiceWorker<IntegrationsProbe>;
 
 beforeEach(async () => {
-	dir = path.join(os.tmpdir(), `omp-mcp-tools-version-${Snowflake.next()}`);
+	dir = path.join(os.tmpdir(), `zetacode-mcp-tools-version-${Snowflake.next()}`);
 	fs.mkdirSync(dir, { recursive: true });
 	authStorage = createInMemoryAuthStorage();
 	manager = new MCPManager(dir, null, async () => ({ configs: {}, sources: {}, exaApiKeys: [] }));

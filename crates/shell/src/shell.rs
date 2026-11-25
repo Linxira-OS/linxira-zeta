@@ -1503,7 +1503,7 @@ async fn run_shell_command_single(
 			};
 			// Surface telemetry only when the filter actually rewrote the output
 			// and kept the original buffer — same contract as
-			// `apply_shell_minimizer` in `omp-natives`. A supported filter that
+			// `apply_shell_minimizer` in `zetacode-natives`. A supported filter that
 			// runs but leaves the output unchanged reports `changed: false` with
 			// no `original_text` and must NOT set `minimized`.
 			if minimized.changed

@@ -1,6 +1,6 @@
 # Context files
 
-Context files are Markdown instruction files that `omp` discovers automatically before a session starts and injects into the agent's project context. Use them for repository conventions, architecture notes, test and review expectations, and instructions that should travel with a user account or a project.
+Context files are Markdown instruction files that `zetacode` discovers automatically before a session starts and injects into the agent's project context. Use them for repository conventions, architecture notes, test and review expectations, and instructions that should travel with a user account or a project.
 
 You never have to ask the agent to go read `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or similar files — the relevant ones are already discovered, loaded, and placed in context when the session begins.
 
@@ -10,7 +10,7 @@ Four similarly named things behave differently. Keep them straight:
 
 - **Context files** are read as plain Markdown and shown to the agent in generated project instructions (inside `<repo-rules>` with the default prompt template). They are session-opening instructions and background for repository work.
 - **Sticky rules** come from a top-level native `RULES.md`. They are converted into an always-apply rule whose full body is carried on every request, so it stays in context and keeps its hold even after the visible conversation grows. See "Sticky rules vs normal context" below.
-- **Discovery providers** are the config-source adapters that know where each tool keeps its files. The full registry is `native`, `omp-plugins`, `claude`, `agent-plugins`, `codex`, `agents`, `claude-plugins`, `gemini`, `opencode`, `cursor`, `windsurf`, `cline`, `github`, `vscode`, `agents-md`, `claude-md`, `custom-context`, `mcp-json`, `ssh-json`, `ssh-config`, `skillshare`, `omp-managed`, and `builtin-defaults`. Only some contribute context files (`native`, `claude`, `codex`, `gemini`, `opencode`, `github`, `agents`, `agents-md`, `claude-md`, `custom-context`); the rest contribute other capabilities such as rules, MCP servers, skills, commands, hooks, tools, or SSH hosts. The same provider that contributes context files may also contribute MCP servers, slash commands, skills, hooks, tools, prompts, and settings.
+- **Discovery providers** are the config-source adapters that know where each tool keeps its files. The full registry is `native`, `zetacode-plugins`, `claude`, `agent-plugins`, `codex`, `agents`, `claude-plugins`, `gemini`, `opencode`, `cursor`, `windsurf`, `cline`, `github`, `vscode`, `agents-md`, `claude-md`, `custom-context`, `mcp-json`, `ssh-json`, `ssh-config`, `skillshare`, `zetacode-managed`, and `builtin-defaults`. Only some contribute context files (`native`, `claude`, `codex`, `gemini`, `opencode`, `github`, `agents`, `agents-md`, `claude-md`, `custom-context`); the rest contribute other capabilities such as rules, MCP servers, skills, commands, hooks, tools, or SSH hosts. The same provider that contributes context files may also contribute MCP servers, slash commands, skills, hooks, tools, prompts, and settings.
 - **Model providers** are inference backends such as `anthropic`, `openai`, `google`, `groq`, `ollama`, and `openrouter`. They have nothing to do with context files except that both kinds of id share the one `disabledProviders` list — see "Disabling discovery providers" below and [Providers](./providers.md).
 
 Authoring **skills** and **rule** files (as opposed to the sticky `RULES.md`) is covered in [Skills](./skills.md). Customizing the system prompt with `SYSTEM.md` is covered in [System prompt customization](./system-prompt-customization.md).
@@ -31,7 +31,7 @@ Two details matter:
 - **The nearest non-empty `.omp/` directory owns native project discovery.** Discovery starts in the current working directory and climbs toward the repository root. Once it finds a non-empty `.omp/`, it stops; native `AGENTS.md` and `RULES.md` are each read from that directory only. A missing file does not make discovery continue upward.
 - **Empty directories and files contribute nothing.** An empty `.omp/` directory is skipped during the walk. In the selected non-empty directory, an empty `AGENTS.md` or `RULES.md` contributes nothing.
 
-`~/.omp/agent` is shorthand for the active native agent directory. `PI_CODING_AGENT_DIR` relocates it. A named profile (`omp --profile <name>`, `OMP_PROFILE`, or `PI_PROFILE`) uses `~/.omp/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
+`~/.omp/agent` is shorthand for the active native agent directory. `ZETA_CODING_AGENT_DIR` relocates it. A named profile (`zetacode --profile <name>`, `OMP_PROFILE`, or `PI_PROFILE`) uses `~/.omp/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
 
 ### Monorepo example
 
@@ -54,7 +54,7 @@ Put broad, durable project background in `AGENTS.md`. Reserve `RULES.md` for sho
 
 ## Other supported context conventions
 
-`omp` also discovers the context and rule files of other agent tools so existing projects keep working without migration.
+`zetacode` also discovers the context and rule files of other agent tools so existing projects keep working without migration.
 
 Foreign **user-level** sources (`claude`, `codex`, `gemini`, `opencode`, and `github` in the table below) are opt-in through `enabledProviders`; their project-level files remain enabled by default. Native and `.agent` / `.agents` user sources are enabled by default. An explicit `CLAUDE_CONFIG_DIR` also opts in Claude user discovery and relocates its user base. For example:
 
@@ -80,9 +80,9 @@ enabledProviders:
 | `custom-context` | names in `contextFiles.extra`               | User + project | Opt-in basenames such as `AGENTS.local.md`. Project walk matches `agents-md`. Also the user agent directory, and the primary checkout root when the session is a linked worktree. Additive: does not take or shadow the one-per-depth slot. Empty until configured.                                                                                                                                                                                                                                                                               |
 | `github`         | `.github/instructions/**/*.instructions.md` | Project rules  | GitHub Copilot / VS Code instruction files become rules. `applyTo: '*'`, `applyTo: '**'`, or `applyTo: '**/*'` is injected as always-apply content; other `applyTo` globs are listed in the rulebook with a generated description when needed and are readable as `rule://<name>`. Missing `applyTo` also produces a rulebook entry and a discovery warning.                                                                                                                                                                                      |
 
-Providers marked "(no ancestor walk-up)" only look in the current working directory's config directory. If you need ancestor walk-up behavior, prefer the native `.omp/AGENTS.md` format or a standalone `AGENTS.md` or `CLAUDE.md` (the `agents-md` / `claude-md` providers), or launch `omp` from the directory that holds the config directory.
+Providers marked "(no ancestor walk-up)" only look in the current working directory's config directory. If you need ancestor walk-up behavior, prefer the native `.omp/AGENTS.md` format or a standalone `AGENTS.md` or `CLAUDE.md` (the `agents-md` / `claude-md` providers), or launch `zetacode` from the directory that holds the config directory.
 
-The discovery registry also holds providers that contribute no context files at all: `cursor` (`.cursor/rules/*.mdc` and legacy `.cursorrules` rules, plus MCP servers and settings), `windsurf` (`.windsurf/rules/*.md`, legacy `.windsurfrules`, and global Windsurf rules, plus MCP servers), `cline` (`.clinerules` rules), `vscode` and `mcp-json` (MCP servers), `claude-plugins` (Claude marketplace plugins: skills, commands, rules, hooks, tools, MCP servers), `omp-plugins` (OMP plugins: skills, commands, rules, prompts, hooks, tools, MCP servers), `agent-plugins` (Agent Plugins standard packages: skills and MCP servers), `ssh-json` (SSH hosts), `ssh-config` (`Host` aliases from `~/.ssh/config` and `/etc/ssh/ssh_config`), `skillshare` (registry skills installed with `omp skill install`), `omp-managed` (auto-learn skills under `~/.omp/agent/managed-skills`), and `builtin-defaults` (built-in default rules). These become relevant for rules and other capabilities, and for the shared `disabledProviders` switch below.
+The discovery registry also holds providers that contribute no context files at all: `cursor` (`.cursor/rules/*.mdc` and legacy `.cursorrules` rules, plus MCP servers and settings), `windsurf` (`.windsurf/rules/*.md`, legacy `.windsurfrules`, and global Windsurf rules, plus MCP servers), `cline` (`.clinerules` rules), `vscode` and `mcp-json` (MCP servers), `claude-plugins` (Claude marketplace plugins: skills, commands, rules, hooks, tools, MCP servers), `zetacode-plugins` (OMP plugins: skills, commands, rules, prompts, hooks, tools, MCP servers), `agent-plugins` (Agent Plugins standard packages: skills and MCP servers), `ssh-json` (SSH hosts), `ssh-config` (`Host` aliases from `~/.ssh/config` and `/etc/ssh/ssh_config`), `skillshare` (registry skills installed with `zetacode skill install`), `zetacode-managed` (auto-learn skills under `~/.omp/agent/managed-skills`), and `builtin-defaults` (built-in default rules). These become relevant for rules and other capabilities, and for the shared `disabledProviders` switch below.
 
 ## Extra filenames
 
@@ -103,7 +103,7 @@ Each name is found the same way as a standalone `AGENTS.md` (the `agents-md` wal
 
 Two more locations are checked for each name:
 
-- The active user agent directory (`~/.omp/agent/<name>`, or the profile / `PI_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.omp/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
+- The active user agent directory (`~/.omp/agent/<name>`, or the profile / `ZETA_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.omp/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
 - When the session is in a linked git worktree, `<primary-checkout>/<name>`. The normal walk stops at the worktree's `.git`, so this is what picks up a gitignored `AGENTS.local.md` that lives only in the main checkout. Only the primary checkout's root is checked, not the directory matching your cwd inside it.
 
 Extra files do not take the one-per-depth scope slot and are not shadowed by the file that does. `AGENTS.local.md` loads beside `AGENTS.md`. At the same depth the extra file is injected after the scope winner, so it is the more prominent of the two. `@` imports inside an extra file resolve from that file's own directory.
@@ -117,7 +117,7 @@ When two providers describe the _same_ scope, the higher-priority provider wins.
 | Priority | Provider id                         |
 | -------: | ----------------------------------- |
 |      100 | `native`                            |
-|       90 | `omp-plugins`                       |
+|       90 | `zetacode-plugins`                  |
 |       80 | `claude`                            |
 |       75 | `agent-plugins`                     |
 |       70 | `agents`, `claude-plugins`, `codex` |

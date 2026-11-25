@@ -1,4 +1,4 @@
-/** Session-owned named services: `proc` units of the omp daemon in the session's project scope. */
+/** Session-owned named services: `proc` units of the zetacode daemon in the session's project scope. */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { TERMINAL_STATES } from "../cli/ps-data";
@@ -90,7 +90,7 @@ async function sessionScope(session: ToolSession): Promise<UnitScope> {
 	return projectScope(await canonicalProjectDir(session.cwd));
 }
 
-/** Directory of the daemon-side files omp keeps for one named service in one project. */
+/** Directory of the daemon-side files zetacode keeps for one named service in one project. */
 function serviceFilesDir(scope: UnitScope, name: string): string {
 	const scopeHash = Bun.hash
 		.wyhash(scope.kind === "project" ? scope.dir : scope.kind)

@@ -132,7 +132,7 @@ describe("turn states", () => {
 		await using ui = await nativeShell(mode.shell);
 		const checklist = ui.node("checklist");
 		expect(parentOf(checklist).endsWith("main")).toBe(true);
-		expect(checklist.p).toMatchObject({ mode: "reminder", note: "reminder 1/3", role: "omp.notice.todo" });
+		expect(checklist.p).toMatchObject({ mode: "reminder", note: "reminder 1/3", role: "zeta.notice.todo" });
 		mode.hideToolActivity = true;
 		expect(ui.node("checklist").p.hidden).toBe(true);
 	});
@@ -170,7 +170,7 @@ describe("turn states", () => {
 		mode.updateEditorBorderColor();
 		const editor = ui.node("editor");
 		const line = ui.get(parentOf(editor));
-		expect(ui.get(parentOf(line)).p.role).toBe("omp.editor.btw-ask");
+		expect(ui.get(parentOf(line)).p.role).toBe("zeta.editor.btw-ask");
 		const chip = ui.get(line.c[0]!);
 		expect(chip.p).toMatchObject({ role: "zeta.composer.mode", title: "Asks a /btw side question" });
 		expect(ui.get(chip.c[0]!).p.spans).toEqual([{ s: "btwMode", t: "btw" }]);
@@ -180,6 +180,6 @@ describe("turn states", () => {
 		mode.isBtwMode = false;
 		mode.updateEditorBorderColor();
 		expect(ui.get(parentOf(ui.node("editor"))).c).toHaveLength(1);
-		expect(ui.get(parentOf(line)).p.role).toBe("omp.editor");
+		expect(ui.get(parentOf(line)).p.role).toBe("zeta.editor");
 	});
 });

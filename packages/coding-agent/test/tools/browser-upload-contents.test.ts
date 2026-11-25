@@ -101,7 +101,7 @@ interface CdpProxy {
 
 const LARGE_MESSAGE_BYTES = 1024 * 1024;
 
-/** Forward CDP to Chrome, applying `options` to what omp sends. */
+/** Forward CDP to Chrome, applying `options` to what zetacode sends. */
 function startCdpProxy(chromePort: number, options: ProxyOptions): CdpProxy {
 	const proxy = { port: 0, filePathCalls: 0, stop: () => {} };
 	const server = Bun.serve<ProxiedSocket>({
@@ -179,7 +179,7 @@ function routeProxy(route: UploadRoute, options: ProxyOptions = {}): ProxyOption
 }
 
 /**
- * Launch a Chrome omp did not start, open a fixture page in it over an `app` CDP URL through a CDP proxy, and run cells
+ * Launch a Chrome zetacode did not start, open a fixture page in it over an `app` CDP URL through a CDP proxy, and run cells
  * there.
  */
 async function openConnectedTab(toolCallId: string, options: { page?: string; proxy?: ProxyOptions } = {}) {
@@ -280,7 +280,7 @@ afterAll(async () => {
 	if (tempDir) await fs.rm(tempDir, { recursive: true, force: true });
 	// Connected tabs leave their staging folders for the sweep; this process made them.
 	for (const name of await stagingFolders()) {
-		if (name.startsWith(`omp-uploads-${process.pid}-`))
+		if (name.startsWith(`zetacode-uploads-${process.pid}-`))
 			await fs.rm(path.join(os.tmpdir(), name), { recursive: true, force: true });
 	}
 });
@@ -290,7 +290,7 @@ async function stagingFolders(): Promise<Set<string>> {
 	return new Set((await fs.readdir(os.tmpdir())).filter(name => name.startsWith("omp-uploads-")));
 }
 
-describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp did not launch", () => {
+describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser zetacode did not launch", () => {
 	describe.each(["paths", "contents"] as const)("on the %s route", route => {
 		test("hands over each file as the user's own pick would, readable after the original is gone", async () => {
 			const before = await stagingFolders();
@@ -335,14 +335,14 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp did 
 				// The route check, then one call per path upload, versus only the refused route check.
 				expect(proxy.filePathCalls).toBe(route === "paths" ? 6 : 1);
 				created = [...(await stagingFolders())].filter(
-					name => !before.has(name) && name.startsWith(`omp-uploads-${process.pid}-`),
+					name => !before.has(name) && name.startsWith(`zetacode-uploads-${process.pid}-`),
 				);
 				// One folder for the tab's copies; the contents route copies nothing, so it makes none.
 				expect(created).toHaveLength(route === "paths" ? 1 : 0);
 			} finally {
 				await close();
 			}
-			// A page omp only attached to can outlive omp's tab, so its staged copies stay for the sweep.
+			// A page zetacode only attached to can outlive omp's tab, so its staged copies stay for the sweep.
 			const left = await stagingFolders();
 			expect(created.filter(name => left.has(name))).toEqual(created);
 		}, 60_000);
@@ -490,7 +490,7 @@ return { errors, dropped: await tab.evaluate(() => window.dropped.map(file => fi
 	}, 120_000);
 });
 
-describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser omp launched", () => {
+describe.skipIf(!CHROMIUM_AVAILABLE)("browser uploadFile into a browser zetacode launched", () => {
 	test("keeps a tab's staged copies when it moves to a new worker, and removes them with the page", async () => {
 		const session = makeSession();
 		const prelude = createBrowserPrelude(session);
@@ -520,20 +520,20 @@ return "done";`);
 		} finally {
 			await prelude.invoke({ action: "close", name }, context);
 		}
-		// omp closed the page it launched, the last reader of the copies.
+		// zetacode closed the page it launched, the last reader of the copies.
 		expect([...(await stagingFolders())].filter(folder => !before.has(folder))).toEqual([]);
 	}, 60_000);
 });
 
-test("sweeps a staging folder a day after its last upload unless an open tab or a running omp owns it", async () => {
+test("sweeps a staging folder a day after its last upload unless an open tab or a running zetacode owns it", async () => {
 	const now = Date.now();
 	const dayAgo = new Date(now - 25 * 60 * 60 * 1000);
 	// No process has a pid this large; the parent of this test process is running.
 	const folders = {
-		open: [`omp-uploads-${process.pid}-sweep-open`, dayAgo],
-		closed: [`omp-uploads-${process.pid}-sweep-closed`, dayAgo],
-		orphaned: [`omp-uploads-99999999-sweep-orphaned`, dayAgo],
-		otherOmp: [`omp-uploads-${process.ppid}-sweep-other`, dayAgo],
+		open: [`zetacode-uploads-${process.pid}-sweep-open`, dayAgo],
+		closed: [`zetacode-uploads-${process.pid}-sweep-closed`, dayAgo],
+		orphaned: [`zetacode-uploads-99999999-sweep-orphaned`, dayAgo],
+		otherOmp: [`zetacode-uploads-${process.ppid}-sweep-other`, dayAgo],
 	} as const;
 	for (const [name, modified] of Object.values(folders)) {
 		const folder = path.join(os.tmpdir(), name);
@@ -648,7 +648,7 @@ test("stages a symlinked file's contents, once while the file is unchanged", asy
 test("marks the staging folder used when an upload reuses a copy, so the sweep keeps it", async () => {
 	const file = path.join(tempDir, "reused.txt");
 	await Bun.write(file, "reused");
-	const directory = path.join(os.tmpdir(), `omp-uploads-${process.pid}-reuse-${crypto.randomUUID().slice(0, 8)}`);
+	const directory = path.join(os.tmpdir(), `zetacode-uploads-${process.pid}-reuse-${crypto.randomUUID().slice(0, 8)}`);
 	const staging = new UploadStaging(directory);
 	try {
 		await staging.stage([await openUploadSource(file)]);

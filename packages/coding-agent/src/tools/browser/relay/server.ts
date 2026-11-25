@@ -1,16 +1,16 @@
 /**
  * HTTP + WebSocket server for the browser relay.
  *
- * Impersonates Chrome's CDP discovery endpoint so the omp browser tool (and
+ * Impersonates Chrome's CDP discovery endpoint so the zetacode browser tool (and
  * any puppeteer client) can connect with a plain `browserURL`:
  * - `GET /json/version` → 200 with `webSocketDebuggerUrl` once an extension
  *   said hello, 503 with a {@link RelayUnavailableInfo} body before that. Both
  *   name this server's `ompRelayInstance`, which tells a restarted relay apart.
  * - `GET /json` / `/json/list` → attachable page targets (debugging aid).
- * - `WS /cdp` → downstream CDP clients (puppeteer); an omp tab worker adds `?claim=<targetId>` for the tab it drives.
+ * - `WS /cdp` → downstream CDP clients (puppeteer); an zetacode tab worker adds `?claim=<targetId>` for the tab it drives.
  * - `WS /ext` → extension links of other browsers, forwarded by their own native hosts (`native-host.ts`); the
  *   browser whose host runs this server links in-process through {@link RelayServer.bridge}.
- * - `POST /omp/extensions/recheck`, `POST /omp/relay/restart` → install-sync and upgrade hooks for the omp CLI.
+ * - `POST /omp/extensions/recheck`, `POST /omp/relay/restart` → install-sync and upgrade hooks for the zetacode CLI.
  *
  * Binds loopback only: anything that can reach this port can drive the
  * user's logged-in browser.
@@ -31,7 +31,7 @@ export interface RelayServerOptions {
 	/** Work Studio managed-relay control channel. */
 	studio?: { token: string; control(mode: "agent" | "human"): void };
 	/**
-	 * A `POST /omp/relay/restart` from omp `version`; `idleOnly` asks only when no CDP client is connected. Returns
+	 * A `POST /omp/relay/restart` from zetacode `version`; `idleOnly` asks only when no CDP client is connected. Returns
 	 * whether the server is going away; absent, every restart is refused.
 	 */
 	onRestart?(request: { version: string; idleOnly: boolean }): boolean;
@@ -68,7 +68,7 @@ interface SocketData {
 	connId?: number;
 	/** The Chrome extension id an `ext` upgrade's `Origin` named. */
 	extensionId?: string;
-	/** The target a connecting omp tab worker drives (`/cdp?claim=`). */
+	/** The target a connecting zetacode tab worker drives (`/cdp?claim=`). */
 	claim?: string;
 }
 
@@ -77,7 +77,7 @@ type RelayWebSocket = Bun.ServerWebSocket<SocketData>;
 const WS_KEEPALIVE_MS = 30_000;
 /** Screenshots travel base64-encoded through both websocket legs. */
 const MAX_PAYLOAD_BYTES = 256 * 1024 * 1024;
-/** Default appearance of the omp tab group. */
+/** Default appearance of the zetacode tab group. */
 const DEFAULT_GROUP = { title: "omp", color: "cyan" } as const;
 /** True when `raw` can serve as the authority of a `ws://` URL: no whitespace,
  *  slashes, userinfo, fragments, or control characters, and URL-parseable. */
@@ -108,7 +108,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 		},
 		async updateExtension(extensionId) {
 			if (opts.chatOnly) return false;
-			// Only a folder omp manages can be rewritten; Chrome named it by its path, so its id says which.
+			// Only a folder zetacode manages can be rewritten; Chrome named it by its path, so its id says which.
 			const ours = await registeredRelayExtensionIds({
 				registryFile: opts.installRegistryFile,
 			});
@@ -178,7 +178,7 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 			}
 			if (path === RELAY_RECHECK_PATH) {
 				if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-				// Like `/cdp`: browsers send Origin, the omp CLI does not; a web page must not trigger reloads.
+				// Like `/cdp`: browsers send Origin, the zetacode CLI does not; a web page must not trigger reloads.
 				if (req.headers.get("origin")) return new Response("Forbidden", { status: 403 });
 				bridge.recheckExtensions();
 				return new Response(null, { status: 204 });

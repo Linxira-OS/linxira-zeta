@@ -13,7 +13,7 @@
  *   padding row (`*` left, the emoji right).
  * - Synthetic (agent-attributed) input is muted and flat.
  *
- * Terminal look: `omp.user` (`src/ui/styles/messages/user.ts`).
+ * Terminal look: `zeta.user` (`src/ui/styles/messages/user.ts`).
  */
 import { For, type JSXNode, type Reactive, read, Show } from "@linxiraos/pi-tui";
 import { formatBytes } from "@linxiraos/pi-utils";
@@ -188,7 +188,7 @@ export function UserMessage(props: { model: UserMessageModel }): JSXNode {
 	};
 	return (
 		<card
-			role={synthetic ? "omp.user.synthetic" : "omp.user"}
+			role={synthetic ? "zeta.user.synthetic" : "zeta.user"}
 			tone={synthetic ? "muted" : "user"}
 			actions={() =>
 				actions() && model.timestamp !== undefined

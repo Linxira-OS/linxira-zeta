@@ -184,14 +184,14 @@ function ContextMeter(props: { readonly usage: SessionContextUsage }): JSXNode {
 /**
  * Key/value rows, free lines as notes between them. The provider's values are
  * machine strings (`mono`); elsewhere (LSP, MCP servers) the keys are names
- * (role `omp.info.names`).
+ * (role `zeta.info.names`).
  */
 function entryRows(entries: readonly ReportEntry[], mono: boolean): JSXNode[] {
 	const out: JSXNode[] = [];
 	let items: TspKvItem[] = [];
 	const flush = (): void => {
 		if (items.length === 0) return;
-		out.push(<kv role={mono ? "omp.info.kv" : "omp.info.names"} layout="grid" items={items} />);
+		out.push(<kv role={mono ? "zeta.info.kv" : "zeta.info.names"} layout="grid" items={items} />);
 		items = [];
 	};
 	for (const entry of entries) {
@@ -342,7 +342,7 @@ function reportGroups(parsed: readonly ReportSection[], context: SessionContextU
 
 /** Tern's sheet: a centered medium one titled Session info. */
 export const SESSION_INFO_SHEET: SheetAttributes = {
-	role: "omp.overlay.sessionInfo",
+	role: "zeta.overlay.sessionInfo",
 	size: "md",
 	anchor: "center",
 	head: "Session info",
@@ -371,7 +371,7 @@ export function SessionInfo(props: SessionInfoProps): JSXNode {
 	const move = (delta: number) => offset.set(Math.max(0, Math.min(untrack(offset) + delta, lineCount - viewport())));
 	return (
 		<col
-			role={rowsRole("omp.info")}
+			role={rowsRole("zeta.info")}
 			gap="md"
 			// The terminal's box sits on the bottom rows, under what the transcript shows.
 			term={() => ({ report: props.report, rows: props.rows(), offset: offset(), anchor: "bottom" })}

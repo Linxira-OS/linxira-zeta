@@ -61,76 +61,133 @@
    together, so every popover in the app changes by editing one line.
      animation: var(--motion-pop); */
 :root {
-  /* Grows out of its anchor: menu, select popup, hover card. */
-  --motion-pop: omp-pop-in var(--dur-fast) var(--ease-out) backwards;
-  /* Content appearing in the flow: a note, a result, an inline panel. */
-  --motion-reveal: omp-rise-in var(--dur) var(--ease-out) backwards;
-  /* A body opening under the header that owns it. */
-  --motion-unfold: omp-drop-in var(--dur) var(--ease-out) backwards;
-  /* Content replaced in place: a detail pane following its list. It starts
+	/* Grows out of its anchor: menu, select popup, hover card. */
+	--motion-pop: omp-pop-in var(--dur-fast) var(--ease-out) backwards;
+	/* Content appearing in the flow: a note, a result, an inline panel. */
+	--motion-reveal: omp-rise-in var(--dur) var(--ease-out) backwards;
+	/* A body opening under the header that owns it. */
+	--motion-unfold: omp-drop-in var(--dur) var(--ease-out) backwards;
+	/* Content replaced in place: a detail pane following its list. It starts
      half visible, so the pane never blinks empty between two selections. */
-  --motion-swap: omp-swap-in var(--dur-fast) var(--ease-out) backwards;
-  /* Floats over the page with nothing to anchor to: modal, dialog, palette. */
-  --motion-sheet: omp-sheet-in var(--dur) var(--ease-out) backwards;
-  --motion-sheet-out: omp-sheet-out var(--dur-fast) var(--ease-in) forwards;
-  /* The layer behind a sheet, and anything else that only fades. */
-  --motion-fade: omp-fade-in var(--dur-fast) var(--ease) backwards;
-  --motion-fade-out: omp-fade-out var(--dur-fast) var(--ease-in) forwards;
-  /* A notice from the window edge. `--toast-from` is the edge: 1 below, -1 above. */
-  --motion-toast: omp-toast-in var(--dur-slower) var(--ease-out) backwards;
-  --motion-toast-out: omp-toast-out var(--dur-slow) var(--ease-in) forwards;
+	--motion-swap: omp-swap-in var(--dur-fast) var(--ease-out) backwards;
+	/* Floats over the page with nothing to anchor to: modal, dialog, palette. */
+	--motion-sheet: omp-sheet-in var(--dur) var(--ease-out) backwards;
+	--motion-sheet-out: omp-sheet-out var(--dur-fast) var(--ease-in) forwards;
+	/* The layer behind a sheet, and anything else that only fades. */
+	--motion-fade: omp-fade-in var(--dur-fast) var(--ease) backwards;
+	--motion-fade-out: omp-fade-out var(--dur-fast) var(--ease-in) forwards;
+	/* A notice from the window edge. `--toast-from` is the edge: 1 below, -1 above. */
+	--motion-toast: omp-toast-in var(--dur-slower) var(--ease-out) backwards;
+	--motion-toast-out: omp-toast-out var(--dur-slow) var(--ease-in) forwards;
 }
 
 /* `--pop-from` is the side the anchor is on: -1 above (the default: the
    popover drops out of it), 1 below (a menu that opens upward rises out of it).
    Registered so it does not inherit: a flyout inside an upward menu keeps its
    own side. */
-@property --pop-from { syntax: "<number>"; inherits: false; initial-value: -1; }
+@property --pop-from {
+	syntax: "<number>";
+	inherits: false;
+	initial-value: -1;
+}
 @keyframes omp-pop-in {
-  from { opacity: 0; translate: 0 calc(var(--shift-xs) * var(--pop-from)); scale: 0.97; }
+	from {
+		opacity: 0;
+		translate: 0 calc(var(--shift-xs) * var(--pop-from));
+		scale: 0.97;
+	}
 }
 @keyframes omp-rise-in {
-  from { opacity: 0; translate: 0 var(--shift-xs); }
+	from {
+		opacity: 0;
+		translate: 0 var(--shift-xs);
+	}
 }
 @keyframes omp-drop-in {
-  from { opacity: 0; translate: 0 calc(var(--shift-xs) * -1); }
+	from {
+		opacity: 0;
+		translate: 0 calc(var(--shift-xs) * -1);
+	}
 }
 @keyframes omp-swap-in {
-  from { opacity: 0.4; translate: 0 var(--shift-xs); }
+	from {
+		opacity: 0.4;
+		translate: 0 var(--shift-xs);
+	}
 }
 @keyframes omp-sheet-in {
-  from { opacity: 0; translate: 0 var(--shift-sm); scale: 0.98; }
+	from {
+		opacity: 0;
+		translate: 0 var(--shift-sm);
+		scale: 0.98;
+	}
 }
 @keyframes omp-sheet-out {
-  to { opacity: 0; translate: 0 var(--shift-xs); scale: 0.98; }
+	to {
+		opacity: 0;
+		translate: 0 var(--shift-xs);
+		scale: 0.98;
+	}
 }
 @keyframes omp-fade-in {
-  from { opacity: 0; }
+	from {
+		opacity: 0;
+	}
 }
 @keyframes omp-fade-out {
-  to { opacity: 0; }
+	to {
+		opacity: 0;
+	}
 }
 @keyframes omp-toast-in {
-  from { opacity: 0; translate: 0 calc(var(--shift-md) * var(--toast-from, 1)); }
+	from {
+		opacity: 0;
+		translate: 0 calc(var(--shift-md) * var(--toast-from, 1));
+	}
 }
 @keyframes omp-toast-out {
-  to { opacity: 0; translate: 0 calc(var(--shift-sm) * var(--toast-from, 1)); }
+	to {
+		opacity: 0;
+		translate: 0 calc(var(--shift-sm) * var(--toast-from, 1));
+	}
 }
 
 /* ---------- Surfaces ---------------------------------------------------------
    One pair of keyframes for every surface that arrives from somewhere. The
    offsets are registered and do not inherit: a page setting `--enter-y` must
    not hand it to a pane that enters inside the page. */
-@property --enter-x { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --enter-y { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --exit-x { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --exit-y { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --enter-x {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --enter-y {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --exit-x {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+@property --exit-y {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
 
 @keyframes omp-enter {
-  from { opacity: 0; translate: var(--enter-x) var(--enter-y); }
+	from {
+		opacity: 0;
+		translate: var(--enter-x) var(--enter-y);
+	}
 }
 @keyframes omp-exit {
-  to { opacity: 0; translate: var(--exit-x) var(--exit-y); }
+	to {
+		opacity: 0;
+		translate: var(--exit-x) var(--exit-y);
+	}
 }
 
 /* A sequential swap: two surfaces that cannot share the layout. The old one
@@ -142,44 +199,44 @@
    and the new one rises; going back, the upper level sinks the way it came and
    the one underneath returns in place. */
 .page-in {
-  --enter-y: var(--shift-md);
-  animation: omp-enter var(--dur-slower) var(--ease-nav) backwards;
+	--enter-y: var(--shift-md);
+	animation: omp-enter var(--dur-slower) var(--ease-nav) backwards;
 }
 .page-out {
-  animation: omp-exit var(--dur-fast) var(--ease) both;
-  pointer-events: none;
+	animation: omp-exit var(--dur-fast) var(--ease) both;
+	pointer-events: none;
 }
 .page-out[data-page-dir="back"] {
-  --exit-y: var(--shift-sm);
+	--exit-y: var(--shift-sm);
 }
 .page-in[data-page-dir="back"] {
-  --enter-y: 0px;
+	--enter-y: 0px;
 }
 /* The two fixed roles: the workbench is the ground level every page opens
    over, and a page's shell is always the upper level (page to page swaps move
    `.page-body`, not the shell). */
 .app-body.page-in {
-  --enter-y: 0px;
+	--enter-y: 0px;
 }
 .page.page-out {
-  --exit-y: var(--shift-sm);
+	--exit-y: var(--shift-sm);
 }
 
 /* Siblings swapped the same way (`data-page-axis="x"`): pages along the
    navigation, tabs whose panels cannot overlap. Both halves travel sideways. */
 .page-in[data-page-axis="x"] {
-  --enter-y: 0px;
-  --enter-x: var(--shift-lg);
+	--enter-y: 0px;
+	--enter-x: var(--shift-lg);
 }
 .page-in[data-page-axis="x"][data-page-dir="back"] {
-  --enter-x: calc(var(--shift-lg) * -1);
+	--enter-x: calc(var(--shift-lg) * -1);
 }
 .page-out[data-page-axis="x"] {
-  --exit-y: 0px;
-  --exit-x: calc(var(--shift-sm) * -1);
+	--exit-y: 0px;
+	--exit-x: calc(var(--shift-sm) * -1);
 }
 .page-out[data-page-axis="x"][data-page-dir="back"] {
-  --exit-x: var(--shift-sm);
+	--exit-x: var(--shift-sm);
 }
 
 /* Siblings that can overlap: two panes cross-fade in place while the same
@@ -189,22 +246,22 @@
 .tab-pane-enter-fwd,
 .hub-face-enter-fwd,
 .dk-cell-enter-fwd {
-  --enter-x: var(--shift-lg);
+	--enter-x: var(--shift-lg);
 }
 .tab-pane-enter-back,
 .hub-face-enter-back,
 .dk-cell-enter-back {
-  --enter-x: calc(var(--shift-lg) * -1);
+	--enter-x: calc(var(--shift-lg) * -1);
 }
 .tab-pane-leave-fwd,
 .hub-face-leave-fwd,
 .dk-cell-leave-fwd {
-  --exit-x: calc(var(--shift-sm) * -1);
+	--exit-x: calc(var(--shift-sm) * -1);
 }
 .tab-pane-leave-back,
 .hub-face-leave-back,
 .dk-cell-leave-back {
-  --exit-x: var(--shift-sm);
+	--exit-x: var(--shift-sm);
 }
 .tab-pane-enter-fwd,
 .tab-pane-enter-back,
@@ -212,7 +269,7 @@
 .hub-face-enter-back,
 .dk-cell-enter-fwd,
 .dk-cell-enter-back {
-  animation: omp-enter var(--dur-slower) var(--ease-nav) backwards;
+	animation: omp-enter var(--dur-slower) var(--ease-nav) backwards;
 }
 .tab-pane-leave-fwd,
 .tab-pane-leave-back,
@@ -220,8 +277,8 @@
 .hub-face-leave-back,
 .dk-cell-leave-fwd,
 .dk-cell-leave-back {
-  animation: omp-exit var(--dur-slow) var(--ease-nav) both;
-  pointer-events: none;
+	animation: omp-exit var(--dur-slow) var(--ease-nav) both;
+	pointer-events: none;
 }
 
 /* ---------- Theme ------------------------------------------------------------
@@ -233,45 +290,59 @@
 :root[data-theme-transition]::view-transition-group(*),
 :root[data-theme-transition]::view-transition-old(*),
 :root[data-theme-transition]::view-transition-new(*) {
-  animation-duration: var(--dur-slow);
-  animation-timing-function: var(--ease);
+	animation-duration: var(--dur-slow);
+	animation-timing-function: var(--ease);
 }
 /* The window stays usable under the dissolve. */
 :root[data-theme-transition]::view-transition {
-  pointer-events: none;
+	pointer-events: none;
 }
 /* The new theme is painted in one go underneath; a surface still easing its
    own colours would lag behind the dissolve. */
 :root[data-theme-transition] *,
 :root[data-theme-transition] *::before,
 :root[data-theme-transition] *::after {
-  transition-duration: 0s !important;
+	transition-duration: 0s !important;
 }
 
 /* ---------- Loops ------------------------------------------------------------
    Status signals. `rotate` / `translate` rather than `transform`, so a loop can
    sit on an element that is already transformed. */
 @keyframes omp-spin {
-  to { rotate: 360deg; }
+	to {
+		rotate: 360deg;
+	}
 }
 @keyframes omp-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
 }
 @keyframes omp-sweep {
-  from { translate: -100% 0; }
-  to { translate: 100% 0; }
+	from {
+		translate: -100% 0;
+	}
+	to {
+		translate: 100% 0;
+	}
 }
 /* The ambient light field (styles/light.css): a slow wander, run `alternate`
    so it is at rest at both ends. Each spot sets its own `--drift-x/-y`. */
 @keyframes omp-field-drift {
-  to { translate: var(--drift-x, 0px) var(--drift-y, 0px); scale: 1.12; }
+	to {
+		translate: var(--drift-x, 0px) var(--drift-y, 0px);
+		scale: 1.12;
+	}
 }
 
 /* ==========================================================================
    Reduced motion
    --------------------------------------------------------------------------
-   One policy. In the app the OS preference, the `omp.perf.motion` switch and a
+   One policy. In the app the OS preference, the `zeta.perf.motion` switch and a
    low machine tier all arrive as `data-perf-tier~="L1"` before the first frame
    (main.tsx → perf/tierControl.ts). The media query repeats the clamp for a
    document that never ran tier control (a test harness). src/motion.ts answers
@@ -302,41 +373,41 @@
 :root[data-perf-tier~="L1"]::view-transition-image-pair(*),
 :root[data-perf-tier~="L1"]::view-transition-old(*),
 :root[data-perf-tier~="L1"]::view-transition-new(*) {
-  animation-duration: 0.01ms !important;
-  animation-delay: 0s !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0s !important;
-  scroll-behavior: auto !important;
+	animation-duration: 0.01ms !important;
+	animation-delay: 0s !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0s !important;
+	scroll-behavior: auto !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after,
-  *::backdrop,
-  ::view-transition-group(*),
-  ::view-transition-image-pair(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation-duration: 0.01ms !important;
-    animation-delay: 0s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0s !important;
-    scroll-behavior: auto !important;
-  }
+	*,
+	*::before,
+	*::after,
+	*::backdrop,
+	::view-transition-group(*),
+	::view-transition-image-pair(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0s !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0s !important;
+		scroll-behavior: auto !important;
+	}
 }
 
 /* Pulse says "running" through opacity alone; a held frame can land at 0.35
    and read as disabled, so it is pinned opaque. */
 :root[data-perf-tier~="L1"] .dot.pulse {
-  opacity: 1 !important;
+	opacity: 1 !important;
 }
 
 /* Skeleton: a band frozen mid-sweep looks like a rendering fault. */
 :root[data-perf-tier~="L1"] .skeleton {
-  background: var(--surface-3) !important;
+	background: var(--surface-3) !important;
 }
 :root[data-perf-tier~="L1"] .skeleton::after {
-  display: none !important;
+	display: none !important;
 }
 
 /* Indeterminate progress: the travelling bar is the only cue that something is
@@ -344,15 +415,15 @@
 :root[data-perf-tier~="L1"] .progress-fill::after,
 :root[data-perf-tier~="L1"] .tc-progress .jw-bar-track.indeterminate .jw-bar-fill,
 :root[data-perf-tier~="L1"] .mb-loadbar.is-loading::after {
-  animation: none !important;
+	animation: none !important;
 }
 :root[data-perf-tier~="L1"] .tc-progress .jw-bar-track.indeterminate .jw-bar-fill {
-  left: 0 !important;
-  width: 100% !important;
-  opacity: 0.45;
+	left: 0 !important;
+	width: 100% !important;
+	opacity: 0.45;
 }
 :root[data-perf-tier~="L1"] .mb-loadbar.is-loading::after {
-  transform: none !important;
-  width: 100% !important;
-  opacity: 0.45;
+	transform: none !important;
+	width: 100% !important;
+	opacity: 0.45;
 }

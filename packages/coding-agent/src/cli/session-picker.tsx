@@ -1,6 +1,6 @@
 /** @jsxImportSource @linxiraos/pi-tui */
 /**
- * The standalone session picker (`omp --resume`, `--from-<tool>` imports):
+ * The standalone session picker (`zetacode --resume`, `--from-<tool>` imports):
  * the `/resume` selector run fullscreen before any session exists.
  */
 import * as path from "node:path";
