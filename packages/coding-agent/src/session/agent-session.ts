@@ -1441,6 +1441,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Messages queued to be included with the next user prompt as context ("asides"). */
 	#pendingNextTurnMessages: CustomMessage[] = [];
+	/** Rows kept out of context that arrived while a run was live; flushed at the next boundary. */
+	#pendingExcludedRows: CustomMessage[] = [];
 	#scheduledHiddenNextTurnGeneration: number | undefined = undefined;
 	/** Queued messages a session path took out of the agent queues to put back later (follow-ups
 	 *  parked behind an IRC wake turn, a session switch's rollback snapshot), in queue order. */
@@ -1947,10 +1949,38 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// settled without ever going live (setup failure, abort, disposal) —
 		// they re-check liveness and keep their content.
 		this.#wakeDispatchLiveWaiters();
+		this.#flushExcludedRows();
 		this.#settleInFlight();
+		this.#flushExcludedRows();
 	}
 
 	/** Run settle callbacks, then drain stranded input; the open run is re-checked once both are done. */
+	/** Draw and save rows kept out of context that a live run queued. */
+	#flushExcludedRows(): void {
+		if (this.#pendingExcludedRows.length === 0) return;
+		const connected = this.#unsubscribeAgent !== undefined;
+		if (connected && this.agent.state.isStreaming) return;
+		const rows = this.#pendingExcludedRows;
+		this.#pendingExcludedRows = [];
+		if (connected) {
+			this.#recordWithoutTurn(rows);
+			return;
+		}
+		if (this.#isDisposed) return;
+		for (const row of rows) {
+			this.agent.appendMessage(row);
+			this.sessionManager.appendCustomMessageEntry(
+				row.customType,
+				row.content,
+				row.display,
+				row.details,
+				row.attribution,
+				row.timestamp,
+				row.excludeFromContext,
+			);
+		}
+	}
+
 	#settleInFlight(): void {
 		if (this.#inFlightSettledCallbacks.length === 0) {
 			this.#drainStrandedQueuedMessages();
@@ -6228,6 +6258,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					// otherwise records emission time, which on rebuild excludes
 					// provider preparation / hook time from the prompt→yield anchor.
 					message.timestamp,
+					message.role === "custom" ? message.excludeFromContext : undefined,
 				);
 			}
 			if (message.role === "custom" && message.customType === "ttsr-injection") {
@@ -13505,9 +13536,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			display: normalizedPayload.display,
 			details,
 			attribution: normalizedPayload.attribution,
+			excludeFromContext: normalizedPayload.excludeFromContext,
 			timestamp: Date.now(),
 		};
 		const normalizedAppMessage = await this.#normalizeAgentMessageImages(appMessage);
+		if (normalizedAppMessage.excludeFromContext) {
+			// The model never sees this row, so it must not start or extend a turn.
+			if (this.isStreaming) {
+				this.#pendingExcludedRows.push(normalizedAppMessage);
+				return false;
+			}
+			options = {
+				...options,
+				triggerTurn: false,
+				deliverAs: options?.deliverAs === "nextTurn" ? "nextTurn" : undefined,
+			};
+		}
 		if (this.isStreaming) {
 			// Queued into a turn the agent owns: that turn holds the session. Busy only
 			// from another prompt's setup claims nothing (that prompt decides).
@@ -13555,6 +13599,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				normalizedAppMessage.display,
 				normalizedAppMessage.details,
 				normalizedAppMessage.attribution,
+				normalizedAppMessage.timestamp,
+				normalizedAppMessage.excludeFromContext,
 			);
 			return false;
 		}
@@ -13617,6 +13663,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// Its own timestamp, as `#persistMessageEnd` keeps one: a view rebuilt while its events are
 			// queued matches the entry to them by it.
 			normalizedAppMessage.timestamp,
+			normalizedAppMessage.excludeFromContext,
 		);
 		if (normalizedAppMessage.display === true) {
 			// Idle display append with no turn: notify session listeners so the interactive
