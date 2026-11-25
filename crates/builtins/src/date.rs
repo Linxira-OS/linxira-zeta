@@ -798,14 +798,6 @@ use std::{
 	target_os = "dragonfly",
 ))]
 use std::ffi::{CStr, CString};
-use std::{
-	borrow::Cow,
-	collections::HashMap,
-	ffi::OsString,
-	io::{self, BufRead, BufReader, Read, Write},
-	path::{Path, PathBuf},
-	sync::LazyLock,
-};
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use jiff::{

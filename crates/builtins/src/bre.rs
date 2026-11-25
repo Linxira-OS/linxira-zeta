@@ -334,41 +334,7 @@ fn push_class_literal(result: &mut String, c: char) {
 	if matches!(c, '[' | ']' | '\\' | '-' | '&' | '~' | '^') {
 		result.push('\\');
 	}
-
-	let mut result = String::with_capacity(pattern.len());
-	let mut chars = pattern.chars().peekable();
-	let mut rewrote = false;
-
-	while let Some(c) = chars.next() {
-		match c {
-			// An escape already spells out its own meaning; copy the pair.
-			'\\' => {
-				result.push('\\');
-				if let Some(escaped) = chars.next() {
-					result.push(escaped);
-				}
-			},
-			// A brace inside a bracket expression is already a literal.
-			'[' => match take_bracket_expression(&mut chars, false) {
-				Some(body) => {
-					result.push('[');
-					result.push_str(&body);
-				},
-				None => result.push('['),
-			},
-			'{' if !chars.peek().is_some_and(char::is_ascii_digit) => {
-				result.push_str(r"\{");
-				rewrote = true;
-			},
-			_ => result.push(c),
-		}
-	}
-
-	if rewrote {
-		std::borrow::Cow::Owned(result)
-	} else {
-		std::borrow::Cow::Borrowed(pattern)
-	}
+	result.push(c);
 }
 
 /// Translate bracket expressions in an ERE. Grep additionally treats a
