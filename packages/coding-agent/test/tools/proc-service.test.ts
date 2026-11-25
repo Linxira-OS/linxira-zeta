@@ -308,6 +308,7 @@ describe("proc:// background jobs", () => {
 		const help = router
 			.describe({
 				skillUriAccess: false,
+				canvasEnabled: false,
 				ruleCount: 0,
 				securityEnabled: false,
 				settingsApproval: false,

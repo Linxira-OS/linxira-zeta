@@ -413,6 +413,9 @@ export interface AsyncJobManagerApi {
 	getRunningJobs(filter?: AsyncJobFilter): AsyncJob[];
 	/** Settled background jobs, newest first. */
 	getRecentJobs(limit?: number, filter?: AsyncJobFilter): AsyncJob[];
+	/** A job row retained after eviction, for post-mortem reads. */
+	getEvictedJob(id: string, filter?: AsyncJobFilter): EvictedJob | undefined;
+	getEvictedJobs(filter?: AsyncJobFilter): EvictedJob[];
 	/** Every background job row. */
 	getAllJobs(filter?: AsyncJobFilter): AsyncJob[];
 	/** Promote a foreground-backed job to a background job; false for unknown ids. */
@@ -1690,5 +1693,18 @@ export class AsyncJobManager implements AsyncJobManagerApi {
 	}
 }
 
-/** A job row retained after eviction for remote inspection. */
-export type EvictedJob = AsyncJob & { evictedAt: number; delivered?: boolean; reason?: string };
+/** What an evicted job's id still answers once its row is gone. */
+export interface EvictedJob {
+	id: string;
+	type: AsyncJobType;
+	label: string;
+	ownerId?: string;
+	status: AsyncJob["status"];
+	/** When the job's run settled. */
+	endTime?: number;
+	evictedAt: number;
+	/** Whether its result reached the owner before the row went. */
+	delivered: boolean;
+	/** `expired`: retention ran out; `cleared`: its owner's session was reset, replaced, or switched. */
+	reason: "expired" | "cleared";
+}
