@@ -255,15 +255,15 @@ class OnnxModel {
 export async function startTinyWorkerFromEnvironment(): Promise<void> {
 	const endpoint = process.env[TINY_WORKER_SOCKET_ENV];
 	const modelKey = process.env[TINY_WORKER_MODEL_ENV];
-	const tag = process.env[TINY_WORKER_TAG_ENV];
-	if (!modelKey || !tag) throw new Error("tiny worker environment is incomplete");
+	const tag = process.env[TINY_WORKER_TAG_ENV] ?? (endpoint ? undefined : "stdio");
+	if (!modelKey || (endpoint && !tag)) throw new Error("tiny worker environment is incomplete");
 	if (!isTinyLocalModelKey(modelKey)) throw new Error(`Unknown tiny local model: ${modelKey}`);
 	const spec = getTinyLocalModelSpec(modelKey);
 	if (!spec) throw new Error(`Unknown tiny local model: ${modelKey}`);
 	setProcessName(`zetacode tiny ${modelKey}`);
 	const model = new OnnxModel(modelKey, spec, resolveTinyModelDevicePreference(), resolveTinyModelDtypeOverride());
 	const server = new TinyWorkerServer({
-		tag,
+		tag: tag ?? "stdio",
 		idleMs: Number(process.env[TINY_WORKER_IDLE_MS_ENV]) || TINY_WORKER_IDLE_MS,
 		async handle(request, reply) {
 			if (request.type === "load") {

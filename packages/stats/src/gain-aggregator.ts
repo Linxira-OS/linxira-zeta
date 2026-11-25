@@ -328,7 +328,7 @@ export async function getGainDashboardStats(
 		.map(([date, bucket]) => ({
 			date,
 			snapcompact: bucket.snapcompact,
-			compaction: bucket.compaction,
+			...(bucket.compaction > 0 ? { compaction: bucket.compaction } : {}),
 			total: bucket.snapcompact + bucket.compaction,
 		}));
 

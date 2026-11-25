@@ -456,7 +456,7 @@ export type GainSource = "snapcompact" | "compaction";
 export interface GainTimeSeriesPoint {
 	date: string;
 	snapcompact: number;
-	compaction: number;
+	compaction?: number;
 	total: number;
 }
 
