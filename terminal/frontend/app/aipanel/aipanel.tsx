@@ -8,14 +8,11 @@ import { ErrorBoundary } from "@/app/element/errorboundary";
 import { atoms, getSettingsKeyAtom } from "@/app/store/global";
 import { globalStore } from "@/app/store/jotaiStore";
 import { useTabModelMaybe } from "@/app/store/tab-model";
-import { isBuilderWindow } from "@/app/store/windowtype";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { useI18n } from "../../i18n";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { isMacOS, isWindows } from "@/util/platformutil";
 import { cn } from "@/util/util";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
 import * as jotai from "jotai";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useDrop } from "react-dnd";
@@ -25,10 +22,8 @@ import { AIModeDropdown } from "./aimode";
 import { AIPanelHeader } from "./aipanelheader";
 import { AIPanelInput } from "./aipanelinput";
 import { AIPanelMessages } from "./aipanelmessages";
-import { AIRateLimitStrip } from "./airatelimitstrip";
-import { WaveUIMessage } from "./aitypes";
 import { BYOKAnnouncement } from "./byokannouncement";
-import { TelemetryRequiredMessage } from "./telemetryrequired";
+import { useAcpChat } from "./useacpchat";
 import { WaveAIModel } from "./waveai-model";
 
 const AIBlockMask = memo(() => {
@@ -237,20 +232,6 @@ const AIErrorMessage = memo(() => {
 
 AIErrorMessage.displayName = "AIErrorMessage";
 
-const ConfigChangeModeFixer = memo(() => {
-    const model = WaveAIModel.getInstance();
-    const telemetryEnabled = jotai.useAtomValue(getSettingsKeyAtom("telemetry:enabled")) ?? false;
-    const aiModeConfigs = jotai.useAtomValue(model.aiModeConfigs);
-
-    useEffect(() => {
-        model.fixModeAfterConfigChange();
-    }, [telemetryEnabled, aiModeConfigs, model]);
-
-    return null;
-});
-
-ConfigChangeModeFixer.displayName = "ConfigChangeModeFixer";
-
 type AIPanelComponentInnerProps = {
     roundTopLeft: boolean;
 };
@@ -267,37 +248,14 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
     const showOverlayBlockNums = jotai.useAtomValue(getSettingsKeyAtom("app:showoverlayblocknums")) ?? true;
     const isFocused = jotai.useAtomValue(model.isWaveAIFocusedAtom);
     const focusFollowsCursorMode = jotai.useAtomValue(getSettingsKeyAtom("app:focusfollowscursor")) ?? "off";
-    const telemetryEnabled = jotai.useAtomValue(getSettingsKeyAtom("telemetry:enabled")) ?? false;
     const isPanelVisible = jotai.useAtomValue(model.getPanelVisibleAtom());
     const tabModel = useTabModelMaybe();
     const [tabBorderColor, tabActiveBorderColor] = useTabBackground(waveEnv, tabModel?.tabId);
-    const defaultMode = jotai.useAtomValue(getSettingsKeyAtom("waveai:defaultmode")) ?? "waveai@balanced";
-    const aiModeConfigs = jotai.useAtomValue(model.aiModeConfigs);
+    // The ACP panel runs Zeta Code locally; Wave cloud telemetry is not a
+    // prerequisite for it.
+    const allowAccess = true;
 
-    const hasCustomModes = Object.keys(aiModeConfigs).some((key) => !key.startsWith("waveai@"));
-    const isUsingCustomMode = !defaultMode.startsWith("waveai@");
-    const allowAccess = telemetryEnabled || (hasCustomModes && isUsingCustomMode);
-
-    const { messages, sendMessage, status, setMessages, error, stop } = useChat<WaveUIMessage>({
-        transport: new DefaultChatTransport({
-            api: model.getUseChatEndpointUrl(),
-            prepareSendMessagesRequest: (_opts) => {
-                const msg = model.getAndClearMessage();
-                const body: any = {
-                    msg,
-                    chatid: globalStore.get(model.chatId),
-                    widgetaccess: globalStore.get(model.widgetAccessAtom),
-                    aimode: globalStore.get(model.currentAIMode),
-                };
-                if (isBuilderWindow()) {
-                    body.builderid = globalStore.get(atoms.builderId);
-                    body.builderappid = globalStore.get(atoms.builderAppId);
-                } else {
-                    body.tabid = tabModel.tabId;
-                }
-                return { body };
-            },
-        }),
+    const { messages, sendMessage, status, setMessages, stop } = useAcpChat({
         onError: (error) => {
             console.error("AI Chat error:", error);
             model.setError(error.message || t("ai.errorOccurred"));
@@ -355,10 +313,6 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
         return () => {
             resizeObserver.disconnect();
         };
-    }, [model]);
-
-    useEffect(() => {
-        model.ensureRateLimitSet();
     }, [model]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -584,16 +538,12 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
             inert={!isPanelVisible ? true : undefined}
             data-aipanel="true"
         >
-            <ConfigChangeModeFixer />
             {(isDragOver || isReactDndDragOver) && allowAccess && <AIDragOverlay />}
             {showBlockMask && <AIBlockMask />}
             <AIPanelHeader />
-            <AIRateLimitStrip />
 
             <div key="main-content" className="flex-1 flex flex-col min-h-0">
-                {!allowAccess ? (
-                    <TelemetryRequiredMessage />
-                ) : (
+                {allowAccess ? (
                     <>
                         {messages.length === 0 && initialLoadDone ? (
                             <div
@@ -616,7 +566,7 @@ const AIPanelComponentInner = memo(({ roundTopLeft }: AIPanelComponentInnerProps
                         <AIDroppedFiles model={model} />
                         <AIPanelInput onSubmit={handleSubmit} status={status} model={model} />
                     </>
-                )}
+                ) : null}
             </div>
         </div>
     );

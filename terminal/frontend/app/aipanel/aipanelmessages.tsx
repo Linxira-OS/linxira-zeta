@@ -85,7 +85,7 @@ export const AIPanelMessages = memo(({ messages, status, onContextMenu }: AIPane
     return (
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 space-y-4" onContextMenu={onContextMenu}>
             <div className="mb-2">
-                <AIModeDropdown compatibilityMode={true} />
+                <AIModeDropdown />
             </div>
             {messages.map((message, index) => {
                 const isLastMessage = index === messages.length - 1;

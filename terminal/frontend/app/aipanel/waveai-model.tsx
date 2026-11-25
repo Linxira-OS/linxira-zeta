@@ -1,14 +1,9 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import {
-    UseChatSendMessageType,
-    UseChatSetMessagesType,
-    WaveUIMessage,
-    WaveUIMessagePart,
-} from "@/app/aipanel/aitypes";
+import { UseChatSendMessageType, UseChatSetMessagesType, WaveUIMessagePart } from "@/app/aipanel/aitypes";
 import { FocusManager } from "@/app/store/focusManager";
-import { atoms, createBlock, getOrefMetaKeyAtom, getSettingsKeyAtom } from "@/app/store/global";
+import { atoms, createBlock, getOrefMetaKeyAtom } from "@/app/store/global";
 import { globalStore } from "@/app/store/jotaiStore";
 import { isBuilderWindow } from "@/app/store/windowtype";
 import * as WOS from "@/app/store/wos";
@@ -17,13 +12,11 @@ import { t } from "../../i18n";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import { BuilderFocusManager } from "@/builder/store/builder-focusmanager";
-import { getWebServerEndpoint } from "@/util/endpoints";
 import { base64ToArrayBuffer } from "@/util/util";
 import { ChatStatus } from "ai";
 import * as jotai from "jotai";
 import type React from "react";
 import {
-    createDataUrl,
     createImagePreview,
     formatFileSizeError,
     isAcceptableFile,
@@ -32,6 +25,7 @@ import {
     validateFileSizeFromInfo,
 } from "./ai-utils";
 import type { AIPanelInputRef } from "./aipanelinput";
+import { AcpPanelChat } from "./useacpchat";
 
 export interface DroppedFile {
     id: string;
@@ -42,27 +36,6 @@ export interface DroppedFile {
     previewUrl?: string;
 }
 
-const BuilderAIModeConfigs: Record<string, AIModeConfigType> = {
-    "waveaibuilder@default": {
-        "display:name": t("ai.builderModeDefault"),
-        "display:order": -2,
-        "display:icon": "sparkles",
-        "display:description": t("ai.builderModeDefaultDesc"),
-        "ai:provider": "wave",
-        "ai:switchcompat": ["wavecloud"],
-        "waveai:premium": true,
-    },
-    "waveaibuilder@deep": {
-        "display:name": t("ai.builderModeDeep"),
-        "display:order": -1,
-        "display:icon": "lightbulb",
-        "display:description": t("ai.builderModeDeepDesc"),
-        "ai:provider": "wave",
-        "ai:switchcompat": ["wavecloud"],
-        "waveai:premium": true,
-    },
-};
-
 export class WaveAIModel {
     private static instance: WaveAIModel | null = null;
     inputRef: React.RefObject<AIPanelInputRef> | null = null;
@@ -71,8 +44,6 @@ export class WaveAIModel {
     useChatSetMessages: UseChatSetMessagesType | null = null;
     useChatStatus: ChatStatus = "ready";
     useChatStop: (() => void) | null = null;
-    // Used for injecting Wave-specific message data into DefaultChatTransport's prepareSendMessagesRequest
-    realMessage: AIMessage | null = null;
     orefContext: ORef;
     inBuilder: boolean = false;
     isAIStreaming = jotai.atom(false);
@@ -80,10 +51,6 @@ export class WaveAIModel {
     widgetAccessAtom!: jotai.Atom<boolean>;
     droppedFiles: jotai.PrimitiveAtom<DroppedFile[]> = jotai.atom([]);
     chatId!: jotai.PrimitiveAtom<string>;
-    currentAIMode!: jotai.PrimitiveAtom<string>;
-    aiModeConfigs!: jotai.Atom<Record<string, AIModeConfigType>>;
-    hasPremiumAtom!: jotai.Atom<boolean>;
-    defaultModeAtom!: jotai.Atom<string>;
     errorMessage: jotai.PrimitiveAtom<string> = jotai.atom(null) as jotai.PrimitiveAtom<string>;
     containerWidth: jotai.PrimitiveAtom<number> = jotai.atom(0);
     codeBlockMaxWidth!: jotai.Atom<number>;
@@ -102,16 +69,6 @@ export class WaveAIModel {
         this.orefContext = orefContext;
         this.inBuilder = inBuilder;
         this.chatId = jotai.atom(null) as jotai.PrimitiveAtom<string>;
-        if (inBuilder) {
-            this.aiModeConfigs = jotai.atom(BuilderAIModeConfigs) as jotai.Atom<Record<string, AIModeConfigType>>;
-        } else {
-            this.aiModeConfigs = atoms.waveaiModeConfigAtom;
-        }
-
-        this.hasPremiumAtom = jotai.atom((get) => {
-            const rateLimitInfo = get(atoms.waveAIRateLimitInfoAtom);
-            return !rateLimitInfo || rateLimitInfo.unknown || rateLimitInfo.preq > 0;
-        });
 
         this.widgetAccessAtom = jotai.atom((get) => {
             if (this.inBuilder) {
@@ -140,35 +97,6 @@ export class WaveAIModel {
             }
             return get(WorkspaceLayoutModel.getInstance().panelVisibleAtom);
         });
-
-        this.defaultModeAtom = jotai.atom((get) => {
-            const telemetryEnabled = get(getSettingsKeyAtom("telemetry:enabled")) ?? false;
-            if (this.inBuilder) {
-                return telemetryEnabled ? "waveaibuilder@default" : "invalid";
-            }
-            const aiModeConfigs = get(this.aiModeConfigs);
-            if (!telemetryEnabled) {
-                let mode = get(getSettingsKeyAtom("waveai:defaultmode"));
-                if (mode == null || mode.startsWith("waveai@")) {
-                    return "unknown";
-                }
-                return mode;
-            }
-            const hasPremium = get(this.hasPremiumAtom);
-            const waveFallback = hasPremium ? "waveai@balanced" : "waveai@quick";
-            let mode = get(getSettingsKeyAtom("waveai:defaultmode")) ?? waveFallback;
-            if (!hasPremium && mode.startsWith("waveai@")) {
-                mode = "waveai@quick";
-            }
-            const modeExists = aiModeConfigs != null && mode in aiModeConfigs;
-            if (!modeExists) {
-                mode = waveFallback;
-            }
-            return mode;
-        });
-
-        const defaultMode = globalStore.get(this.defaultModeAtom);
-        this.currentAIMode = jotai.atom(defaultMode);
     }
 
     getPanelVisibleAtom(): jotai.Atom<boolean> {
@@ -193,10 +121,6 @@ export class WaveAIModel {
 
     static resetInstance(): void {
         WaveAIModel.instance = null;
-    }
-
-    getUseChatEndpointUrl(): string {
-        return `${getWebServerEndpoint()}/api/post-chat-message`;
     }
 
     async addFile(file: File): Promise<DroppedFile> {
@@ -349,33 +273,8 @@ export class WaveAIModel {
         }
     }
 
-    async reloadChatFromBackend(chatIdValue: string): Promise<WaveUIMessage[]> {
-        const chatData = await RpcApi.GetWaveAIChatCommand(TabRpcClient, { chatid: chatIdValue });
-        const messages: UIMessage[] = chatData?.messages ?? [];
-        globalStore.set(this.isChatEmptyAtom, messages.length === 0);
-        return messages as WaveUIMessage[];
-    }
-
-    async stopResponse() {
+    stopResponse() {
         this.useChatStop?.();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        const chatIdValue = globalStore.get(this.chatId);
-        if (!chatIdValue) {
-            return;
-        }
-        try {
-            const messages = await this.reloadChatFromBackend(chatIdValue);
-            this.useChatSetMessages?.(messages);
-        } catch (error) {
-            console.error("Failed to reload chat after stop:", error);
-        }
-    }
-
-    getAndClearMessage(): AIMessage | null {
-        const msg = this.realMessage;
-        this.realMessage = null;
-        return msg;
     }
 
     hasNonEmptyInput(): boolean {
@@ -419,93 +318,6 @@ export class WaveAIModel {
         });
     }
 
-    isValidMode(mode: string): boolean {
-        const telemetryEnabled = globalStore.get(getSettingsKeyAtom("telemetry:enabled")) ?? false;
-        if (mode.startsWith("waveai@") && !telemetryEnabled) {
-            return false;
-        }
-
-        const aiModeConfigs = globalStore.get(this.aiModeConfigs);
-        if (aiModeConfigs == null || !(mode in aiModeConfigs)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    setAIMode(mode: string) {
-        if (!this.isValidMode(mode)) {
-            this.setAIModeToDefault();
-        } else {
-            globalStore.set(this.currentAIMode, mode);
-            RpcApi.SetRTInfoCommand(TabRpcClient, {
-                oref: this.orefContext,
-                data: { "waveai:mode": mode },
-            });
-        }
-    }
-
-    setAIModeToDefault() {
-        const defaultMode = globalStore.get(this.defaultModeAtom);
-        globalStore.set(this.currentAIMode, defaultMode);
-        RpcApi.SetRTInfoCommand(TabRpcClient, {
-            oref: this.orefContext,
-            data: { "waveai:mode": null },
-        });
-    }
-
-    async fixModeAfterConfigChange(): Promise<void> {
-        const rtInfo = await RpcApi.GetRTInfoCommand(TabRpcClient, {
-            oref: this.orefContext,
-        });
-        const mode = rtInfo?.["waveai:mode"];
-        if (mode == null || !this.isValidMode(mode)) {
-            this.setAIModeToDefault();
-        }
-    }
-
-    async getRTInfo(): Promise<Record<string, any>> {
-        const rtInfo = await RpcApi.GetRTInfoCommand(TabRpcClient, {
-            oref: this.orefContext,
-        });
-        return rtInfo ?? {};
-    }
-
-    async loadInitialChat(): Promise<WaveUIMessage[]> {
-        const rtInfo = await RpcApi.GetRTInfoCommand(TabRpcClient, {
-            oref: this.orefContext,
-        });
-        let chatIdValue = rtInfo?.["waveai:chatid"];
-        if (chatIdValue == null) {
-            chatIdValue = crypto.randomUUID();
-            RpcApi.SetRTInfoCommand(TabRpcClient, {
-                oref: this.orefContext,
-                data: { "waveai:chatid": chatIdValue },
-            });
-        }
-        globalStore.set(this.chatId, chatIdValue);
-
-        const aiModeValue = rtInfo?.["waveai:mode"];
-        if (aiModeValue == null) {
-            const defaultMode = globalStore.get(this.defaultModeAtom);
-            globalStore.set(this.currentAIMode, defaultMode);
-        } else if (this.isValidMode(aiModeValue)) {
-            globalStore.set(this.currentAIMode, aiModeValue);
-        } else {
-            this.setAIModeToDefault();
-        }
-
-        try {
-            return await this.reloadChatFromBackend(chatIdValue);
-        } catch (error) {
-            console.error("Failed to load chat:", error);
-            this.setError(t("ai.failedLoadChat"));
-
-            this.clearChat();
-            return [];
-        }
-    }
-
     async handleSubmit() {
         const input = globalStore.get(this.inputAtom);
         const droppedFiles = globalStore.get(this.droppedFiles);
@@ -526,27 +338,14 @@ export class WaveAIModel {
 
         this.clearError();
 
-        const aiMessageParts: AIMessagePart[] = [];
         const uiMessageParts: WaveUIMessagePart[] = [];
 
         if (input.trim()) {
-            aiMessageParts.push({ type: "text", text: input.trim() });
             uiMessageParts.push({ type: "text", text: input.trim() });
         }
 
         for (const droppedFile of droppedFiles) {
             const normalizedMimeType = normalizeMimeType(droppedFile.file);
-            const dataUrl = await createDataUrl(droppedFile.file);
-
-            aiMessageParts.push({
-                type: "file",
-                filename: droppedFile.name,
-                mimetype: normalizedMimeType,
-                url: dataUrl,
-                size: droppedFile.file.size,
-                previewurl: droppedFile.previewUrl,
-            });
-
             uiMessageParts.push({
                 type: "data-userfile",
                 data: {
@@ -558,15 +357,7 @@ export class WaveAIModel {
             });
         }
 
-        const realMessage: AIMessage = {
-            messageid: crypto.randomUUID(),
-            parts: aiMessageParts,
-        };
-        this.realMessage = realMessage;
-
-        // console.log("SUBMIT MESSAGE", realMessage);
-
-        this.useChatSendMessage?.({ parts: uiMessageParts });
+        await this.useChatSendMessage?.({ parts: uiMessageParts });
 
         globalStore.set(this.isChatEmptyAtom, false);
         globalStore.set(this.inputAtom, "");
@@ -575,27 +366,13 @@ export class WaveAIModel {
 
     async uiLoadInitialChat() {
         globalStore.set(this.isLoadingChatAtom, true);
-        const messages = await this.loadInitialChat();
+        const messages = AcpPanelChat.getInstance().getMessages();
         this.useChatSetMessages?.(messages);
+        globalStore.set(this.isChatEmptyAtom, messages.length === 0);
         globalStore.set(this.isLoadingChatAtom, false);
         setTimeout(() => {
             this.scrollToBottom();
         }, 100);
-    }
-
-    async ensureRateLimitSet() {
-        const currentInfo = globalStore.get(atoms.waveAIRateLimitInfoAtom);
-        if (currentInfo != null) {
-            return;
-        }
-        try {
-            const rateLimitInfo = await RpcApi.GetWaveAIRateLimitCommand(TabRpcClient);
-            if (rateLimitInfo != null) {
-                globalStore.set(atoms.waveAIRateLimitInfoAtom, rateLimitInfo);
-            }
-        } catch (error) {
-            console.error("Failed to fetch rate limit info:", error);
-        }
     }
 
     handleAIFeedback(feedback: "good" | "bad") {
@@ -632,10 +409,7 @@ export class WaveAIModel {
     }
 
     toolUseSendApproval(toolcallid: string, approval: string) {
-        RpcApi.WaveAIToolApproveCommand(TabRpcClient, {
-            toolcallid: toolcallid,
-            approval: approval,
-        });
+        AcpPanelChat.getInstance().respondToToolApproval(toolcallid, approval);
     }
 
     async openDiff(fileName: string, toolcallid: string) {

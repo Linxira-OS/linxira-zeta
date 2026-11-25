@@ -36,6 +36,46 @@ export class AgentServiceType {
         return callBackendService(this?.waveEnv, "agent", "ListModels", Array.from(arguments))
     }
 
+    // cancel the active AI panel turn
+    PanelCancel(): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelCancel", Array.from(arguments))
+    }
+
+    // get the AI panel session modes and config options
+    PanelConfig(): Promise<ConfigData> {
+        return callBackendService(this?.waveEnv, "agent", "PanelConfig", Array.from(arguments))
+    }
+
+    // list unanswered AI panel permission requests (for panel reloads)
+    PanelPendingPermissions(): Promise<PermissionRequestData[]> {
+        return callBackendService(this?.waveEnv, "agent", "PanelPendingPermissions", Array.from(arguments))
+    }
+
+    // send a prompt to the AI panel ACP session (starts it on demand)
+    PanelPrompt(text: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelPrompt", Array.from(arguments))
+    }
+
+    // answer an AI panel permission request with an optionId, or an empty string to deny
+    PanelRespondPermission(requestId: string, optionId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelRespondPermission", Array.from(arguments))
+    }
+
+    // change the AI panel session model (config option "model")
+    PanelSetModel(modelId: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelSetModel", Array.from(arguments))
+    }
+
+    // start the process-wide AI panel ACP session (cwd may be empty for the home directory)
+    PanelStart(cwd: string): Promise<void> {
+        return callBackendService(this?.waveEnv, "agent", "PanelStart", Array.from(arguments))
+    }
+
+    // get the last published AI panel status
+    PanelStatus(): Promise<StatusData> {
+        return callBackendService(this?.waveEnv, "agent", "PanelStatus", Array.from(arguments))
+    }
+
     // send a prompt to the agent session (returns when the request is written)
     Prompt(blockId: string, text: string): Promise<void> {
         return callBackendService(this?.waveEnv, "agent", "Prompt", Array.from(arguments))

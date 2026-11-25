@@ -19,92 +19,38 @@ interface CatalogModel {
     reasoning?: boolean;
 }
 
-const AIModeMenuItem = memo(({ config, isSelected, isDisabled, isPremiumDisabled, onClick, isFirst, isLast }: AIModeMenuItemProps) => {
-    return (
-        <button
-            key={config.mode}
-            onClick={onClick}
-            disabled={isDisabled}
-            className={cn(
-                "w-full flex flex-col gap-0.5 px-3 transition-colors text-left",
-                isFirst ? "pt-1 pb-0.5" : isLast ? "pt-0.5 pb-1" : "pt-0.5 pb-0.5",
-                isDisabled ? "text-zinc-500" : "text-zinc-300 hover:bg-zinc-700 cursor-pointer"
-            )}
-        >
-            <div className="flex items-center gap-2 w-full">
-                <i className={makeIconClass(config["display:icon"] || "sparkles", false)}></i>
-                <span className={cn("text-sm", isSelected && "font-bold")}>
-                    {getModeDisplayName(config)}
-                    {isPremiumDisabled && t("ai.premium")}
-                </span>
-                {isSelected && <i className="fa fa-check ml-auto"></i>}
-            </div>
-            {config["display:description"] && (
-                <div
-                    className={cn("text-xs pl-5", isDisabled ? "text-gray-500" : "text-muted")}
-                    style={{ whiteSpace: "pre-line" }}
-                >
-                    {config["display:description"]}
-                </div>
-            )}
-        </button>
-    );
-});
-
-AIModeMenuItem.displayName = "AIModeMenuItem";
-
-interface ConfigSection {
-    sectionName: string;
-    configs: AIModeConfigWithMode[];
-    isIncompatible?: boolean;
-    noTelemetry?: boolean;
+function toCatalogModel(value: unknown): CatalogModel | null {
+    if (value == null || typeof value !== "object") {
+        return null;
+    }
+    const candidate = value as {
+        provider?: unknown;
+        id?: unknown;
+        selector?: unknown;
+        name?: unknown;
+        reasoning?: unknown;
+    };
+    if (
+        typeof candidate.provider !== "string" ||
+        typeof candidate.id !== "string" ||
+        typeof candidate.selector !== "string" ||
+        typeof candidate.name !== "string"
+    ) {
+        return null;
+    }
+    return {
+        provider: candidate.provider,
+        id: candidate.id,
+        selector: candidate.selector,
+        name: candidate.name,
+        reasoning: typeof candidate.reasoning === "boolean" ? candidate.reasoning : undefined,
+    };
 }
 
-function computeCompatibleSections(
-    currentMode: string,
-    aiModeConfigs: Record<string, AIModeConfigType>,
-    waveProviderConfigs: AIModeConfigWithMode[],
-    otherProviderConfigs: AIModeConfigWithMode[]
-): ConfigSection[] {
-    const currentConfig = aiModeConfigs[currentMode];
-    const allConfigs = [...waveProviderConfigs, ...otherProviderConfigs];
-
-    if (!currentConfig) {
-        return [{ sectionName: t("ai.sectionIncompatible"), configs: allConfigs, isIncompatible: true }];
-    }
-
-    const currentSwitchCompat = currentConfig["ai:switchcompat"] || [];
-    const compatibleConfigs: AIModeConfigWithMode[] = [{ ...currentConfig, mode: currentMode }];
-    const incompatibleConfigs: AIModeConfigWithMode[] = [];
-
-    if (currentSwitchCompat.length === 0) {
-        allConfigs.forEach((config) => {
-            if (config.mode !== currentMode) {
-                incompatibleConfigs.push(config);
-            }
-        });
-    } else {
-        allConfigs.forEach((config) => {
-            if (config.mode === currentMode) return;
-
-            const configSwitchCompat = config["ai:switchcompat"] || [];
-            const hasMatch = currentSwitchCompat.some((currentTag: string) => configSwitchCompat.includes(currentTag));
-
-            if (hasMatch) {
-                compatibleConfigs.push(config);
-            } else {
-                incompatibleConfigs.push(config);
-            }
-        });
-    }
-
-    const sections: ConfigSection[] = [];
-    const compatibleSectionName =
-        compatibleConfigs.length === 1 ? t("ai.sectionCurrent") : t("ai.sectionCompatible");
-    sections.push({ sectionName: compatibleSectionName, configs: compatibleConfigs });
-
-    if (incompatibleConfigs.length > 0) {
-        sections.push({ sectionName: t("ai.sectionIncompatible"), configs: incompatibleConfigs, isIncompatible: true });
+function parseCatalog(raw: string): CatalogModel[] {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed == null || typeof parsed !== "object" || !("models" in parsed) || !Array.isArray(parsed.models)) {
+        return [];
     }
     return parsed.models.map(toCatalogModel).filter((model): model is CatalogModel => model != null);
 }
@@ -114,17 +60,22 @@ function currentModelFromConfig(config: ConfigData | undefined): string | null {
     if (!Array.isArray(options)) {
         return null;
     }
-    if (otherProviderConfigs.length > 0) {
-        sections.push({ sectionName: t("ai.sectionCustom"), configs: otherProviderConfigs });
+    for (const option of options) {
+        if (option == null || typeof option !== "object") {
+            continue;
+        }
+        const candidate = option as { id?: unknown; currentValue?: unknown };
+        if (candidate.id !== "model") {
+            continue;
+        }
+        if (typeof candidate.currentValue === "string" && candidate.currentValue) {
+            return candidate.currentValue;
+        }
     }
     return null;
 }
 
-interface AIModeDropdownProps {
-    compatibilityMode?: boolean;
-}
-
-export const AIModeDropdown = memo(({ compatibilityMode = false }: AIModeDropdownProps) => {
+export const AIModeDropdown = memo(() => {
     const { t } = useI18n();
     const model = WaveAIModel.getInstance();
     const [models, setModels] = useState<CatalogModel[]>([]);

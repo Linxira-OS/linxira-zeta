@@ -29,6 +29,8 @@ declare global {
         | "agent:status"
         | "agent:permission"
         | "agent:config"
+        | "agent:update"
+        | "agent:permissiondone"
     ;
 
     type WaveEvent = {
@@ -59,7 +61,9 @@ declare global {
         { event: "badge"; data?: BadgeEvent; } | 
         { event: "agent:status"; data?: StatusData; } | 
         { event: "agent:permission"; data?: PermissionRequestData; } | 
-        { event: "agent:config"; data?: ConfigData; }
+        { event: "agent:config"; data?: ConfigData; } | 
+        { event: "agent:update"; data?: UpdateData; } | 
+        { event: "agent:permissiondone"; data?: PermissionResolutionData; }
     );
 
 }

@@ -1288,6 +1288,14 @@ declare global {
         options: PermissionOption[];
     };
 
+    // acp.PermissionResolutionData
+    type PermissionResolutionData = {
+        blockid: string;
+        requestid: string;
+        optionid?: string;
+        cancelled: boolean;
+    };
+
     // waveobj.Point
     type Point = {
         x: number;
@@ -1817,6 +1825,12 @@ declare global {
         id?: string;
         data?: any;
         providerMetadata?: {[key: string]: any};
+    };
+
+    // acp.UpdateData
+    type UpdateData = {
+        sessionid?: string;
+        update: any;
     };
 
     // userinput.UserInputRequest
