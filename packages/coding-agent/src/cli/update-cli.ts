@@ -1000,7 +1000,7 @@ async function pruneBunCacheAfterGlobalInstall(): Promise<BunInstallCachePruneRe
  * Resolve the path that `zetacode` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
-	return $which(APP_NAME) ?? undefined;
+	return $which(CLI_BIN_NAME) ?? undefined;
 }
 
 /**
@@ -1012,8 +1012,8 @@ function resolveOmpPath(): string | undefined {
  * being mistaken for an unreplaced launcher.
  */
 export function parseReportedVersion(output: string): string | undefined {
-	if (!output.startsWith(`${APP_NAME}/`)) return undefined;
-	return output.slice(APP_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
+	if (!output.startsWith(`${CLI_BIN_NAME}/`)) return undefined;
+	return output.slice(CLI_BIN_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
 }
 
 async function reportedVersionAtPath(binaryPath: string): Promise<string | undefined> {
@@ -1087,7 +1087,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 export async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	// A fresh lookup: the install may have moved what PATH resolves to (a Windows
 	// shim takeover retires `zetacode.cmd` for `zeta.exe`) since the target was resolved.
-	const ompPath = $which(APP_NAME, { cache: WhichCachePolicy.Fresh }) ?? undefined;
+	const ompPath = $which(CLI_BIN_NAME, { cache: WhichCachePolicy.Fresh }) ?? undefined;
 	if (!ompPath) return { ok: false };
 	const binaryPath = tryRealpath(ompPath) ?? ompPath;
 	return await verifyBinaryAtPath(binaryPath, expectedVersion);
