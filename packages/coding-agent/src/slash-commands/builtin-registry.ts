@@ -1,4 +1,6 @@
 import { clearSubmittedText } from "./helpers/draft";
+import { M, type Messages } from "../i18n";
+import { en } from "../i18n/en";
 import type { AutocompleteItem } from "../autocomplete/autocomplete";
 import { BUILTIN_COMMIT_SLASH_COMMANDS } from "./builtin-commit";
 import {
@@ -39,7 +41,31 @@ export interface TuiBuiltinSlashCommand extends BuiltinSlashCommand {
 	getAutocompleteDescription?: () => string | undefined;
 }
 
-const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
+/**
+ * Reverse the English catalogue so a static upstream description becomes the
+ * catalogue thunk again. 19.2 ships most builtin descriptions as literals; the
+ * TUI picker must still follow `/language`.
+ */
+const COMMAND_DESCRIPTION_KEYS = new Map<string, keyof typeof en>(
+	Object.entries(en)
+		.filter(([key, value]) => key.startsWith("cmd") && typeof value === "string")
+		.map(([key, value]) => [value as string, key as keyof typeof en]),
+);
+
+function localizeCommandDescription(
+	description: string | (() => string) | undefined,
+): string | (() => string) | undefined {
+	if (typeof description !== "string") return description;
+	const key = COMMAND_DESCRIPTION_KEYS.get(description);
+	return key === undefined
+		? description
+		: () => {
+				const localized = M[key as keyof Messages];
+				return typeof localized === "string" ? localized : description;
+			};
+}
+
+const RAW_BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MODE_SLASH_COMMANDS,
 	...BUILTIN_SESSION_SLASH_COMMANDS,
 	...BUILTIN_COMMIT_SLASH_COMMANDS,
@@ -48,6 +74,17 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_SKILLS_SLASH_COMMANDS,
 	...BUILTIN_CONTROL_SLASH_COMMANDS,
 ];
+
+const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = RAW_BUILTIN_SLASH_COMMAND_REGISTRY.map(
+	command => ({
+		...command,
+		description: localizeCommandDescription(command.description)!,
+		subcommands: command.subcommands?.map(subcommand => ({
+			...subcommand,
+			description: localizeCommandDescription(subcommand.description)!,
+		})),
+	}),
+);
 
 const BUILTIN_SLASH_COMMAND_LOOKUP = new Map<string, SlashCommandSpec>();
 for (const command of BUILTIN_SLASH_COMMAND_REGISTRY) {
@@ -81,7 +118,14 @@ function materializeTuiBuiltinSlashCommand(
 	cmd: BuiltinSlashCommand,
 	runtime?: TuiSlashCommandRuntime,
 ): TuiBuiltinSlashCommand {
-	const materialized: TuiBuiltinSlashCommand = { ...cmd };
+	const materialized: TuiBuiltinSlashCommand = {
+		...cmd,
+		description: localizeCommandDescription(cmd.description)!,
+		subcommands: cmd.subcommands?.map(subcommand => ({
+			...subcommand,
+			description: localizeCommandDescription(subcommand.description)!,
+		})),
+	};
 	if (cmd.subcommands) {
 		const subcommands = cmd.subcommands;
 		// `/mcp` and `/effort` narrow their declarative lists to live session
