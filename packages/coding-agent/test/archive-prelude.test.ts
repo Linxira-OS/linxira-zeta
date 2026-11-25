@@ -13,6 +13,7 @@ import type {
 } from "@linxiraos/zeta/archive/archive";
 import { createArchivePrelude } from "@linxiraos/zeta/archive/prelude-definition";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { syncTranscripts } from "@linxiraos/zeta/daemon/modules/transcripts";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 import { closeSessionIndex, recordSessionRecap } from "@linxiraos/zeta/session/session-index";
 import { sessionDirForCwd } from "@linxiraos/zeta/session/session-paths";
@@ -114,7 +115,7 @@ describe("archive prelude", () => {
 		const local = await call<ArchiveSession[]>({ action: "sessions" });
 		expect(local.map(session => [session.id, session.recap])).toEqual([
 			[newApp, "second recap"],
-			[oldApp, undefined],
+			[oldApp, null],
 		]);
 		const global = await call<ArchiveSession[]>({ action: "sessions", project: "*", limit: 2 });
 		expect(global.map(session => session.id)).toEqual([newApp, libSession]);
