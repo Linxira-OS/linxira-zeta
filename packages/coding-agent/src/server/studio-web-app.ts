@@ -106,6 +106,26 @@ export function resolveStudioWebAppDirFrom(moduleUrl: string | URL, explicitDir:
 	return null;
 }
 
+/** Zeta-owned Team/Rooms bundle, mounted under `/zeta-pages/`. */
+export function resolveStudioPagesDir(): string | null {
+	const explicit = process.env.ZETA_PAGES_DIR;
+	const candidates = explicit
+		? [explicit]
+		: [
+				fileURLToPath(new URL("../dist/zeta-pages", import.meta.url)),
+				fileURLToPath(new URL("../../dist/zeta-pages", import.meta.url)),
+				fileURLToPath(new URL("../../../../terminal/dist/zeta-pages", import.meta.url)),
+			];
+	for (const candidate of candidates) {
+		try {
+			if (fs.statSync(path.join(candidate, "index.html")).isFile()) return path.resolve(candidate);
+		} catch {
+			// absent candidate: try the next one
+		}
+	}
+	return null;
+}
+
 /** Whether `requestPath` stays inside `root` (no traversal, no absolute escape). */
 function resolveFile(root: string, requestPath: string): string | null {
 	const decoded = decodeURIComponent(requestPath);

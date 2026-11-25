@@ -73,7 +73,7 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { registerServeInstanceUrls } from "./web-gateway/identity";
-import { resolveStudioWebAppDir, serveStudioWebApp } from "./studio-web-app";
+import { resolveStudioPagesDir, resolveStudioWebAppDir, serveStudioWebApp } from "./studio-web-app";
 import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 import { shutdownStudioEvaluations } from "./studio-host/services/evaluation-runtime";
 import { shutdownComputerPrivateResources } from "./studio-host/services/computer-runtime";
@@ -432,6 +432,7 @@ export class ZetaServer {
 	#webUiPort = 0;
 	/** Renderer build directory (packaged or checkout); `null` when absent. */
 	readonly #webAppDir = resolveStudioWebAppDir();
+	readonly #pagesDir = resolveStudioPagesDir();
 	#running = false;
 
 	constructor(options: ZetaServerOptions = {}) {
@@ -1442,6 +1443,7 @@ export class ZetaServer {
 		const { port, statsPort } = this.#options;
 		const webUiPort = this.#webUiPort;
 		const webAppDir = this.#webAppDir;
+		const pagesDir = this.#pagesDir;
 		const webUiInternal = `http://127.0.0.1:${webUiPort}`;
 		const statsInternal = `http://127.0.0.1:${statsPort}`;
 		// The gateway dispatcher lives in-process; the standalone listener is
@@ -1530,9 +1532,25 @@ export class ZetaServer {
 						return webGatewayFetch(req, remoteAddr);
 					case "studio":
 						return studioHost().handle(req, remoteAddr);
-					case "webapp":
+					case "webapp": {
+						const pathname = new URL(req.url).pathname;
+						if (
+							pagesDir &&
+							(pathname === "/team" || pathname === "/rooms" || pathname.startsWith("/zeta-pages/"))
+						) {
+							const rewritten =
+								pathname === "/team" || pathname === "/rooms" ? new URL(req.url) : new URL(req.url);
+							rewritten.pathname = pathname.startsWith("/zeta-pages/")
+								? pathname.slice("/zeta-pages".length)
+								: pathname;
+							return serveStudioWebApp(
+								new Request(rewritten.toString(), { method: req.method, headers: req.headers }),
+								pagesDir,
+							);
+						}
 						// `webAppDir` is non-null whenever this route was chosen.
 						return serveStudioWebApp(req, webAppDir!);
+					}
 					case "webui":
 						return proxyRequest(req, webUiInternal);
 					case "unavailable":

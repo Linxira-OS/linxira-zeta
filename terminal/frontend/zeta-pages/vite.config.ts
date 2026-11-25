@@ -13,7 +13,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
  */
 export default defineConfig({
 	root,
-	base: "/",
+	base: "/zeta-pages/",
 	publicDir: false,
 	resolve: {
 		alias: {
