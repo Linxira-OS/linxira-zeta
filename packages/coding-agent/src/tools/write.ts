@@ -1011,8 +1011,9 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 					if (!verbatim && target.spec.backing !== "device" && endsWithReadTruncationNotice(content)) {
 						let currentContent: string | undefined;
 						try {
-							currentContent = (await router.resolve(path, sessionResolveContext(this.session, { signal })))
+							const resolved = (await router.resolve(path, sessionResolveContext(this.session, { signal })))
 								.content;
+							currentContent = typeof resolved === "string" ? resolved : resolved.toString("utf-8");
 						} catch (error) {
 							// A missing target has no source to discard, as for a new disk file (readCurrentWriteSource).
 							if (!isEnoent(error)) throw error;

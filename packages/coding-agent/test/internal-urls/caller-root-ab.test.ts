@@ -269,7 +269,7 @@ describe("internal URL tools resolve against the caller root (A/B same ids)", ()
 
 		const router = InternalUrlRouter.instance();
 		const resource = await router.resolve("agent://Worker/count", { sessionFile: rootA });
-		expect(JSON.parse(resource.content)).toBe(1);
+		expect(JSON.parse(String(resource.content))).toBe(1);
 		expect(resource.sourcePath?.endsWith(path.join("a", "main", "Worker.md"))).toBe(true);
 	});
 });

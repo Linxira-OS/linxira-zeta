@@ -135,7 +135,7 @@ export async function readMcpResource(
 	mcpManager: MCPManagerApi,
 	url: InternalUrl,
 	options?: McpResourceReadOptions,
-): Promise<InternalResource | undefined> {
+): Promise<InternalResource<string | Buffer> | undefined> {
 	const { exact = false, waitMs, signal } = options ?? {};
 	const uri = extractResourceUri(url);
 	let targetServer = resolveTargetServer(mcpManager, uri, exact);
@@ -172,8 +172,8 @@ export async function readMcpResource(
 		const bytes = Buffer.from(only.blob, "base64");
 		return {
 			url: url.href,
-			content: bytes as unknown as string,
-			contentType: (only.mimeType ?? "application/octet-stream") as any,
+			content: bytes,
+			contentType: only.mimeType ?? "application/octet-stream",
 			size: bytes.length,
 			notes: [`MCP server: ${targetServer}`],
 		};
@@ -225,7 +225,7 @@ export class McpProtocolHandler implements ProtocolHandler {
 		return mcpDoc.trim();
 	}
 
-	async resolve(url: InternalUrl, context?: ResolveContext): Promise<InternalResource> {
+	async resolve(url: InternalUrl, context?: ResolveContext): Promise<InternalResource<string | Buffer>> {
 		const mcpManager = await MCPManager.load();
 		if (!mcpManager) {
 			throw new Error("No MCP manager available. MCP servers may not be configured.");

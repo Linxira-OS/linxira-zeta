@@ -407,7 +407,7 @@ describe("ReviewCommand", () => {
 					const router = InternalUrlRouter.instance();
 					for (const row of rows) {
 						const resource = await router.resolve(row.url);
-						expect(resource.content.split("\n")[0]).toBe(`diff --git a/${row.path} b/${row.path}`);
+						expect(String(resource.content).split("\n")[0]).toBe(`diff --git a/${row.path} b/${row.path}`);
 					}
 				} finally {
 					InternalUrlRouter.resetForTests();

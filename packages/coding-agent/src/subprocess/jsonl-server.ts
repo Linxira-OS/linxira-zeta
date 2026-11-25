@@ -1,4 +1,5 @@
 import { type IpcConnection, IpcServer } from "@linxiraos/pi-natives";
+import { createInterface } from "node:readline";
 import { logger, postmortem } from "@linxiraos/pi-utils";
 
 /** Writes one JSON line back to the connection a request arrived on. */
@@ -57,6 +58,35 @@ export class JsonLineServer<Req, Res> {
 			await this.#stopped.promise;
 		} finally {
 			cancelCleanup();
+		}
+	}
+
+	/**
+	 * Serve LF-delimited JSON on stdin/stdout for legacy child-process callers.
+	 * The socket protocol is preferred; this keeps the compiled-binary smoke test
+	 * and older daemon brokers working while they migrate.
+	 */
+	async serveStdio(): Promise<void> {
+		const cancelCleanup = postmortem.register(this.#options.cleanupLabel, () => this.#shutdown());
+		this.#armIdle();
+		const reply: JsonLineReply<Res> = { send: message => process.stdout.write(`${JSON.stringify(message)}\n`) };
+		const input = createInterface({ input: process.stdin });
+		input.on("line", (line: string) => {
+			let request: Req;
+			try {
+				request = JSON.parse(line) as Req;
+			} catch (error) {
+				logger.warn(`${this.#options.name}: malformed request line`, { error: String(error) });
+				return;
+			}
+			this.#options.onRequest(request, reply);
+		});
+		try {
+			await new Promise<void>(resolve => input.once("close", resolve));
+		} finally {
+			input.close();
+			cancelCleanup();
+			await this.#stop();
 		}
 	}
 

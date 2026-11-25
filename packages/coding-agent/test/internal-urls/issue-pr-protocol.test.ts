@@ -197,7 +197,7 @@ describe("issue:// protocol handler", () => {
 		});
 
 		const resource = await router.resolve("issue://owner/example/43", { settings });
-		expect(resource.content.startsWith("> WARNING: Live GitHub refresh failed")).toBe(true);
+		expect(String(resource.content).startsWith("> WARNING: Live GitHub refresh failed")).toBe(true);
 		expect(resource.notes?.[0]).toMatch(/^WARNING: showing cached content/);
 		expect(resource.content).toContain("cached body");
 		expect(spy).toHaveBeenCalledTimes(2);
@@ -465,14 +465,14 @@ describe("pr://.../diff family", () => {
 		const router = InternalUrlRouter.instance();
 		const first = await router.resolve("pr://owner/example/77/diff/1");
 		expect(first.contentType).toBe("text/plain");
-		expect(first.content.startsWith("diff --git a/src/one.ts b/src/one.ts")).toBe(true);
+		expect(String(first.content).startsWith("diff --git a/src/one.ts b/src/one.ts")).toBe(true);
 		expect(first.content).not.toContain("src/two.ts");
 		expect(first.notes).toEqual(
 			expect.arrayContaining(["Showing file 1/2: src/one.ts", "Read all: pr://owner/example/77/diff/all"]),
 		);
 
 		const second = await router.resolve("pr://owner/example/77/diff/2");
-		expect(second.content.startsWith("diff --git a/src/two.ts b/src/two.ts")).toBe(true);
+		expect(String(second.content).startsWith("diff --git a/src/two.ts b/src/two.ts")).toBe(true);
 		expect(second.content).not.toContain("src/one.ts");
 	});
 

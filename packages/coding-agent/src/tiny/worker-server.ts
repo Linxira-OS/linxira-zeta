@@ -35,6 +35,10 @@ export class TinyWorkerServer {
 		return this.#server.serve(endpoint);
 	}
 
+	serveStdio(): Promise<void> {
+		return this.#server.serveStdio();
+	}
+
 	#dispatch(request: TinyWorkerRequest, reply: JsonLineReply<TinyWorkerResponse>): void {
 		if (request.type === "ping") {
 			reply.send({ type: "pong", id: request.id, tag: this.#options.tag });

@@ -174,13 +174,13 @@ export interface SchemeHost {
  * `immutable` from {@link SchemeSpec.immutable}, so handlers set it only to
  * override the scheme default for a specific URL.
  */
-export interface InternalResource {
+export interface InternalResource<Content extends string | Buffer = string> {
 	/** Canonical URL that was resolved */
 	url: string;
-	/** Resolved text content */
-	content: string;
-	/** MIME type: text/markdown, application/json, or text/plain */
-	contentType: "text/markdown" | "application/json" | "text/plain";
+	/** Resolved text, or raw bytes for a binary resource. */
+	content: Content;
+	/** MIME type; byte resources may report their real type (application/pdf). */
+	contentType: string;
 	/** Content size in bytes */
 	size?: number;
 	/** Underlying filesystem path (for debugging, not exposed to agent) */
@@ -385,7 +385,7 @@ export interface ProtocolHandler {
 	 *   preference to global state.
 	 * @throws Error with user-friendly message if resolution fails
 	 */
-	resolve(url: InternalUrl, context?: ResolveContext): Promise<InternalResource>;
+	resolve(url: InternalUrl, context?: ResolveContext): Promise<InternalResource<string | Buffer>>;
 	/**
 	 * Handler-owned write hook: present exactly when `spec.write.via` is
 	 * `"handler"` (the router enforces this at registration). The write tool

@@ -203,7 +203,8 @@ export class StudioResourceService {
 		}
 		if (bytes === undefined) {
 			try {
-				content = (await handler.resolve(url, context)).content;
+				const resolved = (await handler.resolve(url, context)).content;
+				content = typeof resolved === "string" ? resolved : new TextDecoder("utf-8").decode(resolved);
 			} catch (error) {
 				throw new StudioOpError(
 					"UNAVAILABLE",

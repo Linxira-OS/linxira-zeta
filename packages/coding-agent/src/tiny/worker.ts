@@ -256,7 +256,7 @@ export async function startTinyWorkerFromEnvironment(): Promise<void> {
 	const endpoint = process.env[TINY_WORKER_SOCKET_ENV];
 	const modelKey = process.env[TINY_WORKER_MODEL_ENV];
 	const tag = process.env[TINY_WORKER_TAG_ENV];
-	if (!endpoint || !modelKey || !tag) throw new Error("tiny worker environment is incomplete");
+	if (!modelKey || !tag) throw new Error("tiny worker environment is incomplete");
 	if (!isTinyLocalModelKey(modelKey)) throw new Error(`Unknown tiny local model: ${modelKey}`);
 	const spec = getTinyLocalModelSpec(modelKey);
 	if (!spec) throw new Error(`Unknown tiny local model: ${modelKey}`);
@@ -276,5 +276,6 @@ export async function startTinyWorkerFromEnvironment(): Promise<void> {
 			reply.send({ type: "text", id: request.id, text });
 		},
 	});
-	await server.serve(endpoint);
+	if (endpoint) await server.serve(endpoint);
+	else await server.serveStdio();
 }

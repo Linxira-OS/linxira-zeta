@@ -933,7 +933,7 @@ export class InternalUrlFilesystem {
 				return { kind: "virtual", url, spec, directory: true, bytes: new Uint8Array(), entries };
 			}
 		}
-		let resource: InternalResource;
+		let resource: InternalResource<string | Buffer>;
 		try {
 			resource = await this.#router.resolve(url, this.#context);
 		} catch (error) {

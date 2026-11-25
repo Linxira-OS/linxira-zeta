@@ -106,7 +106,9 @@ describe("security://", () => {
 
 		const list = await router.resolve(listUrl, { cwd: repositoryRoot });
 		const detail = await router.resolve(detailUrl, { cwd: repositoryRoot });
-		const entry = list.content.split("\n").find(line => line.includes(`\`${finding.id}\``));
+		const entry = String(list.content)
+			.split("\n")
+			.find(line => line.includes(`\`${finding.id}\``));
 		expect(entry).toContain("**validated**");
 		expect(detail.content).toContain("- Disposition: **open**");
 		expect(detail.content).toContain("- Validation: **validated** (2026-11-04T09:52:00.949Z)");

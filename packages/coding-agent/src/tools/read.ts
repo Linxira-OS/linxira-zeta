@@ -2197,7 +2197,12 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						throw new ToolError("JSON selectors require a regular SSH file, not a directory.");
 					return readJson(
 						this.session,
-						{ url: peeled.path, content: resource.content, selector: sshSelector },
+						{
+							url: peeled.path,
+							content:
+								typeof resource.content === "string" ? resource.content : resource.content.toString("utf-8"),
+							selector: sshSelector,
+						},
 						peeled.sel,
 						signal,
 					);
