@@ -433,8 +433,11 @@ export function selectedLines(selection: ReadSelection): [number, number][] | nu
 
 /** A path as written, resolved against the session's working directory (URLs and absolute paths kept). */
 export function resolveReadPath(target: string, cwd: string | null): string {
-	if (URL_SCHEME.test(target) || !cwd || path.isAbsolute(target)) return target;
-	return path.resolve(cwd, target);
+	if (URL_SCHEME.test(target)) return target;
+	// Absolute paths still go through `path.resolve`: on Windows a POSIX-spelled
+	// `/repo/src/a.ts` and a relative `src/a.ts` under `/repo` must compare equal.
+	if (path.isAbsolute(target)) return path.resolve(target);
+	return cwd ? path.resolve(cwd, target) : target;
 }
 
 /** One `*** Find` block of an `edit` input and the file its section edits (null: the call's `path`). */
