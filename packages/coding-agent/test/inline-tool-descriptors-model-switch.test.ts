@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -30,6 +30,10 @@ describe("inline tool descriptors across model switches", () => {
 		authStorage.keys.setRuntime("google", "test-key");
 		authStorage.keys.setRuntime("opencode-go", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
+	});
+
+	afterEach(async () => {
+		for (const session of sessions.splice(0)) await session.dispose().catch(() => {});
 	});
 
 	afterAll(async () => {

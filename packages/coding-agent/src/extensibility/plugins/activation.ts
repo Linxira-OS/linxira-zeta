@@ -52,7 +52,10 @@ export interface PanelActivation {
  * does not depend on the outer emulator.
  */
 export function isInsideWorkbenchTerminal(env: NodeJS.ProcessEnv = $env): boolean {
-	return isInsideZetaWorkbench(env);
+	if (isInsideZetaWorkbench(env)) return true;
+	// A pane attached to `zetacode serve` is stamped by the gateway; the TUI
+	// terminal-id table has no zetawork entry, so inspect the identity directly.
+	return env.TERM_PROGRAM?.toLowerCase() === "zetawork";
 }
 
 /**

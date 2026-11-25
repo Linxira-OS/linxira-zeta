@@ -162,7 +162,8 @@ async function resolveInstalledPackage(
 			const manifest: unknown = await Bun.file(path.join(dir, "package.json")).json();
 			// The install directory names the package even when its published name
 			// uses a different scope than the resolution specifier.
-			if (isRecord(manifest) && path.basename(dir) === pkg.npmDir) return { root: dir, manifest };
+			if (isRecord(manifest) && (path.basename(dir) === pkg.npmDir || manifest.name === specifier))
+				return { root: dir, manifest };
 		} catch (error) {
 			if (!isEnoent(error)) throw error;
 		}

@@ -632,7 +632,7 @@ async function resolveUpdateTarget(options: { allowPackageManagers: boolean }): 
 
 	if (bunBinDir) return { method: "bun" };
 
-	throw new Error(`Could not resolve \${CLI_BIN_NAME} binary path in PATH`);
+	throw new Error(`Could not resolve ${CLI_BIN_NAME} binary path in PATH`);
 }
 
 /** Bound on `zetacode.rename` hops so a broken pointer chain cannot loop forever. */
@@ -663,7 +663,7 @@ async function fetchLatestManifest(
 		}
 	};
 	const noCanary = () =>
-		new Error(`No canary release has been published for ${pkg} yet. Try \`\${CLI_BIN_NAME} update --stable\`.`);
+		new Error(`No canary release has been published for ${pkg} yet. Try \`${CLI_BIN_NAME} update --stable\`.`);
 
 	const fromPackument = (packument: unknown): Record<string, unknown> => {
 		const distTags = isRecord(packument) ? packument["dist-tags"] : undefined;
@@ -1101,7 +1101,7 @@ function printVerifiedVersion(expectedVersion: string, binaryPath?: string): voi
 
 function formatVerificationFailure(result: InstalledVersionVerification, expectedVersion: string): string {
 	if (result.actual) {
-		return `\${CLI_BIN_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
+		return `${CLI_BIN_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
 	}
 	return `could not verify updated version${result.path ? ` at ${result.path}` : ""}`;
 }
@@ -1267,7 +1267,7 @@ export async function replaceBinaryForUpdate(options: BinaryReplacementOptions):
 		const verification = await options.verifyInstalledVersion(options.expectedVersion);
 		if (!verification.ok) {
 			throw new Error(
-				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous \${CLI_BIN_NAME} binary`,
+				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${CLI_BIN_NAME} binary`,
 			);
 		}
 
@@ -1720,7 +1720,7 @@ export async function updateViaManager(
 	}
 	console.log(
 		chalk.yellow(
-			`\n${steps.manager} did not install a working \${CLI_BIN_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
+			`\n${steps.manager} did not install a working ${CLI_BIN_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
 		),
 	);
 	try {
@@ -1944,7 +1944,7 @@ export async function updateViaBinaryAt(
 		return result;
 	});
 	await finishVerifiedUpdate({ ...verification, path: verification.path ?? targetPath }, build.version);
-	console.log(chalk.dim(`Restart \${CLI_BIN_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
@@ -2039,7 +2039,7 @@ export async function updateViaShimTakeover(
 			}
 			await unlinkIfExists(exePath);
 			throw new Error(
-				`${formatVerificationFailure(verification, build.version)}; restored previous \${CLI_BIN_NAME} launcher`,
+				`${formatVerificationFailure(verification, build.version)}; restored previous ${CLI_BIN_NAME} launcher`,
 			);
 		}
 		for (const { backup } of retired) {
@@ -2062,7 +2062,7 @@ export async function updateViaShimTakeover(
 		);
 	}
 	await finishVerifiedUpdate({ ...verification, path: exePath }, build.version);
-	console.log(chalk.dim(`Restart \${CLI_BIN_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
@@ -2145,7 +2145,7 @@ function acquireInstallLock(): FileLockHandle {
 	const dir = getUpdateStateDir();
 	fs.mkdirSync(dir, { recursive: true });
 	const lock = tryAcquireFileLock(path.join(dir, "install"));
-	if (!lock) throw new Error(`Another \${CLI_BIN_NAME} update is already running; try again once it finishes.`);
+	if (!lock) throw new Error(`Another ${CLI_BIN_NAME} update is already running; try again once it finishes.`);
 	return lock;
 }
 
@@ -2251,7 +2251,7 @@ async function updateToStandaloneBinary(
 	// Without package-manager routing only a Windows script launcher resolves
 	// to a manager (the bun/npm bin-dir probes are skipped), so its path is known.
 	if (target.method !== "npm" || !target.path)
-		throw new Error(`Could not resolve \${CLI_BIN_NAME} launcher path in PATH`);
+		throw new Error(`Could not resolve ${CLI_BIN_NAME} launcher path in PATH`);
 	console.log(chalk.dim("This release ships as a standalone binary; replacing the script launcher."));
 	await updateViaShimTakeover(target.path, build, { onProgress });
 	console.log(chalk.yellow(unmanaged));
@@ -2375,10 +2375,10 @@ export async function runUpdateCommand(opts: UpdateOptions): Promise<UpdateOutco
  * Print update command help.
  */
 export function printUpdateHelp(): void {
-	console.log(`${chalk.bold(`\${CLI_BIN_NAME} update`)} - Check for and install updates
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} update`)} - Check for and install updates
 
 ${chalk.bold("Usage:")}
-  \${CLI_BIN_NAME} update [options]
+  ${CLI_BIN_NAME} update [options]
 
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
@@ -2388,10 +2388,10 @@ ${chalk.bold("Options:")}
   --stable        Switch back to the stable channel
 
 ${chalk.bold("Examples:")}
-  \${CLI_BIN_NAME} update              Update to latest version
-  \${CLI_BIN_NAME} update --check      Check if updates are available
-  \${CLI_BIN_NAME} update --force      Force reinstall
-  \${CLI_BIN_NAME} update -l           Update installed plugins
-  \${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
+  ${CLI_BIN_NAME} update              Update to latest version
+  ${CLI_BIN_NAME} update --check      Check if updates are available
+  ${CLI_BIN_NAME} update --force      Force reinstall
+  ${CLI_BIN_NAME} update -l           Update installed plugins
+  ${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
 `);
 }

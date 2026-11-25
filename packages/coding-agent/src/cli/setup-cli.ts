@@ -45,7 +45,7 @@ export function parseSetupArgs(args: string[]): SetupCommandArgs | undefined {
 	}
 
 	if (args.length < 2) {
-		console.error(chalk.red(`Usage: \${CLI_BIN_NAME} setup <component>`));
+		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} setup <component>`));
 		console.error(`Valid components: ${VALID_COMPONENTS.join(", ")}`);
 		process.exit(1);
 	}
@@ -316,11 +316,11 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
  * Print setup command help.
  */
 export function printSetupHelp(): void {
-	console.log(`${chalk.bold(`\${CLI_BIN_NAME} setup`)} - Run onboarding or install dependencies for optional features
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} setup`)} - Run onboarding or install dependencies for optional features
 
 ${chalk.bold("Usage:")}
-  \${CLI_BIN_NAME} setup                     Run the onboarding wizard
-  \${CLI_BIN_NAME} setup <component> [options]
+  ${CLI_BIN_NAME} setup                     Run the onboarding wizard
+  ${CLI_BIN_NAME} setup <component> [options]
 
 ${chalk.bold("Components:")}
   python    Verify a Python 3 interpreter is reachable for code execution
@@ -331,10 +331,10 @@ ${chalk.bold("Options:")}
   --json        Output status as JSON
 
 ${chalk.bold("Examples:")}
-  \${CLI_BIN_NAME} setup                  Run the onboarding wizard
-  \${CLI_BIN_NAME} setup python           Check Python execution dependencies
-  \${CLI_BIN_NAME} setup speech           Pick and download the STT and TTS models
-  \${CLI_BIN_NAME} setup speech --check   Check if speech dependencies are available
-  \${CLI_BIN_NAME} setup python --check   Check if Python execution is available
+  ${CLI_BIN_NAME} setup                  Run the onboarding wizard
+  ${CLI_BIN_NAME} setup python           Check Python execution dependencies
+  ${CLI_BIN_NAME} setup speech           Pick and download the STT and TTS models
+  ${CLI_BIN_NAME} setup speech --check   Check if speech dependencies are available
+  ${CLI_BIN_NAME} setup python --check   Check if Python execution is available
 `);
 }

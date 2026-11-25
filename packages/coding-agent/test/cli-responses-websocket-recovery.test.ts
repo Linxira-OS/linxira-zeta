@@ -93,7 +93,7 @@ async function withCli(
 		SHELL: "/bin/sh",
 		NO_COLOR: "1",
 		TERM: "dumb",
-		...(process.env.PI_NATIVES_DIR ? { PI_NATIVES_DIR: process.env.PI_NATIVES_DIR } : {}),
+		...(process.env.ZETA_NATIVES_DIR ? { ZETA_NATIVES_DIR: process.env.ZETA_NATIVES_DIR } : {}),
 	};
 	const client = new RpcClient({
 		provider: "openai",

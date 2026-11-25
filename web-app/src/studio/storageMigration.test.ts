@@ -17,18 +17,18 @@ function fakeStorage(entries: Record<string, string> = {}): StorageLike & { entr
 
 describe("migrateLegacyStorageKeys", () => {
 	test("moves zeta.* keys to zeta.* and drops the legacy copies", () => {
-		const storage = fakeStorage({ "zeta.appSettings": '{"language":"zh"}', "zeta.lastRoute": "home" });
+		const storage = fakeStorage({ "omp.appSettings": '{"language":"zh"}', "omp.lastRoute": "home" });
 		expect(migrateLegacyStorageKeys(storage)).toBe(2);
 		expect(storage.getItem("zeta.appSettings")).toBe('{"language":"zh"}');
 		expect(storage.getItem("zeta.lastRoute")).toBe("home");
-		expect(storage.getItem("zeta.appSettings")).toBeNull();
+		expect(storage.getItem("omp.appSettings")).toBeNull();
 	});
 
 	test("never overwrites a zeta.* value that already exists", () => {
-		const storage = fakeStorage({ "zeta.appSettings": "legacy", "zeta.appSettings": "current" });
+		const storage = fakeStorage({ "omp.appSettings": "legacy", "zeta.appSettings": "current" });
 		expect(migrateLegacyStorageKeys(storage)).toBe(0);
 		expect(storage.getItem("zeta.appSettings")).toBe("current");
-		expect(storage.getItem("zeta.appSettings")).toBeNull();
+		expect(storage.getItem("omp.appSettings")).toBeNull();
 	});
 
 	test("leaves unrelated keys alone and is idempotent", () => {

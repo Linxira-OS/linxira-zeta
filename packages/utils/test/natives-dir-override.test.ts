@@ -10,7 +10,7 @@ const ENV_KEYS = [
 	"ZETA_PROFILE",
 	"ZETA_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
-	"PI_NATIVES_DIR",
+	"ZETA_NATIVES_DIR",
 	"XDG_DATA_HOME",
 	"XDG_STATE_HOME",
 	"XDG_CACHE_HOME",
@@ -68,18 +68,18 @@ describe("native directory override", () => {
 		const agent = getAgentDir();
 		expect(getNativesDir()).toBe(defaultNatives);
 
-		process.env.PI_NATIVES_DIR = " " + shared + " ";
+		process.env.ZETA_NATIVES_DIR = " " + shared + " ";
 		expect(getNativesDir()).toBe(shared);
 		expect(getAgentDir()).toBe(agent);
 
-		delete process.env.PI_NATIVES_DIR;
+		delete process.env.ZETA_NATIVES_DIR;
 		expect(getNativesDir()).toBe(defaultNatives);
 	});
 
 	it("expands home-relative overrides instead of treating tilde as a cwd-relative path", () => {
-		process.env.PI_NATIVES_DIR = "~";
+		process.env.ZETA_NATIVES_DIR = "~";
 		expect(getNativesDir()).toBe(home);
-		process.env.PI_NATIVES_DIR = " ~/unused/../shared ";
+		process.env.ZETA_NATIVES_DIR = " ~/unused/../shared ";
 		expect(getNativesDir()).toBe(path.join(home, "shared"));
 	});
 
@@ -88,7 +88,7 @@ describe("native directory override", () => {
 		["whitespace", " \t "],
 		["relative", "relative/natives"],
 	])("keeps the existing cache root when the override is %s", (_label, override) => {
-		process.env.PI_NATIVES_DIR = override;
+		process.env.ZETA_NATIVES_DIR = override;
 		expect(getNativesDir()).toBe(path.join(home, ".zeta", "natives"));
 	});
 });

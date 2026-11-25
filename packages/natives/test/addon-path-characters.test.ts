@@ -2,7 +2,7 @@
  * The loader opens each `.node` candidate with `process.dlopen`. Bun's
  * `require`, which it used before, cannot load a module from a path that
  * contains `?` (it reads the path cut at the `?`), so an addon under such a
- * `PI_NATIVES_DIR` or `HOME` failed with "Cannot find module". These rows load
+ * `ZETA_NATIVES_DIR` or `HOME` failed with "Cannot find module". These rows load
  * the host addon through the real loader from a directory whose path holds each
  * character, in a child process per row (`loadNative` runs once per process).
  *
@@ -124,7 +124,7 @@ afterAll(async () => {
 
 async function probe(env: Record<string, string>): Promise<ProbeResult> {
 	const childEnv: Record<string, string | undefined> = { ...process.env, PI_COMPILED: "1", ...env };
-	for (const key of ["PI_NATIVES_DIR", "XDG_DATA_HOME", "__PI_NATIVE_VARIANT_CACHE"]) {
+	for (const key of ["ZETA_NATIVES_DIR", "XDG_DATA_HOME", "__PI_NATIVE_VARIANT_CACHE"]) {
 		if (!(key in env)) delete childEnv[key];
 	}
 	if (variant) childEnv.PI_NATIVE_VARIANT = variant;
@@ -146,13 +146,13 @@ async function probe(env: Record<string, string>): Promise<ProbeResult> {
 
 describe.skipIf(!hasHostAddon)("the addon loads from a directory whose path holds", () => {
 	for (const [label, dirname] of CHARACTER_DIRS) {
-		it(`${label}: a PI_NATIVES_DIR that holds the addon`, async () => {
+		it(`${label}: a ZETA_NATIVES_DIR that holds the addon`, async () => {
 			const nativesDir = path.join(root, `natives-${dirname}`);
 			const addonPath = path.join(nativesDir, packageJson.version, hostAddonFilename);
 			await fs.mkdir(path.dirname(addonPath), { recursive: true });
 			await fs.copyFile(addon, addonPath);
 			try {
-				const result = await probe({ PI_NATIVES_DIR: nativesDir, HOME: path.join(root, `home-of-${dirname}`) });
+				const result = await probe({ ZETA_NATIVES_DIR: nativesDir, HOME: path.join(root, `home-of-${dirname}`) });
 				expect(result).toMatchObject({ ok: true, path: addonPath });
 			} finally {
 				await fs.rm(nativesDir, { recursive: true, force: true });
@@ -209,7 +209,7 @@ describe.skipIf(!hasHostAddon)("openNativeAddon", () => {
 		await fs.copyFile(addon, addonPath);
 		try {
 			const result = await probe({
-				PI_NATIVES_DIR: nativesDir,
+				ZETA_NATIVES_DIR: nativesDir,
 				HOME: path.join(root, "home-of-twice"),
 				PROBE_TWICE: "1",
 			});
@@ -227,7 +227,7 @@ describe.skipIf(!hasHostAddon)("openNativeAddon", () => {
 		await fs.mkdir(path.dirname(addonPath), { recursive: true });
 		await Bun.write(addonPath, "not an addon\n");
 		try {
-			const result = await probe({ PI_NATIVES_DIR: nativesDir, HOME: path.join(root, "home-of-broken") });
+			const result = await probe({ ZETA_NATIVES_DIR: nativesDir, HOME: path.join(root, "home-of-broken") });
 			expect(result.ok).toBe(false);
 			const line = result.error?.split("\n").find(entry => entry.startsWith(`- ${addonPath}: `));
 			expect(line).toBeDefined();

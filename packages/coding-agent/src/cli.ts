@@ -610,7 +610,7 @@ export async function runCli(argv: string[]): Promise<void> {
 	// produce that frame.
 	await Promise.all([setFullProcessName(), helpOrVersion ? Promise.resolve() : installNetworkBootstrap()]);
 
-	if (resolvedArgv[0] === "--smoke-test") {
+	if (resolvedArgv[0]?.startsWith("--smoke-test") === true) {
 		await runSmokeTest();
 		return;
 	}

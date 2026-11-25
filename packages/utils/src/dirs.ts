@@ -1073,9 +1073,9 @@ export function getNativeGrammarsDir(): string {
 	return path.join(getNativesDir(), "grammars");
 }
 
-/** Get the natives directory. PI_NATIVES_DIR overrides the usual cache root; relative values are ignored. */
+/** Get the natives directory. ZETA_NATIVES_DIR overrides the usual cache root; relative values are ignored. */
 export function getNativesDir(): string {
-	return resolveAbsoluteDir(process.env.PI_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");
+	return resolveAbsoluteDir(process.env.ZETA_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");
 }
 
 /** Get the stats database path (~/.zeta/stats.db). */

@@ -309,7 +309,7 @@ function rejectNoUiWithoutRpc(args: Pick<Args, "noUi" | "mode">): void {
 function exitWithoutTerminal(): never {
 	process.stderr.write(
 		`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
-			`Pass a prompt (\`\${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
+			`Pass a prompt (\`${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
 	);
 	process.exit(2);
 }
@@ -2979,7 +2979,7 @@ export async function runRootCommand(
 						for (const selector of suggestions) process.stderr.write(`  ${selector}\n`);
 					}
 					process.stderr.write(
-						`\nRun \`\${CLI_BIN_NAME} models find <pattern>\` to search, or \`\${CLI_BIN_NAME} models\` to list all.\n`,
+						`\nRun \`${CLI_BIN_NAME} models find <pattern>\` to search, or \`${CLI_BIN_NAME} models\` to list all.\n`,
 					);
 					process.exit(1);
 				}

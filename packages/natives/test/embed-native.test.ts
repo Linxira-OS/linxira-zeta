@@ -126,7 +126,7 @@ describe("native addon embedding", () => {
 			for (const variant of ["baseline", "modern"]) {
 				const cache = path.join(root, variant);
 				const child = Bun.spawn([binary], {
-					env: { ...process.env, PI_NATIVES_DIR: cache, PI_NATIVE_VARIANT: variant },
+					env: { ...process.env, ZETA_NATIVES_DIR: cache, PI_NATIVE_VARIANT: variant },
 					stdout: "ignore",
 					stderr: "ignore",
 				});

@@ -7,7 +7,7 @@
  * theme instead of silently resetting.
  */
 
-const LEGACY_PREFIX = "zeta.";
+const LEGACY_PREFIX = "omp.";
 export const STORAGE_PREFIX = "zeta.";
 
 /** Minimal surface of `localStorage`, so the migration is testable without a DOM. */
@@ -20,7 +20,7 @@ export interface StorageLike {
 }
 
 /**
- * Copy `zeta.*` entries to their `zeta.*` names and drop the legacy copies.
+ * Copy `omp.*` entries to their `zeta.*` names and drop the legacy copies.
  * A `zeta.*` value always wins, so a partially-migrated profile is not
  * overwritten by stale data. Returns the number of keys moved.
  */

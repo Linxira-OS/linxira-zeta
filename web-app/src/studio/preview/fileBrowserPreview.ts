@@ -148,7 +148,7 @@ function homeTree(platform: "win32" | "darwin"): Node[] {
 
 function tools(): Node[] {
 	const omp = fromPreviewTree(PREVIEW_FILE_TREE);
-	zeta.push(dir(".worktrees", [dir("mermaid", fromPreviewTree(PREVIEW_FILE_TREE.slice(3, 7)))], { hidden: true }));
+	omp.push(dir(".worktrees", [dir("mermaid", fromPreviewTree(PREVIEW_FILE_TREE.slice(3, 7)))], { hidden: true }));
 	return [
 		dir("zeta-web", omp, { age: 12 * MIN }),
 		dir(

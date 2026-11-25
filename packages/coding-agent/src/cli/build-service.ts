@@ -322,7 +322,7 @@ export async function fetchBuild(selector: BuildSelector, options: FetchBuildOpt
 	if (response.status === 404 && isRecord(body) && body.error === "no_build") {
 		const hint =
 			product === ZETA_BUILD && "channel" in selector && selector.channel === "canary"
-				? ` Try \`\${CLI_BIN_NAME} update --stable\`.`
+				? ` Try \`${CLI_BIN_NAME} update --stable\`.`
 				: "";
 		throw new Error(`No ${what} is published on ${origin} yet.${hint}`);
 	}

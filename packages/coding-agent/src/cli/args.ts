@@ -556,7 +556,7 @@ export function reportUnrecognizedFlags(
 	const flags = args.unrecognizedFlags;
 	const plural = flags.length === 1 ? "" : "s";
 	write(`${chalk.red(`Error: unknown flag${plural}: ${flags.join(", ")}`)}\n`);
-	write(`Run \`\${CLI_BIN_NAME} --help\` for available flags.\n`);
+	write(`Run \`${CLI_BIN_NAME} --help\` for available flags.\n`);
 	return true;
 }
 
@@ -581,15 +581,15 @@ export function reportCliUsageError(
 ): boolean {
 	if (!(error instanceof CliUsageError)) return false;
 	write(`${chalk.red(`Error: ${error.message}`)}\n`);
-	write(`Run \`\${CLI_BIN_NAME} --help\` for available flags.\n`);
+	write(`Run \`${CLI_BIN_NAME} --help\` for available flags.\n`);
 	return true;
 }
 
 export function printHelp(): void {
 	process.stdout.write(
 		`${chalk.bold(APP_NAME)} - AI coding assistant\n\n` +
-			`Run \${CLI_BIN_NAME} --help for full command and option details.\n` +
-			`Run \${CLI_BIN_NAME} <command> --help for command-specific help.\n\n` +
+			`Run ${CLI_BIN_NAME} --help for full command and option details.\n` +
+			`Run ${CLI_BIN_NAME} <command> --help for command-specific help.\n\n` +
 			`${getExtraHelpText()}\n`,
 	);
 }
