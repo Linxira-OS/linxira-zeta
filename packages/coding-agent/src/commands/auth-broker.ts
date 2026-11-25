@@ -1,9 +1,8 @@
 /**
- * `zetacode auth-broker` — manage the omp credential vault.
+ * `omp auth-broker` — manage the omp credential vault.
  */
 
-import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
-import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
+import { Args, Command, Flags, renderCommandHelp } from "@oh-my-pi/pi-utils/cli";
 import {
 	AUTH_BROKER_ACTIONS,
 	type AuthBrokerAction,
@@ -11,7 +10,7 @@ import {
 	runAuthBrokerCommand,
 } from "../cli/auth-broker-cli";
 import { authBrokerHelp as commandHelp } from "../cli/command-help";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 export default class AuthBroker extends Command {
 	static description = commandHelp.description;
@@ -57,27 +56,27 @@ export default class AuthBroker extends Command {
 	};
 
 	static examples = [
-		"# Boot the broker against the local SQLite store\n  zetacode auth-broker serve",
-		"# Boot on a non-default port\n  zetacode auth-broker serve --bind=127.0.0.1:9000",
-		"# Trust client IP headers from a trusted reverse proxy\n  zetacode auth-broker serve --trust-proxy-headers",
-		"# Print the bearer token\n  zetacode auth-broker token",
-		"# Rotate the bearer token\n  zetacode auth-broker token --regenerate",
-		"# List supported OAuth providers\n  zetacode auth-broker list",
-		"# Local login (run on the broker host)\n  zetacode auth-broker login anthropic",
-		"# Interactive provider selection\n  zetacode auth-broker login",
-		"# Remote login over SSH tunnel\n  zetacode auth-broker login anthropic --via=user@broker",
-		"# Log out of a provider (interactive without provider arg)\n  zetacode auth-broker logout anthropic",
-		"# Import a CLIProxyAPI auth dump\n  zetacode auth-broker import ~/.cliproxy/auth",
-		"# Import a single CLIProxyAPI JSON, overriding the provider mapping\n  zetacode auth-broker import ~/.cliproxy/auth/claude-foo.json --provider anthropic",
-		"# Preview a migration from local store + env vars to the configured broker\n  zetacode auth-broker migrate --from-local --include-env --dry-run",
-		"# Apply the migration\n  zetacode auth-broker migrate --from-local --include-env",
-		"# Health-check the configured remote broker\n  zetacode auth-broker status",
+		"# Boot the broker against the local SQLite store\n  omp auth-broker serve",
+		"# Boot on a non-default port\n  omp auth-broker serve --bind=127.0.0.1:9000",
+		"# Trust client IP headers from a trusted reverse proxy\n  omp auth-broker serve --trust-proxy-headers",
+		"# Print the bearer token\n  omp auth-broker token",
+		"# Rotate the bearer token\n  omp auth-broker token --regenerate",
+		"# List supported OAuth providers\n  omp auth-broker list",
+		"# Local login (run on the broker host)\n  omp auth-broker login anthropic",
+		"# Interactive provider selection\n  omp auth-broker login",
+		"# Remote login over SSH tunnel\n  omp auth-broker login anthropic --via=user@broker",
+		"# Log out of a provider (interactive without provider arg)\n  omp auth-broker logout anthropic",
+		"# Import a CLIProxyAPI auth dump\n  omp auth-broker import ~/.cliproxy/auth",
+		"# Import a single CLIProxyAPI JSON, overriding the provider mapping\n  omp auth-broker import ~/.cliproxy/auth/claude-foo.json --provider anthropic",
+		"# Preview a migration from local store + env vars to the configured broker\n  omp auth-broker migrate --from-local --include-env --dry-run",
+		"# Apply the migration\n  omp auth-broker migrate --from-local --include-env",
+		"# Health-check the configured remote broker\n  omp auth-broker status",
 	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(AuthBroker);
 		if (!args.action) {
-			renderCommandHelp(CLI_BIN_NAME, "auth-broker", AuthBroker);
+			renderCommandHelp("omp", "auth-broker", AuthBroker);
 			return;
 		}
 		const action = args.action as AuthBrokerAction;
@@ -100,7 +99,7 @@ export default class AuthBroker extends Command {
 				trustProxyHeaders: flags["trust-proxy-headers"],
 			},
 		};
-		await initTheme();
+		initTheme();
 		await runAuthBrokerCommand(cmd);
 	}
 }

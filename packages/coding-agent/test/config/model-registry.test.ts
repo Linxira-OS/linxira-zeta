@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
+import { AuthStorage } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import {
+	ALIBABA_TOKEN_PLAN_CN_BASE_URL,
+	serializeAlibabaTokenPlanCredential,
+} from "@oh-my-pi/pi-catalog/wire/alibaba-token-plan";
 import { runModelsListing } from "../../src/cli/models-cli";
 import { ModelRegistry } from "../../src/config/model-registry";
 
@@ -30,7 +34,7 @@ describe("ModelRegistry", () => {
 		authStorage = await AuthStorage.create(":memory:");
 		// Construct with an explicit modelsPath inside the temp dir so the
 		// constructor's #loadModels read returns "not-found" rather than
-		// touching the host's ~/.zeta/agent/models.yaml. isBunTestRuntime()
+		// touching the host's ~/.omp/agent/models.yaml. isBunTestRuntime()
 		// auto-stubs #fetch in the constructor.
 		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"));
 	});
@@ -41,7 +45,10 @@ describe("ModelRegistry", () => {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	});
 
-	async function listModels(additionalExtensionPaths: string[] = []): Promise<{ stdout: string; stderr: string }> {
+	async function listModels(
+		additionalExtensionPaths: string[] = [],
+		action: "ls" | "refresh" = "ls",
+	): Promise<{ stdout: string; stderr: string }> {
 		let stdout = "";
 		let stderr = "";
 		const out = vi.spyOn(process.stdout, "write").mockImplementation(chunk => {
@@ -56,6 +63,7 @@ describe("ModelRegistry", () => {
 			await runModelsListing({
 				modelRegistry: registry,
 				cwd: tmpDir,
+				action,
 				json: true,
 				additionalExtensionPaths,
 				disableExtensionDiscovery: true,
@@ -97,9 +105,12 @@ describe("ModelRegistry", () => {
 			supportsStroe: false,
 		});
 		expect(JSON.parse(listing.stdout).models).toContainEqual(expect.objectContaining({ id: "custom-model" }));
-		expect(listing.stderr.trim().split("\n")).toEqual([
-			`Warning: Unknown compat key in ${modelsPath}: supportsStroe at 3 places (providers.custom.compat, providers.custom.models.0.compat, providers.custom.modelOverrides.custom-model.compat) (configuration still loaded).`,
-		]);
+		expect(listing.stderr.trim().split("\n")).toEqual(
+			["compat", "models.0.compat", "modelOverrides.custom-model.compat"].map(
+				location =>
+					`Warning: Unknown compat key in ${modelsPath}: providers.custom.${location}.supportsStroe (configuration still loaded).`,
+			),
+		);
 
 		await registry.refresh("offline");
 		await registry.refresh("offline", { refreshCommandCredentials: true });
@@ -115,38 +126,6 @@ describe("ModelRegistry", () => {
 		expect((await listModels()).stderr).toBe(
 			`Warning: Unknown compat key in ${modelsPath}: providers.custom.compat.supportsStorre (configuration still loaded).\n`,
 		);
-	});
-
-	test("aggregates one stale key repeated per model and names its successor", async () => {
-		const modelsPath = path.join(tmpDir, "models.yaml");
-		const providers: Record<string, unknown> = {};
-		for (const name of ["volcengine-coding", "volcengine-agent", "zai", "aaccxx"]) {
-			providers[name] = {
-				baseUrl: `https://${name}.example.test/v1`,
-				auth: "none",
-				api: "openai-completions",
-				models: [0, 1].map(index => ({
-					id: `${name}-model-${index}`,
-					compat: { requiresReasoningContentOnAssistantMessages: true },
-				})),
-			};
-		}
-		await Bun.write(modelsPath, JSON.stringify({ providers }));
-
-		await registry.refresh("offline");
-		expect(registry.getError()).toBeUndefined();
-		const listing = await listModels();
-		// Eight occurrences of one key: one line naming the successor, and the
-		// stale key stays inert rather than failing the file.
-		expect(listing.stderr.trim().split("\n")).toEqual([
-			`Warning: Unknown compat key in ${modelsPath}: requiresReasoningContentOnAssistantMessages at 8 places ` +
-				"(providers.volcengine-coding.models.0.compat, providers.volcengine-coding.models.1.compat, " +
-				"providers.volcengine-agent.models.0.compat, +5 more) — renamed to " +
-				'"requiresReasoningContentForAllAssistantTurns"; update or remove it (configuration still loaded).',
-		]);
-		expect(registry.find("zai", "zai-model-0")?.compatConfig).toMatchObject({
-			requiresReasoningContentOnAssistantMessages: true,
-		});
 	});
 
 	test("reports a failed extension provider discovery on stderr and clears it once discovery succeeds (#17925)", async () => {
@@ -190,6 +169,48 @@ describe("ModelRegistry", () => {
 		expect(recovered.stderr).toBe("");
 	});
 
+	test("a forced refresh reports why Beijing Token Plan discovery fell back to bundled models", async () => {
+		const provider = "alibaba-token-plan";
+		for (const suffix of ["first", "second", "third"]) {
+			await authStorage.credentials.set(provider, {
+				type: "api_key",
+				key: serializeAlibabaTokenPlanCredential(`sk-sp-X.${suffix}`, "", ALIBABA_TOKEN_PLAN_CN_BASE_URL),
+				source: "login",
+			});
+		}
+		const urls: string[] = [];
+		let rejectDiscovery = true;
+		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"), {
+			cacheDbPath: path.join(tmpDir, "models.db"),
+			fetch: async input => {
+				const url = String(input);
+				urls.push(url);
+				return rejectDiscovery || url !== `${ALIBABA_TOKEN_PLAN_CN_BASE_URL}/models`
+					? new Response(null, { status: 401 })
+					: Response.json({ data: [{ id: "qwen-auto" }] });
+			},
+		});
+
+		await registry.refreshProvider(provider, "online");
+		const failed = await listModels([], "refresh");
+		const bundled = JSON.parse(failed.stdout).models.filter(
+			(model: { provider: string }) => model.provider === provider,
+		);
+		expect(bundled).toContainEqual(expect.objectContaining({ id: "qwen3.7-plus" }));
+		expect(bundled).not.toContainEqual(expect.objectContaining({ id: "qwen-auto" }));
+		expect(urls).toEqual([`${ALIBABA_TOKEN_PLAN_CN_BASE_URL}/models`]);
+		expect(failed.stderr).toContain("alibaba-token-plan model discovery failed");
+		expect(failed.stderr).toContain("HTTP 401");
+
+		rejectDiscovery = false;
+		await registry.refreshProvider(provider, "online");
+		const recovered = await listModels([], "refresh");
+		expect(JSON.parse(recovered.stdout).models).toContainEqual(
+			expect.objectContaining({ provider, id: "qwen-auto" }),
+		);
+		expect(recovered.stderr).toBe("");
+	});
+
 	test("keeps an authHeader extension provider's cached catalog when a forced refresh fails (#18227)", async () => {
 		const modelsPath = path.join(tmpDir, "models.yaml");
 		let fail = false;
@@ -222,7 +243,7 @@ describe("ModelRegistry", () => {
 		await registry.refreshProvider("auth-ext", "online");
 		expect(registry.find("auth-ext", "auth-model")).toBeDefined();
 
-		// Each step runs in a fresh registry, as separate `zetacode` invocations do.
+		// Each step runs in a fresh registry, as separate `omp` invocations do.
 		fail = true;
 		const failedRefresh = new ModelRegistry(authStorage, modelsPath);
 		register(failedRefresh);

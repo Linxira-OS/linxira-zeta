@@ -1,26 +1,28 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { getKeybindings, type KeybindingsManager as TuiKeybindingsManager, setKeybindings } from "@linxiraos/pi-tui";
-import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
-import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
-import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
-import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { BtwHistoryStore } from "@linxiraos/zeta/session/btw-history";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import {
+	getKeybindings,
+	KeybindingsManager,
+	setKeybindings,
+} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
+import { BtwController } from "@oh-my-pi/pi-coding-agent/modes/controllers/btw-controller";
+import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
+import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { BtwHistoryStore } from "@oh-my-pi/pi-coding-agent/session/btw-history";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal, type ModeTerminal } from "./helpers/mode-terminal";
 
 function answer(text: string) {
 	const assistantMessage: AssistantMessage = {
@@ -48,11 +50,6 @@ interface SideTurn {
 	resolve: (result: { replyText: string; assistantMessage: AssistantMessage }) => void;
 }
 
-// CI-042: the session picker's Linux CI path resolves a different row than the
-// fixture target; the BTW transition itself is covered by the direct command
-// case on the same runner. Remove this skip once the picker race is fixed.
-const linuxCiPickerSkip = process.platform === "linux" && process.env.CI === "true";
-
 describe("BTW session boundaries", () => {
 	let directory: TempDir;
 	let auth: AuthStorage;
@@ -66,7 +63,8 @@ describe("BTW session boundaries", () => {
 	let originalRecord: string;
 	let turns: SideTurn[];
 	let extensionRunner: ExtensionRunner;
-	let previousKeybindings: TuiKeybindingsManager;
+	let previousKeybindings: KeybindingsManager;
+	let term: ModeTerminal;
 
 	beforeAll(() => initTheme());
 	beforeEach(async () => {
@@ -75,7 +73,6 @@ describe("BTW session boundaries", () => {
 		previousKeybindings = getKeybindings();
 		setKeybindings(KeybindingsManager.inMemory());
 		directory = TempDir.createSync("@omp-btw-session-lifecycle-");
-		AgentRegistry.installGlobal(new AgentRegistry());
 		await Settings.init({ inMemory: true, cwd: directory.path() });
 		auth = await AuthStorage.create(path.join(directory.path(), "auth.db"));
 		const registry = new ModelRegistry(auth);
@@ -93,15 +90,10 @@ describe("BTW session boundaries", () => {
 			extensionRunner,
 			rebuildSystemPrompt: async () => ({ systemPrompt: ["Test"] }),
 		});
-		mode = new InteractiveMode(session, "test");
-		mode.ui.requestRender = vi.fn();
-		mode.ui.requestComponentRender = vi.fn();
-		mode.ui.setFocus = vi.fn();
-		vi.spyOn(mode.ui, "showOverlay").mockImplementation(() => ({
-			hide: vi.fn(),
-			setHidden: vi.fn(),
-			isHidden: () => false,
-		}));
+		// The picker runs on the shell: keys reach it through the terminal.
+		term = createModeTerminal();
+		await term.start();
+		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, undefined, term.frame);
 		vi.spyOn(mode, "renderInitialMessages").mockResolvedValue(undefined);
 		vi.spyOn(mode, "reloadTodos").mockResolvedValue(undefined);
 		vi.spyOn(mode, "showHookConfirm").mockResolvedValue(true);
@@ -135,12 +127,13 @@ describe("BTW session boundaries", () => {
 		await btw.flush();
 		await btw.dispose();
 		mode.stop();
+		await mode.shell.stop();
+		term.dispose();
 		await session.dispose();
 		auth.close();
 		directory.removeSync();
 		resetSettingsForTest();
 		setKeybindings(previousKeybindings);
-		AgentRegistry.resetGlobalForTests();
 	});
 
 	async function targetSession(): Promise<string> {
@@ -152,20 +145,19 @@ describe("BTW session boundaries", () => {
 		return file;
 	}
 
-	async function picker(file: string): Promise<SessionSelectorComponent> {
+	/** Open `/resume` listing only `file`; keys then go to the picker. */
+	async function picker(file: string): Promise<void> {
 		const list = await SessionManager.list(directory.path(), directory.path());
 		const selected = list.find(item => item.path === file);
 		if (!selected) throw new Error("Expected saved picker target");
 		const listed = [selected];
-		const listing = { sessions: listed, complete: Promise.resolve(listed) };
-		vi.spyOn(SessionManager, "list").mockResolvedValue(listed);
-		vi.spyOn(SessionManager, "listAll").mockResolvedValue(listed);
-		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue(listing);
-		vi.spyOn(SessionManager, "listAllForPicker").mockResolvedValue(listing);
+		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue({
+			sessions: listed,
+			complete: Promise.resolve(listed),
+		});
 		await new SelectorController(mode).showSessionSelector();
-		const component = vi.spyOn(mode.ui, "showOverlay").mock.calls.at(-1)?.[0];
-		if (!(component instanceof SessionSelectorComponent)) throw new Error("Expected session selector");
-		return component;
+		if (!mode.shell.overlays.open()) throw new Error("Expected the session picker");
+		await term.settle();
 	}
 
 	async function startTransition(action: "delete command" | "picker delete" | "picker resume") {
@@ -173,7 +165,7 @@ describe("BTW session boundaries", () => {
 			vi.spyOn(SelectorController.prototype, "showSessionSelector").mockResolvedValue(undefined);
 			return { finished: mode.handleSessionDeleteCommand() };
 		}
-		const panel = await picker(action === "picker delete" ? sourceFile : await targetSession());
+		await picker(action === "picker delete" ? sourceFile : await targetSession());
 		const done = Promise.withResolvers<void>();
 		if (action === "picker delete") {
 			const remove = FileSessionStorage.prototype.deleteSessionWithArtifacts;
@@ -188,7 +180,7 @@ describe("BTW session boundaries", () => {
 					}
 				},
 			);
-			panel.handleInput("\x1b[3~");
+			term.press("delete");
 		} else {
 			const resume = SelectorController.prototype.handleResumeSession;
 			vi.spyOn(SelectorController.prototype, "handleResumeSession").mockImplementation(async function (
@@ -205,56 +197,55 @@ describe("BTW session boundaries", () => {
 				}
 			});
 		}
-		panel.handleInput("\r");
+		term.press("enter");
 		return { finished: done.promise };
 	}
 
-	it.each(
-		linuxCiPickerSkip
-			? (["delete command"] as const)
-			: (["delete command", "picker delete", "picker resume"] as const),
-	)("%s waits for cancelled BTW persistence before changing the source session", async action => {
-		const entered = Promise.withResolvers<void>();
-		const release = Promise.withResolvers<void>();
-		const upsert = BtwHistoryStore.prototype.upsert;
-		vi.spyOn(BtwHistoryStore.prototype, "upsert").mockImplementationOnce(
-			async function (this: BtwHistoryStore, record) {
-				entered.resolve();
-				await release.promise;
-				await upsert.call(this, record);
-			},
-		);
-		try {
-			const { finished } = await startTransition(action);
-			await entered.promise;
-			expect(turns[0]!.signal?.aborted).toBe(true);
-			expect(manager.getSessionId()).toBe(sourceId);
-			expect(await Bun.file(sourceFile).exists()).toBe(true);
-			expect(await Bun.file(recordPath).text()).toBe(originalRecord);
-			release.resolve();
-			await finished;
-			expect(manager.getSessionId()).not.toBe(sourceId);
-			turns[0]!.resolve(answer("Late answer must not resurrect deleted history"));
-			await Promise.resolve();
-			await btw.flush();
-			if (action === "picker resume") {
-				expect((await Bun.file(recordPath).json()).status).toBe("cancelled");
-			} else {
-				expect(await Bun.file(sourceFile).exists()).toBe(false);
-				expect(await Bun.file(recordPath).exists()).toBe(false);
-			}
-			await mode.handleBtwCommand("New session side question");
-			expect(turns).toHaveLength(2);
-			turns[1]!.resolve(answer("New session answer"));
-			await Promise.resolve();
-			await btw.flush();
-			expect((await BtwHistoryStore.open(manager.getArtifactsDir() ?? undefined)).getRecords()[0]?.answer).toBe(
-				"New session answer",
+	it.each(["delete command", "picker delete", "picker resume"] as const)(
+		"%s waits for cancelled BTW persistence before changing the source session",
+		async action => {
+			const entered = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
+			const upsert = BtwHistoryStore.prototype.upsert;
+			vi.spyOn(BtwHistoryStore.prototype, "upsert").mockImplementationOnce(
+				async function (this: BtwHistoryStore, record) {
+					entered.resolve();
+					await release.promise;
+					await upsert.call(this, record);
+				},
 			);
-		} finally {
-			release.resolve();
-		}
-	});
+			try {
+				const { finished } = await startTransition(action);
+				await entered.promise;
+				expect(turns[0]!.signal?.aborted).toBe(true);
+				expect(manager.getSessionId()).toBe(sourceId);
+				expect(await Bun.file(sourceFile).exists()).toBe(true);
+				expect(await Bun.file(recordPath).text()).toBe(originalRecord);
+				release.resolve();
+				await finished;
+				expect(manager.getSessionId()).not.toBe(sourceId);
+				turns[0]!.resolve(answer("Late answer must not resurrect deleted history"));
+				await Promise.resolve();
+				await btw.flush();
+				if (action === "picker resume") {
+					expect((await Bun.file(recordPath).json()).status).toBe("cancelled");
+				} else {
+					expect(await Bun.file(sourceFile).exists()).toBe(false);
+					expect(await Bun.file(recordPath).exists()).toBe(false);
+				}
+				await mode.handleBtwCommand("New session side question");
+				expect(turns).toHaveLength(2);
+				turns[1]!.resolve(answer("New session answer"));
+				await Promise.resolve();
+				await btw.flush();
+				expect((await BtwHistoryStore.open(manager.getArtifactsDir() ?? undefined)).getRecords()[0]?.answer).toBe(
+					"New session answer",
+				);
+			} finally {
+				release.resolve();
+			}
+		},
+	);
 
 	it.each(["delete", "resume"] as const)("keeps the source intact when BTW persistence blocks %s", async action => {
 		const target = action === "resume" ? await targetSession() : undefined;
@@ -279,9 +270,9 @@ describe("BTW session boundaries", () => {
 		expect(await Bun.file(recordPath).text()).toBe(originalRecord);
 	});
 
-	it.skipIf(linuxCiPickerSkip)("deletes an inactive picker entry without interrupting the current BTW", async () => {
+	it("deletes an inactive picker entry without interrupting the current BTW", async () => {
 		const target = await targetSession();
-		const panel = await picker(target);
+		await picker(target);
 		const removed = Promise.withResolvers<void>();
 		const remove = FileSessionStorage.prototype.deleteSessionWithArtifacts;
 		vi.spyOn(FileSessionStorage.prototype, "deleteSessionWithArtifacts").mockImplementation(
@@ -290,8 +281,8 @@ describe("BTW session boundaries", () => {
 				removed.resolve();
 			},
 		);
-		panel.handleInput("\x1b[3~");
-		panel.handleInput("\r");
+		term.press("delete");
+		term.press("enter");
 		await removed.promise;
 		expect(await Bun.file(target).exists()).toBe(false);
 		expect(manager.getSessionId()).toBe(sourceId);

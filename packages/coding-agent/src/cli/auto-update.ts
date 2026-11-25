@@ -3,14 +3,14 @@
  *
  * An interactive launch hands its update check to {@link runAutoUpdate}. When
  * the check finds a newer release, the launch spawns a detached worker
- * (`__zeta_worker_auto_update`) that installs it exactly as `zetacode update` would,
+ * (`__omp_worker_auto_update`) that installs it exactly as `omp update` would,
  * through whatever owns the install (build-service binary, bun, npm, Homebrew,
  * mise), while the launch shows the progress after the welcome banner's version
  * label. The worker outlives the session, so quitting mid-download never
  * strands a half-run package manager; the next launch simply starts the new
  * build.
  *
- * One status file (`~/.zeta/update/auto-update.json`) connects them. Only the
+ * One status file (`~/.omp/update/auto-update.json`) connects them. Only the
  * worker holding its lock writes it, and the OS drops that lock when the worker
  * exits, so "lock held" is how any launch knows a worker is running: it follows
  * that worker instead of starting another, and reads the outcome once the lock
@@ -19,14 +19,14 @@
  * notice.
  *
  * Running sessions keep their files: a binary install renames the running
- * `zetacode.exe` aside (Windows permits that for a mapped image, not an overwrite)
+ * `omp.exe` aside (Windows permits that for a mapped image, not an overwrite)
  * and leaves the backup to a later sweep, and the natives loader runs each
- * release's `.node` from a per-version copy under `~/.zeta/natives/`, so bun and
+ * release's `.node` from a per-version copy under `~/.omp/natives/`, so bun and
  * npm can replace the `node_modules` copy an old session would otherwise lock.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { VersionUpdate } from "@linxiraos/pi-tui/prompt/welcome";
+import type { VersionUpdate } from "../modes/view-model/prompt/welcome";
 import {
 	APP_NAME,
 	compareVersions,
@@ -37,7 +37,7 @@ import {
 	logger,
 	tryAcquireFileLock,
 	VERSION,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import type { Subprocess } from "bun";
 import { spawnDetached } from "../subprocess/detached";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
@@ -52,7 +52,7 @@ import {
 import { AUTO_UPDATE_WORKER_ARG } from "./worker-selectors";
 
 /** Env var carrying the version the spawning launch's check offered. */
-const TARGET_ENV = "ZETA_AUTO_UPDATE_TARGET";
+const TARGET_ENV = "OMP_AUTO_UPDATE_TARGET";
 
 /** How often a launch re-reads the status file while a worker runs. */
 const POLL_MS = 250;
@@ -102,7 +102,7 @@ type StateUpdate = Omit<AutoUpdateState, "at" | "target">;
 export interface AutoUpdateSinks {
 	/** Show, or with `null` clear, the indicator after the welcome banner's version. */
 	show(update: VersionUpdate | null): void;
-	/** Fall back to the startup notice that tells the user to run `zetacode update`. */
+	/** Fall back to the startup notice that tells the user to run `omp update`. */
 	notify(version: string): void;
 }
 
@@ -343,8 +343,8 @@ async function settle(outcome: UpdateOutcome): Promise<StateUpdate> {
 }
 
 /**
- * Worker entry (`__zeta_worker_auto_update`): install the newest release the
- * way `zetacode update` would, mirroring progress into the status file, and record
+ * Worker entry (`__omp_worker_auto_update`): install the newest release the
+ * way `omp update` would, mirroring progress into the status file, and record
  * the outcome. Exits at once when another worker holds the status lock.
  */
 export async function runAutoUpdateWorker(): Promise<never> {
@@ -357,7 +357,7 @@ export async function runAutoUpdateWorker(): Promise<never> {
 	const writer = new StatusWriter(file, process.env[TARGET_ENV] || undefined);
 	const finish = async (update: StateUpdate): Promise<never> => {
 		await writer.put(update);
-		// stdout is the worker log (`auto-update.log`), after `zetacode update`'s own output.
+		// stdout is the worker log (`auto-update.log`), after `omp update`'s own output.
 		console.log(["auto-update:", update.phase, update.version, update.error].filter(Boolean).join(" "));
 		lock.release();
 		process.exit(update.phase === "failed" ? 1 : 0);

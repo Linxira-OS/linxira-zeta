@@ -1,10 +1,10 @@
 /**
- * `zetacode install <target>` — top-level convenience over `zetacode plugin install` /
- * `zetacode plugin link`.
+ * `omp install <target>` — top-level convenience over `omp plugin install` /
+ * `omp plugin link`.
  *
  * The docs (omp.sh/docs/extension-authoring) advertise
  *
- *   zetacode install ./my-extension
+ *   omp install ./my-extension
  *
  * as a third loading mechanism that "symlinks the directory into the plugin
  * set and watches it for changes". Before this command existed, `install` was
@@ -20,13 +20,13 @@
 
 import { existsSync } from "node:fs";
 import * as path from "node:path";
-import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
+import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { installHelp as commandHelp } from "../cli/command-help";
 import { type PluginAction, type PluginCommandArgs, runPluginCommand } from "../cli/plugin-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 /**
- * Heuristic used to decide whether `zetacode install <target>` should `link` a
+ * Heuristic used to decide whether `omp install <target>` should `link` a
  * local directory or `install` a remote spec. Exported for tests.
  */
 export function looksLikeLocalPath(target: string, cwd?: string): boolean {
@@ -66,11 +66,11 @@ export default class Install extends Command {
 		const targets = Array.isArray(args.targets) ? args.targets : args.targets ? [args.targets] : [];
 
 		if (targets.length === 0) {
-			process.stderr.write("Usage: zetacode install <path | npm-spec | name@marketplace> [...]\n");
+			process.stderr.write("Usage: omp install <path | npm-spec | name@marketplace> [...]\n");
 			process.exit(1);
 		}
 
-		await initTheme();
+		initTheme();
 
 		// Split into local-paths (→ link) and remote specs (→ install). Each batch
 		// preserves user-supplied order so progress output reads naturally.

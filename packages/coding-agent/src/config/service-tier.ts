@@ -1,9 +1,9 @@
-import type { Model, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@linxiraos/pi-ai";
+import type { Model, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@oh-my-pi/pi-ai";
 // Setting declarations (`session/settings.ts`) pull this module into CLI startup; import the classifier
 // from the dependency-free types module so the `pi-ai` index (and the native
 // addon behind it) stays lazy.
-import { serviceTierFamily } from "@linxiraos/pi-ai/types";
-import type { SubmenuOption } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { serviceTierFamily } from "@oh-my-pi/pi-ai/types";
+import type { SubmenuOption } from "./settings-defs";
 
 /**
  * Per-family service-tier setting values. `"none"` is the omit-the-parameter
@@ -168,7 +168,7 @@ export function buildServiceTierByFamily(openai: string, anthropic: string, goog
  * Broadcast a single chosen tier across families, clamped to what each family
  * realizes: OpenAI takes any tier, Anthropic only `priority`, Google only
  * `flex`/`priority`. Used by the subagent/advisor single-value settings and the
- * `zetacode bench --service-tier` flag, which apply one tier to whatever family the
+ * `omp bench --service-tier` flag, which apply one tier to whatever family the
  * target model belongs to.
  */
 export function serviceTierForAllFamilies(tier: ServiceTier | undefined): ServiceTierByFamily {

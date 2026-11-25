@@ -1,15 +1,11 @@
-import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
-import {
-	commandFrontmatterExecution,
-	type CommandExecutionMetadata,
-	slashCommandCapability,
-} from "../capability/slash-command";
-import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
+import { parseFrontmatter, prompt } from "@oh-my-pi/pi-utils";
+import { slashCommandCapability } from "../capability/slash-command";
+import { slashCommandFrontmatterDisplay } from "./inventory/inspector-model";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
 import type { SlashCommand } from "../discovery";
 import { loadCapability } from "../discovery";
-import { EMBEDDED_COMMAND_DESCRIPTION_KEYS, EMBEDDED_COMMANDS } from "../task/embedded-commands";
+import { EMBEDDED_COMMAND_TEMPLATES } from "../task/commands";
 import { parseCommandArgs, substituteArgs } from "../utils/command-args";
 
 export type SlashCommandSource = "extension" | "prompt" | "skill";
@@ -29,7 +25,7 @@ export type { BuiltinSlashCommand, SubcommandDef } from "../slash-commands/types
 /**
  * Represents a custom slash command loaded from a file
  */
-export interface FileSlashCommand extends CommandExecutionMetadata {
+export interface FileSlashCommand {
 	name: string;
 	description: string;
 	/** Argument hint from `argument-hint`/`argumentHint` frontmatter, shown as inline ghost text. */
@@ -45,15 +41,14 @@ export interface FileSlashCommand extends CommandExecutionMetadata {
 	_source?: { providerName: string; level: "user" | "project" | "native" };
 }
 
-const EMBEDDED_SLASH_COMMANDS = EMBEDDED_COMMANDS;
+const EMBEDDED_SLASH_COMMANDS = EMBEDDED_COMMAND_TEMPLATES;
 
 function parseCommandTemplate(
 	content: string,
 	options: { source: string; level?: "off" | "warn" | "fatal" },
-): { description: string; body: string; argumentHint?: string; side: boolean } & CommandExecutionMetadata {
+): { description: string; body: string; argumentHint?: string; side: boolean } {
 	const { frontmatter, body } = parseFrontmatter(content, options);
 	const { description: frontmatterDesc, argumentHint } = slashCommandFrontmatterDisplay(frontmatter);
-	const { template, ...execution } = commandFrontmatterExecution(frontmatter);
 
 	// Get description from frontmatter or first non-empty line
 	let description = frontmatterDesc ?? "";
@@ -65,7 +60,7 @@ function parseCommandTemplate(
 		}
 	}
 
-	return { description, body: template ?? body, argumentHint, side: frontmatter.side === true, ...execution };
+	return { description, body, argumentHint, side: frontmatter.side === true };
 }
 
 export interface LoadSlashCommandsOptions {
@@ -86,7 +81,7 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 	});
 
 	const fileCommands: FileSlashCommand[] = result.items.map(cmd => {
-		const { description, body, argumentHint, side, agent, model } = parseCommandTemplate(cmd.content, {
+		const { description, body, argumentHint, side } = parseCommandTemplate(cmd.content, {
 			source: cmd.path ?? `slash-command:${cmd.name}`,
 			level: cmd.level === "native" ? "fatal" : "warn",
 		});
@@ -97,11 +92,9 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 
 		return {
 			name: cmd.name,
-			description: cmd.description ?? description,
+			description,
 			argumentHint: cmd.argumentHint ?? argumentHint,
-			content: cmd.template ?? body,
-			agent: cmd.agent ?? agent,
-			model: cmd.model ?? model,
+			content: body,
 			source: sourceStr,
 			...(side || cmd.side === true ? { side: true } : {}),
 			_source: { providerName: cmd._source.providerName, level: cmd.level },
@@ -113,22 +106,13 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 		const name = cmd.name.replace(/\.md$/, "");
 		if (seenNames.has(name)) continue;
 
-		// The embedded templates ship English frontmatter; the picker copy comes
-		// from the catalogue so `/init` follows `/language`. Resolved per call
-		// (not cached) because this list is rebuilt on every picker render — the
-		// same read-time rule as `SlashCommandSpec.description`.
-		const {
-			description: frontmatterDescription,
-			body,
-			argumentHint,
-			side,
-		} = parseCommandTemplate(cmd.content, {
+		const { description, body, argumentHint, side } = parseCommandTemplate(cmd.content, {
 			source: `embedded:${cmd.name}`,
 			level: "fatal",
 		});
 		fileCommands.push({
 			name,
-			description: EMBEDDED_COMMAND_DESCRIPTION_KEYS[name]?.() ?? frontmatterDescription,
+			description,
 			argumentHint,
 			content: body,
 			...(side ? { side } : {}),

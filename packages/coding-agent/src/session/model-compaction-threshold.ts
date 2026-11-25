@@ -1,6 +1,6 @@
 import { resolveThresholdTokens } from "@linxiraos/pi-agent-core/compaction";
 import type { Model } from "@linxiraos/pi-ai";
-import type { ModelCompactionPoint } from "@linxiraos/pi-tui/overlays/model-browser";
+import type { ModelCompactionPoint } from "../modes/view-model/overlays/model-browser";
 import { isRecord } from "@linxiraos/pi-utils";
 import {
 	applyCompactionThresholdPair,

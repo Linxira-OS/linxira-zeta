@@ -20,9 +20,9 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type * as natives from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { postmortem, prompt } from "@linxiraos/pi-utils";
+import type * as natives from "@oh-my-pi/pi-natives";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { postmortem, prompt } from "@oh-my-pi/pi-utils";
 import isolationErrorTemplate from "../prompts/tools/isolation-error.md" with { type: "text" };
 import isolationSummaryTemplate from "../prompts/tools/isolation-summary.md" with { type: "text" };
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
@@ -36,7 +36,7 @@ import { withRepoLock } from "../utils/repo-lock";
 import type { ExecutorOptions } from "./executor";
 import { runSubprocess } from "./executor";
 import { needsNativeTeardown, writeRetainedBackend } from "./isolation-ownership";
-import type { NestedRepoPatch, SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { NestedRepoPatch, SingleResult } from "./task-details";
 import {
 	applyNestedPatches,
 	captureDeltaPatch,
@@ -345,7 +345,7 @@ async function trackChanges(workspace: IsolationWorkspace, repoRoot: string): Pr
  * isolated run with the same id cannot wipe it: `ensureIsolation`
  * unconditionally removes the deterministic base dir before writing its
  * owner marker. The owner marker, `m` mount, and backend sidecar move along,
- * so `zetacode worktree clear` still classifies and reclaims the workspace with
+ * so `omp worktree clear` still classifies and reclaims the workspace with
  * native teardown. Backends needing it (mounts, Btrfs subvolumes) record the
  * sidecar BEFORE the move so it travels atomically — a crash between rename
  * and a later write would leave a mounted workspace with a dead owner and
@@ -470,7 +470,7 @@ function renderIsolationError(context: IsolationErrorContext): string {
 /**
  * Run a subagent inside an isolation worktree and capture its changes.
  *
- * Branch mode: on success, commits the diff onto `zetacode/task/${agentId}` and
+ * Branch mode: on success, commits the diff onto `omp/task/${agentId}` and
  * returns `branchName` + `nestedPatches` (+ `nestedPatchPaths`). On commit
  * failure the still-live isolation diff is written to
  * `${artifactsDir}/${agentId}.patch`, the task branch is kept when it already
@@ -621,7 +621,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 			} catch (mergeErr) {
 				// Agent succeeded but the branch commit failed. `commitToBranch`
 				// is not atomic: the clean-baseline path fetches the agent's
-				// commits into the parent ODB and creates `zetacode/task/<id>` before
+				// commits into the parent ODB and creates `omp/task/<id>` before
 				// it commits the leftover working-tree delta, so a throw from
 				// that trailing step leaves behind a branch that already holds
 				// every commit the agent made. The isolation worktree — the only
@@ -630,7 +630,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 				// recoverable merge conflict into permanent loss of committed
 				// work (#8868). Delete only when nothing is at stake. Without a
 				// baseline no branch was started.
-				const branchName = `zetacode/task/${opts.agentId}`;
+				const branchName = `omp/task/${opts.agentId}`;
 				const rescueBranch = baseline
 					? await rescueTaskBranch(opts.context.repoRoot, branchName, baseline.root.headCommit)
 					: undefined;

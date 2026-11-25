@@ -14,7 +14,7 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import type { ComposerHintId } from "@linxiraos/pi-tui/prompt/composer-hints";
+import type { ComposerHintId } from "../modes/view-model/prompt/composer-hints";
 import { AgentStorage, type UsageKind } from "../session/agent-storage";
 
 /** Process-wide use counts for one {@link UsageKind}, keyed by `Name`. */

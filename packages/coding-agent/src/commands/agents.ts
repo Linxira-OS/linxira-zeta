@@ -2,11 +2,10 @@
  * Manage bundled task agents.
  */
 
-import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
-import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
+import { Args, Command, Flags, renderCommandHelp } from "@oh-my-pi/pi-utils/cli";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { agentsHelp as commandHelp } from "../cli/command-help";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 const ACTIONS: AgentsAction[] = ["unpack"];
 
@@ -24,21 +23,21 @@ export default class Agents extends Command {
 		force: Flags.boolean({ char: "f", description: "Overwrite existing agent files" }),
 		json: Flags.boolean({ description: "Output JSON" }),
 		dir: Flags.string({ description: "Output directory (overrides --user/--project)" }),
-		user: Flags.boolean({ description: "Write to ~/.zeta/agent/agents (default)" }),
-		project: Flags.boolean({ description: "Write to ./.zeta/agents" }),
+		user: Flags.boolean({ description: "Write to ~/.omp/agent/agents (default)" }),
+		project: Flags.boolean({ description: "Write to ./.omp/agents" }),
 	};
 
 	static examples = [
-		"# Export bundled agents into user config (default)\n  zetacode agents unpack",
-		"# Export bundled agents into project config\n  zetacode agents unpack --project",
-		"# Overwrite existing local agent files\n  zetacode agents unpack --project --force",
-		"# Export into a custom directory\n  zetacode agents unpack --dir ./tmp/agents --json",
+		"# Export bundled agents into user config (default)\n  omp agents unpack",
+		"# Export bundled agents into project config\n  omp agents unpack --project",
+		"# Overwrite existing local agent files\n  omp agents unpack --project --force",
+		"# Export into a custom directory\n  omp agents unpack --dir ./tmp/agents --json",
 	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Agents);
 		if (!args.action) {
-			renderCommandHelp(CLI_BIN_NAME, "agents", Agents);
+			renderCommandHelp("omp", "agents", Agents);
 			return;
 		}
 
@@ -53,7 +52,7 @@ export default class Agents extends Command {
 			},
 		};
 
-		await initTheme();
+		initTheme();
 		await runAgentsCommand(cmd);
 	}
 }

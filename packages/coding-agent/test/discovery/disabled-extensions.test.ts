@@ -2,16 +2,21 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { enableUserSource } from "@linxiraos/zeta/capability";
-import { type ContextFile, contextFileCapability } from "@linxiraos/zeta/capability/context-file";
-import type { Skill } from "@linxiraos/zeta/capability/skill";
-import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { disableProvider, enableProvider, initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
-import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { isShadowedExtension } from "@linxiraos/pi-tui/overlays/extensions/types";
-import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { enableUserSource } from "@oh-my-pi/pi-coding-agent/capability";
+import { type ContextFile, contextFileCapability } from "@oh-my-pi/pi-coding-agent/capability/context-file";
+import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
+import type { EffectiveExtensionRoots } from "@oh-my-pi/pi-coding-agent/capability/types";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import {
+	disableProvider,
+	enableProvider,
+	initializeWithSettings,
+	loadCapability,
+} from "@oh-my-pi/pi-coding-agent/discovery";
+import { discoverExtensionPaths } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { isShadowedExtension } from "@oh-my-pi/pi-coding-agent/extensibility/inventory/types";
+import { loadAllExtensions } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -28,32 +33,29 @@ describe("disabledExtensions runtime filtering", () => {
 	let tempHomeDir = "";
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalZetaProfileEnv: string | undefined;
+	let originalOmpProfileEnv: string | undefined;
+	let originalPiProfileEnv: string | undefined;
 	let originalUserProfile: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
-	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
-		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
-		// `.gemini/GEMINI.md` is a foreign project source; these cases pin how a
-		// disabled or shadowed project context file is listed in the dashboard.
-		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", "gemini");
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
-		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalZetaProfileEnv = process.env.ZETA_PROFILE;
+		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
-		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-disabled-ext-home-"));
+		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-home-"));
 		process.env.HOME = tempHomeDir;
 		process.env.USERPROFILE = tempHomeDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHomeDir);
-		setAgentDir(path.join(tempHomeDir, ".zeta", "agent"));
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-disabled-ext-"));
-		await fs.mkdir(path.join(tempDir, ".zeta"), { recursive: true });
-		await fs.writeFile(path.join(tempDir, ".zeta", "AGENTS.md"), "# project instructions\n");
+		setAgentDir(path.join(tempHomeDir, ".omp", "agent"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-"));
+		await fs.mkdir(path.join(tempDir, ".omp"), { recursive: true });
+		await fs.writeFile(path.join(tempDir, ".omp", "AGENTS.md"), "# project instructions\n");
 
 		const settings = await Settings.init({
 			inMemory: true,
@@ -69,11 +71,11 @@ describe("disabledExtensions runtime filtering", () => {
 		resetSettingsForTest();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
-		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
+		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("USERPROFILE", originalUserProfile);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
-		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", originalForeignSources);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(tempHomeDir);
 		await removeWithRetries(tempDir);
@@ -96,7 +98,7 @@ describe("disabledExtensions runtime filtering", () => {
 	});
 
 	test("keeps the runtime context winner active in the dashboard when its competitor is disabled", async () => {
-		await fs.rm(path.join(tempDir, ".zeta", "AGENTS.md"));
+		await fs.rm(path.join(tempDir, ".omp", "AGENTS.md"));
 		await fs.writeFile(path.join(tempDir, "AGENTS.md"), "# active project instructions\n");
 		await fs.mkdir(path.join(tempDir, ".gemini"), { recursive: true });
 		await fs.writeFile(path.join(tempDir, ".gemini", "GEMINI.md"), "# disabled project instructions\n");
@@ -146,7 +148,7 @@ describe("disabledExtensions runtime filtering", () => {
 	});
 
 	test("deduplicates against the caller's session-local disabled list, not global settings", async () => {
-		await fs.rm(path.join(tempDir, ".zeta", "AGENTS.md"));
+		await fs.rm(path.join(tempDir, ".omp", "AGENTS.md"));
 		await fs.writeFile(path.join(tempDir, "AGENTS.md"), "# active project instructions\n");
 		await fs.mkdir(path.join(tempDir, ".gemini"), { recursive: true });
 		await fs.writeFile(path.join(tempDir, ".gemini", "GEMINI.md"), "# session-disabled project instructions\n");
@@ -164,7 +166,7 @@ describe("disabledExtensions runtime filtering", () => {
 	});
 
 	test("deduplicates against an empty snapshot when the caller omits disabled IDs", async () => {
-		await fs.rm(path.join(tempDir, ".zeta", "AGENTS.md"));
+		await fs.rm(path.join(tempDir, ".omp", "AGENTS.md"));
 		await fs.writeFile(path.join(tempDir, "AGENTS.md"), "# lower-priority project instructions\n");
 		await fs.mkdir(path.join(tempDir, ".gemini"), { recursive: true });
 		await fs.writeFile(path.join(tempDir, ".gemini", "GEMINI.md"), "# higher-priority project instructions\n");
@@ -180,7 +182,7 @@ describe("disabledExtensions runtime filtering", () => {
 	});
 
 	test("marks a disabled lower-priority row shadowed when an enabled higher-priority item owns the key", async () => {
-		// Enabled builtin .zeta/AGENTS.md (priority 100) already exists at project
+		// Enabled builtin .omp/AGENTS.md (priority 100) already exists at project
 		// depth 0 from beforeEach; add a lower-priority .gemini/GEMINI.md at the
 		// same depth and disable it.
 		await fs.mkdir(path.join(tempDir, ".gemini"), { recursive: true });
@@ -190,7 +192,7 @@ describe("disabledExtensions runtime filtering", () => {
 		initializeWithSettings(Settings.isolated({ disabledExtensions: disabledIds }));
 
 		const dashboard = await loadAllExtensions(tempDir, disabledIds);
-		const agents = dashboard.find(extension => extension.path === path.join(tempDir, ".zeta", "AGENTS.md"));
+		const agents = dashboard.find(extension => extension.path === path.join(tempDir, ".omp", "AGENTS.md"));
 		const gemini = dashboard.find(extension => extension.path === path.join(tempDir, ".gemini", "GEMINI.md"));
 
 		expect(agents?.state).toBe("active");
@@ -206,7 +208,7 @@ describe("disabledExtensions runtime filtering", () => {
 		const loose = path.join(tempDir, "loose.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ zeta: { extensions: ["./extensions/hello.ts"] } }),
+			JSON.stringify({ omp: { extensions: ["./extensions/hello.ts"] } }),
 		);
 		await Bun.write(hello, "export default function hello() {}\n");
 		await Bun.write(loose, "export default function loose() {}\n");
@@ -221,14 +223,14 @@ describe("disabledExtensions runtime filtering", () => {
 
 		// The provider switch does not stop the loader from importing configured
 		// modules, so it must not mark their rows disabled either.
-		disableProvider("zeta-plugins");
+		disableProvider("omp-plugins");
 		try {
 			const rows = await moduleRows([]);
 			expect(rows.map(row => [row.id, row.path, row.source.provider, row.source.level, row.state])).toEqual([
-				["extension-module:hello", hello, "zeta-plugins", "project", "active"],
+				["extension-module:hello", hello, "omp-plugins", "project", "active"],
 			]);
 		} finally {
-			enableProvider("zeta-plugins");
+			enableProvider("omp-plugins");
 		}
 
 		// Toggling the row's id removes the module from the load set; the configured
@@ -246,11 +248,11 @@ describe("disabledExtensions runtime filtering", () => {
 		const guard = path.join(fleet, "hooks", "pre", "guard.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ zeta: { extensions: ["./hooks/pre/guard.ts"] } }),
+			JSON.stringify({ omp: { extensions: ["./hooks/pre/guard.ts"] } }),
 		);
 		await Bun.write(guard, "export default function guard() {}\n");
 		// The loader's hook discovery reads configured package roots from disk.
-		await Bun.write(path.join(tempHomeDir, ".zeta", "agent", "config.yml"), `extensions:\n  - ${fleet}\n`);
+		await Bun.write(path.join(tempHomeDir, ".omp", "agent", "config.yml"), `extensions:\n  - ${fleet}\n`);
 		const roots: EffectiveExtensionRoots = {
 			explicit: [],
 			mode: "merge",

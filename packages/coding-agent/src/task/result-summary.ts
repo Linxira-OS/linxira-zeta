@@ -5,13 +5,13 @@
  * when a woken subagent re-yields, so a parent reads the same shape (status,
  * preview, `agent://` pointer) regardless of which path delivered it.
  */
-import { prompt } from "@linxiraos/pi-utils";
+import { prompt } from "@oh-my-pi/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry, isResumable } from "../registry/agent-registry";
 import { ASYNC_INLINE_RESULT_MAX_CHARS } from "../session/async-job-delivery";
 import { escapeHarnessTags } from "../session/harness-tags";
-import { formatBytes, formatDuration } from "@linxiraos/pi-tui/render/render-utils";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import { formatBytes, formatDuration } from "@oh-my-pi/pi-utils";
+import type { SingleResult } from "./task-details";
 
 /**
  * Largest output inlined whole. A cut output costs the parent a
@@ -48,13 +48,6 @@ function previewHead(output: string): string {
 	return lastNewline >= PREVIEW_CHARS / 2 ? slice.slice(0, lastNewline) : slice;
 }
 
-/** Failure classes a different model can plausibly fix; they carry the re-dispatch hint. */
-const MODEL_SWITCH_CLASSES: Readonly<Partial<Record<NonNullable<SingleResult["failureClass"]>, true>>> = {
-	"usage-limit": true,
-	auth: true,
-	"account-policy": true,
-};
-
 /** Render the `<task-result>` envelope for a settled run. */
 export function formatTaskResultSummary(
 	result: SingleResult,
@@ -78,14 +71,6 @@ export function formatTaskResultSummary(
 	// irc instead of redoing the work. Isolated runs are parked without a
 	// reviver (their worktree is gone), so they must not read as resumable.
 	const resumable = result.aborted && !result.isolated && isResumable(AgentRegistry.global().get(result.id));
-	// Diagnostics, not instructions: a parent that cannot act on a class would
-	// still rather see it than read another bare error line.
-	const candidates = result.fallbackCandidates ?? [];
-	const failedClass = result.exitCode !== 0 ? result.failureClass : undefined;
-	const modelSwitchHint =
-		failedClass !== undefined && MODEL_SWITCH_CLASSES[failedClass] === true
-			? `\`${result.resolvedModel ?? result.agent}\` failed with ${failedClass}. Waking this subagent on another model will run its next turn there${candidates.length > 0 ? ` (candidates above)` : ""}; the harness will not re-hit that model on its own.`
-			: undefined;
 	const render = (truncated: boolean): string =>
 		prompt.render(taskSummaryTemplate, {
 			agentName: result.agent,
@@ -93,7 +78,6 @@ export function formatTaskResultSummary(
 			status,
 			duration: formatDuration(options.totalDurationMs),
 			abortReason: result.aborted ? escapeHarnessTags(result.abortReason ?? "") || undefined : undefined,
-			failureClass: failedClass,
 			error: error === undefined ? undefined : escapeHarnessTags(error),
 			resumable,
 			preview: escapeHarnessTags(truncated ? previewHead(output) : output),
@@ -104,10 +88,6 @@ export function formatTaskResultSummary(
 						charSize: formatBytes(result.outputMeta.charCount),
 					}
 				: undefined,
-			modelChange: result.modelChange,
-			fallbackCandidates:
-				candidates.length > 0 ? candidates.map(candidate => escapeHarnessTags(candidate)).join(", ") : undefined,
-			modelSwitchHint,
 			mergeSummary: options.mergeSummary === undefined ? "" : escapeHarnessTags(options.mergeSummary),
 		});
 	if (result.outputPath === undefined) return render(false);

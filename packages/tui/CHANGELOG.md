@@ -572,10 +572,14 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Overlay compositing crash when rendered lines exceed terminal width due to complex ANSI/OSC sequences (e.g., hyperlinks in subagent output) ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+## [19.2.0] - 2026-11-25
 
 ## [0.31.1] - 2026-01-02
 
 Older entries are archived in [packages/tui/CHANGELOG.md@fa14205f838f](https://github.com/Linxira-OS/linxira-zeta/blob/fa14205f838f282fcea048c64fca74026789a492/packages/tui/CHANGELOG.md).
+- Added `@linxiraos/pi-tui`, a terminal UI with a unified Tern Surface Protocol node tree, native and terminal rendering, reactive signals, compiler-free JSX, role-based painters and widgets, terminal input and capability support, multiplexer and image handling, resize policies, notifications, Markdown and text utilities, themes, and terminal testing utilities.
+- Added checkout event support to TSP connections and hosts.
+- Added `label` to editor terminal decoration ranges: replacement text drawn in place of a range on rows where it fits and the caret is outside it.
 
 Older entries are archived in [packages/tui/CHANGELOG.md@89ad0a77d575](https://github.com/Linxira-OS/linxira-zeta/blob/89ad0a77d575f01398d3c0a57bc3a22111bef36a/packages/tui/CHANGELOG.md).
 - Fixed ED3-risk unknown-viewport renders repainting offscreen structural edits over stale native scrollback, which could duplicate or shift rows when async blocks collapsed or middle rows were deleted.
@@ -603,3 +607,18 @@ Older entries are archived in [packages/tui/CHANGELOG.md@7049d1b1afeb](https://g
 - Added support for asynchronous `onSubmit` handlers by allowing the callback to return a `Promise<void>`
 
 Older entries are archived in [packages/tui/CHANGELOG.md@a95c0a0773af](https://github.com/Linxira-OS/linxira-zeta/blob/a95c0a0773afdfdc7f1f40ef21e79af46c86c11e/packages/tui/CHANGELOG.md).
+- Hosts now report when the terminal displays the checkout itself through `checkoutShown`.
+- Theme files are polled for changes, keeping live reload working when editors replace files during save.
+- Terminal animations now skip unchanged frames and share redraws with streaming content; shimmer motion runs at 20 fps.
+
+### Fixed
+
+- Fixed streaming Tern content being unnecessarily redrawn as newly inserted when content above it changes.
+- Fixed keyboard events used to open a page from being delivered to the newly opened page as well.
+- Fixed detection of LaTeX blocks beginning with `\begin`.
+- Fixed Cmd+A selection in terminal-forwarded editors and inputs so typing, deletion, and paste replace the selected text.
+- Fixed native overlays losing alignment with their anchored fields when the fields move or share local keys.
+- Fixed native menu and tree interactions being delivered to the wrong control or branch, and prevented clicks behind modal sheets from moving focus outside the modal.
+- Fixed terminal-row modal sheets allowing interaction with the content behind them, incorrect click and hover targets after scrolling, and mouse settings not being restored after closing fullscreen views.
+- Fixed terminal replies leaking into the shell prompt after returning from a native session, including after fatal errors.
+- Improved handling of large Tern transcript redraws when resuming sessions or returning from a subagent view.

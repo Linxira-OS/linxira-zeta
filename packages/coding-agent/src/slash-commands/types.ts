@@ -1,8 +1,6 @@
 import type { Settings } from "../config/settings";
-import type { ZetaLanguage } from "../i18n";
-import type { SlashCommandIconName } from "@linxiraos/pi-tui/theme/symbols";
+import type { SlashCommandIconName } from "../modes/view-model/theme/symbols";
 import type { InteractiveModeContext, SubmittedUserInput } from "../modes/types";
-import type { ImageContent } from "@linxiraos/pi-ai";
 import type { ConversationPosition } from "../modes/utils/conversation-position";
 import type { MCPManager } from "../mcp/manager";
 import type { MCPServerConfig } from "../mcp/types";
@@ -12,8 +10,7 @@ import type { SessionManager } from "../session/session-manager";
 /** Declarative subcommand definition for commands like /mcp. */
 export interface SubcommandDef {
 	name: string;
-	/** See BuiltinSlashCommand.description for why this may be a thunk. */
-	description: string | (() => string);
+	description: string;
 	/** Usage hint shown as dim ghost text, e.g. "<name> [--scope project|user]". */
 	usage?: string;
 }
@@ -22,29 +19,11 @@ export interface SubcommandDef {
 export interface BuiltinSlashCommand {
 	name: string;
 	aliases?: string[];
-	/**
-	 * Command description. A function is resolved on every read so localized
-	 * copy follows `/language` at runtime — a plain string is captured at
-	 * import time and would freeze the locale active when the module loaded
-	 * (which for most installs is the OS language, not the user's choice).
-	 */
-	description: string | (() => string);
+	description: string;
 	/** Autocomplete type-indicator icon. Defaults to "action" (generic terminal glyph). */
 	icon?: SlashCommandIconName;
 	/** Whether the command consumes text after the command name. */
 	allowArgs?: boolean;
-	/**
-	 * Keep the command out of autocomplete/palette listings while still
-	 * resolving an explicit `/name` invocation. For low-frequency operator
-	 * entries such as `/channels` whose discovery belongs in docs, not the
-	 * everyday command menu.
-	 */
-	hidden?: boolean;
-	/**
-	 * Argument completion is directory-only: when it has no match, the editor
-	 * must not fall through to generic file completion.
-	 */
-	argumentCompletionOnly?: boolean;
 	/** Subcommands for dropdown completion (e.g. /mcp add, /mcp list). */
 	subcommands?: SubcommandDef[];
 	/**
@@ -57,14 +36,6 @@ export interface BuiltinSlashCommand {
 	inlineHint?: string;
 	/** TUI-only dynamic status text for command-name autocomplete. Static `description` remains canonical for ACP/help. */
 	getTuiAutocompleteDescription?: (runtime: TuiSlashCommandRuntime) => string | undefined;
-	/** Configuration gate for a command whose feature is opt-in. Returning false
-	 * hides the command from the palette and the advertised command list, and
-	 * refuses an explicit invocation with {@link disabledMessage} instead of
-	 * silently forwarding the text to the model.
-	 */
-	enabled?: (settings: Settings) => boolean;
-	/** Copy shown when {@link enabled} refuses an invocation. */
-	disabledMessage?: string | (() => string);
 }
 
 /** Parsed slash-command text after stripping the leading "/". */
@@ -81,7 +52,7 @@ export interface ParsedSlashCommand {
  *   consumed; no further input. Handlers may simply omit a `return` rather than
  *   building `{ consumed: true }`; `void` is accepted in the handler signatures
  *   below so the contract typechecks under TypeScript 5.x (which does not
- *   coerce `() => void` to `() => T | undefined`) as well as 6.x / 7.x.
+ *   coerce `() => void` to `() => T | undefined`) as well as 6.x / tsgo.
  * - `{ consumed: true }` — explicit equivalent of the above (ACP shape).
  * - `{ prompt: string }` — command handled, pass `prompt` through as the new
  *   user input (e.g. `/force <tool> <prompt>` keeps `<prompt>` as the message).
@@ -103,10 +74,6 @@ export interface SlashCommandRuntime {
 	sessionManager: SessionManager;
 	settings: Settings;
 	cwd: string;
-	/** Images attached to the host prompt that invoked this command, when any. */
-	images?: ImageContent[];
-	/** Language carried by the host prompt that invoked this command, for generated names. */
-	language?: ZetaLanguage;
 	/** Cancellation of the host prompt/request, when supported. */
 	signal?: AbortSignal;
 	/** Emit text to the operator. TUI maps to `ctx.showStatus`, ACP to `sessionUpdate`. */
@@ -200,16 +167,12 @@ export interface SlashCommandSpec extends BuiltinSlashCommand {
 	/** When false, the dispatcher refuses to handle invocations that include arguments. */
 	allowArgs?: boolean;
 	/**
-	 * ACP-specific override for `description`, resolved through
-	 * `resolveCommandDescription` when a list is built. Localized copy declares
-	 * the thunk form (`() => M.cmdFoo`) so `/language` reaches ACP/RPC clients on
-	 * their next `available_commands_update` instead of freezing at import time.
-	 * Used when building `available_commands_update` payloads so the client
-	 * receives mode-appropriate copy (e.g. `/dump` advertises "Return full
-	 * transcript as plain text" in ACP rather than the TUI's clipboard-centric
-	 * copy).
+	 * ACP-specific override for `description`. Used by `ACP_BUILTIN_SLASH_COMMANDS`
+	 * when building `available_commands_update` payloads so the client receives
+	 * mode-appropriate copy (e.g. `/dump` advertises "Return full transcript as
+	 * plain text" in ACP rather than the TUI's clipboard-centric copy).
 	 */
-	acpDescription?: string | (() => string);
+	acpDescription?: string;
 	/**
 	 * ACP-specific override for the advertised input hint. `subcommands`-only
 	 * specs that historically advertised `<subcommand>` / `[on|off|status]` /
@@ -224,7 +187,7 @@ export interface SlashCommandSpec extends BuiltinSlashCommand {
 	 * Expressed as a union of two function types — one returning a
 	 * `SlashCommandResult`, one returning `void` — so handlers that simply
 	 * `return` (or omit the return) typecheck under TypeScript 5.x as well as
-	 * 6.x / 7.x. TS 5.x does not coerce a `() => void` value into a
+	 * 6.x / tsgo. TS 5.x does not coerce a `() => void` value into a
 	 * `() => T | undefined` slot, so the two return shapes must be siblings
 	 * rather than a `T | void` union inside one function type (which Biome's
 	 * `noConfusingVoidType` also rejects).

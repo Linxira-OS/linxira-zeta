@@ -1,13 +1,7 @@
-import { getProjectDir } from "@linxiraos/pi-utils";
-import {
-	type CleanseTargetChoice,
-	pickCleanseTarget,
-	promptCleanseRequest,
-} from "@linxiraos/pi-tui/apps/cleanse-picker";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { getProjectDir } from "@oh-my-pi/pi-utils";
+import { shortenPath } from "../utils/render-utils";
 import { type CleanseAgentHooks, type CleanseAgentRuntime, createCleanseAgentRuntime } from "./agent";
 import { groupDiagnosticsByFile } from "./balance";
-import { type CleanseStatusBoard, createCleanseStatusBoard } from "@linxiraos/pi-tui/apps/cleanse-board";
 import {
 	buildCustomCleanseSuite,
 	type CleanseCheckerDescriptor,
@@ -17,14 +11,16 @@ import {
 } from "./checkers";
 import { runCleanseLoop } from "./loop";
 import type { CleanseCommandResult, CleanseDiagnosticReport, CleanseLoopResult } from "./types";
+import type { CleanseStatusBoard } from "../modes/view-model/apps/cleanse-board";
+import type { CleanseTargetChoice } from "../modes/view-model/apps/cleanse-picker";
+import { createCleanseStatusBoard } from "./cli-board";
+import { pickCleanseTarget, promptCleanseRequest } from "./picker";
 
 const DEFAULT_MODEL = "@smol";
 const DISPLAY_FILE_LIMIT = 50;
 
-/** User-facing options for `zetacode cleanse`. */
+/** User-facing options for `omp cleanse`. */
 export interface CleanseCommandOptions {
-	/** Repository to analyze; defaults to the process project dir. */
-	cwd?: string;
 	maxAgents?: number;
 	model?: string;
 	includeTests?: boolean;
@@ -61,7 +57,7 @@ export async function runCleanse(
 	const maxAgents = options.maxAgents ?? 32;
 	if (!Number.isInteger(maxAgents) || maxAgents <= 0) throw new Error("--agents must be a positive integer");
 	const model = options.model?.trim() || DEFAULT_MODEL;
-	const cwd = options.cwd ?? getProjectDir();
+	const cwd = getProjectDir();
 	let runtime: CleanseAgentRuntime | undefined;
 	let runtimePromise: Promise<CleanseAgentRuntime> | undefined;
 	let loopResult: CleanseLoopResult | undefined;

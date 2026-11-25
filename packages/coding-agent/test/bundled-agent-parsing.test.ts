@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { Effort } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
 import {
 	resolveAgentModelPatterns,
 	resolveAgentModelSelection,
 	resolveModelOverride,
-} from "@linxiraos/zeta/config/model-resolver";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { getBundledAgent } from "@linxiraos/zeta/task/agents";
-import { buildOutputValidator } from "@linxiraos/zeta/tools/output-schema-validator";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { getBundledAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
+import { buildOutputValidator } from "@oh-my-pi/pi-coding-agent/tools/output-schema-validator";
+import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
 
 describe("bundled agent parsing", () => {
 	it("defaults the task agent to the auto thinking selector", () => {

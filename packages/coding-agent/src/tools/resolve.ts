@@ -26,10 +26,11 @@ import {
 	type ResolveAction,
 	type ResolveDetails,
 	type ResolveInvocation,
-} from "@linxiraos/pi-tui/tools/resolve";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+} from "./details/resolve";
+import { ToolError } from "./tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import resolveReminderPrompt from "../prompts/system/resolve-reminder.md" with { type: "text" };
+import resolveUnsatisfiedPrompt from "../prompts/system/resolve-unsatisfied.md" with { type: "text" };
 import type { Tool, ToolSession } from ".";
 import type { XdevDispatch } from "./xdev";
 import { toolCommandCallName, toolCommandDispatches } from "./tool-commands";
@@ -232,6 +233,22 @@ export function buildResolveReminderMessage(
 		attribution: "agent",
 		timestamp: Date.now(),
 	};
+}
+
+/**
+ * Skipped-result notice for a `bash` call made while a preview is pending that
+ * does not run `resolve` or `reject` as its leading command: names that command
+ * when the shell does not reserve it (`cd` and other builtins go unnamed), and
+ * says the whole command must be `resolve` or `reject`.
+ */
+export function buildResolveUnsatisfiedNotice(toolCall: ToolCallLike, sourceToolName: string): string {
+	return prompt
+		.render(resolveUnsatisfiedPrompt, {
+			toolName: sourceToolName,
+			transportToolName: toolCall.name,
+			invokedCommand: toolCommandCallName(toolCall),
+		})
+		.trim();
 }
 
 /**

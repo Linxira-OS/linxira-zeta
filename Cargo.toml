@@ -323,7 +323,13 @@ fontdue = { version = "0.9", default-features = false }
 # Data Structures - Collections
 # ──────────────────────────────────────────────────────────────────────────────
 phf = { version = "0.14", features = ["macros"] }
-smallvec = { version = "1.16.1", features = ["serde", "write", "union", "const_new"] }
+rpds = { version = "1.2", features = ["serde"] }
+smallvec = { version = "1.16.1", features = [
+   "serde",
+   "write",
+   "union",
+   "const_new",
+] }
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Hashing
@@ -355,6 +361,7 @@ windows-sys = { version = "0.61", features = [
 	"Win32_System_Ioctl",
 	"Win32_System_JobObjects",
 	"Win32_System_Pipes",
+	"Win32_System_ProcessStatus",
 	"Win32_System_SystemInformation",
 	"Win32_System_Threading",
 ] }

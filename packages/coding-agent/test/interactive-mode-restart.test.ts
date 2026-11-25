@@ -1,17 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { createSessionManager } from "@linxiraos/zeta/main";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as natives from "@linxiraos/pi-natives";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { postmortem, TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createSessionManager } from "@oh-my-pi/pi-coding-agent/main";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import * as natives from "@oh-my-pi/pi-natives";
+import { postmortem, TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 describe("InteractiveMode restart", () => {
 	let tempDir: TempDir;
@@ -51,9 +52,15 @@ describe("InteractiveMode restart", () => {
 			settings: Settings.isolated(),
 			modelRegistry,
 		});
-		const mode = new InteractiveMode(session, "test");
-		mode.ui.requestRender = () => {};
-		mode.ui.terminal.drainInput = async () => {};
+		const mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		process.argv = [originalArgv[0], originalArgv[1], ...argv];
 		// Stop only at the process replacement boundary; teardown and argv production run for real.
 		const exec = vi.spyOn(natives, "execReplace").mockImplementation(() => undefined as never);
@@ -62,7 +69,7 @@ describe("InteractiveMode restart", () => {
 		vi.spyOn(postmortem, "drainStdout").mockResolvedValue();
 		vi.spyOn(postmortem, "quit").mockResolvedValue();
 		await mode.restart();
-		const command = process.platform === "win32" ? spawn.mock.calls[0]?.[0] : exec.mock.calls[0]?.[0];
+		const command = process.platform === "win32" ? spawn.mock.calls[0]?.[0] : exec.mock.calls[0]?.[1];
 		if (!Array.isArray(command)) throw new Error("expected replacement command");
 		return command;
 	}

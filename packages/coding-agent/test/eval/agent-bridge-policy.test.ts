@@ -1,10 +1,10 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { AsyncJobManager } from "../../src/async";
 import { Settings } from "../../src/config/settings";
-import { type EvalAgentBridgeOptions, type EvalAgentResult, runEvalAgent } from "../../src/eval/agent-bridge";
+import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "../../src/eval/agent-bridge";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../../src/eval/bridge-timeout";
 import { runEvalWait } from "../../src/eval/handle-bridge";
 import { IdleTimeout } from "../../src/eval/idle-timeout";
@@ -22,7 +22,11 @@ import * as taskExecutor from "../../src/task/executor";
 import * as isolationRunner from "../../src/task/isolation-runner";
 import { AgentOutputManager } from "../../src/task/output-manager";
 import type { AgentDefinition } from "../../src/task/types";
-import type { AgentProgress, SingleResult, StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
+import type {
+	AgentProgress,
+	SingleResult,
+	StructuredSubagentOutput,
+} from "@oh-my-pi/pi-coding-agent/task/task-details";
 import type { ToolSession } from "../../src/tools";
 
 const taskAgent = {
@@ -334,9 +338,6 @@ describe("runEvalAgent", () => {
 		expect(firstOptions.parentActiveModelPattern).toBe("p/current");
 		expect(firstOptions.outputSchema).toBe(schema);
 		expect(firstOptions.outputSchemaOverridesAgent).toBe(true);
-		// task.structured is off (default); eval agents keep yield + schemas regardless.
-		expect(firstOptions.structured).toBe(true);
-		expect(secondOptions.structured).toBe(true);
 		expect(firstOptions.assignment).toBe("hello");
 		expect(firstOptions.description).toBe("My Agent");
 		// No per-call override: the agent's own frontmatter model applies.
@@ -618,7 +619,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("exposes agent() in JavaScript and parses structured output", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-js-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-js-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
@@ -656,8 +657,52 @@ describe("agent() through eval runtimes", () => {
 		expect(output.node.handle).toBe(`agent://${output.node.id}`);
 	});
 
+	it("waits for an existing JavaScript agent by displayed id and rejects unknown ids", async () => {
+		using tempDir = TempDir.createSync("@omp-wait-agent-name-js-");
+		const { session, sessionFile } = makeEvalSession(tempDir, "js-wait-name");
+		mockAgents();
+		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
+			singleResult(options, { output: "done" }),
+		);
+		const result = await executeJs(
+			'const h = await agent("hello"); const value = await wait([h.id]); let error; try { await wait(["not-owned"]); } catch (e) { error = e.message; } return JSON.stringify({ value, error });',
+			{ cwd: tempDir.path(), sessionId: sharedJsSessionId, session, sessionFile },
+		);
+		expect(result.exitCode).toBe(0);
+		const resultValue = JSON.parse(result.output.trim());
+		expect(resultValue.value).toEqual(["done"]);
+		expect(resultValue.error).toContain("unknown agent handle");
+	});
+
+	it("waits for a separately spawned task by name without exposing another owner's task", async () => {
+		using tempDir = TempDir.createSync("@omp-wait-task-name-");
+		const { session, sessionFile } = makeEvalSession(tempDir, "js-wait-task-name");
+		session.getAgentId = () => "Main";
+		const manager = session.asyncJobManager!;
+		manager.publishCompleted(
+			"task",
+			"OwnWorker",
+			{ text: "delivered" },
+			{ id: "OwnWorker", agentId: "OwnWorker", ownerId: "Main" },
+		);
+		manager.publishCompleted(
+			"task",
+			"ForeignWorker",
+			{ text: "private" },
+			{ id: "ForeignWorker", agentId: "ForeignWorker", ownerId: "Other" },
+		);
+		const result = await executeJs(
+			'const value = await wait(["OwnWorker"]); let error; try { await wait(["ForeignWorker"]); } catch (e) { error = e.message; } return JSON.stringify({value, error});',
+			{ cwd: tempDir.path(), sessionId: sharedJsSessionId, session, sessionFile },
+		);
+		expect(result.exitCode).toBe(0);
+		const data = JSON.parse(result.output.trim());
+		expect(data.value).toEqual(["delivered"]);
+		expect(data.error).toContain("unknown agent handle");
+	});
+
 	it("runs JavaScript agent handles concurrently and returns results in input order", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-js-handles-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-js-handles-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-handles");
 		mockAgents();
 		const overlap = spyOverlapBarrier(4);
@@ -673,7 +718,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("propagates handle failures or returns them in place when requested", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-js-handle-errors-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-js-handle-errors-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-handle-errors");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options => {
@@ -702,7 +747,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("exposes agent() in the Python runtime", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-py-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-py-");
 		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-agent");
 		mockAgents();
 		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
@@ -745,8 +790,25 @@ describe("agent() through eval runtimes", () => {
 		expect(node.handle).toBe(`agent://${node.id}`);
 	});
 
+	it("waits for an existing Python agent by displayed id and rejects unknown ids", async () => {
+		using tempDir = TempDir.createSync("@omp-wait-agent-name-py-");
+		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-wait-name");
+		mockAgents();
+		vi.spyOn(taskExecutor, "runSubprocess").mockImplementation(async options =>
+			singleResult(options, { output: "done" }),
+		);
+		const result = await executePython(
+			'import json\nh = agent("hello")\nvalue = wait([h.id])\ntry:\n    wait(["not-owned"])\nexcept Exception as e:\n    error = str(e)\nprint(json.dumps({"value": value, "error": error}))',
+			{ cwd: tempDir.path(), sessionId, sessionFile, kernelMode: "per-call", toolSession: session },
+		);
+		expect(result.exitCode).toBe(0);
+		const resultValue = JSON.parse(result.output.trim());
+		expect(resultValue.value).toEqual(["done"]);
+		expect(resultValue.error).toContain("unknown agent handle");
+	});
+
 	it("runs Python agent handles concurrently and returns results in input order", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-py-handles-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-py-handles-");
 		const { session, sessionFile, sessionId } = makeEvalSession(tempDir, "py-agent-handles");
 		mockAgents();
 		const overlap = spyOverlapBarrier(4);
@@ -765,7 +827,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("streams the latest enriched agent progress through onStatus before the cell finishes", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-progress-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-progress-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-progress");
 		mockAgents();
 		const releaseCompletion = Promise.withResolvers<void>();
@@ -866,7 +928,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("pauses the idle watchdog while a quiet agent() runs past the budget", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-timeout-pause-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-timeout-pause-");
 		const { session } = makeEvalSession(
 			tempDir,
 			"js-agent-timeout-pause",
@@ -934,7 +996,7 @@ describe("agent() through eval runtimes", () => {
 	});
 
 	it("keeps timeout paused despite agent() progress snapshots", async () => {
-		using tempDir = TempDir.createSync("@zeta-eval-agent-progress-timeout-pause-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-progress-timeout-pause-");
 		const { session } = makeEvalSession(tempDir, "js-agent-progress-timeout-pause");
 		mockAgents();
 
@@ -1018,7 +1080,7 @@ describe("agent() through eval runtimes", () => {
 		//
 		// Asserted as an ordering, not a duration: the agent call must finish
 		// before the cell settles. Killing early inverts the two.
-		using tempDir = TempDir.createSync("@zeta-eval-agent-js-interrupt-");
+		using tempDir = TempDir.createSync("@omp-eval-agent-js-interrupt-");
 		const { session, sessionFile } = makeEvalSession(tempDir, "js-agent-interrupt");
 		mockAgents();
 
@@ -1354,11 +1416,11 @@ describe("runEvalAgent isolation", () => {
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async opts =>
 			singleResult(opts.baseOptions, {
 				output: "ran",
-				branchName: `zeta/task/${opts.agentId}`,
+				branchName: `omp/task/${opts.agentId}`,
 			}),
 		);
 		vi.spyOn(isolationRunner, "mergeIsolatedChanges").mockResolvedValue({
-			summary: "\n\n<system-notification>Branch merge failed: zeta/task/x.\nConflict: foo.ts</system-notification>",
+			summary: "\n\n<system-notification>Branch merge failed: omp/task/x.\nConflict: foo.ts</system-notification>",
 			changesApplied: false,
 			hadAnyChanges: false,
 			mergedBranchForNestedPatches: false,
@@ -1366,7 +1428,7 @@ describe("runEvalAgent isolation", () => {
 
 		const session = isolatedSession({ "task.isolation.merge": "branch" });
 		await expect(runEvalAgentAndWait({ prompt: "scout", isolated: true }, { session })).rejects.toThrow(
-			/isolated apply failed.*Branch merge failed.*Captured branch preserved as zeta\/task\//s,
+			/isolated apply failed.*Branch merge failed.*Captured branch preserved as omp\/task\//s,
 		);
 	});
 
@@ -1473,7 +1535,7 @@ describe("runEvalAgent isolation", () => {
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async opts =>
 			singleResult(opts.baseOptions, {
 				output: "branched",
-				branchName: `zeta/task/${opts.agentId}`,
+				branchName: `omp/task/${opts.agentId}`,
 			}),
 		);
 		const mergeSpy = vi.spyOn(isolationRunner, "mergeIsolatedChanges");
@@ -1482,8 +1544,8 @@ describe("runEvalAgent isolation", () => {
 		const result = await runEvalAgentAndWait({ prompt: "scout", isolated: true, apply: false }, { session });
 
 		expect(mergeSpy).not.toHaveBeenCalled();
-		expect(result.details.branchName).toMatch(/^zeta\/task\//);
-		expect(result.text).toContain("zeta/task/");
+		expect(result.details.branchName).toMatch(/^omp\/task\//);
+		expect(result.text).toContain("omp/task/");
 		expect(result.text).toContain("apply=false");
 	});
 
@@ -1549,7 +1611,7 @@ describe("runEvalAgent isolation", () => {
 
 		expect(result.details.patchPath).toMatch(/\.patch$/);
 		const removedArtifactsDir = rmSpy.mock.calls.some(
-			([target]) => typeof target === "string" && target.includes("zeta-eval-agent-"),
+			([target]) => typeof target === "string" && target.includes("omp-eval-agent-"),
 		);
 		expect(removedArtifactsDir).toBe(false);
 	});
@@ -1571,7 +1633,7 @@ describe("runEvalAgent isolation", () => {
 		await runEvalAgentAndWait({ prompt: "scout", isolated: true }, { session: isolatedSession() });
 
 		const removedArtifactsDir = rmSpy.mock.calls.some(
-			([target]) => typeof target === "string" && target.includes("zeta-eval-agent-"),
+			([target]) => typeof target === "string" && target.includes("omp-eval-agent-"),
 		);
 		expect(removedArtifactsDir).toBe(false);
 	});

@@ -2,19 +2,19 @@ import { afterEach, beforeEach, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
+import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 let client: RpcClient;
 let directory: string;
 
 beforeEach(async () => {
-	directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-rpc-todos-"));
+	directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-todos-"));
 	client = new RpcClient({
 		command: [process.execPath, path.join(import.meta.dir, "..", "fixtures", "fork-rpc-agent.ts"), directory],
 		cwd: directory,
-		env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
+		env: { PI_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 	});
 });
 

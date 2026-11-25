@@ -7,7 +7,7 @@
  * User directory: ~/.codex
  */
 import * as path from "node:path";
-import { logger, parseFrontmatter } from "@linxiraos/pi-utils";
+import { logger, parseFrontmatter } from "@oh-my-pi/pi-utils";
 import { isUserSourceEnabled, registerProvider } from "../capability";
 import type { ContextFile } from "../capability/context-file";
 import { contextFileCapability } from "../capability/context-file";
@@ -21,15 +21,15 @@ import type { Prompt } from "../capability/prompt";
 import { promptCapability } from "../capability/prompt";
 import type { Settings } from "../capability/settings";
 import { settingsCapability } from "../capability/settings";
+import { settings as activeSettings } from "../config/settings";
 import type { Skill } from "../capability/skill";
 import { skillCapability } from "../capability/skill";
-import { commandFrontmatterExecution, type SlashCommand, slashCommandCapability } from "../capability/slash-command";
+import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
-import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
+import { slashCommandFrontmatterDisplay } from "../extensibility/inventory/inspector-model";
 import type { CustomTool } from "../capability/tool";
 import { toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
-import { settings as activeSettings } from "../config/settings";
 
 import {
 	buildExtensionModuleItems,
@@ -329,7 +329,6 @@ async function loadSlashCommands(ctx: LoadContext): Promise<LoadResult<SlashComm
 				path,
 				content: body,
 				...slashCommandFrontmatterDisplay(frontmatter),
-				...commandFrontmatterExecution(frontmatter),
 				...(frontmatter.side === true ? { side: true } : {}),
 				level,
 				_source: source,

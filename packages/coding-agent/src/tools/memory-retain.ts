@@ -1,4 +1,4 @@
-import type { MemoryRetainDetails } from "@linxiraos/pi-tui/tools/memory";
+import type { MemoryRetainDetails } from "./details/memory";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { prompt, withLoopPhase } from "@linxiraos/pi-utils";

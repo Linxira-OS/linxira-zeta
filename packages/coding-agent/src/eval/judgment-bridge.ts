@@ -22,9 +22,9 @@ import type {
 	Question,
 	Questions,
 	ScoreQuestion,
-} from "@linxiraos/pi-ai";
-import { isRecord } from "@linxiraos/pi-utils";
-import { isEmbeddedImageContent } from "@linxiraos/pi-ai/images/shared";
+} from "@oh-my-pi/pi-ai";
+import { isRecord } from "@oh-my-pi/pi-utils";
+import { isEmbeddedImageContent } from "@oh-my-pi/pi-ai/images/shared";
 import type { LoadedImageInput } from "../utils/image-loading";
 import { loadImageAttachmentInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {
@@ -34,7 +34,7 @@ import {
 	resolveJudge,
 	sharedJudgmentCache,
 } from "../judgment";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
 import { type EvalCompletionBridgeOptions, evalRequestSlots } from "./completion-bridge";
 

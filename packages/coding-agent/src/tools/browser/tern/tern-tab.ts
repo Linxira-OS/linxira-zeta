@@ -2,7 +2,7 @@
  * A browser tab shown as a Tern browser picture-in-picture: every helper of
  * the tab API drives the PiP's native web view through Tern's browser op
  * protocol (`wire.ts`). Pages are reached through `eval` (page world for user
- * code and page instrumentation, the isolated world for zeta's kit), trusted
+ * code and page instrumentation, the isolated world for omp's kit), trusted
  * `input` events at element centres, `capture`, `pdf` and the Tern-level ops;
  * what the page reports on its own arrives through `events` polling.
  *
@@ -18,8 +18,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isRecord, logger, Snowflake, untilAborted } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isRecord, logger, Snowflake, untilAborted } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../../tool-errors";
 import { JsRuntime } from "../../../eval/js/shared/runtime";
 import { resizeImage } from "../../../utils/image-resize";
 import { resolveToCwd } from "../../path-utils";
@@ -215,7 +215,7 @@ interface ViewportOptions {
 export interface TernOpenOptions {
 	/** Managed tab name (names the saved-state file). */
 	name: string;
-	/** Pane that owns the PiP (`ZETA_PANE`). */
+	/** Pane that owns the PiP (`TERN_PANE`). */
 	pane: number;
 	/** First real navigation after configuration. */
 	url?: string;
@@ -241,7 +241,7 @@ export interface TernOpenOptions {
 	insecure?: boolean;
 	/**
 	 * Seed of the engine's fingerprinting noise, sent as the `identity` op
-	 * right after the open. Only zeta's WebKit host answers that op: a Tern
+	 * right after the open. Only omp's WebKit host answers that op: a Tern
 	 * open never sets this.
 	 */
 	identitySeed?: string;
@@ -297,10 +297,10 @@ const NAVIGATION_IDLE_MS = 500;
 /** The address a PiP opens at, and the one a stale or substituted load reports. */
 const BLANK_URL = "about:blank";
 const KIT_CALL =
-	"async function (method, args) { const kit = globalThis.__zetaTernKit; if (!kit) return { missing: true }; return { value: await kit[method](...args) }; }";
+	"async function (method, args) { const kit = globalThis.__ompTernKit; if (!kit) return { missing: true }; return { value: await kit[method](...args) }; }";
 /** Rendering updates an element's rect must hold still for before a native action aims at it. */
 const RESOLVE_STABLE_UPDATES = 2;
-/** How long one native `resolve` waits for a stable rect before zeta asks again. */
+/** How long one native `resolve` waits for a stable rect before omp asks again. */
 const RESOLVE_SETTLE_MS = 1_000;
 /** Wheels one native target may spend bringing its element into view. */
 const SCROLL_WHEEL_LIMIT = 8;
@@ -492,7 +492,7 @@ export class TernTab implements InProcessRunTab {
 	readonly block: number;
 	readonly #client: TernSocketClient;
 	readonly #name: string;
-	/** The user's block this tab adopted (released, never closed); undefined for zeta's own PiP. */
+	/** The user's block this tab adopted (released, never closed); undefined for omp's own PiP. */
 	readonly adopted: TernBlockEntry | undefined;
 	#url = "about:blank";
 	#title = "";
@@ -532,7 +532,7 @@ export class TernTab implements InProcessRunTab {
 	/** Whether the server reports every resource load itself (its welcome lists `network`); such loads keep no body. */
 	readonly nativeNetwork: boolean;
 	/**
-	 * Whether a page of this tab is observed without any zeta script in its
+	 * Whether a page of this tab is observed without any omp script in its
 	 * world (both of the above): the capture and vitals scripts are then
 	 * installed only once a helper needs them ({@link #captureNeeded}, `vitals`).
 	 */
@@ -631,7 +631,7 @@ export class TernTab implements InProcessRunTab {
 	/**
 	 * Drive the user's existing browser block `opts.block` (docked or PiP)
 	 * without opening anything: skip the events it reported before, apply only
-	 * the page settings the caller gave (plus zeta's document-start scripts,
+	 * the page settings the caller gave (plus omp's document-start scripts,
 	 * installed into the current document too), and navigate only when `url`
 	 * is given. A failure releases the block again; it is never closed.
 	 */
@@ -683,7 +683,7 @@ export class TernTab implements InProcessRunTab {
 
 	/**
 	 * Why the tab's block is gone (closed or moved out of the window without
-	 * zeta closing it), once an op answered `not_found` for it and the window's
+	 * omp closing it), once an op answered `not_found` for it and the window's
 	 * `blocks` no longer list it; undefined while the block is there.
 	 */
 	get gone(): string | undefined {
@@ -734,9 +734,9 @@ export class TernTab implements InProcessRunTab {
 	}
 
 	/**
-	 * Close zeta's PiP (its page goes), or release an adopted block: Tern stops
-	 * driving it and resets what zeta set, the user's page stays. A Tern without
-	 * `release` (answers `invalid`) only gets zeta's scripts cleared, best-effort.
+	 * Close omp's PiP (its page goes), or release an adopted block: Tern stops
+	 * driving it and resets what omp set, the user's page stays. A Tern without
+	 * `release` (answers `invalid`) only gets omp's scripts cleared, best-effort.
 	 * A block already gone is no error.
 	 */
 	async close(opts: { timeoutMs: number }): Promise<void> {
@@ -868,7 +868,7 @@ export class TernTab implements InProcessRunTab {
 	/**
 	 * `error`, or an `unresponsive` error naming the way out when the page's web process does not answer (a script
 	 * keeps it busy): the host's own `unresponsive` failure, or a timeout while its `state` says the page is
-	 * unresponsive. Only a host that watches responsiveness (`responsive`: zeta's WebKit host) tells.
+	 * unresponsive. Only a host that watches responsiveness (`responsive`: omp's WebKit host) tells.
 	 */
 	async #unresponsiveFailure(error: unknown): Promise<unknown> {
 		if (!(error instanceof TernError) || !this.#client.supports("responsive")) return error;
@@ -914,15 +914,15 @@ export class TernTab implements InProcessRunTab {
 		const block = `its ${this.product} browser block ${this.block}${this.adopted ? " (the user's)" : ""}`;
 		const reason =
 			this.product === "Tern"
-				? `${block} is no longer in this Tern window (the user closed it, or its tab or window closed; zeta did not close it)`
-				: `${block} is no longer in zeta's WebKit host`;
+				? `${block} is no longer in this Tern window (the user closed it, or its tab or window closed; omp did not close it)`
+				: `${block} is no longer in omp's WebKit host`;
 		const reopen =
 			this.product === "Tern"
 				? `Reopen it with browser.open({ name: ${quoted}, app: "tern", url }); browser.targets({ app: "tern" }) lists the live blocks, and passing one's id as target adopts it.`
 				: `Reopen it with browser.open({ name: ${quoted}, app: "own", url }).`;
 		this.#gone = {
 			reason,
-			error: new ToolError(`Tab ${quoted} is gone: ${reason}. zeta closed the tab. ${reopen}\n(${error.message})`),
+			error: new ToolError(`Tab ${quoted} is gone: ${reason}. omp closed the tab. ${reopen}\n(${error.message})`),
 		};
 		return this.#gone.error;
 	}
@@ -980,7 +980,7 @@ export class TernTab implements InProcessRunTab {
 
 	/**
 	 * Resolve with the held dialog once one is: at once when it already is, else from the events read while `signal`
-	 * is live. A server that holds a waiting `events` call (zeta's WebKit host) is asked with one; on the others, only
+	 * is live. A server that holds a waiting `events` call (omp's WebKit host) is asked with one; on the others, only
 	 * the events other calls read show it. Stays pending once `signal` aborts.
 	 */
 	#whenDialog(signal: AbortSignal): Promise<DialogState> {
@@ -1128,7 +1128,7 @@ export class TernTab implements InProcessRunTab {
 		}
 		if (this.#events.length > EVENT_LOG_LIMIT) this.#events.splice(0, this.#events.length - EVENT_LOG_LIMIT);
 		if (typeof answer.dropped === "number" && answer.dropped > 0) {
-			logger.debug("Tern dropped browser events before zeta read them", { dropped: answer.dropped });
+			logger.debug("Tern dropped browser events before omp read them", { dropped: answer.dropped });
 			this.#network.forgetInflight();
 		}
 	}
@@ -1237,7 +1237,7 @@ export class TernTab implements InProcessRunTab {
 		} catch {
 			return;
 		}
-		if (!isRecord(message) || message.zeta !== "tern") return;
+		if (!isRecord(message) || message.omp !== "tern") return;
 		if (typeof message.dropped === "number") this.#consoleDropped += message.dropped;
 		const ts = numberOr(message.ts, Date.now());
 		const location = typeof message.location === "string" ? message.location : undefined;
@@ -1749,7 +1749,7 @@ export class TernTab implements InProcessRunTab {
 	}
 
 	/**
-	 * Whether `file:` pages may read other files (the `fileAccess` op of zeta's
+	 * Whether `file:` pages may read other files (the `fileAccess` op of omp's
 	 * WebKit host; Tern has no such op). Documents loaded afterwards see it.
 	 */
 	async setFileAccess(allow: boolean): Promise<void> {
@@ -1784,7 +1784,7 @@ export class TernTab implements InProcessRunTab {
 		const now = `${Math.round(this.#viewport.width)}x${Math.round(this.#viewport.height)}`;
 		const how = this.adopted
 			? "It is the user's block, docked in their layout"
-			: "zeta opened it as a picture-in-picture; it was docked since (by the user, or by Tern when the pane it floated over closed, was parked or moved)";
+			: "omp opened it as a picture-in-picture; it was docked since (by the user, or by Tern when the pane it floated over closed, was parked or moved)";
 		return new ToolError(
 			`${this.product} browser block ${this.block} of tab ${JSON.stringify(this.#name)} is docked, so its page takes the block's size (${now} now) and cannot be set to ${width}x${height}. ${how}. ` +
 				`For a fixed viewport, open a tab with browser.open({ name, app: "own", url, viewport: { width: ${width}, height: ${height} } }), or ask the user to pop the block out as a picture-in-picture, then call emulate({ viewport }) again.`,
@@ -1991,7 +1991,7 @@ export class TernTab implements InProcessRunTab {
 					read: "resolve",
 					ref: found.ref,
 					action: resolveAction,
-					// A wheel zeta just sent may still be moving the page under a read that checks nothing else.
+					// A wheel omp just sent may still be moving the page under a read that checks nothing else.
 					stable: resolveAction !== "none" || wheels > 0 ? RESOLVE_STABLE_UPDATES : 0,
 					timeout: Math.max(1, Math.min(RESOLVE_SETTLE_MS, timeoutMs - (Date.now() - started))),
 				});
@@ -2513,7 +2513,7 @@ export class TernTab implements InProcessRunTab {
 			throw new ToolError("highlight duration must be a non-negative number");
 		const spec = this.#spec(selector);
 		await this.#target(`tab.highlight(${describe(selector)})`, spec, "point", null);
-		const id = `zeta-highlight-${crypto.randomUUID()}`;
+		const id = `omp-highlight-${crypto.randomUUID()}`;
 		const overlayFrame = await this.#onKit(spec, null, async (kitSpec, kitFrame) => {
 			await this.#kit("highlight", [kitSpec, id], kitFrame);
 			return kitFrame;
@@ -3161,7 +3161,7 @@ export class TernTab implements InProcessRunTab {
 		const changed = diff.pixelChangeRatio > screenshotThreshold(opts.threshold);
 		const diffPath = opts.output
 			? resolveToCwd(opts.output, context.session.cwd)
-			: path.join(os.tmpdir(), `zeta-screenshot-diff-${Snowflake.next()}.png`);
+			: path.join(os.tmpdir(), `omp-screenshot-diff-${Snowflake.next()}.png`);
 		await Bun.write(diffPath, diff.png);
 		const resized = await resizeImage(
 			{ type: "image", data: diff.png.toString("base64"), mimeType: "image/png" },
@@ -3206,7 +3206,7 @@ export class TernTab implements InProcessRunTab {
 		}
 		const dest = opts.path
 			? resolveToCwd(opts.path, context.session.cwd)
-			: path.join(os.tmpdir(), `zeta-browser-${Snowflake.next()}.pdf`);
+			: path.join(os.tmpdir(), `omp-browser-${Snowflake.next()}.pdf`);
 		await Bun.write(dest, Buffer.from(answer.data, "base64"));
 		return dest;
 	}
@@ -3579,7 +3579,7 @@ export class TernTab implements InProcessRunTab {
 	}
 
 	async #enableDownloads(dir?: string): Promise<void> {
-		const resolved = path.resolve(dir ?? path.join(os.tmpdir(), `zeta-downloads-tern-${this.block}`));
+		const resolved = path.resolve(dir ?? path.join(os.tmpdir(), `omp-downloads-tern-${this.block}`));
 		if (this.#downloadDir === resolved) return;
 		await fs.promises.mkdir(resolved, { recursive: true });
 		await this.#op("downloads", { dir: resolved });
@@ -3754,7 +3754,7 @@ export class TernTab implements InProcessRunTab {
 		const har = await this.#network.harStop(this.loadBody);
 		const destination = options.path
 			? resolveToCwd(options.path, context.session.cwd)
-			: path.join(os.tmpdir(), `zeta-browser-${Snowflake.next()}.har`);
+			: path.join(os.tmpdir(), `omp-browser-${Snowflake.next()}.har`);
 		await Bun.write(destination, `${JSON.stringify(har, null, 2)}\n`);
 		return destination;
 	}

@@ -7,7 +7,7 @@
  */
 import * as path from "node:path";
 import * as natives from "@linxiraos/pi-natives";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import { buildPathTree, type PathTreeInput, walkPathTree } from "@linxiraos/pi-utils";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { type InternalUrlFilesystem, type UrlFileStat, UrlFsError } from "../../internal-urls/url-filesystem";

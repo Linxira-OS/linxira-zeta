@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import * as piNatives from "@linxiraos/pi-natives";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import * as pdfRead from "@linxiraos/zeta/tools/read-pdf";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import * as markit from "@linxiraos/zeta/utils/markit";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
-import * as ar from "@linxiraos/pi-utils/ar";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import * as piNatives from "@oh-my-pi/pi-natives";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import * as pdfRead from "@oh-my-pi/pi-coding-agent/tools/read-pdf";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import * as markit from "@oh-my-pi/pi-coding-agent/utils/markit";
+import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import * as ar from "@oh-my-pi/pi-utils/ar";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const MEMBER = "folder/sample document.pdf";
@@ -71,17 +71,17 @@ describe("PDF archive members", () => {
 	beforeEach(async () => {
 		temp = await TempDir.create("@read-archive-pdf-");
 		pdf = textPdf();
-		originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfile = process.env.ZETA_PROFILE;
-		originalPiProfile = process.env.ZETA_PROFILE;
+		originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+		originalOmpProfile = process.env.OMP_PROFILE;
+		originalPiProfile = process.env.PI_PROFILE;
 		setAgentDir(temp.join("agent"));
 	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
-		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
-		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
-		restoreEnvValue("ZETA_PROFILE", originalPiProfile);
+		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfile);
+		restoreEnvValue("PI_PROFILE", originalPiProfile);
 		__resetDirsFromEnvForTests();
 		await temp.remove();
 	});
@@ -121,7 +121,7 @@ describe("PDF archive members", () => {
 			for (const line of excluded) expect(text).not.toContain(line);
 		}
 		const raw = await tool.execute("pdf-raw-range", { path: `${archivePath}:${MEMBER}:30-31:raw` });
-		expect(textOf(raw)).toBe("pdf line 30\npdf line 31");
+		expect(textOf(raw)).toBe("pdf line 30\npdf line 31\n");
 	});
 
 	it("keeps the scanned-PDF guidance from the existing converter", async () => {

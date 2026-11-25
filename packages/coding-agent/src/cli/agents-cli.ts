@@ -1,16 +1,16 @@
 /**
  * Agents CLI command handlers.
  *
- * Handles `zetacode agents unpack` for writing bundled agent definitions to disk.
+ * Handles `omp agents unpack` for writing bundled agent definitions to disk.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, getProjectDir, isEnoent } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { getAgentDir, getProjectDir, isEnoent } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { YAML } from "bun";
-import { theme } from "@linxiraos/pi-tui/theme";
 import { loadBundledAgents } from "../task/agents";
 import type { AgentDefinition } from "../task/types";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
 
 export type AgentsAction = "unpack";
 
@@ -46,7 +46,7 @@ function resolveTargetDir(flags: AgentsCommandArgs["flags"]): string {
 	}
 
 	if (flags.project) {
-		return path.resolve(getProjectDir(), CONFIG_DIR_NAME, "agents");
+		return path.resolve(getProjectDir(), ".omp", "agents");
 	}
 
 	return path.join(getAgentDir(), "agents");
@@ -118,11 +118,13 @@ export async function runAgentsCommand(cmd: AgentsCommandArgs): Promise<void> {
 
 			writeStdout(chalk.bold(`Bundled agents: ${result.total}`));
 			writeStdout(chalk.dim(`Target directory: ${result.targetDir}`));
-			writeStdout(chalk.green(`${theme.status.success} Written: ${result.written.length}`));
+			writeStdout(
+				chalk.green(`${currentTheme().symbols.symbol("status.success")} Written: ${result.written.length}`),
+			);
 			if (result.skipped.length > 0) {
 				writeStdout(
 					chalk.yellow(
-						`${theme.status.warning} Skipped existing: ${result.skipped.length} (use --force to overwrite)`,
+						`${currentTheme().symbols.symbol("status.warning")} Skipped existing: ${result.skipped.length} (use --force to overwrite)`,
 					),
 				);
 			}

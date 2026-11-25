@@ -1,12 +1,7 @@
 import { type } from "@linxiraos/zeta-schema";
 import { sanitizeText } from "@linxiraos/pi-utils";
-import {
-	replaceTabs,
-	shortenEmbeddedPaths,
-	shortenPath,
-	TRUNCATE_LENGTHS,
-	truncateToWidth,
-} from "@linxiraos/pi-tui/render/render-utils";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
+import { shortenEmbeddedPaths, shortenPath, TRUNCATE_LENGTHS } from "../utils/render-utils";
 
 export const MCP_CONNECTION_STATUS_EVENT_CHANNEL = "mcp:connection-status";
 

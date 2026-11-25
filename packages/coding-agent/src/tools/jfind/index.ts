@@ -7,8 +7,8 @@
 import * as path from "node:path";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
-import type { FindToolDetails } from "@linxiraos/pi-tui/tools/find";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import type { FindToolDetails } from "../details/find";
+import { ToolError } from "../tool-errors";
 import { formatBytes, formatDuration, formatNumber } from "@linxiraos/pi-utils";
 import { sessionResolveContext } from "../../internal-urls/context";
 import { InternalUrlFilesystem } from "../../internal-urls/url-filesystem";
@@ -66,6 +66,15 @@ export function isFindEnabled(session: ToolSession): boolean {
 		session.modelRegistry !== undefined &&
 		hasNativeJudge(session.settings, session.modelRegistry, session.getActiveModel?.())
 	);
+}
+
+/**
+ * Whether sibling tool descriptions (`grep`, `glob`, `bash`) point at `find`:
+ * the prompt-frozen {@link ToolSession.findHintVisible} in a managed session,
+ * else the live roster, else the setting.
+ */
+export function findHintVisible(session: ToolSession): boolean {
+	return session.findHintVisible ?? session.isToolActive?.("find") ?? isFindEnabled(session);
 }
 
 /** Semantic search tool: describe a behavior, get files and line ranges that implement it. */

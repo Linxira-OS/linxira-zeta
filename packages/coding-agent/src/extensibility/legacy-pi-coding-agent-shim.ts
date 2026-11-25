@@ -1,6 +1,6 @@
 /**
  * Compatibility shim for legacy extensions importing the package root of
- * `@linxiraos/zeta` (or one of its aliased scopes like
+ * `@oh-my-pi/pi-coding-agent` (or one of its aliased scopes like
  * `@earendil-works/pi-coding-agent` or `@mariozechner/pi-coding-agent`).
  *
  * The coding-agent package's own barrel (`./src/index.ts`) cannot be listed
@@ -9,7 +9,7 @@
  * Routing legacy plugin imports through this sibling shim sidesteps that
  * conflict: bun bundles a distinct entry whose path differs from the CLI
  * entry, while still re-exporting the canonical surface so plugins observe
- * the same module identity as a direct `@linxiraos/zeta` import.
+ * the same module identity as a direct `@oh-my-pi/pi-coding-agent` import.
  */
 
 import { Database } from "bun:sqlite";
@@ -21,28 +21,34 @@ import {
 	type AgentToolUpdateCallback,
 	type MessageCountOptions,
 	Tokenizer,
-} from "@linxiraos/pi-agent-core";
-import { findCutPoint as computeCutPoint, type CutPointResult } from "@linxiraos/pi-agent-core/compaction";
-import type { SessionEntry as CompactionSessionEntry } from "@linxiraos/pi-agent-core/compaction/entries";
+} from "@oh-my-pi/pi-agent-core";
+import { findCutPoint as computeCutPoint, type CutPointResult } from "@oh-my-pi/pi-agent-core/compaction";
+import type { SessionEntry as CompactionSessionEntry } from "@oh-my-pi/pi-agent-core/compaction/entries";
 import {
 	createBranchSummaryMessage,
 	createCompactionSummaryMessage,
 	createCustomMessage,
-} from "@linxiraos/pi-agent-core/compaction/messages";
-import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@linxiraos/pi-ai";
-import { piEscapeRegexLiteral, piJoinPath } from "@linxiraos/pi-ai/providers/cursor-pi-args";
-import { getKeybindings, type Keybinding, Text } from "@linxiraos/pi-tui";
+} from "@oh-my-pi/pi-agent-core/compaction/messages";
+import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@oh-my-pi/pi-ai";
+import { piEscapeRegexLiteral, piJoinPath } from "@oh-my-pi/pi-ai/providers/cursor-pi-args";
+import { highlightCode as highlightWithTheme } from "@oh-my-pi/pi-tui/text/highlight";
+import { wrap } from "@oh-my-pi/pi-tui/text/width";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import type { ExtensionRows } from "./extensions/render-types";
+import type { Keybinding } from "../config/keybindings/app-keybindings";
+import { getKeybindings } from "../config/keybindings/keybindings";
 import {
 	escapeXmlText,
 	getAgentDbPath,
 	getAgentDir,
 	getProjectDir,
 	isCompiledBinary,
-	parseFrontmatter as parseFrontmatterCore,
+	parseFrontmatter as parseOmpFrontmatter,
 	prompt,
-} from "@linxiraos/pi-utils";
-import { getPackageDir as getPackageDirCore } from "../config";
-import { formatKeyHints } from "@linxiraos/pi-tui/app-keybindings";
+} from "@oh-my-pi/pi-utils";
+import legacyAvailableSkillsTemplate from "./legacy-pi-available-skills.md" with { type: "text" };
+import { getPackageDir as getOmpPackageDir } from "../config";
+import { formatKeyHints } from "../ui/keys/hints";
 import type { PromptTemplate } from "../config/prompt-templates";
 import { findScopedSettings, Settings } from "../config/settings";
 import { cfgLegacyShellCommandPrefix, cfgShellPath } from "../exec/settings";
@@ -61,18 +67,18 @@ import {
 	type TruncationResult,
 	truncateHead,
 	truncateTail,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+} from "../tools/streaming-output";
 import type { SessionEntry } from "../session/session-entries";
 import type { Tool, ToolSession } from "../tools";
 import { BashTool } from "../tools/bash";
 import { GlobTool } from "../tools/glob";
 import { GrepTool } from "../tools/grep";
 import { ReadTool } from "../tools/read";
-import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
+import { formatBytes } from "@oh-my-pi/pi-utils";
 import { WriteTool } from "../tools/write";
 import { expandTilde, resolveToCwd } from "../tools/path-utils";
 import { EventBus } from "../utils/event-bus";
-import { convertImageToPng } from "@linxiraos/pi-tui/chat/image-loading";
+import { convertImageToPng } from "../utils/png-conversion";
 import { discoverExtensionPaths, loadExtensionFromFactory, loadExtensions } from "./extensions";
 import { ExtensionRuntime } from "./extensions/loader";
 import type {
@@ -92,10 +98,9 @@ import type { Skill } from "./skills";
 import { loadSkillsFromDir } from "./skills";
 
 import { cfgDisabledExtensions, cfgExtensions, cfgSkills } from "./settings";
-import legacyAvailableSkillsTemplate from "./legacy-pi-available-skills.md" with { type: "text" };
 
 const TOOL_DEFINITION_MARKER = "__isToolDefinition";
-const LEGACY_BUILTIN_TOOL_MARKER = "__zetaLegacyBuiltinTool";
+const LEGACY_BUILTIN_TOOL_MARKER = "__ompLegacyBuiltinTool";
 const LEGACY_CODING_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
 const LEGACY_READ_ONLY_TOOL_NAMES = ["read", "grep", "find", "ls"] as const;
 
@@ -332,10 +337,15 @@ function textResult(result: AgentToolResult<unknown> | undefined): string {
 	return result?.content.find(block => block.type === "text")?.text ?? "";
 }
 
-function legacyRenderResult(result: AgentToolResult<unknown>, _options: unknown, themeArg: unknown): Text {
+/** `text` wrapped at the width, as the rows pi-tui's `Text` drew (none for ""). */
+function textRows(text: string): ExtensionRows {
+	return { render: width => (text === "" ? [] : wrap(text, width)) };
+}
+
+function legacyRenderResult(result: AgentToolResult<unknown>, _options: unknown, themeArg: unknown): ExtensionRows {
 	const theme = renderTheme(themeArg, undefined);
 	const output = textResult(result);
-	return new Text(output ? `\n${themedMuted(theme, output)}` : "", 0, 0);
+	return textRows(output ? `\n${themedMuted(theme, output)}` : "");
 }
 
 function lineRangePath(readPath: string, offset: number | undefined, limit: number | undefined): string {
@@ -436,7 +446,7 @@ export async function convertToPng(
 
 /** Format the active shortcut for legacy extensions that render keybinding hints. */
 export function keyText(action: Keybinding): string {
-	return formatKeyHints(getKeybindings().getKeys(action));
+	return formatKeyHints(getKeybindings().keysFor(action));
 }
 
 /** Parse frontmatter using the historical Pi package-root helper. */
@@ -449,7 +459,7 @@ export interface ParsedFrontmatter<T extends Record<string, unknown> = Record<st
 export function parseFrontmatter<T extends Record<string, unknown> = Record<string, unknown>>(
 	content: string,
 ): ParsedFrontmatter<T> {
-	const { frontmatter, body } = parseFrontmatterCore(content, { level: "fatal" });
+	const { frontmatter, body } = parseOmpFrontmatter(content, { level: "fatal" });
 	return { frontmatter: frontmatter as T, body };
 }
 
@@ -482,7 +492,7 @@ export function createReadToolDefinition(cwd: string, options?: ReadToolOptions)
 		renderCall: (params, options, themeArg) => {
 			const theme = renderTheme(options, themeArg);
 			const readPath = stringField(params, "path") ?? "";
-			return new Text(`${themedTitle(theme, "read")} ${themedMuted(theme, readPath)}`, 0, 0);
+			return textRows(`${themedTitle(theme, "read")} ${themedMuted(theme, readPath)}`);
 		},
 		renderResult: legacyRenderResult,
 		execute: (toolCallId, params, signal, onUpdate) => {
@@ -528,7 +538,7 @@ export function createBashToolDefinition(cwd: string, options?: BashToolOptions)
 		renderCall: (params, optionsArg, themeArg) => {
 			const theme = renderTheme(optionsArg, themeArg);
 			const command = stringField(params, "command") ?? "";
-			return new Text(`${themedTitle(theme, "bash")} ${themedMuted(theme, command)}`, 0, 0);
+			return textRows(`${themedTitle(theme, "bash")} ${themedMuted(theme, command)}`);
 		},
 		renderResult: legacyRenderResult,
 		execute: (toolCallId, params, signal, onUpdate) => {
@@ -590,7 +600,7 @@ export function createGrepToolDefinition(cwd: string, options?: GrepToolOptions)
 			const theme = renderTheme(optionsArg, themeArg);
 			const pattern = stringField(params, "pattern") ?? "";
 			const searchPath = stringField(params, "path") ?? ".";
-			return new Text(`${themedTitle(theme, "grep")} ${themedMuted(theme, `/${pattern}/ in ${searchPath}`)}`, 0, 0);
+			return textRows(`${themedTitle(theme, "grep")} ${themedMuted(theme, `/${pattern}/ in ${searchPath}`)}`);
 		},
 		renderResult: legacyRenderResult,
 		execute: async (toolCallId, params, signal, onUpdate) => {
@@ -652,7 +662,7 @@ export function createFindToolDefinition(cwd: string, options?: FindToolOptions)
 			const theme = renderTheme(optionsArg, themeArg);
 			const pattern = stringField(params, "pattern") ?? "";
 			const searchPath = stringField(params, "path") ?? ".";
-			return new Text(`${themedTitle(theme, "find")} ${themedMuted(theme, `${pattern} in ${searchPath}`)}`, 0, 0);
+			return textRows(`${themedTitle(theme, "find")} ${themedMuted(theme, `${pattern} in ${searchPath}`)}`);
 		},
 		renderResult: legacyRenderResult,
 		execute: async (toolCallId, params, signal, onUpdate) => {
@@ -708,7 +718,7 @@ export function createLsToolDefinition(cwd: string, options?: LsToolOptions): To
 			createRegistryTool(cwd, "read").approvalCacheTargets?.({ path: stringField(params, "path") ?? "." }),
 		renderCall: (params, optionsArg, themeArg) => {
 			const theme = renderTheme(optionsArg, themeArg);
-			return new Text(`${themedTitle(theme, "ls")} ${themedMuted(theme, stringField(params, "path") ?? ".")}`, 0, 0);
+			return textRows(`${themedTitle(theme, "ls")} ${themedMuted(theme, stringField(params, "path") ?? ".")}`);
 		},
 		renderResult: legacyRenderResult,
 		execute: async (_toolCallId, params, _signal, _onUpdate) => {
@@ -747,7 +757,7 @@ export function createLsTool(cwd: string, options?: LsToolOptions): ToolDefiniti
 export function createEditToolDefinition(cwd: string, options?: EditToolOptions): ToolDefinition {
 	if (options?.operations) {
 		throw new Error(
-			"Legacy EditToolOptions.operations is not supported: Zeta's built-in edit tool writes the local " +
+			"Legacy EditToolOptions.operations is not supported: OMP's built-in edit tool writes the local " +
 				"filesystem natively and exposes no pluggable operations seam. Register a custom edit tool via " +
 				"defineTool() instead of passing operations to createEditTool()/createEditToolDefinition().",
 		);
@@ -764,7 +774,7 @@ export function createEditTool(cwd: string, options?: EditToolOptions): ToolDefi
 export function createWriteToolDefinition(cwd: string, options?: WriteToolOptions): ToolDefinition {
 	if (options?.operations) {
 		throw new Error(
-			"Legacy WriteToolOptions.operations is not supported: Zeta's built-in write tool writes the local " +
+			"Legacy WriteToolOptions.operations is not supported: OMP's built-in write tool writes the local " +
 				"filesystem natively and exposes no pluggable operations seam. Register a custom write tool via " +
 				"defineTool() instead of passing operations to createWriteTool()/createWriteToolDefinition().",
 		);
@@ -1029,7 +1039,7 @@ export interface ResourceLoader {
 	getAppendSystemPrompt(): string[];
 	reload(): Promise<void>;
 	/** @internal — used by the shim's createAgentSession to detect its own loaders. */
-	readonly __zetaLegacyPiLoader?: true;
+	readonly __ompLegacyPiLoader?: true;
 }
 
 /** Create a pre-initialization runtime for legacy extension resource loaders. */
@@ -1067,7 +1077,7 @@ interface AdditionalPromptLoadResult {
 }
 
 export class DefaultResourceLoader implements ResourceLoader {
-	readonly __zetaLegacyPiLoader = true as const;
+	readonly __ompLegacyPiLoader = true as const;
 	#state: ResolvedLoaderState;
 	#options: DefaultResourceLoaderOptions;
 	#extensionsResult: LoadExtensionsResult = { extensions: [], errors: [], runtime: createExtensionRuntime() };
@@ -1523,10 +1533,10 @@ export function readStoredCredential(provider: string): AuthCredential | undefin
 }
 
 // Pi SDK path helpers. `export * from "../index"` above only forwards
-// `getAgentDir`; `getProjectDir` (a `@linxiraos/pi-utils` helper) and
+// `getAgentDir`; `getProjectDir` (a `@oh-my-pi/pi-utils` helper) and
 // `getPackageDir` are absent from that barrel, so legacy extensions importing
 // either fail Bun's static export check during validation (issue #5968).
-export { getProjectDir } from "@linxiraos/pi-utils";
+export { getProjectDir } from "@oh-my-pi/pi-utils";
 
 /**
  * Coding-agent package install directory, matching pi's string-valued
@@ -1543,16 +1553,16 @@ export { getProjectDir } from "@linxiraos/pi-utils";
  * canonical helper.
  */
 export function getPackageDir(): string {
-	return getPackageDirCore() ?? (isCompiledBinary() ? path.dirname(process.execPath) : process.cwd());
+	return getOmpPackageDir() ?? (isCompiledBinary() ? path.dirname(process.execPath) : process.cwd());
 }
 
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,
 // `compact`, `serializeConversation`, and `calculateContextTokens` from its
 // package root (via `./core/compaction/index.ts`). In omp these live in
-// `@linxiraos/pi-agent-core/compaction`, and the coding-agent barrel below does
+// `@oh-my-pi/pi-agent-core/compaction`, and the coding-agent barrel below does
 // not forward them, so legacy extensions importing them fail Bun's static
 // export check during validation (issues #6583, #7174, #7403, #10278).
-export { calculateContextTokens, compact, serializeConversation } from "@linxiraos/pi-agent-core/compaction";
+export { calculateContextTokens, compact, serializeConversation } from "@oh-my-pi/pi-agent-core/compaction";
 
 const legacyTokenizer = new Tokenizer();
 
@@ -1569,7 +1579,7 @@ export function estimateTokens(message: AgentMessage, tokenizer?: Tokenizer, opt
 
 // Legacy pi's `@earendil-works/pi-coding-agent` also exported `findCutPoint` and
 // `sessionEntryToContextMessages` from its package root (upstream Pi 0.84.2
-// public API). In omp `findCutPoint` moved to `@linxiraos/pi-agent-core/compaction`
+// public API). In omp `findCutPoint` moved to `@oh-my-pi/pi-agent-core/compaction`
 // AND grew a required `Tokenizer` parameter, and `sessionEntryToContextMessages`
 // has no canonical equivalent, so neither reaches the barrel below and legacy
 // extensions importing them (e.g. NVlabs/SoL-Pi's online-context-compact) fail
@@ -1623,6 +1633,7 @@ export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage
 				entry.details,
 				entry.timestamp,
 				entry.attribution,
+				entry.excludeFromContext,
 			),
 		];
 	}
@@ -1637,19 +1648,20 @@ export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage
 
 // Same barrel gap for two more legacy package-root exports: pi re-exported the
 // `CONFIG_DIR_NAME` constant and the CLI parser `parseArgs`. In omp
-// `CONFIG_DIR_NAME` lives in `@linxiraos/pi-utils` and `parseArgs` in
+// `CONFIG_DIR_NAME` lives in `@oh-my-pi/pi-utils` and `parseArgs` in
 // `../cli/args`, neither of which the barrel below forwards, so legacy
 // extensions importing either fail Bun's static export check during validation.
-export { CONFIG_DIR_NAME } from "@linxiraos/pi-utils";
-// Legacy pi package root exported these truncation defaults; pi-lean-ctx
-// imports them from the root. Our barrel never re-exported them, so the
-// shim (which stands in for the legacy root) must.
-export { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
-export { getLanguageFromPath, highlightCode } from "@linxiraos/pi-tui/theme";
+export { CONFIG_DIR_NAME } from "@oh-my-pi/pi-utils";
 export { parseArgs } from "../cli/args";
 
 export * from "../index";
-export { formatBytes as formatSize } from "@linxiraos/pi-tui/render/render-utils";
+export { getLanguageFromPath } from "../utils/lang-from-path";
+export { formatBytes as formatSize } from "@oh-my-pi/pi-utils";
+
+/** Upstream's `highlightCode(code, lang?)`: ANSI-highlighted lines in the current theme. */
+export function highlightCode(code: string, lang?: string): string[] {
+	return highlightWithTheme(code, lang, currentTheme());
+}
 export { copyToClipboard } from "../utils/clipboard";
 export { Type } from "./legacy-typebox";
 

@@ -1,4 +1,4 @@
-import { type MCPProgress, parseMCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import { type MCPProgress, parseMCPProgress } from "../tools/mcp-progress";
 import { isRecord, logger } from "@linxiraos/pi-utils";
 import { MCPNotificationMethods } from "./types";
 

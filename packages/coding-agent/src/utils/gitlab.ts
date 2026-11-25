@@ -1,5 +1,5 @@
 import { $which } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { FORGE_NON_INTERACTIVE_ENV, type ForgeCliResult, type ForgeCliSpec, runForgeCli } from "./forge-cli";
 
 /** Options shaping `glab` output handling. */

@@ -1,7 +1,7 @@
 import type { PipeStreamInfo, PipeStreams } from "@linxiraos/pi-natives";
-import { collapseCommand } from "@linxiraos/pi-tui/apps/ps-data";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
-import { shellStreamId } from "@linxiraos/pi-tui/tools/shell-steps";
+import { collapseCommand } from "../cli/ps-model";
+import { shortenPath } from "../utils/render-utils";
+import { shellStreamId } from "../tools/shell-steps";
 import { truncate } from "@linxiraos/pi-utils";
 import type { JobTextChunk, JobTextSource } from "./types";
 

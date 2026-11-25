@@ -1,34 +1,34 @@
 /**
  * Regression: plugin extensions must resolve `pi-*` imports across every scope
  * that has ever been used to publish or alias the internal packages —
- * `@mariozechner` (original), `@earendil-works` (fork), and `@linxiraos`
+ * `@mariozechner` (original), `@earendil-works` (fork), and `@oh-my-pi`
  * (canonical). The shim in `legacy-pi-compat.ts` remaps all three to the same
  * in-process bundled copy so that plugins observe a single module registry
  * regardless of which scope name their peerDependencies happened to declare.
  *
  * Reported failures the test covers:
- *   - `@juicesharp/rpiv-ask-user-question` ⇒ `@earendil-works/pi-tui`
- *   - `@plannotator/pi-extension`         ⇒ `@linxiraos/pi-agent-core`
- *   - `@runfusion/fusion`                 ⇒ `@linxiraos/zeta/...`
+ *   - `@plannotator/pi-extension`         ⇒ `@oh-my-pi/pi-agent-core`
+ *   - `@runfusion/fusion`                 ⇒ `@oh-my-pi/pi-coding-agent/...`
  *
- * Plus the two upstream-only surfaces that turned up via real-plugin E2E:
- *   - `Key` runtime helper from `pi-tui` (used by plannotator + rpiv-*).
- *   - `pi-ai/oauth` subpath (used by runfusion's bundled extension).
+ * Plus the upstream-only `pi-ai/oauth` subpath that turned up via real-plugin
+ * E2E (used by runfusion's bundled extension).
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
-import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
-const canonicalCodingAgent = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
-const canonicalCodingAgentExtensions = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
-const canonicalUtils = Bun.resolveSync("@linxiraos/pi-utils", import.meta.dir);
-const canonicalTui = Bun.resolveSync("@linxiraos/pi-tui", import.meta.dir);
+const canonicalCodingAgent = Bun.resolveSync("@oh-my-pi/pi-coding-agent", import.meta.dir);
+const canonicalCodingAgentExtensions = Bun.resolveSync(
+	"@oh-my-pi/pi-coding-agent/extensibility/extensions",
+	import.meta.dir,
+);
+const canonicalUtils = Bun.resolveSync("@oh-my-pi/pi-utils", import.meta.dir);
 // Subpath: upstream `pi-ai/oauth` re-exported `utils/oauth/index`; our pi-ai now
-// exposes the same surface at the real `@linxiraos/pi-ai/oauth` export, so the
+// exposes the same surface at the real `@oh-my-pi/pi-ai/oauth` export, so the
 // legacy `@mariozechner/pi-ai/oauth` specifier canonicalizes straight to it.
-const canonicalAiOauth = Bun.resolveSync("@linxiraos/pi-ai/oauth", import.meta.dir);
+const canonicalAiOauth = Bun.resolveSync("@oh-my-pi/pi-ai/oauth", import.meta.dir);
 
 interface AliasCase {
 	id: string;
@@ -38,19 +38,17 @@ interface AliasCase {
 }
 
 const CASES: readonly AliasCase[] = [
-	// @earendil-works fork — used by @juicesharp/rpiv-* plugins.
-	{
-		id: "earendil-tui",
-		aliasSpecifier: "@earendil-works/pi-tui",
-		canonicalPath: canonicalTui,
-		symbol: "visibleWidth",
-	},
-	// @linxiraos self-import — canonical scope must still flow through the shim
+	// @oh-my-pi self-import — canonical scope must still flow through the shim
 	// so a duplicate copy is never dragged in from a plugin's own node_modules.
-	{ id: "ohmypi-utils", aliasSpecifier: "@linxiraos/pi-utils", canonicalPath: canonicalUtils, symbol: "logger" },
+	{
+		id: "ohmypi-utils",
+		aliasSpecifier: "@oh-my-pi/pi-utils",
+		canonicalPath: canonicalUtils,
+		symbol: "logger",
+	},
 	{
 		id: "ohmypi-coding-agent",
-		aliasSpecifier: "@linxiraos/zeta",
+		aliasSpecifier: "@oh-my-pi/pi-coding-agent",
 		canonicalPath: canonicalCodingAgent,
 		symbol: "isToolCallEventType",
 	},
@@ -61,7 +59,7 @@ const CASES: readonly AliasCase[] = [
 		canonicalPath: canonicalCodingAgentExtensions,
 		symbol: "isToolCallEventType",
 	},
-	// Subpath: legacy `pi-ai/oauth` resolves to the real `@linxiraos/pi-ai/oauth`.
+	// Subpath: legacy `pi-ai/oauth` resolves to the real `@oh-my-pi/pi-ai/oauth`.
 	{
 		id: "mariozechner-ai-oauth",
 		aliasSpecifier: "@mariozechner/pi-ai/oauth",
@@ -69,13 +67,6 @@ const CASES: readonly AliasCase[] = [
 		// `refreshOAuthToken` is exported by our `oauth/index` and by upstream's
 		// `oauth.d.ts`; it makes a stable probe across both layouts.
 		symbol: "refreshOAuthToken",
-	},
-	// `Key` runtime helper restored on pi-tui (plannotator + rpiv-* import it).
-	{
-		id: "earendil-tui-key",
-		aliasSpecifier: "@earendil-works/pi-tui",
-		canonicalPath: canonicalTui,
-		symbol: "Key",
 	},
 ];
 

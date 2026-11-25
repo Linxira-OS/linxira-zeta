@@ -1,8 +1,5 @@
-import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
-import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
-import { BUILTIN_TWO_FACTOR_SLASH_COMMAND } from "./builtin-two-factor";
-import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { clearSubmittedText } from "./helpers/draft";
+import type { AutocompleteItem } from "../autocomplete/autocomplete";
 import { BUILTIN_COMMIT_SLASH_COMMANDS } from "./builtin-commit";
 import {
 	buildArgumentCompletions,
@@ -16,33 +13,27 @@ import {
 	buildSubcommandInlineHint,
 } from "./builtin-completions";
 import { BUILTIN_CONTROL_SLASH_COMMANDS } from "./builtin-control";
-import { BUILTIN_EDITS_SLASH_COMMANDS } from "./builtin-edits";
 import { BUILTIN_LIFECYCLE_SLASH_COMMANDS } from "./builtin-lifecycle";
 import { BUILTIN_MARKETPLACE_SLASH_COMMANDS, reloadTuiPluginState } from "./builtin-marketplace";
 import { BUILTIN_MODE_SLASH_COMMANDS } from "./builtin-modes";
 import { BUILTIN_SESSION_SLASH_COMMANDS } from "./builtin-session";
 import { BUILTIN_SKILLS_SLASH_COMMANDS } from "./builtin-skills";
-import { resolveCommandDescription } from "./helpers/description";
 import { parseSlashCommand } from "./helpers/parse";
 import type {
 	BuiltinSlashCommand,
-	SubcommandDef,
 	ParsedSlashCommand,
 	SlashCommandResult,
 	SlashCommandRuntime,
 	SlashCommandSpec,
 	TuiSlashCommandRuntime,
 } from "./types";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
 
 export type { BuiltinSlashCommand, SubcommandDef } from "./types";
 
 /** TUI-specific runtime accepted by `executeBuiltinSlashCommand`. */
 export type BuiltinSlashCommandRuntime = TuiSlashCommandRuntime;
 
-export interface TuiBuiltinSlashCommand extends Omit<BuiltinSlashCommand, "description"> {
-	/** Materialized commands always carry the resolved string (see materializeTuiBuiltinSlashCommand). */
-	description: string;
+export interface TuiBuiltinSlashCommand extends BuiltinSlashCommand {
 	getArgumentCompletions?: (prefix: string) => AutocompleteItem[] | null | Promise<AutocompleteItem[] | null>;
 	getInlineHint?: (argumentText: string) => string | null;
 	getAutocompleteDescription?: () => string | undefined;
@@ -50,17 +41,12 @@ export interface TuiBuiltinSlashCommand extends Omit<BuiltinSlashCommand, "descr
 
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MODE_SLASH_COMMANDS,
-	...BUILTIN_OUTPUT_SLASH_COMMANDS,
 	...BUILTIN_SESSION_SLASH_COMMANDS,
 	...BUILTIN_COMMIT_SLASH_COMMANDS,
 	...BUILTIN_LIFECYCLE_SLASH_COMMANDS,
 	...BUILTIN_MARKETPLACE_SLASH_COMMANDS,
 	...BUILTIN_SKILLS_SLASH_COMMANDS,
 	...BUILTIN_CONTROL_SLASH_COMMANDS,
-	...BUILTIN_EDITS_SLASH_COMMANDS,
-	...BUILTIN_ZETA_SLASH_COMMANDS,
-	BUILTIN_CHANNELS_SLASH_COMMAND,
-	BUILTIN_TWO_FACTOR_SLASH_COMMAND,
 ];
 
 const BUILTIN_SLASH_COMMAND_LOOKUP = new Map<string, SlashCommandSpec>();
@@ -73,38 +59,21 @@ for (const command of BUILTIN_SLASH_COMMAND_REGISTRY) {
 
 export const BUILTIN_SLASH_COMMAND_RESERVED_NAMES: ReadonlySet<string> = new Set(BUILTIN_SLASH_COMMAND_LOOKUP.keys());
 
-/**
- * Builtin command metadata used for slash-command autocomplete and help text.
- *
- * `description` and `subcommands` are re-exported through getters: a spec may
- * declare them as accessors (`get description() { return M.cmdEffortFmt.replace(...) }`,
- * `/effort`), and reading them once here would capture the locale active at
- * import time. Everything else is a plain value.
- */
+/** Builtin command metadata used for slash-command autocomplete and help text. */
 export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BUILTIN_SLASH_COMMAND_REGISTRY.map(
 	command => ({
 		name: command.name,
 		aliases: command.aliases,
 		allowArgs: command.allowArgs === true,
-		hidden: command.hidden === true,
-		argumentCompletionOnly: command.argumentCompletionOnly === true,
-		// Keep the thunk itself: resolving here would re-freeze the locale that
-		// happens to be active when this module is imported.
-		get description(): string | (() => string) {
+		// Getter: some descriptions name keys, formatted at read time (theme/preset may change).
+		get description() {
 			return command.description;
 		},
 		icon: command.icon,
-		get subcommands(): SubcommandDef[] | undefined {
-			return command.subcommands;
-		},
+		subcommands: command.subcommands,
 		subcommandOptional: command.subcommandOptional,
 		inlineHint: command.inlineHint,
 		getTuiAutocompleteDescription: command.getTuiAutocompleteDescription,
-		// Configuration gates must survive the defs projection: the palette and
-		// the ACP/RPC command lists are built from these, and both hide a
-		// disabled command.
-		enabled: command.enabled,
-		disabledMessage: command.disabledMessage,
 	}),
 );
 
@@ -112,11 +81,7 @@ function materializeTuiBuiltinSlashCommand(
 	cmd: BuiltinSlashCommand,
 	runtime?: TuiSlashCommandRuntime,
 ): TuiBuiltinSlashCommand {
-	// The TUI contract takes a plain string, so resolve the thunk here. This
-	// runs on every buildTuiBuiltinSlashCommands() call — which is exactly what
-	// /language triggers — so localized descriptions still follow the active
-	// catalogue instead of freezing at import time.
-	const materialized: TuiBuiltinSlashCommand = { ...cmd, description: resolveCommandDescription(cmd.description) };
+	const materialized: TuiBuiltinSlashCommand = { ...cmd };
 	if (cmd.subcommands) {
 		const subcommands = cmd.subcommands;
 		// `/mcp` and `/effort` narrow their declarative lists to live session
@@ -132,7 +97,7 @@ function materializeTuiBuiltinSlashCommand(
 			materialized.getArgumentCompletions = buildArgumentCompletions(subcommands, options);
 			materialized.getInlineHint = buildSubcommandInlineHint(subcommands, options);
 		}
-	} else if (cmd.name === "move" || cmd.name === "cd") {
+	} else if (cmd.name === "move") {
 		materialized.getArgumentCompletions = buildDirectoryArgumentCompletions();
 		if (cmd.inlineHint) materialized.getInlineHint = buildStaticInlineHint(cmd.inlineHint);
 	} else if (cmd.name === "local" && runtime) {
@@ -159,9 +124,7 @@ export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<TuiBuiltinSlashCommand> = BUI
 );
 
 export function buildTuiBuiltinSlashCommands(runtime: TuiSlashCommandRuntime): ReadonlyArray<TuiBuiltinSlashCommand> {
-	return BUILTIN_SLASH_COMMAND_DEFS.filter(
-		cmd => cmd.hidden !== true && (cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)),
-	).map(cmd => materializeTuiBuiltinSlashCommand(cmd, runtime));
+	return BUILTIN_SLASH_COMMAND_DEFS.map(cmd => materializeTuiBuiltinSlashCommand(cmd, runtime));
 }
 
 /**
@@ -187,17 +150,11 @@ export async function executeBuiltinSlashCommand(
 
 	const command = BUILTIN_SLASH_COMMAND_LOOKUP.get(parsed.name);
 	if (!command) return false;
-	// A command whose feature is switched off must say so instead of falling
-	// through to the model as prompt text.
-	if (command.enabled !== undefined && !command.enabled(runtime.ctx.settings)) {
-		const message = command.disabledMessage;
-		runtime.ctx.showError(typeof message === "function" ? message() : (message ?? `/${command.name} is disabled`));
-		clearSubmittedText(runtime);
-		return true;
-	}
 	if (parsed.args.length > 0 && !command.allowArgs) {
 		return false;
 	}
+	// Collab guests run a read-mostly replica: session-mutating builtins are
+	// host-only. Zeta retired collab; the guard is removed with it.
 	if (command.handleTui) {
 		const result = await command.handleTui(parsed, runtime);
 		if (result && typeof result === "object" && "prompt" in result) return result.prompt;
@@ -216,7 +173,6 @@ export async function executeBuiltinSlashCommand(
 			sessionManager: ctx.sessionManager,
 			settings: ctx.settings,
 			cwd: ctx.sessionManager.getCwd(),
-			mcpManager: ctx.mcpManager,
 			output: (text: string) => {
 				ctx.showStatus(text);
 			},

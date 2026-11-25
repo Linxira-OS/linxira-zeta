@@ -3,19 +3,18 @@
  *
  * Agents are embedded at build time via Bun's import with { type: "text" }.
  */
-import { Effort } from "@linxiraos/pi-ai";
-import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { parseFrontmatter, prompt } from "@oh-my-pi/pi-utils";
 import { parseAgentFields } from "../discovery/helpers";
 // Embed agent markdown files at build time
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
 import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import scoutMd from "../prompts/agents/scout.md" with { type: "text" };
-import secretaryMd from "../prompts/agents/secretary.md" with { type: "text" };
 import securityReviewerMd from "../prompts/agents/security-reviewer.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+import { AUTO_THINKING } from "../thinking/levels";
 
-import type { AgentSource } from "@linxiraos/pi-tui/tools/task";
+import type { AgentSource } from "./task-details";
 import type { AgentDefinition } from "./types";
 
 interface AgentFrontmatter {
@@ -45,7 +44,6 @@ function buildAgentContent(def: EmbeddedAgentDef): string {
 const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "scout.md", template: scoutMd },
 	{ fileName: "reviewer.md", template: reviewerMd },
-	{ fileName: "secretary.md", template: secretaryMd },
 	{ fileName: "security-reviewer.md", template: securityReviewerMd },
 	{
 		fileName: "task.md",

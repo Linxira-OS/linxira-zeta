@@ -19,18 +19,11 @@
  * model registry, async job manager, settings), which travel back to main as
  * references to the originals.
  */
-import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type {
-	Effort,
-	ImageContent,
-	Model,
-	ServiceTierByFamily,
-	ToolResultMessage,
-	UsageReport,
-} from "@linxiraos/pi-ai";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import type { AgentMessage, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Effort, ImageContent, Model, ServiceTierByFamily, ToolResultMessage, UsageReport } from "@oh-my-pi/pi-ai";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
+import type { IrcMessage } from "../irc/irc-types";
+import type { TodoPhase } from "../tools/details/todo";
 import type { AsyncJobManagerApi } from "../async";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
@@ -149,8 +142,6 @@ export interface SessionQueuedEntry {
 
 /** View-only data of a worker-homed session, published while main watches it (see the module doc). */
 export interface SessionViewState {
-	/** Link schemes the home session's own extension runner claims. */
-	studioLinkSchemes: string[];
 	/** Provider-facing session id (`AgentSession.sessionId`). */
 	providerSessionId: string;
 	sessionName: string | undefined;
@@ -226,6 +217,7 @@ export interface SessionAbortOptions {
 	reason?: string;
 	preserveCompaction?: boolean;
 	deliverQueuedMessages?: boolean;
+	detachTools?: boolean;
 }
 
 /**
@@ -234,8 +226,6 @@ export interface SessionAbortOptions {
  * event-stream watch toggle.
  */
 export type SessionHostProtocol = {
-	/** Deliver a link click to the home session's own extension runner. */
-	activateStudioLink: RpcMethod<[url: string], boolean>;
 	prompt: RpcMethod<[text: string, options?: PromptOptions], boolean>;
 	steer: RpcMethod<[text: string, images?: ImageContent[], options?: SteerOptions], void>;
 	abort: RpcMethod<[options?: SessionAbortOptions], void>;
@@ -260,8 +250,7 @@ export type SessionHostProtocol = {
 	flushSession: RpcMethod<[], void>;
 	ensureOnDisk: RpcMethod<[], void>;
 	getArtifactPath: RpcMethod<[id: string], string | null>;
-	getArtifactContent: RpcMethod<[id: string], string | null>;
-	resume: RpcMethod<[], "restored" | "continue">;
+	resume: RpcMethod<[], void>;
 	retry: RpcMethod<[], boolean>;
 	abortRetry: RpcMethod<[], void>;
 	abortCompaction: RpcMethod<[reason?: unknown], void>;

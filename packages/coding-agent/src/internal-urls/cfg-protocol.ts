@@ -1,5 +1,5 @@
 /**
- * Protocol handler for `cfg://` URLs: the agent's view of Zeta settings.
+ * Protocol handler for `cfg://` URLs: the agent's view of omp settings.
  *
  * Read forms (`/` and `.` both separate segments):
  * - `cfg://`                  every setting as a YAML-ish tree
@@ -18,9 +18,9 @@
  * Credential values are always redacted.
  */
 import { isRecord, prompt } from "@linxiraos/pi-utils";
-import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
-import { type CfgWriteDetails, type CfgWriteOutcome } from "@linxiraos/pi-tui/tools/cfg-render";
-import { CFG_SAVE_SEGMENT, CFG_URL_PREFIX, parseCfgUrl } from "@linxiraos/pi-tui/tools/cfg-url";
+import { fuzzyFilter } from "../utils/fuzzy";
+import { type CfgWriteDetails, type CfgWriteOutcome } from "../tools/details/cfg-render";
+import { CFG_SAVE_SEGMENT, CFG_URL_PREFIX, parseCfgUrl } from "./cfg-url";
 import { type AnySetting, all } from "../config/registry";
 import type { SettingProvenance, Settings } from "../config/settings";
 import cfgPromptDoc from "../prompts/internal-urls/cfg.md" with { type: "text" };

@@ -2,11 +2,13 @@
  * CLI argument parsing and help display
  */
 import * as path from "node:path";
-import { $env, CLI_BIN_NAME } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { $env, APP_NAME } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import type { MotionMode } from "../config/motion-presets";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
-import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { ApprovalMode } from "../tools/approval";
+import { CLI_THINKING_LEVELS, parseCliThinkingLevel } from "../thinking/levels";
+import { type ConfiguredThinkingLevel } from "../utils/render-utils";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
 import {
 	EXTENSION_SHADOWABLE_STRING_FLAGS,
@@ -19,7 +21,6 @@ import {
 } from "./flag-tables";
 import { getExtraHelpText } from "./help-extra";
 import { CliUsageError } from "./usage-error";
-import type { ApprovalMode } from "../tools/approval";
 
 export { getExtraHelpText };
 
@@ -76,10 +77,10 @@ export interface Args {
 	providerSessionId?: string;
 	providerPromptCacheKey?: string;
 	fork?: string;
+	/** Collab link to join at startup (set by the `join` subcommand; no CLI flag). */
+	join?: string;
 	models?: string[];
 	tools?: string[];
-	/** Agent profile id from `--agent-profile`; selects tools/persona/model/memory for this session. */
-	agentProfile?: string;
 	noTools?: boolean;
 	noLsp?: boolean;
 	noPty?: boolean;
@@ -93,26 +94,12 @@ export interface Args {
 	pluginDirs?: string[];
 	print?: boolean;
 	printThoughts?: boolean;
-	/** Route a print/RPC launch through a running `zetacode serve` backend instead of a local session. */
-	backend?: boolean;
-	/** Attach the interactive TUI to the running backend's newest session in this cwd. */
-	attach?: boolean;
-	/** Attach the interactive TUI to a specific backend session id. */
-	attachSession?: string;
-	/** Force a fresh backend session in the current cwd instead of reusing one. */
-	attachNew?: boolean;
-	/** Explicit backend gateway URL (`ZETA_GATEWAY_URL` overrides discovery when unset). */
-	backendUrl?: string;
-	/** Force a local process even when backend mode is enabled. */
-	standalone?: boolean;
 	export?: string;
 	noSkills?: boolean;
 	skills?: string[];
 	noRules?: boolean;
 	noContextFiles?: boolean;
 	noTitle?: boolean;
-	/** Host the IM channel runtime in this session (also enabled per-channel in web.yml). */
-	channels?: boolean;
 	/** `--spinner-interval <ms>`: ephemeral `tui.spinnerInterval` override for every spinner (0 = static). */
 	spinnerInterval?: number;
 	/** `--max-fps <n>`: ephemeral `tui.maxFps` override — the ceiling on how often the TUI repaints. */
@@ -224,7 +211,7 @@ export function validateGoalStartup(
 /**
  * Runtime dependencies the data-driven setters need. Constructed once at
  * module load and passed to every {@link STRING_SETTERS} call so the
- * setter table itself can stay free of `@linxiraos/pi-utils` runtime imports
+ * setter table itself can stay free of `@oh-my-pi/pi-utils` runtime imports
  * (which would otherwise trip the profile bootstrap's env-init ordering).
  */
 const PARSE_DEPS: ParseDeps = {
@@ -392,10 +379,6 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.fromCodex = true;
 		} else if (arg === "--no-session") {
 			result.noSession = true;
-		} else if (arg === "--agent-profile" && i + 1 < args.length) {
-			result.agentProfile = args[++i];
-		} else if (arg.startsWith("--agent-profile=")) {
-			result.agentProfile = arg.slice("--agent-profile=".length);
 		} else if (arg === "--no-tools") {
 			result.noTools = true;
 		} else if (arg === "--no-lsp") {
@@ -426,14 +409,6 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.print = true;
 		} else if (arg === "--print-thoughts") {
 			result.printThoughts = true;
-		} else if (arg === "--backend") {
-			result.backend = true;
-		} else if (arg === "--standalone" || arg === "--local") {
-			result.standalone = true;
-		} else if (arg === "--attach") {
-			result.attach = true;
-		} else if (arg === "--attach-new") {
-			result.attachNew = true;
 		} else if (arg === "--no-extensions") {
 			result.noExtensions = true;
 		} else if (arg === "--no-skills") {
@@ -444,8 +419,6 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noContextFiles = true;
 		} else if (arg === "--no-title") {
 			result.noTitle = true;
-		} else if (arg === "--channels") {
-			result.channels = true;
 		} else if (arg === "--no-ui") {
 			result.noUi = true;
 		} else if (arg === "--auto-approve" || arg === "--yolo") {
@@ -499,6 +472,14 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 		if (!path.isAbsolute(trustedPath)) {
 			throw new CliUsageError(`--trusted-extension requires an absolute path: ${trustedPath}`);
 		}
+	}
+
+	// A --no-tools session loads no extensions; an explicit one would be silently ignored.
+	if (
+		result.noTools &&
+		((result.extensions?.length ?? 0) > 0 || (result.hooks?.length ?? 0) > 0 || trustedFlagCount > 0)
+	) {
+		throw new CliUsageError("--no-tools cannot be combined with --extension, -e, --hook, or --trusted-extension");
 	}
 
 	if (result.systemPrompt !== undefined && result.systemPromptTemplate !== undefined) {
@@ -555,7 +536,7 @@ export function reportUnrecognizedFlags(
 	const flags = args.unrecognizedFlags;
 	const plural = flags.length === 1 ? "" : "s";
 	write(`${chalk.red(`Error: unknown flag${plural}: ${flags.join(", ")}`)}\n`);
-	write(`Run \`${CLI_BIN_NAME} --help\` for available flags.\n`);
+	write(`Run \`${APP_NAME} --help\` for available flags.\n`);
 	return true;
 }
 
@@ -580,15 +561,15 @@ export function reportCliUsageError(
 ): boolean {
 	if (!(error instanceof CliUsageError)) return false;
 	write(`${chalk.red(`Error: ${error.message}`)}\n`);
-	write(`Run \`${CLI_BIN_NAME} --help\` for available flags.\n`);
+	write(`Run \`${APP_NAME} --help\` for available flags.\n`);
 	return true;
 }
 
 export function printHelp(): void {
 	process.stdout.write(
-		`${chalk.bold(CLI_BIN_NAME)} - AI coding assistant\n\n` +
-			`Run ${CLI_BIN_NAME} --help for full command and option details.\n` +
-			`Run ${CLI_BIN_NAME} <command> --help for command-specific help.\n\n` +
+		`${chalk.bold(APP_NAME)} - AI coding assistant\n\n` +
+			`Run ${APP_NAME} --help for full command and option details.\n` +
+			`Run ${APP_NAME} <command> --help for command-specific help.\n\n` +
 			`${getExtraHelpText()}\n`,
 	);
 }

@@ -1,5 +1,5 @@
-import type { EvalStatusEvent, EvalView } from "@linxiraos/pi-tui/tools/eval";
-import { isRecord, logger, readLines, Snowflake } from "@linxiraos/pi-utils";
+import type { EvalStatusEvent, EvalView } from "../tools/details/eval";
+import { isRecord, logger, readLines, Snowflake } from "@oh-my-pi/pi-utils";
 import type { Subprocess } from "bun";
 import type { ShadowBarrier, ShadowControlNode, ShadowOperation } from "./speculation/types";
 import { type EvalDisplayOutput, evalImageMetadata } from "./types";
@@ -175,7 +175,7 @@ export function isSignalableProcessGroup(pid: number | undefined): pid is number
  * so each runner calls `setsid()` and becomes the leader of its own session and
  * process group. Signalling only the direct PID therefore leaves anything the
  * runner itself spawned behind, and those orphans keep the kernel's pipes open
- * for the remainder of the Zeta process lifetime (#7714).
+ * for the remainder of the omp process lifetime (#7714).
  *
  * Windows has no process groups, so this is a no-op there and callers keep
  * relying on the direct-PID kill.

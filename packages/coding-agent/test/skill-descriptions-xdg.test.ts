@@ -3,13 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as agentCore from "@linxiraos/pi-agent-core";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
+import * as agentCore from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@oh-my-pi/pi-utils";
+import { cfgOffline } from "../src/config/auxiliary-model-policy";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resolveRoleChain, resolveRoleSelection } from "../src/config/model-resolver";
 import { cfgDisabledProviders } from "../src/config/model-settings";
 import { Settings } from "../src/config/settings";
+import { type DownloadActivity, onDownloadActivity } from "../src/downloads/activity";
 import {
 	createSkillDescriptionCompressor,
 	previewSkillDescription,
@@ -22,7 +24,7 @@ import type { AuthStorage } from "../src/session/auth-storage";
 import { CostCapError, type CostGateApi } from "../src/session/cost-gate";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-const ENV_KEYS = ["PI_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["PI_CONFIG_DIR", "PI_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -42,12 +44,12 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			// `os.homedir()`; a temp home keeps the suite off the real (possibly read-only) HOME.
 			const home = path.join(tempRoot, "home");
 			spyOn(os, "homedir").mockReturnValue(home);
-			agentDir = path.join(home, ".zeta", "agent");
+			agentDir = path.join(home, ".omp", "agent");
 			xdgData = path.join(tempRoot, "data");
-			await fs.promises.mkdir(path.join(xdgData, "zeta"), { recursive: true });
+			await fs.promises.mkdir(path.join(xdgData, "omp"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.PI_CONFIG_DIR = ".zeta";
-			delete process.env.ZETA_CODING_AGENT_DIR;
+			process.env.PI_CONFIG_DIR = ".omp";
+			delete process.env.PI_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});
 
@@ -71,7 +73,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			setAgentDir(agentDir);
 			using store = SkillDescriptionStore.open();
 
-			expect(store.path).toBe(path.join(xdgData, "zeta", "skill-descriptions.db"));
+			expect(store.path).toBe(path.join(xdgData, "omp", "skill-descriptions.db"));
 			expect(store.get("k")).toBe("compressed description");
 		});
 
@@ -93,7 +95,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 		it("keeps an existing XDG database instead of overwriting it with the legacy one", () => {
 			using legacy = SkillDescriptionStore.open(path.join(agentDir, "skill-descriptions.db"));
 			legacy.put("k", "legacy");
-			const xdgDb = new Database(path.join(xdgData, "zeta", "skill-descriptions.db"), { create: true });
+			const xdgDb = new Database(path.join(xdgData, "omp", "skill-descriptions.db"), { create: true });
 			xdgDb.run("CREATE TABLE skill_descriptions (key TEXT PRIMARY KEY, description TEXT NOT NULL)");
 			xdgDb.run("INSERT INTO skill_descriptions VALUES ('k', 'current')");
 			xdgDb.close();
@@ -401,6 +403,124 @@ describe("skill description failure caching and shutdown", () => {
 		expect(elapsed).toBeLessThan(5_000);
 		expect(storedDescriptions(store.path)).toEqual([]);
 	}, 6_000);
+
+	it("counts only the skills it sends to the model in the Optimizing skills activity", async () => {
+		using store = SkillDescriptionStore.open(path.join(tempDir, "cache.db"));
+		const cached = skill("cached");
+		const warm = new SkillDescriptionCatalog({ store, compress: fast(async () => compressed) });
+		warm.render([cached]);
+		await warm.waitForPending();
+
+		const seen: DownloadActivity[] = [];
+		const stop = onDownloadActivity(activity => seen.push(activity));
+		try {
+			const modelless = new SkillDescriptionCatalog({
+				store,
+				compress: { modelKey: () => undefined, compress: async () => compressed },
+			});
+			modelless.render([skill("first")]);
+			await modelless.waitForPending();
+			expect(seen).toEqual([]);
+
+			const asked = Promise.withResolvers<void>();
+			const reply = Promise.withResolvers<string>();
+			let requests = 0;
+			const catalog = new SkillDescriptionCatalog({
+				store,
+				compress: fast(async () => {
+					if (++requests === 2) asked.resolve();
+					return reply.promise;
+				}),
+			});
+			catalog.render([
+				cached,
+				{ ...skill("short"), description: "Use for short things." },
+				skill("first"),
+				skill("second"),
+			]);
+			await asked.promise;
+			expect(seen.at(-1)).toMatchObject({
+				label: "Optimizing skills",
+				unit: "steps",
+				loaded: 0,
+				total: 2,
+				state: "running",
+			});
+
+			reply.resolve(compressed);
+			await catalog.waitForPending();
+			expect(seen.at(-1)).toMatchObject({ label: "Optimizing skills", state: "done" });
+		} finally {
+			stop();
+		}
+	});
+
+	it("does not ask the model for a hint another process stored while it waited for the lock", async () => {
+		using store = SkillDescriptionStore.open(path.join(tempDir, "cache.db"));
+		const entry = skill();
+		const elsewhere = "Use for migrations, as another process condensed it.";
+		let released = 0;
+		const compress = vi.fn<SkillDescriptionCompressor["compress"]>(async () => compressed);
+		const catalog = new SkillDescriptionCatalog({
+			store,
+			compress: fast(compress),
+			// The process that held the lock stored its answer before letting go.
+			lock: async job => {
+				store.put(job.slice(store.path.length + 1), elsewhere);
+				return () => {
+					released++;
+				};
+			},
+		});
+		catalog.render([entry]);
+		await catalog.waitForPending();
+
+		expect(compress).toHaveBeenCalledTimes(0);
+		expect(released).toBe(1);
+		expect(new SkillDescriptionCatalog({ store }).render([entry])[0].description).toBe(elsewhere);
+	});
+
+	it("gives the lock back after a request that failed", async () => {
+		using store = SkillDescriptionStore.open(path.join(tempDir, "cache.db"));
+		let released = 0;
+		const catalog = new SkillDescriptionCatalog({
+			store,
+			compress: fast(async () => {
+				throw new Error("connection reset");
+			}),
+			lock: async () => () => {
+				released++;
+			},
+		});
+		catalog.render([skill()]);
+		await catalog.waitForPending();
+
+		expect(released).toBe(1);
+	});
+
+	it("ends the Optimizing skills activity as failed with the reason a request gave", async () => {
+		using store = SkillDescriptionStore.open(path.join(tempDir, "cache.db"));
+		const seen: DownloadActivity[] = [];
+		const stop = onDownloadActivity(activity => seen.push(activity));
+		try {
+			const catalog = new SkillDescriptionCatalog({
+				store,
+				compress: fast(async () => {
+					throw new Error("connection reset");
+				}),
+			});
+			catalog.render([skill()]);
+			await catalog.waitForPending();
+
+			expect(seen.at(-1)).toMatchObject({
+				label: "Optimizing skills",
+				state: "failed",
+				error: "connection reset",
+			});
+		} finally {
+			stop();
+		}
+	});
 });
 
 describe("previewSkillDescription", () => {
@@ -533,6 +653,45 @@ describe("skill description compressor model selection", () => {
 		expect(
 			fixture({ default: "anthropic/claude-opus-4-5", smol: "anthropic/claude-haiku-4-5" }).compressor.modelKey(),
 		).toBe("anthropic/claude-haiku-4-5");
+	});
+
+	it("keeps offline requests on the session model's provider, and sends none without one", () => {
+		const { registry, settings } = fixture({ smol: "skill-offline/probe" });
+		registry.registerProvider("skill-offline", {
+			baseUrl: "https://example.invalid/v1",
+			api: "openai-completions",
+			apiKey: "test-key",
+			models: [
+				{
+					id: "probe",
+					name: "Probe",
+					reasoning: false,
+					input: ["text"],
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+					contextWindow: 8192,
+					maxTokens: 1024,
+				},
+			],
+		});
+		let sessionProvider: string | undefined = "anthropic";
+		const compressor = createSkillDescriptionCompressor(registry, settings, {
+			getSessionProvider: () => sessionProvider,
+		});
+		expect(compressor.modelKey()).toBe("skill-offline/probe");
+
+		cfgOffline.set(settings, true);
+		// Offline reads only the session provider's catalog, never all of them.
+		const all = spyOn(registry, "getAvailable").mockImplementation(() => {
+			throw new Error("Offline selection must not read every catalog");
+		});
+		const scoped = spyOn(registry, "getAvailableForProviders");
+		expect(compressor.modelKey()).toStartWith("anthropic/");
+		expect(scoped.mock.calls.map(([providers]) => [...providers])).toEqual([["anthropic"]]);
+		expect(all).not.toHaveBeenCalled();
+		sessionProvider = "skill-offline";
+		expect(compressor.modelKey()).toBe("skill-offline/probe");
+		sessionProvider = undefined;
+		expect(compressor.modelKey()).toBeUndefined();
 	});
 });
 

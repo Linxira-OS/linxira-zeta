@@ -10,7 +10,7 @@ import * as executor from "../../src/task/executor";
 import type { EffectiveSubagentPolicy, StructuredSubagentResult } from "../../src/task/structured-subagent";
 import * as structured from "../../src/task/structured-subagent";
 import type { AgentDefinition } from "../../src/task/types";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
 import { WorkPool, WorkPoolRegistry } from "../../src/task/workpool";
 import type { ToolSession } from "../../src/tools";
 
@@ -105,12 +105,13 @@ function execution(id: string, output?: string): StructuredSubagentResult {
 }
 
 function markIdle(id: string): void {
-	// The worker id survives across batches; a still-registered ref moves back to
-	// idle instead of being re-registered (duplicate ids are rejected).
-	const registry = AgentRegistry.global();
-	if (!registry.setStatus(id, "idle")) {
-		registry.register({ id, displayName: id, kind: "sub", status: "idle", session: null });
-	}
+	AgentRegistry.global().register({
+		id,
+		displayName: id,
+		kind: "sub",
+		status: "idle",
+		session: null,
+	});
 }
 
 async function until(predicate: () => boolean): Promise<void> {

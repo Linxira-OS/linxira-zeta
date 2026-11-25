@@ -1,5 +1,5 @@
 /**
- * One compaction-benchmark trial: zeta on one ProgramBench task inside an
+ * One compaction-benchmark trial: omp on one ProgramBench task inside an
  * offline Docker container on the bench host, with every turn's request size
  * recorded.
  *
@@ -9,7 +9,7 @@
  *   container, so the image holds the workspace and the session prefix with no
  *   tool mid-run.
  * - **Arm** (`resumeSession` set): starts from that fork image, resumes the
- *   captured session under the arm's context policy (`configYaml`: zeta
+ *   captured session under the arm's context policy (`configYaml`: omp
  *   auto-compaction method, or `fresh` for the session-rebuild method), and stops
  *   at the baseline's final turn count so every arm is scored after equal work.
  *
@@ -17,14 +17,15 @@
  * continue prompt (as PaperBench's IterativeAgent does); ten minutes before the
  * deadline it is interrupted and gets ProgramBench's wrap-up instruction.
  *
- * Architecture: zeta runs detached in the container (`--mode json`, one process
+ * Architecture: omp runs detached in the container (`--mode json`, one process
  * per segment, `--resume <session>` after the first) and writes its event stream
- * to a log the runner follows over SSH. The container has no network; zeta reaches
+ * to a log the runner follows over SSH. The container has no network; omp reaches
  * the host's auth gateway through an SSH-forwarded unix socket and a relay.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { prompt } from "@linxiraos/pi-utils";
+import { prompt } from "@oh-my-pi/pi-utils";
+import { benchSettingsYaml } from "../bench-settings";
 import type { Subprocess } from "bun";
 import { type FreshStart, HISTORY_DIR } from "./fresh";
 import continuePrompt from "./prompts/continue.md" with { type: "text" };
@@ -44,10 +45,10 @@ import {
 } from "./programbench";
 import { type RemoteHost, shq } from "./remote";
 
-const ZETA_PATH = "/opt/zeta/zeta";
-/** Read-only bind mount holding prompts, the relay, and zeta config. */
+const OMP_PATH = "/opt/omp/omp";
+/** Read-only bind mount holding prompts, the relay, and omp config. */
 const SUPPORT_DIR = "/opt/cbench";
-const GATEWAY_SOCKET_DIR = "/run/zeta-gw";
+const GATEWAY_SOCKET_DIR = "/run/omp-gw";
 const RELAY_PORT = 4000;
 /** Session directory inside the task container. */
 export const SESSION_DIR = `${AGENT_HOME}/sessions`;
@@ -57,7 +58,8 @@ const KILL_GRACE_MS = 60_000;
 const IDLE_SEGMENT_LIMIT = 3;
 
 /**
- * zeta settings for a trial: the shared harness config plus a `compaction:` block.
+ * omp settings for a trial: the shared harness config ({@link benchSettingsYaml}
+ * included) plus a `compaction:` block.
  * Baseline and the control/fresh arms pass `{ enabled: false }`.
  */
 export function agentConfigYaml(compaction: { enabled: false } | { method: string; thresholdTokens: number }): string {
@@ -72,7 +74,7 @@ edit:
   mode: replace
 web_search:
   enabled: false
-`;
+${benchSettingsYaml()}`;
 }
 
 /** Inputs for {@link runTrial}. */
@@ -80,7 +82,7 @@ export interface TrialConfig {
 	/** Run id; names the container, the fork image tag, and artifact directories. */
 	runName: string;
 	task: ProgramBenchTask;
-	/** `provider/model[@upstream]` passed to zeta. */
+	/** `provider/model[@upstream]` passed to omp. */
 	model: string;
 	tools: string[];
 	host: RemoteHost;
@@ -88,14 +90,14 @@ export interface TrialConfig {
 	remoteRoot: string;
 	/** Local artifact directory for this run. */
 	localDir: string;
-	/** Local self-contained zeta linux-x64 binary and its package version. */
+	/** Local self-contained omp linux-x64 binary and its package version. */
 	binary: { path: string; version: string };
 	/** Local auth gateway the container reaches through the forwarded socket. */
 	gatewayUrl: string;
 	gatewayToken: string;
 	/** Image the container starts from: the cleanroom task image or a baseline's fork image. */
 	image: string;
-	/** zeta settings installed as `~/.zeta/agent/config.yml` ({@link agentConfigYaml}). */
+	/** omp settings installed as `~/.omp/agent/config.yml` ({@link agentConfigYaml}). */
 	configYaml: string;
 	/** Session file inside the image to resume; absent starts a new session on the task prompt. */
 	resumeSession?: string;
@@ -157,7 +159,7 @@ export interface TrialSummary {
 	turns: number;
 	segments: number;
 	continues: number;
-	/** zeta auto-compactions completed (`auto_compaction_end` events). */
+	/** omp auto-compactions completed (`auto_compaction_end` events). */
 	compactions: number;
 	/** Session rebuilds by the fresh-start arm. */
 	resets: number;
@@ -207,12 +209,12 @@ export async function runTrial(config: TrialConfig): Promise<TrialSummary> {
 	const remoteRun = path.posix.join(config.remoteRoot, "runs", config.runName);
 	const supportDir = path.posix.join(remoteRun, "support");
 	const socketDir = path.posix.join(remoteRun, "gw");
-	const remoteBinary = path.posix.join(config.remoteRoot, "bin", `zeta-linux-x64-${config.binary.version}`);
+	const remoteBinary = path.posix.join(config.remoteRoot, "bin", `omp-linux-x64-${config.binary.version}`);
 	await fs.mkdir(config.localDir, { recursive: true });
 
 	await host.sh(`mkdir -p ${shq(supportDir)} ${shq(socketDir)} ${shq(path.posix.dirname(remoteBinary))}`);
 	if ((await host.sh(`test -x ${shq(remoteBinary)}`, { nothrow: true })).exitCode !== 0) {
-		log(`upload zeta ${config.binary.version}`);
+		log(`upload omp ${config.binary.version}`);
 		await host.upload(config.binary.path, `${remoteBinary}.part`);
 		await host.sh(
 			`chmod 755 ${shq(`${remoteBinary}.part`)} && mv ${shq(`${remoteBinary}.part`)} ${shq(remoteBinary)}`,
@@ -549,7 +551,7 @@ async function applyFresh(
 	return target;
 }
 
-/** Launch one detached zeta process for a segment and follow its event log until it exits. */
+/** Launch one detached omp process for a segment and follow its event log until it exits. */
 async function runSegment(
 	config: TrialConfig,
 	container: string,
@@ -562,7 +564,7 @@ async function runSegment(
 	const { host } = config;
 	await host.write(`${supportDir}/prompt-${index}.md`, text);
 	const argv = [
-		ZETA_PATH,
+		OMP_PATH,
 		"--mode",
 		"json",
 		"-p",
@@ -594,7 +596,7 @@ async function runSegment(
 	return outcome;
 }
 
-/** Start the offline task container, install zeta config, and wait for the gateway relay. */
+/** Start the offline task container, install omp config, and wait for the gateway relay. */
 async function startContainer(
 	config: TrialConfig,
 	container: string,
@@ -620,7 +622,7 @@ async function startContainer(
 			"-v",
 			shq(`${dirs.socketDir}:${GATEWAY_SOCKET_DIR}`),
 			"-v",
-			shq(`${dirs.remoteBinary}:${ZETA_PATH}:ro`),
+			shq(`${dirs.remoteBinary}:${OMP_PATH}:ro`),
 			shq(config.image),
 			"sleep infinity",
 		].join(" "),
@@ -628,10 +630,10 @@ async function startContainer(
 	// A fork image carries the baseline's /logs (its segment logs would be re-read as ours)
 	// and the stale single-writer lock of the session it captured mid-run.
 	await host.sh(
-		`docker exec -u root ${shq(container)} sh -c ${shq(`rm -rf /logs ${SESSION_DIR}/.*.lock*; mkdir -p /logs ${AGENT_HOME}/.zeta/agent && chown -R ${AGENT_USER}: /logs ${AGENT_HOME}`)}`,
+		`docker exec -u root ${shq(container)} sh -c ${shq(`rm -rf /logs ${SESSION_DIR}/.*.lock*; mkdir -p /logs ${AGENT_HOME}/.omp/agent && chown -R ${AGENT_USER}: /logs ${AGENT_HOME}`)}`,
 	);
 	await host.sh(
-		`docker exec ${shq(container)} cp ${SUPPORT_DIR}/config.yml ${SUPPORT_DIR}/models.yml ${AGENT_HOME}/.zeta/agent/`,
+		`docker exec ${shq(container)} cp ${SUPPORT_DIR}/config.yml ${SUPPORT_DIR}/models.yml ${AGENT_HOME}/.omp/agent/`,
 	);
 	await host.sh(
 		`docker exec -d ${shq(container)} python3 ${SUPPORT_DIR}/gw-relay.py ${GATEWAY_SOCKET_DIR}/gw.sock ${RELAY_PORT}`,
@@ -723,7 +725,7 @@ function formatReport(summary: TrialSummary, turns: TurnRecord[], forkTokens: nu
 	const fork = summary.fork;
 	return `# Compaction trial: ${summary.runName}
 
-- Task: \`${summary.task}\` · model \`${summary.model}\` · zeta ${summary.ompVersion} · image \`${summary.image}\`
+- Task: \`${summary.task}\` · model \`${summary.model}\` · omp ${summary.ompVersion} · image \`${summary.image}\`
 - Turns ${summary.startTurn}→${summary.turns} over ${summary.segments} segments (${summary.continues} continues, ${summary.compactions} compactions, ${summary.resets} resets), stopped: ${summary.stopReason}
 - Agent wall time ${formatDuration(summary.agentWallSec)} · cost $${summary.costUsd.toFixed(2)} · peak request ${summary.peakPromptTokens} tokens
 - First natural stop: ${summary.naturalStop ? `turn ${summary.naturalStop.turn} at ${summary.naturalStop.promptTokens} tokens (${formatDuration(summary.naturalStop.elapsedSec)})` : "none"}

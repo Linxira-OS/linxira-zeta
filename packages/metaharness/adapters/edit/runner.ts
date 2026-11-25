@@ -1,4 +1,3 @@
-// @ts-nocheck — external typescript-edit-benchmark package is not vendored in this workspace
 /**
  * Edit benchmark runner.
  *
@@ -8,33 +7,34 @@
 /// <reference types="./bun-imports.d.ts" />
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { diffLines, EditStore, hashlineCountOps, hashlineFormatHeader } from "@linxiraos/pi-natives";
-import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Model, ToolExample } from "@linxiraos/pi-ai";
-import { formatSessionDumpText, RpcClient } from "@linxiraos/zeta";
-import { prompt } from "@linxiraos/pi-utils";
-import { formatDirectory } from "@linxiraos/typescript-edit-benchmark/formatter";
+import { diffLines, EditStore, hashlineCountOps, hashlineFormatHeader } from "@oh-my-pi/pi-natives";
+import type { AgentMessage, ResolvedThinkingLevel, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
+import { formatSessionDumpText, RpcClient } from "@oh-my-pi/pi-coding-agent";
+import { prompt, TempDir } from "@oh-my-pi/pi-utils";
+import { formatDirectory } from "@oh-my-pi/typescript-edit-benchmark/formatter";
 import {
 	discoverSharedInfra,
 	InProcessClient,
 	type SharedInfra,
-} from "@linxiraos/typescript-edit-benchmark/in-process-client";
+} from "@oh-my-pi/typescript-edit-benchmark/in-process-client";
+import { BENCH_SETTINGS, benchSettingsYaml } from "../../src/bench-settings";
 import { conversationDumpRelativePath } from "./dump-path";
 import benchmarkRetryPrompt from "./prompts/benchmark-retry.md" with { type: "text" };
 import benchmarkSystemPrompt from "./prompts/benchmark-system.md" with { type: "text" };
 import benchmarkTaskPrompt from "./prompts/benchmark-task.md" with { type: "text" };
-import type { EditTask } from "@linxiraos/typescript-edit-benchmark";
 import { createScratch } from "./scratch";
+import type { EditTask } from "@oh-my-pi/typescript-edit-benchmark/tasks";
 import {
 	verifyExpectedFileSubset,
 	verifyExpectedFiles,
-} from "@linxiraos/typescript-edit-benchmark/verify";
+} from "@oh-my-pi/typescript-edit-benchmark/verify";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..", "..", "..");
 const RUNS_DIR = path.join(REPO_ROOT, "runs");
 /** This process's run logs. They record every run's edit payloads, so no task works under it. */
 const LOG_DIR = path.join(RUNS_DIR, `rb-${Math.random().toString(36).slice(2, 10)}`);
-const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@linxiraos/zeta/cli"));
+const CLI_PATH = Bun.fileURLToPath(import.meta.resolve("@oh-my-pi/pi-coding-agent/cli"));
 
 function formatLogPath(logFile: string): string {
 	const relativePath = path.relative(REPO_ROOT, logFile);
@@ -2096,8 +2096,10 @@ export function buildBenchmarkResult(params: {
  * they are applied once around all runs. Setting and restoring them per run lets one
  * run's teardown unpin the mode under its concurrent siblings, whose edit tool then
  * follows the per-model fallback (`resolveEditMode`) in the middle of a conversation.
+ * `configFile` is appended to `PI_CONFIG_FILES` so RPC subprocesses load it as a
+ * `config.yml` overlay.
  */
-function pinBenchmarkEnv(config: BenchmarkConfig): () => void {
+function pinBenchmarkEnv(config: BenchmarkConfig, configFile?: string): () => void {
 	const undo: Array<() => void> = [];
 	const pin = (key: string, value: string | undefined) => {
 		if (value === undefined) return;
@@ -2113,6 +2115,9 @@ function pinBenchmarkEnv(config: BenchmarkConfig): () => void {
 	pin("PI_EDIT_FUZZY_THRESHOLD", config.editFuzzyThreshold?.toString());
 	pin("PI_STRICT_EDIT_MODE", "1");
 	pin("PI_NO_TITLE", "1");
+	if (configFile) {
+		pin("PI_CONFIG_FILES", [process.env.PI_CONFIG_FILES, configFile].filter(Boolean).join(path.delimiter));
+	}
 	return () => {
 		for (const restore of undo) restore();
 	};
@@ -2125,16 +2130,22 @@ export async function runBenchmark(
 	onResultSnapshot?: (result: BenchmarkResult) => void,
 ): Promise<BenchmarkResult> {
 	const startTime = new Date().toISOString();
-	const unpinEnv = pinBenchmarkEnv(config);
+	const inProcess = config.inProcess !== false;
+	// In-process sessions take the bench settings as Settings overrides; RPC subprocesses as an overlay file.
+	await using overlay = inProcess ? undefined : await TempDir.create("@omp-edit-bench-");
+	const configFile = overlay?.join("config.yml");
+	if (configFile) await Bun.write(configFile, benchSettingsYaml());
+	const unpinEnv = pinBenchmarkEnv(config, configFile);
 	let shared: SharedInfra | undefined;
 
 	try {
 		// Discover shared infrastructure once for in-process mode
-		if (config.inProcess !== false) {
+		if (inProcess) {
 			shared = await discoverSharedInfra({
 				editVariant: config.editVariant,
 				editFuzzy: config.editFuzzy,
 				editFuzzyThreshold: config.editFuzzyThreshold,
+				settings: BENCH_SETTINGS,
 			});
 		}
 		const runsPerTask = Math.max(1, Math.floor(config.runsPerTask));

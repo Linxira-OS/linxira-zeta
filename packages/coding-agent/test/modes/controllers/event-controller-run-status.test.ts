@@ -3,14 +3,14 @@
  * record): what a settled turn leaves behind.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import * as runStatus from "@linxiraos/zeta/utils/run-status";
-import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { TERMINAL } from "@linxiraos/pi-tui";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import * as runStatus from "@oh-my-pi/pi-coding-agent/utils/run-status";
+import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
+import * as terminalSession from "@oh-my-pi/pi-tui/driver/session";
+import { initTheme } from "../../../src/ui/theme/service";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 
 beforeAll(() => {
@@ -20,7 +20,7 @@ beforeAll(() => {
 beforeEach(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
-	vi.spyOn(TERMINAL, "sendNotification").mockImplementation(() => {});
+	vi.spyOn(terminalSession, "notifyTerminal").mockImplementation(() => {});
 });
 
 afterEach(() => {

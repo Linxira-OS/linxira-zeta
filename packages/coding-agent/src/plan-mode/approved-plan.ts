@@ -1,5 +1,5 @@
 import { InternalUrlRouter } from "../internal-urls/router";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 
 /** Shape forwarded from the plan-proposal handler to InteractiveMode's
  *  approval popup. Populated by the `propose` tool when the agent
@@ -118,7 +118,7 @@ export function planFileUrlForSlug(slug: string): string {
 /** Derive a `<slug>` from an agent-supplied `extra.title`, or `undefined` when
  *  the title is missing/non-string/unsanitizable. A trailing `-plan` is stripped
  *  so a supplied "auth-plan" maps to `auth-plan.md`, not `auth-plan-plan.md`. */
-export function planSlugFromSupplied(suppliedTitle: unknown): string | undefined {
+function planSlugFromSupplied(suppliedTitle: unknown): string | undefined {
 	if (typeof suppliedTitle !== "string" || !suppliedTitle.trim()) return undefined;
 	try {
 		const { title } = normalizePlanTitle(suppliedTitle);

@@ -1,10 +1,10 @@
 import type { UsageLimit, UsageReport } from "@linxiraos/pi-ai";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import type { OAuthAccountIdentity } from "../../session/auth-storage";
-import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@linxiraos/pi-tui/overlays/usage-display";
+import { collapseSharedUsageReports, summarizeUsageResetCredits } from "../../session/usage-display";
 import type { SlashCommandRuntime } from "../types";
 import { formatCodexUsageReportLabel, reportMatchesActiveAccount } from "./active-oauth-account";
-import { formatCoarseDuration, formatProviderName, renderAsciiBar } from "@linxiraos/pi-tui/chrome/format";
+import { formatCoarseDuration, formatProviderName, renderAsciiBar } from "../../modes/view-model/chrome/format";
 
 function formatWindowSuffix(label: string, windowLabel: string | undefined): string {
 	if (!windowLabel) return "";
@@ -60,7 +60,6 @@ function renderUsageReports(
 	const displayReports = collapseSharedUsageReports(reports);
 	const latestFetchedAt = Math.max(...displayReports.map(report => report.fetchedAt ?? 0));
 	const lines = [`Usage${latestFetchedAt ? ` (${formatCoarseDuration(nowMs - latestFetchedAt)} ago)` : ""}`];
-
 	const grouped = new Map<string, UsageReport[]>();
 	for (const report of displayReports) {
 		const providerReports = grouped.get(report.provider) ?? [];

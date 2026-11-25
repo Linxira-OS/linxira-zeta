@@ -3,25 +3,27 @@
  * command gets, checked against a fixed backing, and the shell processes a named service and a pty
  * command run as, through `BashTool` with a real `local://` root.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import * as daemonClients from "@linxiraos/zeta/daemon/client";
-import type { DaemonClient } from "@linxiraos/zeta/daemon/protocol";
-import { runEvalShell } from "@linxiraos/zeta/eval/shell-bridge";
-import { resolveLocalRoot } from "@linxiraos/zeta/internal-urls";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { BashTool } from "@linxiraos/zeta/tools/bash";
-import { hostCommandUrls, type UrlBacking } from "@linxiraos/zeta/tools/bash-host-urls";
-import { TUI } from "@linxiraos/pi-tui";
-import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { initTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";
-import type { ProcSpec, UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
-import { SHELL_PROCESS_SELECTOR } from "@linxiraos/pi-utils";
-import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as daemonClients from "@oh-my-pi/pi-coding-agent/daemon/client";
+import type { DaemonClient } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
+import { runEvalShell } from "@oh-my-pi/pi-coding-agent/eval/shell-bridge";
+import { resolveLocalRoot } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
+import { hostCommandUrls, type UrlBacking } from "@oh-my-pi/pi-coding-agent/tools/bash-host-urls";
+import { KeybindingsManager } from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
+import type { ProcSpec, UnitSnapshot } from "@oh-my-pi/pi-coding-agent/daemon/daemon-types";
+import { SHELL_PROCESS_SELECTOR } from "@oh-my-pi/pi-utils";
+import { extensionTheme } from "../../src/ui/extensions/render-output";
+import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+
+const restoreTheme = currentTheme();
+afterAll(() => setCurrentTheme(restoreTheme));
 
 /** `local://<path>` is `/host/<path>`; `local://nope/…` is refused; nothing else is backed. */
 const backing: UrlBacking = async url => {
@@ -68,10 +70,10 @@ describe("hostCommandUrls", () => {
 		);
 	});
 
-	it("leaves zeta's own URLs, message text, and what nothing backs as written", async () => {
+	it("leaves omp's own URLs, message text, and what nothing backs as written", async () => {
 		for (const command of [
-			"zeta read 'skill://tdd:1-14' local://x.md",
-			"sudo /usr/local/bin/zeta read local://x.md",
+			"omp read 'skill://tdd:1-14' local://x.md",
+			"sudo /usr/local/bin/omp read local://x.md",
 			"curl https://example.com/a.txt -H 'Referer: https://example.com/?next=local://x'",
 			"log.sh 'local://handover.md is ready for review'",
 			"bm read memory://notes/startup local://nope/missing.md",
@@ -80,9 +82,9 @@ describe("hostCommandUrls", () => {
 		]) {
 			expect(await host(command)).toBe(command);
 		}
-		// The next command after `zetacode` is no longer its own.
-		expect(await host("zeta read local://x.md && cat local://x.md | zeta -p local://y")).toBe(
-			"zeta read local://x.md && cat /host/x.md | zeta -p local://y",
+		// The next command after `omp` is no longer its own.
+		expect(await host("omp read local://x.md && cat local://x.md | omp -p local://y")).toBe(
+			"omp read local://x.md && cat /host/x.md | omp -p local://y",
 		);
 	});
 
@@ -112,13 +114,16 @@ describe("hostCommandUrls", () => {
 
 type InteractiveUi = Pick<NonNullable<AgentToolContext["ui"]>, "custom">;
 
-/** A UI whose `custom()` mounts the pty overlay on a headless TUI and resolves with its result. */
+/** A UI whose `custom()` runs the pty console's factory on a headless 100×30 host and resolves with its result. */
 function headlessUi(): InteractiveUi {
-	const custom: InteractiveUi["custom"] = async <T>(
-		factory: (tui: TUI, uiTheme: Theme, keybindings: KeybindingsManager, done: (result: T) => void) => unknown,
-	): Promise<T> => {
-		const { promise, resolve } = Promise.withResolvers<T>();
-		await factory(new TUI(new VirtualTerminal(100, 30)), theme, KeybindingsManager.inMemory(), resolve);
+	const custom: InteractiveUi["custom"] = async (factory, _options) => {
+		const { promise, resolve } = Promise.withResolvers<never>();
+		await factory(
+			{ requestRender() {}, size: () => ({ columns: 100, rows: 30 }), suspend: run => run() },
+			extensionTheme(currentTheme()),
+			KeybindingsManager.inMemory(),
+			value => resolve(value as never),
+		);
 		return promise;
 	};
 	return { custom };
@@ -206,14 +211,14 @@ describe("bash internal URLs outside the embedded shell", () => {
 		vi.spyOn(daemonClients, "daemonClient").mockResolvedValue(client);
 
 		await new BashTool(session).execute("start-web", {
-			command: `SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; zeta read local://data.txt:1-2`,
+			command: `SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; omp read local://data.txt:1-2`,
 			name: "web",
 		});
 
 		// The engine in that process resolves the URLs itself, to the files this session backs them with.
 		const args = started?.args ?? [];
 		expect(args.at(-1)).toBe(
-			`SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; zeta read local://data.txt:1-2`,
+			`SEED=local://data.txt uv run python local://serve.py --prompt "$(cat local://data.txt)" < local://data.txt; omp read local://data.txt:1-2`,
 		);
 		expect(args.at(-2)).toBe("--");
 		expect(args).toContain(SHELL_PROCESS_SELECTOR);
@@ -225,7 +230,6 @@ describe("bash internal URLs outside the embedded shell", () => {
 	});
 
 	it.skipIf(ptyUnavailable)("runs a pty command on the files its URLs alias", async () => {
-		initTheme();
 		vi.spyOn(Settings.prototype, "getShellConfig").mockReturnValue({
 			shell: "/bin/bash",
 			args: ["-c"],
@@ -252,9 +256,8 @@ describe("bash internal URLs outside the embedded shell", () => {
 	});
 
 	it.skipIf(ptyUnavailable)(
-		"runs a pty command in the session's shell: zeta's jq on a local:// file, the session's functions and exports",
+		"runs a pty command in the session's shell: omp's jq on a local:// file, the session's functions and exports",
 		async () => {
-			initTheme();
 			vi.spyOn(Settings.prototype, "getShellConfig").mockReturnValue({
 				shell: "/bin/bash",
 				args: ["-c"],
@@ -271,7 +274,7 @@ describe("bash internal URLs outside the embedded shell", () => {
 			const result = await tool.execute(
 				"pty-jq",
 				{
-					// No directory on the search path has a jq: the one that runs is zeta's.
+					// No directory on the search path has a jq: the one that runs is omp's.
 					command: `PATH='${empty}'; label "$(jq '.a | add' local://data.json)" > local://sum.txt; [ -t 1 ] && echo on-a-terminal`,
 					pty: true,
 					timeout: 30,

@@ -10,12 +10,8 @@ import type {
 	ExtensionContext,
 } from "../../../../extensibility/extensions/types";
 import type { SendUserMessageOptions } from "../../../../session/agent-session";
-import { splitTextLines } from "@linxiraos/pi-tui/overlays/annotation-overlay";
-import type {
-	CodeReviewAnnotation,
-	TextReviewAnnotation,
-	TextReviewSource,
-} from "@linxiraos/pi-tui/overlays/annotation-types";
+import { splitTextLines } from "../../../../modes/view-model/overlays/annotation-overlay";
+import type { CodeReviewAnnotation, TextReviewAnnotation, TextReviewSource } from "./annotation-types";
 import { fetchPrReviewTarget, parseReviewPrRef } from "../review";
 import { assertReviewablePatchSize, buildCodeReviewFeedback } from "../review/prompt";
 import {

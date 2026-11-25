@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Model } from "@linxiraos/pi-ai";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Model } from "@oh-my-pi/pi-ai";
 import type { ResolvedModelRoleValue } from "../../src/config/model-resolver";
 import { resolvePlanModelTransition } from "../../src/plan-mode/model-transition";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
 
 /**
  * Plan-mode model transition policy (issue #5657). The active model in plan

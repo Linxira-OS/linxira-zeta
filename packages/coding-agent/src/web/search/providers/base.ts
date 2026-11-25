@@ -1,5 +1,5 @@
 import type { Api, AuthStorage, FetchImpl, Model } from "@linxiraos/pi-ai";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "../../../utils/render-utils";
 import type { ModelRegistry } from "../../../config/model-registry";
 import type { StructuredQuery } from "../query";
 import type { SearchProviderId, SearchResponse } from "../types";
@@ -73,8 +73,6 @@ export interface SearchParams {
 	modelRegistry: ModelRegistry;
 	/** Whether the selected model came from an explicit role-chain entry. */
 	explicit?: boolean;
-	/** Exact active model identifier, when the caller has trusted session metadata. */
-	modelName?: string;
 	/**
 	 * Optional session id used as the round-robin / sticky key when selecting
 	 * among multiple credentials for the same provider. Pass through from the
@@ -82,7 +80,6 @@ export interface SearchParams {
 	 */
 	sessionId?: string;
 	antigravityEndpointMode?: "auto" | "production" | "sandbox";
-	geminiModel?: string;
 }
 
 /** Base class for web search providers. */
@@ -95,11 +92,11 @@ export abstract class SearchProvider {
 	 * service a request right now. Implementations consult the passed
 	 * {@link AuthStorage} — never a sibling store.
 	 *
-	 * Drives auto-chain admission: providers that return `false` are skipped
-	 * when {@link resolveProviderChain} walks the order. Explicit selection
-	 * uses {@link isExplicitlyAvailable} instead.
+	 * Drives role-chain admission: providers that return `false` are skipped.
+	 * Explicit selection uses {@link isExplicitlyAvailable} instead. The model
+	 * is supplied for providers whose authentication depends on its transport.
 	 */
-	abstract isAvailable(authStorage: AuthStorage, model?: Model): Promise<boolean> | boolean;
+	abstract isAvailable(authStorage: AuthStorage, model?: Model<Api>): Promise<boolean> | boolean;
 
 	/**
 	 * Returns `true` when this provider should run when the user explicitly
@@ -110,8 +107,8 @@ export abstract class SearchProvider {
 	 *
 	 * Defaults to mirroring {@link isAvailable}.
 	 */
-	isExplicitlyAvailable(authStorage: AuthStorage, _model?: Model): Promise<boolean> | boolean {
-		return this.isAvailable(authStorage);
+	isExplicitlyAvailable(authStorage: AuthStorage, model?: Model<Api>): Promise<boolean> | boolean {
+		return this.isAvailable(authStorage, model);
 	}
 
 	/**

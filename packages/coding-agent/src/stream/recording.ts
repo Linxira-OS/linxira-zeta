@@ -1,19 +1,19 @@
 /**
- * Session recordings (`/record`, `zetacode play`).
+ * Session recordings (`/record`, `omp play`).
  *
- * A recording is the single-pane `zetacode stream` feed persisted to disk: the same
+ * A recording is the single-pane `omp stream` feed persisted to disk: the same
  * normalized, redacted screen frames {@link StreamPaintEncoder} produces for
  * live viewers, stamped with their offset from the start of the recording.
  *
- * File format (`.zetacast`, JSON Lines, asciicast-like):
+ * File format (`.ompcast`, JSON Lines, asciicast-like):
  *
  * ```text
- * {"zetacast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
+ * {"ompcast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
  * [0,{"t":"viewport","rows":["…","…"]}]
  * [51,{"t":"patch","ops":[[39,"…"]],"rows":40}]
- * [880,{"t":"history","rows":["…","…"]}]
+ * [880,{"t":"history","rows":["…"]}]
  * ```
-
+ *
  * Line 1 is the header; every following line is `[ms, frame]` where `frame` is
  * a {@link StreamScreenFrame}. A truncated final line (recorder killed
  * mid-write) is ignored on load.
@@ -21,23 +21,23 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TUI } from "@linxiraos/pi-tui";
+import type { PresentedFrame } from "@linxiraos/pi-tui";
 import { isEnoent } from "@linxiraos/pi-utils";
-import { STREAM_FLUSH_INTERVAL_MS, StreamPaintEncoder } from "./paint-encoder";
+import { STREAM_FLUSH_INTERVAL_MS, type StreamFrameSource, StreamPaintEncoder, seedFrame } from "./paint-encoder";
 import { isDimension, isSessionFrame, type StreamScreenFrame } from "./protocol";
 import type { StreamRedactor } from "./redactor";
 
 export const RECORDING_VERSION = 1;
-export const RECORDING_EXTENSION = ".zetacast";
+export const RECORDING_EXTENSION = ".ompcast";
 
 /** First line of a recording file. */
 export interface RecordingHeader {
-	zetacast: number;
+	ompcast: number;
 	cols: number;
 	rows: number;
 	title: string;
 	createdAt: string;
-	/** Clip description, set by `zetacode clip --description`. */
+	/** Clip description, set by `omp clip --description`. */
 	description?: string;
 	/** Uploading Stencil username, stamped by the clip server. */
 	owner?: string;
@@ -56,11 +56,10 @@ export interface Recording {
 
 /** Directory `/record` writes into (temporary storage for now). */
 export function recordingsDir(): string {
-	// `zeta-`, like the `.zetacast` extension next to it.
-	return path.join(os.tmpdir(), "zeta-recordings");
+	return path.join(os.tmpdir(), "omp-recordings");
 }
 
-/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.zetacast`. */
+/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.ompcast`. */
 export function newRecordingPath(sessionId: string): string {
 	const stamp = new Date()
 		.toISOString()
@@ -99,9 +98,8 @@ export function parseRecording(text: string): Recording {
 	const { values, error } = Bun.JSONL.parseChunk(text);
 	if (error) throw new Error(`malformed recording: ${error.message}`);
 	const [header, ...lines] = values;
-	if (!isRecordingHeader(header)) throw new Error(`not a recording (missing ${RECORDING_EXTENSION} header)`);
-	const version = header.zetacast;
-	if (version !== RECORDING_VERSION) throw new Error(`unsupported recording version ${version}`);
+	if (!isRecordingHeader(header)) throw new Error("not an omp recording (missing ompcast header)");
+	if (header.ompcast !== RECORDING_VERSION) throw new Error(`unsupported recording version ${header.ompcast}`);
 	const events: RecordingEvent[] = [];
 	for (const [index, line] of lines.entries()) {
 		if (
@@ -122,27 +120,24 @@ export function parseRecording(text: string): Recording {
 function isRecordingHeader(value: unknown): value is RecordingHeader {
 	if (!value || typeof value !== "object") return false;
 	const header = value as Record<string, unknown>;
-	if (
-		typeof header.zetacast !== "number" ||
-		!isDimension(header.cols) ||
-		!isDimension(header.rows) ||
-		typeof header.title !== "string" ||
-		typeof header.createdAt !== "string"
-	) {
-		return false;
-	}
-	return true;
+	return (
+		typeof header.ompcast === "number" &&
+		isDimension(header.cols) &&
+		isDimension(header.rows) &&
+		typeof header.title === "string" &&
+		typeof header.createdAt === "string"
+	);
 }
 
 export interface SessionRecorderOptions {
-	tui: TUI;
+	frames: StreamFrameSource;
 	redactor: StreamRedactor;
 	title: string;
 	/** Destination file; parent directories are created. */
 	path: string;
 }
 
-/** Records one interactive session's painted screen to an `.zetacast` file. */
+/** Records one interactive session's painted screen to an `.ompcast` file. */
 export class SessionRecorder {
 	readonly path: string;
 	readonly #encoder: StreamPaintEncoder;
@@ -160,27 +155,29 @@ export class SessionRecorder {
 
 	private constructor(options: SessionRecorderOptions) {
 		this.path = options.path;
-		const size = { columns: options.tui.terminal.columns, rows: options.tui.terminal.rows };
+		const size = options.frames.size();
 		this.#encoder = new StreamPaintEncoder(size, options.redactor);
 		this.#writer = Bun.file(options.path).writer();
 		const header: RecordingHeader = {
-			zetacast: RECORDING_VERSION,
+			ompcast: RECORDING_VERSION,
 			cols: size.columns,
 			rows: size.rows,
 			title: options.title,
 			createdAt: new Date().toISOString(),
 		};
 		this.#writer.write(`${JSON.stringify(header)}\n`);
-		this.#unsubscribe = options.tui.addPaintListener(paint => {
-			this.#encoder.push(paint);
+		const observe = (frame: PresentedFrame): void => {
+			this.#encoder.push(frame);
 			this.#lastPaintAt = performance.now() - this.#startedAt;
 			this.#flushTimer ??= setTimeout(() => {
 				this.#flushTimer = undefined;
 				this.#flush();
 			}, STREAM_FLUSH_INTERVAL_MS).unref();
-		});
+		};
+		this.#unsubscribe = options.frames.onFrame(observe);
 		// Seed the recording with the current screen instead of waiting for the next change.
-		options.tui.requestRender(true);
+		const seed = seedFrame(options.frames);
+		if (seed) observe(seed);
 	}
 
 	/** Milliseconds recorded so far. */

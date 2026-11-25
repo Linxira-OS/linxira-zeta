@@ -11,10 +11,9 @@ import {
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import type { ToolSession } from "../sdk";
 import { convertBufferWithMarkit } from "../utils/markit";
-import { truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
-import { applyListLimit } from "@linxiraos/pi-tui/tools/list-limit";
+import { truncateHead } from "./streaming-output";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import type { ReadToolDetails } from "./details/read";
 import {
 	buildInMemorySelectorResult,
 	decodeUtf8Text,
@@ -31,9 +30,9 @@ import {
 import { isMultiRange, type ParsedSelector, parseSel, resolveTailSelector, selToOffsetLimit } from "./read-selector";
 import { type PdfImageReadTarget, type PdfPageReadOptions, splitPdfImageReadPath } from "./read-pdf";
 import { cfgReadRenderMarkdown } from "./settings";
-import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
+import { formatBytes } from "@linxiraos/pi-utils";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 import { RACY_STAMP_WINDOW_MS } from "./racy-stamp";
 import { parseJsonSelector, readJson, splitJsonQueryTarget } from "./read-json";

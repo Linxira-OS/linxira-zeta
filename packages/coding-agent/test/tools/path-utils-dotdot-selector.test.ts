@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { isFilesystemSourcePath } from "@linxiraos/zeta/tools/path-utils";
-import { parseLineRangeChunk, parseLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isFilesystemSourcePath } from "@oh-my-pi/pi-coding-agent/tools/path-utils";
+import { parseLineRangeChunk, parseLineRanges } from "@oh-my-pi/pi-coding-agent/tools/line-ranges";
+import { splitPathAndSel } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
 
 describe("`..` range selector alias", () => {
 	it("treats `N..M` as the inclusive range `N-M`", () => {
@@ -43,10 +43,10 @@ describe("`..` range selector alias", () => {
 describe("isFilesystemSourcePath", () => {
 	it("accepts POSIX, Windows drive, and UNC paths", () => {
 		expect(isFilesystemSourcePath("/tmp/tools/systemd.ts")).toBe(true);
-		expect(isFilesystemSourcePath("C:\\repo\\.zeta\\tools\\systemd.ts")).toBe(true);
-		expect(isFilesystemSourcePath("C:/.zeta/tools/systemd.ts")).toBe(true);
-		expect(isFilesystemSourcePath("\\\\server\\share\\.zeta\\tools\\systemd.ts")).toBe(true);
-		expect(isFilesystemSourcePath("//server/share/.zeta/tools/systemd.ts")).toBe(true);
+		expect(isFilesystemSourcePath("C:\\repo\\.omp\\tools\\systemd.ts")).toBe(true);
+		expect(isFilesystemSourcePath("C:/.omp/tools/systemd.ts")).toBe(true);
+		expect(isFilesystemSourcePath("\\\\server\\share\\.omp\\tools\\systemd.ts")).toBe(true);
+		expect(isFilesystemSourcePath("//server/share/.omp/tools/systemd.ts")).toBe(true);
 		expect(isFilesystemSourcePath("systemd.ts")).toBe(false);
 		expect(isFilesystemSourcePath("<extension:systemd>")).toBe(false);
 		expect(isFilesystemSourcePath("mcp:gog")).toBe(false);

@@ -14,14 +14,14 @@
  * silently reporting a successful no-op navigation (review on #5895).
  */
 import { describe, expect, it, vi } from "bun:test";
-import { Agent, AgentBusyError, type AgentToolResult } from "@linxiraos/pi-agent-core";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
-import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
+import { Agent, AgentBusyError, type AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
+import { SecretObfuscator } from "@oh-my-pi/pi-coding-agent/secrets/obfuscator";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { AskToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/ask";
 
 const TEST_MODEL = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 
@@ -242,12 +242,8 @@ describe("AgentSession tree navigation onto an ask toolResult", () => {
 			const { session, sessionManager } = ctx;
 
 			sessionManager.appendMessage(userMsg("please deploy"));
-			// Legacy persisted args from the `questions[]` contract carry no form `html`.
-			sessionManager.appendMessage(
-				toolCallMsg("ask-call-bad", "ask", {
-					questions: [{ id: "deploy_target", question: "Which deploy target?", options: [{ label: "staging" }] }],
-				}),
-			);
+			// Neither form `html` nor a legacy `questions[]` entry with its question text.
+			sessionManager.appendMessage(toolCallMsg("ask-call-bad", "ask", { questions: [{ id: "deploy_target" }] }));
 			const trBadId = sessionManager.appendMessage(toolResultMsg("ask-call-bad", "ask", "User selected: staging"));
 			sessionManager.appendMessage(assistantMsg("deploying to staging"));
 

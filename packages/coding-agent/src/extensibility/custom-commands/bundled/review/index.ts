@@ -1,12 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { isRecord, prompt } from "@linxiraos/pi-utils";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { replaceTabs, truncateToWidth } from "../../../../utils/text-width";
+import { shortenPath, TRUNCATE_LENGTHS } from "../../../../utils/render-utils";
+import { isRecord, prompt } from "@oh-my-pi/pi-utils";
 import { findScopedSettings } from "../../../../config/settings";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
-import { M } from "../../../../i18n";
 import { parseMrUrl } from "../../../../internal-urls/mr-protocol";
 import { parseInternalUrl } from "../../../../internal-urls/parse";
 import reviewCustomRequestTemplate from "../../../../prompts/review-custom-request.md" with { type: "text" };
@@ -619,7 +619,7 @@ function buildCustomReviewPrompt(instructions: string, repository: string | unde
 
 export class ReviewCommand implements CustomCommand {
 	name = "review";
-	description = () => M.cmdReview;
+	description = "Launch interactive code review";
 
 	constructor(private readonly api: CustomCommandAPI) {}
 

@@ -1,10 +1,11 @@
 import * as path from "node:path";
-import { postmortem } from "@linxiraos/pi-utils";
-import { theme } from "@linxiraos/pi-tui/theme";
+import { postmortem } from "@oh-my-pi/pi-utils";
 import { extractUriScheme } from "../internal-urls/parse";
 import { InternalUrlRouter } from "../internal-urls/router";
 import { expandPath } from "../tools/path-utils";
 import type { HookUIContext } from "./hooks/types";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { extensionTheme } from "../ui/extensions/render-output";
 
 /**
  * Resolve a file path:
@@ -40,7 +41,7 @@ export function createNoOpUIContext(): HookUIContext {
 		getEditorText: () => "",
 		editor: async () => undefined,
 		get theme() {
-			return theme;
+			return extensionTheme(currentTheme());
 		},
 	};
 }
@@ -59,7 +60,7 @@ export class ExtensionExitError extends Error {
 	) {
 		super(
 			`Module called ${alias}(${code === undefined ? "" : String(code)}) during guarded extension/hook loading; ` +
-				`Zeta extension/hook modules must not terminate the host process.`,
+				`OMP extension/hook modules must not terminate the host process.`,
 		);
 		this.name = "ExtensionExitError";
 		this.code = code;

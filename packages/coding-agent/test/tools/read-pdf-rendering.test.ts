@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { type ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import * as pdfRead from "@linxiraos/zeta/tools/read-pdf";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { type ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import * as pdfRead from "@oh-my-pi/pi-coding-agent/tools/read-pdf";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 const ONE_PX_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",

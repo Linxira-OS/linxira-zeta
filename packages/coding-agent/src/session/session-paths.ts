@@ -1,8 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getTerminalId } from "@linxiraos/pi-tui/ttyid";
+import { getTerminalId } from "../utils/ttyid";
 import {
 	getCustomSessionFilesDir,
 	getSessionsDir,

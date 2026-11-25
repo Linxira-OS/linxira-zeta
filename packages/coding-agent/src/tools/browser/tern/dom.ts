@@ -6,8 +6,8 @@
  * protocol's. The engine only reads: nothing is evaluated, injected or
  * stamped in the page, and every action stays trusted `input`.
  */
-import { isRecord } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isRecord } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../../tool-errors";
 import { parseRoleSelector, type RoleQuery } from "../query-handlers";
 import type { Observation, ObservationEntry } from "../tab-protocol";
 import { INTERACTIVE_ROLES } from "./page-kit";

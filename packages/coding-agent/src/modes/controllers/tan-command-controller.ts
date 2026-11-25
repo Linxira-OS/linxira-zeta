@@ -10,6 +10,7 @@ import * as sdk from "../../sdk";
 import type { AgentSession } from "../../session/agent-session";
 import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE } from "../../session/messages";
 import { isHiddenUserCompanion } from "../../session/queued-messages";
+import { TAN_FORK_BOUNDARY_CUSTOM_TYPE } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
 import { createSubagentSettings, followMCPTools } from "../../task/executor";
 import { USER_TODO_EDIT_CUSTOM_TYPE } from "../../tools/todo";
@@ -160,6 +161,7 @@ export class TanCommandController {
 				// parent's in-flight call as its own pending work (issue #11118).
 				repairInterruptedTail: true,
 			});
+			cloneManager.appendCustomEntry(TAN_FORK_BOUNDARY_CUSTOM_TYPE, cloneManager.getSessionId());
 
 			jobId = manager.register(
 				"task",
@@ -200,6 +202,7 @@ export class TanCommandController {
 								agentId: cloneId,
 								agentDisplayName: "tan",
 								parentTaskPrefix: cloneId,
+								tanFork: true,
 								asyncJobManager: manager,
 								parentAgentId: ownerId,
 								agentRegistry,
@@ -237,9 +240,13 @@ export class TanCommandController {
 						clone.setTodoPhases([]);
 						cloneManager.appendCustomEntry(USER_TODO_EDIT_CUSTOM_TYPE, { phases: [] });
 						const injectContextSwitch = () => {
-							clone?.agent.appendMessage({
+							const fork = clone;
+							if (!fork) return;
+							fork.agent.appendMessage({
 								role: "developer",
-								content: tanContextSwitchPrompt,
+								content: prompt.render(tanContextSwitchPrompt, {
+									waitTool: fork.getEnabledToolNames().includes("wait"),
+								}),
 								attribution: "agent",
 								timestamp: Date.now(),
 							});

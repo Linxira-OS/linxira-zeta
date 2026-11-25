@@ -1,25 +1,24 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { SessionWriteConflictError } from "@linxiraos/zeta/session/session-storage";
-import { postmortem, TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { postmortem, TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
-// Regression coverage for #12238: a corrupted session file makes the close-time
-// atomic rewrite fail closed with SessionWriteConflictError (it refuses to
-// clobber bytes another writer added). The guard is correct, but shutdown() used
-// to swallow the error, reset its own latch, and return without ever exiting —
-// so the process stayed alive and every further Ctrl+C repeated the identical
-// failure. The escape hatch is a second Ctrl+C that exits without writing the
-// session log, and it must be reachable with a SINGLE press after the error
-// message (the double-tap gate would otherwise demand two rapid presses).
+// Regression coverage for #12238: when the session store keeps failing, the
+// close-time write fails and dispose() rejects. shutdown() used to swallow the
+// error, reset its own latch, and return without ever exiting — so the process
+// stayed alive and every further Ctrl+C repeated the identical failure. The
+// escape hatch is a second Ctrl+C that exits without writing the session log,
+// and it must be reachable with a SINGLE press after the error message (the
+// double-tap gate would otherwise demand two rapid presses).
 //
 // The failure comes from the REAL persistence path, not a mocked error: a
 // file-backed SessionManager materializes a genuine session file, then its
@@ -47,7 +46,7 @@ describe("InteractiveMode shutdown when the session store keeps failing (#12238)
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		tempDir = TempDir.createSync("@zeta-shutdown-store-failure-");
+		tempDir = TempDir.createSync("@omp-shutdown-store-failure-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "auth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);
@@ -62,9 +61,15 @@ describe("InteractiveMode shutdown when the session store keeps failing (#12238)
 			settings: Settings.isolated(),
 			modelRegistry,
 		});
-		mode = new InteractiveMode(session, "test");
-		mode.ui.requestRender = vi.fn();
-		mode.ui.terminal.drainInput = async () => {};
+		mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 
 		// A real conversation crosses the lazy gate and materializes the session
 		// file on disk.
@@ -111,6 +116,8 @@ describe("InteractiveMode shutdown when the session store keeps failing (#12238)
 	});
 
 	afterEach(async () => {
+		// The failed close skips the mode's teardown (the process quits); release it here.
+		mode.stop();
 		vi.restoreAllMocks();
 		authStorage.close();
 		tempDir.removeSync();

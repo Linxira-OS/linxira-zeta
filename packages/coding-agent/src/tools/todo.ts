@@ -6,7 +6,7 @@ import {
 	type TodoCompletionTransition,
 	type TodoToolDetails,
 	todoTaskTargets,
-} from "@linxiraos/pi-tui/tools/todo";
+} from "./details/todo";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 

@@ -5,14 +5,13 @@
  * Unlike markdown commands which expand to prompts, custom commands can execute
  * arbitrary logic with full access to the hook context.
  */
-import type { type as ArkType } from "@linxiraos/zeta-schema";
-import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
-import type * as zod from "@linxiraos/zeta-schema/zod";
+import type { type as ArkType } from "@oh-my-pi/omptype";
+import type * as TypeBox from "@oh-my-pi/omptype/typebox";
+import type * as zod from "@oh-my-pi/omptype/zod";
 import type { ExtensionUIContext } from "../extensions/types";
 import type { ExecOptions, ExecResult, HookCommandContext } from "../../extensibility/hooks/types";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
+import type { AutocompleteItem } from "../../autocomplete/autocomplete";
 import type * as PiCodingAgent from "../../index";
-import type { CommandExecutionMetadata } from "../../capability/slash-command";
 
 // Re-export for custom commands to use
 export type { ExecOptions, ExecResult, HookCommandContext };
@@ -83,20 +82,11 @@ export interface CustomCommandAPI {
  * });
  * ```
  */
-export interface CustomCommand extends CommandExecutionMetadata {
+export interface CustomCommand {
 	/** Command name (can include namespace like "git:commit") */
 	name: string;
-	/**
-	 * Description shown in command autocomplete.
-	 *
-	 * Declare localized copy as a thunk (`() => M.cmdFoo`) so the string is
-	 * recomputed against the catalogue active at read time and follows
-	 * `/language`. A plain string is still accepted for copy that has no
-	 * translation; consumers must resolve it with `resolveCommandDescription`.
-	 */
-	description: string | (() => string);
-	/** Prompt template used when no execute handler is supplied; supports Markdown command arguments. */
-	template?: string;
+	/** Description shown in command autocomplete */
+	description: string;
 	/**
 	 * Optional argument completions shown in the slash-command autocomplete UI.
 	 * @param cwd - Live session working directory (follows /move and /wt)
@@ -112,7 +102,7 @@ export interface CustomCommand extends CommandExecutionMetadata {
 	 * @param rawArgs - Exact unparsed argument remainder after the command name, including whitespace, quotes, and newlines
 	 * @returns String to send as prompt, or void for fire-and-forget
 	 */
-	execute?(
+	execute(
 		args: string[],
 		ctx: CustomCommandContext,
 		rawArgs?: string,

@@ -299,7 +299,7 @@ async fn cancellation_prevents_start_and_wait_claims_once() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn wait_wakes_on_callback_published_after_it_starts() {
+async fn wait_claims_callback_published_after_it_starts() {
 	let _serial = TEST_SERIAL.lock().await;
 	let home = temp_home("late-callback");
 	fs::create_dir_all(&home).unwrap();
@@ -307,7 +307,7 @@ async fn wait_wakes_on_callback_published_after_it_starts() {
 	let publisher = {
 		let callback = callback.clone();
 		tokio::spawn(async move {
-			// Lets the wait fail its first claim and park on the watch.
+			// Lets the wait fail its first claim and sleep until its next poll.
 			tokio::time::sleep(Duration::from_millis(50)).await;
 			let published = std::time::Instant::now();
 			publication::publish_once(&callback, b"zeta-test://callback?code=late").unwrap();

@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Args } from "@linxiraos/zeta/cli/args";
-import type { Settings } from "@linxiraos/zeta/config/settings";
-import { EVAL_STATE_CONTEXT_TYPE } from "@linxiraos/zeta/eval/state";
-import { createSessionManager } from "@linxiraos/zeta/main";
-import { openRpcSession, type RpcOpenSessionSession } from "@linxiraos/zeta/modes/rpc/rpc-mode";
-import { SESSION_EXIT_CUSTOM_TYPE } from "@linxiraos/zeta/session/exit-diagnostics";
-import { findSessionContinuation, type SessionContinuation } from "@linxiraos/zeta/session/session-listing";
-import { readSessionHeaderId } from "@linxiraos/zeta/session/session-loader";
-import { SessionManager, type SessionPersistenceNotice } from "@linxiraos/zeta/session/session-manager";
-import { writeTerminalBreadcrumb } from "@linxiraos/zeta/session/session-paths";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { __resetDirsFromEnvForTests, getTerminalSessionsDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
+import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EVAL_STATE_CONTEXT_TYPE } from "@oh-my-pi/pi-coding-agent/eval/state";
+import { createSessionManager } from "@oh-my-pi/pi-coding-agent/main";
+import { openRpcSession, type RpcOpenSessionSession } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-mode";
+import { SESSION_EXIT_CUSTOM_TYPE } from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
+import { findSessionContinuation, type SessionContinuation } from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { readSessionHeaderId } from "@oh-my-pi/pi-coding-agent/session/session-loader";
+import { SessionManager, type SessionPersistenceNotice } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { writeTerminalBreadcrumb } from "@oh-my-pi/pi-coding-agent/session/session-paths";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { __resetDirsFromEnvForTests, getTerminalSessionsDir, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
 
 const SESSION_MANAGER_MODULE = path.join(import.meta.dir, "../../src/session/session-manager.ts");
 const EXIT_DIAGNOSTICS_MODULE = path.join(import.meta.dir, "../../src/session/exit-diagnostics.ts");
@@ -20,7 +20,7 @@ const EXIT_DIAGNOSTICS_MODULE = path.join(import.meta.dir, "../../src/session/ex
 const stubSettings = { get: () => undefined } as unknown as Settings;
 
 // Resume writes breadcrumbs and the custom-session-file registry under the agent dir.
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 let agentDir: TempDir | undefined;
 
 beforeEach(() => {
@@ -29,8 +29,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	if (originalAgentDir === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
-	else process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
+	if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+	else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
 	__resetDirsFromEnvForTests();
 	agentDir?.removeSync();
 	agentDir = undefined;
@@ -40,12 +40,12 @@ afterEach(() => {
 type IdleWrite = "warm" | "compact";
 
 /**
- * Another live zeta process that resumed `sessionFile`. Commands, one per line:
+ * Another live omp process that resumed `sessionFile`. Commands, one per line:
  * `append <text>` writes a user turn (the first write makes it the file's
  * owner); `warm` records the usage of an idle cache refresh; `compact` writes
  * an idle compaction and the eval-state snapshot that follows it; `clear`
  * records the reset boundary `/clear` leaves; `exit` records the
- * `session_exit` marker every zeta process appends on its way out, then closes.
+ * `session_exit` marker every omp process appends on its way out, then closes.
  */
 class Holder {
 	readonly #child: Bun.Subprocess<"pipe", "pipe", "pipe">;
@@ -750,6 +750,50 @@ describe("--resume of a session that continued in a sibling file", () => {
 			]);
 		} finally {
 			await manager.close();
+		}
+	}, 30_000);
+});
+
+describe("--continue while the picked session is open in another live process", () => {
+	it("continues the newest session no other process writes when another live process writes the newest", async () => {
+		using tempDir = TempDir.createSync("@omp-resume-continuation-");
+		const older = await createSession(tempDir);
+		const newest = await createSession(tempDir);
+		const holder = await Holder.resume(tempDir, newest);
+		try {
+			expect(await holder.append("holder turn")).toBe(newest);
+			const args = continueArgs(tempDir.path());
+			const manager = await createSessionManager(args, tempDir.path(), stubSettings);
+			try {
+				expect(manager?.getSessionFile()).toBe(older);
+				expect(args.continue).toBe(true);
+			} finally {
+				await manager?.close();
+			}
+		} finally {
+			await holder.exit();
+		}
+	}, 30_000);
+
+	it("starts a new session, as a plain launch does, when another live process writes the only session", async () => {
+		using tempDir = TempDir.createSync("@omp-resume-continuation-");
+		const original = await createSession(tempDir);
+		const holder = await Holder.resume(tempDir, original);
+		try {
+			await holder.append("holder turn");
+			const args = continueArgs(tempDir.path());
+			const manager = await createSessionManager(args, tempDir.path(), stubSettings);
+			try {
+				// Resuming would duplicate the running conversation into a sibling on the first write.
+				expect(manager?.getSessionFile()).not.toBe(original);
+				expect(manager?.getEntries()).toEqual([]);
+				// Startup then runs as a plain launch, not as a resume.
+				expect(args.continue).toBe(false);
+			} finally {
+				await manager?.close();
+			}
+		} finally {
+			await holder.exit();
 		}
 	}, 30_000);
 });

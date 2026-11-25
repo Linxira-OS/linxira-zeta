@@ -1,16 +1,16 @@
-import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@linxiraos/pi-ai/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { getVariantAliasSources, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
+import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@oh-my-pi/pi-ai/types";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { getVariantAliasSources, resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
-} from "@linxiraos/pi-catalog/identity";
-import { runnerApiKind } from "@linxiraos/pi-catalog/types";
-import { logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-catalog/identity";
+import { runnerApiKind } from "@oh-my-pi/pi-catalog/types";
+import { logger } from "@oh-my-pi/pi-utils";
 import { type ConfigHeaderResolver, type ConfigHeaderSource, createConfigHeaderResolver } from "./resolve-config-value";
 import { type ModelPatch, mergeCompat, mergeRemoteCompactionConfig } from "./model-patch";
-import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
+import { parseModelString } from "./model-selector";
 import type { ModelOverride, ProviderAuthMode } from "./models-config-schema";
 export interface CustomModelDefinitionLike extends ModelPatch {
 	id: string;
@@ -137,6 +137,7 @@ export function finalizeCustomModel(resolvedModel: CustomModelOverlay, options: 
 		promptCache: resolvedModel.promptCache,
 		promptCacheConfig: resolvedModel.promptCache,
 		contextWindow: resolvedModel.contextWindow ?? reference?.contextWindow ?? (options.useDefaults ? 128000 : null),
+		maxContextWindow: resolvedModel.maxContextWindow,
 		maxTokens: resolvedModel.maxTokens ?? reference?.maxTokens ?? (options.useDefaults ? 16384 : null),
 		headers: resolvedModel.headers,
 		resolveHeaders: resolvedModel.resolveHeaders,

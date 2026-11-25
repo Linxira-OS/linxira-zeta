@@ -1,15 +1,18 @@
 /**
  * Web search CLI command handlers.
  *
- * Handles `zetacode q`/`zetacode web-search` subcommands for testing web search models.
+ * Handles `omp q`/`omp web-search` subcommands for testing web search models.
  */
 
-import { CLI_BIN_NAME, getProjectDir } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { APP_NAME, getProjectDir } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { Settings } from "../config/settings";
-import { initTheme, theme } from "@linxiraos/pi-tui/theme";
-import { renderSearchResult } from "@linxiraos/pi-tui/tools/web-search";
 import { runSearchQuery, type SearchQueryParams } from "../web/search/index";
+import { initTheme } from "../ui/theme/service";
+import { printRows } from "../ui/print-rows";
+import "../ui/styles/tools";
+import "../ui/tools";
+import { ToolBlock, ToolCall } from "../ui/transcript/tool-block";
 
 export interface SearchCommandArgs {
 	query: string;
@@ -80,25 +83,24 @@ export async function runSearchCommand(cmd: SearchCommandArgs): Promise<void> {
 
 	await Settings.init({ cwd: getProjectDir() });
 
-	await initTheme();
+	initTheme();
 
 	const params: SearchQueryParams = {
 		query: cmd.query,
-		// --model pins the engine for this one call; without it the web role
-		// default wins and the flag is silently ignored.
 		model: cmd.model,
 		recency: cmd.recency,
 		limit: cmd.limit,
 	};
 
 	const result = await runSearchQuery(params);
-	const component = renderSearchResult(result, { expanded: cmd.expanded, isPartial: false }, theme, {
-		query: cmd.query,
-		maxAnswerLines: cmd.expanded ? undefined : 6,
-	});
+	const call = new ToolCall({ id: "web-search", name: "web_search", args: params });
+	call.setExpanded(cmd.expanded);
+	call.setExecutionStarted();
+	call.updateResult(result, false);
+	call.seal();
 
 	const width = Math.max(60, process.stdout.columns ?? 100);
-	process.stdout.write(`${component.render(width).join("\n")}\n`);
+	process.stdout.write(`${printRows(() => ToolBlock({ call }), width).join("\n")}\n`);
 
 	if (result.details?.error) {
 		process.exitCode = 1;
@@ -106,11 +108,11 @@ export async function runSearchCommand(cmd: SearchCommandArgs): Promise<void> {
 }
 
 export function printSearchHelp(): void {
-	process.stdout.write(`${chalk.bold(`${CLI_BIN_NAME} q`)} - Test web search models
+	process.stdout.write(`${chalk.bold(`${APP_NAME} q`)} - Test web search models
 
 ${chalk.bold("Usage:")}
-  ${CLI_BIN_NAME} q [options] <query>
-  ${CLI_BIN_NAME} web-search [options] <query>
+  ${APP_NAME} q [options] <query>
+  ${APP_NAME} web-search [options] <query>
 
 ${chalk.bold("Arguments:")}
   query      Search query text
@@ -129,8 +131,8 @@ ${chalk.bold("Query directives:")}
   lenient post-filter (a constraint matching nothing is relaxed, not fatal).
 
 ${chalk.bold("Examples:")}
-  ${CLI_BIN_NAME} q --model=web/duckduckgo "what's the color of the sky"
-  ${CLI_BIN_NAME} q --model=openrouter/google/gemini-2.5-flash --recency=week "latest TypeScript changes"
-  ${CLI_BIN_NAME} q 'transformer scaling site:arxiv.org after:2024 -site:reddit.com'
+  ${APP_NAME} q --model=web/duckduckgo "what's the color of the sky"
+  ${APP_NAME} q --model=openrouter/google/gemini-2.5-flash --recency=week "latest TypeScript changes"
+  ${APP_NAME} q 'transformer scaling site:arxiv.org after:2024 -site:reddit.com'
 `);
 }

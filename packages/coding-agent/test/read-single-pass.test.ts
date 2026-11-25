@@ -10,16 +10,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { EditTool } from "@linxiraos/zeta/edit";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { formatBytes } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
-import { cfgReadSummarizeEnabled, cfgToolsOutputMaxColumns } from "@linxiraos/zeta/tools/settings";
+import { cfgReadSummarizeEnabled, cfgToolsOutputMaxColumns } from "@oh-my-pi/pi-coding-agent/tools/settings";
 
 function textOutput(result: AgentToolResult<ReadToolDetails>): string {
 	return result.content
@@ -109,7 +109,7 @@ describe("read tool single-pass file access", () => {
 
 		// The trailing LF closes line 2 rather than opening an addressable line 3 (#15810).
 		const beyond =
-			"Line 3 is beyond end of file (2 lines total). Use :1 to read from the start, or :2 to read the last line.";
+			"Line 3 is beyond end of file (2 lines total). Use :1- to read from the start, or :2 to read the last line.";
 		expect(textOutput(await tool.execute("beyond", { path: `${filePath}:3` }))).toBe(beyond);
 		const rawBeyond = await tool.execute("raw-beyond", { path: `${filePath}:raw:3` });
 		expect(textOutput(rawBeyond)).toBe("");

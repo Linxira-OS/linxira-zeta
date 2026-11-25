@@ -2,23 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { EditTool } from "@linxiraos/zeta/edit";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import {
 	expandPath,
 	probeLiteralPathExists,
 	resolveToCwd,
 	splitPathAndSelPreferringLiteral,
 	splitPathAndSelPreferringLiteralSync,
-} from "@linxiraos/zeta/tools/path-utils";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { GrepOutputMode } from "@linxiraos/pi-natives";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/tools/path-utils";
+import { splitPathAndSel } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { GrepOutputMode } from "@oh-my-pi/pi-natives";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 import { runGrepCommand } from "../../src/cli/grep-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
 import { GrepTool } from "../../src/tools/grep";
+import { initTheme } from "../../src/ui/theme/service";
 
 function getText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -514,7 +514,7 @@ describe("leading-colon path recovery (issue #5508)", () => {
 	});
 });
 
-// Regression: the `zetacode grep` CLI subcommand resolved its path argument with a
+// Regression: the `omp grep` CLI subcommand resolved its path argument with a
 // bare `path.resolve`, bypassing `expandPath`, so the leading-colon strip from
 // #5529 never reached it — see issue #5624.
 describe("grep CLI subcommand leading-colon path (issue #5624)", () => {
@@ -522,7 +522,7 @@ describe("grep CLI subcommand leading-colon path (issue #5624)", () => {
 
 	beforeEach(async () => {
 		tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "grep-cli-colon-"));
-		await initTheme();
+		initTheme();
 	});
 
 	afterEach(async () => {

@@ -7,10 +7,10 @@ import {
 	hasPositiveMovedProjectEvidence,
 	readCwdIdentity,
 	writeTerminalBreadcrumb,
-} from "@linxiraos/zeta/session/session-paths";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { getTerminalId } from "@linxiraos/pi-tui";
+} from "@oh-my-pi/pi-coding-agent/session/session-paths";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { getTerminalId } from "@oh-my-pi/pi-coding-agent/utils/ttyid";
 import {
 	getAgentDir,
 	getCustomSessionFilesDir,
@@ -18,8 +18,8 @@ import {
 	getTerminalSessionsDir,
 	hashPath,
 	setAgentDir,
-} from "@linxiraos/pi-utils";
-import { resolveEquivalentPath } from "@linxiraos/pi-utils/dirs";
+} from "@oh-my-pi/pi-utils";
+import { resolveEquivalentPath } from "@oh-my-pi/pi-utils/dirs";
 
 const cleanup: string[] = [];
 
@@ -176,8 +176,8 @@ describe("custom session-file registry", () => {
 		try {
 			// A relative extensionless --session path resolves against cwd and
 			// lands in the registry as the exact file, not its parent directory.
-			writeTerminalBreadcrumb(cwd, path.join(".zeta-sessions", "work"));
-			const expectedFile = path.join(cwd, ".zeta-sessions", "work");
+			writeTerminalBreadcrumb(cwd, path.join(".omp-sessions", "work"));
+			const expectedFile = path.join(cwd, ".omp-sessions", "work");
 			const marker = path.join(getCustomSessionFilesDir(agentDir), hashPath(expectedFile));
 			expect(fs.readFileSync(marker, "utf8")).toBe(expectedFile);
 

@@ -181,7 +181,8 @@
     "studio:assets": "bun scripts/studio-assets.ts",
     "studio:gate": "bun scripts/studio-gate.ts",
     "check:repo-layout": "bun scripts/check-repo-layout.ts",
-    "gen:relay-extension": "bun --cwd=packages/browser-relay run gen:embedded"
+    "gen:relay-extension": "bun --cwd=packages/browser-relay run gen:embedded",
+    "test:tern": "OMP_REQUIRE_TERN=1 bun test packages/coding-agent/test/tern-interactions.test.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

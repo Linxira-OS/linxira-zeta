@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import * as ai from "@linxiraos/pi-ai";
-import { Effort, type Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { classifyDifficulty } from "@linxiraos/zeta/auto-thinking/classifier";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import * as ai from "@oh-my-pi/pi-ai";
+import { Effort, type Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { classifyDifficulty } from "@oh-my-pi/pi-coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	AUTO_THINKING,
 	clampAutoThinkingEffort,
@@ -15,9 +15,9 @@ import {
 	parseThinkingLevel,
 	resolveProvisionalAutoLevel,
 	resolveTaskEffortLevel,
-} from "@linxiraos/pi-tui/thinking";
-import type { TinyMemoryLocalModelKey } from "@linxiraos/zeta/tiny/models";
-import { tinyModelClient } from "@linxiraos/zeta/tiny/title-client";
+} from "@oh-my-pi/pi-coding-agent/thinking/levels";
+import type { TinyMemoryLocalModelKey } from "@oh-my-pi/pi-coding-agent/tiny/models";
+import { tinyModelClient } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 describe("auto thinking classifier helpers", () => {
@@ -421,7 +421,7 @@ describe("auto thinking classifier helpers", () => {
 	});
 
 	it("returns undefined for reasoning models without controllable efforts (devin-agent shape)", () => {
-		// Repro for https://github.com/Linxira-OS/linxira-zeta/issues/3356 — Devin
+		// Repro for https://github.com/can1357/oh-my-pi/issues/3356 — Devin
 		// models report `reasoning: true` but expose no `thinking.efforts` (Cascade
 		// selects effort by routing to sibling model ids). `auto` must not invent
 		// a concrete effort here, or `requireSupportedEffort` throws in stream.ts.

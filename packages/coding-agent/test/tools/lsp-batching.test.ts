@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createLspWritethrough } from "@linxiraos/zeta/lsp";
-import { FileFormatResult } from "@linxiraos/pi-tui/tools/lsp";
-import * as lspConfig from "@linxiraos/zeta/lsp/config";
-import type { LinterClient, ServerConfig } from "@linxiraos/zeta/lsp/types";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { DeferredDiagnosticsEntry, ToolSession } from "@linxiraos/zeta/tools";
-import { addFileWriteFallback } from "@linxiraos/zeta/tools/file-write-fallback";
-import { WriteTool } from "@linxiraos/zeta/tools/write";
-import { TempDir } from "@linxiraos/pi-utils";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createLspWritethrough } from "@oh-my-pi/pi-coding-agent/lsp";
+import { FileFormatResult } from "@oh-my-pi/pi-coding-agent/tools/details/lsp";
+import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
+import type { LinterClient, ServerConfig } from "@oh-my-pi/pi-coding-agent/lsp/types";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { DeferredDiagnosticsEntry, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { addFileWriteFallback } from "@oh-my-pi/pi-coding-agent/tools/file-write-fallback";
+import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 function createFormatter(format: (filePath: string, content: string) => Promise<string>): ServerConfig {
 	return {
@@ -32,7 +32,7 @@ describe("createLspWritethrough batching", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
-		tempDir = TempDir.createSync("@zeta-lsp-batch-");
+		tempDir = TempDir.createSync("@omp-lsp-batch-");
 	});
 
 	afterEach(() => {
@@ -224,7 +224,7 @@ describe.skipIf(process.getuid?.() === 0)("createLspWritethrough batching with a
 	const disposers: Array<() => void> = [];
 
 	beforeEach(async () => {
-		tempDir = TempDir.createSync("@zeta-lsp-batch-broker-");
+		tempDir = TempDir.createSync("@omp-lsp-batch-broker-");
 		// The seam hands handlers a symlink-resolved path and `os.tmpdir()` sits
 		// under `/var` — itself a link — on macOS, so a lexical fixture root would
 		// differ from the brokered path for a reason unrelated to this test.
@@ -290,7 +290,7 @@ describe.skipIf(process.platform === "win32")("write tool shebang execute bits u
 	let linted: LintedMode[];
 
 	beforeEach(async () => {
-		tempDir = TempDir.createSync("@zeta-lsp-shebang-");
+		tempDir = TempDir.createSync("@omp-lsp-shebang-");
 		sessionManager = SessionManager.inMemory(tempDir.path());
 		authStorage = await AuthStorage.create(":memory:");
 		linted = [];

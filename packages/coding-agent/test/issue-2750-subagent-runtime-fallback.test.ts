@@ -2,29 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { type RetryFallbackRole, type ServingModel } from "@linxiraos/zeta/session/retry-fallback-chains";
-import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
-import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Api, AssistantMessage, Model } from "@oh-my-pi/pi-ai";
+import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { RetryFallbackRole, ServingModel } from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
+import { TurnRecovery, type TurnRecoveryHost } from "@oh-my-pi/pi-coding-agent/session/turn-recovery";
+import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { AgentProgress } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { createSessionDefaults } from "./helpers/session-defaults";
 
-import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
-import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
-import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
 
 function model(provider: string, id: string): Model<Api> {
 	return buildModel({
@@ -680,14 +680,14 @@ describe("subagent runtime model resolution", () => {
 		const defaultModel = model("zai", "glm-5.2");
 		let childModel: Model | undefined;
 		let childModelPattern: unknown;
-		let childModelPatternAuthFallback: unknown;
+		let childModelPatternParentFallback: unknown;
 		let childModelPatternFallbackRole: unknown;
 		let childModelPatternDefaultFallbackChain: unknown;
 		vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async options => {
 			if (!options) throw new Error("Expected createAgentSession options");
 			childModel = options.model;
 			childModelPattern = options.modelPattern;
-			childModelPatternAuthFallback = options.modelPatternAuthFallback;
+			childModelPatternParentFallback = options.modelPatternParentFallback;
 			childModelPatternFallbackRole = options.modelPatternFallbackRole;
 			childModelPatternDefaultFallbackChain = options.modelPatternDefaultFallbackChain;
 			return { session: createYieldingSession(), extensionsResult: {}, setToolUIContext: () => {} } as never;
@@ -717,7 +717,7 @@ describe("subagent runtime model resolution", () => {
 
 		expect(childModel).toBeUndefined();
 		expect(childModelPattern).toEqual(["openai-codex/gpt-5.5:auto"]);
-		expect(childModelPatternAuthFallback).toBe("openai-codex/gpt-5.5");
+		expect(childModelPatternParentFallback).toBe("openai-codex/gpt-5.5");
 		expect(childModelPatternFallbackRole).toBe("subagent:issue-4421");
 		expect(childModelPatternDefaultFallbackChain).toEqual(["openai-codex/gpt-5.6-sol"]);
 	});
@@ -725,7 +725,7 @@ describe("subagent runtime model resolution", () => {
 
 describe("subagent runtime fallback on a real provider error", () => {
 	const MOCK_API_SOURCE = "test/issue-2750-subagent-runtime-fallback";
-	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "ZETA_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 	const OVERLOADED = "overloaded_error: provider returned error 503";
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;
@@ -748,7 +748,7 @@ describe("subagent runtime fallback on a real provider error", () => {
 		await fs.mkdir(path.join(home, "work"), { recursive: true });
 		restoreEnvValue("HOME", home);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
-		setAgentDir(path.join(home, ".zeta", "agent"));
+		setAgentDir(path.join(home, ".omp", "agent"));
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();
 		registerMockApi(MOCK_API_SOURCE);

@@ -9,9 +9,9 @@
  * dropped once the last local listener unsubscribes; events arrive
  * asynchronously after the main-side change.
  */
-import type { IrcDeliveryReceipt, IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import { logger } from "@linxiraos/pi-utils";
-import type { AgentAwaitsApi } from "../../registry/agent-awaits";
+import type { IrcDeliveryReceipt, IrcMessage } from "../../irc/irc-types";
+import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentAwaitsApi, AwaitHoldOptions, AwaitWaiter } from "../../registry/agent-awaits";
 import type {
 	AdoptOptions,
 	AgentLifecycleApi,
@@ -28,10 +28,10 @@ import type {
 	RegistryEvent,
 	RegistryListener,
 } from "../../registry/agent-registry";
-import type { IrcBusApi, IrcWaitFilter } from "../../irc/bus";
+import type { IrcBusApi, IrcWaitFilter, UnansweredSend } from "../../irc/bus";
 import type { AgentSessionHandle } from "../../session/agent-session-handle";
 import type { RemoteObject } from "../rpc";
-import type { AgentLifecycleProtocol, AgentRegistryProtocol, IrcBusProtocol, UnansweredSend } from "./agents-protocol";
+import type { AgentLifecycleProtocol, AgentRegistryProtocol, IrcBusProtocol } from "./agents-protocol";
 
 /** Local listeners fed by one lazily opened remote subscription. */
 class ForwardedListeners<A extends unknown[]> {
@@ -57,6 +57,7 @@ class ForwardedListeners<A extends unknown[]> {
 	}
 
 	#emit(args: A): void {
+		// oxlint-disable-next-line unicorn/no-useless-spread -- snapshot: the loop body may add or remove listeners
 		for (const listener of [...this.#listeners]) {
 			try {
 				listener(...args);
@@ -77,7 +78,7 @@ export class RemoteAgentAwaits implements AgentAwaitsApi {
 		this.#listeners = new ForwardedListeners("agent-awaits", forward => remote.callSync("awaitsSubscribe", forward));
 	}
 
-	hold(waiter: string, awaited: readonly string[], options: { interruptible: boolean }): () => void {
+	hold(waiter: string, awaited: readonly string[], options: AwaitHoldOptions): () => void {
 		return this.#remote.callSync("awaitsHold", waiter, awaited, options);
 	}
 
@@ -89,7 +90,7 @@ export class RemoteAgentAwaits implements AgentAwaitsApi {
 		return this.#remote.callSync("awaitsBlockedVia", agent, target, sentAt);
 	}
 
-	waitersOn(target: string): import("../../registry/agent-awaits").AwaitWaiter[] {
+	waitersOn(target: string): AwaitWaiter[] {
 		return this.#remote.callSync("awaitsWaitersOn", target);
 	}
 
@@ -112,18 +113,6 @@ export class RemoteAgentRegistry implements AgentRegistryApi {
 
 	register(input: RegisterInput): AgentRef {
 		return this.#remote.callSync("register", input);
-	}
-
-	registerRoot(input: Omit<RegisterInput, "id"> & { id?: string; sessionId: string }): AgentRef {
-		return this.#remote.callSync("registerRoot", input);
-	}
-
-	workspaceMain(workspaceId: string | undefined): AgentRef | undefined {
-		return this.#remote.callSync("workspaceMain", workspaceId);
-	}
-
-	resolveMainAlias(requested: string, callerId: string): string | undefined {
-		return this.#remote.callSync("resolveMainAlias", requested, callerId);
 	}
 
 	registerIfAvailable(input: RegisterInput, expected: AgentRef | null): AgentRef | undefined {
@@ -150,8 +139,8 @@ export class RemoteAgentRegistry implements AgentRegistryApi {
 		return this.#remote.callSync("staleAcceptedRuns");
 	}
 
-	setActivity(id: string, activity: string): void {
-		this.#remote.notify("setActivity", id, activity);
+	setActivity(id: string, activity: string, expected?: AgentRefExpectation): void {
+		this.#remote.notify("setActivity", id, activity, expected);
 	}
 
 	attachSession(
@@ -257,11 +246,8 @@ export class RemoteIrcBus implements IrcBusApi {
 		this.#remote = remote;
 	}
 
-	send(
-		msg: Omit<IrcMessage, "id" | "ts">,
-		opts?: { expectsReply?: boolean; suppressRelay?: boolean; messageId?: string },
-	): Promise<IrcDeliveryReceipt> {
-		return this.#remote.call("send", msg, opts);
+	send(msg: Omit<IrcMessage, "id" | "ts">): Promise<IrcDeliveryReceipt> {
+		return this.#remote.call("send", msg);
 	}
 
 	sentSince(from: string, to: string, sinceTs: number): boolean {
@@ -281,34 +267,21 @@ export class RemoteIrcBus implements IrcBusApi {
 		filter: IrcWaitFilter,
 		timeoutMs: number,
 		signal?: AbortSignal,
-		options?: { drainPending?: boolean; liveness?: unknown },
+		options?: { drainPending?: boolean },
 	): Promise<IrcMessage | null> {
-		// `liveness` holds a live registry handle and stays local to the caller.
-		const drainPending = options?.drainPending;
-		return this.#remote.call(
-			"wait",
-			agentId,
-			filter,
-			timeoutMs,
-			signal,
-			drainPending === undefined ? undefined : { drainPending },
-		);
+		return this.#remote.call("wait", agentId, filter, timeoutMs, signal, options);
 	}
 
 	take(agentId: string, from?: string): IrcMessage | undefined {
 		return this.#remote.callSync("take", agentId, from);
 	}
 
-	unreadCount(agentId: string): number {
-		return this.#remote.callSync("unreadCount", agentId);
-	}
-
-	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
-		return this.#remote.callSync("inbox", agentId, opts);
-	}
-
 	park(msg: Omit<IrcMessage, "id" | "ts">): IrcMessage {
 		return this.#remote.callSync("park", msg);
+	}
+
+	unreadCount(agentId: string): number {
+		return this.#remote.callSync("unreadCount", agentId);
 	}
 
 	recordReply(from: string, to: string): void {

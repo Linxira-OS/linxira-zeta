@@ -1,17 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import * as loopCondition from "@linxiraos/zeta/modes/loop-condition";
-import type { LoopConditionVerdict } from "@linxiraos/zeta/modes/loop-condition";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { postmortem, TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import * as loopCondition from "@oh-my-pi/pi-coding-agent/modes/loop-condition";
+import type { LoopConditionVerdict } from "@oh-my-pi/pi-coding-agent/modes/loop-condition";
+import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { postmortem, TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 async function flushMicrotasks(): Promise<void> {
 	await Promise.resolve();
@@ -49,9 +50,15 @@ describe("InteractiveMode shutdown during a loop condition gate", () => {
 			settings: Settings.isolated(),
 			modelRegistry,
 		});
-		mode = new InteractiveMode(session, "test");
-		mode.ui.requestRender = vi.fn();
-		mode.ui.terminal.drainInput = async () => {};
+		mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 		Object.defineProperty(session, "isCompacting", { configurable: true, get: () => false });
 		Object.defineProperty(session, "isStreaming", { configurable: true, get: () => false });

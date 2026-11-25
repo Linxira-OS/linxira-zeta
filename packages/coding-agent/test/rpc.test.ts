@@ -31,7 +31,7 @@ describe.skipIf(!e2eApiKey("ANTHROPIC_API_KEY"))("RPC mode", () => {
 	beforeEach(() => {
 		sessionDir = path.join(os.tmpdir(), `zeta-rpc-test-${Snowflake.next()}`);
 		client = new RpcClient({
-			cliPath: path.join(import.meta.dir, "..", "dist", "cli.js"),
+			command: [process.execPath, path.join(import.meta.dir, "..", "dist", "cli.js")],
 			cwd: path.join(import.meta.dir, ".."),
 			env: { ZETA_CODING_AGENT_DIR: sessionDir },
 			provider: "anthropic",
@@ -319,7 +319,7 @@ describe("RPC fast mode with unsupported Fireworks model and priority tier", () 
 		// Startup discovery stays inside the temp dir: the developer's home and this repo's
 		// context, plugins, and model caches are not part of the contract and slow the cold start.
 		client = new RpcClient({
-			cliPath: path.join(import.meta.dir, "..", "src", "cli.ts"),
+			command: [process.execPath, path.join(import.meta.dir, "..", "src", "cli.ts")],
 			cwd: sessionDir,
 			env: {
 				HOME: path.join(sessionDir, "home"),

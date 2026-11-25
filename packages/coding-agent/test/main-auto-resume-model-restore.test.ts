@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
-import { Terminal as VirtualTerminal } from "@linxiraos/pi-utils/vterm";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { Terminal as VirtualTerminal } from "@oh-my-pi/pi-utils/vterm";
 
 type Scenario =
 	| "auto"
@@ -23,7 +23,7 @@ interface Observation {
 async function runScenario(scenario: Scenario): Promise<Observation> {
 	using temp = TempDir.createSync("@omp-auto-resume-model-");
 	const home = temp.join("home");
-	const agentDir = path.join(home, ".zeta", "agent");
+	const agentDir = path.join(home, ".omp", "agent");
 	const sourceDir = path.resolve(import.meta.dir, "../src");
 	const extension = temp.join("provider.ts");
 	await Bun.write(
@@ -79,7 +79,7 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } } }
 		];
 		await Bun.write(file, rows.map(row => JSON.stringify(row)).join("\\n") + "\\n");
-		const args = ["--standalone", "--no-title", "--no-tools", "--no-skills", "--no-rules", "--no-lsp",
+		const args = ["--no-title", "--no-skills", "--no-rules", "--no-lsp",
 			"--no-prewalk", "--trusted-extension", ${JSON.stringify(extension)}];
 		if (scenario === "continue") args.push("-c");
 		if (scenario === "resume") args.push("--resume", file);
@@ -90,7 +90,7 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 		const settings = Settings.isolated({
 			autoResume: true, modelRoles: { default: "resume-fixture/fresh" },
 			retry: { enabled: false, modelFallback: false }, compaction: { enabled: false },
-			marketplace: { autoUpdate: "off" }
+			marketplace: { autoUpdate: "off" }, telemetry: { otlpExportEnabled: false }
 		});
 		const authStorage = await AuthStorage.create(":memory:");
 		const stop = new Error("fixture captured session before the mode runner");
@@ -150,7 +150,7 @@ async function runScenario(scenario: Scenario): Promise<Observation> {
 			PATH: process.env.PATH,
 			HOME: home,
 			USERPROFILE: home,
-			ZETA_CODING_AGENT_DIR: agentDir,
+			PI_CODING_AGENT_DIR: agentDir,
 			TMPDIR: process.env.TMPDIR,
 			TMP: process.env.TMP,
 			TEMP: process.env.TEMP,
@@ -232,13 +232,13 @@ describe("implicit auto-resume model restoration", () => {
 		async () => {
 			using temp = TempDir.createSync("@omp-auto-resume-warning-");
 			const home = temp.join("home");
-			const agentDir = path.join(home, ".zeta", "agent");
+			const agentDir = path.join(home, ".omp", "agent");
 			const sourceDir = path.resolve(import.meta.dir, "../src");
 			const env = {
 				PATH: process.env.PATH,
 				HOME: home,
 				USERPROFILE: home,
-				ZETA_CODING_AGENT_DIR: agentDir,
+				PI_CODING_AGENT_DIR: agentDir,
 				TZ: "Asia/Tokyo",
 				TERM: "xterm-256color",
 				OMP_TUI_NATIVE: "0",
@@ -254,6 +254,7 @@ describe("implicit auto-resume model restoration", () => {
 					compaction: { enabled: false },
 					startup: { showSplash: false, setupWizard: false, changelogMode: "hidden", checkUpdate: false },
 					marketplace: { autoUpdate: "off" },
+					telemetry: { otlpExportEnabled: false },
 				}),
 			);
 			await Bun.write(
@@ -340,7 +341,6 @@ describe("implicit auto-resume model restoration", () => {
 				[
 					process.execPath,
 					path.join(sourceDir, "cli.ts"),
-					"--standalone",
 					"--no-title",
 					"--no-extensions",
 					"--no-skills",

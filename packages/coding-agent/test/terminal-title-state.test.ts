@@ -1,24 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as os from "node:os";
-import { DEFAULT_SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/spinner-clock";
+import { DEFAULT_SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-coding-agent/config/spinner-interval";
 import {
 	buildTerminalTitleWithState,
 	disposeTerminalTitleState,
 	setTerminalTitle,
+	setExtensionTerminalTitle,
 	initTerminalTitleState,
 	popTerminalTitle,
 	setSessionTerminalTitle,
+	setTerminalSessionSource,
 	setTerminalTitleSpinnerInterval,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
-} from "@linxiraos/zeta/utils/title-generator";
-import { setTerminalHeadless } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/utils/title-generator";
+import { setTerminalHeadless } from "@oh-my-pi/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 const LABEL = "my-project";
-// The brand the title runtime prefixes every composed title with. Plain ζ —
+// The brand the title runtime prefixes every composed title with. Plain π —
 // window titles render in the OS UI font, so nerd-font glyphs are unusable here.
-const BRAND = "ζ";
+const BRAND = "π";
 
 describe("buildTerminalTitleWithState", () => {
 	it("separates brand and label with '>' when idle/done (your turn)", () => {
@@ -32,7 +34,7 @@ describe("buildTerminalTitleWithState", () => {
 	it("animates spinner frames in the separator slot while working outside Windows", () => {
 		const frame0 = buildTerminalTitleWithState(LABEL, "working", 0, true, "linux", "braille", {});
 		const frame1 = buildTerminalTitleWithState(LABEL, "working", 1, true, "linux", "braille", {});
-		// The brand stays a bare `ζ`; only the separator between brand and label
+		// The brand stays a bare `π`; only the separator between brand and label
 		// carries the spinner glyph, and it advances per frame.
 		expect(frame0).toBe(`${BRAND} ⠋ ${LABEL}`);
 		expect(frame1).toBe(`${BRAND} ⠙ ${LABEL}`);
@@ -57,7 +59,7 @@ describe("buildTerminalTitleWithState", () => {
 		expect(buildTerminalTitleWithState(undefined, "working", 0, true, "linux", "braille", {})).toBe(`${BRAND} ⠋`);
 	});
 
-	it("renders the pre-state `ζ: label` layout when disabled, regardless of state", () => {
+	it("renders the pre-state `π: label` layout when disabled, regardless of state", () => {
 		expect(buildTerminalTitleWithState(LABEL, "working", 3, false)).toBe(`${BRAND}: ${LABEL}`);
 		expect(buildTerminalTitleWithState(LABEL, "idle", 0, false)).toBe(`${BRAND}: ${LABEL}`);
 		expect(buildTerminalTitleWithState(LABEL, "attention", 0, false)).toBe(`${BRAND}: ${LABEL}`);
@@ -99,7 +101,7 @@ describe("buildTerminalTitleWithState", () => {
 // `working` spinner arms a periodic `setInterval` that, on every tick, re-emits
 // the terminal title as an OSC-0 write (`ESC]0;<title>BEL`). If that interval is
 // not cleared on teardown, a pending tick can fire AFTER the shell title was
-// restored, leaving the parent shell tab reading `ζ ⠋ …` post-exit.
+// restored, leaving the parent shell tab reading `π ⠋ …` post-exit.
 // `disposeTerminalTitleState()` (now wired into `InteractiveMode.shutdown()`)
 // must stop the timer so no further OSC-title write reaches stdout.
 //
@@ -208,6 +210,19 @@ describe("disposeTerminalTitleState", () => {
 		expect(observedTitles(writes, windowsTitleMock)).toEqual([]);
 	});
 
+	it("stops the clock under an extension title and resumes on either release path", () => {
+		setTerminalTitleState("working");
+		for (const release of [() => setExtensionTerminalTitle(""), () => setSessionTerminalTitle("next")]) {
+			setExtensionTerminalTitle("owned");
+			setTerminalTitleState("working");
+			expect(vi.getTimerCount()).toBe(0);
+			release();
+			resetObserved(writes, windowsTitleMock);
+			vi.advanceTimersByTime(DEFAULT_SPINNER_INTERVAL_MS);
+			expect(observedTitles(writes, windowsTitleMock)).toHaveLength(1);
+		}
+	});
+
 	it("latches: a direct setTerminalTitle after dispose cannot write the shell's tab", () => {
 		// `setTerminalTitle` is EXPORTED and writes OSC/Win32 straight out, so it
 		// bypasses the composed-state path entirely. A direct importer firing from
@@ -240,7 +255,7 @@ describe("disposeTerminalTitleState", () => {
 		// `this.stop()` unsubscribes the session, so in that window a live
 		// `#handleAgentStart` can still call `setTerminalTitleState("working")`.
 		// If dispose only stops the timer, that call re-arms it and a tick writes
-		// `ζ ⠋ …` into the parent shell's tab — the exact leak the ordering
+		// `π ⠋ …` into the parent shell's tab — the exact leak the ordering
 		// comment in `shutdown()` claims to prevent.
 		disposeTerminalTitleState();
 
@@ -307,7 +322,7 @@ describe("disposeTerminalTitleState", () => {
 		expect(titles.length).toBeGreaterThan(0);
 		for (const title of titles) {
 			expect(title).toContain("my-project");
-			expect(title).toMatch(/^ζ [-\\|/] my-project$/);
+			expect(title).toMatch(/^π [-\\|/] my-project$/);
 			expect(title).not.toContain("⠋");
 		}
 	});
@@ -336,7 +351,7 @@ describe("disposeTerminalTitleState", () => {
 		expect(titles.length).toBeGreaterThan(0);
 		for (const title of titles) {
 			expect(title).toContain("my-project");
-			expect(title).toMatch(/^ζ [○◔◑◕●] my-project$/);
+			expect(title).toMatch(/^π [○◔◑◕●] my-project$/);
 		}
 	});
 
@@ -380,7 +395,7 @@ describe("disposeTerminalTitleState", () => {
 		resetObserved(writes, windowsTitleMock);
 		setTerminalTitleState("working");
 
-		expect(observedTitles(writes, windowsTitleMock)).toEqual(["ζ : my-project"]);
+		expect(observedTitles(writes, windowsTitleMock)).toEqual(["π : my-project"]);
 		expect(vi.getTimerCount()).toBe(0);
 		resetObserved(writes, windowsTitleMock);
 		vi.advanceTimersByTime(DEFAULT_SPINNER_INTERVAL_MS * 10);
@@ -388,7 +403,7 @@ describe("disposeTerminalTitleState", () => {
 
 		// Other states are unaffected by the static spinner.
 		setTerminalTitleState("idle");
-		expect(observedTitles(writes, windowsTitleMock)).toEqual(["ζ > my-project"]);
+		expect(observedTitles(writes, windowsTitleMock)).toEqual(["π > my-project"]);
 	});
 
 	it("clears the title before popping the saved one on shutdown", () => {
@@ -410,7 +425,7 @@ describe("disposeTerminalTitleState", () => {
 
 			initTerminalTitleState();
 			setSessionTerminalTitle("running-session");
-			expect(native.titles).toContain("ζ > running-session");
+			expect(native.titles).toContain("π > running-session");
 
 			resetObserved(writes, native);
 			// The `InteractiveMode.shutdown()` order: dispose, then pop.
@@ -424,5 +439,60 @@ describe("disposeTerminalTitleState", () => {
 		} finally {
 			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
 		}
+	});
+});
+
+// Tern names omp's directory in its composer bar from the OSC 7 omp writes, as
+// it does for a shell's prompt; other terminals must not hear it.
+describe("reporting the session to Tern", () => {
+	const OSC7 = /\x1b\]7;([^\x07]*)\x07/g;
+	let writes = "";
+	let stdoutSpy: { mockRestore(): void } | undefined;
+	let prevHeadless = false;
+	let ttyDescriptor: PropertyDescriptor | undefined;
+	let prevTermProgram: string | undefined;
+
+	beforeEach(() => {
+		prevHeadless = setTerminalHeadless(false);
+		ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+		Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+		prevTermProgram = Bun.env.TERM_PROGRAM;
+		Bun.env.TERM_PROGRAM = "tern";
+		writes = "";
+		stdoutSpy = spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+			writes += typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk as Uint8Array);
+			return true;
+		});
+		initTerminalTitleState();
+	});
+
+	afterEach(() => {
+		disposeTerminalTitleState();
+		stdoutSpy?.mockRestore();
+		if (ttyDescriptor) Object.defineProperty(process.stdout, "isTTY", ttyDescriptor);
+		else Reflect.deleteProperty(process.stdout, "isTTY");
+		if (prevTermProgram === undefined) delete Bun.env.TERM_PROGRAM;
+		else Bun.env.TERM_PROGRAM = prevTermProgram;
+		setTerminalHeadless(prevHeadless);
+	});
+
+	it.skipIf(process.platform === "win32")("reports the directory with OSC 7 when it changes", () => {
+		let cwd = "/work/my project";
+		setTerminalSessionSource({ file: () => undefined, cwd: () => cwd });
+		// Retitling in the same directory says nothing new.
+		setSessionTerminalTitle("my-project");
+		cwd = "/work/other";
+		setSessionTerminalTitle("my-project");
+		expect([...writes.matchAll(OSC7)].map(match => match[1])).toEqual([
+			`file://${os.hostname()}/work/my%20project`,
+			`file://${os.hostname()}/work/other`,
+		]);
+	});
+
+	it("reports nothing to other terminals", () => {
+		Bun.env.TERM_PROGRAM = "ghostty";
+		setTerminalSessionSource({ file: () => undefined, cwd: () => "/work/other" });
+		setSessionTerminalTitle("my-project");
+		expect(writes).not.toContain("\x1b]7;");
 	});
 });

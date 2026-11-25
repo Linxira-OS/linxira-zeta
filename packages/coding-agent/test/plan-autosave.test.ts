@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
-import { getSettingsForTab } from "@linxiraos/pi-tui/overlays/settings-defs";
-import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
-import { autosaveApprovedPlan, resolvePlanAutosaveDir } from "@linxiraos/zeta/plan-mode/plan-autosave";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type { PlanYolo } from "@linxiraos/zeta/session/agent-session-types";
-import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@linxiraos/zeta/session/prewalk";
-import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { getSettingsForTab } from "@oh-my-pi/pi-coding-agent/config/settings-defs";
+import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
+import { autosaveApprovedPlan, resolvePlanAutosaveDir } from "@oh-my-pi/pi-coding-agent/plan-mode/plan-autosave";
+import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
+import type { PlanYolo } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
+import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@oh-my-pi/pi-coding-agent/session/prewalk";
+import type { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
-import { cfgPlanAutosave, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanEnabled } from "@oh-my-pi/pi-coding-agent/plan-mode/settings";
 
 let tempDir: TempDir | undefined;
 
@@ -67,7 +67,7 @@ describe("resolvePlanAutosaveDir", () => {
 			path.join(cwd, "docs", "plans"),
 		);
 		expect(resolvePlanAutosaveDir(Settings.isolated({ "plan.autosaveDir": "   " }), cwd)).toBe(
-			path.join(cwd, ".zeta", "plans"),
+			path.join(cwd, ".omp", "plans"),
 		);
 	});
 });
@@ -83,7 +83,7 @@ describe("autosaveApprovedPlan", () => {
 			planContent: "# Plan\n",
 		});
 		expect(result).toBeNull();
-		expect(await Bun.file(path.join(cwd, ".zeta", "plans", "AUTH_PLAN.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(cwd, ".omp", "plans", "AUTH_PLAN.md")).exists()).toBe(false);
 	});
 
 	it("saves the approved plan under the default dir", async () => {
@@ -95,7 +95,7 @@ describe("autosaveApprovedPlan", () => {
 			title: "Auth storage",
 			planContent: "# Plan\n\nShip it.\n",
 		});
-		expect(result).toBe(path.join(cwd, ".zeta", "plans", "AUTH_STORAGE_PLAN.md"));
+		expect(result).toBe(path.join(cwd, ".omp", "plans", "AUTH_STORAGE_PLAN.md"));
 		expect(await Bun.file(result!).text()).toBe("# Plan\n\nShip it.\n");
 	});
 
@@ -104,8 +104,8 @@ describe("autosaveApprovedPlan", () => {
 		const settings = Settings.isolated({ "plan.autosave": true });
 		const first = await autosaveApprovedPlan({ settings, cwd, title: "Auth", planContent: "# v1\n" });
 		const second = await autosaveApprovedPlan({ settings, cwd, title: "Auth", planContent: "# v2\n" });
-		expect(first).toBe(path.join(cwd, ".zeta", "plans", "AUTH_PLAN.md"));
-		expect(second).toBe(path.join(cwd, ".zeta", "plans", "AUTH_PLAN-1.md"));
+		expect(first).toBe(path.join(cwd, ".omp", "plans", "AUTH_PLAN.md"));
+		expect(second).toBe(path.join(cwd, ".omp", "plans", "AUTH_PLAN-1.md"));
 		expect(await Bun.file(first!).text()).toBe("# v1\n");
 		expect(await Bun.file(second!).text()).toBe("# v2\n");
 	});
@@ -159,6 +159,8 @@ describe("plan-yolo approval autosave", () => {
 			restoreThinkingLevel: () => {},
 			resolveDefaultPrewalk: () => undefined,
 			resolveAutoPrewalkTarget: () => undefined,
+			resolveAutoPrewalkPlanner: () => "unused",
+			prepareAutoPrewalkPlanner: async () => "unused",
 			classifyAutoPrewalk: async () => undefined,
 			emitNotice: (level, message, source) => {
 				notices.push({ level, message, source });
@@ -167,12 +169,13 @@ describe("plan-yolo approval autosave", () => {
 				modelTemporaryCalls.push(args);
 				return true;
 			},
+			setThinkingLevel: () => {},
 			setActiveToolsByName: async () => {},
 			restoreNonMCPToolPresentation: async () => {},
 			getAllToolNames: () => [],
 			getActiveToolNames: () => [],
 			getEnabledToolNames: () => [],
-			getMountedXdevToolNames: () => [],
+			getMountedToolCommandNames: () => [],
 			hasBuiltInTool: () => false,
 			getPlanModeState: () => planModeState,
 			setPlanModeState: state => {
@@ -206,57 +209,13 @@ describe("plan-yolo approval autosave", () => {
 		expect(result.details).toMatchObject({ planFilePath: "local://auth-plan.md", title: "auth", planExists: true });
 		expect(result.content[0]?.text).toBe(`Plan approved. Implementing now with ${target.id}.`);
 		expect(result.content[0]?.text).not.toContain(cwd);
-		expect(await Bun.file(path.join(cwd, ".zeta", "plans", "AUTH_PLAN.md")).text()).toBe("# Plan\n\nYolo.\n");
+		expect(await Bun.file(path.join(cwd, ".omp", "plans", "AUTH_PLAN.md")).text()).toBe("# Plan\n\nYolo.\n");
 		expect(t.notices).toContainEqual({
 			level: "info",
 			message: expect.stringContaining("Plan autosaved to"),
 			source: "plan-yolo",
 		});
 		expect(t.modelTemporaryCalls.length).toBe(1);
-	});
-
-	it("mirrors the approved plan into project tracking", async () => {
-		const cwd = makeCwd();
-		const artifactsDir = path.join(cwd, "artifacts");
-		const settings = Settings.isolated({ "plan.autosave": true, "tracking.enabled": true });
-		// The mirror also registers the project in the machine-global tracking
-		// index; keep that write inside the temp dir.
-		const previousAgentDir = getAgentDir();
-		setAgentDir(path.join(cwd, "agent"));
-		try {
-			const t = setupPlanYolo(cwd, artifactsDir, settings);
-			const coordinator = new PrewalkCoordinator(t.host, { planYolo: { target } satisfies PlanYolo });
-			await coordinator.armPlanYoloIfNeeded();
-			const planPath = resolveLocalUrlToPath("local://auth-plan.md", t.localOptions);
-			await Bun.write(planPath, "# Plan\n\nYolo.\n");
-			const handler = t.getHandler();
-			if (!handler) throw new Error("expected a plan proposal handler");
-			await handler("auth");
-
-			// Autosave and the tracking mirror are independent destinations.
-			expect(await Bun.file(path.join(cwd, ".zeta", "plans", "AUTH_PLAN.md")).text()).toBe("# Plan\n\nYolo.\n");
-			expect(await Bun.file(path.join(cwd, ".zeta", "tracking", "plans", "auth-plan.md")).text()).toBe(
-				"# Plan\n\nYolo.\n",
-			);
-		} finally {
-			setAgentDir(previousAgentDir);
-		}
-	});
-
-	it("writes no tracking mirror when tracking is disabled", async () => {
-		const cwd = makeCwd();
-		const artifactsDir = path.join(cwd, "artifacts");
-		const settings = Settings.isolated({ "plan.autosave": true });
-		const t = setupPlanYolo(cwd, artifactsDir, settings);
-		const coordinator = new PrewalkCoordinator(t.host, { planYolo: { target } satisfies PlanYolo });
-		await coordinator.armPlanYoloIfNeeded();
-		const planPath = resolveLocalUrlToPath("local://auth-plan.md", t.localOptions);
-		await Bun.write(planPath, "# Plan\n\nYolo.\n");
-		const handler = t.getHandler();
-		if (!handler) throw new Error("expected a plan proposal handler");
-		await handler("auth");
-
-		expect(await Bun.file(path.join(cwd, ".zeta", "tracking", "plans")).exists()).toBe(false);
 	});
 
 	it("warns the operator but still implements when autosave fails", async () => {

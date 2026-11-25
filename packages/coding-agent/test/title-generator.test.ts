@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import type { Api, Model } from "@linxiraos/pi-ai";
-import * as ai from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
-import { formatModelStringWithRouting, resolveModelOverride } from "@linxiraos/zeta/config/model-resolver";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
-import { DEFAULT_SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/spinner-clock";
+import type { Api, Model } from "@oh-my-pi/pi-ai";
+import * as ai from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { formatModelStringWithRouting, resolveModelOverride } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { DEFAULT_TITLE_SPINNER_INTERVAL_MS } from "@oh-my-pi/pi-coding-agent/config/spinner-interval";
+import { tinyTitleClient } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -17,9 +17,9 @@ import {
 	setTerminalTitlePullRequest,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
-} from "@linxiraos/zeta/utils/title-generator";
-import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
-import { isWsl, logger, setTerminalHeadless } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/utils/title-generator";
+import { setNativeRenderingForTest as setNativeRendering } from "@oh-my-pi/pi-tui";
+import { isWsl, logger, setTerminalHeadless } from "@oh-my-pi/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
 function getModelOrThrow(id: string): Model<Api> {
@@ -34,8 +34,10 @@ function getModelFor(provider: GeneratedProvider, id: string): Model<Api> {
 	return model;
 }
 
-function createSettings(model: Model<Api>, extra: Record<string, unknown> = {}): Settings {
-	return Settings.isolated({ modelRoles: { tiny: `${model.provider}/${model.id}` }, ...extra });
+function createSettings(model: Model<Api>): Settings {
+	return Settings.isolated({
+		modelRoles: { tiny: `${model.provider}/${model.id}` },
+	});
 }
 
 function createRegistry(model: Model<Api>, availableModels: Model<Api>[] = [model]) {
@@ -78,95 +80,6 @@ describe("title generator", () => {
 		expect(messages?.map(message => message.role)).toEqual(["user"]);
 	});
 
-	it("requests a Chinese title when the session language is Chinese and preserves identifiers", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
-		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
-			stopReason: "stop",
-			content: [{ type: "text", text: "<title>修复 Redis 重试队列丢任务</title>" }],
-		} as never);
-
-		const title = await generateSessionTitle(
-			"Fix the Redis retry queue dropping jobs when a worker restarts",
-			createRegistry(model),
-			createSettings(model, { language: "zh" }),
-		);
-
-		expect(title).toBe("修复 Redis 重试队列丢任务");
-		expect(title).toContain("Redis");
-		expect(completeSimpleMock).toHaveBeenCalledTimes(1);
-		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
-		const promptText = request?.systemPrompt?.join("\n") ?? "";
-		expect(promptText).toContain("简体中文");
-		expect(promptText).toContain("Simplified Chinese");
-	});
-
-	it("keeps the English title request for an English session", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
-		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
-			stopReason: "stop",
-			content: [{ type: "text", text: "<title>Fix Redis retry queue drops</title>" }],
-		} as never);
-
-		const title = await generateSessionTitle(
-			"Fix the Redis retry queue dropping jobs",
-			createRegistry(model),
-			createSettings(model, { language: "en" }),
-		);
-
-		expect(title).toBe("Fix Redis retry queue drops");
-		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
-		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
-	});
-
-	it("lets an explicit invocation language override the session setting", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
-		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
-			stopReason: "stop",
-			content: [{ type: "text", text: "<title>修复缓存失效</title>" }],
-		} as never);
-
-		const title = await generateSessionTitle(
-			"Fix the cache invalidation",
-			createRegistry(model),
-			createSettings(model, { language: "en" }),
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			"zh",
-		);
-
-		expect(title).toBe("修复缓存失效");
-		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
-		expect(request?.systemPrompt?.join("\n")).toContain("简体中文");
-	});
-
-	it("leaves a caller-supplied title prompt untranslated", async () => {
-		const model = getModelOrThrow("claude-sonnet-4-5");
-		const customPrompt = "Name the plan: a 1-3 word topic for its filename.";
-		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockResolvedValue({
-			stopReason: "stop",
-			content: [{ type: "text", text: "<title>retry-queue</title>" }],
-		} as never);
-
-		await generateSessionTitle(
-			"# Plan\nFix the retry queue",
-			createRegistry(model),
-			createSettings(model, { language: "zh" }),
-			undefined,
-			undefined,
-			undefined,
-			customPrompt,
-		);
-
-		const request = completeSimpleMock.mock.calls[0]?.[1] as { systemPrompt?: string[] } | undefined;
-		expect(request?.systemPrompt?.[0]).toBe(customPrompt);
-		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
-	});
-
 	it("selects an available local-inference model from the tiny role", async () => {
 		const localModel = getBundledModel("local", "lfm2.5-230m");
 		if (!localModel) throw new Error("Expected bundled local tiny model");
@@ -187,23 +100,43 @@ describe("title generator", () => {
 		expect(completeSimpleMock).not.toHaveBeenCalled();
 	});
 
-	it("sends the Chinese title policy to a local tiny worker", async () => {
+	it("reports a produced local title as an unmetered request, and a null result as nothing", async () => {
 		const localModel = getBundledModel("local", "lfm2.5-230m");
 		if (!localModel) throw new Error("Expected bundled local tiny model");
-		const settings = createSettings(localModel, { language: "zh" });
-		const registry = createRegistry(localModel, [localModel]);
-		const generateMock = vi.spyOn(tinyTitleClient, "generate").mockResolvedValue("修复重试队列");
-		const completeSimpleMock = vi.spyOn(ai, "completeSimple");
+		const settings = createSettings(localModel);
+		const registry = createRegistry(localModel);
+		// A null result may be an abort or a failed model that never reached the worker.
+		vi.spyOn(tinyTitleClient, "generate").mockResolvedValueOnce("Local Title").mockResolvedValueOnce(null);
+		const reports: Array<{ message: ai.AssistantMessage; prompt: string }> = [];
+		const run = () =>
+			generateSessionTitle(
+				"Investigate the resolver",
+				registry,
+				settings,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				(message, prompt) => {
+					reports.push({ message, prompt });
+				},
+			);
 
-		const title = await generateSessionTitle("Fix the retry queue", registry, settings);
+		expect(await run()).toBe("Local Title");
+		expect(await run()).toBeNull();
 
-		expect(title).toBe("修复重试队列");
-		expect(generateMock).toHaveBeenCalledWith(
-			localModel.id,
-			"Fix the retry queue",
-			expect.objectContaining({ systemPrompt: expect.stringContaining("简体中文") }),
-		);
-		expect(completeSimpleMock).not.toHaveBeenCalled();
+		expect(reports).toHaveLength(1);
+		expect(reports[0]?.prompt).toContain("Investigate the resolver");
+		expect(reports[0]?.message).toMatchObject({
+			api: "local-inference",
+			provider: localModel.provider,
+			model: localModel.id,
+			stopReason: "stop",
+			content: [{ type: "text", text: "Local Title" }],
+		});
+		expect(reports[0]?.message.usage.totalTokens).toBe(0);
 	});
 
 	it("never falls back to a paid title model when local inference fails", async () => {
@@ -354,7 +287,12 @@ describe("title generator", () => {
 		const model = getModelOrThrow("claude-sonnet-4-5");
 		vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
-			content: [{ type: "text", text: '```json\n{"title": "Fix login button on mobile"}\n```' }],
+			content: [
+				{
+					type: "text",
+					text: '```json\n{"title": "Fix login button on mobile"}\n```',
+				},
+			],
 		} as never);
 
 		const title = await generateSessionTitle(
@@ -370,7 +308,12 @@ describe("title generator", () => {
 		const model = getModelOrThrow("claude-sonnet-4-5");
 		vi.spyOn(ai, "completeSimple").mockResolvedValue({
 			stopReason: "stop",
-			content: [{ type: "text", text: '<title>{"title": "Add OAuth authentication"}</title>' }],
+			content: [
+				{
+					type: "text",
+					text: '<title>{"title": "Add OAuth authentication"}</title>',
+				},
+			],
 		} as never);
 
 		const title = await generateSessionTitle(
@@ -461,6 +404,83 @@ describe("title generator", () => {
 
 		expect(title).toBeNull();
 		expect(completeSimpleMock).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(["<title>none</title>", "<title/>", '<title>"None."</title>'])(
+		"stops before the next paid model when the first model declines with %s",
+		async reply => {
+			const primary = getModelOrThrow("claude-haiku-4-5");
+			const fallback = getModelOrThrow("claude-sonnet-4-5");
+			const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockImplementation(
+				async model =>
+					({
+						stopReason: "stop",
+						content: [
+							{
+								type: "text",
+								text: model.id === primary.id ? reply : "<title>Unwanted fallback title</title>",
+							},
+						],
+					}) as never,
+			);
+			const settings = Settings.isolated({
+				modelRoles: {
+					tiny: `${primary.provider}/${primary.id}`,
+					smol: `${fallback.provider}/${fallback.id}`,
+				},
+				"retry.modelFallback": true,
+				"retry.fallbackChains": {
+					[`${primary.provider}/${primary.id}`]: [`${fallback.provider}/${fallback.id}`],
+				},
+			});
+
+			const title = await generateSessionTitle(
+				"I have a quick question for you",
+				createRegistry(primary, [primary, fallback]),
+				settings,
+			);
+
+			expect(title).toBeNull();
+			expect(completeSimpleMock.mock.calls.map(call => call[0].id)).toEqual([primary.id]);
+		},
+	);
+
+	it.each([
+		["an empty reply", []],
+		["a reply cut off after an opening <title>", [{ type: "text", text: "<title>" }]],
+	])("tries the next title model after %s", async (_shape, primaryContent) => {
+		const primary = getModelOrThrow("claude-haiku-4-5");
+		const fallback = getModelOrThrow("claude-sonnet-4-5");
+		const completeSimpleMock = vi.spyOn(ai, "completeSimple").mockImplementation(
+			async model =>
+				({
+					stopReason: "stop",
+					content:
+						model.id === primary.id
+							? primaryContent
+							: [
+									{
+										type: "text",
+										text: "<title>Fix resolver errors</title>",
+									},
+								],
+				}) as never,
+		);
+		const settings = Settings.isolated({
+			modelRoles: {
+				tiny: `${primary.provider}/${primary.id}`,
+				smol: `${fallback.provider}/${fallback.id}`,
+			},
+		});
+
+		const title = await generateSessionTitle(
+			"Investigate resolver errors",
+			createRegistry(primary, [primary, fallback]),
+			settings,
+		);
+
+		expect(title).toBe("Fix resolver errors");
+		expect(completeSimpleMock.mock.calls.map(call => call[0].id)).toEqual([primary.id, fallback.id]);
 	});
 
 	it("logs and returns null when title credentials are missing", async () => {
@@ -632,8 +652,11 @@ describe("title generator", () => {
 			createSettings(model),
 		);
 
-		const sentMessages = (completeSimpleMock.mock.calls[0]?.[1] as { messages?: Array<{ content?: string }> })
-			?.messages;
+		const sentMessages = (
+			completeSimpleMock.mock.calls[0]?.[1] as {
+				messages?: Array<{ content?: string }>;
+			}
+		)?.messages;
 		const userContent = sentMessages?.[0]?.content ?? "";
 		expect(userContent).not.toContain("Claude Code v2.1.158");
 		expect(userContent).toContain("pick provider then theme");
@@ -942,7 +965,7 @@ describe("title generator", () => {
 
 // The terminal title runtime is a module-global. `emitTerminalTitle()` composes
 // the emitted OSC title from three inputs — an extension override, a run-state
-// separator (spinner frame, static WSL `:`, `>`, or `!` between the `ζ`
+// separator (spinner frame, static WSL `:`, `>`, or `!` between the `π`
 // brand and the session label), and the session label — and writes it to
 // `process.stdout` as `ESC]0;<title>BEL`. These tests pin the observable
 // contract at that sink: what string actually reaches the terminal after a
@@ -965,7 +988,7 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 // renders instead of skipping the platform: the contract under test — the override was
 // released, so the run state drives the title again — holds identically on both.
 function expectWorkingSeparator(title: string | undefined, label: string): void {
-	if (isWsl()) expect(title).toBe(`ζ : ${label}`);
+	if (isWsl()) expect(title).toBe(`π : ${label}`);
 	else expect(SPINNER_FRAMES.some(frame => title?.includes(frame))).toBe(true);
 }
 
@@ -997,7 +1020,10 @@ describe("terminal title runtime", () => {
 		// Force the real write path: not headless, stdout is a TTY.
 		prevHeadless = setTerminalHeadless(false);
 		ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-		Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+		Object.defineProperty(process.stdout, "isTTY", {
+			value: true,
+			configurable: true,
+		});
 
 		windowsTitleMock = mockWindowsConsoleTitle();
 		windowsTitleMock.succeeds = true;
@@ -1105,23 +1131,29 @@ describe("terminal title runtime", () => {
 	it("animates the working title on Windows", () => {
 		const originalPlatform = process.platform;
 		try {
-			Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "win32",
+				configurable: true,
+			});
 			setTerminalTitleSpinnerStyle("line");
 			setTerminalTitleSpinnerStyle("braille");
 			setSessionTerminalTitle("windows-project");
 			resetEmitted();
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["ζ ⠋ windows-project"]);
+			expect(emittedTitles()).toEqual(["π ⠋ windows-project"]);
 
 			resetEmitted();
-			vi.advanceTimersByTime(DEFAULT_SPINNER_INTERVAL_MS * 2);
+			vi.advanceTimersByTime(DEFAULT_TITLE_SPINNER_INTERVAL_MS * 2);
 			const titles = emittedTitles();
 			expect(titles.length).toBeGreaterThan(0);
 			expect(titles.every(title => SPINNER_FRAMES.some(frame => title.includes(frame)))).toBe(true);
-			expect(titles.some(title => title !== "ζ ⠋ windows-project")).toBe(true);
+			expect(titles.some(title => title !== "π ⠋ windows-project")).toBe(true);
 		} finally {
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
@@ -1129,13 +1161,16 @@ describe("terminal title runtime", () => {
 		const originalPlatform = process.platform;
 		const originalWslDistro = process.env.WSL_DISTRO_NAME;
 		try {
-			Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "linux",
+				configurable: true,
+			});
 			process.env.WSL_DISTRO_NAME = "Ubuntu";
 			setSessionTerminalTitle("wsl-project");
 			resetEmitted();
 
 			setTerminalTitleState("working");
-			expect(emittedTitles()).toEqual(["ζ : wsl-project"]);
+			expect(emittedTitles()).toEqual(["π : wsl-project"]);
 
 			resetEmitted();
 			vi.advanceTimersByTime(400);
@@ -1143,7 +1178,10 @@ describe("terminal title runtime", () => {
 		} finally {
 			if (originalWslDistro === undefined) delete process.env.WSL_DISTRO_NAME;
 			else process.env.WSL_DISTRO_NAME = originalWslDistro;
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
@@ -1153,26 +1191,35 @@ describe("terminal title runtime", () => {
 		if (!native) throw new Error("Windows console title mock not initialized");
 		native.succeeds = true;
 		try {
-			Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "win32",
+				configurable: true,
+			});
 			setTerminalTitle("native Ω");
 			setTerminalTitle("native Ω");
 
 			expect(native.titles).toEqual(["native Ω"]);
 			expect(writes).toEqual([]);
 		} finally {
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
 	it("reclaims the Windows console title after another process replaces it", () => {
 		// Issue #16842: a child omp (worker, `browser-relay`) attached to the
-		// pane's console retitled it to `zetacode`; under a TSP terminal every later
+		// pane's console retitled it to `omp`; under a TSP terminal every later
 		// emit composes the same title, so the dedupe cache must not swallow it.
 		const originalPlatform = process.platform;
 		const native = windowsTitleMock;
 		if (!native) throw new Error("Windows console title mock not initialized");
 		try {
-			Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "win32",
+				configurable: true,
+			});
 			setNativeRendering(true);
 			setSessionTerminalTitle("HOST: Summarize self-host blog post");
 			resetEmitted();
@@ -1187,7 +1234,10 @@ describe("terminal title runtime", () => {
 			expect(writes).toEqual([]);
 		} finally {
 			setNativeRendering(false);
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
@@ -1196,7 +1246,10 @@ describe("terminal title runtime", () => {
 		const native = windowsTitleMock;
 		if (!native) throw new Error("Windows console title mock not initialized");
 		try {
-			Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "win32",
+				configurable: true,
+			});
 			native.succeeds = false;
 			resetEmitted();
 
@@ -1212,7 +1265,10 @@ describe("terminal title runtime", () => {
 			expect(emittedTitles()).toEqual([]);
 			expect(vi.getTimerCount()).toBe(0);
 		} finally {
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
@@ -1221,7 +1277,10 @@ describe("terminal title runtime", () => {
 		const native = windowsTitleMock;
 		if (!native) throw new Error("Windows console title mock not initialized");
 		try {
-			Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: "win32",
+				configurable: true,
+			});
 			native.succeeds = true;
 			resetEmitted();
 			setSessionTerminalTitle("windows-project");
@@ -1233,13 +1292,16 @@ describe("terminal title runtime", () => {
 			native.succeeds = false;
 			setSessionTerminalTitle("windows-project-2");
 
-			expect(emittedTitles().at(-1)).toBe("ζ : windows-project-2");
+			expect(emittedTitles().at(-1)).toBe("π : windows-project-2");
 			expect(vi.getTimerCount()).toBe(0);
 			resetEmitted();
 			vi.advanceTimersByTime(400);
 			expect(emittedTitles()).toEqual([]);
 		} finally {
-			Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				configurable: true,
+			});
 		}
 	});
 
@@ -1254,7 +1316,7 @@ describe("terminal title runtime", () => {
 
 		setExtensionTerminalTitle("");
 
-		// The composed run-state title is back, not the bare `ζ` default.
+		// The composed run-state title is back, not the bare `π` default.
 		const last = emittedTitles().at(-1);
 		expect(last).toBeDefined();
 		expect(last).toContain("my-session");
@@ -1281,7 +1343,7 @@ describe("terminal title runtime", () => {
 	it("releases the override for a blank title, not just an empty string", () => {
 		// CONTRACT: release is defined by what the title RENDERS to, not by JS
 		// falsiness. `setTerminalTitle` sanitizes with `sanitizeTerminalTitlePart`,
-		// which trims — so `"   "` renders as the bare `ζ` default while being
+		// which trims — so `"   "` renders as the bare `π` default while being
 		// truthy. Storing it verbatim would latch it as a live override and strand
 		// the run state exactly as `""` did.
 		setSessionTerminalTitle("my-session");
@@ -1311,9 +1373,7 @@ describe("terminal title runtime", () => {
 			expect(emittedTitles().at(-1)).toBe("Renamed · #412");
 			setSessionTerminalTitle(undefined);
 			setTerminalTitlePullRequest(undefined);
-			// Zeta brand divergence (merge decision): the native terminal title is
-			// "zeta" here, not upstream's "omp" — see scripts/brand overlay.
-			expect(emittedTitles().at(-1)).toBe("zeta");
+			expect(emittedTitles().at(-1)).toBe("omp");
 			setSessionTerminalTitle("Renamed");
 		} finally {
 			setNativeRendering(false);

@@ -1,5 +1,5 @@
 /**
- * Regression tests for `--dry-run` on `zetacode plugin` actions beyond install/uninstall/link.
+ * Regression tests for `--dry-run` on `omp plugin` actions beyond install/uninstall/link.
  *
  * These actions used to accept `--dry-run` and silently apply their change:
  * `upgrade --dry-run` rewrote installed_plugins.json and replaced the plugin's
@@ -14,12 +14,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, spyOn, test, vi } f
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type PluginCommandArgs, runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
-import Update from "@linxiraos/zeta/commands/update";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import * as piUtils from "@linxiraos/pi-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import type { CliConfig } from "@linxiraos/pi-utils/cli";
+import { type PluginCommandArgs, runPluginCommand } from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
+import Update from "@oh-my-pi/pi-coding-agent/commands/update";
+import * as piUtils from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { CliConfig } from "@oh-my-pi/pi-utils/cli";
+import { initTheme } from "../src/ui/theme/service";
 
 const PLUGIN_ID = "hello@fixmkt";
 const LINKED = "lp";
@@ -65,7 +65,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 	let output: string[];
 
 	beforeAll(async () => {
-		await initTheme();
+		initTheme();
 	});
 
 	beforeEach(async () => {
@@ -77,11 +77,11 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(path.join(pluginsDir, "node_modules"));
 		spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(path.join(pluginsDir, "package.json"));
-		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(pluginsDir, "zeta-plugins.lock.json"));
+		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(pluginsDir, "omp-plugins.lock.json"));
 		spyOn(piUtils, "getMarketplacesRegistryPath").mockReturnValue(path.join(root, "state", "marketplaces.json"));
 		spyOn(piUtils, "getProjectDir").mockReturnValue(projectDir);
 		spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(
-			path.join(projectDir, ".zeta", "plugin-overrides.json"),
+			path.join(projectDir, ".omp", "plugin-overrides.json"),
 		);
 		output = [];
 		spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -92,7 +92,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 		// An npm-installed plugin as package.json records it, for the npm/git upgrade path.
 		await Bun.write(
 			path.join(pluginsDir, "package.json"),
-			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { "remote-pkg": "^1.0.0" } }),
+			JSON.stringify({ name: "omp-plugins", private: true, dependencies: { "remote-pkg": "^1.0.0" } }),
 		);
 		// A linked local plugin with a feature and a setting, for enable/features/config.
 		const linkedDir = path.join(root, LINKED);
@@ -101,7 +101,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 			JSON.stringify({
 				name: LINKED,
 				version: "1.0.0",
-				zeta: {
+				omp: {
 					features: { search: { description: "search", default: false } },
 					settings: { apiKey: { type: "string", description: "key" } },
 				},

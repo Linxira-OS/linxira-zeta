@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
-import type { Api, AssistantMessage, Context, Message, Model, ModelSpec } from "@linxiraos/pi-ai";
-import { clearCustomApis, registerCustomApi } from "@linxiraos/pi-ai";
-import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
-import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
-import { isPerCallContextMessage, markPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import type { Api, AssistantMessage, Context, Message, Model, ModelSpec } from "@oh-my-pi/pi-ai";
+import { clearCustomApis, registerCustomApi } from "@oh-my-pi/pi-ai";
+import { streamAnthropic } from "@oh-my-pi/pi-ai/providers/anthropic";
+import type { MessageCreateParams } from "@oh-my-pi/pi-ai/providers/anthropic-wire";
+import { isPerCallContextMessage, markPerCallContextMessage } from "@oh-my-pi/pi-ai/utils/block-symbols";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { requestBodyText } from "@oh-my-pi/pi-ai/utils/request-body";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
 import {
 	createSessionDateCwdReminderJournal,
 	DateCwdReminderInjector,
@@ -18,11 +18,11 @@ import {
 	type DateCwdReminderPlacement,
 	isDateCwdReminderControl,
 	renderDateCwdReminder,
-} from "@linxiraos/zeta/session/date-cwd-reminder";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { formatLocalCalendarDate } from "@linxiraos/pi-tui/chrome/local-date";
-import { normalizePromptPath } from "@linxiraos/zeta/utils/prompt-path";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/session/date-cwd-reminder";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { formatLocalCalendarDate } from "@oh-my-pi/pi-coding-agent/utils/local-date";
+import { normalizePromptPath } from "@oh-my-pi/pi-coding-agent/utils/prompt-path";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("date-cwd-reminder", () => {
@@ -1130,6 +1130,32 @@ describe("date-cwd-reminder", () => {
 				expect(wireOf(resumed).slice(0, sent.messages.length)).toEqual(wireOf(sent));
 				expect(resumed.messages.at(-1)?.content).toBe(`${renderDateCwdReminder("2026-08-16", "/work")}\n\nnext`);
 			});
+
+			for (const revived of [false, true]) {
+				it(`keeps the task's bytes when a leading per-call user turn is left out of a later request${revived ? " by a revived subagent" : ""}`, () => {
+					const { placements, journal } = createJournal();
+					const task: Message = { role: "user", content: "task", attribution: "agent", timestamp: 1 };
+					const leading: Message = { role: "user", content: "per-call context", timestamp: 2 };
+					markPerCallContextMessage(leading);
+					const earlier = new DateCwdReminderInjector(journal);
+					const sent = earlier.transform(
+						{ systemPrompt: ["system"], messages: [leading, task] },
+						"2026-08-14",
+						"/work",
+					);
+					const history: Message[] = [task, createAssistantMessage("calling a tool")];
+
+					// An IRC wake: the next request starts with the task itself.
+					const injector = revived ? new DateCwdReminderInjector(journal) : earlier;
+					const next = injector.transform({ systemPrompt: ["system"], messages: history }, "2026-08-14", "/work");
+
+					expect(wireOf(sent)[1]).toBe(
+						JSON.stringify(["user", `${renderDateCwdReminder("2026-08-14", "/work")}\n\ntask`]),
+					);
+					expect(wireOf(next)[0]).toBe(wireOf(sent)[1]);
+					expect(placements.filter(placement => placement.placement === "prefix")).toHaveLength(1);
+				});
+			}
 		});
 	});
 });
@@ -1660,13 +1686,8 @@ describe("date-cwd reminder on the provider wire", () => {
 				if (!body) throw new Error("wire body was not captured");
 				bodies.push(body);
 			}
-			// A plain string is shorthand for one text block. Adding a cache
-			// breakpoint expands that shorthand without changing the prompt.
-			const withoutBreakpoints = ({ content, ...message }: MessageCreateParams["messages"][number]) =>
-				JSON.stringify(
-					{ ...message, content: typeof content === "string" ? [{ type: "text", text: content }] : content },
-					(key, value) => (key === "cache_control" ? undefined : value),
-				);
+			const withoutBreakpoints = (message: MessageCreateParams["messages"][number]) =>
+				JSON.stringify(message, (key, value) => (key === "cache_control" ? undefined : value));
 			for (let request = 1; request < bodies.length; request++) {
 				const previous = bodies[request - 1]!.messages;
 				const next = bodies[request]!.messages;
@@ -1688,9 +1709,10 @@ describe("date-cwd reminder on the provider wire", () => {
 					message => Array.isArray(message.content) && message.content.some(block => block.type === "tool_result"),
 				);
 				// The next request reads the earlier request's cache at least through its newest tool result.
-				expect(reusable, `request ${request}: first differing message at ${repeated}`).toBeGreaterThanOrEqual(
-					newestToolResult,
-				);
+				expect({ request, readsThroughNewestToolResult: reusable >= newestToolResult }).toEqual({
+					request,
+					readsThroughNewestToolResult: true,
+				});
 			}
 
 			// What each request sends as conversation history: everything but the hook's per-call messages.

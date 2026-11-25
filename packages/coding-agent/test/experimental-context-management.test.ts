@@ -1,28 +1,32 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, CompactionCancelledError, type AgentTool } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, UserMessage } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta/session/context-notes";
-import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
-import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
-import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
-import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
-import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
-import { BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/builtin-names";
-import { GrepTool } from "@linxiraos/zeta/tools/grep";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { Agent, CompactionCancelledError, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, UserMessage } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@oh-my-pi/pi-coding-agent/session/context-notes";
+import {
+	createCustomMessage,
+	convertToLlm,
+	SKILL_PROMPT_MESSAGE_TYPE,
+} from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { CompactionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { computeNonMessageTokens } from "@oh-my-pi/pi-coding-agent/session/context-usage";
+import { mnemopiBackend } from "@oh-my-pi/pi-coding-agent/mnemopi/backend";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ContextNotesTool, NewContextTool } from "@oh-my-pi/pi-coding-agent/tools/context-notes";
+import { BUILTIN_TOOL_NAMES } from "@oh-my-pi/pi-coding-agent/tools/builtin-names";
+import { GrepTool } from "@oh-my-pi/pi-coding-agent/tools/grep";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
@@ -99,7 +103,10 @@ describe("experimental context management", () => {
 		session = undefined;
 	});
 
-	async function createRolloverSession() {
+	async function createRolloverSession(options?: {
+		/** Runs inside a `session_before_compact` hook, with the live session manager. */
+		sessionBeforeCompact?: (manager: SessionManager) => void | Promise<void>;
+	}) {
 		const mock = createMockModel({
 			responses: [
 				{
@@ -136,6 +143,26 @@ describe("experimental context management", () => {
 			getApiKey: () => "test-key",
 			streamFn: mock.stream,
 		});
+		let extensionRunner: ExtensionRunner | undefined;
+		let hookTempDir: TempDir | undefined;
+		if (options?.sessionBeforeCompact) {
+			const hook = options.sessionBeforeCompact;
+			hookTempDir = TempDir.createSync("@pi-experimental-rollover-hook-");
+			const runtime = new ExtensionRuntime();
+			const extension = await loadExtensionFromFactory(
+				pi => {
+					pi.on("session_before_compact", async () => {
+						await hook(manager);
+						return {};
+					});
+				},
+				hookTempDir.path(),
+				new EventBus(),
+				runtime,
+				"experimental-rollover-hook",
+			);
+			extensionRunner = new ExtensionRunner([extension], runtime, hookTempDir.path(), manager, modelRegistry);
+		}
 		session = new AgentSession({
 			agent,
 			sessionManager: manager,
@@ -143,9 +170,10 @@ describe("experimental context management", () => {
 			modelRegistry,
 			toolRegistry: new Map(tools.map(tool => [tool.name, tool])),
 			builtInToolNames: BUILTIN_TOOL_NAMES,
+			extensionRunner,
 		});
 		await session.setActiveToolsByName(tools.map(tool => tool.name));
-		return { session, manager, mock };
+		return { session, manager, mock, hookTempDir };
 	}
 
 	it("rolls over once on new_context below the automatic threshold", async () => {
@@ -790,6 +818,60 @@ describe("experimental context management", () => {
 			expect(manager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(0);
 		} finally {
 			tempDir.removeSync();
+		}
+	});
+
+	it("commits the explicit rollover when a non-message entry races the leaf guard (#20063)", async () => {
+		const {
+			session: rolloverSession,
+			manager,
+			hookTempDir,
+		} = await createRolloverSession({
+			sessionBeforeCompact: racingManager => {
+				// Mirrors the goal runtime's usage bookkeeping: a fire-and-forget
+				// non-message append landing between the new_context tool result
+				// and the compaction commit.
+				racingManager.appendModeChange("goal", { goal: "racemode" });
+			},
+		});
+		try {
+			const events: AgentSessionEvent[] = [];
+			rolloverSession.subscribe(event => {
+				events.push(event);
+			});
+			await rolloverSession.prompt("Implement the task.");
+			await rolloverSession.waitForIdle();
+
+			expect(manager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(1);
+			expect(events.filter(event => event.type === "auto_compaction_end" && event.skipped)).toHaveLength(0);
+			expect(events.filter(event => event.type === "notice")).toHaveLength(0);
+		} finally {
+			hookTempDir?.removeSync();
+		}
+	});
+
+	it("still drops the explicit rollover when a transcript message races the leaf guard", async () => {
+		const {
+			session: rolloverSession,
+			manager,
+			hookTempDir,
+		} = await createRolloverSession({
+			sessionBeforeCompact: racingManager => {
+				racingManager.appendMessage(user("a message that must survive the boundary"));
+			},
+		});
+		try {
+			const events: AgentSessionEvent[] = [];
+			rolloverSession.subscribe(event => {
+				events.push(event);
+			});
+			await rolloverSession.prompt("Implement the task.");
+			await rolloverSession.waitForIdle();
+
+			expect(manager.getEntries().filter(entry => entry.type === "compaction")).toHaveLength(0);
+			expect(events.some(event => event.type === "notice" && event.source === "compaction")).toBe(true);
+		} finally {
+			hookTempDir?.removeSync();
 		}
 	});
 });

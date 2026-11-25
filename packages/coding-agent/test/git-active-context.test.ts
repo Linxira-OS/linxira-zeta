@@ -3,8 +3,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { resolveActiveRepoContext, resolveActiveRepoContextSync } from "@linxiraos/zeta/utils/active-repo-context";
-import type { ActiveRepoContext } from "@linxiraos/pi-tui/status-line/host";
+import {
+	resolveActiveRepoContext,
+	resolveActiveRepoContextSync,
+} from "@oh-my-pi/pi-coding-agent/utils/active-repo-context";
+import type { ActiveRepoContext } from "@oh-my-pi/pi-coding-agent/modes/view-model/status-line/host";
 
 const itWithSymlinkPrivilege = process.platform === "win32" ? it.skip : it;
 
@@ -33,7 +36,7 @@ describe("resolveActiveRepoContext", () => {
 	let tempRoot: string;
 
 	beforeEach(() => {
-		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-active-repo-context-"));
+		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omp-active-repo-context-"));
 	});
 
 	afterEach(() => {

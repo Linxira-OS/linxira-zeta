@@ -7,12 +7,12 @@
  * reply in two deltas, holding between them until the test opens the gate.
  */
 import { MessagePort, parentPort } from "node:worker_threads";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, TextContent } from "@linxiraos/pi-ai";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import { isRecord } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions, TextContent } from "@oh-my-pi/pi-ai";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import type { TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
+import { isRecord } from "@oh-my-pi/pi-utils";
 import type { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
 import { ExtensionRuntime } from "../../src/extensibility/extensions/loader";

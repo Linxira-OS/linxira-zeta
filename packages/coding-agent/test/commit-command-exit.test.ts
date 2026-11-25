@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import CommitCommand from "@linxiraos/zeta/commands/commit";
-import * as commitModule from "@linxiraos/zeta/commit";
-import * as themeModule from "@linxiraos/pi-tui/theme";
-import { postmortem } from "@linxiraos/pi-utils";
+import CommitCommand from "@oh-my-pi/pi-coding-agent/commands/commit";
+import * as commitModule from "@oh-my-pi/pi-coding-agent/commit";
+import * as themeService from "../src/ui/theme/service";
+import { postmortem } from "@oh-my-pi/pi-utils";
 
-describe("zetacode commit command lifecycle (issue #1041)", () => {
+describe("omp commit command lifecycle (issue #1041)", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
 	it("forces process exit after the commit pipeline resolves", async () => {
-		const initThemeSpy = vi.spyOn(themeModule, "initTheme").mockResolvedValue(undefined);
+		const initThemeSpy = vi.spyOn(themeService, "initTheme").mockImplementation(() => {});
 		const runCommitSpy = vi.spyOn(commitModule, "runCommitCommand").mockResolvedValue({ usedFallback: false });
 		// Stub postmortem.quit so it records the exit code without actually
 		// terminating the test runner. Resolves immediately — the production
@@ -19,7 +19,7 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "zetacode",
+			bin: "omp",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -34,12 +34,12 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 	});
 
 	it("exits non-zero when the commit pipeline used the mechanical fallback", async () => {
-		const initThemeSpy = vi.spyOn(themeModule, "initTheme").mockResolvedValue(undefined);
+		const initThemeSpy = vi.spyOn(themeService, "initTheme").mockImplementation(() => {});
 		const runCommitSpy = vi.spyOn(commitModule, "runCommitCommand").mockResolvedValue({ usedFallback: true });
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "zetacode",
+			bin: "omp",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -52,14 +52,14 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 	});
 
 	it("does not convert commit pipeline failures into exit 0", async () => {
-		const initThemeSpy = vi.spyOn(themeModule, "initTheme").mockResolvedValue(undefined);
+		const initThemeSpy = vi.spyOn(themeService, "initTheme").mockImplementation(() => {});
 		const runCommitSpy = vi
 			.spyOn(commitModule, "runCommitCommand")
 			.mockRejectedValue(new Error("commit was not created"));
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "zetacode",
+			bin: "omp",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -72,12 +72,12 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 	});
 
 	it("maps CommitAbortedError to exit code 1 without rethrowing (issue #7834)", async () => {
-		vi.spyOn(themeModule, "initTheme").mockResolvedValue(undefined);
+		vi.spyOn(themeService, "initTheme").mockImplementation(() => {});
 		vi.spyOn(commitModule, "runCommitCommand").mockRejectedValue(new commitModule.CommitAbortedError());
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "zetacode",
+			bin: "omp",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});

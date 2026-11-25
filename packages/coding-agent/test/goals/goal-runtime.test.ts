@@ -5,10 +5,10 @@ import {
 	goalTokenDelta,
 	renderGoalPrompt,
 	renderTrustedObjective,
-} from "@linxiraos/zeta/goals/runtime";
-import type { Goal } from "@linxiraos/pi-tui/tools/goal";
-import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@linxiraos/zeta/goals/state";
-import { escapeXmlText } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/goals/runtime";
+import type { Goal } from "@oh-my-pi/pi-coding-agent/tools/details/goal";
+import type { GoalModeState, GoalRuntimeEvent, GoalTokenUsage } from "@oh-my-pi/pi-coding-agent/goals/state";
+import { escapeXmlText } from "@oh-my-pi/pi-utils";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {

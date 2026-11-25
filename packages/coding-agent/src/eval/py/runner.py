@@ -232,11 +232,11 @@ class _RunnerState:
 
 
 _CURRENT_RID: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "pi_current_rid", default=None
+    "omp_current_rid", default=None
 )
 _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS: contextvars.ContextVar[set[int] | None] = (
     contextvars.ContextVar(
-        "zeta_displayed_matplotlib_figure_ids",
+        "omp_displayed_matplotlib_figure_ids",
         default=None,
     )
 )
@@ -253,7 +253,7 @@ _SHADOW_UNSUPPORTED = object()
 # bridge. A retained non-JSON-safe user `tool` binding is omitted from the
 # shadow snapshot exactly like the genuine bridge, so snapshot absence alone
 # cannot tell them apart (see `_shadow_tool_available`).
-_TOOL_BRIDGE_MARKER = "__zeta_tool_bridge__"
+_TOOL_BRIDGE_MARKER = "__omp_tool_bridge__"
 
 # Runner-owned reference to the genuine prelude tool bridge, captured on first
 # sighting: kernel init executes the prelude before user cells, so the first
@@ -617,10 +617,10 @@ def _emit_shadow_plan(req: dict) -> None:
         )
         return
     # Mirror the `_compile_source` whole-cell instrumentation skip: when the
-    # cell binds `__zeta_with_call_site__` anywhere, authoritative execution
+    # cell binds `__omp_with_call_site__` anywhere, authoritative execution
     # runs zero instrumented calls, so the planner must admit zero operations
     # (per-call scoping is undecidable across call order; fail closed).
-    if _cell_binds_call_site_helper(module):
+    if _CALL_SITE_HELPER_NAME in _cell_bound_names(module):
         _emit(
             {
                 "type": "shadow_plan",
@@ -912,7 +912,7 @@ def _start_capture_drain() -> None:
     if _CAPTURE_READ_FD is None:
         return
     thread = threading.Thread(
-        target=_drain_captured_stdout, name="zeta-fd1-capture", daemon=True
+        target=_drain_captured_stdout, name="omp-fd1-capture", daemon=True
     )
     thread.start()
 
@@ -1015,25 +1015,51 @@ def _magic_line_indices(lines: list[str]) -> set[int]:
     return indices
 
 
+# Blank lines plus `//`, `/* */`, and `#` comments, matched from the start of a cell.
+_COMMENT_PREAMBLE_RE = re.compile(r"(?:\s+|//[^\n]*|/\*.*?\*/|#[^\n]*)*", re.DOTALL)
+
+
+def _strip_c_comment_preamble(source: str) -> str:
+    """Blank the C-style comment preamble some models put atop Python cells.
+
+    Only text before the first statement is touched, and only when it contains a
+    ``//`` or ``/* */`` comment (neither can open valid Python). Stripped spans
+    become newlines so traceback line numbers still match the submitted source.
+    """
+    end = _COMMENT_PREAMBLE_RE.match(source).end()
+    # Keep the first statement's own indentation; Python reports it as before.
+    line_start = source.rfind("\n", 0, end) + 1
+    if not source[line_start:end].strip():
+        end = line_start
+    preamble = source[:end]
+    if "//" not in preamble and "/*" not in preamble:
+        return source
+    return "\n" * preamble.count("\n") + source[end:]
+
+
 def transform_cell(source: str) -> str:
     """Translate IPython-style magics + shell escapes into plain Python.
 
     Rules
     -----
-    * ``%name args``              -> ``__zeta_magic("name", "args")``
-    * ``%load path``              -> ``await __zeta_magic_async("load", "path")``
-    * ``var = %name args``        -> ``var = __zeta_magic("name", "args")``
-    * ``!cmd``                    -> ``__zeta_shell("cmd")``
-    * ``var = !cmd``              -> ``var = __zeta_shell("cmd")``
-    * ``%%name args\\n<body>``    -> ``__zeta_magic_cell("name", "args", "<body>")``
+    * ``%name args``              -> ``__omp_magic("name", "args")``
+    * ``%load path``              -> ``await __omp_magic_async("load", "path")``
+    * ``var = %name args``        -> ``var = __omp_magic("name", "args")``
+    * ``!cmd``                    -> ``__omp_shell("cmd")``
+    * ``var = !cmd``              -> ``var = __omp_shell("cmd")``
+    * ``%%name args\\n<body>``    -> ``__omp_magic_cell("name", "args", "<body>")``
       (cell magic must be the first non-whitespace token of a top-level line and
       consumes the remainder of the cell)
 
     Python tokenization identifies command lines outside strings and comments.
     Real command payloads are skipped before resuming lexical scanning so shell
     quoting cannot change how subsequent Python source is interpreted.
+
+    A leading ``//`` / ``/* */`` comment preamble is blanked first; see
+    :func:`_strip_c_comment_preamble`.
     """
 
+    source = _strip_c_comment_preamble(source)
     if "%" not in source and "!" not in source:
         return source
 
@@ -1057,7 +1083,7 @@ def transform_cell(source: str) -> str:
             body_lines = lines[i + 1 :]
             body = "\n".join(body_lines)
             out.append(
-                f"{indent}__zeta_magic_cell({_quote_arg(name)}, {_quote_arg(args)}, {_quote_arg(body)})"
+                f"{indent}__omp_magic_cell({_quote_arg(name)}, {_quote_arg(args)}, {_quote_arg(body)})"
             )
             return "\n".join(out)
 
@@ -1068,7 +1094,7 @@ def transform_cell(source: str) -> str:
             indent = folded[: len(folded) - len(stripped_folded)]
             head, _ = _split_magic_head(stripped_folded[1:])
             name, args = head
-            call = "__zeta_magic_async" if name == "load" else "__zeta_magic"
+            call = "__omp_magic_async" if name == "load" else "__omp_magic"
             prefix = "await " if name == "load" else ""
             out.append(f"{indent}{prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})")
             i += consumed
@@ -1079,7 +1105,7 @@ def transform_cell(source: str) -> str:
             stripped_folded = folded.lstrip()
             indent = folded[: len(folded) - len(stripped_folded)]
             cmd = stripped_folded[1:].strip()
-            out.append(f"{indent}__zeta_shell({_quote_arg(cmd)})")
+            out.append(f"{indent}__omp_shell({_quote_arg(cmd)})")
             i += consumed
             continue
 
@@ -1090,14 +1116,14 @@ def transform_cell(source: str) -> str:
             if rhs.startswith("!"):
                 cmd = rhs[1:].strip()
                 out.append(
-                    f"{m.group('indent')}{m.group('lhs').rstrip()} = __zeta_shell({_quote_arg(cmd)})"
+                    f"{m.group('indent')}{m.group('lhs').rstrip()} = __omp_shell({_quote_arg(cmd)})"
                 )
                 i += 1
                 continue
             if rhs.startswith("%") and not rhs.startswith("%%"):
                 head, _ = _split_magic_head(rhs[1:])
                 name, args = head
-                call = "__zeta_magic_async" if name == "load" else "__zeta_magic"
+                call = "__omp_magic_async" if name == "load" else "__omp_magic"
                 prefix = "await " if name == "load" else ""
                 out.append(
                     f"{m.group('indent')}{m.group('lhs').rstrip()} = {prefix}{call}({_quote_arg(name)}, {_quote_arg(args)})"
@@ -1779,19 +1805,19 @@ def _run_shell_body(body: str, *, shell_arg: str) -> int:
     return proc.returncode
 
 
-def __zeta_magic(name: str, args: str) -> Any:
+def __omp_magic(name: str, args: str) -> Any:
     fn = _LINE_MAGICS.get(name)
     if fn is None:
         raise NameError(f"UsageError: Line magic function '%{name}' not found.")
     return fn(args)
 
 
-async def __zeta_magic_async(name: str, args: str) -> Any:
-    result = __zeta_magic(name, args)
+async def __omp_magic_async(name: str, args: str) -> Any:
+    result = __omp_magic(name, args)
     return await result if inspect.isawaitable(result) else result
 
 
-def __zeta_magic_cell(name: str, args: str, body: str) -> Any:
+def __omp_magic_cell(name: str, args: str, body: str) -> Any:
     fn = _CELL_MAGICS.get(name)
     if fn is None:
         raise NameError(f"UsageError: Cell magic function '%%{name}' not found.")
@@ -1814,7 +1840,7 @@ class _ShellResult(list):
         return " ".join(self)
 
 
-def __zeta_shell(cmd: str) -> _ShellResult:
+def __omp_shell(cmd: str) -> _ShellResult:
     # stdin=DEVNULL: see _run_shell_body.
     proc = subprocess.Popen(
         cmd,
@@ -1914,7 +1940,7 @@ def _emit_image_dict(value: Any) -> bool:
     return True
 
 
-def _pi_image(value: Any) -> dict | None:
+def _omp_image(value: Any) -> dict | None:
     """Payload of an omp image dict ``{type: "image", mimeType, data, ...}``."""
     if isinstance(value, dict) and value.get("type") == "image":
         return _image_payload(value)
@@ -2305,7 +2331,7 @@ def _rich_value(value: Any, to_text: Callable[[Any], str]) -> tuple[str, list[tu
         return text, [] if view is None else [("view", view)]
     if type(value) in _PLAIN_TEXT_TYPES:
         return to_text(value), []
-    image = _pi_image(value)
+    image = _omp_image(value)
     if image is not None:
         return f"<image {image['mimeType']}>", [("image", image)]
     if not isinstance(value, type):
@@ -2402,16 +2428,30 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 # ---------------------------------------------------------------------------
 
 
+# Genuine prelude helpers that are synchronous in Python but awaited in JS,
+# keyed by name. Models carry `await sh(...)` across languages; awaiting the
+# plain return value raises TypeError after the cell's earlier statements ran,
+# so `_compile_source` drops that `await` while the name binds the helper.
+_SYNC_HELPERS: dict[str, Callable[..., Any]] = {}
+
+
+def _register_sync_helpers(*helpers: Callable[..., Any]) -> None:
+    """Prelude hook: record the helpers `_compile_source` may un-await."""
+    for helper in helpers:
+        _SYNC_HELPERS[helper.__name__] = helper
+
+
 def _install_builtins(ns: dict) -> None:
-    ns["__zeta_emit_status"] = _emit_status
-    ns["__zeta_emit_image"] = _emit_image_dict
-    ns["__zeta_magic"] = __zeta_magic
-    ns["__zeta_magic_async"] = __zeta_magic_async
-    ns["__zeta_magic_cell"] = __zeta_magic_cell
-    ns["__zeta_shell"] = __zeta_shell
+    ns["__omp_emit_status"] = _emit_status
+    ns["__omp_register_sync_helpers"] = _register_sync_helpers
+    ns["__omp_emit_image"] = _emit_image_dict
+    ns["__omp_magic"] = __omp_magic
+    ns["__omp_magic_async"] = __omp_magic_async
+    ns["__omp_magic_cell"] = __omp_magic_cell
+    ns["__omp_shell"] = __omp_shell
     # Plain threads (ThreadPoolExecutor) do not inherit the ContextVar: fall back
     # to the request currently executing, the same target fd-1 capture uses.
-    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get() or _STATE.capture_rid
+    ns["__omp_current_run_id__"] = lambda: _CURRENT_RID.get() or _STATE.capture_rid
 
 
 _install_builtins(_STATE.user_ns)
@@ -2465,7 +2505,7 @@ async def _run_compiled_async(code, ns: dict, *, want_value: bool) -> Any:
 
 
 
-_CALL_SITE_HELPER_NAME = "__zeta_with_call_site__"
+_CALL_SITE_HELPER_NAME = "__omp_with_call_site__"
 
 # Runner-owned reference to the genuine instrumentation helper. The helper is
 # defined by the eval prelude inside the user namespace, so the first callable
@@ -2477,7 +2517,7 @@ _TRUSTED_CALL_SITE_HELPERS: dict[str, Any] = {}
 def _restore_call_site_helper(ns: dict) -> None:
     """Reinstall the genuine helper after retained-cell pollution.
 
-    A previous cell can assign or delete `__zeta_with_call_site__`; without
+    A previous cell can assign or delete `__omp_with_call_site__`; without
     this, the next rewritten `tool.read(...)` would resolve to
     user-controlled state and change ordinary eval behavior even with
     speculation disabled.
@@ -2492,25 +2532,24 @@ def _restore_call_site_helper(ns: dict) -> None:
         ns[_CALL_SITE_HELPER_NAME] = trusted
 
 
-def _cell_binds_call_site_helper(module: ast.Module) -> bool:
-    """Whether the cell binds the reserved helper name in any scope."""
+def _cell_bound_names(module: ast.Module) -> set[str]:
+    """Names the cell may bind in any scope; `*` when it star-imports."""
+    names: set[str] = set()
     for node in ast.walk(module):
         if isinstance(node, ast.Name):
-            if node.id == _CALL_SITE_HELPER_NAME and isinstance(node.ctx, (ast.Store, ast.Del)):
-                return True
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if node.name == _CALL_SITE_HELPER_NAME:
-                return True
-        elif isinstance(node, ast.arg):
-            if node.arg == _CALL_SITE_HELPER_NAME:
-                return True
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                names.add(node.id)
         elif isinstance(node, ast.alias):
-            if node.asname == _CALL_SITE_HELPER_NAME:
-                return True
-        elif isinstance(node, ast.ExceptHandler):
-            if node.name == _CALL_SITE_HELPER_NAME:
-                return True
-    return False
+            names.add(node.asname or node.name.partition(".")[0])
+        elif isinstance(node, ast.arg):
+            names.add(node.arg)
+        else:
+            # defs, classes, `except ... as`, match captures and `**rest`
+            for attr in ("name", "rest"):
+                value = getattr(node, attr, None)
+                if isinstance(value, str):
+                    names.add(value)
+    return names
 
 class _ShadowCallSiteTransformer(ast.NodeTransformer):
     def __init__(self, line_offsets: list[int]) -> None:
@@ -2545,15 +2584,41 @@ class _ShadowCallSiteTransformer(ast.NodeTransformer):
         return ast.copy_location(wrapped, node)
 
 
+class _SyncHelperAwaitStripper(ast.NodeTransformer):
+    """Rewrite `await helper(...)` to `helper(...)` for the given helper names."""
+
+    def __init__(self, names: frozenset[str]) -> None:
+        self._names = names
+
+    def visit_Await(self, node: ast.Await) -> ast.AST:
+        self.generic_visit(node)
+        call = node.value
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id in self._names:
+            return call
+        return node
+
+
 def _compile_source(
-    source: str, filename: str = "<cell>"
+    source: str, ns: dict, filename: str = "<cell>"
 ) -> tuple[Any, Any | None, bool]:
     module = ast.parse(source, filename, "exec")
     line_offsets = [0]
     for line in source.splitlines(keepends=True):
         line_offsets.append(line_offsets[-1] + len(line))
-    if _CALL_SITE_HELPER_NAME not in source or not _cell_binds_call_site_helper(module):
+    bound = _cell_bound_names(module)
+    if _CALL_SITE_HELPER_NAME not in bound:
         module = _ShadowCallSiteTransformer(line_offsets).visit(module)
+    # After call-site instrumentation, which skips calls with awaited arguments
+    # exactly as the shadow planner does. A name the cell may rebind keeps its
+    # `await`: the binding at run time could be async.
+    if "*" not in bound:
+        sync = frozenset(
+            name
+            for name, helper in _SYNC_HELPERS.items()
+            if name not in bound and ns.get(name) is helper
+        )
+        if sync:
+            module = _SyncHelperAwaitStripper(sync).visit(module)
     ast.fix_missing_locations(module)
     if not module.body:
         return None, None, False
@@ -2592,7 +2657,7 @@ def _prepare_file_source(
 def _exec_source(source: str, ns: dict) -> None:
     """Synchronous source execution for legacy magic helpers."""
     _restore_call_site_helper(ns)
-    body_code, expr_code, has_expr = _compile_source(source)
+    body_code, expr_code, has_expr = _compile_source(source, ns)
     if body_code is None:
         return
     _run_compiled_sync(body_code, ns, want_value=False)
@@ -2614,7 +2679,7 @@ async def _exec_source_async(
     Top-level ``await`` / ``async for`` / ``async with`` is permitted; awaited
     regions yield to other requests in the runner's persistent event loop."""
     _restore_call_site_helper(ns)
-    body_code, expr_code, has_expr = _compile_source(source, filename)
+    body_code, expr_code, has_expr = _compile_source(source, ns, filename)
     _prepare_file_source(source, ns, filename, linecache_source)
     if body_code is None:
         return
@@ -2780,7 +2845,7 @@ def _start_parent_watchdog() -> None:
                 return
             time.sleep(10)
 
-    thread = threading.Thread(target=watch, name="zeta-parent-watchdog", daemon=True)
+    thread = threading.Thread(target=watch, name="omp-parent-watchdog", daemon=True)
     thread.start()
 
 
@@ -2807,7 +2872,7 @@ def _tool_loop() -> asyncio.AbstractEventLoop:
     with _TOOL_LOOP_LOCK:
         if _TOOL_LOOP is None:
             loop = asyncio.new_event_loop()
-            threading.Thread(target=loop.run_forever, name="pi-tool-loop", daemon=True).start()
+            threading.Thread(target=loop.run_forever, name="omp-tool-loop", daemon=True).start()
             _TOOL_LOOP = loop
         return _TOOL_LOOP
 
@@ -2835,7 +2900,7 @@ def _start_tool_request(req: dict) -> None:
     threading.Thread(
         target=_handle_tool_request,
         args=(req,),
-        name=f"pi-tool-{rid}",
+        name=f"omp-tool-{rid}",
         daemon=True,
     ).start()
 
@@ -2878,7 +2943,7 @@ def _handle_tool_request(req: dict) -> None:
     status = "ok"
     _emit({"type": "started", "id": rid})
     try:
-        tools = _STATE.user_ns.get("__zeta_tools__") or {}
+        tools = _STATE.user_ns.get("__omp_tools__") or {}
         op = req.get("op")
         if op == "describe":
             requested = req.get("names") or list(tools)
@@ -2925,11 +2990,11 @@ async def _handle_request_async(req: dict) -> None:
     token = _CURRENT_RID.set(rid)
     displayed_matplotlib_token = _CURRENT_DISPLAYED_MATPLOTLIB_FIGURE_IDS.set(set())
     _STATE.capture_rid = rid
-    reset_call_occurrences = _STATE.user_ns.get("__zeta_reset_call_occurrences__")
+    reset_call_occurrences = _STATE.user_ns.get("__omp_reset_call_occurrences__")
     if callable(reset_call_occurrences):
         reset_call_occurrences()
     _STATE.namespace_revision += 1
-    _STATE.user_ns["__zeta_run_id__"] = rid
+    _STATE.user_ns["__omp_run_id__"] = rid
     _STATE.cancel_requested = False
     _STATE.execution_count += 1
     execution_count = _STATE.execution_count
@@ -3174,7 +3239,7 @@ async def _serve_posix(loop: asyncio.AbstractEventLoop, stdin) -> None:
     reader = threading.Thread(
         target=_read_stdin,
         args=(loop, queue, stdin),
-        name="zeta-stdin-reader",
+        name="omp-stdin-reader",
         daemon=True,
     )
     reader.start()

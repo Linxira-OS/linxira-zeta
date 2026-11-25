@@ -2,13 +2,13 @@
  * Check for and install updates.
  */
 
-import chalk from "@linxiraos/pi-utils/chalk";
-import { Command, Flags } from "@linxiraos/pi-utils/cli";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import { Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { updateHelp as commandHelp } from "../cli/command-help";
 import * as pluginCli from "../cli/plugin-cli";
 import * as updateCli from "../cli/update-cli";
 import { CliUsageError } from "../cli/usage-error";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 export default class Update extends Command {
 	static description = commandHelp.description;
@@ -18,22 +18,13 @@ export default class Update extends Command {
 		plugins: Flags.boolean({ char: "l", description: "Update installed plugins", default: false }),
 		canary: Flags.boolean({ description: "Switch to the canary channel and update", default: false }),
 		stable: Flags.boolean({ description: "Switch back to the stable channel", default: false }),
-		desktop: Flags.boolean({
-			description: "Update the zetawork desktop app from its Windows installer",
-			default: false,
-		}),
 	};
 
-	static examples = [
-		"zetacode update",
-		"zetacode update --check",
-		"zetacode update --canary",
-		"# If GitHub rate-limits release metadata, set GITHUB_TOKEN or GH_TOKEN\n  GITHUB_TOKEN=... zetacode update",
-	];
+	static examples = ["omp update", "omp update --check", "omp update --canary"];
 
 	async run(): Promise<void> {
 		const { flags } = await this.parse(Update);
-		await initTheme();
+		initTheme();
 		if (flags.canary && flags.stable) throw new CliUsageError("--canary and --stable are mutually exclusive");
 		if (flags.plugins) {
 			await pluginCli.runPluginCommand({ action: "upgrade", args: [], flags: flags.check ? { dryRun: true } : {} });
@@ -43,7 +34,6 @@ export default class Update extends Command {
 					force: flags.force,
 					check: flags.check,
 					channel: flags.canary ? "canary" : flags.stable ? "stable" : undefined,
-					desktop: flags.desktop,
 				});
 			} catch (err) {
 				console.error(chalk.red(err instanceof Error ? err.message : String(err)));

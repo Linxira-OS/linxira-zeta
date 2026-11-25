@@ -1,13 +1,12 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CmuxTab } from "@linxiraos/zeta/tools/browser/cmux/cmux-tab";
-import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
-import { RunOutput } from "@linxiraos/zeta/tools/browser/run-output";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { CmuxTab } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/cmux-tab";
+import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
+import { RunOutput } from "@oh-my-pi/pi-coding-agent/tools/browser/run-output";
+import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
 
 type RequestLine = {
 	id?: unknown;
@@ -160,7 +159,6 @@ describe("CmuxSocketClient", () => {
 					await client.request("sentinel", {});
 					expect(methods).toEqual(["blocking", "sentinel"]);
 				} finally {
-					tab.clearRunContext();
 					client.close();
 				}
 			},
@@ -196,10 +194,9 @@ describe("CmuxSocketClient", () => {
 					);
 					const socket = await received.promise;
 					vi.advanceTimersByTime(35_000);
-					socket.write(`${JSON.stringify({ ok: true, result: { value: { __zetaOk: 42 } } })}\n`);
+					socket.write(`${JSON.stringify({ ok: true, result: { value: { __ompOk: 42 } } })}\n`);
 					expect(await outcome).toEqual({ value: 42 });
 				} finally {
-					tab.clearRunContext();
 					client.close();
 					vi.useRealTimers();
 				}
@@ -246,7 +243,6 @@ describe("CmuxSocketClient", () => {
 					expect(error).toBeInstanceOf(ToolError);
 					expect(String(error)).toContain("Timed out waiting for cmux socket response");
 				} finally {
-					tab.clearRunContext();
 					client.close();
 					vi.useRealTimers();
 				}

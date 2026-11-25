@@ -1,16 +1,17 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
-import * as ai from "@linxiraos/pi-ai";
-import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
-import { logger, TempDir } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import * as ai from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import * as unexpectedStopClassifier from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
+import { logger, TempDir } from "@oh-my-pi/pi-utils";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const recordToolSchema = type({ value: type("string") });
@@ -282,6 +283,46 @@ describe("AgentSession unexpected stop guard", () => {
 		expect(judgePrompts[0]).toContain("If you want it, I will start by finding where the flag is set.");
 		expect(mock.calls).toHaveLength(1);
 		expect(reminderMessages(session.agent.state.messages)).toHaveLength(0);
+	});
+
+	it.each<[string, (session: AgentSession) => Promise<unknown>, string, string]>([
+		[
+			"a collab peer's prompt, the operator's latest request",
+			session =>
+				session.promptCustomMessage({
+					customType: COLLAB_PROMPT_MESSAGE_TYPE,
+					content: "Rename the flag to strictMode.",
+					display: true,
+					details: { from: "web" },
+					attribution: "user",
+				}),
+			"Rename the flag to strictMode.",
+			"Compare the two options.",
+		],
+		[
+			"an agent-attributed prompt, the operator's earlier typed request",
+			session => session.prompt("Request budget low.", { attribution: "agent" }),
+			"Compare the two options.",
+			"Request budget low.",
+		],
+	])("judges a text-only stop that follows %s", async (_case, send, request, notRequest) => {
+		const judgePrompts = stubJudgeVerdict("NO");
+		const { session } = await createHarness(
+			[
+				unexpectedStop("Option 1 is simpler. If you want it, I will start by finding where the flag is set."),
+				unexpectedStop("Both are ready. If you want, I will apply one next."),
+			],
+			{ "features.unexpectedStopDetection": "smart" },
+		);
+
+		await session.prompt("Compare the two options. Do not change anything yet.");
+		await session.waitForIdle();
+		await send(session);
+		await session.waitForIdle();
+
+		expect(judgePrompts).toHaveLength(2);
+		expect(judgePrompts[1]).toContain(request);
+		expect(judgePrompts[1]).not.toContain(notRequest);
 	});
 
 	it("continues a premature stop once and ends on the nudged no-op reply", async () => {

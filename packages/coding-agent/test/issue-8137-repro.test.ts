@@ -1,18 +1,19 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { Skill } from "@linxiraos/zeta/extensibility/skills";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import { SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { BUILTIN_MODE_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-modes";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { initTheme } from "../src/ui/theme/service";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import { SKILL_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { BUILTIN_MODE_SLASH_COMMANDS } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-modes";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 /**
  * Issue #8137 — a `/skill:<name>` token embedded in a `/plan [prompt]` (or
@@ -56,7 +57,15 @@ describe("issue #8137 — inline /skill in mode-command prompts", () => {
 			settings: Settings.isolated(),
 			modelRegistry,
 		});
-		mode = new InteractiveMode(session, "test");
+		mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 
 		const skillPath = path.join(tempDir.path(), "grilling.md");
 		await Bun.write(skillPath, "---\nname: grilling\n---\nGrill the steak thoroughly.\n");
@@ -133,7 +142,7 @@ describe("issue #8137 — inline /skill in mode-command prompts", () => {
 
 			const inFlight = command.handleTui(
 				{ name, args: "do X /skill:grilling", text: `/${name} do X /skill:grilling` },
-				{ ctx: { [handlerName]: handleModeCommand, editor: { clearDraft, setText } } } as never,
+				{ ctx: { [handlerName]: handleModeCommand, composer: { clearDraft, setText } } } as never,
 			);
 			await Promise.resolve();
 			const clearedBeforeTurnFinished = clearDraft.mock.calls.length + setText.mock.calls.length;

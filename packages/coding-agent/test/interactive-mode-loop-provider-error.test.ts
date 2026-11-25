@@ -1,17 +1,18 @@
 import { expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import type { SubmittedUserInput } from "@linxiraos/zeta/modes/types";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import type { SubmittedUserInput } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 it("pauses an armed loop after a terminal provider error instead of duplicating its @file attachment", async () => {
 	initTheme();
@@ -51,8 +52,15 @@ it("pauses an armed loop after a terminal provider error instead of duplicating 
 			settings,
 			modelRegistry: new ModelRegistry(authStorage),
 		});
-		mode = new InteractiveMode(session, "test");
-		mode.ui.requestRender = vi.fn();
+		mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		await mode.init({ suppressWelcomeIntro: true });
 		await Bun.write(path.join(tempDir.path(), "task.md"), "Implement the task.\n");
 		mode.loopModeEnabled = true;

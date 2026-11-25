@@ -1,5 +1,5 @@
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
+import { imageAttachmentSource } from "../utils/image-source";
 import { prompt } from "@linxiraos/pi-utils";
 import imageAttachmentPrompt from "../prompts/system/image-attachment.md" with { type: "text" };
 import videoAttachmentPrompt from "../prompts/system/video-attachment.md" with { type: "text" };

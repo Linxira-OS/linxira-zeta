@@ -1,5 +1,5 @@
 /**
- * Render `zetacode gallery` output to PNG screenshots via VHS.
+ * Render `omp gallery` output to PNG screenshots via VHS.
  *
  * ANSI escapes are invisible to anything that can only read raw bytes (e.g.
  * agents), so `--screenshot` drives the rendered gallery through a real virtual
@@ -14,10 +14,10 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which } from "@linxiraos/pi-utils";
-import { theme } from "@linxiraos/pi-tui/theme";
+import { $which } from "@oh-my-pi/pi-utils";
 import { quotePosixArgument } from "../utils/shell-quote";
 import type { GallerySection } from "./gallery-cli";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
 
 /** Nerd Font family so the gallery's icon glyphs (PUA) render instead of tofu. */
 export const DEFAULT_SCREENSHOT_FONT = "JetBrainsMono Nerd Font";
@@ -63,7 +63,7 @@ export async function captureGalleryScreenshots(
 	const vhs = $which("vhs");
 	if (!vhs) {
 		throw new Error(
-			"`zetacode gallery --screenshot` requires VHS, which is not installed. " +
+			"`omp gallery --screenshot` requires VHS, which is not installed. " +
 				"Install it (e.g. `brew install vhs`, or see https://github.com/charmbracelet/vhs) and retry.",
 		);
 	}
@@ -186,14 +186,15 @@ function buildTape(args: TapeArgs): string {
 }
 
 /**
- * Build the VHS terminal theme. Only background/foreground/cursor matter: the
+ * Build the VHS terminal currentTheme(). Only background/foreground/cursor matter: the
  * gallery emits truecolor (`38;2`/`48;2`) escapes, so the 16-color palette is
  * never consulted — it is filler to satisfy VHS's theme schema.
  */
 function buildVhsTheme(): string {
-	const background = parseAnsiRgb(theme.getBgAnsi("statusLineBg")) ?? (theme.isLight ? "#ffffff" : "#1a1a1a");
-	const foreground = theme.isLight ? "#1a1a1a" : "#d4d4d4";
-	const selection = theme.isLight ? "#c8d6ff" : "#404862";
+	const theme = currentTheme();
+	const background = parseAnsiRgb(theme.bgSgr("statusLineBg")) ?? (theme.dark ? "#1a1a1a" : "#ffffff");
+	const foreground = theme.dark ? "#d4d4d4" : "#1a1a1a";
+	const selection = theme.dark ? "#404862" : "#c8d6ff";
 	return JSON.stringify({
 		name: "omp-gallery",
 		background,

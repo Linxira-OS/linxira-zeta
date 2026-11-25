@@ -46,7 +46,7 @@ import {
 	waitForRun,
 } from "../run-scope";
 import { ToolAbortError, throwIfAborted } from "../tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import { unknownOptionsMessage } from "./option-errors";
 import {
 	type ComputerEscapeScope,
@@ -57,6 +57,7 @@ import {
 	type ControlVerdict,
 	ESCAPE_AFTER_CALL_MESSAGE,
 	ESCAPE_STOPPED_MESSAGE,
+	modelChoosesTakeover,
 	type RunErrorPayload,
 	screenLockedCaptureNotice,
 	screenStateNotice,
@@ -404,9 +405,17 @@ function guardRun(context: ComputerRunContext, method: string): void {
 	throwIfAborted(context.signal);
 }
 
-/** Native options for the tool's own takeover rerun of a refused background call. */
+/**
+ * Native options for a takeover the tool decides: its rerun of a refused background call, or, under
+ * `computer.takeover` `foreground` or `always`, the call itself.
+ */
 type Fallback = { takeover: true; returnFocus: true };
 const FALLBACK: Fallback = { takeover: true, returnFocus: true };
+/**
+ * What an input call goes to, for the `foreground` and `always` takeover decision: a window (`id`, its owner's
+ * `pid`), an AX element, or the user's own screen (a desktop or display target, whose input is real anyway).
+ */
+type InputTarget = { window: string; pid?: number } | "element" | "screen";
 const BACKGROUND_UNAVAILABLE = "BackgroundUnavailable: ";
 /** A refusal's closing "nothing was sent", true of the refused background attempt only. */
 const UNSENT_CLAUSE = /(?:;|,? so) (?:nothing|no input) was sent$/;
@@ -433,7 +442,7 @@ function nativeActionKey(action: string): string {
 }
 
 /**
- * Under `computer.backgroundFallback: "refuse"` the user's setting beats the
+ * Under `computer.takeover: "refuse"` the user's setting beats the
  * model: a call that would bring an application forward or drive the user's
  * own pointer or keyboard is refused before anything is sent. `effect` says
  * what the call would do; `route` names the background way to the same end.
@@ -445,10 +454,10 @@ function refuseForeground(
 	route: string,
 	target?: string,
 ): void {
-	if (context.snapshot.backgroundFallback !== "refuse") return;
+	if (context.snapshot.takeover !== "refuse") return;
 	const to = target === undefined ? "" : ` to ${target}`;
 	throw new ToolError(
-		`${BACKGROUND_UNAVAILABLE}${call} would ${effect}, and the user's computer.backgroundFallback setting is "refuse", which keeps the agent in the background; nothing was sent${to}. ${route}`,
+		`${BACKGROUND_UNAVAILABLE}${call} would ${effect}, and the user's computer.takeover setting is "refuse", which keeps the agent in the background; nothing was sent${to}. ${route}`,
 	);
 }
 
@@ -494,6 +503,22 @@ const MENU_CONTROL_ROUTE =
 	"Its options are chosen only through that menu: use the window's menu bar with win.menu.select(...) if it has the same command, or tell the user the step needs their screen.";
 
 /**
+ * The note after a macOS background `move`, printed for the first one in a
+ * desktop session: eval sends each window call as its own run, so a per-run
+ * note would repeat once per move. A failed run delivers only its error, so
+ * the session counts as told only once a successful run carries the note.
+ * Measured in a macOS 26 guest on an `AppKit` tracking area and a Chrome
+ * `:hover` element: a background move gave neither any hover; a takeover
+ * move's hover ended when native warped the pointer back, before the call
+ * returned; a takeover click on the hidden control reached it every time.
+ * Under `refuse` both takeover routes are refused, so that ending names
+ * neither; under `foreground` the model has no `takeover` option, and a click
+ * takes over only once the window is in front, so it names that. Under
+ * `always` the move itself takes over and prints no note.
+ */
+const backgroundMoveNoted = new WeakSet<NativeDesktopSession>();
+
+/**
  * Under `refuse`, a macOS call that opens a menu is refused before anything is
  * sent: `WindowServer` sends the user's keys to an open menu, so even one
  * closed at once costs the user about a keystroke.
@@ -506,7 +531,7 @@ function refuseMenu(
 	route: string,
 	target: string,
 ): void {
-	if (context.snapshot.backgroundFallback !== "refuse" || session.capabilities.backend !== "quartz") return;
+	if (context.snapshot.takeover !== "refuse" || session.capabilities.backend !== "quartz") return;
 	refuseForeground(context, call, `open ${menu}, which takes the user's keyboard while it is open`, route, target);
 }
 
@@ -568,7 +593,7 @@ function refuseMenuPress(
 	context: ComputerRunContext,
 	native: { refuseMenu?: boolean },
 ): void {
-	if (context.snapshot.backgroundFallback === "refuse" && session.capabilities.backend === "quartz") {
+	if (context.snapshot.takeover === "refuse" && session.capabilities.backend === "quartz") {
 		native.refuseMenu = true;
 	}
 }
@@ -616,7 +641,7 @@ async function sendType(
 	context: ComputerRunContext,
 	takeover: boolean | undefined,
 	send: (fallback?: Fallback) => TypeCall,
-	target?: number,
+	target: InputTarget,
 ): Promise<void> {
 	let unconfirmed: string | undefined;
 	await sendInput(
@@ -640,8 +665,32 @@ async function sendType(
 }
 
 /**
- * Sends one window input call. A model-supplied `takeover: true` is refused
- * under `computer.backgroundFallback: "refuse"`. When the background route
+ * Whether the user's opt-in `computer.takeover` mode takes a call over from the start: `always` every window and
+ * element call, `foreground` a window that holds input focus (the user is at it, so their focus moves nowhere),
+ * read just before the call. The default `fallback` and `refuse` never do. Desktop and display input is the user's
+ * real input whatever the mode.
+ */
+async function takesOver(
+	session: NativeDesktopSession,
+	context: ComputerRunContext,
+	target: InputTarget,
+): Promise<boolean> {
+	const mode = context.snapshot.takeover;
+	if (target === "screen" || modelChoosesTakeover(mode) || !session.capabilities.takeover) return false;
+	if (mode === "always") return true;
+	if (target === "element") return false;
+	const { window } = target;
+	const windows = await nativeCall(context.signal, () => session.listWindows());
+	return windows.some(entry => entry.id === window && entry.focused);
+}
+
+/**
+ * Sends one window input call. Under `computer.takeover` `foreground` and
+ * `always` omp decides takeover, so a model-supplied `takeover` is refused
+ * and the mode may take the call over from the start ([`takesOver`]); under
+ * the default `fallback` and `refuse` the model may pass it, and a
+ * model-supplied `takeover: true` is refused
+ * under `computer.takeover: "refuse"`. When the background route
  * throws `BackgroundUnavailable`, which native raises only before any of the
  * call's input was sent (a user who came to the target gets `UserIntervened`,
  * which is never rerun), and the call did not set `takeover`, the setting
@@ -656,9 +705,19 @@ async function sendInput(
 	method: string,
 	takeover: boolean | undefined,
 	send: (fallback?: Fallback) => InputCall,
-	target?: number,
+	target: InputTarget,
 	confirmed: () => boolean = () => true,
 ): Promise<void> {
+	const mode = context.snapshot.takeover;
+	if (takeover !== undefined && !modelChoosesTakeover(mode)) {
+		throw new ToolError(
+			`${method} with takeover: ${takeover}: the user's computer.takeover setting is "${mode}", under which omp decides when input takes over; nothing was sent. Call it without takeover.`,
+		);
+	}
+	if (takeover === undefined && (await takesOver(session, context, target))) {
+		await nativeCall(context.signal, () => send(FALLBACK));
+		return;
+	}
 	if (takeover === true) {
 		refuseForeground(
 			context,
@@ -672,7 +731,7 @@ async function sendInput(
 		return;
 	} catch (error) {
 		if (!(error instanceof ToolError) || !error.message.startsWith(BACKGROUND_UNAVAILABLE)) throw error;
-		const refuse = context.snapshot.backgroundFallback === "refuse";
+		const refuse = context.snapshot.takeover === "refuse";
 		// Native refuses a menu control's press only for the setting, so it says so
 		// even when the call set `takeover: false`.
 		const control = refuse ? MENU_CONTROL_REFUSAL.exec(error.message) : null;
@@ -688,7 +747,7 @@ async function sendInput(
 		const why = reason.replace(UNSENT_CLAUSE, "");
 		if (refuse) {
 			throw new ToolError(
-				`${error.message}; the user's computer.backgroundFallback setting is "refuse", which keeps the agent in the background, so no takeover happened`,
+				`${error.message}; the user's computer.takeover setting is "refuse", which keeps the agent in the background, so no takeover happened`,
 			);
 		}
 		if (!session.capabilities.takeover) {
@@ -707,7 +766,12 @@ async function sendInput(
 				`${code === undefined ? "" : `${code}: `}${method} fell back to takeover because ${why}, and the takeover failed: ${failed}`,
 			);
 		}
-		const focus = await focusReport(session, context.signal, report, target);
+		const focus = await focusReport(
+			session,
+			context.signal,
+			report,
+			typeof target === "object" ? target.pid : undefined,
+		);
 		context.output.push({
 			type: "text",
 			text: `${method} ran in takeover because ${why}; the input was ${confirmed() ? "delivered" : "sent"}, and ${focus}`,
@@ -933,8 +997,13 @@ class El {
 		}
 		const keys = chordKeys(chord);
 		const native = pointerOptions(options);
-		await sendInput(this.#session, context, "press", native.takeover, fallback =>
-			this.#session.axKeyChord(this.ref, keys, { ...native, ...fallback }),
+		await sendInput(
+			this.#session,
+			context,
+			"press",
+			native.takeover,
+			fallback => this.#session.axKeyChord(this.ref, keys, { ...native, ...fallback }),
+			"element",
 		);
 	}
 
@@ -944,8 +1013,12 @@ class El {
 		guardRun(context, "type");
 		validateString(text, "type(text)");
 		const native = pointerOptions(options);
-		await sendType(this.#session, context, native.takeover, fallback =>
-			this.#session.axType(this.ref, text, { ...native, ...fallback }),
+		await sendType(
+			this.#session,
+			context,
+			native.takeover,
+			fallback => this.#session.axType(this.ref, text, { ...native, ...fallback }),
+			"element",
 		);
 	}
 
@@ -956,8 +1029,13 @@ class El {
 		const native = pointerOptions(options);
 		refusePointerMenu(this.#session, context, "click", native, `element ${this.ref}`, this.nativeRole);
 		refuseMenuPress(this.#session, context, native);
-		await sendInput(this.#session, context, "click", native.takeover, fallback =>
-			this.#session.axClick(this.ref, { ...native, ...fallback }),
+		await sendInput(
+			this.#session,
+			context,
+			"click",
+			native.takeover,
+			fallback => this.#session.axClick(this.ref, { ...native, ...fallback }),
+			"element",
 		);
 	}
 
@@ -968,8 +1046,13 @@ class El {
 		const native = { ...pointerOptions(options), count: 2 };
 		refusePointerMenu(this.#session, context, "doubleClick", native, `element ${this.ref}`, this.nativeRole);
 		refuseMenuPress(this.#session, context, native);
-		await sendInput(this.#session, context, "doubleClick", native.takeover, fallback =>
-			this.#session.axClick(this.ref, { ...native, ...fallback }),
+		await sendInput(
+			this.#session,
+			context,
+			"doubleClick",
+			native.takeover,
+			fallback => this.#session.axClick(this.ref, { ...native, ...fallback }),
+			"element",
 		);
 	}
 
@@ -1190,6 +1273,11 @@ class Win {
 		return context;
 	}
 
+	/** What this handle's input goes to: the user's own screen for the desktop and display targets, else this window. */
+	#target(): InputTarget {
+		return this.id === "desktop" || this.id.startsWith("display:") ? "screen" : { window: this.id, pid: this.pid };
+	}
+
 	async click(x: number, y: number, options?: ClickOptions): Promise<void> {
 		strictOptions(options, clickOptionsKeys, "click");
 		const context = this.#guardInput("click");
@@ -1202,7 +1290,7 @@ class Win {
 			"click",
 			native.takeover,
 			fallback => this.#session.click(this.id, x, y, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1218,7 +1306,7 @@ class Win {
 			"doubleClick",
 			native.takeover,
 			fallback => this.#session.click(this.id, x, y, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1231,9 +1319,26 @@ class Win {
 			context,
 			"move",
 			native.takeover,
-			fallback => this.#session.moveMouse(this.id, x, y, { ...native, ...fallback }),
-			this.pid,
+			fallback => {
+				if (fallback) background = false;
+				return this.#session.moveMouse(this.id, x, y, { ...native, ...fallback });
+			},
+			this.#target(),
 		);
+		if (
+			background &&
+			this.#session.capabilities.backend === "quartz" &&
+			!context.backgroundMoveNote &&
+			!backgroundMoveNoted.has(this.#session)
+		) {
+			context.backgroundMoveNote = true;
+			const mode = context.snapshot.takeover;
+			const note = prompt.render(backgroundMoveNote, {
+				refuse: mode === "refuse",
+				foreground: mode === "foreground",
+			});
+			context.output.push({ type: "text", text: note.trim() });
+		}
 	}
 
 	async drag(points: Array<[number, number]>, options?: DragOptions): Promise<AxTextSelection | undefined> {
@@ -1257,7 +1362,7 @@ class Win {
 				selection = result?.selection;
 				return result?.focusReturn;
 			},
-			this.pid,
+			this.#target(),
 		);
 		if (!selection) return undefined;
 		// The returned selection keeps the whole text; the output line quotes its start.
@@ -1281,7 +1386,7 @@ class Win {
 			"scroll",
 			native.takeover,
 			fallback => this.#session.scroll(this.id, x, y, dx, dy, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1295,7 +1400,7 @@ class Win {
 			context,
 			native.takeover,
 			fallback => this.#session.typeText(this.id, text, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1310,7 +1415,7 @@ class Win {
 			"press",
 			native.takeover,
 			fallback => this.#session.keyChord(this.id, keys, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1327,7 +1432,7 @@ class Win {
 			"holdKeys",
 			takeover,
 			fallback => this.#session.holdKeys(this.id, keys, { duration, takeover, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1346,7 +1451,7 @@ class Win {
 			"holdMouse",
 			takeover,
 			fallback => this.#session.holdMouse(this.id, x, y, { ...native, ...fallback }),
-			this.pid,
+			this.#target(),
 		);
 	}
 
@@ -1645,7 +1750,7 @@ export class ComputerWorkerCore {
 			if (displayTurn !== undefined && displayTurn > this.#releasedTurn) session.holdDisplayUntilReleased();
 			// Under `refuse` no foreground control stands, including a grant the
 			// model acquired before the user chose `refuse`.
-			if (message.session.backgroundFallback === "refuse" && session.controlState().active) session.releaseControl();
+			if (message.session.takeover === "refuse" && session.controlState().active) session.releaseControl();
 			const runtime = this.#ensureRuntime(message.session);
 			runtime.setCwd(message.session.cwd);
 			const desktop = this.#createDesktopScope(session);

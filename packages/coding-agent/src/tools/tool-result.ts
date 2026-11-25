@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
-import type { OutputSummary, TruncationResult } from "@linxiraos/pi-tui/tools/streaming-output";
-import type { MinimizedMeta, OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { OutputSummary, TruncationResult } from "./streaming-output";
+import type { MinimizedMeta, OutputMeta } from "./output-meta-format";
 import type { LimitsInput, TruncationMetaInput, TruncationSummaryOptions, TruncationTextOptions } from "./output-meta";
 import { outputMeta } from "./output-meta";
 

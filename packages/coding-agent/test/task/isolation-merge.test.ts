@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { mergeIsolatedChanges } from "@linxiraos/zeta/task/isolation-runner";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { mergeIsolatedChanges } from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 import { $ } from "bun";
 
 const tempDirs: string[] = [];

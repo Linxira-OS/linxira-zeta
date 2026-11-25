@@ -7,15 +7,15 @@
  * reads as something the human typed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { ExecutorOptions } from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { VibeSessionRegistry } from "@oh-my-pi/pi-coding-agent/vibe/runtime";
 
 const ATTRIBUTION_OWNER = "vibe-parent";
 
@@ -69,7 +69,7 @@ describe("vibe_send attribution", () => {
 			return resultFor(options);
 		});
 		const registry = VibeSessionRegistry.global();
-		const spawned = await registry.spawn(parent, { cli: "fast", role: "reviewer", prompt: "initial work" });
+		const spawned = await registry.spawn(parent, { cli: "fast", prompt: "initial work" });
 		const steer = vi.fn(async () => {});
 		const live = { isStreaming: true, steer } as unknown as AgentSession;
 		AgentRegistry.global().register({
@@ -96,7 +96,7 @@ describe("vibe_send attribution", () => {
 			return resultFor(options);
 		});
 		const registry = VibeSessionRegistry.global();
-		const spawned = await registry.spawn(parent, { cli: "fast", role: "reviewer", prompt: "initial work" });
+		const spawned = await registry.spawn(parent, { cli: "fast", prompt: "initial work" });
 		const steer = vi.fn(async () => {});
 		const live = { isStreaming: false, steer } as unknown as AgentSession;
 		AgentRegistry.global().register({

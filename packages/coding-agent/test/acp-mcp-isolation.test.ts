@@ -1,7 +1,7 @@
 /**
  * Regression test for issue #1234.
  *
- * `zetacode acp` must not auto-discover host `.mcp.json` servers when creating a
+ * `omp acp` must not auto-discover host `.mcp.json` servers when creating a
  * session for an ACP client. MCP server ownership belongs entirely to the ACP
  * client (`session/new.mcpServers` → `AcpAgent#configureMcpServers`); letting
  * `createAgentSession` run on-disk discovery in parallel registers host MCP
@@ -12,13 +12,15 @@
  * `enableMCP: false`, regardless of what `baseOptions` carries.
  */
 
-import { afterAll, describe, expect, it } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createAcpSessionFactory } from "@linxiraos/zeta/main";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { afterAll, describe, expect, it, mock } from "bun:test";
+import type { Api, Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createAcpSessionFactory } from "@oh-my-pi/pi-coding-agent/main";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
@@ -33,7 +35,7 @@ describe("createAcpSessionFactory MCP isolation (issue #1234)", () => {
 		const tempDir = TempDir.createSync("@pi-acp-mcp-isolation-");
 		try {
 			const settings = Settings.isolated({});
-			const fakeSession = {} as AgentSession;
+			const fakeSession = { addDisposer: mock(), setScopedModelsRefresher: mock() } as unknown as AgentSession;
 			const captured: CreateAgentSessionOptions[] = [];
 			const createSession = async (options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> => {
 				captured.push(options);
@@ -112,7 +114,7 @@ describe("createAcpSessionFactory MCP isolation (issue #1234)", () => {
 			const firedPath = tempDir.join("trusted-event-fired");
 			const ambientFiredPath = tempDir.join("ambient-extension-loaded");
 			await Bun.write(
-				tempDir.join(".zeta/extensions/ambient.ts"),
+				tempDir.join(".omp/extensions/ambient.ts"),
 				`import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(ambientFiredPath)}, "loaded"); export default function () {}`,
 			);
 			await Bun.write(
@@ -120,7 +122,7 @@ describe("createAcpSessionFactory MCP isolation (issue #1234)", () => {
 				`import { writeFileSync } from "node:fs"; export default function (pi) { pi.events.on("acp-session-live", () => writeFileSync(${JSON.stringify(firedPath)}, "fired")); }`,
 			);
 			let captured: CreateAgentSessionOptions | undefined;
-			const fakeSession = {} as AgentSession;
+			const fakeSession = { addDisposer: mock(), setScopedModelsRefresher: mock() } as unknown as AgentSession;
 			const factory = createAcpSessionFactory({
 				baseOptions: {
 					disableExtensionDiscovery: true,
@@ -194,9 +196,9 @@ describe("createAcpSessionFactory TITLE_SYSTEM.md per-cwd resolution (PR #3736)"
 			const settings = Settings.isolated({});
 
 			const projectDir = tempDir.join("project");
-			await Bun.write(`${projectDir}/.zeta/TITLE_SYSTEM.md`, "Project-specific title policy.");
+			await Bun.write(`${projectDir}/.omp/TITLE_SYSTEM.md`, "Project-specific title policy.");
 
-			const fakeSession = {} as AgentSession;
+			const fakeSession = { addDisposer: mock(), setScopedModelsRefresher: mock() } as unknown as AgentSession;
 			const captured: CreateAgentSessionOptions[] = [];
 			const createSession = async (options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> => {
 				captured.push(options);
@@ -238,5 +240,68 @@ describe("createAcpSessionFactory TITLE_SYSTEM.md per-cwd resolution (PR #3736)"
 		} finally {
 			await tempDir.remove();
 		}
+	});
+});
+
+describe("createAcpSessionFactory scope rebuild after discovery", () => {
+	it("does not write the scope of a session disposed while discovery is pending", async () => {
+		using tempDir = TempDir.createSync("@pi-acp-scope-disposal-");
+		const scopeModel = (id: string): Model<Api> =>
+			buildModel({
+				id,
+				name: id,
+				api: "anthropic-messages",
+				provider: "prov",
+				baseUrl: "https://example.com",
+				reasoning: false,
+				input: ["text"],
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+				contextWindow: 128_000,
+				maxTokens: 8_192,
+			});
+		let available = [scopeModel("a")];
+		const discovery = Promise.withResolvers<void>();
+		const registry = {
+			getAvailable: () => available,
+			getDiscoverableProviders: () => [],
+			refresh: async () => {},
+			awaitBackgroundRefresh: () => discovery.promise,
+			reapplyModelPolicies: () => {},
+		} as unknown as ModelRegistry;
+		const scopeWrites: string[][] = [];
+		const fakeSession = {
+			isDisposed: false,
+			scopedModels: [] as Array<{ model: Model }>,
+			addDisposer: mock(),
+			setScopedModelsRefresher: mock(),
+			setScopedModels(models: Array<{ model: Model }>) {
+				scopeWrites.push(models.map(entry => entry.model.id));
+				this.scopedModels = models;
+			},
+		};
+		const factory = createAcpSessionFactory({
+			baseOptions: {},
+			settings: Settings.isolated({ enabledModels: ["prov/a", "prov/b"] }),
+			sessionDir: tempDir.join("sessions"),
+			authStorage,
+			modelRegistry: registry,
+			parsedArgs: { invalidFlagValues: [] },
+			rawArgs: [],
+			createSession: async () =>
+				({
+					session: fakeSession as unknown as AgentSession,
+					setToolUIContext: () => {},
+				}) as unknown as CreateAgentSessionResult,
+		});
+
+		await factory(tempDir.path());
+		expect(scopeWrites).toEqual([["a"]]);
+
+		fakeSession.isDisposed = true;
+		available = [scopeModel("a"), scopeModel("b")];
+		discovery.resolve();
+		await Bun.sleep(0);
+
+		expect(scopeWrites).toEqual([["a"]]);
 	});
 });

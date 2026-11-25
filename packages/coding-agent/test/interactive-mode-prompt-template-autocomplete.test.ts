@@ -1,5 +1,5 @@
 /**
- * Issue #2462: prompt templates discovered from `cwd/.zeta/prompts/` were never
+ * Issue #2462: prompt templates discovered from `cwd/.omp/prompts/` were never
  * surfaced in the slash-command autocomplete picker. The runtime expansion in
  * `AgentSession.prompt()` worked, but `InteractiveMode.refreshSlashCommandState`
  * never passed `session.promptTemplates` into the autocomplete provider.
@@ -8,21 +8,22 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AutocompleteProvider } from "@linxiraos/pi-tui";
-import { TempDir } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import type { PromptTemplate } from "@oh-my-pi/pi-coding-agent/config/prompt-templates";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { AutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
-import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+import { cfgStartupQuiet } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -119,7 +120,15 @@ describe("InteractiveMode prompt-template autocomplete (#2462)", () => {
 			toolRegistry: new Map(tools.map(tool => [tool.name, tool])),
 			promptTemplates: templates,
 		});
-		const createdMode = new InteractiveMode(created, "test");
+		const createdMode = new InteractiveMode(
+			created,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		session = created;
 		mode = createdMode;
 		return { mode: createdMode, session: created };
@@ -127,8 +136,9 @@ describe("InteractiveMode prompt-template autocomplete (#2462)", () => {
 
 	function captureAutocompleteProvider(target: InteractiveMode): { current: AutocompleteProvider | undefined } {
 		const slot: { current: AutocompleteProvider | undefined } = { current: undefined };
-		vi.spyOn(target.editor, "setAutocompleteProvider").mockImplementation(provider => {
-			slot.current = provider;
+		// The mode hands the composer its own provider (with inline hints); the composer's type is narrower.
+		vi.spyOn(target.composer, "setAutocomplete").mockImplementation(provider => {
+			slot.current = provider as AutocompleteProvider | undefined;
 		});
 		return slot;
 	}

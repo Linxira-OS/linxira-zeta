@@ -7,7 +7,7 @@ import { sessionResolveContext } from "../internal-urls/context";
 import type { ToolSession } from ".";
 import { unwrapHashlineHeaderPath } from "./hashline-header-path";
 import { resolveToCwd } from "./path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 
 /** Where a write to `absolutePath` lands: its deepest existing ancestor realpathed, with
  *  the missing tail re-appended. `undefined` when the path goes through a dangling

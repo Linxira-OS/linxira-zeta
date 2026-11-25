@@ -15,11 +15,11 @@ import {
 	truncateMiddle,
 	truncateTail,
 	truncateTailBytes,
-} from "@linxiraos/pi-tui/tools/streaming-output";
-import { stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/tools/streaming-output";
+import { stripOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { outputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 import { flush } from "./helpers/fake-clock";
 import { spillTo } from "./helpers/spill";
 

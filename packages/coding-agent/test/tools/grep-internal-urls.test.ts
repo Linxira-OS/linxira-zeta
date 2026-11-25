@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as capability from "@linxiraos/zeta/capability";
-import type { CapabilityResult } from "@linxiraos/zeta/capability/types";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { resetActiveSkillsForTests, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";
+import * as capability from "@oh-my-pi/pi-coding-agent/capability";
+import type { CapabilityResult } from "@oh-my-pi/pi-coding-agent/capability/types";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { resetActiveSkillsForTests, setActiveSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
 import {
 	type InternalResource,
 	type InternalUrl,
@@ -13,49 +13,22 @@ import {
 	LocalProtocolHandler,
 	type ProtocolHandler,
 	sessionResolveContext,
-} from "@linxiraos/zeta/internal-urls";
-import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
-import * as sshFileTransfer from "@linxiraos/zeta/ssh/file-transfer";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ShellFsOp } from "@linxiraos/pi-natives";
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { InternalUrlFilesystem } from "@oh-my-pi/pi-coding-agent/internal-urls/url-filesystem";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import * as sshFileTransfer from "@oh-my-pi/pi-coding-agent/ssh/file-transfer";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ShellFsOp } from "@oh-my-pi/pi-natives";
+import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 import { AstGrepTool } from "../../src/tools/ast-grep";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
-import { grep, GrepOutputMode } from "@linxiraos/pi-natives";
 
-import { cfgCompactionExperimentalContextManagement } from "@linxiraos/zeta/session/context-settings";
-import { cfgReadSummarizeEnabled } from "@linxiraos/zeta/tools/settings";
-
-/**
- * A `pull_request` run never builds the native addons: ci.yml's `native_addons`
- * restores main's cached pair or falls back to the npm leaf, and states that
- * "native changes are validated post-merge on main and at release". A windowing
- * change that exists only in the branch under test therefore cannot be
- * exercised yet, so probe the loaded addon for it (a truncated match carries a
- * `column`) and skip the two tests that need it instead of failing on a stale
- * binary. On main and on release runs the probe is true and both tests run.
- */
-const addonWindowsLongLines = await (async () => {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-grep-window-"));
-	const probe = path.join(dir, "probe.txt");
-	try {
-		await fs.writeFile(probe, `${"a".repeat(12_000)}needle${"b".repeat(64)}\n`);
-		const result = await grep(
-			{ pattern: "needle", path: probe, maxColumns: 512, mode: GrepOutputMode.Content },
-			undefined,
-		);
-		return result.matches[0]?.column !== undefined;
-	} catch {
-		return false;
-	} finally {
-		await removeWithRetries(dir).catch(() => {});
-	}
-})();
+import { cfgCompactionExperimentalContextManagement } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgReadSummarizeEnabled } from "@oh-my-pi/pi-coding-agent/tools/settings";
 
 function getResultText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -115,8 +88,8 @@ describe("GrepTool internal URL resolution", () => {
 		LocalProtocolHandler.resetOverrideForTests();
 		InternalUrlRouter.resetForTests();
 
-		// Register a synthetic main session so artifact:// can derive
-		// `artifactsDir` from its sessionFile (sessionFile.slice(0,-6)).
+		// Register a synthetic main session whose artifacts dir derives from its
+		// sessionFile (sessionFile.slice(0,-6)).
 		AgentRegistry.global().register({
 			id: "test-main",
 			displayName: "test",
@@ -268,62 +241,45 @@ describe("GrepTool internal URL resolution", () => {
 		expect(getResultText(result)).toContain("searchable pre-compaction needle");
 	});
 
-	it("greps artifact:// with regex pattern", async () => {
-		const content = "ERROR: connection refused\nWARN: timeout\nERROR: disk full\nINFO: ok\n";
-		await Bun.write(path.join(artifactsDir, "3.python.log"), content);
+	it("searches every spill named in a semicolon-delimited local:// list (issue #14091)", async () => {
+		await Bun.write(path.join(artifactsDir, "local", "44.log"), "alpha needle\n");
+		await Bun.write(path.join(artifactsDir, "local", "43.log"), "beta needle\n");
+		LocalProtocolHandler.setOverride({ getArtifactsDir: () => artifactsDir, getSessionId: () => "session" });
 
 		const session = createSession();
 		const tool = new GrepTool(session);
 
-		const result = await tool.execute("test-call", {
-			pattern: "ERROR.*",
-			path: "artifact://3",
-		});
-
-		const text = getResultText(result);
-		expect(text).toContain("connection refused");
-		expect(text).toContain("disk full");
-		expect(text).not.toContain("timeout");
-		expect(text).not.toContain("INFO");
-	});
-
-	it("searches every artifact named in a semicolon-delimited artifact:// list (issue #14091)", async () => {
-		await Bun.write(path.join(artifactsDir, "44.python.log"), "alpha needle\n");
-		await Bun.write(path.join(artifactsDir, "43.python.log"), "beta needle\n");
-
-		const session = createSession();
-		const tool = new GrepTool(session);
-
-		const result = await tool.execute("artifact-list", {
+		const result = await tool.execute("spill-list", {
 			pattern: "needle",
-			path: "artifact://44;artifact://43",
+			path: "local://44.log;local://43.log",
 		});
 
 		const text = getResultText(result);
-		// Both artifacts are searched — the list is two resources, not one URI.
-		expect(text).toContain("artifact://44");
-		expect(text).toContain("artifact://43");
+		// Both spills are searched — the list is two resources, not one URI.
+		expect(text).toContain("44.log");
+		expect(text).toContain("43.log");
 		expect(text).toContain("alpha needle");
 		expect(text).toContain("beta needle");
 	});
 
 	it("searches a mixed internal URL and local path semicolon list", async () => {
-		await Bun.write(path.join(artifactsDir, "1.python.log"), "artifact needle\n");
+		await Bun.write(path.join(artifactsDir, "local", "1.log"), "spill needle\n");
 		await Bun.write(path.join(tmpDir, "notes.txt"), "local needle\n");
+		LocalProtocolHandler.setOverride({ getArtifactsDir: () => artifactsDir, getSessionId: () => "session" });
 
 		const text = getResultText(
 			await new GrepTool(createSession()).execute("mixed-url-local", {
 				pattern: "needle",
-				path: "artifact://1;notes.txt",
+				path: "local://1.log;notes.txt",
 			}),
 		);
 
-		// Both targets are searched — the list is not one artifact URI.
-		expect(text).toContain("artifact://1");
-		expect(text).toContain("artifact needle");
+		// Both targets are searched — the list is not one local:// URI.
+		expect(text).toContain("1.log");
+		expect(text).toContain("spill needle");
 		expect(text).toContain("notes.txt");
 		expect(text).toContain("local needle");
-		expect(text).not.toContain("artifact://1;notes.txt");
+		expect(text).not.toContain("1.log;notes.txt");
 	});
 
 	it("globs a mixed internal URL and local path semicolon list", async () => {
@@ -642,22 +598,19 @@ describe("GrepTool internal URL resolution", () => {
 		expect(formatOutputNotice(result.details?.meta)).toContain("Some lines truncated to 512 bytes");
 	});
 
-	it.skipIf(!addonWindowsLongLines)(
-		"shows a match far into a long line instead of only the line's start",
-		async () => {
-			const line = `${"a".repeat(12_000)}deadline [s120]${"b".repeat(2_400)}`;
-			registerVirtualDocs(new Map([["long.md", `${line}\n`]]));
-			const result = await new GrepTool(createSession()).execute("long-line", {
-				pattern: "deadline \\[s120\\]",
-				path: "virtual://long.md",
-			});
-			const text = getResultText(result);
-			expect(text).toMatch(/\.\.\.a+deadline \[s120\]b+\.\.\. \[col 12001\]/);
-			expect(result.details?.meta?.limits?.columnTruncated).toEqual({ maxColumn: 512, unit: "bytes" });
-		},
-	);
+	it("shows a match far into a long line instead of only the line's start", async () => {
+		const line = `${"a".repeat(12_000)}deadline [s120]${"b".repeat(2_400)}`;
+		registerVirtualDocs(new Map([["long.md", `${line}\n`]]));
+		const result = await new GrepTool(createSession()).execute("long-line", {
+			pattern: "deadline \\[s120\\]",
+			path: "virtual://long.md",
+		});
+		const text = getResultText(result);
+		expect(text).toMatch(/\.\.\.a+deadline \[s120\]b+\.\.\. \[col 12001\]/);
+		expect(result.details?.meta?.limits?.columnTruncated).toEqual({ maxColumn: 512, unit: "bytes" });
+	});
 
-	it.skipIf(!addonWindowsLongLines)("windows a long line around a cross-line look-ahead match", async () => {
+	it("windows a long line around a cross-line look-ahead match", async () => {
 		registerVirtualDocs(new Map([["ahead.md", `${"a".repeat(12_000)}needle\nend\n`]]));
 		const result = await new GrepTool(createSession()).execute("long-line-ahead", {
 			pattern: "needle(?=\\nend)",
@@ -669,19 +622,19 @@ describe("GrepTool internal URL resolution", () => {
 	it("rejects a malformed selector on a selector-capable internal URL instead of widening the search", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
-		await expect(tool.execute("bad-sel", { pattern: "needle", path: "artifact://5:-10" })).rejects.toThrow(
+		await expect(tool.execute("bad-sel", { pattern: "needle", path: "local://5.log:-10" })).rejects.toThrow(
 			/invalid selector/i,
 		);
-		await expect(tool.execute("bad-mixed", { pattern: "needle", path: "artifact://5:1-1:-10" })).rejects.toThrow(
+		await expect(tool.execute("bad-mixed", { pattern: "needle", path: "local://5.log:1-1:-10" })).rejects.toThrow(
 			/invalid selector/i,
 		);
 		// Multi-range colon compounds are rejected by read's parseSel; search must match.
-		await expect(tool.execute("bad-multi", { pattern: "needle", path: "artifact://5:1-1:1-2" })).rejects.toThrow(
+		await expect(tool.execute("bad-multi", { pattern: "needle", path: "local://5.log:1-1:1-2" })).rejects.toThrow(
 			/invalid selector/i,
 		);
 		// A `conflicts` display chunk is not valid in a range compound (only `raw` is).
 		await expect(
-			tool.execute("bad-conflicts", { pattern: "needle", path: "artifact://5:conflicts:1-1" }),
+			tool.execute("bad-conflicts", { pattern: "needle", path: "local://5.log:conflicts:1-1" }),
 		).rejects.toThrow(/invalid selector/i);
 	});
 
@@ -689,72 +642,51 @@ describe("GrepTool internal URL resolution", () => {
 		const session = createSession();
 		const read = new ReadTool(session);
 		// read.ts rejects a peeled internal-URL selector whose parseSel kind is "none"
-		// before resolving the resource, so artifact 5 need not exist. (`:-10` alone is
+		// before resolving the resource, so local://5.log need not exist. (`:-10` alone is
 		// a valid read tail; search rejects it because it cannot filter by tail.)
-		await expect(read.execute("read-bad-neg", { path: "artifact://5:-10-3" })).rejects.toThrow(/invalid selector/i);
-		await expect(read.execute("read-bad-multi", { path: "artifact://5:1-1:1-2" })).rejects.toThrow(
+		await expect(read.execute("read-bad-neg", { path: "local://5.log:-10-3" })).rejects.toThrow(/invalid selector/i);
+		await expect(read.execute("read-bad-multi", { path: "local://5.log:1-1:1-2" })).rejects.toThrow(
 			/invalid selector/i,
 		);
-		await expect(read.execute("read-bad-conflicts", { path: "artifact://5:conflicts:1-1" })).rejects.toThrow(
+		await expect(read.execute("read-bad-conflicts", { path: "local://5.log:conflicts:1-1" })).rejects.toThrow(
 			/invalid selector/i,
 		);
 	});
 
-	it("expands zeta:// root to grep embedded documentation files", async () => {
+	it("expands omp:// root to grep embedded documentation files", async () => {
 		const session = createSession();
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Grep file contents with a regex across files",
-			path: "zeta://",
+			path: "omp://",
 		});
 
 		const text = getResultText(result);
-		expect(text).toContain("# zeta://tools/grep.md");
+		expect(text).toContain("# omp://tools/grep.md");
 		expect(text).toContain("Grep file contents with a regex across files");
 	});
 
-	it("walks an zeta:// docs subdirectory and names hits by URL without edit anchors", async () => {
+	it("walks an omp:// docs subdirectory and names hits by URL without edit anchors", async () => {
 		const session = createSession({ hasEditTool: true });
 		const tool = new GrepTool(session);
 
 		const result = await tool.execute("test-call", {
 			pattern: "Read files, directories, archives",
-			path: "zeta://tools",
+			path: "omp://tools",
 		});
 
 		const text = getResultText(result);
-		expect(result.details?.files).toContain("zeta://tools/read.md");
+		expect(result.details?.files).toContain("omp://tools/read.md");
 		expect(text).toContain("Read files, directories, archives");
 		expect(text).not.toMatch(/omp:\/\/tools\/read\.md#[0-9A-F]{4}/);
 	});
 
-	it("globs zeta:// docs by URL pattern", async () => {
-		const text = getResultText(
-			await new GlobTool(createSession()).execute("glob-omp", { path: "zeta://tools/*.md" }),
-		);
+	it("globs omp:// docs by URL pattern", async () => {
+		const text = getResultText(await new GlobTool(createSession()).execute("glob-omp", { path: "omp://tools/*.md" }));
 
-		expect(text).toContain("zeta://tools/read.md");
-		expect(text).toContain("zeta://tools/grep.md");
-	});
-
-	it("suppresses hashline anchors when searching immutable artifact:// sources", async () => {
-		const content = "alpha line\nbeta needle line\ngamma line\n";
-		await Bun.write(path.join(artifactsDir, "9.bash.log"), content);
-
-		const session = createSession({ hasEditTool: true });
-		const tool = new GrepTool(session);
-
-		const result = await tool.execute("test-call", {
-			pattern: "needle",
-			path: "artifact://9",
-		});
-
-		const text = getResultText(result);
-		expect(text).toContain("needle");
-		// No hashline section headers or numbered editable lines for immutable sources.
-		expect(text).not.toMatch(/^\[[^#\r\n]+#[0-9A-F]{4}\]$/m);
-		expect(text).not.toMatch(/^\*?\s*\d+:/m);
+		expect(text).toContain("omp://tools/read.md");
+		expect(text).toContain("omp://tools/grep.md");
 	});
 
 	it("resolves local:// URLs before file-name lookup", async () => {
@@ -852,14 +784,6 @@ describe("GrepTool internal URL resolution", () => {
 		expect(text).toContain("second needle");
 		expect(text).not.toContain("first needle");
 		expect(text).not.toContain("third needle");
-	});
-
-	it("names the unknown artifact id and the available ones when find cannot locate it", async () => {
-		await Bun.write(path.join(artifactsDir, "4.bash.log"), "log\n");
-
-		await expect(
-			new GlobTool(createSession()).execute("find-missing-artifact", { path: "artifact://9" }),
-		).rejects.toThrow("Artifact 9 not found. Available: 4");
 	});
 
 	it("reports a glob in a skill:// name through the nameless skill root's error", async () => {
@@ -968,9 +892,8 @@ describe("GrepTool internal URL resolution", () => {
 		expect(text).not.toContain("sibling literal shadow");
 	});
 
-	it("keeps hashlines on mutable files when mixed with immutable artifact:// inputs", async () => {
-		const content = "alpha line\nbeta needle line\ngamma line\n";
-		await Bun.write(path.join(artifactsDir, "11.bash.log"), content);
+	it("keeps hashlines on mutable files when mixed with immutable skill:// inputs", async () => {
+		await registerSkillDirectory();
 		await Bun.write(path.join(tmpDir, "mixed.txt"), "mixed needle line\n");
 
 		const session = createSession({ hasEditTool: true });
@@ -978,7 +901,7 @@ describe("GrepTool internal URL resolution", () => {
 
 		const result = await tool.execute("test-call", {
 			pattern: "needle",
-			path: JSON.stringify(["artifact://11", "mixed.txt"]),
+			path: JSON.stringify(["skill://demo/references/index.md", "mixed.txt"]),
 		});
 
 		const text = getResultText(result);
@@ -986,15 +909,6 @@ describe("GrepTool internal URL resolution", () => {
 		// Mutable mixed.txt keeps hashlines somewhere in the output.
 		expect(text).toMatch(/^# mixed\.txt#[0-9A-F]{4}/m);
 		expect(text).toMatch(/^\*\d+:.*mixed needle/m);
-	});
-
-	it("throws on nonexistent artifact ID", async () => {
-		const session = createSession();
-		const tool = new GrepTool(session);
-
-		expect(tool.execute("test-call", { pattern: "foo", path: "artifact://999" })).rejects.toThrow(
-			"Artifact 999 not found",
-		);
 	});
 
 	it("emits forward-only, deduplicated context lines for adjacent virtual matches", async () => {

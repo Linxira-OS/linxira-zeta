@@ -1,4 +1,4 @@
-import type { GlobToolDetails } from "@linxiraos/pi-tui/tools/glob";
+import type { GlobToolDetails } from "./details/glob";
 import * as fs from "node:fs";
 import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
@@ -7,13 +7,13 @@ import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@
 import { InternalUrlRouter, sessionResolveContext } from "../internal-urls";
 import { InternalUrlFilesystem, type UrlFileStat } from "../internal-urls/url-filesystem";
 import globDescription from "../prompts/tools/glob.md" with { type: "text" };
-import { truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
+import { truncateHead } from "./streaming-output";
 import { sessionDelegationBias } from "../task/prompt-policy";
 import { isScoutSpawnable } from "../task/spawn-policy";
 import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
-import { isFindEnabled } from "./jfind";
-import { applyListLimit } from "@linxiraos/pi-tui/tools/list-limit";
+import { findHintVisible } from "./jfind";
+import { applyListLimit } from "./list-limit";
 import {
 	expandDelimitedPathEntries,
 	formatPathRelativeToCwd,
@@ -25,9 +25,10 @@ import {
 	resolveSearchResultPath,
 	searchPathTier,
 } from "./path-utils";
-import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
+import { searchApprovalCacheTargets } from "./search-approval-targets";
+import { toPathList } from "../utils/render-utils";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";
@@ -146,7 +147,7 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 	readonly loadMode = "essential";
 	readonly label = "Glob";
 	get description(): string {
-		const hasFind = this.session.isToolActive?.("find") ?? isFindEnabled(this.session);
+		const hasFind = findHintVisible(this.session);
 		const eagerDelegation = sessionDelegationBias(this.session) === "eager";
 		const scoutAvailable = isScoutSpawnable(
 			cfgTaskDisabledAgents.get(this.session.settings),

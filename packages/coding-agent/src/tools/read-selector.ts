@@ -1,7 +1,7 @@
-import { type LineRange, mergeLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
+import type { LineRange } from "./line-ranges";
 import { parseTailCount } from "./path-utils";
-import { parseLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { mergeLineRanges, parseLineRanges } from "./line-ranges";
+import { ToolError } from "./tool-errors";
 /** Parsed representation of a path-embedded selector. */
 export type ParsedSelector =
 	| { kind: "none" }

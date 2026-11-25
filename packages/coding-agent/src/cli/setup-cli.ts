@@ -1,25 +1,25 @@
 /**
  * Setup CLI command handler.
  *
- * Handles `zetacode setup` for onboarding and `zetacode setup <component>` for optional dependencies.
+ * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
  */
 import * as path from "node:path";
-import { CLI_BIN_NAME, getProjectDir, getPythonEnvDir } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
-import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
+import { APP_NAME, getProjectDir, getPythonEnvDir } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatKeyHint } from "../ui/keys/hints";
 import { Settings } from "../config/settings";
 import { ModelRegistry } from "../config/model-registry";
 import { resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { checkPythonKernelAvailability } from "../eval/py/kernel";
-import { discoverAuthStorage } from "../sdk";
-import { theme } from "@linxiraos/pi-tui/theme";
+import { discoverSessionAuthStorage as discoverAuthStorage } from "../session/auth-broker-config";
 import { downloadSttModel, isSttModelCached } from "../stt/downloader";
 import { isSttModelKey, STT_MODEL_OPTIONS } from "../stt/models";
 import { downloadTtsModel, isTtsLocalModelKey, isTtsModelCached, TTS_LOCAL_MODELS } from "../tts";
-import { selectSetupModel } from "@linxiraos/pi-tui/apps/setup-model-picker";
+import { selectStandaloneItem } from "../ui/apps/standalone-picker";
 
 import { cfgPythonInterpreter } from "../eval/settings";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
 
 export type SetupComponent = "python" | "speech";
 
@@ -45,7 +45,7 @@ export function parseSetupArgs(args: string[]): SetupCommandArgs | undefined {
 	}
 
 	if (args.length < 2) {
-		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} setup <component>`));
+		console.error(chalk.red(`Usage: ${APP_NAME} setup <component>`));
 		console.error(`Valid components: ${VALID_COMPONENTS.join(", ")}`);
 		process.exit(1);
 	}
@@ -103,7 +103,7 @@ export async function checkPythonSetup(cwd: string, interpreter?: string): Promi
  * Install Python packages using uv (preferred) or pip.
  */
 // Python installation helper removed: the subprocess runner has no Python
-// package dependencies beyond a working interpreter. `zetacode setup python --check`
+// package dependencies beyond a working interpreter. `omp setup python --check`
 // remains as a probe; users install optional libs (pandas, matplotlib, ...)
 // directly via pip or the in-process `%pip` magic.
 
@@ -134,7 +134,7 @@ async function handlePythonSetup(flags: { json?: boolean; check?: boolean }): Pr
 	}
 
 	if (!check.pythonPath) {
-		console.error(chalk.red(`${theme.status.error} Python not found`));
+		console.error(chalk.red(`${currentTheme().symbols.symbol("status.error")} Python not found`));
 		console.error(chalk.dim("Install Python 3.8+ or set python.interpreter to its executable path"));
 		process.exit(1);
 	}
@@ -145,11 +145,11 @@ async function handlePythonSetup(flags: { json?: boolean; check?: boolean }): Pr
 	}
 
 	if (check.available) {
-		console.log(chalk.green(`\n${theme.status.success} Python execution is ready`));
+		console.log(chalk.green(`\n${currentTheme().symbols.symbol("status.success")} Python execution is ready`));
 		return;
 	}
 
-	console.error(chalk.red(`\n${theme.status.error} Python interpreter reported failure`));
+	console.error(chalk.red(`\n${currentTheme().symbols.symbol("status.error")} Python interpreter reported failure`));
 	process.exit(1);
 }
 
@@ -196,7 +196,10 @@ function buildSpeechComponents(settings: Settings, registry: ModelRegistry): Spe
 			},
 			pick: async () => {
 				const current = resolveLocalSpeechModelId("dictation", settings, registry);
-				const chosen = await selectSetupModel("Speech-to-Text model", sttOptions, current);
+				const chosen = await selectStandaloneItem("Speech-to-Text model", sttOptions, {
+					currentValue: current,
+					noun: "models",
+				});
 				if (chosen === null) return false;
 				if (isSttModelKey(chosen)) {
 					settings.setModelRole("dictation", `local/${chosen}`);
@@ -218,7 +221,10 @@ function buildSpeechComponents(settings: Settings, registry: ModelRegistry): Spe
 			},
 			pick: async () => {
 				const current = resolveLocalSpeechModelId("speech", settings, registry);
-				const chosen = await selectSetupModel("Text-to-Speech model", ttsOptions, current);
+				const chosen = await selectStandaloneItem("Text-to-Speech model", ttsOptions, {
+					currentValue: current,
+					noun: "models",
+				});
 				if (chosen === null) return false;
 				if (isTtsLocalModelKey(chosen)) {
 					settings.setModelRole("speech", `local/${chosen}`);
@@ -237,7 +243,7 @@ function buildSpeechComponents(settings: Settings, registry: ModelRegistry): Spe
 }
 
 /**
- * Unified `zetacode setup speech` flow. Drives every {@link SpeechComponent} through
+ * Unified `omp setup speech` flow. Drives every {@link SpeechComponent} through
  * one path: report (`--json`/`--check`) or install (interactive pick + ensure
  * with single-line progress; non-TTY skips pickers and installs configured
  * values).
@@ -280,7 +286,7 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
 			await component.pick();
 		}
 		if (await component.isReady()) {
-			console.log(chalk.green(`${theme.status.success} ${component.name} ready`));
+			console.log(chalk.green(`${currentTheme().symbols.symbol("status.success")} ${component.name} ready`));
 			continue;
 		}
 		console.log(chalk.dim(`Preparing ${component.name}...`));
@@ -293,12 +299,12 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
 		} catch (err) {
 			process.stdout.write("\n");
 			const msg = err instanceof Error ? err.message : `Failed to set up ${component.name}`;
-			console.error(chalk.red(`${theme.status.error} ${msg}`));
+			console.error(chalk.red(`${currentTheme().symbols.symbol("status.error")} ${msg}`));
 			process.exit(1);
 		}
 	}
 
-	console.log(chalk.green(`\n${theme.status.success} Speech is ready`));
+	console.log(chalk.green(`\n${currentTheme().symbols.symbol("status.success")} Speech is ready`));
 	console.log(
 		chalk.dim(
 			`Enable speech-to-text via stt.enabled, then hold ${formatKeyHint("space")} by default to talk (remap or disable it with app.stt.pushToTalk, or bind app.stt.toggle separately); enable the speech-generation tool via speechgen.enabled; speak replies aloud via speech.enabled.`,
@@ -310,11 +316,11 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
  * Print setup command help.
  */
 export function printSetupHelp(): void {
-	console.log(`${chalk.bold(`${CLI_BIN_NAME} setup`)} - Run onboarding or install dependencies for optional features
+	console.log(`${chalk.bold(`${APP_NAME} setup`)} - Run onboarding or install dependencies for optional features
 
 ${chalk.bold("Usage:")}
-  ${CLI_BIN_NAME} setup                     Run the onboarding wizard
-  ${CLI_BIN_NAME} setup <component> [options]
+  ${APP_NAME} setup                     Run the onboarding wizard
+  ${APP_NAME} setup <component> [options]
 
 ${chalk.bold("Components:")}
   python    Verify a Python 3 interpreter is reachable for code execution
@@ -325,10 +331,10 @@ ${chalk.bold("Options:")}
   --json        Output status as JSON
 
 ${chalk.bold("Examples:")}
-  ${CLI_BIN_NAME} setup                  Run the onboarding wizard
-  ${CLI_BIN_NAME} setup python           Check Python execution dependencies
-  ${CLI_BIN_NAME} setup speech           Pick and download the STT and TTS models
-  ${CLI_BIN_NAME} setup speech --check   Check if speech dependencies are available
-  ${CLI_BIN_NAME} setup python --check   Check if Python execution is available
+  ${APP_NAME} setup                  Run the onboarding wizard
+  ${APP_NAME} setup python           Check Python execution dependencies
+  ${APP_NAME} setup speech           Pick and download the STT and TTS models
+  ${APP_NAME} setup speech --check   Check if speech dependencies are available
+  ${APP_NAME} setup python --check   Check if Python execution is available
 `);
 }

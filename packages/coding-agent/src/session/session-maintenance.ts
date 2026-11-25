@@ -90,12 +90,12 @@ import type { CompactOptions, ContextUsage } from "../extensibility/extensions/t
 import type { GoalModeState } from "../goals/state";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import type { MemoryBackendOperationContext } from "../memory-backend/types";
-import { customMessageEntryMessage } from "@linxiraos/pi-tui/chat/transcript-entry";
-import { computeNonMessageTokens, type NonMessageTokenSource } from "@linxiraos/pi-tui/status-line/context-usage";
+import { customMessageEntryMessage } from "./transcript/transcript-entry";
+import { computeNonMessageTokens, type NonMessageTokenSource } from "./context-usage";
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import { isCompleteReadResult } from "../tools/read-supersede";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 import { cfgTrackingEnabled } from "../tools/settings";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { CompactionAgent } from "./compaction/agent";
 import { fidelityCounts, readCompactionFidelity, type FidelityTracking } from "./compaction/fidelity";
@@ -114,6 +114,7 @@ import {
 	assistantTurnDelivered,
 	convertToLlm,
 	invalidateConvertToLlmArrayCache,
+	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	isUserAuthoredMessage,
 	stripImagesFromMessage,
 } from "./messages";
@@ -129,9 +130,11 @@ import {
 	getLatestCompactionEntry,
 	getOpenAiRemoteCompactionPayload,
 	getReadableCompactionEntry,
+	isTranscriptEntry,
 } from "./session-context";
 import type { CompactionEntry, SessionEntry } from "./session-entries";
 import type { SessionManager } from "./session-manager";
+import type { SessionProviderBoundary } from "./session-provider-boundary";
 import type { ShakeMode, ShakeResult } from "./shake-types";
 import { resolveSpeculationLeadTokens, SPECULATION_LEAD_MIN_TOKENS } from "./speculation-lead";
 import experimentalContextNotesReminderPrompt from "../prompts/system/experimental-context-notes-reminder.md" with { type: "text" };
@@ -492,7 +495,12 @@ export interface SessionMaintenanceHost {
 	replaceMessagesFromSessionContext(messages: AgentMessage[]): void;
 	/** Preserve the eval runtime snapshot at the history rewrite boundary for replay. */
 	persistEvalStateContext(): void;
-	convertToLlmForSideRequest(messages: AgentMessage[]): Message[];
+	/** With `withImageDescriptions`, images are replaced by the descriptions {@link prepareImageDescriptions} made. */
+	convertToLlmForSideRequest: SessionProviderBoundary["convertToLlmForSideRequest"];
+	/** The model to describe images for when `reader` gets history as text; undefined when none is needed. */
+	imageDescriptionModel(reader: Model): Model | undefined;
+	/** Describe the images of `messages` for `model`, a model that cannot see them. */
+	prepareImageDescriptions(messages: AgentMessage[], model: Model, signal?: AbortSignal): Promise<void>;
 	/** The provider context a live turn sends for `summarized` + `retained`, cut to the `summarized` range, as `model` reads it. */
 	buildLiveProviderContext(
 		summarized: AgentMessage[],
@@ -613,13 +621,14 @@ export class SessionMaintenance {
 	/** In-flight or armed background speculative compaction, if any. */
 	#speculation: SpeculationRun | undefined;
 	/**
-	 * {@link #nativeSpeculationKey} of the session and model whose native
-	 * speculative compaction failed for a reason a retry would hit again (an
-	 * exhausted output budget, a tool call, a refusal). Until a compaction
-	 * commits, speculation does not re-send the request and the threshold pass
-	 * falls back to the next method instead.
+	 * {@link #remoteSpeculationKey} of the session and model whose speculative
+	 * remote compaction failed for a reason a retry would hit again (a native
+	 * request's exhausted output budget, tool call or refusal, or a
+	 * `compaction.remoteEndpoint` rejection such as a 404 for a model it does
+	 * not serve). Until a compaction commits, speculation does not re-send the
+	 * request and the threshold pass falls back to the next method instead.
 	 */
-	#failedNativeSpeculation: string | undefined;
+	#failedRemoteSpeculation: string | undefined;
 	#skipPostTurnMaintenanceAssistantTimestamp: number | undefined;
 	/**
 	 * Consecutive no-progress `response.incomplete` (length-stop) recoveries in
@@ -846,7 +855,7 @@ export class SessionMaintenance {
 				// Prefix-bound thinking cannot survive rewrites inside a warm provider prefix.
 				cacheWarmSuffixTokens: model?.thinking?.prefixBinding === true ? 0 : PRUNE_CACHE_WARM_SUFFIX_TOKENS,
 				cacheLookbackPositions: model ? resolvePromptCacheLookback(model) : undefined,
-				convertToLlm,
+				convertToLlm: messages => convertToLlm(messages, model),
 			}),
 		);
 		if (result.prunedCount === 0) {
@@ -896,7 +905,7 @@ export class SessionMaintenance {
 				// Prefix-bound thinking cannot survive rewrites inside a warm provider prefix.
 				suffixTokenLimit: model?.thinking?.prefixBinding === true ? 0 : undefined,
 				cacheLookbackPositions: model ? resolvePromptCacheLookback(model) : undefined,
-				convertToLlm,
+				convertToLlm: messages => convertToLlm(messages, model),
 			}),
 		);
 		if (result.prunedCount === 0) {
@@ -1010,8 +1019,8 @@ export class SessionMaintenance {
 	 * Surgically reduce context by dropping heavy content ("shake").
 	 *
 	 * - `images` delegates to {@link dropImages}.
-	 * - `thinking` removes assistant reasoning blocks without replacement text
-	 *   and credits their tokens. A turn whose native payload the request
+	 * - `thinking` removes assistant reasoning blocks and their interrupted-thinking
+	 *   continuity quotes without replacement text. A turn whose native payload the request
 	 *   replays is left untouched instead: those blocks are not on the wire, so
 	 *   removing them would change nothing the model receives and would credit
 	 *   tokens that stay billed. Kept blocks are reported through
@@ -1024,7 +1033,7 @@ export class SessionMaintenance {
 	 * cache message identity — same rewrite contract as {@link dropImages}.
 	 *
 	 * No-op (zero counts) when nothing is eligible, and a `thinking` run whose
-	 * every turn is replayed returns without rewriting anything at all.
+	 * every turn is replayed and which has no quotes to clear rewrites nothing.
 	 */
 	async shake(
 		mode: ShakeMode,
@@ -1049,64 +1058,79 @@ export class SessionMaintenance {
 			const anchorIndex = findUsageAnchorIndex(branchEntries, compactionIndex);
 			let removed = 0;
 			let replayedBlocks = 0;
+			let notesDropped = 0;
 			let tokensFreed = 0;
 			let anchoredTokensRemoved = 0;
 			const countOptions = { excludeEncryptedReasoning: true } as const;
 			const model = this.#host.model();
 			const nativeHistoryReplay = openAIResponsesReplaysNativeHistory(model, this.#host.providerSessionState);
 			for (const [index, entry] of branchEntries.entries()) {
-				if (entry.type !== "message" || entry.message.role !== "assistant") continue;
-				const message = entry.message;
-				const isReasoning = (block: (typeof message.content)[number]) =>
-					block.type === "thinking" || block.type === "redactedThinking";
-				const dropped = message.content.filter(isReasoning).length;
-				if (dropped === 0) continue;
-				// Native Responses replay uses the stored payload instead of content.
-				// Leave those blocks intact: stripping them cannot save wire tokens
-				// and needlessly invalidates the provider's prompt cache. They are
-				// reported as kept, and a run that only keeps blocks rewrites nothing.
-				if (this.#replaysNativeHistory(message, nativeHistoryReplay)) {
-					replayedBlocks += dropped;
-					continue;
+				let saved: number;
+				if (entry.type === "message" && entry.message.role === "assistant") {
+					const message = entry.message;
+					let dropped = 0;
+					for (const block of message.content) {
+						if (block.type === "thinking" || block.type === "redactedThinking") dropped++;
+					}
+					if (dropped === 0) continue;
+					// The native payload still supplies this turn; removing its typed
+					// blocks would not change what the provider receives.
+					if (this.#replaysNativeHistory(message, nativeHistoryReplay)) {
+						replayedBlocks += dropped;
+						continue;
+					}
+					// Conversion already strips the unsigned run from an interrupted
+					// assistant. Only the continuity note can reclaim those tokens.
+					const before =
+						message.stopReason === "aborted"
+							? this.#tokenizer.countMessages(convertToLlm([message], model), countOptions)
+							: this.#tokenizer.countMessage(message, countOptions);
+					message.content = message.content.filter(
+						block => block.type !== "thinking" && block.type !== "redactedThinking",
+					);
+					invalidateMessageCache(message);
+					saved = Math.max(0, before - this.#tokenizer.countMessage(message, countOptions));
+					removed += dropped;
+				} else {
+					const note =
+						entry.type === "custom_message"
+							? entry
+							: entry.type === "message" && entry.message.role === "custom"
+								? entry.message
+								: undefined;
+					if (note?.customType !== INTERRUPTED_THINKING_MESSAGE_TYPE) continue;
+					if (note.content === "" && note.excludeFromContext) continue;
+					const projected = "role" in note ? note : customMessageEntryMessage(note);
+					saved = projected ? this.#tokenizer.countMessages(convertToLlm([projected], model), countOptions) : 0;
+					// Keep the ID for forks and compaction cutoffs, and the marker
+					// for its aborted assistant; never emit the emptied note itself.
+					note.content = "";
+					note.excludeFromContext = true;
+					if ("role" in note) invalidateMessageCache(note);
+					notesDropped++;
 				}
-				const kept = message.content.filter(block => !isReasoning(block));
-				// Match the stored-context floor: opaque signatures and encrypted
-				// reasoning bytes do not have a reliable provider-token equivalent.
-				const before = this.#tokenizer.countMessage(message, countOptions);
-				// Provider serializers omit empty assistant turns, so don't invent model-authored text.
-				message.content = kept;
-				invalidateMessageCache(message);
-				const saved = Math.max(0, before - this.#tokenizer.countMessage(message, countOptions));
 				tokensFreed += saved;
 				if (index < anchorIndex && (!hasRemoteReplacementHistory || index > compactionIndex)) {
 					anchoredTokensRemoved += saved;
 				}
-				removed += dropped;
 			}
-			if (removed === 0) {
-				return {
-					mode,
-					toolResultsDropped: 0,
-					blocksDropped: 0,
-					thinkingBlocksDropped: 0,
-					thinkingBlocksKept: replayedBlocks,
-					tokensFreed: 0,
-				};
-			}
+			const result: ShakeResult = {
+				mode,
+				toolResultsDropped: 0,
+				blocksDropped: 0,
+				thinkingBlocksDropped: removed,
+				thinkingBlocksKept: replayedBlocks,
+				interruptedThinkingNotesDropped: notesDropped,
+				tokensFreed,
+			};
+			if (removed === 0 && notesDropped === 0) return result;
 			this.#host.recordAnchoredHistoryRewrite(anchoredTokensRemoved);
 			await this.#host.sessionManager.rewriteEntries();
 			const sessionContext = this.#host.buildDisplaySessionContext();
 			this.#host.replaceMessagesFromSessionContext(sessionContext.messages);
 			this.#host.resetAdvisorRuntimes("shake");
 			this.#host.closeCodexProviderSessionsForHistoryRewrite();
-			return {
-				mode,
-				toolResultsDropped: 0,
-				blocksDropped: 0,
-				thinkingBlocksDropped: removed,
-				thinkingBlocksKept: replayedBlocks,
-				tokensFreed,
-			};
+			return result;
 		}
 
 		const assertCurrent = () => {
@@ -1319,6 +1343,8 @@ export class SessionMaintenance {
 		}
 		let methods: CompactionMethod[] = [];
 		let selectedMethodIndex = -1;
+		// Next method in `methods` this pass can run if the selected one fails; -1 when none remains.
+		let fallbackMethodIndex = -1;
 		let compactionCommitted = false;
 		const markCommitted = (): void => {
 			compactionCommitted = true;
@@ -1417,11 +1443,13 @@ export class SessionMaintenance {
 			// A reader that cannot replay the active model's native payload rules out the remote method; its
 			// native lanes run before a configured endpoint, so an endpoint does not make it portable.
 			const readerModel = options?.readerModel;
-			methods = resolveCompactionMethodOrder(
-				compactMode?.overrides.methodOrder ?? compactionSettings.methodOrder,
-			).filter(
+			const modeOrder = compactMode?.overrides.methodOrder;
+			const order = resolveCompactionMethodOrder(modeOrder ?? compactionSettings.methodOrder).filter(
 				method => method !== "remote" || !readerModel || canReplayRemoteCompactionFrom(activeModel, readerModel),
 			);
+			// A manual pass always compacts: soft summarization runs on any model, so it ends a configured
+			// order that omits it. `/compact <mode>` keeps its pinned chain.
+			methods = modeOrder || order.includes("soft") ? order : [...order, "soft"];
 			const explicitSnapcompact = compactMode?.name === "snapcompact";
 			const runsManually = (method: CompactionMethod): boolean => {
 				switch (method) {
@@ -1439,11 +1467,13 @@ export class SessionMaintenance {
 						return false;
 				}
 			};
+			// Every chain starts runnable (soft, or a mode's pinned method) and nested passes start at a
+			// runnable fallback, so selection always finds a method.
 			selectedMethodIndex = methods.findIndex((method, index) => index >= methodOffset && runsManually(method));
+			fallbackMethodIndex = methods.findIndex(
+				(method, index) => index > selectedMethodIndex && runsManually(method),
+			);
 			const selectedMethod = methods[selectedMethodIndex];
-			if (!selectedMethod) {
-				throw new Error("No configured compaction method can run manually.");
-			}
 			// `/compact snapcompact` pins the order to snapcompact alone, so its
 			// blockers name the `/compact` mode of the next manual method (remote or
 			// soft): plain `/compact` can run an experimental rollover instead.
@@ -1470,6 +1500,10 @@ export class SessionMaintenance {
 					: undefined,
 			);
 			if ((requireProviderRemote || remoteReader) && compactionCandidates.length === 0) {
+				// Reached only after an earlier soft pass failed; its warning already named the cause.
+				if (fallbackMethodIndex === -1) {
+					throw new Error(`remote compaction is unavailable for ${activeModel.id}`);
+				}
 				this.#host.emitNotice(
 					"warning",
 					`remote compaction is unavailable for ${activeModel.id}; trying the next preferred method`,
@@ -1481,7 +1515,7 @@ export class SessionMaintenance {
 					await this.compact(
 						customInstructions,
 						options,
-						selectedMethodIndex + 1,
+						fallbackMethodIndex,
 						compactionAbortController,
 						markCommitted,
 					),
@@ -1697,7 +1731,6 @@ export class SessionMaintenance {
 							// `before_agent_start` override included — so a provider-native
 							// compaction shares the live request's cached prefix.
 							remoteSystemPrompt: this.#host.agent.state.systemPrompt,
-							convertToLlm: messages => this.#host.convertToLlmForSideRequest(messages),
 							codexCompaction,
 						},
 						compactionCandidates,
@@ -1773,8 +1806,7 @@ export class SessionMaintenance {
 				!compactionCommitted &&
 				!compactionAbortController.signal.aborted &&
 				!(error instanceof CompactionCancelledError) &&
-				selectedMethodIndex >= 0 &&
-				selectedMethodIndex + 1 < methods.length
+				fallbackMethodIndex !== -1
 			) {
 				this.#host.emitNotice(
 					"warning",
@@ -1786,7 +1818,7 @@ export class SessionMaintenance {
 						await this.compact(
 							customInstructions,
 							options,
-							selectedMethodIndex + 1,
+							fallbackMethodIndex,
 							compactionAbortController,
 							markCommitted,
 						),
@@ -1875,6 +1907,36 @@ export class SessionMaintenance {
 	}
 
 	/**
+	 * Whether the branch changed since `sourceLeafId` in a way that invalidates
+	 * the prepared compaction: the source leaf left the branch entirely, or an
+	 * entry carrying model-facing content (transcript message, branch summary,
+	 * another compaction, a reset boundary) was appended after it.
+	 *
+	 * Pure journal appends — goal usage bookkeeping (`mode_change`), notes,
+	 * tier/thinking changes — legitimately race the compaction window:
+	 * agent-core dispatches event handlers fire-and-forget, so a
+	 * `tool_execution_end` handler may still be appending while the rollover
+	 * awaits its hooks (#20063). Aborting the rollover on them silently
+	 * dropped explicit `new_context` requests with no trace; they are not
+	 * history rewrites, so the prepared boundary stays valid against the
+	 * new leaf.
+	 */
+	#branchRewrittenSince(sourceLeafId: string | undefined): boolean {
+		const branch = this.#host.sessionManager.getBranch();
+		const start = sourceLeafId ? branch.findIndex(entry => entry.id === sourceLeafId) + 1 : branch.length;
+		if (sourceLeafId && start === 0) return true;
+		return branch
+			.slice(start)
+			.some(
+				entry =>
+					isTranscriptEntry(entry) ||
+					entry.type === "branch_summary" ||
+					entry.type === "compaction" ||
+					entry.type === "reset_boundary",
+			);
+	}
+
+	/**
 	 * Commit a notebook-backed boundary without generating, imaging, or otherwise
 	 * rewriting the canonical transcript. Explicit compact modes and focused
 	 * manual compactions deliberately bypass this path.
@@ -1913,7 +1975,7 @@ export class SessionMaintenance {
 			signalController.signal.aborted ||
 			!this.#usesExperimentalContextManagement() ||
 			this.#host.sessionId() !== sourceSessionId ||
-			this.#host.sessionManager.getBranch().at(-1)?.id !== sourceLeafId ||
+			this.#branchRewrittenSince(sourceLeafId) ||
 			(this.#model && `${this.#model.provider}/${this.#model.id}` !== sourceModel)
 		) {
 			throw new CompactionCancelledError(undefined, { cause: signalController.signal.reason });
@@ -1923,7 +1985,7 @@ export class SessionMaintenance {
 			signalController.signal.aborted ||
 			!this.#usesExperimentalContextManagement() ||
 			this.#host.sessionId() !== sourceSessionId ||
-			this.#host.sessionManager.getBranch().at(-1)?.id !== sourceLeafId ||
+			this.#branchRewrittenSince(sourceLeafId) ||
 			(this.#model && `${this.#model.provider}/${this.#model.id}` !== sourceModel)
 		) {
 			throw new CompactionCancelledError(undefined, { cause: signalController.signal.reason });
@@ -2073,11 +2135,12 @@ export class SessionMaintenance {
 			}
 
 			const prepared = await this.#prepareCompactionFromHooks(preparation, hookCompaction, controller.signal);
+			const branchRewritten = this.#branchRewrittenSince(sourceLeafId);
 			if (
 				controller.signal.aborted ||
 				!this.#usesExperimentalContextManagement() ||
 				this.#host.sessionId() !== sourceSessionId ||
-				this.#host.sessionManager.getBranch().at(-1)?.id !== sourceLeafId ||
+				branchRewritten ||
 				(this.#model && `${this.#model.provider}/${this.#model.id}` !== sourceModel)
 			) {
 				await this.#emitLifecycleEvent(
@@ -2091,6 +2154,22 @@ export class SessionMaintenance {
 					},
 					detachPostCommit,
 				);
+				// An explicit `new_context` request dropped by a history rewrite
+				// must not look like it succeeded: the tool already answered
+				// "New context window requested." (#20063).
+				if (
+					!controller.signal.aborted &&
+					this.#usesExperimentalContextManagement() &&
+					this.#host.sessionId() === sourceSessionId &&
+					branchRewritten &&
+					options.explicitNewContextRequest === true
+				) {
+					this.#host.emitNotice(
+						"warning",
+						"The requested context rollover was skipped because the session branch changed while it was prepared; run /compact or ask again for a fresh window.",
+						"compaction",
+					);
+				}
 				return COMPACTION_CHECK_NONE;
 			}
 			const result =
@@ -2445,7 +2524,7 @@ export class SessionMaintenance {
 		const model = this.#model;
 		if (!model) return;
 		const method = resolveSpeculationMethod(model, settings, {
-			skipRemote: this.#nativeSpeculationFailed(model),
+			skipRemote: this.#remoteSpeculationFailed(model),
 		});
 		if (!method) return;
 		this.#startSpeculationRun(contextTokens, method);
@@ -2457,7 +2536,7 @@ export class SessionMaintenance {
 		const run: SpeculationRun = { controller, promise: Promise.resolve(), contextTokensAtStart: contextTokens };
 		const model = this.#model;
 		// Keyed now: the session can switch before the run settles.
-		const nativeKey = model && this.#nativeSpeculationKey(model);
+		const remoteKey = model && this.#remoteSpeculationKey(model);
 		this.#speculation = run;
 		run.promise = this.#runSpeculation(run, method, contextTokens).catch(async error => {
 			await run.pass?.settle(controller.signal.aborted ? "aborted" : "failed", {
@@ -2473,26 +2552,93 @@ export class SessionMaintenance {
 			// only moves this cycle to the next configured method. Errors with no
 			// HTTP status classify by message text, so an unrecognised transient
 			// failure costs the same single early fallback.
+			// Native failures arrive wrapped in NativeCompactionError. Endpoint failures
+			// arrive unwrapped.
 			if (
 				method === "remote" &&
 				model &&
 				!controller.signal.aborted &&
-				error instanceof NativeCompactionError &&
-				!AIError.retriable(AIError.classify(error.cause, model.api))
+				!AIError.retriable(
+					AIError.classify(error instanceof NativeCompactionError ? error.cause : error, model.api),
+				)
 			) {
-				this.#failedNativeSpeculation = nativeKey;
+				this.#failedRemoteSpeculation = remoteKey;
 			}
 		});
+		return run;
 	}
 
-	/** Identity of `model`'s native speculation in the current session. */
-	#nativeSpeculationKey(model: Model): string {
+	/**
+	 * The method a bridge compaction would run: the first available configured method that speculation
+	 * can run in the background, minus `soft` (its summary request reads nothing from the prompt cache).
+	 * Undefined when that is a local method, when automatic, async, or mid-turn compaction is off, while
+	 * another compaction owns the session, and when `session_before_compact` handlers must keep exact
+	 * blocking semantics.
+	 */
+	#bridgeMethod(): "remote" | "handoff" | undefined {
+		if (this.#host.isDisposed() || this.#usesExperimentalContextManagement()) return undefined;
+		const settings = this.#compactionSettings;
+		if (!settings.enabled || settings.asyncEnabled === false || settings.midTurnEnabled === false) return undefined;
+		if (this.isCompacting || this.isBackgroundCompacting) return undefined;
+		if (this.#host.extensionRunner?.hasHandlers("session_before_compact")) return undefined;
+		const model = this.#model;
+		if (!model) return undefined;
+		const methodOrder = resolveCompactionMethodOrder(settings.methodOrder).filter(method => method !== "soft");
+		const method = resolveSpeculationMethod(
+			model,
+			{ ...settings, methodOrder },
+			{ skipRemote: this.#remoteSpeculationFailed(model) },
+		);
+		return method === "soft" ? undefined : method;
+	}
+
+	/**
+	 * Cost inputs for bridging a `promptTokens` prompt with compaction, or undefined when no bridge-capable
+	 * method can run now. The compacted context is sized from this session's latest compaction
+	 * (`tokensAfter`), else as the keep-recent budget plus the summary, never above the prompt.
+	 */
+	bridgeCompactionEstimate(promptTokens: number): CacheBridgeEstimate | undefined {
+		if (!this.#bridgeMethod()) return undefined;
+		const latest = getLatestCompactionEntry(this.#host.sessionManager.getBranch());
+		const keptTokens = latest?.tokensAfter ?? this.#compactionSettings.keepRecentTokens + BRIDGE_SUMMARY_TOKENS;
+		return { summaryTokens: BRIDGE_SUMMARY_TOKENS, keptTokens: Math.min(keptTokens, promptTokens) };
+	}
+
+	/**
+	 * Compact the history behind the pending tool call in the background so a long wait need not keep its
+	 * prompt-cache entry alive. Reuses the speculation slot: a run already summarizing with a bridge-capable
+	 * method is taken over, any other is replaced. The armed result commits at the next mid-run boundary
+	 * whatever the threshold; invalid results are discarded as for any speculation.
+	 */
+	startBridgeCompaction(): Promise<CacheBridgeOutcome> {
+		const method = this.#bridgeMethod();
+		if (!method) return Promise.resolve("failed-unaccepted");
+		let run = this.#speculation;
+		if (run && run.method !== "soft") {
+			run.bridge = true;
+		} else {
+			this.cancelSpeculation();
+			const lastAssistant = this.#host.findLastAssistantMessage();
+			const contextTokens = compactionContextTokens(
+				lastAssistant ? calculateContextTokens(lastAssistant.usage) : 0,
+				this.#estimateStoredContextTokens(),
+			);
+			run = this.#startSpeculationRun(contextTokens, method, true);
+		}
+		const bridged = run;
+		return bridged.promise.then(() =>
+			bridged.armed ? "armed" : bridged.accepted ? "failed-accepted" : "failed-unaccepted",
+		);
+	}
+
+	/** Identity of `model`'s remote speculation in the current session. */
+	#remoteSpeculationKey(model: Model): string {
 		return `${this.#host.sessionManager.getSessionId()}/${model.provider}/${model.id}`;
 	}
 
-	/** Whether `model`'s native speculation already failed for good this cycle. */
-	#nativeSpeculationFailed(model: Model): boolean {
-		return this.#failedNativeSpeculation === this.#nativeSpeculationKey(model);
+	/** Whether `model`'s remote speculation already failed for good this cycle. */
+	#remoteSpeculationFailed(model: Model): boolean {
+		return this.#failedRemoteSpeculation === this.#remoteSpeculationKey(model);
 	}
 
 	/**
@@ -2523,7 +2669,7 @@ export class SessionMaintenance {
 		const model = this.#model;
 		if (!model) return false;
 		const method = resolveSpeculationMethod(model, settings, {
-			skipRemote: this.#nativeSpeculationFailed(model),
+			skipRemote: this.#remoteSpeculationFailed(model),
 		});
 		if (!method) return false;
 		const thresholdTokens = resolveThresholdTokens(contextWindow, settings);
@@ -2835,8 +2981,8 @@ export class SessionMaintenance {
 			},
 		);
 		this.#host.persistEvalStateContext();
-		// A committed compaction starts a new cycle; native compaction gets a fresh try.
-		this.#failedNativeSpeculation = undefined;
+		// A committed compaction starts a new cycle; remote compaction gets a fresh try.
+		this.#failedRemoteSpeculation = undefined;
 		const newEntries = this.#host.sessionManager.getEntries();
 		const sessionContext = this.#host.buildDisplaySessionContext();
 		this.#host.replaceMessagesFromSessionContext(sessionContext.messages);
@@ -3943,6 +4089,36 @@ export class SessionMaintenance {
 		);
 	}
 
+	/**
+	 * Reporter for the spend of one compaction attempt under `method`. Only the
+	 * spend needs journaling: the summary lands on the compaction entry.
+	 */
+	#journalCompaction(method: CompactionMethod): CompletionJournal | undefined {
+		return journalCompletion(this.#host.sessionManager, { purpose: `compaction:${method}`, usageOnly: true });
+	}
+
+	/**
+	 * History conversion for a summary request to `candidate`. A summary carries history as text, so when the
+	 * candidate or the session's model cannot see images, each summarized image is described first and its
+	 * description stands in for it.
+	 */
+	async #summaryConvertToLlm(
+		preparation: CompactionPreparation,
+		candidate: Model,
+		signal: AbortSignal,
+	): Promise<(messages: AgentMessage[]) => Message[]> {
+		const describeFor = this.#host.imageDescriptionModel(candidate);
+		if (describeFor) {
+			await this.#host.prepareImageDescriptions(
+				[...preparation.messagesToSummarize, ...preparation.turnPrefixMessages],
+				describeFor,
+				signal,
+			);
+		}
+		return messages =>
+			this.#host.convertToLlmForSideRequest(messages, candidate, { withImageDescriptions: !!describeFor });
+	}
+
 	async #compactWithFallbackModel(
 		preparation: CompactionPreparation,
 		customInstructions: string | undefined,
@@ -3967,19 +4143,17 @@ export class SessionMaintenance {
 			}
 
 			try {
-				// The dedicated compaction agent owns the summarizer request and the
-				// summary artifact (extension context + fidelity ledger); this loop
-				// keeps candidate/fallback/error policy.
-				const artifact = await this.#compactionAgent.summarize({
-					preparation: this.#host.obfuscatePreparationForProvider(preparation),
-					model: candidate,
-					resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-					customInstructions: this.#host.obfuscateTextForProvider(customInstructions),
+				const convertToLlm = await this.#summaryConvertToLlm(preparation, candidate, signal);
+				return await compact(
+					this.#host.obfuscatePreparationForProvider(preparation),
+					candidate,
+					this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+					this.#host.obfuscateTextForProvider(customInstructions),
 					signal,
 					options: {
 						...options,
 						metadata: this.#host.agent.metadataForProvider(candidate.provider),
-						convertToLlm: messages => this.#host.convertToLlmForSideRequest(messages),
+						convertToLlm,
 						buildProviderContext: (summarized, retained, signal, model) =>
 							this.#host.buildLiveProviderContext(summarized, retained, signal, model),
 						isUserAuthored: isUserAuthoredMessage,
@@ -4461,7 +4635,7 @@ export class SessionMaintenance {
 		return (
 			nativeHistoryTokens +
 			this.#tokenizer.countMessages(archives, options) +
-			this.#tokenizer.countMessages(convertToLlm(rest), options)
+			this.#tokenizer.countMessages(convertToLlm(rest, this.#model), options)
 		);
 	}
 
@@ -4975,7 +5149,7 @@ export class SessionMaintenance {
 			},
 		);
 		this.#host.persistEvalStateContext();
-		this.#failedNativeSpeculation = undefined;
+		this.#failedRemoteSpeculation = undefined;
 		const sessionContext = this.#host.buildDisplaySessionContext();
 		this.#host.replaceMessagesFromSessionContext(sessionContext.messages);
 		this.#host.rebaseAfterCompaction();
@@ -5469,13 +5643,13 @@ export class SessionMaintenance {
 				)
 			)
 				continue;
-			// Re-sending a native request that just failed for good only delays the
+			// Re-sending a remote request that just failed for good only delays the
 			// fallback. Skip it while a later method can still run.
 			const liveModel = this.#model;
 			if (
 				candidate === "remote" &&
 				liveModel &&
-				this.#nativeSpeculationFailed(liveModel) &&
+				this.#remoteSpeculationFailed(liveModel) &&
 				methods
 					.slice(index + 1)
 					.some(next =>
@@ -5488,7 +5662,7 @@ export class SessionMaintenance {
 						),
 					)
 			) {
-				logger.debug("Skipping native compaction after a failed speculative attempt", {
+				logger.debug("Skipping remote compaction after a failed speculative attempt", {
 					model: `${liveModel.provider}/${liveModel.id}`,
 				});
 				continue;
@@ -6151,19 +6325,21 @@ export class SessionMaintenance {
 					let attempt = 0;
 					while (true) {
 						try {
-							const artifact = await this.#compactionAgent.summarize({
-								preparation: this.#host.obfuscatePreparationForProvider(preparation),
-								model: candidate,
-								resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-								signal: autoCompactionSignal,
-								options: {
+							const convertToLlm = await this.#summaryConvertToLlm(preparation, candidate, autoCompactionSignal);
+							compactResult = await compact(
+								this.#host.obfuscatePreparationForProvider(preparation),
+								candidate,
+								this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+								undefined,
+								autoCompactionSignal,
+								{
 									promptOverride: this.#host.obfuscateTextForProvider(compactionPrep.hookPrompt),
 									extraContext: compactionPrep.hookContext,
 									loadExtraContext: compactionPrep.loadMemoryContext,
 									remoteSystemPrompt: this.#host.agent.state.systemPrompt,
 									metadata: this.#host.agent.metadataForProvider(candidate.provider),
 									initiatorOverride: "agent",
-									convertToLlm: messages => this.#host.convertToLlmForSideRequest(messages),
+									convertToLlm,
 									buildProviderContext: (summarized, retained, signal, model) =>
 										this.#host.buildLiveProviderContext(summarized, retained, signal, model),
 									isUserAuthored: isUserAuthoredMessage,

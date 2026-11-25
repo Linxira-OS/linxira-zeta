@@ -1,20 +1,20 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import type { AgentTool } from "@linxiraos/pi-agent-core";
-import type { Tool as AiTool } from "@linxiraos/pi-ai";
-import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { JsRuntime, type RuntimeHooks } from "@linxiraos/zeta/eval/js/shared/runtime";
-import type { EvalPreludeDefinition } from "@linxiraos/zeta/eval/preludes";
-import { disposeAllKernelSessions, executePython } from "@linxiraos/zeta/eval/py/executor";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { EvalTool, getEvalDocTopics, getEvalToolDescription } from "@linxiraos/zeta/tools/eval";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { TempDir } from "@linxiraos/pi-utils";
+import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { Tool as AiTool } from "@oh-my-pi/pi-ai";
+import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { JsRuntime, type RuntimeHooks } from "@oh-my-pi/pi-coding-agent/eval/js/shared/runtime";
+import type { EvalPreludeDefinition } from "@oh-my-pi/pi-coding-agent/eval/preludes";
+import { disposeAllKernelSessions, executePython } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { EvalTool, getEvalToolDescription } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { getEvalDocTopics } from "@oh-my-pi/pi-coding-agent/tools/eval-doc-topics";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
-import { cfgEvalPy } from "@linxiraos/zeta/eval/settings";
-import { cfgTaskMaxRecursionDepth } from "@linxiraos/zeta/task/settings";
+import { cfgEvalPy } from "@oh-my-pi/pi-coding-agent/eval/settings";
+import { cfgTaskMaxRecursionDepth } from "@oh-my-pi/pi-coding-agent/task/settings";
 
 function makeSession(opts: {
 	spawns?: string | null;
@@ -71,7 +71,7 @@ describe("eval tool description", () => {
 		// wait() remains usable with completion() handles.
 		const options = { py: true, js: true, spawns: false };
 		const text = getEvalToolDescription(options);
-		expect(text).not.toContain("xd://eval/agents");
+		expect(text).not.toContain("help://eval/agents");
 		expect(text).not.toContain("workpool(");
 		expect(text).toContain("wait(handles");
 		expect(getEvalDocTopics(options).agents).toBeUndefined();
@@ -90,7 +90,7 @@ describe("eval tool description", () => {
 		expect(belowCap.docTopics().agents).toContain("agent(prompt");
 		for (const tool of [atCap, spawningDisabled]) {
 			expect(tool.docTopics().agents).toBeUndefined();
-			expect(tool.description).not.toContain("xd://eval/agents");
+			expect(tool.description).not.toContain("help://eval/agents");
 			expect(tool.description).toContain("wait(handles");
 		}
 	});
@@ -152,10 +152,11 @@ describe("eval tool description", () => {
 		expect(pyOnly.helpers).not.toContain("await budget.total()");
 	});
 
-	it("inlines every topic when the session cannot read xd:// URLs", () => {
-		const linked = new EvalTool(makeSession({})).description;
-		const inlined = new EvalTool(makeSession({ readActive: false })).description;
-		for (const uri of ["xd://eval/judge", "xd://eval/helpers", "xd://eval/agents"]) {
+	it("inlines every topic when the session cannot open help:// links", () => {
+		const settings = { "eval.tools.enabled": true };
+		const linked = new EvalTool(makeSession({ settings })).description;
+		const inlined = new EvalTool(makeSession({ readActive: false, settings })).description;
+		for (const uri of ["help://eval/judge", "help://eval/helpers", "help://eval/agents"]) {
 			expect(linked).toContain(uri);
 			expect(inlined).not.toContain(uri);
 		}
@@ -171,7 +172,7 @@ describe("eval tool description", () => {
 		}
 	});
 
-	it("read xd://eval topics returns the moved API documentation", async () => {
+	it("read help://eval topics returns the moved API documentation", async () => {
 		const session = makeSession({});
 		const evalTool = new EvalTool(session);
 		session.getToolByName = name => (name === "eval" ? (evalTool as unknown as AgentTool) : undefined);
@@ -181,7 +182,7 @@ describe("eval tool description", () => {
 			["helpers", "budget.total"],
 			["helpers", "%load <path>"],
 		]) {
-			const result = await readTool.execute("read-eval-topic", { path: `xd://eval/${topic}` });
+			const result = await readTool.execute("read-eval-topic", { path: `help://eval/${topic}` });
 			expect(result.content.some(part => part.type === "text" && part.text.includes(signature))).toBe(true);
 		}
 	});
@@ -200,11 +201,11 @@ describe("eval tool description", () => {
 			},
 		};
 		const tool = new EvalTool(makeSession({ preludes: () => [prelude] }));
-		expect(tool.description).toContain("`fixture`: Fixture summary line. → xd://eval/fixture");
+		expect(tool.description).toContain("`fixture`: Fixture summary line. → help://eval/fixture");
 		expect(tool.description).not.toContain("CURRENT PRELUDE DOCUMENTATION");
 		expect(tool.docTopics().fixture).toContain("CURRENT PRELUDE DOCUMENTATION");
 		enabled = false;
-		expect(tool.description).not.toContain("xd://eval/fixture");
+		expect(tool.description).not.toContain("help://eval/fixture");
 		expect(tool.docTopics().fixture).toBeUndefined();
 	});
 
@@ -223,12 +224,30 @@ describe("eval tool description", () => {
 		const tool = new EvalTool(makeSession({ preludes: () => [prelude] }));
 		expect(tool.description).toContain("<fixture>");
 		expect(tool.description).toContain("INLINE PRELUDE DOCUMENTATION");
-		expect(tool.description).not.toContain("xd://eval/fixture");
+		expect(tool.description).not.toContain("help://eval/fixture");
 		expect(tool.docTopics().fixture).toContain("INLINE PRELUDE DOCUMENTATION");
 		const withoutRead = new EvalTool(makeSession({ preludes: () => [prelude], readActive: false }));
 		expect(withoutRead.description.split("INLINE PRELUDE DOCUMENTATION")).toHaveLength(2);
 		expect(withoutRead.description).not.toContain("<fixture>");
-		expect(withoutRead.description).not.toContain("xd://eval/fixture");
+		expect(withoutRead.description).not.toContain("help://eval/fixture");
+	});
+
+	it("keeps first-call guides out of a session without a guide delivery channel", () => {
+		const prelude: EvalPreludeDefinition = {
+			name: "fixture",
+			documentation: "Fixture summary line.\n\nFULL PRELUDE DOCUMENTATION",
+			firstCallDocumentation: "FIRST CALL GUIDE",
+			javascript: "",
+			python: "",
+			exports: [],
+			async invoke() {
+				return { content: [] };
+			},
+		};
+		const session = makeSession({ preludes: () => [prelude] });
+		expect(new EvalTool(session).description).not.toContain("No `read` needed");
+		session.noteEvalPreludeCall = () => {};
+		expect(new EvalTool(session).description).toContain("No `read` needed");
 	});
 });
 

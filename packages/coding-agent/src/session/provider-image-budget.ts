@@ -21,7 +21,7 @@ import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { capFrameDataBytes, frameDataBytesBudget, providerImageBudget } from "@linxiraos/zeta-compact";
 import { supportsRemoteImageUrls } from "../blob-broker/context-images";
 import { declaredTools } from "../utils/tool-declarations";
-import { imageDecodeFailureReason } from "@linxiraos/pi-tui/chat/image-loading";
+import { imageDecodeFailureReason } from "../utils/image-input";
 
 const IMAGE_OMISSION: TextContent = {
 	type: "text",

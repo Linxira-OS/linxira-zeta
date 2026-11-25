@@ -13,17 +13,17 @@ import {
 	serializeWatchdogConfig,
 	slugifyAdvisorName,
 } from "../../src/advisor/config";
-import type { WatchdogConfigDoc } from "@linxiraos/pi-tui/overlays/advisor-config";
+import type { WatchdogConfigDoc } from "@oh-my-pi/pi-coding-agent/advisor/advisor-config-types";
 
 describe("discoverAdvisorConfigs", () => {
 	let tmp: string;
 	let agentDir: string;
 
 	beforeEach(async () => {
-		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-config-"));
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-config-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
-		// Empty agent dir so the user-level search path can't pick up a real ~/.zeta/WATCHDOG.yml.
-		agentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-agentdir-"));
+		// Empty agent dir so the user-level search path can't pick up a real ~/.omp/WATCHDOG.yml.
+		agentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-agentdir-"));
 	});
 
 	afterEach(async () => {
@@ -256,7 +256,7 @@ describe("getOrCreateAdvisorProviderSessionId", () => {
 describe("WATCHDOG.yml file round-trip", () => {
 	let tmp: string;
 	beforeEach(async () => {
-		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-file-"));
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-file-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
 	});
 	afterEach(async () => {
@@ -365,11 +365,11 @@ describe("WATCHDOG.yml file round-trip", () => {
 	});
 
 	it("resolves project and user scope paths", () => {
-		expect(advisorConfigFilePath("project", { projectDir: "/repo", agentDir: "/home/.zeta" })).toBe(
+		expect(advisorConfigFilePath("project", { projectDir: "/repo", agentDir: "/home/.omp" })).toBe(
 			path.join("/repo", "WATCHDOG.yml"),
 		);
-		expect(advisorConfigFilePath("user", { projectDir: "/repo", agentDir: "/home/.zeta" })).toBe(
-			path.join("/home/.zeta", "WATCHDOG.yml"),
+		expect(advisorConfigFilePath("user", { projectDir: "/repo", agentDir: "/home/.omp" })).toBe(
+			path.join("/home/.omp", "WATCHDOG.yml"),
 		);
 	});
 });
@@ -377,7 +377,7 @@ describe("WATCHDOG.yml file round-trip", () => {
 describe("resolveAdvisorConfigEditPath", () => {
 	let tmp: string;
 	beforeEach(async () => {
-		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-resolve-"));
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-resolve-"));
 	});
 	afterEach(async () => {
 		await fsp.rm(tmp, { recursive: true, force: true });
@@ -403,7 +403,7 @@ describe("resolveAdvisorConfigEditPath", () => {
 
 describe("per-advisor enabled field", () => {
 	it("preserves explicit true, explicit false, and absence through save and discovery", async () => {
-		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-enabled-"));
+		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-enabled-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
 		try {
 			const doc: WatchdogConfigDoc = {
@@ -442,7 +442,7 @@ describe("per-advisor enabled field", () => {
 
 describe("maxNotesPerUpdate configuration", () => {
 	it("discovers shared and per-advisor maxNotesPerUpdate from WATCHDOG.yml", async () => {
-		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-max-notes-"));
+		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-max-notes-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
 		try {
 			const yaml = [
@@ -465,7 +465,7 @@ describe("maxNotesPerUpdate configuration", () => {
 	});
 
 	it("round-trips maxNotesPerUpdate through save and load", async () => {
-		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-max-notes-roundtrip-"));
+		const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-max-notes-roundtrip-"));
 		try {
 			const doc: WatchdogConfigDoc = {
 				maxNotesPerUpdate: 3,
@@ -487,7 +487,7 @@ describe("maxNotesPerUpdate configuration", () => {
 describe("per-advisor syncBacklog override", () => {
 	let tmp: string;
 	beforeEach(async () => {
-		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-sync-backlog-"));
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-sync-backlog-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
 	});
 	afterEach(async () => {

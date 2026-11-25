@@ -2,12 +2,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache, readFile } from "@linxiraos/zeta/capability/fs";
-import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
-import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { getMCPConfigPath, getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import { clearCache, readFile } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
+import { getMCPConfigPath, getProjectDir, removeWithRetries, setProjectDir } from "@oh-my-pi/pi-utils";
 import { createInteractiveModeContext, createMcpManagerStub } from "./helpers/interactive-mode-context";
+import { initTheme } from "../src/ui/theme/service";
 
 const originalProjectDir = getProjectDir();
 
@@ -65,7 +65,7 @@ describe("/mcp reload picks up external mcp.json edits", () => {
 	});
 
 	beforeEach(async () => {
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reload-project-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reload-project-"));
 		setProjectDir(projectDir);
 		clearCache();
 	});

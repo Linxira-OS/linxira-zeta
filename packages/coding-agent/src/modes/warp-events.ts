@@ -1,8 +1,8 @@
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { writeTerminalSequence } from "@linxiraos/pi-tui/terminal";
-import { hasTerminalMultiplexerSession } from "@linxiraos/pi-tui/terminal-multiplexer";
-import { wrapTmuxPassthrough } from "@linxiraos/pi-tui/terminal-capabilities";
+import { hasMultiplexerSession } from "@linxiraos/pi-tui/driver/mux/detect";
+import { wrapTmuxPassthrough } from "@linxiraos/pi-tui/driver/mux/tmux";
+import { writeTerminalSequence } from "@linxiraos/pi-tui/driver/session";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions/types";
 import { isSilentAbort, isUserInterruptAbort, SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
@@ -59,15 +59,15 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 			const body = {
 				...event,
 				v: WARP_CLI_AGENT_PROTOCOL_VERSION,
-				// Warp resolves this via CLIAgent.command_prefix(); Zeta is "zeta".
-				agent: "zeta",
+				// Warp resolves this via CLIAgent.command_prefix(); OhMyPi is "omp".
+				agent: "omp",
 				session_id: options.sessionId,
 				cwd,
 				project: path.basename(cwd),
 				plugin_version: VERSION,
 			};
 			const osc = `\x1b]777;notify;${WARP_CLI_AGENT_SENTINEL};${JSON.stringify(body)}\x07`;
-			if (!hasTerminalMultiplexerSession("tmux")) {
+			if (!hasMultiplexerSession("tmux", Bun.env)) {
 				writeTerminalSequence(osc);
 				return;
 			}
@@ -205,7 +205,7 @@ export function createWarpEventBridgeExtension(): ExtensionFactory {
 			emitter?.emit({
 				event: "permission_request",
 				tool_name: event.toolName,
-				summary: `zetacode wants to run ${event.toolName}`,
+				summary: `omp wants to run ${event.toolName}`,
 			});
 		});
 

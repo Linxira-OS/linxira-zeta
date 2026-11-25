@@ -1,12 +1,12 @@
 /**
- * Terminal playback for `.zetacast` session recordings (`zetacode play`).
+ * Terminal playback for `.ompcast` session recordings (`omp play`).
  *
  * Plays on the normal screen, like the recorded session itself: the recorded
  * viewport occupies the bottom rows of the terminal and recorded `history`
  * rows scroll into the terminal's native scrollback above it, so the output
  * stays inspectable after playback ends.
  */
-import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
 import type { StreamRow } from "@linxiraos/pi-wire";
 import { applyScreenFrame, type StreamScreen, type StreamScreenFrame } from "./protocol";
 import type { Recording } from "./recording";

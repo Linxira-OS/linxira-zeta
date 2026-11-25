@@ -1,15 +1,18 @@
-import { M } from "../i18n";
-import { cfgTuiSidebar } from "../modes/settings";
-import { type PauseWorkStatus, runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 import { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
 import { clearApprovalGrants } from "../tools/approval-cache";
 import { clearSubmittedText } from "./helpers/draft";
-import { shutdownHandlerTui } from "./helpers/shutdown";
+import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
-import { LIVE_DISABLED_MESSAGE, LIVE_FEATURE_ENABLED } from "../live/feature-gate";
+import { agentPauseGate } from "@linxiraos/pi-agent-core";
+import { signal } from "@linxiraos/pi-tui";
+import type { InteractiveModeContext } from "../modes/types";
+import { formatCoarseDuration } from "../modes/view-model/chrome/format";
+import type { PauseWorkStatus } from "../modes/view-model/overlays/pause-screen";
+import { presentFullscreen } from "../ui/apps/fullscreen";
+import { PAUSE_SHEET, PauseScreen } from "../ui/overlays/panels/pause-screen";
 
 /** Advisors with review work they can still run (not parked, yielded, or quota-paused). */
 function advisorUnsettledCount(session: AgentSessionHandle): number {
@@ -42,17 +45,55 @@ function pauseWorkStatus(root: AgentSession): PauseWorkStatus {
 	return { unsettledTurns, unfinishedJobs };
 }
 
+/** How often the pause screen re-reads outstanding work. */
+const PAUSE_WORK_POLL_MS = 1_000;
+
+/**
+ * Engage the global pause gate and hold the fullscreen pause screen until the
+ * user resumes. No-op when the gate is already engaged. Always releases the
+ * gate on the way out (including teardown throws) — a leaked pause would
+ * freeze every agent in the process with no UI left to release it.
+ */
+async function runPauseScreen(ctx: InteractiveModeContext): Promise<void> {
+	if (!agentPauseGate.pause()) return;
+	try {
+		const startedAt = Date.now();
+		const work = signal(pauseWorkStatus(ctx.session), {
+			equals: (a, b) => a.unsettledTurns === b.unsettledTurns && a.unfinishedJobs === b.unfinishedJobs,
+		});
+		const timer = setInterval(() => work.set(pauseWorkStatus(ctx.session)), PAUSE_WORK_POLL_MS);
+		const resumed = Promise.withResolvers<void>();
+		await presentFullscreen(ctx.shell, () => ({
+			view: () =>
+				PauseScreen({
+					sessionName: ctx.sessionName,
+					since: () => startedAt,
+					work,
+					onResume: () => resumed.resolve(),
+				}),
+			sheet: PAUSE_SHEET,
+			done: resumed.promise,
+			dispose: () => clearInterval(timer),
+		}));
+	} finally {
+		const heldMs = agentPauseGate.resume();
+		if (heldMs !== undefined) {
+			ctx.showStatus(`Resumed after ${formatCoarseDuration(heldMs)} — agents are running again.`);
+		}
+	}
+}
+
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "force",
 		icon: "hammer",
-		description: () => M.cmdForce,
+		description: "Force next turn to use a specific tool",
 		aliases: ["force:"],
 		inlineHint: "<tool-name> [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const count = runtime.ctx.session.getActiveToolNames().length;
-			return count === 0 ? M.acForceNoActiveTools : `Force: ${count} active tools`;
+			return count === 0 ? "Force: no active tools" : `Force: ${count} active tools`;
 		},
 		handle: async (command, runtime) => {
 			const spaceIdx = command.args.indexOf(" ");
@@ -96,12 +137,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "live",
 		icon: "voice",
-		description: () => M.cmdLiveVoice,
-		// Codex Frameless Bidi is the only transport today: the signaling URL,
-		// model and OAuth provider are hardcoded. Keep the implementation behind
-		// this gate until a provider-agnostic realtime layer exists.
-		enabled: () => LIVE_FEATURE_ENABLED,
-		disabledMessage: LIVE_DISABLED_MESSAGE,
+		description: "Start Codex-backed realtime voice mode",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleLiveCommand();
@@ -110,7 +146,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "record",
 		icon: "export",
-		description: () => M.cmdRecord,
+		description: "Start or stop recording this screen to a replayable file (omp play)",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.toggleRecording();
@@ -119,17 +155,16 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "pause",
 		icon: "pause",
-		description: () => M.cmdPause,
+		description: "Freeze all agents (main, subagents, advisor) until resumed",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
-			const ctx = runtime.ctx;
-			await runPauseScreen(ctx, { getWorkStatus: () => pauseWorkStatus(ctx.session) });
+			await runPauseScreen(runtime.ctx);
 		},
 	},
 	{
 		name: "forget-approvals",
 		icon: "trash",
-		description: () => M.cmdForgetApprovals,
+		description: "Forget every file and folder approval Ask and remember has recorded",
 		handle: async (_command, runtime) => {
 			clearApprovalGrants(runtime.settings.getAgentDir());
 			await runtime.output("Remembered approvals forgotten; the next read or write asks again.");
@@ -140,17 +175,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "quit",
 		aliases: ["q"],
 		icon: "power",
-		description: () => M.cmdQuit,
+		description: "Quit the application",
 		handleTui: shutdownHandlerTui,
-	},
-	{
-		name: "sidebar",
-		icon: "gauge",
-		description: () => M.cmdSidebar,
-		getTuiAutocompleteDescription: runtime =>
-			cfgTuiSidebar.get(runtime.ctx.settings) ? M.acSidebarOn : M.acSidebarOff,
-		handleTui: (_command, runtime) => {
-			runtime.ctx.handleSidebarToggle();
-		},
 	},
 ];

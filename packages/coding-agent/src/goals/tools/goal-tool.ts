@@ -1,22 +1,22 @@
-import { type } from "@linxiraos/zeta-schema";
+import { type } from "@oh-my-pi/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolTier,
-} from "@linxiraos/pi-agent-core";
+} from "@oh-my-pi/pi-agent-core";
 
-import { prompt } from "@linxiraos/pi-utils";
+import { prompt } from "@oh-my-pi/pi-utils";
 
 import goalDescription from "../../prompts/tools/goal.md" with { type: "text" };
 
 import type { ToolSession } from "../../tools";
 
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../../tools/tool-errors";
 
 import { completionBudgetReport, remainingTokens } from "../runtime";
-import type { Goal, GoalToolDetails } from "@linxiraos/pi-tui/tools/goal";
+import type { Goal, GoalToolDetails } from "../../tools/details/goal";
 
 const goalSchema = type({
 	op: type("'create' | 'get' | 'complete' | 'pause' | 'resume' | 'drop'").describe("goal operation"),

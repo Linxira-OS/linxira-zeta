@@ -1,14 +1,14 @@
 /**
  * Client half of text prediction, served by the daemon's `predict` module.
  *
- * The composer's word-completion provider (`@linxiraos/pi-tui/prompt/word-completion`)
+ * The composer's word-completion provider (`modes/view-model/prompt/word-completion`)
  * reaches the module through {@link textPredictionBackend}. The first request
  * opens (find-or-start) the global `predict` unit of this agent directory and
  * holds a lease on it; every request is then a `call`. Failures never surface
  * to the editor: a query that cannot be answered shows no ghost text.
  */
 import type { PredictedWord } from "@linxiraos/pi-natives";
-import type { WordCompletionEngine, WordPredictionBackend } from "@linxiraos/pi-tui/prompt/word-completion";
+import type { WordCompletionEngine, WordPredictionBackend } from "../modes/view-model/prompt/word-completion";
 import { getAgentDir, getHistoryDbPath, getPredictStateDir, logger } from "@linxiraos/pi-utils";
 import { daemonClient } from "../daemon/client";
 import { type DaemonClient, GLOBAL_SCOPE } from "../daemon/protocol";
@@ -53,26 +53,12 @@ interface PredictSession {
 }
 
 /** Process-wide access shared by every editor and the submit hook. */
-export class TextPredictionClient {
-	/** Corpus read by this client; Studio passes its isolated directory. */
-	readonly agentDirectory: string;
-	/** Whether SmolLM's weights may be prefetched in this process. */
-	readonly downloadWeights: boolean;
+class TextPredictionClient {
 	#session: PredictSession | undefined;
 	#opening: Promise<PredictSession> | undefined;
 	#retryAt = 0;
 	#backends = new Map<TextPredictMethod, WordPredictionBackend>();
 	#offReconnect: (() => void) | undefined;
-
-	constructor(options: { agentDirectory?: string; downloadWeights?: boolean; profile?: string } = {}) {
-		this.agentDirectory = options.agentDirectory ?? getAgentDir();
-		this.downloadWeights = options.downloadWeights ?? true;
-	}
-
-	/** Cancel any in-flight prediction work. */
-	stop(): void {
-		this.#session = undefined;
-	}
 
 	backend(method: WordCompletionEngine): WordPredictionBackend {
 		const resolved = resolveTextPredictMethod(method);
@@ -115,9 +101,11 @@ export class TextPredictionClient {
 				this.#offReconnect = undefined;
 			}
 			if (!dropped.lease) return;
-			dropped.daemon
-				.release(dropped.lease)
-				.catch(error => logger.debug("text-predict: lease release failed", { error: String(error) }));
+			dropped.daemon.release(dropped.lease).catch(error =>
+				logger.debug("text-predict: lease release failed", {
+					error: String(error),
+				}),
+			);
 		};
 		if (session) release(session);
 		// An open still in flight would otherwise leave its lease behind.
@@ -133,7 +121,7 @@ export class TextPredictionClient {
 	async complete(engine: TextPredictMethod, before: string, prefix: string): Promise<TextPrediction> {
 		// SmolLM's weights download here, in the interactive process (shown in the
 		// download HUD), only once the user has chosen SmolLM.
-		if (engine === "smollm" && this.downloadWeights) prefetchSmolLmWeights();
+		if (engine === "smollm") prefetchSmolLmWeights();
 		const suggestion = await this.#call("complete", { method: engine, before, prefix }, COMPLETE_TIMEOUT_MS);
 		return { engine, suggestion };
 	}
@@ -182,7 +170,7 @@ export class TextPredictionClient {
 		if (this.#session) return Promise.resolve(this.#session);
 		if (this.#opening) return this.#opening;
 		if (Date.now() < this.#retryAt) return Promise.reject(new Error("text-predict unavailable"));
-		const opening = openPredictUnit(this.agentDirectory).then(
+		const opening = openPredictUnit(getAgentDir()).then(
 			session => {
 				this.#session = session;
 				this.#opening = undefined;
@@ -235,9 +223,8 @@ export function textPredictionBackend(method: WordCompletionEngine): WordPredict
 }
 
 /**
- * One completion from the daemon with its confidence, for diagnostics such as
- * `zetacode predict`. Unlike the editor backend, failures reject instead of
- * degrading to no ghost text.
+ * One completion with its confidence, for diagnostics such as `omp predict`.
+ * Unlike the editor backend, failures reject instead of degrading to no ghost text.
  */
 export function requestTextPrediction(
 	method: WordCompletionEngine,
@@ -249,9 +236,9 @@ export function requestTextPrediction(
 }
 
 /**
- * Close this process's daemon connection (the daemon keeps running). For
- * short-lived commands such as `zetacode predict`; the composer keeps its
- * connection for the process lifetime.
+ * Release this process's lease on the unit (it keeps running for its idle
+ * window). For short-lived commands such as `omp predict`; the composer keeps
+ * its lease for the process lifetime.
  */
 export function closeTextPrediction(): void {
 	sharedClient?.close();

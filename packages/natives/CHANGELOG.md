@@ -6,6 +6,57 @@
 - Fixed `grep()` with a match limit resolving with a short result when its directory walk panicked; it now rejects with the panic ([#20013](https://github.com/Linxira-OS/linxira-zeta/pull/20013) by [@sjawhar](https://github.com/sjawhar))
 - Fixed a use-after-free in `grep()`, `glob()`, `fuzzyFind()`, `astGrep()` and `astEdit()` when a timeout or an abort cancelled them just after they started ([#20014](https://github.com/Linxira-OS/linxira-zeta/pull/20014) by [@sjawhar](https://github.com/sjawhar))
 - Fixed the `computer` tool on Linux Wayland leaving GTK 3 message dialogs (OK/Cancel and Yes/No boxes) out of `windows()`, so their buttons could not be found or pressed ([#19884](https://github.com/Linxira-OS/linxira-zeta/pull/19884) by [@will-bogusz](https://github.com/will-bogusz))
+## [19.2.0] - 2026-11-25
+
+### Breaking Changes
+
+- Removed the `watch` and `HEAD_WATCH_INTERVAL_MS` exports from `@oh-my-pi/pi-natives/vcs`; reread repository state when needed instead.
+
+### Added
+
+- Added `@oh-my-pi/pi-natives/file-poll` with `pollFile(file, onChange, intervalMs)` for detecting file metadata changes, including atomic saves and symlink retargets.
+- Added `truncateToTokens(input, maxTokens)` for safely truncating text to a token budget without splitting UTF-16 surrogate pairs.
+- Added `repairHeredocContinuations(script)` to repair supported shell here-document continuations.
+- Added `commitReconciled()` for publishing private-index commits safely when the shared index is locked.
+- Added transcript analysis APIs—`transcriptCalls()`, `transcriptGrep()`, `transcriptStats()`, and `transcriptMessages()`—for inspecting tool calls, reasoning, message content, matches, and call statistics across session transcripts.
+
+### Changed
+
+- OAuth callback handling now polls for callbacks at regular intervals instead of relying on directory watching.
+- Improved `tail -f` reliability for moved files, symlinks, network drives, and file-watcher failures by combining event-driven updates with polling fallback.
+- Persistent shell sessions no longer carry `set -e` into subsequent commands; other shell options continue to persist.
+- `ShellRunResult` now reports whether a command changed the working directory (`movedCwd`) or left errexit enabled (`errexit`).
+
+### Fixed
+
+- Fixed PTY sessions and child-process cleanup consuming native blocking-pool threads, which could prevent new terminals and other blocking operations from starting after enough terminals were open.
+- Fixed the Linux shell `open` command creating an excessive D-Bus thread pool on first use.
+- Fixed Windows Chromium and Electron captures and accessibility trees incorrectly reporting fully covered windows as current when covered by popup, tool, or click-through windows.
+- Fixed standalone binaries failing to start when the natives directory was read-only or owned by another user despite already containing the extracted addon.
+
+## [19.1.1] - 2026-11-23
+
+### Fixed
+
+- Fixed `grep()`, `glob()`, `fuzzyFind()`, `astGrep()`, `astEdit()`, and recursive shell search commands occasionally hanging on machines with many CPUs.
+- Fixed cancellation and timeout races in native search, file-matching, fuzzy-search, AST, and editing operations that could cause crashes or use-after-free errors.
+- Fixed `grep()` with a match limit reporting incomplete results instead of rejecting when its directory walk failed.
+- Fixed `@oh-my-pi/pi-natives` failing to load when installed from Bun's cache or when standalone binaries had extracted native addons from another build.
+- Fixed Linux Wayland accessibility and automation support for GTK dialogs, control values, and selected rows, list items, and tabs.
+- Fixed Linux PTY output occasionally including an extra blank line after a command exits.
+- Fixed keypad navigation keys being dropped when NumLock is off under the kitty keyboard protocol.
+- Fixed Wayland screenshots incorrectly timing out while waiting for the screen-share picker.
+- Improved Windows accessibility action reliability by reporting uncertain dispatches accurately and preventing actions from being sent after their reply wait has expired.
+- Fixed Windows automation of classic Win32 and WinForms buttons and checkboxes incorrectly activating the application or reporting success without performing the click.
+- Fixed macOS computer-control takeover restoration so the previously active window is restored correctly after automation ends, with failures reported when restoration cannot be confirmed.
+- Fixed macOS background keyboard and scroll events, including events sent through iPhone Mirroring, being lost or unexpectedly activating another window.
+- Fixed X11 typing of non-Latin and other characters outside the active keyboard layout.
+- Binary patches now refuse to apply when the target file does not match the version the patch was created from, preventing accidental replacement of changed files.
+- On Windows, aborting or timing out an in-process utility blocked on an open empty stdin pipe now terminates it without waiting for the pipe writer.
+
+### Removed
+
+- Removed the startup warning shown when a source checkout loads a native addon from another release; incompatible addons still produce an actionable error when a required symbol is unavailable.
 
 ## [19.1.0] - 2026-11-21
 

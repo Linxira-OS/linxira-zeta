@@ -1,22 +1,25 @@
-import { afterEach, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import * as evalIndex from "@linxiraos/zeta/eval";
-import type { EvalToolDetails } from "@linxiraos/pi-tui/tools/eval";
-import { getThemeByName } from "@linxiraos/pi-tui/theme";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { evalToolRenderer } from "@linxiraos/pi-tui/tools/eval";
-import { stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
-import { removeWithRetries, sanitizeText } from "@linxiraos/pi-utils";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as evalIndex from "@oh-my-pi/pi-coding-agent/eval";
+import type { EvalToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/eval";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { stripOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { toolText } from "../helpers/tool-text";
 
-import { cfgToolsOutputMaxColumns } from "@linxiraos/zeta/tools/settings";
+import { cfgToolsOutputMaxColumns } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+
+const restoreTheme = currentTheme();
+afterAll(() => setCurrentTheme(restoreTheme));
 
 function makeSession(settings = Settings.isolated()): ToolSession {
 	return {
@@ -172,21 +175,19 @@ describe("EvalTool live stdout streaming", () => {
 				expect(result.details?.cells?.[0]?.status).toBe(cancelled ? "error" : "complete");
 				expect(result.details?.cells?.[0]?.exitCode).toBe(cancelled ? undefined : 0);
 				expect(text).toContain("not saved completely");
-				expect(text).not.toContain("artifact://");
+				expect(text).not.toMatch(/local:\/\/\d+\.log/);
 				expect(Buffer.byteLength(body)).toBeLessThanOrEqual(1024);
 				expect(Boolean(result.details?.meta?.truncation)).toBe(respilled);
 				expect(saveArtifact).not.toHaveBeenCalled();
 
-				const uiTheme = await getThemeByName("dark");
-				if (!uiTheme) throw new Error("Expected dark theme");
-				const rendered = sanitizeText(
-					evalToolRenderer
-						.renderResult(result, { expanded: false, isPartial: false }, uiTheme)
-						.render(160)
-						.join("\n"),
-				);
+				const rendered = toolText({
+					name: "eval",
+					args: { language: "js", code: "print('output')" },
+					result,
+					width: 160,
+				});
 				expect(rendered).toContain("not saved completely");
-				expect(rendered).not.toContain("artifact://");
+				expect(rendered).not.toMatch(/local:\/\/\d+\.log/);
 			} finally {
 				await sessionManager.close();
 				await removeWithRetries(dir);

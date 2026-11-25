@@ -72,7 +72,7 @@ Toggle it with the `/vibe` slash command:
 
 ```text
 /vibe                 # enter vibe mode
-/vibe fix the flaky test in packages/tui   # enter and submit a first directive
+/vibe fix the flaky test in packages/tui    # enter and submit a first directive
 /vibe                 # run again to exit
 ```
 

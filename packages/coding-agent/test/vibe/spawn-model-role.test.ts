@@ -13,16 +13,16 @@
  * generated name when nothing survives.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { ExecutorOptions } from "@linxiraos/zeta/task/executor";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import * as nameGenerator from "@linxiraos/zeta/task/name-generator";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { VibeCli } from "@linxiraos/pi-tui/tools/vibe";
-import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { ExecutorOptions } from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as nameGenerator from "@oh-my-pi/pi-coding-agent/task/name-generator";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { VibeCli } from "@oh-my-pi/pi-coding-agent/tools/details/vibe";
+import { VibeSessionRegistry } from "@oh-my-pi/pi-coding-agent/vibe/runtime";
 
 function makeParentSession(settings: Settings): ToolSession {
 	return {
@@ -60,7 +60,7 @@ async function spawnAndCaptureOptions(cli: VibeCli, settings: Settings, name?: s
 	});
 
 	const registry = VibeSessionRegistry.global();
-	await registry.spawn(makeParentSession(settings), { cli, role: "reviewer", name, prompt: "work" });
+	await registry.spawn(makeParentSession(settings), { cli, name, prompt: "work" });
 	return captured.promise;
 }
 
@@ -127,35 +127,10 @@ describe("vibe worker spawn options", () => {
 		expect(options.oauthAccountPools).toEqual({ anthropic: ["email:a@example.com|org:org-a"] });
 	});
 
-	it("allocates successive generations for the same role and preserves the assignment-independent identity", async () => {
-		const registry = VibeSessionRegistry.global();
-		const settings = Settings.isolated();
-		const first = await registry.spawn(makeParentSession(settings), {
-			cli: "good",
-			role: "planner",
-			prompt: "first assignment",
-		});
-		const second = await registry.spawn(makeParentSession(settings), {
-			cli: "good",
-			role: "planner",
-			prompt: "second assignment",
-		});
-		expect(first.id).toBe("planner-1");
-		expect(second.id).toBe("planner-2");
-		expect(registry.screens(makeParentSession(settings)).map(screen => screen.identity)).toEqual([
-			{ role: "planner", generation: 1, lifecycle: "resident" },
-			{ role: "planner", generation: 2, lifecycle: "resident" },
-		]);
-	});
+	it("keeps only [A-Za-z0-9_-] from a custom worker name", async () => {
+		const options = await spawnAndCaptureOptions("good", Settings.isolated(), "../My Worker!");
 
-	it("rejects an invalid role slug before creating a worker", async () => {
-		await expect(
-			VibeSessionRegistry.global().spawn(makeParentSession(Settings.isolated()), {
-				cli: "good",
-				role: "../planner",
-				prompt: "work",
-			}),
-		).rejects.toThrow("stable module slug");
+		expect(options.id).toBe("MyWorker");
 	});
 
 	it("falls back to a generated name when nothing in the custom name survives", async () => {

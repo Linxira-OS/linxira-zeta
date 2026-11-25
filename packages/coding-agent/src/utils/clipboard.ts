@@ -4,8 +4,8 @@ import {
 	readImageFromClipboard as nativeReadImageFromClipboard,
 	readTextFromClipboard as nativeReadTextFromClipboard,
 } from "@linxiraos/pi-natives/clipboard";
-import { isSshSession } from "@linxiraos/pi-tui/terminal-capabilities";
-import { writeTerminalSequence } from "@linxiraos/pi-tui/terminal";
+import { isSsh } from "@linxiraos/pi-tui/driver/mux/detect";
+import { writeTerminalSequence } from "@linxiraos/pi-tui/driver/session";
 import { isWsl } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { SUPPORTED_IMAGE_MIME_TYPES } from "@linxiraos/pi-utils/mime";
@@ -77,7 +77,7 @@ function hasDisplay(): boolean {
  * session (possibly another user's) can own, so SSH never reads the system clipboard.
  */
 export function isClipboardTerminalLocal(env: NodeJS.ProcessEnv = process.env): boolean {
-	return !isSshSession(env);
+	return !isSsh(env);
 }
 
 /**

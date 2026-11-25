@@ -1,5 +1,5 @@
 /**
- * Harness documentation index for the `zeta://` protocol.
+ * Harness documentation index for the `omp://` protocol.
  *
  * Compiled binaries and the prepacked npm bundle inline a compressed index of the
  * docs (injected via `process.env.PI_DOCS_EMBED` at build time). The format is two lines:
@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { promisify } from "node:util";
-import { gunzip } from "node:zlib";
+import type * as Zlib from "node:zlib";
 import { isEnoent, logger } from "@linxiraos/pi-utils";
 import { Glob } from "bun";
 
@@ -26,7 +26,14 @@ const docsEmbed = process.env.PI_DOCS_EMBED ?? "";
 /** Repo `docs/` tree backing a monorepo checkout; unreachable from an installed package (see `getIndex`). */
 const DOCS_DIR = path.resolve(import.meta.dir, "../../../../docs");
 
-const gunzipAsync = promisify(gunzip);
+let gunzipFn: ((buf: Zlib.InputType) => Promise<Buffer>) | undefined;
+function gunzipAsync(buf: Zlib.InputType): Promise<Buffer> {
+	if (!gunzipFn) {
+		const zlib = require("node:zlib") as typeof Zlib;
+		gunzipFn = promisify(zlib.gunzip);
+	}
+	return gunzipFn(buf);
+}
 
 export interface DocsIndex {
 	/** Sorted documentation file names, relative to `docs/`. */
@@ -113,10 +120,10 @@ function readShippedEmbed(): DocsIndex | null {
 	return decoded;
 }
 
-/** Empty index for when no docs corpus is reachable — degrades `zeta://` instead of throwing ENOENT at callers. */
+/** Empty index for when no docs corpus is reachable — degrades `omp://` instead of throwing ENOENT at callers. */
 function emptyIndex(): DocsIndex {
 	logger.warn(
-		"zeta:// docs corpus unavailable: no build-time embed, on-disk docs/ directory, or shipped dist embed found",
+		"omp:// docs corpus unavailable: no build-time embed, on-disk docs/ directory, or shipped dist embed found",
 	);
 	return { filenames: [], getBody: () => Promise.resolve(undefined) };
 }
@@ -168,7 +175,7 @@ export function getDocFilenames(): readonly string[] {
 /**
  * Filesystem root backing the corpus when the active index was read from disk
  * (a monorepo checkout), or `null` when it came from an embed, the shipped
- * bundle file, or nowhere. Renderers use this to decide whether an `zeta://`
+ * bundle file, or nowhere. Renderers use this to decide whether an `omp://`
  * URL has a real file to link to: probing `docs/` unconditionally would
  * resolve into the consumer's own tree (their project's `docs/settings.md`,
  * `node_modules/docs`) on installs where the corpus is embedded.

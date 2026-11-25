@@ -13,24 +13,24 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { type AsyncJob, AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { createAgentsHubDeps } from "@linxiraos/zeta/modes/agents-hub-deps";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { AgentProgress, SingleResult, TaskParams } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { WaitTool } from "@linxiraos/zeta/tools/wait";
-import { snapshotJobs } from "@linxiraos/zeta/async/job-control";
-import { cfgTaskAgentModelOverrides, cfgTaskMaxConcurrency } from "@linxiraos/zeta/task/settings";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { type AsyncJob, AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import { createAgentsHubDeps } from "@oh-my-pi/pi-coding-agent/modes/agents-hub-deps";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { AgentProgress, SingleResult, TaskParams } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
+import { snapshotJobs } from "@oh-my-pi/pi-coding-agent/async/job-control";
+import { cfgTaskAgentModelOverrides, cfgTaskMaxConcurrency } from "@oh-my-pi/pi-coding-agent/task/settings";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const taskAgent: AgentDefinition = {
@@ -303,7 +303,7 @@ describe("task spawn routing", () => {
 			label: "does not claim the worktree is gone when the runner retained it",
 			runnerOverrides: {
 				patchPath: undefined,
-				error: "Patch capture failed: EACCES. Isolation workspace retained at /wt/sandboxed/m — recover the changes from it; `zetacode worktree clear` reclaims it once this session has exited.",
+				error: "Patch capture failed: EACCES. Isolation workspace retained at /wt/sandboxed/m — recover the changes from it; `omp worktree clear` reclaims it once this session has exited.",
 			},
 			expectRetained: true,
 		},

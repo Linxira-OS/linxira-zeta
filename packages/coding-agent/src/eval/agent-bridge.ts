@@ -1,7 +1,7 @@
 /**
  * Host-side handler for the eval `agent()` helper.
  */
-import { type } from "@linxiraos/zeta-schema";
+import { type } from "@oh-my-pi/omptype";
 import type { Settings } from "../config/settings";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import { createEvalCustomTools, describeEvalTools } from "../task/eval-tools";
@@ -16,14 +16,10 @@ import {
 	type StructuredSubagentIsolationControls,
 	type StructuredSubagentResult,
 } from "../task/structured-subagent";
-import type {
-	AgentProgress,
-	SingleResult,
-	StructuredSubagentSchemaMode,
-	NestedRepoPatch,
-} from "@linxiraos/pi-tui/tools/task";
+import type { AgentProgress, SingleResult, StructuredSubagentSchemaMode } from "../task/task-details";
+import type { NestedRepoPatch } from "../task/task-details";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";
 
 /** Synthetic bridge name reserved for the `agent()` helper across both runtimes. */

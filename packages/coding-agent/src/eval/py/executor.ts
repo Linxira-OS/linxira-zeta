@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { getProjectDir, isRecord, logger, Snowflake } from "@linxiraos/pi-utils";
-import type { OutputArtifactError } from "@linxiraos/pi-tui/tools/streaming-output";
+import { getProjectDir, isRecord, logger, Snowflake } from "@oh-my-pi/pi-utils";
+import type { ArtifactAllocator, OutputArtifactError } from "../../tools/streaming-output";
 import type { ToolSession } from "../../tools";
 import {
 	abortReasonError,
@@ -52,20 +52,16 @@ export type PythonToolRequest =
 
 /** Session identity and bridge context for invoking a retained Python tool. */
 export interface PythonToolInvokeOptions {
-	outerToolCallId?: string;
-	parentToolCallId?: string;
 	cwd: string;
 	sessionId: string;
 	interpreter?: string;
 	kernelOwnerId?: string;
 	toolSession: ToolSession;
+	parentToolCallId?: string;
 	signal?: AbortSignal;
 }
 
 export interface PythonExecutorOptions {
-	outerToolCallId?: string;
-	/** Tool call that spawned this eval cell, for nested tool attribution. */
-	parentToolCallId?: string;
 	/** Working directory for command execution */
 	cwd?: string;
 	/** Source filename for file-backed execution and tracebacks. */
@@ -106,9 +102,8 @@ export interface PythonExecutorOptions {
 	 * preferred over `PI_SESSION_FILE`-derived paths.
 	 */
 	artifactsDir?: string;
-	/** Artifact path/id for full output storage */
-	artifactPath?: string;
-	artifactId?: string;
+	/** Claims the spill file for output that overflows the inline view. */
+	allocateArtifact?: ArtifactAllocator;
 	/**
 	 * On-disk roots the prelude helpers (`read`/`write`) substitute for
 	 * internal-URL schemes (e.g. `{ local: "/…/artifacts/local" }`). Exported to
@@ -122,6 +117,7 @@ export interface PythonExecutorOptions {
 	 * not injected and any `tool.foo(...)` raises in Python.
 	 */
 	toolSession?: ToolSession;
+	parentToolCallId?: string;
 	/** Callback for status events emitted by tool bridge invocations. */
 	emitStatus?: (event: JsStatusEvent) => void;
 	/**
@@ -272,6 +268,7 @@ async function startKernel(cwd: string, options: PythonExecutorOptions): Promise
 		signal: options.signal,
 		deadlineMs: options.deadlineMs,
 		interpreter: options.interpreter,
+		sessionId: options.toolSession?.getSessionId?.() ?? undefined,
 	});
 }
 
@@ -526,7 +523,7 @@ async function invokePythonToolRequest(
 	const runId = Snowflake.next();
 	const unregister = registerPyToolBridge(options.sessionId, runId, {
 		toolSession: options.toolSession,
-		outerToolCallId: options.outerToolCallId,
+		parentToolCallId: options.parentToolCallId,
 		signal: options.signal,
 		emitStatus: undefined,
 	});

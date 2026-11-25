@@ -40,13 +40,13 @@ import type { FetchImpl } from "@linxiraos/pi-ai";
 import { $flag, getAutoQaDbPath, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
 import type { Tool, ToolSession } from "./index";
-import { REPORT_ISSUE_COMMAND_NAME } from "@linxiraos/pi-tui/tools/report-tool-issue";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
+import { BUILTIN_TOOL_NAMES, isMCPToolName } from "./builtin-names";
+import { toolCommandCallName } from "./tool-commands";
+import { REPORT_ISSUE_COMMAND_NAME } from "./report-issue-command";
+import { truncateHeadBytes } from "./streaming-output";
 import { type } from "@linxiraos/zeta-schema";
 import type { XdevDispatch } from "./xdev";
-
-import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "@linxiraos/pi-tui/tools/report-tool-issue";
-import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
 
 import { type ComposedIssue, type GhTokenRunner, type GrievanceKind, submitGrievance } from "../grievances/client";
 import { cfgDevAutoqa, cfgDevAutoqaConsent, cfgDevAutoqaPushToken } from "./settings";

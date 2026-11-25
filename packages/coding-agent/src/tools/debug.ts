@@ -1,4 +1,4 @@
-import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "@linxiraos/pi-tui/tools/debug";
+import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "./details/debug";
 import * as fs from "node:fs/promises";
 import { type } from "@linxiraos/zeta-schema";
 import type {
@@ -40,10 +40,11 @@ import {
 import debugDescription from "../prompts/tools/debug.md" with { type: "text" };
 import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
-import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { OutputMeta } from "./output-meta-format";
 import { formatPathRelativeToCwd, resolveToCwd } from "./path-utils";
-import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
+import { shortenPath, TRUNCATE_LENGTHS } from "../utils/render-utils";
+import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 import { clampTimeout } from "./tool-timeouts";
 

@@ -1,4 +1,3 @@
-import { Effort } from "@linxiraos/pi-catalog/effort";
 /**
  * Contracts: /vibe mode toggle on InteractiveMode.
  *
@@ -10,29 +9,26 @@ import { Effort } from "@linxiraos/pi-catalog/effort";
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { Skill } from "@linxiraos/zeta/extensibility/skills";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
-import { RoomService } from "@linxiraos/zeta/rooms/service";
-import { roomRuntime } from "@linxiraos/zeta/rooms/transport";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
-import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
-import { resetTeamRoomsForTests } from "@linxiraos/zeta/vibe/team-rooms";
-import { TempDir } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool, type StreamFn } from "@oh-my-pi/pi-agent-core";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { Skill } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { VIBE_TOOL_NAMES } from "@oh-my-pi/pi-coding-agent/tools/vibe";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { VibeSessionRegistry } from "@oh-my-pi/pi-coding-agent/vibe/runtime";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 function stubTool(name: string): AgentTool {
 	return {
@@ -150,10 +146,9 @@ describe("InteractiveMode vibe mode toggle", () => {
 	let mode: InteractiveMode;
 	let modelRegistry: ModelRegistry;
 	let storage: ExitFaultStorage;
-	let rooms: RoomService;
 
 	beforeAll(async () => {
-		await initTheme();
+		initTheme();
 		tempDir = TempDir.createSync("@pi-vibe-toggle-");
 		authStorage = createInMemoryAuthStorage();
 		modelRegistry = new ModelRegistry(authStorage);
@@ -161,10 +156,6 @@ describe("InteractiveMode vibe mode toggle", () => {
 
 	beforeEach(async () => {
 		resetSettingsForTest();
-		AgentRegistry.resetGlobalForTests();
-		resetTeamRoomsForTests();
-		rooms = new RoomService(":memory:");
-		roomRuntime(() => rooms);
 		VibeSessionRegistry.resetGlobalForTests();
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
@@ -195,24 +186,21 @@ describe("InteractiveMode vibe mode toggle", () => {
 			toolRegistry: new Map(registryTools.map(tool => [tool.name, tool])),
 			builtInToolNames: registryTools.map(tool => tool.name),
 			createVibeTools: () => VIBE_TOOL_NAMES.map(stubTool),
-			createTeamTools: () => [stubTool("team_spawn")],
 		});
-		AgentRegistry.global().register({
-			id: MAIN_AGENT_ID,
-			displayName: MAIN_AGENT_ID,
-			kind: "main",
-			status: "idle",
+		mode = new InteractiveMode(
 			session,
-		});
-		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus());
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			new EventBus(),
+			createModeTerminal().frame,
+		);
 	});
 
 	afterEach(async () => {
 		mode?.stop();
 		await session?.dispose();
-		rooms.close();
-		resetTeamRoomsForTests();
-		AgentRegistry.resetGlobalForTests();
 		VibeSessionRegistry.resetGlobalForTests();
 		vi.restoreAllMocks();
 		resetSettingsForTest();
@@ -221,26 +209,6 @@ describe("InteractiveMode vibe mode toggle", () => {
 	afterAll(() => {
 		authStorage.close();
 		tempDir.removeSync();
-	});
-
-	it("keeps explicit Team on and off commands idempotent", async () => {
-		await mode.handleTeamModeCommand(false);
-		expect(session.getTeamModeState()?.enabled ?? false).toBe(false);
-		await mode.handleTeamModeCommand(true);
-		await mode.handleTeamModeCommand(true);
-		expect(session.getTeamModeState()?.enabled).toBe(true);
-		expect(session.getActiveToolNames()).toContain("team_spawn");
-		await mode.handleTeamModeCommand(false);
-		await mode.handleTeamModeCommand(false);
-		expect(session.getTeamModeState()?.enabled ?? false).toBe(false);
-		expect(session.getActiveToolNames()).not.toContain("team_spawn");
-	});
-	it("keeps extension Team transitions synchronized with the interactive mode", async () => {
-		await mode.init({ suppressWelcomeIntro: true });
-		await mode.sessionModes.set({ mode: "team", action: "enter" });
-		expect(mode.teamModeEnabled).toBe(true);
-		await mode.sessionModes.set({ mode: "team", action: "exit" });
-		expect(mode.teamModeEnabled).toBe(false);
 	});
 
 	it("preserves the parent Todo tool and restores the exact pre-vibe toolset on exit", async () => {
@@ -507,6 +475,7 @@ describe("InteractiveMode vibe mode toggle", () => {
 			undefined,
 			undefined,
 			new EventBus(),
+			createModeTerminal().frame,
 		);
 
 		try {
@@ -537,12 +506,12 @@ describe("InteractiveMode vibe mode toggle", () => {
 		await readGate.started;
 		const suspendCallsBeforeRead = suspend.mock.calls.length;
 		readGate.release();
-		expect(suspendCallsBeforeRead).toBe(0);
+		expect(suspendCallsBeforeRead).toBe(1);
 		expect(await switching).toBe(true);
 
 		expect(mode.vibeModeEnabled).toBe(true);
 		expect(session.getActiveToolNames()).toEqual(expect.arrayContaining(["read", "todo", ...VIBE_TOOL_NAMES]));
-		expect(suspend).not.toHaveBeenCalled();
+		expect(suspend).toHaveBeenCalledTimes(1);
 		expect(terminate).not.toHaveBeenCalled();
 		expect(vibeModeEntryCount(session.sessionManager)).toBe(1);
 	});
@@ -572,7 +541,15 @@ describe("InteractiveMode vibe mode toggle", () => {
 			});
 			return {
 				session: opened,
-				mode: new InteractiveMode(opened, "test", undefined, undefined, undefined, new EventBus()),
+				mode: new InteractiveMode(
+					opened,
+					"test",
+					undefined,
+					undefined,
+					undefined,
+					new EventBus(),
+					createModeTerminal().frame,
+				),
 			};
 		};
 
@@ -646,7 +623,15 @@ describe("InteractiveMode vibe mode toggle", () => {
 			});
 			return {
 				session: opened,
-				mode: new InteractiveMode(opened, "test", undefined, undefined, undefined, new EventBus()),
+				mode: new InteractiveMode(
+					opened,
+					"test",
+					undefined,
+					undefined,
+					undefined,
+					new EventBus(),
+					createModeTerminal().frame,
+				),
 			};
 		};
 
@@ -693,7 +678,6 @@ describe("InteractiveMode vibe mode toggle", () => {
 
 	it("passes the session's active model into vibe rehydration on resume", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
-		session.setThinkingLevel(Effort.High);
 		await mode.handleVibeModeCommand();
 		await session.sessionManager.ensureOnDisk();
 		const sessionFile = session.sessionFile;
@@ -712,15 +696,16 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(await session.switchSession(sessionFile)).toBe(true);
 
 		// Rehydration must resolve workers against the reopened session's active
-		// model (so the `good`/pi/task worker tracks it), including its selected effort, not the settings default.
+		// model (so the `good`/pi/task worker tracks it), not the settings default.
 		expect(rehydrateCalled).toBe(true);
-		expect(activeModelDuringRehydrate).toBe(`${expectedModel.provider}/${expectedModel.id}:high`);
+		expect(activeModelDuringRehydrate).toBe(`${expectedModel.provider}/${expectedModel.id}`);
 	});
 
-	it("detaches the old scope without suspending it or adding tombstones when switching to another vibe parent", async () => {
+	it("suspends the old scope without tombstones when switching to another vibe parent", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
 		await mode.handleVibeModeCommand();
 		await session.sessionManager.ensureOnDisk();
+		const originalSessionId = session.sessionManager.getSessionId();
 		const targetManager = SessionManager.create(tempDir.path(), tempDir.path());
 		targetManager.appendModeChange("vibe");
 		await targetManager.ensureOnDisk();
@@ -734,7 +719,8 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(await session.switchSession(targetFile)).toBe(true);
 
 		expect(mode.vibeModeEnabled).toBe(true);
-		expect(suspend).not.toHaveBeenCalled();
+		expect(suspend).toHaveBeenCalledTimes(1);
+		expect(suspend.mock.calls[0]?.[0]).toMatchObject({ parentSessionId: originalSessionId });
 		expect(terminate).not.toHaveBeenCalled();
 		expect(vibeModeEntryCount(session.sessionManager)).toBe(1);
 	});

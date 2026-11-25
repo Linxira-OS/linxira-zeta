@@ -1,17 +1,18 @@
 /**
  * Custom tool loader - loads TypeScript tool modules through the same loader
- * as extensions, so `@linxiraos/*` imports resolve to the host's bundled copy
+ * as extensions, so `@oh-my-pi/*` imports resolve to the host's bundled copy
  * (in the compiled binary there is no other copy to resolve).
  *
  * Dependencies are also injected through CustomToolAPI so tools loaded from
  * user directories need no workspace module resolution.
  */
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/zeta-schema";
-import * as zod from "@linxiraos/zeta-schema/zod";
-import { logger } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import * as zod from "@oh-my-pi/omptype/zod";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { logger } from "@oh-my-pi/pi-utils";
 import { toolCapability } from "../../capability/tool";
+import type { EffectiveExtensionRoots } from "../../capability/types";
 import { type CustomTool, loadCapability } from "../../discovery";
 import type { ExecOptions } from "../../exec/exec";
 import { execCommand } from "../../exec/exec";
@@ -217,27 +218,6 @@ export class CustomToolLoader {
 	}
 }
 
-/** Tool name implied by a discovered module path (`<dir>/index.ts` → `<dir>`). */
-export function customToolNameFromPath(toolPath: string): string {
-	const base = path.basename(toolPath);
-	if (/^index\.(ts|js|mjs|cjs)$/i.test(base)) return path.basename(path.dirname(toolPath));
-	return base.replace(/\.(ts|js|mjs|cjs)$/i, "");
-}
-
-/**
- * Keep only paths whose implied tool name passes `isAllowed`.
- *
- * This is the cheap pre-import gate for a per-agent allowlist: a denied module
- * is never imported, so its top-level code and factory never run. The loaded
- * result is filtered by its authoritative `tool.name` afterwards as well.
- */
-export function filterCustomToolPaths(
-	paths: readonly ToolPathWithSource[],
-	isAllowed: (name: string) => boolean,
-): ToolPathWithSource[] {
-	return paths.filter(entry => isAllowed(customToolNameFromPath(entry.path)));
-}
-
 /**
  * Load all tools from configuration.
  * @param pathsWithSources - Array of tool paths with optional source metadata
@@ -266,10 +246,22 @@ export async function loadCustomTools(
 	};
 }
 
+export interface DiscoverCustomToolPathOptions {
+	/**
+	 * Include ambient sources: native/Claude/Codex tool dirs, marketplace and
+	 * installed plugins. `false` (an explicit-only `disableExtensionDiscovery`
+	 * session) keeps only the `tools/` of explicitly named extension package
+	 * roots and the configured paths. Default: true.
+	 */
+	ambient?: boolean;
+	/** Session-local extension roots for loads outside the construction-time scope. */
+	extensionRoots?: EffectiveExtensionRoots;
+}
+
 /**
  * Collect the absolute tool-source paths to load, without importing or
  * binding factories. Hot path on session startup — the scan walks
- * `.zeta/tools/`, `.claude/tools/`, the plugin tree, and any configured paths.
+ * `.omp/tools/`, `.claude/tools/`, the plugin tree, and any configured paths.
  *
  * Subagents reuse the parent's collected paths via the SDK's
  * `preloadedCustomToolPaths` option, then call `loadCustomTools` themselves
@@ -279,12 +271,15 @@ export async function loadCustomTools(
  * @param configuredPaths - Explicit paths from settings.json and CLI --tool flags
  * @param cwd - Current working directory
  * @param agentDir - Native user config dir. Default: getAgentDir()
+ * @param options - Ambient-source gate and session-local extension roots
  */
 export async function discoverCustomToolPaths(
 	configuredPaths: string[],
 	cwd: string,
 	agentDir?: string,
+	options: DiscoverCustomToolPathOptions = {},
 ): Promise<ToolPathWithSource[]> {
+	const ambient = options.ambient !== false;
 	const allPathsWithSources: ToolPathWithSource[] = [];
 	const seen = new Set<string>();
 
@@ -299,10 +294,14 @@ export async function discoverCustomToolPaths(
 
 	// Capability providers also expose metadata and scripts. Filter before deduplication
 	// so those entries cannot shadow executable modules with the same name.
+	// Non-ambient discovery reads only the `omp-plugins` provider, which in
+	// explicit-only mode lists just the explicit extension package roots.
 	const discoveredTools = await loadCapability<CustomTool>(toolCapability.id, {
 		cwd,
 		agentDir,
 		filter: tool => /\.(ts|js|mjs|cjs)$/.test(tool.path) && !tool.path.endsWith(".d.ts"),
+		...(ambient ? {} : { providers: ["omp-plugins"] }),
+		...(options.extensionRoots ? { extensionRoots: options.extensionRoots } : {}),
 	});
 	for (const tool of discoveredTools.items) {
 		addPath(tool.path, {
@@ -312,9 +311,11 @@ export async function discoverCustomToolPaths(
 		});
 	}
 
-	// 2. Plugin tools: ~/.zeta/plugins/node_modules/*/
-	for (const pluginPath of await getAllPluginToolPaths(cwd)) {
-		addPath(pluginPath, { provider: "plugin", providerName: "Plugin", level: "user" });
+	// 2. Plugin tools: ~/.omp/plugins/node_modules/*/
+	if (ambient) {
+		for (const pluginPath of await getAllPluginToolPaths(cwd)) {
+			addPath(pluginPath, { provider: "plugin", providerName: "Plugin", level: "user" });
+		}
 	}
 
 	// 3. Explicitly configured paths (can override/add)
@@ -328,7 +329,7 @@ export async function discoverCustomToolPaths(
 /**
  * Discover and load tools from standard locations via capability system:
  * 1. User and project tools discovered by capability providers
- * 2. Installed plugins (~/.zeta/plugins/node_modules/*)
+ * 2. Installed plugins (~/.omp/plugins/node_modules/*)
  * 3. Explicitly configured paths from settings or CLI
  *
  * Composed of {@link discoverCustomToolPaths} (FS scan) + {@link loadCustomTools}

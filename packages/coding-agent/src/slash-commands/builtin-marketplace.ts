@@ -5,23 +5,25 @@ import {
 	resolveActiveProjectRegistryPath,
 	resolveOrDefaultProjectRegistryPath,
 } from "../discovery/helpers.js";
-import { PluginManager } from "../extensibility/plugins";
-import { setInstalledPluginEnabled } from "../extensibility/plugins/toggle";
-import {
-	getInstalledPluginsRegistryPath,
-	getMarketplacesCacheDir,
-	getMarketplacesRegistryPath,
-	getPluginsCacheDir,
-	MarketplaceManager,
-} from "../extensibility/plugins/marketplace";
-import { M } from "../i18n";
-import { MCPCommandController } from "../modes/controllers/mcp-command-controller";
 import type { InteractiveModeContext } from "../modes/types";
-import { refreshAgentDiscovery } from "../task";
-import { createMarketplaceManager } from "./helpers/marketplace-manager";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import { parseMarketplaceInstallArgs, parsePluginScopeArgs } from "./marketplace-install-parser";
 import type { SlashCommandSpec } from "./types";
+
+// Lazy loaders: keep marketplace/plugin/MCP-controller modules off interactive-mode startup
+// until the user actually invokes `/marketplace`, `/plugins`, or `/reload-plugins`.
+async function loadMarketplaceHelper() {
+	return await import("./helpers/marketplace-manager");
+}
+async function loadMarketplaceModule() {
+	return await import("../extensibility/plugins/marketplace");
+}
+async function loadPluginManager() {
+	return (await import("../extensibility/plugins")).PluginManager;
+}
+async function loadPluginToggle() {
+	return (await import("../extensibility/plugins/toggle")).setInstalledPluginEnabled;
+}
 
 /**
  * Reload the interactive session's plugin runtime: invalidate fs/plugin-root
@@ -33,11 +35,13 @@ import type { SlashCommandSpec } from "./types";
 export async function reloadTuiPluginState(ctx: InteractiveModeContext): Promise<void> {
 	const projectPath = await resolveActiveProjectRegistryPath(ctx.sessionManager.getCwd());
 	clearPluginRootsAndCaches(projectPath ? [projectPath] : undefined);
+	const { refreshAgentDiscovery } = await import("../task");
 	await refreshAgentDiscovery(ctx.sessionManager.getCwd(), ctx.session.effectiveExtensionRoots);
 	await ctx.refreshSkillState();
 	await ctx.refreshSlashCommandState();
 	resetCapabilities();
 	if (ctx.mcpManager) {
+		const { MCPCommandController } = await import("../modes/controllers/mcp-command-controller");
 		await new MCPCommandController(ctx).reloadServers();
 	}
 }
@@ -46,32 +50,33 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "marketplace",
 		icon: "cart",
-		description: () => M.cmdMarketplace,
-		acpDescription: () => M.cmdMarketplaceAcp,
+		description: "Manage marketplace plugin sources and installed plugins",
+		acpDescription: "Manage plugins from marketplaces",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "add", description: () => M.cmdMarketplaceAdd, usage: "<source>" },
-			{ name: "remove", description: () => M.cmdMarketplaceRemove, usage: "<name>" },
-			{ name: "update", description: () => M.cmdMarketplaceUpdate, usage: "[name]" },
-			{ name: "list", description: () => M.cmdMarketplaceList },
-			{ name: "discover", description: () => M.cmdMarketplaceDiscover, usage: "[marketplace]" },
+			{ name: "add", description: "Add a marketplace source", usage: "<source>" },
+			{ name: "remove", description: "Remove a marketplace source", usage: "<name>" },
+			{ name: "update", description: "Update marketplace catalog(s)", usage: "[name]" },
+			{ name: "list", description: "List configured marketplaces" },
+			{ name: "discover", description: "Browse available plugins", usage: "[marketplace]" },
 			{
 				name: "install",
-				description: () => M.cmdMarketplaceInstall,
-				usage: "[--force] [--scope user|project] <name@marketplace>",
+				description: "Install a plugin (interactive browser if no args)",
+				usage: "[--force] [name@marketplace]",
 			},
-			{ name: "uninstall", description: () => M.cmdMarketplaceUninstall, usage: "[name@marketplace]" },
-			{ name: "installed", description: () => M.cmdMarketplaceInstalled },
-			{ name: "upgrade", description: () => M.cmdMarketplaceUpgrade, usage: "[name@marketplace]" },
-			{ name: "help", description: () => M.cmdMarketplaceHelp },
+			{ name: "uninstall", description: "Uninstall a plugin (selector if no args)", usage: "[name@marketplace]" },
+			{ name: "installed", description: "List installed marketplace plugins" },
+			{ name: "upgrade", description: "Upgrade outdated plugins", usage: "[name@marketplace]" },
+			{ name: "help", description: "Show usage guide" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
 			if (!verb) {
 				try {
+					const { createMarketplaceManager } = await loadMarketplaceHelper();
 					const manager = await createMarketplaceManager(runtime);
-					const marketplaces = await manager.listAvailableMarketplaces();
+					const marketplaces = await manager.listMarketplaces();
 					if (marketplaces.length === 0) {
 						await runtime.output(
 							"No marketplaces configured.\n\nGet started:\n  /marketplace add anthropics/claude-plugins-official\n\nThen browse with /marketplace discover",
@@ -97,7 +102,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 						"  /marketplace update [name]                 Re-fetch catalog(s)",
 						"  /marketplace list                          List configured marketplaces",
 						"  /marketplace discover [marketplace]        Browse available plugins",
-						"  /marketplace install [--force] [--scope user|project] <name@marketplace>  Install a plugin",
+						"  /marketplace install <name@marketplace>    Install a plugin",
 						"  /marketplace uninstall <name@marketplace>  Uninstall a plugin",
 						"  /marketplace installed                     List installed plugins",
 						"  /marketplace upgrade [name@marketplace]    Upgrade plugin(s)",
@@ -115,6 +120,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				);
 			}
 			try {
+				const { createMarketplaceManager } = await loadMarketplaceHelper();
 				const manager = await createMarketplaceManager(runtime);
 				switch (verb) {
 					case "add": {
@@ -141,7 +147,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 						return commandConsumed();
 					}
 					case "list": {
-						const marketplaces = await manager.listAvailableMarketplaces();
+						const marketplaces = await manager.listMarketplaces();
 						if (marketplaces.length === 0) {
 							await runtime.output("No marketplaces configured.");
 						} else {
@@ -251,6 +257,13 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				return;
 			}
 
+			const {
+				getInstalledPluginsRegistryPath,
+				getMarketplacesCacheDir,
+				getMarketplacesRegistryPath,
+				getPluginsCacheDir,
+				MarketplaceManager,
+			} = await loadMarketplaceModule();
 			const mgr = new MarketplaceManager({
 				marketplacesRegistryPath: getMarketplacesRegistryPath(),
 				installedRegistryPath: getInstalledPluginsRegistryPath(),
@@ -261,13 +274,6 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				pluginsCacheDir: getPluginsCacheDir(),
 				clearPluginRootsCache: clearPluginRootsAndCaches,
 			});
-			// The bundled official plugins are installed but disabled on first sight,
-			// so `/marketplace discover`/`installed` show the real state here too.
-			try {
-				await mgr.ensureOfficialPluginsInstalled();
-			} catch {
-				// The catalog and any existing install still list.
-			}
 
 			try {
 				switch (sub) {
@@ -397,7 +403,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 								"  /marketplace update [name]                 Re-fetch catalog(s)",
 								"  /marketplace list                          List configured marketplaces",
 								"  /marketplace discover [marketplace]        Browse available plugins",
-								"  /marketplace install [--force] [--scope user|project] <name@marketplace>  Install a plugin",
+								"  /marketplace install <name@marketplace>    Install a plugin",
 								"  /marketplace uninstall <name@marketplace>  Uninstall a plugin",
 								"  /marketplace installed                     List installed plugins",
 								"  /marketplace upgrade [name@marketplace]    Upgrade plugin(s)",
@@ -410,7 +416,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 						break;
 					}
 					default: {
-						const marketplaces = await mgr.listAvailableMarketplaces();
+						const marketplaces = await mgr.listMarketplaces();
 						if (marketplaces.length === 0) {
 							runtime.ctx.showStatus(
 								"No marketplaces configured.\n\nGet started:\n  /marketplace add anthropics/claude-plugins-official\n\nThen browse plugins with /marketplace or /marketplace discover",
@@ -434,13 +440,13 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 		name: "plugins",
 		aliases: ["plugin"],
 		icon: "package",
-		description: () => M.cmdPlugins,
-		acpDescription: () => M.cmdPluginsAcp,
+		description: "View and manage installed plugins",
+		acpDescription: "Manage plugins",
 		acpInputHint: "[list|enable|disable]",
 		subcommands: [
-			{ name: "list", description: () => M.cmdPluginsList },
-			{ name: "enable", description: () => M.cmdPluginsEnable, usage: "<plugin>" },
-			{ name: "disable", description: () => M.cmdPluginsDisable, usage: "<plugin>" },
+			{ name: "list", description: "List all installed plugins (npm + marketplace)" },
+			{ name: "enable", description: "Enable an installed plugin", usage: "<plugin>" },
+			{ name: "disable", description: "Disable an installed plugin", usage: "<plugin>" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -449,6 +455,11 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				if (verb === "enable" || verb === "disable") {
 					const parsed = parsePluginScopeArgs(rest, `Usage: /plugins ${verb} [--scope user|project] <plugin>`);
 					if ("error" in parsed) return usage(parsed.error, runtime);
+					const [{ createMarketplaceManager }, PluginManager, setInstalledPluginEnabled] = await Promise.all([
+						loadMarketplaceHelper(),
+						loadPluginManager(),
+						loadPluginToggle(),
+					]);
 					const marketplace = await createMarketplaceManager(runtime);
 					const marketplaceIds = new Set((await marketplace.listInstalledPlugins()).map(plugin => plugin.id));
 					await setInstalledPluginEnabled(parsed.pluginId, {
@@ -464,6 +475,10 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				}
 				// Default: list
 				const lines: string[] = [];
+				const [{ createMarketplaceManager }, PluginManager] = await Promise.all([
+					loadMarketplaceHelper(),
+					loadPluginManager(),
+				]);
 				const npmManager = new PluginManager();
 				const npmPlugins = await npmManager.list();
 				if (npmPlugins.length > 0) {
@@ -497,8 +512,8 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 	{
 		name: "reload-plugins",
 		icon: "restart",
-		description: () => M.cmdReloadPlugins,
-		acpDescription: () => M.cmdReloadPluginsAcp,
+		description: "Reload all plugins (skills, commands, hooks, tools, agents, MCP)",
+		acpDescription: "Reload all plugins",
 		handle: async (_command, runtime) => {
 			await runtime.reloadPlugins();
 			await runtime.output("Plugins reloaded.");

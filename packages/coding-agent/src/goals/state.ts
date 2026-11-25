@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { stableStringifyJson } from "@linxiraos/pi-utils";
-import { type Goal } from "@linxiraos/pi-tui/tools/goal";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import { stableStringifyJson } from "@oh-my-pi/pi-utils";
+import { type Goal } from "../tools/details/goal";
 import type { UsageStatistics } from "../session/session-entries";
 
 export interface GoalModeState {

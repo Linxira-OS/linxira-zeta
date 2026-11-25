@@ -10,10 +10,10 @@
  */
 import type { AgentMessage, AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Effort, ImageContent, Model, ServiceTier, ToolResultMessage, UsageReport } from "@linxiraos/pi-ai";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import type { JobWidgetEntry } from "@linxiraos/pi-tui/tools/job-widget";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
+import type { IrcMessage } from "../irc/irc-types";
+import type { JobWidgetEntry } from "../tools/details/job-widget";
+import type { TodoPhase } from "../tools/details/todo";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ModelRegistry } from "../config/model-registry";
@@ -166,6 +166,7 @@ export interface AgentSessionHandle {
 		reason?: string;
 		preserveCompaction?: boolean;
 		deliverQueuedMessages?: boolean;
+		detachTools?: boolean;
 	}): Promise<void>;
 	/** Replace the pooled-turn yield contract. */
 	setWorkPoolYieldItems(items: readonly WorkPoolYieldItem[]): Promise<void>;

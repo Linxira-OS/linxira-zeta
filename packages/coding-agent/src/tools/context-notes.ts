@@ -6,7 +6,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import contextNotesDescription from "../prompts/tools/context-notes.md" with { type: "text" };
 import contextNotesTextDescription from "../prompts/tools/context-notes-text.md" with { type: "text" };

@@ -1,16 +1,11 @@
-import { currentLanguage } from "../i18n";
-import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "./settings-zh";
-import { TERMINAL } from "@linxiraos/pi-tui";
-import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
-import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "./settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";
 import { orderedSettings } from "./all-settings";
 import { type AnySetting, lookup } from "./registry";
-
 import { cfgPlanAutosave, cfgPlanEnabled } from "../plan-mode/settings";
 import {
-	cfgRetryUsageAwareFallback,
 	cfgDefaultThinkingLevel,
+	cfgRetryUsageAwareFallback,
 	normalizeProviderMaxInFlightRequests,
 	validateProviderMaxInFlightRequests,
 } from "../session/settings";
@@ -22,6 +17,8 @@ import { cfgContextFilesExtra } from "../session/context-settings";
 import { cfgTaskPerCallModelAllow } from "../task/settings";
 import { cfgToolsRestrictedFolders } from "../tools/settings";
 import { cfgAuthUnpausedProviders } from "./model-settings";
+import { nativeRendering } from "@oh-my-pi/pi-tui";
+import { terminalCapabilities } from "@oh-my-pi/pi-tui/driver/session";
 
 /** Condition over the global settings; hidden (false) until they are initialized. */
 function whenSettings(test: (settings: Settings) => boolean): () => boolean {
@@ -30,15 +27,13 @@ function whenSettings(test: (settings: Settings) => boolean): () => boolean {
 
 const CONDITIONS: Record<string, () => boolean> = {
 	macOS: () => process.platform === "darwin",
-	hasImageProtocol: () => !!TERMINAL.imageProtocol,
-	nativeRendering: () => isNativeRendering(),
+	hasImageProtocol: () => terminalCapabilities().images !== null,
+	nativeRendering: () => nativeRendering(),
 	advisorEnabled: whenSettings(s => cfgAdvisorEnabled.get(s) === true),
 	vimModeEnabled: whenSettings(s => cfgTuiVimMode.get(s) === true),
 	composerPredictionsEnabled: whenSettings(s => cfgComposerPredictions.get(s) === true),
 	hindsightActive: whenSettings(s => cfgMemoryBackend.get(s) === "hindsight"),
 	mnemopiActive: whenSettings(s => cfgMemoryBackend.get(s) === "mnemopi"),
-	// The taste layer refines a memory backend; it never runs on its own.
-	tasteAvailable: whenSettings(s => cfgMemoryBackend.get(s) !== "off"),
 	autolearnActive: whenSettings(s => cfgAutolearnEnabled.get(s) === true),
 	autoThinkingActive: whenSettings(s => cfgDefaultThinkingLevel.get(s) === "auto"),
 	usageAwareFallbackEnabled: whenSettings(s => cfgRetryUsageAwareFallback.get(s) === true),
@@ -65,43 +60,17 @@ function envNote(setting: AnySetting): string {
  * is never pre-filled or written to config); descriptions note an active environment variable.
  */
 export function createSettingsHost(): SettingsHost {
-	const zh = currentLanguage() === "zh";
 	const entries: SettingsDisplayEntry[] = [];
 	for (const tab of SETTING_TABS) {
 		for (const setting of orderedSettings()) {
 			const ui = setting.ui;
 			if (ui?.tab !== tab) continue;
 			const note = envNote(setting);
-			// The registry carries the English copy; the zh overlay is applied here so
-			// both the TUI selector and the web panel read the same localized text.
-			const text = zh ? ZH_SETTING_TEXTS[setting.id] : undefined;
-			const localizedUi = text
-				? {
-						...ui,
-						label: text.label ?? ui.label,
-						description: text.description ?? ui.description,
-						group: ZH_GROUP_LABELS[ui.group ?? ""] ?? ui.group,
-						// `options` is either a concrete list or the "runtime" sentinel
-						// (values computed at read time), which has nothing to translate.
-						options: Array.isArray(ui.options)
-							? ui.options.map(option => {
-									const optionText = zh ? ZH_OPTION_TEXTS[`${setting.id}::${option.value}`] : undefined;
-									return optionText
-										? {
-												...option,
-												label: optionText.label,
-												description: optionText.description ?? option.description,
-											}
-										: option;
-								})
-							: ui.options,
-					}
-				: ui;
 			entries.push({
 				path: setting.id,
 				type: setting.type,
 				defaultValue: setting.default,
-				ui: note ? { ...localizedUi, description: `${localizedUi.description ?? ""}${note}` } : localizedUi,
+				ui: note ? { ...ui, description: `${ui.description}${note}` } : ui,
 				enumValues: setting.enumValues,
 				credential: setting.isCredential,
 				condition: ui.condition ? CONDITIONS[ui.condition] : undefined,

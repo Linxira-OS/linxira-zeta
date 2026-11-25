@@ -1,24 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { Api, AssistantMessage, Model, ThinkingContent } from "@linxiraos/pi-ai";
-import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { Agent, agentLoop } from "@oh-my-pi/pi-agent-core";
+import type { Api, AssistantMessage, Model, ThinkingContent } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { type GeneratedProvider, getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
 import {
 	type CustomMessage,
 	convertToLlm,
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	USER_INTERRUPT_LABEL,
-} from "@linxiraos/zeta/session/messages";
-import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+} from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const REASONING_TEXT = "I have partly reasoned through the implementation and should preserve this.";
@@ -229,7 +230,7 @@ describe("AgentSession interrupted thinking persistence", () => {
 		// The thinking is stripped from the provider request only: the LLM sees the
 		// assistant turn without the demoted run, plus the reasoning as a hidden
 		// developer continuity turn.
-		const llm = convertToLlm(messages);
+		const llm = convertToLlm(messages, harness.model);
 		const assistantLlm = llm.find(entry => entry.role === "assistant");
 		expect(assistantLlm).toBeDefined();
 		expect(
@@ -238,6 +239,41 @@ describe("AgentSession interrupted thinking persistence", () => {
 		const developerLlm = llm.filter(entry => entry.role === "developer");
 		expect(developerLlm.some(entry => JSON.stringify(entry.content).includes(REASONING_TEXT))).toBe(true);
 	});
+
+	it("gates saved continuity by the receiving model, without rewriting warm history", async () => {
+		const { model, session, sessionManager } = createSession();
+		await emitAssistantEnd(
+			session,
+			sessionManager,
+			thinkingAssistant(model, USER_INTERRUPT_LABEL),
+			entry => entry.type === "custom_message" && entry.customType === INTERRUPTED_THINKING_MESSAGE_TYPE,
+		);
+		const messages = session.agent.state.messages;
+		const claude = getBundledModel("anthropic", "claude-sonnet-4-5");
+		const mock = createMockModel({ handler: { content: ["done"] } });
+		for (const reader of [model, claude, model]) {
+			const expected = reader === model;
+			// Side requests can override the session's model even when its history and caches are unchanged.
+			const side = await session.convertMessagesToLlm(messages, undefined, reader);
+			expect(JSON.stringify(side).includes(REASONING_TEXT)).toBe(expected);
+			// The primary loop can likewise resolve a different model at the request boundary.
+			await agentLoop(
+				[{ role: "user", content: "continue", timestamp: 3 }],
+				{ systemPrompt: [], messages, tools: [] },
+				{ model, getModel: () => reader, convertToLlm },
+				undefined,
+				mock.stream,
+			).result();
+			expect(JSON.stringify(mock.calls.at(-1)!.context.messages).includes(REASONING_TEXT)).toBe(expected);
+		}
+		expect(messages.some(isInterruptedThinkingMessage)).toBe(true);
+		expect(
+			sessionManager
+				.getBranch()
+				.some(entry => entry.type === "custom_message" && entry.customType === INTERRUPTED_THINKING_MESSAGE_TYPE),
+		).toBe(true);
+	});
+
 	it("skips hidden continuity for a Claude target — reasoning never replays as text", async () => {
 		const harness = createSession(undefined, ["anthropic", "claude-sonnet-4-5"]);
 		await emitAssistantEnd(

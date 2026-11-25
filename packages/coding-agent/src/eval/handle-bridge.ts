@@ -1,9 +1,9 @@
-import { isRecord, truncate } from "@linxiraos/pi-utils";
+import { isRecord, truncate } from "@oh-my-pi/pi-utils";
 import { type AsyncJob, type AsyncJobManagerApi, agentProgress } from "../async";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { ToolSession } from "../tools";
 import { ToolAbortError } from "../tools/tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { withBridgeTimeoutPause } from "./bridge-timeout";
 import { type CompletionAttempt, getCompletionHandle, type CompletionHandleEntry } from "./completion-bridge";
 import type { JsStatusEvent } from "./js/shared/types";

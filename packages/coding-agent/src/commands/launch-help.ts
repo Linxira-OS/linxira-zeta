@@ -1,7 +1,7 @@
-import { Args, type CommandMetadata, Flags } from "@linxiraos/pi-utils/cli";
-import { APP_NAME, CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
-import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
-import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
+import { Args, type CommandMetadata, Flags } from "@oh-my-pi/pi-utils/cli";
+import { APP_NAME } from "@oh-my-pi/pi-utils/dirs";
+import { formatKey, keyHintPlatform } from "../ui/keys/format";
+import { CLI_THINKING_LEVELS } from "../thinking/levels";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
 
 export const launchHelp = {
@@ -50,7 +50,7 @@ export const launchHelp = {
 		alias: Flags.string({ description: "Create a shell shortcut for the selected profile and exit" }),
 		cwd: Flags.string({ description: "Directory to start in (overrides the launch cwd)" }),
 		mode: Flags.string({
-			description: "Output mode: text (default), json, rpc, or rpc-ui",
+			description: "Output mode: text (default), json, rpc, acp, or rpc-ui",
 			options: ["text", "json", "rpc", "acp", "rpc-ui"],
 		}),
 		config: Flags.string({
@@ -68,12 +68,17 @@ export const launchHelp = {
 			description:
 				"Resume a session as --resume does, then go on with what its last process left unfinished (the interrupted turn and the subagents it was running)",
 		}),
-		"from-claude": Flags.boolean({ description: "Import a Claude Code session into ZETA" }),
-		"from-codex": Flags.boolean({ description: "Import a Codex session into ZETA" }),
+		"from-claude": Flags.boolean({ description: "Import a Claude Code session into OMP" }),
+		"from-codex": Flags.boolean({ description: "Import a Codex session into OMP" }),
 		"session-dir": Flags.string({ description: "Directory for session storage and lookup" }),
 		"no-session": Flags.boolean({ description: "Don't save session (ephemeral)" }),
-		models: Flags.string({ description: `Comma-separated model patterns for ${formatKeyHint("ctrl+p")} cycling` }),
-		"no-tools": Flags.boolean({ description: "Disable all built-in tools" }),
+		models: Flags.string({
+			description: `Comma-separated model patterns for ${formatKey("ctrl+p", { preset: "ascii", platform: keyHintPlatform() })} cycling`,
+		}),
+		"no-tools": Flags.boolean({
+			description:
+				"Allow only the built-in tools named in --tools; load no MCP, LSP, extensions, custom tools or memory",
+		}),
 		"no-judge": Flags.boolean({ description: "Restrict judge calls to the active model's provider" }),
 		"no-spotlight": Flags.boolean({ description: "Restrict Spotlight calls to the active model's provider" }),
 		offline: Flags.boolean({
@@ -122,13 +127,9 @@ export const launchHelp = {
 		"no-context-files": Flags.boolean({ description: "Disable context files (AGENTS.md, CLAUDE.md, ...)" }),
 		export: Flags.string({ description: "Export session file to HTML and exit" }),
 		"no-title": Flags.boolean({ description: "Disable title auto-generation" }),
-		channels: Flags.boolean({
-			description:
-				"Host IM channels (WeChat/Feishu/Telegram/Discord/QQ) in this session; also enabled per channel in web.yml",
-		}),
 		"spinner-interval": Flags.string({
 			description:
-				"Milliseconds between spinner frames (default 80; 0 = static). Overrides tui.spinnerInterval and PI_SPINNER_INTERVAL for this run",
+				"Milliseconds between spinner frames (default 80, terminal title 250; 0 = static). Overrides tui.spinnerInterval and PI_SPINNER_INTERVAL for this run",
 		}),
 		"max-fps": Flags.string({
 			description:
@@ -142,27 +143,6 @@ export const launchHelp = {
 			description: "With --mode rpc or rpc-ui: run extensions headless (rpc-ui tool UI remains enabled)",
 		}),
 		"print-thoughts": Flags.boolean({ description: "Include thinking blocks in print mode text output" }),
-		backend: Flags.boolean({
-			description:
-				"Route a print launch through a running `zetacode serve` backend (default: own the session in-process)",
-		}),
-		attach: Flags.boolean({
-			description:
-				"Attach the TUI to the running backend's newest session in this directory (the bare `zetacode` default)",
-		}),
-		"attach-session": Flags.string({
-			description: "Attach the TUI to this backend session id (implies --attach)",
-		}),
-		"attach-new": Flags.boolean({
-			description: "Force a fresh backend session in this directory instead of reusing the newest one",
-		}),
-		"backend-url": Flags.string({
-			description: "Backend gateway URL (default: ZETA_GATEWAY_URL, the serve registry, then 127.0.0.1:43143)",
-		}),
-		standalone: Flags.boolean({
-			aliases: ["local"],
-			description: "Force a local process even when backend mode is enabled",
-		}),
 		"max-time": Flags.string({ description: "Stop the session after this duration (e.g., 600, 10m, 1h)" }),
 		"warn-cost": Flags.string({
 			description: "Warn once when the session's spend, subagents included, reaches this many USD",
@@ -181,16 +161,16 @@ export const launchHelp = {
 		}),
 	},
 	examples: [
-		`# Interactive mode\n  ${CLI_BIN_NAME}`,
-		`# Interactive mode with initial prompt\n  ${CLI_BIN_NAME} "List all .ts files in src/"`,
-		`# Start working on a goal immediately\n  ${CLI_BIN_NAME} --goal "Investigate the importer"`,
-		`# Include files in initial message\n  ${CLI_BIN_NAME} @prompt.md @image.png "What color is the sky?"`,
-		`# Non-interactive mode (process and exit)\n  ${CLI_BIN_NAME} -p "List all .ts files in src/"`,
-		`# Continue previous session\n  ${CLI_BIN_NAME} --continue "What did we discuss?"`,
-		`# Pick a session back up after a crash, subagents included\n  ${CLI_BIN_NAME} --restore ~/.zeta/agent/sessions/--path--/session.jsonl`,
-		`# Create a shell shortcut for a work profile\n  ${CLI_BIN_NAME} --profile work --alias zc-work`,
-		`# Use different model (fuzzy matching)\n  ${CLI_BIN_NAME} --model opus "Help me refactor this code"`,
-		`# Limit model cycling to specific models\n  ${CLI_BIN_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
-		`# Export a session file to HTML\n  ${CLI_BIN_NAME} --export ~/.zeta/agent/sessions/--path--/session.jsonl`,
+		`# Interactive mode\n  ${APP_NAME}`,
+		`# Interactive mode with initial prompt\n  ${APP_NAME} "List all .ts files in src/"`,
+		`# Start working on a goal immediately\n  ${APP_NAME} --goal "Investigate the importer"`,
+		`# Include files in initial message\n  ${APP_NAME} @prompt.md @image.png "What color is the sky?"`,
+		`# Non-interactive mode (process and exit)\n  ${APP_NAME} -p "List all .ts files in src/"`,
+		`# Continue previous session\n  ${APP_NAME} --continue "What did we discuss?"`,
+		`# Pick a session back up after a crash, subagents included\n  ${APP_NAME} --restore ~/.omp/agent/sessions/--path--/session.jsonl`,
+		`# Create a shell shortcut for a work profile\n  ${APP_NAME} --profile work --alias omp-work`,
+		`# Use different model (fuzzy matching)\n  ${APP_NAME} --model opus "Help me refactor this code"`,
+		`# Limit model cycling to specific models\n  ${APP_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
+		`# Export a session file to HTML\n  ${APP_NAME} --export ~/.omp/agent/sessions/--path--/session.jsonl`,
 	],
 } satisfies CommandMetadata;

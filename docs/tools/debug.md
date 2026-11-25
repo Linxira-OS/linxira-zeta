@@ -14,15 +14,15 @@
    - `packages/coding-agent/src/dap/types.ts` — request/response/capability shapes
    - `packages/coding-agent/src/tools/tool-timeouts.ts` — per-tool timeout clamp
    - `packages/coding-agent/src/debug/index.ts` — interactive debug selector menu
-   - `packages/tui/src/apps/debug/log-viewer.ts` — recent-log TUI viewer
-   - `packages/tui/src/apps/debug/raw-sse.ts` — raw SSE TUI viewer
-   - `packages/tui/src/apps/debug/raw-sse-buffer.ts` — bounded SSE capture buffer
+   - `packages/coding-agent/src/ui/apps/log-viewer/log-viewer.tsx` — recent-log TUI viewer
+   - `packages/coding-agent/src/ui/apps/raw-sse/raw-sse.tsx` — raw SSE TUI viewer
+   - `packages/coding-agent/src/debug/raw-sse-buffer.ts` — bounded SSE capture buffer
    - `packages/coding-agent/src/debug/remote-debugger.ts` — one-shot JavaScriptCore remote inspector socket
    - `packages/coding-agent/src/debug/profiler.ts` — CPU/heap profiling helpers
    - `packages/coding-agent/src/debug/report-bundle.ts` — `.tar.gz` report bundling, log source, cache cleanup
    - `packages/coding-agent/src/debug/system-info.ts` — system snapshot collection and env redaction
-   - `packages/tui/src/apps/debug/terminal-info.ts` — terminal state collection/formatting
-   - `packages/tui/src/apps/debug/protocol-probe.ts` — terminal protocol probe panel and sample image
+   - `packages/coding-agent/src/modes/view-model/apps/debug/terminal-info.ts` — terminal state collection/formatting
+   - `packages/coding-agent/src/ui/apps/protocol-probe/protocol-probe.tsx` — terminal protocol probe panel and sample image
 
 ## Inputs
 
@@ -122,7 +122,7 @@ Streaming/UI behavior:
 
 Side-channel artifacts outside the model tool result:
 
-- `createReportBundle()` writes `zeta-report-<timestamp>.tar.gz` under the reports dir and returns the filesystem path to the UI handler.
+- `createReportBundle()` writes `omp-report-<timestamp>.tar.gz` under the reports dir and returns the filesystem path to the UI handler.
 - `#handleWorkReport()` writes `/tmp/work-profile-<Date.now()>.svg` before opening it.
 - `RawSseViewerComponent` and `DebugLogViewerComponent` can copy captured text to the clipboard.
 
@@ -171,7 +171,7 @@ Side-channel artifacts outside the model tool result:
    - `attach`: explicit `adapter` wins; otherwise remote `port` prefers `debugpy`, then native debuggers, then first available adapter.
 - **Custom adapter config**
    - Debug adapters can be added or overridden with `dap.json`, `.dap.json`, `dap.yaml`, `.dap.yaml`, `dap.yml`, or `.dap.yml`.
-   - Search order: selected cwd, its project config dirs (`.zeta/`, `.claude/`, `.codex/`, `.gemini/`), enabled user config dirs (`~/.zeta/agent/`, Claude's active config directory, `~/.codex/`, `~/.gemini/`), plugin roots, then home-root fallback. `CLAUDE_CONFIG_DIR` overrides Claude's user directory. Files are merged from lowest to highest priority.
+   - Search order: selected cwd, its project config dirs (`.omp/`, `.claude/`, `.codex/`, `.gemini/`), enabled user config dirs (`~/.omp/agent/`, Claude's active config directory, `~/.codex/`, `~/.gemini/`), plugin roots, then home-root fallback. `CLAUDE_CONFIG_DIR` overrides Claude's user directory. Files are merged from lowest to highest priority.
    - Config shape may be either `{ "adapters": { ... } }` or a top-level adapter map.
    - Adapter fields:
       - `command`: executable name or path. Required.
@@ -184,7 +184,7 @@ Side-channel artifacts outside the model tool result:
       - `connectMode`: `"stdio"` (default), `"socket"` (Delve-style platform-dependent socket/callback), or `"tcp"` (spawn a local DAP server with `${port}` substituted into `args`).
       - `acceptsDirectoryProgram`: set `true` for adapters such as `dlv` that can launch a package/project directory.
 
-Example `.zeta/dap.json`:
+Example `.omp/dap.json`:
 
 ```json
 {
@@ -282,8 +282,8 @@ GDB example for an OpenOCD remote target:
 - Subprocesses / native bindings
    - Spawns debugger adapters (`gdb`, `lldb-dap`, `python -m debugpy.adapter`, `dlv`, and others from `defaults.json`) detached.
    - Reverse DAP `runInTerminal` requests spawn the debuggee detached via `ptree.spawn()`; its stdout is consumed in a background drain for its lifetime.
-   - `getWorkProfile(30)` comes from `@linxiraos/pi-natives`.
-   - CPU profiling uses `node:inspector/promises`; memory statistics use `process.memoryUsage()` and numeric counters from `bun:jsc`'s `heapStats()` after GC; raw/log viewers sanitize text via `sanitizeText()` from `@linxiraos/pi-utils`.
+   - `getWorkProfile(30)` comes from `@oh-my-pi/pi-natives`.
+   - CPU profiling uses `node:inspector/promises`; memory statistics use `process.memoryUsage()` and numeric counters from `bun:jsc`'s `heapStats()` after GC; raw/log viewers sanitize text via `sanitizeText()` from `@oh-my-pi/pi-utils`.
    - `openPath()` launches the OS default file/browser handler for artifact dirs and SVGs.
    - Log/raw-SSE viewers can call `copyToClipboard()`.
 - Session state (transcript, memory, jobs, checkpoints, registries)
@@ -311,13 +311,12 @@ GDB example for an OpenOCD remote target:
 - Output capture cap: `MAX_OUTPUT_BYTES = 128 * 1024`; whole chunks are dropped from the front (then the front chunk is byte-sliced so exactly the cap remains) and `outputTruncated` is recorded.
 - Initial stop capture timeout after launch/attach: `STOP_CAPTURE_TIMEOUT_MS = 5_000`.
 - Socket-mode adapter readiness timeout: `10_000` ms in `waitForCondition()` and TCP connect timeout logic in `packages/coding-agent/src/dap/client.ts`.
-- Raw SSE buffer caps in `packages/tui/src/apps/debug/raw-sse-buffer.ts`:
+- Raw SSE buffer caps in `packages/coding-agent/src/debug/raw-sse-buffer.ts`:
    - `MAX_RAW_SSE_EVENTS = 1_000`
    - `MAX_RAW_SSE_CHARS = 512_000`
-   - `MAX_RAW_SSE_EVENT_CHARS = 64_000` per event; over-budget events first compact long `tools` schemas/descriptions to 200-character previews (name/type retained), then, if still oversized, use head+tail trimming with `: zeta-debug-elided chars=...`. Trimmed events end with `: zeta-debug-truncated originalChars=...`.
-- Log viewer window in `packages/tui/src/apps/debug/log-viewer.ts`:
-   - `INITIAL_LOG_CHUNK = 50`
-   - `LOAD_OLDER_CHUNK = 50`
+   - `MAX_RAW_SSE_EVENT_CHARS = 64_000` per event; over-budget events first compact long `tools` schemas/descriptions to 200-character previews (name/type retained), then, if still oversized, use head+tail trimming with `: omp-debug-elided chars=...`. Trimmed events end with `: omp-debug-truncated originalChars=...`.
+- Log viewer window in `packages/coding-agent/src/ui/apps/log-viewer/entries.ts`:
+   - `LOG_CHUNK = 50` (initial window and each older-chunk load)
 - Report/log ingestion caps in `packages/coding-agent/src/debug/report-bundle.ts`:
    - `MAX_LOG_LINES = 5000` for interactive log reading
    - `MAX_LOG_BYTES = 2 * 1024 * 1024` tail-read ceiling
@@ -364,7 +363,7 @@ GDB example for an OpenOCD remote target:
 ## Notes
 
 - `packages/coding-agent/src/prompts/tools/debug.md` tells the model only one active root session is supported. Adapter-requested child sessions belong to that root tree.
-- The default JavaScript/TypeScript adapter runs vscode-js-debug's `dapDebugServer.js` over TCP. Install it one of these ways; the first and last are auto-discovered by `resolveJsDebugServerPath()` in `packages/coding-agent/src/dap/config.ts`. (Don't try `npm i -g js-debug-adapter` — it 404s; `js-debug-adapter` is the Zeta adapter id, not an npm package.)
+- The default JavaScript/TypeScript adapter runs vscode-js-debug's `dapDebugServer.js` over TCP. Install it one of these ways; the first and last are auto-discovered by `resolveJsDebugServerPath()` in `packages/coding-agent/src/dap/config.ts`. (Don't try `npm i -g js-debug-adapter` — it 404s; `js-debug-adapter` is the omp adapter id, not an npm package.)
    - Release tarball, extracted so `dapDebugServer.js` lands at `~/.local/opt/js-debug/src/dapDebugServer.js`:
       ```sh
       curl -sL -o js-debug-dap.tar.gz \
@@ -374,7 +373,7 @@ GDB example for an OpenOCD remote target:
       Replace `v1.117.0` with the latest tag from the [releases page](https://github.com/microsoft/vscode-js-debug/releases).
    - Any other location via `JS_DEBUG_DAP_SERVER=<path-to-dapDebugServer.js>`.
    - Neovim users with Mason: `:MasonInstall js-debug-adapter` → discovered at `~/.local/share/nvim/mason/packages/js-debug-adapter/js-debug/src/dapDebugServer.js`.
-- The adapter runs under `node` if on `PATH`, otherwise under the Zeta host (Bun); `resolveDefaultJsDebugAdapter()` falls back to `process.execPath`, so a Bun-only setup is supported.
+- The adapter runs under `node` if on `PATH`, otherwise under the omp host (Bun); `resolveDefaultJsDebugAdapter()` falls back to `process.execPath`, so a Bun-only setup is supported.
 - `configurationDone` is sent automatically during root and child launch/attach handshakes and lazily before later requests if the initial handshake did not complete.
 - `startDebugging` reverse requests create recursive child sessions on the same TCP server; a stopped child becomes the target for thread-level actions.
 - `output` exposes the active session's merged DAP `output` events and `runInTerminal` stdout. DAP stdout/stderr/console categories are not separated; the terminal-spawn path does not add its separately drained stderr to this cache.

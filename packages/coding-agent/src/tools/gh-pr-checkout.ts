@@ -9,7 +9,7 @@ import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree"
 import { github } from "../utils/github";
 import { withRepoLock } from "../utils/repo-lock";
 import type { ToolSession } from ".";
-import type { GhPrCheckoutSummary, GhToolDetails } from "@linxiraos/pi-tui/tools/github";
+import type { GhPrCheckoutSummary, GhToolDetails } from "./details/github";
 import {
 	appendRepoFlag,
 	buildTextResult,
@@ -23,12 +23,12 @@ import {
 	requireCurrentGitBranch,
 	requireNonEmpty,
 } from "./gh-common";
-import { pushLine } from "@linxiraos/pi-tui/tools/gh-format";
-import { formatShortSha } from "@linxiraos/pi-tui/tools/gh-format";
+import { pushLine } from "./gh-format";
+import { formatShortSha } from "./gh-format";
 import type { GhPrViewData, GhRepoViewData, GithubInput } from "./gh-types";
 import { invalidateAllForNumber } from "./github-cache";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 
 import { cfgIsolationBackend, cfgWorktreeClone } from "../task/settings";
 

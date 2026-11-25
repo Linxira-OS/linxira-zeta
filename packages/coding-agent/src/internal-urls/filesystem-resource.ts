@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { hasFsCode, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
-import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
+import { isMarkdownPath } from "../utils/lang-from-path";
 import type { InternalResource } from "./types";
 
 /** Resource content type inferred from a file extension: markdown, JSON, or plain text. */

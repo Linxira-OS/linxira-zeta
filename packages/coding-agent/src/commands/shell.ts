@@ -2,10 +2,10 @@
  * Interactive shell console.
  */
 
-import { Command, Flags } from "@linxiraos/pi-utils/cli";
+import { Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { shellHelp as commandHelp } from "../cli/command-help";
 import { runShellCommand, type ShellCommandArgs } from "../cli/shell-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 export default class Shell extends Command {
 	static description = commandHelp.description;
@@ -24,7 +24,7 @@ export default class Shell extends Command {
 			noSnapshot: flags["no-snapshot"],
 		};
 
-		await initTheme();
+		initTheme();
 		await runShellCommand(cmd);
 	}
 }

@@ -15,7 +15,7 @@
  */
 import * as path from "node:path";
 import type { Judge, JudgmentResult, NoulQuestion } from "@linxiraos/pi-ai";
-import type { FindCoverage, FindHit, FindLexicalMatch, FindStats, FindTimeout } from "@linxiraos/pi-tui/tools/find";
+import type { FindCoverage, FindHit, FindLexicalMatch, FindStats, FindTimeout } from "../details/find";
 import { untilAborted } from "@linxiraos/pi-utils";
 import type { InternalUrlFilesystem } from "../../internal-urls/url-filesystem";
 import { type SpotlightClient, SpotlightError } from "../../spotlight/client";

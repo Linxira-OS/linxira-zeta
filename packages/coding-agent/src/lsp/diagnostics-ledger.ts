@@ -1,4 +1,4 @@
-import type { FileDiagnosticsResult } from "@linxiraos/pi-tui/tools/lsp";
+import type { FileDiagnosticsResult } from "../tools/details/lsp";
 import type { ToolSession } from "../tools";
 import { getToolConversationState } from "../tools/tool-state";
 import { summarizeDiagnosticMessages } from "./utils";

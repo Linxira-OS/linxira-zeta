@@ -6,48 +6,26 @@
  * {@link LSP_ACQUIRE_METHOD} to pick an instance key (the first instance of
  * its server identity with no attached session), `open`s that unit, and
  * `attach`es with the returned token as channel. The tunnel then carries
- * plain Content-Length-framed LSP JSON-RPC plus the private `zeta/mux*`
+ * plain Content-Length-framed LSP JSON-RPC plus the private `omp/mux*`
  * methods below.
  */
-import type { UnitScope } from "@linxiraos/pi-tui/tools/daemon";
+import type { UnitScope } from "../../daemon/daemon-types";
 import { stableStringifyJson } from "@linxiraos/pi-utils";
-
-export { LSP_MUX_WORKER_ARG } from "../../cli/worker-selectors";
+import { TOOL_TIMEOUTS } from "../../tools/tool-timeouts";
 
 /** Daemon unit kind and `call` module name. */
 export const LSP_MODULE_KIND = "lsp";
-
-/** Reserve the first free language-server instance. */
-export const LSP_ACQUIRE_METHOD = "zeta/lspAcquire";
 /** `lsp` module protocol version advertised in the daemon's caps. */
 export const LSP_MODULE_VERSION = 1;
 
-/** Environment key carrying the socket endpoint the mux must listen on. */
-export const LSP_MUX_SOCKET_ENV = "ZETA_LSP_MUX_SOCKET";
-
-/** Environment key carrying the canonical project directory the mux serves. */
-export const LSP_MUX_PROJECT_DIR_ENV = "ZETA_LSP_MUX_PROJECT_DIR";
-
-/** Stable broker daemon name for the shared LSP mux. */
-export const LSP_MUX_DAEMON_NAME = "zeta.lsp.mux";
-
-/** Broker readiness regex matched against the banner printed by the worker. */
-export const LSP_MUX_READY_PATTERN = String.raw`zetacode lsp mux listening on \S+`;
-
-/** Banner printed on stdout once the mux socket accepts connections. */
-export function lspMuxReadyBanner(endpoint: string): string {
-	return `zetacode lsp mux listening on ${endpoint}`;
-}
-
-// =============================================================================
-// Mux-private JSON-RPC methods
-// =============================================================================
+/** Hard ceiling for a cold LSP handshake, including callers with no deadline. */
+export const LSP_STARTUP_MAX_MS = TOOL_TIMEOUTS.lsp.max * 1_000;
 
 /**
  * `call("lsp", LSP_ACQUIRE_METHOD, LspServerParams)`: reserve the first free
  * instance of the server identity. Result: {@link LspAcquireResult}.
  */
-export const MUX_CONNECT_METHOD = "zeta/muxConnect";
+export const LSP_ACQUIRE_METHOD = "acquire";
 
 /**
  * `call("lsp", LSP_UNRESERVE_METHOD, LspAcquireResult)`: drop a reservation
@@ -63,24 +41,7 @@ export const LSP_UNRESERVE_METHOD = "unreserve";
  * `shutdown`/`exit` is intercepted by the module so the process can linger
  * for reuse.
  */
-export interface MuxConnectParams {
-	command: string;
-	args: string[];
-	cwd: string;
-	env?: Record<string, string>;
-	initializationOptions?: unknown;
-}
-
-export interface MuxConnectResult {
-	key: string;
-	spawned: boolean;
-	pid?: number;
-}
-
-export const MUX_PING_METHOD = "zeta/muxPing";
-export const MUX_PING_RESULT = "pong";
-
-export const MUX_RESTART_METHOD = "zeta/muxRestartServer";
+export const MUX_RESTART_METHOD = "omp/muxRestartServer";
 
 /**
  * Last frame the module writes on each tunnel bound to a server that just
@@ -88,7 +49,7 @@ export const MUX_RESTART_METHOD = "zeta/muxRestartServer";
  * which a bare close cannot. Sent as `{ jsonrpc, method, params }` (in that
  * key order) so the client finds it by prefix in the tunnel's final bytes.
  */
-export const MUX_SERVER_EXITED_METHOD = "zeta/muxServerExited";
+export const MUX_SERVER_EXITED_METHOD = "omp/muxServerExited";
 
 /** Bytes of server stderr forwarded in {@link MUX_SERVER_EXITED_METHOD}. */
 export const MUX_SERVER_EXIT_STDERR_BYTES = 4_096;

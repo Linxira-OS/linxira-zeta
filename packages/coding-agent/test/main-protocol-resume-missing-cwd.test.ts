@@ -1,6 +1,5 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
- * `zetacode --resume <id>` of a session whose recorded directory no longer exists.
+ * `omp --resume <id>` of a session whose recorded directory no longer exists.
  *
  * The protocol modes (`--mode rpc`, `--mode rpc-ui`, `--mode acp`) own standard
  * input and standard output, so no question can be asked there: they open the
@@ -13,18 +12,18 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "bun:
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readlinePromises from "node:readline/promises";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import * as rpcInputModule from "@linxiraos/zeta/modes/rpc/rpc-input";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
-import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createSessionWorktree } from "@linxiraos/zeta/session/session-worktree";
-import * as themeModule from "@linxiraos/pi-tui/theme";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
+import * as rpcInputModule from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-input";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import type { SessionHeader } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { createSessionWorktree } from "@oh-my-pi/pi-coding-agent/session/session-worktree";
+import * as themeService from "../src/ui/theme/service";
 import {
 	__resetDirsFromEnvForTests,
 	getProjectDir,
@@ -35,7 +34,7 @@ import {
 	setInteractiveHost,
 	setProjectDir,
 	TempDir,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { $ } from "bun";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 import { makeAssistantMessage } from "./session-manager/helpers";
@@ -59,9 +58,9 @@ const QUIET_FLAGS = ["--no-extensions", "--no-skills", "--no-rules", "--no-tools
 
 /** Variables a test or `runRootCommand` sets; each is put back after every test. */
 const ENV_KEYS = [
-	"ZETA_CODING_AGENT_DIR",
+	"PI_CODING_AGENT_DIR",
 	"PI_PROFILE",
-	"ZETA_PROFILE",
+	"OMP_PROFILE",
 	"PI_NO_PTY",
 	"PI_NO_TITLE",
 	"GIT_CONFIG_GLOBAL",
@@ -70,7 +69,7 @@ const ENV_KEYS = [
 	"GIT_AUTHOR_EMAIL",
 	"GIT_COMMITTER_NAME",
 	"GIT_COMMITTER_EMAIL",
-	"ZETA_WORKTREE_DIR",
+	"OMP_WORKTREE_DIR",
 ] as const;
 
 let tempDir: TempDir;
@@ -94,7 +93,7 @@ beforeEach(() => {
 	originalProject = getProjectDir();
 	originalInteractiveHost = isInteractiveHost();
 	originalIsTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-	tempDir = TempDir.createSync("@zeta-resume-missing-cwd-");
+	tempDir = TempDir.createSync("@omp-resume-missing-cwd-");
 	root = fs.realpathSync(tempDir.path());
 	setAgentDir(path.join(root, "agent"));
 	answer = "n";
@@ -136,7 +135,7 @@ afterEach(async () => {
 	if (originalIsTTY) Object.defineProperty(process.stdin, "isTTY", originalIsTTY);
 	else Reflect.deleteProperty(process.stdin, "isTTY");
 	setInteractiveHost(originalInteractiveHost);
-	themeModule.stopThemeWatcher();
+	themeService.stopThemeWatcher();
 	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 	clearOmpExtensionCliRoots();
 	setProjectDir(originalProject);
@@ -299,14 +298,19 @@ describe.skipIf(process.platform === "win32")("a removed worktree is still moved
 			GIT_AUTHOR_EMAIL: "test@example.com",
 			GIT_COMMITTER_NAME: "Test",
 			GIT_COMMITTER_EMAIL: "test@example.com",
-			ZETA_WORKTREE_DIR: path.join(root, "wt-base"),
+			OMP_WORKTREE_DIR: path.join(root, "wt-base"),
 		});
 		repo = path.join(root, "repo");
 		await fs.promises.mkdir(repo);
 		await $`git init -q && git commit -q --allow-empty -m init`.cwd(repo).quiet();
-		// `/wt` moves a session into a new worktree's session directory; `zetacode worktree clear` removes and prunes it.
+		// `/wt` moves a session into a new worktree's session directory; `omp worktree clear` removes and prunes it.
 		const manager = await answeredManager(repo);
-		const { path: worktree } = await createSessionWorktree(repo, Settings.isolated(), "wt/gone");
+		// Pin the git backend: an installed ovnfs would otherwise create a checkout `git worktree remove` cannot see.
+		const { path: worktree } = await createSessionWorktree(
+			repo,
+			Settings.isolated({ "ovnfs.path": "/nonexistent/ovnfs" }),
+			"wt/gone",
+		);
 		await manager.moveTo(worktree);
 		await manager.close();
 		sessionId = manager.getSessionId();

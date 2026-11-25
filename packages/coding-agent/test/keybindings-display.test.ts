@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { keyText } from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
-import { getKeybindings, setKeybindings, type KeybindingsManager as TuiKeybindingsManager } from "@linxiraos/pi-tui";
-import { KeybindingsManager, setKeyHintPlatform } from "@linxiraos/pi-tui/app-keybindings";
+import {
+	getKeybindings,
+	KeybindingsManager,
+	setKeybindings,
+} from "@oh-my-pi/pi-coding-agent/config/keybindings/keybindings";
+import { keyText } from "@oh-my-pi/pi-coding-agent/extensibility/legacy-pi-coding-agent-shim";
+import { setKeyHintPlatform } from "@oh-my-pi/pi-coding-agent/ui/keys/format";
 
 describe("legacy keyText", () => {
-	let previous: TuiKeybindingsManager;
+	let previous: KeybindingsManager;
 
 	beforeEach(() => {
 		previous = getKeybindings();

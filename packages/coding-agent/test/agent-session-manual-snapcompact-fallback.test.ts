@@ -1,16 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
-import type { Message, Model } from "@linxiraos/pi-ai";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/zeta-compact";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
+import type { Message, Model } from "@oh-my-pi/pi-ai";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import type { CompactionMethod } from "@oh-my-pi/pi-coding-agent/session/compaction-methods";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import * as snapcompact from "@oh-my-pi/snapcompact";
 import { rejectionOf } from "./helpers/rejection";
 
 /**
@@ -29,6 +30,10 @@ import { rejectionOf } from "./helpers/rejection";
  *
  * A model whose wire strips images (`compat.stripImageInput`) declares image
  * input but is text-only on the wire, so it takes the same path.
+ *
+ * A configured order that omits `soft` still ends in soft compaction for a
+ * manual pass; it used to throw "No configured compaction method can run
+ * manually." on plan approval.
  */
 describe.each([
 	{
@@ -61,7 +66,7 @@ describe.each([
 		}
 	});
 
-	async function createHarness(): Promise<{
+	async function createHarness(methodOrder: CompactionMethod[] = ["snapcompact", "soft"]): Promise<{
 		session: AgentSession;
 		sessionManager: SessionManager;
 		activeModel: Model;
@@ -104,7 +109,7 @@ describe.each([
 		if (!sessionManager.getBranch()[0]?.id) throw new Error("Expected seeded branch entry");
 
 		const settings = Settings.isolated({
-			"compaction.methodOrder": ["snapcompact", "soft"],
+			"compaction.methodOrder": methodOrder,
 			"compaction.keepRecentTokens": 1,
 		});
 		session = new AgentSession({ agent, sessionManager, settings, modelRegistry });
@@ -142,6 +147,25 @@ describe.each([
 			type: "compaction",
 			summary: "llm summary",
 		});
+	});
+
+	it("ends a configured order without soft in soft compaction for plan approval", async () => {
+		const harness = await createHarness(["remote", "snapcompact", "shake", "handoff"]);
+
+		const snapcompactSpy = vi.spyOn(snapcompact, "compact");
+		const compactSpy = vi.spyOn(compactionModule, "compact").mockImplementation(async preparation => ({
+			summary: "llm summary",
+			shortSummary: undefined,
+			firstKeptEntryId: preparation.firstKeptEntryId,
+			tokensBefore: 42,
+			details: {},
+		}));
+
+		const result = await harness.session.compact(undefined, { internalGuidance: "distill the plan" });
+
+		expect(result.summary).toBe("llm summary");
+		expect(snapcompactSpy).not.toHaveBeenCalled();
+		expect(compactSpy).toHaveBeenCalledTimes(1);
 	});
 
 	it("still fails locally for explicit /compact snapcompact on a text-only model (no-LLM contract)", async () => {

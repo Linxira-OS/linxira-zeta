@@ -1,11 +1,16 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { formatModelString } from "@linxiraos/zeta/config/model-resolver";
+import { cfgEnabledModels } from "@linxiraos/zeta/config/model-settings";
 import { lookup } from "@linxiraos/zeta/config/registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -23,7 +28,10 @@ import {
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 import { cfgAsyncEnabled, cfgAsyncMaxJobs } from "@linxiraos/zeta/tools/settings";
-import { cfgBashAutoBackgroundEnabled, cfgBashAutoBackgroundThresholdMs } from "@linxiraos/zeta/exec/settings";
+import {
+	cfgBashAutoBackgroundEnabled,
+	cfgBashAutoBackgroundThresholdMs,
+} from "@linxiraos/zeta/exec/settings";
 
 const TEST_MODEL: Model = buildModel({
 	id: "claude-sonnet-4-20250514",
@@ -84,6 +92,25 @@ class LazyFakeSession {
 	systemPrompt = "system";
 	disposed = false;
 	settings = Settings.isolated({ "plan.enabled": false });
+	scopedModels: AgentSession["scopedModels"] = [];
+	#disposers: Array<() => void> = [];
+	refreshScopedModels?: () => Promise<void>;
+
+	addDisposer(disposer: () => void): void {
+		this.#disposers.push(disposer);
+	}
+
+	setScopedModelsRefresher(refresh: () => Promise<void>): void {
+		this.refreshScopedModels = refresh;
+	}
+
+	setScopedModels(models: AgentSession["scopedModels"]): void {
+		this.scopedModels = models;
+	}
+
+	get isDisposed(): boolean {
+		return this.disposed;
+	}
 
 	constructor(cwd: string) {
 		this.sessionManager = SessionManager.inMemory(cwd);
@@ -118,9 +145,6 @@ class LazyFakeSession {
 	async abort(): Promise<void> {}
 	async promptCustomMessage(): Promise<void> {}
 	async refreshMCPTools(): Promise<void> {}
-	runToolRegistryMutation<T>(mutation: () => Promise<T>): Promise<T> {
-		return mutation();
-	}
 	getContextUsage(): undefined {
 		return undefined;
 	}
@@ -129,6 +153,7 @@ class LazyFakeSession {
 	}
 	async dispose(): Promise<void> {
 		this.disposed = true;
+		for (const dispose of this.#disposers) dispose();
 		await this.sessionManager.close();
 	}
 	async reload(): Promise<void> {}
@@ -142,9 +167,6 @@ class LazyFakeSession {
 		return { cancelled: false };
 	}
 	getActiveToolNames(): string[] {
-		return [];
-	}
-	getEnabledToolNames(): string[] {
 		return [];
 	}
 	getAllToolNames(): string[] {
@@ -348,7 +370,7 @@ describe("ACP lazy startup", () => {
 		};
 
 		for (const mode of ["rpc", "rpc-ui", "acp"] as const) {
-			expect(await runProtocolStartup(mode)).toEqual({ ...explicit, ...rpcOnlyExplicit });
+			await expect(runProtocolStartup(mode)).resolves.toEqual({ ...explicit, ...rpcOnlyExplicit });
 		}
 	});
 
@@ -408,6 +430,265 @@ describe("ACP lazy startup", () => {
 		}
 	});
 
+	it.each([false, true])("uses the workspace scope unless --models is explicit (%s)", async explicit => {
+		using launch = TempDir.createSync("@omp-acp-scope-launch-");
+		using workspace = TempDir.createSync("@omp-acp-scope-workspace-");
+		const launchSelector = "openrouter/z-ai/glm-4.7";
+		const workspaceSelector = "openrouter/deepseek/deepseek-chat";
+		await Bun.write(launch.join(".zeta/config.yml"), `enabledModels:\n  - ${launchSelector}\n`);
+		await Bun.write(workspace.join(".zeta/config.yml"), `enabledModels:\n  - ${workspaceSelector}\n`);
+		const settings = await Settings.loadIsolated({ cwd: launch.path(), agentDir: launch.join("agent") });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime("openrouter", "test-key");
+		if (!explicit) authStorage.keys.setRuntime("anthropic", "other-provider-key");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
+		const rawArgs = explicit ? ["--models", launchSelector] : ["--api-key", "workspace-cli-key"];
+		let created: LazyFakeSession | undefined;
+		try {
+			await expect(
+				runRootCommand(
+					{
+						...parseArgs(rawArgs),
+						mode: "acp",
+						offline: true,
+						noExtensions: true,
+						sessionDir: launch.join("sessions"),
+					},
+					rawArgs,
+					{
+						discoverAuthStorage: async () => authStorage,
+						settings,
+						createAgentSession: async options => {
+							const session = new LazyFakeSession(workspace.path());
+							session.model = options?.model;
+							session.settings = options?.settings ?? session.settings;
+							session.scopedModels = options?.scopedModels ?? [];
+							created = session;
+							return { session, setToolUIContext: () => {} } as unknown as CreateAgentSessionResult;
+						},
+						runAcpMode: async createSession => {
+							if (!explicit) {
+								const other = workspace.join("other-provider");
+								await Bun.write(
+									path.join(other, ".zeta/config.yml"),
+									"enabledModels:\n  - anthropic/claude-sonnet-4-5\n",
+								);
+								await expect(createSession(other)).rejects.toThrow("bound to openrouter, not anthropic");
+								expect(await authStorage.keys.get("anthropic")).toBe("other-provider-key");
+							}
+							await createSession(workspace.path());
+							throw new Error("stop test ACP mode");
+						},
+					},
+				),
+			).rejects.toThrow("stop test ACP mode");
+			if (!created?.model) throw new Error("Expected ACP startup model");
+			const selector = explicit ? launchSelector : workspaceSelector;
+			expect(formatModelString(created.model)).toBe(selector);
+			if (!explicit) expect(await authStorage.keys.get(created.model.provider)).toBe("workspace-cli-key");
+			expect(created.scopedModels.map(entry => formatModelString(entry.model))).toEqual([selector]);
+
+			cfgEnabledModels.override(created.settings, explicit ? [] : [launchSelector]);
+			const { promise, resolve } = Promise.withResolvers<void>();
+			setImmediate(resolve);
+			await promise;
+			expect(created.scopedModels.map(entry => formatModelString(entry.model))).toEqual([launchSelector]);
+		} finally {
+			await created?.dispose();
+			authStorage.close();
+			settings.cancelPendingSaves();
+		}
+	});
+
+	it.each([
+		[":high", "high"],
+		["", "low"],
+	])("seeds a workspace session's thinking level only when --model%s sets none", async (suffix, expected) => {
+		using launch = TempDir.createSync("@omp-acp-thinking-launch-");
+		using workspace = TempDir.createSync("@omp-acp-thinking-workspace-");
+		const selector = "openrouter/z-ai/glm-4.7";
+		await Bun.write(workspace.join(".zeta/config.yml"), `enabledModels:\n  - ${selector}:low\n`);
+		const settings = await Settings.loadIsolated({ cwd: launch.path(), agentDir: launch.join("agent") });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime("openrouter", "test-key");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
+		const rawArgs = ["--model", `${selector}${suffix}`];
+		let thinkingLevel: string | undefined;
+		try {
+			await expect(
+				runRootCommand(
+					{
+						...parseArgs(rawArgs),
+						mode: "acp",
+						offline: true,
+						noExtensions: true,
+						sessionDir: launch.join("sessions"),
+					},
+					rawArgs,
+					{
+						discoverAuthStorage: async () => authStorage,
+						settings,
+						createAgentSession: async options => {
+							thinkingLevel = options?.thinkingLevel;
+							return {
+								session: new LazyFakeSession(workspace.path()),
+								setToolUIContext: () => {},
+							} as unknown as CreateAgentSessionResult;
+						},
+						runAcpMode: async createSession => {
+							await createSession(workspace.path());
+							throw new Error("stop test ACP mode");
+						},
+					},
+				),
+			).rejects.toThrow("stop test ACP mode");
+			expect(thinkingLevel).toBe(expected);
+		} finally {
+			authStorage.close();
+			settings.cancelPendingSaves();
+		}
+	});
+
+	it("binds --api-key to the launch scope provider without a stored credential", async () => {
+		using launch = TempDir.createSync("@omp-acp-key-launch-");
+		using other = TempDir.createSync("@omp-acp-key-other-");
+		using match = TempDir.createSync("@omp-acp-key-match-");
+		const selector = "openrouter/z-ai/glm-4.7";
+		await Bun.write(launch.join(".zeta/config.yml"), `enabledModels:\n  - ${selector}\n`);
+		await Bun.write(other.join(".zeta/config.yml"), "enabledModels:\n  - anthropic/claude-sonnet-4-5\n");
+		await Bun.write(match.join(".zeta/config.yml"), `enabledModels:\n  - ${selector}\n`);
+		const settings = await Settings.loadIsolated({ cwd: launch.path(), agentDir: launch.join("agent") });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime("anthropic", "own-anthropic-key");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
+		const rawArgs = ["--api-key", "fake-launch-key"];
+		let created: LazyFakeSession | undefined;
+		try {
+			await expect(
+				runRootCommand(
+					{ ...parseArgs(rawArgs), mode: "acp", offline: true, noExtensions: true, sessionDir: launch.join("s") },
+					rawArgs,
+					{
+						discoverAuthStorage: async () => authStorage,
+						settings,
+						createAgentSession: async options => {
+							const session = new LazyFakeSession(match.path());
+							session.model = options?.model;
+							created = session;
+							return { session, setToolUIContext: () => {} } as unknown as CreateAgentSessionResult;
+						},
+						runAcpMode: async createSession => {
+							await expect(createSession(other.path())).rejects.toThrow("bound to openrouter, not anthropic");
+							expect(await authStorage.keys.get("anthropic")).toBe("own-anthropic-key");
+							await createSession(match.path());
+							throw new Error("stop test ACP mode");
+						},
+					},
+				),
+			).rejects.toThrow("stop test ACP mode");
+			if (!created?.model) throw new Error("Expected ACP startup model");
+			expect(formatModelString(created.model)).toBe(selector);
+			expect(await authStorage.keys.get("openrouter")).toBe("fake-launch-key");
+		} finally {
+			await created?.dispose();
+			authStorage.close();
+			settings.cancelPendingSaves();
+		}
+	});
+
+	it("opens a workspace without a scope on its own default once --api-key is bound", async () => {
+		using launch = TempDir.createSync("@omp-acp-key-default-launch-");
+		using plain = TempDir.createSync("@omp-acp-key-default-plain-");
+		const selector = "openrouter/z-ai/glm-4.7";
+		const openrouterModel = getBundledModel("openrouter", "z-ai/glm-4.7");
+		await Bun.write(launch.join(".zeta/config.yml"), `enabledModels:\n  - ${selector}\n`);
+		const settings = await Settings.loadIsolated({ cwd: launch.path(), agentDir: launch.join("agent") });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime("anthropic", "own-anthropic-key");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
+		const rawArgs = ["--api-key", "fake-launch-key"];
+		const sessions: LazyFakeSession[] = [];
+		// Stands in for the SDK's own default-role resolution in a workspace without a startup model.
+		let workspaceDefault: Model | undefined;
+		try {
+			await expect(
+				runRootCommand(
+					{ ...parseArgs(rawArgs), mode: "acp", offline: true, noExtensions: true, sessionDir: launch.join("s") },
+					rawArgs,
+					{
+						discoverAuthStorage: async () => authStorage,
+						settings,
+						createAgentSession: async options => {
+							const session = new LazyFakeSession(plain.path());
+							session.model = options?.model ?? workspaceDefault;
+							sessions.push(session);
+							return { session, setToolUIContext: () => {} } as unknown as CreateAgentSessionResult;
+						},
+						runAcpMode: async createSession => {
+							workspaceDefault = TEST_MODEL;
+							await expect(createSession(plain.path())).rejects.toThrow("bound to openrouter, not anthropic");
+							workspaceDefault = openrouterModel;
+							await createSession(plain.path());
+							throw new Error("stop test ACP mode");
+						},
+					},
+				),
+			).rejects.toThrow("stop test ACP mode");
+			expect(sessions.map(session => session.disposed)).toEqual([true, false]);
+			expect(sessions[1]?.model && formatModelString(sessions[1].model)).toBe(selector);
+			expect(await authStorage.keys.get("openrouter")).toBe("fake-launch-key");
+			expect(await authStorage.keys.get("anthropic")).toBe("own-anthropic-key");
+		} finally {
+			for (const session of sessions) if (!session.disposed) await session.dispose();
+			authStorage.close();
+			settings.cancelPendingSaves();
+		}
+	});
+
+	it("refuses --api-key at launch when neither a model nor the launch scope names its provider", async () => {
+		using launch = TempDir.createSync("@omp-acp-key-unnamed-launch-");
+		using workspace = TempDir.createSync("@omp-acp-key-unnamed-workspace-");
+		await Bun.write(workspace.join(".zeta/config.yml"), "enabledModels:\n  - openrouter/z-ai/glm-4.7\n");
+		const settings = await Settings.loadIsolated({ cwd: launch.path(), agentDir: launch.join("agent") });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime("openrouter", "own-openrouter-key");
+		const { runRootCommand } = await import("@linxiraos/zeta/main");
+		const rawArgs = ["--api-key", "fake-launch-key"];
+		const exit = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+			throw new Error(`exit ${code}`);
+		}) as typeof process.exit);
+		const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+		let opened = false;
+		try {
+			await expect(
+				runRootCommand(
+					{ ...parseArgs(rawArgs), mode: "acp", offline: true, noExtensions: true, sessionDir: launch.join("s") },
+					rawArgs,
+					{
+						discoverAuthStorage: async () => authStorage,
+						settings,
+						createAgentSession: async () => {
+							throw new Error("session constructed");
+						},
+						runAcpMode: async createSession => {
+							opened = true;
+							await createSession(workspace.path());
+							throw new Error("ACP mode started");
+						},
+					},
+				),
+			).rejects.toThrow("exit 1");
+			expect(stderr.mock.calls.map(call => String(call[0])).join("")).toContain("--api-key requires a model");
+			expect(opened).toBe(false);
+			expect(await authStorage.keys.get("openrouter")).toBe("own-openrouter-key");
+		} finally {
+			exit.mockRestore();
+			stderr.mockRestore();
+			authStorage.close();
+			settings.cancelPendingSaves();
+		}
+	});
+
 	it("applies CLI runtime API keys after ACP lazy session creation resolves extension models", async () => {
 		using tempDir = TempDir.createSync("@omp-acp-lazy-api-key-");
 		const cwd = tempDir.path();
@@ -453,7 +734,6 @@ describe("ACP lazy startup", () => {
 					invalidFlagValues: [],
 					noSkills: true,
 					noRules: true,
-					noTools: true,
 					noLsp: true,
 					sessionDir: cwd,
 					extensions: [path.join(cwd, "runtime-provider.ts")],

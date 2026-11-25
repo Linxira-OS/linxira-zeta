@@ -3,13 +3,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "bu
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
-import * as mcpClient from "@linxiraos/zeta/mcp/client";
-import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
-import type { SourceMeta } from "@linxiraos/zeta/capability/types";
-import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
-import { MCPCommandController } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
+import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
+import * as oauthFlow from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
+import type { SourceMeta } from "@oh-my-pi/pi-coding-agent/capability/types";
+import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { MCPCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/mcp-command-controller";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -17,12 +17,14 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import {
 	createInteractiveModeContext,
 	createMcpManagerStub,
 	type McpManagerOverrides,
 } from "./helpers/interactive-mode-context";
+import type { InputInterceptor } from "../src/ui/shell";
+import { initTheme } from "../src/ui/theme/service";
 
 const RAW_SERVER_URL = `https://\${MCP_HOST}/mcp`;
 const EXPANDED_SERVER_URL = "https://mcp.example.com/mcp";
@@ -35,7 +37,7 @@ type TestConfigFile = {
 };
 
 const originalProjectDir = getProjectDir();
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreEnvValue(name: string, value: string | undefined): void {
@@ -47,31 +49,37 @@ function restoreEnvValue(name: string, value: string | undefined): void {
 	Bun.env[name] = value;
 	process.env[name] = value;
 }
-/**
- * Resolve when the controller installs its `editor.onEscape` hook.
- *
- * The hook is installed part-way through an async flow, so a test that needs
- * it has to wait. Polling to a wall-clock deadline would make that wait a
- * timing budget rather than a synchronisation point: on a loaded runner the
- * deadline can expire before correct code has installed the hook, and the
- * assertion then fails on a value that was merely late. Intercepting the
- * assignment bounds the wait by the event it is actually waiting for, leaving
- * `bun test --timeout` as the only backstop for a genuine hang.
- */
-function whenEscapeInstalled(editor: { onEscape?: (() => void) | undefined }): Promise<void> {
+/** The interrupt-key claims `/mcp` OAuth flows take through `ctx.interceptInput`. */
+interface EscapeProbe {
+	/** Resolves once a flow claims the key. */
+	readonly installed: Promise<void>;
+	/** Press Esc in the composer: the claims see it newest first; whether one took it. */
+	press(): boolean;
+	/** Claims still held. */
+	active(): number;
+}
+
+function probeEscape(ctx: InteractiveModeContext): EscapeProbe {
 	const installed = Promise.withResolvers<void>();
-	let current = editor.onEscape;
-	if (typeof current === "function") installed.resolve();
-	Object.defineProperty(editor, "onEscape", {
-		configurable: true,
-		enumerable: true,
-		get: () => current,
-		set: (value: (() => void) | undefined) => {
-			current = value;
-			if (typeof value === "function") installed.resolve();
-		},
+	const live: InputInterceptor[] = [];
+	vi.spyOn(ctx, "interceptInput").mockImplementation(handler => {
+		live.push(handler);
+		installed.resolve();
+		const remove = ctx.shell.interceptInput(handler);
+		return () => {
+			const at = live.indexOf(handler);
+			if (at !== -1) live.splice(at, 1);
+			remove();
+		};
 	});
-	return installed.promise;
+	return {
+		installed: installed.promise,
+		press: () =>
+			live
+				.toReversed()
+				.some(handler => handler({ type: "key", key: { id: "escape", kind: "press", raw: "\x1b" } }) === true),
+		active: () => live.length,
+	};
 }
 
 function createController(authStorage: AuthStorage, mcpManagerOverrides: McpManagerOverrides = {}) {
@@ -82,9 +90,10 @@ function createController(authStorage: AuthStorage, mcpManagerOverrides: McpMana
 		mcpManager,
 	});
 	const controller = new MCPCommandController(ctx);
-	const { showError, showStatus, present, editor, oauthManualInput } = ctx;
+	const { showError, showStatus, present, oauthManualInput } = ctx;
+	const escape = probeEscape(ctx);
 
-	return { controller, ctx, showError, showStatus, present, editor, oauthManualInput, prepareConfig, mcpManager };
+	return { controller, ctx, showError, showStatus, present, escape, oauthManualInput, prepareConfig, mcpManager };
 }
 
 describe("/mcp auth commands", () => {
@@ -109,8 +118,8 @@ describe("/mcp auth commands", () => {
 	});
 
 	beforeEach(async () => {
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reauth-project-"));
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reauth-agent-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reauth-project-"));
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reauth-agent-"));
 		configPath = path.join(projectDir, ".mcp.json");
 		originalMcpHost = Bun.env.MCP_HOST;
 		Bun.env.MCP_HOST = "mcp.example.com";
@@ -143,7 +152,7 @@ describe("/mcp auth commands", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.ZETA_CODING_AGENT_DIR;
+			delete process.env.PI_CODING_AGENT_DIR;
 		}
 		await removeWithRetries(projectDir);
 		await removeWithRetries(agentDir);
@@ -182,9 +191,11 @@ describe("/mcp auth commands", () => {
 			expect.objectContaining({ url: EXPANDED_SERVER_URL }),
 			expect.objectContaining({ oauth: false }),
 		);
+		// A live probe: the host's store must not answer for a server that now wants authorization.
 		expect(connectToServer).toHaveBeenCalledWith(
 			expect.any(String),
 			expect.objectContaining({ url: EXPANDED_SERVER_URL }),
+			{ live: true },
 		);
 		expect(authStorage.credentials.get(oauthFlow.mcpOAuthCredentialId(EXPANDED_SERVER_URL))).toMatchObject({
 			type: "oauth",
@@ -265,6 +276,45 @@ describe("/mcp auth commands", () => {
 			type: "oauth",
 			clientId: "pathful-dcr-client",
 		});
+	});
+
+	// Issue #19641: Figma answers unlisted DCR clients with a bare 403. The
+	// registration diagnostic names the endpoint and "HTTP 403"; the reauth
+	// engine must not fold it into a generic client-credentials error.
+	test("surfaces a rejected dynamic client registration", async () => {
+		const authStorage = freshAuthStorage();
+		await authStorage.credentials.reload();
+		vi.spyOn(mcpClient, "connectToServer").mockRejectedValue(AUTH_ERROR);
+		const fetchMock = Object.assign(
+			async (input: string | URL | Request): Promise<Response> => {
+				const url = String(input);
+				if (url === "https://auth.example.com/.well-known/oauth-authorization-server") {
+					return Response.json({ registration_endpoint: "https://auth.example.com/register" });
+				}
+				if (url === "https://auth.example.com/register") return new Response("Forbidden", { status: 403 });
+				if (url.startsWith("https://auth.example.com/authorize?")) {
+					return new Response("Missing required parameter: client_id", { status: 400 });
+				}
+				return new Response("not found", { status: 404 });
+			},
+			{ preconnect: globalThis.fetch.preconnect },
+		);
+		vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock);
+		vi.spyOn(oauthFlow.MCPOAuthFlow.prototype, "login").mockImplementation(
+			async function (this: oauthFlow.MCPOAuthFlow) {
+				await this.generateAuthUrl("state", "http://127.0.0.1:53192/callback");
+				throw new Error("authorization URL must not be issued without a client_id");
+			},
+		);
+		const { controller, showError } = createController(authStorage);
+
+		await controller.handle("/mcp reauth envserver");
+
+		expect(showError).toHaveBeenCalledWith(
+			expect.stringMatching(
+				/dynamic client registration was rejected \(POST https:\/\/auth\.example\.com\/register → HTTP 403 — Forbidden\).*oauth\.clientId/s,
+			),
+		);
 	});
 
 	test.each([
@@ -915,16 +965,12 @@ describe("/mcp auth commands", () => {
 			return pending.promise;
 		});
 
-		const { controller, showError, showStatus, editor } = createController(authStorage);
+		const { controller, showError, showStatus, escape } = createController(authStorage);
 
-		// Gate on #handleOAuthFlow installing its editor.onEscape hook.
-		const escapeInstalled = whenEscapeInstalled(editor);
+		// Gate on #handleOAuthFlow claiming the interrupt key.
 		const reauthPromise = controller.handle("/mcp reauth envserver");
-		await escapeInstalled;
-		expect(typeof editor.onEscape).toBe("function");
-
-		const installedEscape = editor.onEscape;
-		editor.onEscape?.();
+		await escape.installed;
+		expect(escape.press()).toBe(true);
 
 		// Cancellation must resolve the reauth promise (well under the 5-minute
 		// production timeout). Awaited directly rather than raced against a 2s
@@ -935,9 +981,10 @@ describe("/mcp auth commands", () => {
 
 		expect(showError).not.toHaveBeenCalled();
 		expect(showStatus).toHaveBeenCalledWith(expect.stringMatching(/cancel/i));
-		// onEscape must be restored to its previous value so subsequent user
-		// input does not keep aborting the (now-finished) flow.
-		expect(editor.onEscape).not.toBe(installedEscape);
+		// The claim is released so subsequent Esc presses do not keep aborting
+		// the (now-finished) flow.
+		expect(escape.active()).toBe(0);
+		expect(escape.press()).toBe(false);
 	});
 
 	test("reauth supersedes an unfinished MCP OAuth flow", async () => {
@@ -968,8 +1015,7 @@ describe("/mcp auth commands", () => {
 			return pending.promise;
 		});
 
-		const { controller, ctx, showError, showStatus, editor, oauthManualInput } = createController(authStorage);
-		const defaultOnEscape = editor.onEscape;
+		const { controller, ctx, showError, showStatus, escape, oauthManualInput } = createController(authStorage);
 		// Event-gate the claim instead of polling to a wall-clock deadline: on a
 		// loaded runner the old 1s budget could expire before the flow claimed the
 		// manual-input slot, and the assertion below then read `undefined` from a
@@ -988,7 +1034,7 @@ describe("/mcp auth commands", () => {
 
 		const replacementReauth = new MCPCommandController(ctx).handle("/mcp reauth envserver");
 		await replacementReauth;
-		if (oauthManualInput.hasPending()) editor.onEscape?.();
+		if (oauthManualInput.hasPending()) escape.press();
 		await firstReauth;
 
 		expect(loginAttempt).toBe(2);
@@ -998,10 +1044,9 @@ describe("/mcp auth commands", () => {
 			access: "replacement-access",
 		});
 
-		// The replacement flow restored the session's default Esc handler, not
-		// the superseded flow's dead one: after both flows unwind the editor
-		// keeps interrupt/cancel-compaction semantics for the session.
-		expect(editor.onEscape).toBe(defaultOnEscape);
+		// Both flows released their claims: after they unwind, Esc keeps its
+		// interrupt/cancel-compaction semantics for the session.
+		expect(escape.active()).toBe(0);
 	});
 
 	test("Esc cancels even when OAuth login has not registered its signal listener yet", async () => {
@@ -1015,13 +1060,11 @@ describe("/mcp auth commands", () => {
 		// The login promise itself never observes ctrl.signal; #handleOAuthFlow
 		// must race it against oauthTimeout.signal.
 		vi.spyOn(oauthFlow.MCPOAuthFlow.prototype, "login").mockReturnValue(Promise.withResolvers<never>().promise);
-		const { controller, showError, showStatus, editor } = createController(authStorage);
+		const { controller, showError, showStatus, escape } = createController(authStorage);
 
-		const escapeInstalled = whenEscapeInstalled(editor);
 		const reauthPromise = controller.handle("/mcp reauth envserver");
-		await escapeInstalled;
-		expect(typeof editor.onEscape).toBe("function");
-		editor.onEscape?.();
+		await escape.installed;
+		expect(escape.press()).toBe(true);
 
 		await reauthPromise;
 
@@ -1034,7 +1077,7 @@ describe("/mcp auth commands", () => {
 		await authStorage.credentials.reload();
 		vi.spyOn(mcpClient, "connectToServer").mockRejectedValue(AUTH_ERROR);
 
-		// Deadline path bypasses both the editor's Esc hook and any external
+		// Deadline path bypasses both the Esc claim and any external
 		// signal: withTimeout aborts the controller with reason "MCP OAuth flow
 		// timed out" and the login promise rejects with a "timed out" message.
 		// Mirror that here. Keeping the surface distinct from the user-cancel

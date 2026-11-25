@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { untilAborted } from "@linxiraos/pi-utils";
+import { untilAborted } from "@oh-my-pi/pi-utils";
 import type { HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 
 /** Maximum number of request records retained per tab; the oldest are evicted first. */
 export const REQUEST_LOG_LIMIT = 200;

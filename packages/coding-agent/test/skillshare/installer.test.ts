@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { SkillshareClient } from "@linxiraos/zeta/skillshare/client";
+import { SkillshareClient } from "@oh-my-pi/pi-coding-agent/skillshare/client";
 import {
 	computeIntegrity,
 	installSkillPackages,
@@ -10,7 +10,7 @@ import {
 	type SkillInstallHooks,
 	uninstallSkillPackages,
 	updateSkillPackages,
-} from "@linxiraos/zeta/skillshare/installer";
+} from "@oh-my-pi/pi-coding-agent/skillshare/installer";
 import {
 	getSkillStorePath,
 	getSkillshareStoreDir,
@@ -20,11 +20,12 @@ import {
 	type SkillsLock,
 	writeSkillsLock,
 	writeSkillsManifest,
-} from "@linxiraos/zeta/skillshare/manifest";
-import { writeTar } from "@linxiraos/zeta/skillshare/tar";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
-import type { SkillPackument, SkillVersionManifest, SkillVersionSummary } from "@linxiraos/pi-wire/skillshare";
+} from "@oh-my-pi/pi-coding-agent/skillshare/manifest";
+import { writeTar } from "@oh-my-pi/pi-coding-agent/skillshare/tar";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { getAgentDir, setAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import type { SkillPackument, SkillVersionManifest, SkillVersionSummary } from "@oh-my-pi/pi-wire/skillshare";
+import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const SCOPE = "alice";
 const NAME = "pdf-tools";
@@ -116,7 +117,7 @@ describe("resolveSkillVersion", () => {
 describe("skills manifest and lock", () => {
 	let dir: string;
 	beforeEach(async () => {
-		dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-skillshare-manifest-"));
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-skillshare-manifest-"));
 	});
 	afterEach(async () => {
 		vi.restoreAllMocks();
@@ -164,6 +165,7 @@ describe("installer", () => {
 	let tempHome: string;
 	let project: string;
 	let originalAgentDir: string;
+	let originalConfigDir: string | undefined;
 	let client: SkillshareClient;
 	let confirmations: string[];
 	let approve: boolean;
@@ -177,11 +179,12 @@ describe("installer", () => {
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-skillshare-install-"));
+		originalConfigDir = process.env.PI_CONFIG_DIR;
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-skillshare-install-"));
 		project = path.join(tempHome, "work", "proj");
 		await fs.mkdir(path.join(project, ".git"), { recursive: true });
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
-		setAgentDir(path.join(tempHome, ".zeta", "agent"));
+		setAgentDir(path.join(tempHome, ".omp", "agent"));
 		client = await SkillshareClient.create({ registryUrl: "https://skills.test" });
 		registry = { pk: packument([], {}), tarballs: {}, files: [] };
 		vi.spyOn(client, "packument").mockImplementation(async () => registry.pk);
@@ -208,11 +211,13 @@ describe("installer", () => {
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
+		restoreEnvValue("PI_CONFIG_DIR", originalConfigDir);
 		setAgentDir(originalAgentDir);
 		await removeWithRetries(tempHome);
 	});
 
-	it("installs latest with a caret range, locks it, and unpacks with exec bits", async () => {
+	it("installs latest into the project with a caret range, lock, and exec bits when the user root is relocated", async () => {
+		restoreEnvValue("PI_CONFIG_DIR", path.join("..", "user-config"));
 		const tgz = skillTgz("1.1.0", { "scripts/run.sh": "#!/bin/sh\necho hi\n" }, ["scripts/run.sh"]);
 		registry = {
 			pk: packument([summary("1.1.0", tgz, { hasScripts: true })], { latest: "1.1.0" }),
@@ -228,10 +233,12 @@ describe("installer", () => {
 
 		expect(changes).toEqual([{ id: ID, from: undefined, to: "1.1.0", range: "^1.1.0", restored: false }]);
 		expect(confirmations).toEqual([`${ID}@1.1.0:scripts/run.sh`]);
-		expect(await readSkillsManifest(path.join(project, ".zeta", "skills.json"))).toEqual({
+		expect(await Bun.file(path.join(project, "..", "user-config", "skills.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(project, "..", "user-config", "skills.lock.json")).exists()).toBe(false);
+		expect(await readSkillsManifest(path.join(project, ".omp", "skills.json"))).toEqual({
 			skills: { [ID]: "^1.1.0" },
 		});
-		const lock = await readSkillsLock(path.join(project, ".zeta", "skills.lock.json"));
+		const lock = await readSkillsLock(path.join(project, ".omp", "skills.lock.json"));
 		expect(lock.skills[ID]).toEqual({
 			version: "1.1.0",
 			integrity: computeIntegrity(tgz),
@@ -259,8 +266,8 @@ describe("installer", () => {
 		).rejects.toThrow(/integrity mismatch/);
 
 		await expect(fs.stat(getSkillshareStoreDir())).rejects.toThrow();
-		expect(await Bun.file(path.join(project, ".zeta", "skills.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(project, ".zeta", "skills.lock.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(project, ".omp", "skills.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(project, ".omp", "skills.lock.json")).exists()).toBe(false);
 	});
 
 	it("declining the scripts prompt downloads nothing", async () => {

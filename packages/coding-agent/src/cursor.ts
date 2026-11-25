@@ -12,7 +12,7 @@ import {
 	TOOL_RESULT_ADDITIONAL_CONTEXT,
 	type ToolResultWithAdditionalContext,
 	validateAgentToolArguments,
-} from "@linxiraos/pi-agent-core";
+} from "@oh-my-pi/pi-agent-core";
 import type {
 	CursorExecFrameContext,
 	CursorMcpCall,
@@ -22,7 +22,7 @@ import type {
 	CursorTodoSnapshot,
 	CursorExecHandlers as ICursorExecHandlers,
 	ToolResultMessage,
-} from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-ai";
 import {
 	cursorRawReadPath,
 	omitUndefinedArgs,
@@ -34,10 +34,10 @@ import {
 	piReadPath,
 	piTimeout,
 	shellDeadlineSeconds,
-} from "@linxiraos/pi-ai/providers/cursor-pi-args";
-import { editDiffString } from "@linxiraos/pi-natives";
-import { isEnoent, sanitizeText } from "@linxiraos/pi-utils";
-import { cursorMcpPrefersReplaceEdit, normalizeCursorReplaceArgs } from "./cursor-bridge-tools";
+} from "@oh-my-pi/pi-ai/providers/cursor-pi-args";
+import { editDiffString } from "@oh-my-pi/pi-natives";
+import { isEnoent, sanitizeText } from "@oh-my-pi/pi-utils";
+import { cursorMcpPrefersReplaceEdit, normalizeCursorReplaceArgs } from "./cursor-replace-args";
 import { normalizeToLF, stripBom } from "./edit/normalize";
 import type { MCPResourceReadResult } from "./mcp/types";
 import {
@@ -54,8 +54,8 @@ import {
 	resolveToCwd,
 	splitPathAndSelPreferringLiteral,
 } from "./tools/path-utils";
-import type { EditToolDetails } from "@linxiraos/pi-tui/tools/edit";
-import type { TodoPhase, TodoStatus } from "@linxiraos/pi-tui/tools/todo";
+import type { EditToolDetails } from "./tools/details/edit";
+import type { TodoPhase, TodoStatus } from "./tools/details/todo";
 
 /** Phase used for Cursor-owned tasks with no local phase grouping. */
 const CURSOR_TODO_PHASE = "Tasks";

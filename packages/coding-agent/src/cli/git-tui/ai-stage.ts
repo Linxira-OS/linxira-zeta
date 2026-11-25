@@ -9,17 +9,17 @@
  * and binary files are staged whole.
  */
 import * as path from "node:path";
-import { judgeQuestions } from "@linxiraos/pi-ai";
-import * as AIError from "@linxiraos/pi-ai/error";
-import type { VcsHunkSelection } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { isEnoent, logger, toError } from "@linxiraos/pi-utils";
+import { judgeQuestions } from "@oh-my-pi/pi-ai";
+import * as AIError from "@oh-my-pi/pi-ai/error";
+import type { VcsHunkSelection } from "@oh-my-pi/pi-natives";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { isEnoent, logger, toError } from "@oh-my-pi/pi-utils";
 import { parseFileDiffs, parseFileHunks } from "../../commit/git/diff";
 import { openStandaloneJudge } from "../../judgment/standalone";
 import questionFile from "../../prompts/judge/git-stage.json" with { type: "json" };
 import { mapWithConcurrencyLimitAllSettled } from "../../task/parallel";
-import type { ChangedFile } from "@linxiraos/pi-tui/apps/git/state";
-import type { AiStageOutcome } from "@linxiraos/pi-tui/apps/git/git-tui";
+import type { ChangedFile } from "./model/state";
+import type { AiStageOutcome } from "./model/git-tui";
 
 /** Judgments in flight at once; System One requests are stateless, so the tree is classified as one wave. */
 const CONCURRENCY = 64;

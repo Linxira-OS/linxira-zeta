@@ -4,8 +4,8 @@
  * Discovers, connects to, and manages MCP servers.
  * Handles tool loading and lifecycle.
  */
+import type { TSchema } from "@linxiraos/pi-ai";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
-import type { TSchema } from "@sinclair/typebox";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import { invalidateCommandConfig, isCommandConfigValue, resolveConfigValue } from "../config/resolve-config-value";
 import type { CustomTool } from "../extensibility/custom-tools/types";
@@ -48,7 +48,10 @@ import {
 import type { MCPStoredOAuthCredential } from "./oauth-flow";
 import type { McpConnectionStatusEvent } from "./startup-events";
 import { resolveMCPStartupTimeoutMs } from "./timeout";
-import { MCPTool } from "./tool-bridge";
+
+import type { MCPToolDetails } from "../tools/details/mcp";
+import { type MCPReconnect, type MCPReconnectOptions, MCPTool, type MCPToolCallObserver } from "./tool-bridge";
+import type { MCPDroppedServer, MCPTransformContext } from "./transforms";
 import type {
 	MCPAuthChallenge,
 	MCPGetPromptResult,
@@ -70,12 +73,6 @@ type ToolLoadResult = {
 	connection: HostedMCPConnection;
 	serverTools: MCPToolDefinition[];
 };
-
-type MCPToolDetails = any;
-type MCPReconnect = NonNullable<Parameters<typeof MCPTool.fromTools>[2]>;
-type MCPToolCallObserver = NonNullable<Parameters<typeof MCPTool.fromTools>[3]>;
-type MCPReconnectOptions = NonNullable<Parameters<MCPReconnect>[0]>;
-type MCPDroppedServer = NonNullable<NonNullable<LoadMCPConfigsResult["dropped"]>[string]>;
 
 /**
  * The `!command` values {@link MCPManager} executes when it resolves `config`:
@@ -217,10 +214,8 @@ export interface MCPDiscoverOptions {
 	filterBrowser?: boolean;
 	/** Session-local extension roots for post-startup rediscovery (explicit + mode + configured). */
 	extensionRoots?: EffectiveExtensionRoots;
-	/** Server allowlist for a per-agent profile; unlisted servers are never connected. */
-	serverNames?: readonly string[];
 	/** What the session offers natively, for built-in transforms; omitted: none applies. */
-	builtinTransforms?: LoadMCPConfigsOptions["builtinTransforms"];
+	builtinTransforms?: MCPTransformContext;
 	/** Called when MCP server connection state changes. */
 	onStatus?: (event: McpConnectionStatusEvent) => void;
 	/** Non-blocking discovery window in milliseconds; environment override wins. */
@@ -267,10 +262,6 @@ export interface MCPManagerApi {
 	addNotificationListener(listener: (serverName: string, method: string, params: unknown) => void): () => void;
 	/** Names of currently connected servers. */
 	getConnectedServers(): string[];
-	/** Read the server configuration used by session-local analysis precedence. */
-	getServerConfig(name: string): MCPServerConfig | undefined;
-	/** Include configured servers whose tool list has not arrived yet. */
-	getAllServerNames(): string[];
 	/** Cached resources/templates of one server. */
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined;
 	/** Wait until one server's resource catalog is loaded. */
@@ -328,7 +319,7 @@ export class MCPManager implements MCPManagerApi {
 
 	/**
 	 * Install or clear a loader that creates the process-global instance on first {@link load}, so a
-	 * one-shot host (`zetacode read`) starts MCP servers only when a request actually reaches them.
+	 * one-shot host (`omp read`) starts MCP servers only when a request actually reaches them.
 	 */
 	static setDeferredInstance(load: (() => Promise<MCPManager>) | undefined): void {
 		MCPManager.#deferred = load;
@@ -775,7 +766,6 @@ export class MCPManager implements MCPManagerApi {
 				filterExa: options?.filterExa,
 				filterBrowser: options?.filterBrowser,
 				extensionRoots: options?.extensionRoots,
-				serverNames: options?.serverNames,
 				builtinTransforms: options?.builtinTransforms,
 			});
 		} catch (error) {
@@ -836,7 +826,6 @@ export class MCPManager implements MCPManagerApi {
 			filterExa: options.filterExa,
 			filterBrowser: options.filterBrowser,
 			extensionRoots: options.extensionRoots,
-			serverNames: options.serverNames,
 			builtinTransforms: options.builtinTransforms,
 		});
 		// Every server whose resolution depends on the flag: project-level ones
@@ -872,7 +861,6 @@ export class MCPManager implements MCPManagerApi {
 			filterExa: options?.filterExa,
 			filterBrowser: false,
 			extensionRoots: options?.extensionRoots,
-			serverNames: options?.serverNames,
 			builtinTransforms: options?.builtinTransforms,
 		});
 		const browserConfigs: Record<string, MCPServerConfig> = {};
@@ -1155,7 +1143,7 @@ export class MCPManager implements MCPManagerApi {
 	 * it provoked lands, then its session sees every tool the server now serves.
 	 */
 	#observeToolCall(name: string): MCPToolCallObserver {
-		return (toolCallId: string) => {
+		return toolCallId => {
 			const scope = this.#toolCallScopes.get(toolCallId) ?? OWNER_TOOL_SCOPE;
 			this.#inFlightToolCalls.set(name, (this.#inFlightToolCalls.get(name) ?? 0) + 1);
 			return async () => {
@@ -1462,7 +1450,7 @@ export class MCPManager implements MCPManagerApi {
 	/**
 	 * Wait for every in-flight connect, tool load, and reconnect to settle.
 	 *
-	 * One-shot callers (e.g. `zetacode read <mcp-resource>`) discover servers and read
+	 * One-shot callers (e.g. `omp read <mcp-resource>`) discover servers and read
 	 * immediately; a server whose handshake outlasts the {@link connectServers}
 	 * startup race is still tracked in {@link #pendingConnections} /
 	 * {@link #pendingToolLoads} and therefore invisible to
@@ -1639,7 +1627,7 @@ export class MCPManager implements MCPManagerApi {
 	 *   (`mcp.shared` was toggled) the link moves there instead. The link-loss
 	 *   and tool-call retry paths MUST NOT set it: a modern upstream is shared
 	 *   with other sessions.
-	 * @param (options as any).staleSession - The server lost the protocol session it
+	 * @param options.staleSession - The server lost the protocol session it
 	 *   held for this manager. A handshake-era upstream, which no other manager
 	 *   uses, is restarted so the retry starts a new session.
 	 */
@@ -1743,7 +1731,7 @@ export class MCPManager implements MCPManagerApi {
 			(options.manual === true && (await link.hostMoved()));
 		if (elsewhere) {
 			await link.retarget(spec, signal);
-		} else if (options.manual || ((options as any).staleSession && link.status?.era === "legacy")) {
+		} else if (options.manual || (options.staleSession && link.status?.era === "legacy")) {
 			await link.restart();
 		}
 		await this.#reloadServer(name, connection, signal);
@@ -1768,10 +1756,10 @@ export class MCPManager implements MCPManagerApi {
 
 	/** Register `serverTools` as what `name` offers on its current attachment; the server is ready from here. */
 	#publishServerTools(name: string, connection: MCPServerConnection, serverTools: MCPToolDefinition[]): void {
-		const reconnect: MCPReconnect = (options: Parameters<MCPReconnect>[0]) => this.reconnectServer(name, options);
+		const reconnect: MCPReconnect = options => this.reconnectServer(name, options);
 		this.#replaceServerTools(
 			name,
-			MCPTool.fromTools(connection, serverTools, reconnect, this.#observeToolCall(name)) as any,
+			MCPTool.fromTools(connection, serverTools, reconnect, this.#observeToolCall(name)),
 		);
 		this.#ready.add(name);
 	}
@@ -1986,9 +1974,9 @@ export class MCPManager implements MCPManagerApi {
 			if (callProvoked) this.#callProvokedToolRefreshes.add(name);
 			throw error;
 		}
-		const reconnect: MCPReconnect = (options: Parameters<MCPReconnect>[0]) => this.reconnectServer(name, options);
-		const customTools = MCPTool.fromTools(connection, serverTools, reconnect, this.#observeToolCall(name)) as any;
-		if (callProvoked) this.#scopeAddedTools(name, customTools as any);
+		const reconnect: MCPReconnect = options => this.reconnectServer(name, options);
+		const customTools = MCPTool.fromTools(connection, serverTools, reconnect, this.#observeToolCall(name));
+		if (callProvoked) this.#scopeAddedTools(name, customTools);
 
 		// Replace tools from this server
 		this.#replaceServerTools(name, customTools);

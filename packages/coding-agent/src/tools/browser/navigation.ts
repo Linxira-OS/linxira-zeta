@@ -1,5 +1,5 @@
-import { untilAborted, withTimeout } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { untilAborted, withTimeout } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../tool-errors";
 import type { Page, WaitForOptions } from "puppeteer-core";
 import { puppeteerTimeoutError } from "./launch";
 import { urlPattern } from "./network";

@@ -2,10 +2,10 @@
  * Show what the read tool will return for a path, URL, or internal URI.
  */
 
-import { Args, Command } from "@linxiraos/pi-utils/cli";
+import { Args, Command } from "@oh-my-pi/pi-utils/cli";
 import { readHelp as commandHelp } from "../cli/command-help";
 import { type ReadCommandArgs, runReadCommand } from "../cli/read-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 export default class Read extends Command {
 	static description = commandHelp.description;
@@ -18,14 +18,14 @@ export default class Read extends Command {
 	};
 
 	static examples = [
-		"zetacode read src/foo.ts",
-		"zetacode read src/foo.ts:50-100",
-		"zetacode read src/foo.ts:raw",
-		"zetacode read https://example.com",
-		"zetacode read zeta://",
-		"zetacode read issue://123",
-		"zetacode read path/to/archive.zip:dir/file.ts",
-		"zetacode read path/to/db.sqlite:users:42",
+		"omp read src/foo.ts",
+		"omp read src/foo.ts:50-100",
+		"omp read src/foo.ts:raw",
+		"omp read https://example.com",
+		"omp read omp://",
+		"omp read issue://123",
+		"omp read path/to/archive.zip:dir/file.ts",
+		"omp read path/to/db.sqlite:users:42",
 	];
 
 	async run(): Promise<void> {
@@ -33,7 +33,7 @@ export default class Read extends Command {
 		const cmd: ReadCommandArgs = {
 			path: args.path ?? "",
 		};
-		await initTheme();
+		initTheme();
 		await runReadCommand(cmd);
 	}
 }

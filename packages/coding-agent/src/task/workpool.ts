@@ -1,4 +1,4 @@
-import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
+import { isRecord, logger, prompt } from "@oh-my-pi/pi-utils";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import workpoolBatchTemplate from "../prompts/tools/workpool-batch.md" with { type: "text" };
 import workpoolTurnResultTemplate from "../prompts/tools/workpool-turn-result.md" with { type: "text" };
@@ -7,7 +7,7 @@ import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import type { CustomMessage } from "../session/messages";
 import type { ToolSession } from "../tools";
 import { isIrcEnabled } from "../irc/messaging";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { isCompletionProbeEnabled } from "./completion-probe";
 import { runSubagentFollowUpTurn, softRequestBudgetFor } from "./executor";
 import {
@@ -15,17 +15,10 @@ import {
 	reserveStructuredSubagentId,
 	runStructuredSubagent,
 } from "./structured-subagent";
-import {
-	type AgentProgress,
-	oneLineLabel,
-	type SingleResult,
-	type TaskToolDetails,
-} from "@linxiraos/pi-tui/tools/task";
+import { type AgentProgress, oneLineLabel, type SingleResult, type TaskToolDetails } from "./task-details";
 import { buildWorkPoolOutputSchema, type WorkPoolYieldItem } from "./workpool-yield";
 
 import { cfgEvalWorkpoolFreshAgents } from "../eval/settings";
-import { effectiveFanOutCap, memoryPressureLevel, readMemorySample } from "./fanout-pressure";
-import { shedUnderMemoryPressure } from "./memory-shed";
 import { cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
 
 /** One user-supplied unit tracked through a workpool batch. */
@@ -155,21 +148,10 @@ export class WorkPool {
 		}
 	}
 
-	/**
-	 * Current worker ceiling: the live `task.maxConcurrency` setting, lowered
-	 * while the machine is short on memory (`fanout-pressure.ts`). `0`
-	 * ("Unlimited") stays unbounded only while memory is healthy.
-	 */
+	/** Current worker ceiling from the live `task.maxConcurrency` setting. */
 	limit(): number {
-		const sample = readMemorySample();
-		const level = memoryPressureLevel(sample);
-		// Same sample drives the ceiling and the shed: a workpool that lowers its
-		// ceiling under pressure also drops the memory it can drop right now.
-		void shedUnderMemoryPressure(level, sample, { session: this.session, source: "workpool limit" });
-		const cap = effectiveFanOutCap(cfgTaskMaxConcurrency.get(this.session.settings), level);
-		// `0` is the sentinel `effectiveFanOutCap` reproduces for an unlimited
-		// setting; this call site has always surfaced it as Infinity.
-		return cap > 0 ? cap : Number.POSITIVE_INFINITY;
+		const configured = cfgTaskMaxConcurrency.get(this.session.settings);
+		return configured > 0 ? configured : Infinity;
 	}
 
 	/** Queue items and start the aggregate pool job on the first non-empty push. */

@@ -1,6 +1,12 @@
 import { authPolicyFor } from "@linxiraos/pi-catalog/compat/auth";
 import { $env, $envExact, logger } from "@linxiraos/pi-utils";
-import { type ApiKeyResolver, createOAuthProvenance, type ResolvedApiKey, resolveAfterRotation } from "../auth-retry";
+import {
+	type ApiKeyResolver,
+	createOAuthProvenance,
+	type ResolvedApiKey,
+	refreshReasonFor,
+	resolveAfterRotation,
+} from "../auth-retry";
 import { getEnvApiKey, getEnvApiKeyName } from "../env-api-key";
 import * as AIError from "../error";
 import { getProviderDefinition } from "../registry";
@@ -577,7 +583,7 @@ export class KeyCascade implements KeysApi {
 			}
 			return resolve({
 				forceRefresh: true,
-				refreshReason: AIError.status(error) === 401 ? "auth-recovery" : undefined,
+				refreshReason: refreshReasonFor(error),
 				rejectedAccessToken,
 				signal,
 			});

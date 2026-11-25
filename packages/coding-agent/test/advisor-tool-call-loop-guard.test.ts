@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { type } from "@linxiraos/zeta-schema";
+import { type } from "@oh-my-pi/omptype";
 import {
 	Agent,
 	type AgentMessage,
@@ -8,18 +8,18 @@ import {
 	type AgentTurnEndContext,
 	type StreamFn,
 	type ToolCallContext,
-} from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, Context, ToolResultMessage } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { finalizeSubagentLifecycle } from "@linxiraos/zeta/task/executor";
-import { TempDir } from "@linxiraos/pi-utils";
-import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
+} from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, Context, ToolResultMessage } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { finalizeSubagentLifecycle } from "@oh-my-pi/pi-coding-agent/task/executor";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AdvisorConfig } from "@oh-my-pi/pi-coding-agent/advisor/advisor-config-types";
 import { AdvisorLoopGuard } from "../src/advisor/loop-guard";
 import { cfgAdvisorReviewInterval } from "../src/advisor/settings";
 import { activateTodoTool, createInMemoryAuthStorage, fixedAdvisorTools } from "./helpers/agent-session-setup";
@@ -325,10 +325,10 @@ describe("advisor tool-call loop guard", () => {
 	});
 
 	it.each([
-		{ device: "mcp__peers_wait", exempt: "mcp__peers_wait", redirects: 0 },
-		{ device: "mcp__other_tool", exempt: "mcp__peers_wait", redirects: 1 },
-		{ device: "mcp__peers_wait", exempt: "write", redirects: 0 },
-	])("applies advisor exemption $exempt to writes to $device", ({ device, exempt, redirects }) => {
+		{ command: "mcp__peers_wait --json {}", exempt: "mcp__peers_wait", redirects: 0 },
+		{ command: "mcp__other_tool --json {}", exempt: "mcp__peers_wait", redirects: 1 },
+		{ command: "mcp__peers_wait --json {}", exempt: "bash", redirects: 0 },
+	])("applies advisor exemption $exempt to the `$command` tool command", ({ command, exempt, redirects }) => {
 		const messages: AgentMessage[] = [];
 		const guard = new AdvisorLoopGuard({
 			settings: Settings.isolated({
@@ -351,8 +351,8 @@ describe("advisor tool-call loop guard", () => {
 						{
 							type: "toolCall",
 							id: `call-${index}`,
-							name: "write",
-							arguments: { path: `xd://${device}`, content: "{}" },
+							name: "bash",
+							arguments: { command },
 						},
 					],
 					api: "anthropic-messages",

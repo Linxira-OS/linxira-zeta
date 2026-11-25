@@ -1,5 +1,5 @@
 /**
- * Regression tests for `zetacode plugin uninstall <plugin> --dry-run` (#8178).
+ * Regression tests for `omp plugin uninstall <plugin> --dry-run` (#8178).
  *
  * `--dry-run` must be non-mutating: it reports what would be removed and
  * leaves the installed plugin list untouched. Before the fix, `handleUninstall`
@@ -11,15 +11,15 @@
  * rendered success or error output initialize it explicitly.
  */
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
-import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
-import type { InstalledPluginSummary } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { runPluginCommand } from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
+import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/manager";
+import type { InstalledPluginSummary } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+import { MarketplaceManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+import { initTheme } from "../src/ui/theme/service";
 
 describe("runPluginCommand({ action: 'uninstall', flags: { dryRun } })", () => {
 	beforeEach(async () => {
-		await initTheme();
+		initTheme();
 		spyOn(console, "log").mockImplementation(() => undefined);
 		spyOn(console, "error").mockImplementation(() => undefined);
 	});

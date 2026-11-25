@@ -8,9 +8,13 @@
  * string twice — once from the body content, once as the styled warning line.
  */
 import { describe, expect, it } from "bun:test";
-import { type OutputMeta, stripGeneratedOutputNotice, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { outputMeta } from "@linxiraos/zeta/tools/output-meta";
+import {
+	type OutputMeta,
+	stripGeneratedOutputNotice,
+	stripOutputNotice,
+} from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { formatOutputNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta-format";
+import { outputMeta } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
 
 const truncation: OutputMeta = {
 	truncation: {

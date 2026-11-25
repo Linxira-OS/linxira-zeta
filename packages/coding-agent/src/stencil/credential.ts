@@ -1,10 +1,10 @@
 import { STREAM_AUTH_ENV, STREAM_AUTH_PROVIDER } from "@linxiraos/pi-wire";
-import { discoverAuthStorage } from "../sdk";
+import { discoverSessionAuthStorage as discoverAuthStorage } from "../session/auth-broker-config";
 import type { AuthStorage } from "../session/auth-storage";
 
 /**
- * Bearer credential presented to Stencil services (`zetacode stream`, `zetacode clip`,
- * `zetacode skill`).
+ * Bearer credential presented to Stencil services (`omp stream`, `omp clip`,
+ * `omp skill`).
  *
  * `STENCIL_API_KEY` wins outright (debug and CI: `STENCIL_API_KEY=test omp
  * stream …`); otherwise the stencil.so credential stored by `/login` is used
@@ -24,7 +24,7 @@ export class StencilCredential {
 
 	/** Human guidance for a missing credential. */
 	static get missingMessage(): string {
-		return `a stencil.so account is required: run zetacode and use /login → Stencil, or set ${STREAM_AUTH_ENV}`;
+		return `a stencil.so account is required: run omp and use /login → Stencil, or set ${STREAM_AUTH_ENV}`;
 	}
 
 	close(): void {

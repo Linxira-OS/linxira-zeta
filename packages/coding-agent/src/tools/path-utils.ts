@@ -1,7 +1,8 @@
 import type { ToolTier } from "@linxiraos/pi-agent-core";
 import { extractUriScheme } from "../internal-urls/parse";
-import { type LineRange } from "@linxiraos/pi-tui/tools/line-ranges";
-import { splitPathAndSel, isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
+import { type LineRange } from "./line-ranges";
+import { splitPathAndSel, isReadableUrlPath } from "./details/read";
+import { toPathList } from "../utils/render-utils";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as url from "node:url";
@@ -19,8 +20,7 @@ import {
 import { InternalUrlRouter } from "../internal-urls";
 import { type InternalUrlFilesystem, joinUrlPath, UrlFsError } from "../internal-urls/url-filesystem";
 import { ToolAbortError } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
+import { ToolError } from "./tool-errors";
 
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 

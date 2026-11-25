@@ -1,24 +1,27 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { agentLoop, type AgentToolContext } from "@linxiraos/pi-agent-core";
-import type { AgentLoopConfig } from "@linxiraos/pi-agent-core/types";
-import * as ai from "@linxiraos/pi-ai";
-import type { Api, AssistantMessage, Message, Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { TempDir } from "@linxiraos/pi-utils";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { afterAll, afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
+import { agentLoop, type AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import type { AgentLoopConfig } from "@oh-my-pi/pi-agent-core/types";
+import * as ai from "@oh-my-pi/pi-ai";
+import type { Api, AssistantMessage, Message, Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import type {
 	ExtensionFormDialogResult,
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
-} from "@linxiraos/zeta/extensibility/extensions";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { AskTool, recoverAskHtml } from "@linxiraos/zeta/tools/ask";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { TERMINAL } from "@linxiraos/pi-tui";
-import { tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { AskTool, recoverAskHtml } from "@oh-my-pi/pi-coding-agent/tools/ask";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import * as terminalSession from "@oh-my-pi/pi-tui/driver/session";
+import { tagImageAttachmentSource } from "@oh-my-pi/pi-coding-agent/utils/image-source";
+import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+
+const restoreTheme = currentTheme();
+afterAll(() => setCurrentTheme(restoreTheme));
 
 // 1x1 transparent PNG.
 const TINY_PNG_BASE64 =
@@ -101,51 +104,8 @@ function text(result: { content: { type: string; text?: string }[] }): string | 
 	return block?.type === "text" ? block.text : undefined;
 }
 
-beforeAll(async () => {
-	await initTheme(false);
-});
-
 afterEach(() => {
 	vi.restoreAllMocks();
-});
-
-const PLAN_CONSENT_FORM = `<form><p>Enter plan mode?</p><label><input type="radio" name="plan_mode" value="yes"> Yes</label><label><input type="radio" name="plan_mode" value="no"> No</label></form>`;
-
-describe("AskTool plan-mode consent", () => {
-	it("records a one-shot consent only when the user selects the visible plan_mode yes option", async () => {
-		const record = vi.fn();
-		const session = createSession({ recordPlanModeConsent: record });
-		const result = await new AskTool(session).execute(
-			"call-plan-consent",
-			{ html: PLAN_CONSENT_FORM },
-			undefined,
-			undefined,
-			createContext({ formDialog: async () => ({ data: { plan_mode: "yes" } }) }),
-		);
-		expect(record).toHaveBeenCalledTimes(1);
-
-		const denied = await new AskTool(createSession({ recordPlanModeConsent: record })).execute(
-			"call-plan-deny",
-			{ html: PLAN_CONSENT_FORM },
-			undefined,
-			undefined,
-			createContext({ formDialog: async () => ({ data: { plan_mode: "no" } }) }),
-		);
-		expect(denied.details).toMatchObject({ answers: [{ name: "plan_mode", answer: "No" }] });
-		expect(record).toHaveBeenCalledTimes(1);
-	});
-
-	it("does not record consent for a timeout submit", async () => {
-		const record = vi.fn();
-		await new AskTool(createSession({ recordPlanModeConsent: record })).execute(
-			"call-plan-timeout",
-			{ html: PLAN_CONSENT_FORM },
-			undefined,
-			undefined,
-			createContext({ formDialog: async () => ({ data: { plan_mode: "yes" }, timedOut: true }) }),
-		);
-		expect(record).not.toHaveBeenCalled();
-	});
 });
 
 describe("AskTool form dialog", () => {
@@ -239,6 +199,18 @@ describe("AskTool form dialog", () => {
 		expect(result.details?.notes).toEqual(notes);
 	});
 
+	it("gives no answer when a timeout leaves a required field empty", async () => {
+		const result = await new AskTool(createSession()).execute(
+			"call-timeout-required",
+			{ html: '<form><input name="transport" required></form>' },
+			undefined,
+			undefined,
+			createContext({ formDialog: async () => ({ data: { transport: "" }, timedOut: true }) }),
+		);
+		expect(text(result)).toContain("no answer was given");
+		expect(result.details).toEqual({ answers: [], timedOut: true });
+	});
+
 	it("aborts the turn when the user cancels the form", async () => {
 		const abort = vi.fn();
 		const outcome = new AskTool(createSession()).execute(
@@ -292,6 +264,60 @@ describe("AskTool form dialog", () => {
 		expect(formDialog).not.toHaveBeenCalled();
 	});
 
+	it("refuses a <fieldset> whose radios each carry their own name, without showing it", async () => {
+		const formDialog = vi.fn<FormDialog>();
+		const result = await new AskTool(createSession()).execute(
+			"call-split-radios",
+			{
+				html: `<form><fieldset>
+  <legend>Sharing</legend>
+  <label><input type="radio" name="shared_sources" value="common" checked> Common location only</label>
+  <label><input type="radio" name="personal_auto"> Include personal installations</label>
+</fieldset></form>`,
+			},
+			undefined,
+			undefined,
+			createContext({ formDialog }),
+		);
+
+		const message = text(result) ?? "";
+		expect(message).toContain("shared_sources");
+		expect(message).toContain("personal_auto");
+		expect(message).toContain("Sharing");
+		expect(result.details).toEqual({ answers: [] });
+		expect(formDialog).not.toHaveBeenCalled();
+	});
+
+	it("shows forms whose radio names are not split inside one fieldset", async () => {
+		const forms = {
+			"shared name": `<form><fieldset><legend>Sharing</legend>
+  <label><input type="radio" name="sources" value="common" checked> Common location only</label>
+  <label><input type="radio" name="sources" value="personal"> Include personal installations</label>
+</fieldset></form>`,
+			"lone radio": `<form><fieldset><legend>Sharing</legend>
+  <label><input type="radio" name="personal_auto"> Include personal installations</label>
+</fieldset></form>`,
+			"separate fieldsets": `<form><fieldset><legend>Sharing</legend>
+  <label><input type="radio" name="shared_sources" value="common" checked> Common location only</label>
+</fieldset><fieldset><legend>Personal</legend>
+  <label><input type="radio" name="personal_auto"> Include personal installations</label>
+</fieldset></form>`,
+		};
+		for (const [shape, html] of Object.entries(forms)) {
+			const formDialog = vi.fn<FormDialog>(async () => ({ data: { sources: "personal" } }));
+			const result = await new AskTool(createSession()).execute(
+				`call-${shape}`,
+				{ html },
+				undefined,
+				undefined,
+				createContext({ formDialog }),
+			);
+
+			expect(formDialog, shape).toHaveBeenCalledTimes(1);
+			expect(text(result), shape).toContain("User answers:");
+		}
+	});
+
 	it("closes for a message the user queued without cancelling the turn, but stays open for other interrupts", async () => {
 		const ask = (source: string) => {
 			const steering = new AbortController();
@@ -316,6 +342,36 @@ describe("AskTool form dialog", () => {
 
 		const irc = ask("irc");
 		expect((await irc.outcome).details?.answers[0]).toMatchObject({ name: "store", answer: "SQLite" });
+	});
+
+	it("tells the model what the user answered before a message closed the form", async () => {
+		const steering = new AbortController();
+		const formDialog: FormDialog = async (_html, options) => {
+			options?.onAbandon?.({
+				data: { store: "postgres" },
+				notes: [{ name: "store", question: "Store", option: "Postgres", value: "postgres", text: "managed  one" }],
+			});
+			steering.abort("user");
+			return undefined;
+		};
+		const outcome = new AskTool(createSession()).execute(
+			"call-given",
+			{ html: DB_FORM },
+			undefined,
+			undefined,
+			createContext({ formDialog, steeringSignal: steering.signal }),
+		);
+
+		const error = await outcome.then(
+			() => undefined,
+			(rejection: unknown) => rejection,
+		);
+		expect(error).toBeInstanceOf(ToolAbortError);
+		const message = (error as Error).message;
+		expect(message).toContain("Ask interrupted by message");
+		expect(message).toContain('"store": "postgres"');
+		expect(message).toContain("Store: Postgres");
+		expect(message).toContain("managed one");
 	});
 
 	it("delivers queued steering while the form is open without cancelling the turn", async () => {
@@ -384,7 +440,7 @@ describe("AskTool form dialog", () => {
 	});
 
 	it("does not emit terminal notifications for non-terminal prompt surfaces", async () => {
-		const sendNotification = spyOn(TERMINAL, "sendNotification").mockImplementation(() => {});
+		const sendNotification = spyOn(terminalSession, "notifyTerminal").mockImplementation(() => {});
 		await new AskTool(
 			createSession({ hasUI: false, canPromptUser: true, settings: Settings.isolated({ "ask.notify": "on" }) }),
 		).execute(
@@ -640,10 +696,18 @@ describe("AskTool without an interactive UI", () => {
 });
 
 describe("recoverAskHtml", () => {
-	it("recovers the form of an html call and nothing from legacy question calls", () => {
+	it("recovers the form of an html call, a bare string and a legacy question call", () => {
 		expect(recoverAskHtml({ html: DB_FORM })).toBe(DB_FORM);
-		expect(recoverAskHtml({ questions: [{ id: "q", question: "Q?", options: [] }] })).toBeUndefined();
-		expect(recoverAskHtml("<form></form>")).toBeUndefined();
+		expect(recoverAskHtml("<form></form>")).toBe("<form></form>");
+		const legacy = recoverAskHtml({
+			questions: [
+				{ id: "db", question: "Which <db>?", options: [{ label: "pg" }, { label: "sqlite" }], recommended: 1 },
+			],
+		});
+		expect(legacy).toBe(
+			'<form><fieldset><legend>Which &lt;db&gt;?</legend><label><input type="radio" name="db" value="pg"> pg</label><label><input type="radio" name="db" value="sqlite" checked> sqlite</label></fieldset></form>',
+		);
+		expect(recoverAskHtml({ questions: [{ id: "q" }] })).toBeUndefined();
 	});
 });
 

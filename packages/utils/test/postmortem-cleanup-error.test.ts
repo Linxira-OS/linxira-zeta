@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { postmortem } from "@linxiraos/pi-utils";
+import { postmortem } from "@oh-my-pi/pi-utils";
 
 const postmortemModuleUrl = pathToFileURL(join(import.meta.dir, "../src/index.ts")).href;
 
@@ -56,7 +56,7 @@ describe("postmortem expected cleanup errors", () => {
 		const marked = postmortem.markExpectedCleanupError(reason);
 
 		expect(marked).toBe(reason);
-		expect(Reflect.get(reason, Symbol.for("zeta.expectedCleanupError"))).toBe(true);
+		expect(Reflect.get(reason, Symbol.for("omp.expectedCleanupError"))).toBe(true);
 		expect(postmortem.isExpectedCleanupError(reason)).toBe(true);
 	});
 
@@ -165,6 +165,7 @@ describe("postmortem expected cleanup errors", () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain("[Uncaught Exception] Error: unexpected cleanup exception");
+		expect(result.stderr).toContain("probe.ts:"); // piped stderr retains the stack
 	});
 
 	it("prints recovery commands for a session that fatal cleanup saved", async () => {
@@ -175,10 +176,11 @@ describe("postmortem expected cleanup errors", () => {
 
 			let saved = false;
 			const cancelHint = postmortem.registerFatalRecoveryHint(() =>
-				saved ? { label: "Main", command: "zetacode --resume 019cafe0-dead-beef" } : undefined,
+				saved ? { label: "Main", command: "omp --resume 019cafe0-dead-beef" } : undefined,
 			);
 			postmortem.register("session", async () => {
 				await Promise.resolve();
+				process.stderr.write("async handoff complete\\n");
 				saved = true;
 				cancelHint();
 			});
@@ -188,7 +190,11 @@ describe("postmortem expected cleanup errors", () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain("[Unhandled Rejection] Error: session crashed");
-		expect(result.stderr).toContain("[Recovery]\n  Main: zetacode --resume 019cafe0-dead-beef");
+		expect(result.stderr).toContain("async handoff complete");
+		expect(result.stderr.indexOf("async handoff complete")).toBeLessThan(
+			result.stderr.indexOf("[Unhandled Rejection]"),
+		);
+		expect(result.stderr).toContain("[Recovery]\n  Main: omp --resume 019cafe0-dead-beef");
 	});
 
 	it.skipIf(process.platform === "win32")(
@@ -199,7 +205,7 @@ describe("postmortem expected cleanup errors", () => {
 
 			let saved = false;
 			const cancelHint = postmortem.registerFatalRecoveryHint(() =>
-				saved ? { label: "Main", command: "zetacode --resume 019cafe0-dead-beef" } : undefined,
+				saved ? { label: "Main", command: "omp --resume 019cafe0-dead-beef" } : undefined,
 			);
 			postmortem.register("session", async () => {
 				// postmortem's own SIGTERM listener runs first, so once this one fires the
@@ -218,9 +224,7 @@ describe("postmortem expected cleanup errors", () => {
 		`);
 
 			expect(result.exitCode).toBe(143);
-			expect(result.stderr).toContain(
-				"[Stopped by SIGTERM]\n[Recovery]\n  Main: zetacode --resume 019cafe0-dead-beef",
-			);
+			expect(result.stderr).toContain("[Stopped by SIGTERM]\n[Recovery]\n  Main: omp --resume 019cafe0-dead-beef");
 			expect(result.stderr.split("[Recovery]")).toHaveLength(2);
 		},
 	);
@@ -231,7 +235,7 @@ describe("postmortem expected cleanup errors", () => {
 
 			let saved = false;
 			const cancelHint = postmortem.registerFatalRecoveryHint(() =>
-				saved ? { label: "Main", command: "zetacode --resume 019cafe0-dead-beef" } : undefined,
+				saved ? { label: "Main", command: "omp --resume 019cafe0-dead-beef" } : undefined,
 			);
 			postmortem.register("session", async () => {
 				// Teardown saves the session and unregisters its hint, so the report has to
@@ -246,7 +250,7 @@ describe("postmortem expected cleanup errors", () => {
 		`);
 
 		expect(result.exitCode).toBe(129);
-		expect(result.stderr).toContain("[Stopped by SIGHUP]\n[Recovery]\n  Main: zetacode --resume 019cafe0-dead-beef");
+		expect(result.stderr).toContain("[Stopped by SIGHUP]\n[Recovery]\n  Main: omp --resume 019cafe0-dead-beef");
 		expect(result.stderr.split("[Recovery]")).toHaveLength(2);
 	});
 
@@ -258,7 +262,7 @@ describe("postmortem expected cleanup errors", () => {
 
 			postmortem.registerFatalRecoveryHint(() => ({
 				label: "Main",
-				command: "zetacode --resume 019cafe0-dead-beef",
+				command: "omp --resume 019cafe0-dead-beef",
 			}));
 			// What the TUI does before raising its own SIGHUP: stdout stalled, so fd 2 is a
 			// full, blocking pty and a report write would hang instead of exiting.
@@ -274,6 +278,19 @@ describe("postmortem expected cleanup errors", () => {
 			expect(result.stderr).not.toContain("[Recovery]");
 		},
 	);
+
+	it("does not write a fatal report or recovery hint to a terminal declared dead", async () => {
+		const result = await runPostmortemProbe(`
+			import { postmortem } from "${postmortemModuleUrl}";
+			postmortem.registerFatalRecoveryHint(() => ({ label: "Main", command: "omp --resume" }));
+			postmortem.declareTerminalDead();
+			Promise.reject(new Error("fatal on stalled terminal"));
+			await Promise.withResolvers<void>().promise;
+		`);
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).not.toContain("fatal on stalled terminal");
+		expect(result.stderr).not.toContain("[Recovery]");
+	});
 
 	it("exits after an uncaught exception when terminal stderr is revoked", async () => {
 		const result = await runPostmortemProbe(`

@@ -1,19 +1,20 @@
 /**
- * A failed ovnfs checkout removal must not erase the record `zetacode worktree clear`
+ * A failed ovnfs checkout removal must not erase the record `omp worktree clear`
  * needs. Reusing the slot moves that record aside; a lost creation reply keeps it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearWorktrees } from "@linxiraos/zeta/cli/worktree-cli";
-import { setWorktreesDir } from "@linxiraos/pi-utils";
+import { clearWorktrees } from "@oh-my-pi/pi-coding-agent/cli/worktree-cli";
+import { setWorktreesDir } from "@oh-my-pi/pi-utils";
 import * as client from "../../src/ovnfs/client";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
 import * as daemon from "../../src/ovnfs/daemon";
 import { ISOLATION_OWNER_FILE } from "../../src/task/isolation-ownership";
 import * as isolationRunner from "../../src/task/isolation-runner";
-import { OVNFS_CHECKOUT_FILE, ovnfsWorkspace, releaseOvnfsCheckout } from "../../src/task/ovnfs";
+import { OVNFS_CHECKOUT_FILE, releaseOvnfsCheckout } from "../../src/ovnfs/task-record";
+import { ovnfsWorkspace } from "../../src/task/ovnfs";
 import * as executorModule from "../../src/task/executor";
 import * as worktreeModule from "../../src/task/worktree";
 import { taskIsolationBaseDir } from "../../src/task/worktree";
@@ -40,15 +41,15 @@ describe("ovnfs checkout recovery", () => {
 
 	beforeEach(async () => {
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ovnfs-"));
-		savedEnv = process.env.ZETA_WORKTREE_DIR;
-		delete process.env.ZETA_WORKTREE_DIR;
+		savedEnv = process.env.OMP_WORKTREE_DIR;
+		delete process.env.OMP_WORKTREE_DIR;
 		setWorktreesDir(path.join(root, "wt"));
 	});
 
 	afterEach(async () => {
 		setWorktreesDir(undefined);
-		if (savedEnv === undefined) delete process.env.ZETA_WORKTREE_DIR;
-		else process.env.ZETA_WORKTREE_DIR = savedEnv;
+		if (savedEnv === undefined) delete process.env.OMP_WORKTREE_DIR;
+		else process.env.OMP_WORKTREE_DIR = savedEnv;
 		vi.restoreAllMocks();
 		await fs.rm(root, { recursive: true, force: true });
 	});
@@ -395,7 +396,7 @@ describe("ovnfs checkout recovery", () => {
 		};
 		const captured = vi.spyOn(worktreeModule, "captureIsolationBaseline").mockResolvedValue(baseline);
 		const committed = vi.spyOn(worktreeModule, "commitToBranch").mockResolvedValue({
-			branchName: `zeta/task/${agentId}`,
+			branchName: `omp/task/${agentId}`,
 			baseSha: "base",
 			rootPatch: patch,
 			nestedPatches: [],
@@ -457,7 +458,7 @@ describe("ovnfs checkout recovery", () => {
 			"branch",
 			binaryPatch,
 		);
-		expect(result.branchName).toBe("zeta/task/BranchRun");
+		expect(result.branchName).toBe("omp/task/BranchRun");
 		const start = opened.find(op => op.base);
 		expect(start?.base).toBe("b_1");
 		expect(captured.mock.calls).toEqual([[`/mnt/ovnfs/${start?.name}`, repo]]);

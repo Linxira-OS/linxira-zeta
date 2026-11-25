@@ -10,29 +10,30 @@
  * - interactive mode stacks each factory on top of the built-in editor provider.
  *
  * NOTE: imports are relative (`../src/...`) so the tests exercise this checkout
- * even when `node_modules/@linxiraos/zeta` resolves elsewhere.
+ * even when `node_modules/@oh-my-pi/pi-coding-agent` resolves elsewhere.
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/zeta-schema";
-import type { AutocompleteProvider } from "@linxiraos/pi-tui";
-import { logger, TempDir } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
+import type { AutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
+import { logger, TempDir } from "@oh-my-pi/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resetSettingsForTest, Settings } from "../src/config/settings";
 import { loadExtensions } from "../src/extensibility/extensions/loader";
 import { ExtensionRunner } from "../src/extensibility/extensions/runner";
 import { InteractiveMode } from "../src/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../src/ui/theme/service";
 import { AgentSession } from "../src/session/agent-session";
 import { AuthStorage } from "../src/session/auth-storage";
 import { SessionManager } from "../src/session/session-manager";
 
-import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
+import { cfgStartupQuiet } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -137,7 +138,15 @@ describe("extension autocomplete provider API (#4919)", () => {
 			toolRegistry: new Map(tools.map(tool => [tool.name, tool])),
 			promptTemplates: [],
 		});
-		const createdMode = new InteractiveMode(created, "test");
+		const createdMode = new InteractiveMode(
+			created,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		session = created;
 		mode = createdMode;
 		return { mode: createdMode, session: created };
@@ -145,8 +154,9 @@ describe("extension autocomplete provider API (#4919)", () => {
 
 	function captureAutocompleteProvider(target: InteractiveMode): { current: AutocompleteProvider | undefined } {
 		const slot: { current: AutocompleteProvider | undefined } = { current: undefined };
-		vi.spyOn(target.editor, "setAutocompleteProvider").mockImplementation(provider => {
-			slot.current = provider;
+		// The mode hands the composer its own provider (with inline hints); the composer's type is narrower.
+		vi.spyOn(target.composer, "setAutocomplete").mockImplementation(provider => {
+			slot.current = provider as AutocompleteProvider | undefined;
 		});
 		return slot;
 	}

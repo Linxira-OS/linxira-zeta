@@ -33,17 +33,17 @@ On Anthropic, the system cache breakpoint lands on the last block before the fir
 
 Programmatic API options use separate contracts, not CLI flags; see [Programmatic API options](#programmatic-api-options).
 
-That empty literal suppresses discovered `SYSTEM.md` and `SYSTEM_TEMPLATE.md`, but does not disable Zeta-generated instructions; only the programmatic `CreateAgentSessionOptions.systemPrompt` full-replacement option does that.
+That empty literal suppresses discovered `SYSTEM.md` and `SYSTEM_TEMPLATE.md`, but does not disable OMP-generated instructions; only the programmatic `CreateAgentSessionOptions.systemPrompt` full-replacement option does that.
 
-Without an explicit custom source, discovery is project-first, then user-level. Within each scope a literal beats a template: project `SYSTEM.md` beats project `SYSTEM_TEMPLATE.md`, which beats user `SYSTEM.md`, which beats user `SYSTEM_TEMPLATE.md`. `SYSTEM.md` is the long-established override, so an existing literal keeps working until its author deliberately removes it in favor of a template. Both filenames resolve through the same capability providers, so ancestor walk-up (repo-root `.zeta` from a nested cwd) and `.agent` / `.agents` directories apply to templates exactly as they do to literals. `.claude`, `.codex`, and `.gemini` project bases resolve at the launch cwd. Foreign user bases require `enabledProviders` opt-in; `CLAUDE_CONFIG_DIR` also opts in and relocates the Claude user base.
+Without an explicit custom source, discovery is project-first, then user-level. Within each scope a literal beats a template: project `SYSTEM.md` beats project `SYSTEM_TEMPLATE.md`, which beats user `SYSTEM.md`, which beats user `SYSTEM_TEMPLATE.md`. `SYSTEM.md` is the long-established override, so an existing literal keeps working until its author deliberately removes it in favor of a template. Both filenames resolve through the same capability providers, so ancestor walk-up (repo-root `.omp` from a nested cwd) and `.agent` / `.agents` directories apply to templates exactly as they do to literals. `.claude`, `.codex`, and `.gemini` project bases resolve at the launch cwd. Foreign user bases require `enabledProviders` opt-in; `CLAUDE_CONFIG_DIR` also opts in and relocates the Claude user base.
 
-The native user path follows the active profile: with `zetacode --profile work`, `~/.zeta/agent` becomes `~/.zeta/profiles/work/agent`. `PI_CONFIG_DIR` changes the native config-directory name. Both capability discovery (`SYSTEM.md`, `SYSTEM_TEMPLATE.md`) and the shared config-base lookup (`APPEND_SYSTEM.md`, `TITLE_SYSTEM.md`) resolve the native user base through `getAgentDir()`, so in the default profile `ZETA_CODING_AGENT_DIR` relocates all four; named profiles ignore it. An explicit CLI flag or programmatic API option still wins over every discovered file. See [Configuration usage](./config-usage.md) for the shared config-directory contract.
+The native user path follows the active profile: with `omp --profile work`, `~/.omp/agent` becomes `~/.omp/profiles/work/agent`. `PI_CONFIG_DIR` changes the native config-directory name. Both capability discovery (`SYSTEM.md`, `SYSTEM_TEMPLATE.md`) and the shared config-base lookup (`APPEND_SYSTEM.md`, `TITLE_SYSTEM.md`) resolve the native user base through `getAgentDir()`, so in the default profile `PI_CODING_AGENT_DIR` relocates all four; named profiles ignore it. An explicit CLI flag or programmatic API option still wins over every discovered file. See [Configuration usage](./config-usage.md) for the shared config-directory contract.
 
 `--system-prompt-template <path>` is a strict file path: a missing, unreadable, empty, or malformed template is an error, never a literal prompt. An empty discovered `SYSTEM_TEMPLATE.md` is skipped (the discovered literal, if any, already won discovery). Malformed templates discovered directly by `buildSystemPrompt()` warn and render the bundled prompt. CLI discovery forwards the loaded source as an explicit SDK template, so a malformed discovered template fails CLI startup. A same-scope literal always wins discovery, so a malformed template beside a literal is never rendered. Discovered templates are read once through capability discovery; later runtime rebuilds re-render that in-memory source.
 
 ### Text or file resolution
 
-The existing plain-text flags keep their resolution rules. For a single-line `--system-prompt` or `--append-system-prompt` value, Zeta first tries to read that value as a file path. If reading fails because the path does not exist (or is too long to be a path), the value is used literally. A value containing a newline is used literally without a file read. Other file-read failures are logged and the original value is still used literally. This fallback does **not** apply to `--system-prompt-template`.
+The existing plain-text flags keep their resolution rules. For a single-line `--system-prompt` or `--append-system-prompt` value, OMP first tries to read that value as a file path. If reading fails because the path does not exist (or is too long to be a path), the value is used literally. A value containing a newline is used literally without a file read. Other file-read failures are logged and the original value is still used literally. This fallback does **not** apply to `--system-prompt-template`.
 
 ## What plain `SYSTEM.md` replaces
 
@@ -58,7 +58,7 @@ The plain custom template keeps these generated surfaces:
 
 The separate `<project-context>` footer remains and carries workstation data, discovered context files, deeper-directory context pointers, optional workspace information, active nested-repository context, the final completion requirements, and the append text. Optional extra system blocks, such as computer-tool safety, also remain when applicable. Provider-callable tool schemas are still generated by the provider-facing session.
 
-What disappears is the content unique to the default instruction template: its built-in role/personality text, tool inventory and general tool policy, internal-URL catalog, exploration/delegation/workflow rules, and `xd://` protocol guidance. Generated skills and rules are **not** lost; the bundled plain custom template renders them explicitly.
+What disappears is the content unique to the default instruction template: its built-in role/personality text, tool inventory and general tool policy, internal-URL catalog, exploration/delegation/workflow rules, and the mounted-tool command catalog. Generated skills and rules are **not** lost; the bundled plain custom template renders them explicitly.
 
 Consequences:
 
@@ -74,7 +74,7 @@ With `SYSTEM.md`, append text is also rendered at the end of `project-prompt.md`
 
 With `SYSTEM_TEMPLATE.md` (or `--system-prompt-template`), append text remains generated by the normal project/footer route; the raw template controls block 0 and does not receive an implicit copy of the append text.
 
-Zeta-generated append content (for enabled memory/auto-learn features and MCP guidance) is combined before the user-supplied append text.
+OMP-generated append content (for enabled memory/auto-learn features and MCP guidance) is combined before the user-supplied append text.
 Those generated blocks can end with `## MCP Server Instructions`, whose text declares
 itself server-controlled and unverified. Whenever a generated block precedes the
 user-supplied text, the text is rendered under its own `## User Instructions` heading
@@ -91,25 +91,25 @@ Which automatic inputs reach each kind of session. An input applies only when it
 | Task subagent    | Not inherited | Inherited                 | No                                            | Inherited | Inherited               | No            | `none`      |
 | Advisor/watchdog | Inherited     | Inherited                 | No                                            | No        | No                      | Yes           | None        |
 
-1. Task subagents drop every context file whose basename is `agents.md` (case-insensitive), whether inherited from the parent or discovered for an additional workspace root, including the user-level `~/.zeta/agent/AGENTS.md`. Text pulled in through `@` imports is not filtered.
+1. Task subagents drop every context file whose basename is `agents.md` (case-insensitive), whether inherited from the parent or discovered for an additional workspace root, including the user-level `~/.omp/agent/AGENTS.md`. Text pulled in through `@` imports is not filtered.
 2. Context discovery selects one user file and one project file per directory depth, and higher-priority providers win. Foreign user files require `enabledProviders` opt-in. A standalone `CLAUDE.md` is supported; `GEMINI.md` is read from the user and project `.gemini` directories.
-3. A task agent's `tools:` list does not remove MCP tools or server instructions: the tools stay available top-level or under `xd://`. Plan-mode tasks and children of restricted sessions run with `restrictToolNames`, which drops both.
+3. A task agent's `tools:` list does not remove MCP tools or server instructions: the tools stay available top-level or as bash tool commands. Plan-mode tasks and children of restricted sessions run with `restrictToolNames`, which drops both.
 
 ## Handlebars template route
 
 `SYSTEM_TEMPLATE.md` and `--system-prompt-template <path>` select raw Handlebars source from a file. Programmatic callers can instead pass raw Handlebars source through `CreateAgentSessionOptions.systemPromptTemplate` or `buildSystemPrompt({ systemPromptTemplate })`; those programmatic options are the template itself, not a path. Each route is rendered instead of the bundled `system-prompt.md` with the same live data and registered helpers as that bundled template.
 
-Generated blocks that are outside block 0 remain normal: the `<project-context>` footer (including generated context, active nested-repository context, and append material), computer safety, and provider tool schemas are retained. Data-driven sections that normally live inside the bundled template are not appended by magic. `skills`, `rules`, `alwaysApplyRules`, `toolInventory`, `internalUrls` (one rendered line per internal URL scheme available in the session), `internalUrlReference` (the sub-path, query and limit grammar those lines leave out, one line per scheme; the bundled template inlines it only when `read` is absent, since `read xd://read/urls` serves it on demand), `xdevTools`, and `xdevDocs` are available to the template, but each is emitted only if the template references it. In particular, omitting `{{toolInventory}}` or `{{xdevDocs}}` omits that in-block catalog. Mount-notice dedupe follows the rendered output: a template whose block 0 contains an `xd://` reference claims the catalog, one that omits it does not.
+Generated blocks that are outside block 0 remain normal: the `<project-context>` footer (including generated context, active nested-repository context, and append material), computer safety, and provider tool schemas are retained. Data-driven sections that normally live inside the bundled template are not appended by magic. `skills`, `rules`, `alwaysApplyRules`, `toolInventory`, `internalUrls` (one rendered line per internal URL scheme available in the session), `internalUrlReference` (the sub-path, query and limit grammar those lines leave out, one line per scheme; the bundled template inlines it only when `read` is absent, since `read help://read/urls` serves it on demand), `mountedCommands`, `toolCommandDocs`, and `hasDynamicToolCommands` are available to the template, but each is emitted only if the template references it. In particular, omitting `{{toolInventory}}` or `{{toolCommandDocs}}` omits that in-block catalog. The bundled template's `# Tool Commands` section is gated on `{{#if mountedCommands.length}}`: it says each listed tool is also a command in `{{toolRefs.bash}}` with `--help` usage derived from its schema, then inserts `{{toolCommandDocs}}` for the catalog and inlined usage. A mounted tool's `{{toolRefs.<tool>}}` is its bare name, which is also the command to run; `hasDynamicToolCommands` is true when any mounted command carries a dynamic summary. A mount notice renders `tool-command-mount-notice.md`, and mounted MCP guidance renders `mcp-tool-command-guidance.md`. Mount-notice dedupe follows the rendered output: the rebuild claims the catalog names only when its rendered block 0 actually contains the `toolCommandDocs` text, so a template that references `{{toolCommandDocs}}` keeps dedupe while one that omits the section stays honest. The plain custom prompt route (`SYSTEM.md` / `--system-prompt`) never claims it.
 
 The generated project/footer route already renders `contextFiles` and `appendPrompt` once. A template SHOULD NOT render those fields in block 0 unless it intentionally wants duplicate copies.
 
 `/context` shows each context file and skill in its own category when an `{{#each}}` iteration renders it on lines of its own, outside helper blocks such as `{{#list}}`; a template that lists skills on one line or through a helper keeps them in System Prompt. Instruction files come from the project block, so the template does not affect their attribution.
 
-Use effective session settings and live tool data rather than copying today's rendered prose. `subagent` is true when rendering a task subagent's prompt; the bundled templates use it to replace verification duties with a hand-off to the main agent. `eagerTasks` and `eagerTasksAlways` reflect task settings captured when the session starts, while `xdevDocs`, `toolInventory`, and `toolRefs` reflect mounted devices and tool state whenever the prompt rebuilds. `xdevDocs` also reflects the `tools.xdevDocs` / `tools.xdevInlineDevices` settings used for that rebuild.
+Use effective session settings and live tool data rather than copying today's rendered prose. `subagent` is true when rendering a task subagent's prompt; the bundled templates use it to replace verification duties with a hand-off to the main agent. `eagerTasks` and `eagerTasksAlways` reflect task settings captured when the session starts, while `toolCommandDocs`, `toolInventory`, and `toolRefs` reflect mounted tool commands and tool state whenever the prompt rebuilds. `toolCommandDocs` also reflects the `tools.commandDocs` / `tools.commandInline` settings used for that rebuild.
 
-The template has the same helper set used by the bundled prompt (`if`, `each`, `unless`, `list`, `when`, `has`, `ifAny`, `includes`, and the other registered helpers). No extra helper is created for a user file. Values inserted into a template are data, not a second template pass: Handlebars-looking text inside `xdevDocs`, context files, tool descriptions, or other values is not recursively rendered.
+The template has the same helper set used by the bundled prompt (`if`, `each`, `unless`, `list`, `when`, `has`, `ifAny`, `includes`, and the other registered helpers). No extra helper is created for a user file. Values inserted into a template are data, not a second template pass: Handlebars-looking text inside `toolCommandDocs`, context files, tool descriptions, or other values is not recursively rendered.
 
-Treat both sides of this boundary as prompt input. Protect template files like other system-level configuration, and review workspace, extension, MCP, and mounted-device descriptions before treating them as trusted policy; dynamic xdev metadata can be third-party text. The CLI reads a template file once at launch. Programmatic raw source is already in memory. Later runtime prompt rebuilds re-render that in-memory source with current live data and settings, but do not re-read a changed file; restart Zeta after editing the file.
+Treat both sides of this boundary as prompt input. Protect template files like other system-level configuration, and review workspace, extension, MCP, and mounted tool command descriptions before treating them as trusted policy; a dynamic command summary is third-party text. The CLI reads a template file once at launch. Programmatic raw source is already in memory. Later runtime prompt rebuilds re-render that in-memory source with current live data and settings, but do not re-read a changed file; restart OMP after editing the file.
 
 ## Plain-text and template contracts
 
@@ -136,7 +136,7 @@ Only the opt-in `SYSTEM_TEMPLATE.md` / `--system-prompt-template` / `systemPromp
 Create `APPEND_SYSTEM.md` without a `SYSTEM.md` or `SYSTEM_TEMPLATE.md`:
 
 ```text
-# ~/.zeta/agent/APPEND_SYSTEM.md
+# ~/.omp/agent/APPEND_SYSTEM.md
 Prefer Bun APIs over Node APIs in this project.
 When you change a public function, run `bun check` before yielding.
 ```
@@ -144,24 +144,24 @@ When you change a public function, run `bun check` before yielding.
 ### Supply a custom base prompt
 
 ```text
-# <cwd>/.zeta/SYSTEM.md
+# <cwd>/.omp/SYSTEM.md
 You are a code reviewer. Read changes, surface concrete issues, and never edit files.
 Cite paths with backticks.
 ```
 
-Zeta still adds the generated context, skills, rules, and project/environment footer, but not the default instruction template's tool and workflow guidance.
+OMP still adds the generated context, skills, rules, and project/environment footer, but not the default instruction template's tool and workflow guidance.
 
 ### Migrate the bundled prompt
 
-1. Copy `packages/coding-agent/src/prompts/system/system-prompt.md` to `~/.zeta/agent/SYSTEM_TEMPLATE.md` or `<cwd>/.zeta/SYSTEM_TEMPLATE.md`.
+1. Copy `packages/coding-agent/src/prompts/system/system-prompt.md` to `~/.omp/agent/SYSTEM_TEMPLATE.md` or `<cwd>/.omp/SYSTEM_TEMPLATE.md`.
 2. Edit the prose while keeping the required Handlebars blocks and live-data placeholders.
-3. NEVER copy a rendered `/dump` prompt: it freezes settings, tool catalogs, and mounted-device data.
-4. Diff your template against the shipped source path when updating Zeta.
+3. NEVER copy a rendered `/dump` prompt: it freezes settings, tool catalogs, and mounted tool command data.
+4. Diff your template against the shipped source path when updating OMP.
 5. Remove or rename any same-scope `SYSTEM.md`: a discovered literal beats a discovered template, so the template takes effect only once the literal is gone.
 
 ### Supply a Handlebars template
 
-Create `<cwd>/.zeta/SYSTEM_TEMPLATE.md` (or pass the same file to `--system-prompt-template`):
+Create `<cwd>/.omp/SYSTEM_TEMPLATE.md` (or pass the same file to `--system-prompt-template`):
 
 ```handlebars
 # Delegation
@@ -178,14 +178,15 @@ Delegate only when the request or repository guidance calls for it.
 # Tools
 {{toolInventory}}
 
-{{#if xdevTools.length}}
-## xd:// protocol
-Write JSON args as `content` to `xd://<tool>` via `{{toolRefs.write}}`.
-{{xdevDocs}}
+{{#if mountedCommands.length}}
+# Tool Commands
+The commands documented below (not the Tool Inventory above) run inside `{{toolRefs.bash}}`: `<tool> <positional> [--flag value]`; `<tool> --help` prints usage derived from its schema.
+Raw JSON arguments object: `-j '<json>'`, `@file`, or `-` (stdin); bad arguments exit 2 with a usage hint.
+{{toolCommandDocs}}
 {{/if}}
 ```
 
-This is a complete, runnable Handlebars Markdown template. It uses only built-in block helpers and live fields. It deliberately references `eagerTasksAlways`, `eagerTasks`, `toolInventory`, `xdevTools`, `toolRefs`, and `xdevDocs`; omitted fields would not be inserted automatically.
+This is a complete, runnable Handlebars Markdown template. It uses only built-in block helpers and live fields. It deliberately references `eagerTasksAlways`, `eagerTasks`, `toolInventory`, `mountedCommands`, `toolRefs`, and `toolCommandDocs`; omitted fields would not be inserted automatically.
 
 ### Per-model templates
 
@@ -199,7 +200,7 @@ systemPromptTemplates:
 
 #### Start from the bundled template
 
-Base every per-model template on the bundled default instruction template. Reference copy: [`system-prompt.md` on GitHub](https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) (in a checkout: [`packages/coding-agent/src/prompts/system/system-prompt.md`](../packages/coding-agent/src/prompts/system/system-prompt.md)); use the file from the tag matching your installed version. Copy that file, then adapt its prose for the target model. It carries the tool policy, delegation, and workflow guidance a template written from scratch would lose, plus the sections only the template inserts (`{{toolInventory}}`, `{{skills}}`, `{{rules}}`, `{{alwaysApplyRules}}`, `{{internalUrls}}`, `{{xdevDocs}}`, `{{#if subagent}}`); a template that omits one renders without that section. Follow [Migrate the bundled prompt](#migrate-the-bundled-prompt), and diff your copy against the shipped file after each OMP update.
+Base every per-model template on the bundled default instruction template. Reference copy: [`system-prompt.md` on GitHub](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) (in a checkout: [`packages/coding-agent/src/prompts/system/system-prompt.md`](../packages/coding-agent/src/prompts/system/system-prompt.md)); use the file from the tag matching your installed version. Copy that file, then adapt its prose for the target model. It carries the tool policy, delegation, and workflow guidance a template written from scratch would lose, plus the sections only the template inserts (`{{toolInventory}}`, `{{skills}}`, `{{rules}}`, `{{alwaysApplyRules}}`, `{{internalUrls}}`, `{{toolCommandDocs}}`, `{{#if subagent}}`); a template that omits one renders without that section. Follow [Migrate the bundled prompt](#migrate-the-bundled-prompt), and diff your copy against the shipped file after each OMP update.
 
 #### Matching
 
@@ -220,25 +221,25 @@ Base every per-model template on the bundled default instruction template. Refer
 The default template renders a personality block chosen by the `personality` setting (`default`, `friendly`, `pragmatic`, `none`). A user-level `PERSONALITY.md` replaces the selected preset's text:
 
 ```text
-# ~/.zeta/agent/PERSONALITY.md
+# ~/.omp/agent/PERSONALITY.md
 Follow ASD-STE100 Simplified Technical English for all responses.
 ```
 
-Only the agent directory is checked (`~/.zeta/agent` by default; profile- and XDG-aware) — there is no project-level or other-config-base lookup. `personality: none` still omits the block entirely (subagents always run with `none`), and an empty or unreadable file falls back to the configured preset with a logged warning.
+Only the agent directory is checked (`~/.omp/agent` by default; profile- and XDG-aware) — there is no project-level or other-config-base lookup. `personality: none` still omits the block entirely (subagents always run with `none`), and an empty or unreadable file falls back to the configured preset with a logged warning.
 
 ### Customize automatic session titles
 
 `SYSTEM.md` and `APPEND_SYSTEM.md` do not affect title-generation calls. Use `TITLE_SYSTEM.md`:
 
 ```text
-# ~/.zeta/agent/TITLE_SYSTEM.md
+# ~/.omp/agent/TITLE_SYSTEM.md
 Generate a session name using lowercase `<type>:<primary-objective>`.
 If the message has no concrete task, output exactly `none`.
 ```
 
-`TITLE_SYSTEM.md` uses project-first config-base discovery with no ancestor walk. Foreign user bases require `enabledProviders` opt-in (or `CLAUDE_CONFIG_DIR` for Claude). When absent, Zeta titles a new session from a fork of its first reply (the session's own model, on the cached prompt) with the bundled tiny-model title prompt as the fallback. The override is used for both initial automatic titles and replan-driven title refreshes, and turns the reply fork off: titles come from the tiny title model. A custom override keeps its own wording: the selected `zh`/`en` language policy applies to the bundled prompts, not to text you supply, and a typed `/rename` title is never translated.
+`TITLE_SYSTEM.md` uses project-first config-base discovery with no ancestor walk. Foreign user bases require `enabledProviders` opt-in (or `CLAUDE_CONFIG_DIR` for Claude). When absent, OMP titles a new session from a fork of its first reply (the session's own model, on the cached prompt) with the bundled tiny-model title prompt as the fallback. The override is used for both initial automatic titles and replan-driven title refreshes, and turns the reply fork off: titles come from the tiny title model.
 
-Generated title output has an enforced normalization contract even with a custom prompt. Zeta considers only the first trimmed line, strips surrounding quotes, `<title>...</title>` markers, and terminal punctuation, and treats `none` or `<title/>` as “no title yet.” A result longer than 80 characters or 12 words is rejected rather than truncated. Empty, deferred, or rejected output leaves the session unnamed, so a later eligible title attempt can name it.
+Generated title output has an enforced normalization contract even with a custom prompt. OMP considers only the first trimmed line, strips surrounding quotes, `<title>...</title>` markers, and terminal punctuation, and treats `none` or `<title/>` as “no title yet.” A result longer than 80 characters or 12 words is rejected rather than truncated. Empty, deferred, or rejected output leaves the session unnamed, so a later eligible title attempt can name it.
 
 ## Programmatic API options
 
@@ -248,11 +249,11 @@ A template source and literal custom prompt cannot be combined: `systemPromptTem
 
 ## Full provider-facing replacement (programmatic API only)
 
-`CreateAgentSessionOptions.systemPrompt` is a different, lower-level programmatic API. A fixed string or array—including an empty string or array—replaces every Zeta-generated block and bypasses discovery/rendering of an unused system-prompt template. It does not bypass option validation: defining both `systemPromptTemplate` and `customSystemPrompt` is rejected even when either value is empty or `systemPrompt` is a fixed replacement. A callback instead receives the generated block array after normal template/custom assembly and returns its replacement; normal template discovery and errors apply to that route. Either form can omit all generated context and safety blocks.
+`CreateAgentSessionOptions.systemPrompt` is a different, lower-level programmatic API. A fixed string or array—including an empty string or array—replaces every OMP-generated block and bypasses discovery/rendering of an unused system-prompt template. It does not bypass option validation: defining both `systemPromptTemplate` and `customSystemPrompt` is rejected even when either value is empty or `systemPrompt` is a fixed replacement. A callback instead receives the generated block array after normal template/custom assembly and returns its replacement; normal template discovery and errors apply to that route. Either form can omit all generated context and safety blocks.
 
-`CreateAgentSessionOptions.systemPromptTemplate` is the compositional programmatic API described above: it accepts raw Handlebars source, replaces block 0, and keeps the Zeta-generated footer (context, active-repository context, append text), safety blocks, and provider tool schemas. It is mutually exclusive with `customSystemPrompt`. The exported `buildSystemPrompt({ systemPromptTemplate })` option has the same raw-text contract and conflict behavior; its `customPrompt` option remains plain text with path-or-literal resolution.
+`CreateAgentSessionOptions.systemPromptTemplate` is the compositional programmatic API described above: it accepts raw Handlebars source, replaces block 0, and keeps the OMP-generated footer (context, active-repository context, append text), safety blocks, and provider tool schemas. It is mutually exclusive with `customSystemPrompt`. The exported `buildSystemPrompt({ systemPromptTemplate })` option has the same raw-text contract and conflict behavior; its `customPrompt` option remains plain text with path-or-literal resolution.
 
-The CLI flags and files do **not** set `systemPrompt`: they select the plain/template custom route and append route, which continue through the Zeta-generated blocks described above.
+The CLI flags and files do **not** set `systemPrompt`: they select the plain/template custom route and append route, which continue through the OMP-generated blocks described above.
 
 ## Quick reference
 
@@ -261,13 +262,13 @@ The CLI flags and files do **not** set `systemPrompt`: they select the plain/tem
 | Add instructions while keeping the complete default prompt                 | `APPEND_SYSTEM.md` or `--append-system-prompt`                                                                         |
 | Replace the default instruction block with plain text                      | `SYSTEM.md` or `--system-prompt`                                                                                       |
 | Replace the default instruction block with Handlebars                      | `SYSTEM_TEMPLATE.md` or `--system-prompt-template <path>`                                                              |
-| Replace the default instruction block for specific models                  | `systemPromptTemplates` setting, starting from a copy of [`system-prompt.md`](https://github.com/Linxira-OS/linxira-zeta/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) |
+| Replace the default instruction block for specific models                  | `systemPromptTemplates` setting, starting from a copy of [`system-prompt.md`](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/prompts/system/system-prompt.md) |
 | Supply raw Handlebars through the programmatic API                         | `CreateAgentSessionOptions.systemPromptTemplate` or `buildSystemPrompt({ systemPromptTemplate })`                      |
 | Replace every provider-facing system block                                 | `CreateAgentSessionOptions.systemPrompt`                                                                               |
 | Customize automatic session titles                                         | `TITLE_SYSTEM.md`                                                                                                      |
 | Replace the personality block while keeping the rest of the default prompt | `PERSONALITY.md`                                                                                                       |
 | Use `{{cwd}}` or other internal variables in a plain user file             | Not supported; plain user content is inserted verbatim                                                                 |
-| Include live settings, tool inventory, or xdev docs in a template          | Reference the corresponding Handlebars fields, such as `{{eagerTasks}}`, `{{toolInventory}}`, and `{{xdevDocs}}`       |
+| Include live settings, tool inventory, or mounted tool command docs in a template          | Reference the corresponding Handlebars fields, such as `{{eagerTasks}}`, `{{toolInventory}}`, and `{{toolCommandDocs}}`       |
 | Inherit selected default-template sections automatically                   | Not supported; a template must reference the data it needs                                                             |
-| Per-directory override                                                     | A supported project config base; native `.zeta` and `.agent` / `.agents` custom prompts also support ancestor discovery |
+| Per-directory override                                                     | A supported project config base; native `.omp` and `.agent` / `.agents` custom prompts also support ancestor discovery |
 | Global override                                                            | The active native agent directory, or another supported user config base                                               |

@@ -2,18 +2,19 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
+import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import { disableUserSource, enableProvider, loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@linxiraos/zeta/discovery/helpers";
-import type { Skill } from "@linxiraos/zeta/capability/skill";
-import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
-import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
-import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import "@linxiraos/zeta/discovery/claude-plugins";
+} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
+import { loadSkills, loadSkillPromptBody } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { loadSlashCommands } from "@oh-my-pi/pi-coding-agent/extensibility/slash-commands";
+import { loadAllExtensions } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("returns null for invalid JSON", () => {
@@ -59,9 +60,9 @@ describe("listClaudePluginRoots", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.ZETA_PROFILE;
-		originalPiProfileEnv = process.env.ZETA_PROFILE;
+		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-plugins-test-"));
@@ -69,7 +70,7 @@ describe("listClaudePluginRoots", () => {
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 		// Point the agent dir at a temp dir so user-scope discovery (native MCP
-		// config, skills, etc.) cannot read the real ~/.zeta/agent profile.
+		// config, skills, etc.) cannot read the real ~/.omp/agent profile.
 		setAgentDir(testAgentDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");
@@ -83,9 +84,9 @@ describe("listClaudePluginRoots", () => {
 		// setAgentDir() clears the profile env vars and snapshots the agent dir,
 		// so restore every env var it can touch before rebuilding the resolver.
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
-		restoreEnvValue("ZETA_PROFILE", originalPiProfileEnv);
-		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
+		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");
@@ -493,45 +494,6 @@ describe("listClaudePluginRoots", () => {
 		expect(result3.roots).toHaveLength(2);
 	});
 
-	test("remembers the registry paths it resolved until the plugin caches are cleared", async () => {
-		const project = path.join(tempDir, "project");
-		const cwd = path.join(project, "sub");
-		await fs.mkdir(path.join(project, ".git"), { recursive: true });
-		await fs.mkdir(cwd, { recursive: true });
-
-		// No `.zeta` anywhere yet: the git anchor's registry path is the fallback.
-		expect((await listClaudePluginRoots(tempDir, cwd)).roots).toHaveLength(0);
-
-		// Every capability surface of a launch asks for the same roots, so the
-		// ancestor walk and realpaths behind them are resolved once per project.
-		// A project `.zeta` that appears afterwards is seen only after a cache clear.
-		const registryPath = path.join(cwd, ".zeta", "plugins", "installed_plugins.json");
-		await fs.mkdir(path.dirname(registryPath), { recursive: true });
-		await fs.writeFile(
-			registryPath,
-			JSON.stringify({
-				version: 2,
-				plugins: {
-					"late-plugin@market": [
-						{
-							scope: "project",
-							installPath: path.join(tempDir, "late-install"),
-							projectPath: project,
-							version: "1.0.0",
-							installedAt: "2025-01-01T00:00:00Z",
-							lastUpdated: "2025-01-01T00:00:00Z",
-						},
-					],
-				},
-			}),
-		);
-		expect((await listClaudePluginRoots(tempDir, cwd)).roots).toHaveLength(0);
-
-		clearClaudePluginRootsCache();
-		clearFsCache();
-		expect((await listClaudePluginRoots(tempDir, cwd)).roots.map(root => root.id)).toEqual(["late-plugin@market"]);
-	});
-
 	test("isolates cached OMP plugin roots by home when Claude config is shared", async () => {
 		const sharedClaudeConfig = path.join(tempDir, "shared-claude");
 		const firstHome = path.join(tempDir, "first-home");
@@ -541,7 +503,7 @@ describe("listClaudePluginRoots", () => {
 			[firstHome, "first@market"],
 			[secondHome, "second@market"],
 		] as const) {
-			const pluginsDir = path.join(home, ".zeta", "plugins");
+			const pluginsDir = path.join(home, ".omp", "plugins");
 			await fs.mkdir(pluginsDir, { recursive: true });
 			await fs.writeFile(
 				path.join(pluginsDir, "installed_plugins.json"),
@@ -577,12 +539,12 @@ describe("listClaudePluginRoots", () => {
 		const marketRoot = path.join(tempDir, ".claude", "plugins", "cache", "test-market");
 		const pluginARoot = path.join(marketRoot, "plugin-a", "1.0.0");
 		const pluginBRoot = path.join(marketRoot, "plugin-b", "1.0.0");
-		const zetaRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 
 		await Promise.all([
 			fs.mkdir(path.join(pluginARoot, "skills", "shared-skill"), { recursive: true }),
 			fs.mkdir(path.join(pluginBRoot, "skills", "shared-skill"), { recursive: true }),
-			fs.mkdir(path.dirname(zetaRegistryPath), { recursive: true }),
+			fs.mkdir(path.dirname(ompRegistryPath), { recursive: true }),
 		]);
 		await Promise.all([
 			fs.writeFile(
@@ -594,7 +556,7 @@ describe("listClaudePluginRoots", () => {
 				"---\nname: shared-skill\ndescription: Plugin B's skill.\n---\nPlugin B body\n",
 			),
 			fs.writeFile(
-				zetaRegistryPath,
+				ompRegistryPath,
 				JSON.stringify({
 					version: 2,
 					plugins: {
@@ -617,14 +579,14 @@ describe("listClaudePluginRoots", () => {
 	});
 
 	test("loads OMP user skills without opting into foreign Claude skills", async () => {
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const zetaRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
 			fs.mkdir(path.join(claudePluginPath, "skills", "claude-demo"), { recursive: true }),
-			fs.mkdir(path.dirname(zetaRegistryPath), { recursive: true }),
+			fs.mkdir(path.dirname(ompRegistryPath), { recursive: true }),
 			fs.mkdir(path.dirname(claudeRegistryPath), { recursive: true }),
 		]);
 		await Promise.all([
@@ -637,11 +599,11 @@ describe("listClaudePluginRoots", () => {
 				"---\nname: claude-demo\ndescription: Claude skill\n---\nBody\n",
 			),
 			fs.writeFile(
-				zetaRegistryPath,
+				ompRegistryPath,
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -667,14 +629,14 @@ describe("listClaudePluginRoots", () => {
 		// with origin !== "claude", but isSourceEnabled() in extensibility/skills.ts
 		// re-dropped them via isUserSourceEnabled("claude-plugins"). The origin now
 		// rides SourceMeta, so the foreign gate applies only to claude-origin roots.
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const zetaRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
 			fs.mkdir(path.join(claudePluginPath, "skills", "claude-demo"), { recursive: true }),
-			fs.mkdir(path.dirname(zetaRegistryPath), { recursive: true }),
+			fs.mkdir(path.dirname(ompRegistryPath), { recursive: true }),
 			fs.mkdir(path.dirname(claudeRegistryPath), { recursive: true }),
 		]);
 		await Promise.all([
@@ -687,11 +649,11 @@ describe("listClaudePluginRoots", () => {
 				"---\nname: claude-demo\ndescription: Claude skill\n---\nBody\n",
 			),
 			fs.writeFile(
-				zetaRegistryPath,
+				ompRegistryPath,
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -716,21 +678,21 @@ describe("listClaudePluginRoots", () => {
 	});
 
 	test("dashboard marks omp-origin plugin capabilities active without enabling the Claude source (#12776)", async () => {
-		// Regression (#12776): the loader exempts ~/.zeta/plugins marketplace roots
+		// Regression (#12776): the loader exempts ~/.omp/plugins marketplace roots
 		// (origin !== "claude") from the foreign user opt-in gate, but the
 		// /extensions dashboard's resolveState re-dropped them as "user-opt-in".
 		// The omp-origin skill AND rule must render active; the claude-origin skill
 		// must stay opt-in disabled. The rule proves origin now rides the
 		// non-skill _source built by loadFilesFromDir, not just skills.
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const zetaRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
 			fs.mkdir(path.join(ompPluginPath, "rules"), { recursive: true }),
 			fs.mkdir(path.join(claudePluginPath, "skills", "claude-demo"), { recursive: true }),
-			fs.mkdir(path.dirname(zetaRegistryPath), { recursive: true }),
+			fs.mkdir(path.dirname(ompRegistryPath), { recursive: true }),
 			fs.mkdir(path.dirname(claudeRegistryPath), { recursive: true }),
 		]);
 		await Promise.all([
@@ -744,11 +706,11 @@ describe("listClaudePluginRoots", () => {
 				"---\nname: claude-demo\ndescription: Claude skill\n---\nBody\n",
 			),
 			fs.writeFile(
-				zetaRegistryPath,
+				ompRegistryPath,
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -775,10 +737,10 @@ describe("listClaudePluginRoots", () => {
 		expect(claudeSkill?.disabledReason).toBe("user-opt-in");
 	});
 
-	for (const catalogDir of [".claude-plugin"]) {
+	for (const catalogDir of [".claude-plugin", ".omp-plugin"]) {
 		test(`marketplace-root ${catalogDir} entry limits shared skills to declared paths`, async () => {
 			const pluginPath = path.join(tempDir, "plugins", "anthropic-skills");
-			const registryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+			const registryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 			await Promise.all([
 				fs.mkdir(path.join(pluginPath, "skills", "xlsx"), { recursive: true }),
 				fs.mkdir(path.join(pluginPath, "skills", "skill-creator"), { recursive: true }),
@@ -858,5 +820,54 @@ describe("listClaudePluginRoots", () => {
 		const result = await listClaudePluginRoots(tempDir);
 		expect(result.roots).toHaveLength(1);
 		expect(result.roots[0].scope).toBe("user");
+	});
+
+	// oxlint-disable-next-line no-template-curly-in-string -- literal plugin variable under test
+	test("substitutes ${CLAUDE_PLUGIN_ROOT} in plugin skill and command Markdown bodies (#20165)", async () => {
+		// Claude Code resolves the variables anywhere in the Markdown body of
+		// skills, commands and agents when it loads the content. OMP must do the
+		// same so plugins can reference bundled scripts relative to the plugin
+		// install path (the variables are not exported to the bash tool).
+		const pluginPath = path.join(tempDir, "plugins", "var-plugin");
+		const pluginsDir = path.join(tempDir, ".omp", "plugins");
+		const registry = {
+			version: 2,
+			plugins: {
+				"var-plugin@test-market": [{ scope: "user", installPath: pluginPath, version: "1.0.0" }],
+			},
+		};
+		await Promise.all([
+			fs.mkdir(path.join(pluginPath, "skills", "var-skill"), { recursive: true }),
+			fs.mkdir(path.join(pluginPath, "commands"), { recursive: true }),
+			fs.mkdir(pluginsDir, { recursive: true }),
+		]);
+		await Promise.all([
+			fs.writeFile(
+				path.join(pluginPath, "skills", "var-skill", "SKILL.md"),
+				// oxlint-disable-next-line no-template-curly-in-string -- literal plugin variable under test
+				'---\nname: var-skill\ndescription: Uses the plugin root.\n---\nRun `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/x.py"`.\n',
+			),
+			fs.writeFile(
+				path.join(pluginPath, "commands", "var-cmd.md"),
+				// oxlint-disable-next-line no-template-curly-in-string -- literal plugin variable under test
+				"Read ${CLAUDE_PLUGIN_ROOT}/shared/notes.md, then run ${OMP_PLUGIN_ROOT}/scripts/y.sh.\n",
+			),
+			fs.writeFile(path.join(pluginsDir, "installed_plugins.json"), JSON.stringify(registry)),
+		]);
+
+		const { skills } = await loadSkills({ cwd: tempDir });
+		const skill = skills.find(s => s.name === "var-skill");
+		expect(skill).toBeDefined();
+		expect(skill?.pluginRoot).toBe(pluginPath);
+
+		// `/skill:` expansion reads the body from disk (`loadSkillPromptBody`);
+		// the substitution must happen there too, not only at discovery time.
+		const body = await loadSkillPromptBody(skill!);
+		expect(body).toBe(`Run \`python3 "${pluginPath}/scripts/x.py"\`.`);
+
+		const commands = await loadSlashCommands({ cwd: tempDir });
+		const cmd = commands.find(c => c.name === "var-plugin:var-cmd");
+		expect(cmd).toBeDefined();
+		expect(cmd?.content).toBe(`Read ${pluginPath}/shared/notes.md, then run ${pluginPath}/scripts/y.sh.\n`);
 	});
 });

@@ -1,7 +1,8 @@
 import { sanitizeText } from "@linxiraos/pi-utils";
-import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
+import { shortenPath, TRUNCATE_LENGTHS } from "../utils/render-utils";
 import type { SessionContinuation } from "../session/session-listing";
-import { type SessionPersistenceNotice } from "../session/session-manager";
+import type { SessionPersistenceNotice } from "../session/session-manager";
 
 /**
  * First-failure notice. The store keeps the unlanded entries in memory and
@@ -36,16 +37,13 @@ export function formatPersistenceNotice(notice: SessionPersistenceNotice): strin
 	let message: string;
 	switch (notice.reason) {
 		case "open-elsewhere":
-			message = `Session ${from} is open for writing in another zeta process, so this session now saves to ${to} instead of mixing its entries into that file.`;
+			message = `Session ${from} is open for writing in another omp process, so this session now saves to ${to} instead of mixing its entries into that file.`;
 			break;
 		case "replaced":
 			message = `Session ${from} changed on disk and no longer reads as this session; it is left untouched and this session now saves to ${to}.`;
 			break;
 		case "contested":
 			message = `Another program kept writing to session ${from}; it is left to that writer and this session now saves to ${to}.`;
-			break;
-		case "compaction":
-			message = `Compaction committed; the transcript is segmented and ${from} continues in ${to}.`;
 			break;
 	}
 	return replaceTabs(sanitizeText(message)).replace(/[\r\n]+/g, " ");

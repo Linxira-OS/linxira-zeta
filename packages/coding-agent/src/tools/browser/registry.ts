@@ -1,9 +1,9 @@
 import * as path from "node:path";
-import { isCompiledBinary, logger, untilAborted, workerHostEntry } from "@linxiraos/pi-utils";
+import { isCompiledBinary, logger, untilAborted, workerHostEntry } from "@oh-my-pi/pi-utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError } from "../tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import { findFreeCdpPort, findReusableCdp, gracefulKillTreeOnce, resolveSpawnArgs, waitForCdp } from "./attach";
 import { type CmuxKind, CmuxUnavailableError } from "./cmux/rpc";
 import { CmuxSocketClient } from "./cmux/socket-client";
@@ -76,13 +76,13 @@ export interface CmuxBrowserHandle extends BrowserHandleCommon {
 export interface TernBrowserHandle extends BrowserHandleCommon {
 	kind: TernKind;
 	/** The daemon connection every tab of this handle drives its PiP through. */
-	zeta: TernSocketClient;
+	tern: TernSocketClient;
 }
 
-/** zeta's own WebKit host process, whose headless web views (one block each) are this handle's tabs. */
+/** omp's own WebKit host process, whose headless web views (one block each) are this handle's tabs. */
 export interface WebKitBrowserHandle extends BrowserHandleCommon {
 	kind: WebKitKind;
-	/** The host process zeta started and stops with the handle. */
+	/** The host process omp started and stops with the handle. */
 	webkit: WebKitHost;
 }
 
@@ -136,7 +136,7 @@ export interface AcquireBrowserOptions {
 	cwd: string;
 	viewport?: { width: number; height: number; deviceScaleFactor?: number };
 	signal?: AbortSignal;
-	/** Ask a relay served by an older zeta to restart from the installed one. Default true. */
+	/** Ask a relay served by an older omp to restart from the installed one. Default true. */
 	restartRelay?: boolean;
 }
 
@@ -148,8 +148,8 @@ export async function acquireBrowser(kind: BrowserKind, opts: AcquireBrowserOpti
 		if (existing) {
 			if ("client" in existing) return existing;
 			if (
-				"zeta" in existing
-					? existing.zeta.connected
+				"tern" in existing
+					? existing.tern.connected
 					: "webkit" in existing
 						? existing.webkit.client.connected
 						: existing.browser.connected
@@ -251,7 +251,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 	if (kind.kind === "tern") {
 		const tern = new TernSocketClient({ socketPath: kind.socketPath });
 		await tern.connect();
-		return { key: browserKey(kind), kind, zeta: tern, refCount: 0 };
+		return { key: browserKey(kind), kind, tern, refCount: 0 };
 	}
 	if (kind.kind === "webkit") {
 		return {
@@ -262,11 +262,11 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		};
 	}
 	if (kind.kind === "headless") {
-		// Every real zeta process (session, subagent, worker — anything with a CLI
+		// Every real omp process (session, subagent, worker — anything with a CLI
 		// worker host) MUST go through the project-shared daemon-supervised Chromium:
 		// per-process launches are what produced launch storms and orphaned
 		// process trees. The process-local launch survives only for hosts that
-		// cannot spawn the zeta daemon (bun test, SDK embedding without a CLI entry).
+		// cannot spawn the omp daemon (bun test, SDK embedding without a CLI entry).
 		if (isCompiledBinary() || workerHostEntry() !== null) {
 			return await openSharedHeadlessHandle(kind, opts);
 		}
@@ -308,12 +308,12 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 	if (kind.kind === "relay") {
 		if (!kind.cdpUrl)
 			throw new ToolError(
-				"No local zeta browser relay found. Open Chrome with the zeta extension, or configure browser.relayUrl.",
+				"No local omp browser relay found. Open Chrome with the omp extension, or configure browser.relayUrl.",
 			);
 		const cdpUrl = normalizeConnectedCdpUrl(kind.cdpUrl);
-		// The zeta extension's native host serves the relay while Chrome runs; nothing here starts it.
+		// The omp extension's native host serves the relay while Chrome runs; nothing here starts it.
 		let outcome = await waitForRelayExtension(cdpUrl, opts.signal);
-		// A host from an older zeta keeps serving across upgrades. Restart an incompatible one from the installed zeta,
+		// A host from an older omp keeps serving across upgrades. Restart an incompatible one from the installed omp,
 		// and a compatible older one only while no CDP client uses it; an older one that stays is still usable.
 		if ((outcome === "outdated-relay" || outcome === "idle-older-relay") && opts.restartRelay !== false) {
 			const idleOnly = outcome === "idle-older-relay";
@@ -322,21 +322,21 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "unreachable") {
 			throw new ToolError(
-				`Nothing serves the zeta browser relay at ${cdpUrl}: Chrome is not running with the zeta extension. Open Chrome; if the extension is loaded, run \`zetacode browser-relay install\` to register its native host.`,
+				`Nothing serves the omp browser relay at ${cdpUrl}: Chrome is not running with the omp extension. Open Chrome; if the extension is loaded, run \`omp browser-relay install\` to register its native host.`,
 			);
 		}
 		if (outcome === "no-extension") {
 			throw new ToolError(
-				`The zeta browser relay at ${cdpUrl} is up, but its browser never said hello. Reload the zeta extension in Chrome.`,
+				`The omp browser relay at ${cdpUrl} is up, but its browser never said hello. Reload the omp extension in Chrome.`,
 			);
 		}
 		if (outcome === "outdated-relay") {
 			throw new ToolError(
-				`The browser relay at ${cdpUrl} comes from an older zeta. Run \`zetacode browser-relay install\` with this zeta, then reload the zeta extension in Chrome.`,
+				`The browser relay at ${cdpUrl} comes from an older omp. Run \`omp browser-relay install\` with this omp, then reload the omp extension in Chrome.`,
 			);
 		}
 		if (outcome === "outdated-extension") {
-			throw new ToolError(`The zeta extension is out of date. ${UPDATE_RELAY_EXTENSION}`);
+			throw new ToolError(`The omp extension is out of date. ${UPDATE_RELAY_EXTENSION}`);
 		}
 		const puppeteer = await loadPuppeteer();
 		const browser = await connectPuppeteer(puppeteer, {
@@ -438,12 +438,12 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: ReleaseBrowserO
 		handle.client.close();
 		return;
 	}
-	if ("zeta" in handle) {
-		handle.zeta.close();
+	if ("tern" in handle) {
+		handle.tern.close();
 		return;
 	}
 	if ("webkit" in handle) {
-		// The host is zeta's own process whoever asked: it stops with its last tab, `kill` or not.
+		// The host is omp's own process whoever asked: it stops with its last tab, `kill` or not.
 		await handle.webkit.close();
 		return;
 	}
@@ -452,7 +452,7 @@ async function disposeBrowserHandle(handle: BrowserHandle, opts: ReleaseBrowserO
 			// The daemon owns the Chromium; this process only drops its CDP
 			// connection and its lease. `kill` is scoped to spawned-app browsers —
 			// stopping the shared unit here would tear down every other session's
-			// tabs. Chrome dies shortly after the last zeta client in the project
+			// tabs. Chrome dies shortly after the last omp client in the project
 			// releases its lease (unit idle policy), when its CDP endpoint stops
 			// answering after a failed tab cleanup
 			// (`stopSharedBrowserIfUnreachable`), or via an explicit stop
@@ -534,7 +534,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by zeta processes that died without teardown — bounds
+		// left behind by omp processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });

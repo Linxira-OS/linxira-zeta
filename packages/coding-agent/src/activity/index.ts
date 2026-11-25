@@ -1,14 +1,14 @@
-import { activityOneLine, compareActivityRows } from "@linxiraos/pi-tui/overlays/agent-activity";
+import { activityOneLine, compareActivityRows } from "../modes/view-model/overlays/agent-activity";
 import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
-import type { AgentActivityRow, AgentActivityQuery } from "@linxiraos/pi-tui/overlays/agent-activity";
+import type { AgentActivityRow, AgentActivityQuery } from "../modes/view-model/overlays/agent-activity";
 export type {
 	AgentActivityRow,
 	AgentActivityQuery,
 	AgentActivityKind,
 	AgentActivityStatus,
-} from "@linxiraos/pi-tui/overlays/agent-activity";
-export { activityRowsFromProgress } from "@linxiraos/pi-tui/overlays/agent-activity";
+} from "../modes/view-model/overlays/agent-activity";
+export { activityRowsFromProgress } from "../modes/view-model/overlays/agent-activity";
 
 export interface AgentActivityTranscript {
 	text: string;

@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { TRUNCATE_LENGTHS } from "@linxiraos/pi-tui/render/render-utils";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import * as evalIndex from "@linxiraos/zeta/eval";
-import * as pyKernel from "@linxiraos/zeta/eval/py/kernel";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { resolveEvalBackends } from "@linxiraos/zeta/tools/eval-backends";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { TRUNCATE_LENGTHS } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as evalIndex from "@oh-my-pi/pi-coding-agent/eval";
+import * as pyKernel from "@oh-my-pi/pi-coding-agent/eval/py/kernel";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { resolveEvalBackends } from "@oh-my-pi/pi-coding-agent/tools/eval-backends";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
 
-import { cfgEvalJs, cfgEvalPy } from "@linxiraos/zeta/eval/settings";
-import { cfgToolsMaxTimeout } from "@linxiraos/zeta/tools/settings";
+import { cfgEvalJs, cfgEvalPy } from "@oh-my-pi/pi-coding-agent/eval/settings";
+import { cfgToolsMaxTimeout } from "@oh-my-pi/pi-coding-agent/tools/settings";
 
 let originalPiPy: string | undefined;
 let originalPiJs: string | undefined;

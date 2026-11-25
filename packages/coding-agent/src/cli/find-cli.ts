@@ -1,10 +1,10 @@
 /**
- * `zetacode find`: run the semantic `find` tool's cascade from the shell. Same
+ * `omp find`: run the semantic `find` tool's cascade from the shell. Same
  * search as the tool, printed as a ranked, colored digest (or JSON).
  */
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { formatBytes, formatDuration, formatNumber } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { ToolError } from "../tools/tool-errors";
+import { formatBytes, formatDuration, formatNumber } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { cfgNoJudge, cfgNoSpotlight, cfgOffline } from "../config/auxiliary-model-policy";
 import { InternalUrlFilesystem, isUrlPath } from "../internal-urls/url-filesystem";
 import { openStandaloneJudge } from "../judgment/standalone";
@@ -96,7 +96,7 @@ export async function runFindCommand(cmd: FindCommandArgs): Promise<void> {
 	}
 	const log = cmd.quiet ? () => {} : (message: string) => console.error(chalk.dim(message));
 	const cwd = process.cwd();
-	// Internal URLs (`zeta://`, `local://`, …) are searched in place; `find` only reads.
+	// Internal URLs (`omp://`, `local://`, …) are searched in place; `find` only reads.
 	const filesystem = new InternalUrlFilesystem({ context: { cwd }, tier: "read" });
 	let root: SearchRoot;
 	try {

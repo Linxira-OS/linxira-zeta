@@ -7,9 +7,9 @@ import {
 	endPendingDiskWrite,
 	reconcileOpenFilesFromDisk,
 	refreshFile,
-} from "@linxiraos/zeta/lsp/client";
-import type { LspClient } from "@linxiraos/zeta/lsp/types";
-import { fileToUri } from "@linxiraos/zeta/lsp/utils";
+} from "@oh-my-pi/pi-coding-agent/lsp/client";
+import type { LspClient } from "@oh-my-pi/pi-coding-agent/lsp/types";
+import { fileToUri } from "@oh-my-pi/pi-coding-agent/lsp/uri";
 import { rejectionOf } from "../helpers/rejection";
 
 /** Minimal client double: open files, a diagnostics map, and a frame sink. */

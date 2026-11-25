@@ -20,7 +20,7 @@
  * up automatically, so the two cannot drift out of sync.
  *
  * IMPORT RULE: this module MUST NOT import any runtime value from
- * `@linxiraos/pi-utils` (or anything that transitively does). That package's
+ * `@oh-my-pi/pi-utils` (or anything that transitively does). That package's
  * `env.ts` eagerly loads `.env` files from `getAgentDir()` during module
  * initialization, which would race the profile bootstrap. Type-only imports
  * are erased at runtime and are therefore safe.
@@ -30,11 +30,11 @@
  * real implementations at the dispatch site.
  */
 
-import { parseMaxFps } from "@linxiraos/pi-tui/frame-rate";
-import { parseMotionMode } from "../config/motion-presets";
-import { parseSpinnerInterval } from "@linxiraos/pi-tui/spinner-clock";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
+import { parseMaxFps } from "../config/frame-rate";
+import { parseMotionMode } from "../config/motion-presets";
+import { parseSpinnerInterval } from "../config/spinner-interval";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
 
@@ -44,7 +44,7 @@ import { CliUsageError } from "./usage-error";
  * {@link STRING_SETTERS} call.
  *
  * Keeping these out of the setter closures means this module stays free of
- * runtime imports from `@linxiraos/pi-utils`, which is the whole reason it can
+ * runtime imports from `@oh-my-pi/pi-utils`, which is the whole reason it can
  * be safely imported by `profile-bootstrap.ts` before `setProfile` runs.
  */
 export interface ParseDeps {
@@ -133,12 +133,6 @@ function parseCostUsd(flag: string, value: string): number {
 export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--cwd": (result, value) => {
 		result.cwd = value;
-	},
-	"--attach-session": (result, value) => {
-		result.attachSession = value;
-	},
-	"--backend-url": (result, value) => {
-		result.backendUrl = value;
 	},
 	"--config": (result, value) => {
 		result.config = [...(result.config ?? []), value];
@@ -245,9 +239,6 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--models": (result, value) => {
 		result.models = value.split(",").map(s => s.trim());
 	},
-	"--agent-profile": (result, value) => {
-		result.agentProfile = value.trim();
-	},
 	"--tools": (result, value, deps) => {
 		const names = deps.normalizeToolNames(
 			value
@@ -344,12 +335,12 @@ export const OPTIONAL_VALUE_FLAGS: ReadonlySet<string> = new Set(Object.keys(OPT
  * value of a preceding optional/extension flag. `parseArgs` ignores it, but its
  * flag-looking shape preserves argv boundaries during the second parse.
  */
-export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--zeta-profile-boundary";
+export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--omp-profile-boundary";
 
 /**
  * Long-form launch flags that take NO value (booleans). The bootstrap pre-parser
  * needs this to tell a known value-less flag (whose successor is a fresh
- * argument — `zetacode --print --profile work` still selects a profile) apart from an
+ * argument — `omp --print --profile work` still selects a profile) apart from an
  * UNKNOWN long option that might be an extension string flag consuming the next
  * token as its value (so the bootstrap must not steal that token as a global
  * `--profile`/`--alias`). MUST mirror the value-less flag arms of `parseArgs`
@@ -381,15 +372,11 @@ export const VALUELESS_FLAGS: ReadonlySet<string> = new Set([
 	"--plan-yolo",
 	"--print",
 	"--print-thoughts",
-	"--backend",
-	"--attach",
-	"--attach-new",
 	"--no-extensions",
 	"--no-skills",
 	"--no-rules",
 	"--no-context-files",
 	"--no-title",
-	"--channels",
 	"--no-ui",
 	"--auto-approve",
 	"--yolo",
@@ -416,7 +403,7 @@ export function isUnknownLongValueCandidate(arg: string): boolean {
  * Whether a leading option `flag` consumes the following argv token `next` as
  * its value, applying the same contract as `extractProfileFlags` / `parseArgs`.
  * Single source of truth so subcommand detection ({@link resolveCliArgv}) skips
- * a flag's value instead of mistaking it for the subcommand — `zetacode --model acp`
+ * a flag's value instead of mistaking it for the subcommand — `omp --model acp`
  * means model `acp`, not the `acp` subcommand, exactly as the launch parser
  * reads it.
  */

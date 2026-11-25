@@ -10,11 +10,7 @@ import path from "node:path";
 import type { EditStore } from "@linxiraos/pi-natives";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { countNewlines, formatAge, formatBytes, isProbablyBinary, readImageMetadata } from "@linxiraos/pi-utils";
-import {
-	formatHashlineHeader,
-	formatNumberedLines,
-	splitAddressableFileLines,
-} from "@linxiraos/pi-tui/tools/hashline-format";
+import { formatHashlineHeader, formatNumberedLines, splitAddressableFileLines } from "../tools/hashline-format";
 import { normalizeToLF } from "../edit/normalize";
 import type { FileMentionMessage } from "../session/messages";
 import {
@@ -22,12 +18,12 @@ import {
 	formatHeadTruncationNotice,
 	truncateHead,
 	truncateHeadBytes,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+} from "../tools/streaming-output";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, resizeImage } from "./image-resize";
 import { VideoError, buildVideoContactSheetPng, formatVideoDetails, probeVideo, videoMimeForPath } from "./video";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "./markit";
-import { createVideoPreviewImage, isVideoPath } from "@linxiraos/pi-tui/prompt/video";
+import { createVideoPreviewImage, isVideoPath } from "./video-preview";
 
 /** Regex to match @filepath patterns in text */
 const FILE_MENTION_REGEX = /@(?:"([^"]+)"|'([^']+)'|([^\s@]+))/g;

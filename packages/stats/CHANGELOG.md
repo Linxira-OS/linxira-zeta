@@ -32,6 +32,15 @@
 ### Fixed
 
 - Fixed opening an already initialized stats database taking the write lock, and daily activity trusting a rollup built by an older version instead of reading the raw rows ([#19896](https://github.com/Linxira-OS/linxira-zeta/pull/19896) by [@Xytronix](https://github.com/Xytronix))
+## [19.1.1] - 2026-11-23
+
+### Added
+
+- Added `readDailyActivity()` for reading stored daily activity without being blocked by another process writing to the stats database; it returns `null` when no stats database exists.
+
+### Fixed
+
+- Fixed Spotlight baseline and adjusted-net calculations to use consistent result sets, improving headline and step-row accuracy.
 
 ## [19.0.1] - 2026-11-19
 

@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEexist, isEnoent, logger } from "@linxiraos/pi-utils";
 import { formatPathRelativeToCwd } from "../tools/path-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import type {
 	CreateFile,
 	CreateFileOptions,
@@ -16,7 +16,8 @@ import type {
 	TextEdit,
 	WorkspaceEdit,
 } from "./types";
-import { readTextFromDisk, uriToFile } from "./utils";
+import { uriToFile } from "./uri";
+import { readTextFromDisk } from "./utils";
 
 // =============================================================================
 // Text Edit Application
@@ -376,7 +377,7 @@ export async function applyWorkspaceEdit(
 						// source, so let fs.rename change the case in place instead.
 						const sourceStat = await fs.lstat(oldPath);
 						if (sourceStat.dev !== targetStat.dev || sourceStat.ino !== targetStat.ino) {
-							const holdDir = await fs.mkdtemp(path.join(path.dirname(newPath), ".zeta-displaced-"));
+							const holdDir = await fs.mkdtemp(path.join(path.dirname(newPath), ".omp-displaced-"));
 							const holdFile = path.join(holdDir, path.basename(newPath));
 							try {
 								await fs.rename(newPath, holdFile);

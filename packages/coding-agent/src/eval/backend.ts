@@ -1,14 +1,13 @@
 import { buildEvalUrlRoots, LocalProtocolHandler } from "../internal-urls";
 import { contextLocalProtocolOptions } from "../internal-urls/context";
-import type { OutputArtifactError } from "@linxiraos/pi-tui/tools/streaming-output";
+import type { OutputArtifactError } from "../tools/streaming-output";
 import type { ToolSession } from "../tools";
 import type { BackendProbeOptions } from "./probe";
-import type { EvalLanguage, EvalStatusEvent } from "@linxiraos/pi-tui/tools/eval";
+import type { EvalLanguage, EvalStatusEvent } from "../tools/details/eval";
 import type { EvalDisplayOutput } from "./types";
 
 /** Per-cell execute() options. */
 export interface ExecutorBackendExecOptions {
-	outerToolCallId?: string;
 	cwd: string;
 	sessionId: string;
 	/** ID of the eval invocation, not the session or its reusable kernel. */

@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { FileType, type GlobMatch, listWorkspace } from "@linxiraos/pi-natives";
-import { sanitizeDisplayWarning, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { sanitizeDisplayWarning, TRUNCATE_LENGTHS } from "./utils/render-utils";
+import { truncateToWidth } from "./utils/text-width";
 import { formatAge, formatBytes } from "@linxiraos/pi-utils";
 
 /** Defaults for the workspace tree shown in the system prompt. */

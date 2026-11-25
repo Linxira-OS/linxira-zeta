@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../../../tools/tool-errors";
 import type { JsStatusEvent } from "./types";
 
 export interface HelperOptions {
@@ -25,7 +25,7 @@ export interface HelperContext {
 }
 
 /**
- * The set of functions exposed to user code via `globalThis.__zeta_helpers__`. The JS
+ * The set of functions exposed to user code via `globalThis.__omp_helpers__`. The JS
  * prelude reads from this bag and attaches short aliases (`read`, `write`, `env`, ...)
  * onto the global scope.
  */
@@ -119,13 +119,8 @@ function resolveHelperPath(ctx: HelperContext, rawPath: string, op: "read" | "wr
 	const match = INTERNAL_URL_RE.exec(rawPath);
 	if (!match) return resolvePath(ctx, rawPath);
 	const scheme = match[1].toLowerCase();
-	const roots = ctx.localRoots();
-	const root =
-		op === "write" ? (roots[`${scheme}-write`] ?? roots[scheme]) : (roots[scheme] ?? roots[`${scheme}-shared`]);
-	if (op === "write" && root === "!readonly!") {
-		throw new ToolError(`Protocol paths are not supported by ${op}(): ${rawPath}`);
-	}
-	if (!root || scheme === "artifact") {
+	const root = ctx.localRoots()[scheme];
+	if (!root) {
 		throw new ToolError(`Protocol paths are not supported by ${op}(): ${rawPath}`);
 	}
 	return resolveUnderRoot(scheme, root, match[2], rawPath);

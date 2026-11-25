@@ -1,4 +1,4 @@
-import { isRecord } from "@linxiraos/pi-utils";
+import { isRecord } from "@oh-my-pi/pi-utils";
 import { MAIN_AGENT_ID } from "../registry/agent-registry";
 import { createEvalCustomTools, describeEvalTools } from "../task/eval-tools";
 import {
@@ -8,7 +8,7 @@ import {
 } from "../task/structured-subagent";
 import { type WorkPoolPeekResult, type WorkPoolStatus, WorkPoolRegistry } from "../task/workpool";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";
 
 /** Synthetic bridge name reserved for eval work pools. */

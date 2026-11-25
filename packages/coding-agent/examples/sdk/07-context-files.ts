@@ -6,7 +6,7 @@
 import { createAgentSession, discoverContextFiles, SessionManager } from "@linxiraos/zeta";
 
 // Discover AGENTS.md files walking up from cwd
-const discovered = discoverContextFiles();
+const discovered = await discoverContextFiles();
 console.log("Discovered context files:");
 for (const file of discovered) {
 	console.log(`  - ${file.path} (${file.content.length} chars)`);

@@ -2,16 +2,20 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult, AgentToolContext } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { demangleSymbol, parseSampleProfile, renderSampleProfile } from "@linxiraos/zeta/utils/sample-profile";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { EditTool } from "@linxiraos/zeta/edit";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
+import type { AgentToolContext, AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { wrapToolWithMetaNotice } from "@oh-my-pi/pi-coding-agent/tools/output-meta";
+import {
+	demangleSymbol,
+	parseSampleProfile,
+	renderSampleProfile,
+} from "@oh-my-pi/pi-coding-agent/utils/sample-profile";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 const BOX_MEASURE = "_RNvNtCsfMEenOU8j5j_11slab_kernel6layout11box_measure";
 
@@ -218,7 +222,7 @@ describe("read tool .sample.txt dispatch", () => {
 			const result = await tool.execute("read-busy", { path: filePath }, undefined, undefined, context);
 			const output = textOutput(result);
 			expect(output).toContain("macOS sample profile: demo (pid 42)");
-			expect(output).not.toMatch(/Use :\d+ to continue/);
+			expect(output).not.toMatch(/Use :\d+-? to continue/);
 			const artifactId = result.details?.meta?.truncation?.artifactId;
 			expect(artifactId).toBeDefined();
 			const artifactPath = await sessionManager.getArtifactPath(artifactId ?? "");

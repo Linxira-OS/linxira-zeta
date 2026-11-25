@@ -9,14 +9,13 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@linxiraos/pi-agent-core";
-import type { Model, ToolExample } from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-agent-core";
+import type { Model, ToolExample } from "@oh-my-pi/pi-ai";
 import {
 	EditSession,
 	editDescription,
 	editGrammar,
 	editInspect,
-	type EditApplyOutcome,
 	type EditFileOutcome,
 	type EditInspection,
 	type EditPolicy,
@@ -24,8 +23,8 @@ import {
 	type EditUrlResolution,
 	type EditWriteRequest,
 	type EditWriteResponse,
-} from "@linxiraos/pi-natives";
-import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-natives";
+import { isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
 import { type FileSnapshot, readSnapshot } from "../commit/selective/journal";
 import {
 	extractUriScheme,
@@ -36,7 +35,7 @@ import {
 } from "../internal-urls";
 import { isRemoteTextWritable, remoteMirrorUrl, writeRemoteMirror } from "./remote-mirror";
 import { createLspWritethrough, flushLspWritethroughBatch, type WritethroughCallback, writethroughNoop } from "../lsp";
-import { type FileDiagnosticsResult } from "@linxiraos/pi-tui/tools/lsp";
+import { type FileDiagnosticsResult } from "../tools/details/lsp";
 import { notifyWorkspaceWatchedFiles } from "../lsp/client";
 import { FileChangeType } from "../lsp/types";
 import { DeferredDiagnostics } from "../lsp/deferred-diagnostics";
@@ -52,16 +51,17 @@ import {
 	writeFileWithFallback,
 } from "../tools/file-write-fallback";
 import { outputMeta, resolveOutputMaxColumns } from "../tools/output-meta";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { type EditMode } from "@linxiraos/pi-tui/tools/edit";
-import { resolveEditMode } from "../utils/edit-mode";
+import { ToolError } from "../tools/tool-errors";
+import { DEFAULT_MAX_COLUMN } from "../tools/streaming-output";
+import { type EditMode } from "../tools/details/edit";
+import { resolveEditMode, resolveEditToolMode } from "../utils/edit-mode";
 import { attemptEditAutoRepair, type EditAutoRepairOutcome } from "./auto-repair";
 import { type AppliedEditSnapshot, createEditBlackboxRecorder } from "./blackbox";
 import hashlineCompactPrompt from "./hashline-compact.md" with { type: "text" };
 import { MAGIC_EDIT_GRAMMAR, magicEditPaths, runMagicEdit } from "./magic";
 import magicEditDescription from "../prompts/tools/magic-edit.md" with { type: "text" };
 import { getLspBatchRequest } from "../lsp/batch";
-import { type EditToolDetails, type EditToolPerFileResult, type Operation } from "@linxiraos/pi-tui/tools/edit";
+import { type EditToolDetails, type EditToolPerFileResult, type Operation } from "../tools/details/edit";
 import {
 	type ApplyPatchParams,
 	applyPatchSchema,
@@ -92,7 +92,6 @@ import {
 	cfgLspFormatOnWrite,
 	cfgLspRequestTimeout,
 } from "../lsp/settings";
-import { DEFAULT_MAX_COLUMN } from "@linxiraos/pi-tui/tools/streaming-output";
 
 export type {
 	EditRenderContext,
@@ -100,10 +99,10 @@ export type {
 	EditToolPerFileResult,
 	Operation,
 	PerFileDiffPreview,
-} from "@linxiraos/pi-tui/tools/edit";
+} from "../tools/details/edit";
 export * from "./schemas";
 export * from "./store";
-export { type EditMode } from "@linxiraos/pi-tui/tools/edit";
+export { type EditMode } from "../tools/details/edit";
 
 type TInput =
 	| typeof replaceEditSchema
@@ -402,11 +401,7 @@ export class EditTool implements AgentTool<TInput> {
 	}
 
 	get mode(): EditMode {
-		if (this.#editMode) return this.#editMode;
-		const mode = resolveEditMode(this.session);
-		// `magic` applies its model-written batch through `replace` (see `#magic`). `edit.mode: none`
-		// unregisters this tool on the next built-in reconcile; until then keep a valid schema.
-		return mode === "none" || mode === "magic" ? "replace" : mode;
+		return this.#editMode ?? resolveEditToolMode(this.session);
 	}
 
 	/**
@@ -435,10 +430,6 @@ export class EditTool implements AgentTool<TInput> {
 				return hashlineEditParamsSchema;
 			case "sloppy":
 				return sloppyEditSchema;
-			default: {
-				this.mode satisfies never;
-				return replaceEditSchema;
-			}
 		}
 	}
 
@@ -602,13 +593,13 @@ export class EditTool implements AgentTool<TInput> {
 		}
 		const editSession = open.native;
 		const batch = getLspBatchRequest(context?.toolCall);
-		let outcome: EditApplyOutcome;
+		let outcome;
 		try {
 			outcome = await editSession.apply(
 				{ lspBatchId: batch?.id, lspFlush: batch?.flush ?? false },
 				async (_error, request) => {
 					if (rawSnapshot !== undefined && (await Bun.file(request.path).text()) !== rawSnapshot) {
-						throw new ToolError("The file changed after the numbered snapshot was read; re-read and retry.", {
+						throw new ToolError("The file changed while the edit was being prepared; re-read and retry.", {
 							path: request.path,
 						});
 					}
@@ -907,7 +898,9 @@ export class EditTool implements AgentTool<TInput> {
 		if (preWriteBytes !== undefined) {
 			// Fail when a content-changing write left disk at the pre-image. Compare
 			// post vs pre first (native memcmp, usually a length mismatch) so the
-			// requested content is only encoded when disk really is unchanged.
+			// expected final content is only encoded when disk really is unchanged.
+			// A formatter may restore the pre-image even though the request changed it.
+			const expectedContent = diagnostics.formatted ? diagnostics.finalContent : request.content;
 			let postWriteBytes: Uint8Array | undefined;
 			try {
 				postWriteBytes = await Bun.file(request.path).bytes();
@@ -917,8 +910,8 @@ export class EditTool implements AgentTool<TInput> {
 			if (
 				postWriteBytes !== undefined &&
 				bytesEqual(postWriteBytes, preWriteBytes) &&
-				(Buffer.byteLength(request.content, "utf8") !== preWriteBytes.byteLength ||
-					!bytesEqual(Buffer.from(request.content, "utf8"), preWriteBytes))
+				(Buffer.byteLength(expectedContent, "utf8") !== preWriteBytes.byteLength ||
+					!bytesEqual(Buffer.from(expectedContent, "utf8"), preWriteBytes))
 			) {
 				throw new ToolError(
 					`edit appeared successful but file content did not change on disk: ${request.displayPath}`,

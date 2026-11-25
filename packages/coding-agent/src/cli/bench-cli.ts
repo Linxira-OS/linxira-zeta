@@ -1,15 +1,22 @@
-import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core";
-import {
-	renderTableRow,
-	replaceTabs,
-	type TableCell,
-	type TableColumn,
-	truncateToWidth,
-	visibleWidth,
-} from "@linxiraos/pi-tui";
-import { formatDuration, formatNumber, prompt } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
-import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
+import type { ResolvedThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type {
+	Api,
+	ApiKeyResolver,
+	AssistantMessage,
+	AssistantMessageEvent,
+	Context,
+	Effort,
+	Model,
+	ProviderSessionState,
+	ServiceTier,
+	ServiceTierByFamily,
+} from "@oh-my-pi/pi-ai";
+import { resolveModelServiceTier, streamSimple } from "@oh-my-pi/pi-ai";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
+import { visibleWidth } from "@oh-my-pi/pi-tui/text/width";
+import { formatDuration, formatNumber, prompt } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatModelSelectorValue } from "../config/model-selector";
 import { formatModelStringWithRouting } from "../config/model-resolver";
 import { buildServiceTierByFamily, serviceTierForAllFamilies, serviceTierSettingToTier } from "../config/service-tier";
 import { Settings } from "../config/settings";
@@ -20,7 +27,7 @@ import cacheSuffixTemplate from "../prompts/bench/cache-suffix.md" with { type: 
 import chatTemplate from "../prompts/bench/chat.md" with { type: "text" };
 import generationTemplate from "../prompts/bench/generation.md" with { type: "text" };
 import prefillInstruction from "../prompts/bench/prefill-instruction.md" with { type: "text" };
-import { shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
+import { shouldDisableReasoning, toReasoningEffort } from "../thinking/levels";
 import {
 	type BenchRuntime,
 	type BenchTarget,
@@ -28,24 +35,10 @@ import {
 	resolveBenchTargets,
 	type StreamSimpleFn,
 } from "./bench-runtime";
-import { createLiveBoard, type LiveBoardOutput } from "@linxiraos/pi-tui/chrome/live-board";
-import { formatCost } from "@linxiraos/pi-tui/overlays/agent-hub-renderer";
+import { createLiveBoard, type LiveBoardOutput } from "../modes/view-model/chrome/live-board";
+import { formatCost } from "../modes/view-model/overlays/agent-hub-renderer";
 
 import { cfgTierAnthropic, cfgTierGoogle, cfgTierOpenai } from "../session/settings";
-import {
-	type Api,
-	type ApiKeyResolver,
-	type AssistantMessage,
-	type AssistantMessageEvent,
-	type Context,
-	Effort,
-	type Model,
-	type ProviderSessionState,
-	type ServiceTier,
-	type ServiceTierByFamily,
-	resolveModelServiceTier,
-	streamSimple,
-} from "@linxiraos/pi-ai";
 
 const DEFAULT_PAR = 4;
 const DEFAULT_CACHE_MAX_TOKENS = 64;
@@ -87,7 +80,7 @@ export type BenchProfile = "mix" | BenchChallengeKind;
 const CHALLENGE_KINDS = ["chat", "prefill", "generation"] as const;
 
 /** Default max output tokens per challenge kind (`--max-tokens` overrides all). */
-export const CHALLENGE_MAX_TOKENS: Record<BenchChallengeKind, number> = { chat: 512, prefill: 64, generation: 2048 };
+const CHALLENGE_MAX_TOKENS: Record<BenchChallengeKind, number> = { chat: 512, prefill: 64, generation: 2048 };
 
 /**
  * One `--detailed` phase, run in order against each model:
@@ -313,9 +306,6 @@ export interface BenchSummary {
 }
 
 export interface BenchDependencies {
-	signal?: AbortSignal;
-	/** Structured measurements for Host consumers; no terminal output parsing. */
-	onProgress?: (rows: readonly BenchTableRow[]) => void;
 	createRuntime?: () => Promise<BenchRuntime>;
 	randomSessionId?: () => string;
 	writeStdout?: (text: string) => void;
@@ -407,7 +397,7 @@ function asNonNegativeNumber(value: unknown): number {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
 }
 /** Nearest-rank distribution summary; `values` MUST be non-empty. */
-export function metricStats(values: number[]): MetricStats {
+function metricStats(values: number[]): MetricStats {
 	const sorted = [...values].sort((a, b) => a - b);
 	const at = (q: number): number =>
 		sorted[Math.max(0, Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1))]!;
@@ -479,7 +469,7 @@ function truncateUtf8ByteLength(bytes: Uint8Array, maxBytes: number): number {
 	return sequenceLength > end - sequenceStart ? sequenceStart : end;
 }
 
-export async function readBoundedUtf8File(path: string, maxBytes: number): Promise<string> {
+async function readBoundedUtf8File(path: string, maxBytes: number): Promise<string> {
 	const file = Bun.file(path);
 	const bytes = new Uint8Array(await file.slice(0, maxBytes).arrayBuffer());
 	const end = truncateUtf8ByteLength(bytes, maxBytes);
@@ -629,19 +619,18 @@ async function runWithConcurrency<T>(
 	count: number,
 	concurrency: number,
 	run: (index: number) => Promise<T>,
-	signal?: AbortSignal,
 ): Promise<T[]> {
-	// [suppressed] length preallocation
+	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 	const results = new Array<T>(count);
 	let next = 0;
 	const worker = async (): Promise<void> => {
-		while (next < count && !signal?.aborted) {
+		while (next < count) {
 			const index = next++;
 			results[index] = await run(index);
 		}
 	};
 	await Promise.all(Array.from({ length: Math.min(count, concurrency) }, worker));
-	return signal?.aborted ? results.filter(result => result !== undefined) : results;
+	return results;
 }
 
 function formatCachePairLine(pair: BenchCachePairReport, index: number, total: number): string {
@@ -656,7 +645,6 @@ function formatCachePairLine(pair: BenchCachePairReport, index: number, total: n
 }
 
 interface BenchRequestOptions {
-	signal?: AbortSignal;
 	apiKey: ApiKeyResolver;
 	sessionId: string;
 	/** Native OMP messages; cache mode splits the stable prefix from the suffix. */
@@ -679,7 +667,6 @@ async function runBenchRequest(
 	streamFn: StreamSimpleFn,
 	now: () => number,
 ): Promise<BenchRunResult> {
-	if (options.signal?.aborted) return { ok: false, error: "Benchmark cancelled" };
 	const startedAt = now();
 	let firstTokenAt: number | undefined;
 	let transport: "http" | "websocket" | undefined;
@@ -692,7 +679,6 @@ async function runBenchRequest(
 			messages: options.messages,
 		};
 		const stream = streamFn(model, context, {
-			signal: options.signal,
 			apiKey: options.apiKey,
 			sessionId: options.sessionId,
 			maxTokens:
@@ -867,7 +853,7 @@ const PHASE_LABELS: Record<BenchPhase, string> = { single: "single-user", parall
 const PENDING_CELL = "…";
 
 /** Run (cache mode: pair) counters for one model. */
-export interface BenchProgress {
+interface BenchProgress {
 	total: number;
 	completed: number;
 	failed: number;
@@ -875,7 +861,7 @@ export interface BenchProgress {
 }
 
 /** One model's comparison-table row; the live footer repaints it as runs finish. */
-export interface BenchTableRow {
+interface BenchTableRow {
 	/** Aggregates over the runs finished so far. */
 	report: BenchModelReport;
 	state: "queued" | "running" | "done";
@@ -1017,26 +1003,38 @@ function formatBenchTable(rows: readonly BenchTableRow[], spec: BenchTableSpec, 
 	const texts = ranked.map(({ row }) =>
 		columns.map(column => column.value(row.report) ?? (row.state === "done" ? "-" : PENDING_CELL)),
 	);
-	const layout = columns.map((column, index): TableColumn => ({
-		width: Math.max(visibleWidth(column.header), ...texts.map(cells => visibleWidth(cells[index]!))),
-		align: "left",
-		overflow: "allow",
-	}));
-	// Unpadded trailing status: progress, queue position, or failures.
-	layout.push({ width: 0, align: "left", overflow: "allow" });
-	const table: TableCell[][] = [columns.map(column => ({ text: column.header, style: chalk.dim }))];
+	const widths = columns.map((column, index) =>
+		Math.max(visibleWidth(column.header), ...texts.map(cells => visibleWidth(cells[index]!))),
+	);
+	// A cell padded to its column; the trailing status (progress, queue position, failures) stays unpadded.
+	const cell = (text: string, index: number, style?: (text: string) => string): string => {
+		const pad = " ".repeat(Math.max(0, (widths[index] ?? 0) - visibleWidth(text)));
+		return `${style ? style(text) : text}${pad}`;
+	};
+	const lines = [
+		columns
+			.map((column, index) => cell(column.header, index, chalk.dim))
+			.join("  ")
+			.trimEnd(),
+	];
 	for (const [index, { row, rate }] of ranked.entries()) {
-		const cells = texts[index]!.map((text): TableCell => ({
-			text,
-			style: text === PENDING_CELL ? chalk.dim : undefined,
-		}));
-		// Green marks the leader: the top row once it has a headline rate.
-		if (index === 0 && rate > Number.NEGATIVE_INFINITY) cells[0] = { text: cells[0]!.text, style: chalk.green };
+		const cells = texts[index]!.map((text, column) =>
+			// Green marks the leader: the top row once it has a headline rate.
+			cell(
+				text,
+				column,
+				column === 0 && index === 0 && rate > Number.NEGATIVE_INFINITY
+					? chalk.green
+					: text === PENDING_CELL
+						? chalk.dim
+						: undefined,
+			),
+		);
 		const status = formatRowStatus(row, spinner);
-		if (status) cells.push({ text: status });
-		table.push(cells);
+		if (status) cells.push(status);
+		lines.push(cells.join("  ").trimEnd());
 	}
-	return table.map(cells => renderTableRow(cells, layout, undefined, { gap: "  " }).trimEnd());
+	return lines;
 }
 
 function assertCacheModeSupported(targets: BenchTarget[]): void {
@@ -1047,8 +1045,7 @@ function assertCacheModeSupported(targets: BenchTarget[]): void {
 	}
 }
 
-/** The review and execution paths use exactly the same workload counts. */
-export function resolveBenchPlan(command: BenchCommandArgs) {
+export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDependencies = {}): Promise<BenchSummary> {
 	const cacheMode = command.flags.cache === true;
 	const cacheFlagsUsed =
 		command.flags.cachePrefixFile !== undefined ||
@@ -1120,41 +1117,6 @@ export function resolveBenchPlan(command: BenchCommandArgs) {
 		? detailedSteps(runsPerStep, par)
 		: [{ kinds, runs: runsPerStep, concurrency: par }];
 	const runs = cacheMode ? cachePairs! * 2 : steps.reduce((sum, step) => sum + step.runs, 0);
-	return {
-		cacheMode,
-		detailed,
-		profile,
-		cachePairs,
-		cacheConcurrency,
-		runsPerStep,
-		maxTokensOverride,
-		cacheMaxTokens,
-		par,
-		promptOverride,
-		explicitPrefillBytes,
-		kinds,
-		steps,
-		runs,
-	};
-}
-
-export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDependencies = {}): Promise<BenchSummary> {
-	const {
-		cacheMode,
-		detailed,
-		profile,
-		cachePairs,
-		cacheConcurrency,
-		runsPerStep,
-		maxTokensOverride,
-		cacheMaxTokens,
-		par,
-		promptOverride,
-		explicitPrefillBytes,
-		kinds,
-		steps,
-		runs,
-	} = resolveBenchPlan(command);
 	const tableSpec = detailed ? detailedTableSpec(par) : profileTableSpec(kinds);
 	// Detailed phases each run a single kind under a phase header; only a mixed profile needs per-run kind tags.
 	const tagKind = kinds.length > 1;
@@ -1174,7 +1136,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 	const now = deps.now ?? (() => performance.now());
 	const interactive = deps.stdoutIsTTY ?? process.stdout.isTTY === true;
 	if (command.models.length === 0) {
-		throw new Error("Pass at least one model selector, e.g. `zetacode bench opus gpt-5.2`");
+		throw new Error("Pass at least one model selector, e.g. `omp bench opus gpt-5.2`");
 	}
 	// One row per model, filled as runs finish. Outside cache mode the comparison
 	// table doubles as the live footer; cache mode shows a one-line status.
@@ -1203,10 +1165,6 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 					return true;
 				},
 			} satisfies LiveBoardOutput);
-	const updateProgress = (): void => {
-		deps.onProgress?.(rows);
-		board?.repaint();
-	};
 	const print = (text: string): void => {
 		if (board) board.log(text);
 		else writeStdout(`${text}\n`);
@@ -1241,9 +1199,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			state: "queued",
 			progress: { total, completed: 0, failed: 0, inFlight: 0 },
 		}));
-		updateProgress();
 		for (const [targetIndex, { selector, model, thinking }] of targets.entries()) {
-			if (deps.signal?.aborted) break;
 			const row = rows[targetIndex]!;
 			const { progress } = row;
 			if (!json) {
@@ -1251,7 +1207,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				print(`${chalk.bold(label)}${selector === label ? "" : chalk.dim(` (${selector})`)}`);
 			}
 			row.state = "running";
-			updateProgress();
+			board?.repaint();
 			const results: BenchRunResult[] = [];
 
 			// Preflight check: let's verify credentials before starting any runs.
@@ -1287,16 +1243,13 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			if (!preflightKey) {
 				const failure: BenchRunFailure = {
 					ok: false,
-					error: `No credentials for provider "${model.provider}". Run \`zeta\` and use /login, or set the provider API key.`,
+					error: `No credentials for provider "${model.provider}". Run \`omp\` and use /login, or set the provider API key.`,
 				};
 				results.push(failure);
-				progress.completed = 1;
-				progress.failed = 1;
 				if (!json) print(formatRunLine(failure, 0, runs, { tagKind }));
 				row.report = buildModelReport(selector, model, thinking, results);
 				if (cacheMode) row.report.cachePairs = [];
 				row.state = "done";
-				updateProgress();
 				continue;
 			}
 
@@ -1308,7 +1261,7 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 					async (pairIndex): Promise<BenchCachePairReport> => {
 						const cacheNamespace = randomSessionId();
 						progress.inFlight++;
-						updateProgress();
+						board?.repaint();
 						const promptCacheKey = `bench-cache:${cacheNamespace}`;
 						const stablePrefix = renderCacheBenchmarkPrefix(cachePrefix!, cacheNamespace);
 						const coldSuffix = prompt.render(cacheSuffixTemplate, { variant: "A" }).trim();
@@ -1326,7 +1279,6 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 						const coldResult = await runBenchRequest(
 							model,
 							{
-								signal: deps.signal,
 								apiKey: credentialResolver,
 								sessionId: credentialAffinitySessionId,
 								messages: cacheBenchmarkMessages(stablePrefix, coldSuffix),
@@ -1348,7 +1300,6 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 						const warmResult = await runBenchRequest(
 							model,
 							{
-								signal: deps.signal,
 								apiKey: credentialResolver,
 								sessionId: credentialAffinitySessionId,
 								messages: cacheBenchmarkMessages(stablePrefix, warmSuffix),
@@ -1367,7 +1318,8 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 						progress.completed++;
 						if (!coldResult.ok) progress.failed++;
 						if (!warmResult.ok) progress.failed++;
-						const pair: BenchCachePairReport = {
+						board?.repaint();
+						return {
 							cold: cacheRunReport("cold", coldResult, coldCapture),
 							warm: cacheRunReport("warm", warmResult, warmCapture),
 							coldAlreadyWarm: (coldCapture.usage?.cacheReadTokens ?? 0) > 0 || coldCapture.responseCacheHit,
@@ -1381,18 +1333,12 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 									? "unavailable"
 									: coldCapture.payloadStructure === warmCapture.payloadStructure,
 						};
-						(row.report.cachePairs ??= []).push(pair);
-						row.report.results.push(coldResult, warmResult);
-						updateProgress();
-						return pair;
 					},
-					deps.signal,
 				);
 				for (const pair of pairs) results.push(pair.cold.result, pair.warm.result);
 				row.report = buildModelReport(selector, model, thinking, results);
 				row.report.cachePairs = pairs;
 				row.state = "done";
-				updateProgress();
 				if (!json) {
 					for (const [index, pair] of pairs.entries()) {
 						print(formatCachePairLine(pair, index, pairs.length));
@@ -1406,7 +1352,6 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 			let offset = 0;
 			// Steps run back to back so one phase's load never skews the next.
 			for (const step of steps) {
-				if (deps.signal?.aborted) break;
 				const { phase } = step;
 				if (!json && phase) {
 					print(
@@ -1417,57 +1362,51 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				const startedAt = now();
 				// Runs finish out of order under concurrency; lines print in index order.
 				let nextToPrint = 0;
-				await runWithConcurrency(
-					step.runs,
-					step.concurrency,
-					async index => {
-						const runIndex = offset + index;
-						const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
-						const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
-							promptOverride,
-							prefillBytes,
-							nonce: randomSessionId(),
-							random,
-							maxTokensOverride,
-						});
-						progress.inFlight++;
-						updateProgress();
-						const result: BenchRunResult = {
-							...(await runBenchRequest(
-								model,
-								{
-									signal: deps.signal,
-									apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
-									sessionId,
-									messages: challenge.messages,
-									maxTokens: challenge.maxTokens,
-									reasoning: toReasoningEffort(thinking),
-									disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
-									serviceTier,
-								},
-								streamFn,
-								now,
-							)),
-							challenge: challenge.kind,
-							phase,
-						};
-						results[runIndex] = result;
-						finished.push(result);
-						progress.inFlight--;
-						progress.completed++;
-						if (!result.ok) progress.failed++;
-						if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
-						row.report = buildModelReport(selector, model, thinking, results, phases);
-						updateProgress();
-						if (!json) {
-							while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
-								print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
-								nextToPrint++;
-							}
+				await runWithConcurrency(step.runs, step.concurrency, async index => {
+					const runIndex = offset + index;
+					const sessionId = runIndex === 0 ? testSessionId : randomSessionId();
+					const challenge = buildBenchChallenge(step.kinds[index % step.kinds.length]!, {
+						promptOverride,
+						prefillBytes,
+						nonce: randomSessionId(),
+						random,
+						maxTokensOverride,
+					});
+					progress.inFlight++;
+					board?.repaint();
+					const result: BenchRunResult = {
+						...(await runBenchRequest(
+							model,
+							{
+								apiKey: selectedResolver ?? runtime.modelRegistry.resolver(model, sessionId),
+								sessionId,
+								messages: challenge.messages,
+								maxTokens: challenge.maxTokens,
+								reasoning: toReasoningEffort(thinking),
+								disableReasoning: shouldDisableReasoning(thinking) ? true : undefined,
+								serviceTier,
+							},
+							streamFn,
+							now,
+						)),
+						challenge: challenge.kind,
+						phase,
+					};
+					results[runIndex] = result;
+					finished.push(result);
+					progress.inFlight--;
+					progress.completed++;
+					if (!result.ok) progress.failed++;
+					if (phase) phases[phase] = buildPhaseReport(step.concurrency, finished, now() - startedAt);
+					row.report = buildModelReport(selector, model, thinking, results, phases);
+					board?.repaint();
+					if (!json) {
+						while (nextToPrint < step.runs && results[offset + nextToPrint] !== undefined) {
+							print(formatRunLine(results[offset + nextToPrint]!, nextToPrint, step.runs, { tagKind }));
+							nextToPrint++;
 						}
-					},
-					deps.signal,
-				);
+					}
+				});
 				// Chat phases close with the combined output rate across every in-flight request.
 				const phaseReport = phase && phase !== "prefill" ? phases[phase] : undefined;
 				if (!json && phaseReport) {
@@ -1478,7 +1417,6 @@ export async function runBenchCommand(command: BenchCommandArgs, deps: BenchDepe
 				offset += step.runs;
 			}
 			row.state = "done";
-			updateProgress();
 		}
 		const reports = rows.map(row => row.report);
 		const failures = reports.reduce((sum, report) => sum + report.results.filter(result => !result.ok).length, 0);

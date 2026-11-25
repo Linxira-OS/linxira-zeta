@@ -1,6 +1,6 @@
-import { isRecord } from "@linxiraos/pi-utils";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
+import { isRecord } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
 import { EvalKernelNotRunningError } from "../eval/executor-base";
 import { invokeJsTool } from "../eval/js/context-manager";
 import { resolveJsKernelIdentity } from "../eval/js";
@@ -9,7 +9,7 @@ import { resolvePythonKernelIdentity } from "../eval/py";
 import type { EvalToolDescriptor, EvalToolInvokeResult } from "../eval/types";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import type { ToolSession } from "../tools";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 
 import { cfgEvalToolsEnabled } from "../eval/settings";

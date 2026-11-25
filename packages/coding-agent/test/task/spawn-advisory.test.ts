@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { buildSpecializationAdvisory, TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { buildSpecializationAdvisory, TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 
 // Contract: the task tool appends an advisory (never a rejection) steering the
 // spawner toward more specific agent types when one call resolves ≥2 items to
@@ -41,7 +41,7 @@ describe("buildSpecializationAdvisory", () => {
 	it("counts sonic as generic alongside task", () => {
 		const advice = buildSpecializationAdvisory(["sonic", "task"], true);
 		expect(advice).toBeDefined();
-		expect(advice).toContain("2 generic");
+		expect(advice).toContain("2 generic workers (`sonic`, `task`)");
 	});
 });
 

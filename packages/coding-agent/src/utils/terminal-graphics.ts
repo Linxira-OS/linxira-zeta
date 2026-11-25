@@ -1,8 +1,14 @@
-import { inflateSync } from "node:zlib";
+import type * as Zlib from "node:zlib";
 import type { ImageContent } from "@linxiraos/pi-ai";
+
+let zlibCache: typeof Zlib | undefined;
+function inflateSync(buf: Zlib.InputType, options?: Zlib.ZlibOptions): Buffer {
+	if (!zlibCache) zlibCache = require("node:zlib") as typeof Zlib;
+	return zlibCache.inflateSync(buf, options);
+}
 import { decodeSixelToPngAsync } from "@linxiraos/pi-natives";
-import { MAX_IMAGE_INPUT_BYTES } from "@linxiraos/pi-tui/chat/image-loading";
-import { convertImageToPng } from "@linxiraos/pi-tui/png-conversion";
+import { MAX_IMAGE_INPUT_BYTES } from "./image-input";
+import { convertImageToPng } from "./png-conversion";
 import { encodeRawPng, PNG_SIGNATURE } from "./png-encode";
 
 const ESC = "\x1b";

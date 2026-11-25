@@ -32,13 +32,14 @@
  * publisher reports. A closed mirror keeps its last state, rejects commands
  * with an error naming the worker, and treats `dispose` as already done.
  */
-import { type AgentMessage, type AgentTool, ThinkingLevel, Tokenizer } from "@linxiraos/pi-agent-core";
-import type { Effort, ImageContent, Model, ServiceTier, ToolResultMessage, UsageReport } from "@linxiraos/pi-ai";
-import { AUTO_THINKING, type ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import type { JobWidgetEntry } from "@linxiraos/pi-tui/tools/job-widget";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import { getBlobsDir, logger } from "@linxiraos/pi-utils";
+import { type AgentMessage, type AgentTool, ThinkingLevel, Tokenizer } from "@oh-my-pi/pi-agent-core";
+import type { Effort, ImageContent, Model, ServiceTier, ToolResultMessage, UsageReport } from "@oh-my-pi/pi-ai";
+import { AUTO_THINKING } from "../thinking/levels";
+import { type ConfiguredThinkingLevel } from "../utils/render-utils";
+import type { IrcMessage } from "../irc/irc-types";
+import type { JobWidgetEntry } from "../tools/details/job-widget";
+import type { TodoPhase } from "../tools/details/todo";
+import { getBlobsDir, logger } from "@oh-my-pi/pi-utils";
 import type { AsyncJobManagerApi } from "../async";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { ModelRegistry } from "../config/model-registry";
@@ -173,7 +174,6 @@ export function emptyMirrorState(): SessionMirrorState {
 /** View state of a mirror main has not watched yet. */
 function emptyViewState(): SessionViewState {
 	return {
-		studioLinkSchemes: [],
 		providerSessionId: "",
 		sessionName: undefined,
 		leafId: null,
@@ -436,20 +436,6 @@ export class RemoteAgentSession implements AgentViewSession {
 	/** Extension runner of the nearest main-thread ancestor session, which loaded the extensions the worker re-imported. */
 	get extensionRunner(): ExtensionRunner | undefined {
 		return this.#mainAncestor()?.extensionRunner;
-	}
-
-	/**
-	 * Schemes the home worker session's own runner claims. Never read from
-	 * {@link extensionRunner}: that runner belongs to a main-thread ancestor.
-	 */
-	getStudioLinkSchemes(): string[] {
-		return this.#view.studioLinkSchemes;
-	}
-
-	/** Route a link click to the home worker session's own runner; a closed mirror handles nothing. */
-	activateStudioLink(url: string): Promise<boolean> {
-		if (this.#closed !== undefined) return Promise.resolve(false);
-		return this.#command("activateStudioLink", url);
 	}
 
 	get sessionId(): string {
@@ -764,9 +750,8 @@ export class RemoteAgentSession implements AgentViewSession {
 		return restored;
 	}
 
-	async resume(): Promise<"restored" | "continue"> {
-		await this.#command("resume");
-		return "continue";
+	resume(): Promise<void> {
+		return this.#command("resume");
 	}
 
 	retry(): Promise<boolean> {
@@ -985,7 +970,7 @@ export class RemoteAgentSession implements AgentViewSession {
 				this.#state = { ...this.#state, streamMessage: event.message };
 				const delta = event.assistantMessageEvent;
 				if (delta.type === "text_delta" || delta.type === "thinking_delta" || delta.type === "toolcall_delta") {
-					this.tokenRate.push(delta.delta);
+					this.tokenRate.push(delta.delta, delta.type);
 				}
 				return;
 			}

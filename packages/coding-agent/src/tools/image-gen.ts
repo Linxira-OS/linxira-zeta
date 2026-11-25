@@ -13,17 +13,9 @@ import {
 	parseAntigravityCredentials,
 } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
+import { ToolError } from "./tool-errors";
 import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
-import {
-	isEnoent,
-	logger,
-	parseImageMetadata,
-	prompt,
-	ptree,
-	Snowflake,
-	truncate,
-	untilAborted,
-} from "@linxiraos/pi-utils";
+import { isEnoent, logger, parseImageMetadata, prompt, ptree, truncate, untilAborted } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";

@@ -1,7 +1,8 @@
 import type { Api, Model } from "@linxiraos/pi-ai";
 import { mapOpenAIReasoningEffort } from "@linxiraos/pi-ai/providers/openai-shared";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
+import { type ConfiguredThinkingLevel } from "../../../utils/render-utils";
+import { concreteThinkingLevel, toReasoningEffort } from "../../../thinking/levels";
 import { readBoundedBody } from "@linxiraos/pi-utils/bounded-json";
 import type { AgentStorageApi } from "../../../session/agent-storage";
 import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, SearchProviderError } from "../../../web/search/types";

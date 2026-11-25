@@ -11,14 +11,11 @@
  */
 import * as path from "node:path";
 import type { ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
-import { setInternalUrlCompletionHost } from "@linxiraos/pi-tui/prompt/internal-url-autocomplete";
-import { splitInternalUrlSel } from "@linxiraos/pi-tui/tools/read";
-import { setInternalUrlSchemeHost, splitUrlScheme } from "@linxiraos/pi-tui/tools/url-scheme-host";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { splitUrlScheme } from "./url-scheme";
+import { ToolError } from "../tools/tool-errors";
 import type { ToolSession } from "../tools";
 import { TIER_RANK } from "../tools/approval";
 import { AgentProtocolHandler } from "./agent-protocol";
-import { ArtifactProtocolHandler } from "./artifact-protocol";
 import { AttachmentProtocolHandler } from "./attachment-protocol";
 import { CfgProtocolHandler } from "./cfg-protocol";
 import { ConflictProtocolHandler } from "./conflict-protocol";
@@ -28,6 +25,8 @@ import { IssueProtocolHandler, PrProtocolHandler } from "./issue-pr-protocol";
 import { LocalProtocolHandler } from "./local-protocol";
 import { McpProtocolHandler } from "./mcp-protocol";
 import { MemoryProtocolHandler } from "./memory-protocol";
+import { MrProtocolHandler } from "./mr-protocol";
+import { ZetaProtocolHandler } from "./zeta-protocol";
 import { OutProtocolHandler } from "./out-protocol";
 import { extractUriScheme, parseInternalUrl } from "./parse";
 import { ProcProtocolHandler } from "./proc-protocol";
@@ -47,21 +46,8 @@ import type {
 	UrlCompletion,
 	WriteContext,
 } from "./types";
-import { SiyuanProtocolHandler } from "./siyuan-protocol";
 import { VaultProtocolHandler } from "./vault-protocol";
-import { XdProtocolHandler } from "./xd-protocol";
-import { ZetaProtocolHandler } from "./zeta-protocol";
-import { MrProtocolHandler } from "./mr-protocol";
-
-setInternalUrlCompletionHost({
-	completionSchemes: () => InternalUrlRouter.instance().completionSchemes(),
-	resolveCompletions: (scheme, query, context) => InternalUrlRouter.instance().complete(scheme, query, context),
-});
-
-setInternalUrlSchemeHost({
-	spec: scheme => InternalUrlRouter.instance().spec(scheme),
-	specs: () => InternalUrlRouter.instance().specs(),
-});
+import { splitInternalUrlSel } from "../tools/details/read";
 
 /**
  * Routed read/search target.
@@ -103,7 +89,7 @@ export class InternalUrlRouter {
 	#handlers = new Map<string, ProtocolHandler>();
 	/** Scheme whose handler resolves resources of unregistered custom schemes (MCP resource URIs). */
 	readonly #resourceFallbackScheme: string;
-	/** Schemes the constructor registers: ZETA-owned, never replaced by hosts. */
+	/** Schemes the constructor registers: OMP-owned, never replaced by hosts. */
 	readonly #builtinSchemes: ReadonlySet<string>;
 
 	constructor() {
@@ -115,22 +101,19 @@ export class InternalUrlRouter {
 		this.register(new MemoryProtocolHandler());
 		this.register(new OutProtocolHandler());
 		this.register(new AgentProtocolHandler());
-		this.register(new ArtifactProtocolHandler());
 		this.register(new HistoryProtocolHandler());
 		this.register(new LocalProtocolHandler());
 		this.register(new ProcProtocolHandler());
 		this.register(new CfgProtocolHandler());
 		this.register(new SshProtocolHandler());
-		// Reserved ZETA-owned security-analysis namespace; vendor adapters normalize into its store.
+		// Reserved OMP-owned security-analysis namespace; vendor adapters normalize into its store.
 		this.register(new SecurityProtocolHandler());
 		this.register(new VaultProtocolHandler());
-		this.register(new SiyuanProtocolHandler());
 		this.register(new IssueProtocolHandler());
 		this.register(new PrProtocolHandler());
 		this.register(new MrProtocolHandler());
 		this.register(resourceFallback);
 		this.register(new ZetaProtocolHandler());
-		this.register(new XdProtocolHandler());
 		this.register(new HelpProtocolHandler());
 		this.register(new AttachmentProtocolHandler());
 		this.register(new ConflictProtocolHandler());
@@ -178,7 +161,7 @@ export class InternalUrlRouter {
 		this.#handlers.set(scheme.toLowerCase(), handler);
 	}
 
-	/** Whether the router constructor registered `scheme` (case-insensitive): an ZETA-owned scheme hosts may not replace. */
+	/** Whether the router constructor registered `scheme` (case-insensitive): an OMP-owned scheme hosts may not replace. */
 	isBuiltin(scheme: string): boolean {
 		return this.#builtinSchemes.has(scheme.toLowerCase());
 	}

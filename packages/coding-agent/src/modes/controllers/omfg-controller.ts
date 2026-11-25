@@ -1,12 +1,11 @@
 import * as path from "node:path";
 import { CONFIG_DIR_NAME, prompt } from "@linxiraos/pi-utils";
-
 import { invalidate as invalidateCapabilityCache } from "../../capability";
 import type { Rule } from "../../capability/rule";
 import omfgUserPrompt from "../../prompts/system/omfg-user.md" with { type: "text" };
 import { TtsrToolInspector } from "../../session/ttsr-outputs";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
-import { OmfgPanelComponent } from "@linxiraos/pi-tui/overlays/omfg-panel";
+import { shortenPath } from "../../utils/render-utils";
+import { OmfgPanel, OmfgPanelState } from "../../ui/overlays/panels/omfg-panel";
 import type { InteractiveModeContext } from "../types";
 import {
 	buildOmfgRuleForPath,
@@ -19,7 +18,7 @@ import {
 } from "./omfg-rule";
 
 interface OmfgRequest {
-	component: OmfgPanelComponent;
+	panel: OmfgPanelState;
 	abortController: AbortController;
 	complaint: string;
 }
@@ -36,8 +35,8 @@ interface GenerateCandidateOptions {
 type SaveCandidateResult = { kind: "saved" | "aborted" | "rejected" } | { kind: "amend"; feedback: string };
 
 const MAX_ATTEMPTS = 3;
-const PROJECT_OPTION = "This project (.zeta/rules)";
-const GLOBAL_OPTION = "Global — all projects (~/.zeta/agent/rules)";
+const PROJECT_OPTION = "This project (.omp/rules)";
+const GLOBAL_OPTION = "Global — all projects (~/.omp/agent/rules)";
 const AMEND_OPTION = "Amend with feedback…";
 /** Keep /omfg prompts in the composer slot: a picker sheet would cover the candidate rule above it. */
 const OMFG_DIALOG = { inline: true } as const;
@@ -83,13 +82,18 @@ export class OmfgController {
 		this.#closeActiveRequest({ abort: true });
 
 		const request: OmfgRequest = {
-			component: new OmfgPanelComponent({ complaint: trimmedComplaint, tui: this.ctx.ui }),
+			panel: new OmfgPanelState(),
 			abortController: new AbortController(),
 			complaint: trimmedComplaint,
 		};
-		this.ctx.omfgContainer.clear();
-		this.ctx.omfgContainer.addChild(request.component);
-		this.ctx.ui.requestRender();
+		this.ctx.shell.dock.slot("omfg").set(() =>
+			OmfgPanel({
+				complaint: trimmedComplaint,
+				state: request.panel,
+				onCancel: () => this.handleEscape(),
+				onDismiss: () => this.handleEscape(),
+			}),
+		);
 		this.#activeRequest = request;
 		void this.#runRequest(request);
 	}
@@ -100,12 +104,12 @@ export class OmfgController {
 			for (;;) {
 				if (!this.#isActiveRequest(request)) return;
 				if (!candidate) {
-					request.component.markError("The model did not return a valid TTSR rule.");
+					request.panel.markError("The model did not return a valid TTSR rule.");
 					return;
 				}
 
 				if (!candidate.validated) {
-					request.component.setStatus("confirming", "Couldn't confirm a conversation match.");
+					request.panel.setStatus("confirming", "Couldn't confirm a conversation match.");
 					const shouldSave = await this.ctx.showHookConfirm(
 						"Validation",
 						"Couldn't confirm this rule matches the conversation. Save anyway?",
@@ -113,7 +117,7 @@ export class OmfgController {
 					);
 					if (!this.#isActiveRequest(request)) return;
 					if (!shouldSave) {
-						request.component.markRejected();
+						request.panel.markRejected();
 						return;
 					}
 				}
@@ -134,10 +138,10 @@ export class OmfgController {
 				return;
 			}
 			if (request.abortController.signal.aborted) {
-				request.component.markAborted();
+				request.panel.markAborted();
 				return;
 			}
-			request.component.markError(error instanceof Error ? error.message : String(error));
+			request.panel.markError(error instanceof Error ? error.message : String(error));
 		}
 	}
 
@@ -151,8 +155,8 @@ export class OmfgController {
 
 		for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			if (this.#shouldStop(request)) return undefined;
-			request.component.setRule("");
-			request.component.setStatus("generating", `Attempt ${attempt}/${MAX_ATTEMPTS} · generating…`);
+			request.panel.setRule("");
+			request.panel.setStatus("generating", `Attempt ${attempt}/${MAX_ATTEMPTS} · generating…`);
 			const promptText = prompt.render(omfgUserPrompt, {
 				complaint: request.complaint,
 				feedback: failedAttempts.length > 0 ? failedAttempts.join("\n\n") : undefined,
@@ -160,10 +164,11 @@ export class OmfgController {
 			});
 			const { replyText } = await this.ctx.session.runEphemeralTurn({
 				promptText,
+				purpose: "omfg",
 				dedupeReply: false,
 				onTextDelta: delta => {
 					if (this.#isActiveRequest(request)) {
-						request.component.appendDraft(delta);
+						request.panel.appendDraft(delta);
 					}
 				},
 				signal: request.abortController.signal,
@@ -177,12 +182,12 @@ export class OmfgController {
 					`Attempt ${attempt} failed: invalid rule (${parsed.error}).\nFailed candidate:\n${failedRule}`,
 				);
 				previousRule = failedRule;
-				request.component.setStatus("validating", `Attempt ${attempt}/${MAX_ATTEMPTS} · ${parsed.error}`);
+				request.panel.setStatus("validating", `Attempt ${attempt}/${MAX_ATTEMPTS} · ${parsed.error}`);
 				continue;
 			}
 
-			request.component.setRule(parsed.fileContent);
-			request.component.setStatus("validating", `Attempt ${attempt}/${MAX_ATTEMPTS} · validating…`);
+			request.panel.setRule(parsed.fileContent);
+			request.panel.setStatus("validating", `Attempt ${attempt}/${MAX_ATTEMPTS} · validating…`);
 			const validated = await validateParsedRuleAgainstAssistantHistory(
 				parsed,
 				historyOutputs(this.ctx.session.messages, this.#inspector),
@@ -190,7 +195,7 @@ export class OmfgController {
 			);
 			if (this.#shouldStop(request)) return undefined;
 			if (validated.repairedCondition) {
-				request.component.setRule(validated.candidate.fileContent);
+				request.panel.setRule(validated.candidate.fileContent);
 			}
 			if (validated.validation.matched) {
 				return { ...validated.candidate, validated: true };
@@ -216,7 +221,7 @@ export class OmfgController {
 		if (this.#shouldStop(request)) return { kind: "aborted" };
 
 		for (;;) {
-			request.component.setStatus("saving", "Choose where to save or amend the TTSR rule…");
+			request.panel.setStatus("saving", "Choose where to save or amend the TTSR rule…");
 			const location = await this.ctx.showHookSelector(
 				"Save TTSR rule where?",
 				[PROJECT_OPTION, GLOBAL_OPTION, AMEND_OPTION],
@@ -224,13 +229,13 @@ export class OmfgController {
 			);
 			if (!this.#isActiveRequest(request)) return { kind: "aborted" };
 			if (!location) {
-				request.component.markAborted();
+				request.panel.markAborted();
 				this.#closeActiveRequest({ abort: false });
 				return { kind: "aborted" };
 			}
 
 			if (location === AMEND_OPTION) {
-				request.component.setStatus("confirming", "Describe how to amend the rule…");
+				request.panel.setStatus("confirming", "Describe how to amend the rule…");
 				const amendment = await this.ctx.showHookInput(
 					"Amend TTSR rule",
 					"e.g. Make it specific to Ruby string eval in tool:write(*.rb)",
@@ -250,20 +255,19 @@ export class OmfgController {
 				);
 				if (!this.#isActiveRequest(request)) return { kind: "aborted" };
 				if (!shouldOverwrite) {
-					request.component.markRejected();
+					request.panel.markRejected();
 					return { kind: "rejected" };
 				}
 			}
 
-			request.component.setStatus("saving", `Saving ${candidate.rule.name}…`);
+			request.panel.setStatus("saving", `Saving ${candidate.rule.name}…`);
 			await Bun.write(target.filePath, candidate.fileContent);
 			// Drop the cached directory snapshot the discovery layer reads, so the next
 			// session-scoped rebuild's rule rediscovery observes this new file instead of
 			// a stale listing that would make `replaceTtsrRules` evict the live rule
 			// registered below (issue #10940 review). Invalidating the file clears its
 			// parent (rules dir); invalidating that dir clears its parent (the config dir)
-			// so a first-ever rule in a freshly created `.zeta/rules` is still discovered.
-
+			// so a first-ever rule in a freshly created `.omp/rules` is still discovered.
 			invalidateCapabilityCache(target.filePath);
 			invalidateCapabilityCache(path.dirname(target.filePath));
 			if (!this.#isActiveRequest(request)) return { kind: "aborted" };
@@ -275,7 +279,9 @@ export class OmfgController {
 				target.level,
 			);
 			this.#registerLive(savedRule);
-			request.component.markSaved(shortenPath(target.filePath));
+			// Dismiss on success; errors keep the panel so the user can read them.
+			this.#closeActiveRequest({ abort: false });
+			this.ctx.showStatus(`Saved TTSR rule to ${shortenPath(target.filePath)}`);
 			return { kind: "saved" };
 		}
 	}
@@ -304,9 +310,8 @@ export class OmfgController {
 		if (options.abort) {
 			request.abortController.abort();
 		}
-		request.component.close();
-		this.ctx.omfgContainer.clear();
-		this.ctx.ui.requestRender();
+		request.panel.close();
+		this.ctx.shell.dock.slot("omfg").clear();
 	}
 
 	#isActiveRequest(request: OmfgRequest): boolean {

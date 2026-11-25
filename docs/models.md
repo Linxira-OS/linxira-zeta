@@ -11,7 +11,7 @@ Primary implementation files:
 - `packages/coding-agent/src/config/model-settings.ts` — model selection settings (`modelRoles`, `enabledModels`, `enabledProviders`/`disabledProviders`, `modelProviderOrder`, `cycleOrder`)
 - `packages/coding-agent/src/session/settings.ts` — provider transport preferences (`providers.*`)
 - `packages/coding-agent/src/config/models-config.ts` and `models-config-schema-bundle.ts` — custom provider/model validation
-- `packages/coding-agent/src/session/auth-storage.ts` — re-exports `AuthStorage` from `@linxiraos/pi-ai`; credential precedence is implemented in `packages/ai/src/auth/cascade.ts`
+- `packages/coding-agent/src/session/auth-storage.ts` — re-exports `AuthStorage` from `@oh-my-pi/pi-ai`; credential precedence is implemented in `packages/ai/src/auth/cascade.ts`
 - `packages/catalog/src/compat/resolve.ts` and `compat/rules/` — compatibility and model policy resolution
 - `packages/catalog/src/models.ts` and `packages/catalog/src/types.ts` — built-in providers/models and public model types
 
@@ -19,12 +19,12 @@ Primary implementation files:
 
 Default-profile config paths, in precedence order:
 
-- `~/.zeta/agent/models.yml`
-- `~/.zeta/agent/models.yaml`
+- `~/.omp/agent/models.yml`
+- `~/.omp/agent/models.yaml`
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
-`~/.zeta/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
-`ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`~/.omp/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
+`PI_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
 Legacy behavior still present:
@@ -43,60 +43,6 @@ providers:
 `provider-id` is the canonical provider key used across selection and auth lookup.
 
 `providers` is the only root key the registry consumes. Unknown root keys are not rejected by the current schema, but do not configure model behavior.
-
-### Accepting block-style YAML and standard JSON
-
-The file is YAML, and a JSON document is valid YAML, so both encodings load. Work Studio's
-whole-document import (Providers → **Import Config**) accepts them explicitly and validates the
-same shape before writing the panel layer:
-
-- **Block-style YAML** — the form used throughout this document, including a `providers:` mapping
-  and `models:` sequences.
-- **Standard JSON** — the legacy `models.json` shape and the body the old `/api/models-config` PUT
-  accepted. The root must be an object; a top-level array is rejected.
-
-```json
-{
-  "providers": {
-    "acme": {
-      "baseUrl": "https://api.acme.test/v1",
-      "apiKey": "ACME_API_KEY",
-      "models": [
-        { "id": "acme-chat", "name": "Acme Chat", "contextWindow": 128000 }
-      ]
-    }
-  }
-}
-```
-
-The equivalent block-style YAML is:
-
-```yaml
-providers:
-   acme:
-      baseUrl: https://api.acme.test/v1
-      apiKey: ACME_API_KEY
-      models:
-         - id: acme-chat
-           name: Acme Chat
-           contextWindow: 128000
-```
-
-Import detection is explicit rather than a silent fallback: text whose first non-space character
-is `{` or `[` must parse as JSON, so malformed JSON (including YAML flow-style maps) fails instead
-of quietly being read as YAML. Everything else must parse as YAML. Duplicate mapping keys are
-rejected in both encodings, and validation names the offending path — for example
-`providers.acme.models[1].id must be a non-empty string`. The root must be an object with only a
-`providers` mapping; each provider must be a mapping; `models` must be a list of mappings with a
-non-empty `id`. Unknown keys inside a provider are preserved for forward compatibility, matching
-the loader.
-
-Saving keeps the file format: a pasted YAML document is submitted as YAML, while a JSON import is
-serialized to block YAML because the panel layer is a `.yml` file. The panel layer is normalized
-from provider objects by the gateway, so provider fields and model arrays survive but YAML
-comments do not. The hand-written `models.yml` itself is never rewritten. When both layers define
-the same provider, the hand-written user layer wins; the panel layer supplies only providers the
-user layer does not define.
 
 ## Provider-level fields
 
@@ -123,7 +69,7 @@ providers:
            api: openai-completions
            reasoning: false
            input: [text]
-           imageInputDecoder: stb # local STB decoder; Zeta converts WebP before dispatch
+           imageInputDecoder: stb # local STB decoder; OMP converts WebP before dispatch
            cost:
               input: 0
               output: 0
@@ -152,7 +98,7 @@ providers:
 Set `contextWindow` to the normal prompt window and `maxContextWindow` to the
 larger prompt window accepted by the provider. `/extended-context on` selects
 the larger window; `off` restores the normal one. An override specifying only
-`contextWindow` remains fixed in both modes, as before. This changes Zeta's
+`contextWindow` remains fixed in both modes, as before. This changes OMP's
 local context budget, not the provider's server-side limit; verify the endpoint
 accepts requests of the configured size.
 Configured maxima do not replace provider-advertised capacity. Models governed
@@ -186,7 +132,7 @@ providers:
 ### Standard Responses WebSockets
 
 Standard Responses uses HTTP/SSE by default, including at the official OpenAI
-endpoint. To opt in from Zeta, set this in `config.yml`:
+endpoint. To opt in from OMP, set this in `config.yml`:
 
 ```yaml
 providers:
@@ -199,9 +145,9 @@ provider type. Copilot, OpenRouter and other unmarked provider/API combinations
 remain on HTTP/SSE. The independent `providers.openaiWebsockets: auto|off|on` setting
 and `PI_CODEX_WEBSOCKET` continue to govern Codex only.
 
-Model and request `preferWebsockets` can only narrow Zeta's setting: **either explicit
+Model and request `preferWebsockets` can only narrow OMP's setting: **either explicit
 `false` disables WS**, even if the other is `true`. Turning the setting off cannot
-be overridden. Standalone pi-ai SDK callers have no Zeta settings dependency: they
+be overridden. Standalone pi-ai SDK callers have no OMP settings dependency: they
 must explicitly opt in with a request or model `true`; either `false` still vetoes it.
 
 For a gateway with uneven support, keep the existing provider entry in `models.yml`
@@ -234,7 +180,7 @@ When handshake headers are available, `onResponse` reports the physical WS
 handshake once, marked with `metadata.transport="websocket"` and
 `metadata.phase="handshake"`. Reusing the socket does not emit another handshake.
 These are not per-generation headers; no generation request ID is invented.
-`zetacode bench --json` includes the transport when response metadata makes it
+`omp bench --json` includes the transport when response metadata makes it
 observable. Standard WS cache benchmarks still measure generation usage, but
 cannot claim per-generation request IDs or HTTP response-cache headers.
 
@@ -337,7 +283,7 @@ Both paths accept PNG and JPEG of 280–1568 pixels per side and 78,400–2,458,
 
 See TypeSafe's [image documentation](https://docs.typesafe.ai/images) and OpenRouter's [multimodal Decisions guide](https://openrouter.ai/docs/guides/community/multimodal-decisions) for their image constraints.
 
-OpenRouter's guide lists a 256 px minimum side, but a [report of a live Jev 1.14 request](https://github.com/can1357/Zeta/pull/15887#issuecomment-6218295982) says a 270×300 PNG received HTTP 400; the 280 px minimum side is intentional and remains in effect.
+OpenRouter's guide lists a 256 px minimum side, but a [report of a live Jev 1.14 request](https://github.com/can1357/oh-my-pi/pull/15887#issuecomment-6218295982) says a 270×300 PNG received HTTP 400; the 280 px minimum side is intentional and remains in effect.
 
 For example, configure TypeSafe Jev as the judge and attach an image in JavaScript or Python:
 
@@ -376,12 +322,13 @@ Loading models.yml checks a `modelOverrides` `kind` only against an api the file
 ### Allowed auth/discovery values
 
 - `auth`: `apiKey` (default), `none`, or `oauth`. `none` and `oauth` waive the custom-provider `apiKey` requirement, but `oauth` does not create credentials or register a login flow. It forces OAuth-style request shaping; a usable credential must come from stored auth, environment, or a configured key. Custom `anthropic-messages` models also use OAuth-style shaping when `auth` is omitted; set `auth: apiKey` for plain API-key shaping.
-- `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, `litellm`, or `apple-foundation-models`. Apple's transport is registered implicitly on supported Macs; `apple-foundation-models` is not an allowed `api` value in this YAML schema.
+- `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, `litellm`, `openrouter`, or `apple-foundation-models`. Apple's transport is registered implicitly on supported Macs; `apple-foundation-models` is not an allowed `api` value in this YAML schema.
 - `discovery.injectV1`: optional boolean, default `true`, for `openai-models-list`. Set `false` to fetch the model list from `{baseUrl}/models` without injecting `/v1` — for gateways that root their OpenAI-compatible surface at a versioned path (e.g. `https://api.opper.ai/v3/compat`) where the forced `/v1/models` returns a different, smaller model list. Query strings in `baseUrl` are ignored, matching the default mode.
 - `discovery.advertisedReasoning`: optional boolean, default `true`, for `openai-models-list`, `lm-studio`, and `proxy`. Discovery reads what a `/v1/models` row states about its own reasoning surface (`supported_reasoning_levels` / `default_reasoning_level` / `reasoning`, top-level or under `metadata`) and lets it outrank the bundled-reference guess, so a gateway that dispatches with its own catalog offers exactly the tiers its route accepts. A row that lists `none` gets `reasoningDisableMode: none-effort`, so a thinking-off request sends the off-switch instead of being clamped to the lowest tier. An advertised ladder also pins `defaultLevel` inside itself, so catalog policy cannot inject a tier the row omits. A row reporting `reasoning: false` overrides a reasoning-enabled reference for that id. Set the flag to `false` when an endpoint advertises levels its route rejects: discovery then builds each model's thinking surface from the bundled reference alone. A row that says nothing about reasoning is unaffected either way. Explicit `modelOverrides.<id>.thinking` and `compat.supportsReasoningEffort` still win over both. `litellm` does not accept the flag: its authoritative reasoning metadata comes from `/model_group/info`, so the setting would only apply to its `/v1/models` fallback.
-- `transport`: `pi-native` only. When set, every model under that provider is sent to an `zetacode auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
-- `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; Zeta converts attached and historical WebP images before provider dispatch.
-- `imageCountBudget`: positive integer. Set this on a custom model or `modelOverrides` entry to state how many images one request to its host may carry. It replaces the catalog budget, which is 5 for a provider no catalog rule names. A gateway in front of a vendor with a higher limit needs it: once a session holds more images than the budget, Zeta drops the oldest ones, which changes the cached prompt prefix.
+- `transport`: `pi-native` only. When set, every model under that provider is sent to an `omp auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer. The provider's model list is the gateway's: omp reads it from `GET /v1/pi/models`, so models the gateway discovered at runtime are selectable and models it cannot route disappear. A gateway without that route leaves the provider on the bundled list.
+- `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; OMP converts attached and historical WebP images before provider dispatch.
+- `imageCountBudget`: positive integer. Set this on a custom model or `modelOverrides` entry to state how many images one request to its host may carry. It replaces the catalog budget, which is 5 for a provider no catalog rule names. A gateway in front of a vendor with a higher limit needs it: once a session holds more images than the budget, OMP drops the oldest ones, which changes the cached prompt prefix.
+- `snapcompactShape`: `{ variant, frameSize? }`. Set this on a custom model or `modelOverrides` entry to choose the snapcompact frame shape its archive pages use, in place of the shape OMP picks for the model line. `variant` is a `snapcompact.shape` value other than `auto` (for example `11on16-bw`); `frameSize` is the frame edge in px, an integer from 64 to 2576, and defaults to the variant's own. The `snapcompact.shape` setting, when not `auto`, still wins, the frame is still shrunk to the host's `image-max-edge`, and billing estimates still follow the model.
 - `tokenizer`: opt into a specific embedded local tokenizer when a proxy's model id is ambiguous or noncanonical. Allowed values: `claude-v3`, `claude-v47`, `claude-v5`, `claude-v5-sonnet`, `qwen3`, `deepseek-v3`, `kimi-k2`, `glm5`, `cl100k` (OpenAI GPT-3.5 and GPT-4) and `o200k` (OpenAI GPT-5 and later). Omit it to use catalog identity policy; models without one count in o200k.
 
 ## Validation rules (current)
@@ -457,7 +404,7 @@ providers:
    openai:
       apiKey: "!op read op://dev/openai/api-key"
       headers:
-         X-Team-Key: "!bw get password zeta-team-key"
+         X-Team-Key: "!bw get password omp-team-key"
 ```
 
 Successful command outputs are cached for the process lifetime, and concurrent requests share an in-flight execution. Failures back off for 30 seconds. Refresh callers that request `refreshCommandCredentials` (including the model hub's explicit refresh) and 401 credential recovery invalidate the relevant cached API keys and headers; an ordinary catalog refresh does not. Runtime API-key overrides, including `--api-key`, take precedence over configured credentials.
@@ -467,7 +414,7 @@ Successful command outputs are cached for the process lifetime, and concurrent r
 ModelRegistry composition order:
 
 1. Load `models.yml` / `models.yaml` to establish provider overrides, custom models, model overrides, and discovery configuration.
-2. Load built-in models from `@linxiraos/pi-catalog` (`getBundledProviders` / `getBundledModels`), applying provider overrides and context policies.
+2. Load built-in models from `@oh-my-pi/pi-catalog` (`getBundledProviders` / `getBundledModels`), applying provider overrides and context policies.
 3. Merge cached and runtime-discovered rows. Authoritative provider catalogs can replace their bundled chat roster.
 4. Merge configured custom `models`, then extension-registered models:
    - a matching `provider + id` replaces transport metadata and patches defined model fields
@@ -494,13 +441,11 @@ non-authoritative snapshots use a five-minute retry interval.
 
 ### Shared catalog refresh
 
-The bundled catalog remains the startup and offline baseline. Startup loads configuration and cached rows, materializing provider slices lazily; a local-only credential-scoped hydration pass precedes selector validation. For supported providers the additive layer reads **the committed snapshot** `packages/catalog/src/…/catalog-snapshot.json.zst` — the field-pruned models.dev payload, zstd-compressed, written by `bun run gen:models`. New model IDs are merged additively into each provider's bundled slice, normalized through that provider's catalog descriptor, and persisted in the model-cache database.
+The bundled catalog remains the startup and offline baseline. Startup loads configuration and cached rows, materializing provider slices lazily; a local-only credential-scoped hydration pass precedes selector validation. Background refresh fetches the shared models.dev catalog through `https://catalog.stencil.so/models.json.zstd` for supported providers. New model IDs are merged additively into each provider's bundled slice, normalized through that provider's catalog descriptor, and persisted in the model-cache database. This allows newly published models to appear without waiting for a new OMP binary.
 
-**`catalog.remoteRefresh`** (default `false`) decides between the snapshot and the live host: off, no run calls `https://catalog.stencil.so/models.json.zstd` and the rows cannot change between two runs of the same build; on, background refresh fetches it with a conditional GET, so newly published models appear without waiting for a new Zeta binary. The registry expresses this by handing the model-manager a transport only when the setting is on — the catalog package treats "no transport" as "serve the snapshot".
+Remote rows can supply current limits, pricing, modalities, and capability flags for newly added IDs, but they cannot introduce code, arbitrary headers, or an unregistered provider. Providers whose descriptors declare endpoint discovery authoritative use that result for their available chat roster. The shared catalog is not authoritative: it does not remove bundled models when a remote row disappears.
 
-Remote and snapshot rows alike can supply current limits, pricing, modalities, and capability flags for newly added IDs, but they cannot introduce code, arbitrary headers, or an unregistered provider. Providers whose descriptors declare endpoint discovery authoritative use that result for their available chat roster. The shared catalog is not authoritative: it does not remove bundled models when a remote row disappears.
-
-Fresh cached snapshots avoid a network request. If a refresh fails, Zeta keeps the last usable cached snapshot and marks it stale; without a cache, it falls back to the bundled catalog. Provider discovery state records `source` (`bundled`, `models.dev`, `provider`, or `cache`) and `fetchedAt` so callers can distinguish current remote data from an offline fallback.
+Fresh cached snapshots avoid a network request. If refresh fails, OMP keeps the last usable cached snapshot and marks it stale; without a cache, it falls back to the bundled catalog. Provider discovery state records `source` (`bundled`, `models.dev`, `provider`, or `cache`) and `fetchedAt` so callers can distinguish current remote data from an offline fallback.
 
 ## Provider and model identity
 
@@ -513,7 +458,7 @@ Provider defaults vs per-model overrides:
 - Provider `headers`, `compat`, and `remoteCompaction` are baselines.
 - Model `headers` override provider header keys.
 - `modelOverrides` can override model metadata (`name`, `api`, `kind`, `reasoning`, `thinking`, `input`,
-  `imageInputDecoder`, `imageCountBudget`, `tokenizer`, `supportsTools`, `cost`, `promptCache`, `premiumMultiplier`, `contextWindow`,
+  `imageInputDecoder`, `imageCountBudget`, `snapcompactShape`, `tokenizer`, `supportsTools`, `cost`, `promptCache`, `premiumMultiplier`, `contextWindow`,
   `maxContextWindow`, `maxTokens`, `omitMaxOutputTokens`, `preferWebsockets`, `headers`, `compat`,
   `contextPromotionTarget`, `compactionModel`, and `remoteCompaction`).
 - `compat` is deep-merged for nested routing blocks (`openRouterRouting`, `vercelGatewayRouting`,
@@ -522,7 +467,7 @@ Provider defaults vs per-model overrides:
 ## Prompt cache lifetimes
 
 `promptCache` states how long the provider keeps a prompt cache entry alive for each retention tier
-Zeta can request (`short` is normally the default; Anthropic OAuth subscriber requests default to
+OMP can request (`short` is normally the default; Anthropic OAuth subscriber requests default to
 `long` where supported, unless an explicit retention setting or `PI_CACHE_RETENTION` overrides it). Values are seconds and are
 estimates: providers publish ranges, so pick the conservative end.
 
@@ -562,7 +507,7 @@ with `promptCache` once the backing cache behavior is known. See `providers.cach
 
 ## Usage costs and time-based pricing
 
-Zeta estimates token costs from the selected provider/model's catalog pricing, preferring server-reported monetary costs when available. Completed messages retain their recorded costs: crossing a pricing boundary, switching models, or reopening a session does not reprice accumulated usage.
+OMP estimates token costs from the selected provider/model's catalog pricing, preferring server-reported monetary costs when available. Completed messages retain their recorded costs: crossing a pricing boundary, switching models, or reopening a session does not reprice accumulated usage.
 
 For the first-party `deepseek` provider, the catalog follows [DeepSeek's official pricing](https://api-docs.deepseek.com/quick_start/pricing):
 
@@ -570,9 +515,9 @@ For the first-party `deepseek` provider, the catalog follows [DeepSeek's officia
 - Flash pricing covers `deepseek-flash` and the retired-but-still-accepted `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` ids, all billed at the Flash card. Peak rates per million tokens are $0.30 uncached input, $0.006 cached input, and $1.20 output.
 - `deepseek-v4-pro` initially uses peak rates of $1.32 uncached input, $0.044 cached input, and $3.96 output per million tokens. From **2026-09-14 04:00 UTC**, its estimates use the Flash rate card, with the same peak/off-peak schedule.
 
-Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `zetacode models --json` show the price in force.
+Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `omp models --json` show the price in force.
 
-Local estimates use the assistant message's **request-start timestamp** to choose both the rate card and tariff for the whole request. This is Zeta's estimation convention: DeepSeek's pricing page does not specify how its server bills a request spanning a boundary. When importing historical usage without recorded cost, the stats importer leaves scheduled pricing unpriced if no request timestamp can be recovered, rather than choosing a wall-clock tariff.
+Local estimates use the assistant message's **request-start timestamp** to choose both the rate card and tariff for the whole request. This is OMP's estimation convention: DeepSeek's pricing page does not specify how its server bills a request spanning a boundary. When importing historical usage without recorded cost, the stats importer leaves scheduled pricing unpriced if no request timestamp can be recovered, rather than choosing a wall-clock tariff.
 
 The status line's `cost` segment appends **↑** for peak or **↓** for off-peak pricing on the **currently active provider/model**, using the current wall clock. It refreshes at tariff boundaries even while idle; the arrow is not a label for the accumulated session total. Models without a peak/off-peak tariff, including dated price changes and explicit flat-price overrides, show no arrow.
 
@@ -614,7 +559,7 @@ Runtime discovery calls llama.cpp model endpoints and synthesizes model entries 
 
 The provider `api` is the default for discovered models; catalog rules can override it per model class. Qwen-class models on any `discovery.type: llama.cpp` provider (implicit or explicit) are discovered as `openai-completions`, because the Responses API cannot carry the chat template's thinking controls (`enable_thinking` / `chat_template_kwargs`). The override lives in `packages/catalog/src/compat/rules/providers/llama.cpp.kdl` (`discovery-api`).
 
-After a first response loads a lazy llama.cpp model, Zeta re-probes its runtime context and input
+After a first response loads a lazy llama.cpp model, OMP re-probes its runtime context and input
 metadata. Explicit custom-model and `modelOverrides` limits take precedence over that probe.
 The implicit provider is keyless only when no credential source is configured.
 
@@ -629,7 +574,7 @@ If `lm-studio` is not explicitly configured, registry adds an implicit discovera
 
 Runtime discovery fetches the OpenAI-compatible model list and native LM Studio metadata when
 available. Native `loaded_context_length` takes precedence over the training window; after a first
-response JIT-loads a model, Zeta refreshes that runtime metadata. Explicit custom-model and
+response JIT-loads a model, OMP refreshes that runtime metadata. Explicit custom-model and
 `modelOverrides` limits remain authoritative. Discovered LM Studio models use `imageInputDecoder: stb`.
 
 Decision models (`type: "decision"` in LM Studio's native `GET /api/v1/models`) are discovered as
@@ -663,6 +608,31 @@ Runtime discovery probes LiteLLM management metadata in order: `GET /model_group
 
 If every metadata route is unavailable, discovery falls back to the OpenAI-compatible `GET /models` list. A forbidden or failed metadata request is logged once with its endpoint and status; `404` is treated as an absent route. Both paths exclude models explicitly marked with known task-specific LiteLLM modes: `audio_speech`, `audio_transcription`, `batch`, `embedding`, `guardrail`, `image_edit`, `image_generation`, `moderation`, `ocr`, `rerank`, `search`, `vector_store`, and `video_generation`. Missing, null, and unrecognized modes remain selectable so router aliases continue to work. Rich metadata maps per-model context, capability, and upstream-provider fields. OpenAI-backed models use LiteLLM's Responses route so reasoning summaries remain available; mixed-provider groups stay on Chat Completions. Bare fallback ids use the known OpenAI model families for routing and bundled reference metadata when available. Fallback pricing remains unknown (represented by zero); configured generic discovery uses a 128,000-token context default when neither the endpoint nor a bundled reference supplies a limit. Rich management metadata can supply provider-specific prices. Later probes fill or override reported metadata for models in the first usable roster rather than unioning every endpoint's roster.
 
+### Bifrost provider discovery
+
+When `bifrost` has a credential (`BIFROST_API_KEY` or stored `/login bifrost` auth), runtime discovery reads the gateway's `GET /models` roster from the provider `baseUrl` / `models.yml` config, otherwise `BIFROST_BASE_URL`, otherwise `http://localhost:8080/v1`. Model ids keep Bifrost's `<bifrost-provider>/<model>` form. Chat models use `openai-completions`; decision models become `openai-decisions` judges on `POST {baseUrl}/decisions`. The roster is authoritative and cached per key and base URL. Row mapping, decision-model detection, and judge retry guidance are in [Bifrost](provider-quirks.md#bifrost-bifrost).
+
+### OpenRouter-fronting discovery
+
+`discovery.type: openrouter` is for endpoints that serve OpenRouter's API under their own URL and
+auth. Discovery reads OpenRouter's public
+`https://openrouter.ai/api/v1/models` roster without credentials: the provider's `apiKey` and
+`headers` never reach openrouter.ai. Tool-capable rows keep OpenRouter's context and output limits,
+input modalities, reasoning ladders, and prices; the prices are OpenRouter's list prices, not the
+fronting host's billing. Requests go to the provider's `baseUrl` (OpenRouter itself when omitted)
+with its `api` and credentials, under OpenRouter's provider rules, so thinking is sent as
+`reasoning: { effort }`.
+
+```yaml
+providers:
+   my-gateway:
+      baseUrl: https://gateway.example.com/openrouter/v1
+      api: openai-completions
+      apiKey: GATEWAY_API_KEY
+      discovery:
+         type: openrouter
+```
+
 ### Generic OpenAI-compatible discovery
 
 `openai-models-list` reads `{baseUrl}/v1/models` by default (without adding a second `/v1`).
@@ -695,8 +665,12 @@ acceptance counts even if the provider returns no visible reasoning. Explicit ca
 including `reasoning: false`, take precedence over probing.
 
 A row advertising only image output becomes an image-generation runner; embedding-only output
-becomes an embedding runner. Mixed outputs remain chat models. These runners are visible with
-`zetacode models --kind all`, not the default chat listing.
+becomes an embedding runner. `speech` as the only output becomes a `tts` runner on `openai-speech`,
+and `transcription` an `stt` runner on `openai-transcriptions`. Outputs come from the row's
+modality arrays or OpenRouter's `architecture.modality` summary
+(`text->speech`). Mixed outputs, a bare `audio` output (Poe lists TTS voices and music generators
+alike as `text->audio`), and rows that declare no modalities remain chat models. These runners are
+visible with `omp models --kind all`, not the default chat listing.
 
 ### Explicit provider discovery
 
@@ -790,8 +764,6 @@ in `models.yml` belong to tier 2, not this fallback tier.
 - Value is first treated as an environment variable name.
 - If the env var is unset or empty, the literal string is used as the token.
 
-Because of the literal fallback, a provider entry such as `apiKey: OD_KEY` needs `OD_KEY` in the process environment or a Zeta dotenv file. A key that lives only in an upstream `~/.zeta` tree is never read.
-
 If `authHeader: true` and provider `apiKey` is set, models get:
 
 - `Authorization: Bearer <resolved-key>` header injected.
@@ -799,7 +771,7 @@ If `authHeader: true` and provider `apiKey` is set, models get:
 Resolution does not fail for a missing variable: with `apiKey: MY_PROVIDER_API_KEY`
 and `authHeader: true`, an unset or empty `MY_PROVIDER_API_KEY` produces
 `Authorization: Bearer MY_PROVIDER_API_KEY`. Launchers using env-backed keys must
-check that the variable is set and non-empty before starting Zeta.
+check that the variable is set and non-empty before starting OMP.
 
 [Command-resolved secrets](#command-resolved-secrets) do not use this literal
 fallback: a failing command or empty trimmed stdout resolves to no value, so it
@@ -812,9 +784,9 @@ Keyless providers:
 
 ### Broker mode
 
-When `ZETA_AUTH_BROKER_URL` (or `auth.broker.url`) is set, the local SQLite credential store is replaced by `RemoteAuthCredentialStore`. Layers 3, 4, and 7 above (stored OAuth and API-key credentials) are served from a broker-supplied snapshot whose `refresh` tokens are redacted; expiry triggers `POST /v1/credential/:id/refresh` on the broker rather than a local refresh.
+When `OMP_AUTH_BROKER_URL` (or `auth.broker.url`) is set, the local SQLite credential store is replaced by `RemoteAuthCredentialStore`. Layers 3, 4, and 7 above (stored OAuth and API-key credentials) are served from a broker-supplied snapshot whose `refresh` tokens are redacted; expiry triggers `POST /v1/credential/:id/refresh` on the broker rather than a local refresh.
 
-`AuthStorage.keys.setConfig` lets a `models.yml` `apiKey` win over a broker-resolved OAuth token without overriding a runtime `--api-key`. See [`auth-broker-gateway.md`](./auth-broker-gateway.md) for the full broker / gateway design and env surface (`ZETA_AUTH_BROKER_URL`, `ZETA_AUTH_BROKER_TOKEN`, `auth.broker.url`, `auth.broker.token`).
+`AuthStorage.keys.setConfig` lets a `models.yml` `apiKey` win over a broker-resolved OAuth token without overriding a runtime `--api-key`. See [`auth-broker-gateway.md`](./auth-broker-gateway.md) for the full broker / gateway design and env surface (`OMP_AUTH_BROKER_URL`, `OMP_AUTH_BROKER_TOKEN`, `auth.broker.url`, `auth.broker.token`).
 
 ## Model availability vs all models
 
@@ -882,15 +854,13 @@ Model roles assign model selectors to workloads. Configure them under `modelRole
 Built-in roles are grouped in the model picker:
 
 - **Chat roles:** `default`, `smol`, `slow`, `vision`, `plan`, `commit`, `tiny`, `memory`, `task`, and `advisor`. The `tiny` and `memory` roles accept both ordinary chat models and `tiny` catalog models.
-- **Model-kind roles:** `image`, `web`, `speech`, `dictation`, `judge`, and `taste`. These select image generation, search/grounded chat, text-to-speech, speech-to-text, judgment runners, and the taste layer's classifier respectively. The `judge` and `taste` roles also accept tiny and chat models.
+- **Model-kind roles:** `image`, `web`, `speech`, `dictation`, and `judge`. These select image generation, search/grounded chat, text-to-speech, speech-to-text, and judgment runners respectively. The `judge` role also accepts tiny and chat models.
 
 `vision` and `image` are different workloads: `vision` selects a chat model for image analysis, such as `read screenshot.png?q=...`; `image` selects a model with catalog kind `image` for `generate_image`. Assigning a model to `vision` does not give it image-input support: image questions additionally check that the model can send image input to its provider.
 
-The `tiny` role selects lightweight models for background work such as session titles; when unset, it resolves through `@smol`. The `taste` role selects the taste layer's semantic step; when unset it resolves through `judge`, then `@smol`. A judgment model there yields calibrated posteriors (T2), a chat or tiny model only classifies and its self-reported confidence is discarded (T1), and no model leaves the layer on host evidence alone (T0) — see [Memory](./memory.md#taste-layer). The `memory` role resolves through `@tiny` when unset. See [model settings](./settings.md#models) for configuration and fallback-chain examples.
+The `tiny` role selects lightweight models for background work such as session titles; when unset, it resolves through `@smol`. The `memory` role resolves through `@tiny` when unset. See [model settings](./settings.md#models) for configuration and fallback-chain examples.
 
 Assigning a non-default role in `/models` normally saves its selector without switching the active conversation model. A workload uses the role when invoked; assigning `plan` does not itself enter plan mode, and calling `todo` does not itself select the plan model. While plan mode is active, changing the `plan` role reapplies its model. Assigning `default` normally also switches the active model, unless a higher-priority settings layer overrides the edited assignment. The session-only model picker changes the active model without rewriting role assignments.
-
-In the interactive `/models` hub, the model action strip's `retry-fallback` chip appends a chat-capable model to `retry.fallbackChains.default`. When that model is already present, the chip becomes **remove fallback** and removes its first matching entry, including an entry with an explicit thinking level. Other entries, thinking-level variants, providers and their order are preserved. To remove a specific entry from any role, exact-model or provider-wildcard chain, select its `↳` row in **Roles** and press `x` / **Remove** (Backspace or Delete also works). Pressing `x` on an exact-model or provider-wildcard chain header clears that rule. Changes save immediately; no provider deletion is needed. In **All models**, press Enter on a model to open its action strip.
 
 Role aliases like `@smol` expand through `settings.modelRoles`; `*` selects `@default`. Quote `@` aliases in YAML values (`plan: "@slow"`). Chat-role values can append a thinking selector such as `:minimal`, `:low`, `:medium`, or `:high`; model-kind roles do not use chat thinking suffixes.
 
@@ -965,13 +935,13 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for either provider setting, or `values` for any of them.
 
-## `/model` and `zetacode models`
+## `/model` and `omp models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
 
 - `/model` / `/models` opens the model hub with role assignments and provider catalogs; the session-only picker changes the active model without saving a role assignment.
-- `zetacode models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
-- `zetacode models find <substring>` filters by provider, id, or name; `zetacode models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `zetacode models openai-codex`).
+- `omp models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
+- `omp models find <substring>` filters by provider, id, or name; `omp models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `omp models openai-codex`).
 - Other flags: `--json`, `-e <path>` / `--extension <path>` (repeatable), `--no-extensions` (skip ambient discovery; explicit `-e` still loads), and `--config <overlay>` (repeatable).
 
 JSON includes `provider`, `kind`, `id`, `selector`, `name`, limits, reasoning/thinking metadata,
@@ -1224,11 +1194,11 @@ private DNS enabled needs no change: it answers on the public hostnames
 
 Define the model under the provider shown in the table, with `api: anthropic-messages`. Those two
 provider ids carry the catalog rule that enables Claude's on-demand compaction
-([Compaction](./compaction.md)). Set `auth: apiKey` so Zeta sends plain API-key requests; without
+([Compaction](./compaction.md)). Set `auth: apiKey` so OMP sends plain API-key requests; without
 it, custom `anthropic-messages` models get Claude Code request shaping. The examples authenticate
 with an [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html);
-Zeta does not sign runtime-route requests with SigV4. Write the region into the runtime URL. Mantle
-URLs may keep `{region}`, which Zeta fills in from your AWS region settings.
+OMP does not sign runtime-route requests with SigV4. Write the region into the runtime URL. Mantle
+URLs may keep `{region}`, which OMP fills in from your AWS region settings.
 
 ```yaml
 providers:
@@ -1254,13 +1224,13 @@ providers:
            input: [text, image]
 ```
 
-Requests on these routes are shaped by `compat.bedrockMessagesApi`, which Zeta detects from a Bedrock
-`/anthropic` `baseUrl` under any provider id. Both routes reject the tool `strict` field, so Zeta drops
-it. Zeta also fits `metadata.user_id` to
+Requests on these routes are shaped by `compat.bedrockMessagesApi`, which OMP detects from a Bedrock
+`/anthropic` `baseUrl` under any provider id. Both routes reject the tool `strict` field, so OMP drops
+it. OMP also fits `metadata.user_id` to
 Bedrock's [request-metadata pattern](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html),
 which the runtime route enforces: a value that fits is kept, otherwise its session id is sent,
 otherwise it is left out. Both run after any `onPayload` hook. Both routes verify thinking
-signatures, so by default Zeta does not replay unsigned thinking to them.
+signatures, so by default OMP does not replay unsigned thinking to them.
 
 The URL check cannot see a Bedrock route behind a proxy or an `ANTHROPIC_BASE_URL` reroute of the
 first-party `anthropic` provider; those keep plain Anthropic requests unless you opt in. Set the flag
@@ -1280,7 +1250,7 @@ not acquire that capability just from `bedrockMessagesApi`.
 
 ### Strict tool schemas (`disableStrictTools`)
 
-Anthropic's API supports a `strict` field on tool definitions that forces the model to always follow the provided schema exactly. Zeta enables it by default for a small allowlist of high-frequency built-in `anthropic-messages` tools (`python`, `edit`, and `find`) whose schemas fit Anthropic's strict grammar limits; other tools still send normalized schemas but omit `strict`. `bash` is left out: strict decoding fixes property order, so once a call has written `async`, the `timeout` declared before it can no longer be emitted.
+Anthropic's API supports a `strict` field on tool definitions that forces the model to always follow the provided schema exactly. OMP enables it by default for a small allowlist of high-frequency built-in `anthropic-messages` tools (`python`, `edit`, and `find`) whose schemas fit Anthropic's strict grammar limits; other tools still send normalized schemas but omit `strict`. `bash` is left out: strict decoding fixes property order, so once a call has written `async`, the `timeout` declared before it can no longer be emitted.
 
 Third-party providers that front the Anthropic API (AWS Bedrock, Azure, self-hosted proxies) do not always implement this field and will reject requests that include it. Set `disableStrictTools: true` at the provider level to opt out of strict mode for the allowlisted tools:
 
@@ -1304,7 +1274,7 @@ providers:
               cacheWrite: 3.75
 ```
 
-`disableStrictTools` is a provider-level flag that applies to all models in the provider. It disables the Anthropic `strict` marker only for tools that Zeta would otherwise mark strict; it does not change runtime tool argument validation. Zeta can automatically retry without strict tools after Anthropic reports a strict-grammar-too-large error before the first streamed token, but proxies that reject the `strict` field for other reasons should set this flag explicitly.
+`disableStrictTools` is a provider-level flag that applies to all models in the provider. It disables the Anthropic `strict` marker only for tools that OMP would otherwise mark strict; it does not change runtime tool argument validation. OMP can automatically retry without strict tools after Anthropic reports a strict-grammar-too-large error before the first streamed token, but proxies that reject the `strict` field for other reasons should set this flag explicitly. Claude on `google-vertex` can also reject strict tools when the GCP organization policy `vertexai.allowedPartnerModelFeatures` disallows `structured_outputs`; OMP retries once without `strict` and pins `strictToolsDisabled` for the session. Set `disableStrictTools: true` for `google-vertex` to skip that failed first request.
 
 Tool schemas going on the wire are normalized by the unified flow in
 `packages/ai/src/utils/schema/normalize.ts` (Google/CCA/MCP dispatchers
@@ -1341,7 +1311,7 @@ providers:
          type: openai-models-list
 ```
 
-The built-in vLLM provider can be pointed at a non-default endpoint without declaring a custom discovery type. Zeta uses vLLM's `/v1/models` metadata and preserves vLLM's `max_model_len` field as the discovered context window.
+The built-in vLLM provider can be pointed at a non-default endpoint without declaring a custom discovery type. OMP uses vLLM's `/v1/models` metadata and preserves vLLM's `max_model_len` field as the discovered context window.
 
 ```yaml
 providers:

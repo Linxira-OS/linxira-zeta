@@ -1012,6 +1012,8 @@ export declare class VcsGitRepo {
   submodulePaths(signal?: unknown | undefined | null): Promise<Array<string>>
   /** Read blob bytes. */
   showBlob(spec: string, maxBytes?: number | undefined | null, signal?: unknown | undefined | null): Promise<VcsShowResult>
+  /** Write bytes as a blob and return its full object id. */
+  writeBlob(data: Uint8Array, signal?: unknown | undefined | null): Promise<string>
   /**
    * Convert worktree content to the blob `git add` would store per path
    * (EOL/`text` attributes, `core.autocrlf`, `ident`, clean filters such as
@@ -1026,6 +1028,11 @@ export declare class VcsGitRepo {
   diffText(options: VcsDiffOptions, signal?: unknown | undefined | null): Promise<string>
   /** Render a no-index patch between two filesystem paths. */
   diffNoIndex(left: string, right: string, binary: boolean, signal?: unknown | undefined | null): Promise<string>
+  /**
+   * Render a same-path patch between blobs already stored in the object
+   * database.
+   */
+  diffBlobs(change: VcsBlobChange, binary: boolean, signal?: unknown | undefined | null): Promise<string>
   /** Changed paths. */
   changedFiles(options: VcsDiffOptions, signal?: unknown | undefined | null): Promise<Array<string>>
   /** Per-file line counts. */
@@ -1042,6 +1049,8 @@ export declare class VcsGitRepo {
   stageHunks(selections: Array<VcsHunkSelection>, rawDiff?: string | undefined | null, signal?: unknown | undefined | null): Promise<undefined>
   /** Create commit. */
   commitCreate(message: string, options: VcsCommitOptions, signal?: unknown | undefined | null): Promise<string>
+  /** Publish a private-index commit after preparing the shared index. */
+  commitReconciled(message: string, options: VcsCommitOptions, selection: string, signal?: unknown | undefined | null): Promise<VcsReconciledCommit>
   /**
    * Write a commit object for `tree` on `parents` without moving any ref or
    * touching the index/worktree (`git commit-tree`).
@@ -2965,8 +2974,8 @@ export interface IpcConnectOptions {
  * Platform endpoint for `name` scoped to directory `dir`.
  *
  * Unix: `<dir>/<stem>.sock`; when that path does not fit `sun_path` (104 bytes
- * on macOS/BSD, 108 on Linux, including NUL), `/tmp/zeta-<euid>/<hash16>.sock`.
- * Windows: `\\.\pipe\zeta-<stem>-<hash16(lowercase(resolve(dir)))>`.
+ * on macOS/BSD, 108 on Linux, including NUL), `/tmp/omp-<euid>/<hash16>.sock`.
+ * Windows: `\\.\pipe\omp-<stem>-<hash16(lowercase(resolve(dir)))>`.
  * `stem` is `name` with every char outside `[A-Za-z0-9._-]` replaced by "_".
  * Pure and deterministic: every process computes the same endpoint.
  */
@@ -3355,7 +3364,7 @@ export interface MinimizerOptions {
    * Kill-switch to fall back to the pre-PR (legacy) filter behavior for
    * grep / find / pytest. When `Some(true)`, filters that opted into the
    * always-shrink Tier 1 / Tier 2 behavior skip the new code path. When
-   * `None`, defers to the `ZETA_MINIMIZER_LEGACY_FILTERS` env var.
+   * `None`, defers to the `OMP_MINIMIZER_LEGACY_FILTERS` env var.
    */
   legacyFilters?: boolean
 }
@@ -3872,14 +3881,24 @@ export declare function renderMermaidAscii(text: string, options?: MermaidRender
 export declare function renderSnapcompactPng(text: string, options: SnapcompactRenderOptions): Promise<string>
 
 /**
+ * Repairs `\` continuations after here-document operators in `script`.
+ *
+ * Drops the `\` after each `<<EOF &&` (or `||`, `|`, `|&`) so the
+ * here-document body starts on the next line; `null` when nothing needs
+ * repair or the result would not parse. omp's bash tool runs commands
+ * through it.
+ */
+export declare function repairHeredocContinuations(script: string): string | null
+
+/**
  * Put back a stdin console mode `enableConsoleVtInput` returned. False when
  * stdin is no longer a console or refuses the mode; always false off Windows.
  */
 export declare function restoreConsoleInputMode(mode: number): boolean
 
 /**
- * Run the shell engine as a process shell in this process (`zetacode zsh`,
- * `zetacode bash`, `zetacode sh`).
+ * Run the shell engine as a process shell in this process (`omp zsh`,
+ * `omp bash`, `omp sh`).
  *
  * `argv` is the shell's whole command line,
  * `argv[0]` naming it (`zsh`, `bash` or `sh` pick the dialect), as a real
@@ -3947,7 +3966,7 @@ export declare function setHangulCompatJamoWidthOverride(value: number): void
  * The commands the embedded shell adds to bash's own builtins, sorted.
  *
  * For a session started with `sessionEnv` over this process's environment,
- * whose `PI_DISABLE_*` switches gate them. zeta's bash tool lists them to the
+ * whose `PI_DISABLE_*` switches gate them. omp's bash tool lists them to the
  * model.
  */
 export declare function shellBuiltins(sessionEnv?: Record<string, string>): Array<string>
@@ -4421,6 +4440,16 @@ export interface ShellRunResult {
   minimized?: MinimizerResult
   /** Shell working directory after command completion. */
   workingDir?: string
+  /**
+   * The command ended in another directory than it started in (a `cd` in
+   * it); a later run that passes `cwd` starts there instead.
+   */
+  movedCwd: boolean
+  /**
+   * The command ended with `errexit` (`set -e`) on; the next run starts
+   * with it off.
+   */
+  errexit: boolean
 }
 
 /** The application's speech synthesizer, injected into a shell run. */
@@ -4712,6 +4741,252 @@ export interface TextPredictorOptions {
   showThreshold?: number
 }
 
+/** A tool call with its result and the reasoning before it. */
+export interface TranscriptCall {
+  /** Index of the transcript in `files`. */
+  file: number
+  /** Session entry id of the assistant message holding the call. */
+  entry?: string
+  /** Unix milliseconds; 0 when the line carries no time. */
+  at: number
+  callId: string
+  tool: string
+  /**
+   * Arguments as a JSON object; strings longer than 4,003 characters keep
+   * their first and last 2,000.
+   */
+  args: string
+  /** Result text; longer than 1,003 characters keeps its first and last 500. */
+  result?: string
+  /** UTF-16 length of the whole result text. */
+  resultChars?: number
+  isError?: boolean
+  /** The last 4,000 characters of the thinking and reply before the call. */
+  reasoning?: string
+  model?: string
+  /** omp version that recorded the call. */
+  version?: string
+}
+
+/** Which tool calls count; omitted fields match every call. */
+export interface TranscriptCallFilter {
+  /** Tool names. */
+  tools?: Array<string>
+  /** Regex matching some string inside the arguments. */
+  args?: string
+  /** Regex matching the whole result text. */
+  result?: string
+  /**
+   * `true` keeps failed calls, `false` succeeded ones; a call without a
+   * result matches neither.
+   */
+  error?: boolean
+}
+
+/**
+ * The newest `limit` tool calls of `files` matching the filter, with their
+ * results and reasoning.
+ *
+ * # Errors
+ * Rejects when cancelled; a regex that compiles in neither engine falls back
+ * to literal text, as in the grep tool.
+ */
+export declare function transcriptCalls(options: TranscriptCallsOptions): Promise<TranscriptCallsResult>
+
+/** Options for [`transcript_calls`]. */
+export interface TranscriptCallsOptions {
+  files: Array<TranscriptFile>
+  /** Unix milliseconds; calls made earlier are skipped. */
+  since?: number
+  /** Unix milliseconds; calls made at or after it are skipped. */
+  until?: number
+  filter: TranscriptCallFilter
+  flags?: TranscriptRegexFlags
+  /** Newest calls returned at most. */
+  limit: number
+  signal?: unknown
+}
+
+/** What [`transcript_calls`] found. */
+export interface TranscriptCallsResult {
+  /** Newest first. */
+  calls: Array<TranscriptCall>
+  /** Headers of the transcripts read. */
+  headers: Array<TranscriptHeader>
+}
+
+/** A transcript to scan. */
+export interface TranscriptFile {
+  /** JSONL file. */
+  path: string
+  /**
+   * Unix milliseconds of its newest activity (its mtime): capped scans read
+   * files newest first and skip those older than every hit they keep.
+   */
+  newest: number
+}
+
+/**
+ * The newest `limit` matches of `pattern` in `sources` of `files`.
+ *
+ * # Errors
+ * Rejects when cancelled.
+ */
+export declare function transcriptGrep(options: TranscriptGrepOptions): Promise<TranscriptGrepResult>
+
+/** One place a grep pattern matched. */
+export interface TranscriptGrepHit {
+  file: number
+  entry?: string
+  at: number
+  source: TranscriptSource
+  /** Tool whose arguments or result matched. */
+  tool?: string
+  callId?: string
+  /** Snippet around the match, whitespace collapsed. */
+  text: string
+  /** The matched text. */
+  matched: string
+}
+
+/** Options for [`transcript_grep`]. */
+export interface TranscriptGrepOptions {
+  files: Array<TranscriptFile>
+  since?: number
+  until?: number
+  pattern: string
+  flags?: TranscriptRegexFlags
+  sources: Array<TranscriptSource>
+  /** Tools whose arguments and results are searched; all when omitted. */
+  tools?: Array<string>
+  limit: number
+  signal?: unknown
+}
+
+/** What [`transcript_grep`] found. */
+export interface TranscriptGrepResult {
+  /** Newest first. */
+  hits: Array<TranscriptGrepHit>
+  headers: Array<TranscriptHeader>
+}
+
+/** Session header of a scanned transcript. */
+export interface TranscriptHeader {
+  /** Index of the transcript in `files`. */
+  file: number
+  id: string
+  cwd: string
+}
+
+/**
+ * The newest `limit` records of `kinds` in one transcript, whole, oldest
+ * first.
+ *
+ * # Errors
+ * Rejects when the file cannot be read or the scan is cancelled.
+ */
+export declare function transcriptMessages(options: TranscriptMessagesOptions): Promise<Array<TranscriptRecord>>
+
+/** Options for [`transcript_messages`]. */
+export interface TranscriptMessagesOptions {
+  path: string
+  /** Kinds kept; all when omitted. */
+  kinds?: Array<TranscriptRecordKind>
+  since?: number
+  until?: number
+  /** Newest records returned at most. */
+  limit: number
+  signal?: unknown
+}
+
+/** One transcript record, whole. */
+export interface TranscriptRecord {
+  entry?: string
+  at: number
+  kind: TranscriptRecordKind
+  /** Message or result text; `null` for calls. */
+  text?: string
+  tool?: string
+  callId?: string
+  /** Arguments of a call as a JSON object. */
+  args?: string
+  isError?: boolean
+}
+
+/** Kind of a transcript record. */
+export declare enum TranscriptRecordKind {
+  User = 'user',
+  Assistant = 'assistant',
+  Thinking = 'thinking',
+  Call = 'call',
+  Result = 'result'
+}
+
+/**
+ * Regex dialect of a scan: the grep tool's (Rust `regex`, PCRE2 for
+ * look-around and back-references).
+ */
+export interface TranscriptRegexFlags {
+  /** Case-insensitive matching. */
+  ignoreCase?: boolean
+  /** `.` matches newlines and matches may span lines. */
+  dotAll?: boolean
+}
+
+/** Text a grep searches. */
+export declare enum TranscriptSource {
+  User = 'user',
+  Assistant = 'assistant',
+  Thinking = 'thinking',
+  Args = 'args',
+  Result = 'result'
+}
+
+/** Calls of one transcript counted under one key. */
+export interface TranscriptStat {
+  file: number
+  /** `null` when the fact is unknown, and for `by: "none"`. */
+  key?: string
+  calls: number
+  errors: number
+}
+
+/**
+ * Calls of `files` matching the filter, counted per transcript by `by`.
+ *
+ * # Errors
+ * Rejects when cancelled.
+ */
+export declare function transcriptStats(options: TranscriptStatsOptions): Promise<TranscriptStatsResult>
+
+/** Call fact [`transcript_stats`] counts by within each transcript. */
+export declare enum TranscriptStatsKey {
+  Tool = 'tool',
+  Model = 'model',
+  Version = 'version',
+  /** Local calendar day, `YYYY-MM-DD`. */
+  Day = 'day',
+  /** One count per transcript. */
+  PerTranscript = 'none'
+}
+
+/** Options for [`transcript_stats`]. */
+export interface TranscriptStatsOptions {
+  files: Array<TranscriptFile>
+  since?: number
+  until?: number
+  filter: TranscriptCallFilter
+  flags?: TranscriptRegexFlags
+  by: TranscriptStatsKey
+  signal?: unknown
+}
+
+/** What [`transcript_stats`] counted. */
+export interface TranscriptStatsResult {
+  stats: Array<TranscriptStat>
+  headers: Array<TranscriptHeader>
+}
+
 /**
  * Translate a kitty CSI-u Alt/Ctrl+Alt chord into the text `AltGr` produced
  * on the active keyboard layout; `null` when the sequence is not an `AltGr`
@@ -4721,6 +4996,19 @@ export interface TextPredictorOptions {
  * active: other hosts report the produced text themselves.
  */
 export declare function translateWindowsAltGrSequence(data: string): string | null
+
+/**
+ * UTF-16 code-unit length of the longest prefix of `input` within
+ * `max_tokens` `Jev` tokens (as `countTokens(_, Encoding.Jev)` counts),
+ * never ending on half a surrogate pair. `Jev` only.
+ *
+ * Merging stops at the piece that crosses the budget; the rest of the input
+ * is still read for the NFC quick-check.
+ *
+ * Slice the original JS string with `input.slice(0, len)` (or keep `input`
+ * unchanged when `len === input.length`).
+ */
+export declare function truncateToTokens(input: string, maxTokens: number): number
 
 /**
  * Truncate text to a visible width, preserving ANSI codes.
@@ -4735,6 +5023,15 @@ export interface VcsApplyOptions {
   indexPath?: string
   reverse?: boolean
   threeWay?: boolean
+}
+
+/** One same-path change between blobs already stored in the object database. */
+export interface VcsBlobChange {
+  path: string
+  oldId?: string
+  newId?: string
+  oldMode?: string
+  newMode?: string
 }
 
 /** Clean options. */
@@ -4878,6 +5175,14 @@ export interface VcsPushOptions {
   remote?: string
   refspec?: string
   forceWithLease?: boolean
+}
+
+/** Published private-index commit and any shared-index entries left staged. */
+export interface VcsReconciledCommit {
+  /** Published commit's object ID. */
+  sha: string
+  /** Staged changes left in the shared index or publication warnings. */
+  indexNotes: Array<string>
 }
 
 /** Restore options. */

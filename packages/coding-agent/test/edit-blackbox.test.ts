@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { EditTool, getEditStore, type PatchParams } from "@linxiraos/zeta/edit";
-import { formatHashlineHeader } from "@linxiraos/pi-tui/tools/hashline-format";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool, getEditStore, type PatchParams } from "@oh-my-pi/pi-coding-agent/edit";
+import { formatHashlineHeader } from "@oh-my-pi/pi-coding-agent/tools/hashline-format";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { EditMode } from "@oh-my-pi/pi-coding-agent/tools/details/edit";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 const MODEL = "openai/gpt-5.6";
 const SOURCE = "export function value(): number {\n\treturn 1;\n}\n";
@@ -35,7 +35,7 @@ let session: ToolSession;
 
 beforeEach(async () => {
 	resetSettingsForTest();
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-edit-blackbox-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-edit-blackbox-"));
 	agentDir = path.join(tempDir, "agent");
 	logPath = path.join(agentDir, "edit-blackbox.jsonl");
 	await fs.mkdir(agentDir, { recursive: true });
@@ -113,8 +113,6 @@ describe("edit parse-regression blackbox", () => {
 
 	test("appends valid-to-invalid transitions from every edit variant", async () => {
 		await fs.appendFile(logPath, '{"seed":true}\n');
-		const LOGGED_FIXTURE_NAMES = ["replace.ts", "patch.ts", "apply-patch.ts", "hashline.ts", "sloppy.ts"];
-
 		const expected: Array<{
 			prev: string;
 			new: string;
@@ -198,14 +196,7 @@ describe("edit parse-regression blackbox", () => {
 
 		const lines = (await Bun.file(logPath).text()).trimEnd().split("\n");
 		expect(JSON.parse(lines[0])).toEqual({ seed: true });
-		// The Zeta recorder superset writes the absolute file path on every
-		// entry ("/edits revert" keys on it); compare the shared shape after
-		// stripping it, then assert the path points back at each fixture.
-		const recorded = lines.slice(1).map(line => JSON.parse(line)) as Array<Record<string, unknown>>;
-		expect(recorded.map(({ path: _recordedPath, ...rest }) => rest)).toEqual(expected);
-		expect(recorded.map(entry => path.resolve(String(entry.path)))).toEqual(
-			LOGGED_FIXTURE_NAMES.map(name => path.resolve(path.join(tempDir, name))),
-		);
+		expect(lines.slice(1).map(line => JSON.parse(line))).toEqual(expected);
 	});
 
 	test("does not record valid or already-invalid transitions", async () => {

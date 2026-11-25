@@ -3,21 +3,21 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ImageContent } from "@linxiraos/pi-ai";
-import { getProjectDir, isEnoent, readImageMetadata } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
+import { getProjectDir, isEnoent, readImageMetadata } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { resolveReadPath } from "../tools/path-utils";
-import { formatBytes } from "@linxiraos/pi-tui/render/render-utils";
+import { formatBytes } from "@oh-my-pi/pi-utils";
 import { formatDimensionNote, resizeImage } from "../utils/image-resize";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import {
+	VideoError,
 	buildVideoContactSheetPng,
 	formatVideoDetails,
 	probeVideo,
-	VideoError,
 	videoMimeForPath,
 } from "../utils/video";
-import { createVideoPreviewImage, isVideoPath } from "@linxiraos/pi-tui/prompt/video";
+import { createVideoPreviewImage, isVideoPath } from "../utils/video-preview";
 
 // Keep CLI startup responsive and avoid OOM when users pass huge files.
 // If a file exceeds these limits, we include it as a path-only <file/> block.

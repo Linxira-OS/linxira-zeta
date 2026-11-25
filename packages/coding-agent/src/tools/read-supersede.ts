@@ -1,5 +1,5 @@
 import type { ToolResultMessage } from "@linxiraos/pi-ai";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import type { ReadToolDetails } from "./details/read";
 
 /**
  * Whether a successful `read` result shows its whole file, so a bare-path read

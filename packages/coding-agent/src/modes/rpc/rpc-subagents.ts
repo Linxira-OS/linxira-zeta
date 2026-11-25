@@ -4,7 +4,7 @@ import { type AgentRef, AgentRegistry } from "../../registry/agent-registry";
 import type { AgentSessionHandle } from "../../session/agent-session-handle";
 import type { FileEntry, SessionMessageEntry } from "../../session/session-entries";
 import { parseSessionEntries } from "../../session/session-loader";
-import { type AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import { type AgentProgress } from "../../task/task-details";
 import {
 	type SubagentEventPayload,
 	type SubagentLifecyclePayload,

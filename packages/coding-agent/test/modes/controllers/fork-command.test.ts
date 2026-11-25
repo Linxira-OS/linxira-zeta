@@ -1,11 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { classifyTerminalMultiplexer, type TerminalMultiplexer } from "@linxiraos/pi-tui/terminal-multiplexer";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { classifyMultiplexer, type MultiplexerId } from "@oh-my-pi/pi-tui/driver/mux/detect";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { initTheme } from "../../../src/ui/theme/service";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { extractProfileFlags } from "@oh-my-pi/pi-coding-agent/cli/profile-bootstrap";
+import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
 import { Settings } from "../../../src/config/settings";
 import {
 	createTerminalLauncher,
@@ -15,6 +18,7 @@ import {
 	type TerminalLaunchRequest,
 	type TerminalLaunchResult,
 } from "../../../src/subprocess/terminal-launch";
+import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "../../tools/tern-fake-daemon";
 
 let tempDirectory: string;
 let sourceSessionFile: string;
@@ -36,7 +40,7 @@ function createContext(
 		sessionFile?: string;
 		persisted?: boolean;
 		environment?: () => NodeJS.ProcessEnv;
-		classifyTerminalMultiplexer?: typeof classifyTerminalMultiplexer;
+		classifyMultiplexer?: (env: NodeJS.ProcessEnv) => MultiplexerId | null;
 		activeProfile?: string | null;
 		activeModel?: { provider: string; id: string };
 		agentDir?: string;
@@ -84,10 +88,8 @@ function createContext(
 			getAgentDir: () => options.agentDir ?? "/user/agent",
 			getConfigFiles: () => options.configFiles ?? [],
 		},
-		loadingAnimation: undefined,
-		statusContainer: { disposeChildren: vi.fn() },
-		statusLine: { invalidate: vi.fn() },
-		ui: { requestRender: vi.fn() },
+		clearWorking: vi.fn(() => false),
+		statusLine: { refresh: vi.fn() },
 		present: vi.fn(),
 		showStatus: vi.fn(),
 		showWarning: vi.fn(),
@@ -95,7 +97,7 @@ function createContext(
 		showHookConfirm,
 	} as unknown as InteractiveModeContext;
 	const controller = new CommandController(ctx, {
-		classifyTerminalMultiplexer: options.classifyTerminalMultiplexer ?? classifyTerminalMultiplexer,
+		classifyMultiplexer: options.classifyMultiplexer ?? classifyMultiplexer,
 		environment: options.environment ?? (() => ({ TMUX: "server,1,0", TMUX_PANE: "%1" })),
 		launchTerminal,
 		resolveCliEntryCmd: () => ["omp-entry"],
@@ -108,7 +110,7 @@ function createContext(
 
 function findPosixShellPlacement(): { multiplexer: TerminalLaunchMultiplexer; placement: TerminalLaunchPlacement } {
 	for (const [multiplexer, capabilities] of Object.entries(terminalLaunchCapabilities) as Array<
-		[TerminalMultiplexer, (typeof terminalLaunchCapabilities)[TerminalMultiplexer]]
+		[MultiplexerId, (typeof terminalLaunchCapabilities)[MultiplexerId]]
 	>) {
 		if (!capabilities.supported) continue;
 		for (const placement of ["pane", "window"] as const) {
@@ -127,11 +129,11 @@ describe("/fork terminal placement", () => {
 	it("preflights unavailable launch capabilities before busy or persistence checks", async () => {
 		const unsupported = Object.entries(terminalLaunchCapabilities).find(
 			([, capabilities]) => !capabilities.supported,
-		)?.[0] as TerminalMultiplexer | undefined;
+		)?.[0] as MultiplexerId | undefined;
 		if (!unsupported) throw new Error("expected an unsupported multiplexer");
 		for (const multiplexer of [null, unsupported]) {
 			const { controller, ctx, launchTerminal, flush } = createContext({
-				classifyTerminalMultiplexer: () => multiplexer,
+				classifyMultiplexer: () => multiplexer,
 				streaming: true,
 				persisted: false,
 			});
@@ -145,7 +147,7 @@ describe("/fork terminal placement", () => {
 
 	it("requires POSIX shell confirmation before flushing a placement that declares it", async () => {
 		const { controller, ctx, flush, launchTerminal } = createContext({
-			classifyTerminalMultiplexer: () => POSIX_SHELL_PLACEMENT.multiplexer,
+			classifyMultiplexer: () => POSIX_SHELL_PLACEMENT.multiplexer,
 		});
 		await controller.handleForkCommand(POSIX_SHELL_PLACEMENT.placement);
 		expect(ctx.showHookConfirm).toHaveBeenCalledTimes(1);
@@ -155,7 +157,7 @@ describe("/fork terminal placement", () => {
 
 	it("launches a placement with POSIX shell requirements after confirmation", async () => {
 		const { controller, flush, launchTerminal, showHookConfirm } = createContext({
-			classifyTerminalMultiplexer: () => POSIX_SHELL_PLACEMENT.multiplexer,
+			classifyMultiplexer: () => POSIX_SHELL_PLACEMENT.multiplexer,
 			confirmed: true,
 		});
 		await controller.handleForkCommand(POSIX_SHELL_PLACEMENT.placement);
@@ -174,9 +176,9 @@ describe("/fork terminal placement", () => {
 		expect(request).toMatchObject({ multiplexer: "tmux", placement: "pane" });
 		const command = request?.command ?? [];
 		expect(command[0]).toBe("env");
-		expect(command).toContain("ZETA_CODING_AGENT_DIR=/user/agent");
-		expect(command).toContain("ZETA_PROFILE=active-profile");
-		expect(command).toContain("ZETA_PROFILE=active-profile");
+		expect(command).toContain("PI_CODING_AGENT_DIR=/user/agent");
+		expect(command).toContain("OMP_PROFILE=active-profile");
+		expect(command).toContain("PI_PROFILE=active-profile");
 		expect(command.slice(command.indexOf("omp-entry") + 1)).toEqual([
 			"--profile",
 			"active-profile",
@@ -225,7 +227,7 @@ describe("/fork terminal placement", () => {
 		await controller.handleForkCommand("pane");
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
 		const envArgs = command.slice(0, command.indexOf("omp-entry"));
-		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "ZETA_PROFILE", "ZETA_PROFILE"]) {
+		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "OMP_PROFILE", "PI_PROFILE"]) {
 			expect(envArgs[envArgs.indexOf(name) - 1]).toBe("-u");
 			expect(envArgs.some(arg => arg.startsWith(`${name}=`))).toBe(false);
 		}
@@ -271,8 +273,9 @@ describe("/fork terminal placement", () => {
 				({
 					TMUX: "server,1,0",
 					TMUX_PANE: "%1",
-					ZETA_PROFILE: "stale-server-profile",
-					ZETA_CODING_AGENT_DIR: "/stale/server/agent",
+					OMP_PROFILE: "stale-server-profile",
+					PI_PROFILE: "stale-server-profile",
+					PI_CODING_AGENT_DIR: "/stale/server/agent",
 					PI_CONFIG_FILES: configFiles,
 					XDG_DATA_HOME: dataDir,
 					XDG_STATE_HOME: stateDir,
@@ -294,7 +297,7 @@ describe("/fork terminal placement", () => {
 		await controller.handleForkCommand("pane");
 
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
-		expect(command).toContain(`ZETA_CODING_AGENT_DIR=${agentDir}`);
+		expect(command).toContain(`PI_CODING_AGENT_DIR=${agentDir}`);
 		expect(command).toContain(`PI_CONFIG_FILES=${configFiles}`);
 		expect(command).toContain(`XDG_DATA_HOME=${dataDir}`);
 		expect(command).toContain(`XDG_STATE_HOME=${stateDir}`);
@@ -377,6 +380,32 @@ describe("/fork terminal placement", () => {
 		expect(launchTerminal).not.toHaveBeenCalled();
 	});
 
+	it("preserves boolean --plan across terminal forks while still blocking a following --api-key", async () => {
+		const secret = "do-not-include-this-key";
+		const blocked = createContext({
+			argv: ["--plan", "--api-key", secret, "prompt"],
+		});
+		await blocked.controller.handleForkCommand("pane");
+		expect(blocked.showError.mock.calls[0]?.[0]).toContain("--api-key");
+		expect(blocked.showError.mock.calls[0]?.[0]).not.toContain(secret);
+		expect(blocked.launchTerminal).not.toHaveBeenCalled();
+
+		const forked = createContext({
+			argv: ["--plan", "--model", "old-provider/model-a", "prompt"],
+		});
+		await forked.controller.handleForkCommand("pane");
+		const command = forked.launchTerminal.mock.calls[0]?.[0].command ?? [];
+		const appArgs = command.slice(command.indexOf("omp-entry") + 1);
+		const extracted = extractProfileFlags(appArgs);
+		expect(extracted.profile).toBe("active-profile");
+		const startupChild = parseArgs(extracted.argv);
+		expect(startupChild.model).toBe("provider/model");
+		expect(startupChild.messages).toEqual([]);
+		const extChild = parseArgs(extracted.argv, new Map([["plan", { type: "boolean" }]]));
+		expect(extChild.unknownFlags.get("plan")).toBe(true);
+		expect(extChild.model).toBe("provider/model");
+	});
+
 	it("rejects placement forks without a persisted transcript", async () => {
 		const { controller, ctx, launchTerminal, flush } = createContext({ persisted: false });
 		await controller.handleForkCommand("window");
@@ -414,5 +443,81 @@ describe("/fork terminal placement", () => {
 		});
 		await controller.handleForkCommand("pane");
 		expect(ctx.showError).toHaveBeenCalledWith(expect.stringContaining("TMUX_PANE"));
+	});
+});
+
+describe("/fork inside Tern", () => {
+	let daemon: FakeDaemon | undefined;
+
+	beforeAll(async () => {
+		initTheme();
+	});
+
+	afterEach(async () => {
+		await daemon?.close();
+		daemon = undefined;
+	});
+
+	/** A fake Tern answering forks with `fork`, and the environment of its pane 5. */
+	async function startTern(
+		fork: () => FakeAnswer,
+	): Promise<{ tern: FakeDaemon; environment: () => NodeJS.ProcessEnv }> {
+		daemon = await startFakeDaemon(() => ({ ok: {} }), { welcome: { ops: ["browser", "fork"] }, fork });
+		const environment = { TERN_PANE_SOCKET: daemon.socketPath, TERN_PANE: "5" };
+		return { tern: daemon, environment: () => environment };
+	}
+
+	it("forks into a new pane while a turn is running, leaving the running session in place", async () => {
+		const { tern, environment } = await startTern(() => ({ ok: { block: 9 } }));
+		const { controller, ctx, session } = createContext({ streaming: true, environment });
+		await controller.handleForkCommand();
+		expect(tern.forks).toEqual([{ id: 1, op: { block: 5 } }]);
+		expect(session.flushToDisk).toHaveBeenCalledTimes(1);
+		expect(session.fork).not.toHaveBeenCalled();
+		expect(ctx.showWarning).not.toHaveBeenCalled();
+		expect(ctx.present).toHaveBeenCalledTimes(1);
+	});
+
+	it("aborts the running turn and forks in place when Tern declines the fork", async () => {
+		const { tern, environment } = await startTern(() => ({
+			error: { kind: "not_agent", message: "no session file" },
+		}));
+		const { controller, ctx, session } = createContext({ streaming: true, environment });
+		await controller.handleForkCommand();
+		expect(tern.forks).toHaveLength(1);
+		expect(session.abort).toHaveBeenCalledTimes(1);
+		expect(session.fork).toHaveBeenCalledTimes(1);
+		expect(session.abort.mock.invocationCallOrder[0]).toBeLessThan(session.fork.mock.invocationCallOrder[0]);
+		expect(ctx.showWarning).not.toHaveBeenCalled();
+	});
+
+	it("opens /fork window as a Tern tab when no multiplexer is detected", async () => {
+		const { tern, environment } = await startTern(() => ({ ok: { block: 9, tab: 4 } }));
+		const { controller, ctx, session, launchTerminal } = createContext({ environment });
+		await controller.handleForkCommand("window");
+		expect(tern.forks).toEqual([{ id: 1, op: { block: 5, tab: true } }]);
+		expect(launchTerminal).not.toHaveBeenCalled();
+		expect(session.fork).not.toHaveBeenCalled();
+		expect(ctx.showError).not.toHaveBeenCalled();
+		expect(ctx.present).toHaveBeenCalledTimes(1);
+	});
+
+	it("reports Tern's refusal of /fork window instead of forking in place", async () => {
+		const { environment } = await startTern(() => ({ error: { kind: "not_agent", message: "no session file" } }));
+		const { controller, ctx, session, launchTerminal } = createContext({ environment });
+		await controller.handleForkCommand("window");
+		expect(ctx.showError).toHaveBeenCalledWith(expect.stringContaining("no session file"));
+		expect(session.fork).not.toHaveBeenCalled();
+		expect(launchTerminal).not.toHaveBeenCalled();
+	});
+
+	it("prefers a multiplexer running inside Tern for /fork window", async () => {
+		const { tern, environment } = await startTern(() => ({ ok: { block: 9 } }));
+		const { controller, launchTerminal } = createContext({
+			environment: () => ({ ...environment(), TMUX: "server,1,0", TMUX_PANE: "%1" }),
+		});
+		await controller.handleForkCommand("window");
+		expect(launchTerminal).toHaveBeenCalledTimes(1);
+		expect(tern.forks).toHaveLength(0);
 	});
 });

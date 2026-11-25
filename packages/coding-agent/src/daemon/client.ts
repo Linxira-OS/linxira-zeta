@@ -1,5 +1,5 @@
 /**
- * Client side of the single per-user zeta daemon: one process-shared control
+ * Client side of the single per-user omp daemon: one process-shared control
  * connection ({@link daemonClient}) plus per-unit tunnels from `attach`.
  *
  * The client spawns the daemon when nothing answers, asks an older daemon to
@@ -10,8 +10,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { IpcConnection } from "@linxiraos/pi-natives";
-import { isEexist, isEnoent, isPidAlive, logger, postmortem, toError } from "@linxiraos/pi-utils";
+import { IpcConnection } from "@oh-my-pi/pi-natives";
+import { isEexist, isEnoent, isPidAlive, logger, postmortem, toError } from "@oh-my-pi/pi-utils";
 import { resolveCliEntryCmd, resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { daemonBuildId } from "./build";
 import { canonicalProjectDir, daemonDir, daemonEndpoint, daemonTcpAddress, daemonTokenPath } from "./paths";
@@ -72,7 +72,7 @@ const ABANDONED_LIMIT = 256;
 const DAEMON_RESTARTING = "Daemon is restarting";
 const DAEMON_SHUTTING_DOWN = "Daemon is shutting down";
 /**
- * The daemon must outlive whichever zeta process spawned it. Bun on Windows puts
+ * The daemon must outlive whichever omp process spawned it. Bun on Windows puts
  * every non-detached child in a kill-on-close job object owned by the parent,
  * so it is detached; it then has no console and its units spawn hidden.
  */
@@ -177,10 +177,17 @@ function dial(): Promise<IpcConnection> {
 		: IpcConnection.connect(daemonEndpoint(), options);
 }
 
+/**
+ * Start the shared daemon detached, in its runtime dir (created by
+ * {@link readOrCreateToken} before any spawn). It outlives this process and
+ * serves every project, so it never inherits this process's cwd: on Windows a
+ * running process's cwd cannot be removed or renamed. Only the no-host
+ * fallback pins a cwd, because its entry path is relative to it.
+ */
 function spawnDaemon(): void {
 	const spawn = resolveWorkerSpawnCmd(DAEMON_WORKER_ARG);
 	const child = Bun.spawn(spawn.cmd, {
-		cwd: spawn.cwd,
+		cwd: spawn.cwd ?? daemonDir(),
 		env: workerEnvFromParent(),
 		stdin: "ignore",
 		stdout: "ignore",
@@ -207,9 +214,9 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined, o
 function unreachableError(lastError: Error | undefined): Error {
 	const where = daemonTcpAddress() ? `${DAEMON_TCP_ENV}=${process.env[DAEMON_TCP_ENV]}` : daemonEndpoint();
 	return new Error(
-		`The zeta daemon did not answer at ${where} within ${START_TIMEOUT_MS / 1000}s: ` +
+		`The omp daemon did not answer at ${where} within ${START_TIMEOUT_MS / 1000}s: ` +
 			`${lastError?.message ?? "endpoint unavailable"}. Runtime dir: ${daemonDir()}. ` +
-			"Run `zetacode --smoke-test` to verify daemon startup, or `zetacode ps` to inspect it.",
+			"Run `omp --smoke-test` to verify daemon startup, or `omp ps` to inspect it.",
 	);
 }
 
@@ -243,7 +250,7 @@ function handshake(conn: IpcConnection, token: string, handlers: LinkHandlers): 
 	let welcomed = false;
 	const timer = setTimeout(() => {
 		conn.destroy();
-		reject(new DaemonTimeoutError("The zeta daemon did not answer the hello"));
+		reject(new DaemonTimeoutError("The omp daemon did not answer the hello"));
 	}, HELLO_TIMEOUT_MS);
 	conn.start(
 		line => {
@@ -279,7 +286,7 @@ function handshake(conn: IpcConnection, token: string, handlers: LinkHandlers): 
 				// Accepted, then dropped by a daemon that is closing its transport.
 				reject(
 					new DaemonTransientError(
-						`The zeta daemon closed the connection during the hello${reason ? `: ${reason}` : ""}`,
+						`The omp daemon closed the connection during the hello${reason ? `: ${reason}` : ""}`,
 					),
 				);
 				return;
@@ -660,7 +667,7 @@ class DaemonConnection implements DaemonClient {
 		} else {
 			// Never create anything for a daemon that may not exist.
 			const existing = await readToken();
-			if (!existing) throw new Error("No zeta daemon is running");
+			if (!existing) throw new Error("No omp daemon is running");
 			token = existing;
 		}
 		let link = await this.#establish(token, this.#options.spawn ? "start" : "probe");
@@ -728,7 +735,7 @@ class DaemonConnection implements DaemonClient {
 
 	/** Ask an older daemon to re-exec into this build, then dial its successor. */
 	async #upgrade(link: Link, token: string): Promise<Link> {
-		logger.debug("Upgrading the zeta daemon", { from: link.welcome.daemon.build, to: daemonBuildId() });
+		logger.debug("Upgrading the omp daemon", { from: link.welcome.daemon.build, to: daemonBuildId() });
 		try {
 			const { reexec } = await this.#request({ op: "upgrade" });
 			// The daemon does not consider this build newer: it stays, nothing closes.
@@ -739,7 +746,7 @@ class DaemonConnection implements DaemonClient {
 		}
 		const closed = await Promise.race([link.closed.then(() => true), Bun.sleep(START_TIMEOUT_MS).then(() => false)]);
 		if (!closed) {
-			logger.warn("The zeta daemon did not restart after an upgrade request; keeping the older build", {
+			logger.warn("The omp daemon did not restart after an upgrade request; keeping the older build", {
 				build: link.welcome.daemon.build,
 			});
 			return link;
@@ -758,7 +765,7 @@ class DaemonConnection implements DaemonClient {
 			}
 		}
 		if (isOlderBuild(next.welcome.daemon.build)) {
-			logger.warn("The zeta daemon is still an older build after an upgrade", {
+			logger.warn("The omp daemon is still an older build after an upgrade", {
 				build: next.welcome.daemon.build,
 				client: daemonBuildId(),
 			});
@@ -1016,7 +1023,25 @@ export function daemonClient(): Promise<DaemonClient> {
 	return shared;
 }
 
-/** What {@link registerOnBoard} lists: a process this zeta process owns and the daemon only displays. */
+/**
+ * Open (find-or-start) a module unit and attach a tunnel to it. The lease is
+ * given back when the attach fails, so a failed attempt never keeps the unit alive.
+ */
+export async function openTunnel(
+	daemon: Pick<DaemonClient, "open" | "attach" | "release">,
+	request: OpenRequest,
+	signal?: AbortSignal,
+): Promise<{ tunnel: DaemonTunnel; lease: string | undefined }> {
+	const opened = await daemon.open(request, signal);
+	try {
+		return { tunnel: await daemon.attach(opened.unit.id, undefined, signal), lease: opened.lease };
+	} catch (error) {
+		if (opened.lease) void daemon.release(opened.lease).catch(() => {});
+		throw error;
+	}
+}
+
+/** What {@link registerOnBoard} lists: a process this omp process owns and the daemon only displays. */
 export interface BoardEntryInit {
 	kind: string;
 	scope: UnitScope;
@@ -1105,7 +1130,7 @@ function unregisterBoardUnit(client: DaemonConnection, unitId: string): void {
 }
 
 /**
- * List a process this zeta process owns on the daemon board (an `external`
+ * List a process this omp process owns on the daemon board (an `external`
  * unit) until {@link BoardEntry.dispose}. Fire-and-forget: it never spawns
  * the daemon or waits for it. It uses the shared {@link daemonClient} only
  * once that is connected, now or later in this process, and re-registers
@@ -1156,12 +1181,12 @@ const SMOKE_DAEMON_EXIT_MS = 10_000;
 
 /**
  * Point every daemon use of this process at a fresh private runtime dir (and
- * off any `ZETA_DAEMON_TCP`), for the distribution smoke test. The returned
+ * off any `OMP_DAEMON_TCP`), for the distribution smoke test. The returned
  * cleanup closes the shared client, shuts that daemon down, restores the
  * environment, and removes the dir.
  */
 export async function isolateDaemonForSmokeTest(): Promise<() => Promise<void>> {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-daemon-smoke-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-daemon-smoke-"));
 	const previousDir = process.env[DAEMON_DIR_ENV];
 	const previousTcp = process.env[DAEMON_TCP_ENV];
 	await closeDaemonClient();

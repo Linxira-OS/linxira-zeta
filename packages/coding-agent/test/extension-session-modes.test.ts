@@ -1,23 +1,24 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import type {
 	ExtensionContext,
 	ExtensionFactory,
 	ModeChangedEvent,
 	SessionModeResult,
-} from "@linxiraos/zeta/extensibility/extensions";
-import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
-import { createAgentSession } from "@linxiraos/zeta/sdk";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
+import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
+import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 function refusal(result: SessionModeResult): string {
 	if (result.ok) throw new Error("Expected the transition to be refused");
@@ -83,7 +84,7 @@ describe("ctx.sessionModes in the interactive TUI", () => {
 			rules: [],
 			enableMCP: false,
 			enableLsp: false,
-			cacheWarming: false,
+			cacheWarming: "off",
 			workspaceTree: { rootPath: dir.path(), rendered: "", truncated: false, totalLines: 0, agentsMdFiles: [] },
 		});
 		cleanups.push(() => session.dispose());
@@ -106,8 +107,15 @@ describe("ctx.sessionModes in the interactive TUI", () => {
 				events.push(event);
 			});
 		}, settings);
-		const mode = new InteractiveMode(session, "test");
-		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});
+		const mode = new InteractiveMode(
+			session,
+			"test",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			createModeTerminal().frame,
+		);
 		cleanups.push(() => mode.stop());
 		await mode.init();
 		const modes = ctx?.sessionModes;
@@ -355,6 +363,12 @@ describe("ctx.sessionModes in the interactive TUI", () => {
 		]) {
 			expect(refusal(await modes.set(request as Parameters<typeof modes.set>[0]))).toBe("invalid_request");
 		}
+		expect(modes.getState()).toEqual({
+			plan: { status: "inactive" },
+			vibe: { status: "inactive" },
+			goal: { status: "inactive" },
+			loop: { status: "inactive" },
+		});
 	});
 
 	it("refuses every transition when extension mode control is turned off, while state stays readable", async () => {

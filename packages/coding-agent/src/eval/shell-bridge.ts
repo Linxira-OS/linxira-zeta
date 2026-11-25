@@ -11,8 +11,8 @@
  * The session's tool commands run in it too, each reported as a status event
  * under its tool name.
  */
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { isRecord } from "@linxiraos/pi-utils";
+import { ToolError } from "../tools/tool-errors";
+import { isRecord } from "@oh-my-pi/pi-utils";
 import { shellChangeSnapshots } from "../commit/selective/journal";
 import { executeBash } from "../exec/bash-executor";
 import { createToolCommandHandler, toolCommandNames } from "../exec/tool-command-host";

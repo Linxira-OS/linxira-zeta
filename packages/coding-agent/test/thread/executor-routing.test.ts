@@ -8,10 +8,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { __resetDirsFromEnvForTests, logger, removeWithRetries } from "@linxiraos/pi-utils";
-import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { AgentProgress } from "@oh-my-pi/pi-coding-agent/task/task-details";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
@@ -33,7 +33,7 @@ import { SubagentWorkerPool, setSubagentWorkerPoolForTests } from "../../src/thr
 import { EventBus } from "../../src/utils/event-bus";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "ZETA_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 const MODEL = "fake/fake-model";
 const TEST_TIMEOUT_MS = 120_000;
 /**
@@ -231,15 +231,15 @@ beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
 	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-executor-routing-"));
 	const home = path.join(root, "home");
-	const agentDir = path.join(home, ".zeta", "agent");
+	const agentDir = path.join(home, ".omp", "agent");
 	cwd = path.join(root, "work");
 	await fs.mkdir(agentDir, { recursive: true });
 	await fs.mkdir(cwd, { recursive: true });
 	// Workers read these at start-up, so set them before the pool spawns any.
 	setEnv("HOME", home);
-	setEnv("ZETA_CODING_AGENT_DIR", agentDir);
-	setEnv("ZETA_PROFILE", undefined);
-	setEnv("ZETA_PROFILE", undefined);
+	setEnv("PI_CODING_AGENT_DIR", agentDir);
+	setEnv("OMP_PROFILE", undefined);
+	setEnv("PI_PROFILE", undefined);
 	__resetDirsFromEnvForTests();
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
@@ -309,7 +309,6 @@ function runOptions(id: string, task: string, extra: Partial<ExecutorOptions> = 
 		id,
 		description: `routing ${id}`,
 		modelOverride: MODEL,
-		structured: false,
 		settings,
 		authStorage,
 		modelRegistry,
@@ -437,6 +436,21 @@ describe("subagent runs routed into pooled workers", () => {
 	);
 
 	it(
+		"reads a worker-homed child's pending wake on main: set while its run streams, clear once it ends",
+		async () => {
+			const controller = new AbortController();
+			const running = runSubprocess(runOptions("Waker", HANG_TASK, { signal: controller.signal }));
+			await server.hung();
+			const session = AgentRegistry.global().get("Waker")?.session;
+			await waitFor(() => session?.hasPendingWake === true);
+			controller.abort(new Error("stop from main"));
+			await running;
+			await waitFor(() => session?.hasPendingWake === false);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
 		"aborts the worker run when main's signal aborts",
 		async () => {
 			const controller = new AbortController();
@@ -467,7 +481,6 @@ describe("subagent runs routed into pooled workers", () => {
 				id: "Parked",
 				agent: AGENT,
 				message: "again",
-				structured: false,
 			});
 			expect(followUp.error).toBeUndefined();
 			expect(followUp.output).toBe("pong");
@@ -519,7 +532,7 @@ describe("subagent runs routed into pooled workers", () => {
 			const worker = pool.forThread(home);
 			if (!worker) throw new Error("home worker missing");
 
-			const turn = runSubagentFollowUpTurn({ id: "Crash", agent: AGENT, message: HANG_TASK, structured: false });
+			const turn = runSubagentFollowUpTurn({ id: "Crash", agent: AGENT, message: HANG_TASK });
 			await server.hung();
 			worker.terminate("worker crashed: boom");
 			const failed = await turn;
@@ -551,7 +564,6 @@ describe("subagent runs routed into pooled workers", () => {
 				id: "Crash",
 				agent: AGENT,
 				message: "again",
-				structured: false,
 			});
 			expect(again.output).toBe("pong");
 		},

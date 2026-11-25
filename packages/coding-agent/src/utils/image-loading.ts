@@ -6,12 +6,13 @@ import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
 	imageDecodeFailureReason,
-} from "@linxiraos/pi-tui/chat/image-loading";
+} from "./image-input";
 import * as path from "node:path";
 import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@linxiraos/pi-ai";
 import { rasterizeSvg } from "@linxiraos/pi-natives";
-import { prepareSvg } from "@linxiraos/pi-tui/chat/svg-source";
-import { theme, type Theme } from "@linxiraos/pi-tui/theme";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import type { Theme } from "@linxiraos/pi-tui/theme/contract";
+import { prepareSvg } from "../ui/transcript/figures/svg";
 import { $which, isRecord, logger, readImageMetadata } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { resolveReadPath } from "../tools/path-utils";
@@ -421,7 +422,7 @@ export async function loadCanvasImageInput(options: LoadImageInputOptions): Prom
 
 	let png: Uint8Array;
 	try {
-		const active = theme as Theme | undefined;
+		const active: Theme = currentTheme();
 		const svg = prepareSvg(canvasToSvg(source, resolvedPath), {
 			fg: active?.getColorHex("text") ?? "#999999",
 			muted: active?.getColorHex("muted") ?? "#777777",

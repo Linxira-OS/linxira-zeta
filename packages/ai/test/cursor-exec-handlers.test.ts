@@ -42,6 +42,9 @@ import { logger } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	// The transport override is process-global: put the built-in back so later
+	// files that route Cursor through `stream()` do not get a test's fake source.
+	setCursorProviderModule({ streamCursor });
 });
 
 const cursorModel: Model<"cursor-agent"> = buildModel({

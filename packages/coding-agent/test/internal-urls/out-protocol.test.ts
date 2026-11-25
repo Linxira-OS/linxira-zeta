@@ -1,9 +1,13 @@
-import { describe, expect, it } from "bun:test";
-import { isReplyWrite } from "@linxiraos/pi-tui/chat/reply-write";
+import { afterAll, describe, expect, it } from "bun:test";
+import { isReplyWrite } from "@oh-my-pi/pi-coding-agent/session/transcript/reply-write";
 import { Settings } from "../../src/config/settings";
 import { InternalUrlRouter } from "../../src/internal-urls";
 import type { SchemeHost } from "../../src/internal-urls/types";
 import type { ToolSession } from "../../src/tools";
+import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+
+const restoreTheme = currentTheme();
+afterAll(() => setCurrentTheme(restoreTheme));
 
 const host: SchemeHost = {
 	skillUriAccess: false,
@@ -11,7 +15,6 @@ const host: SchemeHost = {
 	securityEnabled: false,
 	settingsApproval: false,
 	outReplies: false,
-	canvasEnabled: false,
 	subagent: false,
 };
 

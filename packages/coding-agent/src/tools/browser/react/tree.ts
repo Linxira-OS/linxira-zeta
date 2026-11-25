@@ -1,5 +1,5 @@
-import { untilAborted } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { untilAborted } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../../tool-errors";
 import type { Page } from "puppeteer-core";
 import { type ReactPageEnvelope, requireReactHookResult } from "./devtools-hook";
 
@@ -45,8 +45,8 @@ export interface ReactInspectResult {
 
 const TREE_SOURCE_PREFIX = `(() => {
 	const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-	if (!hook || !hook.__zetaReact) return { missingHook: true };
-	const internals = hook.__zetaReact;
+	if (!hook || !hook.__ompReact) return { missingHook: true };
+	const internals = hook.__ompReact;
 	const options = `;
 
 const TREE_SOURCE_SUFFIX = `;
@@ -105,8 +105,8 @@ const TREE_SOURCE_SUFFIX = `;
 
 const INSPECT_SOURCE_PREFIX = `(() => {
 	const hook = globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-	if (!hook || !hook.__zetaReact) return { missingHook: true };
-	const internals = hook.__zetaReact;
+	if (!hook || !hook.__ompReact) return { missingHook: true };
+	const internals = hook.__ompReact;
 	const fiber = internals.fibersById.get(`;
 
 const INSPECT_SOURCE_SUFFIX = `);

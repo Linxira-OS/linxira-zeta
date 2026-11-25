@@ -1,6 +1,6 @@
 import type { Protocol } from "devtools-protocol";
-import { untilAborted } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { untilAborted } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../tool-errors";
 import type {
 	BoundingBox,
 	ElementHandle,

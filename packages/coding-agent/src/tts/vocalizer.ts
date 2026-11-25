@@ -37,7 +37,7 @@
  * questions); the event controller wires the per-session model source and
  * enhancer via {@link Vocalizer.setModelSource} and {@link Vocalizer.setEnhancer}.
  */
-import type { ModelBrowserRegistry } from "@linxiraos/pi-tui/overlays/model-browser";
+import type { ModelBrowserRegistry } from "../modes/view-model/overlays/model-browser";
 import { logger } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { resolveRoleChain } from "../config/model-resolver";

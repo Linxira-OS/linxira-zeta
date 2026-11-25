@@ -1,17 +1,17 @@
 import {
 	type AgentTool,
 	type AgentToolResult,
-	validateAgentToolArguments,
 	type AgentToolUpdateCallback,
-} from "@linxiraos/pi-agent-core";
-import { type ImageContent, toolWireSchema } from "@linxiraos/pi-ai";
-import { isRecord } from "@linxiraos/pi-utils";
-import { INTENT_FIELD } from "@linxiraos/pi-wire";
+	validateAgentToolArguments,
+} from "@oh-my-pi/pi-agent-core";
+import { type ImageContent, toolWireSchema } from "@oh-my-pi/pi-ai";
+import { isRecord } from "@oh-my-pi/pi-utils";
+import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
 import type { ToolSession } from "../../tools";
 import { committedTodoPhases } from "../../tools/todo";
-import { isReplyWrite, toolResultReplies } from "@linxiraos/pi-tui/chat/reply-write";
-import { parseMCPProgress } from "@linxiraos/pi-tui/tools/mcp";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isReplyWrite, toolResultReplies } from "../../session/transcript/reply-write";
+import { parseMCPProgress } from "../../tools/mcp-progress";
+import { ToolError } from "../../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../../utils/tool-schema";
 import { findEnabledEvalPrelude, invokeEvalPrelude } from "../preludes";
 import { EVAL_AGENT_BRIDGE_NAME, type EvalAgentHandleResult, runEvalAgent } from "../agent-bridge";
@@ -27,9 +27,9 @@ import { EVAL_JUDGMENT_BRIDGE_NAME, type EvalJudgmentResult, runEvalJudgment } f
 import { EVAL_SHELL_BRIDGE_NAME, type EvalShellResult, runEvalShell } from "../shell-bridge";
 import {
 	EVAL_CANCEL_BRIDGE_NAME,
-	type EvalHandleSnapshot,
 	EVAL_STATUS_BRIDGE_NAME,
 	EVAL_WAIT_BRIDGE_NAME,
+	type EvalHandleSnapshot,
 	runEvalCancel,
 	runEvalStatus,
 	runEvalWait,
@@ -54,7 +54,6 @@ const NO_REPLY_SINK =
 export type { JsStatusEvent } from "./shared/types";
 
 export interface ToolBridgeOptions {
-	outerToolCallId?: string;
 	session: ToolSession;
 	parentToolCallId?: string;
 	signal?: AbortSignal;
@@ -252,7 +251,6 @@ async function dispatchSessionTool(name: string, args: unknown, options: ToolBri
 				invokeEvalPrelude(request.name, request.parameters, {
 					session: options.session,
 					toolCallId,
-					outerToolCallId: options.outerToolCallId,
 					signal: options.signal,
 					cellTimeoutMs: options.cellTimeoutMs,
 					context: options.session.getToolContext?.(),

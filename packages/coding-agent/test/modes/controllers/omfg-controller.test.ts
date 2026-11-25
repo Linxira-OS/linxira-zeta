@@ -1,18 +1,17 @@
-import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
+import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
-import type { Rule } from "@linxiraos/zeta/capability/rule";
-import { OmfgController } from "@linxiraos/zeta/modes/controllers/omfg-controller";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { Container, type TUI } from "@linxiraos/pi-tui";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { clearCache, readDirEntries } from "@linxiraos/zeta/capability/fs";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
+import type { Rule } from "@oh-my-pi/pi-coding-agent/capability/rule";
+import { OmfgController } from "@oh-my-pi/pi-coding-agent/modes/controllers/omfg-controller";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { Shell } from "@oh-my-pi/pi-coding-agent/ui/shell/index";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { clearCache, readDirEntries } from "@oh-my-pi/pi-coding-agent/capability/fs";
 
-const PROJECT_OPTION = "This project (.zeta/rules)";
+const PROJECT_OPTION = "This project (.omp/rules)";
 
 const usage: Usage = {
 	input: 0,
@@ -53,7 +52,7 @@ interface HarnessOptions {
 
 interface Harness {
 	ctx: InteractiveModeContext;
-	container: Container;
+	shell: Shell;
 	projectDir: string;
 	agentDir: string;
 	ttsrAddRule: Mock<AddRule>;
@@ -111,10 +110,9 @@ async function createHarness(options: HarnessOptions): Promise<Harness> {
 		ruleJudge: () => undefined,
 		ttsrManager: { addRule: ttsrAddRule },
 	} as unknown as InteractiveModeContext["session"];
-	const container = new Container();
+	const shell = new Shell();
 	const ctx = {
-		ui: { requestRender: vi.fn() } as unknown as TUI,
-		omfgContainer: container,
+		shell,
 		session,
 		sessionManager: { getCwd: () => projectDir } as unknown as InteractiveModeContext["sessionManager"],
 		settings: { getAgentDir: () => agentDir } as unknown as InteractiveModeContext["settings"],
@@ -124,12 +122,8 @@ async function createHarness(options: HarnessOptions): Promise<Harness> {
 		showHookSelector,
 		showHookConfirm,
 	} as unknown as InteractiveModeContext;
-	return { ctx, container, projectDir, agentDir, ttsrAddRule, showHookSelector, showHookConfirm, showHookInput };
+	return { ctx, shell, projectDir, agentDir, ttsrAddRule, showHookSelector, showHookConfirm, showHookInput };
 }
-
-beforeAll(async () => {
-	await initTheme();
-});
 
 afterEach(async () => {
 	vi.restoreAllMocks();
@@ -170,16 +164,15 @@ describe("OmfgController", () => {
 
 		await controller.start("stop this");
 
-		expect(harness.container.children).toHaveLength(1);
+		expect(harness.shell.dock.slot("omfg").occupied()).toBe(true);
 		expect(controller.handleEscape()).toBe(true);
-		expect(harness.container.children).toHaveLength(0);
+		expect(harness.shell.dock.slot("omfg").occupied()).toBe(false);
 		expect(signal?.aborted).toBe(true);
 		expect(controller.hasActiveRequest()).toBe(false);
-		expect(await Bun.file(path.join(harness.projectDir, ".zeta", "rules", "ts-no-any.md")).exists()).toBe(false);
+		expect(await Bun.file(path.join(harness.projectDir, ".omp", "rules", "ts-no-any.md")).exists()).toBe(false);
 	});
 
-	it("invalidates the discovery cache after saving so rediscovery observes the new rule", async () => {
-		clearCache();
+	it("dismisses the panel and reports the saved path once the rule is registered", async () => {
 		const runEphemeralTurn = vi.fn<RunEphemeralTurn>(async () => ({
 			replyText: JSON.stringify({
 				name: "ts-no-any",
@@ -195,29 +188,19 @@ describe("OmfgController", () => {
 			messages: createMatchingMessages(),
 			selectorChoice: PROJECT_OPTION,
 		});
-		const rulesDir = path.join(harness.projectDir, ".zeta", "rules");
-
-		// Warm the discovery cache with the pre-save (absent) directory snapshot, the
-		// state the mid-session rule rediscovery would read on the next prompt rebuild.
-		expect(await readDirEntries(rulesDir)).toHaveLength(0);
-
-		// #registerLive() calls ttsrManager.addRule right after the write + cache
-		// invalidation, so resolving on it awaits the real save signal (no timers).
 		const registered = Promise.withResolvers<void>();
 		harness.ttsrAddRule.mockImplementation(() => {
 			registered.resolve();
 			return true;
 		});
+		const controller = new OmfgController(harness.ctx);
 
-		await new OmfgController(harness.ctx).start("stop using any");
+		await controller.start("stop using any");
 		await registered.promise;
 
-		const savedRuleFile = path.join(rulesDir, "ts-no-any.md");
-		expect(await Bun.file(savedRuleFile).exists()).toBe(true);
-		expect(harness.ttsrAddRule).toHaveBeenCalled();
-		// Without the post-write invalidation the cache would still serve the empty
-		// snapshot, and `replaceTtsrRules` would evict the freshly registered rule.
-		expect((await readDirEntries(rulesDir)).map(entry => entry.name)).toContain("ts-no-any.md");
+		expect(harness.shell.dock.slot("omfg").occupied()).toBe(false);
+		expect(controller.hasActiveRequest()).toBe(false);
+		expect(harness.ctx.showStatus).toHaveBeenCalledWith(expect.stringContaining("ts-no-any.md"));
 	});
 
 	it("invalidates the discovery cache after saving so rediscovery observes the new rule", async () => {
@@ -237,7 +220,7 @@ describe("OmfgController", () => {
 			messages: createMatchingMessages(),
 			selectorChoice: PROJECT_OPTION,
 		});
-		const rulesDir = path.join(harness.projectDir, ".zeta", "rules");
+		const rulesDir = path.join(harness.projectDir, ".omp", "rules");
 
 		// Warm the discovery cache with the pre-save (absent) directory snapshot, the
 		// state the mid-session rule rediscovery would read on the next prompt rebuild.

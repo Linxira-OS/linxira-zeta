@@ -3,11 +3,10 @@ import type {
 	CustomCommandAPI,
 	CustomCommandContext,
 } from "../../../../extensibility/custom-commands/types";
-import { M } from "../../../../i18n";
 import { parseCommandArgs } from "../../../../utils/command-args";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
-import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
-import type { CodeReviewOverlayResult, TextReviewSource } from "@linxiraos/pi-tui/overlays/annotation-types";
+import type { AutocompleteItem } from "../../../../autocomplete/autocomplete";
+import { CombinedAutocompleteProvider } from "../../../../autocomplete/autocomplete";
+import type { CodeReviewOverlayResult, TextReviewSource } from "./annotation-types";
 import {
 	liveCommandCwd,
 	resolvePrReviewTarget,
@@ -345,7 +344,7 @@ export async function runAnnotateCommand(
 
 export class AnnotateCommand implements CustomCommand {
 	name = "annotate";
-	description = () => M.cmdAnnotate;
+	description = "Annotate a diff or text from a file, prompt, latest reply, or session";
 	#fileCompletionProvider: CombinedAutocompleteProvider | undefined;
 	#fileCompletionCwd: string | undefined;
 

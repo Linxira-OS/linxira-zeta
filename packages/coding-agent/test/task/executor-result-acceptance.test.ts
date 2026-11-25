@@ -6,35 +6,33 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
-import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import type { LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
+import type { AssistantMessage, ToolCall } from "@oh-my-pi/pi-ai";
+import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@oh-my-pi/pi-ai/utils/block-symbols";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
+import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import type { LoadExtensionsResult } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/irc-types";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { IrcBridge, type IrcBridgeHost } from "@oh-my-pi/pi-coding-agent/session/irc-bridge";
 import {
 	attachIrcWakeTurnMonitor,
-	resolveParentJobOrigin,
 	runSubagentFollowUpTurn,
 	runSubprocess,
-} from "@linxiraos/zeta/task/executor";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { WaitTool } from "@linxiraos/zeta/tools/wait";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { WaitTool } from "@oh-my-pi/pi-coding-agent/tools/wait";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 const AGENT_ID = "accepted-result";
 
@@ -139,7 +137,7 @@ function createHarness(options?: { hangPrompt?: boolean; asyncJobManager?: Async
 		sessionManager: { appendSessionInit: () => {} },
 		getActiveToolNames: () => ["read", "yield"],
 		getEnabledToolNames: () => ["read", "yield"],
-		getMountedXdevToolNames: () => [],
+		getMountedToolCommandNames: () => [],
 		getToolByName: () => undefined,
 		setActiveToolsByName: async () => {},
 		setWorkPoolYieldItems: () => {},
@@ -407,7 +405,6 @@ describe("runSubprocess result acceptance", () => {
 		attachIrcWakeTurnMonitor(harness.session, {
 			id: AGENT_ID,
 			agent: baseAgent,
-			structured: false,
 			artifactsDir,
 		});
 		const observer = harness.wakeObserver();
@@ -470,7 +467,7 @@ describe("runSubprocess result acceptance", () => {
 			session: harness.session,
 			status: "idle",
 		});
-		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, structured: false, artifactsDir });
+		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, artifactsDir });
 		const observer = harness.wakeObserver();
 		if (!observer) throw new Error("wake-turn observer was not registered");
 		const accepted = '{"report":"accepted verdict"}';
@@ -519,7 +516,7 @@ describe("runSubprocess result acceptance", () => {
 			session: harness.session,
 			status: "idle",
 		});
-		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, structured: false, artifactsDir });
+		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, artifactsDir });
 		const observer = harness.wakeObserver();
 		if (!observer) throw new Error("wake-turn observer was not registered");
 
@@ -568,7 +565,7 @@ describe("runSubprocess result acceptance", () => {
 			session: harness.session,
 			status: "idle",
 		});
-		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, structured: false, artifactsDir });
+		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, artifactsDir });
 		const observer = harness.wakeObserver();
 		if (!observer) throw new Error("wake-turn observer was not registered");
 		const accepted = '{"report":"accepted verdict"}';
@@ -612,7 +609,7 @@ describe("runSubprocess result acceptance", () => {
 			session: harness.session,
 			status: "idle",
 		});
-		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, structured: false, artifactsDir });
+		attachIrcWakeTurnMonitor(harness.session, { id: AGENT_ID, agent: baseAgent, artifactsDir });
 		const observer = harness.wakeObserver();
 		if (!observer) throw new Error("wake-turn observer was not registered");
 
@@ -663,7 +660,6 @@ describe("runSubprocess result acceptance", () => {
 				id: AGENT_ID,
 				agent: baseAgent,
 				message: "continue",
-				structured: false,
 				artifactsDir,
 				signal: AbortSignal.abort("cancelled"),
 			});
@@ -673,79 +669,6 @@ describe("runSubprocess result acceptance", () => {
 		} finally {
 			tempDir.removeSync();
 		}
-	});
-
-	it("a wake registered after navigation retains its captured source transcript", async () => {
-		using temp = TempDir.createSync("@wake-source-origin-");
-		const source = SessionManager.create(temp.path(), temp.path());
-		source.appendMessage({ role: "user", content: "source A", timestamp: 1 });
-		await source.ensureOnDisk();
-		const sourceFile = source.getSessionFile()!;
-		const manager = new AsyncJobManager({});
-		const harness = createHarness({ asyncJobManager: manager });
-		AgentRegistry.global().register({
-			id: AGENT_ID,
-			displayName: AGENT_ID,
-			kind: "sub",
-			parentId: "Parent",
-			session: harness.session,
-			status: "idle",
-		});
-		try {
-			attachIrcWakeTurnMonitor(harness.session, {
-				id: AGENT_ID,
-				agent: baseAgent,
-				parentOrigin: resolveParentJobOrigin(sourceFile),
-			});
-			const observer = harness.wakeObserver();
-			if (!observer) throw new Error("wake-turn observer was not registered");
-			// Navigation and new jobs happen after the monitor's source capture.
-			await source.newSession();
-			expect(source.getSessionFile()).not.toBe(sourceFile);
-			const finish = observer([
-				{
-					role: "custom",
-					customType: "irc:incoming",
-					content: "late wake",
-					display: false,
-					details: { id: "late", from: "Parent", message: "late wake" },
-					attribution: "agent",
-					timestamp: Date.now(),
-				},
-			]);
-			const job = manager.getRunningJobs({ ownerId: "Parent" })[0];
-			const reopened = await SessionManager.open(sourceFile, undefined, undefined, { throwIfMissing: true });
-			try {
-				expect(job?.origin).toEqual({ sessionId: reopened.getSessionId(), sessionFile: path.resolve(sourceFile) });
-			} finally {
-				await reopened.close();
-			}
-			harness.emitAssistantText("source A result");
-			await finish?.();
-			await manager.waitForAll();
-			expect(job?.status).toBe("completed");
-			expect(job?.resultText).toContain("source A result");
-		} finally {
-			await manager.dispose({ timeoutMs: 1000 });
-			await source.close();
-		}
-	});
-
-	it("an unavailable declared source rejects the spawn before creating a worker", async () => {
-		using temp = TempDir.createSync("@wake-missing-source-");
-		const create = vi.spyOn(sdkModule, "createAgentSession");
-		await expect(
-			runSubprocess({
-				cwd: temp.path(),
-				id: AGENT_ID,
-				index: 0,
-				agent: baseAgent,
-				task: "do work",
-				sessionFile: path.join(temp.path(), "missing.jsonl"),
-			}),
-		).rejects.toThrow("Cannot resolve the source transcript");
-		expect(create).not.toHaveBeenCalled();
-		expect(AgentRegistry.global().get(AGENT_ID)).toBeUndefined();
 	});
 
 	it.each([true, false])(

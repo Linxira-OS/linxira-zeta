@@ -20,8 +20,8 @@
  */
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { jsonSchemaToTypeScript, toolWireSchema } from "@linxiraos/pi-ai";
-import { blobExtensionForImageMimeType, normalizeBlobExtension } from "@linxiraos/pi-tui/prompt/image-format";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { blobExtensionForImageMimeType, normalizeBlobExtension } from "../utils/image-format";
+import { ToolError } from "../tools/tool-errors";
 import { isRecord, logger, prompt, Snowflake } from "@linxiraos/pi-utils";
 import type { EvalPreludeDefinition } from "../eval/preludes";
 import { resolveLocalUrlToPath } from "../internal-urls/local-protocol";

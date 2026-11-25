@@ -2,10 +2,10 @@
  * Manage configuration settings.
  */
 
-import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
+import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { configHelp as commandHelp } from "../cli/command-help";
 import { type ConfigAction, type ConfigCommandArgs, type ConfigScope, runConfigCommand } from "../cli/config-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 const ACTIONS: ConfigAction[] = ["list", "get", "set", "reset", "path", "init-xdg"];
 
@@ -32,7 +32,7 @@ export default class Config extends Command {
 		json: Flags.boolean({ description: "Output JSON" }),
 		scope: Flags.string({
 			description:
-				'With list: only the keys the "global" (config.yml in the agent dir) or "project" (<cwd>/.zeta) layer sets, as written',
+				'With list: only the keys the "global" (config.yml in the agent dir) or "project" (<cwd>/.omp) layer sets, as written',
 			options: ["global", "project"],
 		}),
 	};
@@ -52,7 +52,7 @@ export default class Config extends Command {
 			},
 		};
 
-		await initTheme();
+		initTheme();
 		await runConfigCommand(cmd);
 	}
 }

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Effort } from "@linxiraos/pi-ai";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { parseAgentFields } from "@linxiraos/zeta/discovery/helpers";
-import { resolveBuiltinToolPlan, type ToolSession } from "@linxiraos/zeta/tools";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { parseAgentFields } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import { resolveBuiltinToolPlan, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
 
 describe("parseAgentFields", () => {
 	test("rejects the reserved `main` and `sub` agent definition names", () => {

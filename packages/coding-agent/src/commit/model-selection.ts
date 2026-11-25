@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
-import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
+import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Api, ApiKey, Model } from "@oh-my-pi/pi-ai";
+import { roleDefaultModels } from "@oh-my-pi/pi-catalog/compat/behavior";
 import type { ApiKeyResolverRegistry } from "../config/api-key-resolver";
 import {
 	getModelMatchPreferences,
@@ -11,7 +11,7 @@ import {
 } from "../config/model-resolver";
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import { concreteThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { concreteThinkingLevel } from "../thinking/levels";
 
 export interface ResolvedCommitModel {
 	model: Model<Api>;

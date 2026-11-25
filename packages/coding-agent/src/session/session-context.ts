@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { customMessageEntryMessage, isUserRequestEntry } from "@linxiraos/pi-tui/chat/transcript-entry";
+import { customMessageEntryMessage, isUserRequestEntry } from "./transcript/transcript-entry";
 import {
 	canReplayRemoteCompaction,
 	getAnthropicCompactionPayload,
@@ -19,7 +19,7 @@ import {
 	createCustomMessage,
 	INTERRUPTED_THINKING_MESSAGE_TYPE,
 	isEmptyErrorTurn,
-	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
+	PLAN_MODE_CONTEXT_MESSAGE_TYPE,
 	PREWALK_PLAN_MESSAGE_TYPE,
 	REWIND_REPORT_MESSAGE_TYPE,
 	TEAM_MODE_CONTEXT_MESSAGE_TYPE,
@@ -511,8 +511,7 @@ export function buildSessionContext(
 				!options?.transcript &&
 				(entry.customType === PREWALK_PLAN_MESSAGE_TYPE ||
 					entry.customType === VIBE_MODE_CONTEXT_MESSAGE_TYPE ||
-					entry.customType === LEAD_MODE_CONTEXT_MESSAGE_TYPE ||
-					entry.customType === TEAM_MODE_CONTEXT_MESSAGE_TYPE)
+					entry.customType === PLAN_MODE_CONTEXT_MESSAGE_TYPE)
 			) {
 				return;
 			}

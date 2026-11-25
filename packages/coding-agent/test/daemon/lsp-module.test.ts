@@ -7,11 +7,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as daemonClientModule from "@linxiraos/zeta/daemon/client";
-import { daemonClient, isolateDaemonForSmokeTest } from "@linxiraos/zeta/daemon/client";
-import type { DaemonClient, DaemonTunnel } from "@linxiraos/zeta/daemon/protocol";
-import { encodeMessageFrame, MessageFramer } from "@linxiraos/zeta/jsonrpc/message-framing";
-import { getOrCreateClient, holdSharedLsp, sendRequest, shutdownAll } from "@linxiraos/zeta/lsp/client";
+import * as daemonClientModule from "@oh-my-pi/pi-coding-agent/daemon/client";
+import { daemonClient, isolateDaemonForSmokeTest } from "@oh-my-pi/pi-coding-agent/daemon/client";
+import type { DaemonClient, DaemonTunnel } from "@oh-my-pi/pi-coding-agent/daemon/protocol";
+import { encodeMessageFrame, MessageFramer } from "@oh-my-pi/pi-coding-agent/jsonrpc/message-framing";
+import { getOrCreateClient, holdSharedLsp, sendRequest, shutdownAll } from "@oh-my-pi/pi-coding-agent/lsp/client";
 import {
 	LSP_ACQUIRE_METHOD,
 	LSP_MODULE_KIND,
@@ -22,8 +22,9 @@ import {
 	lspInstanceKey,
 	MUX_SERVER_EXITED_METHOD,
 	muxServerKey,
-} from "@linxiraos/zeta/lsp/mux/protocol";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/lsp/mux/protocol";
+import { Process } from "@oh-my-pi/pi-natives";
+import { isEnoent, isRecord, TempDir } from "@oh-my-pi/pi-utils";
 
 const FIXTURE = path.join(import.meta.dir, "..", "fixtures", "fake-language-server.ts");
 const DAEMON_TEST_TIMEOUT_MS = 60_000;
@@ -66,8 +67,12 @@ function killQuietly(pid: number): void {
 	}
 }
 
-async function until<T>(what: string, probe: () => T | undefined | Promise<T | undefined>): Promise<T> {
-	const deadline = Date.now() + WAIT_MS;
+async function until<T>(
+	what: string,
+	probe: () => T | undefined | Promise<T | undefined>,
+	budgetMs = WAIT_MS,
+): Promise<T> {
+	const deadline = Date.now() + budgetMs;
 	while (true) {
 		const value = await probe();
 		if (value !== undefined) return value;
@@ -146,7 +151,7 @@ const watchedPids = new Set<number>();
 
 beforeEach(async () => {
 	restoreDaemon = await isolateDaemonForSmokeTest();
-	workspace = TempDir.createSync("@zeta-lsp-module-");
+	workspace = TempDir.createSync("@omp-lsp-module-");
 	cwd = await fs.realpath(workspace.path());
 });
 
@@ -351,7 +356,7 @@ describe("daemon lsp module", () => {
 	);
 
 	test(
-		"a server exit delivers zeta/muxServerExited with the exit code and the next acquire starts a fresh server",
+		"a server exit delivers omp/muxServerExited with the exit code and the next acquire starts a fresh server",
 		async () => {
 			const client = await daemon();
 			const server = serverParams();
@@ -425,7 +430,7 @@ describe("daemon lsp module", () => {
 });
 
 describe("lsp client shared-server connector", () => {
-	let hold: { release(): void } | undefined;
+	let hold: { set(enabled: boolean): void; release(): void } | undefined;
 	const fixtureConfig = { command: process.execPath, args: ["run", FIXTURE], fileTypes: [".ts"], rootMarkers: [] };
 
 	beforeEach(() => {
@@ -449,6 +454,68 @@ describe("lsp client shared-server connector", () => {
 		},
 		DAEMON_TEST_TIMEOUT_MS,
 	);
+
+	for (const shared of [true, false]) {
+		test(
+			`a timed-out ${shared ? "shared" : "private"} LSP startup reaps its launcher and descendant`,
+			async () => {
+				hold?.set(shared);
+				const owner = shared ? (await daemon()).welcome.daemon.pid : process.pid;
+				const marker = path.join(cwd, "launcher.json");
+				const launcher = `
+					const child = Bun.spawn([process.execPath, "-e", "await Bun.sleep(60000)"], {
+						stdin: "ignore", stdout: "inherit", stderr: "inherit"
+					});
+					await Bun.write(${JSON.stringify(marker)}, JSON.stringify({
+						pid: process.pid, ppid: process.ppid, child: child.pid
+					}));
+					await child.exited;
+				`;
+				const config = {
+					...fixtureConfig,
+					command: "broken-launcher",
+					resolvedCommand: process.execPath,
+					args: ["-e", launcher],
+				};
+				// The real launcher and daemon run in other processes; fake clocks cannot drive their exits.
+				const result = (
+					shared
+						? getOrCreateClient(config, cwd, 2_000)
+						: getOrCreateClient(config, cwd, undefined, AbortSignal.timeout(2_000))
+				).catch((error: unknown) => error);
+				const record = await until("launcher PID record", async () => {
+					const text = await Bun.file(marker)
+						.text()
+						.catch((error: unknown) => {
+							if (isEnoent(error)) return "";
+							throw error;
+						});
+					if (!text.endsWith("}")) return undefined;
+					const record: unknown = JSON.parse(text);
+					if (!isRecord(record)) throw new Error("Expected launcher and descendant PIDs");
+					const { pid, ppid, child } = record;
+					if (typeof pid !== "number" || typeof ppid !== "number" || typeof child !== "number") {
+						throw new Error("Expected launcher and descendant PIDs");
+					}
+					return { pid, ppid, child };
+				});
+				watchedPids.add(record.pid);
+				watchedPids.add(record.child);
+				expect(record.ppid).toBe(owner);
+				const error = await result;
+				if (!(error instanceof Error)) throw new Error("Expected the startup to fail");
+				expect(error.message).toContain(process.execPath);
+				expect(error.message).toMatch(/timed out/i);
+
+				await until(
+					"launcher and descendant to exit",
+					() => [record.pid, record.child].every(pid => Process.fromPid(pid)?.status() !== "running") || undefined,
+					3_000,
+				);
+			},
+			DAEMON_TEST_TIMEOUT_MS,
+		);
+	}
 
 	test(
 		"a daemon without the lsp capability makes the client spawn the server itself instead of acquiring",

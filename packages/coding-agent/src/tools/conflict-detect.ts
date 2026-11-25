@@ -1,4 +1,4 @@
-import type { ConflictBlock, ConflictEntry, ConflictScope } from "@linxiraos/pi-tui/tools/conflict-detect";
+import type { ConflictBlock, ConflictEntry, ConflictScope } from "./conflict-region";
 /**
  * Detect and resolve unresolved git merge conflicts that surface in `read`
  * output.
@@ -22,7 +22,7 @@ import type { ConflictBlock, ConflictEntry, ConflictScope } from "@linxiraos/pi-
 import type { ToolSession } from "./index";
 import { getToolConversationState } from "./tool-state";
 import { hasFsCode, isEnoent } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 
 const OURS_PREFIX = "<<<<<<<";
 const BASE_PREFIX = "|||||||";

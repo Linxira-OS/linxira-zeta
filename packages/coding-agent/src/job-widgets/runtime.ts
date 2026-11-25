@@ -14,7 +14,7 @@ import type {
 	JobWidgetState,
 	JobWidgetTrend,
 	JobWidgetView,
-} from "@linxiraos/pi-tui/tools/job-widget";
+} from "../tools/details/job-widget";
 import type { TspTone } from "@linxiraos/pi-wire";
 import { sanitizeText, truncate } from "@linxiraos/pi-utils";
 import { formatWidgetNumber, formatWidgetTrend } from "./format";

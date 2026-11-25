@@ -2,12 +2,12 @@ import * as fs from "node:fs/promises";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Process, ProcessStatus } from "@linxiraos/pi-natives";
-import { getBrowserProfilesDir, isRecord, untilAborted } from "@linxiraos/pi-utils";
+import { Process, ProcessStatus } from "@oh-my-pi/pi-natives";
+import { getBrowserProfilesDir, isRecord, untilAborted } from "@oh-my-pi/pi-utils";
 import type { Socket } from "bun";
 import type { Browser, Page, Target } from "puppeteer-core";
 import { throwIfAborted } from "../tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import { isPuppeteerTimeout } from "./launch";
 
 const ATTACH_TARGET_SKIP_PATTERN =
@@ -242,13 +242,13 @@ export function isChromiumBrowserExecutable(exe: string): boolean {
  * Launch argv for a spawned executable. Chrome 136+ silently ignores
  * `--remote-debugging-port` when the default user-data-dir is in use: the
  * browser opens as usual, nothing listens, and attach waits out its timeout.
- * Chromium-family browsers therefore get a stable zeta-owned profile under
- * `~/.zeta/browser-profiles/<exe slug>` unless the caller already picked one.
+ * Chromium-family browsers therefore get a stable omp-owned profile under
+ * `~/.omp/browser-profiles/<exe slug>` unless the caller already picked one.
  * That profile is also what lets a second instance start beside the user's
  * running default-profile browser instead of handing off to it. Electron apps
  * are left untouched: `--user-data-dir` would relocate their app data.
  *
- * An zeta-owned profile also bypasses the OS keystore (`--use-mock-keychain`,
+ * An omp-owned profile also bypasses the OS keystore (`--use-mock-keychain`,
  * `--password-store=basic`, the same pair puppeteer's launcher sets): Chromium
  * otherwise derives its cookie-encryption key from the login keychain and
  * macOS blocks on a "wants to use your confidential information" dialog for
@@ -497,7 +497,7 @@ const PAGE_ATTACH_TIMEOUT_MS = 10_000;
 const FRAME_READY_TIMEOUT_MS = 8_000;
 const FRAME_READY_POLL_MS = 120;
 const RELAY_JSON_TIMEOUT_MS = 3_000;
-// A tab opened outside zeta reaches the relay's /json, and gets its URL, a few ms after Chrome reports it created.
+// A tab opened outside omp reaches the relay's /json, and gets its URL, a few ms after Chrome reports it created.
 const RELAY_MATCH_SETTLE_MS = 2_000;
 const RELAY_MATCH_POLL_MS = 100;
 
@@ -669,7 +669,7 @@ function selectRelayEntry(entries: RelayJsonEntry[], options: PickTargetOptions)
 		}
 		const summary = entries.map(e => `- ${e.id}  ${e.title || "(untitled)"}  ${e.url}`).join("\n");
 		throw new ToolError(
-			`No page target matched ${JSON.stringify(options.matcher)} after waiting ${RELAY_MATCH_SETTLE_MS / 1000}s for a newly opened tab. Pass a target id, URL or title substring (browser.targets() lists URLs before adopting), or omit target to open zeta's own tab, with url to load the page there. Available pages:\n${summary}`,
+			`No page target matched ${JSON.stringify(options.matcher)} after waiting ${RELAY_MATCH_SETTLE_MS / 1000}s for a newly opened tab. Pass a target id, URL or title substring (browser.targets() lists URLs before adopting), or omit target to open omp's own tab, with url to load the page there. Available pages:\n${summary}`,
 		);
 	}
 	const usable = entries.filter(isAdoptableRelayEntry);
@@ -717,7 +717,7 @@ export async function pickElectronTarget(browser: Browser, options: PickTargetOp
 						throwIfAborted(options.signal);
 						if (isPuppeteerTimeout(error)) {
 							throw new ToolError(
-								"Selected tab did not become available before zeta could attach; retry, or reopen it if it closed",
+								"Selected tab did not become available before omp could attach; retry, or reopen it if it closed",
 							);
 						}
 						throw error;

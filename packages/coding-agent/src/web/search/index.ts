@@ -5,11 +5,11 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { type } from "arktype";
-import { calculateCost } from "@linxiraos/pi-catalog/models";
-import { modelKind } from "@linxiraos/pi-catalog/types";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { type Api, type AssistantMessage, type AuthStorage, type Model, tokenUsage } from "@linxiraos/pi-ai";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
+import { modelKind } from "@linxiraos/pi-catalog/types";
 import { formatAge, formatCount, prompt, truncate } from "@linxiraos/pi-utils";
 import { cfgOffline } from "../../config/auxiliary-model-policy";
 import { ModelRegistry } from "../../config/model-registry";
@@ -21,8 +21,7 @@ import webSearchSystemPrompt from "../../prompts/system/web-search.md" with { ty
 import webSearchDescription from "../../prompts/tools/web-search.md" with { type: "text" };
 import { journalCompletion, type ModelUsageLedger } from "../../session/model-usage-journal";
 import { resolveConfiguredModelTarget } from "../../session/role-models";
-import { discoverAuthStorage } from "../../sdk";
-import type { SearchEngineId } from "./types";
+import { discoverSessionAuthStorage as discoverAuthStorage } from "../../session/auth-broker-config";
 import type { ToolSession } from "../../tools";
 import { throwIfAborted } from "../../tools/tool-errors";
 import {
@@ -64,9 +63,6 @@ export const webSearchSchema = type({
 export type SearchToolParams = typeof webSearchSchema.infer;
 
 export interface SearchQueryParams extends SearchToolParams {
-	/** Zeta: pin the search engine directly (`auto` resolves the configured chain). */
-	provider?: SearchEngineId | "auto";
-	/** Explicit model id override; resolved through the model role when absent. */
 	model?: string;
 }
 
@@ -286,24 +282,9 @@ async function executeSearch(
 					: [];
 			})()
 		: resolveRoleChain("web", activeSettings, pool);
-	const forcedProvider = params.provider !== undefined && params.provider !== "auto" ? params.provider : undefined;
-	// Zeta pins the engine with `provider`, not the upstream `model` role: a forced
-	// provider is the only candidate, and it must not silently fall through to
-	// another engine when it fails.
-	const scopedCandidates =
-		forcedProvider === undefined
-			? candidates
-			: candidates.filter(candidate => {
-					if (candidate.model.id === forcedProvider) return true;
-					const webSearch = candidate.model.webSearch as string | undefined;
-					return webSearch !== undefined && webSearch === forcedProvider;
-				});
-	const finalCandidates =
-		scopedCandidates.length > 0 ? scopedCandidates : forcedProvider === undefined ? [] : candidates.slice(0, 1);
 	const parsedQuery = parseSearchQuery(params.query);
 	let expanded = rankXAIProviders(
-		finalCandidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool)),
-
+		candidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool)),
 		candidate => candidate.model,
 		activeSettings,
 	);
@@ -426,7 +407,7 @@ async function executeSearch(
 				antigravityEndpointMode,
 			};
 			// An extension may own the request for its provider's models; availability stays the backend's.
-			const extensionSearch = (modelRegistry as any).getProviderWebSearch?.(model.provider);
+			const extensionSearch = modelRegistry.getProviderWebSearch(model.provider);
 			const response = await (extensionSearch ? extensionSearch(searchParams) : provider.search(searchParams));
 			// Before any rejection below: a response a later check discards was still billed.
 			const billed = searchUsageMessage(model, response, Date.now() - sentAt);
@@ -469,7 +450,7 @@ async function executeSearch(
 						continue;
 					}
 					const offScope =
-						response.sources.filter((source: any) => !scope.matches(source)).length +
+						response.sources.filter(source => !scope.matches(source)).length +
 						(response.citations?.length ?? 0) -
 						(citations?.length ?? 0);
 					if (response.answer?.trim() && offScope > 0) {
@@ -560,7 +541,7 @@ async function executeSearch(
  * Execute a web search query for CLI/testing workflows.
  *
  * `authStorage` may be omitted; in that case we discover one via the standard
- * factory (`discoverAuthStorage`), which honours `ZETA_AUTH_BROKER_URL` and
+ * factory (`discoverAuthStorage`), which honours `OMP_AUTH_BROKER_URL` and
  * otherwise opens the local SQLite credential store.
  */
 export async function runSearchQuery(
@@ -608,7 +589,7 @@ let registryDescription: string | undefined;
  *
  * Supports the configured web model role chain with automatic fallback.
  */
-export class WebSearchTool implements AgentTool<any, SearchResultDetails> {
+export class WebSearchTool implements AgentTool<typeof webSearchSchema, SearchResultDetails> {
 	readonly name = "web_search";
 	readonly approval = "read" as const;
 	readonly label = "Web Search";
@@ -653,7 +634,7 @@ export class WebSearchTool implements AgentTool<any, SearchResultDetails> {
 }
 
 /** Web search tool as CustomTool for consumers embedding the custom-tool API. */
-export const webSearchCustomTool: CustomTool<any, SearchResultDetails> = {
+export const webSearchCustomTool: CustomTool<typeof webSearchSchema, SearchResultDetails> = {
 	name: "web_search",
 	label: "Web Search",
 	description: plainDescription,
@@ -679,17 +660,9 @@ export const webSearchCustomTool: CustomTool<any, SearchResultDetails> = {
 	},
 };
 
-export function getSearchTools(): CustomTool<any, SearchResultDetails>[] {
+export function getSearchTools(): CustomTool<typeof webSearchSchema, SearchResultDetails>[] {
 	return [webSearchCustomTool];
 }
 
-export {
-	getGroundedSearchProvider,
-	getSearchProvider,
-	isSearchProviderExcluded,
-	resolveProviderCandidates,
-	setExcludedSearchProviders,
-	setSearchProviderOrder,
-} from "./provider";
-export { isSearchProviderId, isSearchProviderPreference } from "./types";
-export type { SearchEngineId, SearchEngineId as SearchProvider, SearchResponse } from "./types";
+export { getSearchProvider } from "./provider";
+export type { SearchProviderId as SearchProvider, SearchResponse } from "./types";

@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, ptree, withFileLock, writeRuntimeManifest } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { getAgentDir, isEnoent, ptree, withFileLock, writeRuntimeManifest } from "@oh-my-pi/pi-utils";
+import { ToolError } from "../../tools/tool-errors";
 import { trackDownload } from "../../downloads/activity";
 import { resolveExecutablePath } from "../../subprocess/worker-client";
 import { normalizePackageRequirements } from "../package-requirements";
@@ -62,7 +62,7 @@ export function resolveJsPackageEnvironment(
 	}
 	const key = Bun.hash(project).toString(16).padStart(16, "0");
 	const root = path.join(getAgentDir(), "cache", "eval-js", "environments", key);
-	return { mode, root, packageRoot: root, description: `Zeta-managed environment at ${root}` };
+	return { mode, root, packageRoot: root, description: `OMP-managed environment at ${root}` };
 }
 
 async function ensureManagedManifest(

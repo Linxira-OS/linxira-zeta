@@ -8,10 +8,11 @@ import {
 	SqliteAuthCredentialStore,
 	type UsageReport,
 	type UsageResetCredit,
-} from "@linxiraos/pi-ai";
-import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
+import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@oh-my-pi/pi-ai/auth-storage";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@oh-my-pi/pi-utils";
 import {
 	buildRedactionMap,
 	annotateUsagePolicy,
@@ -22,16 +23,16 @@ import {
 	runUsageCommand,
 	type UsagePolicyDiagnosticsOptions,
 	type UsageResetExpiryOptions,
-} from "@linxiraos/zeta/cli/usage-cli";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import { resetAccountLockKey } from "@linxiraos/zeta/session/codex-auto-reset";
-import { claimResetExpiryNotice } from "@linxiraos/zeta/session/reset-expiry";
-import { resetLockPath } from "@linxiraos/zeta/session/reset-fence";
+} from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import { resetAccountLockKey } from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
+import { claimResetExpiryNotice } from "@oh-my-pi/pi-coding-agent/session/reset-expiry";
+import { resetLockPath } from "@oh-my-pi/pi-coding-agent/session/reset-fence";
 import {
 	collectUnreportedAccounts,
 	type UsageAccountIdentity,
-} from "@linxiraos/zeta/slash-commands/helpers/usage-accounts";
+} from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/usage-accounts";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const HOUR = 3_600_000;
@@ -47,6 +48,7 @@ function makeLimit(opts: {
 	tier?: string;
 	accountId?: string;
 	provider?: string;
+	modelId?: string;
 	notes?: string[];
 	shared?: boolean;
 	sharedGroup?: string;
@@ -60,6 +62,7 @@ function makeLimit(opts: {
 			windowId: opts.windowId,
 			tier: opts.tier,
 			accountId: opts.accountId,
+			...(opts.modelId !== undefined ? { modelId: opts.modelId } : {}),
 			...(opts.shared !== undefined ? { shared: opts.shared } : {}),
 			...(opts.sharedGroup !== undefined ? { shared: true, sharedGroup: opts.sharedGroup } : {}),
 		},
@@ -596,7 +599,7 @@ describe("usage JSON policy", () => {
 
 	it("reports a provider-exhausted account as exhausted and carries reclaimAbovePct", () => {
 		const walled = makeReport("anthropic", "walled@example.test", [
-			makeLimit({ id: "5h", provider: "anthropic", usedFraction: 0.995, status: "exhausted" }),
+			makeLimit({ id: "5h", provider: "anthropic", usedFraction: 0.995, status: "exhausted", shared: true }),
 		]);
 		const options: UsagePolicyDiagnosticsOptions = {
 			globalReservePct: 10,
@@ -634,6 +637,78 @@ describe("usage JSON policy", () => {
 		expect(policy?.remainingPct).toBe(98);
 		const text = stripVTControlCharacters(formatUsageBreakdown([report], [], Date.now(), undefined, [], options));
 		expect(text).toContain("eligible · 98.0% left");
+	});
+
+	it("keeps the shared pool's state when only a model-scoped weekly row is spent", () => {
+		const report = makeReport("anthropic", "fable-spent@example.test", [
+			makeLimit({ id: "anthropic:5h", usedFraction: 0.3, windowId: "5h", shared: true }),
+			makeLimit({ id: "anthropic:7d", usedFraction: 0.98, windowId: "7d", shared: true }),
+			makeLimit({ id: "anthropic:7d:fable", label: "Claude 7 Day (Fable)", usedFraction: 1, tier: "fable" }),
+			makeLimit({ id: "anthropic:7d:opus", label: "Claude 7 Day (Opus)", usedFraction: 0.995, tier: "opus" }),
+		]);
+		const options: UsagePolicyDiagnosticsOptions = {
+			globalReservePct: 1,
+			getAccountPolicy: (_provider, identity) => ({ provider: "anthropic", account: { email: identity.email } }),
+		};
+		const [policy] = annotateUsagePolicy([report], [], [], options).reports.map(entry => entry.policy);
+		expect(policy).toEqual({
+			priority: 0,
+			reservePct: 1,
+			reserveSource: "global",
+			scopedExhausted: ["anthropic:7d:fable"],
+			state: "eligible",
+			remainingPct: 2,
+		});
+		const text = stripVTControlCharacters(formatUsageBreakdown([report], [], Date.now(), undefined, [], options));
+		expect(text).toContain("eligible · 2.0% left · Claude 7 Day (Fable) exhausted");
+	});
+
+	it("keeps every row in the pool when only subpool rows are marked shared", () => {
+		// Antigravity marks its third-party subpool `shared` with a `sharedGroup`; its Gemini counter stays unmarked.
+		const report = makeReport("google-antigravity", "subpool@example.test", [
+			makeLimit({ id: "gemini", provider: "google-antigravity", usedFraction: 0.95 }),
+			makeLimit({
+				id: "third-party",
+				provider: "google-antigravity",
+				usedFraction: 0.2,
+				sharedGroup: "third-party",
+			}),
+		]);
+		const options: UsagePolicyDiagnosticsOptions = {
+			globalReservePct: 10,
+			getAccountPolicy: (_provider, identity) => ({
+				provider: "google-antigravity",
+				account: { email: identity.email },
+			}),
+		};
+		const [policy] = annotateUsagePolicy([report], [], [], options).reports.map(entry => entry.policy);
+		expect(policy).toMatchObject({ state: "inside-reserve", remainingPct: 5 });
+	});
+
+	it("keeps a spent shared per-model meter out of the account-wide state", () => {
+		// Codex marks its Spark meter `shared` with a `modelId`; routing gates only Spark requests on it.
+		const report = makeReport("openai-codex", "spark-spent@example.test", [
+			makeLimit({ id: "openai-codex:primary", provider: "openai-codex", usedFraction: 0.4, shared: true }),
+			makeLimit({
+				id: "openai-codex:spark:primary",
+				label: "5 Hour (Spark)",
+				provider: "openai-codex",
+				usedFraction: 1,
+				tier: "spark",
+				modelId: "GPT-5.3-Codex-Spark",
+				shared: true,
+			}),
+		]);
+		const options: UsagePolicyDiagnosticsOptions = {
+			globalReservePct: 10,
+			getAccountPolicy: (_provider, identity) => ({ provider: "openai-codex", account: { email: identity.email } }),
+		};
+		const [policy] = annotateUsagePolicy([report], [], [], options).reports.map(entry => entry.policy);
+		expect(policy).toMatchObject({
+			state: "eligible",
+			remainingPct: 60,
+			scopedExhausted: ["openai-codex:spark:primary"],
+		});
 	});
 });
 
@@ -1164,6 +1239,50 @@ describe("formatUsageBreakdown", () => {
 		expect(text).toContain("⚠ dead@example.test — grant is past Anthropic's ~30d lifetime; re-login now");
 	});
 
+	it("times the warning by the server-stated grant end over the ~30d estimate", () => {
+		const now = Date.now();
+		const DAY = 24 * HOUR;
+		const text = stripVTControlCharacters(
+			formatUsageBreakdown(
+				[],
+				[
+					{
+						provider: "anthropic",
+						type: "oauth",
+						email: "stated@example.test",
+						// The ~30d estimate alone would leave 20 days and stay silent.
+						authorizedAt: now - 10 * DAY,
+						refreshExpires: now + 2 * DAY,
+					},
+				],
+				now,
+			),
+		);
+		expect(text).toContain("⚠ stated@example.test — re-login within 2d (refresh token expires)");
+	});
+
+	it("times a long-lived Anthropic login by its token expiry, not the ~30d grant", () => {
+		const now = Date.now();
+		const DAY = 24 * HOUR;
+		const longLived = (email: string, ageDays: number, expiresInDays: number): UsageAccountIdentity => ({
+			provider: "anthropic",
+			type: "oauth",
+			email,
+			authorizedAt: now - ageDays * DAY,
+			expires: now + expiresInDays * DAY,
+		});
+		const text = stripVTControlCharacters(
+			formatUsageBreakdown(
+				[],
+				[longLived("year@example.test", 40, 325), longLived("ending@example.test", 362, 3)],
+				now,
+			),
+		);
+		// Past the grant lifetime, months of token left: no warning.
+		expect(text).not.toContain("⚠ year@example.test");
+		expect(text).toContain("⚠ ending@example.test — re-login within 3d (access token expires)");
+	});
+
 	it("renders provider-level notes once per provider, not duplicated per account or limit", () => {
 		const providerNote = "Usage data can be delayed by up to five minutes.";
 		const multiAccount = [
@@ -1442,10 +1561,10 @@ describe("formatUsageBreakdown", () => {
 	it.each([
 		{
 			mode: "yes",
-			verdict: "→ an open interactive Zeta session spends it by its last 5 min if eligible then",
+			verdict: "→ an open interactive omp session spends it by its last 5 min if eligible then",
 			lost: false,
 		},
-		{ mode: "unset", verdict: "→ an open interactive Zeta session asks before spending it", lost: false },
+		{ mode: "unset", verdict: "→ an open interactive omp session asks before spending it", lost: false },
 		{ mode: "no", verdict: "→ not spent automatically", lost: true },
 	])(
 		"says what codexResets.autoRedeemWeekly=$mode does with a weekly-governed expiring reset",
@@ -1539,9 +1658,9 @@ describe("formatUsageBreakdown", () => {
 		expect(text).toContain(header);
 		expect(text).toContain(title);
 		expect(text).toContain(
-			`→ an open interactive Zeta session spends it by its last 5 min if eligible then  (claudeResets.autoRedeemWeekly: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
+			`→ an open interactive omp session spends it by its last 5 min if eligible then  (claudeResets.autoRedeemWeekly: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
 		);
-		// Only a reset the provider lets Zeta spend now gets a command that spends it.
+		// Only a reset the provider lets omp spend now gets a command that spends it.
 		expect(text.includes("/usage reset")).toBe(eligibleNow);
 	});
 
@@ -1586,7 +1705,7 @@ describe("formatUsageBreakdown", () => {
 		});
 		const text = stripVTControlCharacters(formatUsageBreakdown([report], [], now, undefined, [], undefined, options));
 		const verdict = text.match(
-			/→ an open interactive Zeta session spends it by its last 5 min if eligible then {2}\(claudeResets\.autoRedeem\w+: yes\)(.*)\n/,
+			/→ an open interactive omp session spends it by its last 5 min if eligible then {2}\(claudeResets\.autoRedeem\w+: yes\)(.*)\n/,
 		);
 		expect(verdict?.[1]).toBe(eligibleNow ? "" : " · not eligible now");
 		expect(text).not.toContain("will be lost");
@@ -1732,7 +1851,7 @@ describe("usage command configuration", () => {
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				ZETA_CODING_AGENT_DIR: tempDir.path(),
+				PI_CODING_AGENT_DIR: tempDir.path(),
 				PI_CONFIG_FILES: overlayPath,
 			},
 		});
@@ -1748,7 +1867,7 @@ describe("usage command configuration", () => {
 	});
 });
 
-describe("zetacode usage accounts", () => {
+describe("omp usage accounts", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -1811,7 +1930,7 @@ describe("zetacode usage accounts", () => {
 	});
 });
 
-describe("zetacode usage --json account policy", () => {
+describe("omp usage account policy", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
@@ -1904,9 +2023,83 @@ describe("zetacode usage --json account policy", () => {
 		expect(codex).not.toHaveProperty("policy");
 		expect(stdout.includes("main@example.test")).toBe(!redact);
 	});
+
+	it.each([
+		{ json: false, redact: false },
+		{ json: false, redact: true },
+		{ json: true, redact: false },
+		{ json: true, redact: true },
+	])("shows active org policy rejections without usage or reserve policy (%p)", async ({ json, redact }) => {
+		const authStorage = new AuthStorage(new SqliteAuthCredentialStore(new Database(":memory:")), {
+			usageFetch: Object.assign(async () => new Response("not found", { status: 404 }), {
+				preconnect: fetch.preconnect,
+			}),
+		});
+		const now = Date.now();
+		const blockedUntilMs = now + HOUR;
+		const email = "shared@example.test";
+		const orgName = "Restricted Workspace";
+		const oauth = (orgId: string): OAuthCredential => ({
+			type: "oauth",
+			access: `token-for-${orgId}`,
+			refresh: `refresh-for-${orgId}`,
+			expires: now + HOUR,
+			email,
+			orgId,
+			...(orgId === "restricted-org" ? { orgName } : {}),
+		});
+		await authStorage.credentials.set("anthropic", [
+			oauth("restricted-org"),
+			oauth("expired-org"),
+			oauth("meter-limited-org"),
+		]);
+		for (const { id, credential } of authStorage.credentials.list("anthropic")) {
+			if (credential.type !== "oauth") throw new Error("Expected OAuth credential");
+			authStorage.blocks.upsert({
+				credentialId: id,
+				providerKey: "anthropic:oauth",
+				blockScope: credential.orgId === "meter-limited-org" ? "tier:fable" : OAUTH_ORG_POLICY_BLOCK_SCOPE,
+				blockedUntilMs: credential.orgId === "expired-org" ? now - 1 : blockedUntilMs,
+			});
+		}
+		vi.spyOn(Settings, "loadReadOnly").mockResolvedValue(Settings.isolated({}));
+		vi.spyOn(sdkModule, "discoverAuthStorage").mockResolvedValue(authStorage);
+		let stdout = "";
+		vi.spyOn(process.stdout, "write").mockImplementation(chunk => {
+			stdout += String(chunk);
+			return true;
+		});
+
+		await runUsageCommand({ json, redact, noExtensions: true });
+
+		expect(stdout.match(/rejected by org policy/g)).toHaveLength(1);
+		expect(stdout.includes(email)).toBe(!redact);
+		expect(stdout.includes(orgName)).toBe(!redact);
+		expect(stdout).not.toContain("token-for-restricted-org");
+		if (json) {
+			const payload = JSON.parse(stdout);
+			expect(payload.reports).toEqual([]);
+			expect(payload.orgPolicyRejectedAccounts).toEqual([
+				{
+					provider: "anthropic",
+					type: "oauth",
+					email: redact ? "sh*" : email,
+					orgId: redact ? "re*" : "restricted-org",
+					orgName: redact ? "Re*" : orgName,
+					status: "rejected by org policy",
+					eligible: false,
+					blockedUntilMs,
+				},
+			]);
+		} else {
+			const text = stripVTControlCharacters(stdout);
+			expect(text).toContain("no usage data");
+			expect(text).toContain(`${redact ? "sh* · Re*" : `${email} · ${orgName}`} — rejected by org policy`);
+		}
+	});
 });
 
-describe("zetacode usage reset", () => {
+describe("omp usage reset", () => {
 	interface ResetRequest {
 		method: string;
 		path: string;
@@ -1937,7 +2130,7 @@ describe("zetacode usage reset", () => {
 	let listed: PromiseWithResolvers<void>;
 	let tempDir: TempDir;
 	const originalEnv = {
-		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
+		PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
 		OMP_PROFILE: process.env.OMP_PROFILE,
 		PI_PROFILE: process.env.PI_PROFILE,
 	};
@@ -2082,7 +2275,7 @@ describe("zetacode usage reset", () => {
 		expect(text).toContain(`[Codex · openai-codex/${team}]: 2 saved, 2 usable now, expires ${soon}`);
 		expect(text).toContain(`spare@example.test [Codex · openai-codex/${spare}]: 0 saved, 0 usable now`);
 		expect(text).toContain(`dev@example.test · Acme Corp [Claude · anthropic/${claude}]: 1 saved, 1 usable now`);
-		expect(text).toContain("zetacode usage reset <provider>/<credential id>");
+		expect(text).toContain("omp usage reset <provider>/<credential id>");
 		expect(consumes()).toEqual([]);
 		expect(process.exitCode).toBe(0);
 	});
@@ -2286,7 +2479,7 @@ describe("zetacode usage reset", () => {
 		await run;
 
 		expect(consumes()).toEqual([]);
-		expect(stripVTControlCharacters(stderr)).toContain("another Zeta process spent a saved reset on this account");
+		expect(stripVTControlCharacters(stderr)).toContain("another omp process spent a saved reset on this account");
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -2316,7 +2509,7 @@ describe("zetacode usage reset", () => {
 		["codex/active", "no account is active"],
 		["gemini/1", 'Unknown reset provider "gemini"'],
 		["codex/999", 'No stored account matches "codex/999"'],
-		["codex", "Choose an account with `zetacode usage reset <provider>/<credential id>`"],
+		["codex", "Choose an account with `omp usage reset <provider>/<credential id>`"],
 	])("refuses %s without spending", async (target, message) => {
 		await runUsageCommand({ action: "reset", target, noExtensions: true });
 
@@ -2431,7 +2624,7 @@ describe("zetacode usage reset", () => {
 	});
 });
 
-describe("zetacode usage saved-reset expiry banner", () => {
+describe("omp usage saved-reset expiry banner", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});

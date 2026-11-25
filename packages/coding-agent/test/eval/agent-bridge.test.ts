@@ -1,18 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AsyncJobManager } from "@linxiraos/zeta/async";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "@linxiraos/zeta/eval/agent-bridge";
-import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
-import * as taskExecutor from "@linxiraos/zeta/task/executor";
-import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
-import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import {
+	runEvalAgent,
+	type EvalAgentBridgeOptions,
+	type EvalAgentResult,
+} from "@oh-my-pi/pi-coding-agent/eval/agent-bridge";
+import { runEvalWait } from "@oh-my-pi/pi-coding-agent/eval/handle-bridge";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import * as taskDiscovery from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as taskExecutor from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+import { runStructuredSubagent } from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 
-import { cfgTaskIsolationEnabled } from "@linxiraos/zeta/task/settings";
+import { cfgTaskIsolationEnabled } from "@oh-my-pi/pi-coding-agent/task/settings";
 
 const jobManagers = new Set<AsyncJobManager>();
 

@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { postmortem } from "@linxiraos/pi-utils";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import { nativeWorkspace, runIsolatedSubprocess } from "@linxiraos/zeta/task/isolation-runner";
-import * as worktreeModule from "@linxiraos/zeta/task/worktree";
-import * as natives from "@linxiraos/pi-natives";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import { postmortem } from "@oh-my-pi/pi-utils";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import { nativeWorkspace, runIsolatedSubprocess } from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+import * as worktreeModule from "@oh-my-pi/pi-coding-agent/task/worktree";
+import * as natives from "@oh-my-pi/pi-natives";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
 
 const tempRoots: string[] = [];
 /** Order of worktree captures and the run's IRC wake release. */
@@ -68,7 +68,7 @@ async function commitsAcrossRelease(
 	vi.spyOn(worktreeModule, "captureDeltaPatch").mockResolvedValue({ rootPatch: releasePatch, nestedPatches: [] });
 	const commitSpy = vi.spyOn(worktreeModule, "commitToBranch").mockImplementation(async () => {
 		events.push("commit");
-		return { branchName: `zetacode/task/${id}`, baseSha: "base", rootPatch: runEndPatch, nestedPatches: [] };
+		return { branchName: `omp/task/${id}`, baseSha: "base", rootPatch: runEndPatch, nestedPatches: [] };
 	});
 	const session = {
 		prepareForHeadlessAdvisorDrain: () => {},

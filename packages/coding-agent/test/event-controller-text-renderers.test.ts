@@ -1,12 +1,13 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import type { AssistantTextRenderer } from "@linxiraos/pi-tui/chat/extension-types";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AssistantTextRenderer } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/render-types";
 import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
+import { blockText } from "./helpers/transcript-text";
+import { initTheme } from "../src/ui/theme/service";
 
 function assistant(text: string): AssistantMessage {
 	return {
@@ -30,7 +31,7 @@ function assistant(text: string): AssistantMessage {
 
 describe("EventController with assistant text renderers", () => {
 	beforeAll(async () => {
-		await initTheme(false);
+		initTheme();
 	});
 
 	beforeEach(async () => {
@@ -74,9 +75,13 @@ describe("EventController with assistant text renderers", () => {
 				AgentSessionEvent,
 				{ type: "message_update" }
 			>);
+			// Draw the update (renderers run when the reply is drawn).
+			blockText(ctx.streaming!.block);
 		}
 
-		expect(seen).toEqual(deltas.map(text => [text, true]));
+		// Each drawn frame handed the renderer the whole text so far, never a revealed prefix.
+		const drawn = seen.filter(([text], index) => index === 0 || text !== seen[index - 1]![0]);
+		expect(drawn).toEqual(deltas.map(text => [text, true]));
 	});
 
 	it("hands renderers the full text at once when they are enabled during a smooth reveal", async () => {
@@ -106,6 +111,7 @@ describe("EventController with assistant text renderers", () => {
 		renderers = [renderer];
 		controller.applyAssistantTextRenderers();
 		vi.advanceTimersByTime(200);
+		blockText(ctx.streaming!.block);
 
 		expect(seen.length).toBeGreaterThan(0);
 		expect(seen.every(text => text === full)).toBe(true);

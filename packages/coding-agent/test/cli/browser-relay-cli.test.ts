@@ -83,18 +83,21 @@ describe("zetacode browser-relay install", () => {
 	it("reports the Zeta that installed the running script when Chrome restarts onto a newer manifest", async () => {
 		// After reinstalling, a Chrome restart re-reads manifest.json but keeps running the old service worker.
 		const port = await findFreeCdpPort();
-		const hello = Promise.withResolvers<void>();
+		const settled = Promise.withResolvers<void>();
 		relay = startRelayServer({
 			port,
 			group: false,
+			installRegistryFile: dir.join("installs.json"),
 			log: message => {
-				if (message === "extension connected") hello.resolve();
+				// The relay hides an outdated extension's version while it checks whether it may rewrite its files;
+				// this worker is no registered install, so the check ends with the update stopped.
+				if (message === "extension update stopped") settled.resolve();
 			},
 		});
 		const runningScript = relayExtensionFiles("1.3.0")["background.js"]!;
 		const manifestOnDisk = JSON.parse(relayExtensionFiles(VERSION)["manifest.json"]!);
 		stopWorker = runExtensionWorker(runningScript, port, manifestOnDisk);
-		await hello.promise;
+		await settled.promise;
 		expect(await relayExtensionNotice(`http://127.0.0.1:${port}`)).toContain(
 			`installed by Zeta 1.3.0; this is Zeta ${VERSION}`,
 		);

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "bun:test";
-import { adaptSchemaForStrict, isJsonSchemaValueValid, toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import { procmgr } from "@linxiraos/pi-utils";
-import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { adaptSchemaForStrict, isJsonSchemaValueValid, toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { procmgr } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
 import { Settings } from "../../src/config/settings";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { ProcProtocolHandler } from "../../src/internal-urls/proc-protocol";
@@ -15,7 +15,7 @@ import { BashTool } from "../../src/tools/bash";
 import { WriteTool } from "../../src/tools/write";
 import { sharedBrowserDaemonName } from "../../src/tools/browser/shared-daemon";
 import type { ToolSession } from "../../src/tools";
-import type { UnitSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import type { UnitSnapshot } from "@oh-my-pi/pi-coding-agent/daemon/daemon-types";
 
 /** A `proc` unit in the current project with the given board fields. */
 function serviceUnit(key: string, fields: Partial<UnitSnapshot> = {}): UnitSnapshot {
@@ -308,7 +308,6 @@ describe("proc:// background jobs", () => {
 		const help = router
 			.describe({
 				skillUriAccess: false,
-				canvasEnabled: false,
 				ruleCount: 0,
 				securityEnabled: false,
 				settingsApproval: false,
@@ -637,7 +636,7 @@ describe("proc:// background jobs", () => {
 			expect(list.content).toContain("build-job [bash] running");
 			expect(list.content).toContain("Visuals [task] running up");
 			expect(list.content).toContain("no turn in flight");
-			expect(list.content).toContain("Services unavailable (daemon broker): Daemon list request timed out");
+			expect(list.content).toContain("Services unavailable (daemon): Daemon list request timed out");
 			const single = await proc.resolve(parseInternalUrl("proc://Visuals"), { session });
 			expect(single.content).toContain("no turn in flight");
 			await expect(proc.resolve(parseInternalUrl("proc://web"), { session })).rejects.toThrow(

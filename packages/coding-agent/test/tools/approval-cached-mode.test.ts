@@ -5,26 +5,29 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentTool, AgentToolContext, ToolTier } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import type { ExtensionApprovalPrompt, ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions/types";
-import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { requestApproval, resolveApproval } from "@linxiraos/zeta/tools/approval";
+import type { AgentTool, AgentToolContext, ToolTier } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import type {
+	ExtensionApprovalPrompt,
+	ExtensionUIContext,
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { requestApproval, resolveApproval } from "@oh-my-pi/pi-coding-agent/tools/approval";
 import {
 	APPROVAL_CACHE_FILENAME,
 	approvalDirectoryKey,
 	approvalGrantKey,
 	clearApprovalGrants,
 	getApprovalGrants,
-} from "@linxiraos/zeta/tools/approval-cache";
-import { approvalTargetKey, approvalTreeSearchKey } from "@linxiraos/zeta/tools/approval-targets";
-import { getAgentDir, isRecord, setAgentDir, TempDir } from "@linxiraos/pi-utils";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+} from "@oh-my-pi/pi-coding-agent/tools/approval-cache";
+import { approvalTargetKey, approvalTreeSearchKey } from "@oh-my-pi/pi-coding-agent/tools/approval-targets";
+import { getAgentDir, isRecord, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import { shortenPath } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
 
 /** Tool that keys `args.path` like read/write/edit do. */
 function pathTool(name: string, tier: ToolTier, cwd: string): AgentTool {
@@ -231,18 +234,30 @@ describe("grant choices in the prompt", () => {
 		const agentDir = freshAgentDir();
 		const huge = path.join(agentDir, "Huge");
 		fs.mkdirSync(huge);
+		const names: string[] = [];
 		for (let index = 0; index < 205; index += 1) {
-			fs.writeFileSync(path.join(huge, `entry-${String(index).padStart(3, "0")}.txt`), "x");
+			const name = `entry-${String(index).padStart(3, "0")}.txt`;
+			fs.writeFileSync(path.join(huge, name), "x");
+			names.push(name);
 		}
 		const { ui, prompts } = recordingUi();
 		await requestApproval(ui, pathTool("write", "write", huge), { path: "entry-000.txt" }, { grants: true });
 		const compact = prompts[0]!.compact.split("\n");
 		expect(compact[1]).toContain("200+ entries");
-		const sample = compact.slice(2, -1);
-		expect(sample).toHaveLength(4);
-		expect(sample).toEqual([...new Set(sample)].sort());
-		for (const item of sample) expect(item).toMatch(/^  - entry-(?:[01]\d{2}|20[0-4])\.txt$/);
 		expect(compact.at(-1)).toBe("  … 196 more");
+		// The scan stops after 200 of the 205 entries, in the order the directory returns them:
+		// creation order on some filesystems, name-hash order on others (ext4), so which five go
+		// unread depends on the machine. The prompt names the first four in sort order of those it
+		// read; with five unread at most, the i-th of them lies between the i-th and the (i+5)-th name.
+		const listed = compact.slice(2, -1);
+		expect(listed).toHaveLength(4);
+		const listedNames = listed.map(line => line.replace(/^ {2}- /, ""));
+		expect(listed).toEqual(listedNames.map(name => `  - ${name}`));
+		expect(listedNames).toEqual([...new Set(listedNames)].sort());
+		for (const [i, name] of listedNames.entries()) {
+			expect(names.indexOf(name)).toBeGreaterThanOrEqual(i);
+			expect(names.indexOf(name)).toBeLessThanOrEqual(i + 5);
+		}
 	});
 
 	it("offers only the directory answer for a call that names just that directory", async () => {
@@ -364,8 +379,6 @@ describe("always-ask-cached wrapper cycle", () => {
 				getEditorText: () => "",
 				editor: async () => undefined,
 				addAutocompleteProvider: () => {},
-				setEditorComponent: () => {},
-				getEditorComponent: () => undefined,
 				get theme() {
 					return {} as never;
 				},

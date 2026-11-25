@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { shortenEmbeddedPaths } from "@linxiraos/pi-tui/render/render-utils";
+import { shortenEmbeddedPaths } from "../utils/render-utils";
 import { sanitizeText } from "@linxiraos/pi-utils";
 
 /** How many trailing messages {@link resolveToolCallIntent} looks through. */

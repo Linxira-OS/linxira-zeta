@@ -8,16 +8,16 @@
  * opt-in continuation driver keyed to agent lifecycle events instead of an
  * editor idle window.
  */
-import type { Goal } from "@linxiraos/pi-tui/tools/goal";
-import { logger } from "@linxiraos/pi-utils";
-import { cfgGoalContinuationModes, cfgGoalEnabled } from "./settings";
-import { type GoalModeState, goalContinuationActivity, goalFromModeData } from "./state";
-import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
+import type { Goal } from "../../tools/details/goal";
+import { logger } from "@oh-my-pi/pi-utils";
+import { cfgGoalContinuationModes, cfgGoalEnabled } from "../../goals/settings";
+import { type GoalModeState, goalContinuationActivity, goalFromModeData } from "../../goals/state";
+import type { AgentSession, AgentSessionEvent } from "../../session/agent-session";
 
 /** `goal.continuationModes` value that enables automatic continuation for RPC hosts. */
 export const RPC_GOAL_CONTINUATION_MODE = "rpc";
 
-export type RpcGoalOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
+export type RpcGoalOp = "get" | "create" | "resume" | "pause" | "drop";
 
 export interface RpcGoalCommand {
 	op: RpcGoalOp;
@@ -38,6 +38,7 @@ export type RpcGoalSession = Pick<
 	| "getGoalModeState"
 	| "setGoalModeState"
 	| "getPlanModeState"
+	| "restrictToolNames"
 	| "getEnabledToolNames"
 	| "setActiveToolsByName"
 	| "sendGoalModeContext"
@@ -78,10 +79,6 @@ export class RpcGoalController {
 	#sessionBeforeChange: string | undefined;
 	/** A goal turn was waiting or became due during the change; report busy until it ends. */
 	#heldDuringChange = false;
-	/** `goal.continuationModes` value this host answers to (`rpc` or `web`). */
-	readonly #continuationMode: string;
-	/** A sibling host owns the session (e.g. `/loop`); its continuation decides. */
-	readonly #continuationSuppressed: (() => boolean) | undefined;
 	/** Reconciles run one at a time, each against the transcript current when it starts. */
 	#reconcileTask: Promise<void> = Promise.resolve();
 	/** Reconciles queued or running. */
@@ -98,18 +95,9 @@ export class RpcGoalController {
 	 * @param onContinuationDropped called when a pending continuation is abandoned
 	 *   (a gate closed while it waited), so settle reporting can re-check.
 	 */
-	constructor(
-		session: RpcGoalSession,
-		optionsOrCallback?:
-			| (() => void)
-			| { continuationMode?: string; continuationSuppressed?: () => boolean; onContinuationDropped?: () => void },
-	) {
+	constructor(session: RpcGoalSession, onContinuationDropped?: () => void) {
 		this.#session = session;
-		const options = typeof optionsOrCallback === "function" ? undefined : optionsOrCallback;
-		this.#continuationMode = options?.continuationMode ?? RPC_GOAL_CONTINUATION_MODE;
-		this.#continuationSuppressed = options?.continuationSuppressed;
-		this.#onContinuationDropped =
-			typeof optionsOrCallback === "function" ? optionsOrCallback : options?.onContinuationDropped;
+		this.#onContinuationDropped = onContinuationDropped;
 	}
 
 	/**
@@ -234,8 +222,6 @@ export class RpcGoalController {
 				await this.#session.goalRuntime.dropGoal();
 				await this.#exitTask;
 				return this.#state;
-			case "budget":
-				return this.#state;
 			default: {
 				const op: never = command.op;
 				throw new Error(`Unknown goal op: ${String(op)}`);
@@ -249,6 +235,9 @@ export class RpcGoalController {
 		}
 		if (this.#session.getPlanModeState()?.enabled) {
 			throw new Error("Exit plan mode before starting a goal.");
+		}
+		if (this.#session.restrictToolNames) {
+			throw new Error("Goal mode is unavailable in a --no-tools session.");
 		}
 	}
 
@@ -365,6 +354,11 @@ export class RpcGoalController {
 			this.#session.sessionManager.appendModeChange("none");
 			return;
 		}
+		// A --no-tools session cannot run the goal; leave it journaled for a session that can.
+		if (this.#session.restrictToolNames) {
+			runtime.clearAccounting();
+			return;
+		}
 		this.#session.setGoalModeState({ enabled: context.mode === "goal", mode: "active", goal });
 		const restored = await runtime.onThreadResumed({ preserveActiveGoal: options?.preserveActiveGoal });
 		if (!restored?.goal) return;
@@ -418,8 +412,7 @@ export class RpcGoalController {
 	 */
 	#continuationWanted(): boolean {
 		const session = this.#session;
-		if (!cfgGoalContinuationModes.get(session.settings).includes(this.#continuationMode)) return false;
-		if (this.#continuationSuppressed?.()) return false;
+		if (!cfgGoalContinuationModes.get(session.settings).includes(RPC_GOAL_CONTINUATION_MODE)) return false;
 		if (this.#hostStopped || this.#suppressContinuation || session.isDisposed) return false;
 		if (session.getPlanModeState()?.enabled) return false;
 		const state = session.getGoalModeState();
@@ -476,7 +469,7 @@ export class RpcGoalController {
 				dispatched => {
 					if (!dispatched) unclaim();
 				},
-				(error: unknown) => {
+				error => {
 					unclaim();
 					reportControllerError(error);
 				},
@@ -492,6 +485,3 @@ export class RpcGoalController {
 function reportControllerError(error: unknown): void {
 	logger.warn("RPC goal controller failed", { error: error instanceof Error ? error.message : String(error) });
 }
-
-/** Legacy web-gateway aliases retained for the merged call sites. */
-export const GOAL_CONTINUATION_MODE_RPC = RPC_GOAL_CONTINUATION_MODE;

@@ -1,18 +1,24 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as theme from "@linxiraos/pi-tui/theme";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import * as themeService from "@oh-my-pi/pi-coding-agent/ui/theme/service";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createModeTerminal, type ModeTerminal } from "../helpers/mode-terminal";
 
-import { cfgStatusLineContextLine, cfgStatusLineLeftSegments, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
-import { cfgHideThinkingBlock } from "@linxiraos/zeta/session/settings";
+import {
+	cfgStatusLineContextLine,
+	cfgStatusLineLeftSegments,
+	cfgSymbolPreset,
+} from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgHideThinkingBlock } from "@oh-my-pi/pi-coding-agent/session/settings";
 
 describe("InteractiveMode live settings", () => {
 	let tempDir: TempDir;
@@ -20,9 +26,10 @@ describe("InteractiveMode live settings", () => {
 	let session: AgentSession;
 	let mode: InteractiveMode;
 	let reportGlyphProtocol: (supported: boolean) => void;
+	let term: ModeTerminal;
 
 	beforeAll(async () => {
-		await theme.initTheme();
+		themeService.initTheme();
 	});
 
 	beforeEach(async () => {
@@ -43,20 +50,36 @@ describe("InteractiveMode live settings", () => {
 			settings,
 			modelRegistry,
 		});
-		mode = new InteractiveMode(session, "test");
-		vi.spyOn(mode.ui.terminal, "onGlyphProtocolReport").mockImplementation(callback => {
-			reportGlyphProtocol = callback;
+		// The terminal's Glyph Protocol reply arrives as a driver capability change.
+		term = createModeTerminal();
+		await term.start();
+		const driver = term.frame.shell.host!.driver;
+		const identity = driver.identity;
+		let glyphs = false;
+		Object.defineProperty(driver, "identity", { configurable: true, get: () => ({ ...identity, glyphs }) });
+		const listeners: (() => void)[] = [];
+		vi.spyOn(driver, "onCapabilities").mockImplementation(listener => {
+			const notify = () => listener(driver.capabilities);
+			listeners.push(notify);
+			return () => listeners.splice(listeners.indexOf(notify), 1);
 		});
+		reportGlyphProtocol = supported => {
+			glyphs = supported;
+			for (const notify of listeners) notify();
+		};
+		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, undefined, term.frame);
 		await mode.init({ suppressWelcomeIntro: true });
 	});
 
 	afterEach(async () => {
 		mode?.stop();
+		await mode?.shell.stop();
+		term?.dispose();
 		await session?.dispose();
 		authStorage?.close();
 		tempDir?.removeSync();
 		resetSettingsForTest();
-		await theme.setSymbolPreset("unicode");
+		await themeService.setSymbolPreset("unicode");
 		vi.restoreAllMocks();
 	});
 
@@ -66,7 +89,7 @@ describe("InteractiveMode live settings", () => {
 		cfgHideThinkingBlock.set(session.settings, true);
 		await Promise.resolve();
 
-		const effective = mode.statusLine.getEffectiveSettingsForTest();
+		const effective = mode.statusLine.settings();
 		expect(effective.leftSegments).toEqual(["time", "model"]);
 		expect(effective.contextLine).toBe("off");
 		expect(mode.hideThinkingBlock).toBe(true);
@@ -98,15 +121,15 @@ describe("InteractiveMode live settings", () => {
 
 	it("keeps an explicitly configured unicode status bar after Glyph Protocol confirmation", async () => {
 		cfgSymbolPreset.set(session.settings, "unicode");
-		await theme.setSymbolPreset("unicode");
+		await themeService.setSymbolPreset("unicode");
 		reportGlyphProtocol(true);
-		expect(theme.getSymbolPresetOverride()).toBe("unicode");
-		expect(theme.theme.getSymbolPreset()).toBe("unicode");
+		expect(themeService.getThemePreferences().symbolPreset).toBe("unicode");
+		expect(currentTheme().symbols.preset).toBe("unicode");
 	});
 
 	it("upgrades an unconfigured unicode status bar after Glyph Protocol confirmation", async () => {
-		await theme.setSymbolPreset("unicode");
+		await themeService.setSymbolPreset("unicode");
 		reportGlyphProtocol(true);
-		expect(theme.getSymbolPresetOverride()).toBe("nerd");
+		expect(themeService.getThemePreferences().symbolPreset).toBe("nerd");
 	});
 });

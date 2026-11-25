@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { AgentBusyError, type AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { APP_NAME, getAgentDir, getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@linxiraos/pi-utils";
+import { getAgentDir, getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@linxiraos/pi-utils";
 import {
 	type Agent,
 	type AgentSideConnection,
@@ -57,20 +57,15 @@ import { runExtensionCompact } from "../../extensibility/extensions/compact-hand
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { parseSkillInvocation } from "../../extensibility/skills";
 import { PYTHON_KERNEL_CANCEL_BUDGET_MS } from "../../eval/py/kernel";
-import { createAnalysisMcpApprovalAdapter } from "../../mcp/analysis-precedence-approval";
-import { buildAnalysisMcpRefreshInputFromRuntime } from "../../mcp/analysis-precedence-hook";
 import { MCPManager } from "../../mcp/manager";
 import { reconnectMcpManagerServer } from "../../mcp/oauth-reauth";
 import type { MCPServerConfig } from "../../mcp/types";
 import { loadAllExtensions } from "../../modes/components/extensions/state-manager";
 import { AgentRegistry } from "../../registry/agent-registry";
 import { registerPersistedSubagents } from "../../registry/persisted-agents";
-import type { AgentCostSnapshot } from "@linxiraos/pi-tui/overlays/agent-hub-projection";
-import { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import { theme } from "@linxiraos/pi-tui/theme";
+import type { AgentCostSnapshot } from "../view-model/overlays/agent-hub-projection";
 import { normalizePlanTitle, type PlanApprovalDetails, resolveApprovedPlan } from "../../plan-mode/approved-plan";
 import { autosaveApprovedPlan } from "../../plan-mode/plan-autosave";
-import { mirrorPlanToTracking } from "../../tools/tracking";
 import type { AgentSession, AgentSessionEvent } from "../../session/agent-session";
 import { BlobStore, resolveImageDataSync } from "../../session/blob-store";
 import { isSilentAbort, SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
@@ -82,7 +77,7 @@ import { buildAvailableSlashCommands, toAcpAvailableCommands } from "../../slash
 import { DEFAULT_STT_MODEL_KEY, STT_MODELS } from "../../stt/models";
 import { refreshAgentDiscovery } from "../../task";
 import { sumSubagentTreeCost } from "../agent-hub-runtime";
-import { AUTO_THINKING, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { AUTO_THINKING, parseConfiguredThinkingLevel } from "../../thinking/levels";
 import {
 	choiceValue,
 	defaultFormData,
@@ -93,10 +88,10 @@ import {
 	isArrayChoice,
 	OTHER_LABEL,
 	textValue,
-} from "@linxiraos/pi-tui/html-form/data";
-import { type ChoiceField, type HtmlForm, parseHtmlForm, spansText } from "@linxiraos/pi-tui/html-form/parse";
+} from "../../tools/html-form/data";
+import { type ChoiceField, type HtmlForm, parseHtmlForm, spansText } from "../../tools/html-form/parse";
 import { resolvePlanFilePath } from "../../plan-mode/plan-files";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../../tools/tool-errors";
 import {
 	DEFAULT_TTS_SPEED,
 	DEFAULT_TTS_VOICE,
@@ -106,7 +101,7 @@ import {
 	TTS_SPEED_MIN,
 	TTS_SPEED_OPTIONS,
 } from "../../tts/models";
-import { canonicalizeMessage } from "@linxiraos/pi-tui/chat/thinking-display";
+import { canonicalizeMessage } from "../../session/transcript/thinking-display";
 import { createAcpClientBridge } from "./acp-client-bridge";
 import {
 	extractAssistantMessageText,
@@ -114,14 +109,15 @@ import {
 	normalizeReplayToolArguments,
 } from "./acp-event-mapper";
 import { ACP_TERMINAL_AUTH_FLAG } from "./terminal-auth";
-
 import { cfgDisabledExtensions, cfgExtensions } from "../../extensibility/settings";
 import { cfgMcpStartupTimeoutMs } from "../../mcp/settings";
 import { cfgPlanEnabled } from "../../plan-mode/settings";
+import { currentTheme } from "@linxiraos/pi-tui/theme/runtime";
+import { SessionObserverRegistry } from "../../task/session-observer-registry";
+import { extensionTheme } from "../../ui/extensions/render-output";
 
 const ACP_DEFAULT_MODE_ID = "default";
 const ACP_PLAN_MODE_ID = "plan";
-const ACP_PLAN_ULTRA_MODE_ID = "plan-ultra";
 const DEFAULT_PLAN_FILE_URL = "local://PLAN.md";
 const APPROVE_OPTION = "Approve and execute";
 const REFINE_OPTION = "Refine plan";
@@ -998,10 +994,8 @@ export function createAcpExtensionUiContext(
 			return typeof value === "string" ? value : undefined;
 		},
 		addAutocompleteProvider: () => {},
-		setEditorComponent: () => {},
-		getEditorComponent: () => undefined,
 		get theme() {
-			return theme;
+			return extensionTheme(currentTheme());
 		},
 		getAllThemes: async () => [],
 		getTheme: async () => undefined,
@@ -1045,26 +1039,23 @@ export class AcpAgent implements Agent {
 			{
 				id: "agent",
 				name: "Use existing local credentials",
-				description: "Authenticate via the provider keys/OAuth state already configured under ~/.zeta.",
+				description: "Authenticate via the provider keys/OAuth state already configured under ~/.omp.",
 			},
 		];
 		if (params.clientCapabilities?.auth?.terminal === true) {
 			authMethods.push({
 				type: "terminal",
 				id: "terminal",
-				name: "Set up zeta in terminal",
-				description: "Launch the zeta TUI to add provider keys and select models.",
+				name: "Set up omp in terminal",
+				description: "Launch the omp TUI to add provider keys and select models.",
 				args: [ACP_TERMINAL_AUTH_FLAG],
 			});
 		}
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				// `name` is the protocol identity clients match on (product slug);
-				// `title` is the display name the client surfaces. Neither may carry
-				// the upstream OMP spelling: ACP clients classify the agent from them.
-				name: APP_NAME,
-				title: "Zeta",
+				name: "omp",
+				title: "omp",
 				version: VERSION,
 			},
 			authMethods,
@@ -1415,7 +1406,7 @@ export class AcpAgent implements Agent {
 
 	async #runPromptOrCommand(record: ManagedSessionRecord, text: string, images: AgentImageContent[]): Promise<void> {
 		const promptTurn = record.promptTurn;
-		const skillResult = await this.#tryRunSkillCommand(record, text);
+		const skillResult = await this.#tryRunSkillCommand(record, text, images);
 		if (skillResult || promptTurn?.cancelRequested) {
 			return;
 		}
@@ -1520,7 +1511,11 @@ export class AcpAgent implements Agent {
 		}
 	}
 
-	async #tryRunSkillCommand(record: ManagedSessionRecord, text: string): Promise<boolean> {
+	async #tryRunSkillCommand(
+		record: ManagedSessionRecord,
+		text: string,
+		images: AgentImageContent[],
+	): Promise<boolean> {
 		if (!record.session.skillsSettings?.enableSkillCommands) {
 			return false;
 		}
@@ -1536,7 +1531,7 @@ export class AcpAgent implements Agent {
 		await record.session.promptCustomMessage(
 			{
 				customType: SKILL_PROMPT_MESSAGE_TYPE,
-				content: built.message,
+				content: images.length > 0 ? [{ type: "text", text: built.message }, ...images] : built.message,
 				display: true,
 				details: built.details,
 				attribution: "user",
@@ -2540,47 +2535,37 @@ export class AcpAgent implements Agent {
 
 	#getAvailableModes(session: AgentSession): Array<{ id: string; name: string; description: string }> {
 		const modes = [{ id: ACP_DEFAULT_MODE_ID, name: "Default", description: "Standard ACP headless mode" }];
-		if (cfgPlanEnabled.get(session.settings)) {
+		// Plan mode ends by `propose`, which a --no-tools session does not register.
+		if (cfgPlanEnabled.get(session.settings) && !session.restrictToolNames) {
 			modes.push({
 				id: ACP_PLAN_MODE_ID,
 				name: "Plan",
 				description: "Read-only planning mode that drafts a plan to a markdown file before any code changes",
 			});
 		}
-		void session;
 		return modes;
 	}
 
 	#getCurrentModeId(session: AgentSession): string {
-		const state = session.getPlanModeState();
-		if (!state?.enabled) return ACP_DEFAULT_MODE_ID;
-		return state.workflow === "ultra" ? ACP_PLAN_ULTRA_MODE_ID : ACP_PLAN_MODE_ID;
+		return session.getPlanModeState()?.enabled ? ACP_PLAN_MODE_ID : ACP_DEFAULT_MODE_ID;
 	}
 
 	#applyModeChange(record: ManagedSessionRecord, modeId: string): void {
 		const session = record.session;
-		// `plan-ultra` is a known-but-unadvertised id: it is never listed in
-		// `#getAvailableModes` (clients must keep seeing exactly
-		// `["default", "plan"]`), so it is exempt from that membership check.
-		if (modeId !== ACP_PLAN_ULTRA_MODE_ID) {
-			const availableModes = this.#getAvailableModes(session);
-			if (!availableModes.some(mode => mode.id === modeId)) {
-				throw new Error(`Unsupported ACP mode: ${modeId}`);
-			}
+		const availableModes = this.#getAvailableModes(session);
+		if (!availableModes.some(mode => mode.id === modeId)) {
+			throw new Error(`Unsupported ACP mode: ${modeId}`);
 		}
-		if (modeId === ACP_PLAN_MODE_ID || modeId === ACP_PLAN_ULTRA_MODE_ID) {
+		if (modeId === ACP_PLAN_MODE_ID) {
 			const previous = session.getPlanModeState();
 			session.setPlanModeState({
 				enabled: true,
 				planFilePath: previous?.planFilePath ?? DEFAULT_PLAN_FILE_URL,
-				// Ultra is explicit; plain `plan` keeps whatever workflow the
-				// session already had armed (an ultra session must not be
-				// silently downgraded to parallel).
-				workflow: modeId === ACP_PLAN_ULTRA_MODE_ID ? "ultra" : (previous?.workflow ?? "parallel"),
+				workflow: previous?.workflow ?? "parallel",
 				reentry: previous !== undefined,
 			});
 			// Mirror `InteractiveMode.#enterPlanMode`: register the plan-proposal
-			// handler that consumes `xd://propose` writes from plan mode. Without
+			// handler that consumes `propose` submissions from plan mode. Without
 			// this, proposal dispatch falls through and plan mode has no approval
 			// path (issue #1869).
 			session.setPlanProposalHandler?.(title => this.#handleAcpPlanProposal(record, title));
@@ -2592,11 +2577,11 @@ export class AcpAgent implements Agent {
 
 	/**
 	 * Plan-proposal handler installed while ACP plan mode is active. The agent
-	 * submits the finalized plan by writing its `<slug>`/title to
-	 * `xd://propose`; this handler validates the plan file, normalizes the
-	 * title, asks the ACP client to confirm (via `unstable_createElicitation`
-	 * when supported), and on approval keeps the chosen plan path, exits plan
-	 * mode, and notifies the client so the agent regains full tools.
+	 * submits the finalized plan by passing its `<slug>`/title to `propose`;
+	 * this handler validates the plan file, normalizes the title, asks the ACP
+	 * client to confirm (via `unstable_createElicitation` when supported), and
+	 * on approval keeps the chosen plan path, exits plan mode, and notifies the
+	 * client so the agent regains full tools.
 	 *
 	 * Mirrors `InteractiveMode.#handlePlanProposal` for the parts the agent sees
 	 * (same `PlanApprovalDetails` shape). Clients without form-mode elicitation
@@ -2637,7 +2622,7 @@ export class AcpAgent implements Agent {
 				content: [
 					{
 						type: "text" as const,
-						text: `Plan refinement requested. Update the plan file, then write ${normalizedTitle} to xd://propose again when ready.`,
+						text: `Plan refinement requested. Update the plan file, then submit ${normalizedTitle} with \`propose\` again when ready.`,
 					},
 				],
 				details,
@@ -2664,15 +2649,6 @@ export class AcpAgent implements Agent {
 			});
 			autosaveFailed = true;
 		}
-		// Mirror the approved plan into project tracking. Independent of the
-		// optional autosave above and gated on `tracking.enabled` inside the
-		// helper, which never throws — an approval must not fail over tracking.
-		await mirrorPlanToTracking({
-			settings: session.settings,
-			cwd: session.sessionManager.getCwd(),
-			slug: resolvedTitle,
-			planContent,
-		});
 		try {
 			await this.#connection.sessionUpdate({
 				sessionId: record.protocolSessionId,
@@ -3435,14 +3411,7 @@ export class AcpAgent implements Agent {
 		record.mcpRefreshChain = undefined;
 		if (servers.length === 0) {
 			record.mcpManager = undefined;
-			await record.session.runToolRegistryMutation(async () => {
-				const analysis = await buildAnalysisMcpRefreshInputFromRuntime({
-					settings: record.session.settings,
-					cwd: record.session.sessionManager.getCwd(),
-					activeNativeTools: record.session.getEnabledToolNames(),
-				});
-				await record.session.refreshMCPTools([], analysis);
-			});
+			await record.session.refreshMCPTools([]);
 			return;
 		}
 
@@ -3451,11 +3420,6 @@ export class AcpAgent implements Agent {
 		// auth storage the manager cannot resolve them on reconnect and a
 		// successful reauthorization would leave the live server disconnected.
 		manager.setAuthStorage(record.session.modelRegistry.authStorage);
-		const approve = createAnalysisMcpApprovalAdapter(
-			this.#clientCapabilities?.elicitation?.form != null
-				? createAcpExtensionUiContext(this.#connection, () => record.protocolSessionId, this.#clientCapabilities)
-				: undefined,
-		);
 		// MCP servers connect and reconnect independently, so `onToolsChanged` can fire
 		// several times back to back. Each firing is chained onto `record.mcpRefreshChain`
 		// so refreshes apply in order, and each one re-reads `manager.getTools()` at the
@@ -3467,24 +3431,10 @@ export class AcpAgent implements Agent {
 		// chain never rejects. Connection failures do NOT fail setup — see
 		// below: the record keeps the manager so `/mcp reauth` can recover.
 		const enqueueMcpToolsRefresh = (): Promise<void> => {
-			const run = (record.mcpRefreshChain ?? Promise.resolve()).then(() =>
-				record.session.runToolRegistryMutation(async () => {
-					if (record.mcpManager !== manager) return;
-					// One snapshot feeds both the precedence decision and the bind, so the
-					// analysis can never describe a different tool list than the one bound.
-					const tools = manager.getTools();
-					const analysis = await buildAnalysisMcpRefreshInputFromRuntime({
-						manager,
-						tools,
-						settings: record.session.settings,
-						cwd: record.session.sessionManager.getCwd(),
-						activeNativeTools: record.session.getEnabledToolNames(),
-						approve,
-					});
-					if (record.mcpManager !== manager) return;
-					await record.session.refreshMCPTools(tools, analysis);
-				}),
-			);
+			const run = (record.mcpRefreshChain ?? Promise.resolve()).then(async () => {
+				if (record.mcpManager !== manager) return;
+				await record.session.refreshMCPTools(manager.getTools());
+			});
 			record.mcpRefreshChain = run.catch(error => {
 				logger.warn("ACP MCP tool refresh failed", {
 					error: error instanceof Error ? error.message : String(error),

@@ -5,20 +5,20 @@
  */
 import { describe, expect, it } from "bun:test";
 import * as os from "node:os";
-import { type } from "@linxiraos/zeta-schema";
-import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import type { ImageContent } from "@linxiraos/pi-ai";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createToolCommandHandler, toolCommandNames } from "@linxiraos/zeta/exec/tool-command-host";
-import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
+import { type } from "@oh-my-pi/omptype";
+import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createToolCommandHandler, toolCommandNames } from "@oh-my-pi/pi-coding-agent/exec/tool-command-host";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import {
 	resolveToolCommand,
 	type ToolCommandDispatch,
 	type ToolCommandState,
-} from "@linxiraos/zeta/tools/tool-commands";
-import { TerminalGraphicsDecoder } from "@linxiraos/zeta/utils/terminal-graphics";
-import type { ShellCommandRequest } from "@linxiraos/pi-natives";
-import { convertImageToPng } from "@linxiraos/pi-tui/png-conversion";
+} from "@oh-my-pi/pi-coding-agent/tools/tool-commands";
+import { TerminalGraphicsDecoder } from "@oh-my-pi/pi-coding-agent/utils/terminal-graphics";
+import type { ShellCommandRequest } from "@oh-my-pi/pi-natives";
+import { convertImageToPng } from "@oh-my-pi/pi-coding-agent/utils/png-conversion";
 
 const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 

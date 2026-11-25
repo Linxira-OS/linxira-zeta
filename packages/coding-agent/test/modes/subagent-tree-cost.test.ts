@@ -1,18 +1,22 @@
-import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { sumSubagentTreeCost } from "@linxiraos/zeta/modes/agent-hub-runtime";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { AgentMetricsSummary, AgentRef } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AgentCostSnapshot } from "@linxiraos/pi-tui/overlays/agent-hub-projection";
-import { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, Model, Usage } from "@oh-my-pi/pi-ai";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { sumSubagentTreeCost } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import type { AgentMetricsSummary, AgentRef } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { AgentCostSnapshot } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/agent-hub-projection";
+import { SessionObserverRegistry } from "@oh-my-pi/pi-coding-agent/task/session-observer-registry";
+import { currentTheme, setCurrentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+
+const restoreTheme = currentTheme();
+afterAll(() => setCurrentTheme(restoreTheme));
 
 const root = path.resolve("sessions", "root.jsonl");
 const artifacts = path.resolve("sessions", "root");

@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import * as ai from "@linxiraos/pi-ai";
-import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import * as ai from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TodoTool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { COLLAB_PROMPT_MESSAGE_TYPE } from "@oh-my-pi/pi-wire";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
-import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
 
 let session: AgentSession | undefined;
 let authStorage: AuthStorage | undefined;
@@ -105,64 +106,6 @@ function nextTitle(target: AgentSession): Promise<void> {
 }
 
 describe("AgentSession title fork", () => {
-	it("forks a Chinese title from a Chinese-selected prompt even when the session setting is English", async () => {
-		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
-		const side = createMockModel({
-			handler: { content: ['<title emoji="🧪" code="REDIS">修复 Redis 重试测试</title>'] },
-		});
-		const target = await createSession(main, side, { language: "en" });
-		const titleModel = vi.spyOn(ai, "completeSimple");
-		const titled = nextTitle(target);
-
-		await target.prompt(FIRST_MESSAGE, { language: "zh" });
-		await titled;
-
-		expect(target.sessionName).toBe("🧪 REDIS: 修复 Redis 重试测试");
-		expect(titleModel).not.toHaveBeenCalled();
-		expect(side.calls).toHaveLength(1);
-		const forkText = (side.calls[0]!.context.messages ?? [])
-			.map(message => (typeof message.content === "string" ? message.content : JSON.stringify(message.content)))
-			.join("\n");
-		expect(forkText).toContain(FIRST_MESSAGE);
-		expect(forkText).toContain("简体中文");
-	});
-
-	it("does not inherit a prior prompt's language when the next invocation omits it", async () => {
-		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
-		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
-		const target = await createSession(main, side, { language: "en" });
-		const titleModel = vi
-			.spyOn(ai, "completeSimple")
-			.mockResolvedValue(createAssistantMessage("<title>English fallback title</title>"));
-		const titled = nextTitle(target);
-
-		await target.prompt(FIRST_MESSAGE, { language: "zh" });
-		await titled;
-		expect(target.turnNameLanguage).toBe("zh");
-
-		await target.prompt("a second, unrelated request");
-		expect(target.turnNameLanguage).toBe("en");
-
-		await target.generateTitle("name another topic", undefined, undefined, undefined);
-		const request = titleModel.mock.calls.at(-1)?.[1] as { systemPrompt?: string[] } | undefined;
-		expect(request?.systemPrompt?.join("\n")).not.toContain("简体中文");
-	});
-
-	it("leaves an explicitly named session alone under a Chinese generation language", async () => {
-		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
-		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
-		const target = await createSession(main, side, { language: "en" });
-		const titleModel = vi.spyOn(ai, "completeSimple");
-		await target.sessionManager.setSessionName("Manual 名称", "user");
-
-		await target.prompt(FIRST_MESSAGE, { language: "zh" });
-
-		expect(target.sessionName).toBe("Manual 名称");
-		expect(target.sessionManager.titleSource).toBe("user");
-		expect(side.calls).toHaveLength(0);
-		expect(titleModel).not.toHaveBeenCalled();
-	});
-
 	it("titles the session from a fork of the first reply, sharing the main request's prefix and cache key", async () => {
 		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
 		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
@@ -184,6 +127,31 @@ describe("AgentSession title fork", () => {
 		expect(sideCall.options?.promptCacheKey).toBe(mainCall.options?.promptCacheKey ?? mainCall.options?.sessionId);
 		// The fork runs beside the main turn, which finishes on its own.
 		expect(target.messages.at(-1)).toMatchObject({ role: "assistant", stopReason: "stop" });
+	});
+
+	it("titles a session a collab peer opens, as the web Inbox's first instruction does", async () => {
+		const main = createMockModel({ responses: [{ content: ["Reading the park tests first."] }] });
+		const side = createMockModel({ handler: { content: [CARD_REPLY] } });
+		const target = await createSession(main, side);
+		const titled = nextTitle(target);
+
+		// As `CollabHost` submits a writable peer's prompt.
+		await target.promptCustomMessage(
+			{
+				customType: COLLAB_PROMPT_MESSAGE_TYPE,
+				content: FIRST_MESSAGE,
+				display: true,
+				details: { from: "web" },
+				attribution: "user",
+			},
+			{ streamingBehavior: "steer", queueChipText: FIRST_MESSAGE },
+		);
+		await titled;
+
+		expect(target.sessionName).toBe("🧪 FLAKY: Fix flaky park tests");
+		expect(target.sessionManager.getEntries().filter(entry => entry.type === "title_change")).toEqual([
+			expect.objectContaining({ title: "🧪 FLAKY: Fix flaky park tests", source: "auto" }),
+		]);
 	});
 
 	it.each<[string, MockResponse, MockResponse]>([

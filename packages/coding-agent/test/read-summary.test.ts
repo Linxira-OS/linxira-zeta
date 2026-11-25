@@ -1,16 +1,15 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
-import * as readSummary from "@linxiraos/zeta/tools/read-summary";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { ReadToolDetails } from "@oh-my-pi/pi-coding-agent/tools/details/read";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import * as readSummary from "@oh-my-pi/pi-coding-agent/tools/read-summary";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 let artifactCounter = 0;
 
@@ -44,10 +43,10 @@ function createSession(cwd: string, overrides: Record<string, unknown> = {}): To
 		getSessionFile: () => sessionFile,
 		getSessionSpawns: () => "*",
 		getArtifactsDir: () => sessionDir,
-		allocateOutputArtifact: async (toolType: string) => {
+		allocateOutputArtifact: async () => {
 			await fs.mkdir(sessionDir, { recursive: true });
 			const id = `artifact-${++artifactCounter}`;
-			return { id, path: path.join(sessionDir, `${id}.${toolType}.log`) };
+			return { id, path: path.join(sessionDir, `${id}.log`) };
 		},
 		settings,
 	};

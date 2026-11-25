@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileType, glob } from "@linxiraos/pi-natives";
+import { FileType, glob } from "@oh-my-pi/pi-natives";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
+	getBaseConfigRoot,
 	getConfigDirName,
 	getPluginsDir,
 	getProjectDir,
@@ -14,7 +15,7 @@ import {
 	parseFrontmatter,
 	pathIsWithin,
 	tryParseJson,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { isUserSourceEnabled } from "../capability";
 import type { ContextFile } from "../capability/context-file";
 import type { ExtensionModule } from "../capability/extension-module";
@@ -30,9 +31,9 @@ import {
 import type { Skill, SkillFrontmatter } from "../capability/skill";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 import { resolveClaudePaths } from "../config/claude-paths";
-import { type PluginManifestKey, readPluginManifest } from "../extensibility/plugins/types";
 import type { MCPRequestIdFormat } from "../mcp/types";
-import { type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { type ConfiguredThinkingLevel } from "../utils/render-utils";
+import { parseConfiguredThinkingLevel } from "../thinking/levels";
 import { normalizeToolNames } from "../tools/builtin-names";
 
 import { realpathIfExists, resolveContainedPath } from "./contained-path";
@@ -309,8 +310,6 @@ export interface ParsedAgentFields {
 	blocking?: boolean;
 	/** `true` = keep the output schema (and with it `yield`) when `task.structured` is off. */
 	structured?: boolean;
-	/** `true` = the subagent owns its `todo` list. */
-	ownsTodo?: boolean;
 	/** `true` = prewalk into the default target; string = prewalk into that model pattern. */
 	prewalk?: boolean | string;
 	/** `true` = advise with the default advisor-role model; string = advise with that model pattern. */
@@ -383,7 +382,6 @@ export function parseAgentFields(frontmatter: Record<string, unknown>): ParsedAg
 	const model = parseModelList(frontmatter.model);
 	const blocking = parseBoolean(frontmatter.blocking);
 	const structured = parseBoolean(frontmatter.structured);
-	const ownsTodo = parseBoolean(frontmatter.ownsTodo);
 	const readSummarize = parseBoolean(frontmatter.readSummarize);
 	// prewalk: true → hand off to the default prewalk target; "<pattern>" → custom target.
 	let prewalk: boolean | string | undefined = parseBoolean(frontmatter.prewalk);
@@ -410,7 +408,6 @@ export function parseAgentFields(frontmatter: Record<string, unknown>): ParsedAg
 		thinkingLevel,
 		blocking,
 		structured,
-		ownsTodo,
 		autoloadSkills,
 		readSummarize,
 		prewalk,
@@ -448,8 +445,8 @@ export interface ScanSkillsFromDirOptions {
 	includeSelf?: boolean;
 	/**
 	 * Registry/CLI origin of the plugin root supplying these skills, forwarded
-	 * to {@link SourceMeta.origin} so user-scope gating can tell Zeta's own
-	 * installs (`zetacode`, `plugin-dir`) from the foreign Claude tree (`claude`).
+	 * to {@link SourceMeta.origin} so user-scope gating can tell omp's own
+	 * installs (`omp`, `plugin-dir`) from the foreign Claude tree (`claude`).
 	 */
 	origin?: string;
 	/**
@@ -471,15 +468,6 @@ export function compareSkillOrder(aName: string, aPath: string, bName: string, b
 	return cmp(aPath, bPath);
 }
 
-/**
- * Maximum nesting depth (directory levels below the scan root) at which a
- * `SKILL.md` is still discovered. Depth 3 covers three-level router trees
- * (`<root>/<router>/SKILL.md` → `<root>/<router>/<group>/INDEX.md` →
- * `<root>/<router>/<group>/<leaf>/SKILL.md`) without letting pathological
- * directory bombs turn every scan into a full recursive crawl.
- */
-const MAX_SKILL_SCAN_DEPTH = 3;
-
 export async function scanSkillsFromDir(
 	_ctx: LoadContext,
 	options: ScanSkillsFromDirOptions,
@@ -488,19 +476,15 @@ export async function scanSkillsFromDir(
 	const warnings: string[] = [];
 	const { dir, level, providerId, requireDescription = false } = options;
 
-	const readSkillsDirEntries = async (current: string): Promise<fs.Dirent[] | null> => {
-		try {
-			return await fs.promises.readdir(current, { withFileTypes: true });
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-				warnings.push(`Failed to read skills directory: ${current} (${String(error)})`);
-			}
-			return null;
+	let entries: fs.Dirent[];
+	try {
+		entries = await fs.promises.readdir(dir, { withFileTypes: true });
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			warnings.push(`Failed to read skills directory: ${dir} (${String(error)})`);
 		}
-	};
-
-	const entries = await readSkillsDirEntries(dir);
-	if (!entries) return { items, warnings };
+		return { items, warnings };
+	}
 	const loadSkill = async (skillPath: string) => {
 		try {
 			const content = await readFile(skillPath);
@@ -534,38 +518,21 @@ export async function scanSkillsFromDir(
 		}
 	};
 
-	// Depth-limited walk below the scan root. A directory carrying its own
-	// SKILL.md is still exposed as a skill (router-style navigators keep their
-	// top-level entry) AND is descended into, so leaves nested under it are
-	// discovered; plain grouping directories without a SKILL.md are walked the
-	// same way. `INDEX.md` is an ordinary file and never matches the SKILL.md
-	// probe, so index directories never become skills themselves.
-	const skillFiles: string[] = [];
-	const collectSkillFiles = async (current: string, depth: number, dirEntries: fs.Dirent[]): Promise<void> => {
-		for (const entry of dirEntries) {
-			if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
-			if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-			const childDir = path.join(current, entry.name);
-			const skillPath = path.join(childDir, "SKILL.md");
-			if (fs.existsSync(skillPath)) {
-				skillFiles.push(skillPath);
-			}
-			if (depth + 1 < MAX_SKILL_SCAN_DEPTH) {
-				const childEntries = await readSkillsDirEntries(childDir);
-				if (childEntries) await collectSkillFiles(childDir, depth + 1, childEntries);
-			}
-		}
-	};
-
 	const work: Promise<void>[] = [];
 	if (options.includeSelf) {
 		const selfSkillPath = path.join(dir, "SKILL.md");
 		if (fs.existsSync(selfSkillPath)) {
-			skillFiles.push(selfSkillPath);
+			work.push(loadSkill(selfSkillPath));
 		}
 	}
-	await collectSkillFiles(dir, 0, entries);
-	work.push(...skillFiles.map(loadSkill));
+	for (const entry of entries) {
+		if (entry.name.startsWith(".")) continue;
+		if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+		const skillPath = path.join(dir, entry.name, "SKILL.md");
+		if (fs.existsSync(skillPath)) {
+			work.push(loadSkill(skillPath));
+		}
+	}
 	await Promise.all(work);
 
 	// Deterministic ordering: async file reads complete nondeterministically, so sort after loading.
@@ -864,8 +831,8 @@ async function readExtensionModuleManifest(
 	const content = await readFile(packageJsonPath);
 	if (!content) return null;
 
-	const pkg = tryParseJson<Partial<Record<PluginManifestKey, ExtensionModuleManifest>>>(content);
-	const manifest = readPluginManifest<ExtensionModuleManifest>(pkg);
+	const pkg = tryParseJson<{ omp?: ExtensionModuleManifest; pi?: ExtensionModuleManifest }>(content);
+	const manifest = pkg?.omp ?? pkg?.pi;
 	if (manifest && typeof manifest === "object") {
 		return manifest;
 	}
@@ -878,8 +845,7 @@ async function readExtensionModuleManifest(
  * Discovery rules:
  * 1. Direct files: `extensions/*.ts` or `*.js` → load
  * 2. Subdirectory with index: `extensions/<ext>/index.ts` or `index.js` → load
- * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with a
- *    `zeta/pi` field → load declared paths
+ * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with "omp"/"pi" field → load declared paths
  *
  * No recursion beyond one level. Complex packages must use package.json manifest.
  * Uses native glob for fast filesystem scanning with gitignore support.
@@ -1056,7 +1022,7 @@ export interface ClaudePluginRoot {
 	/** Whether this is a user or project scope plugin */
 	scope: "user" | "project";
 	/** Registry or explicit CLI source that supplied this root. */
-	origin: "claude" | "zeta" | "plugin-dir";
+	origin: "claude" | "omp" | "plugin-dir";
 }
 
 /**
@@ -1089,9 +1055,9 @@ export function getProjectDiscoveryCeilings(): ReadonlySet<string> {
 
 /** The current user's config roots are never project anchors. */
 export function isUserConfigRoot(root: string): boolean {
-	const configDir = normalizePathForComparison(path.join(root, getConfigDirName()));
+	const configDir = normalizePathForComparison(path.join(root, SOURCE_PATHS.native.projectDir));
 	return (
-		configDir === normalizePathForComparison(path.join(os.homedir(), getConfigDirName())) ||
+		configDir === normalizePathForComparison(getBaseConfigRoot()) ||
 		configDir === normalizePathForComparison(path.dirname(getPluginsDir()))
 	);
 }
@@ -1114,13 +1080,13 @@ export async function isForeignUserConfigRoot(root: string, configDirName: strin
  * Resolve the active project registry path by walking up from `cwd`.
  *
  * Walk order:
- * 1. Walk up from `cwd` looking for the nearest directory containing `.zeta/`.
- *    The first match returns `<dir>/.zeta/plugins/installed_plugins.json`.
- * 2. If no `.zeta/` is found, rescan from `cwd` upward looking for `.git`.
- *    The git root is used as an anchor: `<gitRoot>/.zeta/plugins/installed_plugins.json`.
+ * 1. Walk up from `cwd` looking for the nearest directory containing `.omp/`.
+ *    The first match returns `<dir>/.omp/plugins/installed_plugins.json`.
+ * 2. If no `.omp/` is found, rescan from `cwd` upward looking for `.git`.
+ *    The git root is used as an anchor: `<gitRoot>/.omp/plugins/installed_plugins.json`.
  * 3. Stop before home or a temporary root in either pass. If neither anchor is
  *    found below that ceiling, return `null` — no project context is active.
- * Inactive `.zeta/agent/` layouts are skipped only above the nearest git root,
+ * Inactive `.omp/agent/` layouts are skipped only above the nearest git root,
  * or throughout an unanchored walk, so repo-local agent directories stay project scope.
  *
  * This is the single source of truth for "active project root" used by install,
@@ -1151,8 +1117,8 @@ async function resolveProjectRegistryPath(cwd: string, ceilings: ReadonlySet<str
 		dir = parent;
 	}
 
-	// Existing .zeta/ directories still win, even above the git root, except foreign user roots.
-	const configDirName = getConfigDirName();
+	// Existing .omp/ directories still win, even above the git root, except foreign user roots.
+	const configDirName = SOURCE_PATHS.native.projectDir;
 	let aboveGitRoot = nearestGitRoot === null;
 	dir = path.resolve(cwd);
 	while (!ceilings.has(normalizePathForComparison(dir))) {
@@ -1163,26 +1129,64 @@ async function resolveProjectRegistryPath(cwd: string, ceilings: ReadonlySet<str
 				!isUserConfigRoot(dir) &&
 				(!aboveGitRoot || !(await isForeignUserConfigRoot(dir, configDirName)))
 			) {
-				return path.join(dir, configDirName, "plugins", "installed_plugins.json");
+				return projectRegistryIn(await projectConfigDir(dir));
 			}
 		} catch {
 			// not found at this level — continue up
 		}
+		const legacy = await legacyProjectConfigDir(dir);
+		if (legacy && !isUserConfigRoot(dir)) return projectRegistryIn(legacy);
 		if (dir === nearestGitRoot) aboveGitRoot = true;
 		const parent = path.dirname(dir);
 		if (parent === dir) break; // filesystem root
 		dir = parent;
 	}
 
-	return gitAnchor ? path.join(gitAnchor, getConfigDirName(), "plugins", "installed_plugins.json") : null;
+	return gitAnchor ? projectRegistryIn(await projectConfigDir(gitAnchor)) : null;
+}
+
+function projectRegistryIn(configDir: string): string {
+	return path.join(configDir, "plugins", "installed_plugins.json");
+}
+
+/** `<root>/.omp`, unless only a pre-relocation project config dir holds install state (see {@link legacyProjectConfigDir}). */
+async function projectConfigDir(root: string): Promise<string> {
+	const current = path.join(root, SOURCE_PATHS.native.projectDir);
+	if (await hasProjectInstallState(current)) return current;
+	return (await legacyProjectConfigDir(root)) ?? current;
 }
 
 /**
- * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.zeta/plugins/installed_plugins.json`
- * when no project anchor (.zeta/ or .git/) is found.
+ * Builds that joined `PI_CONFIG_DIR` onto the project root wrote project plugin
+ * registries and skill manifests to `<root>/<PI_CONFIG_DIR>` instead of
+ * `<root>/.omp`. Keep reading that directory while it is the only one with
+ * install state, so those installs do not vanish. Only a directory inside
+ * `root` that is not the user config root qualifies.
+ */
+async function legacyProjectConfigDir(root: string): Promise<string | undefined> {
+	const name = getConfigDirName();
+	if (name === SOURCE_PATHS.native.projectDir) return undefined;
+	const dir = path.join(root, name);
+	const relative = path.relative(root, dir);
+	if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
+	if (normalizePathForComparison(dir) === normalizePathForComparison(getBaseConfigRoot())) return undefined;
+	return (await hasProjectInstallState(dir)) ? dir : undefined;
+}
+
+/** Whether `configDir` holds a project plugin registry or skill manifest (`SKILLS_MANIFEST_FILE`). */
+async function hasProjectInstallState(configDir: string): Promise<boolean> {
+	for (const file of [projectRegistryIn(configDir), path.join(configDir, "skills.json")]) {
+		if (await fs.promises.exists(file)) return true;
+	}
+	return false;
+}
+
+/**
+ * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.omp/plugins/installed_plugins.json`
+ * when no project anchor (.omp/ or .git/) is found.
  *
  * Use this when the caller accepts an explicit --scope project so that installing into a freshly
- * bootstrapped directory (no .zeta/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
+ * bootstrapped directory (no .omp/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
  * the directory tree on first write.
  *
  * Returns undefined when cwd is a discovery ceiling or user config root, so the
@@ -1192,14 +1196,15 @@ export async function resolveOrDefaultProjectRegistryPath(cwd: string): Promise<
 	const ceilings = getProjectDiscoveryCeilings();
 	const resolved = await resolveProjectRegistryPath(cwd, ceilings);
 	if (resolved) return resolved;
-	// A cwd containing .zeta/ at or below a git root already resolved above.
+	const configDirName = SOURCE_PATHS.native.projectDir;
+	// A cwd containing .omp/ at or below a git root already resolved above.
 	if (
 		ceilings.has(normalizePathForComparison(cwd)) ||
 		isUserConfigRoot(cwd) ||
-		(await isForeignUserConfigRoot(cwd, getConfigDirName()))
+		(await isForeignUserConfigRoot(cwd, configDirName))
 	)
 		return undefined;
-	return path.join(cwd, getConfigDirName(), "plugins", "installed_plugins.json");
+	return projectRegistryIn(await projectConfigDir(cwd));
 }
 
 async function canonicalClaudeProjectPath(projectPath: string): Promise<string | null> {
@@ -1272,15 +1277,15 @@ export function registerPluginCacheInvalidator(invalidator: () => void): void {
 /** The registry files {@link listClaudePluginRoots} reads for `home` and `cwd`. */
 async function resolvePluginRegistryFiles(home: string, cwd: string | undefined) {
 	const claudeConfigDir = resolveClaudePaths(home).configDir;
-	const zetaRegistryPath = path.join(getPluginsDir(home), "installed_plugins.json");
+	const ompRegistryPath = path.join(getPluginsDir(home), "installed_plugins.json");
 	const projectPath = cwd ? await resolveActiveProjectRegistryPath(cwd) : null;
 	const resolvedProjectPath =
-		projectPath && normalizePathForComparison(projectPath) !== normalizePathForComparison(zetaRegistryPath)
+		projectPath && normalizePathForComparison(projectPath) !== normalizePathForComparison(ompRegistryPath)
 			? projectPath
 			: null;
-	const files = [path.join(claudeConfigDir, "plugins", "installed_plugins.json"), zetaRegistryPath];
+	const files = [path.join(claudeConfigDir, "plugins", "installed_plugins.json"), ompRegistryPath];
 	if (resolvedProjectPath) files.push(resolvedProjectPath);
-	return { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files };
+	return { claudeConfigDir, ompRegistryPath, resolvedProjectPath, files };
 }
 
 /**
@@ -1294,62 +1299,6 @@ async function registrySignature(filePath: string): Promise<string> {
 	} catch (error) {
 		if (isEnoent(error)) return "missing";
 		return `unreadable:${(error as NodeJS.ErrnoException).code ?? "unknown"}`;
-	}
-}
-
-/**
- * Registry paths a plugin-roots read is keyed by: the registry files (including
- * the ancestor walk that finds a project registry) and the real paths of the
- * project and cwd. Resolving them costs a directory walk plus two realpaths, and
- * every capability surface of a launch (`claude-plugins`, `agent-plugins`,
- * `zeta-plugins`, …) asks for the same `(home, cwd)`, so the paths are remembered
- * until {@link clearClaudePluginRootsCache} runs. Claude's `enabledPlugins`
- * overrides are read per call: they decide which roots load, not which files
- * exist, and a settings edit must take effect without a restart.
- */
-interface PluginRegistryPaths {
-	claudeConfigDir: string;
-	zetaRegistryPath: string;
-	resolvedProjectPath: string | null;
-	activeClaudeProjectPath: string | null;
-	canonicalCwd: string | null;
-	settingsDirs: string[];
-	files: readonly string[];
-}
-
-const pluginRegistryPathsCache = new Map<string, Promise<PluginRegistryPaths>>();
-
-async function resolvePluginRegistryPaths(home: string, cwd: string | undefined): Promise<PluginRegistryPaths> {
-	const cacheKey = `${home}\u0000${cwd ?? ""}`;
-	const cached = pluginRegistryPathsCache.get(cacheKey);
-	if (cached) return cached;
-	// Long-lived hosts can name many projects; the roots cache this keys is bounded too.
-	if (pluginRegistryPathsCache.size >= 32) pluginRegistryPathsCache.clear();
-	const pending = (async (): Promise<PluginRegistryPaths> => {
-		const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(
-			home,
-			cwd,
-		);
-		const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
-		const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
-		const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
-		const settingsDirs = [...new Set([activeClaudeProjectPath, canonicalCwd].filter((d): d is string => !!d))];
-		return {
-			claudeConfigDir,
-			zetaRegistryPath,
-			resolvedProjectPath,
-			activeClaudeProjectPath,
-			canonicalCwd,
-			settingsDirs,
-			files,
-		};
-	})();
-	pluginRegistryPathsCache.set(cacheKey, pending);
-	try {
-		return await pending;
-	} catch (error) {
-		if (pluginRegistryPathsCache.get(cacheKey) === pending) pluginRegistryPathsCache.delete(cacheKey);
-		throw error;
 	}
 }
 
@@ -1406,7 +1355,7 @@ export async function isSupersededPluginPath(filePath: string, home: string, cwd
 
 /**
  * List all installed Claude Code plugin roots from its active plugin cache and
- * ~/.zeta/plugins/installed_plugins.json, plus the nearest project registry when present.
+ * ~/.omp/plugins/installed_plugins.json, plus the nearest project registry when present.
  *
  * Results are cached per Claude and OMP config directories, project registry, and canonical active project.
  */
@@ -1419,17 +1368,13 @@ export function listClaudePluginRoots(
 
 /** {@link listClaudePluginRoots}; with `revalidate`, a cached result whose registry files changed is read again. */
 async function readPluginRoots(home: string, cwd: string | undefined, revalidate: boolean): Promise<PluginRootsResult> {
-	const {
-		claudeConfigDir,
-		zetaRegistryPath,
-		resolvedProjectPath,
-		files,
-		activeClaudeProjectPath,
-		canonicalCwd,
-		settingsDirs,
-	} = await resolvePluginRegistryPaths(home, cwd);
+	const { claudeConfigDir, ompRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(home, cwd);
+	const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
+	const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
+	const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
+	const settingsDirs = [...new Set([activeClaudeProjectPath, canonicalCwd].filter((d): d is string => !!d))];
 	const enabledOverrides = await readClaudeEnabledPlugins(claudeConfigDir, settingsDirs);
-	const cacheKey = `${claudeConfigDir}:${zetaRegistryPath}:${resolvedProjectPath ?? ""}:${activeClaudeProjectPath ?? ""}:${canonicalCwd ?? ""}:${enabledOverrides.sources.join("|")}`;
+	const cacheKey = `${claudeConfigDir}:${ompRegistryPath}:${resolvedProjectPath ?? ""}:${activeClaudeProjectPath ?? ""}:${canonicalCwd ?? ""}:${enabledOverrides.sources.join("|")}`;
 	const cached = pluginRootsCache.get(cacheKey);
 	if (cached) {
 		if (!revalidate || !(await isStaleRootsEntry(cached))) return cached.result;
@@ -1447,7 +1392,7 @@ async function readPluginRoots(home: string, cwd: string | undefined, revalidate
 		await signatures;
 		const loaded = await loadClaudePluginRoots({
 			claudeConfigDir,
-			zetaRegistryPath,
+			ompRegistryPath,
 			resolvedProjectPath,
 			activeClaudeProjectPath,
 			enabledOverrides,
@@ -1467,13 +1412,13 @@ async function readPluginRoots(home: string, cwd: string | undefined, revalidate
 
 async function loadClaudePluginRoots({
 	claudeConfigDir,
-	zetaRegistryPath,
+	ompRegistryPath,
 	resolvedProjectPath,
 	activeClaudeProjectPath,
 	enabledOverrides,
 }: {
 	claudeConfigDir: string;
-	zetaRegistryPath: string;
+	ompRegistryPath: string;
 	resolvedProjectPath: string | null;
 	activeClaudeProjectPath: string | null;
 	enabledOverrides: { enabled: Map<string, boolean>; sources: string[] };
@@ -1549,7 +1494,7 @@ async function loadClaudePluginRoots({
 	// same XDG-aware path the marketplace writer uses (reads and writes always agree).
 	// Tests pass a temp dir, which short-circuits the resolver for deterministic isolation.
 	// Computed before the cache lookup because isolated SDK homes select distinct OMP registries.
-	const ompContent = await readFile(zetaRegistryPath);
+	const ompContent = await readFile(ompRegistryPath);
 	if (ompContent) {
 		const ompRegistry = parseClaudePluginsRegistry(ompContent);
 		if (ompRegistry) {
@@ -1585,17 +1530,17 @@ async function loadClaudePluginRoots({
 						version: entry.version || "unknown",
 						path: entry.installPath,
 						scope: entry.scope === "local" ? "project" : entry.scope || "user",
-						origin: "zeta",
+						origin: "omp",
 					});
 				}
 			}
 		} else {
-			warnings.push(`Failed to parse Zeta plugin registry: ${zetaRegistryPath}`);
+			warnings.push(`Failed to parse OMP plugin registry: ${ompRegistryPath}`);
 		}
 	}
 
-	// ── Project-scoped Zeta registry ────────────────────────────────────────
-	// Loaded from the nearest .zeta/plugins/installed_plugins.json relative to cwd.
+	// ── Project-scoped OMP registry ────────────────────────────────────────
+	// Loaded from the nearest .omp/plugins/installed_plugins.json relative to cwd.
 	// Project entries take precedence over user entries for the same plugin ID.
 	if (resolvedProjectPath) {
 		const projectContent = await readFile(resolvedProjectPath);
@@ -1624,7 +1569,7 @@ async function loadClaudePluginRoots({
 							version: entry.version || "unknown",
 							path: entry.installPath,
 							scope: "project",
-							origin: "zeta",
+							origin: "omp",
 						});
 					}
 				}
@@ -1660,7 +1605,6 @@ async function loadClaudePluginRoots({
  */
 export function clearClaudePluginRootsCache(): void {
 	pluginRootsCache.clear();
-	pluginRegistryPathsCache.clear();
 	for (const invalidate of pluginCacheInvalidators) invalidate();
 	preloadedPluginRoots = [...injectedPluginDirRoots];
 	// Re-warm preloaded roots asynchronously so sync LSP config reads stay valid

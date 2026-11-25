@@ -2,46 +2,50 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { getBundledModel, getBundledModels } from "@linxiraos/pi-catalog/models";
-import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models/descriptors";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
-import { getModelMatchPreferences, resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { Effort, type FetchImpl } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { getBundledModel, getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import { resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models/descriptors";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { ModelRegistry, type ProviderConfigInput } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import {
+	formatModelStringWithRouting,
+	getModelMatchPreferences,
+	resolveModelScope,
+} from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	buildSessionOptions as buildCliSessionOptions,
 	rebuildScopedModels,
 	resolveScopedModels,
-} from "@linxiraos/zeta/main";
-import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import { getBundledAgent } from "@linxiraos/zeta/task/agents";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+} from "@oh-my-pi/pi-coding-agent/main";
+import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import { getBundledAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
 import {
 	getRetryFallbackRole,
 	installRetryFallbackRole,
 	type RetryFallbackRole,
-} from "@linxiraos/zeta/session/retry-fallback-chains";
-import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
-import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
-import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
+import { getRestorableSessionModels } from "@oh-my-pi/pi-coding-agent/session/session-context";
+import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { TurnRecovery, type TurnRecoveryHost } from "@oh-my-pi/pi-coding-agent/session/turn-recovery";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 import {
 	cfgCompactionModelThresholds,
 	cfgCompactionModelThresholdsEnabled,
-} from "@linxiraos/zeta/session/context-settings";
-import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+} from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
 
 describe("createAgentSession deferred model pattern resolution", () => {
 	let tempDir: string;
@@ -667,6 +671,23 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		}
 	});
 
+	test("runs a subagent on its parent's model when its deferred pattern matches nothing", async () => {
+		const { session, modelFallbackMessage } = await createAgentSession({
+			...buildSessionOptions("missing-provider/missing-model"),
+			modelPatternParentFallback: "runtime-provider/runtime-model",
+		});
+
+		try {
+			expect(session.model?.provider).toBe("runtime-provider");
+			expect(session.model?.id).toBe("runtime-model");
+			expect(modelFallbackMessage).toBe(
+				'Model "missing-provider/missing-model" not found. Using parent model runtime-provider/runtime-model',
+			);
+		} finally {
+			await session.dispose();
+		}
+	});
+
 	test("names the provider's near ids when a deferred provider-qualified pattern stays unresolved", async () => {
 		const { session, modelFallbackMessage } = await createAgentSession(
 			buildSessionOptions("runtime-provider/runtime-modl"),
@@ -686,7 +707,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		const { session, modelFallbackMessage } = await createAgentSession({
 			...buildSessionOptions("runtime-provider/runtime-model"),
 			settings,
-			modelPatternAuthFallback: "runtime-provider/runtime-fallback-model",
+			modelPatternParentFallback: "runtime-provider/runtime-fallback-model",
 		});
 
 		try {
@@ -798,7 +819,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			preloadedCustomToolPaths: [],
 			toolNames: ["read"],
 			modelPattern: "runtime-provider/runtime-model",
-			modelPatternAuthFallback: `${parentModel.provider}/${parentModel.id}`,
+			modelPatternParentFallback: `${parentModel.provider}/${parentModel.id}`,
 		});
 
 		try {
@@ -1396,7 +1417,9 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			expect(chainFor(session)).toEqual({ keys: [role], candidates: [] });
 
 			// A runtime fallback answers; resume must still restore the primary as the default.
-			session.sessionManager.appendModelChange(fallback, EPHEMERAL_MODEL_CHANGE_ROLE, true);
+			session.sessionManager.appendModelChange(fallback, EPHEMERAL_MODEL_CHANGE_ROLE, {
+				fallback: { from: primary, trigger: "request-error" },
+			});
 			session.sessionManager.appendMessage({
 				role: "assistant",
 				content: [{ type: "text", text: "done" }],
@@ -1564,6 +1587,63 @@ describe("createAgentSession deferred model pattern resolution", () => {
 				prefetchSpy.mockRestore();
 				getApiKeySpy.mockRestore();
 				authStorage.close();
+			}
+		},
+	);
+
+	test.each(["default role", "discovered default role", "default retry chain"] as const)(
+		"honors enabledModels pins when selecting from the %s",
+		async source => {
+			const authStorage = createInMemoryAuthStorage();
+			authStoragesToClose.push(authStorage);
+			authStorage.keys.setRuntime("openrouter", "test-key");
+			const modelsPath = path.join(tempDir, "models.yml");
+			const discovery = source === "discovered default role";
+			const id = discovery ? "test/sdk-discovered-routing" : "z-ai/glm-4.7";
+			const selectors = [`openrouter/${id}@sambanova`, `openrouter/${id}@cerebras`] as const;
+			const retry = source === "default retry chain";
+			const settings = Settings.isolated({
+				enabledModels: [selectors[1]],
+				modelRoles: { default: retry ? "missing-provider/missing-model" : selectors.join(",") },
+				"retry.modelFallback": retry,
+				"retry.fallbackChains": retry ? { default: [...selectors] } : {},
+			});
+			if (discovery) {
+				await Bun.write(
+					modelsPath,
+					JSON.stringify({
+						providers: {
+							openrouter: {
+								baseUrl: "http://127.0.0.1:9995",
+								api: "openai-completions",
+								auth: "none",
+								discovery: { type: "openai-models-list" },
+							},
+						},
+					}),
+				);
+			}
+			let modelListCalls = 0;
+			const modelRegistry = new ModelRegistry(authStorage, modelsPath, {
+				fetch: async input => {
+					if (String(input) !== "http://127.0.0.1:9995/v1/models") throw new Error(`Unexpected URL: ${input}`);
+					modelListCalls++;
+					return Response.json({ data: [{ id, context_length: 65_536 }] });
+				},
+			});
+			const { session, modelFallbackMessage } = await createAgentSession({
+				...buildSessionOptions(""),
+				authStorage,
+				modelRegistry,
+				settings,
+				extensions: [],
+			});
+			try {
+				if (discovery) expect(modelListCalls).toBeGreaterThan(0);
+				expect(session.model && formatModelStringWithRouting(session.model)).toBe(selectors[1]);
+				expect(modelFallbackMessage).toBeUndefined();
+			} finally {
+				await session.dispose();
 			}
 		},
 	);
@@ -1868,7 +1948,9 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			sessionManager.appendModelChange("anthropic/claude-sonnet-4-5");
 			sessionManager.appendThinkingLevelChange(Effort.High);
 			// A `:xhigh` chain entry: the hop records the fallback model, then the entry's level.
-			sessionManager.appendModelChange("openai-codex/gpt-5.6-sol", EPHEMERAL_MODEL_CHANGE_ROLE, true);
+			sessionManager.appendModelChange("openai-codex/gpt-5.6-sol", EPHEMERAL_MODEL_CHANGE_ROLE, {
+				fallback: { from: "anthropic/claude-sonnet-4-5", trigger: "request-error" },
+			});
 			sessionManager.appendThinkingLevelChange(Effort.XHigh, Effort.XHigh);
 			if (userPick) sessionManager.appendThinkingLevelChange(userPick, userPick);
 			sessionManager.appendMessage({ role: "user", content: "continue", timestamp: Date.now() });
@@ -2055,7 +2137,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores a discovery-backed session model instead of falling back to the default role", async () => {
-		// Regression: on `zetacode --resume`, the session-model restore probed
+		// Regression: on `omp --resume`, the session-model restore probed
 		// candidates only against the static+cached catalog. A discovery-backed
 		// provider (models.yml `discovery:`) hasn't been fetched at that point, so
 		// the saved model failed to resolve and resume silently downgraded to

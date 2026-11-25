@@ -5,7 +5,7 @@
  * caller to deliver with the prompt (`on`). See `auto-parallel/planner.ts` for how prompts split.
  */
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
-import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
 import { logger, prompt } from "@linxiraos/pi-utils";
 import type { ParallelPlan } from "../auto-parallel/planner";
 import type { Settings } from "../config/settings";

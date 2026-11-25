@@ -8,21 +8,20 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
-import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { Text } from "@linxiraos/pi-tui";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { TempDir } from "@linxiraos/pi-utils";
-import { createInteractiveModeContext } from "./helpers/interactive-mode-context";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
+import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { jsx } from "@oh-my-pi/pi-tui";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { createInteractiveModeContext, renderTranscript } from "./helpers/interactive-mode-context";
 
 let tempDir: TempDir;
 let authStorage: AuthStorage;
@@ -31,7 +30,6 @@ let session: AgentSession | undefined;
 beforeAll(async () => {
 	resetSettingsForTest();
 	await Settings.init({ inMemory: true });
-	await initTheme();
 });
 
 afterAll(() => {
@@ -60,7 +58,10 @@ function createInteractiveTranscript() {
 		convertToLlm,
 		streamFn: () => new AssistantMessageEventStream(),
 	});
-	const settings = Settings.isolated({ "compaction.enabled": false, "todo.enabled": false });
+	const settings = Settings.isolated({
+		"compaction.enabled": false,
+		"todo.enabled": false,
+	});
 	settings.setModelRole("default", `${model.provider}/${model.id}`);
 	const created = new AgentSession({
 		agent,
@@ -84,16 +85,21 @@ function createInteractiveTranscript() {
 	ctx.eventController = controller;
 	created.subscribe(event => controller.handleEvent(event));
 	// Pre-render chat content that renderInitialMessages({ preserveExistingChat: true }) carries over.
-	ctx.chatContainer.addChild(new Text("WELCOME_BANNER", 0, 0));
+	ctx.present(() => jsx("text", { spans: [{ t: "WELCOME_BANNER" }] }));
 	return {
 		ctx,
 		session: created,
 		sendIdleDisplay: (body: string) =>
 			created.sendCustomMessage(
-				{ customType: "idle-status", content: body, display: true, attribution: "agent" },
+				{
+					customType: "idle-status",
+					content: body,
+					display: true,
+					attribution: "agent",
+				},
 				{ triggerTurn: false },
 			),
-		copiesOf: (text: string) => ctx.chatContainer.render(120).filter(line => line.includes(text)).length,
+		copiesOf: (text: string) => renderTranscript(ctx).filter(line => line.includes(text)).length,
 	};
 }
 

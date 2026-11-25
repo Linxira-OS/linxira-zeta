@@ -2,59 +2,63 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Effort } from "@linxiraos/pi-catalog/effort";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
 import {
 	disableProvider,
 	enableProvider,
 	getDisabledProviders,
 	isProviderEnabled,
 	setDisabledProviders,
-} from "@linxiraos/zeta/capability";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { AgentCompactionThresholdOverride } from "@linxiraos/zeta/config/compaction-threshold";
-import type { BeforeSubagentSpawnEvent, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
+} from "@oh-my-pi/pi-coding-agent/capability";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { AgentCompactionThresholdOverride } from "@oh-my-pi/pi-coding-agent/config/compaction-threshold";
+import type {
+	BeforeSubagentSpawnEvent,
+	LoadExtensionsResult,
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@linxiraos/zeta/internal-urls/registry-helpers";
-import * as planHandoff from "@linxiraos/zeta/plan-mode/plan-handoff";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
+import * as planHandoff from "@oh-my-pi/pi-coding-agent/plan-mode/plan-handoff";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
 
-import { TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import { createEvalCustomTools } from "@linxiraos/zeta/task/eval-tools";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import { createEvalCustomTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@linxiraos/zeta/task/structured-subagent";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { SingleResult, TaskParams } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { SingleResult, TaskParams } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
-import { cfgRetryModelFallback } from "@linxiraos/zeta/session/settings";
-import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@linxiraos/zeta/task/settings";
+import { cfgRetryModelFallback } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgEvalToolsEnabled } from "@oh-my-pi/pi-coding-agent/eval/settings";
+import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@oh-my-pi/pi-coding-agent/task/settings";
 
 const AGENT: AgentDefinition = {
 	name: "worker",
@@ -170,12 +174,12 @@ describe("structured subagent primitive", () => {
 
 	it("rescans agents when a plugin provider is disabled while an earlier discovery is in flight", async () => {
 		const previouslyDisabled = getDisabledProviders();
-		enableProvider("zeta-plugins");
+		enableProvider("omp-plugins");
 		const firstEntered = Promise.withResolvers<void>();
 		const releaseFirst = Promise.withResolvers<void>();
 		let scans = 0;
 		vi.spyOn(discoveryModule, "discoverAgents").mockImplementation(async () => {
-			const pluginsEnabled = isProviderEnabled("zeta-plugins");
+			const pluginsEnabled = isProviderEnabled("omp-plugins");
 			if (++scans === 1) {
 				firstEntered.resolve();
 				await releaseFirst.promise;
@@ -186,7 +190,7 @@ describe("structured subagent primitive", () => {
 		try {
 			const first = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			await firstEntered.promise;
-			disableProvider("zeta-plugins");
+			disableProvider("omp-plugins");
 			const second = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			releaseFirst.resolve();
 
@@ -270,6 +274,7 @@ describe("structured subagent primitive", () => {
 		).rejects.toThrow("isolation, apply, and merge controls are unavailable in plan mode");
 
 		const planSession = session({ planMode: true });
+		cfgEvalToolsEnabled.set(planSession.settings, true);
 		const customTools = createEvalCustomTools(planSession, [
 			{
 				name: "word_count",
@@ -301,11 +306,11 @@ describe("structured subagent primitive", () => {
 
 		try {
 			await Bun.write(
-				path.join(projectDir, ".zeta", "config.yml"),
+				path.join(projectDir, ".omp", "config.yml"),
 				"task:\n  agentModelOverrides:\n    hot-worker: xai-oauth/grok-4.6:medium\n  enableEffort: false\nretry:\n  modelFallback: false\n",
 			);
 			await Bun.write(
-				path.join(projectDir, ".zeta", "agents", "hot-worker.md"),
+				path.join(projectDir, ".omp", "agents", "hot-worker.md"),
 				"---\nname: hot-worker\ndescription: Newly added worker.\nmodel: openai/gpt-4o\n---\n\nInspect the assignment.\n",
 			);
 
@@ -355,7 +360,7 @@ describe("structured subagent primitive", () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-tier-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
-		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
+		await fs.mkdir(path.join(projectDir, ".omp"), { recursive: true });
 		await fs.mkdir(agentDir, { recursive: true });
 		const liveSettings = await Settings.loadIsolated({ cwd: projectDir, agentDir });
 		const liveSession = session({ cwd: projectDir, settings: liveSettings });
@@ -479,6 +484,22 @@ describe("structured subagent primitive", () => {
 		await fs.rm(inline.artifactsDir, { recursive: true, force: true });
 		await fs.rm(detached.artifactsDir, { recursive: true, force: true });
 	});
+	it("sends a lone step verbatim without stepping, but steps several", async () => {
+		mockDiscovery();
+		const dispatched: executorModule.ExecutorOptions[] = [];
+		vi.spyOn(executorModule, "runSubprocess").mockImplementation(async options => {
+			dispatched.push(options);
+			return result();
+		});
+
+		await runStructuredSubagent(request({ steps: ["# Target\r\nsrc/a.ts\n"] }));
+		await runStructuredSubagent(request({ steps: ["Add the parser.", "Wire it in."] }));
+
+		expect(dispatched[0]?.task).toBe("# Target\nsrc/a.ts");
+		expect(dispatched[0]?.steps).toBeUndefined();
+		expect(dispatched[1]?.steps).toHaveLength(2);
+	});
+
 	it("propagates a custom thinking-suffixed role alias through policy, dispatch, and settlement", async () => {
 		const customAgent = { ...AGENT, model: ["@reviewer:high"] };
 		mockDiscovery(customAgent);
@@ -831,7 +852,7 @@ describe("structured subagent primitive", () => {
 		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-subagent-"));
 		const completed = result();
 		completed.patchPath = "/recovery/Worker.patch";
-		completed.branchName = "zeta/task/Worker";
+		completed.branchName = "omp/task/Worker";
 		completed.nestedPatches = [{ relativePath: "sub/nested", patch: "diff --git a/file b/file\n" }];
 
 		const hint = await buildStructuredSubagentRecoveryHint(completed, artifactsDir);
@@ -839,7 +860,7 @@ describe("structured subagent primitive", () => {
 
 		expect(hint).toContain("Captured patch preserved at /recovery/Worker.patch.");
 		expect(hint).toContain(`Captured nested patch preserved at ${nestedPath}.`);
-		expect(hint).toContain("Captured branch preserved as zeta/task/Worker.");
+		expect(hint).toContain("Captured branch preserved as omp/task/Worker.");
 		expect(await fs.readFile(nestedPath, "utf8")).toBe("diff --git a/file b/file\n");
 		await fs.rm(artifactsDir, { recursive: true, force: true });
 	});
@@ -1011,6 +1032,7 @@ describe("structured subagent primitive", () => {
 		const spawners: WeakRef<ToolSession>[] = [];
 		const spawn = async (): Promise<void> => {
 			const parent = session();
+			cfgEvalToolsEnabled.set(parent.settings, true);
 			Object.assign(parent, { effectiveExtensionRoots: extensionRoots, localProtocolOptions });
 			spawners.push(new WeakRef(parent));
 			const customTools = createEvalCustomTools(parent, [descriptor]);
@@ -1168,7 +1190,7 @@ describe("structured subagent primitive", () => {
 		vi.spyOn(isolationRunner, "prepareIsolationContext").mockResolvedValue({ repoRoot: "/tmp" } as never);
 		vi.spyOn(isolationRunner, "runIsolatedSubprocess").mockImplementation(async () => ({
 			...result(),
-			branchName: "zeta/task/Worker",
+			branchName: "omp/task/Worker",
 			branchBaseSha: "base",
 			nestedPatches: [{ relativePath: "inner", patch: "diff --git a/b.txt b/b.txt\n" }],
 			error: "Nested patch capture failed: ENOSPC. Isolation workspace retained at /wt/abc.",
@@ -1178,7 +1200,7 @@ describe("structured subagent primitive", () => {
 			request({ session: session({ isolationEnabled: true }), isolation: { requested: true } }),
 		);
 
-		expect(settled.mergeSummary).toContain("zeta/task/Worker");
+		expect(settled.mergeSummary).toContain("omp/task/Worker");
 		await fs.rm(settled.artifactsDir, { recursive: true, force: true });
 	});
 
@@ -1235,7 +1257,7 @@ describe("structured subagent primitive", () => {
 
 describe("agent frontmatter structured opt-in", () => {
 	const MOCK_API_SOURCE = "test/structured-subagent-opt-in";
-	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "ZETA_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;
 
@@ -1277,7 +1299,7 @@ describe("agent frontmatter structured opt-in", () => {
 		await fs.mkdir(home, { recursive: true });
 		restoreEnvValue("HOME", home);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
-		setAgentDir(path.join(home, ".zeta", "agent"));
+		setAgentDir(path.join(home, ".omp", "agent"));
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();
 		registerMockApi(MOCK_API_SOURCE);
@@ -1305,7 +1327,7 @@ describe("agent frontmatter structured opt-in", () => {
 			// Under the isolated HOME so project discovery stops before the developer's real ~/.omp.
 			const cwd = path.join(root, "home", "work");
 			await fs.mkdir(cwd, { recursive: true });
-			const agentsDir = path.join(root, "home", ".zeta", "agent", "agents");
+			const agentsDir = path.join(root, "home", ".omp", "agent", "agents");
 			await Bun.write(path.join(agentsDir, "reporter.md"), agentFile("reporter", true));
 			await Bun.write(path.join(agentsDir, "plain.md"), agentFile("plain", false));
 
@@ -1622,8 +1644,8 @@ describe("session upstream routing inheritance", () => {
 			expect(result.isError).toBeFalsy();
 			expect(runSpy).toHaveBeenCalledTimes(1);
 			const spawnOptions = runSpy.mock.calls[0]?.[0];
-			expect(spawnOptions?.modelOverride).toEqual(["openrouter/z-ai/glm-4.7@cerebras:high"]);
-			expect(spawnOptions?.parentActiveModelPattern).toBe("openrouter/z-ai/glm-4.7@cerebras:high");
+			expect(spawnOptions?.modelOverride).toEqual(["openrouter/z-ai/glm-4.7@cerebras"]);
+			expect(spawnOptions?.parentActiveModelPattern).toBe("openrouter/z-ai/glm-4.7@cerebras");
 		} finally {
 			await parentSession.dispose();
 		}

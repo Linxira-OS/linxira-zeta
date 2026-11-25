@@ -16,7 +16,6 @@ import type {
 	ThinkingContent,
 	ToolExample,
 } from "@linxiraos/pi-ai";
-import type { PythonResult } from "../../eval/py/executor";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ContextUsage } from "../../extensibility/extensions/types";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
@@ -27,16 +26,16 @@ import type { CacheWarmingMode } from "../../session/cache-warmer";
 import type { FileEntry, SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import type { UsageLimitState } from "../../session/usage-limit";
 import type { AvailableSlashCommandSource } from "../../slash-commands/available-commands";
-import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import type { ConfiguredThinkingLevel } from "../../utils/render-utils";
+import type { AgentProgress } from "../../task/task-details";
+import type { RpcModelPickerResult } from "./rpc-model-picker";
 import type { SubagentEventPayload, SubagentLifecyclePayload, SubagentProgressPayload } from "../../task";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
-import type { LivePhase } from "@linxiraos/pi-tui/apps/live-visualizer";
+import type { TodoPhase } from "../../tools/details/todo";
+import type { LogoutAccount } from "../view-model/overlays/logout-account-selector";
+import type { LivePhase } from "../view-model/apps/live-visualizer";
 import type { RpcMessagesPage } from "./rpc-messages";
 import type { GoalModeState } from "../../goals/state";
-import type { PlanModeState } from "../../plan-mode/state";
-import type { VibeModeState } from "../../vibe/state";
-import type { RpcGoalOp, RpcGoalResult } from "../../goals/continuation-controller";
+import type { RpcGoalOp, RpcGoalResult } from "./rpc-goal";
 import type { BtwHistoryRecord } from "../../session/btw-history";
 
 // ============================================================================
@@ -49,37 +48,12 @@ import type { BtwHistoryRecord } from "../../session/btw-history";
  */
 export type RpcMessageUpdates = "full" | "delta";
 
-/** A companion binary shipped with the product (desktop app, IDE, workbench, runtime). */
-export type RpcComponentId = "zetacode" | "zetawork" | "zetawork-gui" | "zetaide";
-
-/** One component as resolved on the host running the backend. */
-export interface RpcComponentInfo {
-	id: RpcComponentId;
-	/** Installed command name; the same in every layout. */
-	command: string;
-	/** Resolved absolute executable; absent when the component is not installed. */
-	path?: string;
-	/** Whether `component_open` can launch it as a detached GUI process. */
-	openable: boolean;
-	/** Why `component_open` refuses it, when it does. */
-	reason?: string;
-}
-
 export type RpcCommand =
 	// Protocol
 	| { id?: string; type: "negotiate_protocol"; protocolVersion: number }
 
 	// Prompting
-	| {
-			id?: string;
-			type: "prompt";
-			message: string;
-			images?: ImageContent[];
-			streamingBehavior?: "steer" | "followUp";
-			/** False for a forwarded slash command; only user bodies update a waiting loop. */
-			loopBody?: boolean;
-	  }
-	| { id?: string; type: "guided_goal"; message?: string; images?: ImageContent[] }
+	| { id?: string; type: "prompt"; message: string; images?: ImageContent[]; streamingBehavior?: "steer" | "followUp" }
 	| { id?: string; type: "steer"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "follow_up"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
@@ -87,11 +61,12 @@ export type RpcCommand =
 	| { id?: string; type: "abort" }
 	| { id?: string; type: "abort_and_prompt"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "abort_and_restore_queue" }
+	| { id?: string; type: "abort_and_deliver_queue" }
+	| { id?: string; type: "resume" }
 	| { id?: string; type: "new_session"; parentSession?: string }
 	| { id?: string; type: "open_session"; sessionDir: string; provider?: string; modelId?: string }
 
 	// State
-	| { id?: string; type: "change_cwd"; cwd: string }
 	| { id?: string; type: "get_state" }
 	| { id?: string; type: "set_fast_mode"; enabled: boolean }
 	| { id?: string; type: "set_slow_mode"; enabled: boolean }
@@ -126,12 +101,20 @@ export type RpcCommand =
 	| { id?: string; type: "dictation_stop" }
 
 	// Model
-	| { id?: string; type: "set_model"; provider: string; modelId: string }
+	| {
+			id?: string;
+			type: "set_model";
+			provider: string;
+			modelId: string;
+			thinkingLevel?: ConfiguredThinkingLevel;
+			role?: string;
+	  }
 	| { id?: string; type: "cycle_model" }
 	| { id?: string; type: "get_available_models" }
+	| { id?: string; type: "get_model_picker"; query?: string; limit?: number }
 
 	// Thinking
-	| { id?: string; type: "set_thinking_level"; level: ThinkingLevel }
+	| { id?: string; type: "set_thinking_level"; level: ConfiguredThinkingLevel }
 	| { id?: string; type: "cycle_thinking_level" }
 	| { id?: string; type: "get_available_thinking_levels" }
 
@@ -144,23 +127,6 @@ export type RpcCommand =
 	| { id?: string; type: "compact"; customInstructions?: string }
 	| { id?: string; type: "set_auto_compaction"; enabled: boolean }
 
-	// Companion components (desktop app, IDE, workbench, runtime)
-	| { id?: string; type: "component_list" }
-	| { id?: string; type: "component_open"; component: RpcComponentId; args?: string[] }
-
-	// Session modes, tool set and reload (the TUI's /plan, /goal, /vibe,
-	// /tool and /reload surfaces; a client drives the same transitions)
-	| { id?: string; type: "mode_enter"; mode: "plan" | "goal" | "vibe"; options?: unknown }
-	| { id?: string; type: "mode_exit"; mode: "plan" | "goal" | "vibe"; options?: unknown }
-	| { id?: string; type: "loop_start"; args?: string }
-	| { id?: string; type: "loop_stop" }
-	| { id?: string; type: "loop_pause" }
-	| { id?: string; type: "loop_resume" }
-	| { id?: string; type: "loop_status" }
-	| { id?: string; type: "get_tools" }
-	| { id?: string; type: "set_tools"; toolNames: string[] }
-	| { id?: string; type: "reload" }
-
 	// Cache warming
 	| { id?: string; type: "set_cache_warming"; mode: CacheWarmingMode }
 
@@ -170,7 +136,6 @@ export type RpcCommand =
 
 	// Bash
 	| { id?: string; type: "bash"; command: string; excludeFromContext?: boolean }
-	| { id?: string; type: "python"; code: string; excludeFromContext?: boolean }
 	| { id?: string; type: "abort_bash" }
 
 	// Session
@@ -221,6 +186,10 @@ export type RpcCommand =
 export interface RpcSessionState {
 	model?: Model;
 	thinkingLevel: ThinkingLevel | undefined;
+	/** The user's thinking selector: `auto` while auto mode picks the effort. */
+	configuredThinkingLevel?: ConfiguredThinkingLevel;
+	/** Selectors the active model accepts: `off`, `auto`, then its efforts. */
+	thinkingLevels?: ConfiguredThinkingLevel[];
 	isStreaming: boolean;
 	isCompacting: boolean;
 	steeringMode: "all" | "one-at-a-time";
@@ -264,17 +233,6 @@ export interface RpcSessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal-mode state; `null` when the session has no goal. */
 	goal: GoalModeState | null;
-	/** True while `/guided-goal` is interviewing; the client must treat bare "c" as text. */
-	guidedGoalInterview?: boolean;
-	/**
-	 * Every mode's state, the same snapshot the TUI's mode banners read. Present
-	 * so a remote client can render plan/goal/vibe without a second protocol.
-	 */
-	modes?: {
-		plan?: PlanModeState;
-		goal?: GoalModeState;
-		vibe?: VibeModeState;
-	};
 }
 
 export interface RpcAvailableSlashCommand {
@@ -498,7 +456,6 @@ export type RpcResponse =
 
 	// Prompting (async - events follow)
 	| { id?: string; type: "response"; command: "prompt"; success: true; data?: { agentInvoked: boolean } }
-	| { id?: string; type: "response"; command: "guided_goal"; success: true; data: { started: boolean } }
 	| { id?: string; type: "response"; command: "steer"; success: true }
 	| { id?: string; type: "response"; command: "follow_up"; success: true }
 	| {
@@ -518,11 +475,12 @@ export type RpcResponse =
 			success: true;
 			data: RpcAbortAndRestoreQueueResult;
 	  }
+	| { id?: string; type: "response"; command: "abort_and_deliver_queue"; success: true; data: { aborted: boolean } }
+	| { id?: string; type: "response"; command: "resume"; success: true }
 	| { id?: string; type: "response"; command: "new_session"; success: true; data: { cancelled: boolean } }
 	| { id?: string; type: "response"; command: "open_session"; success: true; data: RpcOpenSessionResult }
 
 	// State
-	| { id?: string; type: "response"; command: "change_cwd"; success: true; data: { cwd: string } }
 	| { id?: string; type: "response"; command: "get_state"; success: true; data: RpcSessionState }
 	| {
 			id?: string;
@@ -617,6 +575,13 @@ export type RpcResponse =
 			success: true;
 			data: { models: Model[] };
 	  }
+	| {
+			id?: string;
+			type: "response";
+			command: "get_model_picker";
+			success: true;
+			data: RpcModelPickerResult;
+	  }
 
 	// Thinking
 	| { id?: string; type: "response"; command: "set_thinking_level"; success: true }
@@ -643,24 +608,6 @@ export type RpcResponse =
 	// Compaction
 	| { id?: string; type: "response"; command: "compact"; success: true; data: CompactionResult }
 	| { id?: string; type: "response"; command: "set_auto_compaction"; success: true }
-	| { id?: string; type: "response"; command: "mode_enter"; success: true }
-	| { id?: string; type: "response"; command: "mode_exit"; success: true }
-	| { id?: string; type: "response"; command: "loop_start"; success: true; data: { state: unknown } }
-	| { id?: string; type: "response"; command: "loop_stop"; success: true; data: { state: unknown } }
-	| { id?: string; type: "response"; command: "loop_pause"; success: true; data: { state: unknown } }
-	| { id?: string; type: "response"; command: "loop_resume"; success: true; data: { state: unknown } }
-	| { id?: string; type: "response"; command: "loop_status"; success: true; data: { state: unknown } }
-	| { id?: string; type: "response"; command: "get_tools"; success: true; data: { all: string[]; active: string[] } }
-	| { id?: string; type: "response"; command: "set_tools"; success: true }
-	| { id?: string; type: "response"; command: "reload"; success: true }
-	| {
-			id?: string;
-			type: "response";
-			command: "component_list";
-			success: true;
-			data: { components: RpcComponentInfo[] };
-	  }
-	| { id?: string; type: "response"; command: "component_open"; success: true; data: { pid: number } }
 
 	// Cache warming
 	| { id?: string; type: "response"; command: "set_cache_warming"; success: true; data: { mode: CacheWarmingMode } }
@@ -671,7 +618,6 @@ export type RpcResponse =
 
 	// Bash
 	| { id?: string; type: "response"; command: "bash"; success: true; data: BashResult }
-	| { id?: string; type: "response"; command: "python"; success: true; data: PythonResult }
 	| { id?: string; type: "response"; command: "abort_bash"; success: true }
 
 	// Session
@@ -911,6 +857,8 @@ export type RpcExtensionUIRequest =
 			questions: RpcAskDialogQuestion[];
 			timeout?: number;
 	  }
+	/** The whole HTML form of one `ui.formDialog` call (the `ask` tool or an extension); no opt-in is required. */
+	| { type: "extension_ui_request"; id: string; method: "form"; html: string; timeout?: number }
 	| { type: "extension_ui_request"; id: string; method: "cancel"; targetId: string }
 	| {
 			type: "extension_ui_request";
@@ -1066,7 +1014,9 @@ export type RpcExtensionUIResponse =
 			type: "extension_ui_response";
 			id: string;
 			answers: Array<{ id: string; selectedOptions: string[]; customInput?: string }>;
-	  };
+	  }
+	/** Submitted data of a `form` request, by control `name`; validated against the form. */
+	| { type: "extension_ui_response"; id: string; data: Record<string, unknown> };
 
 // ============================================================================
 // Helper type for extracting command types

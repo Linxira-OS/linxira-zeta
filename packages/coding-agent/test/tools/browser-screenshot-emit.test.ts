@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ImageTokenization } from "@linxiraos/pi-catalog/compat/image-tokenization";
-import { PointerSpace } from "@linxiraos/zeta/tools/browser/pointer-space";
-import { RunOutput } from "@linxiraos/zeta/tools/browser/run-output";
-import { emitScreenshot, type ScreenshotCapture } from "@linxiraos/zeta/tools/browser/screenshot";
-import type { ScreenshotResult, SessionSnapshot } from "@linxiraos/zeta/tools/browser/tab-protocol";
-import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import type { ImageTokenization } from "@oh-my-pi/pi-catalog/compat/image-tokenization";
+import { PointerSpace } from "@oh-my-pi/pi-coding-agent/tools/browser/pointer-space";
+import { RunOutput } from "@oh-my-pi/pi-coding-agent/tools/browser/run-output";
+import { emitScreenshot, type ScreenshotCapture } from "@oh-my-pi/pi-coding-agent/tools/browser/screenshot";
+import type { ScreenshotResult, SessionSnapshot } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
+import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
+import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
 
 /** Claude's standard tier: images past 1,568 28px patches are shrunk by the API. */
 const STANDARD: ImageTokenization = { regime: "anthropic-patch", maxEdge: 1568, maxTokens: 1568 };

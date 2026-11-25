@@ -2,23 +2,23 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { Effort } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import * as autoThinkingClassifier from "@linxiraos/zeta/auto-thinking/classifier";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import * as autoThinkingClassifier from "@oh-my-pi/pi-coding-agent/auto-thinking/classifier";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
-import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@linxiraos/zeta/modes/settings";
-import { cfgTaskDisabledAgents } from "@linxiraos/zeta/task/settings";
+import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTaskDisabledAgents } from "@oh-my-pi/pi-coding-agent/task/settings";
 
 const mockTaskTool: AgentTool = {
 	name: "task",
@@ -72,7 +72,7 @@ describe("AgentSession magic keyword settings", () => {
 	let modelRegistry: ModelRegistry;
 
 	beforeAll(async () => {
-		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-magic-keywords-auth-"));
+		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-magic-keywords-auth-"));
 		authStorage = await AuthStorage.create(path.join(authRoot, "auth.db"));
 		authStorage.keys.setRuntime("anthropic", "test-key");
 		authStorage.keys.setRuntime("openai-codex", "test-key");

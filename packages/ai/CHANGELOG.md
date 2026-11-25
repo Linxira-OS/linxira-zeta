@@ -7,6 +7,70 @@
 - Devin logins now store the account's email, user id and organization, so two organizations under one email show as two accounts in `omp usage` and `auth.accountPolicies` can name each; sign in again to identify an existing login ([#19928](https://github.com/Linxira-OS/linxira-zeta/pull/19928) by [@will-bogusz](https://github.com/will-bogusz))
 - Anthropic requests with no messages now fail locally with the model, provider, and how many messages arrived, instead of a bare `400 "messages is required"` ([#19881](https://github.com/Linxira-OS/linxira-zeta/pull/19881) by [@FnSGit](https://github.com/FnSGit))
 - Usage reports of a provider an extension registers now survive across omp processes. Registering a provider's first usage adapter no longer discards the reports another process cached for it, so each new session stops re-probing the provider's usage endpoint; replacing an existing adapter still invalidates them ([#20030](https://github.com/Linxira-OS/linxira-zeta/pull/20030) by [@ahsanatha](https://github.com/ahsanatha))
+## [19.2.0] - 2026-11-25
+
+### Breaking Changes
+
+- maxInFlightRequests limits are now scoped per process unless the host configures a ProviderSlotBroker; the previous cross-process lease-directory mechanism has been removed.
+
+### Added
+
+- Added ProviderSlotBroker support through configureProviderSlotBroker(broker), allowing hosts such as coding-agent to coordinate maxInFlightRequests limits across processes.
+- Added AssistantMessage.errorFromAgentLoop to distinguish errors caused by the agent loop from errors returned by the provider.
+- OpenAI- and Anthropic-compatible requests to custom hosts now include an x-session-id header when the host does not provide its own session header, preserving conversation affinity through gateways and proxies. Official OpenAI, Anthropic, and Codex APIs are unchanged.
+- Added an "Anthropic (Claude Pro/Max, 1-year token)" login that lasts a year instead of 30 days and never refreshes; image uploads to Anthropic's Files API stay with the regular login.
+- Added regional and custom endpoint selection to /login otari, storing non-US endpoints with the account so EU and self-hosted deployments do not need OTARI_BASE_URL configured separately.
+
+### Changed
+
+- Requests waiting for maxInFlightRequests capacity now begin immediately when capacity is released, rather than relying on periodic polling.
+- omp auth-gateway now preserves Codex session and thread headers and uses Claude Code and OpenCode session identifiers for prompt-cache affinity, improving cache reuse through the gateway.
+- Anthropic (Claude Pro/Max) logins now refresh the way Claude Code 2.1.332 does and are disabled only when Anthropic rejects the refresh token with `invalid_grant`; a failed background refresh no longer fails requests while the access token is still valid, and a 403 "OAuth token has been revoked" refreshes the same login before switching accounts.
+- Reduced CPU spent scanning streamed DeepSeek prose and long inline code spans that quote template tokens.
+
+### Fixed
+
+- Fixed generate_image edits through OpenAI-compatible gateways that rejected the documented JSON image-edit format.
+- Anthropic OAuth accounts explicitly rejected by an organization are now excluded from account rotation for seven days, including across sessions and restarts.
+- Fixed text-encoded tool calls from DeepSeek, Kimi K2, and Qwen models on OpenRouter Responses-compatible routes, allowing them to stream as normal tool calls instead of failing or triggering retries.
+- Fixed GitHub Copilot Gemini requests failing when MCP tool schemas contain union types such as ["string", "null"].
+- Reduced duplicate retries for openai-completions streams that receive an HTTP 500 response.
+- Fixed omp usage for Synthetic weekly-only plans so it displays weekly credit usage and the next regeneration time.
+- Fixed antigravity-cli quota exhaustion and unavailable-model handling so affected accounts are correctly rotated or blocked and reported reset times are honored.
+- Fixed Gemini models on OpenRouter losing reasoning during long tool-call loops.
+- Fixed prompt-cache misses for /btw and other side turns on OpenCode Go and Zen.
+- Fixed antigravity-cli losing conversation context during OAuth refreshes and when restoring saved turns after generation metadata compaction.
+
+## [19.1.1] - 2026-11-23
+
+### Added
+
+- Added `AssistantMessage.requestId`, populated from Anthropic’s `request-id` response header, so failed or refused requests retain the identifier needed for Anthropic support.
+- Added `GET /v1/pi/models` to `omp auth-gateway`, serving the gateway's model catalog (limits, thinking levels, pricing) to pi-native clients.
+
+### Changed
+
+- Devin account selection now prioritizes logins with remaining daily or weekly quota, then accounts funded by on-demand balance, while skipping accounts with no available capacity. Devin logins also track email, user ID, and organization so separate organizations are distinguishable in `omp usage` and `auth.accountPolicies`; existing logins must be reauthenticated to populate this information.
+- Billing failures from providers are now treated as usage limits, allowing retries to rotate accounts and continue through the model fallback chain.
+- Provider usage reports registered by extensions now persist across omp processes, avoiding unnecessary repeated usage-endpoint checks.
+- Requests that stall during provider operations are now classified as timeouts, allowing automatic fallback to another model.
+- Reduced idle memory usage by loading prompt-perturbation data only when perturbation is enabled for a request.
+
+### Fixed
+
+- Fixed split tool-call handling so models configured with `splitToolCalls` receive each tool call together with its corresponding result in the correct message order.
+- Fixed `apple/on-device` finish-reason handling so requests no longer emit spurious stderr warnings and correctly report recognized stop or length completions.
+- Improved local validation for empty Anthropic requests by reporting the model, provider, and received message count instead of an opaque provider error.
+- Fixed OpenAI and Codex requests failing on MCP tool schemas containing unsupported unescaped character patterns.
+- OpenRouter Responses requests that end in an unbilled encrypted reasoning item now surface the underlying provider failure instead of completing silently.
+- Fixed preservation of Gemini thought signatures across tool calls when using Portkey or the authentication gateway.
+- Fixed the thinking-loop guard incorrectly retrying final answers containing long Markdown tables or similarly shaped JSON records.
+- Fixed strict tool-schema conversion so object properties that accept arbitrary fields are not incorrectly restricted to empty objects.
+- Fixed `antigravity-cli` models failing to receive images returned by tools such as `read`.
+- Fixed transient proxy errors from disrupting snapshot streaming and disabling usage reporting for the remainder of the process.
+- Fixed concurrent Antigravity CLI sessions for the same account failing during credential staging.
+- Fixed OpenAI Codex WebSocket continuations so sticky turn routing information is preserved for subsequent requests.
+- Improved recovery from a corrupt `agent.db` so readable provider credentials are restored where possible and disabled credentials remain disabled.
 
 ## [19.1.0] - 2026-11-21
 
@@ -1627,3 +1691,4 @@ Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://gi
 - Classified zero-output Devin `invalid_argument` trailers as context overflow when the serialized message history is already large, routing cumulative tool-output payload failures through context maintenance—including artifact-backed shake rescue—instead of retrying the same rejected history.
 
 Older entries are archived in [packages/ai/CHANGELOG.md@de21c0ac454b](https://github.com/Linxira-OS/linxira-zeta/blob/de21c0ac454b1a66d8dfff32b0ed4751a08f809b/packages/ai/CHANGELOG.md).
+Older entries are archived in [packages/ai/CHANGELOG.md@483bfd489943](https://github.com/can1357/oh-my-pi/blob/483bfd48994357938b5996cfabec020e388ee87b/packages/ai/CHANGELOG.md).

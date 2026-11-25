@@ -1,20 +1,20 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, AgentBusyError, type AgentMessage } from "@linxiraos/pi-agent-core";
-import { type AssistantMessage, type ImageContent } from "@linxiraos/pi-ai";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createTools, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
-import { TempDir } from "@linxiraos/pi-utils";
-import { setLanguage } from "../../src/i18n";
+import { Agent, type AgentMessage, AgentBusyError } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { GoalTool } from "@oh-my-pi/pi-coding-agent/goals/tools/goal-tool";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { createTools, type Tool, type ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { initTheme } from "../../src/ui/theme/service";
+import { createModeTerminal } from "../helpers/mode-terminal";
 
 function createToolSession(cwd: string, settings: Settings, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {
@@ -76,10 +76,17 @@ async function createHarness(options?: { goalEnabled?: boolean }): Promise<Guide
 	});
 	const goalTool = new GoalTool(goalToolSession);
 	toolRegistry.set("goal", goalTool as unknown as Tool);
-	const mode = new InteractiveMode(session, "test");
+	const mode = new InteractiveMode(
+		session,
+		"test",
+		undefined,
+		undefined,
+		undefined,
+		undefined,
+		createModeTerminal().frame,
+	);
 	vi.spyOn(mode, "addMessageToChat").mockReturnValue([]);
-	vi.spyOn(mode, "ensureLoadingAnimation").mockImplementation(() => {});
-	mode.ui.requestRender = vi.fn();
+	vi.spyOn(mode, "ensureWorkingRow").mockImplementation(() => {});
 	return {
 		mode,
 		session,
@@ -141,7 +148,6 @@ async function endTurn(harness: GuidedGoalHarness, messages: AgentMessage[]): Pr
 
 describe("guided goal setup", () => {
 	beforeAll(() => {
-		setLanguage("en");
 		initTheme();
 	});
 
@@ -170,38 +176,6 @@ describe("guided goal setup", () => {
 			// The goal tool is activated up front so the agent can create the goal
 			// once the interview concludes.
 			expect(harness.session.getEnabledToolNames()).toContain("goal");
-		} finally {
-			await harness.cleanup();
-		}
-	});
-
-	it("starts the same interview from the backend session layer", async () => {
-		const harness = await createHarness();
-		try {
-			const promptSpy = vi.spyOn(harness.session, "prompt").mockResolvedValue(true);
-
-			await harness.session.startGuidedGoal({ initial: "ship it" });
-
-			expect(harness.session.isGuidedGoalInterviewActive()).toBe(true);
-			expect(harness.session.getEnabledToolNames()).toContain("goal");
-			expect(promptSpy).toHaveBeenCalledTimes(1);
-			expect(promptSpy.mock.calls[0]?.[0]).toContain("ship it");
-
-			const now = Date.now();
-			harness.session.setGoalModeState({
-				enabled: true,
-				mode: "active",
-				goal: {
-					id: "g1",
-					objective: "Ship it",
-					status: "active",
-					tokensUsed: 0,
-					timeUsedSeconds: 0,
-					createdAt: now,
-					updatedAt: now,
-				},
-			});
-			expect(harness.session.isGuidedGoalInterviewActive()).toBe(false);
 		} finally {
 			await harness.cleanup();
 		}

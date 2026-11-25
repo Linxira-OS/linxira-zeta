@@ -1,7 +1,7 @@
-import { logger, toError } from "@linxiraos/pi-utils";
+import { logger, toError } from "@oh-my-pi/pi-utils";
 import { Settings } from "../config/settings";
-import { OutputSink, type ArtifactAllocator, type OutputArtifactError } from "@linxiraos/pi-tui/tools/streaming-output";
-import { statusEventKey } from "@linxiraos/pi-tui/tools/eval";
+import { type ArtifactAllocator, type OutputArtifactError, OutputSink } from "../tools/streaming-output";
+import { statusEventKey } from "../tools/details/eval";
 import type { ToolSession } from "../tools";
 import { ToolAbortError } from "../tools/tool-errors";
 import {
@@ -71,7 +71,6 @@ export type KernelEnvPatch = Record<string, string | null | undefined>;
  * interfaces structurally extend this; the base executor only reads these.
  */
 export interface KernelExecutorBaseOptions {
-	outerToolCallId?: string;
 	cwd?: string;
 	filename?: string;
 	timeoutMs?: number;
@@ -542,7 +541,6 @@ export async function executeWithKernelBase<
 		options?.toolSession && options?.bridgeSessionId
 			? registerPyToolBridge(options.bridgeSessionId, runId, {
 					toolSession: options.toolSession,
-					outerToolCallId: options.outerToolCallId,
 					parentToolCallId: options.parentToolCallId,
 					signal: options.signal,
 					cellTimeoutMs: executionTimeoutMs ?? options.idleTimeoutMs ?? 0,

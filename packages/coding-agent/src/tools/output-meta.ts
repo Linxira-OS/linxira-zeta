@@ -16,18 +16,8 @@ import { isRecord, logger } from "@linxiraos/pi-utils";
 import type { Setting } from "../config/registry";
 import type { Settings } from "../config/settings";
 
-import {
-	type OutputSummary,
-	type TruncationResult,
-	truncateMiddle,
-	truncateTail,
-} from "@linxiraos/pi-tui/tools/streaming-output";
-import {
-	formatOutputNotice,
-	type MinimizedMeta,
-	type OutputMeta,
-	type TruncationMeta,
-} from "@linxiraos/pi-tui/tools/output-meta";
+import { type OutputSummary, type TruncationResult, truncateMiddle, truncateTail } from "./streaming-output";
+import { formatOutputNotice, type MinimizedMeta, type OutputMeta, type TruncationMeta } from "./output-meta-format";
 import { renderError } from "./tool-errors";
 import {
 	cfgToolsArtifactHeadBytes,

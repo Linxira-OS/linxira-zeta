@@ -23,9 +23,16 @@
  * process-wide pool, or `undefined` when worker mode is off (subagents then run
  * in-process); `task.workerThreads` is read live on every placement.
  */
-import { MessageChannel } from "node:worker_threads";
-import { getProjectDir, logger, postmortem } from "@linxiraos/pi-utils";
-import { workerHostEntry } from "@linxiraos/pi-utils/worker-host";
+import type * as WorkerThreads from "node:worker_threads";
+
+// Lazy loader: keeps node:worker_threads off CLI startup until a subagent worker thread actually spawns.
+let workerThreadsCache: typeof WorkerThreads | undefined;
+function workerThreads(): typeof WorkerThreads {
+	if (!workerThreadsCache) workerThreadsCache = require("node:worker_threads") as typeof WorkerThreads;
+	return workerThreadsCache;
+}
+import { getProjectDir, logger, postmortem } from "@oh-my-pi/pi-utils";
+import { workerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
 import { SUBAGENT_WORKER_ARG } from "../cli/worker-selectors";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
@@ -144,6 +151,7 @@ export class SubagentWorker implements WorkerPeer {
 		this.#worker = worker;
 		// Unref'd until someone holds it: a booting spare never keeps the process alive.
 		worker.unref();
+		const { MessageChannel } = workerThreads();
 		const channel = new MessageChannel();
 		const counter = new SharedArrayBuffer(4);
 		this.#replyPort = channel.port1;

@@ -16,7 +16,7 @@
  * top-level TUI session, terminal or Tern) and never for subagents.
  */
 import type { ToolApprovalDecision } from "@linxiraos/pi-agent-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tools/tool-errors";
 import type { Settings } from "../config/settings";
 import outPromptDoc from "../prompts/internal-urls/out.md" with { type: "text" };
 import type { ToolSession } from "../tools";

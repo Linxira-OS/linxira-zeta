@@ -7,14 +7,14 @@ import {
 	parseFrontmatter,
 	prompt,
 	relativePathWithinNormalizedRoot,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import {
 	isValidManagedSkillName,
 	MANAGED_SKILLS_PROVIDER_ID,
 	sanitizeManagedDescription,
 } from "../autolearn/managed-skills";
 import { reset as resetCapabilities } from "../capability";
-import { OFFICIAL_SKILLS_PROVIDER_ID, skillCapability } from "../capability/skill";
+import { skillCapability } from "../capability/skill";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { Settings } from "../config/settings";
 import { cfgDisabledExtensions, cfgSkills, type SkillsSettings } from "./settings";
@@ -31,10 +31,11 @@ import {
 	registeredPluginRootOf,
 	scanSkillsFromDir,
 } from "../discovery/helpers";
-import { allowsSkillTokens, SKILL_TOKEN_RE } from "@linxiraos/pi-tui/prompt/skill-tokens";
+import { allowsSkillTokens, SKILL_TOKEN_RE } from "./skill-tokens";
 import autoloadTemplate from "../prompts/skills/autoload.md" with { type: "text" };
 import userInvocationTemplate from "../prompts/skills/user-invocation.md" with { type: "text" };
 import { SKILLSHARE_PROVIDER_ID } from "../discovery/skillshare";
+import { substitutePluginRoot } from "../discovery/substitute-plugin-root";
 import type { SkillPromptDetails } from "../session/messages";
 import { expandTilde } from "../tools/path-utils";
 
@@ -60,6 +61,12 @@ export interface Skill {
 	 * every `skill://` resource access must realpath-resolve within it.
 	 */
 	containRoot?: string;
+	/**
+	 * Plugin install path supplying this skill (Claude marketplace plugins).
+	 * `${CLAUDE_PLUGIN_ROOT}` / `${OMP_PLUGIN_ROOT}` in the skill's Markdown
+	 * body are substituted with it when the body is read (#20165).
+	 */
+	pluginRoot?: string;
 	/** Source metadata for display */
 	_source?: SourceMeta;
 }
@@ -135,7 +142,7 @@ interface CollisionResolution {
  * Resolve a same-name skill against what is already loaded.
  * - Precedence, when raw names collide:
  *   1. An authored skill always outranks a registry-installed package
- *      (`zetacode skill install`, the `skillshare` provider) — installed steps
+ *      (`omp skill install`, the `skillshare` provider) — installed steps
  *      aside regardless of admission order.
  *   2. A custom-directory skill always outranks a provider skill (#7190's
  *      override contract) — the provider skill steps aside even though it
@@ -277,6 +284,7 @@ export async function loadSkillsFromDir(options: LoadSkillsFromDirOptions): Prom
 			baseDir: capSkill.path.replace(/[\\/]SKILL\.md$/, ""),
 			source: options.source,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
+			...(capSkill._source?.pluginRoot !== undefined && { pluginRoot: capSkill._source.pluginRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
 			_source: capSkill._source,
 		})),
@@ -312,7 +320,6 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		enablePiProject = true,
 		enableAgentsUser = true,
 		enableAgentsProject = true,
-		enableOfficial = true,
 		customDirectories = [],
 		ignoredSkills = [],
 		manualSkills = [],
@@ -327,7 +334,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 	}
 	function isSourceEnabled(source: SourceMeta): boolean {
 		const { provider, level } = source;
-		// Managed skills (auto-learn) are Zeta-native and discovered unconditionally
+		// Managed skills (auto-learn) are OMP-native and discovered unconditionally
 		// — third-party CLI toggles must never silently hide them (cf. #2401). The
 		// master `enabled` flag above still gates them.
 		if (provider === MANAGED_SKILLS_PROVIDER_ID) return true;
@@ -338,12 +345,8 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		if (provider === "native" && level === "project") return enablePiProject;
 		if (provider === "agents" && level === "user") return enableAgentsUser;
 		if (provider === "agents" && level === "project") return enableAgentsProject;
-		// Official bundled pack (`zeta-official`) is Zeta-native, so it skips the
-		// foreign `~/` opt-in registry below; `skills.enableOfficial` is its
-		// dedicated user-facing switch (default on).
-		if (provider === OFFICIAL_SKILLS_PROVIDER_ID) return enableOfficial;
 		// User-scope claude-plugins skills carry the root's origin (#10743). omp's
-		// own installs (`zetacode` registry, `--plugin-dir`) are not the foreign
+		// own installs (`omp` registry, `--plugin-dir`) are not the foreign
 		// ~/.claude/plugins tree, so the foreign opt-in gate applies only to
 		// claude-origin roots — parity with allowedRoots() in
 		// discovery/claude-plugins.ts. Without this, #10666's root-level fix is
@@ -481,6 +484,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 			baseDir: capSkill.path.replace(/[\\/]SKILL\.md$/, ""),
 			source: `${capSkill._source.provider}:${capSkill.level}`,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
+			...(capSkill._source?.pluginRoot !== undefined && { pluginRoot: capSkill._source.pluginRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
 			_source: capSkill._source,
 		};
@@ -524,6 +528,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 					baseDir: capSkill.path.replace(/[\\/]SKILL\.md$/, ""),
 					source: "custom:user",
 					...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
+					...(capSkill._source?.pluginRoot !== undefined && { pluginRoot: capSkill._source.pluginRoot }),
 					hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
 					_source: { ...capSkill._source, providerName: "Custom" },
 				},
@@ -607,6 +612,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 			baseDir: capSkill.path.replace(/[\\/]SKILL\.md$/, ""),
 			source: `${capSkill._source.provider}:${capSkill.level}`,
 			...(capSkill.containRoot !== undefined && { containRoot: capSkill.containRoot }),
+			...(capSkill._source?.pluginRoot !== undefined && { pluginRoot: capSkill._source.pluginRoot }),
 			hide: capSkill.frontmatter?.hide === true || capSkill.frontmatter?.disableModelInvocation === true,
 			_source: capSkill._source,
 		});
@@ -662,7 +668,7 @@ export interface SkillRediscoverySource {
 }
 
 /**
- * Skills to use again after one of them went stale: its instruction file is gone (`zetacode plugin
+ * Skills to use again after one of them went stale: its instruction file is gone (`omp plugin
  * upgrade` installed the new version in a new cache directory and deleted the old one), or the
  * registries now install its plugin elsewhere ({@link isSkillSuperseded}). The plugin-root cache
  * and the discovery file cache still name the old directory, so both are dropped first. A holder
@@ -859,11 +865,15 @@ export type SkillInvocationKind = "user" | "autoload";
 export type SkillPromptInput = Pick<ParsedSkillInvocation, "args"> & Partial<Pick<ParsedSkillInvocation, "prompt">>;
 
 /** Read a skill's instruction body before rendering user-provided arguments. */
-export async function loadSkillPromptBody(skill: Pick<Skill, "filePath">): Promise<string> {
+export async function loadSkillPromptBody(skill: Pick<Skill, "filePath" | "pluginRoot">): Promise<string> {
 	const content = await Bun.file(skill.filePath).text();
 	// Only the body is used: keep HTML comments (`repair: false`) and leave YAML
 	// diagnostics to the loader, which already parsed this frontmatter.
-	return parseFrontmatter(content, { source: skill.filePath, repair: false, level: "off" }).body.trim();
+	let body = parseFrontmatter(content, { source: skill.filePath, repair: false, level: "off" }).body.trim();
+	// Claude Code parity (#20165): plugin skills resolve ${CLAUDE_PLUGIN_ROOT} /
+	// ${OMP_PLUGIN_ROOT} in the Markdown body when the content is loaded.
+	if (skill.pluginRoot !== undefined) body = substitutePluginRoot(body, skill.pluginRoot);
+	return body;
 }
 
 /** A skill's instruction body and the skill it was read from. */

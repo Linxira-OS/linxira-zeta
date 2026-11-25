@@ -11,12 +11,11 @@
  * collisions across repeated or nested task invocations.
  */
 import * as fs from "node:fs/promises";
-import { ADVISOR_TRANSCRIPT_STEM } from "../advisor/transcript-recorder";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+import { ADVISOR_TRANSCRIPT_STEM } from "../advisor/transcript-names";
 import type { Settings } from "../config/settings";
 import { cfgTaskCrossInstance } from "./settings";
-
-export { PINNED_HUD_TOGGLE_ID };
+/** HUD expander click target reserved by the allocator so it cannot name a subagent. */
+export const PINNED_HUD_TOGGLE_ID = "@omp:toggle-pinned-hud";
 
 /**
  * Manages agent output ID allocation to ensure uniqueness.

@@ -1,7 +1,20 @@
-import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
-import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
-import { formatDuration, getProjectDir } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import type {
+	Api,
+	ApiKeyResolver,
+	AssistantMessage,
+	AssistantMessageEvent,
+	AssistantMessageEventStream,
+	Context,
+	Model,
+	OAuthAccess,
+	OAuthAccessResolution,
+	SimpleStreamOptions,
+} from "@oh-my-pi/pi-ai";
+import { streamSimple } from "@oh-my-pi/pi-ai";
+import { replaceTabs, truncateToWidth } from "../utils/text-width";
+import { SPINNER_FRAMES } from "../modes/view-model/theme/symbols";
+import { formatDuration, getProjectDir } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelString,
@@ -13,20 +26,6 @@ import {
 import { Settings } from "../config/settings";
 import dryBalanceBenchPrompt from "../prompts/dry-balance-bench.md" with { type: "text" };
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
-import {
-	type Api,
-	type ApiKeyResolver,
-	type AssistantMessage,
-	type AssistantMessageEvent,
-	type AssistantMessageEventStream,
-	type AuthCredentialSnapshotEntry,
-	type Context,
-	type Model,
-	type OAuthAccess,
-	type OAuthAccessResolution,
-	type SimpleStreamOptions,
-	streamSimple,
-} from "@linxiraos/pi-ai";
 
 const DEFAULT_SAMPLE_COUNT = 100;
 const DEFAULT_CONCURRENCY = 32;
@@ -615,7 +614,7 @@ async function mapConcurrent<T, R>(
 	concurrency: number,
 	fn: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-	// [suppressed] length preallocation
+	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 	const results = new Array<R>(items.length);
 	let nextIndex = 0;
 	const workerCount = Math.min(concurrency, items.length);

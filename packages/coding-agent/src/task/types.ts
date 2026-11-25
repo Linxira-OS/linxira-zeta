@@ -1,17 +1,11 @@
-import type { AgentSource } from "@linxiraos/pi-tui/tools/task";
-export {
-	TASK_SUBAGENT_PROGRESS_CHANNEL,
-	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
-export type {
-	SubagentProgressPayload,
-	SubagentLifecyclePayload,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import { type BaseType, type FluentType, type } from "@linxiraos/zeta-schema";
-import { $env, isRecord } from "@linxiraos/pi-utils";
+import type { AgentSource } from "./task-details";
+export { TASK_SUBAGENT_PROGRESS_CHANNEL, TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "./session-observer-registry";
+export type { SubagentProgressPayload, SubagentLifecyclePayload } from "./session-observer-registry";
+import { type BaseType, type FluentType, type } from "@oh-my-pi/omptype";
+import { $env, isRecord } from "@oh-my-pi/pi-utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 
 const parseNumber = (value: string | undefined, defaultValue: number): number => {
 	if (value) {
@@ -70,7 +64,6 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
@@ -81,7 +74,6 @@ const taskItemSchemaIsolated = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -94,7 +86,6 @@ export const taskSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -106,7 +97,6 @@ const taskSchemaNoIsolation = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
-	"model?": "string",
 	"+": "delete",
 });
 function guardBatchAgent(schema: BaseType): BaseType {
@@ -264,10 +254,7 @@ export function getTaskSchema(options: {
 	const structured = options.structured ?? true;
 	const steps = options.steps ?? false;
 	const perCallModel = options.perCallModel ?? false;
-	// The exported single/batch schemas always advertise the per-call `model`
-	// field (v18.14.2 wire contract); a schema built for a call that may not
-	// send one omits it, so the fast path serves only model-enabled calls.
-	if (defaultAgent === "task" && !effortEnabled && evalToolsEnabled && structured && !steps && perCallModel) {
+	if (defaultAgent === "task" && !effortEnabled && evalToolsEnabled && structured && !steps && !perCallModel) {
 		if (options.batchEnabled) return options.isolationEnabled ? taskSchemaBatch : taskSchemaBatchNoIsolation;
 		return options.isolationEnabled ? taskSchema : taskSchemaNoIsolation;
 	}
@@ -309,8 +296,6 @@ export interface AgentDefinition {
 	blocking?: boolean;
 	/** `true` = task spawns keep this agent's `output` schema, and with it the `yield` tool, even when `task.structured` is off. */
 	structured?: boolean;
-	/** `true` = the subagent owns a `todo` list instead of having the parent-owned tool stripped. */
-	ownsTodo?: boolean;
 	autoloadSkills?: string[];
 	/** When `false`, the agent's `read` tool returns verbatim file content instead of structural summaries. */
 	readSummarize?: boolean;

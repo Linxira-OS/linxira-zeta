@@ -2,19 +2,19 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as cleanseAgent from "@linxiraos/zeta/cleanse/agent";
-import * as cleanseCheckers from "@linxiraos/zeta/cleanse/checkers";
-import { runCleanseCommand } from "@linxiraos/zeta/cleanse/index";
-import { runCleanseLoop } from "@linxiraos/zeta/cleanse/loop";
-import { type CleanseParserKind, parseCleanseDiagnostics } from "@linxiraos/zeta/cleanse/parsers";
+import * as cleanseAgent from "@oh-my-pi/pi-coding-agent/cleanse/agent";
+import * as cleanseCheckers from "@oh-my-pi/pi-coding-agent/cleanse/checkers";
+import { runCleanseCommand } from "@oh-my-pi/pi-coding-agent/cleanse/index";
+import { runCleanseLoop } from "@oh-my-pi/pi-coding-agent/cleanse/loop";
+import { type CleanseParserKind, parseCleanseDiagnostics } from "@oh-my-pi/pi-coding-agent/cleanse/parsers";
 import type {
 	CleanseAgentOutcome,
 	CleanseAssignment,
 	CleanseDiagnostic,
 	CleanseDiagnosticReport,
-} from "@linxiraos/zeta/cleanse/types";
-import { createProgressReporter } from "@linxiraos/zeta/cli/progress-reporter";
-import { resolveCliArgv } from "@linxiraos/zeta/cli-commands";
+} from "@oh-my-pi/pi-coding-agent/cleanse/types";
+import { createProgressReporter } from "@oh-my-pi/pi-coding-agent/cli/progress-reporter";
+import { resolveCliArgv } from "@oh-my-pi/pi-coding-agent/cli-commands";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -66,13 +66,22 @@ describe("cleanse diagnostics", () => {
 	});
 
 	test("discovers package test scripts only when test mode is enabled", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cleanse-tests-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cleanse-tests-"));
+		// The suite runs the package's test script with the package manager it finds on PATH, as it
+		// must for a real project; the bun running this test goes first there, so the result does not
+		// depend on which bun, if any, the machine's PATH holds. The script names that bun by its path,
+		// because the checker's child gets the environment this process started with, not this PATH.
+		const bin = path.join(root, "bin");
+		await fs.mkdir(bin);
+		await fs.symlink(process.execPath, path.join(bin, "bun"));
+		const pathBefore = process.env.PATH;
+		process.env.PATH = `${bin}${path.delimiter}${pathBefore ?? ""}`;
 		try {
 			await Bun.write(
 				path.join(root, "package.json"),
 				JSON.stringify({
 					packageManager: "bun@1.3.14",
-					scripts: { test: `bun -e "process.exit(3)"` },
+					scripts: { test: `${JSON.stringify(process.execPath)} -e "process.exit(3)"` },
 				}),
 			);
 			await Bun.write(path.join(root, "src", "index.ts"), "export const value = 1;\n");
@@ -89,12 +98,14 @@ describe("cleanse diagnostics", () => {
 			});
 			expect(report.diagnostics[0]?.message).toContain("bun test (.) failed with exit code 3");
 		} finally {
+			if (pathBefore === undefined) delete process.env.PATH;
+			else process.env.PATH = pathBefore;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
 
 	test("excludes generated Bazel trees from checker discovery", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cleanse-ignore-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cleanse-ignore-"));
 		try {
 			await Bun.write(path.join(root, "src", "index.ts"), "export const value = 1;\n");
 			await Bun.write(
@@ -604,17 +615,17 @@ describe("cleanse alternative-tooling parsers", () => {
 
 describe("cleanse custom suite", () => {
 	test("builds runnable plans from discovery specs and skips unrunnable ones", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cleanse-custom-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cleanse-custom-"));
 		try {
 			await Bun.write(path.join(root, "src", "a.ts"), "export const value = 1;\n");
 			const suite = await cleanseCheckers.buildCustomCleanseSuite(root, [
 				{
 					label: "fake tsc",
 					language: "TypeScript",
-					command: ["bun", "-e", "console.log('src/a.ts:1:1: error: boom'); process.exit(1)"],
+					command: [process.execPath, "-e", "console.log('src/a.ts:1:1: error: boom'); process.exit(1)"],
 				},
 				{ label: "missing tool", command: ["definitely-not-a-real-binary-xyz"] },
-				{ label: "escaping cwd", cwd: "../outside", command: ["bun", "-e", "1"] },
+				{ label: "escaping cwd", cwd: "../outside", command: [process.execPath, "-e", "1"] },
 			]);
 
 			expect(suite.checkers).toMatchObject([{ id: "custom-1", label: "fake tsc", language: "TypeScript" }]);
@@ -634,11 +645,11 @@ describe("cleanse custom suite", () => {
 	});
 
 	test("select() narrows which checkers a run executes", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cleanse-select-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cleanse-select-"));
 		try {
 			const suite = await cleanseCheckers.buildCustomCleanseSuite(root, [
-				{ label: "first", command: ["bun", "-e", "console.log('ok')"] },
-				{ label: "second", command: ["bun", "-e", "console.log('ok')"] },
+				{ label: "first", command: [process.execPath, "-e", "console.log('ok')"] },
+				{ label: "second", command: [process.execPath, "-e", "console.log('ok')"] },
 			]);
 			suite.select(["custom-2"]);
 
@@ -649,7 +660,7 @@ describe("cleanse custom suite", () => {
 		}
 	});
 	test("streams partial diagnostics before a long-running checker exits", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cleanse-stream-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cleanse-stream-"));
 		try {
 			await Bun.write(path.join(root, "f.ts"), "export const a = 1;\n");
 			await Bun.write(path.join(root, "g.ts"), "export const b = 2;\n");
@@ -660,7 +671,7 @@ describe("cleanse custom suite", () => {
 				{
 					label: "slow checker",
 					command: [
-						"bun",
+						process.execPath,
 						"-e",
 						"console.log('f.ts:1:1: error: first'); await Bun.sleep(700); console.log('g.ts:1:1: error: second')",
 					],

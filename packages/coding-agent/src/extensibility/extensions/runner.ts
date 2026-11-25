@@ -3,16 +3,14 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
-	agentMessageIdentity,
 	type AgentMessage,
 	type AgentTool,
 	type AgentToolContext,
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
-	identifyAgentMessage,
 	isNonBlankContext,
 	joinAdditionalContext,
-} from "@linxiraos/pi-agent-core";
+} from "@oh-my-pi/pi-agent-core";
 import type {
 	AssistantMessage,
 	CredentialDisabledEvent,
@@ -20,44 +18,45 @@ import type {
 	Model,
 	ProviderResponseMetadata,
 	TextContent,
-} from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-ai";
 import {
 	clearContextHistoryIndex,
 	getContextHistoryIndex,
 	markPerCallContextMessage,
 	setContextHistoryIndex,
-} from "@linxiraos/pi-ai/utils/block-symbols";
-import { addKeyAliases, canonicalKeyId, type KeyId, type Keybinding } from "@linxiraos/pi-tui";
-import { KEYBINDINGS, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { appApproveKeys, appFollowUpKeys } from "@linxiraos/pi-tui/keybinding-matchers";
-import { logger } from "@linxiraos/pi-utils";
-import { refreshShellConfigCache } from "@linxiraos/pi-utils/procmgr";
+} from "@oh-my-pi/pi-ai/utils/block-symbols";
+import { canonicalKeyId, type KeyId } from "../../config/keybindings/key-id";
+import { KeybindingsManager } from "../../config/keybindings/keybindings";
+import { KEYBINDINGS, type Keybinding } from "../../config/keybindings/app-keybindings";
+import { appApproveKeys, appFollowUpKeys } from "../../config/keybindings/matchers";
+import { isRecord, logger } from "@oh-my-pi/pi-utils";
+import { refreshShellConfigCache } from "@oh-my-pi/pi-utils/procmgr";
 import { MAIN_AGENT_RULE_NAME } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
-import { Settings, withActiveSettings } from "../../config/settings";
+import { type Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
-import { type Theme, theme } from "@linxiraos/pi-tui/theme";
-import { type AgentMessenger, createAgentMessenger } from "../../irc/facade";
-import { IrcBus, type IrcBusApi } from "../../irc/bus";
-import { type AgentDirectory, createAgentDirectory } from "../../registry/agent-directory";
-import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "../../registry/agent-registry";
+import type { Theme } from "@oh-my-pi/pi-tui/theme/contract";
+import { currentTheme } from "@oh-my-pi/pi-tui/theme/runtime";
+import { extensionTheme } from "../../ui/extensions/render-output";
+import type { ComposerShape } from "../../ui/styles/composer/shapes";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
+import { MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { SessionManager } from "../../session/session-manager";
 import type { ApprovalRecordSink } from "../../session/tool-approval-records";
 import { addFileDeleteFallback, addFileWriteFallback } from "../../tools/file-write-fallback";
-import { translatePluginMessage } from "../plugins/locales";
 import type { BranchHandler, NavigateTreeHandler, NewSessionHandler } from "../session-handler-types";
 import { accumulateToolCallResult, buildAggregatedToolCallResult } from "../shared-events";
 import { ManagedTimers } from "./managed-timers";
 import { createExtensionModelQuery } from "./model-api";
 import { trackUserWaits, type UserWaitTracker } from "./user-wait";
-import type { ComposerShapeDefinition } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
-import { extensionLinkClicksAvailable } from "@linxiraos/pi-tui/render/extension-links";
+import { sanitizeDisplayLine } from "../inventory/display-text";
+import type { TodoPhase } from "../../tools/details/todo";
+import { extensionLinkClicksAvailable } from "./link-clicks";
 import {
 	notifyTranscriptPresentersChanged,
 	readTranscriptPresentation,
-} from "@linxiraos/pi-tui/chat/transcript-presentation";
+} from "../../session/transcript/transcript-presentation";
 import type {
 	AfterProviderResponseEvent,
 	AssistantMessageRewriteEvent,
@@ -112,6 +111,7 @@ import type {
 	SessionStopEvent,
 	SessionStopEventResult,
 	ShortcutConflict,
+	TodoBackendDefinition,
 	ToolCallEvent,
 	ToolCallEventResult,
 	ToolRegistrationListener,
@@ -320,25 +320,6 @@ function createHandlerUIContext(
 			return delegated;
 		},
 	});
-}
-
-/**
- * Bind `ctx.t()` to one extension's catalogues without spreading the context:
- * the runner context is shared across extensions, so overriding `t` on a
- * prototype-scoped copy keeps each plugin's strings from leaking into another
- * extension's handlers. Extensions without catalogues keep the host default
- * (`fallback ?? key`).
- */
-function withExtensionCatalog(ctx: ExtensionContext, extension: Extension): ExtensionContext {
-	const catalog = extension.localeCatalog;
-	if (!catalog) return ctx;
-	const scoped: ExtensionContext = Object.create(ctx);
-	Object.defineProperty(scoped, "t", {
-		value: (key: string, fallback?: string) => translatePluginMessage(catalog.tables, key, fallback),
-		enumerable: true,
-		configurable: true,
-	});
-	return scoped;
 }
 
 /**
@@ -585,10 +566,8 @@ const noOpUIContext: ExtensionUIContext = {
 	getEditorText: () => "",
 	editor: async () => undefined,
 	addAutocompleteProvider: () => {},
-	setEditorComponent: () => {},
-	getEditorComponent: () => undefined,
 	get theme() {
-		return theme;
+		return extensionTheme(currentTheme());
 	},
 	getAllThemes: () => Promise.resolve([]),
 	getTheme: () => Promise.resolve(undefined),
@@ -612,6 +591,13 @@ interface DeliveryTurn {
 	release: () => void;
 }
 
+/** A todo list on its way to a backend: what the session committed, for which backend and session. */
+interface TodoBackendList {
+	backend: string;
+	sessionId: string;
+	phases: TodoPhase[];
+}
+
 /** Identity reported by a session that is not a subagent and received no explicit identity. */
 export const TOP_LEVEL_AGENT: ExtensionAgentIdentity = Object.freeze({
 	kind: "main",
@@ -632,8 +618,6 @@ export class ExtensionRunner {
 	#toolApprovalPreviewWaiter?: (toolCallId: string) => Promise<void>;
 	/** Grant keys (see `sessionApprovalScope`) approved "for this session", each prefixed by the session it covers. */
 	#sessionApprovals = new Set<string>();
-	/** Per-agent extension-command admission; undefined admits every registered command. */
-	#commandAdmission?: (name: string) => boolean;
 	#trackUserWait?: UserWaitTracker;
 	#errorListeners: Set<ExtensionErrorListener> = new Set();
 	#getModel: () => Model | undefined = () => undefined;
@@ -661,8 +645,6 @@ export class ExtensionRunner {
 	#keybindings?: ExtensionContextActions["keybindings"];
 	#getMemoryFn?: () => MemoryRuntimeContext | undefined;
 	#createAnnotations?: ExtensionAnnotationsFactory;
-	readonly #agents: AgentDirectory;
-	readonly #messaging: AgentMessenger;
 	#commandDiagnostics: Array<{ type: string; message: string; path: string }> = [];
 	/** Link schemes already reported as claimed by more than one extension. */
 	#warnedLinkSchemes = new Set<string>();
@@ -686,6 +668,29 @@ export class ExtensionRunner {
 	#contextProjections = new WeakMap<AgentMessage, number | bigint | null>();
 	/** Latest `session_start` broadcast, replayed to extensions added afterwards. */
 	#sessionStartEvent: RunnerEmitEvent | undefined;
+	/** The newest todo list not yet handed to its backend; see {@link syncTodoBackend}. */
+	#todoPending: TodoBackendList | undefined;
+	/** Tail of the todo backend calls, which run one at a time. Never rejects. */
+	#todoCalls: Promise<void> = Promise.resolve();
+	/** A delivery is queued and has not started: a list set meanwhile goes out with it. */
+	#todoQueued = false;
+	/**
+	 * The list the backend last took, which is not sent again, and the registration that took it:
+	 * an id can pass to another extension, which has not seen that list, also when both registered
+	 * one shared object. `undefined` while a call runs and after one failed, so the next list is
+	 * sent whatever it holds; `"none"` until the first call, when an empty list has nothing to tell
+	 * a backend.
+	 */
+	#todoSent: { list: TodoBackendList; extension: Extension; definition: TodoBackendDefinition } | "none" | undefined =
+		"none";
+	/** Set by {@link closeTodoBackend}: the session is going away and takes no more lists to its backend. */
+	#todoClosed = false;
+	/** Aborted when {@link closeTodoBackend} stops waiting: a call still running is given up, and its handler timer with it. */
+	#todoGivenUp = new AbortController();
+	/** The selected `todo.backend` id last reported as unregistered; cleared once a selected id resolves. */
+	#reportedTodoBackend: string | undefined;
+	/** Selected todo backend ids whose shadowed registrations were already reported. */
+	#shadowedTodoBackends = new Set<string>();
 	/** Notified after {@link setSuspendedExtensions} suspends or resumes any extension. */
 	#suspensionListeners = new Set<() => void>();
 	/** Fail-open wrappers of transcript presenters, kept so their identity is stable. */
@@ -842,6 +847,18 @@ export class ExtensionRunner {
 	}
 
 	/**
+	 * Whether the native built-in of `name` must run this call itself rather than the same-name
+	 * extension replacement: a `bash` line made only of session tool commands, which only the
+	 * native transport host can dispatch (see {@link AgentTool.servesToolCommandLine}). False for
+	 * every other call and whenever no native built-in of `name` exists.
+	 */
+	servesToolCommandLine(name: string, params: unknown): boolean {
+		const command = isRecord(params) ? params.command : undefined;
+		if (typeof command !== "string") return false;
+		return this.#nativeToolResolver?.(name)?.tool.servesToolCommandLine?.(command) === true;
+	}
+
+	/**
 	 * Run the native built-in of `name` with `params` and return its result — the delegation target
 	 * of a same-tool `ctx.invokeTool`. Calls the unwrapped native `execute` directly with the loop's
 	 * ordinary tool context, so it inherits the caller's already-granted approval (the caller is the
@@ -896,17 +913,11 @@ export class ExtensionRunner {
 		private readonly agent: ExtensionAgentIdentity = TOP_LEVEL_AGENT,
 		/** Builds `ctx.annotations`; supplied by the host that wires the bundled `/annotate` command. */
 		createAnnotations?: ExtensionAnnotationsFactory,
-		/** Registry backing `ctx.agents`; defaults to the process-global registry. */
-		registry?: AgentRegistryApi,
-		/** Bus backing `ctx.messaging`; defaults to the process-global bus. */
-		bus?: IrcBus | IrcBusApi,
 	) {
 		this.#uiContext = noOpUIContext;
 		this.#getMemoryFn = getMemory;
 		this.#createAnnotations = createAnnotations;
 		this.#getAsyncJobSnapshotFn = getAsyncJobSnapshot ?? (() => null);
-		this.#agents = createAgentDirectory(registry ?? AgentRegistry.global());
-		this.#messaging = createAgentMessenger(bus ?? IrcBus.global());
 		this.runtime.getShortcutConflict = (shortcut, extensionPath) => this.getShortcutConflict(shortcut, extensionPath);
 	}
 
@@ -1033,72 +1044,7 @@ export class ExtensionRunner {
 		// installing this one's trampolines.
 		this.disposeFileFallbacks();
 		// Suspended extensions keep a (gated) trampoline so resuming them needs no rewire.
-		for (const ext of this.getLoadedExtensions()) {
-			// Nothing registered by this extension means no trampoline, so a host with
-			// no fallback-registering extension leaves the seam genuinely empty and
-			// `hasFileWriteFallback()`/`hasFileDeleteFallback()` false — the invariant
-			// the whole feature rests on. Each seam is checked separately, so an
-			// extension that only brokers writes never appears in the delete registry.
-			if (ext.fileWriteFallbackHandlers.length === 0 && ext.fileDeleteFallbackHandlers.length === 0) continue;
-			// One trampoline per extension per seam, not per handler: the list is walked
-			// at mutation time so a handler this extension adds later still takes effect,
-			// and `createContext()` takes no extension argument, so within one invocation
-			// a single context is all any of this extension's handlers would have
-			// received anyway.
-			//
-			// The context is built PER INVOCATION rather than captured here, matching
-			// every other dispatch site. `createContext()` materializes `cwd` and
-			// `hasUI` as values, so a trampoline holding one context for the life of the
-			// session would keep handing handlers the workspace this runner initialized
-			// in — wrong the moment `SessionManager.moveTo()` relocates the session
-			// (`/move`), and a handler that scopes or prompts against `ctx.cwd` would
-			// then allow the old workspace and deny the new one. A denied mutation is a
-			// rare path, so the extra object costs nothing that matters.
-			//
-			// Isolation is per HANDLER, not per extension. The registry only sees one
-			// trampoline per extension, so a throw escaping this loop would advance the
-			// registry to the NEXT extension and skip every later handler this one
-			// registered — breaking both the documented "a throwing handler is skipped"
-			// contract and registration order for a backup-handler setup.
-			if (ext.fileWriteFallbackHandlers.length > 0) {
-				this.#fileFallbackDisposers.push(
-					addFileWriteFallback(async req => {
-						if (this.#suspendedExtensions.has(ext)) return false;
-						const ctx = this.scopeContextToExtension(this.createContext(), ext.path);
-						for (const handler of ext.fileWriteFallbackHandlers) {
-							try {
-								if (await handler(req, ctx)) return true;
-							} catch (error) {
-								logger.warn("Extension file write fallback handler threw; trying next handler", {
-									extension: ext.path,
-									error: error instanceof Error ? error.message : String(error),
-								});
-							}
-						}
-						return false;
-					}),
-				);
-			}
-			if (ext.fileDeleteFallbackHandlers.length > 0) {
-				this.#fileFallbackDisposers.push(
-					addFileDeleteFallback(async req => {
-						if (this.#suspendedExtensions.has(ext)) return false;
-						const ctx = this.scopeContextToExtension(this.createContext(), ext.path);
-						for (const handler of ext.fileDeleteFallbackHandlers) {
-							try {
-								if (await handler(req, ctx)) return true;
-							} catch (error) {
-								logger.warn("Extension file delete fallback handler threw; trying next handler", {
-									extension: ext.path,
-									error: error instanceof Error ? error.message : String(error),
-								});
-							}
-						}
-						return false;
-					}),
-				);
-			}
-		}
+		for (const ext of this.getLoadedExtensions()) this.#installFileFallbacks(ext);
 
 		// Drain events buffered by emitCredentialDisabled() before initialize ran. The
 		// spread adds the `type` discriminator — `event` is the pi-ai shape (no `type`).
@@ -1375,15 +1321,6 @@ export class ExtensionRunner {
 		return this.extensions.map(e => e.path);
 	}
 
-	/**
-	 * The session-scoped runtime newly bound extensions join. Agent-authored dev
-	 * plugins are bound with it so their `ctx.*` actions and flag defaults are
-	 * the live session's, not a throwaway stub set.
-	 */
-	getRuntime(): ExtensionRuntime {
-		return this.runtime;
-	}
-
 	/** Every extension this runner loaded, in load order, including suspended ones. */
 	getLoadedExtensions(): readonly Extension[] {
 		return this.#loadOrder ?? this.extensions;
@@ -1392,34 +1329,6 @@ export class ExtensionRunner {
 	/** Whether the extension loaded from `extensionPath` is present and not suspended. */
 	isExtensionActive(extensionPath: string): boolean {
 		return this.extensions.some(ext => ext.path === extensionPath);
-	}
-
-	/**
-	 * Remove loaded extensions from the runner's load order and active set.
-	 *
-	 * Used by session-local replacements that have already acquired their new
-	 * extension (agent-authored dev plugin reload). The caller removes the
-	 * extension-owned tools through its own registry first; this method only
-	 * drops the runner's references so suspended objects do not accumulate
-	 * across repeated reloads. Presenter and suspension listeners are notified
-	 * exactly like {@link setSuspendedExtensions}.
-	 */
-	removeExtensions(shouldRemove: (extension: Extension) => boolean): Extension[] {
-		this.#loadOrder ??= [...this.extensions];
-		const removed = this.#loadOrder.filter(extension => shouldRemove(extension));
-		if (removed.length === 0) return removed;
-		for (const extension of removed) {
-			this.#suspendedExtensions.delete(extension);
-			this.#deliveryTails.delete(extension);
-		}
-		this.#loadOrder = this.#loadOrder.filter(extension => !removed.includes(extension));
-		const active = this.#loadOrder.filter(extension => !this.#suspendedExtensions.has(extension));
-		this.extensions.splice(0, this.extensions.length, ...active);
-		if (removed.some(extension => extension.transcriptPresenters.length > 0)) {
-			notifyTranscriptPresentersChanged();
-		}
-		for (const listener of this.#suspensionListeners) listener();
-		return removed;
 	}
 
 	/**
@@ -1562,8 +1471,8 @@ export class ExtensionRunner {
 	}
 
 	/** Composer shapes registered during extension load, with later extensions winning id collisions. */
-	getComposerShapes(): ComposerShapeDefinition[] {
-		const shapes = new Map<string, ComposerShapeDefinition>();
+	getComposerShapes(): ComposerShape[] {
+		const shapes = new Map<string, ComposerShape>();
 		for (const extension of this.extensions) {
 			for (const [id, shape] of extension.composerShapes) shapes.set(id, shape);
 		}
@@ -1634,15 +1543,11 @@ export class ExtensionRunner {
 
 	/** Backs `ExtensionAPI.getShortcutConflict`; `extensionPath`'s own registrations are not conflicts. */
 	getShortcutConflict(shortcut: KeyId, extensionPath?: string): ShortcutConflict | undefined {
-		const lowered = shortcut.toLowerCase() as KeyId;
-		if (ExtensionRunner.#RESERVED_SHORTCUTS.has(canonicalKeyId(lowered))) return { kind: "reserved" };
-		// Compare alias sets, as the TUI matches keys: a bare shifted symbol also fires on `shift+`.
-		const wanted = new Set<string>();
-		addKeyAliases(wanted, lowered);
+		// Compare event ids, as the keymap matches keys: every spelling of a chord shares one id.
+		const wanted = canonicalKeyId(shortcut.toLowerCase());
+		if (ExtensionRunner.#RESERVED_SHORTCUTS.has(wanted)) return { kind: "reserved" };
 		const holds = (bound: Iterable<KeyId>): boolean => {
-			const keys = new Set<string>();
-			for (const key of bound) addKeyAliases(keys, key.toLowerCase() as KeyId);
-			for (const key of wanted) if (keys.has(key)) return true;
+			for (const key of bound) if (canonicalKeyId(key.toLowerCase()) === wanted) return true;
 			return false;
 		};
 		const keymap = this.#keybindings ?? (ExtensionRunner.#defaultKeybindings ??= KeybindingsManager.inMemory());
@@ -1653,7 +1558,7 @@ export class ExtensionRunner {
 					? appApproveKeys(keymap)
 					: action === "app.message.followUp"
 						? appFollowUpKeys(keymap)
-						: keymap.getKeys(action),
+						: keymap.keysFor(action),
 			),
 		);
 		if (keybindings.length > 0) return { kind: "keybinding", keybindings };
@@ -1664,14 +1569,15 @@ export class ExtensionRunner {
 
 	getShortcuts(): Map<KeyId, ExtensionShortcut> {
 		const allShortcuts = new Map<KeyId, ExtensionShortcut>();
-		// Each match key (alias) to the registration holding it: a later registration of the same chord,
+		// Each chord's event id to the registration holding it: a later registration of the same chord,
 		// in any spelling, replaces the earlier one, so the editor binds exactly one handler per chord.
 		const holders = new Map<string, KeyId>();
 		for (const ext of this.extensions) {
 			for (const [key, shortcut] of ext.shortcuts) {
 				const normalizedKey = key.toLowerCase() as KeyId;
+				const id = canonicalKeyId(normalizedKey);
 
-				if (ExtensionRunner.#RESERVED_SHORTCUTS.has(canonicalKeyId(normalizedKey))) {
+				if (ExtensionRunner.#RESERVED_SHORTCUTS.has(id)) {
 					logger.warn("Extension shortcut conflicts with built-in shortcut", {
 						key,
 						extensionPath: shortcut.extensionPath,
@@ -1679,12 +1585,9 @@ export class ExtensionRunner {
 					continue;
 				}
 
-				const aliases = new Set<string>();
-				addKeyAliases(aliases, normalizedKey);
-				for (const alias of aliases) {
-					const held = holders.get(alias);
-					const existing = held === undefined ? undefined : allShortcuts.get(held);
-					if (held === undefined || existing === undefined) continue;
+				const held = holders.get(id);
+				const existing = held === undefined ? undefined : allShortcuts.get(held);
+				if (held !== undefined && existing !== undefined) {
 					logger.warn("Extension shortcut conflict", {
 						key,
 						extensionPath: shortcut.extensionPath,
@@ -1692,7 +1595,7 @@ export class ExtensionRunner {
 					});
 					allShortcuts.delete(held);
 				}
-				for (const alias of aliases) holders.set(alias, normalizedKey);
+				holders.set(id, normalizedKey);
 				allShortcuts.set(normalizedKey, shortcut);
 			}
 		}
@@ -1829,6 +1732,116 @@ export class ExtensionRunner {
 		return [...owners.keys()];
 	}
 
+	/** Todo backends by id. When extensions reuse an id, the first one loaded keeps it. */
+	getTodoBackends(): Map<string, { extension: Extension; definition: TodoBackendDefinition }> {
+		const backends = new Map<string, { extension: Extension; definition: TodoBackendDefinition }>();
+		for (const extension of this.extensions) {
+			for (const [id, definition] of extension.todoBackends ?? []) {
+				if (!backends.has(id)) backends.set(id, { extension, definition });
+			}
+		}
+		return backends;
+	}
+
+	/**
+	 * Hand a todo list the session just committed to the backend `todo.backend` selects. Calls run
+	 * one at a time, and a list set while one runs replaces the one still waiting. Until
+	 * `session_start` has gone out the list only waits: handlers and the error listener are not
+	 * wired before then.
+	 */
+	syncTodoBackend(backend: string, phases: TodoPhase[]): void {
+		if (this.#todoClosed) return;
+		this.#todoPending = { backend, phases, sessionId: this.sessionManager.getSessionId() };
+		if (this.#sessionStartEvent) this.#queueTodoBackendCall();
+	}
+
+	/**
+	 * Resolves once the todo backend calls queued so far have settled, or when the `session_shutdown`
+	 * handler budget runs out: a hung backend must not hold exit.
+	 */
+	async todoBackendSettled(): Promise<void> {
+		await awaitDeliveryTurn(this.#todoCalls, performance.now() + handlerTimeoutForEvent("session_shutdown"));
+	}
+
+	/**
+	 * Take no more lists for the todo backend, then wait as {@link todoBackendSettled} does. A list
+	 * still waiting when that wait ends is dropped, so no call starts once `session_shutdown` is out,
+	 * and a call still running is given up: the handler timeout it was raced against would keep a
+	 * host's process alive long after the session is gone.
+	 */
+	async closeTodoBackend(): Promise<void> {
+		this.#todoClosed = true;
+		await this.todoBackendSettled();
+		this.#todoPending = undefined;
+		this.#todoGivenUp.abort();
+	}
+
+	#queueTodoBackendCall(): void {
+		if (this.#todoQueued) return;
+		this.#todoQueued = true;
+		this.#todoCalls = this.#todoCalls
+			.then(() => this.#sendTodoList())
+			.catch((error: unknown) => logger.warn("Todo backend call failed", { error: String(error) }));
+	}
+
+	async #sendTodoList(): Promise<void> {
+		this.#todoQueued = false;
+		const pending = this.#todoPending;
+		this.#todoPending = undefined;
+		// A list set before the session changed belongs to the session left behind; the change sets its own.
+		if (!pending || pending.sessionId !== this.sessionManager.getSessionId()) return;
+		const owner = this.getTodoBackends().get(pending.backend);
+		if (!owner) {
+			if (this.#reportedTodoBackend === pending.backend) return;
+			this.#reportedTodoBackend = pending.backend;
+			this.emitError({
+				extensionPath: "<todo.backend>",
+				event: "todo_backend",
+				error: `No enabled extension registers the todo backend "${sanitizeDisplayLine(pending.backend)}"; the todo list is not mirrored.`,
+			});
+			return;
+		}
+		this.#reportedTodoBackend = undefined;
+		const { extension, definition } = owner;
+		this.#reportShadowedTodoBackends(pending.backend, extension);
+		const sent = this.#todoSent;
+		if (
+			sent === "none"
+				? pending.phases.length === 0
+				: sent?.extension === extension && sent.definition === definition && Bun.deepEquals(sent.list, pending)
+		)
+			return;
+		this.#todoSent = undefined;
+		const taken = await this.#runHandlerWithTimeout(
+			async (event, ctx) => {
+				await definition.replace(event.phases, ctx);
+				return true;
+			},
+			{ type: "todo_backend", phases: structuredClone(pending.phases) },
+			this.createContext(),
+			extension,
+			extensionHandlerTimeoutMs,
+			undefined,
+			this.#todoGivenUp.signal,
+		);
+		if (taken) this.#todoSent = { list: pending, extension, definition };
+	}
+
+	/** Report, once per id, the extensions whose registration of the selected id loses to `owner`. */
+	#reportShadowedTodoBackends(id: string, owner: Extension): void {
+		if (this.#shadowedTodoBackends.has(id)) return;
+		const shadowed = this.extensions.filter(extension => extension !== owner && extension.todoBackends?.has(id));
+		if (shadowed.length === 0) return;
+		this.#shadowedTodoBackends.add(id);
+		for (const extension of shadowed) {
+			this.emitError({
+				extensionPath: extension.path,
+				event: "todo_backend",
+				error: `This extension's todo backend "${sanitizeDisplayLine(id)}" is ignored: an extension loaded earlier registers the same id.`,
+			});
+		}
+	}
+
 	/**
 	 * Deliver a click on `url` as `link_activate` to the extension that claimed its scheme (the first
 	 * one in load order, when several did). Returns whether an extension owns the link.
@@ -1870,18 +1883,12 @@ export class ExtensionRunner {
 		return true;
 	}
 
-	/** Restrict which extension commands this session may list or execute. */
-	setCommandAdmission(admission: ((name: string) => boolean) | undefined): void {
-		this.#commandAdmission = admission;
-	}
-
 	getRegisteredCommands(reserved?: ReadonlySet<string>): RegisteredCommand[] {
 		this.#commandDiagnostics = [];
 
 		const commands = new Map<string, RegisteredCommand>();
 		for (const ext of this.extensions) {
 			for (const command of ext.commands.values()) {
-				if (this.#commandAdmission !== undefined && !this.#commandAdmission(command.name)) continue;
 				if (reserved?.has(command.name)) {
 					const message = `Extension command '${command.name}' from ${ext.path} conflicts with built-in commands. Skipping.`;
 					this.#commandDiagnostics.push({ type: "warning", message, path: ext.path });
@@ -1902,7 +1909,6 @@ export class ExtensionRunner {
 	}
 
 	getCommand(name: string): RegisteredCommand | undefined {
-		if (this.#commandAdmission !== undefined && !this.#commandAdmission(name)) return undefined;
 		for (let index = this.extensions.length - 1; index >= 0; index -= 1) {
 			const command = this.extensions[index]?.commands.get(name);
 			if (command) {
@@ -1957,25 +1963,16 @@ export class ExtensionRunner {
 		const getSessionModes = () => this.#sessionModes;
 		return {
 			ui: this.#uiContext,
-			// One-shot callers construct a runner without a Settings instance; hand
-			// them an isolated one rather than making every handler null-check.
-			settings: this.settings ?? Settings.isolated(),
 			mode: this.#mode,
 			getContextUsage: () => this.#getContextUsageFn(),
 			compact: instructionsOrOptions => this.#compactFn(instructionsOrOptions),
 			getAsyncJobSnapshot: () => this.#getAsyncJobSnapshotFn(),
 			hasUI: this.hasUI(),
 			cwd: this.cwd,
-			// Extensions with a plugin catalogue get a scoped `t` (see
-			// `withExtensionCatalog`); loose extensions fall back to the caller's
-			// text so `ctx.t()` is always callable.
-			t: (key: string, fallback?: string) => fallback ?? key,
 			sessionManager: this.sessionManager,
 			modelRegistry: this.modelRegistry,
 			isProjectTrusted: () => true,
 			agent,
-			agents: this.#agents,
-			messaging: this.#messaging,
 			get model() {
 				return getModel();
 			},
@@ -2075,23 +2072,9 @@ export class ExtensionRunner {
 		for (const dispose of this.#fileFallbackDisposers.splice(0)) dispose();
 	}
 
-	/**
-	 * Bind `ctx.t()` to the catalogues of the extension at `extensionPath`.
-	 * Used by dispatch sites that do not carry the `Extension` object (tool
-	 * adapters, slash commands, shortcuts). A loose extension or one shipping
-	 * no catalogues keeps the base context unchanged.
-	 */
-	scopeContextToExtension(ctx: ExtensionContext, extensionPath: string | undefined): ExtensionContext {
-		if (!extensionPath) return ctx;
-		const extension = this.getLoadedExtensions().find(
-			candidate => candidate.path === extensionPath || candidate.resolvedPath === extensionPath,
-		);
-		return extension ? withExtensionCatalog(ctx, extension) : ctx;
-	}
-
-	createCommandContext(extensionPath?: string): ExtensionCommandContext {
+	createCommandContext(): ExtensionCommandContext {
 		return {
-			...this.scopeContextToExtension(this.createContext(), extensionPath),
+			...this.createContext(),
 			getContextUsage: () => this.#getContextUsageFn(),
 			waitForIdle: () => this.#waitForIdleFn(),
 			newSession: options => this.#newSessionHandler(options),
@@ -2141,7 +2124,7 @@ export class ExtensionRunner {
 						let result: R | undefined;
 						try {
 							const handlerContext = createHandlerContext(
-								withExtensionCatalog(ctx, ext),
+								ctx,
 								handlerSignal,
 								event.type === "tool_call" || SESSION_BEFORE_EVENTS[event.type] === true ? budget : undefined,
 							);
@@ -2203,7 +2186,10 @@ export class ExtensionRunner {
 		const result = await this.#emitTo(this.extensions, event);
 		// Recorded once the broadcast ends: an extension added mid-broadcast is
 		// reached by the live iteration, one added later gets the replay.
-		if (event.type === "session_start") this.#sessionStartEvent = event;
+		if (event.type === "session_start") {
+			this.#sessionStartEvent = event;
+			if (this.#todoPending && !this.#todoClosed) this.#queueTodoBackendCall();
+		}
 		return result;
 	}
 
@@ -2681,13 +2667,7 @@ export class ExtensionRunner {
 		}
 		for (let index = 0; index < currentMessages.length; index++) {
 			const message = currentMessages[index];
-			if (!message) continue;
-			// structuredClone drops symbol keys. Keep the live message's identity
-			// so its otherwise unchanged clone compares as historical context.
-			const source = messages[index];
-			const identity = source && agentMessageIdentity(source);
-			if (identity) identifyAgentMessage(message, identity);
-			setContextHistoryIndex(message, index);
+			if (message) setContextHistoryIndex(message, index);
 		}
 
 		for (const ext of this.extensions) {

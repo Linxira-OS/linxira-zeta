@@ -13,7 +13,7 @@ import { renderDelimitedThinking, renderToolInventory } from "@linxiraos/pi-ai/d
 import { formatDuration } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { YAML } from "bun";
-import { canonicalizeMessage } from "@linxiraos/pi-tui/chat/thinking-display";
+import { canonicalizeMessage } from "./transcript/thinking-display";
 import {
 	type BashExecutionMessage,
 	type BranchSummaryMessage,

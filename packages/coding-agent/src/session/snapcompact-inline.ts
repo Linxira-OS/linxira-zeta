@@ -22,8 +22,8 @@ import {
 	HL_FILE_PREFIX,
 	HL_FILE_SUFFIX,
 	HL_LINE_BODY_SEP,
-} from "@linxiraos/pi-tui/tools/hashline-format";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+} from "../tools/hashline-format";
+import type { ReadToolDetails } from "../tools/details/read";
 import { prompt } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/zeta-compact";
 import type { SnapcompactFrameSink } from "../blob-broker/service";

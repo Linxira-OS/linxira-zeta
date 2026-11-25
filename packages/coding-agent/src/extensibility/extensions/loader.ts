@@ -4,7 +4,9 @@
 import type * as fs1 from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { type } from "@oh-my-pi/omptype";
+import * as zod from "@oh-my-pi/omptype/zod";
+import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
 import type {
 	ImageContent,
 	Model,
@@ -13,11 +15,9 @@ import type {
 	ServiceTierFamily,
 	TextContent,
 	TSchema,
-} from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/zeta-schema";
-import * as zod from "@linxiraos/zeta-schema/zod";
-import { isBuiltinComposerStyle, type KeyId } from "@linxiraos/pi-tui";
-import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { type KeyId } from "../../config/keybindings/key-id";
+import { hasFsCode, isEacces, isEnoent, logger } from "@oh-my-pi/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";
 import { type Hook, hookCapability } from "../../capability/hook";
 import { isServiceTierFamily, isServiceTierForFamily } from "../../config/service-tier";
@@ -30,6 +30,7 @@ import type { SendUserMessageOptions } from "../../session/agent-session";
 import type { CustomMessagePayload } from "../../session/messages";
 import type { FileDeleteFallbackHandler, FileWriteFallbackHandler } from "../../tools/file-write-fallback";
 import { isFilesystemSourcePath } from "../../tools/path-utils";
+import { NATIVE_TODO_BACKEND } from "../../tools/settings";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import { EventBus } from "../../utils/event-bus";
 import * as TypeBox from "../legacy-typebox";
@@ -38,11 +39,9 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from "../plugins/leg
 import { getEnabledPlugins, resolvePluginExtensionPaths } from "../plugins/loader";
 
 import { resolvePath, withHostGuard } from "../utils";
-import type { PluginStorage } from "../plugins/types";
-import { resolvePluginLocaleCatalog, resolvePluginStorage } from "../plugins/loader";
-import type { PluginLocaleCatalog } from "../plugins/locales";
-import type { ComposerShapeDefinition } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
-import { notifyTranscriptPresentersChanged } from "@linxiraos/pi-tui/chat/transcript-presentation";
+import { type ComposerShape, isBuiltinComposerShape } from "../../ui/styles/composer/shapes";
+import { sanitizeDisplayLine } from "../inventory/display-text";
+import { notifyTranscriptPresentersChanged } from "../../session/transcript/transcript-presentation";
 import type {
 	AssistantTextRenderer,
 	AssistantThinkingRenderer,
@@ -58,6 +57,7 @@ import type {
 	RegisteredCommand,
 	ShortcutConflict,
 	SourceInfo,
+	TodoBackendDefinition,
 	ToolDefinition,
 	ToolInfo,
 	TranscriptPresenter,
@@ -70,6 +70,8 @@ type LoadedExtensionModule = ExtensionFactory | { default?: ExtensionFactory };
 
 /** RFC 3986 scheme syntax, lowercased, two characters at least so `c` cannot capture `C:/` paths. */
 const LINK_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]+$/;
+/** `todo.backend` ids: safe to print and to type in a config file. */
+const TODO_BACKEND_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /** Standard schemes an extension may not claim: web, file and mail links. omp's internal URLs are refused too. */
 const STANDARD_LINK_SCHEMES: Readonly<Record<string, true>> = {
@@ -212,8 +214,6 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	readonly arktype = type;
 	readonly zod = zod;
 	readonly flagValues = new Map<string, boolean | string>();
-	/** Host-managed per-plugin storage roots (spec §4.3); undefined for non-plugin extensions. */
-	readonly storage: PluginStorage | undefined;
 	readonly pendingProviderRegistrations: Array<{
 		name: string;
 		config: ProviderConfig;
@@ -229,9 +229,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 		private readonly runtime: IExtensionRuntime,
 		private readonly cwd: string,
 		public readonly events: EventBus,
-		storage?: PluginStorage,
 	) {
-		this.storage = storage;
 		// Extensions destructure `pi.on` or forward API methods as callbacks, so every
 		// prototype method must keep its receiver when detached. Walk the prototype
 		// rather than listing methods: a new method is bound without touching this.
@@ -271,12 +269,12 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	registerCommand(
 		name: string,
 		options: {
-			description?: string | (() => string);
+			description?: string;
 			getArgumentCompletions?: RegisteredCommand["getArgumentCompletions"];
 			handler: RegisteredCommand["handler"];
 		},
 	): void {
-		this.extension.commands.set(name, { name, ...options, extensionPath: this.extension.path });
+		this.extension.commands.set(name, { name, ...options });
 	}
 
 	setLabel(label: string): void {
@@ -352,23 +350,53 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 		}
 		// `=== true`: inherited keys such as `constructor` are not reserved.
 		if (STANDARD_LINK_SCHEMES[normalized] === true || InternalUrlRouter.instance().isBuiltin(normalized)) {
-			throw new Error(`registerLinkScheme: "${scheme}" is reserved for standard or Zeta-internal links`);
+			throw new Error(`registerLinkScheme: "${scheme}" is reserved for standard or omp-internal links`);
 		}
 		if (!this.extension.linkSchemes.includes(normalized)) this.extension.linkSchemes.push(normalized);
 	}
 
-	registerComposerShape(definition: ComposerShapeDefinition): void {
-		const id = definition.style.id;
-		if (id.length === 0 || id !== id.trim()) {
+	registerComposerShape(shape: ComposerShape & { readonly label: string }): void {
+		const id = shape.id;
+		if (typeof id !== "string" || id.length === 0 || id !== id.trim()) {
 			throw new TypeError("Composer shape id must be a non-empty trimmed string");
 		}
-		if (definition.label.trim().length === 0) {
+		if (typeof shape.label !== "string" || shape.label.trim().length === 0) {
 			throw new TypeError(`Composer shape "${id}" must have a label`);
 		}
-		if (isBuiltinComposerStyle(id)) {
+		if (typeof shape.row !== "function" || typeof shape.sideWidth !== "function") {
+			throw new TypeError(
+				`Composer shape "${id}" must implement row() and sideWidth() (see the ComposerShape contract in docs/extensions.md)`,
+			);
+		}
+		if (isBuiltinComposerShape(id)) {
 			throw new Error(`Cannot replace built-in composer shape "${id}"`);
 		}
-		this.extension.composerShapes.set(id, definition);
+		this.extension.composerShapes.set(id, shape);
+	}
+
+	registerTodoBackend(definition: TodoBackendDefinition): void {
+		const id = definition.id;
+		if (typeof id !== "string" || !TODO_BACKEND_ID_PATTERN.test(id)) {
+			throw new TypeError(
+				'Todo backend id must be letters, digits, ".", "_" or "-", starting with a letter or digit',
+			);
+		}
+		if (id === NATIVE_TODO_BACKEND) {
+			throw new Error(`Todo backend id "${id}" is reserved for omp's own todo list`);
+		}
+		for (const field of ["label", "description"] as const) {
+			const text = definition[field];
+			// Blank once sanitized: a label of escape codes alone would draw as an empty row.
+			if (text !== undefined && (typeof text !== "string" || sanitizeDisplayLine(text).length === 0)) {
+				throw new TypeError(
+					`Todo backend "${id}" ${field} must be text that is not blank once control sequences are removed`,
+				);
+			}
+		}
+		if (typeof definition.replace !== "function") {
+			throw new TypeError(`Todo backend "${id}" must have a replace function`);
+		}
+		(this.extension.todoBackends ??= new Map()).set(id, definition);
 	}
 
 	getFlag(name: string): boolean | string | undefined {
@@ -455,11 +483,10 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 /**
  * Create an Extension object with empty collections.
  */
-function createExtension(extensionPath: string, resolvedPath: string, localeCatalog?: PluginLocaleCatalog): Extension {
+function createExtension(extensionPath: string, resolvedPath: string): Extension {
 	return {
 		path: extensionPath,
 		resolvedPath,
-		localeCatalog,
 		handlers: new Map(),
 		tools: new Map(),
 		toolRegistrationListeners: new Set(),
@@ -530,7 +557,6 @@ async function bindExtension(
 	cwd: string,
 	eventBus: EventBus,
 	runtime: IExtensionRuntime,
-	storageHome?: string,
 ): Promise<{ extension: Extension | null; error: string | null }> {
 	const factory = imported.factory;
 	if (imported.error !== null || factory === null) {
@@ -538,9 +564,7 @@ async function bindExtension(
 	}
 	try {
 		const extension = createExtension(extensionPath, imported.resolvedPath);
-		const storage = await resolvePluginStorage(cwd, imported.resolvedPath, { storageHome });
-		extension.localeCatalog = await resolvePluginLocaleCatalog(cwd, imported.resolvedPath);
-		const api = new ConcreteExtensionAPI(extension, runtime, cwd, eventBus, storage);
+		const api = new ConcreteExtensionAPI(extension, runtime, cwd, eventBus);
 		await withHostGuard(() => runExtensionFactory(factory, api, runtime));
 
 		return { extension, error: null };
@@ -579,10 +603,9 @@ export async function loadExtensions(
 	cwd: string,
 	eventBus?: EventBus,
 	runtime?: IExtensionRuntime,
-	options: { storageHome?: string } = {},
 ): Promise<LoadExtensionsResult> {
 	const preparedExtensions = await Promise.all(paths.map(extPath => importExtensionModule(extPath, cwd)));
-	return bindPreparedExtensions(preparedExtensions, cwd, eventBus, runtime, options);
+	return bindPreparedExtensions(preparedExtensions, cwd, eventBus, runtime);
 }
 
 /**
@@ -595,21 +618,13 @@ export async function bindPreparedExtensions(
 	cwd: string,
 	eventBus?: EventBus,
 	runtime: IExtensionRuntime = new ExtensionRuntime(),
-	options: { storageHome?: string } = {},
 ): Promise<LoadExtensionsResult> {
 	const extensions: Extension[] = [];
 	const errors: Array<{ path: string; error: string }> = [];
 	const resolvedEventBus = eventBus ?? new EventBus();
 
 	for (const prepared of preparedExtensions) {
-		const { extension, error } = await bindExtension(
-			prepared.path,
-			prepared,
-			cwd,
-			resolvedEventBus,
-			runtime,
-			options.storageHome,
-		);
+		const { extension, error } = await bindExtension(prepared.path, prepared, cwd, resolvedEventBus, runtime);
 
 		if (error) {
 			errors.push({ path: prepared.path, error });
@@ -728,7 +743,7 @@ export async function listPackageExtensionModules(
 /**
  * Discover absolute paths of extensions to load, without importing or
  * binding factories. Hot path on session startup — the scan walks native
- * `.zeta`/`.pi` extension capabilities, JS/TS hook factories, the
+ * `.omp`/`.pi` extension capabilities, JS/TS hook factories, the
  * installed-plugin tree, and any configured paths.
  *
  * The root session imports these paths once and forwards prepared factories to
@@ -776,7 +791,7 @@ export async function discoverExtensionPaths(
 
 	const ambient = options.ambient !== false;
 	if (ambient) {
-		// 1. Discover extension modules via capability API (native .zeta/.pi only).
+		// 1. Discover extension modules via capability API (native .omp/.pi only).
 		// Scope the load to the native provider — the extension-module capability
 		// also has claude/codex/gemini/opencode providers, and their items were
 		// discarded here anyway (see #4198). The provider filter skips the walk

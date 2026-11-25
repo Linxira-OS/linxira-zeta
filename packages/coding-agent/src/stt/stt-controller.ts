@@ -1,9 +1,9 @@
-import type { ApiKeyResolver } from "@linxiraos/pi-ai";
-import { transcribeAudio } from "@linxiraos/pi-ai/transcription";
-import type { Api, Model } from "@linxiraos/pi-catalog/types";
-import { AudioCapture } from "@linxiraos/pi-natives";
-import type { ModelBrowserRegistry } from "@linxiraos/pi-tui/overlays/model-browser";
-import { logger } from "@linxiraos/pi-utils";
+import type { ApiKeyResolver } from "@oh-my-pi/pi-ai";
+import { transcribeAudio } from "@oh-my-pi/pi-ai/transcription";
+import type { Api, Model } from "@oh-my-pi/pi-catalog/types";
+import { AudioCapture } from "@oh-my-pi/pi-natives";
+import type { ModelBrowserRegistry } from "../modes/view-model/overlays/model-browser";
+import { logger } from "@oh-my-pi/pi-utils";
 import { cfgOffline } from "../config/auxiliary-model-policy";
 import { type RoleChainCandidate, resolveConfiguredModelPatterns, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
@@ -22,7 +22,6 @@ export type SttState = "idle" | "recording" | "transcribing";
 export interface SttCallbacks {
 	showWarning(msg: string): void;
 	showStatus(msg: string): void;
-	requestRender(): void;
 	onStateChange(state: SttState): void;
 	/** Keep this capture as a draft, without interpreting submit commands. */
 	manualSubmit?: boolean;

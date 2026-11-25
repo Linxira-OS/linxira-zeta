@@ -15,8 +15,8 @@
  * `ASYNC_JOB_MANAGER_SHUTDOWN_REASON` to a plain sentinel and
  * {@link fromWireReason} maps it back on the receiving thread.
  */
-import { isRecord } from "@linxiraos/pi-utils";
-import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
+import { isRecord } from "@oh-my-pi/pi-utils";
+import type { JobWidgetView } from "../../tools/details/job-widget";
 import {
 	ASYNC_JOB_MANAGER_SHUTDOWN_REASON,
 	type AsyncJob,
@@ -120,7 +120,7 @@ export type AsyncJobManagerProtocol = {
 	hasWidgets: RpcMethod<[], boolean>;
 	atCapacity: RpcMethod<[], boolean>;
 	onJobSettled: RpcMethod<[listener: WireCallback<[]>], WireUnsubscribe>;
-	onJobsChanged: RpcMethod<[listener: WireCallback<[]>], WireUnsubscribe>;
+	onJobsChanged: RpcMethod<[listener: WireCallback<[]>, ids: readonly string[] | undefined], WireUnsubscribe>;
 	register: RpcMethod<
 		[type: AsyncJobType, label: string, run: WireJobRun, options: WireRegisterOptions | undefined],
 		string
@@ -134,11 +134,18 @@ export type AsyncJobManagerProtocol = {
 		],
 		string
 	>;
+	publishFailed: RpcMethod<
+		[
+			type: AsyncJobType,
+			label: string,
+			errorText: string,
+			options: { id?: string; ownerId?: string; agentId?: string },
+		],
+		string
+	>;
 	cancel: RpcMethod<[id: string, filter: AsyncJobFilter | undefined], boolean>;
 	getJob: RpcMethod<[id: string], AsyncJobWire | undefined>;
 	getRunningJobs: RpcMethod<[filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
-	nextPollWaitMs: RpcMethod<[ownerId: string | undefined, now?: number], number>;
-	recordPollWaitEnd: RpcMethod<[ownerId: string | undefined, now?: number], void>;
 	getRecentJobs: RpcMethod<[limit: number | undefined, filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
 	getAllJobs: RpcMethod<[filter: AsyncJobFilter | undefined], AsyncJobWire[]>;
 	backgroundJob: RpcMethod<[jobId: string], boolean>;
@@ -177,7 +184,7 @@ export type AsyncJobManagerProtocol = {
 	widgetForget: RpcMethod<[jobId: string], void>;
 };
 
-const SHUTDOWN_SENTINEL_KEY = "__zetaAsyncJobManagerShutdown";
+const SHUTDOWN_SENTINEL_KEY = "__ompAsyncJobManagerShutdown";
 
 /** Abort reason as it can cross: the shutdown symbol becomes a sentinel, other symbols their description. */
 export function toWireReason(reason: unknown): unknown {

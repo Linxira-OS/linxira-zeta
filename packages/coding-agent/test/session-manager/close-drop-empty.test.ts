@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { openAnnotationDraft } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/draft-store";
-import type { AnnotationOverlay } from "@linxiraos/pi-tui/overlays/annotation-overlay";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { isEnoent, TempDir } from "@linxiraos/pi-utils";
+import { openAnnotationDraft } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/draft-store";
+import type { AnnotationReviewModel } from "@oh-my-pi/pi-coding-agent/ui/overlays/panels/annotation-review-model";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { isEnoent, TempDir } from "@oh-my-pi/pi-utils";
 
 async function fileExists(p: string): Promise<boolean> {
 	try {
@@ -234,7 +234,7 @@ describe("SessionManager close() drops empty metadata-only sessions", () => {
 		const sessionFile = session.getSessionFile()!;
 		const source = { kind: "text", source: { id: "p", kind: "prompt", label: "Prompt", text: "x" } } as const;
 		const draft = await openAnnotationDraft(session, source);
-		draft.restore({ getDraft: () => ({ kind: "text", annotations: [] }) } as unknown as AnnotationOverlay);
+		draft.restore({ getDraft: () => ({ kind: "text", annotations: [] }) } as unknown as AnnotationReviewModel);
 
 		// Shutdown runs session cleanup and the pending draft save concurrently.
 		await session.close();

@@ -1,7 +1,7 @@
 /**
  * Usage CLI command handler.
  *
- * Handles `zetacode usage` — fetches provider usage reports for every
+ * Handles `omp usage` — fetches provider usage reports for every
  * authenticated account and prints a detailed per-account breakdown
  * (limits, windows, reset times, plan metadata). Accounts whose
  * credentials produced no usage report are listed too, so the output
@@ -23,19 +23,21 @@ import {
 	type UsageReport,
 	type UsageUnit,
 	usageSubscriptionPlan,
-} from "@linxiraos/pi-ai";
-import { AuthBrokerClient, AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
-import type { ClientUsageClientSummary } from "@linxiraos/pi-ai/usage";
-import { formatProviderName } from "@linxiraos/pi-tui/chrome/format";
-import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+} from "@oh-my-pi/pi-ai";
+import { AuthBrokerClient, AuthBrokerError } from "@oh-my-pi/pi-ai/auth-broker";
+import { OAUTH_ORG_POLICY_BLOCK_SCOPE } from "@oh-my-pi/pi-ai/auth-storage";
+import type { ClientUsageClientSummary } from "@oh-my-pi/pi-ai/usage";
+import { formatProviderName } from "../modes/view-model/chrome/format";
+import { peakBuckets, sparkline } from "@oh-my-pi/pi-tui/term/painters/chart";
+import { formatDuration, formatNumber, getProjectDir, sanitizeText } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
 import { resolveAuthBrokerConfig } from "../session/auth-broker-config";
 import { resetAccountLockKey } from "../session/codex-auto-reset";
 import { checkCodexBalance, type ResetMarker, resetLockPath, withResetFence } from "../session/reset-fence";
-import { collapseSharedUsageReports, summarizeUsageResetCredits } from "@linxiraos/pi-tui/overlays/usage-display";
+import { collapseSharedUsageReports, summarizeUsageResetCredits } from "../session/usage-display";
 import { reportMatchesStatus } from "../session/claude-auto-reset";
 import {
 	classifyResetExpiry,
@@ -64,7 +66,6 @@ import {
 } from "../slash-commands/helpers/usage-accounts";
 
 import { cfgRetryUsageReservePct } from "../session/settings";
-import { peakBuckets, renderSparkline } from "@linxiraos/pi-tui/components/sparkline";
 
 const BAR_WIDTH = 28;
 
@@ -566,27 +567,48 @@ const RELOGIN_WARN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Re-login deadline line for providers whose OAuth grants expire a fixed
- * period after the interactive login (today: Anthropic, ~30 days regardless
- * of refresh rotation). Silent until the deadline is under a week out — a
- * nudge before the broker auto-disables the row, not a permanent countdown.
+ * period after the interactive login (today: Anthropic). The grant ends when
+ * the server said at login, else ~30 days after it regardless of refresh
+ * rotation. The current access token keeps working past the grant's end, so
+ * whichever lasts longer sets the deadline — for a long-lived login, the
+ * token's own expiry a year out. Silent until the deadline is under a week
+ * out — a nudge before the broker auto-disables the row, not a permanent
+ * countdown.
  */
 function formatReloginDeadline(
 	account: UsageAccountIdentity,
 	nowMs: number,
 	redaction?: Map<string, string>,
 ): string | undefined {
-	if (account.provider !== "anthropic" || account.type !== "oauth" || !account.authorizedAt) return undefined;
-	const remaining = account.authorizedAt + ANTHROPIC_OAUTH_GRANT_TTL_MS - nowMs;
+	if (account.provider !== "anthropic" || account.type !== "oauth") return undefined;
+	const stated = account.refreshExpires !== undefined;
+	const grantEnd =
+		account.refreshExpires ??
+		(account.authorizedAt ? account.authorizedAt + ANTHROPIC_OAUTH_GRANT_TTL_MS : undefined);
+	if (grantEnd === undefined) return undefined;
+	const deadline = Math.max(grantEnd, account.expires ?? 0);
+	const tokenBound = deadline > grantEnd;
+	const remaining = deadline - nowMs;
 	if (remaining > RELOGIN_WARN_WINDOW_MS) return undefined;
 	const label = accountIdentityLabel(account, redaction);
 	if (remaining <= 0) {
-		return `  ${chalk.red(`⚠ ${label} — grant is past Anthropic's ~30d lifetime; re-login now`)}`;
+		const reason = tokenBound
+			? "access token expired"
+			: stated
+				? "refresh token expired"
+				: "grant is past Anthropic's ~30d lifetime";
+		return `  ${chalk.red(`⚠ ${label} — ${reason}; re-login now`)}`;
 	}
-	return `  ${chalk.yellow(`⚠ ${label} — re-login within ${formatDuration(remaining)} (Anthropic expires OAuth grants ~30d after login)`)}`;
+	const reason = tokenBound
+		? "access token expires"
+		: stated
+			? "refresh token expires"
+			: "Anthropic expires OAuth grants ~30d after login";
+	return `  ${chalk.yellow(`⚠ ${label} — re-login within ${formatDuration(remaining)} (${reason})`)}`;
 }
 
 /**
- * Tombstones worth a row in `zetacode usage`: OAuth credentials torn down
+ * Tombstones worth a row in `omp usage`: OAuth credentials torn down
  * automatically (refresh failure, upstream invalidation). Rows the user
  * replaced or deleted deliberately are lifecycle noise, not lost capacity.
  */
@@ -680,8 +702,7 @@ export type UsagePolicyDiagnostics = {
 	| { state: "eligible" | "inside-reserve"; remainingPct: number }
 );
 
-/** Routing-policy projection shared with read-only Studio account status. */
-export function computePolicyDiagnostics(
+function computePolicyDiagnostics(
 	provider: string,
 	identity: OAuthAccountIdentity,
 	limits: UsageLimit[] | undefined,
@@ -690,7 +711,7 @@ export function computePolicyDiagnostics(
 	const policy = options.getAccountPolicy(provider, identity);
 	const configuredReservePct = policy?.reservePct;
 	const reservePct = Math.max(0, Math.min(100, configuredReservePct ?? options.globalReservePct));
-	// `zetacode usage` has no model/session context, so report the conservative
+	// `omp usage` has no model/session context, so report the conservative
 	// account-wide state from the most-consumed account-wide window. Rows
 	// outside those windows (a Claude Fable or Opus weekly counter) gate only
 	// their own models in AuthStorage, so they are listed separately instead.
@@ -790,9 +811,9 @@ function formatExpiringResets(warning: ResetExpiryWarning, nowMs: number): strin
 function formatResetSpendVerdict(verdict: ResetSpendVerdict): string {
 	const outcome =
 		verdict.kind === "auto"
-			? "an open interactive Zeta session spends it by its last 5 min if eligible then"
+			? "an open interactive omp session spends it by its last 5 min if eligible then"
 			: verdict.kind === "ask"
-				? "an open interactive Zeta session asks before spending it"
+				? "an open interactive omp session asks before spending it"
 				: "not spent automatically";
 	return `→ ${outcome}  (${verdict.setting}: ${verdict.mode})${verdict.eligibleNow ? "" : " · not eligible now"}`;
 }
@@ -835,7 +856,7 @@ function formatResetExpiryBanner(
 		const command =
 			stored.length === 1 ? `/usage reset ${warning.provider}/${stored[0]!.credentialId}` : "/usage reset";
 		lines.push(
-			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in zetacode")}`,
+			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in omp")}`,
 		);
 	});
 	return lines;
@@ -1036,7 +1057,7 @@ function renderHistorySparkline(entries: UsageHistoryEntry[], sinceMs: number, n
 	const points = entries.flatMap(entry =>
 		entry.usedFraction === undefined ? [] : [{ at: entry.recordedAt, value: entry.usedFraction }],
 	);
-	return renderSparkline(peakBuckets(points, sinceMs, nowMs, HISTORY_SPARK_WIDTH), {
+	return sparkline(peakBuckets(points, sinceMs, nowMs, HISTORY_SPARK_WIDTH), {
 		min: 0,
 		max: 1,
 		gap: chalk.dim("·"),
@@ -1158,19 +1179,90 @@ async function loadUsageSources(
 	return modelRegistry;
 }
 
+interface OrgPolicyRejectedAccount extends UsageAccountIdentity {
+	status: "rejected by org policy";
+	eligible: false;
+	blockedUntilMs: number;
+}
+
+/** Match persisted blocks by credential row, not email or usage report identity. */
+function collectOrgPolicyRejectedAccounts(
+	authStorage: AuthStorage,
+	provider: string | undefined,
+): OrgPolicyRejectedAccount[] {
+	const oauthRows = authStorage.credentials
+		.list()
+		.filter(
+			row => row.credential.type === "oauth" && (provider === undefined || row.provider.toLowerCase() === provider),
+		);
+	const blocks = new Map(
+		authStorage.blocks
+			.list(oauthRows.map(row => row.id))
+			.filter(block => block.blockScope === OAUTH_ORG_POLICY_BLOCK_SCOPE)
+			.map(block => [block.credentialId, block]),
+	);
+	const rejected: OrgPolicyRejectedAccount[] = [];
+	for (const { id, provider: rowProvider, credential } of oauthRows) {
+		const block = blocks.get(id);
+		if (credential.type !== "oauth" || block?.providerKey !== `${rowProvider}:oauth`) continue;
+		const { email, accountId, projectId, enterpriseUrl, orgId, orgName } = credential;
+		rejected.push({
+			provider: rowProvider,
+			type: "oauth",
+			email,
+			accountId,
+			projectId,
+			enterpriseUrl,
+			orgId,
+			orgName,
+			status: "rejected by org policy",
+			eligible: false,
+			blockedUntilMs: block.blockedUntilMs,
+		});
+	}
+	return rejected;
+}
+
+function formatOrgPolicyRejections(
+	rejected: OrgPolicyRejectedAccount[],
+	nowMs: number,
+	redaction?: Map<string, string>,
+): string {
+	return [
+		chalk.bold("OAuth eligibility"),
+		...rejected.map(account => {
+			const label = accountIdentityLabel(account, redaction);
+			const wait = formatDuration(account.blockedUntilMs - nowMs);
+			return `  ${formatProviderName(account.provider)} · ${label} — ${chalk.red(account.status)} ${chalk.dim(`(retry in ${wait})`)}`;
+		}),
+	].join("\n");
+}
+
 /** Name the providers that do hold credentials so a mistyped `--provider` id is easy to correct. */
 function formatNoProviderCredentials(provider: string, storedAccounts: UsageAccountIdentity[]): string {
 	const stored = [...new Set(storedAccounts.map(account => account.provider))].sort();
 	const hint =
 		stored.length > 0
 			? `Providers with stored credentials: ${stored.join(", ")}.`
-			: "Run `zetacode` and use /login to add accounts.";
+			: "Run `omp` and use /login to add accounts.";
 	return `No credentials stored for provider "${provider}". ${hint}\n`;
 }
 
 /** Apply a redaction mask to an optional identity field. */
 function maskIdentity(redaction: Map<string, string>, value: string | undefined): string | undefined {
 	return value === undefined ? undefined : (redaction.get(value) ?? value);
+}
+
+function redactUsageAccountForJson<T extends UsageAccountIdentity>(account: T, redaction: Map<string, string>): T {
+	return {
+		...account,
+		email: maskIdentity(redaction, account.email),
+		accountId: maskIdentity(redaction, account.accountId),
+		projectId: maskIdentity(redaction, account.projectId),
+		enterpriseUrl: maskIdentity(redaction, account.enterpriseUrl),
+		orgId: maskIdentity(redaction, account.orgId),
+		orgName: maskIdentity(redaction, account.orgName),
+	};
 }
 
 const IDENTITY_METADATA_KEYS = ["email", "accountId", "projectId", "orgId", "orgName"] as const;
@@ -1277,7 +1369,7 @@ async function resolveBrokerClient(): Promise<AuthBrokerClient | undefined> {
 	return config ? new AuthBrokerClient({ url: config.url, token: config.token }) : undefined;
 }
 
-/** One OAuth account as `zetacode usage accounts` lists it. */
+/** One OAuth account as `omp usage accounts` lists it. */
 interface OAuthIdentityKeyRow {
 	provider: string;
 	/** `null` when the credential carries no account identity, so no pool can name it. */
@@ -1326,7 +1418,7 @@ function formatOAuthIdentityKeys(rows: readonly OAuthIdentityKeyRow[]): string {
 	return lines.join("\n");
 }
 
-const RESET_COMMAND = "zetacode usage reset";
+const RESET_COMMAND = "omp usage reset";
 
 function failUsageReset(message: string): void {
 	process.stderr.write(chalk.red(`${message}\n`));
@@ -1352,7 +1444,7 @@ function identityTextMasker(redaction: Map<string, string>): (text: string) => s
 }
 
 /**
- * `zetacode usage reset [<provider>/<credential id>]`: list every stored Codex and
+ * `omp usage reset [<provider>/<credential id>]`: list every stored Codex and
  * Claude account's saved resets, or spend one on the named account. Both run in
  * this process with the store's tokens, so a broker client works like the host.
  */
@@ -1463,9 +1555,7 @@ async function runUsageResetCommand(
 		}
 		if (accounts.length === 0) {
 			const names = providers.map(formatResetProviderName).join(" or ");
-			process.stderr.write(
-				chalk.yellow(`No ${names} accounts found. Run \`zetacode\` and use /login to add one.\n`),
-			);
+			process.stderr.write(chalk.yellow(`No ${names} accounts found. Run \`omp\` and use /login to add one.\n`));
 			process.exitCode = 1;
 			return;
 		}
@@ -1485,7 +1575,7 @@ async function runUsageResetCommand(
 	const lockKey = resetAccountLockKey(target);
 	if (!lockKey) {
 		failUsageReset(
-			`${who}: this login stores no account id or email to fence the spend against other zetacode processes, so nothing was spent. Run \`zetacode\` and use /login to sign in to it again.`,
+			`${who}: this login stores no account id or email to fence the spend against other omp processes, so nothing was spent. Run \`omp\` and use /login to sign in to it again.`,
 		);
 		return;
 	}
@@ -1520,8 +1610,8 @@ async function runUsageResetCommand(
 		const ago = formatDuration(Date.now() - result.atMs);
 		failUsageReset(
 			result.state === "reset"
-				? `${who}: another Zeta process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`zetacode usage\` before spending another.`
-				: `${who}: another Zeta process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
+				? `${who}: another omp process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`omp usage\` before spending another.`
+				: `${who}: another omp process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
 		);
 		return;
 	}
@@ -1565,7 +1655,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (cmd.redact) {
 				process.stderr.write(
 					chalk.red(
-						"`zetacode usage accounts` prints identity keys verbatim for configuration; --redact does not apply.\n",
+						"`omp usage accounts` prints identity keys verbatim for configuration; --redact does not apply.\n",
 					),
 				);
 				process.exitCode = 1;
@@ -1587,7 +1677,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (rows.length === 0) {
 				const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 				process.stderr.write(
-					chalk.yellow(`No OAuth accounts found${scope}. Run \`zetacode\` and use /login to add accounts.\n`),
+					chalk.yellow(`No OAuth accounts found${scope}. Run \`omp\` and use /login to add accounts.\n`),
 				);
 				process.exitCode = 1;
 				return;
@@ -1616,7 +1706,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			if (clients.length === 0) {
 				process.stderr.write(
 					chalk.yellow(
-						"No per-client usage recorded yet. Broker-connected clients and the auth-gateway report token burn automatically; set ZETA_AUTH_BROKER_URL (or run this on the broker host).\n",
+						"No per-client usage recorded yet. Broker-connected clients and the auth-gateway report token burn automatically; set OMP_AUTH_BROKER_URL (or run this on the broker host).\n",
 					),
 				);
 				process.exitCode = 1;
@@ -1652,7 +1742,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 				const scope = cmd.provider ? ` for provider "${cmd.provider}"` : "";
 				process.stderr.write(
 					chalk.yellow(
-						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, zetacode usage).\n`,
+						`No usage history recorded${scope} yet. Snapshots accumulate whenever usage is fetched (TUI footer, /usage, omp usage).\n`,
 					),
 				);
 				process.exitCode = 1;
@@ -1692,9 +1782,13 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			accounts = accounts.filter(account => account.provider.toLowerCase() === wanted);
 			disabled = disabled.filter(summary => summary.provider.toLowerCase() === wanted);
 		}
+		const nowMs = Date.now();
+		const orgPolicyRejectedAccounts = collectOrgPolicyRejectedAccounts(authStorage, cmd.provider?.toLowerCase());
 
 		const redaction = cmd.redact
-			? buildRedactionMap(collectIdentityStrings(filteredReports, accounts, disabled))
+			? buildRedactionMap(
+					collectIdentityStrings(filteredReports, [...accounts, ...orgPolicyRejectedAccounts], disabled),
+				)
 			: undefined;
 
 		if (cmd.json) {
@@ -1710,15 +1804,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			let unreportedAccounts = annotated.accountsWithoutUsage;
 			if (redaction) {
 				trimmed = trimmed.map(report => redactReportForJson(report, redaction));
-				unreportedAccounts = unreportedAccounts.map(account => ({
-					...account,
-					email: maskIdentity(redaction, account.email),
-					accountId: maskIdentity(redaction, account.accountId),
-					projectId: maskIdentity(redaction, account.projectId),
-					enterpriseUrl: maskIdentity(redaction, account.enterpriseUrl),
-					orgId: maskIdentity(redaction, account.orgId),
-					orgName: maskIdentity(redaction, account.orgName),
-				}));
+				unreportedAccounts = unreportedAccounts.map(account => redactUsageAccountForJson(account, redaction));
 			}
 			const capacity: Record<string, ProviderWindowStat[]> = {};
 			for (const report of filteredReports) {
@@ -1737,17 +1823,23 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 				}));
 			}
 			const payload = {
-				generatedAt: Date.now(),
+				generatedAt: nowMs,
 				reports: trimmed,
 				accountsWithoutUsage: unreportedAccounts,
 				disabledCredentials: disabledForJson,
 				capacity,
+				orgPolicyRejectedAccounts:
+					orgPolicyRejectedAccounts.length === 0
+						? undefined
+						: redaction
+							? orgPolicyRejectedAccounts.map(account => redactUsageAccountForJson(account, redaction))
+							: orgPolicyRejectedAccounts,
 			};
 			process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 			return;
 		}
 
-		if (filteredReports.length === 0 && accounts.length === 0) {
+		if (filteredReports.length === 0 && accounts.length === 0 && orgPolicyRejectedAccounts.length === 0) {
 			// An explicit --provider keeps every stored account of that provider, so
 			// reaching here with one means none is stored for it. Without one,
 			// credentials may exist only for providers without a usage endpoint.
@@ -1757,7 +1849,7 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			} else if (storedAccounts.length > 0) {
 				message = "No usage data. Stored credentials are for providers without a usage endpoint.\n";
 			} else {
-				message = "No credentials found. Run `zetacode` and use /login to add accounts.\n";
+				message = "No credentials found. Run `omp` and use /login to add accounts.\n";
 			}
 			process.stderr.write(chalk.yellow(message));
 			process.exitCode = 1;
@@ -1768,9 +1860,13 @@ export async function runUsageCommand(cmd: UsageCommandArgs): Promise<void> {
 			settings,
 			accounts: provider => authStorage.oauth.accounts(provider),
 		};
-		process.stdout.write(
-			`${formatUsageBreakdown(filteredReports, accounts, Date.now(), redaction, disabled, policyOptions, resetOptions)}\n`,
-		);
+		const sections = [
+			formatUsageBreakdown(filteredReports, accounts, nowMs, redaction, disabled, policyOptions, resetOptions),
+		];
+		if (orgPolicyRejectedAccounts.length > 0) {
+			sections.push(formatOrgPolicyRejections(orgPolicyRejectedAccounts, nowMs, redaction));
+		}
+		process.stdout.write(`${sections.join("\n\n")}\n`);
 	} catch (error) {
 		// Broker-backed reads (`clients`, `--history`) fail on an unreachable or
 		// pre-endpoint broker; report one line instead of a stack dump.

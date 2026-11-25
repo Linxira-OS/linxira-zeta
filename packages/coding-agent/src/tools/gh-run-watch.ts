@@ -1,4 +1,4 @@
-import { renderJobsSection, renderFailedJobLogs, renderRunSection } from "@linxiraos/pi-tui/tools/github";
+import { renderJobsSection, renderFailedJobLogs, renderRunSection } from "./details/github";
 import { scheduler } from "node:timers/promises";
 import type { AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { github } from "../utils/github";
@@ -9,7 +9,7 @@ import type {
 	GhRunWatchRunDetails,
 	GhRunWatchViewDetails,
 	GhToolDetails,
-} from "@linxiraos/pi-tui/tools/github";
+} from "./details/github";
 import {
 	buildTextResult,
 	formatRepoRef,
@@ -26,8 +26,8 @@ import {
 	saveArtifactText,
 	tryResolveCurrentRepoFresh,
 } from "./gh-common";
-import { pushLine } from "@linxiraos/pi-tui/tools/gh-format";
-import { formatShortSha } from "@linxiraos/pi-tui/tools/gh-format";
+import { pushLine } from "./gh-format";
+import { formatShortSha } from "./gh-format";
 import type {
 	GhActionsJobApi,
 	GhActionsJobsResponse,
@@ -38,15 +38,10 @@ import type {
 	GhRunReference,
 	GithubInput,
 } from "./gh-types";
-import type {
-	GhFailedJobLog,
-	GhRunJobSnapshot,
-	GhRunSnapshot,
-	GhRunStepSnapshot,
-} from "@linxiraos/pi-tui/tools/github";
-import { truncateLineBytes } from "@linxiraos/pi-tui/tools/streaming-output";
+import type { GhFailedJobLog, GhRunJobSnapshot, GhRunSnapshot, GhRunStepSnapshot } from "./details/github";
+import { truncateLineBytes } from "./streaming-output";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 
 export const RUN_WATCH_INTERVAL_DEFAULT = 3;
 export const RUN_WATCH_INTERVAL_SLOW = 15;

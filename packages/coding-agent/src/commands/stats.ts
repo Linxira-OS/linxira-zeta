@@ -2,17 +2,16 @@
  * View usage statistics dashboard.
  */
 
-import { Command, Flags } from "@linxiraos/pi-utils/cli";
-import { ZETA_STATS_PORT } from "@linxiraos/pi-utils";
+import { Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { statsHelp as commandHelp } from "../cli/command-help";
 import type { StatsCommandArgs } from "../cli/stats-cli";
 import * as statsCli from "../cli/stats-cli";
-import * as theme from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 export default class Stats extends Command {
 	static description = commandHelp.description;
 	static flags = {
-		port: Flags.integer({ char: "p", description: "Port for the dashboard server", default: ZETA_STATS_PORT }),
+		port: Flags.integer({ char: "p", description: "Port for the dashboard server", default: 3847 }),
 		host: Flags.string({ description: "Host to bind", default: "127.0.0.1" }),
 		json: Flags.boolean({ char: "j", description: "Output stats as JSON", default: false }),
 		summary: Flags.boolean({ char: "s", description: "Print summary to console", default: false }),
@@ -28,7 +27,7 @@ export default class Stats extends Command {
 			summary: flags.summary,
 		};
 
-		await theme.initTheme();
+		initTheme();
 		await statsCli.runStatsCommand(cmd);
 	}
 }

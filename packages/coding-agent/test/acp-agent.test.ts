@@ -23,8 +23,16 @@ import {
 } from "@linxiraos/zeta/modes/acp/acp-agent";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import { type AgentRef, AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
-import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import type {
+	AgentSession,
+	AgentSessionEvent,
+	UsageFallbackConfirmation,
+} from "@linxiraos/zeta/session/agent-session";
+import {
+	type CustomMessage,
+	SILENT_ABORT_MARKER,
+	USER_INTERRUPT_LABEL,
+} from "@linxiraos/zeta/session/messages";
 import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
 import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -171,7 +179,7 @@ class FakeAgentSession {
 		}
 		return true;
 	}
-	customMessages: Array<{ customType: string; content: string; details?: unknown }> = [];
+	customMessages: Array<{ customType: string; content: CustomMessage["content"]; details?: unknown }> = [];
 	customMessageOptions: Array<{ streamingBehavior?: "steer" | "followUp"; queueChipText?: string } | undefined> = [];
 	skillsSettings = { enableSkillCommands: true };
 	skills: Array<{ name: string; description: string; filePath: string; baseDir: string; source: string }> = [];
@@ -227,10 +235,6 @@ class FakeAgentSession {
 
 	getAvailableThinkingLevels(): ReadonlyArray<string> {
 		return ["low", "medium", "high"];
-	}
-
-	getEnabledToolNames(): string[] {
-		return [];
 	}
 
 	setThinkingLevel(level: string | undefined): void {
@@ -318,7 +322,7 @@ class FakeAgentSession {
 	}
 
 	async promptCustomMessage(
-		message: { customType: string; content: string; details?: unknown },
+		message: { customType: string; content: CustomMessage["content"]; details?: unknown },
 		options?: { streamingBehavior?: "steer" | "followUp"; queueChipText?: string },
 	): Promise<void> {
 		this.customMessages.push(message);
@@ -343,10 +347,6 @@ class FakeAgentSession {
 	}
 
 	async refreshMCPTools(_tools: unknown[]): Promise<void> {}
-
-	runToolRegistryMutation<T>(mutation: () => Promise<T>): Promise<T> {
-		return mutation();
-	}
 
 	getContextUsage(): undefined {
 		return undefined;
@@ -533,7 +533,7 @@ function expectAcpNotifications(updates: SessionNotification[]): void {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -542,7 +542,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.PI_CODING_AGENT_DIR;
 	}
 	resetSettingsForTest();
 
@@ -808,8 +808,8 @@ describe("ACP agent", () => {
 		expect(currentModeConfig?.currentValue).toBe("plan");
 
 		// Regression for #1869: entering plan mode must wire a plan-proposal
-		// handler so the agent's `xd://propose` write has a gate to dispatch to
-		// instead of erroring with no approval path.
+		// handler so `propose` has a gate to dispatch to instead of erroring
+		// with no approval path.
 		expect(typeof session.planProposalHandler).toBe("function");
 
 		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "default" });
@@ -998,9 +998,12 @@ describe("ACP agent", () => {
 
 		const updatesBefore = harness.updates.length;
 		const handler = session.planProposalHandler!;
-		const result = (await handler("words-counter")) as { content: Array<{ type: string; text: string }> };
+		const result = await handler("words-counter");
 
-		expect(result.content[0]?.text).toMatch(/refinement requested/i);
+		// The agent gets back the reviewed plan to iterate on, not an approval.
+		expect(result).toMatchObject({
+			details: { planFilePath: "local://PLAN.md", title: "words-counter", planExists: true },
+		});
 		// Plan file stays put; no rename, no write-access grant.
 		expect(await Bun.file(planPath).exists()).toBe(true);
 		expect(await Bun.file(resolveLocalUrlToPath("local://words-counter.md", localOptions)).exists()).toBe(false);
@@ -2684,6 +2687,39 @@ describe("ACP agent", () => {
 		expect(customMessage.content).toContain(`[Skill directory: ${skillDir}]`);
 		expect(customMessage.content).toContain("User: extra context");
 		expect(session.customMessageOptions[0]).toEqual({ streamingBehavior: "steer" });
+
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("keeps prompt image blocks on a skill command's custom message", async () => {
+		const harness = await createHarness();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId);
+		if (!session) throw new Error("expected ACP session to exist after newSession");
+		const skillDir = path.join(harness.cwdA, ".skills", "probe");
+		const skillPath = path.join(skillDir, "SKILL.md");
+		await fs.promises.mkdir(skillDir, { recursive: true });
+		await fs.promises.writeFile(skillPath, "---\ndescription: Probe skill\n---\n# Probe\nName the color.\n");
+		session.skills = [
+			{ name: "probe", description: "Probe skill", filePath: skillPath, baseDir: skillDir, source: "test" },
+		];
+
+		await harness.agent.prompt({
+			sessionId: created.sessionId,
+			messageId: "00000000-0000-4000-8000-000000000002",
+			prompt: [
+				{ type: "image", mimeType: "image/png", data: "cmVk" },
+				{ type: "text", text: "/skill:probe notes.ts. What color is the image?" },
+			],
+		} as PromptRequest);
+
+		expect(session.promptCalls).toEqual([]);
+		const content = session.customMessages[0]?.content;
+		if (!Array.isArray(content)) throw new Error("expected skill message content to carry the image block");
+		expect(content[0]).toMatchObject({ type: "text" });
+		expect(content[0]?.type === "text" && content[0].text).toContain("User: notes.ts. What color is the image?");
+		expect(content.slice(1)).toEqual([{ type: "image", mimeType: "image/png", data: "cmVk" }]);
 
 		harness.abortController.abort();
 		await Bun.sleep(0);

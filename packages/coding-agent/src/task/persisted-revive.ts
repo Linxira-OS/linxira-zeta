@@ -1,11 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger } from "@linxiraos/pi-utils";
-
+import { logger } from "@oh-my-pi/pi-utils";
 import { MAIN_AGENT_RULE_NAME, SUB_AGENT_RULE_NAME } from "../capability/rule";
 import { validateAgentAccountPools } from "../config/account-pools";
-import type { Model } from "@linxiraos/pi-ai";
-import { assertModelSupportsEffortCeiling } from "@linxiraos/pi-tui/thinking";
+import type { Model } from "@oh-my-pi/pi-ai";
+import { assertModelSupportsEffortCeiling } from "../thinking/levels";
 import type { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelStringWithRouting,
@@ -17,7 +16,7 @@ import { formatModelRoleAlias } from "../config/model-roles";
 import type { Settings } from "../config/settings";
 import { MCPManager } from "../mcp/manager";
 import { initializeExtensions } from "../modes/runtime-init";
-import type { AsyncJobManagerApi, AsyncJobOrigin } from "../async";
+import type { AsyncJobManagerApi } from "../async";
 import type { PreparedExtension } from "../extensibility/extensions/types";
 import type { PersistedSubagentReviverFactory } from "../registry/agent-lifecycle";
 import { type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
@@ -43,7 +42,6 @@ import {
 	createSubagentSettings,
 	followMCPTools,
 	replayRevivedAgentStart,
-	resolveParentJobOrigin,
 	softRequestBudgetFor,
 	subagentLspWritethroughSettings,
 	subagentRetryFallbackRole,
@@ -133,7 +131,7 @@ export function persistedAgentName(displayName: string, init: PersistedSessionIn
 
 /**
  * The agent definition a cold-revived subagent's monitored turns report (IRC wakes,
- * `zetacode --restore`): persisted files predate an agent-source field, so frames carry
+ * `omp --restore`): persisted files predate an agent-source field, so frames carry
  * the runtime-neutral `user` source; the name is the registry ref's.
  */
 export function persistedAgentDefinition(displayName: string, init: PersistedSessionInit): AgentDefinition {
@@ -253,16 +251,6 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 		throw new Error(
 			`Cannot revive subagent "${ref.id}": session file "${sessionFile}" has no message history (truncated to header/session_init). The agent was not revived.`,
 		);
-	}
-	// Only the persisted header declares the spawner. A directory beside a
-	// standalone or legacy transcript does not establish source ownership.
-	let parentOrigin: AsyncJobOrigin | null;
-	try {
-		const recorded = reopened.getHeader()?.parentSession;
-		parentOrigin = recorded === undefined ? null : resolveParentJobOrigin(recorded);
-	} catch (error) {
-		await reopened.close();
-		throw error;
 	}
 	const resolveParentSession = () =>
 		ref.parentId === spec.rootAgentId ? spec.root : registry.get(ref.parentId ?? "")?.session;
@@ -534,8 +522,6 @@ export async function revivePersistedSubagent(spec: PersistedReviveSpec, expecte
 		eventBus: spec.eventBus,
 		subagentEventBus: spec.subagentEventBus,
 		sessionFile,
-		parentOrigin,
-		structured: init.outputSchema !== undefined,
 		outputSchema: init.outputSchema,
 		outputSchemaMode: init.outputSchemaMode,
 		// Anchor artifacts to the revived ref's own dir (its parent's children

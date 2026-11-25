@@ -19,7 +19,7 @@
  * Its `process` / `widgetInputs` stay here too; main reads them through a
  * {@link WireJobFeed} whose pulls and final push this module answers.
  */
-import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
+import type { JobWidgetView } from "../../tools/details/job-widget";
 import type {
 	AsyncJob,
 	AsyncJobDeliverySink,
@@ -236,8 +236,8 @@ export class RemoteAsyncJobManager implements AsyncJobManagerApi {
 		return localUnsubscribe(this.#remote.callSync("onJobSettled", listener));
 	}
 
-	onJobsChanged(listener: () => void): () => void {
-		return localUnsubscribe(this.#remote.callSync("onJobsChanged", listener));
+	onJobsChanged(listener: () => void, ids?: readonly string[]): () => void {
+		return localUnsubscribe(this.#remote.callSync("onJobsChanged", listener, ids));
 	}
 
 	register(type: AsyncJobType, label: string, run: AsyncJobRun, options?: AsyncJobRegisterOptions): string {
@@ -284,6 +284,15 @@ export class RemoteAsyncJobManager implements AsyncJobManagerApi {
 		return this.#remote.callSync("publishCompleted", type, label, result, options);
 	}
 
+	publishFailed(
+		type: AsyncJobType,
+		label: string,
+		errorText: string,
+		options: { id?: string; ownerId?: string; agentId?: string },
+	): string {
+		return this.#remote.callSync("publishFailed", type, label, errorText, options);
+	}
+
 	cancel(id: string, filter?: AsyncJobFilter): boolean {
 		return this.#remote.callSync("cancel", id, filter);
 	}
@@ -299,14 +308,6 @@ export class RemoteAsyncJobManager implements AsyncJobManagerApi {
 
 	getRunningJobs(filter?: AsyncJobFilter): AsyncJob[] {
 		return this.#rows(this.#remote.callSync("getRunningJobs", filter));
-	}
-
-	nextPollWaitMs(ownerId: string | undefined, now?: number): number {
-		return this.#remote.callSync("nextPollWaitMs", ownerId, now);
-	}
-
-	recordPollWaitEnd(ownerId: string | undefined, now?: number): void {
-		this.#remote.notify("recordPollWaitEnd", ownerId, now);
 	}
 
 	getRecentJobs(limit?: number, filter?: AsyncJobFilter): AsyncJob[] {

@@ -2,18 +2,18 @@
  * Built-in model roles and role metadata helpers.
  */
 
-import { modelKind, type Model } from "@linxiraos/pi-catalog/types";
+import { type Model, modelKind } from "@oh-my-pi/pi-catalog/types";
 import {
 	KIND_ROLE_IDS,
 	MODEL_ROLE_IDS,
 	type ModelBrowserRegistry,
-	type ModelBrowserRoleInfo,
 	type ModelRole,
-} from "@linxiraos/pi-tui/overlays/model-browser";
-import { isValidThemeColor } from "@linxiraos/pi-tui/theme";
+} from "../modes/view-model/overlays/model-browser";
+import type { ModelRegistry } from "./model-registry";
 import type { Settings } from "./settings";
-
 import { cfgCycleOrder, cfgModelTags } from "./model-settings";
+import { isForegroundKey } from "@oh-my-pi/pi-tui/theme/schema";
+import type { ModelBrowserRoleInfo } from "../modes/view-model/overlays/model-browser";
 
 /** Canonical prefix for a configured model role selector. */
 export const MODEL_ROLE_ALIAS_PREFIX = "@";
@@ -29,8 +29,8 @@ export function formatModelRoleAlias(role: string): string {
 	return `${MODEL_ROLE_ALIAS_PREFIX}${role}`;
 }
 
-export type { ModelRole } from "@linxiraos/pi-tui/overlays/model-browser";
-export { CHAT_MODEL_ROLE_IDS, KIND_ROLE_IDS, MODEL_ROLE_IDS } from "@linxiraos/pi-tui/overlays/model-browser";
+export type { ModelRole } from "../modes/view-model/overlays/model-browser";
+export { CHAT_MODEL_ROLE_IDS, KIND_ROLE_IDS, MODEL_ROLE_IDS } from "../modes/view-model/overlays/model-browser";
 
 export type ModelRoleInfo = ModelBrowserRoleInfo;
 
@@ -88,10 +88,6 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 		accepts: model => modelKind(model) === "stt",
 	},
 	judge: { tag: "JUDGE", name: "Judge", color: "muted", section: "kind", accepts: acceptsJudge },
-	// Taste classification/calibration. A `kind: judge` model makes the layer T2
-	// (probabilities enter the Beta posterior); a chat/tiny model makes it T1
-	// (classification only); unset falls through to `judge`, then `smol`, then T0.
-	taste: { tag: "TASTE", name: "Taste", color: "muted", section: "kind", accepts: acceptsJudge },
 };
 
 export type RoleInfo = ModelRoleInfo;
@@ -108,6 +104,16 @@ function isModelRole(role: string): role is ModelRole {
 /** Available models eligible for a role, including keyless runner models. */
 export function roleCandidatePool(role: string, settings: Settings, registry: ModelBrowserRegistry): Model[] {
 	return registry.getAvailable("all").filter(getRoleInfo(role, settings).accepts);
+}
+
+/** {@link roleCandidatePool} over one provider's catalog, without reading the others. */
+export function providerRoleCandidatePool(
+	role: string,
+	settings: Settings,
+	registry: Pick<ModelRegistry, "getAvailableForProviders">,
+	provider: string,
+): Model[] {
+	return registry.getAvailableForProviders(new Set([provider]), "all").filter(getRoleInfo(role, settings).accepts);
 }
 
 /**
@@ -146,7 +152,7 @@ export function getRoleInfo(role: string, settings: Settings): RoleInfo {
 		return {
 			tag: builtIn?.tag,
 			name: configured.name || builtIn?.name || role,
-			color: configured.color && isValidThemeColor(configured.color) ? configured.color : builtIn?.color,
+			color: configured.color && isForegroundKey(configured.color) ? configured.color : builtIn?.color,
 			hidden: configured.hidden ?? builtIn?.hidden,
 			accepts: builtIn?.accepts ?? acceptsChat,
 			section: builtIn?.section ?? "chat",

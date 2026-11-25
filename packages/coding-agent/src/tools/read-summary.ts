@@ -1,13 +1,13 @@
 import * as path from "node:path";
 import { type SummaryResult, summarizeCodeAsync } from "@linxiraos/pi-natives";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { isMarkdownPath } from "@linxiraos/pi-tui/theme";
+import { isMarkdownPath } from "../utils/lang-from-path";
 import type { ClientBridge } from "../session/client-bridge";
 import type { ToolSession } from "../sdk";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { ensureGrammar } from "../utils/grammars";
 import { countTextLines } from "./read-format";
-import { formatReadSummary } from "@linxiraos/pi-tui/tools/read";
+import { formatReadSummary } from "./details/read";
 import { throwIfAborted } from "./tool-errors";
 import { getToolConversationState } from "./tool-state";
 

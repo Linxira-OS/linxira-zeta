@@ -13,9 +13,9 @@
  * resulting side effect.
  */
 import type { Model } from "@linxiraos/pi-ai";
-import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { routedModelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { ResolvedModelRoleValue } from "../config/model-resolver";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "../utils/render-utils";
 
 /** The action implied by resolving the `plan` role against the active model. */
 export type PlanModelTransition =
@@ -44,7 +44,7 @@ export function resolvePlanModelTransition(
 ): PlanModelTransition {
 	if (!resolved.model) return { kind: "none" };
 	const planThinkingLevel = resolved.explicitThinkingLevel ? resolved.thinkingLevel : undefined;
-	if (modelsAreEqual(currentModel, resolved.model)) {
+	if (routedModelsAreEqual(currentModel, resolved.model)) {
 		return planThinkingLevel ? { kind: "thinking", thinkingLevel: planThinkingLevel } : { kind: "none" };
 	}
 	return { kind: "apply", model: resolved.model, thinkingLevel: planThinkingLevel, deferred: isStreaming };

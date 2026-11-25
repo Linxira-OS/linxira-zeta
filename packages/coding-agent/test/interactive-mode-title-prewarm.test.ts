@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { isTinyTitleLocalModelKey } from "@linxiraos/zeta/tiny/models";
-import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { tinyTitleClient } from "@oh-my-pi/pi-coding-agent/tiny/title-client";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { initTheme } from "../src/ui/theme/service";
+import { createModeTerminal } from "./helpers/mode-terminal";
 
 // Issue #6462: the first submit used to spawn the local tiny-title worker
 // synchronously ahead of the first frame, and title generation started before
@@ -67,22 +67,19 @@ describe("InteractiveMode tiny-title prewarm", () => {
 			settings: Settings.isolated(),
 			modelRegistry,
 		});
-		mode = new InteractiveMode(session, "test", () => {}, [], undefined, undefined);
-		// A real fs.watch on repo HEAD in a parallel Bun worker can trip a Bun
-		// SIGTRAP in the suite; this contract does not need branch watching.
-		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});
+		mode = new InteractiveMode(session, "test", () => {}, [], undefined, undefined, createModeTerminal().frame);
 	});
 
 	afterEach(async () => {
-		// init() defers the prewarm probe behind a setImmediate. Stop the mode
-		// first so its pending callback cannot fire, then flush one immediate
-		// tick and only then drop the spies: flushing before stop() lets the
-		// old mode's callback land in the *next* case's `prewarm` spy, which
-		// reads as that case prewarming when it did not (flaky in CI).
-		mode?.stop();
+		// init() defers the prewarm probe behind a setImmediate. Flush one
+		// immediate tick while this case's spies are still installed: an
+		// unflushed callback otherwise fires during a later case, with
+		// `getSessionName` already restored and this mode's tiny role still
+		// configured, and lands in that case's `prewarm` spy (flaky in CI).
 		const pendingImmediates = Promise.withResolvers<void>();
 		setImmediate(pendingImmediates.resolve);
 		await pendingImmediates.promise;
+		mode?.stop();
 		vi.restoreAllMocks();
 		await session?.dispose();
 		resetSettingsForTest();
@@ -122,11 +119,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 		expect(prewarm).not.toHaveBeenCalled();
 	});
 
-	it("does not start a worker for an unconfigured default row", async () => {
-		// The call site does not pre-filter: it hands the configured key to
-		// `prewarm`, which short-circuits internally for non-local keys. So
-		// what must hold is "the default is not a local key" — asserting the
-		// call is absent would pin a call-site filter we do not have.
+	it("does not prewarm an unconfigured default row", async () => {
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
 		await mode.init();
@@ -134,21 +127,18 @@ describe("InteractiveMode tiny-title prewarm", () => {
 		setImmediate(immediateFlushed.resolve);
 		await immediateFlushed.promise;
 
-		if (prewarm.mock.calls.length > 0) {
-			expect(isTinyTitleLocalModelKey(prewarm.mock.calls[0][0] as never)).toBe(false);
-		}
+		expect(prewarm).not.toHaveBeenCalled();
 	});
 
-	it("does not start a worker for a paid tiny role", async () => {
+	it("does not prewarm a paid tiny role", async () => {
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
+		session.settings.setModelRole("tiny", "anthropic/claude-haiku-4-5");
 
 		await mode.init();
 		const immediateFlushed = Promise.withResolvers<void>();
 		setImmediate(immediateFlushed.resolve);
 		await immediateFlushed.promise;
 
-		if (prewarm.mock.calls.length > 0) {
-			expect(isTinyTitleLocalModelKey(prewarm.mock.calls[0][0] as never)).toBe(false);
-		}
+		expect(prewarm).not.toHaveBeenCalled();
 	});
 });

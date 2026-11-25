@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
 import { Settings } from "../../src/config/settings";
 import { AgentSession } from "../../src/session/agent-session";
 import { SessionManager } from "../../src/session/session-manager";
 import { buildSessionContextView } from "../../src/session/context-view";
 import { buildSystemPrompt } from "../../src/system-prompt";
-import { computeNonMessageBreakdown, type SystemPromptSources } from "@linxiraos/pi-tui/status-line/context-usage";
+import { computeNonMessageBreakdown, type SystemPromptSources } from "@oh-my-pi/pi-coding-agent/session/context-usage";
 import type { Skill } from "../../src/extensibility/skills";
-import type { ContextViewData } from "@linxiraos/pi-tui/chrome/context-view-model";
+import type { ContextViewData } from "@oh-my-pi/pi-coding-agent/session/context-view-model";
 
 const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
 const sessions: AgentSession[] = [];

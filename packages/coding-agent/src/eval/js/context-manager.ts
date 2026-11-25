@@ -1,8 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MessageChannel, type MessagePort, receiveMessageOnPort } from "node:worker_threads";
-import { isRecord, logger, Snowflake, workerHostEntry } from "@linxiraos/pi-utils";
+import type * as WorkerThreads from "node:worker_threads";
+import type { MessagePort } from "node:worker_threads";
+
+// Lazy loader: keeps node:worker_threads off CLI startup until the Bun Worker fallback spawns.
+let workerThreadsCache: typeof WorkerThreads | undefined;
+function workerThreads(): typeof WorkerThreads {
+	if (!workerThreadsCache) workerThreadsCache = require("node:worker_threads") as typeof WorkerThreads;
+	return workerThreadsCache;
+}
+import { isRecord, logger, Snowflake, workerHostEntry } from "@oh-my-pi/pi-utils";
 import {
 	createWorkerHandle,
 	createWorkerSubprocess,
@@ -12,7 +20,7 @@ import {
 import { registerOnBoard } from "../../daemon/client";
 import type { ToolSession } from "../../tools";
 import { ToolAbortError } from "../../tools/tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../../tools/tool-errors";
 import { safeSend as safeSendIpc } from "../../utils/ipc";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../bridge-timeout";
 import { getEnabledEvalPreludes } from "../preludes";
@@ -30,7 +38,7 @@ import type { EvalShadowCellSession } from "../speculation/cell-session";
 import { getActiveEvalShadowCell } from "../speculation/runtime-context";
 import type { ShadowPlan } from "../speculation/types";
 import type { EvalDisplayOutput, EvalToolDescriptor, EvalToolInvokeResult } from "../types";
-import { type ShadowSnapshot, shadowSnapshotDigest } from "./shared/runtime";
+import { type ShadowSnapshot, shadowSnapshotDigest } from "./shared/shadow-snapshot";
 import { projectJavaScriptShadowPlan } from "./speculation";
 import { callSessionTool, type JsStatusEvent } from "./tool-bridge";
 // Coding-agent binary/bundle workers route through the CLI entrypoint with a
@@ -48,7 +56,6 @@ import type {
 export { rewriteImports, wrapCode } from "./shared/rewrite-imports";
 
 export interface VmRunState {
-	outerToolCallId?: string;
 	signal?: AbortSignal;
 	parentToolCallId?: string;
 	onText?: (chunk: string) => void;
@@ -146,7 +153,7 @@ const lostSessions = new Map<string, Set<string>>();
 // SIGILL/SIGSEGV. Callers that pass a larger per-cell budget still dominate.
 const WORKER_INIT_TIMEOUT_MS = 15_000;
 const WORKER_CLOSE_TIMEOUT_MS = 1_000;
-const JS_EVAL_PROCESS_ARG = "__zeta_worker_js_eval_process";
+const JS_EVAL_PROCESS_ARG = "__omp_worker_js_eval_process";
 const productionWorkerFactories: JsEvalWorkerFactories = {
 	spawnProcess: spawnJsProcess,
 	spawnWorker: spawnBunWorker,
@@ -490,7 +497,7 @@ export async function disposeVmContextsByOwner(ownerId: string, options?: Dispos
  * fallback). Catches silent process-load and init-message regressions
  * that otherwise strand every cell on the init timeout in a distribution build —
  * the failure mode that motivated `installWorkerInbox`. Wired into
- * `zetacode --smoke-test` so binary / source / tarball installs all exercise it.
+ * `omp --smoke-test` so binary / source / tarball installs all exercise it.
  */
 export async function smokeTestJsEvalWorker(): Promise<void> {
 	const worker = spawnJsWorker();
@@ -860,7 +867,7 @@ async function handleToolCall(session: JsSession, msg: Extract<WorkerOutbound, {
 	try {
 		const value = await callSessionTool(msg.name, msg.args, {
 			session: pending.toolSession,
-			outerToolCallId: pending.runState.outerToolCallId,
+			parentToolCallId: pending.runState.parentToolCallId,
 			signal: ctrl.signal,
 			cellTimeoutMs: pending.cellTimeoutMs,
 			identity: msg.identity,
@@ -1049,8 +1056,9 @@ function spawnBunWorker(): JsEvalWorkerHandle {
 	try {
 		const hostEntry = workerHostEntry() ?? bundledHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_js_eval"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_js_eval"] })
 			: new Worker(SOURCE_WORKER_ENTRY.href, { type: "module" });
+		const { MessageChannel } = workerThreads();
 		const channel = new MessageChannel();
 		const outbox: WorkerOutboxMessage = { type: "outbox", port: channel.port2 };
 		worker.postMessage(outbox, [channel.port2]);
@@ -1197,6 +1205,7 @@ function wrapBunWorker(worker: Worker, outbox: MessagePort): JsEvalWorkerHandle 
 			worker.terminate();
 			if (!outboxOpen) return;
 			outboxOpen = false;
+			const { receiveMessageOnPort } = workerThreads();
 			for (let received = receiveMessageOnPort(outbox); received; received = receiveMessageOnPort(outbox)) {
 				deliver(received.message);
 			}

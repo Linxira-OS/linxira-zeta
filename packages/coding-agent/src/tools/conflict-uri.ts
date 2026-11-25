@@ -4,8 +4,9 @@
  * file line numbers, and splicing replacement content over registered blocks.
  */
 import * as fs from "node:fs/promises";
-import { type ConflictEntry, renderConflictRegion } from "@linxiraos/pi-tui/tools/conflict-detect";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { type ConflictEntry, renderConflictRegion } from "./conflict-region";
+import { PREVIEW_LIMITS } from "../utils/render-utils";
+import { ToolError } from "./tool-errors";
 import { stripBom } from "../edit/normalize";
 import type { InternalWriteResult } from "../internal-urls/types";
 import { writethroughNoop } from "../lsp/writethrough";
@@ -21,7 +22,7 @@ import {
 import type { ToolSession } from "./index";
 import { formatPathRelativeToCwd } from "./path-utils";
 import { maybeWriteSnapshotHeader, stripWriteContent } from "./write-content";
-import { PREVIEW_LIMITS } from "@linxiraos/pi-tui/render/render-utils";
+import { PREVIEW_LIMITS } from "../utils/render-utils";
 
 /** Raw `conflict://<N>[/<scope>]` content for the shared read selector pipeline. */
 export interface ConflictRegionRead {

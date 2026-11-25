@@ -19,19 +19,19 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, AgentState } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
-import { dropToolCallReasoningDetail } from "@linxiraos/pi-ai/providers/openai-completions";
-import { dropReasoningDetailsEnvelopes } from "@linxiraos/pi-ai/utils/reasoning-source";
-import { $which, logger } from "@linxiraos/pi-utils";
-import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
+import type { AgentMessage, AgentState } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent } from "@oh-my-pi/pi-ai";
+import { dropToolCallReasoningDetail } from "@oh-my-pi/pi-ai/providers/openai-completions";
+import { dropReasoningDetailsEnvelopes } from "@oh-my-pi/pi-ai/utils/reasoning-source";
+import { $which, logger } from "@oh-my-pi/pi-utils";
+import { DEFAULT_SHARE_URL } from "@oh-my-pi/pi-wire";
 import { $ } from "bun";
 import { obfuscateToolArguments } from "../secrets/message-transform";
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import { SecretValueSet } from "../secrets/placeholder";
 import { type SessionEntry, type SessionHeader, TITLE_CHANGE_ENTRY_TYPE } from "../session/session-entries";
 import type { SessionManager } from "../session/session-manager";
-import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { OutputMeta } from "../tools/output-meta-format";
 import type { SubSession } from "../session/sub-sessions";
 import { buildSessionData, type SessionData } from "./html";
 
@@ -45,7 +45,7 @@ const GIST_MAX_SEALED_BYTES = 5_000_000;
 const IV_LENGTH = 12;
 const SHARE_KEY_BYTES = 32;
 /** The viewer picks the gist file by this suffix. */
-const GIST_FILENAME = "session\.zetashare.txt";
+const GIST_FILENAME = "session.ompshare.txt";
 /** Gist ids are hex; the relay never issues pure-hex ids, so the viewer can route on shape. */
 const GIST_ID_RE = /^[0-9a-f]{20,64}$/;
 

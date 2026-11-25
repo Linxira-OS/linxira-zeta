@@ -1,5 +1,5 @@
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { untilAborted } from "@linxiraos/pi-utils";
+import { ToolError } from "../tool-errors";
+import { untilAborted } from "@oh-my-pi/pi-utils";
 import type { ElementHandle } from "puppeteer-core";
 import { isNavigatedContextError } from "./navigation";
 import { untilAbortedOrReleased } from "./op-timeouts";

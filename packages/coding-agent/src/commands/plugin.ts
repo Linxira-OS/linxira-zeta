@@ -2,10 +2,10 @@
  * Manage plugins (install, uninstall, list, etc.).
  */
 
-import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
+import { Args, Command, Flags } from "@oh-my-pi/pi-utils/cli";
 import { pluginHelp as commandHelp } from "../cli/command-help";
 import { type PluginAction, type PluginCommandArgs, runPluginCommand } from "../cli/plugin-cli";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../ui/theme/service";
 
 const ACTIONS: PluginAction[] = [
 	"install",
@@ -20,10 +20,6 @@ const ACTIONS: PluginAction[] = [
 	"marketplace",
 	"discover",
 	"upgrade",
-	"panel",
-	"promote",
-	"export",
-	"dev",
 ];
 
 export default class Plugin extends Command {
@@ -31,7 +27,7 @@ export default class Plugin extends Command {
 	static aliases = ["plugins"];
 	static args = {
 		action: Args.string({
-			description: "Plugin action (panel: print one declarative panel's data)",
+			description: "Plugin action",
 			required: false,
 			options: ACTIONS,
 		}),
@@ -58,7 +54,6 @@ export default class Plugin extends Command {
 			description: 'Install scope: "user" (default) or "project"',
 			options: ["user", "project"],
 		}),
-		session: Flags.string({ description: "Dev plugin session id (promote/export/dev)" }),
 	};
 
 	async run(): Promise<void> {
@@ -79,11 +74,10 @@ export default class Plugin extends Command {
 				disable: flags.disable,
 				set: flags.set,
 				scope: flags.scope as "user" | "project" | undefined,
-				session: flags.session,
 			},
 		};
 
-		await initTheme();
+		initTheme();
 		await runPluginCommand(cmd);
 	}
 }

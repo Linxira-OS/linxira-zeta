@@ -1,5 +1,5 @@
 import { isEnoent, logger } from "@linxiraos/pi-utils";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import type { Settings } from "../config/settings";
 import { CwdLookupMemo } from "../utils/forge-cli";
 import { gitlab } from "../utils/gitlab";

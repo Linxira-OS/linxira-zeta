@@ -4,17 +4,11 @@
  * {@link MCP_MANAGER_KIND}). Workers never own MCP connections: every tool call,
  * resource read and change subscription runs on main.
  */
-import type { TSchema } from "@linxiraos/pi-ai";
-import type { MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
+import type { TSchema } from "@oh-my-pi/pi-ai";
+import type { MCPToolDetails } from "../../tools/details/mcp";
 import type { CustomTool } from "../../extensibility/custom-tools/types";
 import type { MCPManagerApi, MCPToolScope } from "../../mcp/manager";
-import type {
-	MCPRequestOptions,
-	MCPResource,
-	MCPResourceReadResult,
-	MCPResourceTemplate,
-	MCPServerConfig,
-} from "../../mcp/types";
+import type { MCPRequestOptions, MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "../../mcp/types";
 import type { RemoteObject, RpcMethod } from "../rpc";
 
 /** Remote-object kind of a main-thread `MCPManager`. */
@@ -42,8 +36,6 @@ export type McpManagerProtocol = {
 	onToolsChanged: RpcMethod<[listener: () => void], () => void>;
 	onNotification: RpcMethod<[listener: McpNotificationListener], () => void>;
 	connectedServers: RpcMethod<[], string[]>;
-	serverConfig: RpcMethod<[name: string], MCPServerConfig | undefined>;
-	allServerNames: RpcMethod<[], string[]>;
 	serverResources: RpcMethod<
 		[name: string],
 		{ resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined
@@ -72,7 +64,7 @@ export class RemoteMCPManager implements MCPManagerApi {
 	}
 
 	/** `scope`'s current tools; the views cross only when main's tool views changed since this scope's last call. */
-	getTools(scope?: MCPToolScope): CustomTool<any, any>[] {
+	getTools(scope?: MCPToolScope): CustomTool<TSchema, MCPToolDetails>[] {
 		const cached = this.#toolsByScope.get(scope);
 		const reply = this.#remote.callSync("tools", cached?.version ?? 0, scope);
 		if (!reply.tools) return cached?.tools ?? [];
@@ -98,14 +90,6 @@ export class RemoteMCPManager implements MCPManagerApi {
 
 	getConnectedServers(): string[] {
 		return this.#remote.callSync("connectedServers");
-	}
-
-	getServerConfig(name: string): MCPServerConfig | undefined {
-		return this.#remote.callSync("serverConfig", name);
-	}
-
-	getAllServerNames(): string[] {
-		return this.#remote.callSync("allServerNames");
 	}
 
 	getServerResources(name: string): { resources: MCPResource[]; templates: MCPResourceTemplate[] } | undefined {

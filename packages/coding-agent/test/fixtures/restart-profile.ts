@@ -1,7 +1,7 @@
 import { vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { getActiveProfile, setProfile } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { getActiveProfile, setProfile } from "@oh-my-pi/pi-utils";
 import { extractProfileFlags } from "../../src/cli/profile-bootstrap";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { Settings } from "../../src/config/settings";
@@ -10,7 +10,8 @@ import { AuthStorage } from "../../src/session/auth-storage";
 import { AgentSession } from "../../src/session/agent-session";
 import { SessionManager } from "../../src/session/session-manager";
 import * as workerClient from "../../src/subprocess/worker-client";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme } from "../../src/ui/theme/service";
+import { createModeTerminal } from "../helpers/mode-terminal";
 
 if (process.argv[2] === "receive") {
 	const extracted = extractProfileFlags(process.argv.slice(3));
@@ -45,9 +46,15 @@ if (process.argv[2] === "receive") {
 		settings: Settings.isolated(),
 		modelRegistry,
 	});
-	const mode = new InteractiveMode(session, "test");
-	mode.ui.requestRender = () => {};
-	mode.ui.terminal.drainInput = async () => {};
+	const mode = new InteractiveMode(
+		session,
+		"test",
+		undefined,
+		undefined,
+		undefined,
+		undefined,
+		createModeTerminal().frame,
+	);
 	vi.spyOn(workerClient, "resolveCliEntryCmd").mockReturnValue([process.execPath, import.meta.path, "receive"]);
 	await mode.restart();
 }

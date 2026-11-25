@@ -1,26 +1,25 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, describe, expect, it, spyOn } from "bun:test";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
-import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
-import { resolveInitScriptSources } from "@linxiraos/zeta/tools/browser/open-options";
-import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
-import { DownloadManager } from "@linxiraos/zeta/tools/browser/downloads";
+import { ToolError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
+import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
+import { resolveInitScriptSources } from "@oh-my-pi/pi-coding-agent/tools/browser/open-options";
+import { findFreeCdpPort } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
+import { DownloadManager } from "@oh-my-pi/pi-coding-agent/tools/browser/downloads";
 import {
 	buildHeadlessLaunchArgs,
 	closeLaunchedBrowser,
 	launchHeadlessBrowser,
 	removeUserDataDir,
-} from "@linxiraos/zeta/tools/browser/launch";
-import { getTab, releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import type { ToolSession } from "@linxiraos/zeta/tools/index";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { CLAUDE_TRACE_DEBUG_CERT, CLAUDE_TRACE_DEBUG_KEY } from "@linxiraos/zeta/cli/claude-trace-cli";
+} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
+import { getTab, releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { CLAUDE_TRACE_DEBUG_CERT, CLAUDE_TRACE_DEBUG_KEY } from "@oh-my-pi/pi-coding-agent/cli/claude-trace-cli";
 import type { Browser, Page } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";
@@ -35,9 +34,12 @@ function browserHost(cwd: string = process.cwd(), settings: Record<string, unkno
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({
+			// Managed Chromium, whether or not omp's WebKit engine is installed on this machine.
+			"browser.webkit": false,
 			"browser.enabled": true,
 			"browser.headless": true,
 			"browser.cmux": false,
+			"browser.tern": false,
 			"tools.maxTimeout": 0,
 			...settings,
 		}),
@@ -212,6 +214,27 @@ describe("browser open options CDP helpers", () => {
 		}
 		expect(await Bun.file(path.join(directory, "report.txt", "notes.txt")).text()).toBe("notes");
 		expect(await Bun.file(saved).text()).toBe("bytes");
+	});
+
+	it("publishes under the suggested name after a transient Windows share lock", async () => {
+		const { directory, elsewhere, complete } = await fakeDownloads();
+		const guid = crypto.randomUUID();
+		const saved = path.join(elsewhere, guid);
+		const target = path.join(directory, "report.txt");
+		await Bun.write(saved, "download bytes");
+		const platform = process.platform;
+		Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+		const rename = spyOn(nodeFs.promises, "rename").mockImplementationOnce(async () => {
+			throw Object.assign(new Error("resource busy or locked"), { code: "EBUSY" });
+		});
+		try {
+			expect(await complete(guid, saved)).toBe(target);
+		} finally {
+			rename.mockRestore();
+			Object.defineProperty(process, "platform", { value: platform, configurable: true });
+		}
+		expect(await Bun.file(target).text()).toBe("download bytes");
+		expect(await Bun.file(saved).exists()).toBe(false);
 	});
 
 	it("keeps the same-named file when a cross-device move fails to copy", async () => {
@@ -564,7 +587,7 @@ await Promise.withResolvers().promise;`;
 			server.stop(true);
 			recycled.stop(true);
 			later.stop(true);
-			await closeLaunchedBrowser(browser);
+			await closeLaunchedBrowser({ browser, userDataDir });
 			if (userDataDir) await removeUserDataDir(userDataDir);
 		}
 	}, 30_000);
@@ -604,9 +627,9 @@ await Promise.withResolvers().promise;`;
 	});
 
 	it("closes the tab its open created when the navigation fails outright, but keeps a reused one", async () => {
-		// Port 1023 is privileged on Linux and below every OS ephemeral range, so no test that just
-		// closed its Bun server can hand this port to another process before Chrome connects.
-		const url = "http://127.0.0.1:1023/";
+		const refused = Bun.serve({ port: 0, fetch: () => new Response("") });
+		const url = refused.url.href;
+		refused.stop(true);
 		const invoke = browserHost();
 		const tabNames = async () =>
 			(returnedValue(await invoke({ action: "tabs" })) as Array<{ name: string }>).map(tab => tab.name);

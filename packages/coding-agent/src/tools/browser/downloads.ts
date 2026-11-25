@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hasFsCode, isEnoent, toError, untilAborted } from "@linxiraos/pi-utils";
+import { hasFsCode, isEnoent, toError, untilAborted } from "@oh-my-pi/pi-utils";
 import type { Browser, CDPSession, Page } from "puppeteer-core";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "../tool-errors";
 import { replaceFileAcrossDevices, replaceFileAtomically } from "../../utils/atomic-file";
 import { devtoolsFrameId } from "./frames";
 

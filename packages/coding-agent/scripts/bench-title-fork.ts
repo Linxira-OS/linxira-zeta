@@ -41,9 +41,10 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AssistantMessage, completeSimple, type Model, type Usage } from "@linxiraos/pi-ai";
-import { type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { isEnoent, prompt } from "@linxiraos/pi-utils";
+import { type AssistantMessage, completeSimple, type Model, type Usage } from "@oh-my-pi/pi-ai";
+import { type ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { parseConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/thinking/levels";
+import { isEnoent, prompt } from "@oh-my-pi/pi-utils";
 import { resolveRoleSelection } from "../src/config/model-resolver";
 import { roleCandidatePool } from "../src/config/model-roles";
 import { createAgentSession } from "../src/sdk";
@@ -201,8 +202,8 @@ function parseArgs(argv: string[]): Config {
 	};
 	const home = (value: string): string => value.replace(/^~(?=$|\/)/, os.homedir());
 	return {
-		dbPath: home(get("--db") ?? "~/.zeta/agent/history.db"),
-		sessionsDir: home(get("--sessions") ?? "~/.zeta/agent/sessions"),
+		dbPath: home(get("--db") ?? "~/.omp/agent/history.db"),
+		sessionsDir: home(get("--sessions") ?? "~/.omp/agent/sessions"),
 		dir: home(get("--dir") ?? path.join(os.tmpdir(), "title-fork")),
 		count: Number(get("--count") ?? 500),
 		resample: argv.includes("--resample"),
@@ -380,7 +381,7 @@ async function createHeadlessSession(cwd: string, config: Config, agentId: strin
 		enableIrc: false,
 		disableExtensionDiscovery: true,
 		skipPythonPreflight: true,
-		cacheWarming: false,
+		cacheWarming: "off",
 		agentId,
 	});
 	await session.modelRegistry.refresh();

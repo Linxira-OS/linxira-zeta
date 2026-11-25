@@ -10,10 +10,10 @@ import {
 import { effect, register } from "../config/registry";
 import type { Settings } from "../config/settings";
 import { type ServiceTierInheritSettingValue, validateAgentServiceTierOverrides } from "../config/service-tier";
-import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
-import { $which, isRecord, logger, setWorktreesDir } from "@linxiraos/pi-utils";
-import { setFeedModelBadgeEnabled } from "@linxiraos/pi-tui/render/render-utils";
-import { getThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
+import { $which, isRecord, logger, setWorktreesDir } from "@oh-my-pi/pi-utils";
+import { getThinkingLevelMetadata } from "../thinking/levels";
+import { setFeedModelBadgeEnabled } from "../utils/render-utils";
 
 const EMPTY_AGENT_SERVICE_TIER_OVERRIDES: Record<string, ServiceTierInheritSettingValue> = {};
 const EMPTY_AGENT_COMPACTION_THRESHOLD_OVERRIDES: Record<string, AgentCompactionThresholdOverride> = {};
@@ -136,7 +136,7 @@ export const cfgWorktreeOnExit = register({
 		tab: "tasks",
 		group: "Isolation",
 		label: "Worktree on Exit",
-		description: "What to do on exit with worktrees created since zetacode started (on start or with `/wt`)",
+		description: "What to do on exit with worktrees created since omp started (on start or with `/wt`)",
 		options: [
 			{ value: "keep", label: "Keep", description: "Leave worktrees in place" },
 			{ value: "ask", label: "Ask", description: "Ask on exit" },
@@ -242,7 +242,7 @@ export const cfgWorktreeBase = register({
 		group: "Isolation",
 		label: "Worktree Base Directory",
 		description:
-			"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zetacode worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The ZETA_WORKTREE_DIR env var overrides this.",
+			"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `omp worktree` cleanup all live here. Unset uses ~/.omp/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
 	},
 });
 effect(cfgWorktreeBase, value => {
@@ -512,7 +512,7 @@ export const cfgTaskEnableLsp = register({
 export const cfgTaskCrossInstance = register({
 	id: "task.crossInstance",
 	type: "boolean",
-	default: false,
+	default: true,
 	ui: {
 		tab: "tasks",
 		group: "Subagents",

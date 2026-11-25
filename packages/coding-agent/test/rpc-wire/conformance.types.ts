@@ -1,4 +1,3 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
  * Type-only conformance between the generated wire types (the contract client
  * libraries are generated from) and the server's own types. Checked by
@@ -12,13 +11,14 @@
  *   and every wire value fits the server field.
  * - Open unions (messages, assistant events) are pinned by discriminator set.
  */
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
-import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@linxiraos/pi-ai";
-import type { BashResult } from "@linxiraos/zeta/exec/bash-executor";
-import type { GoalModeState } from "@linxiraos/zeta/goals/state";
-import type { RpcGoalResult } from "@linxiraos/zeta/goals/continuation-controller";
-import type { RpcMessagesPage } from "@linxiraos/zeta/modes/rpc/rpc-messages";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
+import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@oh-my-pi/pi-ai";
+import type { BashResult } from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
+import type { GoalModeState } from "@oh-my-pi/pi-coding-agent/goals/state";
+import type { RpcGoalResult } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-goal";
+import type { RpcMessagesPage } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-messages";
+import type { RpcModelPickerRole, RpcModelPickerRow } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-model-picker";
 import type {
 	RpcAbortAndRestoreQueueResult,
 	RpcAgentSessionEventFrame,
@@ -59,16 +59,16 @@ import type {
 	RpcSubagentMessagesResult,
 	RpcSubagentProgressFrame,
 	RpcSubagentSnapshot,
-} from "@linxiraos/zeta/modes/rpc/rpc-types";
-import type * as Wire from "@linxiraos/zeta/modes/rpc/wire/rpc-wire.generated";
-import type { RestoredQueuedMessage } from "@linxiraos/zeta/session/agent-session-types";
-import type { SessionStats } from "@linxiraos/zeta/session/agent-session";
-import type { BtwHistoryTurn } from "@linxiraos/zeta/session/btw-history";
-import type { UsageLimitState } from "@linxiraos/zeta/session/usage-limit";
-import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
-import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
-import type { Goal } from "@linxiraos/pi-tui/tools/goal";
-import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+} from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
+import type * as Wire from "@oh-my-pi/pi-coding-agent/modes/rpc/wire/rpc-wire.generated";
+import type { RestoredQueuedMessage } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
+import type { SessionStats } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { BtwHistoryTurn } from "@oh-my-pi/pi-coding-agent/session/btw-history";
+import type { UsageLimitState } from "@oh-my-pi/pi-coding-agent/session/usage-limit";
+import type { ContextUsage } from "@oh-my-pi/pi-coding-agent/modes/view-model/status-line/types";
+import type { LogoutAccount } from "@oh-my-pi/pi-coding-agent/modes/view-model/overlays/logout-account-selector";
+import type { Goal } from "@oh-my-pi/pi-coding-agent/tools/details/goal";
+import type { TodoItem, TodoPhase } from "@oh-my-pi/pi-coding-agent/tools/details/todo";
 
 type Assert<T extends true> = T;
 type Leaf = string | number | boolean | null;
@@ -237,6 +237,7 @@ export type Frames = Assert<
 		uiConfirm: Inbound<Wire.ConfirmUiResponse, Extract<RpcExtensionUIResponse, { confirmed: unknown }>>;
 		uiCancel: Inbound<Wire.CancelUiResponse, Extract<RpcExtensionUIResponse, { cancelled: unknown }>>;
 		uiAnswers: Inbound<Wire.AnswersUiResponse, Extract<RpcExtensionUIResponse, { answers: unknown }>>;
+		uiData: Inbound<Wire.DataUiResponse, Extract<RpcExtensionUIResponse, { data: unknown }>>;
 		responseFailure: Outbound<Extract<RpcResponse, { success: false }>, Wire.RpcResponse>;
 	}>
 >;
@@ -261,6 +262,8 @@ export type State = Assert<
 		todoPhaseInbound: Inbound<Wire.TodoPhase, TodoPhase>;
 		todoItemInbound: Inbound<Wire.TodoItem, TodoItem>;
 		goal: Outbound<Goal, Wire.Goal>;
+		modelPickerRow: Outbound<RpcModelPickerRow, Wire.ModelPickerRow>;
+		modelPickerRole: Outbound<RpcModelPickerRole, Wire.ModelPickerRole>;
 		goalModeState: Outbound<GoalModeState, Wire.GoalModeState>;
 		goalResult: Outbound<RpcGoalResult, Wire.GoalResult>;
 		usageLimitLowPriority: Outbound<Extract<UsageLimitState, { stage: "low_priority" }>, Wire.UsageLimitLowPriority>;

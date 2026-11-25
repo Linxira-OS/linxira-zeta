@@ -1,10 +1,10 @@
 import type { Database } from "bun:sqlite";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { ToolSession } from "../sdk";
-import { DEFAULT_MAX_LINES, truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
-import { applyListLimit } from "@linxiraos/pi-tui/tools/list-limit";
+import { DEFAULT_MAX_LINES, truncateHead } from "./streaming-output";
+import { applyListLimit } from "./list-limit";
 import { resolveReadPath } from "./path-utils";
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import type { ReadToolDetails } from "./details/read";
 import { prependSuffixResolutionNotice, toReadTruncationStats } from "./read-format";
 import {
 	findSuffixMatchCached,
@@ -32,7 +32,7 @@ import {
 	resolveTableRowLookup,
 } from "./sqlite-reader";
 import { throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "./tool-errors";
 import { toolResult } from "./tool-result";
 
 interface ResolvedSqliteReadPath {

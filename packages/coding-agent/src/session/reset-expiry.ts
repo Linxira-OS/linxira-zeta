@@ -10,8 +10,8 @@ import type {
 	UsageResetCreditDetail,
 	UsageResetCredits,
 } from "@linxiraos/pi-ai";
-import { truncateToWidth } from "@linxiraos/pi-tui";
-import { bankedResetCreditExpiryMs } from "@linxiraos/pi-tui/overlays/usage-display";
+import { truncateToWidth } from "../utils/text-width";
+import { bankedResetCreditExpiryMs } from "./usage-display";
 import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { formatActiveAccountLabel, usageReportIdentity } from "../slash-commands/helpers/active-oauth-account";

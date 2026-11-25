@@ -17,11 +17,11 @@
  *   manager gets its own unit ({@link mcpUnitKey}), started on its first real
  *   request and stopped when that manager lets go.
  *
- * Beyond standard MCP the tunnel carries the `zeta/*` methods and `_meta` keys
+ * Beyond standard MCP the tunnel carries the `omp/*` methods and `_meta` keys
  * declared here.
  */
 import { type } from "@linxiraos/zeta-schema";
-import type { UnitPolicy } from "@linxiraos/pi-tui/tools/daemon";
+import type { UnitPolicy } from "../../daemon/daemon-types";
 import { stableStringifyJson } from "@linxiraos/pi-utils";
 import { MCPTransportError } from "../errors";
 import type { JsonRpcError, MCPRequestIdFormat } from "../types";
@@ -192,9 +192,9 @@ export const OmpMeta = {
 	 * {@link MCP_NO_STORE}. Without it a fresh entry is served from the store
 	 * and a stale one is refetched before the host answers.
 	 */
-	cache: "zeta/cache",
+	cache: "omp/cache",
 	/** Result flag: the entry served under {@link MCP_STALE_OK} was past its TTL. */
-	stale: "zeta/stale",
+	stale: "omp/stale",
 } as const;
 
 /**
@@ -212,13 +212,13 @@ export const MCP_STALE_OK = "stale-ok";
 export const MCP_NO_STORE = "no-store";
 
 /** Host → session notification carrying an {@link McpUpstreamStatus}: once on attach, then on every change. */
-export const MCP_STATUS_METHOD = "zeta/status";
+export const MCP_STATUS_METHOD = "omp/status";
 
 /**
  * Session → host notification: stop the upstream now and forget its crash
  * history; the next request starts a fresh one. Sent by a manual reconnect.
  */
-export const MCP_RESTART_METHOD = "zeta/restart";
+export const MCP_RESTART_METHOD = "omp/restart";
 
 /**
  * Session → host notification `{ roots: { uri: string; name?: string }[] }`:
@@ -226,7 +226,7 @@ export const MCP_RESTART_METHOD = "zeta/restart";
  * `roots/list`. Modern upstreams ask through `input_required` and the session
  * answers itself.
  */
-export const MCP_ROOTS_METHOD = "zeta/roots";
+export const MCP_ROOTS_METHOD = "omp/roots";
 
 /** How an upstream went away. */
 export interface McpUpstreamExit {
@@ -379,7 +379,7 @@ export interface McpAttachment {
 
 /** Where the units live. One implementation fronts the daemon, the other runs them in this process. */
 export interface McpHostAccess {
-	/** True when units are shared with other zeta processes. */
+	/** True when units are shared with other omp processes. */
 	readonly shared: boolean;
 	/** The server's era, probing it once when unknown. */
 	resolve(spec: McpServerSpec, signal?: AbortSignal): Promise<McpResolveResult>;

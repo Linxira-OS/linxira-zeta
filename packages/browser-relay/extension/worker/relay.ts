@@ -1,5 +1,5 @@
 /**
- * The worker's link to the zeta relay: one long-lived native messaging port to the zeta native host
+ * The worker's link to the omp relay: one long-lived native messaging port to the omp native host
  * ({@link NATIVE_HOST}), which serves the relay for this browser or joins the one another browser's host serves. Over
  * it run the hello, RPC dispatch, `input` pushes, and extension → relay calls.
  *
@@ -35,13 +35,13 @@ import { ensureBrowserSession, ensureInstanceId } from "./identity";
 import { snapshot } from "./tabs";
 
 /**
- * The zeta version that installed this script, declared by the line the installer puts above it
+ * The omp version that installed this script, declared by the line the installer puts above it
  * (`stampRelayExtensionScript`); undeclared in an unstamped build. Read from the script, not the manifest:
  * after the files change, a Chrome restart re-reads manifest.json but keeps running the old service worker.
  */
-declare const ZETA_INSTALL_VERSION: string | undefined;
-/** The extension build this script belongs to, declared beside `ZETA_INSTALL_VERSION`; undeclared when unstamped. */
-declare const ZETA_INSTALL_BUILD: string | undefined;
+declare const OMP_INSTALL_VERSION: string | undefined;
+/** The extension build this script belongs to, declared beside `OMP_INSTALL_VERSION`; undeclared when unstamped. */
+declare const OMP_INSTALL_BUILD: string | undefined;
 
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 10_000;
@@ -87,6 +87,8 @@ let handlers: RelayHandlers | null = null;
 let hostPort: chrome.runtime.Port | null = null;
 /** The current link epoch, while a relay listens for this browser. */
 let link: Link | null = null;
+/** The browser's reason the last native host port closed; cleared by a link. See {@link RelayStatus.hostError}. */
+let hostError: string | undefined;
 let reconnectDelay = RECONNECT_MIN_MS;
 let reconnectTimer: NodeJS.Timeout | null = null;
 let deadlineTimer: NodeJS.Timeout | null = null;
@@ -120,7 +122,7 @@ export function setBusy(reason: string, busy: boolean): void {
 
 /** Ask the relay for something the side panel needs; rejects when the link ends or the relay takes too long. */
 export function callRelay(call: PanelCall): Promise<unknown> {
-	if (!link) return Promise.reject(new Error("zeta relay is not connected"));
+	if (!link) return Promise.reject(new Error("omp relay is not connected"));
 	return link.calls.start(call, post);
 }
 
@@ -129,14 +131,15 @@ export function relayStatus(): RelayStatus {
 	return {
 		connected: link !== null,
 		extensionVersion:
-			typeof ZETA_INSTALL_VERSION === "string" ? ZETA_INSTALL_VERSION : undefined,
+			typeof OMP_INSTALL_VERSION === "string" ? OMP_INSTALL_VERSION : undefined,
+		hostError,
 	};
 }
 
 async function setBadge(connected: boolean): Promise<void> {
 	try {
 		await chrome.action.setBadgeText({ text: connected ? "on" : "" });
-		await chrome.action.setTitle({ title: connected ? "zeta · Terminal browser relay connected" : "zeta · Terminal browser relay disconnected" });
+		await chrome.action.setTitle({ title: connected ? "omp · Terminal browser relay connected" : "omp · Terminal browser relay disconnected" });
 		await chrome.action.setBadgeBackgroundColor({
 			color: connected ? "#1a7f37" : "#8b8b8b",
 		});
@@ -167,10 +170,10 @@ async function buildHello(): Promise<ExtToRelayMessage> {
 		userAgent: navigator.userAgent,
 		browserVersion: versionMatch?.[0] ?? "Chrome/unknown",
 		discardedTabsProtocol: 1, // Keep in sync with the relay protocol version.
-		zetaVersion:
-			typeof ZETA_INSTALL_VERSION === "string" ? ZETA_INSTALL_VERSION : undefined,
-		zetaBuild:
-			typeof ZETA_INSTALL_BUILD === "string" ? ZETA_INSTALL_BUILD : undefined,
+		ompVersion:
+			typeof OMP_INSTALL_VERSION === "string" ? OMP_INSTALL_VERSION : undefined,
+		ompBuild:
+			typeof OMP_INSTALL_BUILD === "string" ? OMP_INSTALL_BUILD : undefined,
 		reloadProtocol: EXTENSION_RELOAD_PROTOCOL_VERSION,
 		// A degraded worker (no downloads API) omits the capability, so the relay answers lookups with
 		// the actionable "predates download tracking" error instead of a generic not-found.
@@ -259,9 +262,10 @@ export function connectChatRelay(port: chrome.runtime.Port): { receive(line: str
 
 /** A relay listens for this browser: start a new epoch and say hello. */
 function linked(): void {
-	if (link) unlinked("zeta relay changed");
+	if (link) unlinked("omp relay changed");
 	clearLinkDeadline();
 	reconnectDelay = RECONNECT_MIN_MS;
+	hostError = undefined;
 	const epoch = new Link();
 	link = epoch;
 	void setBadge(true);
@@ -350,11 +354,18 @@ export function connectRelay(): void {
 		if (hostPort !== port) return;
 		hostPort = null;
 		clearLinkDeadline();
+		const hadLink = link !== null;
 		unlinked(
 			detail
-				? `zetacode native host disconnected: ${detail}`
-				: "zeta native host disconnected",
+				? `omp native host disconnected: ${detail}`
+				: "omp native host disconnected",
 		);
+		// A port that never linked was refused by the browser (host missing, blocked by policy): `unlinked` reported
+		// nothing, so publish the browser's reason. A linked host's exit ("Native host has exited.") is no such refusal.
+		if (!hadLink && detail !== hostError) {
+			hostError = detail;
+			handlers?.status(relayStatus());
+		}
 		scheduleReconnect();
 	});
 	const request: ToNativeHost = { t: "link", extensionId: chrome.runtime.id };

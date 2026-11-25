@@ -1,12 +1,12 @@
-import { type NestedRepoPatch } from "@linxiraos/pi-tui/tools/task";
+import { type NestedRepoPatch } from "./task-details";
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { VcsCommitAuthor, VcsGitRepo } from "@linxiraos/pi-natives";
-import * as natives from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
+import type { VcsCommitAuthor, VcsGitRepo } from "@oh-my-pi/pi-natives";
+import * as natives from "@oh-my-pi/pi-natives";
+import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { formatBytes, getWorktreeDir, isEnoent, logger, Snowflake } from "@oh-my-pi/pi-utils";
 import type { SettingValueOf } from "../config/registry";
 
 import { patchSectionPaths, splitPatchSections } from "../utils/git-diff-paths";
@@ -299,7 +299,7 @@ async function writeSyntheticTree(
 	patches: readonly string[],
 	options: SyntheticTreeOptions = {},
 ): Promise<string> {
-	const tempIndex = path.join(os.tmpdir(), `zeta-task-index-${Snowflake.next()}`);
+	const tempIndex = path.join(os.tmpdir(), `omp-task-index-${Snowflake.next()}`);
 	const repo = vcs.requireGit(repoDir);
 	try {
 		await repo.readTree(baseTreeish, tempIndex);
@@ -395,7 +395,7 @@ async function captureRepoDeltaPatch(repoDir: string, rb: RepoBaseline, objectRe
 	return diffTreeOrEmpty(objectRepo, baselineTree, currentTree);
 }
 
-export function patchTouchedFiles(patch: string): string[] {
+function patchTouchedFiles(patch: string): string[] {
 	const files = new Set<string>();
 	for (const section of splitPatchSections(patch)) {
 		for (const file of patchSectionPaths(section)) files.add(file);
@@ -503,7 +503,7 @@ export async function applyNestedPatches(
 			// Preserve any pre-existing dirty state (tracked + untracked) so we
 			// commit only the agent delta, not the user's in-flight work.
 			const stashed = (await repository.isDirty())
-				? await repository.stashPush(`zeta-isolation-${Snowflake.next()}`)
+				? await repository.stashPush(`omp-isolation-${Snowflake.next()}`)
 				: false;
 			try {
 				for (const { patch } of repoPatches) {
@@ -681,7 +681,7 @@ export async function ensureIsolation(
 		// Claim ownership before the backend materialises `m`. Backends only
 		// create/replace `mergedDir` (and overlay upper/work), never the base
 		// dir, so the marker survives `isoStart` — and a concurrent
-		// `zetacode worktree clear` never sees this sandbox without a live owner,
+		// `omp worktree clear` never sees this sandbox without a live owner,
 		// even while a large clone is still in progress.
 		await fs.mkdir(baseDir, { recursive: true });
 		await writeIsolationOwner(baseDir, id);
@@ -718,7 +718,7 @@ export async function ensureIsolation(
 /**
  * Tear down a handle returned by {@link ensureIsolation}. When native teardown fails for a mount or
  * subvolume backend, the workspace is kept with a retained-backend sidecar (recursive `rm` would
- * traverse the live mount); `zetacode worktree clear` retries the teardown later.
+ * traverse the live mount); `omp worktree clear` retries the teardown later.
  */
 export async function cleanupIsolation(handle: IsolationHandle): Promise<void> {
 	const baseDir = path.dirname(handle.mergedDir);
@@ -786,7 +786,7 @@ function collectWipPatches(wip: BaselineWipContext | undefined): string[] {
 }
 
 /** Keep only the `diff --git` sections of `patch` that touch one of `files`. */
-export function filterPatchFiles(patch: string, files: ReadonlySet<string>): string {
+function filterPatchFiles(patch: string, files: ReadonlySet<string>): string {
 	return splitPatchSections(patch)
 		.filter(section => patchSectionPaths(section).some(file => files.has(file)))
 		.join("");
@@ -994,7 +994,7 @@ async function replayFilteredAgentCommits(opts: FilteredAgentReplayOptions): Pro
 
 /**
  * Capture task-only changes from the isolation worktree onto a parent-repo
- * branch named `zeta/task/${taskId}`. Only root-repo changes go on the branch;
+ * branch named `omp/task/${taskId}`. Only root-repo changes go on the branch;
  * nested-repo patches are returned separately because the parent git can't
  * track files inside gitlinks.
  *
@@ -1036,7 +1036,7 @@ export async function commitToBranch(
 
 	const repoRoot = baseline.root.repoRoot;
 	const repo = vcs.requireGit(repoRoot);
-	const branchName = `zeta/task/${taskId}`;
+	const branchName = `omp/task/${taskId}`;
 	const fallbackMessage = description || taskId;
 
 	let tip: string;

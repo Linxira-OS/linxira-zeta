@@ -1,5 +1,5 @@
 /**
- * Turn engine for `zetacode if-bench`.
+ * Turn engine for `omp if-bench`.
  *
  * One model = one growing conversation: the system prompt and every earlier
  * turn stay byte-identical, so the whole prefix is cacheable and turn N only
@@ -16,15 +16,17 @@ import type {
 	Message,
 	Model,
 	ProviderSessionState,
-} from "@linxiraos/pi-ai";
-import { logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { logger } from "@oh-my-pi/pi-utils";
 import type { BenchRuntime, BenchTarget, StreamSimpleFn } from "../cli/bench-runtime";
-import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue } from "../config/model-selector";
 import { formatModelString } from "../config/model-resolver";
-import { shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
-import type { IfBenchFailure, IfBenchObserver } from "@linxiraos/pi-tui/apps/if-bench-board";
-import { type Action, applyActions, initialArray, makeActions } from "./actions";
-import { type CatPlacement, assessResponse, buildSystemPrompt, buildTurnPrompt } from "./protocol";
+import { shouldDisableReasoning, toReasoningEffort } from "../thinking/levels";
+import type { Action } from "./actions";
+import { applyActions, initialArray, makeActions } from "./actions";
+import type { IfBenchFailure, IfBenchObserver } from "../modes/view-model/apps/if-bench-board";
+import type { CatPlacement } from "./protocol";
+import { assessResponse, buildSystemPrompt, buildTurnPrompt } from "./protocol";
 
 /** Outcome of one turn: what was asked, what came back, and how it scored. */
 export interface IfBenchTurnRecord {
@@ -72,7 +74,6 @@ export interface IfBenchSummary {
 }
 
 export interface IfBenchRunOptions {
-	signal?: AbortSignal;
 	targets: readonly BenchTarget[];
 	runtime: BenchRuntime;
 	maxTurns: number;
@@ -131,19 +132,18 @@ function errorText(error: unknown): string {
 export async function runIfBench(options: IfBenchRunOptions): Promise<IfBenchSummary> {
 	const reports: IfBenchModelReport[] = [];
 	const queue = options.targets.map((target, index) => ({ target, index }));
-	// [suppressed] length preallocation
-	const ordered: IfBenchModelReport[] = Array.from({ length: options.targets.length });
+	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	const ordered: IfBenchModelReport[] = new Array(options.targets.length);
 
 	const worker = async (): Promise<void> => {
 		for (;;) {
-			if (options.signal?.aborted) return;
 			const next = queue.shift();
 			if (!next) return;
 			ordered[next.index] = await runTarget(next.target, options);
 		}
 	};
 	await Promise.all(Array.from({ length: Math.max(1, Math.min(options.par, options.targets.length)) }, worker));
-	reports.push(...ordered.filter(report => report !== undefined));
+	reports.push(...ordered);
 
 	return {
 		maxTurns: options.maxTurns,
@@ -180,7 +180,7 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 		report.failure = {
 			turn: 0,
 			kind: "provider",
-			detail: `No credentials for provider "${model.provider}". Run \`zetacode\` and use /login, or set the provider API key.`,
+			detail: `No credentials for provider "${model.provider}". Run \`omp\` and use /login, or set the provider API key.`,
 		};
 		options.observer?.modelFinished?.(report);
 		return report;
@@ -196,7 +196,6 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 
 	try {
 		for (let turn = 1; turn <= options.maxTurns; turn += 1) {
-			options.signal?.throwIfAborted();
 			const actions: Action[] = makeActions(options.arrayLength, cumulativeActions, turn);
 			const turnPrompt = buildTurnPrompt({
 				turn,
@@ -252,14 +251,12 @@ async function runTarget(target: BenchTarget, options: IfBenchRunOptions): Promi
 			// the provider payload keeps transport-native chaining intact.
 			if (outcome.message) messages.push(outcome.message);
 		}
-	} catch (error) {
-		if (!options.signal?.aborted) throw error;
 	} finally {
 		for (const state of providerSessionState.values()) state.close();
 		providerSessionState.clear();
-		options.observer?.modelFinished?.(report);
 	}
 
+	options.observer?.modelFinished?.(report);
 	return report;
 }
 
@@ -281,28 +278,7 @@ async function requestTurnWithRefusalRetry(
 ): Promise<TurnOutcome> {
 	let outcome: TurnOutcome = { text: "", error: "request failed", durationMs: 0 };
 	for (let attempt = 1; attempt <= REFUSAL_MAX_ATTEMPTS; attempt += 1) {
-		options.signal?.throwIfAborted();
-		if (attempt > 1) {
-			const milliseconds = REFUSAL_BACKOFF_MS[attempt - 1] ?? 180_000;
-			if (options.sleep) await options.sleep(milliseconds);
-			else {
-				const { promise, resolve, reject } = Promise.withResolvers<void>();
-				const abort = () => {
-					clearTimeout(timer);
-					reject(options.signal?.reason);
-				};
-				const timer = setTimeout(resolve, milliseconds);
-				options.signal?.addEventListener("abort", abort, { once: true });
-				if (options.signal?.aborted) abort();
-				try {
-					await promise;
-				} finally {
-					clearTimeout(timer);
-					options.signal?.removeEventListener("abort", abort);
-				}
-			}
-		}
-		options.signal?.throwIfAborted();
+		if (attempt > 1) await (options.sleep ?? Bun.sleep)(REFUSAL_BACKOFF_MS[attempt - 1] ?? 180_000);
 		const sessionId = options.randomSessionId();
 		const apiKey = options.runtime.modelRegistry.resolver(model, sessionId);
 		outcome = await requestTurn(model, context, sessionId, apiKey, providerSessionState, target, options);
@@ -329,7 +305,6 @@ async function requestTurn(
 	try {
 		const stream = options.stream(model, context, {
 			apiKey,
-			signal: options.signal,
 			sessionId,
 			promptCacheKey: sessionId,
 			maxTokens:
@@ -364,7 +339,6 @@ async function requestTurn(
 		}
 		return { message, text, durationMs: elapsed(message) };
 	} catch (error) {
-		options.signal?.throwIfAborted();
 		return { text: "", error: errorText(error), durationMs: elapsed() };
 	}
 }

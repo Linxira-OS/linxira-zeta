@@ -1,43 +1,60 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { buildSessionTraceFromSnapshots } from "@linxiraos/pi-stats/trace";
-import type { SessionTrace } from "@linxiraos/pi-stats/types";
-import type { AgentState } from "@linxiraos/pi-agent-core";
-import { APP_NAME, isEnoent } from "@linxiraos/pi-utils";
-import { getResolvedThemeColors, getThemeExportColors } from "@linxiraos/pi-tui/theme";
+import { buildSessionTraceFromSnapshots } from "@oh-my-pi/omp-stats/trace";
+import type { SessionTrace } from "@oh-my-pi/omp-stats/types";
+import type { AgentState } from "@oh-my-pi/pi-agent-core";
+import { APP_NAME, isCompiledBinary, isEnoent, VERSION } from "@oh-my-pi/pi-utils";
 import type { SessionEntry, SessionHeader } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
 import { collectSubSessions, type SubSession } from "../../session/sub-sessions";
 import type { ExportThemeNames } from "./args";
 import { writeBase64Json } from "./payload";
 import templateHtml from "./template.html.txt" with { type: "text" };
-import { viewerSource } from "./viewer.generated";
-import markedJs from "./vendor/marked.min.js" with { type: "text" };
-import highlightJs from "./vendor/highlight.min.js" with { type: "text" };
+import viewerAsset from "./viewer.generated.json" with { type: "json" };
 import { exportThemeStyles, webExportThemeVars } from "./web-palette";
+import { getResolvedThemeColors, getThemeExportColors } from "../../ui/theme/service";
 
 export { type ExportThemeNames, parseExportArgs } from "./args";
 
 let cachedTemplate: string | undefined;
 const SESSION_DATA_MARKER = "{{SESSION_DATA}}";
 
-/** Inline a classic script and prevent its text from closing the surrounding tag. */
-function inlineScript(source: string): string {
-	const escaped = source.replace(/<\/script/gi, match => `<\\/${match.slice(2)}`);
-	return `<script>${escaped}</script>`;
-}
-
-/** Create an offline export document with every library and the viewer inlined. */
+/** Create an export document with a checkout viewer or an integrity-pinned release viewer. */
 export function getTemplate(): string {
 	if (cachedTemplate) return cachedTemplate;
-	// The hosted viewer used `zetaMarkdown.Marked`; the vendored browser build
-	// exposes the same constructor on `marked.Marked`. Bridge it so the same
-	// viewer bundle works from a local file without a CDN.
-	const markdownBootstrap = `${markedJs}\n;globalThis.zetaMarkdown={Marked:(globalThis.marked&&(globalThis.marked.Marked||globalThis.marked))};`;
+	const sourceCheckout =
+		!isCompiledBinary() &&
+		!process.env.PI_BUNDLED &&
+		!import.meta.dir.split(/[\\/]/).includes("node_modules") &&
+		fs.existsSync(path.join(import.meta.dir, "shell.html"));
+	let viewerScript: string;
+	if (sourceCheckout) {
+		const viewerPath = path.resolve(import.meta.dir, "../../../export-assets", viewerAsset.file);
+		let viewer: string;
+		try {
+			viewer = fs.readFileSync(viewerPath, "utf8");
+		} catch (err) {
+			if (isEnoent(err)) {
+				throw new Error(
+					`Development export viewer not found: ${viewerPath}. Run bun gen:export-viewer (packages/collab-web/scripts/build-export-viewer.ts).`,
+				);
+			}
+			throw err;
+		}
+		// Inline classic scripts run before deferred external scripts. Wait for
+		// both shared libraries, and prevent embedded text from closing the tag.
+		const escaped = viewer.replace(/<\/script/gi, match => `<\\/${match.slice(2)}`);
+		viewerScript = `<script>window.addEventListener("DOMContentLoaded",function(){\n${escaped}\n});</script>`;
+	} else {
+		const viewerUrl = `https://build.stencil.so/web/omp/${encodeURIComponent(VERSION)}/${viewerAsset.file}`;
+		viewerScript = `<script defer src="${viewerUrl}" integrity="${viewerAsset.integrity}" crossorigin="anonymous" onerror="document.getElementById('viewer-status').textContent='Could not load the session viewer. Connect to the internet and reload this file.'"></script>`;
+	}
 	cachedTemplate = templateHtml
-		.replace("<template-marked/>", () => inlineScript(markdownBootstrap))
-		.replace("<template-highlight/>", () => inlineScript(highlightJs))
-		.replace("<viewer-script/>", () => inlineScript(viewerSource));
+		.replace("{{MARKED_URL}}", () => "https://stencil.so/assets/omp/marked.333561b9.js")
+		.replace("{{MARKED_INTEGRITY}}", () => "sha256-MzVhuUicTTOmBQF03OgI9HBhlGcICMhDRSPIdD9aYmM=")
+		.replace("{{HIGHLIGHT_URL}}", () => "https://stencil.so/assets/omp/highlight.837a6fa5.js")
+		.replace("{{HIGHLIGHT_INTEGRITY}}", () => "sha256-g3pvpbDHNrUrveKythkPMF2j/J7UFoHbUyFQcFe1yEY=")
+		.replace("<viewer-script/>", () => viewerScript);
 	return cachedTemplate;
 }
 

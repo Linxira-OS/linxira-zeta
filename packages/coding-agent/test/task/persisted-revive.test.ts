@@ -1,61 +1,61 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/zeta-schema";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import type { Model } from "@linxiraos/pi-ai";
-import { createMockModel, type MockResponse, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Effort } from "@linxiraos/pi-catalog/effort";
-import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
-import { resolveThresholdTokens, shouldCompact } from "@linxiraos/pi-agent-core/compaction";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { Model } from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockResponse, type MockResponseSource } from "@oh-my-pi/pi-ai/providers/mock";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
+import { resolveThresholdTokens, shouldCompact } from "@oh-my-pi/pi-agent-core/compaction";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { cfgCompaction } from "@linxiraos/zeta/session/context-settings";
-import type { PreparedExtension } from "@linxiraos/zeta/extensibility/extensions/types";
-import { MCPManager } from "@linxiraos/zeta/mcp/manager";
-import { RpcSubagentRegistry } from "@linxiraos/zeta/modes/rpc/rpc-subagents";
-import type { RpcSubagentFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import type { AgentRef } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
-import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
-import * as sdkModule from "@linxiraos/zeta/sdk";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import type { CustomMessage } from "@linxiraos/zeta/session/messages";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { ModelMentionRegistry } from "@linxiraos/zeta/session/model-mentions";
+import type { EffectiveExtensionRoots } from "@oh-my-pi/pi-coding-agent/capability/types";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { cfgCompaction } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import type { PreparedExtension } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
+import { RpcSubagentRegistry } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-subagents";
+import type { RpcSubagentFrame } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import type { AgentRef } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
+import type { CreateAgentSessionOptions, CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import type { CustomMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { ModelMentionRegistry } from "@oh-my-pi/pi-coding-agent/session/model-mentions";
 import {
 	findRetryFallbackCandidates,
 	getRetryFallbackChains,
 	type RetryFallbackResolutionContext,
 	type RetryFallbackRole,
 	resolveRetryFallbackChainKey,
-} from "@linxiraos/zeta/session/retry-fallback-chains";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
-import { PerCallModelError, PerCallModelUnavailableError } from "@linxiraos/zeta/task/model-approval";
-import { cfgTaskMaxEffort } from "@linxiraos/zeta/task/settings";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { buildWakeRelayBody } from "@linxiraos/zeta/task/executor";
-import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
-import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import { createPersistedSubagentReviverFactory } from "@oh-my-pi/pi-coding-agent/task/persisted-revive";
+import { PerCallModelError, PerCallModelUnavailableError } from "@oh-my-pi/pi-coding-agent/task/model-approval";
+import { cfgTaskMaxEffort } from "@oh-my-pi/pi-coding-agent/task/settings";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { buildWakeRelayBody } from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { SingleResult } from "@oh-my-pi/pi-coding-agent/task/task-details";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
+import { type IrcMessage } from "@oh-my-pi/pi-coding-agent/irc/irc-types";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { localSession } from "../helpers/local-session";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
-import { cfgAdvisorEnabled } from "@linxiraos/zeta/advisor/settings";
+import { cfgAdvisorEnabled } from "@oh-my-pi/pi-coding-agent/advisor/settings";
 
 const tempDirs: TempDir[] = [];
 
@@ -126,7 +126,7 @@ function createRevivedSession(activeToolNames: string[][], extensionRunner?: unk
 	const trackedReplies: Promise<void>[] = [];
 	const session = {
 		...createSessionDefaults(),
-		getMountedXdevToolNames: () => [],
+		getMountedToolCommandNames: () => [],
 		setActiveToolsByName: async (names: string[]) => {
 			activeToolNames.push(names);
 		},
@@ -488,28 +488,6 @@ describe("persisted subagent revival", () => {
 		expect(capturedOptions?.preloadedCustomToolPaths).toEqual([]);
 		expect(hostileMcpGetTools).not.toHaveBeenCalled();
 		expect(attemptedDiscovery).toEqual([]);
-		expect(activeToolNames).toEqual([["read", "yield"]]);
-	});
-
-	it("strips synthetic write from legacy read-only cold revival", async () => {
-		const cwd = makeTempDir("@pi-read-only-revive-");
-		const sessionFile = await createPersistedSession(cwd, undefined, undefined, undefined, {
-			tools: ["read", "write", "yield"],
-			readOnly: true,
-		});
-		const activeToolNames: string[][] = [];
-		let capturedOptions: CreateAgentSessionOptions | undefined;
-		vi.spyOn(sdkModule, "createAgentSession").mockImplementation(async options => {
-			capturedOptions = options;
-			return { session: createRevivedSession(activeToolNames).session } as CreateAgentSessionResult;
-		});
-
-		const ref = createRef(sessionFile);
-		const reviver = await createFactory(cwd)(ref);
-		if (!reviver) throw new Error("Expected a persisted reviver");
-		await reviver(ref);
-
-		expect(capturedOptions?.toolNames).toEqual(["read", "yield"]);
 		expect(activeToolNames).toEqual([["read", "yield"]]);
 	});
 
@@ -1084,9 +1062,6 @@ describe("persisted subagent revival", () => {
 				// parent revival can restore its own authorization before retrying the child.
 				const reopened = await SessionManager.open(sessionFile);
 				await reopened.close();
-				// An id is never silently replaced, so the parked tombstone has to go
-				// before the revived parent can take the id over.
-				registry.unregister(parentId);
 				registry.register({
 					id: parentId,
 					displayName: parentId,
@@ -1399,7 +1374,7 @@ describe("persisted subagent revival", () => {
 		await reviver(ref);
 
 		expect(capturedOptions?.modelPattern).toEqual(["@review-fast", "anthropic/claude-sonnet-4-5"]);
-		expect(capturedOptions?.modelPatternAuthFallback).toBe("anthropic/claude-sonnet-4-5");
+		expect(capturedOptions?.modelPatternParentFallback).toBe("anthropic/claude-sonnet-4-5");
 	});
 
 	it("restores compaction threshold behavior after parent settings change", async () => {
@@ -1447,7 +1422,7 @@ describe("persisted subagent revival", () => {
 		await reviver(ref);
 
 		expect(capturedOptions?.modelPattern).toBe("anthropic/claude-sonnet-4-5");
-		expect(capturedOptions?.modelPatternAuthFallback).toBe("anthropic/claude-sonnet-4-5");
+		expect(capturedOptions?.modelPatternParentFallback).toBe("anthropic/claude-sonnet-4-5");
 	});
 
 	it("reinstalls the spawn's subagent fallback chain so it still routes at a changed effort (#13789)", async () => {
@@ -1811,14 +1786,18 @@ describe("persisted subagent revival", () => {
 			expect(observer).toBeDefined();
 
 			const delivered: IrcMessage[] = [];
-			expect(
-				AgentRegistry.global().attachSession("Main", {
+			AgentRegistry.global().register({
+				id: "Main",
+				displayName: "Main",
+				kind: "main",
+				status: "idle",
+				session: {
 					deliverIrcMessage: async (msg: IrcMessage) => {
 						delivered.push(msg);
 						return "injected" as const;
 					},
-				} as unknown as AgentSession),
-			).toBe(true);
+				} as unknown as AgentSession,
+			});
 			const bus = IrcBus.global();
 			const finish = observer?.([wakeRecord("Main")]);
 			await bus.send({ from: ref.id, to: "Main", body: "on it" });

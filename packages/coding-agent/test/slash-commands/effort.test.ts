@@ -1,22 +1,21 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { currentLanguage, setLanguage } from "../../src/i18n";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
-import { Effort } from "@linxiraos/pi-catalog/effort";
-import type { Model } from "@linxiraos/pi-catalog/types";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { ModelControls, type ModelControlsHost } from "@linxiraos/zeta/session/model-controls";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { describe, expect, it } from "bun:test";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
+import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import type { Model } from "@oh-my-pi/pi-catalog/types";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { ModelControls, type ModelControlsHost } from "@oh-my-pi/pi-coding-agent/session/model-controls";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
 import {
 	BUILTIN_SLASH_COMMANDS,
 	buildTuiBuiltinSlashCommands,
 	executeBuiltinSlashCommand,
 	lookupBuiltinSlashCommand,
 	type SlashCommandRuntime,
-} from "../../src/slash-commands/builtin-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
-import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
-import { AUTO_THINKING, type ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+} from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
+import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-coding-agent/autocomplete/autocomplete";
+import { AUTO_THINKING } from "@oh-my-pi/pi-coding-agent/thinking/levels";
+import { type ConfiguredThinkingLevel } from "@oh-my-pi/pi-coding-agent/utils/render-utils";
 
 const command = lookupBuiltinSlashCommand("effort");
 
@@ -64,10 +63,7 @@ function harness(options: { reasoning?: boolean; efforts?: readonly Effort[]; ce
 		getAvailableThinkingLevels: () => controls.getAvailableThinkingLevels(),
 		getAvailableEffortSelectors: () => controls.getAvailableEffortSelectors(),
 	} as unknown as AgentSession;
-	// Real settings: the palette applies per-command configuration gates.
-	const tuiRuntime = {
-		ctx: { session, viewSession: session, settings: Settings.isolated({}) },
-	} as unknown as TuiSlashCommandRuntime;
+	const tuiRuntime = { ctx: { session, viewSession: session } } as unknown as TuiSlashCommandRuntime;
 	return {
 		outputs,
 		runtime: {
@@ -91,24 +87,14 @@ async function run(h: Harness, args: string): Promise<void> {
 }
 
 describe("/effort slash command", () => {
-	// Fuzzy matching walks the localized description, so pin the catalogue the
-	// English keywords below were written against.
-	const previousLanguage = currentLanguage();
-	beforeAll(() => {
-		setLanguage("en");
-	});
-	afterAll(() => {
-		setLanguage(previousLanguage);
-	});
-
 	it("is found by thinking and intelligence without registering a thinking alias", async () => {
-		const h = harness();
-		const provider = new CombinedAutocompleteProvider([...buildTuiBuiltinSlashCommands(h.tuiRuntime)], process.cwd());
+		const provider = new CombinedAutocompleteProvider([...BUILTIN_SLASH_COMMANDS], process.cwd());
 		for (const query of ["/thinking", "/intelligence"]) {
 			const suggestions = await provider.getSuggestions([query], 0, query.length);
 			const resolved = suggestions?.items.map(item => lookupBuiltinSlashCommand(item.value)?.name);
 			expect(resolved).toContain("effort");
 		}
+		const h = harness();
 		expect(await executeBuiltinSlashCommand("/thinking high", { ...h.tuiRuntime, draftDetached: true })).toBe(false);
 		expect(h.level()).toBeUndefined();
 	});

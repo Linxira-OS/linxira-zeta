@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { type Api, AuthStorage, type Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { getBundledModels } from "@linxiraos/pi-catalog/models";
-import { modelKind } from "@linxiraos/pi-catalog/types";
-import { TempDir } from "@linxiraos/pi-utils";
+import { type Api, AuthStorage, type Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import { modelKind } from "@oh-my-pi/pi-catalog/types";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import {
 	createSerializedRebuilder,
 	gatewayRoutableModels,
@@ -103,6 +103,37 @@ describe("indexModelsByRequestId (auth-gateway catalog)", () => {
 		expect(gatewayRegistry.getAll().find(model => model.provider === "openai")?.transport).toBeUndefined();
 		const gatewayIndex = indexModelsByRequestId(gatewayRegistry.getAll(), new Set(["anthropic"]));
 		expect(resolveGatewayModel(gatewayModel.id, gatewayIndex)).toBe(gatewayModel);
+	});
+
+	test("a pi-native provider override lists models only through the gateway", async () => {
+		using tempDir = TempDir.createSync("@omp-pi-native-discovery-");
+		const modelsPath = tempDir.join("models.yml");
+		await Bun.write(
+			modelsPath,
+			[
+				"providers:",
+				"  google:",
+				"    baseUrl: http://127.0.0.1:18899",
+				"    apiKey: gateway-token",
+				"    transport: pi-native",
+				"",
+			].join("\n"),
+		);
+		const requests: string[] = [];
+		const registry = new ModelRegistry(await createAuthStorage(), modelsPath, {
+			fetch: async input => {
+				requests.push(String(input));
+				return new Response("{}", { status: 404 });
+			},
+		});
+
+		await registry.refreshProvider("google", "online");
+
+		// The roster comes from the gateway's own catalog route; a provider-shaped
+		// models listing would carry the gateway token to an endpoint that is
+		// not the gateway's. A gateway without the route keeps the bundled roster.
+		expect(requests).toEqual(["http://127.0.0.1:18899/v1/pi/models"]);
+		expect(registry.find("google", "gemini-2.5-flash")?.transport).toBe("pi-native");
 	});
 
 	test("scopes the catalog to providers with credentials", async () => {

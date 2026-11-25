@@ -1,9 +1,6 @@
-import { beforeAll, describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { Message, Model } from "@linxiraos/pi-ai";
-import type { DescribeContext } from "@linxiraos/pi-tui/native/node";
-import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
-import { getEditorTheme, initTheme } from "@linxiraos/pi-tui/theme";
+import { describe, expect, it } from "bun:test";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { Message, Model } from "@oh-my-pi/pi-ai";
 import {
 	AggregationTemporality,
 	type DataPoint,
@@ -12,18 +9,16 @@ import {
 	MeterProvider,
 	PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	ComposerPredictionController,
 	parseComposerPrediction,
 	parseComposerPredictions,
-} from "@linxiraos/zeta/modes/controllers/composer-prediction-controller";
-import type { EphemeralTurnOptions, EphemeralTurnResult } from "@linxiraos/zeta/session/agent-session-types";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-
-beforeAll(async () => {
-	await initTheme(false);
-});
+} from "@oh-my-pi/pi-coding-agent/modes/controllers/composer-prediction-controller";
+import type { EphemeralTurnOptions, EphemeralTurnResult } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { createRoot, effect } from "@oh-my-pi/pi-tui";
+import { Composer } from "../src/ui/composer/composer";
 
 describe("parseComposerPrediction", () => {
 	it("normalizes a reply to the single line the composer shows", () => {
@@ -112,10 +107,7 @@ function harness(options: HarnessOptions = {}) {
 			return promise;
 		},
 	};
-	let renders = 0;
-	// The composer, wired to the controller the way interactive mode wires it.
-	const editor = new CustomEditor(getEditorTheme());
-	editor.setText(options.draft ?? "");
+	const editor = new Composer({ text: options.draft ?? "" });
 	const ctx = {
 		settings: Settings.isolated({
 			"composer.predictions": options.enabled ?? true,
@@ -123,16 +115,20 @@ function harness(options: HarnessOptions = {}) {
 		}),
 		viewSession: session,
 		focusedAgentId: options.focusedAgentId,
-		editor,
-		ui: { requestRender: () => renders++ },
+		composer: editor,
 	} as unknown as ConstructorParameters<typeof ComposerPredictionController>[0];
 	const controller = new ComposerPredictionController(ctx, {
 		deadlineMs: options.deadlineMs,
 		meterProvider: options.meterProvider,
 	});
-	editor.predictions = () => controller.choices;
-	editor.onPredictionAccepted = index => controller.accepted(index);
-	editor.onPredictionShown = () => controller.shown();
+	// The composer's ghost reads `choices` reactively: count the changes it would repaint on.
+	let renders = -1;
+	createRoot(() =>
+		effect(() => {
+			void controller.choices;
+			renders++;
+		}),
+	);
 	const reply = async (index: number, replyText: string) => {
 		const turn = turns[index]!;
 		const assistantMessage = {
@@ -141,6 +137,7 @@ function harness(options: HarnessOptions = {}) {
 			model: MODEL.id,
 			usage: { input: 10, output: 5 },
 			stopReason: "stop",
+			content: [{ type: "text", text: replyText }],
 		} as unknown as EphemeralTurnResult["assistantMessage"];
 		turn.options.onUsage?.(assistantMessage);
 		turn.resolve({ replyText, assistantMessage });
@@ -163,8 +160,14 @@ function harness(options: HarnessOptions = {}) {
 		fail,
 		/** The user replaces the composer draft. */
 		type: (text: string) => editor.setText(text),
-		/** Paint one composer frame. */
-		paint: () => editor.render(80).join("\n"),
+		/** The composer painted the ghost (its first painted frame counts the prediction as shown). */
+		paint: () => controller.shown(),
+		/** The user inserted the alternative at `rank` (Tab or Right). */
+		accept: (rank: number) => {
+			const choice = controller.choices?.[rank];
+			if (choice !== undefined) editor.setText(choice);
+			controller.accepted(rank);
+		},
 		renders: () => renders,
 		usageEntries: () => sessionManager.getEntries().filter(entry => entry.type === "model_usage"),
 		/** A new message lands on the journal and in the live history. */
@@ -250,6 +253,7 @@ describe("ComposerPredictionController", () => {
 				purpose: "composer-prediction",
 				parentId: firstLeafId,
 				usage: { input: 10, output: 5 },
+				completion: { reply: "too late" },
 			}),
 		]);
 	});
@@ -299,6 +303,26 @@ describe("ComposerPredictionController", () => {
 		expect(controller.choices).toEqual(["now run the tests"]);
 	});
 
+	it("keeps the prediction when a row kept out of context lands, but not when a context message does", async () => {
+		const extensionRow = (timestamp: number, excludeFromContext: boolean) =>
+			({
+				role: "custom",
+				customType: "plugin-stats",
+				content: "row",
+				display: true,
+				excludeFromContext,
+				timestamp,
+			}) as AgentMessage;
+		const { controller, messages, reply } = harness();
+		controller.request();
+		messages.push(extensionRow(2, true));
+		await reply(0, "now run the tests");
+		expect(controller.choices).toEqual(["now run the tests"]);
+
+		messages.push(extensionRow(3, false));
+		expect(controller.choices).toBeUndefined();
+	});
+
 	it("drops a reply that lands after cancel or a newer request", async () => {
 		const { controller, turns, reply } = harness();
 		controller.request();
@@ -315,15 +339,6 @@ describe("ComposerPredictionController", () => {
 		expect(controller.choices).toEqual(["latest prediction"]);
 	});
 });
-
-/** A native host that supports every node kind. */
-const NATIVE_CONTEXT: DescribeContext = {
-	cols: 100,
-	reduceMotion: false,
-	dark: true,
-	supports: () => true,
-	feature: () => true,
-};
 
 describe("ComposerPredictionController metrics", () => {
 	/** A test-local meter provider, so this suite never touches the global one. */
@@ -401,7 +416,7 @@ describe("ComposerPredictionController metrics", () => {
 		failed.controller.request();
 		await failed.fail(0, new Error("overloaded"));
 
-		expect(await metrics.counts("zeta.composer.prediction.requests", "zeta.composer.prediction.outcome")).toEqual({
+		expect(await metrics.counts("omp.composer.prediction.requests", "omp.composer.prediction.outcome")).toEqual({
 			offered: 2,
 			skipped: 1,
 			stale: 1,
@@ -410,19 +425,19 @@ describe("ComposerPredictionController metrics", () => {
 			error: 1,
 		});
 		const model = "anthropic/claude-sonnet-4-5";
-		expect(await metrics.histogram("zeta.composer.prediction.duration")).toEqual(
+		expect(await metrics.histogram("omp.composer.prediction.duration")).toEqual(
 			expect.arrayContaining([
 				{
-					"zeta.composer.prediction.outcome": "offered",
-					"zeta.composer.prediction.model": model,
-					"zeta.composer.prediction.choices": 1,
+					"omp.composer.prediction.outcome": "offered",
+					"omp.composer.prediction.model": model,
+					"omp.composer.prediction.choices": 1,
 					count: 2,
 				},
-				{ "zeta.composer.prediction.outcome": "timeout", "zeta.composer.prediction.model": model, count: 1 },
+				{ "omp.composer.prediction.outcome": "timeout", "omp.composer.prediction.model": model, count: 1 },
 			]),
 		);
 		// Nothing was painted, so nothing was shown.
-		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({});
+		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({});
 		await metrics.shutdown();
 	});
 
@@ -436,38 +451,15 @@ describe("ComposerPredictionController metrics", () => {
 		painted.paint();
 		painted.paint();
 
-		// A native host carries the ghost on the editor node and draws it itself.
-		const native = harness({ meterProvider });
-		native.controller.request();
-		await native.reply(0, "now run the tests");
-		native.editor.describe(NATIVE_CONTEXT);
+		// A frame painted after the conversation moved on shows nothing current.
+		const stale = harness({ meterProvider });
+		stale.controller.request();
+		await stale.reply(0, "now run the tests");
+		stale.advance("something else");
+		stale.paint();
 
-		// The editor shows only a strict prefix: a draft that is already the whole prediction has no ghost.
-		const complete = harness({ meterProvider });
-		complete.controller.request();
-		complete.type("now run the tests");
-		await complete.reply(0, "now run the tests");
-		complete.paint();
-
-		// The IME-safe boxed layout keeps the end-of-input row empty, ghost included.
-		const imeSafe = harness({ meterProvider });
-		imeSafe.editor.setBorderStyle("box");
-		imeSafe.editor.focused = true;
-		imeSafe.editor.setUseTerminalCursor(true);
-		imeSafe.editor.setImeSafeCursorLayout(true);
-		imeSafe.controller.request();
-		await imeSafe.reply(0, "now run the tests");
-		expect(imeSafe.paint()).not.toContain("run the tests");
-
-		// An unfocused hardware-cursor row draws no ghost.
-		const unfocused = harness({ meterProvider });
-		unfocused.editor.setUseTerminalCursor(true);
-		unfocused.controller.request();
-		await unfocused.reply(0, "now run the tests");
-		expect(unfocused.paint()).not.toContain("run the tests");
-
-		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({
-			"anthropic/claude-sonnet-4-5": 2,
+		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({
+			"anthropic/claude-sonnet-4-5": 1,
 		});
 		await metrics.shutdown();
 	});
@@ -480,8 +472,8 @@ describe("ComposerPredictionController metrics", () => {
 		tab.controller.request();
 		await tab.reply(0, "now run the tests");
 		tab.paint();
-		tab.editor.handleInput("\t");
-		expect(tab.editor.getText()).toBe("now run the tests");
+		tab.accept(0);
+		expect(tab.editor.text()).toBe("now run the tests");
 		// The submitted message ends the turn; the next request retires the accepted prediction.
 		tab.controller.request();
 
@@ -489,8 +481,8 @@ describe("ComposerPredictionController metrics", () => {
 		right.controller.request();
 		await right.reply(0, "now run the tests");
 		right.paint();
-		right.editor.handleInput("\x1b[C");
-		expect(right.editor.getText()).toBe("now run the tests");
+		right.accept(0);
+		expect(right.editor.text()).toBe("now run the tests");
 		right.controller.request();
 
 		const ignored = harness({ meterProvider });
@@ -504,16 +496,15 @@ describe("ComposerPredictionController metrics", () => {
 		neverShown.controller.request();
 		neverShown.type("deploy");
 		await neverShown.reply(0, "now run the tests");
-		neverShown.paint();
 		neverShown.controller.cancel();
 
 		// Inserted before any frame painted it: outside the shown population, so not accepted either.
 		const unseen = harness({ meterProvider });
 		unseen.controller.request();
 		await unseen.reply(0, "now run the tests");
-		unseen.editor.handleInput("\t");
-		expect(unseen.editor.getText()).toBe("now run the tests");
-		unseen.paint();
+		unseen.accept(0);
+		expect(unseen.editor.text()).toBe("now run the tests");
+		// The draft is the whole prediction now: no ghost to paint.
 		unseen.controller.cancel();
 
 		// Hidden at first, painted once the user clears the draft.
@@ -522,7 +513,7 @@ describe("ComposerPredictionController metrics", () => {
 		shownLater.type("deploy");
 		await shownLater.reply(0, "now run the tests");
 		shownLater.type("");
-		expect(shownLater.paint()).toContain("now run the tests");
+		shownLater.paint();
 		shownLater.controller.cancel();
 
 		const outdated = harness({ meterProvider });
@@ -536,15 +527,15 @@ describe("ComposerPredictionController metrics", () => {
 
 		const model = "anthropic/claude-sonnet-4-5";
 		// Every shown prediction resolves exactly once.
-		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.model")).toEqual({
+		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.model")).toEqual({
 			[model]: 5,
 		});
-		expect(await metrics.counts("zeta.composer.prediction.resolved", "zeta.composer.prediction.result")).toEqual({
+		expect(await metrics.counts("omp.composer.prediction.resolved", "omp.composer.prediction.result")).toEqual({
 			accepted: 2,
 			ignored: 3,
 		});
-		expect(await metrics.histogram("zeta.composer.prediction.accept.delay")).toEqual([
-			{ "zeta.composer.prediction.model": model, "zeta.composer.prediction.choices": 1, count: 2 },
+		expect(await metrics.histogram("omp.composer.prediction.accept.delay")).toEqual([
+			{ "omp.composer.prediction.model": model, "omp.composer.prediction.choices": 1, count: 2 },
 		]);
 		await metrics.shutdown();
 	});
@@ -557,11 +548,8 @@ describe("ComposerPredictionController metrics", () => {
 		swapped.controller.request();
 		await swapped.reply(0, "run the tests\nship it\nshow the diff");
 		swapped.paint();
-		swapped.editor.handleInput("\t");
-		swapped.editor.handleInput("\t");
-		swapped.editor.handleInput("\x1b[B");
-		swapped.editor.handleInput("\r");
-		expect(swapped.editor.getText()).toBe("ship it");
+		swapped.accept(1);
+		expect(swapped.editor.text()).toBe("ship it");
 		swapped.controller.request();
 
 		// The ghost follows the first alternative the draft is a prefix of.
@@ -570,8 +558,8 @@ describe("ComposerPredictionController metrics", () => {
 		await typed.reply(0, "run the tests\nship it");
 		typed.type("sh");
 		typed.paint();
-		typed.editor.handleInput("\t");
-		expect(typed.editor.getText()).toBe("ship it");
+		typed.accept(1);
+		expect(typed.editor.text()).toBe("ship it");
 		typed.controller.cancel();
 
 		const ignored = harness({ alternatives: true, meterProvider });
@@ -580,34 +568,34 @@ describe("ComposerPredictionController metrics", () => {
 		ignored.paint();
 		ignored.controller.cancel();
 
-		expect(await metrics.counts("zeta.composer.prediction.shown", "zeta.composer.prediction.choices")).toEqual({
+		expect(await metrics.counts("omp.composer.prediction.shown", "omp.composer.prediction.choices")).toEqual({
 			"2": 1,
 			"3": 1,
 			"4": 1,
 		});
 		const model = "anthropic/claude-sonnet-4-5";
-		const resolved = await metrics.series("zeta.composer.prediction.resolved");
+		const resolved = await metrics.series("omp.composer.prediction.resolved");
 		expect(resolved).toHaveLength(3);
 		expect(resolved).toEqual(
 			expect.arrayContaining([
 				{
-					"zeta.composer.prediction.result": "accepted",
-					"zeta.composer.prediction.model": model,
-					"zeta.composer.prediction.choices": 3,
-					"zeta.composer.prediction.rank": 1,
+					"omp.composer.prediction.result": "accepted",
+					"omp.composer.prediction.model": model,
+					"omp.composer.prediction.choices": 3,
+					"omp.composer.prediction.rank": 1,
 					value: 1,
 				},
 				{
-					"zeta.composer.prediction.result": "accepted",
-					"zeta.composer.prediction.model": model,
-					"zeta.composer.prediction.choices": 2,
-					"zeta.composer.prediction.rank": 1,
+					"omp.composer.prediction.result": "accepted",
+					"omp.composer.prediction.model": model,
+					"omp.composer.prediction.choices": 2,
+					"omp.composer.prediction.rank": 1,
 					value: 1,
 				},
 				{
-					"zeta.composer.prediction.result": "ignored",
-					"zeta.composer.prediction.model": model,
-					"zeta.composer.prediction.choices": 4,
+					"omp.composer.prediction.result": "ignored",
+					"omp.composer.prediction.model": model,
+					"omp.composer.prediction.choices": 4,
 					value: 1,
 				},
 			]),
