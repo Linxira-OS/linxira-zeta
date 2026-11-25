@@ -3523,8 +3523,10 @@ Automation completion checks (2026-11-15): fixed quick profile passed 3/3; autom
   (+105,575), extension/custom-tool rendering moves to the host pi-tui node API.
 - TUI package is ported and type-checks green (`packages/tui`: 813 files).
   `packages/agent`, `utils`, `browser-relay`, `stats`, `natives` also green.
-- `packages/coding-agent` API migration is in progress; remaining errors are
-  Zeta-only fields/adapters removed by the upstream rewrite (session/xdev,
-  channels, backend attach, lead mode, Studio Host). This entry does **not**
-  claim semantic acceptance, `check:ts` green, push, tag, or release.
+- `packages/coding-agent` API migration is complete enough for `bun run check:ts`
+  to pass (`check:adr` 77, `check:reqs` 151). Local merge into `main` is
+  `8c6a566ad1`; the branch is a fast-forward descendant.
+- Push is pending because the local checkout is a partial clone missing upstream
+  blobs; remote `sync/omp-release/v19.2.0` does not exist yet. This entry does
+  **not** claim remote CI, tag, or release.
 
