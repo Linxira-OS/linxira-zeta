@@ -64,6 +64,22 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "import": "./src/theme/index.ts"
+    },
+    "./driver": {
+      "types": "./src/driver/index.ts",
+      "import": "./src/driver/index.ts"
+    },
+    "./native": {
+      "types": "./src/native/index.ts",
+      "import": "./src/native/index.ts"
+    },
+    "./term": {
+      "types": "./src/term/index.ts",
+      "import": "./src/term/index.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "import": "./src/*.ts"
