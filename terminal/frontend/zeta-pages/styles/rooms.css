@@ -1,0 +1,240 @@
+.rooms-page {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+  padding: 12px;
+}
+
+.room-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.room-sidebar-head,
+.room-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+
+.room-title {
+  margin: 0;
+  font-size: 14px;
+}
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  min-height: 0;
+}
+
+.room-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border, #222);
+  color: inherit;
+  cursor: pointer;
+}
+
+.room-list-item.is-selected {
+  background: var(--selected, rgba(120, 160, 255, 0.14));
+}
+
+.room-list-name {
+  font-weight: 600;
+}
+
+.room-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-unread,
+.room-chip,
+.room-kind {
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10px;
+  border: 1px solid var(--border, #333);
+}
+
+.room-unread {
+  background: var(--accent, #4a7dff);
+  color: #fff;
+  border-color: transparent;
+}
+
+.room-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.room-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #222);
+}
+
+.room-contact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+
+.room-contact-name {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.room-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #777;
+}
+
+.room-status.status-running {
+  background: #3fb950;
+}
+.room-status.status-idle {
+  background: #d29922;
+}
+.room-status.status-parked {
+  background: #8b949e;
+}
+.room-status.status-aborted {
+  background: #f85149;
+}
+.room-status.status-offline {
+  background: #555;
+}
+
+.room-log {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.room-event header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-event p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+}
+
+.room-event.actor-user {
+  border-left: 2px solid var(--accent, #4a7dff);
+  padding-left: 8px;
+}
+.room-event.actor-system {
+  opacity: 0.75;
+}
+
+.room-seq,
+.room-reply-chip,
+.room-mentions {
+  font-size: 11px;
+  color: var(--muted, #8b949e);
+}
+
+.room-composer {
+  border-top: 1px solid var(--border, #2a2a2a);
+  padding: 8px 12px;
+}
+
+.room-composer textarea {
+  width: 100%;
+  resize: vertical;
+  background: var(--input, #151515);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+
+.room-composer-actions,
+.room-form,
+.room-chat-actions,
+.room-modes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.room-composer-actions {
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.room-form {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #222);
+}
+
+.room-form input,
+.room-form select {
+  background: var(--input, #151515);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  padding: 5px 7px;
+  min-width: 0;
+}
+
+.room-reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted, #8b949e);
+  padding-bottom: 4px;
+}
+
+.room-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}

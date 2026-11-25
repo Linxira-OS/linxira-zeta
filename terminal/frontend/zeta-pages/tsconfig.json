@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"jsx": "react-jsx",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"strict": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"noEmit": true,
+		"forceConsistentCasingInFileNames": true,
+		"paths": {
+			"@linxiraos/studio-contract": ["./contract/index.ts"]
+		},
+		"types": ["vite/client", "bun"]
+	},
+	"include": ["./**/*.ts", "./**/*.tsx"],
+	"exclude": ["./tests"]
+}
