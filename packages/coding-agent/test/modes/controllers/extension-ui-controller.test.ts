@@ -178,6 +178,8 @@ describe("ExtensionUiController Ask dialog input", () => {
 		expect(harness.getFocused()).toBeInstanceOf(HookEditorComponent);
 		await Promise.resolve();
 		expect(harness.getFocused()).toBeInstanceOf(AskDialogComponent);
+		// The lone multi-select stays open on Other; Enter on an option row submits it.
+		harness.handleInput("\x1b[A");
 		harness.handleInput("\r");
 		expect(await pending).toMatchObject({
 			kind: "submit",
