@@ -15,7 +15,7 @@ import type { Env } from "./mux/detect";
 import type { TerminalNotification } from "./notify";
 
 /** Application name shown as the notification source. */
-const APP_NAME = "omp";
+const APP_NAME = "Zeta";
 const EXPIRE_MS = "5000";
 
 /** A delivery binary that fans a notification out to D-Bus. */
