@@ -23,6 +23,10 @@ type WaveUIDataTypes = {
         blockid?: string;
         writebackupfilename?: string;
         inputfilename?: string;
+        // ACP panel permission requests. requestid is the JSON-RPC request id
+        // used by AgentService.PanelRespondPermission.
+        requestid?: string;
+        permissionoptions?: PermissionOption[];
     };
 
     toolprogress: {

@@ -4,7 +4,13 @@ import { readLines } from "@linxiraos/pi-utils";
  * Claims Bun's singleton stdin reader immediately and exposes a separately readable stream.
  * RPC startup uses this before extension discovery so in-process modules cannot steal protocol input.
  */
+let claimedInput: ReadableStream<Uint8Array> | undefined;
+
 export function claimRpcInput(): ReadableStream<Uint8Array> {
+	// Bun exposes one stdin stream per process; a protocol host may be started
+	// more than once in-process (tests, embedded launchers). Reuse the claim
+	// instead of locking the singleton twice.
+	if (claimedInput) return claimedInput;
 	const reader = Bun.stdin.stream().getReader();
 	let released = false;
 	const release = () => {
@@ -14,7 +20,7 @@ export function claimRpcInput(): ReadableStream<Uint8Array> {
 			reader.releaseLock();
 		} catch {}
 	};
-	return new ReadableStream({
+	claimedInput = new ReadableStream({
 		async pull(controller) {
 			try {
 				const result = await reader.read();
@@ -37,6 +43,7 @@ export function claimRpcInput(): ReadableStream<Uint8Array> {
 			}
 		},
 	});
+	return claimedInput;
 }
 
 /**

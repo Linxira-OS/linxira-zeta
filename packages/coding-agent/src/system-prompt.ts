@@ -30,6 +30,7 @@ import type { EvalPreludeDefinition } from "./eval/preludes";
 import { SkillDescriptionCatalog } from "./extensibility/skill-descriptions";
 import { loadSkills, type Skill } from "./extensibility/skills";
 import { InternalUrlRouter } from "./internal-urls/router";
+import { quotePosixArgument } from "./utils/shell-quote";
 import type { SchemeHost } from "./internal-urls/types";
 import activeRepoContextTemplate from "./prompts/system/active-repo-context.md" with { type: "text" };
 import customSystemPromptTemplate from "./prompts/system/custom-system-prompt.md" with { type: "text" };
@@ -1163,7 +1164,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		hasDynamicXdevTools: xdevTools.some(mounted => mounted.dynamic === true),
 		xdevDocs,
 		autoQaEnabled,
-		ovnfs,
+		ovnfs: ovnfs && quotePosixArgument(ovnfs),
 		writeTransportOnly,
 		subagent,
 	};

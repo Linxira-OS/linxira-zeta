@@ -1,4 +1,3 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
 import { setImmediate } from "node:timers/promises";

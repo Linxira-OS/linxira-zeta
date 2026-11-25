@@ -45,6 +45,8 @@ var WaveEventDataTypes = map[string]reflect.Type{
 	wps.Event_AgentStatus:         reflect.TypeOf((*acp.StatusData)(nil)),
 	wps.Event_AgentPermission:     reflect.TypeOf((*acp.PermissionRequestData)(nil)),
 	wps.Event_AgentConfig:         reflect.TypeOf((*acp.ConfigData)(nil)),
+	wps.Event_AgentUpdate:         reflect.TypeOf((*acp.UpdateData)(nil)),
+	wps.Event_AgentPermissionDone: reflect.TypeOf((*acp.PermissionResolutionData)(nil)),
 }
 
 func getWaveEventDataTSType(eventName string, tsTypesMap map[reflect.Type]string) string {

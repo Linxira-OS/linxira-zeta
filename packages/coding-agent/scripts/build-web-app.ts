@@ -20,6 +20,9 @@ const repoRoot = path.join(packageDir, "..", "..");
 const webAppDir = path.join(repoRoot, "web-app");
 const webAppBuild = path.join(webAppDir, "dist");
 const stagedDir = path.join(packageDir, "dist", "web-app");
+const zetaPagesConfig = path.join(repoRoot, "terminal", "frontend", "zeta-pages", "vite.config.ts");
+const zetaPagesBuild = path.join(repoRoot, "terminal", "dist", "zeta-pages");
+const zetaPagesStaged = path.join(packageDir, "dist", "zeta-pages");
 const lockfile = path.join(webAppDir, "package-lock.json");
 const installedLockfile = path.join(webAppDir, "node_modules", ".package-lock.json");
 
@@ -157,6 +160,37 @@ async function main(): Promise<void> {
 	console.log(
 		`Staged Studio renderer: ${path.relative(repoRoot, stagedDir)} ` +
 			`(${files} files, ${(bytes / 1024).toFixed(1)} KiB)`,
+	);
+
+	// Zeta-owned Team/Rooms pages are served under /team, /rooms and
+	// /zeta-pages/* while web-app keeps every other route.
+	if (!(await exists(zetaPagesConfig))) {
+		console.log("zeta-pages source is absent; skipping the Team/Rooms bundle");
+		return;
+	}
+	await run(
+		[
+			process.execPath,
+			path.join(repoRoot, "node_modules", "vite", "bin", "vite.js"),
+			"build",
+			"--config",
+			zetaPagesConfig,
+		],
+		repoRoot,
+	);
+	const pagesCompression = await precompressAssets(zetaPagesBuild);
+	console.log(
+		`Precompressed zeta-pages assets: ${pagesCompression.files} files, ` +
+			`${(pagesCompression.rawBytes / 1024).toFixed(1)} KiB raw`,
+	);
+	const pagesEntry = path.join(zetaPagesBuild, "index.html");
+	if (!(await exists(pagesEntry))) throw new Error(`zeta-pages build finished without ${pagesEntry}`);
+	await fs.rm(zetaPagesStaged, { recursive: true, force: true });
+	await fs.cp(zetaPagesBuild, zetaPagesStaged, { recursive: true });
+	const pagesCount = await countFiles(zetaPagesStaged);
+	console.log(
+		`Staged zeta-pages: ${path.relative(repoRoot, zetaPagesStaged)} ` +
+			`(${pagesCount.files} files, ${(pagesCount.bytes / 1024).toFixed(1)} KiB)`,
 	);
 }
 

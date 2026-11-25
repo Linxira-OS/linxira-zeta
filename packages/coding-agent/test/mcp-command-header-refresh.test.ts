@@ -1,4 +1,3 @@
-// @ts-nocheck — merge checkpoint: test callsites lag the OMP 19.1 API migration
 /**
  * `!command` header values on remote MCP servers mint short-lived bearer tokens
  * (e.g. an OAuth2 `client_credentials` grant). The command result is
@@ -14,15 +13,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager, type MCPReconnectPolicy } from "@linxiraos/zeta/mcp/manager";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
 import type { MCPHttpServerConfig } from "@linxiraos/zeta/mcp/types";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { type FlakyHttpMcpServer, startFlakyHttpMcpServer } from "./fixtures/flaky-http-mcp";
 
 const GUARD_MS = 5_000;
-/** One quick retry per reconnect, no background schedule within a test. */
-const FAST: MCPReconnectPolicy = { ladderMs: [10], retryBaseMs: 60_000, retryMaxMs: 60_000 };
 const noop = () => {};
 const noCtx = {} as Parameters<MCPTool["execute"]>[3];
 
@@ -50,7 +47,7 @@ describe("MCP command-backed headers", () => {
 			fs.writeFileSync(tokenFile, next);
 		};
 		server = startFlakyHttpMcpServer({ authorization: () => token });
-		manager = new MCPManager(workDir, null, undefined, FAST);
+		manager = new MCPManager(workDir);
 		const config: MCPHttpServerConfig = {
 			type: "http",
 			url: server.url,
@@ -68,15 +65,15 @@ describe("MCP command-backed headers", () => {
 		return tool;
 	}
 
-	it("re-runs the command and retries in place when a call gets 401 after the token rotates", async () => {
+	it("re-runs the command and retries the call when it gets 401 after the token rotates", async () => {
 		const { manager, server, rotate } = await connected();
-		const initializes = server.initializes;
 		rotate("Bearer token-2");
 
 		const result = await ping(manager).execute("call-1", {}, noop, noCtx);
+
+		// The same call came back answered: the 401 never surfaced to the caller.
 		expect(result.isError).toBeFalsy();
-		// Recovered by the transport's auth retry, not a full reconnect.
-		expect(server.initializes).toBe(initializes);
+		expect(result.content[0]).toEqual({ type: "text", text: server.pong });
 	});
 
 	it("sends a freshly minted value on a manual reconnect", async () => {

@@ -621,7 +621,7 @@ export class ModelControls {
 	 */
 	#reapplyThinkingLevel(fallback?: ThinkingLevel): void {
 		this.setThinkingLevel(
-			this.#autoThinking ? AUTO_THINKING : automaticThinkingLevel(this.#model, this.#thinkingLevel ?? fallback),
+			this.#autoThinking ? AUTO_THINKING : automaticThinkingLevel(this.#model, fallback ?? this.#thinkingLevel),
 		);
 	}
 

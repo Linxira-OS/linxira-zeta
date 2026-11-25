@@ -191,6 +191,13 @@ type ConfigData struct {
 	AgentInfo         any    `json:"agentinfo,omitempty"`
 }
 
+// UpdateData is published as the agent:update event for the process-wide AI
+// panel session. It carries one raw ACP session/update notification.
+type UpdateData struct {
+	SessionId string `json:"sessionid,omitempty"`
+	Update    any    `json:"update"`
+}
+
 // StreamItem is one line in the agent blockfile stream. Update is either a
 // verbatim ACP SessionUpdate (for kind values matching sessionUpdate) or one
 // of the synthetic payloads above (agent_status, agent_config,

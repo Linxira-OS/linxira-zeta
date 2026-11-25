@@ -37,6 +37,8 @@ const (
 	Event_AgentStatus         = "agent:status"         // type: *acp.StatusData
 	Event_AgentPermission     = "agent:permission"     // type: *acp.PermissionRequestData
 	Event_AgentConfig         = "agent:config"         // type: *acp.ConfigData
+	Event_AgentUpdate         = "agent:update"         // type: *acp.UpdateData
+	Event_AgentPermissionDone = "agent:permissiondone" // type: *acp.PermissionResolutionData
 )
 
 var AllEvents []string = []string{
@@ -62,6 +64,8 @@ var AllEvents []string = []string{
 	Event_AgentStatus,
 	Event_AgentPermission,
 	Event_AgentConfig,
+	Event_AgentUpdate,
+	Event_AgentPermissionDone,
 }
 
 type WaveEvent struct {

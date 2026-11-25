@@ -4,6 +4,7 @@
  * released on exit: Windows uses named mutexes, Linux an open-file-description
  * lock on `${filePath}.lock`, and other Unix platforms `flock(2)` on it.
  */
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import { FileLock as NativeFileLock } from "@linxiraos/pi-natives";
@@ -34,6 +35,9 @@ function getLockPath(filePath: string): string {
 }
 
 function tryAcquireLock(lockPath: string): NativeFileLock | null {
+	// A store may not have created its directory yet (a fresh auth dir, a temp
+	// fixture); the native lock creates the file, not the parent.
+	fs.mkdirSync(path.dirname(lockPath), { recursive: true });
 	const lock = NativeFileLock.tryAcquire(lockPath);
 	if (lock.acquired) return lock;
 	lock.release();

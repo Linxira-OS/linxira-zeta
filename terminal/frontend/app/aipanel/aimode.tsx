@@ -1,25 +1,22 @@
-// Copyright 2025, Command Line Inc.
+// Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Tooltip } from "@/app/element/tooltip";
-import { atoms, getSettingsKeyAtom } from "@/app/store/global";
-import { RpcApi } from "@/app/store/wshclientapi";
-import { TabRpcClient } from "@/app/store/wshrpcutil";
-import { cn, fireAndForget, makeIconClass } from "@/util/util";
-import { t, useI18n } from "../../i18n";
-import { useAtomValue } from "jotai";
-import { memo, useRef, useState } from "react";
-import { getFilteredAIModeConfigs, getModeDisplayName } from "./ai-utils";
+import { AgentService } from "@/app/store/services";
+import { waveEventSubscribeSingle } from "@/app/store/wps";
+import { cn, fireAndForget } from "@/util/util";
+import { useI18n } from "../../i18n";
+import { memo, useEffect, useRef, useState } from "react";
 import { WaveAIModel } from "./waveai-model";
 
-interface AIModeMenuItemProps {
-    config: AIModeConfigWithMode;
-    isSelected: boolean;
-    isDisabled: boolean;
-    isPremiumDisabled: boolean;
-    onClick: () => void;
-    isFirst?: boolean;
-    isLast?: boolean;
+// Keep in sync with agentservice.PanelEventScope.
+const PanelEventScope = "agent:panel";
+
+interface CatalogModel {
+    provider: string;
+    id: string;
+    selector: string;
+    name: string;
+    reasoning?: boolean;
 }
 
 const AIModeMenuItem = memo(({ config, isSelected, isDisabled, isPremiumDisabled, onClick, isFirst, isLast }: AIModeMenuItemProps) => {
@@ -109,29 +106,18 @@ function computeCompatibleSections(
     if (incompatibleConfigs.length > 0) {
         sections.push({ sectionName: t("ai.sectionIncompatible"), configs: incompatibleConfigs, isIncompatible: true });
     }
-
-    return sections;
+    return parsed.models.map(toCatalogModel).filter((model): model is CatalogModel => model != null);
 }
 
-function computeWaveCloudSections(
-    waveProviderConfigs: AIModeConfigWithMode[],
-    otherProviderConfigs: AIModeConfigWithMode[],
-    telemetryEnabled: boolean
-): ConfigSection[] {
-    const sections: ConfigSection[] = [];
-
-    if (waveProviderConfigs.length > 0) {
-        sections.push({
-            sectionName: t("ai.sectionWaveCloud"),
-            configs: waveProviderConfigs,
-            noTelemetry: !telemetryEnabled,
-        });
+function currentModelFromConfig(config: ConfigData | undefined): string | null {
+    const options: unknown = config?.configoptions;
+    if (!Array.isArray(options)) {
+        return null;
     }
     if (otherProviderConfigs.length > 0) {
         sections.push({ sectionName: t("ai.sectionCustom"), configs: otherProviderConfigs });
     }
-
-    return sections;
+    return null;
 }
 
 interface AIModeDropdownProps {
@@ -141,46 +127,67 @@ interface AIModeDropdownProps {
 export const AIModeDropdown = memo(({ compatibilityMode = false }: AIModeDropdownProps) => {
     const { t } = useI18n();
     const model = WaveAIModel.getInstance();
-    const currentMode = useAtomValue(model.currentAIMode);
-    const aiModeConfigs = useAtomValue(model.aiModeConfigs);
-    const waveaiModeConfigs = useAtomValue(atoms.waveaiModeConfigAtom);
-    const widgetContextEnabled = useAtomValue(model.widgetAccessAtom);
-    const hasPremium = useAtomValue(model.hasPremiumAtom);
-    const showCloudModes = useAtomValue(getSettingsKeyAtom("waveai:showcloudmodes"));
-    const telemetryEnabled = useAtomValue(getSettingsKeyAtom("telemetry:enabled")) ?? false;
+    const [models, setModels] = useState<CatalogModel[]>([]);
+    const [currentModel, setCurrentModel] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const { waveProviderConfigs, otherProviderConfigs } = getFilteredAIModeConfigs(
-        aiModeConfigs,
-        showCloudModes,
-        model.inBuilder,
-        hasPremium,
-        currentMode
-    );
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([AgentService.ListModels(), AgentService.PanelConfig()])
+            .then(([raw, config]) => {
+                if (cancelled) {
+                    return;
+                }
+                setModels(parseCatalog(raw));
+                setCurrentModel(currentModelFromConfig(config));
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : String(err));
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-    const sections: ConfigSection[] = compatibilityMode
-        ? computeCompatibleSections(currentMode, aiModeConfigs, waveProviderConfigs, otherProviderConfigs)
-        : computeWaveCloudSections(waveProviderConfigs, otherProviderConfigs, telemetryEnabled);
+    useEffect(() => {
+        return waveEventSubscribeSingle({
+            eventType: "agent:config",
+            scope: PanelEventScope,
+            handler: (event) => {
+                const value = currentModelFromConfig(event.data);
+                if (value) {
+                    setCurrentModel(value);
+                }
+            },
+        });
+    }, []);
 
-    const showSectionHeaders = compatibilityMode || sections.length > 1;
+    const displayModel = models.find((item) => item.selector === currentModel);
+    const displayName = displayModel?.name ?? currentModel ?? t("ai.modelUnknown");
 
-    const handleSelect = (mode: string) => {
-        const config = aiModeConfigs[mode];
-        if (!config) return;
-        if (!hasPremium && config["waveai:premium"]) {
-            return;
-        }
-        model.setAIMode(mode);
+    const handleSelect = (selector: string) => {
+        setCurrentModel(selector);
         setIsOpen(false);
+        setError(null);
+        fireAndForget(async () => {
+            try {
+                await AgentService.PanelStart("");
+                await AgentService.PanelSetModel(selector);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : String(err));
+            }
+        });
     };
-
-    const displayConfig = aiModeConfigs[currentMode];
-    const displayName = displayConfig ? getModeDisplayName(displayConfig) : `Invalid (${currentMode})`;
-    const displayIcon = displayConfig ? displayConfig["display:icon"] || "sparkles" : "question";
-    const resolvedConfig = waveaiModeConfigs[currentMode];
-    const hasToolsSupport = resolvedConfig && resolvedConfig["ai:capabilities"]?.includes("tools");
-    const showNoToolsWarning = widgetContextEnabled && resolvedConfig && !hasToolsSupport;
 
     const handleNewChatClick = () => {
         model.clearChat();
@@ -189,27 +196,8 @@ export const AIModeDropdown = memo(({ compatibilityMode = false }: AIModeDropdow
 
     const handleConfigureClick = () => {
         fireAndForget(async () => {
-            RpcApi.RecordTEventCommand(
-                TabRpcClient,
-                {
-                    event: "action:other",
-                    props: {
-                        "action:type": "waveai:configuremodes:contextmenu",
-                    },
-                },
-                { noresponse: true }
-            );
             await model.openWaveAIConfig();
             setIsOpen(false);
-        });
-    };
-
-    const handleEnableTelemetry = () => {
-        fireAndForget(async () => {
-            await RpcApi.WaveAIEnableTelemetryCommand(TabRpcClient);
-            setTimeout(() => {
-                model.focusInput();
-            }, 100);
         });
     };
 
@@ -221,104 +209,66 @@ export const AIModeDropdown = memo(({ compatibilityMode = false }: AIModeDropdow
                     "group flex items-center gap-1.5 px-2 py-1 text-xs text-gray-300 hover:text-white rounded transition-colors cursor-pointer border border-gray-600/50",
                     isOpen ? "bg-zinc-700" : "bg-zinc-800/50 hover:bg-zinc-700"
                 )}
-                title={t("ai.aiModeTitle", { name: displayName })}
+                title={t("ai.modelPickerTitle", { name: displayName })}
             >
-                <i className={cn(makeIconClass(displayIcon, false), "text-[10px]")}></i>
-                <span className={`text-[11px]`}>{displayName}</span>
+                <i className="fa fa-sparkles text-[10px]"></i>
+                <span className="text-[11px]">{displayName}</span>
                 <i className="fa fa-chevron-down text-[8px]"></i>
             </button>
-
-            {showNoToolsWarning && (
-                <Tooltip
-                    content={
-                        <div className="max-w-xs">
-                            {t("ai.noToolsWarning")}
-                        </div>
-                    }
-                    placement="bottom"
-                >
-                    <div className="flex items-center gap-1 text-[10px] text-yellow-600 mt-1 ml-1 cursor-default">
-                        <i className="fa fa-triangle-exclamation"></i>
-                        <span>{t("ai.noToolsSupport")}</span>
-                    </div>
-                </Tooltip>
-            )}
 
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute top-full left-0 mt-1 bg-zinc-800 border border-zinc-600 rounded shadow-lg z-50 min-w-[280px]">
-                        {sections.map((section, sectionIndex) => {
-                            const isFirstSection = sectionIndex === 0;
-                            const isLastSection = sectionIndex === sections.length - 1;
-
-                            return (
-                                <div key={section.sectionName}>
-                                    {!isFirstSection && <div className="border-t border-gray-600 my-2" />}
-                                    {showSectionHeaders && (
-                                        <>
-                                            <div
-                                                className={cn(
-                                                    "pb-1 text-center text-[10px] text-gray-400 uppercase tracking-wide",
-                                                    isFirstSection ? "pt-2" : "pt-0"
-                                                )}
-                                            >
-                                                {section.sectionName}
-                                            </div>
-                                            {section.isIncompatible && (
-                                                <div className="text-center text-[11px] text-red-300 pb-1">
-                                                    {t("ai.startNewChatToSwitch")}
-                                                </div>
+                        <div className="px-3 pt-2 pb-1 text-[10px] text-gray-400 uppercase tracking-wide">
+                            {t("ai.selectModel")}
+                        </div>
+                        <div className="max-h-80 overflow-y-auto">
+                            {loading && <div className="px-3 py-2 text-sm text-gray-400">{t("ai.modelsLoading")}</div>}
+                            {!loading && error && <div className="px-3 py-2 text-sm text-red-300">{error}</div>}
+                            {!loading && !error && models.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-400">{t("ai.modelsEmpty")}</div>
+                            )}
+                            {!loading &&
+                                models.map((item) => (
+                                    <button
+                                        key={item.selector}
+                                        onClick={() => handleSelect(item.selector)}
+                                        className={cn(
+                                            "w-full flex items-center gap-2 px-3 py-1.5 text-left cursor-pointer transition-colors",
+                                            item.selector === currentModel
+                                                ? "bg-zinc-700 text-white"
+                                                : "text-gray-300 hover:bg-zinc-700"
+                                        )}
+                                    >
+                                        <i
+                                            className={cn(
+                                                "fa text-[10px] w-3",
+                                                item.selector === currentModel ? "fa-check" : "fa-circle invisible"
                                             )}
-                                            {section.noTelemetry && (
-                                                <button
-                                                    onClick={handleEnableTelemetry}
-                                                    className="text-center text-[11px] text-green-300 hover:text-green-200 pb-1 cursor-pointer transition-colors w-full"
-                                                >
-                                                    {t("ai.enableTelemetryToUnlock")}
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    {section.configs.map((config, index) => {
-                                        const isFirst = index === 0 && isFirstSection && !showSectionHeaders;
-                                        const isLast = index === section.configs.length - 1 && isLastSection;
-                                        const isPremiumDisabled = !hasPremium && config["waveai:premium"];
-                                        const isIncompatibleDisabled = section.isIncompatible || false;
-                                        const isTelemetryDisabled = section.noTelemetry || false;
-                                        const isDisabled =
-                                            isPremiumDisabled || isIncompatibleDisabled || isTelemetryDisabled;
-                                        const isSelected = currentMode === config.mode;
-                                        return (
-                                            <AIModeMenuItem
-                                                key={config.mode}
-                                                config={config}
-                                                isSelected={isSelected}
-                                                isDisabled={isDisabled}
-                                                isPremiumDisabled={isPremiumDisabled}
-                                                onClick={() => handleSelect(config.mode)}
-                                                isFirst={isFirst}
-                                                isLast={isLast}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
+                                        ></i>
+                                        <span className="text-sm truncate">{item.name}</span>
+                                        {item.reasoning && (
+                                            <i className="fa fa-brain text-[10px] text-gray-500" title={t("settings.modelsReasoning")}></i>
+                                        )}
+                                        <span className="ml-auto text-[10px] text-gray-500">{item.provider}</span>
+                                    </button>
+                                ))}
+                        </div>
                         <div className="border-t border-gray-600 my-1" />
                         <button
                             onClick={handleNewChatClick}
                             className="w-full flex items-center gap-2 px-3 pt-1 pb-1 text-gray-300 hover:bg-zinc-700 cursor-pointer transition-colors text-left"
                         >
-                            <i className={makeIconClass("plus", false)}></i>
+                            <i className="fa fa-plus"></i>
                             <span className="text-sm">{t("ai.newChat")}</span>
                         </button>
                         <button
                             onClick={handleConfigureClick}
                             className="w-full flex items-center gap-2 px-3 pt-1 pb-2 text-gray-300 hover:bg-zinc-700 cursor-pointer transition-colors text-left"
                         >
-                            <i className={makeIconClass("gear", false)}></i>
-                            <span className="text-sm">{t("ai.configureModes")}</span>
+                            <i className="fa fa-gear"></i>
+                            <span className="text-sm">{t("ai.configureModels")}</span>
                         </button>
                     </div>
                 </>
